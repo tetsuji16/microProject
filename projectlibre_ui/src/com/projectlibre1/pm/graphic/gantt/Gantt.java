@@ -55,6 +55,7 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.gantt;
 
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -63,6 +64,7 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.List;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -70,6 +72,8 @@ import javax.swing.InputMap;
 import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 
+import com.projectlibre1.graphic.configuration.BarStyles;
+import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
 import com.projectlibre1.pm.graphic.gantt.link_routing.DefaultGanttLinkRouting;
 import com.projectlibre1.pm.graphic.graph.Graph;
 import com.projectlibre1.pm.graphic.graph.GraphParams;
@@ -95,14 +99,19 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 	private static final long serialVersionUID = -1806070019043393474L;
 	private boolean progressLineEnabled = false;
+	private FxGanttChart fxGanttChart;
 	public Gantt(Project project,String viewName) {
 		this(new GanttModel(project,viewName),project);
 	}
 	protected Gantt(GanttModel model, Project project) {
 		super(model,project);
+		setLayout(new BorderLayout());
+		fxGanttChart = new FxGanttChart(this);
+		add(fxGanttChart, BorderLayout.CENTER);
 		this.setToolTipText(Messages.getString("Text.rightClickForOptions"));
 		setFocusable(true);
 		installKeyboardActions();
+		fxGanttChart.setProgressLineEnabled(progressLineEnabled);
 
 	}
 
@@ -111,6 +120,10 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
     	if (c!= null) {
     		c.removeTimeScaleListener(this);
         	c.removeTimeScaleListener((GanttModel)model);
+    	}
+    	if (fxGanttChart != null) {
+    		fxGanttChart.cleanUp();
+    		fxGanttChart = null;
     	}
     	super.cleanUp();
 	}
@@ -135,9 +148,15 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
         	modelCoord.removeTimeScaleListener(this);
 		coord.addTimeScaleListener(this);
 		((GanttModel)model).setCoord(coord);
+		if (fxGanttChart != null) {
+			fxGanttChart.setCoord(coord);
+		}
      }
  	public void timeScaleChanged(TimeScaleEvent e) {
  		updateSize();
+		if (fxGanttChart != null) {
+			fxGanttChart.requestRedraw();
+		}
 // 		Component p;
 // 		if ((p=getParent()) instanceof JViewport){
 // 			//JViewport vp=(JViewport)p;
@@ -163,6 +182,9 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 	public void setRowHeight(int rowHeight){
 		((GanttModel)model).setRowHeight(rowHeight);
+		if (fxGanttChart != null) {
+			fxGanttChart.setRowHeight(rowHeight);
+		}
 	}
 //	public int getColumnHeaderHeight() {
 //		return ((GanttModel)model).getColumnHeaderHeight();
@@ -182,6 +204,9 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 	public void setRouting(LinkRouting routing) {
 		this.routing=routing;
+		if (fxGanttChart != null) {
+			fxGanttChart.setRouting(routing);
+		}
 	}
 
 	public boolean isProgressLineEnabled() {
@@ -191,6 +216,10 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	public void setProgressLineEnabled(boolean progressLineEnabled) {
 		this.progressLineEnabled = progressLineEnabled;
 		repaint();
+		if (fxGanttChart != null) {
+			fxGanttChart.setProgressLineEnabled(progressLineEnabled);
+			fxGanttChart.requestRedraw();
+		}
 	}
 
 	private void installKeyboardActions() {
@@ -238,6 +267,10 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		}
 
 		setPreferredSize(new Dimension((int)Math.ceil(getCoord().getWidth()),getPreferredSize().height));
+		if (fxGanttChart != null) {
+			fxGanttChart.setPreferredSize(getPreferredSize());
+			fxGanttChart.requestRedraw();
+		}
 
 		revalidate();
 	}
@@ -298,6 +331,30 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	public boolean isSupportLeftAndRightParts(){return false;}
 	public void setSupportLeftAndRightParts(boolean supports){}
 	public GraphParams createSafePrintCopy(){return this;}
+
+	@Override
+	public void setCache(NodeModelCache cache) {
+		super.setCache(cache);
+		if (fxGanttChart != null) {
+			fxGanttChart.setCache(cache);
+		}
+	}
+
+	@Override
+	public void setBarStyles(BarStyles barStyles) {
+		super.setBarStyles(barStyles);
+		if (fxGanttChart != null) {
+			fxGanttChart.setBarStyles(barStyles);
+		}
+	}
+
+	@Override
+	public void update(List nodes) {
+		super.update(nodes);
+		if (fxGanttChart != null) {
+			fxGanttChart.requestRedraw();
+		}
+	}
 
 
 }
