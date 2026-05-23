@@ -106,7 +106,7 @@ public class FxGanttChart extends JFXPanel implements ScaledComponent, TimeScale
         initFX();
     }
 
-    protected FxGanttChart(GanttModel model, Project project) {
+    public FxGanttChart(GanttModel model, Project project) {
         this.project = project;
         this.model = model;
         this.rowHeight = GraphicConfiguration.getInstance().getRowHeight();
@@ -125,6 +125,7 @@ public class FxGanttChart extends JFXPanel implements ScaledComponent, TimeScale
             // Listen to canvas size changes to auto-redraw
             canvas.widthProperty().addListener((obs, old, nv) -> requestRedraw());
             canvas.heightProperty().addListener((obs, old, nv) -> requestRedraw());
+            requestRedraw();
         });
     }
 
