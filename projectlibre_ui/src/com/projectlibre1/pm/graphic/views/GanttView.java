@@ -70,7 +70,7 @@ import com.projectlibre1.help.HelpUtil;
 import com.projectlibre1.menu.MenuActionConstants;
 import com.projectlibre1.menu.MenuManager;
 import com.projectlibre1.pm.graphic.frames.DocumentFrame;
-import com.projectlibre1.pm.graphic.gantt.Gantt;
+import com.projectlibre1.pm.graphic.gantt.fx.FxGanttChart;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.projectlibre1.pm.graphic.model.cache.ReferenceNodeModelCache;
@@ -111,7 +111,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	 */
 	private static final long serialVersionUID = 514828655690086836L;
 	protected SpreadSheet spreadSheet;
-	protected Gantt gantt;
+	protected FxGanttChart gantt;
     protected SortedSet baseLines=new TreeSet();
 
     protected ScaledScrollPane ganttScrollPane;
@@ -171,9 +171,9 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 				if (dl.equals(olddl)) return;
 				olddl=dl;
 //				Dimension dr=rightScrollPane.getViewport().getViewSize();
-//				((Gantt)rightScrollPane.getViewport().getView()).setPreferredSize(new Dimension((int)dr.getWidth(),(int)dl.getHeight()));
+//				((FxGanttChart)rightScrollPane.getViewport().getView()).setPreferredSize(new Dimension((int)dr.getWidth(),(int)dl.getHeight()));
 //				rightScrollPane.getViewport().revalidate();
-				((Gantt)rightScrollPane.getViewport().getView()).setPreferredSize(new Dimension(rightScrollPane.getViewport().getViewSize().width,dl.height));
+				((FxGanttChart)rightScrollPane.getViewport().getView()).setPreferredSize(new Dimension(rightScrollPane.getViewport().getViewSize().width,dl.height));
 			}
 		});
 
@@ -247,7 +247,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		return SpreadSheetUtils.makeSpreadsheetScrollPane(spreadSheet);
    }
    protected JScrollPane createRightScrollPane() {
-		gantt=new Gantt(project,"Gantt");
+		gantt=new FxGanttChart(project,"Gantt");
 		gantt.setCache(cache);
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category,"standard"));
 		ganttScrollPane=new ScaledScrollPane(gantt,coord,documentFrame,spreadSheet.getRowHeight());
@@ -363,7 +363,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 
 
-	public Gantt getGantt() {
+	public FxGanttChart getGantt() {
 		return gantt;
 	}
 	public boolean isPrintable() {

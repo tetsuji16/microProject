@@ -178,7 +178,7 @@
 
  					<manifest>
  						<attribute name="Main-Class" value="com.projectlibre1.main.Main"/>
-						<attribute name="Class-Path" value="lib/projectlibre-contrib.jar lib/projectlibre-script.jar lib/projectlibre-reports.jar lib/flatlaf-3.5.4.jar"/>
+						<attribute name="Class-Path" value="lib/projectlibre-contrib.jar lib/projectlibre-script.jar lib/projectlibre-reports.jar lib/flatlaf-3.5.4.jar lib/javafx/javafx-base-21.0.6-win.jar lib/javafx/javafx-controls-21.0.6-win.jar lib/javafx/javafx-graphics-21.0.6-win.jar lib/javafx/javafx-swing-21.0.6-win.jar"/>
  					</manifest>
 
  					<metainf dir="license">
@@ -211,7 +211,7 @@
 
 
 
-	<target name="dist" depends="lib">
+ 	<target name="dist" depends="lib">
 		<if>
  			<equals arg1="${build_contrib}" arg2="true" />
  			<then>
@@ -226,6 +226,16 @@
 				  </copy>
 			</then>
   		</if>
+		<!-- Copy JavaFX jars for JavaFX Gantt chart -->
+		<mkdir dir="${dist}/lib/javafx"/>
+		<copy todir="${dist}/lib/javafx" flatten="true">
+			<fileset dir="../projectlibre_contrib/lib">
+				<include name="javafx-base-21.0.6-win.jar" />
+				<include name="javafx-controls-21.0.6-win.jar" />
+				<include name="javafx-graphics-21.0.6-win.jar" />
+				<include name="javafx-swing-21.0.6-win.jar" />
+			</fileset>
+		</copy>
 	</target>
 
 	<target name="fatjar"  depends="dist">
