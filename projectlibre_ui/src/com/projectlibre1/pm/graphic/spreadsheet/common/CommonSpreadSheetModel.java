@@ -193,6 +193,10 @@ public class CommonSpreadSheetModel extends AbstractTableModel implements CacheL
 		return null;
 	}
 
+	public FieldContext getFieldContext() {
+		return fieldContext;
+	}
+
 	public String getColumnName(int col) {
 		return ""+col;
 	}
@@ -418,9 +422,6 @@ public class CommonSpreadSheetModel extends AbstractTableModel implements CacheL
 	 */
 	public void setFieldContext(FieldContext fieldContext) {
 		this.fieldContext = fieldContext;
-	}
-	public FieldContext getFieldContext() {
-		return fieldContext;
 	}
 	public boolean isRowEditable(int row) {
 		return true;

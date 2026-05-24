@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.SwingUtilities;
@@ -35,14 +36,12 @@ import javafx.scene.text.FontWeight;
 
 import com.projectlibre1.configuration.Configuration;
 import com.projectlibre1.field.Field;
-import com.projectlibre1.field.FieldConverter;
 import com.projectlibre1.functor.IntervalConsumer;
 import com.projectlibre1.functor.ScheduleIntervalGenerator;
 import org.apache.commons.collections.Closure;
 import com.projectlibre1.graphic.configuration.BarFormat;
 import com.projectlibre1.graphic.configuration.BarStyles;
 import com.projectlibre1.graphic.configuration.GraphicConfiguration;
-import com.projectlibre1.graphic.configuration.TexturedShape;
 import com.projectlibre1.pm.calendar.CalendarService;
 import com.projectlibre1.pm.calendar.WorkingCalendar;
 import com.projectlibre1.pm.dependency.Dependency;
@@ -59,6 +58,7 @@ import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.timescale.TimeInterval;
 import com.projectlibre1.timescale.TimeIterator;
+import com.projectlibre1.pm.graphic.fx.FxLog;
 import com.projectlibre1.util.DateTime;
 
 /**
@@ -66,6 +66,7 @@ import com.projectlibre1.util.DateTime;
  */
 public class FxGanttChart extends JFXPanel {
 	private static final long serialVersionUID = 1L;
+	private static final Logger LOGGER = FxLog.logger(FxGanttChart.class);
 	private static final Color PROGRESS_LINE_COLOR = new Color(0xCC0000);
 	private static final Color PROGRESS_LINE_HALO_COLOR = Color.WHITE;
 	private static final double PROGRESS_POINT_SIZE = 6.0d;
@@ -74,10 +75,12 @@ public class FxGanttChart extends JFXPanel {
 	private final Gantt gantt;
 	private final Canvas canvas = new Canvas();
 	private final AtomicBoolean redrawQueued = new AtomicBoolean(false);
+	private final AtomicBoolean redrawPending = new AtomicBoolean(false);
 	private final AtomicBoolean sizeQueued = new AtomicBoolean(false);
 	private final BufferedImage metricsImage = new BufferedImage(8, 8, BufferedImage.TYPE_INT_ARGB);
 	private final Font annotationFont = new Font("Dialog", Font.PLAIN, 11);
 	private final FontMetrics annotationMetrics;
+	private volatile Dimension contentSize = new Dimension(1, 1);
 
 	private volatile RenderSnapshot latestSnapshot = RenderSnapshot.empty();
 
@@ -176,6 +179,15 @@ public class FxGanttChart extends JFXPanel {
 		requestRedraw();
 	}
 
+	public void setContentSize(Dimension size) {
+		if (size == null) {
+			return;
+		}
+		contentSize = new Dimension(Math.max(1, size.width), Math.max(1, size.height));
+		LOGGER.fine("setContentSize " + contentSize.width + "x" + contentSize.height);
+		queueCanvasResize();
+	}
+
 	public void setRouting(Object routing) {
 		requestRedraw();
 	}
@@ -186,13 +198,18 @@ public class FxGanttChart extends JFXPanel {
 			return;
 		}
 		if (redrawQueued.getAndSet(true)) {
+			redrawPending.set(true);
 			return;
 		}
+		LOGGER.fine("requestRedraw");
 		RenderSnapshot snapshot = buildSnapshot();
 		latestSnapshot = snapshot;
 		Platform.runLater(() -> {
 			redrawQueued.set(false);
 			renderSnapshot(latestSnapshot);
+			if (redrawPending.getAndSet(false)) {
+				requestRedraw();
+			}
 		});
 	}
 
@@ -212,8 +229,9 @@ public class FxGanttChart extends JFXPanel {
 	}
 
 	private void syncCanvasSize() {
-		double width = Math.max(1, getWidth());
-		double height = Math.max(1, getHeight());
+		double width = Math.max(1, Math.max(getWidth(), contentSize.width));
+		double height = Math.max(1, Math.max(getHeight(), contentSize.height));
+		LOGGER.fine("syncCanvasSize width=" + width + " height=" + height + " view=" + getWidth() + "x" + getHeight());
 		canvas.setWidth(width);
 		canvas.setHeight(height);
 	}
@@ -223,16 +241,17 @@ public class FxGanttChart extends JFXPanel {
 		NodeModelCache cache = gantt.getCache();
 		BarStyles barStyles = gantt.getBarStyles();
 		GraphicConfiguration config = gantt.getConfiguration();
+		LOGGER.fine("buildSnapshot coord=" + (coord != null) + " cache=" + (cache != null ? cache.getSize() : -1) + " barStyles=" + (barStyles != null) + " config=" + (config != null));
 		if (coord == null || cache == null || barStyles == null || config == null) {
 			return RenderSnapshot.empty();
 		}
 
-		Rectangle2D ganttBounds = gantt.getGanttBounds();
-		double width = Math.max(1.0d, ganttBounds.getWidth());
-		double height = Math.max(1.0d, ganttBounds.getHeight());
 		double rowHeight = gantt.getRowHeight();
-		int visibleStartRow = Math.max(0, (int) Math.floor(ganttBounds.getY() / rowHeight));
-		int visibleEndRow = Math.min(cache.getSize(), (int) Math.ceil(ganttBounds.getMaxY() / rowHeight));
+		double width = Math.max(1.0d, coord.getWidth());
+		double height = Math.max(1.0d, rowHeight * Math.max(1, cache.getSize()));
+		Rectangle2D ganttBounds = new Rectangle2D.Double(0.0d, 0.0d, width, height);
+		int visibleStartRow = 0;
+		int visibleEndRow = cache.getSize();
 
 		List<FillRectOp> fills = new ArrayList<>();
 		List<PathOp> paths = new ArrayList<>();
@@ -262,6 +281,8 @@ public class FxGanttChart extends JFXPanel {
 
 		collectProgressLine(nodeList, coord, config, progressPoints, circles);
 		collectProjectMarkers(coord, config, fills, lines, ganttBounds);
+		LOGGER.fine("buildSnapshot counts fills=" + fills.size() + " paths=" + paths.size() + " lines=" + lines.size()
+				+ " texts=" + texts.size() + " circles=" + circles.size() + " progress=" + progressPoints.size());
 
 		return new RenderSnapshot(width, height, fills, paths, lines, texts, circles, progressPoints);
 	}
@@ -297,7 +318,7 @@ public class FxGanttChart extends JFXPanel {
 
 		GeneralPath path = new GeneralPath();
 		((GanttLinkRouting) gantt.getRouting()).routePath(path, x0, y0, x1, y1, y2, y1 + to.getGanttShapeHeight() / 2, y1 - to.getGanttShapeHeight() / 2, type);
-		Color stroke = dep.isCrossProject() ? new Color(0x8A2BE2) : from.getNode().getImpl() instanceof Task ? resolveBarColor(barStyles, from.getNode().getImpl()) : Color.DARK_GRAY;
+		Color stroke = dep.isCrossProject() ? new Color(0x8A2BE2) : from.getNode().getImpl() instanceof Task ? GanttRenderSupport.resolveBarColor(barStyles, from.getNode().getImpl()) : Color.DARK_GRAY;
 		if (dep.isDisabled()) {
 			paths.add(new PathOp(path, null, stroke, 1.0d, new double[] { 6.0d, 4.0d }));
 		} else {
@@ -305,91 +326,21 @@ public class FxGanttChart extends JFXPanel {
 		}
 	}
 
-	private Color resolveBarColor(BarStyles barStyles, Object ganttable) {
-		final Color[] resolved = new Color[] { Color.DARK_GRAY };
-		barStyles.apply(ganttable, arg0 -> {
-			BarFormat format = (BarFormat) arg0;
-			TexturedShape middle = format.getMiddle();
-			if (middle != null && middle.getColor() != null) {
-				resolved[0] = middle.getColor();
-			}
-		});
-		return resolved[0];
-	}
-
 	private void collectProgressLine(List<GraphicNode> nodes, CoordinatesConverter coord, GraphicConfiguration config, List<ProgressPoint> progressPoints, List<CircleOp> circles) {
 		if (!gantt.isProgressLineEnabled()) {
 			return;
 		}
 		for (GraphicNode node : nodes) {
-			if (!shouldIncludeInProgressLine(node)) {
+			if (!GanttRenderSupport.shouldIncludeInProgressLine(node)) {
 				continue;
 			}
 			Task task = (Task) node.getNode().getImpl();
-			double progressX = getProgressLineX(coord, task);
-			double y = getProgressLineY(node, config);
+			double progressX = GanttRenderSupport.getProgressLineX(coord, task);
+			double y = GanttRenderSupport.getProgressLineY(node, config, gantt.getRowHeight());
 			progressPoints.add(new ProgressPoint(progressX, y));
 			circles.add(new CircleOp(progressX, y, PROGRESS_POINT_SIZE, PROGRESS_LINE_HALO_COLOR));
 			circles.add(new CircleOp(progressX, y, PROGRESS_POINT_SIZE - 2, PROGRESS_LINE_COLOR));
 		}
-	}
-
-	private boolean shouldIncludeInProgressLine(GraphicNode node) {
-		if (node == null || !node.isSchedule() || node.isAssignment() || node.getNode() == null) {
-			return false;
-		}
-		Object impl = node.getNode().getImpl();
-		if (!(impl instanceof Task)) {
-			return false;
-		}
-		Task task = (Task) impl;
-		if (node.isSummary() && !node.isCollapsed()) {
-			return false;
-		}
-		if (task.isMilestone() || task.isExternal() || task.isSubproject()) {
-			return false;
-		}
-		long start = task.getStart();
-		long end = task.getEnd();
-		return start != 0L && end > start;
-	}
-
-	private double getProgressLineX(CoordinatesConverter coord, Task task) {
-		long start = task.getStart();
-		long end = task.getEnd();
-		double progress = clampProgress(task.getPercentComplete());
-		long today = getStatusDate(task);
-		long progressDate;
-		if (progress == 1.0d && end <= today) {
-			progressDate = today;
-		} else if (progress == 0.0d && start >= today) {
-			progressDate = today;
-		} else {
-			progressDate = start + Math.round((end - start) * progress);
-		}
-		return coord.toX(progressDate);
-	}
-
-	private long getStatusDate(Task task) {
-		Project project = task.getProject();
-		long statusDate = project == null ? 0L : project.getStatusDate();
-		return statusDate == 0L ? System.currentTimeMillis() : statusDate;
-	}
-
-	private double getProgressLineY(GraphicNode node, GraphicConfiguration config) {
-		int rowHeight = gantt.getRowHeight();
-		int yOffset = config.getGanttBarYOffset() + config.getGanttBarHeight() / 2;
-		return rowHeight * node.getRow() + yOffset;
-	}
-
-	private double clampProgress(double value) {
-		if (value < 0.0d) {
-			return 0.0d;
-		}
-		if (value > 1.0d) {
-			return 1.0d;
-		}
-		return value;
 	}
 
 	private void collectProjectMarkers(CoordinatesConverter coord, GraphicConfiguration config, List<FillRectOp> fills, List<LineOp> lines, Rectangle2D bounds) {
@@ -483,6 +434,8 @@ public class FxGanttChart extends JFXPanel {
 		if (snapshot == null) {
 			return;
 		}
+		boolean empty = snapshot.fills.isEmpty() && snapshot.paths.isEmpty() && snapshot.lines.isEmpty() && snapshot.texts.isEmpty() && snapshot.circles.isEmpty() && snapshot.progressPoints.isEmpty();
+		LOGGER.fine("renderSnapshot empty=" + empty + " canvas=" + canvas.getWidth() + "x" + canvas.getHeight());
 		syncCanvasSize();
 		GraphicsContext gc = canvas.getGraphicsContext2D();
 		gc.setFill(Paint.valueOf("white"));
@@ -659,18 +612,11 @@ public class FxGanttChart extends JFXPanel {
 			if (interval.getEnd() > 100000000000000L) {
 				return;
 			}
-			double x = coord.toX(interval.getStart());
-			double width = CoordinatesConverter.adaptSmallBarEndX(x, coord.toX(interval.getEnd()), node, config) - x;
-			double height;
-			double y = yrow + config.getGanttBarYOffset();
-			int row = format.getRow();
-			if (row == 1) {
-				height = config.getGanttBarHeight();
-			} else {
-				height = config.getBaselineHeight();
-				y += config.getGanttBarHeight() + config.getBaselineHeight() * (row - 2);
-			}
-			y += height / 2.0d;
+			GanttRenderSupport.BarGeometry geometry = GanttRenderSupport.computeBarGeometry(node, interval, format, coord, config, gantt.getRowHeight());
+			double x = geometry.x;
+			double y = geometry.y;
+			double width = geometry.width;
+			double height = geometry.height;
 
 			if (format.getMiddle() != null) {
 				Shape shape = format.getMiddle().toGeneralPath(width, height, x, y, null);
@@ -692,11 +638,7 @@ public class FxGanttChart extends JFXPanel {
 			if (format.isMain() && !node.isSummary() && node.isStarted()) {
 				long completedT = node.getCompleted();
 				if (completedT >= interval.getStart()) {
-					double completedW = coord.toX(completedT) - x;
-					if (completedW > width && !com.projectlibre1.options.GanttOption.getInstance().isCompletionIsContiguous()) {
-						completedW = width;
-					}
-					completedW = CoordinatesConverter.adaptSmallBarEndX(x, x + completedW, node, config) - x;
+					double completedW = GanttRenderSupport.computeCompletedWidth(node, interval, width, coord, config, com.projectlibre1.options.GanttOption.getInstance().isCompletionIsContiguous());
 					lines.add(new LineOp(x, y, x + completedW, y, Color.BLACK, config.getGanttProgressBarHeight(), null, false));
 				}
 			}
@@ -704,19 +646,8 @@ public class FxGanttChart extends JFXPanel {
 			if (format.getField() != null) {
 				Object value = format.getField().getValue(node.getNode(), gantt.getCache().getModel(), null);
 				if (value != null) {
-					String text;
-					if (value instanceof java.util.Date) {
-						text = java.text.DateFormat.getDateInstance(java.text.DateFormat.SHORT).format((java.util.Date) value);
-						int i = text.lastIndexOf('/');
-						if (i > 0) {
-							text = text.substring(0, i);
-						}
-					} else {
-						text = FieldConverter.toString(value, value.getClass(), null);
-					}
-					double x1 = coord.toX(node.getEnd());
-					x1 = CoordinatesConverter.adaptSmallBarEndX(coord.toX(node.getStart()), x1, node, config);
-					double tx = Math.ceil(x1) + config.getGanttBarAnnotationXOffset();
+					String text = GanttRenderSupport.formatAnnotationValue(value);
+					double tx = GanttRenderSupport.computeAnnotationX(node, coord, config);
 					int w = metrics.stringWidth(text);
 					int ascent = metrics.getAscent();
 					texts.add(new TextOp(text, tx, y + ascent - 1, format.getMiddle() == null ? Color.BLACK : format.getMiddle().getColor()));

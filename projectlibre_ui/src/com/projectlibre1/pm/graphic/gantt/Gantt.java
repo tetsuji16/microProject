@@ -65,6 +65,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -80,6 +81,7 @@ import com.projectlibre1.pm.graphic.graph.GraphParams;
 import com.projectlibre1.pm.graphic.graph.GraphUI;
 import com.projectlibre1.pm.graphic.graph.LinkRouting;
 import com.projectlibre1.pm.graphic.network.NetworkParamsImpl;
+import com.projectlibre1.pm.graphic.fx.FxLog;
 import com.projectlibre1.pm.graphic.timescale.CoordinatesConverter;
 import com.projectlibre1.pm.graphic.timescale.ScaledComponent;
 import com.projectlibre1.pm.graphic.views.synchro.ScrollPaneSynchronizer;
@@ -98,7 +100,9 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 //    protected DependencyDialog dependencyPropertiesDialog;
 
 	private static final long serialVersionUID = -1806070019043393474L;
+	private static final Logger LOGGER = FxLog.logger(Gantt.class);
 	private boolean progressLineEnabled = false;
+	private boolean fxRenderingEnabled = true;
 	private FxGanttChart fxGanttChart;
 	public Gantt(Project project,String viewName) {
 		this(new GanttModel(project,viewName),project);
@@ -112,10 +116,12 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		setFocusable(true);
 		installKeyboardActions();
 		fxGanttChart.setProgressLineEnabled(progressLineEnabled);
+		LOGGER.fine("ctor: fx rendering enabled=" + fxRenderingEnabled);
 
 	}
 
 	public void cleanUp() {
+		LOGGER.fine("cleanUp");
 		CoordinatesConverter c = getCoord();
     	if (c!= null) {
     		c.removeTimeScaleListener(this);
@@ -133,6 +139,15 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		invalidate();
 	}
 
+	public boolean isFxRenderingEnabled() {
+		return fxRenderingEnabled;
+	}
+
+	public void setFxRenderingEnabled(boolean fxRenderingEnabled) {
+		this.fxRenderingEnabled = fxRenderingEnabled;
+		repaint();
+	}
+
 //	public GanttPopupMenu getPopup() {
 //		return popup;
 //	}
@@ -142,7 +157,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
      public CoordinatesConverter getCoord() {
         return ((GanttModel)model).getCoord();
     }
-     public void setCoord(CoordinatesConverter coord) {
+	public void setCoord(CoordinatesConverter coord) {
      	CoordinatesConverter modelCoord=getCoord();
         if (modelCoord!=null)
         	modelCoord.removeTimeScaleListener(this);
@@ -151,8 +166,11 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		if (fxGanttChart != null) {
 			fxGanttChart.setCoord(coord);
 		}
+		LOGGER.fine("setCoord: coord=" + (coord != null));
      }
  	public void timeScaleChanged(TimeScaleEvent e) {
+		CoordinatesConverter currentCoord = getCoord();
+		LOGGER.fine("timeScaleChanged: scale=" + (currentCoord != null ? currentCoord.getTimescaleManager().getCurrentScaleIndex() : -1));
  		updateSize();
 		if (fxGanttChart != null) {
 			fxGanttChart.requestRedraw();
@@ -185,6 +203,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		if (fxGanttChart != null) {
 			fxGanttChart.setRowHeight(rowHeight);
 		}
+		LOGGER.fine("setRowHeight=" + rowHeight);
 	}
 //	public int getColumnHeaderHeight() {
 //		return ((GanttModel)model).getColumnHeaderHeight();
@@ -207,6 +226,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		if (fxGanttChart != null) {
 			fxGanttChart.setRouting(routing);
 		}
+		LOGGER.fine("setRouting=" + (routing != null ? routing.getClass().getSimpleName() : "null"));
 	}
 
 	public boolean isProgressLineEnabled() {
@@ -220,6 +240,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 			fxGanttChart.setProgressLineEnabled(progressLineEnabled);
 			fxGanttChart.requestRedraw();
 		}
+		LOGGER.fine("setProgressLineEnabled=" + progressLineEnabled);
 	}
 
 	private void installKeyboardActions() {
@@ -259,6 +280,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 //			v.setViewSize(new Dimension((int)Math.ceil(getCoord().getWidth()),v.getViewSize().height));
 //		}
 		((GraphUI)ui).updateShapes();
+		LOGGER.fine("updateSize: updateShapes complete");
 
 		Component c;
 		if ((c=getParent()) instanceof JViewport){
@@ -266,11 +288,16 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 			vp.setViewSize(new Dimension((int)Math.ceil(getCoord().getWidth()),vp.getViewSize().height));
 		}
 
-		setPreferredSize(new Dimension((int)Math.ceil(getCoord().getWidth()),getPreferredSize().height));
+		int contentHeight = Math.max(1, getRowHeight() * Math.max(1, getCache() == null ? 0 : getCache().getSize()));
+		Dimension drawingSize = new Dimension((int)Math.ceil(getCoord().getWidth()), contentHeight);
+		setPreferredSize(drawingSize);
 		if (fxGanttChart != null) {
-			fxGanttChart.setPreferredSize(getPreferredSize());
+			fxGanttChart.setPreferredSize(drawingSize);
+			fxGanttChart.setContentSize(drawingSize);
+			fxGanttChart.setSize(drawingSize);
 			fxGanttChart.requestRedraw();
 		}
+		LOGGER.fine("updateSize: drawingSize=" + drawingSize.width + "x" + drawingSize.height);
 
 		revalidate();
 	}
@@ -338,6 +365,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		if (fxGanttChart != null) {
 			fxGanttChart.setCache(cache);
 		}
+		LOGGER.fine("setCache: size=" + (cache != null ? cache.getSize() : -1));
 	}
 
 	@Override
@@ -346,6 +374,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		if (fxGanttChart != null) {
 			fxGanttChart.setBarStyles(barStyles);
 		}
+		LOGGER.fine("setBarStyles=" + (barStyles != null));
 	}
 
 	@Override
@@ -354,6 +383,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		if (fxGanttChart != null) {
 			fxGanttChart.requestRedraw();
 		}
+		LOGGER.fine("update nodes=" + (nodes != null ? nodes.size() : -1));
 	}
 
 

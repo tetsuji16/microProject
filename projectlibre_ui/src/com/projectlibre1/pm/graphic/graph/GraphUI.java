@@ -68,6 +68,7 @@ import javax.swing.plaf.ComponentUI;
 
 import com.projectlibre1.pm.graphic.model.cache.GraphicDependency;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
+import com.projectlibre1.pm.graphic.gantt.Gantt;
 import com.projectlibre1.graphic.configuration.GraphicConfiguration;
 
 /**
@@ -157,6 +158,9 @@ public class GraphUI extends ComponentUI implements Serializable {
     	graphRenderer.updateShapes();
     }
     public void paint(Graphics g, JComponent c) {
+		if (graph instanceof Gantt && ((Gantt) graph).isFxRenderingEnabled()) {
+			return;
+		}
     	graphRenderer.paint(g);
     }
     public void updateShape(GraphicNode node){

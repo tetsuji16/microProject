@@ -217,22 +217,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				System.out.println("ERROR!!! leads to OutOfMemoryError, consumeInterval interval="+interval.getStart()+", "+CalendarUtil.toString(interval.getStart())+", "+interval.getEnd()+", "+CalendarUtil.toString(interval.getEnd())+"...");
 				return;
 			}
-			double x=coord.toX(interval.getStart());
-			double width=CoordinatesConverter.adaptSmallBarEndX(x,coord.toX(interval.getEnd()),node,config)-x;
-//			double width=coord.toW(interval.getEnd()-interval.getStart());
-			double height;
-			double y=yrow+config.getGanttBarYOffset();
-			int row=format.getRow();
-		    if (row==1){
-		    	height=config.getGanttBarHeight();
-		    }
-		    else{
-		    	height=config.getBaselineHeight();
-			    y+=config.getGanttBarHeight()+config.getBaselineHeight()*(row-2);
-		    }
-	    	y+=height/2;
-
-			double dw=height;
+			GanttRenderSupport.BarGeometry geometry = GanttRenderSupport.computeBarGeometry(node, interval, format, coord, config, ((GanttParams)graphInfo).getRowHeight());
+			double x = geometry.x;
+			double width = geometry.width;
+			double height = geometry.height;
+			double y = geometry.y;
 
 			if (format.getMiddle()!=null){
 
@@ -260,13 +249,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			if (g2==null) return;
 
 			if (format.getStart()!=null) format.getStart().draw(g2,
-					dw,
+					height,
 					height,
 					x ,
 					y,
 					useTextures());
 			if (format.getEnd()!=null) format.getEnd().draw(g2,
-					dw,
+					height,
 					height,
 					x+width,
 					y,
@@ -276,10 +265,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			if (format.isMain()&&!node.isSummary()&&node.isStarted()){
 				long completedT=node.getCompleted();
 				if (completedT>=interval.getStart()){
-					double completedW=coord.toX(completedT)-x;
-					if (completedW>width && !GanttOption.getInstance().isCompletionIsContiguous())
-						completedW=width;
-					completedW=CoordinatesConverter.adaptSmallBarEndX(x, x+completedW, node,config)-x;
+					double completedW = GanttRenderSupport.computeCompletedWidth(node, interval, width, coord, config, GanttOption.getInstance().isCompletionIsContiguous());
 					Rectangle2D progressBar=new Rectangle2D.Double(x,y-config.getGanttProgressBarHeight()/2,completedW,config.getGanttProgressBarHeight());
 					g2.setColor(Color.BLACK);
 					g2.fill(progressBar);
@@ -332,21 +318,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 //			g2.setColor(format.getMiddle().getColor());
 //			g2.drawString(ObjectConverterManager.toString(value,value.getClass()), x, y);
 //			if (oldColor!=null) g2.setColor(oldColor);
-			String s;
-			if (value instanceof Date){
-				Date d=(Date)value;
-				s=DateFormat.getDateInstance(DateFormat.SHORT).format(d);
-				int i=s.lastIndexOf('/');
-				if (i>0) s=s.substring(0, i);
-			}
-			else s=FieldConverter.toString(value,value.getClass(),null);
+			String s = GanttRenderSupport.formatAnnotationValue(value);
 			component.setText(s); //field.getClazz()?
 			int y=yrow+config.getGanttBarYOffset();//+config.getGanttBarAnnotationYOffset();
-			double x0=coord.toX(node.getStart());
-			double x1=coord.toX(node.getEnd());
-			x1=CoordinatesConverter.adaptSmallBarEndX(x0,x1,node,config);
-
-			int x=(int)Math.ceil(x1)+config.getGanttBarAnnotationXOffset();
+			int x=(int)Math.ceil(GanttRenderSupport.computeAnnotationX(node, coord, config));
 			int w=fontMetrics.stringWidth(s);//config.getGanttBarAnnotationMaxWidth();
 			int h=config.getGanttBarHeight();
 
@@ -382,7 +357,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			this.node = node;
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
 			config=((GanttParams)graphInfo).getConfiguration();
-			yrow=(node.getRow()+1)*rowHeight -1; // draws under each row
+			yrow=GanttRenderSupport.computeRowSeparatorY(node, rowHeight); // draws under each row
 
 		}
 
@@ -579,11 +554,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		int half = size / 2;
 		for (Iterator i=nodeList.iterator(); i.hasNext();) {
 			GraphicNode node = (GraphicNode)i.next();
-			if (!shouldIncludeInProgressLine(node))
+			if (!GanttRenderSupport.shouldIncludeInProgressLine(node))
 				continue;
 			Task task = (Task)node.getNode().getImpl();
-			int x = (int)Math.round(getProgressLineX(coord, task));
-			int y = (int)Math.round(getProgressLineY(node));
+			int x = (int)Math.round(GanttRenderSupport.getProgressLineX(coord, task));
+			int y = (int)Math.round(GanttRenderSupport.getProgressLineY(node, config, ((GanttParams)graphInfo).getRowHeight()));
 			g2.setColor(PROGRESS_LINE_HALO_COLOR);
 			g2.fillOval(x - half - 1, y - half - 1, size + 2, size + 2);
 			g2.setColor(PROGRESS_LINE_COLOR);
@@ -599,12 +574,12 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		GeneralPath path = null;
 		for (Iterator i=nodeList.iterator(); i.hasNext();) {
 			GraphicNode node = (GraphicNode)i.next();
-			if (!shouldIncludeInProgressLine(node))
+			if (!GanttRenderSupport.shouldIncludeInProgressLine(node))
 				continue;
 
 			Task task = (Task)node.getNode().getImpl();
-			double progressX = getProgressLineX(coord, task);
-			double y = getProgressLineY(node);
+			double progressX = GanttRenderSupport.getProgressLineX(coord, task);
+			double y = GanttRenderSupport.getProgressLineY(node, config, ((GanttParams)graphInfo).getRowHeight());
 			if (path == null) {
 				path = new GeneralPath();
 				path.moveTo((float)progressX, (float)y);
@@ -614,61 +589,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 		return path;
 	}
-
-	private boolean shouldIncludeInProgressLine(GraphicNode node) {
-		if (node == null || !node.isSchedule() || node.isAssignment() || node.getNode() == null)
-			return false;
-
-		Object impl = node.getNode().getImpl();
-		if (!(impl instanceof Task))
-			return false;
-
-		Task task = (Task)impl;
-		if (node.isSummary() && !node.isCollapsed())
-			return false;
-		if (task.isMilestone() || task.isExternal() || task.isSubproject())
-			return false;
-
-		long start = task.getStart();
-		long end = task.getEnd();
-		return start != 0L && end > start;
-	}
-
-	private double getProgressLineX(CoordinatesConverter coord, Task task) {
-		long start = task.getStart();
-		long end = task.getEnd();
-		double progress = clampProgress(task.getPercentComplete());
-		long today = getStatusDate(task);
-		long progressDate;
-		if (progress == 1.0d && end <= today)
-			progressDate = today;
-		else if (progress == 0.0d && start >= today)
-			progressDate = today;
-		else
-			progressDate = start + Math.round((end - start) * progress);
-		return coord.toX(progressDate);
-	}
-
-	private long getStatusDate(Task task) {
-		Project project = task.getProject();
-		long statusDate = project == null ? 0L : project.getStatusDate();
-		return statusDate == 0L ? System.currentTimeMillis() : statusDate;
-	}
-
-	private double getProgressLineY(GraphicNode node) {
-		int rowHeight=((GanttParams)graphInfo).getRowHeight();
-		int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
-		return rowHeight*node.getRow()+yOffset;
-	}
-
-	private double clampProgress(double value) {
-		if (value < 0.0d)
-			return 0.0d;
-		if (value > 1.0d)
-			return 1.0d;
-		return value;
-	}
-
 
 	protected BarFormat calendarFormat;
 	protected Closure calendarClosure=new Closure(){

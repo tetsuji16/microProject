@@ -68,18 +68,21 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import com.projectlibre1.pm.graphic.frames.DocumentFrame;
+import com.projectlibre1.pm.graphic.fx.FxLog;
 import com.projectlibre1.pm.graphic.spreadsheet.common.GradientCorner;
 import com.projectlibre1.timescale.TimeScaleEvent;
 import com.projectlibre1.timescale.TimeScaleListener;
 import com.projectlibre1.workspace.SavableToWorkspace;
 import com.projectlibre1.workspace.WorkspaceSetting;
+import java.util.logging.Logger;
 
 /**
  *
  */
 public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, SavableToWorkspace {
 	private static final long serialVersionUID = -6608484720122760191L;
-	protected TimeScaleComponent timeScaleComponent;
+	private static final Logger LOGGER = FxLog.logger(ScaledScrollPane.class);
+	protected JComponent timeScaleComponent;
 	protected CoordinatesConverter coord;
 	protected ScaledComponent main;
 	protected DocumentFrame documentFrame;
@@ -109,7 +112,8 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	    //JViewport mainVP=new JViewport();
 		//mainVP.setView((JComponent)main);
 		
-		timeScaleComponent=new TimeScaleComponent(coord);
+		timeScaleComponent=new FxTimeScalePane(coord);
+		LOGGER.fine("createLayout: using FxTimeScalePane");
 		
 		
 		//JViewport tsVP=new JViewport();
@@ -122,6 +126,7 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 			    updateTimeScaleComponentSize();
 			}
 		});
+		updateTimeScaleComponentSize();
 		
 //		These buttons don't size correctly with substancde layout. They aren't needed anyway
 //		Box zoom=new Box(BoxLayout.Y_AXIS);
@@ -143,7 +148,12 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	}
 	
 	public void timeScaleChanged(TimeScaleEvent e) {
-		timeScaleComponent.repaint();
+		LOGGER.fine("timeScaleChanged: minWidth=" + coord.getTimescaleManager().getMinWidth());
+		if (timeScaleComponent instanceof FxTimeScalePane) {
+			((FxTimeScalePane) timeScaleComponent).requestRedraw();
+		} else {
+			timeScaleComponent.repaint();
+		}
 		this.getHorizontalScrollBar().setUnitIncrement(coord.getTimescaleManager().getMinWidth());
 	}
 	
@@ -153,8 +163,13 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		Dimension dmain=getViewport().getViewSize();
 		if (dmain.equals(olddmain)) return;
 		olddmain=dmain;
+		LOGGER.fine("updateTimeScaleComponentSize: width=" + dmain.width + ", header=" + timeScaleComponent.getPreferredSize().height);
 		timeScaleComponent.setPreferredSize(new Dimension(dmain.width,timeScaleComponent.getPreferredSize().height));
+		timeScaleComponent.revalidate();
 		getColumnHeader().setViewSize(new Dimension(dmain.width,getColumnHeader().getViewSize().height));
+		if (timeScaleComponent instanceof FxTimeScalePane) {
+			((FxTimeScalePane) timeScaleComponent).requestRedraw();
+		}
 	}
 	
 	public Component getTimeScaleComponent() {

@@ -61,12 +61,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.logging.Logger;
 
 import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import com.projectlibre1.help.HelpUtil;
+import com.projectlibre1.pm.graphic.fx.FxLog;
 import com.projectlibre1.menu.MenuActionConstants;
 import com.projectlibre1.menu.MenuManager;
 import com.projectlibre1.pm.graphic.frames.DocumentFrame;
@@ -74,9 +77,12 @@ import com.projectlibre1.pm.graphic.gantt.Gantt;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.projectlibre1.pm.graphic.model.cache.ReferenceNodeModelCache;
+import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.projectlibre1.pm.graphic.spreadsheet.fx.FxSpreadsheetPane;
 import com.projectlibre1.pm.graphic.timescale.CoordinatesConverter;
 import com.projectlibre1.pm.graphic.timescale.ScaledScrollPane;
 import com.projectlibre1.pm.graphic.views.synchro.Synchronizer;
@@ -109,7 +115,9 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	 *
 	 */
 	private static final long serialVersionUID = 514828655690086836L;
+	private static final Logger LOGGER = FxLog.logger(GanttView.class);
 	protected SpreadSheet spreadSheet;
+	protected FxSpreadsheetPane fxSpreadsheetPane;
 	protected Gantt gantt;
     protected SortedSet baseLines=new TreeSet();
 
@@ -144,6 +152,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	public void init(ReferenceNodeModelCache cache, NodeModel model,CoordinatesConverter coord){
 		this.coord=coord;
 		this.cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)cache,getViewName(),null);
+		LOGGER.fine("init: cache=" + (cache != null) + ", coord=" + (coord != null) + ", project=" + (project != null));
 
 		fieldContext = new FieldContext();
 		fieldContext.setLeftAssociation(true);
@@ -159,6 +168,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 		};*/
 		super.init();
+		LOGGER.fine("init: swing views created");
 		updateHeight(project);
 		updateSize();
 
@@ -169,10 +179,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 				Dimension dl=leftScrollPane.getViewport().getViewSize();
 				if (dl.equals(olddl)) return;
 				olddl=dl;
-//				Dimension dr=rightScrollPane.getViewport().getViewSize();
-//				((Gantt)rightScrollPane.getViewport().getView()).setPreferredSize(new Dimension((int)dr.getWidth(),(int)dl.getHeight()));
-//				rightScrollPane.getViewport().revalidate();
-				((Gantt)rightScrollPane.getViewport().getView()).setPreferredSize(new Dimension(rightScrollPane.getViewport().getViewSize().width,dl.height));
+				syncGanttHeight();
 			}
 		});
 
@@ -193,6 +200,22 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 
 		cache.update();
+		LOGGER.fine("init: cache updated rows=" + (this.cache != null ? this.cache.getSize() : -1));
+		expandAllVisibleSummaries();
+		LOGGER.fine("init: summaries expanded rows=" + (this.cache != null ? this.cache.getSize() : -1));
+		updateSize();
+		if (fxSpreadsheetPane != null) {
+			fxSpreadsheetPane.refresh();
+		}
+		if (ganttScrollPane != null) {
+			ganttScrollPane.updateTimeScaleComponentSize();
+		}
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				LOGGER.fine("init: enforcing divider location");
+				setDividerLocation(Math.max(getDividerLocation(), 320));
+			}
+		});
 
 		//Call this last to be sure everything is initialized
 		//gantt.insertCacheData(); //useless?
@@ -203,8 +226,12 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		coord.removeTimeScaleListener(ganttScrollPane);
 		project.removeScheduleListener(this);
 		spreadSheet.cleanUp();
+		if (fxSpreadsheetPane != null) {
+			fxSpreadsheetPane.cleanUp();
+		}
 		gantt.cleanUp();
 		spreadSheet=null;
+		fxSpreadsheetPane=null;
 		gantt=null;
 	    baseLines=null;
 	    ganttScrollPane=null;
@@ -223,7 +250,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category,styleName));
 	}
 
-    protected JScrollPane createLeftScrollPane() {
+	protected JScrollPane createLeftScrollPane() {
         spreadSheet = new SpreadSheet();
         spreadSheet.setName(project.getName());
 		spreadSheet.setSpreadSheetCategory(spreadsheetCategory); // for columns.  Must do first
@@ -242,14 +269,18 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		project.addScheduleListener(this);
 		if (project.isReadOnly())
 			spreadSheet.setReadOnly(true);
-
-		return SpreadSheetUtils.makeSpreadsheetScrollPane(spreadSheet);
+		fxSpreadsheetPane = new FxSpreadsheetPane(spreadSheet);
+		fxSpreadsheetPane.setFieldArray(fields);
+		fxSpreadsheetPane.setRowHeight(spreadSheet.getRowHeight());
+		fxSpreadsheetPane.setReadOnly(project.isReadOnly());
+		return fxSpreadsheetPane.getScrollPane();
    }
    protected JScrollPane createRightScrollPane() {
 		gantt=new Gantt(project,"Gantt");
 		gantt.setCache(cache);
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category,"standard"));
 		ganttScrollPane=new ScaledScrollPane(gantt,coord,documentFrame,spreadSheet.getRowHeight());
+		syncGanttHeight();
 		return ganttScrollPane;
     }
 
@@ -273,6 +304,9 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void setColumns(ArrayList fields){
 		spreadSheet.setFieldArray(fields);
+		if (fxSpreadsheetPane != null) {
+			fxSpreadsheetPane.setFieldArray(fields);
+		}
 	}
 	/**
 	 * @return Returns the spreadSheet.
@@ -290,13 +324,19 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		int num=(baseLines.size()==0)?0:(((Integer)baseLines.last()).intValue()+1);
 		int rowHeight=GraphicConfiguration.getInstance().getRowHeight()
 				+num*GraphicConfiguration.getInstance().getBaselineHeight();
+		LOGGER.fine("updateHeight(snapshot): snapshot=" + snapshotId + ", add=" + add + ", rowHeight=" + rowHeight);
 		spreadSheet.setRowHeight(rowHeight);
+		if (fxSpreadsheetPane != null) {
+			fxSpreadsheetPane.setRowHeight(rowHeight);
+		}
 		gantt.setRowHeight(rowHeight);
+		syncGanttHeight();
 	}
 
 	public void updateHeight(Project project){
 	    baseLines.clear();
 	    int rowHeight=project.getRowHeight(baseLines);
+		LOGGER.fine("updateHeight(project): rowHeight=" + rowHeight + ", baselines=" + baseLines.size());
 //        for (Iterator i=project.getTaskOutlineIterator();i.hasNext();){
 //            Task task=(Task)i.next();
 //            int current=Snapshottable.CURRENT.intValue();
@@ -310,7 +350,11 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 //		int rowHeight=GraphicConfiguration.getInstance().getRowHeight()
 //				+num*GraphicConfiguration.getInstance().getBaselineHeight();
 		spreadSheet.setRowHeight(rowHeight);
+		if (fxSpreadsheetPane != null) {
+			fxSpreadsheetPane.setRowHeight(rowHeight);
+		}
 		gantt.setRowHeight(rowHeight);
+		syncGanttHeight();
 	}
 
 	public void scheduleChanged(ScheduleEvent evt) {
@@ -325,6 +369,8 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 
 	public void updateSize(){
+		LOGGER.fine("updateSize: syncing gantt height and FX canvas");
+		syncGanttHeight();
 		gantt.updateSize();
 	}
 	public UndoController getUndoController() {
@@ -375,13 +421,19 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;
 		spreadSheet.restoreWorkspace(ws.spreadSheet, context);
+		if (fxSpreadsheetPane != null) {
+			fxSpreadsheetPane.setFieldArray(spreadSheet.getFieldArray());
+			fxSpreadsheetPane.setRowHeight(spreadSheet.getRowHeight());
+		}
 		gantt.setProgressLineEnabled(ws.progressLineEnabled);
 		if (tracking)
 			trackingProgressLineEnabled = ws.progressLineEnabled;
 		else
 			standardProgressLineEnabled = ws.progressLineEnabled;
 		ganttScrollPane.restoreWorkspace(ws.scrollPane, context);
-		setDividerLocation(ws.dividerLocation);
+		int dividerLocation = Math.max(ws.dividerLocation, 320);
+		LOGGER.fine("restoreWorkspace: divider=" + dividerLocation + ", progressLine=" + ws.progressLineEnabled);
+		setDividerLocation(dividerLocation);
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
@@ -390,6 +442,45 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		ws.progressLineEnabled = gantt.isProgressLineEnabled();
 		ws.dividerLocation = getDividerLocation();
 		return ws;
+	}
+
+	private void syncGanttHeight() {
+		if (gantt == null || fxSpreadsheetPane == null) {
+			return;
+		}
+		int rowHeight = spreadSheet.getRowHeight();
+		int rowCount = 0;
+		if (spreadSheet.getModel() instanceof CommonSpreadSheetModel) {
+			rowCount = ((CommonSpreadSheetModel) spreadSheet.getModel()).getRowCount();
+		}
+		int height = Math.max(rowHeight, rowCount * rowHeight);
+		Dimension ganttSize = new Dimension((int) Math.ceil(coord == null ? 1.0d : coord.getWidth()), height);
+		LOGGER.fine("syncGanttHeight: width=" + ganttSize.width + ", height=" + ganttSize.height + ", rows=" + rowCount);
+		gantt.setPreferredSize(ganttSize);
+		gantt.setSize(ganttSize);
+		if (ganttScrollPane != null) {
+			ganttScrollPane.getViewport().revalidate();
+			ganttScrollPane.getViewport().setViewSize(ganttSize);
+		}
+	}
+
+	private void expandAllVisibleSummaries() {
+		if (cache == null) {
+			return;
+		}
+		for (int pass = 0; pass < 16; pass++) {
+			List collapsed = new ArrayList();
+			for (Iterator i = cache.getIterator(); i.hasNext();) {
+				GraphicNode node = (GraphicNode) i.next();
+				if (node != null && node.isComposite() && node.isCollapsed()) {
+					collapsed.add(node);
+				}
+			}
+			if (collapsed.isEmpty()) {
+				break;
+			}
+			cache.expandNodes(collapsed, true);
+		}
 	}
 
 	public static class Workspace implements WorkspaceSetting {
