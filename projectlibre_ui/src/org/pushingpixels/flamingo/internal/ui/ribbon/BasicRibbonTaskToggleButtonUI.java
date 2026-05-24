@@ -211,6 +211,8 @@ public class BasicRibbonTaskToggleButtonUI extends BasicCommandToggleButtonUI {
 		Graphics2D g2d = (Graphics2D) graphics.create();
 		g2d.translate(toFill.x, toFill.y);
 		Color background = FlatUiSupport.panelBackground();
+		Color contextualGroupHueColor = ((JRibbonTaskToggleButton) this.commandButton)
+				.getContextualGroupHueColor();
 		Color underlineColor = contextualGroupHueColor != null
 				? contextualGroupHueColor
 				: FlatUiSupport.accentColor();

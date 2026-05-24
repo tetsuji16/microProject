@@ -2697,10 +2697,16 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 				//System.setProperty("apple.laf.useScreenMenuBar","true");
 				//System.setProperty("com.apple.mrj.application.apple.menu.about.name", Messages.getMetaString("Text.ShortTitle"));
 				JMenuBar menu = getMenuManager().getMenu(Environment.getStandAlone()?MenuManager.MAC_STANDARD_MENU:MenuManager.SERVER_STANDARD_MENU);
+				if (menu.getComponentCount() == 0) {
+					contentPane.add(new JLabel(Messages.getString("Error.restart")),BorderLayout.CENTER);
+					return;
+				}
 				//((JComponent)menu).setBorder(BorderFactory.createEmptyBorder());
 
 				((JFrame)container).setJMenuBar(menu);
-				projectListMenu = (JMenu) menu.getComponent(5);
+				if (menu.getComponentCount() > 5 && menu.getComponent(5) instanceof JMenu) {
+					projectListMenu = (JMenu) menu.getComponent(5);
+				}
 			}
 
 
@@ -2717,16 +2723,25 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			contentPane.add(viewToolBar, BorderLayout.WEST);
 
 			JMenuBar menu = getMenuManager().getMenu(Environment.getStandAlone()?(Environment.isMac()?MenuManager.MAC_STANDARD_MENU:MenuManager.STANDARD_MENU):MenuManager.SERVER_STANDARD_MENU);
+			if (menu.getComponentCount() == 0) {
+				contentPane.add(new JLabel(Messages.getString("Error.restart")),BorderLayout.CENTER);
+				return;
+			}
 
 			if (!Environment.isMac()){
 				((JComponent)menu).setBorder(BorderFactory.createEmptyBorder());
-				JMenuItem logo = (JMenuItem) menu.getComponent(0);
-				logo.setBorder(BorderFactory.createEmptyBorder());
-				logo.setMaximumSize(new Dimension(124, 52));
-				logo.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+				if (menu.getComponent(0) instanceof JMenuItem) {
+					JMenuItem logo = (JMenuItem) menu.getComponent(0);
+					logo.setBorder(BorderFactory.createEmptyBorder());
+					logo.setMaximumSize(new Dimension(124, 52));
+					logo.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+				}
 			}
 				((JFrame)container).setJMenuBar(menu);
-				projectListMenu = (JMenu) menu.getComponent(Environment.isMac()?5:6);
+				int projectIndex = Environment.isMac()?5:6;
+				if (menu.getComponentCount() > projectIndex && menu.getComponent(projectIndex) instanceof JMenu) {
+					projectListMenu = (JMenu) menu.getComponent(projectIndex);
+				}
 		}
 
 		//accelerators

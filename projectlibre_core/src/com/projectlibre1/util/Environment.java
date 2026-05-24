@@ -71,7 +71,7 @@ public class Environment {
 	private static String partnerId = null;
 	private static String login = null;
 	private static boolean importing = false;
-	private static boolean ribbonUI = true;
+	private static boolean ribbonUI = false;
 	private static boolean newLook = false;
 	private static boolean newLaf = false;
 	private static boolean scripting = false;
