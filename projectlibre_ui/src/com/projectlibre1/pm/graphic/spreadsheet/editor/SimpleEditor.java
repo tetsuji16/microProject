@@ -69,6 +69,7 @@ import com.projectlibre1.dialog.util.FixedSizeFilter;
 import com.projectlibre1.pm.graphic.ChangeAwareTextField;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheet;
+import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.projectlibre1.datatype.CanSupplyRateUnit;
 import com.projectlibre1.datatype.DurationFormat;
 import com.projectlibre1.field.Field;
@@ -122,8 +123,8 @@ public class SimpleEditor extends DefaultCellEditor   {
 		component.setSelectedTextColor(FlatUiSupport.tableSelectionForeground());
 		component.setSelectionColor(FlatUiSupport.tableSelectionBackground());
 		
-		if (table.getModel() instanceof SpreadSheetModel) {
-			SpreadSheetModel model  = (SpreadSheetModel) table.getModel();
+		if (table instanceof CommonSpreadSheet && ((CommonSpreadSheet)table).getSpreadSheetModel() != null) {
+			CommonSpreadSheetModel model  = ((CommonSpreadSheet)table).getSpreadSheetModel();
 			Field field = model.getFieldInColumn(column+1);
 			int width = field.getTextWidth(null,null);
 			((AbstractDocument)component.getDocument()).setDocumentFilter(null);

@@ -121,7 +121,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 			final SpreadSheet spreadSheet=(SpreadSheet)table;
 			JComponent edit = (component instanceof DateEditor.ExtDateField) ? ((DateEditor.ExtDateField)component).getTextField() : component;
 			installClipboardActions(spreadSheet, edit);
-			if (table.getModel() instanceof SpreadSheetModel && spreadSheet.isNameFieldColumn(column)) {
+			if (spreadSheet.getSpreadSheetModel() != null && spreadSheet.isNameFieldColumn(column)) {
 				installNameFieldTabActions(spreadSheet, edit);
 			} else {
 				resetNameFieldTabActions(edit);

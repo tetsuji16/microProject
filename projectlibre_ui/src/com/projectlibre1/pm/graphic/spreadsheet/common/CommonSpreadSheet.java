@@ -72,6 +72,7 @@ import java.util.ListIterator;
 import javax.swing.CellEditor;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
+import javax.swing.Icon;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JComponent;
@@ -92,6 +93,9 @@ import javax.swing.text.Utilities;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
+import org.netbeans.swing.outline.DefaultOutlineModel;
+import org.netbeans.swing.outline.OutlineModel;
+import org.netbeans.swing.outline.RenderDataProvider;
 
 import com.projectlibre1.pm.graphic.ChangeAwareComponent;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
@@ -145,6 +149,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	protected boolean canModifyColumns = true;
 	protected boolean canSelectFieldArray = true;
 	private PendingUndoSelection pendingUndoSelection;
+	protected CommonSpreadSheetModel spreadSheetModel;
+	protected OutlineModel outlineModel;
 
 	public CommonSpreadSheet() {
 		super();
@@ -161,7 +167,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	}
 	public void cleanUp() {
-		getCache().removeNodeModelListener((CacheListener) getModel());
+		if (spreadSheetModel != null && spreadSheetModel.getCache() != null)
+			spreadSheetModel.getCache().removeNodeModelListener(spreadSheetModel);
 	}
 
 //	public void setModel(CommonSpreadSheetModel spreadSheetModel, DefaultTableColumnModel spreadSheetColumnModel) {
@@ -189,12 +196,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	//helper
 	public void setCache(NodeModelCache cache){
-		((CommonSpreadSheetModel)getModel()).setCache(cache);
+		if (spreadSheetModel != null)
+			spreadSheetModel.setCache(cache);
 	}
 	public NodeModelCache getCache(){
-		TableModel model=getModel();
-		if (model==null||!(model instanceof CommonSpreadSheetModel)) return null;
-		return ((CommonSpreadSheetModel)model).getCache();
+		return (spreadSheetModel == null) ? null : spreadSheetModel.getCache();
+	}
+
+	public CommonSpreadSheetModel getSpreadSheetModel() {
+		return spreadSheetModel;
 	}
 
 	public void setFieldArray(ArrayList fieldArray){
@@ -203,7 +213,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 //		((CommonSpreadSheetModel)getModel()).setFieldArray(fieldArray);
 	}
 	public ArrayList getFieldArray() {
-		return ((CommonSpreadSheetModel)getModel()).getFieldArray();
+		return (spreadSheetModel == null) ? null : spreadSheetModel.getFieldArray();
 	}
 
 	public final SpreadSheetFieldArray getFieldArrayWithWidths(ArrayList fieldArray) {
@@ -249,6 +259,46 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	protected void initListeners(){
+	}
+
+	protected RenderDataProvider createRenderDataProvider() {
+		return new OutlineRenderDataProvider();
+	}
+
+	protected class OutlineRenderDataProvider implements RenderDataProvider {
+		public java.awt.Color getBackground(Object o) {
+			return null;
+		}
+
+		public java.awt.Color getForeground(Object o) {
+			return null;
+		}
+
+		public String getDisplayName(Object o) {
+			if (o instanceof GraphicNode) {
+				GraphicNode node = (GraphicNode) o;
+				Node base = node.getNode();
+				Object impl = (base == null) ? null : base.getImpl();
+				return (impl == null) ? "" : String.valueOf(impl);
+			}
+			return (o == null) ? "" : String.valueOf(o);
+		}
+
+		public void setDisplayName(Object o, String displayName) {
+			// The spreadsheet uses the outline tree column only for rendering.
+		}
+
+		public Icon getIcon(Object o) {
+			return null;
+		}
+
+		public String getTooltipText(Object o) {
+			return getDisplayName(o);
+		}
+
+		public boolean isHtmlDisplayName(Object o) {
+			return false;
+		}
 	}
 
 	/**
@@ -361,9 +411,9 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	private boolean shouldClearFieldOnTypedDigit(int row, int column, char typedChar) {
 		if (!Character.isDigit(typedChar))
 			return false;
-		if (!(getModel() instanceof SpreadSheetModel))
+		if (spreadSheetModel == null)
 			return false;
-		Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column + 1);
+		Field field = spreadSheetModel.getFieldInColumn(column + 1);
 		return field != null && field.isDate() && (field.isStartValue() || field.isEndValue());
 	}
 
@@ -455,8 +505,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	private void rememberPendingUndoSelection(int row, int column) {
 		Node node = null;
 		Object impl = null;
-		if (getModel() instanceof SpreadSheetModel && row >= 0 && row < getRowCount()) {
-			node = ((SpreadSheetModel)getModel()).getNodeInRow(row);
+		if (spreadSheetModel != null && row >= 0 && row < getRowCount()) {
+			node = spreadSheetModel.getNodeInRow(row);
 			impl = (node == null) ? null : node.getImpl();
 		}
 		int followRow = Math.min(Math.max(row + 1, 0), Math.max(getRowCount() - 1, 0));
@@ -596,7 +646,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
     }
     public ArrayList getSelectedNodes(){
-        SpreadSheetModel model=(SpreadSheetModel)getModel();
+		CommonSpreadSheetModel model=spreadSheetModel;
 		int[] rows=getSelectedRows();
 		ArrayList nodes = new ArrayList(rows.length);
 		for (int i=0;i<rows.length;i++){
@@ -605,7 +655,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		return nodes;
     }
     public ArrayList getSelectedNodesImpl(){
-        SpreadSheetModel model=(SpreadSheetModel)getModel();
+		CommonSpreadSheetModel model=spreadSheetModel;
 		int[] rows=getSelectedRows();
 		ArrayList nodes = new ArrayList(rows.length);
 		for (int i=0;i<rows.length;i++){
@@ -632,11 +682,11 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
     }
 
     public Object getCurrentRowImpl() {
-        SpreadSheetModel model=(SpreadSheetModel)getModel();
+        CommonSpreadSheetModel model=spreadSheetModel;
         return model.getObjectInRow(getSelectedRow());
     }
     public Node getCurrentRowNode() {
-        SpreadSheetModel model=(SpreadSheetModel)getModel();
+		CommonSpreadSheetModel model=spreadSheetModel;
         int row = getCurrentRow();
         return model.getNodeInRow(row);
     }
@@ -669,7 +719,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return false;
 		}
 		if (column > 0) {
-			Node node = ((SpreadSheetModel)getModel()).getNodeInRow(row);
+			Node node = (spreadSheetModel == null) ? null : spreadSheetModel.getNodeInRow(row);
 			if (node != null && !CollaborationHelper.tryLockObject(null, node, this, "edit")) {
 				return false;
     		}
@@ -920,7 +970,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
         }
 		Node current = getCurrentRowNode();
 		Node newNode = NodeFactory.getInstance().createNode(impl);
-        SpreadSheetModel model=(SpreadSheetModel)getModel();
+        CommonSpreadSheetModel model=spreadSheetModel;
         NodeModel nodeModel = model.getCache().getModel();
 
 		LinkedList previousNodes=model.getPreviousVisibleNodesFromRow(row);
@@ -1077,7 +1127,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	public void selectObject(Object object) {
-		int row = ((CommonSpreadSheetModel)getModel()).findObjectRow(object);
+		int row = (spreadSheetModel == null) ? -1 : spreadSheetModel.findObjectRow(object);
 		if (row != -1) {
 			finishCurrentOperations();
 			changeSelection(row, getSelectedColumn(), false, false);

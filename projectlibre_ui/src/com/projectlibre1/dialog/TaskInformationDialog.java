@@ -265,7 +265,7 @@ public class TaskInformationDialog extends InformationDialog {
     	public void doClick(int row, int col) {
     		Object obj = getCurrentRowImpl();
     		if (obj!= null) {
-				Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(col+1);
+				Field field = getSpreadSheetModel().getFieldInColumn(col+1);
 				if (field == clickField) {
         			NormalTask pred = (NormalTask) (predecessor ? ((Dependency)obj).getLeft() : ((Dependency)obj).getRight());
         			dlg.setObject(pred);
@@ -278,7 +278,7 @@ public class TaskInformationDialog extends InformationDialog {
 		public Component prepareRenderer(TableCellRenderer renderer, int row,
 				int column) {
 			Component component =  super.prepareRenderer(renderer, row, column);
-			Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column+1);
+			Field field = getSpreadSheetModel().getFieldInColumn(column+1);
 			if (field == clickField) {
 				JLabel l = (JLabel)component;
 				l.setText("<html><a href=\"\">" + l.getText() + "</a></html>");

@@ -65,6 +65,7 @@ import java.util.StringTokenizer;
 import javax.swing.table.AbstractTableModel;
 
 import org.apache.commons.collections.Closure;
+import org.netbeans.swing.outline.RowModel;
 
 import com.projectlibre1.pm.graphic.model.cache.CacheInterval;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
@@ -84,7 +85,7 @@ import com.projectlibre1.pm.assignment.Assignment;
 /**
  *  
  */
-public class CommonSpreadSheetModel extends AbstractTableModel implements CacheListener/*implements ObjectEvent.Listener*/ {
+public class CommonSpreadSheetModel extends AbstractTableModel implements CacheListener, RowModel/*implements ObjectEvent.Listener*/ {
 	protected NodeModelCache cache = null;
 	protected FieldContext fieldContext = null; // only used if a field context is set
 	protected CellStyle cellStyle;
@@ -191,6 +192,10 @@ public class CommonSpreadSheetModel extends AbstractTableModel implements CacheL
 	
 	public Field getFieldInColumn(int col) {
 		return null;
+	}
+
+	public Field getFieldInNonTranslatedColumn(int col) {
+		return getFieldInColumn(col);
 	}
 
 	public String getColumnName(int col) {
@@ -315,12 +320,44 @@ public class CommonSpreadSheetModel extends AbstractTableModel implements CacheL
 	
 	
 	public int getColumnCount() {
-		// TODO Auto-generated method stub
-		return -1;
+		return 0;
 	}
 	public Object getValueAt(int rowIndex, int columnIndex) {
-		// TODO Auto-generated method stub
 		return null;
+	}
+
+	public Object getValueFor(Object node, int column) {
+		int row = resolveRow(node);
+		return (row < 0) ? null : getValueAt(row, column);
+	}
+
+	public void setValueFor(Object node, int column, Object value) {
+		int row = resolveRow(node);
+		if (row >= 0) {
+			setValueAt(value, row, column);
+		}
+	}
+
+	public boolean isCellEditable(Object node, int column) {
+		int row = resolveRow(node);
+		return row >= 0 && isCellEditable(row, column);
+	}
+
+	private int resolveRow(Object node) {
+		if (node == null || getCache() == null) {
+			return -1;
+		}
+		int row = getCache().getRowAt(node);
+		if (row >= 0) {
+			return row * getRowMultiple();
+		}
+		if (node instanceof GraphicNode) {
+			row = getCache().getRowAt(((GraphicNode) node).getNode());
+			if (row >= 0) {
+				return row * getRowMultiple();
+			}
+		}
+		return findObjectRow(node);
 	}
 	
 	/**
@@ -335,6 +372,13 @@ public class CommonSpreadSheetModel extends AbstractTableModel implements CacheL
 	public void fireUpdateAll(){
 		fireTableDataChanged();
 //		fireUpdate(NULL_ROW,NULL_COL);
+	}
+
+	public boolean isReadOnly() {
+		return false;
+	}
+
+	public void setReadOnly(boolean readOnly) {
 	}
 //	
 //	private static final int NULL_ROW = -1;

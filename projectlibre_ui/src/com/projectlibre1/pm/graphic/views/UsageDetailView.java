@@ -152,7 +152,7 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 	public void cleanUp() {
 		super.cleanUp();
 		coord.removeTimeScaleListener(timeScrollPane);
-		((TimeSpreadSheetModel) timeSpreadSheet.getModel()).removeFieldArrayListener(this);
+		timeSpreadSheet.getSpreadSheetModel().removeFieldArrayListener(this);
 		spreadSheet.cleanUp();
 		timeSpreadSheet.cleanUp();
 		spreadSheet = null;
@@ -178,7 +178,7 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		spreadSheet.setSpreadSheetCategory((taskUsage)?taskAssignmentSpreadsheetCategory:resourceAssignmentSpreadsheetCategory); // for columns.  must do first
 		SpreadSheetFieldArray fields = getFields();
 		spreadSheet.setCache(cache, fields, fields.getCellStyle(),fields.getActionList());
-		((SpreadSheetModel) spreadSheet.getModel()).setFieldContext(fieldContext);
+		spreadSheet.getSpreadSheetModel().setFieldContext(fieldContext);
 
 		cache.update(); //this is not required by certain views 
 
@@ -192,7 +192,7 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		timeSpreadSheet.setSpreadSheetCategory(timeSpreadsheetCategory);
 		SpreadSheetFieldArray fields = getDistributionFields();
 		timeSpreadSheet.setCache(cache, fields, fields.getCellStyle(),fields.getActionList());
-		((TimeSpreadSheetModel) timeSpreadSheet.getModel()).addFieldArrayListener(this);
+		timeSpreadSheet.getSpreadSheetModel().addFieldArrayListener(this);
 
 		timeScrollPane = new ScaledScrollPane(timeSpreadSheet, coord, documentFrame,timeSpreadSheet.getRowHeight());
 		timeSpreadSheet.createDefaultColumnsFromModel();
@@ -229,7 +229,7 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 
 	public void forceUpdateOfTimeSpreadSheet() {
 		// dynamic time spreadsheets don't update themselves for a stange reason fix here
-		int height=((CommonSpreadSheetModel)spreadSheet.getModel()).getRowCount()*((TimeSpreadSheetModel)timeSpreadSheet.getModel()).getRowMultiple()*GraphicConfiguration.getInstance().getRowHeight();
+		int height=spreadSheet.getSpreadSheetModel().getRowCount()*timeSpreadSheet.getSpreadSheetModel().getRowMultiple()*GraphicConfiguration.getInstance().getRowHeight();
 		timeSpreadSheet.setPreferredSize(new Dimension((int)coord.toW(coord.getEnd() - coord.getOrigin()), height/*spreadSheet.getPreferredSize().height*/));
 		timeSpreadSheet.setSize(timeSpreadSheet.getPreferredSize());
 		timeSpreadSheet.revalidate();

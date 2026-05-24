@@ -75,6 +75,7 @@ import javax.swing.text.JTextComponent;
 
 import com.projectlibre1.pm.graphic.IconManager;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
+import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.projectlibre1.graphic.configuration.CellFormat;
@@ -285,7 +286,12 @@ public class NameCellComponent extends JPanel {
 		component.setOffline(false);
 		CellUtility.setAppearance(table, value, isSelected, hasFocus, row,
 				column, component);
-		CommonSpreadSheetModel model = (CommonSpreadSheetModel) table.getModel();
+		CommonSpreadSheetModel model = (table instanceof CommonSpreadSheet) ? ((CommonSpreadSheet)table).getSpreadSheetModel() : null;
+		if (model == null && table.getModel() instanceof CommonSpreadSheetModel) {
+			model = (CommonSpreadSheetModel) table.getModel();
+		}
+		if (model == null)
+			return component;
 		GraphicNode node = model.getNode(row);
 		component.setText(value == null ? "" : value.toString());
 		int level=model.getCache().getLevel(node);

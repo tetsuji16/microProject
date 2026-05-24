@@ -92,6 +92,11 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
 		setTableHeader(null);
 		this.project=project;
 	}
+
+	@Override
+	public TimeSpreadSheetModel getSpreadSheetModel() {
+		return (TimeSpreadSheetModel) super.getSpreadSheetModel();
+	}
 	
 	public void setCache(NodeModelCache cache, ArrayList fieldArray, CellStyle cellStyle, ActionList actionList){
 		TimeSpreadSheetModel model=new TimeSpreadSheetModel(cache,fieldArray,cellStyle,actionList);
@@ -100,29 +105,32 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
 	}
 	
 	public void setFieldArray(ArrayList fieldArray){
-		((TimeSpreadSheetModel)getModel()).setFieldArray(fieldArray);
-		((TimeSpreadSheetModel)getModel()).resetSelectedFieldArray();
+		TimeSpreadSheetModel model = (TimeSpreadSheetModel)getSpreadSheetModel();
+		model.setFieldArray(fieldArray);
+		model.resetSelectedFieldArray();
 
 	
 	}
 	
 	
 	public void setSelectedFieldArray(ArrayList fieldArray){
-		((TimeSpreadSheetModel)getModel()).setSelectedFieldArray(fieldArray);
+		((TimeSpreadSheetModel)getSpreadSheetModel()).setSelectedFieldArray(fieldArray);
 	}
 	public ArrayList getSelectedFieldArray() {
-		return ((TimeSpreadSheetModel)getModel()).getSelectedFieldArray();
+		return ((TimeSpreadSheetModel)getSpreadSheetModel()).getSelectedFieldArray();
 	}
 	public void selectFieldArray(Field field){
-		((TimeSpreadSheetModel)getModel()).selectFieldArray(field);
+		((TimeSpreadSheetModel)getSpreadSheetModel()).selectFieldArray(field);
 	}
 
 	
 	
 	public void setModel(CommonSpreadSheetModel spreadSheetModel,
 			DefaultTableColumnModel spreadSheetColumnModel) {
-		TableModel oldModel=getModel();
-	    setModel(spreadSheetModel);
+		CommonSpreadSheetModel oldModel=getSpreadSheetModel();
+		this.spreadSheetModel = spreadSheetModel;
+		this.outlineModel = org.netbeans.swing.outline.DefaultOutlineModel.createOutlineModel(spreadSheetModel.getCache(), spreadSheetModel, true);
+	    super.setModel(this.outlineModel);
 	    setColumnModel(spreadSheetColumnModel);
 	    
 	    selection = new SpreadSheetSelectionModel(this);
@@ -138,11 +146,11 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
 		initRowHeader(spreadSheetModel);
 		initModel();
 		initListeners();
-	    if (oldModel!=spreadSheetModel&&oldModel instanceof CommonSpreadSheetModel) ((CommonSpreadSheetModel)getModel()).getCache().removeNodeModelListener(this);
+	    if (oldModel!=spreadSheetModel&&oldModel instanceof CommonSpreadSheetModel) ((CommonSpreadSheetModel)oldModel).getCache().removeNodeModelListener((CommonSpreadSheetModel)oldModel);
 	    spreadSheetModel.getCache().addNodeModelListener(this);
 	}
 	public void cleanUp() {
-		((TimeSpreadSheetModel)getModel()).getCache().removeNodeModelListener(this);
+		((TimeSpreadSheetModel)getSpreadSheetModel()).getCache().removeNodeModelListener(this);
      	getCoord().removeTimeScaleListener((TimeScaleListener) getColumnModel());
      	getCoord().removeTimeScaleListener((TimeScaleListener) getColumnModel());
 		super.cleanUp();
@@ -162,11 +170,11 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
 	}
 	
     public CoordinatesConverter getCoord() {
-    	TimeSpreadSheetModel model=(TimeSpreadSheetModel)getModel();
+    	TimeSpreadSheetModel model=(TimeSpreadSheetModel)getSpreadSheetModel();
         return model.getCoord();
     }
      public void setCoord(CoordinatesConverter coord) {
-     	TimeSpreadSheetModel model=(TimeSpreadSheetModel)getModel();
+     	TimeSpreadSheetModel model=(TimeSpreadSheetModel)getSpreadSheetModel();
         model.setCoord(coord);
      	TimeSpreadSheetColumnModel columnModel=(TimeSpreadSheetColumnModel)getColumnModel();
      	columnModel.setCoord(coord);
@@ -191,17 +199,17 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
     }
      
      public Class getRowClass(int row) {
-        return ((TimeSpreadSheetModel)getModel()).getRowClass(row);
+        return ((TimeSpreadSheetModel)getSpreadSheetModel()).getRowClass(row);
     }
      
      public TableCellRenderer getCellRenderer(int row, int column) {
-     	if (getModel() instanceof TimeSpreadSheetModel)
+     	if (getSpreadSheetModel() instanceof TimeSpreadSheetModel)
             return getDefaultRenderer(getRowClass(row));
      	else return super.getCellRenderer(row,column);
      }
      
      public TableCellEditor getCellEditor(int row, int column) {
-     	if (getModel() instanceof TimeSpreadSheetModel)
+     	if (getSpreadSheetModel() instanceof TimeSpreadSheetModel)
             return getDefaultEditor(getRowClass(row));
      	else return super.getCellEditor(row,column);
      }
@@ -215,10 +223,10 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
      }	
      
      
- 	public Component prepareRenderer(TableCellRenderer renderer, int row,
+	public Component prepareRenderer(TableCellRenderer renderer, int row,
 			int column) {
 		Component component =  super.prepareRenderer(renderer, row, column);
-		if (!getModel().isCellEditable(row, column+1))
+		if (!((TimeSpreadSheetModel)getSpreadSheetModel()).isCellEditable(row, column+1))
 			component.setBackground(Colors.LIGHT_GRAY);						
 		return component;
 	}

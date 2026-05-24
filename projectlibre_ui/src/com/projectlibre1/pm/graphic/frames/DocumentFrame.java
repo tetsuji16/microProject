@@ -88,6 +88,7 @@ import com.projectlibre1.pm.graphic.frames.workspace.NamedFrame;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.projectlibre1.pm.graphic.model.cache.ReferenceNodeModelCache;
+import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheet;
@@ -521,9 +522,9 @@ public class DocumentFrame extends NamedFrame implements
 		}
 
 		private int resolveRow() {
-			if (!(spreadSheet.getModel() instanceof SpreadSheetModel))
+			if (spreadSheet.getSpreadSheetModel() == null)
 				return row;
-			SpreadSheetModel model = (SpreadSheetModel) spreadSheet.getModel();
+			CommonSpreadSheetModel model = spreadSheet.getSpreadSheetModel();
 			if (node != null) {
 				for (int currentRow = 0; currentRow < spreadSheet.getRowCount(); currentRow++) {
 					Node rowNode = model.getNode(currentRow).getNode();

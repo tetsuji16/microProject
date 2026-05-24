@@ -130,7 +130,7 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 		}
 
 		private AssignmentEntry getEntryInRow(int row) {
-			Node node = ((SpreadSheetModel)getModel()).getNode(row).getNode();
+			Node node = getSpreadSheetModel().getNode(row).getNode();
 			if (node != null && !node.isVirtual()) 
 				return (AssignmentEntry)node.getImpl();
 			else
@@ -144,7 +144,7 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 			
 			if (!entry.isAssigned()) { // assign it first, then set value
 				if (resourceAssigner != null) {
-					Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column+1);
+					Field field = getSpreadSheetModel().getFieldInColumn(column+1);
 					double units = 1.0;
 					if (field == AssignmentEntry.getRateField()) {
 						units = ((Rate)aValue).getValue();
@@ -176,7 +176,7 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 			AssignmentEntry entry = getEntryInRow(row);
 			
 			if (entry != null) {
-				Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column+1);
+				Field field = getSpreadSheetModel().getFieldInColumn(column+1);
 				if (field == AssignmentEntry.getRateField()) {
 					if (entry.getTimeUnitLabel() != null) {
 						boolean labor = ((AssignmentEntry)entry).getResource().isLabor();
@@ -194,7 +194,7 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 			AssignmentEntry entry = getEntryInRow(row);
 			
 			if (entry != null) {
-				Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column+1);
+				Field field = getSpreadSheetModel().getFieldInColumn(column+1);
 				if (field == AssignmentEntry.getRateField()) {
 					if (entry.getTimeUnitLabel() != null) {
 						renderer = new RateRenderer();
@@ -229,7 +229,7 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 						//if (column == 0)
 							component.setBackground(Colors.PALE_YELLOW);
 						if (column!=0)  {
-							Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column);
+							Field field = getSpreadSheetModel().getFieldInColumn(column);
 							if (field == Assignment.getRequestDemandTypeField() || field == AssignmentEntry.getRateField()) {
 								((JLabel)component).setText(Field.MULTIPLE_VALUES);
 							}

@@ -237,7 +237,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		spreadSheet.setCache(cache,fields,fields.getCellStyle(),fields.getActionList());
 		if (project.getFieldArray() != null)
 			spreadSheet.setFieldArrayWithWidths(fields);
-		((SpreadSheetModel)spreadSheet.getModel()).setFieldContext(fieldContext);
+		spreadSheet.getSpreadSheetModel().setFieldContext(fieldContext);
 		project.removeScheduleListener(this); // in case was already attached and recreating (applet)
 		project.addScheduleListener(this);
 		if (project.isReadOnly())

@@ -233,9 +233,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		System.out.println("SpreadSheet.finalize()" + this);
 	}
 	public void cleanUp() {
-		if (getModel() instanceof CommonSpreadSheetModel)
-			((CommonSpreadSheetModel) getModel()).getCache().removeNodeModelListener(this);
+		CommonSpreadSheetModel model = getSpreadSheetModel();
+		if (model != null && model.getCache() != null)
+			model.getCache().removeNodeModelListener(model);
 		super.cleanUp();
+	}
+
+	@Override
+	public SpreadSheetModel getSpreadSheetModel() {
+		return (SpreadSheetModel) super.getSpreadSheetModel();
 	}
 	public void setCache(NodeModelCache cache, ArrayList fieldArray, CellStyle cellStyle, ActionList actionList) {
 		// if (getCache()!=null) getCache().close();
@@ -254,7 +260,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public TableCellEditor getCellEditor(int row, int column) {
-		SpreadSheetModel model=(SpreadSheetModel) getModel();
+		SpreadSheetModel model = getSpreadSheetModel();
 		Field field = model.getFieldInColumn(column + 1);
 		GraphicNode node=model.getNode(row);
 		if (field != null && (field.isDynamicOptions() || field.hasFilter())) {
@@ -265,9 +271,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean isNameFieldColumn(int column) {
-		if (column < 0 || !(getModel() instanceof SpreadSheetModel))
+		if (column < 0 || getSpreadSheetModel() == null)
 			return false;
-		Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column + 1);
+		Field field = getSpreadSheetModel().getFieldInColumn(column + 1);
 		return field != null && field.isNameField();
 	}
 
@@ -283,8 +289,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (rowToFocus < 0)
 			rowToFocus = getSelectionModel().getAnchorSelectionIndex();
 		GraphicNode focusNode = null;
-		if (rowToFocus >= 0 && rowToFocus < getRowCount() && getModel() instanceof SpreadSheetModel) {
-			focusNode = ((SpreadSheetModel)getModel()).getNode(rowToFocus);
+		if (rowToFocus >= 0 && rowToFocus < getRowCount() && getSpreadSheetModel() != null) {
+			focusNode = getSpreadSheetModel().getNode(rowToFocus);
 		}
 		hierarchyActionInProgress = true;
 		try {
@@ -300,9 +306,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		int row = getCurrentRow();
 		if (row < 0 || row >= getRowCount())
 			return false;
-		if (!(getModel() instanceof SpreadSheetModel))
+		if (getSpreadSheetModel() == null)
 			return false;
-		SpreadSheetModel model = (SpreadSheetModel) getModel();
+		SpreadSheetModel model = getSpreadSheetModel();
 		GraphicNode graphicNode = model.getNode(row);
 		if (graphicNode == null)
 			return false;
@@ -329,9 +335,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		int row = getCurrentRow();
 		if (row < 0 || row >= getRowCount())
 			return false;
-		if (!(getModel() instanceof SpreadSheetModel))
+		if (getSpreadSheetModel() == null)
 			return false;
-		SpreadSheetModel model = (SpreadSheetModel) getModel();
+		SpreadSheetModel model = getSpreadSheetModel();
 		GraphicNode graphicNode = model.getNode(row);
 		if (graphicNode == null)
 			return false;
@@ -355,7 +361,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			rowToFocus = getSelectionModel().getAnchorSelectionIndex();
 		if (rowToFocus < 0)
 			return;
-		GraphicNode focusNode = ((SpreadSheetModel)getModel()).getNode(rowToFocus);
+		GraphicNode focusNode = getSpreadSheetModel().getNode(rowToFocus);
 		hierarchyActionInProgress = true;
 		try {
 			finishCurrentOperations();
@@ -416,15 +422,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	private int findRowForGraphicNode(GraphicNode node) {
-		if (node == null || !(getModel() instanceof SpreadSheetModel))
+		if (node == null || getSpreadSheetModel() == null)
 			return -1;
-		return ((SpreadSheetModel)getModel()).findGraphicNodeRow(node);
+		return getSpreadSheetModel().findGraphicNodeRow(node);
 	}
 
 	private int findNameColumn() {
-		if (!(getModel() instanceof SpreadSheetModel))
+		if (getSpreadSheetModel() == null)
 			return -1;
-		SpreadSheetModel model = (SpreadSheetModel)getModel();
+		SpreadSheetModel model = getSpreadSheetModel();
 		for (int column = 0; column < getColumnCount(); column++) {
 			Field field = model.getFieldInColumn(column + 1);
 			if (field != null && field.isNameField())
@@ -541,7 +547,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			public String getToolTipText(MouseEvent e) {
 				if (isHasColumnHeaderPopup()) {
 					int col = columnAtPoint(e.getPoint());
-					Field f = ((SpreadSheetModel) getModel()).getFieldInNonTranslatedColumn(col + 1);
+					Field f = getSpreadSheetModel().getFieldInNonTranslatedColumn(col + 1);
 					if (f != null)
 						return "<html>" + f.getName() + 
 							"<br>" + Messages.getString("Text.rightClickToInsertRemoveColumns") + "</html>";
@@ -563,8 +569,12 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	
 	public void setModel(SpreadSheetModel spreadSheetModel, SpreadSheetColumnModel spreadSheetColumnModel) {
 		makeCustomTableHeader(spreadSheetColumnModel);
-		TableModel oldModel = getModel();
-		setModel(spreadSheetModel);
+		CommonSpreadSheetModel oldModel = getSpreadSheetModel();
+		this.spreadSheetModel = spreadSheetModel;
+		this.outlineModel = org.netbeans.swing.outline.DefaultOutlineModel.createOutlineModel(spreadSheetModel.getCache(), spreadSheetModel, true);
+		super.setModel(this.outlineModel);
+		setRootVisible(false);
+		setRenderDataProvider(createRenderDataProvider());
 		
 		if (spreadSheetColumnModel!=null){
 			//System.out.println("creating new ColModel");
@@ -630,8 +640,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				SpreadSheetPopupMenu popup=getPopup();
 				if (SwingUtilities.isLeftMouseButton(e)) {
 					SpreadSheetColumnModel columnModel = (SpreadSheetColumnModel) getColumnModel();
-					Field field = ((SpreadSheetModel) getModel()).getFieldInNonTranslatedColumn(col + 1);
-					SpreadSheetModel model = (SpreadSheetModel) getModel();
+					Field field = getSpreadSheetModel().getFieldInNonTranslatedColumn(col + 1);
+					SpreadSheetModel model = getSpreadSheetModel();
 					if (field.isNameField()) {
 						// if (col == columnModel.getNameIndex()) {
 						GraphicNode node = model.getNode(row);
@@ -684,8 +694,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			}
 		});
 
-		if (oldModel != spreadSheetModel && oldModel instanceof CommonSpreadSheetModel)
-			((CommonSpreadSheetModel) getModel()).getCache().removeNodeModelListener(this);
+		if (oldModel != null && oldModel.getCache() != null && oldModel != spreadSheetModel)
+			oldModel.getCache().removeNodeModelListener(oldModel);
 		spreadSheetModel.getCache().addNodeModelListener(this);
 
 //		getColumnModel().addColumnModelListener(new TableColumnModelListener(){
@@ -747,7 +757,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		int row = rowAtPoint(p);
 		int col = columnAtPoint(p);
 		Rectangle bounds = getCellRect(row, col, false);
-		SpreadSheetModel model = (SpreadSheetModel) getModel();
+		SpreadSheetModel model = getSpreadSheetModel();
 		GraphicNode node = model.getNode(row);
 		return NameCellComponent.isOnIcon(new Point((int) (p.getX() - bounds.getX()), (int) (p.getY() - bounds.getY())), bounds.getSize(), model
 				.getCache().getLevel(node));
@@ -758,7 +768,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		int row = rowAtPoint(p);
 		int col = columnAtPoint(p);
 		Rectangle bounds = getCellRect(row, col, false);
-		SpreadSheetModel model = (SpreadSheetModel) getModel();
+		SpreadSheetModel model = getSpreadSheetModel();
 		GraphicNode node = model.getNode(row);
 		return NameCellComponent.isOnText(new Point((int) (p.getX() - bounds.getX()), (int) (p.getY() - bounds.getY())), bounds.getSize(), model
 				.getCache().getLevel(node));
@@ -770,9 +780,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		// if (isEditing() && getEditingColumn() == columnModel.getNameIndex()
 		// && editorComp != null) {
 
-		if (isEditing() && editorComp != null && ((SpreadSheetModel) getModel()).getFieldInColumn(getEditingColumn() + 1).isNameField()) {
+		if (isEditing() && editorComp != null && getSpreadSheetModel() != null && getSpreadSheetModel().getFieldInColumn(getEditingColumn() + 1).isNameField()) {
 			NameCellComponent c = (NameCellComponent) editorComp;
-			SpreadSheetModel model = (SpreadSheetModel) getModel();
+			SpreadSheetModel model = getSpreadSheetModel();
 			// GraphicNode node = model.getNode(row);
 			if (model.getCellProperties(node).isCompositeIcon())
 				c.setCollapsed(node.isCollapsed());
@@ -785,7 +795,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				int row = getSelectedRow();
 				if (row < 0)
 					return;
-				CommonSpreadSheetModel model = (CommonSpreadSheetModel) getModel();
+				CommonSpreadSheetModel model = getSpreadSheetModel();
 				if (e.getKeyCode() == KeyEvent.VK_INSERT)
 					executeAction(MenuActionConstants.ACTION_NEW);
 				else if (e.getKeyCode() == KeyEvent.VK_DELETE)
@@ -809,7 +819,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public List rowsToGraphicNodes(int[] rows) {
 		if (rows == null || rows.length == 0)
 			return new LinkedList();
-		NodeModelCache cache = ((SpreadSheetModel) getModel()).getCache();
+		NodeModelCache cache = getSpreadSheetModel().getCache();
 		return cache.getElementsAt(rows);
 	}
 	
@@ -841,7 +851,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 	private String[] actionList=null;
 	public String[] getActionList(){
-		if (actionList==null) actionList=((SpreadSheetModel)getModel()).getActionList();
+		if (actionList==null && getSpreadSheetModel() != null) actionList=getSpreadSheetModel().getActionList();
 		return actionList;
 	}
 	private Map actionMap=null;
@@ -888,7 +898,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		actionMap=null;
 		actionList=null;
 		popup=null;
-		((CommonSpreadSheetModel)getModel()).clearActions();
+		if (getSpreadSheetModel() != null)
+			getSpreadSheetModel().clearActions();
 	}
 //	private static String dumpActions(String[] actions){
 //		if (actions==null) return null;
@@ -1187,11 +1198,12 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	
 	
 	public boolean isReadOnly() {
-		return ((SpreadSheetModel)getModel()).isReadOnly();
+		return getSpreadSheetModel() != null && getSpreadSheetModel().isReadOnly();
 	}
 
 	public void setReadOnly(boolean readOnly) {
-		((SpreadSheetModel)getModel()).setReadOnly(readOnly);
+		if (getSpreadSheetModel() != null)
+			getSpreadSheetModel().setReadOnly(readOnly);
 	}
 
 

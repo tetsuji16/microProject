@@ -65,6 +65,8 @@ import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 
+import org.netbeans.swing.outline.Outline;
+
 import com.projectlibre1.pm.graphic.spreadsheet.editor.DateEditor;
 import com.projectlibre1.pm.graphic.spreadsheet.editor.SimpleEditor;
 import com.projectlibre1.pm.graphic.spreadsheet.editor.SpreadSheetCellEditorAdapter;
@@ -80,7 +82,7 @@ import com.projectlibre1.graphic.configuration.GraphicConfiguration;
 /**
  *
  */
-public class CommonTable extends javax.swing.JTable {
+public class CommonTable extends Outline {
 
     /**
      * 
@@ -94,14 +96,17 @@ public class CommonTable extends javax.swing.JTable {
      * @param numColumns
      */
     public CommonTable(int numRows, int numColumns) {
-        super(numRows, numColumns);
+        super();
     }
 
     /**
      * @param dm
      */
     public CommonTable(TableModel dm) {
-        super(dm);
+        super();
+        if (dm instanceof org.netbeans.swing.outline.OutlineModel) {
+            setModel((org.netbeans.swing.outline.OutlineModel) dm);
+        }
     }
 
     /**
@@ -109,7 +114,7 @@ public class CommonTable extends javax.swing.JTable {
      * @param columnNames
      */
     public CommonTable(Object[][] rowData, Object[] columnNames) {
-        super(rowData, columnNames);
+        super();
     }
 
     /**
@@ -117,7 +122,7 @@ public class CommonTable extends javax.swing.JTable {
      * @param columnNames
      */
     public CommonTable(Vector rowData, Vector columnNames) {
-        super(rowData, columnNames);
+        super();
     }
 
     /**
@@ -125,7 +130,13 @@ public class CommonTable extends javax.swing.JTable {
      * @param cm
      */
     public CommonTable(TableModel dm, TableColumnModel cm) {
-        super(dm, cm);
+        super();
+        if (dm instanceof org.netbeans.swing.outline.OutlineModel) {
+            setModel((org.netbeans.swing.outline.OutlineModel) dm);
+        }
+        if (cm != null) {
+            setColumnModel(cm);
+        }
     }
 
     /**
@@ -134,7 +145,16 @@ public class CommonTable extends javax.swing.JTable {
      * @param sm
      */
     public CommonTable(TableModel dm, TableColumnModel cm, ListSelectionModel sm) {
-        super(dm, cm, sm);
+        super();
+        if (dm instanceof org.netbeans.swing.outline.OutlineModel) {
+            setModel((org.netbeans.swing.outline.OutlineModel) dm);
+        }
+        if (cm != null) {
+            setColumnModel(cm);
+        }
+        if (sm != null) {
+            setSelectionModel(sm);
+        }
     }
     public boolean editorsRegistered;
 	protected void registerEditors(){

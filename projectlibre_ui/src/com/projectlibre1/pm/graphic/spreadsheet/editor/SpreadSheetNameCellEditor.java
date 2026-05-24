@@ -101,8 +101,8 @@ public class SpreadSheetNameCellEditor extends SpreadSheetCellEditorAdapter{
 		component = new NameCellComponent(textComponent);
 		component.init();
 		CellUtility.setAppearance(table, value, isSelected, true, row, column, component);
-		if (table.getModel() instanceof SpreadSheetModel) {
-			SpreadSheetModel model = (SpreadSheetModel)table.getModel();
+		if (table instanceof SpreadSheet && ((SpreadSheet)table).getSpreadSheetModel() != null) {
+			SpreadSheetModel model = ((SpreadSheet)table).getSpreadSheetModel();
 			GraphicNode node = model.getNode(row);
 			component.setText(value == null ? "" : value.toString());
 			int level = model.getCache().getLevel(node);

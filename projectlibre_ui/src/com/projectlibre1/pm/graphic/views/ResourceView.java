@@ -153,7 +153,7 @@ public class ResourceView extends JScrollPane implements BaseView {
         spreadSheet = new SpreadSheet() {
 
     		private Object getEntryInRow(int row) {
-    			Node node = ((SpreadSheetModel)getModel()).getNode(row).getNode();
+    			Node node = getSpreadSheetModel().getNode(row).getNode();
     			if (node != null && !node.isVirtual()) 
     				return node.getImpl();
     			else
@@ -224,7 +224,7 @@ public class ResourceView extends JScrollPane implements BaseView {
 			fields.removeField("Field.userRole"); //$NON-NLS-1$
 		}
 		spreadSheet.setCache(cache,fields,fields.getCellStyle(),fields.getActionList());
-		((SpreadSheetModel)spreadSheet.getModel()).setFieldContext(fieldContext);
+		spreadSheet.getSpreadSheetModel().setFieldContext(fieldContext);
 		spreadSheet.setReadOnly(readOnly);
 	}
 

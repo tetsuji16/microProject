@@ -62,6 +62,7 @@ import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
+import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.projectlibre1.graphic.configuration.CellFormat;
 import com.projectlibre1.util.FlatUiSupport;
@@ -72,7 +73,19 @@ import com.projectlibre1.util.FlatUiSupport;
  */
 public class CellUtility {
 	public static void setAppearance(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column, JComponent component){
-		CommonSpreadSheetModel model = (CommonSpreadSheetModel) table.getModel();
+		CommonSpreadSheetModel model = null;
+		if (table instanceof CommonSpreadSheet) {
+			model = ((CommonSpreadSheet) table).getSpreadSheetModel();
+		}
+		if (model == null && table.getModel() instanceof CommonSpreadSheetModel) {
+			model = (CommonSpreadSheetModel) table.getModel();
+		}
+		if (model == null) {
+			component.setBorder(new EmptyBorder(1, 1, 1, 1));
+			component.setForeground(FlatUiSupport.tableForeground());
+			component.setBackground(FlatUiSupport.tableBackground());
+			return;
+		}
 		GraphicNode node = model.getNode(row);
 		CellFormat cellFormat=model.getCellProperties(node);
 		boolean editingThisCell = table.isEditing() && table.getEditingRow() == row && table.getEditingColumn() == column;

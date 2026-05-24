@@ -133,13 +133,11 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 		tc.setHeaderRenderer(new SpreadSheetColumnHeaderRenderer());
 
 		if (columnIndex == 0) {
+			super.addColumn(tc);
 			Field field = (Field) originalFieldArray.get(columnIndex);
 			tc.setIdentifier(field); // store the field with the column
-			// tc.setIdentifier(null); // store the field with the column
-			tc.setPreferredWidth(0);
-
-			colWidth = 0;
-			// nothing
+			tc.setPreferredWidth((svg)?170:150);
+			colWidth = tc.getPreferredWidth();
 		} else {
 			super.addColumn(tc);
 			Field field = (Field) originalFieldArray.get(columnIndex);
