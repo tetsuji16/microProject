@@ -46,13 +46,45 @@ The figures below describe cumulative change volume since that baseline commit.
 ## Requirements
 
 - Windows with a full JDK that includes `jpackage`
-- JDK 21 or newer recommended
-- Apache Ant 1.10+
+- JDK 26 recommended
+- Gradle Wrapper support files are included in this repository
+- Apache Ant 1.10+ is only needed for legacy packaging workflows that have not been migrated yet
 - WiX Toolset on `PATH` for MSI packaging
 
 If `JAVA_HOME` is not set, pass a JDK path explicitly when running the MSI packaging script.
 
 ## Build The App
+
+The default build entrypoint is now the Gradle wrapper from the repository root.
+
+Compile every module and assemble the desktop distribution artifacts:
+
+```powershell
+.\gradlew.bat build
+```
+
+Create the installable application layout:
+
+```powershell
+.\gradlew.bat stageAppDist
+```
+
+Key Gradle entrypoints:
+
+- `.\gradlew.bat projects`: show the multi-project layout
+- `.\gradlew.bat :projectlibre_contrib:build`: rebuild contrib JARs
+- `.\gradlew.bat :projectlibre_ui:run`: launch the desktop app from source
+- `.\gradlew.bat :projectlibre_ui:installDist`: create the runnable app layout
+
+The runnable application layout is generated under:
+
+- `projectlibre_ui\build\install\projectlibre_ui`
+
+The per-module JARs are generated under each module's `build\libs` directory.
+
+## Legacy Ant Build
+
+The old Ant build is still present for packaging tasks that have not yet been moved to Gradle.
 
 From the repository root:
 
@@ -62,12 +94,12 @@ ant compile
 ant dist
 ```
 
-This does two important things:
+This still does two important things:
 
 - Rebuilds the contrib JARs so stale or damaged local artifacts do not block packaging
 - Produces the runnable desktop layout in `projectlibre_build/dist`
 
-The main runnable JAR is:
+The legacy main runnable JAR is:
 
 - `projectlibre_build/dist/projectlibre.jar`
 
@@ -108,11 +140,12 @@ The README screenshot is intentionally captured so that only the application UI 
 
 ## Quick Verification
 
-- `ant compile`: compile succeeds
-- `ant dist`: distribution JAR and runtime libs are refreshed
-- `ant jpackage-msi`: MSI input layout is generated
+- `.\gradlew.bat projects`: multi-project Gradle layout resolves
+- `.\gradlew.bat build`: all Gradle modules compile and package successfully
+- `.\gradlew.bat stageAppDist`: runnable app layout is generated
+- `ant compile`: legacy Ant compile still succeeds
+- `ant jpackage-msi`: MSI input layout is generated for the legacy packaging flow
 - `make.ps1`: MSI installer is generated
-- App launch check: the packaged app opens and reaches the Gantt screen with sample data
 
 ## License
 
