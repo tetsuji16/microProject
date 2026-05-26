@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="jakarta-poi">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/exchange/jakarta-poi.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

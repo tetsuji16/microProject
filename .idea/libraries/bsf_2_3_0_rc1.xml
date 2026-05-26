@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="bsf-2.3.0-rc1">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/groovy/bsf-2.3.0-rc1.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

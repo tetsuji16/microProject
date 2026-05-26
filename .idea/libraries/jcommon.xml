@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="jcommon">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/jcommon.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

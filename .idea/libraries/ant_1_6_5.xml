@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="ant-1.6.5">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/groovy/ant-1.6.5.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="nachocalendar">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/nachocalendar.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

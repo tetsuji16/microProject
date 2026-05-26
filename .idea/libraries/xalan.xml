@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="xalan">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/jasperreports/xalan.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

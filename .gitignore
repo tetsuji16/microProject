@@ -15,6 +15,7 @@
 .project
 .classpath
 .settings/
+*.cvsignore
 
 # OS
 .DS_Store

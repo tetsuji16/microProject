@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="xerces-2.4.0">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/groovy/xerces-2.4.0.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
