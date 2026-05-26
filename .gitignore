@@ -6,6 +6,8 @@
 
 # IDE
 .idea/
+.gradle/
+.tools/
 *.iml
 *.iws
 *.ipr
@@ -32,6 +34,7 @@ Thumbs.db
 *.tmp
 *.swp
 *~
+projectlibre_build/*check.png
 
 # Sisyphus session files
 .sisyphus/

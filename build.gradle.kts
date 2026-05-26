@@ -3,6 +3,12 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
+fun org.gradle.api.Project.projectLibreExternalLibs() =
+    fileTree(rootProject.file("projectlibre_contrib/lib")) {
+        include("**/*.jar")
+        exclude("flamingo-6.2.jar", "trident-6.2.jar")
+    }
+
 plugins {
     base
 }
@@ -53,6 +59,10 @@ subprojects {
 
     tasks.withType<Test>().configureEach {
         enabled = false
+    }
+
+    if (name != "projectlibre_contrib") {
+        dependencies.add("implementation", projectLibreExternalLibs())
     }
 }
 
