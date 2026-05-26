@@ -35,6 +35,9 @@ Thumbs.db
 *.swp
 *~
 projectlibre_build/*check.png
+projectlibre_contrib/projectlibre-contrib.jar
+projectlibre_contrib/projectlibre-reports.jar
+projectlibre_contrib/projectlibre-script-radiance.jar
 
 # Sisyphus session files
 .sisyphus/
