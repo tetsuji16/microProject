@@ -141,6 +141,6 @@ public class TimephasedService {
 //		if (TimeDistributedTypeMapper.isCurrent(t.getType().intValue()) && assignment.getWorkContourType() != ContourTypes.CONTOURED)
 //			return;
 		long duration = XsdDuration.millis(t.getValue());
-		assignment.setInterval(type,DateTime.gmt(t.getStart().getTime()),DateTime.gmt(t.getFinish().getTime()), duration);
+		assignment.setInterval(type, t.getStart().getTime(), t.getFinish().getTime(), duration);
 	}
 }

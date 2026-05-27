@@ -23,7 +23,7 @@
 
 package net.sf.mpxj;
 
-import java.util.Iterator;
+import net.sf.mpxj.common.NumberHelper;
 
 /**
  * Manages the collection of calendars belonging to a project.
@@ -42,12 +42,9 @@ public class ProjectCalendarContainer extends ProjectEntityContainer<ProjectCale
 
    @Override public void removed(ProjectCalendar calendar)
    {
-      Resource resource = calendar.getResource();
-      if (resource != null)
-      {
-         resource.setResourceCalendar(null);
-      }
-
+      calendar.getDerivedCalendars().forEach(c -> c.setParent(null));
+      calendar.getResources().forEach(r -> r.setCalendar(null));
+      calendar.getTasks().forEach(t -> t.setCalendar(null));
       calendar.setParent(null);
    }
 
@@ -75,18 +72,10 @@ public class ProjectCalendarContainer extends ProjectEntityContainer<ProjectCale
       ProjectCalendar calendar = add();
 
       calendar.setName(ProjectCalendar.DEFAULT_BASE_CALENDAR_NAME);
-
-      calendar.setWorkingDay(Day.SUNDAY, false);
-      calendar.setWorkingDay(Day.MONDAY, true);
-      calendar.setWorkingDay(Day.TUESDAY, true);
-      calendar.setWorkingDay(Day.WEDNESDAY, true);
-      calendar.setWorkingDay(Day.THURSDAY, true);
-      calendar.setWorkingDay(Day.FRIDAY, true);
-      calendar.setWorkingDay(Day.SATURDAY, false);
-
+      calendar.addDefaultCalendarDays();
       calendar.addDefaultCalendarHours();
 
-      return (calendar);
+      return calendar;
    }
 
    /**
@@ -99,15 +88,48 @@ public class ProjectCalendarContainer extends ProjectEntityContainer<ProjectCale
    {
       ProjectCalendar calendar = add();
 
-      calendar.setWorkingDay(Day.SUNDAY, DayType.DEFAULT);
-      calendar.setWorkingDay(Day.MONDAY, DayType.DEFAULT);
-      calendar.setWorkingDay(Day.TUESDAY, DayType.DEFAULT);
-      calendar.setWorkingDay(Day.WEDNESDAY, DayType.DEFAULT);
-      calendar.setWorkingDay(Day.THURSDAY, DayType.DEFAULT);
-      calendar.setWorkingDay(Day.FRIDAY, DayType.DEFAULT);
-      calendar.setWorkingDay(Day.SATURDAY, DayType.DEFAULT);
+      calendar.setCalendarDayType(Day.SUNDAY, DayType.DEFAULT);
+      calendar.setCalendarDayType(Day.MONDAY, DayType.DEFAULT);
+      calendar.setCalendarDayType(Day.TUESDAY, DayType.DEFAULT);
+      calendar.setCalendarDayType(Day.WEDNESDAY, DayType.DEFAULT);
+      calendar.setCalendarDayType(Day.THURSDAY, DayType.DEFAULT);
+      calendar.setCalendarDayType(Day.FRIDAY, DayType.DEFAULT);
+      calendar.setCalendarDayType(Day.SATURDAY, DayType.DEFAULT);
 
       return (calendar);
+   }
+
+   /**
+    * If we're calling this method, we don't have a reliable way to identify
+    * the default calendar. As that's the case we'll try to find a calendar
+    * called "Standard". If that doesn't exist, but we have some calendars,
+    * we'll just use the first one. Finally, if we have no calendars we'll
+    * create ourselves a default one.
+    *
+    * @return default project calendar
+    */
+   public ProjectCalendar findOrCreateDefaultCalendar()
+   {
+      ProjectCalendar result = getByName(ProjectCalendar.DEFAULT_BASE_CALENDAR_NAME);
+      if (result == null)
+      {
+         if (!isEmpty())
+         {
+            result = get(0);
+         }
+         else
+         {
+            result = addDefaultBaseCalendar();
+            if (NumberHelper.getInt(result.getUniqueID()) == 0)
+            {
+               ProjectConfig config = m_projectFile.getProjectConfig();
+               config.updateCalendarUniqueCounter();
+               result.setUniqueID(Integer.valueOf(config.getNextCalendarUniqueID()));
+            }
+         }
+      }
+
+      return result;
    }
 
    /**
@@ -123,13 +145,12 @@ public class ProjectCalendarContainer extends ProjectEntityContainer<ProjectCale
 
       if (calendarName != null && calendarName.length() != 0)
       {
-         Iterator<ProjectCalendar> iter = iterator();
-         while (iter.hasNext() == true)
+         for (ProjectCalendar projectCalendar : this)
          {
-            calendar = iter.next();
+            calendar = projectCalendar;
             String name = calendar.getName();
 
-            if ((name != null) && (name.equalsIgnoreCase(calendarName) == true))
+            if ((name != null) && name.equalsIgnoreCase(calendarName))
             {
                break;
             }

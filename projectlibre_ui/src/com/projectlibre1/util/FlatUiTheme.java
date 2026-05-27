@@ -32,25 +32,6 @@ final class FlatUiTheme {
 	}
 
 	static void installIntoUIManager() {
-		UIManager.put("Panel.background", APP_BACKGROUND);
-		UIManager.put("PopupPanel.background", APP_BACKGROUND);
-		UIManager.put("ProjectLibre.ribbonChromeBackground", RIBBON_CHROME_BACKGROUND);
-		UIManager.put("ProjectLibre.ribbonSurfaceBackground", RIBBON_SURFACE);
-		UIManager.put("Table.background", TABLE_BACKGROUND);
-		UIManager.put("Table.foreground", TABLE_FOREGROUND);
-		UIManager.put("Table.selectionBackground", TABLE_SELECTION_BACKGROUND);
-		UIManager.put("Table.selectionForeground", TABLE_SELECTION_FOREGROUND);
-		UIManager.put("Table.gridColor", TABLE_GRID);
-		UIManager.put("TableHeader.background", HEADER_BACKGROUND);
-		UIManager.put("TableHeader.cellBackground", HEADER_BACKGROUND);
-		UIManager.put("TableHeader.foreground", HEADER_FOREGROUND);
-		UIManager.put("Label.foreground", LABEL_FOREGROUND);
-		UIManager.put("Label.disabledForeground", DISABLED_FOREGROUND);
-		UIManager.put("TextField.foreground", INFO_FOREGROUND);
-		UIManager.put("TextField.selectionBackground", TABLE_SELECTION_BACKGROUND);
-		UIManager.put("TextField.selectionForeground", TABLE_SELECTION_FOREGROUND);
-		UIManager.put("Separator.foreground", SEPARATOR);
-		UIManager.put("Component.borderColor", BORDER);
 		UIManager.put("Component.focusColor", ACCENT);
 		UIManager.put("ProgressBar.foreground", ACCENT);
 		UIManager.put("Actions.Blue", ACCENT);

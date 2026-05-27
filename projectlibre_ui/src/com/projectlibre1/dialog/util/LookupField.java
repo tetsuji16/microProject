@@ -60,7 +60,6 @@ import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -80,7 +79,6 @@ public class LookupField extends JPanel {
 	String value;
 	public LookupField(Field field,Object value) {
 		super();
-		setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 		setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
 		
 		this.value = (String)value;

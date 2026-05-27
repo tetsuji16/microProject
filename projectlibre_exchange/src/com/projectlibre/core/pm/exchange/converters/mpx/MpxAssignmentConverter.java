@@ -118,7 +118,7 @@ public class MpxAssignmentConverter {
 		WorkContour contour;
 		if (mpxContour==null)
 			contour=WorkContour.FLAT;
-		else contour=WorkContour.getInstance(mpxContour.getValue());
+		else contour=WorkContour.valueOf(mpxContour.getName());
 		assignment.setContour(contour);
 	}	
 }

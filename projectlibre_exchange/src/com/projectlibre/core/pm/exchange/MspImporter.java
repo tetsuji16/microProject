@@ -71,9 +71,9 @@ import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.mpp.MPPReader;
 import net.sf.mpxj.mpx.MPXReader;
 import net.sf.mpxj.mspdi.schema.TimephasedDataType;
-import net.sf.mpxj.planner.PlannerReader;
 import net.sf.mpxj.reader.AbstractProjectReader;
-import net.sf.mpxj.xlsx.XlsxReader;
+import net.sf.mpxj.reader.UniversalProjectReader;
+import net.sf.mpxj.planner.PlannerReader;
 
 import com.projectlibre.core.pm.exchange.converters.mpx.MpxAssignmentConverter;
 import com.projectlibre.core.pm.exchange.converters.mpx.MpxCalendarConverter;
@@ -147,7 +147,7 @@ public class MspImporter {
 	private void initializeTimephasedState() {
 		// Identity the type of conversion. It will be used by AssignmentConverter.
 		if (state.isMspdi()) {
-			state.setMpxTimephasedMap(((ImprovedMSPDIReader)reader).getTimephasedMap());
+			state.setMpxTimephasedMap(new HashMap<ResourceAssignment, List<TimephasedDataType>>());
 			return;
 		}
 		state.setMpxTimephasedMap(new HashMap<ResourceAssignment, List<TimephasedDataType>>());
@@ -170,7 +170,7 @@ public class MspImporter {
 	private AbstractProjectReader createReader(String extension) {
 		if (isMspdiExtension(extension)) {
 			state.setMspdi(true);
-			return new ImprovedMSPDIReader();
+			return new net.sf.mpxj.mspdi.MSPDIReader();
 		}
 		if (extension.equals("mpp"))
 			return new MPPReader();
@@ -179,7 +179,7 @@ public class MspImporter {
 		if (extension.equals("planner"))
 			return new PlannerReader();
 		if (extension.equals("xlsx"))
-			return new XlsxReader();
+			return new UniversalProjectReader();
 		return reader;
 	}
 
@@ -269,7 +269,7 @@ public class MspImporter {
 	protected void importResources(ResourcePool resourcePool) {
 		state.setResourcePool(resourcePool);
 		MpxResourceConverter converter=new MpxResourceConverter();
-		for (net.sf.mpxj.Resource mpxResource : mpxProjectFile.getAllResources()){
+		for (net.sf.mpxj.Resource mpxResource : mpxProjectFile.getResources()){
 			if (mpxResource.getNull() || mpxResource.getID()==null)
 				continue;
 			Resource resource;
@@ -449,7 +449,7 @@ public class MspImporter {
 	
 	protected void importDependencies(Project project) {
 		MpxDependencyConverter converter=new MpxDependencyConverter();
-		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getAllTasks()){
+		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getTasks()){
 //			if (mpxTask.getNull() || mpxTask.getID()==null)
 //				continue;
 			if (mpxTask==mpxRootTask)

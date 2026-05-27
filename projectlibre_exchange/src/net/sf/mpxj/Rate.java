@@ -41,15 +41,7 @@ public final class Rate
     */
    public Rate(Number amount, TimeUnit time)
    {
-      if (amount == null)
-      {
-         m_amount = 0;
-      }
-      else
-      {
-         m_amount = amount.doubleValue();
-      }
-
+      m_amount = NumberHelper.getDouble(amount);
       m_units = time;
    }
 
@@ -87,8 +79,27 @@ public final class Rate
    }
 
    /**
-    * {@inheritDoc}
+    * Compare two rates handling null values.
+    *
+    * @param rate1 rate to compare
+    * @param rate2 rate ro compare
+    * @return true if rates are equal/equivalent
     */
+   public static boolean equals(Rate rate1, Rate rate2)
+   {
+      if ((rate1 == null || rate1.getAmount() == 0.0) && (rate2 == null || rate2.getAmount() == 0.0))
+      {
+         return true;
+      }
+
+      if (rate1 == null || rate2 == null)
+      {
+         return false;
+      }
+
+      return rate1.equals(rate2);
+   }
+
    @Override public boolean equals(Object obj)
    {
       boolean result = false;
@@ -112,17 +123,11 @@ public final class Rate
       return NumberHelper.equals(m_amount, rhs.m_amount, 0.00001);
    }
 
-   /**
-    * {@inheritDoc}
-    */
    @Override public int hashCode()
    {
       return ((int) m_amount + m_units.hashCode());
    }
 
-   /**
-    * {@inheritDoc}
-    */
    @Override public String toString()
    {
       return (m_amount + m_units.toString());
@@ -131,10 +136,12 @@ public final class Rate
    /**
     * Rate amount.
     */
-   private double m_amount;
+   private final double m_amount;
 
    /**
     * Time type.
     */
-   private TimeUnit m_units;
+   private final TimeUnit m_units;
+
+   public static final Rate ZERO = new Rate(0, TimeUnit.HOURS);
 }

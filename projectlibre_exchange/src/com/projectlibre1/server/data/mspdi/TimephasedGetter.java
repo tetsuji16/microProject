@@ -113,8 +113,8 @@ public class TimephasedGetter implements Closure {
 		startCal.setTimeInMillis(DateTime.fromGmt(interval.getStart())); // for 2007, convert from gmt
 		Calendar endCal = DateTime.calendarInstance();
 		endCal.setTimeInMillis(DateTime.fromGmt(interval.getEnd())); // for 2007, convert from gmt
-		timephasedDataType.setStart(startCal);
-		timephasedDataType.setFinish(endCal);
+		timephasedDataType.setStart(startCal.getTime());
+		timephasedDataType.setFinish(endCal.getTime());
 		double v = functor.getValue() / WorkCalendar.MILLIS_IN_HOUR;
 		net.sf.mpxj.Duration d = net.sf.mpxj.Duration.getInstance(v,TimeUnit.HOURS);
 		XsdDuration xsdDuration = new XsdDuration(d);

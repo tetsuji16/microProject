@@ -106,8 +106,9 @@ public final class Column
       {
          if (m_fieldType != null)
          {
-            result = m_project.getCustomFields().getCustomField(m_fieldType).getAlias();
-            if (result == null)
+            CustomField cf = m_project.getCustomFields().get(m_fieldType);
+            result = cf == null ? null : cf.getAlias();
+            if (result == null || result.isEmpty())
             {
                result = m_fieldType.getName(locale);
             }
@@ -251,5 +252,5 @@ public final class Column
    private int m_alignTitle;
    private int m_alignData;
    private String m_title;
-   private ProjectFile m_project;
+   private final ProjectFile m_project;
 }

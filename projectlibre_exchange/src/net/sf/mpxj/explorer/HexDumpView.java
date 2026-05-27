@@ -27,6 +27,7 @@ import java.awt.Color;
 import java.awt.FlowLayout;
 import java.text.NumberFormat;
 
+import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
@@ -34,7 +35,8 @@ import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.SpringLayout;
 import javax.swing.SwingUtilities;
-import javax.swing.border.LineBorder;
+import javax.swing.UIManager;
+import javax.swing.border.Border;
 import javax.swing.text.NumberFormatter;
 
 
@@ -71,7 +73,7 @@ public class HexDumpView extends JPanel
 
       JFormattedTextField columns = new JFormattedTextField(integerFormat);
       controlsPanel.add(columns);
-      columns.setBorder(new LineBorder(new Color(171, 173, 179)));
+      columns.setBorder(getEditorBorder());
       columns.setColumns(10);
 
       JLabel offsetLabel = new JLabel("Offset");
@@ -79,7 +81,7 @@ public class HexDumpView extends JPanel
 
       JFormattedTextField offset = new JFormattedTextField(integerFormat);
       controlsPanel.add(offset);
-      offset.setBorder(new LineBorder(new Color(171, 173, 179)));
+      offset.setBorder(getEditorBorder());
       offset.setColumns(10);
 
       //
@@ -218,8 +220,18 @@ public class HexDumpView extends JPanel
 //      Bindings.bind(timestampValueLabel, "value", modelAdapter.getValueModel("timestampValueLabel"));
 //      Bindings.bind(workUnitsValueLabel, "value", modelAdapter.getValueModel("workUnitsValueLabel"));
 //
-//      PropertyConnector.connect(tablePanel, "leftTableModel", model, "hexTableModel");
-//      PropertyConnector.connect(tablePanel, "rightTableModel", model, "asciiTableModel");
-//      PropertyConnector.connect(tablePanel, "selectedCell", model, "selectedCell");
+      //      PropertyConnector.connect(tablePanel, "leftTableModel", model, "hexTableModel");
+      //      PropertyConnector.connect(tablePanel, "rightTableModel", model, "asciiTableModel");
+      //      PropertyConnector.connect(tablePanel, "selectedCell", model, "selectedCell");
+   }
+
+   private static Border getEditorBorder()
+   {
+      Border border = UIManager.getBorder("TextField.border");
+      if (border == null)
+      {
+         border = BorderFactory.createLineBorder(new Color(0xB8C0CA));
+      }
+      return border;
    }
 }

@@ -89,6 +89,7 @@ import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.Alert;
+import com.projectlibre1.util.FlatUiSupport;
 
 public class FormComponent extends JPanel{
 	protected int maxRows=3;
@@ -112,8 +113,8 @@ public class FormComponent extends JPanel{
 		else format=(BarFormat)selectedFormats.get(0);
 		init(format);
 		setOpaque(false);
-		setForeground(Color.BLACK);
-		setBackground(Color.WHITE);
+		setForeground(FlatUiSupport.tableForeground());
+		setBackground(FlatUiSupport.panelBackground());
 	}
 	
 	

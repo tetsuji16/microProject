@@ -44,6 +44,10 @@ public class ObjectPropertiesView extends JPanel
       setLayout(springLayout);
 
       JTable table = new JTable();
+      table.setFillsViewportHeight(true);
+      table.setShowGrid(false);
+      table.setShowHorizontalLines(false);
+      table.setShowVerticalLines(false);
       JScrollPane scrollPane = new JScrollPane(table);
       springLayout.putConstraint(SpringLayout.NORTH, scrollPane, 0, SpringLayout.NORTH, this);
       springLayout.putConstraint(SpringLayout.WEST, scrollPane, 0, SpringLayout.WEST, this);

@@ -72,6 +72,7 @@ import com.projectlibre1.graphic.configuration.GraphicConfiguration;
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.grouping.core.model.WalkersNodeModel;
 import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.util.FlatUiSupport;
 
 /**
  *
@@ -98,7 +99,7 @@ public abstract class Graph extends JComponent implements GraphListener, GraphPa
 		//TODO unregister
 		
 		
-		setBackground(Color.WHITE);
+		setBackground(FlatUiSupport.panelBackground());
 		setOpaque(true);
 		setDoubleBuffered(true);
 		setLayout(null);

@@ -57,7 +57,7 @@ package com.projectlibre1.reports.adapter;
 
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperPrint;
-import net.sf.jasperreports.view.JRViewer;
+import net.sf.jasperreports.swing.JRViewer;
 
 /**
  * Subclass of JRViewer that allows changing the contents of the report while
@@ -79,14 +79,14 @@ public class ReportViewer extends JRViewer {
 	 * @throws JRException
 	 */
 	public void changeReport(JasperPrint jrPrint) throws JRException {
-		loadReport(jrPrint);
-		refreshPage();
+		viewerContext.loadReport(jrPrint);
+		viewerContext.refreshPage();
 	}
 	
 	public void zoomIn() {
-		btnZoomIn.doClick();
+		viewerContext.setZoomRatio(Math.min(viewerContext.getZoom() * 1.1f, 4.0f));
 	}
 	public void zoomOut() {
-		btnZoomOut.doClick();
+		viewerContext.setZoomRatio(Math.max(viewerContext.getZoom() / 1.1f, 0.1f));
 	}
 }

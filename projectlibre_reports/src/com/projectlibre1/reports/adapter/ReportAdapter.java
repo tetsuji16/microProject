@@ -59,20 +59,24 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import net.sf.jasperreports.engine.JRElement;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JRGroup;
-import net.sf.jasperreports.engine.JRTextElement;
 import net.sf.jasperreports.engine.design.JRDesignBand;
 import net.sf.jasperreports.engine.design.JRDesignExpression;
 import net.sf.jasperreports.engine.design.JRDesignField;
 import net.sf.jasperreports.engine.design.JRDesignGroup;
 import net.sf.jasperreports.engine.design.JRDesignLine;
-import net.sf.jasperreports.engine.design.JRDesignReportFont;
+import net.sf.jasperreports.engine.design.JRDesignFont;
 import net.sf.jasperreports.engine.design.JRDesignStaticText;
 import net.sf.jasperreports.engine.design.JRDesignTextField;
+import net.sf.jasperreports.engine.design.JRDesignSection;
 import net.sf.jasperreports.engine.design.JRDesignVariable;
 import net.sf.jasperreports.engine.design.JasperDesign;
+import net.sf.jasperreports.engine.type.CalculationEnum;
+import net.sf.jasperreports.engine.type.EvaluationTimeEnum;
+import net.sf.jasperreports.engine.type.HorizontalTextAlignEnum;
+import net.sf.jasperreports.engine.type.ModeEnum;
+import net.sf.jasperreports.engine.type.ResetTypeEnum;
 
 import com.projectlibre1.configuration.ReportColumns;
 import com.projectlibre1.configuration.ReportDefinition;
@@ -86,9 +90,9 @@ public class ReportAdapter {
 	private static String GroupName = "group";
 
 	private ReportDefinition reportDefinition;
-	private JRDesignReportFont boldFont;
-	private JRDesignReportFont italicFont;
-	private JRDesignReportFont normalFont;
+	private JRDesignFont boldFont;
+	private JRDesignFont italicFont;
+	private JRDesignFont normalFont;
 	private boolean hasAggregableField = false;
 	
 	private JasperDesign jasperDesign = new JasperDesign();
@@ -136,37 +140,28 @@ public class ReportAdapter {
 		jasperDesign.setBottomMargin(30);
 		
 			//Fonts
-			normalFont = new JRDesignReportFont();
-			normalFont.setName("Arial_Normal");
-			normalFont.setDefault(true);
+			normalFont = new JRDesignFont(jasperDesign.getDefaultStyle());
 			normalFont.setFontName("Arial");
-			normalFont.setSize(10);
+			normalFont.setFontSize(Float.valueOf(10));
 			normalFont.setPdfFontName("Helvetica");
 			normalFont.setPdfEncoding("Cp1252");
 			normalFont.setPdfEmbedded(false);
-			jasperDesign.addFont(normalFont);
 			
-			boldFont = new JRDesignReportFont();
-			boldFont.setName("Arial_Bold");
-			boldFont.setDefault(false);
+			boldFont = new JRDesignFont(jasperDesign.getDefaultStyle());
 			boldFont.setFontName("Arial");
-			boldFont.setSize(12);
+			boldFont.setFontSize(Float.valueOf(12));
 			boldFont.setBold(true);
 			boldFont.setPdfFontName("Helvetica-Bold");
 			boldFont.setPdfEncoding("Cp1252");
 			boldFont.setPdfEmbedded(false);
-			jasperDesign.addFont(boldFont);
 			
-			italicFont = new JRDesignReportFont();
-			italicFont.setName("Arial_Italic");
-			italicFont.setDefault(false);
+			italicFont = new JRDesignFont(jasperDesign.getDefaultStyle());
 			italicFont.setFontName("Arial");
-			italicFont.setSize(12);
+			italicFont.setFontSize(Float.valueOf(12));
 			italicFont.setItalic(true);
 			italicFont.setPdfFontName("Helvetica-Oblique");
 			italicFont.setPdfEncoding("Cp1252");
 			italicFont.setPdfEmbedded(false);
-			jasperDesign.addFont(italicFont);
 
 			//Title
 			JRDesignBand band = new JRDesignBand();
@@ -184,12 +179,10 @@ public class ReportAdapter {
 			text.setY(10);
 			text.setWidth(968);
 			text.setHeight(30);
-			text.setTextAlignment(JRTextElement.TEXT_ALIGN_CENTER);
-			JRDesignReportFont bigFont = new JRDesignReportFont();
-			bigFont.setName("Arial_Normal");
-			bigFont.setDefault(true);
+			text.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
+			JRDesignFont bigFont = new JRDesignFont(jasperDesign.getDefaultStyle());
 			bigFont.setFontName("Arial");
-			bigFont.setSize(22);
+			bigFont.setFontSize(Float.valueOf(22));
 			bigFont.setPdfFontName("Helvetica");
 			bigFont.setPdfEncoding("Cp1252");
 			bigFont.setPdfEmbedded(false);
@@ -206,7 +199,7 @@ public class ReportAdapter {
 		textField.setY(10);
 		textField.setWidth(968);
 		textField.setHeight(15);
-		textField.setTextAlignment(JRTextElement.TEXT_ALIGN_CENTER);
+		textField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
 		textField.setFont(normalFont);
 		JRDesignExpression expression = new JRDesignExpression();
 		expression.setValueClass(java.lang.String.class);
@@ -299,11 +292,11 @@ public class ReportAdapter {
 				JRDesignVariable variable = new JRDesignVariable();
 				variable.setName(fieldName + "Sum");
 				variable.setValueClass(getFieldClass(field, true));
-				variable.setCalculation(JRDesignVariable.CALCULATION_SUM);
+				variable.setCalculation(CalculationEnum.SUM);
 				if (group == null) {
-					variable.setResetType(JRDesignVariable.RESET_TYPE_REPORT);
+					variable.setResetType(ResetTypeEnum.REPORT);
 				} else {
-					variable.setResetType(JRDesignVariable.RESET_TYPE_GROUP);
+					variable.setResetType(ResetTypeEnum.GROUP);
 					variable.setResetGroup(group);
 					
 				}
@@ -353,8 +346,8 @@ public class ReportAdapter {
 			} else {
 				staticText.setBackcolor(new Color(0x33, 0x33, 0x33));
 			}
-			staticText.setMode(JRElement.MODE_OPAQUE);
-			staticText.setTextAlignment(JRTextElement.TEXT_ALIGN_RIGHT);
+			staticText.setMode(ModeEnum.OPAQUE);
+			staticText.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
 			staticText.setFont(boldFont);
 			staticText.setText(field.getName());
 			band.addElement(staticText);
@@ -384,7 +377,7 @@ public class ReportAdapter {
 			Field field = (Field)iterator.next();
 			JRDesignTextField textField = new JRDesignTextField();
 			if(null != group) {
-				textField.setEvaluationTime(JRDesignExpression.EVALUATION_TIME_GROUP);
+				textField.setEvaluationTime(EvaluationTimeEnum.GROUP);
 				textField.setEvaluationGroup(group);
 //				textField.setBackcolor(Color.black);
 //				textField.setForecolor(Color.white);
@@ -399,7 +392,7 @@ public class ReportAdapter {
 			}
 			textField.setX(x);
 			textField.setWidth(field.getColumnWidth());
-			textField.setTextAlignment(JRTextElement.TEXT_ALIGN_RIGHT);
+			textField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
 
 			String fieldName = getFieldName(field, false);
 			if(field.isMoney()) {
@@ -449,7 +442,7 @@ public class ReportAdapter {
 				textField.setY(4);
 				textField.setWidth(field.getColumnWidth());
 				textField.setHeight(12);
-				textField.setTextAlignment(JRTextElement.TEXT_ALIGN_RIGHT);
+				textField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
 				textField.setFont(normalFont);
 				JRDesignExpression expression = new JRDesignExpression();
 
@@ -522,7 +515,7 @@ public class ReportAdapter {
 			
 			jasperDesign.setPageHeader(getFieldsHeader(fields, false));
 			
-			jasperDesign.setDetail(getDetail(fields, null));
+			((JRDesignSection) jasperDesign.getDetailSection()).addBand(getDetail(fields, null));
 			
 			addPageFooter();
 			
@@ -575,15 +568,15 @@ public class ReportAdapter {
 			
 			JRDesignBand band = getDetail(mainFields, group);
 			band = addFieldsHeader(band, detailFields, true);
-			group.setGroupHeader(band);
+			((JRDesignSection) group.getGroupHeaderSection()).addBand(band);
 
 			if(hasAggregableField) {
-				group.setGroupFooter(getAggregatableFooter(detailFields));
+				((JRDesignSection) group.getGroupFooterSection()).addBand(getAggregatableFooter(detailFields));
 			}
 			jasperDesign.addGroup(group);
 
 			jasperDesign.setPageHeader(getFieldsHeader(mainFields, false));
-			jasperDesign.setDetail(getDetail(detailFields, null));
+			((JRDesignSection) jasperDesign.getDetailSection()).addBand(getDetail(detailFields, null));
 			addPageFooter();
 			
 		} else {

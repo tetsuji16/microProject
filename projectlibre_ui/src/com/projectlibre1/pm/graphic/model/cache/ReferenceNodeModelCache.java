@@ -157,11 +157,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	    }
 	}
 	
-	protected void finalize() throws Throwable {
-		super.finalize();
-		close();
-	}
-
 	private void removeListeners() {
 		model.getHierarchy().removeHierarchyListener(this);
     	if (document!=null) document.removeObjectListener(this);

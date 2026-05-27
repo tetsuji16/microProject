@@ -76,9 +76,7 @@ public class CommonTableHeader extends JTableHeader {
     	setFont(FlatUiSupport.headerFont());
     	setForeground(FlatUiSupport.headerForeground());
     	setBackground(FlatUiSupport.headerBackground());
-    	setBorder(BorderFactory.createCompoundBorder(
-    			FlatUiSupport.tableHeaderBorder(),
-    			BorderFactory.createEmptyBorder(2, 4, 2, 4)));
+    	setBorder(FlatUiSupport.tableHeaderBorder());
     	resizeAndRepaint();
     	invalidate();//PENDING
         }

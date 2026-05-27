@@ -229,9 +229,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return null;
 	}
 
-	protected void finalize() {
-		System.out.println("SpreadSheet.finalize()" + this);
-	}
 	public void cleanUp() {
 		if (getModel() instanceof CommonSpreadSheetModel)
 			((CommonSpreadSheetModel) getModel()).getCache().removeNodeModelListener(this);

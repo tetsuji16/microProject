@@ -97,22 +97,41 @@ public final class Relation
    }
 
    /**
-    * {@inheritDoc}
+    * Retrieve the Unique ID of this Relation.
+    *
+    * @return unique ID
     */
+   public Integer getUniqueID()
+   {
+      return m_uniqueID;
+   }
+
+   /**
+    * Set the Unique ID of this Relation.
+    *
+    * @param uniqueID unique ID
+    */
+   public void setUniqueID(Integer uniqueID)
+   {
+      m_uniqueID = uniqueID;
+   }
+
    @Override public String toString()
    {
-      return ("[Relation " + m_sourceTask + " -> " + m_targetTask + "]");
+      return ("[Relation lag: " + m_lag + " type: " + m_type + " " + m_sourceTask + " -> " + m_targetTask + "]");
    }
+
+   private Integer m_uniqueID;
 
    /**
     * Parent task file.
     */
-   private Task m_sourceTask;
+   private final Task m_sourceTask;
 
    /**
     * Identifier of task with which this relationship is held.
     */
-   private Task m_targetTask;
+   private final Task m_targetTask;
 
    /**
     * Type of relationship.

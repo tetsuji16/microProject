@@ -34,7 +34,8 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingConstants;
-import javax.swing.UIManager;
+
+import com.formdev.flatlaf.FlatLightLaf;
 
 /**
  * MppExplorer is a Swing UI used to examine the contents of an MPP file.
@@ -56,7 +57,7 @@ public class MppExplorer
          {
             try
             {
-               UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+               FlatLightLaf.setup();
                MppExplorer window = new MppExplorer();
                window.m_frame.setVisible(true);
             }

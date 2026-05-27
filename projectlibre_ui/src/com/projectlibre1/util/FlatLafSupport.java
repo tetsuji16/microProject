@@ -26,7 +26,9 @@ public final class FlatLafSupport {
 			JFrame.setDefaultLookAndFeelDecorated(false);
 			JDialog.setDefaultLookAndFeelDecorated(false);
 
+			UiServices.setFileChooserProvider(new SwingFileChooserProvider());
 			FlatLightLaf.setup();
+			Environment.setNewLaf(isFlatLafLookAndFeel());
 
 			Font defaultFont = createDefaultFont();
 			if (defaultFont != null) {
@@ -127,5 +129,13 @@ public final class FlatLafSupport {
 	private static boolean isLinux() {
 		String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
 		return osName.startsWith("linux");
+	}
+
+	private static boolean isFlatLafLookAndFeel() {
+		if (UIManager.getLookAndFeel() == null) {
+			return false;
+		}
+		String className = UIManager.getLookAndFeel().getClass().getName();
+		return className != null && className.startsWith("com.formdev.flatlaf.");
 	}
 }

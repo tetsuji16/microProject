@@ -65,15 +65,16 @@ import net.sf.jasperreports.engine.JRDataSourceProvider;
 import net.sf.jasperreports.engine.JRElement;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JRField;
-import net.sf.jasperreports.engine.JRTextElement;
 import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.design.JRDesignBand;
+import net.sf.jasperreports.engine.design.JRDesignFont;
 import net.sf.jasperreports.engine.design.JRDesignExpression;
 import net.sf.jasperreports.engine.design.JRDesignField;
-import net.sf.jasperreports.engine.design.JRDesignReportFont;
 import net.sf.jasperreports.engine.design.JRDesignStaticText;
 import net.sf.jasperreports.engine.design.JRDesignTextField;
 import net.sf.jasperreports.engine.design.JasperDesign;
+import net.sf.jasperreports.engine.design.JRDesignSection;
+import net.sf.jasperreports.engine.type.HorizontalTextAlignEnum;
 
 import org.apache.commons.collections.Predicate;
 
@@ -320,12 +321,6 @@ public class DataSourceProvider implements JRDataSourceProvider {
 			maxY = (elements[i].getY() > maxY)?elements[i].getY():maxY;
 		}
 
-		JRDesignReportFont normalFont = new JRDesignReportFont();
-		normalFont.setFontName("Arial");
-		normalFont.setSize(10);
-		normalFont.setPdfFontName("Helvetica");
-		
-		
 		try {
 			while(iterator.hasNext()) {
 				
@@ -353,21 +348,25 @@ public class DataSourceProvider implements JRDataSourceProvider {
 				staticText.setY(0);
 				staticText.setWidth(80);
 				staticText.setHeight(15);
-				staticText.setTextAlignment(JRTextElement.TEXT_ALIGN_RIGHT);
+			staticText.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+				JRDesignFont normalFont = new JRDesignFont(design.getDefaultStyle());
+				normalFont.setFontName("Arial");
+				normalFont.setFontSize(Float.valueOf(10));
+				normalFont.setPdfFontName("Helvetica");
 				staticText.setFont(normalFont);
 				staticText.setText(interval.getText1());
 				staticText.setPrintWhenDetailOverflows(true);
 				columnHeader.addElement(staticText);
 
 				// add textFields
-				JRDesignBand detailBand = (JRDesignBand) design.getDetail();
+				JRDesignBand detailBand = (JRDesignBand) ((JRDesignSection) design.getDetailSection()).getBandsList().get(0);
 	
 				JRDesignTextField textField = new JRDesignTextField();
 				textField.setX(maxX);
 				textField.setY(0);
 				textField.setWidth(80);
 				textField.setHeight(15);
-				textField.setTextAlignment(JRTextElement.TEXT_ALIGN_RIGHT);
+				textField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
 				textField.setFont(normalFont);
 	//			textField.setFont((JRReportFont)fonts.get("normalFont"));
 				JRDesignExpression expression = new JRDesignExpression();

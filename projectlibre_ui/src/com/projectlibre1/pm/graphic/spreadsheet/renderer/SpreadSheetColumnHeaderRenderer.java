@@ -107,9 +107,7 @@ public class SpreadSheetColumnHeaderRenderer extends DefaultTableCellRenderer im
 		}
 
 		component.setHorizontalAlignment (CENTER);
-		component.setBorder(BorderFactory.createCompoundBorder(
-				FlatUiSupport.tableHeaderBorder(),
-				BorderFactory.createEmptyBorder(2, 4, 2, 4)));
+		component.setBorder(FlatUiSupport.tableHeaderBorder());
 		if (override == null) {
 			if (table!=null) component.setFont (FlatUiSupport.headerFont());
 			component.setText (value == null ? "" : value.toString ());

@@ -70,7 +70,6 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
-import javax.swing.plaf.basic.BasicListUI;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -81,7 +80,6 @@ import com.projectlibre1.session.Session;
 import com.projectlibre1.session.SessionFactory;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.Alert;
-import com.projectlibre1.util.Environment;
 
 public final class LookupDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
@@ -163,8 +161,6 @@ public final class LookupDialog extends AbstractDialog {
 		results.setSelectionMode(DefaultListSelectionModel.SINGLE_SELECTION);
 //		results.setVisibleRowCount(15);
 		resultsPane = new JScrollPane(results);
-		if (Environment.isNewLook()) // The PLAF can override the custom renderer. This avoids that
-			results.setUI(new BasicListUI());
 
 		match = new JTextField();
 		match.setToolTipText(Messages.getString("LookupDialog.EnterPartOfTheName")); //$NON-NLS-1$

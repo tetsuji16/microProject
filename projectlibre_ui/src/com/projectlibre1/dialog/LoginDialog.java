@@ -124,7 +124,7 @@ public final class LoginDialog extends AbstractDialog {
 			Object ps=ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.ServiceManager").getMethod("lookup",new Class[]{String.class}).invoke(null,new Object[]{"javax.jnlp.PersistenceService"}); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 //			Object ps=Class.forName("javax.jnlp.ServiceManager").getMethod("lookup",new Class[]{String.class}).invoke(null,new Object[]{"javax.jnlp.PersistenceService"});
 			Object contents=ps.getClass().getMethod("get",new Class[]{URL.class}).invoke(ps,new Object[]{serverUrl}); //$NON-NLS-1$
-			try (ObjectInputStream in = new ObjectInputStream((InputStream)ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.FileContents").getMethod("getInputStream",null).invoke(contents,null))) { //$NON-NLS-1$ //$NON-NLS-2$
+			try (ObjectInputStream in = new ObjectInputStream((InputStream)ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.FileContents").getMethod("getInputStream", new Class[0]).invoke(contents, new Object[0]))) { //$NON-NLS-1$ //$NON-NLS-2$
 //			ObjectInputStream in=new ObjectInputStream((InputStream)Class.forName("javax.jnlp.FileContents").getMethod("getInputStream",null).invoke(contents,null));
 			form=(LoginForm)in.readObject();
 			}
@@ -149,7 +149,7 @@ public final class LoginDialog extends AbstractDialog {
 				
 				if (form==null) ps.getClass().getMethod("create",new Class[]{URL.class,long.class}).invoke(ps,new Object[]{serverUrl,Long.valueOf(1000)}); //$NON-NLS-1$
 				Object contents=ps.getClass().getMethod("get",new Class[]{URL.class}).invoke(ps,new Object[]{serverUrl}); //$NON-NLS-1$
-				ObjectOutputStream out=new ObjectOutputStream((OutputStream)Class.forName("javax.jnlp.FileContents").getMethod("getOutputStream",new Class[]{boolean.class}).invoke(contents,new Object[]{Boolean.valueOf(true)})); //$NON-NLS-1$ //$NON-NLS-2$
+				ObjectOutputStream out=new ObjectOutputStream((OutputStream)Class.forName("javax.jnlp.FileContents").getMethod("getOutputStream",new Class[]{boolean.class}).invoke(contents,new Object[]{Boolean.TRUE})); //$NON-NLS-1$ //$NON-NLS-2$
 				out.writeObject(dlg.form);
 				out.close();
 			} else if (form!=null) ps.getClass().getMethod("delete",new Class[]{URL.class}).invoke(ps,new Object[]{serverUrl}); //$NON-NLS-1$

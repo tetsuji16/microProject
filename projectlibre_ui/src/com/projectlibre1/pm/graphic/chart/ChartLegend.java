@@ -84,7 +84,6 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
-import javax.swing.plaf.basic.BasicListUI;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeSelectionModel;
 import javax.swing.tree.TreePath;
@@ -112,6 +111,7 @@ import com.projectlibre1.pm.resource.Resource;
 import com.projectlibre1.pm.resource.ResourceImpl;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.strings.Messages;
+import com.projectlibre1.util.FlatUiSupport;
 import com.projectlibre1.util.Environment;
 import com.projectlibre1.workspace.SavableToWorkspace;
 import com.projectlibre1.workspace.WorkspaceSetting;
@@ -180,13 +180,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	JList getListInstance(boolean cost) {
 		final JList list = new JList() { // do not want to update the UI. see below also
 			private static final long serialVersionUID = 1L;
-			public void updateUI() {
-				if (!Environment.isNewLook())
-					super.updateUI();
-			}
 		};
-		if (Environment.isNewLook()) // The PLAF can override the custom renderer. This avoids that
-			list.setUI(new BasicListUI());
 		list.setSelectionMode(DefaultListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 		list.setCellRenderer( new ListRenderer());
 		setListFields(list,cost);
@@ -361,24 +355,13 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	   		if (iss) {
 	   			Color color = ChartHelper.getColorForField(value);
 	   			setBackground(color);
-	   			if (color.getRed() + color.getGreen() + color.getBlue() < 450) // draw dark with white foreground
-	   				setForeground(Color.white);
-	   			else
-		   			setForeground(list.getForeground());
+	   			setForeground(FlatUiSupport.tableSelectionForeground());
 	   				
 	   		} else {
 	   			setBackground(list.getBackground());
 	   			setForeground(list.getForeground());
 	   		}
-	         // Set a border if the 
-	         //list item is selected
-	        if (iss) {
-	            setBorder(BorderFactory.createLineBorder(
-	              Color.black, 1));
-	        } else {
-	            setBorder(BorderFactory.createLineBorder(
-	             list.getBackground(), 1));
-	        }
+	        setBorder(BorderFactory.createEmptyBorder(1, 1, 1, 1));
 
 	   		
 	   		return this;

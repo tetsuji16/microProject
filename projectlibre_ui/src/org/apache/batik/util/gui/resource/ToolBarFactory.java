@@ -50,7 +50,6 @@
 
 package org.apache.batik.util.gui.resource;
 
-import java.awt.Color;
 import java.util.Iterator;
 import java.util.List;
 import java.util.MissingResourceException;
@@ -63,7 +62,6 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToolBar;
 import javax.swing.border.EmptyBorder;
-import javax.swing.plaf.basic.BasicBorders;
 
 import com.projectlibre1.help.HelpUtil;
 import com.projectlibre1.menu.ExtButtonFactory;
@@ -186,14 +184,13 @@ public class ToolBarFactory extends ResourceManager {
 			type = getString(name + ExtButtonFactory.TYPE_SUFFIX);
 		} catch (MissingResourceException e) {
 		}
-		if (type != null) {
+			if (type != null) {
 			if (type.equals("RADIO")) {
 				if (buttonGroup == null)
 					buttonGroup = new ButtonGroup();
 		 	   buttonGroup.add(result);
 			} else if (type.equals("TOGGLE")) {
-				result.setBorder(new BasicBorders.ToggleButtonBorder(Color.GRAY, Color.BLACK, Color.BLUE, Color.CYAN));
-				result.setBorderPainted(true);
+				result.setBorderPainted(false);
 			}
 		} else {
 			

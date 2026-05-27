@@ -130,14 +130,10 @@ public class TabbedNavigation implements MenuActionConstants, Serializable {
 							removeFilterToolBar((JToolBar)old);
 						ac = (AbstractAction)actions.get(i);
 						ac.actionPerformed(new ActionEvent(this,eventNum++,"click"));
-						tabbedPane.setForegroundAt(oldSelected, FlatUiSupport.tabUnselectedForeground());
-						tabbedPane.setBackgroundAt(oldSelected, FlatUiSupport.panelBackground());
 						JComponent selectedComponent = (JComponent) tabbedPane.getSelectedComponent();
 						if (selectedComponent instanceof JToolBar)
 							addFilterToolBar((JToolBar)selectedComponent);
 					}
-					tabbedPane.setForegroundAt(i, FlatUiSupport.tabSelectedForeground());
-					tabbedPane.setBackgroundAt(i, FlatUiSupport.panelBackground());
 					oldSelected = i;
 				}
 
@@ -183,14 +179,12 @@ public class TabbedNavigation implements MenuActionConstants, Serializable {
 			else
 				component = dummy();
 			component.setBorder(BorderFactory.createEmptyBorder());
-			if (Environment.isNewLook() && !Environment.isNewLaf()) component.setOpaque(false);
+			if (!Environment.isNewLaf()) component.setOpaque(false);
 			String text = HyperLinkToolTip.extractTip(b.getToolTipText());
 			tabbedPane.addTab(text,component);
 			if (action == menuManager.getActionFromId(ACTION_RESOURCES))
 				this.resourceTabCount = tabCount;
 			tabbedPane.setToolTipTextAt(tabCount, text); // don't use version with F1
-			tabbedPane.setForegroundAt(tabCount, FlatUiSupport.tabUnselectedForeground());
-			tabbedPane.setBackgroundAt(tabCount, FlatUiSupport.panelBackground());
 			actions.add(action);
 			tabCount++;
 		}

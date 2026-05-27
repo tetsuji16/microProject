@@ -1185,11 +1185,6 @@ public class DocumentFrame extends NamedFrame implements
     }
 
 
-	protected void finalize() throws Throwable {
-		System.out.println("~~~~~~~~~~~~~~~~ DocumentFrame.finalize()");
-		super.finalize();
-	}
-
 	public void cleanUp() {
 		System.out.println("Document Frame Cleanup");
 		if (project != null) {

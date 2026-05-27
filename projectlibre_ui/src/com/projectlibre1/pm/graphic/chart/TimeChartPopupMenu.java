@@ -61,7 +61,6 @@ import java.awt.event.ActionListener;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
-import javax.swing.border.BevelBorder;
 
 import com.projectlibre1.strings.Messages;
 
@@ -88,7 +87,6 @@ public class TimeChartPopupMenu extends JPopupMenu {
     
     public TimeChartPopupMenu(TimeChartPanel panel) { // this isn't used anymore - the JFreeChart popup has taken its place
         super();
-        setBorder(new BevelBorder(BevelBorder.RAISED));
         //add(buildVerticalScrollingItem(panel));
     }
     

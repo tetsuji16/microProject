@@ -172,15 +172,6 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 		}
 	}
 
-	protected void finalize() throws Throwable {
-		super.finalize();
-	   	document.removeObjectListener(this);
-	}
-
-
-
-
-
 	public boolean isContainsLeftObjects() {
 		return containsLeftObjects;
 	}

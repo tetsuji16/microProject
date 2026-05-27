@@ -25,9 +25,19 @@ package net.sf.mpxj;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
+import net.sf.mpxj.common.AssignmentFieldLists;
 import net.sf.mpxj.common.Pair;
+import net.sf.mpxj.common.ResourceFieldLists;
+import net.sf.mpxj.common.TaskFieldLists;
 import net.sf.mpxj.mpp.CustomFieldValueItem;
 
 /**
@@ -36,20 +46,98 @@ import net.sf.mpxj.mpp.CustomFieldValueItem;
 public class CustomFieldContainer implements Iterable<CustomField>
 {
    /**
+    * Constructor.
+    *
+    * @param parent parent project file
+    */
+   public CustomFieldContainer(ProjectFile parent)
+   {
+      m_parent = parent;
+   }
+
+   /**
     * Retrieve configuration details for a given custom field.
     *
     * @param field required custom field
     * @return configuration detail
+    * @deprecated use getOrCreate
     */
-   public CustomField getCustomField(FieldType field)
+   @Deprecated public CustomField getCustomField(FieldType field)
    {
-      CustomField result = m_configMap.get(field);
-      if (result == null)
-      {
-         result = new CustomField(field, this);
-         m_configMap.put(field, result);
-      }
+      return getOrCreate(field);
+   }
+
+   /**
+    * Retrieve configuration details for a given custom field.
+    * Return null if the field has not been configured.
+    *
+    * @param field target field type
+    * @return field configuration, or null if not configured
+    */
+   public CustomField get(FieldType field)
+   {
+      return m_configMap.get(field);
+   }
+
+   /**
+    * Retrieve configuration details for a given custom field,
+    * create a new CustomField entry if one does not exist.
+    *
+    * @param field required custom field
+    * @return configuration detail
+    */
+   public CustomField getOrCreate(FieldType field)
+   {
+      return m_configMap.computeIfAbsent(field, k -> new CustomField(field, this));
+   }
+
+   /**
+    * Add a new custom field. Overwrite any previous CustomField definition.
+    *
+    * @param field field type
+    * @return new CustomField instance
+    */
+   public CustomField add(FieldType field)
+   {
+      CustomField result = new CustomField(field, this);
+      m_configMap.put(field, result);
       return result;
+   }
+
+   /**
+    * Retrieve a field type from a particular entity using its alias.
+    *
+    * @param typeClass the type of entity we are interested in
+    * @param alias the alias
+    * @return the field type referred to be the alias, or null if not found
+    * @deprecated use getFieldTypeByAlias
+    */
+   @Deprecated public FieldType getFieldByAlias(FieldTypeClass typeClass, String alias)
+   {
+      return getFieldTypeByAlias(typeClass, alias);
+   }
+
+   /**
+    * Retrieve a field type from a particular entity using its alias.
+    *
+    * @param typeClass the type of entity we are interested in
+    * @param alias the alias
+    * @return the field type referred to be the alias, or null if not found
+    */
+   public FieldType getFieldTypeByAlias(FieldTypeClass typeClass, String alias)
+   {
+      return m_aliasMap.get(new Pair<>(typeClass, alias));
+   }
+
+   /**
+    * Retrieve a list of custom fields by type class.
+    *
+    * @param typeClass required type class
+    * @return list of CustomField instances
+    */
+   public List<CustomField> getCustomFieldsByFieldTypeClass(FieldTypeClass typeClass)
+   {
+      return stream().filter(f -> f.getFieldType().getFieldTypeClass() == typeClass).collect(Collectors.toList());
    }
 
    /**
@@ -79,6 +167,17 @@ public class CustomFieldContainer implements Iterable<CustomField>
    }
 
    /**
+    * Retrieve a custom field value by its guid.
+    *
+    * @param guid custom field value guid
+    * @return custom field value
+    */
+   public CustomFieldValueItem getCustomFieldValueItemByGuid(UUID guid)
+   {
+      return m_guidMap.get(guid);
+   }
+
+   /**
     * Add a value to the custom field value index.
     *
     * @param item custom field value
@@ -86,6 +185,10 @@ public class CustomFieldContainer implements Iterable<CustomField>
    public void registerValue(CustomFieldValueItem item)
    {
       m_valueMap.put(item.getUniqueID(), item);
+      if (item.getGUID() != null)
+      {
+         m_guidMap.put(item.getGUID(), item);
+      }
    }
 
    /**
@@ -96,6 +199,10 @@ public class CustomFieldContainer implements Iterable<CustomField>
    public void deregisterValue(CustomFieldValueItem item)
    {
       m_valueMap.remove(item.getUniqueID());
+      if (item.getGUID() != null)
+      {
+         m_guidMap.remove(item.getGUID());
+      }
    }
 
    /**
@@ -106,57 +213,53 @@ public class CustomFieldContainer implements Iterable<CustomField>
     */
    void registerAlias(FieldType type, String alias)
    {
-      m_aliasMap.put(new Pair<FieldTypeClass, String>(type.getFieldTypeClass(), alias), type);
+      m_aliasMap.put(new Pair<>(type.getFieldTypeClass(), alias), type);
    }
 
    /**
-    * Retrieve a field from a particular entity using its alias.
+    * Return a stream of CustomFields.
     *
-    * @param typeClass the type of entity we are interested in
-    * @param alias the alias
-    * @return the field type referred to be the alias, or null if not found
+    * @return Stream instance
     */
-   public FieldType getFieldByAlias(FieldTypeClass typeClass, String alias)
+   public Stream<CustomField> stream()
    {
-      return m_aliasMap.get(new Pair<FieldTypeClass, String>(typeClass, alias));
+      return StreamSupport.stream(spliterator(), false);
    }
 
    /**
-    * Because there seemingly is no deterministic method of mapping UDF ObjectIds from Primavera PM to FieldTypes,
-    * the aliasValueMap will store UDF values to be used by something that knows what alias maps to which FieldType.
-    * @author lsong
-    * @param alias custom field alias
-    * @param uid field container unique id
-    * @param value field value
+    * This method combines two sets of information: the list
+    * of configured custom fields (from this class) plus
+    * a lst of the custom fields which do not have configuration
+    * but are in use in the schedule.
+    *
+    * @return set of FieldTypes representing configured and in use fields
     */
-   public void registerAliasValue(String alias, Integer uid, Object value)
+   public Set<FieldType> getConfiguredAndPopulatedCustomFieldTypes()
    {
-      if (!m_aliasValueMap.containsKey(alias))
-      {
-         m_aliasValueMap.put(alias, new HashMap<Integer, Object>());
-      }
-      m_aliasValueMap.get(alias).put(uid, value);
+      // Configured custom fields
+      Set<FieldType> result = stream().map(CustomField::getFieldType).filter(Objects::nonNull).collect(Collectors.toSet());
+
+      /// Populated task custom fields
+      Set<TaskField> populatedTaskFields = m_parent.getTasks().getPopulatedFields();
+      populatedTaskFields.retainAll(TaskFieldLists.EXTENDED_FIELDS);
+      result.addAll(populatedTaskFields);
+
+      // Populated resource custom fields
+      Set<ResourceField> populatedResourceFields = m_parent.getResources().getPopulatedFields();
+      populatedResourceFields.retainAll(ResourceFieldLists.EXTENDED_FIELDS);
+      result.addAll(populatedResourceFields);
+
+      // Populated assignment custom fields
+      Set<AssignmentField> populatedAssignmentFields = m_parent.getResourceAssignments().getPopulatedFields();
+      populatedAssignmentFields.retainAll(AssignmentFieldLists.EXTENDED_FIELDS);
+      result.addAll(populatedAssignmentFields);
+
+      return result;
    }
 
-   /**
-    * Importers with access to the ProjectFile containing this can determine how to
-    * use the values in the UDFAssignmentTypes in UDF containers.
-    * @author lsong
-    * @param alias custom field alias
-    * @param uid field container unique id
-    * @return field value
-    */
-   public Object getAliasValue(String alias, Integer uid)
-   {
-      if (m_aliasValueMap.containsKey(alias))
-      {
-         return m_aliasValueMap.get(alias).get(uid);
-      }
-      return null;
-   }
-
-   private Map<FieldType, CustomField> m_configMap = new HashMap<FieldType, CustomField>();
-   private Map<Integer, CustomFieldValueItem> m_valueMap = new HashMap<Integer, CustomFieldValueItem>();
-   private Map<Pair<FieldTypeClass, String>, FieldType> m_aliasMap = new HashMap<Pair<FieldTypeClass, String>, FieldType>();
-   private Map<String, Map<Integer, Object>> m_aliasValueMap = new HashMap<String, Map<Integer, Object>>();
+   private final ProjectFile m_parent;
+   private final Map<FieldType, CustomField> m_configMap = new HashMap<>();
+   private final Map<Integer, CustomFieldValueItem> m_valueMap = new HashMap<>();
+   private final Map<UUID, CustomFieldValueItem> m_guidMap = new HashMap<>();
+   private final Map<Pair<FieldTypeClass, String>, FieldType> m_aliasMap = new HashMap<>();
 }

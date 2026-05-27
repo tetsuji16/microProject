@@ -58,7 +58,6 @@ package com.projectlibre1.pm.graphic.graph;
 import java.awt.Component;
 
 import javax.swing.JPopupMenu;
-import javax.swing.border.BevelBorder;
 
 
 /**
@@ -70,7 +69,6 @@ public abstract class GraphPopupMenu extends JPopupMenu{
     public GraphPopupMenu(final GraphInteractor interactor) {
         super();
         this.interactor = interactor;
-        setBorder(new BevelBorder(BevelBorder.RAISED));
     }
     
 	

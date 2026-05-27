@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Class implementing a list interface, backed by an Vector instance with callbacks
+ * Class implementing a list interface, backed by an ArrayList instance with callbacks
  * which can be overridden by subclasses for notification of added and removed items.
  *
  * @param <T> list content type
@@ -111,5 +111,5 @@ public abstract class ListWithCallbacks<T> extends AbstractList<T>
       return removed;
    }
 
-   private final List<T> m_list = new ArrayList<T>();
+   private final List<T> m_list = new ArrayList<>();
 }

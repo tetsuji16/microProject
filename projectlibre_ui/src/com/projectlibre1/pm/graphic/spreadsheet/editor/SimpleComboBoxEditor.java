@@ -57,7 +57,6 @@ package com.projectlibre1.pm.graphic.spreadsheet.editor;
 
 import java.awt.Component;
 
-import javax.swing.BorderFactory;
 import javax.swing.ComboBoxModel;
 import javax.swing.DefaultCellEditor;
 import javax.swing.JComboBox;
@@ -66,7 +65,6 @@ import javax.swing.JTextField;
 
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.projectlibre1.field.Field;
-import com.projectlibre1.util.FlatUiSupport;
 
 /**
  *
@@ -92,13 +90,7 @@ public class SimpleComboBoxEditor extends DefaultCellEditor  {
 		component=(JComboBox)super.getTableCellEditorComponent(arg0, arg1, arg2, row, column);
 		field = ((SpreadSheetModel)arg0.getModel()).getFieldInColumn(column+1);
 		component.setEditable(field.hasDynamicSelect()); // don't allow the user to type a choice if field has fixed values
-		component.setBorder(FlatUiSupport.tableEditorBorder());
-		component.setBackground(FlatUiSupport.tableBackground());
 		JTextField f = (JTextField) component.getEditor().getEditorComponent();
-		f.setBorder(BorderFactory.createEmptyBorder(0, 2, 0, 0));
-		f.setBackground(FlatUiSupport.tableBackground());
-		f.setSelectedTextColor(FlatUiSupport.tableSelectionForeground());
-		f.setSelectionColor(FlatUiSupport.tableSelectionBackground());
 
 		oldValue = f.getText();
 		return component;

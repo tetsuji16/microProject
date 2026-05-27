@@ -79,4 +79,37 @@ public class CostRateTable extends ArrayList<CostRateTableEntry>
       return result;
    }
 
+   /**
+    * Returns true if the table is populated with non-zero entries.
+    *
+    * @return true if table populated
+    */
+   public boolean tableIsPopulated()
+   {
+      return !(isEmpty() || (size() == 1 && allEntriesAreDefault()));
+   }
+
+   /**
+    * Returns true if all entries are zero.
+    *
+    * @return true if all entries zero
+    */
+   private boolean allEntriesAreDefault()
+   {
+      for (CostRateTableEntry entry : this)
+      {
+         for (int rateIndex = 0; rateIndex < CostRateTableEntry.MAX_RATES; rateIndex++)
+         {
+            Rate rate = entry.getRate(rateIndex);
+            if (rate != null && rate.getAmount() != 0.0)
+            {
+               return false;
+            }
+         }
+      }
+
+      return true;
+   }
+
+   public static final int MAX_TABLES = 5;
 }

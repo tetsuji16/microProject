@@ -236,7 +236,7 @@ public class MPXConverter {
 		//TODO set calendar
 		mpxResource.setGroup(projectlibreResource.getGroup());
 		mpxResource.setEmailAddress(projectlibreResource.getEmailAddress());
-		mpxResource.setIsGeneric(projectlibreResource.isGeneric()); // fix for 2024492
+		mpxResource.setGeneric(projectlibreResource.isGeneric()); // fix for 2024492
 
 		mpxResource.setInitials(projectlibreResource.getInitials());
 		mpxResource.setID((int)projectlibreResource.getId());
@@ -501,7 +501,8 @@ private static int autoId = 0;
 
 
 	public static final String dateToXMLString(long time) {
-	    Calendar date = DatatypeConverter.printDate(new Date(time));
+	    Calendar date = Calendar.getInstance();
+	    date.setTimeInMillis(time);
 	  //TODO claur - find replacement. Not working anymore and not good anyway
 //	    String result = com.sun.msv.datatype.xsd.DateTimeType.theInstance.serializeJavaObject(date, null); 
 	    String result=(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")).format(date.getTime()); 

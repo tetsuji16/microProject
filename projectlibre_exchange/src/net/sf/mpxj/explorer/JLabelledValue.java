@@ -23,7 +23,6 @@
 
 package net.sf.mpxj.explorer;
 
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 
@@ -49,12 +48,10 @@ public class JLabelledValue extends JPanel
       flowLayout.setVgap(0);
       flowLayout.setHgap(0);
       JLabel textLabel = new JLabel(label);
-      textLabel.setFont(new Font("Tahoma", Font.BOLD, 11));
-      textLabel.setPreferredSize(new Dimension(70, 14));
+      textLabel.setFont(textLabel.getFont().deriveFont(Font.BOLD));
       add(textLabel);
 
       m_valueLabel = new JLabel("");
-      m_valueLabel.setPreferredSize(new Dimension(80, 14));
       add(m_valueLabel);
    }
 

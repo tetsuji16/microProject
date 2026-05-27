@@ -443,15 +443,8 @@ public class LocalSession extends AbstractSession{
      }
     
     
-    private FileHelper fileHelper = null;
-    private FileHelper getFileHelper() {
-    	if (fileHelper == null)
-    		fileHelper = new FileHelper();
-    	return fileHelper;
-    }
- 
     public String chooseFileName(final boolean save,String selectedFileName){
-    	return getFileHelper().chooseFileName(save, selectedFileName, getJobQueue().getComponent());
+    	return com.projectlibre1.util.UiServices.getFileChooserProvider().chooseFileName(save, selectedFileName, getJobQueue().getComponent());
     }
     
     public static String getImporter(int fileType){

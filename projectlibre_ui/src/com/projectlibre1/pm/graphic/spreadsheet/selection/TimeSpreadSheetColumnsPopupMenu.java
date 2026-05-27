@@ -62,7 +62,6 @@ import java.util.Iterator;
 
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
-import javax.swing.border.BevelBorder;
 
 import com.projectlibre1.pm.graphic.spreadsheet.time.TimeSpreadSheet;
 import com.projectlibre1.configuration.Dictionary;
@@ -101,8 +100,6 @@ public class TimeSpreadSheetColumnsPopupMenu extends JPopupMenu {
         super();
         this.spreadSheet=spreadSheet;
         
-        setBorder(new BevelBorder(BevelBorder.RAISED));
-		
 		Object columnDefinitions[] = Dictionary.getAll(type);
 		//if (columnDefinitions==null||columnDefinitions.length==0) return;
 		ArrayList fieldArray =(ArrayList) columnDefinitions[0];

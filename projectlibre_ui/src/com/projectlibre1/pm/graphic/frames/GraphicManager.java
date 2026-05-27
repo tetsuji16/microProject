@@ -283,7 +283,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			else if (c.getName() != null && c.getName().endsWith("BootstrapApplet") && c.getClass().getName().endsWith("BootstrapApplet")){
 				System.out.println("applet: "+c.getClass().getName());
 				try {
-					FrameHolder holder=(FrameHolder)Class.forName("com.projectlibre1.bootstrap.BootstrapApplet.class").getMethod("getObject", null).invoke(c, null);
+					FrameHolder holder=(FrameHolder)Class.forName("com.projectlibre1.bootstrap.BootstrapApplet.class").getMethod("getObject", new Class[0]).invoke(c, new Object[0]);
 					return holder.getGraphicManager();
 				} catch (Exception e) {
 					return null;
@@ -352,7 +352,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //		else if (container instanceof BootstrapApplet){
 		else{
 			try {
-				FrameHolder holder=(FrameHolder)Class.forName("com.projectlibre1.bootstrap.BootstrapApplet").getMethod("getObject", null).invoke(container, null);
+				FrameHolder holder=(FrameHolder)Class.forName("com.projectlibre1.bootstrap.BootstrapApplet").getMethod("getObject", new Class[0]).invoke(container, new Object[0]);
 				holder.setGraphicManager(this);
 			} catch (Exception e) {
 			}
@@ -361,11 +361,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 	public GraphicManager(Container container) {
 		this(/*null,*/ server,container);
-	}
-
-	protected void finalize() throws Throwable {
-//		System.out.println("~~~~~~~~~~~~~~~~ GraphicManager.finalize()");
-		super.finalize();
 	}
 
 	public void cleanUp() {

@@ -24,8 +24,11 @@
 package net.sf.mpxj;
 
 import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 import net.sf.mpxj.common.NumberHelper;
+import net.sf.mpxj.common.PopulatedFields;
 
 /**
  * Manages the collection of resources belonging to a project.
@@ -49,7 +52,7 @@ public class ResourceContainer extends ProjectEntityWithIDContainer<Resource>
 
       Iterator<ResourceAssignment> iter = m_projectFile.getResourceAssignments().iterator();
       Integer resourceUniqueID = resource.getUniqueID();
-      while (iter.hasNext() == true)
+      while (iter.hasNext())
       {
          ResourceAssignment assignment = iter.next();
          if (NumberHelper.equals(assignment.getResourceUniqueID(), resourceUniqueID))
@@ -59,7 +62,7 @@ public class ResourceContainer extends ProjectEntityWithIDContainer<Resource>
          }
       }
 
-      ProjectCalendar calendar = resource.getResourceCalendar();
+      ProjectCalendar calendar = resource.getCalendar();
       if (calendar != null)
       {
          calendar.remove();
@@ -76,5 +79,61 @@ public class ResourceContainer extends ProjectEntityWithIDContainer<Resource>
       Resource resource = new Resource(m_projectFile);
       add(resource);
       return (resource);
+   }
+
+   /**
+    * Rebuild the hierarchical resource structure based on the Parent Resource ID.
+    * Note that if a resource has a Parent Resource ID which we can't find, the
+    * resource will be left at the top level by default.
+    */
+   public void updateStructure()
+   {
+      if (size() > 1)
+      {
+         m_projectFile.getChildResources().clear();
+         this.stream().forEach(r -> r.getChildResources().clear());
+         this.stream().forEach(r -> {
+            Resource parent = r.getParentResource();
+            if (parent == null)
+            {
+               m_projectFile.getChildResources().add(r);
+            }
+            else
+            {
+               parent.addChildResource(r);
+            }
+         });
+      }
+   }
+
+   /**
+    * Retrieve the set of populated fields for this project.
+    *
+    * @return set of populated fields
+    */
+   public Set<ResourceField> getPopulatedFields()
+   {
+      return new PopulatedFields<>(m_projectFile, ResourceField.class, this).getPopulatedFields();
+   }
+
+   /**
+    * Retrieve a list of resource custom fields.
+    *
+    * @return resource custom fields
+    */
+   public List<CustomField> getCustomFields()
+   {
+      return m_projectFile.getCustomFields().getCustomFieldsByFieldTypeClass(FieldTypeClass.RESOURCE);
+   }
+
+   /**
+    * Retrieve the type of a custom field by its alias.
+    *
+    * @param alias custom field alias
+    * @return FielType instance
+    */
+   public FieldType getFieldTypeByAlias(String alias)
+   {
+      return m_projectFile.getCustomFields().getFieldTypeByAlias(FieldTypeClass.RESOURCE, alias);
    }
 }

@@ -71,9 +71,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.UIManager;
 
+import com.projectlibre1.util.FlatLafSupport;
+
 public class UILister {
 	public static void main(String[] args) {
 		try {
+			FlatLafSupport.initialize();
 			Set defaults = UIManager.getLookAndFeelDefaults().entrySet();
 			TreeSet ts = new TreeSet(new Comparator() {
 				public int compare(Object a, Object b) {

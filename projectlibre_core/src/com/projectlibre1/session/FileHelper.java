@@ -55,170 +55,15 @@
  *******************************************************************************/
 package com.projectlibre1.session;
 
-import java.awt.Component;
-import java.io.File;
-import java.util.Locale;
-import java.util.prefs.Preferences;
-
-import javax.swing.Icon;
-
-import com.formdev.flatlaf.util.SystemFileChooser;
-import com.formdev.flatlaf.util.SystemFileChooser.FileFilter;
-import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
-
-import com.projectlibre1.preference.ConfigurationFile;
-import com.projectlibre1.strings.Messages;
-import com.projectlibre1.util.Environment;
-
 public class FileHelper {
 	public static final String DEFAULT_FILE_EXTENSION ="pod";
 	public static final int PROJECTLIBRE_FILE_TYPE=1;
 	public static final int MSP_FILE_TYPE=101;
-	//public static final int SERVER_FILE_TYPE=1000;
-	
-    private SystemFileChooser fileChooser = null;
-    private String chooserConfigurationSignature = null;
-    private Boolean chooserConfigurationSaveMode = null;
-    private FileFilter projectlibreFilter = null;
-    private FileFilter microsoftFilter = null;
-    private FileFilter microsoftXMLFilter = null;
-    private FileFilter microsoftXlsxFilter = null;
-    private FileFilter plannerFilter = null;
-    private FileFilter projectFilter = null;
-
-    private SystemFileChooser getFileChooser() {
-    	if (fileChooser == null) {
-    		fileChooser = new SystemFileChooser();
-    		fileChooser.setFileSelectionMode(SystemFileChooser.FILES_ONLY);
-    		fileChooser.setAcceptAllFileFilterUsed(true);
-    	}
-    	return fileChooser;
-    }
-
-    private String getChooserConfigurationSignature() {
-    	Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
-    	boolean useExternalLocales = pref.getBoolean("useExternalLocales", false);
-    	String externalLocalesDirectory = pref.get("externalLocalesDirectory", "");
-    	return Locale.getDefault().toString() + "|" + useExternalLocales + "|" + externalLocalesDirectory;
-    }
-
-    private void configureFileChooser(SystemFileChooser chooser, final boolean save) {
-    	setUpdateUI(chooser);
-
-    	projectlibreFilter = new FileNameExtensionFilter(
-    		Messages.getString("File.projectlibre") + " (*." + DEFAULT_FILE_EXTENSION + ")",
-    		DEFAULT_FILE_EXTENSION);
-    	microsoftFilter = new FileNameExtensionFilter(
-    		Messages.getString("File.microsoft") + " (*.mpp, *.mpx)",
-    		"mpp", "mpx");
-    	microsoftXMLFilter = new FileNameExtensionFilter(
-    		Messages.getString("File.microsoftXML") + " (*.xml)",
-    		"xml");
-    	microsoftXlsxFilter = new FileNameExtensionFilter(
-    		"Excel Workbook (*.xlsx)",
-    		"xlsx");
-    	plannerFilter = new FileNameExtensionFilter(
-    		Messages.getString("File.planner") + " (*.planner)",
-    		"planner");
-    	projectFilter = new FileNameExtensionFilter(
-    		Messages.getString("File.projects"),
-    		DEFAULT_FILE_EXTENSION, "xml", "xlsx", "planner", "mpp", "mpx");
-
-    	chooser.resetChoosableFileFilters();
-    	chooser.setAcceptAllFileFilterUsed(true);
-    	if (save) {
-    		File selectedFile = chooser.getSelectedFile();
-    		String selectedExtension = selectedFile != null ? getFileExtension(selectedFile.getName()) : null;
-    		if ("xlsx".equals(selectedExtension) || "mpp".equals(selectedExtension) || "mpx".equals(selectedExtension)) {
-    			if (Environment.getStandAlone()) chooser.addChoosableFileFilter(projectlibreFilter);
-    			chooser.addChoosableFileFilter(microsoftXMLFilter);
-    			chooser.addChoosableFileFilter(microsoftXlsxFilter);
-    		} else {
-    			chooser.addChoosableFileFilter(microsoftXMLFilter);
-    			chooser.addChoosableFileFilter(microsoftXlsxFilter);
-    			if (Environment.getStandAlone()) chooser.addChoosableFileFilter(projectlibreFilter);
-    		}
-    	} else {
-    		if (Environment.getStandAlone()) chooser.addChoosableFileFilter(projectlibreFilter);
-    		chooser.addChoosableFileFilter(microsoftFilter);
-    		chooser.addChoosableFileFilter(microsoftXMLFilter);
-    		chooser.addChoosableFileFilter(microsoftXlsxFilter);
-    		chooser.addChoosableFileFilter(plannerFilter);
-    		chooser.addChoosableFileFilter(projectFilter);
-    		chooser.setFileFilter(chooser.getAcceptAllFileFilter());
-    	}
-    }
-
-    private void ensureFileChooserConfigured(final boolean save) {
-    	String signature = getChooserConfigurationSignature();
-    	if (chooserConfigurationSignature == null
-    			|| chooserConfigurationSaveMode == null
-    			|| chooserConfigurationSaveMode.booleanValue() != save
-    			|| !chooserConfigurationSignature.equals(signature)) {
-    		configureFileChooser(getFileChooser(), save);
-    		chooserConfigurationSignature = signature;
-    		chooserConfigurationSaveMode = Boolean.valueOf(save);
-    	}
-    }
-
-    public synchronized String chooseFileName(final boolean save,String selectedFileName,Component fileChooserParent){
-    	if (!Environment.getStandAlone()&&save&&selectedFileName!=null&&selectedFileName.endsWith("."+DEFAULT_FILE_EXTENSION)){
-    		selectedFileName=changeFileExtension(selectedFileName,save?"xml":"mpp");
-    	}
-	SystemFileChooser fileChooser = getFileChooser();
-	ensureFileChooserConfigured(save);
-	if (selectedFileName != null) {
-		fileChooser.setSelectedFile(new File(getSuggestedSaveFileName(selectedFileName, fileChooser.getFileFilter())));
-	}
-    	if (selectedFileName==null){
-    		try {
-    			String initialDirName=Preferences.userNodeForPackage(FileHelper.class).get("lastDirectory",System.getProperty("user.home")+File.separator+"ProjectLibre");
-				fileChooser.setCurrentDirectory(new File(initialDirName));
-			} catch (Exception e) {
-			}
-    	}
-    	
-		int result = save ? fileChooser.showSaveDialog(fileChooserParent) : fileChooser.showOpenDialog(fileChooserParent);
-		if (result != SystemFileChooser.APPROVE_OPTION)
-			return null;
-		File file=fileChooser.getSelectedFile();
-		String fileName=file.toString();
-		FileFilter currentFilter=fileChooser.getFileFilter();
-		if (save){
-			if (currentFilter==microsoftXMLFilter){
-				if(!fileName.endsWith(".xml")) fileName+=".xml";
-			}
-			else if (currentFilter==microsoftXlsxFilter){
-				if(!fileName.endsWith(".xlsx")) fileName+=".xlsx";
-			}
-			else if (!fileName.endsWith(".pod")) fileName+=".pod";
-		}
-		
-		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory",file.getParent());
-		return fileName;
-    	
-    }
-
-    private String getSuggestedSaveFileName(String baseFileName, FileFilter filter) {
-		if (baseFileName == null) {
-			return null;
-		}
-		if (filter == microsoftXlsxFilter) {
-			return changeFileExtension(baseFileName, "xlsx");
-		}
-		if (filter == microsoftXMLFilter) {
-			return changeFileExtension(baseFileName, "xml");
-		}
-		if (filter == projectlibreFilter) {
-			return changeFileExtension(baseFileName, DEFAULT_FILE_EXTENSION);
-		}
-		return baseFileName;
-    }
 
     public static boolean isFileNameAllowed(String fileName,boolean save) {
 		String n = fileName.toLowerCase();
     	if (save) return n.endsWith(".xml")||n.endsWith(".xlsx")||n.endsWith("."+DEFAULT_FILE_EXTENSION);
-    	else return n.endsWith(".xml")||n.endsWith(".xlsx")||n.endsWith(".mpp")||n.endsWith(".mpx")||n.endsWith(".planner")||n.endsWith("."+DEFAULT_FILE_EXTENSION) || n.endsWith(".mpx");
+		else return n.endsWith(".xml")||n.endsWith(".xlsx")||n.endsWith(".mpp")||n.endsWith(".mpx")||n.endsWith(".planner")||n.endsWith("."+DEFAULT_FILE_EXTENSION) || n.endsWith(".mpx");
 	}
 
     public static String getFileExtension(String fileName) {
@@ -236,15 +81,6 @@ public class FileHelper {
         else return fileName.substring(0,i)+"."+extension;
     }
 
-    public static Icon getIcon(String name) {
-    	try {
-			return (Icon)Class.forName("com.projectlibre1.pm.graphic.IconManager").getMethod("getIcon", new Class[]{String.class}).invoke(null, new Object[]{name});
-		} catch (Exception e) {
-		}
-		return null;
-    	
-    }
-    
     public static String getFileExtension(int fileType){
     	switch (fileType) {
 		//case FileHelper.SERVER_FILE_TYPE: return null;
@@ -264,9 +100,5 @@ public class FileHelper {
     			return MSP_FILE_TYPE;
     	return 0;
     }
-
-   private SystemFileChooser setUpdateUI(SystemFileChooser choose) {
-       return choose;
-   }
     
 }

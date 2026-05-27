@@ -61,7 +61,6 @@ import java.util.ArrayList;
 
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
-import javax.swing.border.BevelBorder;
 
 import com.projectlibre1.dialog.RenameDialog;
 import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheet;
@@ -118,7 +117,6 @@ public class SpreadSheetColumnsPopupMenu extends JPopupMenu {
         super();
         this.spreadSheet=spreadSheet;
         this.type = type;
-        setBorder(new BevelBorder(BevelBorder.RAISED));
 		setContents();
     }
 

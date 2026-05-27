@@ -69,7 +69,7 @@ public abstract class ProjectEntityContainer<T extends ProjectEntityWithUniqueID
 
    /**
     * Validate that the Unique IDs for the entities in this container are valid for MS Project.
-    * If they are not valid, i.e one or more of them are too large, renumber them.
+    * If they are not valid, i.e. one or more of them are too large, renumber them.
     */
    public void validateUniqueIDsForMicrosoftProject()
    {
@@ -94,35 +94,32 @@ public abstract class ProjectEntityContainer<T extends ProjectEntityWithUniqueID
     */
    public T getByUniqueID(Integer id)
    {
+      if (m_uniqueIDMap.size() != size())
+      {
+         clearUniqueIDMap();
+         for (T item : this)
+         {
+            m_uniqueIDMap.put(item.getUniqueID(), item);
+         }
+      }
       return m_uniqueIDMap.get(id);
    }
 
    /**
-    * Remove the Unique ID to instance mapping.
-    *
-    * @param id Unique ID to remove
+    * Clear the unique ID map. This will force the map to be
+    * re-created next time we try to look something up by
+    * unique ID.
     */
-   public void unmapUniqueID(Integer id)
+   public void clearUniqueIDMap()
    {
-      m_uniqueIDMap.remove(id);
-   }
-
-   /**
-    * Add a Unique ID to instance mapping.
-    *
-    * @param id Unique ID
-    * @param entity instance
-    */
-   public void mapUniqueID(Integer id, T entity)
-   {
-      m_uniqueIDMap.put(id, entity);
+      m_uniqueIDMap.clear();
    }
 
    protected final ProjectFile m_projectFile;
-   protected Map<Integer, T> m_uniqueIDMap = new HashMap<Integer, T>();
+   protected final Map<Integer, T> m_uniqueIDMap = new HashMap<>();
 
    /**
     * Maximum unique ID value MS Project will accept.
     */
-   private static final int MS_PROJECT_MAX_UNIQUE_ID = 0x1FFFFF;
+   public static final int MS_PROJECT_MAX_UNIQUE_ID = 0x1FFFFF;
 }

@@ -79,7 +79,6 @@ import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIDefaults;
 import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
 
 import com.projectlibre1.pm.graphic.frames.GraphicManager;
 import com.projectlibre1.util.Environment;
@@ -324,21 +323,7 @@ public class LafManagerImpl implements LafManager {
 	}
 
 	public static void main(String [] x) {
-		try {
-			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InstantiationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (UnsupportedLookAndFeelException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		FlatLafSupport.initialize();
 		System.out.println("windows laf" + isWindowsLAF());
 		System.out.println("LAF : " + UIManager.getLookAndFeel().getClass().getName());
 		outputSwingDefs();
@@ -357,7 +342,8 @@ public class LafManagerImpl implements LafManager {
 	}
 
 	public static boolean isWindowsLAF() {
-		return "com.sun.java.swing.plaf.windows.WindowsLookAndFeel".equals(UIManager.getLookAndFeel().getClass().getName());
+		return UIManager.getLookAndFeel() != null
+			&& "com.sun.java.swing.plaf.windows.WindowsLookAndFeel".equals(UIManager.getLookAndFeel().getClass().getName());
 	}
 	public boolean isToolbarOpaque() {
 		return Environment.isNewLaf() || isWindowsLAF();

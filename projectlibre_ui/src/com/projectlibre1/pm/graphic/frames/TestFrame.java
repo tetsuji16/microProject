@@ -76,6 +76,7 @@ import org.pushingpixels.flamingo.api.ribbon.resize.CoreRibbonResizePolicies;
 import org.pushingpixels.flamingo.api.ribbon.resize.IconRibbonBandResizePolicy;
 
 import com.projectlibre1.menu.MenuManager;
+import com.projectlibre1.util.FlatLafSupport;
 
 /**
  * Main Frame to demonstrate ribbon use.
@@ -103,6 +104,7 @@ public class TestFrame extends JRibbonFrame {
      *            Application arguments
      */
     public static void main(String[] args) {
+	FlatLafSupport.initialize();
 
 	SwingUtilities.invokeLater(new Runnable() {
 

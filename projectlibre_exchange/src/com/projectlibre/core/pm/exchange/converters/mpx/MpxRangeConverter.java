@@ -60,14 +60,14 @@ import com.projectlibre.core.time.TimeIntervals;
 import com.projectlibre.pm.calendar.WorkRange;
 
 import net.sf.mpxj.DateRange;
-import net.sf.mpxj.ProjectCalendarDateRanges;
+import net.sf.mpxj.ProjectCalendarHours;
 
 /**
  * @author Laurent Chretienneau
  *
  */
 public class MpxRangeConverter {
-	public void from(ProjectCalendarDateRanges mpxRange, WorkRange range) {
+	public void from(ProjectCalendarHours mpxRange, WorkRange range) {
 		if (mpxRange == null)
 			return;
 		TimeIntervals intervals=range.getIntervals();

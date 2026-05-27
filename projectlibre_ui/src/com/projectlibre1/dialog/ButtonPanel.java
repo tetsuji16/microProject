@@ -58,6 +58,7 @@ package com.projectlibre1.dialog;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JPanel;
+import javax.swing.UIManager;
 import javax.swing.plaf.basic.BasicOptionPaneUI;
 
 
@@ -66,7 +67,8 @@ public class ButtonPanel extends JPanel {
 	private static final long serialVersionUID = 1L;
 	public ButtonPanel() {
 	    super(new BasicOptionPaneUI.ButtonAreaLayout(true, 6));
-	    setBorder(BorderFactory.createEmptyBorder(9, 0, 0, 0));
+	    javax.swing.border.Border border = UIManager.getBorder("OptionPane.border");
+	    setBorder(border != null ? border : BorderFactory.createEmptyBorder());
 	}
 	public void addButton(JButton button) {
 		add(button);

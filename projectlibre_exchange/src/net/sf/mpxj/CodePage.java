@@ -48,7 +48,7 @@ public enum CodePage
     * @param value MPX code page name
     * @param charset Java character set name
     */
-   private CodePage(String value, Charset charset)
+   CodePage(String value, Charset charset)
    {
       m_value = value;
       m_charset = charset;
@@ -62,12 +62,7 @@ public enum CodePage
     */
    public static CodePage getInstance(String value)
    {
-      CodePage result = NAME_MAP.get(value);
-      if (result == null)
-      {
-         result = ANSI;
-      }
-      return (result);
+      return NAME_MAP.getOrDefault(value, ANSI);
    }
 
    /**
@@ -90,10 +85,10 @@ public enum CodePage
       return (m_value);
    }
 
-   private String m_value;
-   private Charset m_charset;
+   private final String m_value;
+   private final Charset m_charset;
 
-   private static final Map<String, CodePage> NAME_MAP = new HashMap<String, CodePage>();
+   private static final Map<String, CodePage> NAME_MAP = new HashMap<>();
    static
    {
       for (CodePage e : EnumSet.allOf(CodePage.class))

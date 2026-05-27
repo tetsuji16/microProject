@@ -101,9 +101,6 @@ public class DefaultFrameManager implements FrameManager {
 	//	projectComboPanel.add(new JLabel(Messages.getString("DefaultFrameManager.Project"))); //$NON-NLS-1$ //$NON-NLS-2$
 		GraphicManager.getInstance().getLafManager().setColorScheme(projectComboPanel);
 	}
-	protected void finalize() throws Throwable {
-		super.finalize();
-	}
 	public void cleanUp() {
 		Iterator i = getAllFrames().iterator();
 		while (i.hasNext()) {

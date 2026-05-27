@@ -70,8 +70,11 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.Timer;
 
+import com.projectlibre1.util.FlatLafSupport;
+
 public class Statusbar {
 	public static void main(String[] args) {
+		FlatLafSupport.initialize();
 		JFrame f = new JFrame();
 		f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		f.getContentPane().add(getComponent(f), "South");

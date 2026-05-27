@@ -43,6 +43,7 @@ import net.sf.mpxj.Group;
 import net.sf.mpxj.ProjectCalendar;
 import net.sf.mpxj.ProjectCalendarDateRanges;
 import net.sf.mpxj.ProjectCalendarException;
+import net.sf.mpxj.ProjectCalendarHours;
 import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.Resource;
 import net.sf.mpxj.ResourceAssignment;
@@ -308,7 +309,7 @@ public class ProjectTreeController
     * @param parentNode parent node
     * @param hours list of ranges
     */
-   private void addHours(MpxjTreeNode parentNode, ProjectCalendarDateRanges hours)
+   private void addHours(MpxjTreeNode parentNode, ProjectCalendarHours hours)
    {
       for (DateRange range : hours)
       {

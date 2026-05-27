@@ -23,62 +23,111 @@
 
 package net.sf.mpxj;
 
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 /**
  * This class is used to represent the records in an MPX file that define
  * working hours in a calendar.
  */
-public final class ProjectCalendarHours extends ProjectCalendarDateRanges
+public class ProjectCalendarHours extends AbstractList<DateRange>
 {
-   /**
-    * Default constructor.
-    *
-    * @param parentCalendar the parent calendar for this instance
-    */
-   ProjectCalendarHours(ProjectCalendarWeek parentCalendar)
+   @Override public boolean add(DateRange range)
    {
-      m_parentCalendar = parentCalendar;
+      return m_ranges.add(range);
    }
 
    /**
-    * Retrieve the parent calendar for these hours.
+    * Add a date range to the list of date ranges.
     *
-    * @return parent calendar
+    * @param range date range
+    * @deprecated use {@code add}
     */
-   public ProjectCalendarWeek getParentCalendar()
+   @Deprecated public void addRange(DateRange range)
    {
-      return (m_parentCalendar);
+      add(range);
    }
 
    /**
-    * Get day.
+    * Retrieve the date range at the specified index.
+    * The index is zero based, and this method will return
+    * null if the requested date range does not exist.
     *
-    * @return day instance
+    * @param index range index
+    * @return date range instance
+    * @deprecated use {@code get}
     */
-   public Day getDay()
+   @Deprecated public DateRange getRange(int index)
    {
-      return (m_day);
+      return get(index);
+   }
+
+   @Override public DateRange set(int index, DateRange value)
+   {
+      return m_ranges.set(index, value);
    }
 
    /**
-    * Set day.
+    * Replace a date range at the specified index.
     *
-    * @param d day instance
+    * @param index range index
+    * @param value DateRange instance
+    * @deprecated use {@code set}
     */
-   public void setDay(Day d)
+   @Deprecated public void setRange(int index, DateRange value)
    {
-      if (m_day != null)
+      set(index, value);
+   }
+
+   @Override public DateRange get(int index)
+   {
+      DateRange result;
+
+      if (index >= 0 && index < m_ranges.size())
       {
-         m_parentCalendar.removeHoursFromDay(this);
+         result = m_ranges.get(index);
+      }
+      else
+      {
+         result = DateRange.EMPTY_RANGE;
       }
 
-      m_day = d;
-
-      m_parentCalendar.attachHoursToDay(this);
+      return result;
    }
 
    /**
-    * {@inheritDoc}
+    * Retrieve an iterator to allow the list of date ranges to be traversed.
+    *
+    * @return iterator.
     */
+   @Override public Iterator<DateRange> iterator()
+   {
+      return m_ranges.iterator();
+   }
+
+   @Override public int size()
+   {
+      return m_ranges.size();
+   }
+
+   /**
+    * Returns the number of date ranges associated with this instance.
+    *
+    * @return number of date ranges
+    * @deprecated use {@code size}
+    */
+   @Deprecated public int getRangeCount()
+   {
+      return size();
+   }
+
+   @Override public void clear()
+   {
+      m_ranges.clear();
+   }
+
    @Override public String toString()
    {
       StringBuilder sb = new StringBuilder();
@@ -91,6 +140,5 @@ public final class ProjectCalendarHours extends ProjectCalendarDateRanges
       return (sb.toString());
    }
 
-   private ProjectCalendarWeek m_parentCalendar;
-   private Day m_day;
+   private final List<DateRange> m_ranges = new ArrayList<>();
 }

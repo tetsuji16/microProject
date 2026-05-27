@@ -55,7 +55,6 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.spreadsheet.editor;
 
-import java.awt.Color;
 import java.awt.Component;
 import java.text.Format;
 import java.text.ParseException;
@@ -74,7 +73,6 @@ import com.projectlibre1.datatype.DurationFormat;
 import com.projectlibre1.field.Field;
 import com.projectlibre1.field.FieldConverter;
 import com.projectlibre1.field.FieldParseException;
-import com.projectlibre1.util.FlatUiSupport;
 /**
  *
  */
@@ -119,11 +117,6 @@ public class SimpleEditor extends DefaultCellEditor   {
 		
 		component.setText(stringValue);
 		//component.resetChange();
-		component.setBorder(FlatUiSupport.tableEditorBorder());
-		component.setBackground(FlatUiSupport.tableBackground());
-		component.setSelectedTextColor(FlatUiSupport.tableSelectionForeground());
-		component.setSelectionColor(FlatUiSupport.tableSelectionBackground());
-		
 		if (table.getModel() instanceof SpreadSheetModel) {
 			SpreadSheetModel model  = (SpreadSheetModel) table.getModel();
 			Field field = model.getFieldInColumn(column+1);
