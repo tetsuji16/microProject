@@ -105,6 +105,7 @@ import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.projectlibre1.pm.graphic.collaboration.CollaborationHelper;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetSearchContext;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.projectlibre1.pm.graphic.spreadsheet.editor.DateEditor;
 import com.projectlibre1.pm.graphic.spreadsheet.editor.KeyboardFocusable;
 import com.projectlibre1.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.projectlibre1.pm.graphic.spreadsheet.selection.SpreadSheetSelectionModel;
@@ -294,14 +295,31 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	// ---------------------------------------------------------------------
 
 	private void startEditingCurrentCell(boolean caretAtEnd) {
+		startEditingCurrentCell(caretAtEnd, false);
+	}
+
+	private void startEditingCurrentCell(boolean caretAtEnd, boolean clearTextOnStart) {
 		EditableCellTarget target = resolveEditableCellTarget();
 		if (target == null)
 			return;
-		startEditingAtTarget(target, new StartEditEvent(this, caretAtEnd, null, false), text -> {
+		startEditingAtTarget(target, new StartEditEvent(this, caretAtEnd, null, clearTextOnStart), text -> {
+			if (clearTextOnStart) {
+				text.setText("");
+			}
 			if (caretAtEnd) {
 				positionEditorCaretToEnd(text);
 			}
 		});
+	}
+
+	private boolean startClearingCurrentCell() {
+		EditableCellTarget target = resolveEditableCellTarget();
+		if (target == null)
+			return false;
+		if (!isCellEditable(target.row, target.column))
+			return false;
+		startEditingCurrentCell(false, true);
+		return true;
 	}
 
 	private void startEditingFromTypedKey(KeyEvent e) {
@@ -385,6 +403,12 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return;
 		}
 		if (e != null && !isEditing()) {
+			if (e.getID() == KeyEvent.KEY_PRESSED && isClearCellKey(e)) {
+				if (startClearingCurrentCell()) {
+					e.consume();
+					return;
+				}
+			}
 			if (e.getID() == KeyEvent.KEY_PRESSED && isReconversionKey(e)) {
 				startEditingForReconversion(e);
 				e.consume();
@@ -442,6 +466,13 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	private boolean isReconversionKey(KeyEvent e) {
 		return e.getKeyCode() == KeyEvent.VK_CONVERT && !e.isControlDown() && !e.isAltDown() && !e.isMetaDown();
+	}
+
+	private boolean isClearCellKey(KeyEvent e) {
+		if (e.getID() == KeyEvent.KEY_PRESSED) {
+			return e.getKeyCode() == KeyEvent.VK_BACK_SPACE && !e.isControlDown() && !e.isAltDown() && !e.isMetaDown();
+		}
+		return e.getID() == KeyEvent.KEY_TYPED && e.getKeyChar() == '\b' && !e.isControlDown() && !e.isAltDown() && !e.isMetaDown();
 	}
 
 	// ---------------------------------------------------------------------
@@ -563,6 +594,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		}
 		text.setText(String.valueOf(typedChar));
 		positionEditorCaretToEnd(text);
+		stabilizeDateEditorSelection(text);
 	}
 
 	private void applyReceivedText(JTextComponent text, String receivedText, boolean startNewEdit) {
@@ -574,6 +606,22 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			text.replaceSelection(receivedText);
 		}
 		positionEditorCaretToEnd(text);
+		stabilizeDateEditorSelection(text);
+	}
+
+	private void stabilizeDateEditorSelection(JTextComponent text) {
+		if (!(editorComp instanceof DateEditor.ExtDateField)) {
+			return;
+		}
+		SwingUtilities.invokeLater(() -> {
+			JTextComponent currentText = getEditorTextComponent();
+			if (currentText == null || currentText != text) {
+				return;
+			}
+			currentText.setSelectionStart(currentText.getDocument().getLength());
+			currentText.setSelectionEnd(currentText.getDocument().getLength());
+			currentText.setCaretPosition(currentText.getDocument().getLength());
+		});
 	}
 
 	private void dispatchInputMethodEvent(JTextComponent text, InputMethodEvent editorEvent) {
