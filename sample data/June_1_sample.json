@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "snapshot": {
+    "start_date": "2026-05-28",
+    "end_date": "2026-06-08",
+    "status_date": null,
+    "tasks": [
+      {
+        "number": 0,
+        "name": "June 1 Sample Project",
+        "start": "2026-05-28",
+        "finish": "2026-06-08",
+        "progress": 0.0,
+        "indent": 0,
+        "summary": true,
+        "milestone": false,
+        "predecessors": [],
+        "resource_names": [],
+        "start_text": null,
+        "finish_text": null,
+        "duration_text": "8.0d",
+        "notes": "",
+        "deadline": null
+      },
+      {
+        "number": 1,
+        "name": "Pre-kickoff planning",
+        "start": "2026-05-28",
+        "finish": "2026-05-29",
+        "progress": 0.0,
+        "indent": 1,
+        "summary": false,
+        "milestone": false,
+        "predecessors": [],
+        "resource_names": [
+          "tetsu"
+        ],
+        "start_text": null,
+        "finish_text": null,
+        "duration_text": "2.0d",
+        "notes": "",
+        "deadline": null
+      },
+      {
+        "number": 2,
+        "name": "Scope check",
+        "start": "2026-05-30",
+        "finish": "2026-05-31",
+        "progress": 0.25,
+        "indent": 1,
+        "summary": false,
+        "milestone": false,
+        "predecessors": [
+          1
+        ],
+        "resource_names": [
+          "tetsu"
+        ],
+        "start_text": null,
+        "finish_text": null,
+        "duration_text": "2.0d",
+        "notes": "",
+        "deadline": null
+      },
+      {
+        "number": 3,
+        "name": "Kickoff",
+        "start": "2026-06-01",
+        "finish": "2026-06-01",
+        "progress": 1.0,
+        "indent": 1,
+        "summary": false,
+        "milestone": true,
+        "predecessors": [
+          2
+        ],
+        "resource_names": [
+          "tetsu"
+        ],
+        "start_text": null,
+        "finish_text": null,
+        "duration_text": "0.0d",
+        "notes": "Milestone around June 1 for quick date-entry testing.",
+        "deadline": null
+      },
+      {
+        "number": 4,
+        "name": "Draft build",
+        "start": "2026-06-01",
+        "finish": "2026-06-03",
+        "progress": 0.5,
+        "indent": 1,
+        "summary": false,
+        "milestone": false,
+        "predecessors": [
+          3
+        ],
+        "resource_names": [
+          "tetsu"
+        ],
+        "start_text": null,
+        "finish_text": null,
+        "duration_text": "3.0d",
+        "notes": "",
+        "deadline": null
+      },
+      {
+        "number": 5,
+        "name": "Review changes",
+        "start": "2026-06-04",
+        "finish": "2026-06-05",
+        "progress": 0.0,
+        "indent": 1,
+        "summary": false,
+        "milestone": false,
+        "predecessors": [
+          4
+        ],
+        "resource_names": [
+          "tetsu"
+        ],
+        "start_text": null,
+        "finish_text": null,
+        "duration_text": "2.0d",
+        "notes": "",
+        "deadline": null
+      },
+      {
+        "number": 6,
+        "name": "Finalize",
+        "start": "2026-06-06",
+        "finish": "2026-06-08",
+        "progress": 0.0,
+        "indent": 1,
+        "summary": false,
+        "milestone": false,
+        "predecessors": [
+          5
+        ],
+        "resource_names": [
+          "tetsu"
+        ],
+        "start_text": null,
+        "finish_text": null,
+        "duration_text": "3.0d",
+        "notes": "",
+        "deadline": null
+      }
+    ]
+  },
+  "selected_task_id": 4,
+  "collapsed_summaries": [
+    0
+  ],
+  "day_width": 24.0,
+  "left_table_width": 857.0
+}

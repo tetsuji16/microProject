@@ -142,8 +142,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	    //updateVisibleElements(nodes,new HashSet());
 	}
 	public void unbindView(VisibleNodes nodes,VisibleDependencies deps){
-	    nodeCache.addVisibleElements(nodes);
-	    edgeCache.addVisibleElements(deps);
+	    nodeCache.removeVisibleElements(nodes);
+	    edgeCache.removeVisibleElements(deps);
 	}
 	
 	
@@ -343,6 +343,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	private void buildCache(){
 		nodeCache.clear();
+		edgeCache.clear();
 		getModel().getHierarchy().checkEndVoidNodes(NodeModel.SILENT);
 		update();
 		buildEdges();
@@ -364,7 +365,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 			GraphicNode gnode=(GraphicNode)i.next();
 			if (gnode.isVoid()||gnode.isAssignment()) continue;
 			if (!(gnode.getNode().getImpl() instanceof HasDependencies))
-				return; //TODO this is ugly.  perhaps subclass NodeBridge for cases when impl has dependencies
+				continue; // only task-like nodes contribute dependency edges
 			gnodes.add(gnode);
 			implMap.put(gnode.getNode().getImpl(),gnode);
 		}

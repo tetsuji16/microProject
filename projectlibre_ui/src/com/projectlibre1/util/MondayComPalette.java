@@ -69,9 +69,6 @@ public class MondayComPalette implements GanttColorPalette {
         if (context instanceof com.projectlibre1.pm.assignment.Assignment) {
             return MondayGanttTheme.GROUP_B;
         }
-        if (context instanceof com.projectlibre1.pm.task.Task && ((com.projectlibre1.pm.task.Task)context).isSummary()) {
-            return MondayGanttTheme.GROUP_B;
-        }
         return MondayGanttTheme.accentColor(format, statusColor);
     }
 
@@ -100,7 +97,7 @@ public class MondayComPalette implements GanttColorPalette {
     
     @Override
     public Color getDependencyLinkColor() {
-        return MondayGanttTheme.GROUP_A; // Blue link color
+        return MondayGanttTheme.DEPENDENCY_LINK;
     }
     
     @Override

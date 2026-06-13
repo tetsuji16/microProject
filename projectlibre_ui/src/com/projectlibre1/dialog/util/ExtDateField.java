@@ -64,6 +64,8 @@ import javax.swing.text.DateFormatter;
 
 import net.sf.nachocalendar.components.DateField;
 
+import com.projectlibre1.util.YearlessDateInputParser;
+
 public class ExtDateField extends DateField {
 
 	public ExtDateField(boolean showWeekNumbers) {
@@ -94,7 +96,7 @@ public class ExtDateField extends DateField {
 		Object value = getValue();
 		if (value instanceof String) {
 			try {
-				value =  getDateFormat().parse((String)value);
+				value = YearlessDateInputParser.parse((String) value, getDateFormat(), null);
 			} catch (ParseException e) {
 				e.printStackTrace();
 			}

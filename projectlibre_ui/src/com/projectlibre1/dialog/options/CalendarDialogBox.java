@@ -90,6 +90,7 @@ public class CalendarDialogBox extends AbstractDialog{
         String endTime;
         String weekStart;
         String fiscalYearStart;
+        Boolean showTimeInDates;
         Boolean useStartingYear;
         Boolean setAsDefault;
         
@@ -99,12 +100,16 @@ public class CalendarDialogBox extends AbstractDialog{
         	daysPerMonth = Double.valueOf(option.getDaysPerMonth());
         	startTime = option.getDefaultStartHour() +""; //$NON-NLS-1$
         	endTime = option.getDefaultEndHour()+""; //$NON-NLS-1$
+        	showTimeInDates = Boolean.valueOf(option.isShowTimeInDates());
         	
         }
         public void copyToOption(CalendarOption option) {
         	option.setHoursPerDay(hoursPerDay.doubleValue());
         	option.setHoursPerWeek(hoursPerWeek.doubleValue());
         	option.setDaysPerMonth(daysPerMonth.doubleValue());
+        	option.setShowTimeInDates(showTimeInDates.booleanValue());
+        	option.setDefaultStartHour(8);
+        	option.setDefaultEndHour(17);
         	
         }
         public Double getDaysPerMonth() {
@@ -143,6 +148,12 @@ public class CalendarDialogBox extends AbstractDialog{
         public void setSetAsDefault(Boolean setAsDefault) {
             this.setAsDefault = setAsDefault;
         }
+        public Boolean getShowTimeInDates() {
+            return showTimeInDates;
+        }
+        public void setShowTimeInDates(Boolean showTimeInDates) {
+            this.showTimeInDates = showTimeInDates;
+        }
         public String getStartTime() {
             return startTime;
         }
@@ -172,6 +183,7 @@ public class CalendarDialogBox extends AbstractDialog{
         JTextField endTime;
         JComboBox weekStart;
         JComboBox fiscalYearStart;
+        JCheckBox showTimeInDates;
         JCheckBox useStartingYear;
         JButton setAsDefault;
 
@@ -196,6 +208,7 @@ public class CalendarDialogBox extends AbstractDialog{
     	    };
     	    weekStart=new JComboBox(week);
     	    fiscalYearStart=new JComboBox(year);   
+    	    showTimeInDates = new JCheckBox(Messages.getString("CalendarDialogBox.ShowTimeInDates")); //$NON-NLS-1$
     	    useStartingYear=new JCheckBox(Messages.getString("CalendarDialogBox.UserStartingYearForFVNumbering")); //$NON-NLS-1$
     	    useStartingYear.setEnabled(false);
 
@@ -239,6 +252,7 @@ public class CalendarDialogBox extends AbstractDialog{
     		if (get) {
     		    weekStart.setSelectedItem(form.getWeekStart());
     		    fiscalYearStart.setSelectedItem(form.getFiscalYearStart()); 		    
+    		    showTimeInDates.setSelected((form.getShowTimeInDates()).booleanValue());
     		    useStartingYear.setSelected((form.getUseStartingYear()).booleanValue());
     		    startTime.setText(/*form.getStartTime()*/Messages.getString("CalendarDialogBox.Eight")); //$NON-NLS-1$
     		    endTime.setText(/*form.getEndTime()*/Messages.getString("CalendarDialogBox.Seventeen")); //$NON-NLS-1$
@@ -252,6 +266,7 @@ public class CalendarDialogBox extends AbstractDialog{
     		} else {
     			form.setWeekStart((String)weekStart.getSelectedItem());
     			form.setFiscalYearStart((String)fiscalYearStart.getSelectedItem());  		    
+    			form.setShowTimeInDates(Boolean.valueOf(showTimeInDates.isSelected()));
     			Boolean b1=Boolean.valueOf(useStartingYear.isSelected());
     			form.setUseStartingYear(b1);
     			form.setStartTime(startTime.getText());
@@ -285,6 +300,8 @@ public class CalendarDialogBox extends AbstractDialog{
     		builder.append(Messages.getString("CalendarDialogBox.HoursPerWeek"),hoursPerWeek); //$NON-NLS-1$
     		builder.nextLine(2);
     		builder.append(Messages.getString("CalendarDialogBox.DaysPerMonth"),daysPerMonth); //$NON-NLS-1$
+    		builder.nextLine(2);
+    		builder.append(showTimeInDates);
   
 
     		return builder.getPanel();

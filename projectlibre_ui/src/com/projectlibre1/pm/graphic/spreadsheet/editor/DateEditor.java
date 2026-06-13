@@ -59,6 +59,7 @@ import java.awt.Component;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.util.Date;
 
 import javax.swing.JTable;
@@ -69,17 +70,21 @@ import net.sf.nachocalendar.table.DateFieldTableEditor;
 import com.projectlibre1.pm.graphic.frames.GraphicManager;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.projectlibre1.field.Field;
-import com.projectlibre1.field.FieldConverter;
-import com.projectlibre1.field.FieldParseException;
 import com.projectlibre1.options.CalendarOption;
 import com.projectlibre1.options.EditOption;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.Alert;
 import com.projectlibre1.util.DateTime;
 import com.projectlibre1.util.FlatUiSupport;
+import com.projectlibre1.util.YearlessDateInputParser;
 
 public class DateEditor extends DateFieldTableEditor {
 	protected ExtDateField dateField;
+	private JTable table;
+	private int editingRow = -1;
+	private int editingColumn = -1;
+	private Field editingField;
+	private DateFormat editingFormat;
 	private Date initialValue = null;
 	public DateEditor() {
 	}
@@ -118,12 +123,17 @@ public class DateEditor extends DateFieldTableEditor {
 	}
     public Component getTableCellEditorComponent(JTable table, Object value,
             boolean isSelected, int row, int col) {
+		this.table = table;
+		this.editingRow = row;
+		this.editingColumn = col;
 		Field field = ((SpreadSheetModel)table.getModel()).getFieldInColumn(col+1);
+		this.editingField = field;
 		DateFormat format;
 		if (field.isDateOnly())
 			format = EditOption.getInstance().getShortDateFormat();
 		else
 			format = EditOption.getInstance().getDateFormat();
+		this.editingFormat = format;
 
         dateField = new ExtDateField(format);
         dateField.setBorder(FlatUiSupport.tableEditorBorder());
@@ -162,8 +172,8 @@ public class DateEditor extends DateFieldTableEditor {
 			return super.stopCellEditing();
 		} else {
 			try {
-				date = (Date) FieldConverter.convert(text,Date.class,null);
-			} catch (FieldParseException e) {
+				date = YearlessDateInputParser.parse(text, editingFormat, findReferenceDate());
+			} catch (ParseException | IllegalArgumentException e) {
 				cancelCellEditing();
 				Alert.warn(Messages.getString("Message.invalidDate"),dateField);
 				return true;
@@ -176,5 +186,18 @@ public class DateEditor extends DateFieldTableEditor {
 			
 		dateField.setValue(date);
 		return super.stopCellEditing();
+	}
+
+	private Date findReferenceDate() {
+		if (table == null || editingRow <= 0 || editingField == null) {
+			return null;
+		}
+		for (int row = editingRow - 1; row >= 0; row--) {
+			Object candidate = table.getValueAt(row, editingColumn);
+			if (candidate instanceof Date date && !DateTime.getZeroDate().equals(date)) {
+				return date;
+			}
+		}
+		return null;
 	}
 }

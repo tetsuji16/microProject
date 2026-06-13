@@ -182,24 +182,24 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			if (format.getStart()!=null){
 				double theta=routing.getFirstAngle();
 				AffineTransform transform=(theta==0)?null:AffineTransform.getRotateInstance(theta,routing.getFirstX(),routing.getFirstY());
-				drawLinkArrows(dep,transform,format.getEnd());
+				drawLinkArrows(dep,transform,format.getStart(),routing.getFirstX(),routing.getFirstY());
 			}
 			if (format.getEnd()!=null){
 				double theta=routing.getLastAngle();
 				AffineTransform transform=(theta==Math.PI||theta==-Math.PI)?null:AffineTransform.getRotateInstance(Math.PI-theta,routing.getLastX(),routing.getLastY());
-				drawLinkArrows(dep,transform,format.getEnd());
+				drawLinkArrows(dep,transform,format.getEnd(),routing.getLastX(),routing.getLastY());
 			}
 			if (oldColor!=null) g2.setColor(oldColor);
 			if (oldStroke!= null) g2.setStroke(oldStroke);
 
 		}
-		private void drawLinkArrows(Dependency dep, AffineTransform transform, TexturedShape shape) {
+		private void drawLinkArrows(Dependency dep, AffineTransform transform, TexturedShape shape, double x, double y) {
 			Color oldEndColor = format.getEnd().getColor();
 			if (dep != null && dep.isCrossProject())
 				shape.setPaint(GraphRenderer.EXTERNAL_LINK_COLOR);
 			g2.setColor(shape.getColor());
 			LinkRouting routing=getRouting();
-			shape.draw(g2,routing.getLastX(),routing.getLastY(),transform,useTextures());
+			shape.draw(g2,x,y,transform,useTextures());
 			if (dep != null && dep.isCrossProject())
 				shape.setPaint(oldEndColor);
 		}

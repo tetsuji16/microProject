@@ -935,7 +935,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return action;
 	}
 	public String[] getActionList(){
-		if (actionList == null) actionList = ((SpreadSheetModel) getModel()).getActionList();
+		if (actionList == null) {
+			var model = getModel();
+			if (model instanceof SpreadSheetModel spreadSheetModel) {
+				actionList = spreadSheetModel.getActionList();
+			} else {
+				actionList = new String[0];
+			}
+		}
 		return actionList;
 	}
 	public CommonSpreadSheetAction getAction(String actionId) {

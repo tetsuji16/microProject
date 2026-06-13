@@ -7,11 +7,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
 import com.projectlibre1.graphic.configuration.BarFormat;
-import com.projectlibre1.pm.assignment.Assignment;
 import com.projectlibre1.pm.scheduling.Schedule;
-import com.projectlibre1.pm.task.TaskSnapshot;
-import com.projectlibre1.pm.task.Project;
-import com.projectlibre1.pm.task.Task;
 
 /**
  * Shared monday.com-inspired colors and painting helpers for Gantt rendering.
@@ -19,6 +15,9 @@ import com.projectlibre1.pm.task.Task;
 public final class MondayGanttTheme {
 	private static final int BACKGROUND_BAR_ALPHA = 76;
 	private static final Color TEXT_DARK = new Color(0x202124);
+	private static final Color SUMMARY_BACKGROUND = new Color(0xDDE7F5);
+	private static final Color SUMMARY_PROGRESS_BACKGROUND = new Color(0xEEF3FA);
+	private static final Color CRITICAL_ACCENT = new Color(0x5F, 0x64, 0x6D);
 
 	public static final Color DONE = new Color(0x00C875);
 	public static final Color WORKING_ON_IT = new Color(0xFDAB3D);
@@ -28,6 +27,7 @@ public final class MondayGanttTheme {
 	public static final Color NO_COMPARISON = new Color(0xE5E5E5);
 	public static final Color GROUP_A = new Color(0x579BFC);
 	public static final Color GROUP_B = new Color(0xA25DDC);
+	public static final Color DEPENDENCY_LINK = new Color(0x5F, 0x64, 0x6D);
 	public static final Color BACKGROUND = Color.WHITE;
 	public static final Color HEADER_BACKGROUND = new Color(0xF5F6F8);
 	public static final Color GRID_LINE = new Color(0xE1E1E1);
@@ -63,15 +63,9 @@ public final class MondayGanttTheme {
 		if (schedule == null)
 			return GROUP_A;
 
-		Color baselineColor = baselineComparisonColor(schedule, impl);
-		if (baselineColor != null)
-			return baselineColor;
-
 		double percentComplete = clamp(schedule.getPercentComplete());
 		if (percentComplete >= 1.0d)
 			return DONE;
-		if (isStuck(schedule, impl))
-			return STUCK;
 		if (percentComplete <= 0.0d)
 			return NOT_STARTED;
 		return WORKING_ON_IT;
@@ -88,7 +82,7 @@ public final class MondayGanttTheme {
 		if ("Bar.assignment".equals(id))
 			return GROUP_B;
 		if ("Bar.summary".equals(id))
-			return GROUP_B;
+			return CRITICAL_ACCENT;
 		if ("Bar.deadline".equals(id))
 			return GROUP_A;
 		if ("Bar.baseline".equals(id) || id.startsWith("Bar.baseline"))
@@ -96,14 +90,26 @@ public final class MondayGanttTheme {
 		if ("Bar.totalSlack".equals(id))
 			return GROUP_A;
 		if ("Bar.critical".equals(id))
-			return statusColor == null ? STUCK : shade(statusColor, 0.18f);
+			return CRITICAL_ACCENT;
 		if ("Link.link1".equals(id))
-			return GROUP_A;
+			return DEPENDENCY_LINK;
 		if ("Bar.milestone".equals(id))
 			return GROUP_A;
 		if ("Bar.task".equals(id))
 			return statusColor == null ? GROUP_A : shade(statusColor, 0.18f);
 		return GROUP_A;
+	}
+
+	public static Color summaryBackground() {
+		return SUMMARY_BACKGROUND;
+	}
+
+	public static Color summaryProgressBackground() {
+		return SUMMARY_PROGRESS_BACKGROUND;
+	}
+
+	public static Color criticalAccent() {
+		return CRITICAL_ACCENT;
 	}
 
 	public static Paint createLayerPaint(Color baseColor, Rectangle2D bounds, boolean backgroundLayer) {
@@ -157,70 +163,6 @@ public final class MondayGanttTheme {
 		int green = Math.round(color.getGreen() * targetWeight + target.getGreen() * weight);
 		int blue = Math.round(color.getBlue() * targetWeight + target.getBlue() * weight);
 		return new Color(red, green, blue, color.getAlpha());
-	}
-
-	private static boolean isStuck(Schedule schedule, Object impl) {
-		if (schedule == null || schedule.getEnd() <= 0L)
-			return false;
-		if (clamp(schedule.getPercentComplete()) >= 1.0d)
-			return false;
-		if (isCritical(impl))
-			return true;
-		long statusDate = statusDateOf(impl);
-		return statusDate > schedule.getEnd();
-	}
-
-	private static Color baselineComparisonColor(Schedule schedule, Object impl) {
-		Task task = taskFrom(impl);
-		if (task == null)
-			return null;
-
-		TaskSnapshot baseline = task.getBaselineSnapshot();
-		if (baseline == null || baseline.getCurrentSchedule() == null)
-			return null;
-
-		long baselineFinish = baseline.getCurrentSchedule().getFinish();
-		if (baselineFinish <= 0L)
-			return NO_COMPARISON;
-		return schedule.getEnd() > baselineFinish ? STUCK : DONE;
-	}
-
-	private static Task taskFrom(Object impl) {
-		if (impl instanceof Task)
-			return (Task)impl;
-		if (impl instanceof Assignment)
-			return ((Assignment)impl).getTask();
-		return null;
-	}
-
-	private static boolean isCritical(Object impl) {
-		if (impl instanceof Task)
-			return ((Task)impl).isCritical();
-		if (impl instanceof Assignment)
-			return ((Assignment)impl).isCritical();
-		return false;
-	}
-
-	private static long statusDateOf(Object impl) {
-		if (impl instanceof Project) {
-			long statusDate = ((Project)impl).getStatusDate();
-			return statusDate == 0L ? System.currentTimeMillis() : statusDate;
-		}
-		if (impl instanceof Assignment) {
-			Project project = ((Assignment)impl).getProject();
-			if (project != null) {
-				long statusDate = project.getStatusDate();
-				return statusDate == 0L ? System.currentTimeMillis() : statusDate;
-			}
-		}
-		if (impl instanceof Task) {
-			Project project = ((Task)impl).getProject();
-			if (project != null) {
-				long statusDate = project.getStatusDate();
-				return statusDate == 0L ? System.currentTimeMillis() : statusDate;
-			}
-		}
-		return System.currentTimeMillis();
 	}
 
 	private static double clamp(double value) {

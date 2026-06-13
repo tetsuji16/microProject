@@ -72,6 +72,7 @@ public class CalendarOption implements java.io.Serializable{
 	private static final long serialVersionUID = -6714103946319228798L;
 	private static CalendarOption instance = null;
 	private static CalendarOption defaultInstance = null;
+	private boolean showTimeInDates = false;
 	
 	public final boolean isAddedCalendarTimeIsNonStop() {
 		return addedCalendarTimeIsNonStop;
@@ -98,15 +99,8 @@ public class CalendarOption implements java.io.Serializable{
 	}
 	private CalendarOption() {
 		// note that the mpxj library uses the default values when importing or exporting
-		defaultStartTime.set(GregorianCalendar.HOUR_OF_DAY,defaultStartHour);
-		defaultStartTime.set(GregorianCalendar.MINUTE,0);
-		defaultStartTime.set(GregorianCalendar.SECOND,0);
-		defaultStartTime.set(GregorianCalendar.MILLISECOND,0);
-		defaultEndTime.set(GregorianCalendar.HOUR_OF_DAY,defaultEndHour);
-		defaultEndTime.set(GregorianCalendar.MINUTE,0);
-		defaultEndTime.set(GregorianCalendar.SECOND,0);
-		defaultEndTime.set(GregorianCalendar.MILLISECOND,0);
-		
+		syncDefaultStartTime();
+		syncDefaultEndTime();
 	}
 	
 	int weekStartsOn = GregorianCalendar.SUNDAY;
@@ -210,6 +204,9 @@ public class CalendarOption implements java.io.Serializable{
 	 */
 	public void setDefaultEndTime(GregorianCalendar defaultEndTime) {
 		this.defaultEndTime = defaultEndTime;
+		if (defaultEndTime != null) {
+			this.defaultEndHour = defaultEndTime.get(GregorianCalendar.HOUR_OF_DAY);
+		}
 	}
 	/**
 	 * @return Returns the defaultStartTime.
@@ -222,6 +219,9 @@ public class CalendarOption implements java.io.Serializable{
 	 */
 	public void setDefaultStartTime(GregorianCalendar defaultStartTime) {
 		this.defaultStartTime = defaultStartTime;
+		if (defaultStartTime != null) {
+			this.defaultStartHour = defaultStartTime.get(GregorianCalendar.HOUR_OF_DAY);
+		}
 	}
 	
 	public long makeValidStart(long start, boolean force) {
@@ -270,14 +270,38 @@ public class CalendarOption implements java.io.Serializable{
 	}
 	public final void setDefaultEndHour(int defaultEndHour) {
 		this.defaultEndHour = defaultEndHour;
+		syncDefaultEndTime();
 	}
 	public final int getDefaultStartHour() {
 		return defaultStartHour;
 	}
 	public final void setDefaultStartHour(int defaultStartHour) {
 		this.defaultStartHour = defaultStartHour;
+		syncDefaultStartTime();
+	}
+
+	public boolean isShowTimeInDates() {
+		return showTimeInDates;
+	}
+
+	public void setShowTimeInDates(boolean showTimeInDates) {
+		this.showTimeInDates = showTimeInDates;
 	}
 	public String toString() {
 		return ToStringBuilder.reflectionToString(this);
+	}
+
+	private void syncDefaultStartTime() {
+		defaultStartTime.set(GregorianCalendar.HOUR_OF_DAY, defaultStartHour);
+		defaultStartTime.set(GregorianCalendar.MINUTE, 0);
+		defaultStartTime.set(GregorianCalendar.SECOND, 0);
+		defaultStartTime.set(GregorianCalendar.MILLISECOND, 0);
+	}
+
+	private void syncDefaultEndTime() {
+		defaultEndTime.set(GregorianCalendar.HOUR_OF_DAY, defaultEndHour);
+		defaultEndTime.set(GregorianCalendar.MINUTE, 0);
+		defaultEndTime.set(GregorianCalendar.SECOND, 0);
+		defaultEndTime.set(GregorianCalendar.MILLISECOND, 0);
 	}
 }

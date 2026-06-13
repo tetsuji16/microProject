@@ -55,8 +55,11 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.spreadsheet.renderer;
 
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -68,11 +71,41 @@ import com.projectlibre1.pm.graphic.IconManager;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.projectlibre1.field.Field;
+import com.projectlibre1.util.FlatUiSupport;
 
 public class IndicatorsRenderer extends DefaultTableCellRenderer implements OfflineRenderer{
 	private static final long serialVersionUID = 190987129201L;
 	protected static JLabel cellHeader; //TODO static OK?
 	protected IndicatorsComponent indicatorsComponent;
+
+	private static final class IndicatorPanel extends JPanel {
+		private static final long serialVersionUID = 1L;
+		private boolean separatorVisible;
+		private Color separatorColor = FlatUiSupport.tableGridColor();
+
+		void setSeparatorVisible(boolean visible) {
+			this.separatorVisible = visible;
+		}
+
+		void setSeparatorColor(Color color) {
+			this.separatorColor = color == null ? FlatUiSupport.tableGridColor() : color;
+		}
+
+		@Override
+		public void paint(Graphics g) {
+			super.paint(g);
+			if (!separatorVisible) {
+				return;
+			}
+			Graphics2D g2 = (Graphics2D) g.create();
+			try {
+				g2.setColor(separatorColor);
+				g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
+			} finally {
+				g2.dispose();
+			}
+		}
+	}
 	
 	public IndicatorsRenderer() {
 		super();
@@ -87,11 +120,14 @@ public class IndicatorsRenderer extends DefaultTableCellRenderer implements Offl
 		}
 		if (indicatorsComponent!=null&&indicatorsComponent.acceptValue(value)) {
 			JComponent label;
-			label = new JPanel();
+			label = new IndicatorPanel();
 			//label=(JComponent)super.getTableCellRendererComponent(table,"",isSelected,hasFocus,row,column);
 			//indicatorsComponent.setLook(label,isSelected,hasFocus);
 			if (table!=null) label.setBackground(table.getBackground());
+			label.setBorder(isSelected || hasFocus ? FlatUiSupport.focusBorder() : FlatUiSupport.tableRowSeparatorBorder());
 			label.setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
+			((IndicatorPanel) label).setSeparatorVisible(table == null || table.getShowHorizontalLines());
+			((IndicatorPanel) label).setSeparatorColor(table == null ? FlatUiSupport.tableGridColor() : table.getGridColor());
 			StringBuilder text = new StringBuilder();
 			
 			// I would like to also show a gif next to the text as MS does.  unfortunately, this is not doable
@@ -103,8 +139,13 @@ public class IndicatorsRenderer extends DefaultTableCellRenderer implements Offl
 			if (text.length() == 0){
 				if (table==null){
 					this.setText("");
+					setBorder(isSelected || hasFocus ? FlatUiSupport.focusBorder() : FlatUiSupport.tableRowSeparatorBorder());
 					return this;
-				}else return super.getTableCellRendererComponent(table,"",isSelected,hasFocus,row,column);//empty;
+				}else {
+					JComponent empty = (JComponent)super.getTableCellRendererComponent(table,"",isSelected,hasFocus,row,column);//empty;
+					empty.setBorder(isSelected || hasFocus ? FlatUiSupport.focusBorder() : FlatUiSupport.tableRowSeparatorBorder());
+					return empty;
+				}
 			}
 			text.insert(0,"<html>");
 			text.append("</html>");
@@ -113,8 +154,13 @@ public class IndicatorsRenderer extends DefaultTableCellRenderer implements Offl
 		} else {
 			if (table==null){
 				this.setText("");
+				setBorder(isSelected || hasFocus ? FlatUiSupport.focusBorder() : FlatUiSupport.tableRowSeparatorBorder());
 				return this;
-			}else return super.getTableCellRendererComponent(table,"",isSelected,hasFocus,row,column);//empty;
+			}else {
+				JComponent empty = (JComponent)super.getTableCellRendererComponent(table,"",isSelected,hasFocus,row,column);//empty;
+				empty.setBorder(isSelected || hasFocus ? FlatUiSupport.focusBorder() : FlatUiSupport.tableRowSeparatorBorder());
+				return empty;
+			}
 		}
 	}
 	

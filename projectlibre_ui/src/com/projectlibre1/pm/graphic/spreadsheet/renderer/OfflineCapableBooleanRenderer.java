@@ -62,18 +62,17 @@ import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
-import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.UIResource;
 
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.projectlibre1.field.Field;
+import com.projectlibre1.util.FlatUiSupport;
 /**
  * JTable.BooleanRenderer modified version
  */
 public class OfflineCapableBooleanRenderer extends JCheckBox implements OfflineRenderer, UIResource {
 	//
-	private static final Border noFocusBorder = new EmptyBorder(1, 1, 1, 1);
 	public OfflineCapableBooleanRenderer() {
 		super();
 		setHorizontalAlignment(JLabel.CENTER);
@@ -95,9 +94,13 @@ public class OfflineCapableBooleanRenderer extends JCheckBox implements OfflineR
 		setSelected((value != null && ((Boolean)value).booleanValue()));
 
 		if (hasFocus) {
-			setBorder(UIManager.getBorder("Table.focusCellHighlightBorder"));
+			Border focusBorder = UIManager.getBorder("Table.focusCellHighlightBorder");
+			if (focusBorder == null) {
+				focusBorder = FlatUiSupport.focusBorder();
+			}
+			setBorder(javax.swing.BorderFactory.createCompoundBorder(focusBorder, FlatUiSupport.tableRowSeparatorBorder()));
 		} else {
-			setBorder(noFocusBorder);
+			setBorder(FlatUiSupport.tableRowSeparatorBorder());
 		}
 
 		return this;

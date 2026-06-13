@@ -78,6 +78,7 @@ import com.projectlibre1.undo.FieldEdit;
 import com.projectlibre1.util.Alert;
 import com.projectlibre1.util.DateTime;
 import com.projectlibre1.util.FlatUiSupport;
+import com.projectlibre1.util.YearlessDateInputParser;
 
 /**
  *
@@ -152,11 +153,15 @@ public class FieldVerifier extends InputVerifier {
 			if (component instanceof JSpinner || component instanceof ExtDateField) { // if a spinner, check for modified text
 				String text = ((JTextField)c).getText();
 				try {
-					if (!(component instanceof ExtDateField) || text.trim().length() > 0)
+					if (component instanceof ExtDateField) {
+						if (text.trim().length() > 0) {
+							newValue = YearlessDateInputParser.parse(text, ((ExtDateField) component).getDateFormat(), null);
+						} else {
+							((JTextField)c).setText(""); // put in empty text
+							newValue = null;
+						}
+					} else {
 						newValue = field.getFormat().parseObject(text);
-					else {
-						((JTextField)c).setText(""); // put in empty text
-						newValue = null;
 					}
 				} catch (ParseException e1) {
 					exception = new FieldParseException(field.syntaxErrorForField());

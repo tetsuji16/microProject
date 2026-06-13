@@ -195,8 +195,8 @@ public class NameCellComponent extends JPanel {
 	}
 
 	@Override
-	protected void paintComponent(Graphics g) {
-		super.paintComponent(g);
+	public void paint(Graphics g) {
+		super.paint(g);
 		if (!rowSeparatorVisible) {
 			return;
 		}

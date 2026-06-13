@@ -66,12 +66,10 @@
 			<start shapeName="DIAMOND" colorName="MONDAY_GROUP_A" paintName="SOLID"/>
 		</format>
 		<format id="Bar.summary" row="1" layer="1" intervalGenerator="com.projectlibre1.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
-			<start shapeName="PENTAGON_DOWN" colorName="MONDAY_GROUP_B" paintName="SOLID" />
-			<middle shapeName="HALF_HEIGHT_TOP" colorName="MONDAY_GROUP_B" paintName="SOLID"/>
-			<end shapeName="PENTAGON_DOWN" colorName="MONDAY_GROUP_B" paintName="SOLID"/>
+			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="SOLID" strokeName="SOLID"/>
 		</format>
 		<format id="Bar.critical" row="1" layer="1" intervalGenerator="com.projectlibre1.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
-			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_STUCK" paintName="DEFAULT" strokeName="FRAMED"/>
+			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
 <!--
 		<format id="Bar.late"  row="1" layer="1" intervalGenerator="com.projectlibre1.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
@@ -271,8 +269,8 @@
 
 
 		<format id="Link.link1">
-			<middle colorName="MONDAY_GROUP_A" paintName="SOLID" strokeName="SOLID"/>
-			<end shapeName="LINK_ARROW1" shapeScaleX="10" shapeScaleY="5" colorName="MONDAY_GROUP_A" paintName="SOLID" strokeName="SOLID"/>
+			<middle colorName="DARK_SLATE_GRAY" paintName="SOLID" strokeName="SOLID"/>
+			<end shapeName="LINK_ARROW1" shapeScaleX="10" shapeScaleY="5" colorName="DARK_SLATE_GRAY" paintName="SOLID" strokeName="SOLID"/>
 		</format>
 		<format id="Annotation.normal" fieldId="Field.resourceNames">
 			<middle colorName="BLACK" paintName="SOLID" strokeName="SOLID"/>

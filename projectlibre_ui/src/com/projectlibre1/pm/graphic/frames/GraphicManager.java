@@ -2400,7 +2400,11 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 
 	void doCalendarOptionsDialog() {
 		finishAnyOperations();
-		CalendarDialogBox.getInstance(getFrame(), null).doModal();
+		CalendarOption calendarOption = CalendarOption.getInstance();
+		CalendarDialogBox dialog = CalendarDialogBox.getInstance(getFrame(), calendarOption);
+		if (dialog.doModal()) {
+			dialog.getForm().copyToOption(calendarOption);
+		}
 	}
 
 	private GanttView getActiveGanttView() {

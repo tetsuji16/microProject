@@ -248,6 +248,10 @@ public final class FlatUiSupport {
 		return border;
 	}
 
+	public static Border tableRowSeparatorBorder() {
+		return BorderFactory.createMatteBorder(0, 0, 1, 0, tableGridColor());
+	}
+
 	public static Color spreadsheetAlternateRowBackground(int row) {
 		Color alternate = UIManager.getColor("Table.alternateRowColor");
 		if (alternate != null)

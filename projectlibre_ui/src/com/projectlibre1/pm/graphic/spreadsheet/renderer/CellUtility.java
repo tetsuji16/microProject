@@ -77,7 +77,7 @@ public class CellUtility {
 		Color foreground=cellFormat.getForegroundObject();
 		Color background=cellFormat.getBackgroundObject();
 		Color resolvedForeground=resolveTableForeground(foreground);
-		Color resolvedBackground=resolveTableBackground(background, row, isSelected || hasFocus || editingThisCell);
+		Color resolvedBackground=resolveTableBackground(background, row, false);
 		component.setForeground(resolvedForeground);
 		component.setBackground(resolvedBackground);
 		//component.setFont(table.getFont());
@@ -86,7 +86,7 @@ public class CellUtility {
 			component.setForeground(resolveSelectionForeground(foreground));
 			component.setBackground(resolveSelectionBackground(background));
 		} else if (hasFocus || isSelected) {
-			component.setBorder(FlatUiSupport.focusBorder());
+			component.setBorder(FlatUiSupport.tableCellBorder());
 			component.setForeground(resolveSelectionForeground(foreground));
 			component.setBackground(resolveSelectionBackground(background));
 		} else {
@@ -122,7 +122,7 @@ public class CellUtility {
 		if (background != null)
 			return background;
 		if (selected)
-			return FlatUiSupport.tableBackground();
+			return FlatUiSupport.tableSelectionBackground();
 		return FlatUiSupport.spreadsheetAlternateRowBackground(row);
 	}
 

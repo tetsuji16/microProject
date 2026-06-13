@@ -1,0 +1,85 @@
+package com.projectlibre1.util;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+import org.junit.jupiter.api.Test;
+
+import com.projectlibre1.graphic.configuration.BarFormat;
+import com.projectlibre1.pm.scheduling.Schedule;
+
+class MondayGanttThemeTest {
+	@Test
+	void statusColorUsesDoneForCompletedSchedules() {
+		assertEquals(MondayGanttTheme.DONE, MondayGanttTheme.statusColor(schedule(1.0d), null));
+	}
+
+	@Test
+	void statusColorUsesNeutralGrayForNotStartedSchedules() {
+		assertEquals(MondayGanttTheme.NOT_STARTED, MondayGanttTheme.statusColor(schedule(0.0d), null));
+	}
+
+	@Test
+	void statusColorUsesWorkingColorForPartialProgress() {
+		assertEquals(MondayGanttTheme.WORKING_ON_IT, MondayGanttTheme.statusColor(schedule(0.44d), null));
+	}
+
+	@Test
+	void criticalAccentUsesNeutralDarkInsteadOfAlertRed() {
+		assertEquals(MondayGanttTheme.criticalAccent(), MondayGanttTheme.accentColor(barFormat("Bar.critical"), MondayGanttTheme.NOT_STARTED));
+	}
+
+	@Test
+	void summaryAccentUsesNeutralDarkInsteadOfLegacyPurple() {
+		assertEquals(MondayGanttTheme.criticalAccent(), MondayGanttTheme.accentColor(barFormat("Bar.summary"), MondayGanttTheme.WORKING_ON_IT));
+	}
+
+	@Test
+	void baselineAccentRemainsDedicatedBaselineGray() {
+		assertEquals(MondayGanttTheme.BASELINE, MondayGanttTheme.accentColor(barFormat("Bar.baseline"), MondayGanttTheme.WORKING_ON_IT));
+	}
+
+	@Test
+	void nullScheduleDoesNotDefaultToAlertState() {
+		assertEquals(MondayGanttTheme.GROUP_A, MondayGanttTheme.statusColor(null, null));
+	}
+
+	private static Schedule schedule(final double percentComplete) {
+		InvocationHandler handler = new InvocationHandler() {
+			public Object invoke(Object proxy, Method method, Object[] args) {
+				String name = method.getName();
+				if ("getPercentComplete".equals(name))
+					return Double.valueOf(percentComplete);
+				if ("equals".equals(name))
+					return Boolean.valueOf(proxy == args[0]);
+				if ("hashCode".equals(name))
+					return Integer.valueOf(System.identityHashCode(proxy));
+				if ("toString".equals(name))
+					return "ScheduleProxy[" + percentComplete + "]";
+				Class<?> returnType = method.getReturnType();
+				if (returnType == Boolean.TYPE)
+					return Boolean.FALSE;
+				if (returnType == Integer.TYPE)
+					return Integer.valueOf(0);
+				if (returnType == Long.TYPE)
+					return Long.valueOf(0L);
+				if (returnType == Double.TYPE)
+					return Double.valueOf(0.0d);
+				return null;
+			}
+		};
+		return (Schedule) Proxy.newProxyInstance(
+				MondayGanttThemeTest.class.getClassLoader(),
+				new Class<?>[] { Schedule.class },
+				handler);
+	}
+
+	private static BarFormat barFormat(String id) {
+		BarFormat format = new BarFormat();
+		format.setId(id);
+		return format;
+	}
+}

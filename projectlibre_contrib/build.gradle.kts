@@ -58,7 +58,6 @@ dependencies {
     implementation(
         fileTree("lib") {
             include("**/*.jar")
-            exclude("flamingo-6.2.jar", "trident-6.2.jar")
         }
     )
 }

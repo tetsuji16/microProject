@@ -11,7 +11,6 @@ import java.io.File
 fun org.gradle.api.Project.projectLibreExternalLibs() =
     fileTree(rootProject.file("projectlibre_contrib/lib")) {
         include("**/*.jar")
-        exclude("flamingo-6.2.jar", "trident-6.2.jar")
     }
 
 plugins {

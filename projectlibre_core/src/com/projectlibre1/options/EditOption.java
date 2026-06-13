@@ -58,6 +58,7 @@ package com.projectlibre1.options;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 
+import com.projectlibre1.options.CalendarOption;
 import com.projectlibre1.util.DateTime;
 
 /**
@@ -114,8 +115,8 @@ public class EditOption {
 	/**
 	 * @return Returns the dateFormat.
 	 */
-	public final SimpleDateFormat getDateFormat() {
-		return dateFormat;
+	public final DateFormat getDateFormat() {
+		return CalendarOption.getInstance().isShowTimeInDates() ? dateFormat : shortDateFormat;
 	}
 	/**
 	 * @param dateFormat The dateFormat to set.
