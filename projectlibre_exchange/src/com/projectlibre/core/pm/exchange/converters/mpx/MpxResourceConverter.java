@@ -56,6 +56,7 @@
 package com.projectlibre.core.pm.exchange.converters.mpx;
 
 import com.projectlibre.core.fields.FieldUtil;
+import com.projectlibre.pm.calendar.CalendarId;
 import com.projectlibre.pm.calendar.DefaultWorkCalendar;
 import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.resources.Resource;
@@ -110,10 +111,14 @@ public class MpxResourceConverter {
 		if (mpxResource.getResourceCalendar()==null){
 			calendar=state.getProjectBaseCalendar();
 		}else{
-			calendar=new DefaultWorkCalendar();
-			calendar.setName(mpxResource.getName());
-			MpxCalendarConverter calendarConverter=new MpxCalendarConverter();
-			calendarConverter.from(mpxResource.getResourceCalendar(), calendar, state);
+			calendar=state.getCalendarManager().getCalendar(new CalendarId(mpxResource.getResourceCalendar().getUniqueID()));
+			if (calendar == null) {
+				calendar=new DefaultWorkCalendar();
+				calendar.setName(mpxResource.getName());
+				MpxCalendarConverter calendarConverter=new MpxCalendarConverter();
+				calendarConverter.from(mpxResource.getResourceCalendar(), calendar, state);
+				state.registerImportedCalendar(calendar, mpxResource.getResourceCalendar());
+			}
 		}
 		resource.setCalendar(calendar);
 	}

@@ -258,6 +258,7 @@ public class MspImporter {
 				e.printStackTrace();
 			}
 		}
+		state.setProjectBaseCalendar(project.getCalendarManager().getStandardBaseCalendar());
 	}
 	
 	protected void importResourcePool(Project project) {

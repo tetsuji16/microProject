@@ -81,6 +81,7 @@ public class OpTaskConverter {
 		"start", "currentScheduleStart", "com.projectlibre.core.pm.exchange.converters.type.LongDateConverter",
 		"finish", "currentScheduleFinish", "com.projectlibre.core.pm.exchange.converters.type.LongDateConverter",
 		"duration", "duration", "com.projectlibre.core.pm.exchange.converters.op.type.OpDurationConverter",
+		"percentComplete", "percentComplete", null,
 		"estimated", "estimated", null,
 		"levelingDelay", "levelingDelay", "com.projectlibre.core.pm.exchange.converters.op.type.OpDurationConverter",
 		"deadline", "deadline", null,

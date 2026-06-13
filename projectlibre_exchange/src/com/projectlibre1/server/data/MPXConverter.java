@@ -246,14 +246,17 @@ public class MPXConverter {
 
 		WorkingCalendar projectlibreCalendar = (WorkingCalendar)projectlibreResource.getWorkCalendar();
 		if (projectlibreCalendar != null) { // there should be a calendar, except for the unassigned instance
-			ProjectCalendar mpxCalendar = null;
-			try {
-				mpxCalendar = mpxResource.addResourceCalendar();
-			} catch (MPXJException e) {
-				e.printStackTrace();
-				return;
-			}
+			ProjectCalendar mpxCalendar = ImportedCalendarService.getInstance().findExportedCalendar(projectlibreCalendar);
+			if (mpxCalendar == null) {
+				try {
+					mpxCalendar = mpxResource.addResourceCalendar();
+				} catch (MPXJException e) {
+					e.printStackTrace();
+					return;
+				}
 				toMpxCalendar(projectlibreCalendar,mpxCalendar);
+			}
+			mpxResource.setCalendar(mpxCalendar);
 		}
 		//TODO The follwing only work because the UID of the resource is the id and not the unique id. A big unique id value  overflows the UID element of the custom field.  It works
 		// here because the id is small
@@ -363,6 +366,9 @@ private static int autoId = 0;
 		mpxTask.setUniqueID((int)projectlibreTask.getId()); // note using id for unique id
 		mpxTask.setCreateDate(projectlibreTask.getCreated());
 		mpxTask.setDuration(toMPXDuration(projectlibreTask.getDuration())); // set duration without controls
+		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork()));
+		mpxTask.setActualWork(toMPXDuration(projectlibreTask.getActualWork(null)));
+		mpxTask.setRemainingWork(toMPXDuration(projectlibreTask.getRemainingWork(null)));
 		mpxTask.setStart(DateTime.fromGmt(new Date(projectlibreTask.getStart())));
 		mpxTask.setFinish(DateTime.fromGmt(new Date(projectlibreTask.getEnd())));
 		mpxTask.setCritical(Boolean.valueOf(projectlibreTask.isCritical()));

@@ -65,6 +65,7 @@ import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.mspdi.schema.TimephasedDataType;
 
 import com.projectlibre.pm.calendar.CalendarManager;
+import com.projectlibre.pm.calendar.DuplicateCalendarException;
 import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.resources.Resource;
 import com.projectlibre.pm.resources.ResourcePool;
@@ -123,6 +124,23 @@ public class MpxImportState {
 	public void mapBaseCalendar(WorkCalendar calendar,ProjectCalendar mpxCalendar){
 		mpxBaseCalendarMap.put(mpxCalendar.getName(),mpxCalendar);
 		baseCalendarMap.put(calendar.getName(),calendar);
+	}
+	public void registerImportedCalendar(WorkCalendar calendar, ProjectCalendar mpxCalendar) {
+		if (calendar == null || mpxCalendar == null || calendarManager == null) {
+			return;
+		}
+		if (calendar == projectBaseCalendar) {
+			return;
+		}
+		try {
+			calendarManager.addBaseCalendar(calendar);
+		} catch (DuplicateCalendarException e) {
+			WorkCalendar existingCalendar = calendarManager.getCalendar(calendar.getId());
+			if (existingCalendar != null) {
+				calendar = existingCalendar;
+			}
+		}
+		mapBaseCalendar(calendar, mpxCalendar);
 	}
 	public ProjectCalendar getMappedMpxBaseCalendar(String calendarName){
 		return mpxBaseCalendarMap.get(calendarName);

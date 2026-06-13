@@ -114,6 +114,7 @@ public class XlsxSupportTest extends TestCase {
 		} finally {
 			out.close();
 		}
+		java.nio.file.Files.copy(tempFile.toPath(), new File("build/commercial-construction-debug.xlsx").toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
 		assertTrue(tempFile.length() > 0);
 		com.projectlibre1.pm.task.Project reloaded = mergeService.loadExternalProject(tempFile.getAbsolutePath());
@@ -122,6 +123,8 @@ public class XlsxSupportTest extends TestCase {
 
 		Map<Long, TaskSnapshot> reloadedTasks = snapshotsById(reloaded);
 		assertEquals(originalTasks.size(), reloadedTasks.size());
+		debugTaskState("original", project, 1L, 2L, 5L);
+		debugTaskState("reloaded", reloaded, 1L, 2L, 5L);
 		boolean checkedProgress = false;
 		boolean checkedMultiDayDuration = false;
 		for (Map.Entry<Long, TaskSnapshot> entry : originalTasks.entrySet()) {
@@ -152,6 +155,40 @@ public class XlsxSupportTest extends TestCase {
 			tasks.put(Long.valueOf(task.getId()), new TaskSnapshot(task.getName(), task.getDurationMillis(), task.getPercentComplete()));
 		}
 		return tasks;
+	}
+
+	private void debugTaskState(String label, com.projectlibre1.pm.task.Project project, long... ids) {
+		java.util.Set<Long> idSet = new java.util.HashSet<Long>();
+		for (long id : ids) {
+			idSet.add(Long.valueOf(id));
+		}
+		System.out.println(label + " projectCalendar=" + (project.getWorkCalendar() == null ? "null" : project.getWorkCalendar().getName()));
+		for (Object value : project.getTasks()) {
+			if (!(value instanceof NormalTask)) {
+				continue;
+			}
+			NormalTask task = (NormalTask) value;
+			Long id = Long.valueOf(task.getId());
+			if (!idSet.contains(id)) {
+				continue;
+			}
+			System.out.println(label + " task " + id + " name=" + task.getName()
+				+ " duration=" + task.getDurationMillis()
+				+ " work=" + task.getWork()
+				+ " actualWork=" + task.getActualWork(null)
+				+ " remainingWork=" + task.getRemainingWork()
+				+ " percent=" + task.getPercentComplete()
+				+ " calendar=" + (task.getWorkCalendar() == null ? "null" : task.getWorkCalendar().getName())
+				+ " assignments=" + task.getAssignments().size());
+			for (Object assignmentValue : task.getAssignments()) {
+				com.projectlibre1.pm.assignment.Assignment assignment = (com.projectlibre1.pm.assignment.Assignment) assignmentValue;
+				com.projectlibre1.pm.resource.Resource resource = (com.projectlibre1.pm.resource.Resource) assignment.getResource();
+				System.out.println(label + " task " + id + " assignment resource="
+					+ (resource == null ? "null" : resource.getName())
+					+ " resourceCal=" + (resource == null || resource.getWorkCalendar() == null ? "null" : resource.getWorkCalendar().getName())
+					+ " units=" + assignment.getUnits());
+			}
+		}
 	}
 
 	private static class TaskSnapshot {

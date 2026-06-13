@@ -60,9 +60,12 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.projectlibre1.exchange.ImportedCalendarService;
 import com.projectlibre1.server.data.linker.Linker;
@@ -77,7 +80,6 @@ import com.projectlibre1.grouping.core.model.NodeModelUtil;
 import com.projectlibre1.job.JobRunnable;
 import com.projectlibre1.options.CalendarOption;
 import com.projectlibre1.pm.assignment.Assignment;
-import com.projectlibre1.pm.calendar.CalendarService;
 import com.projectlibre1.pm.calendar.WorkCalendar;
 import com.projectlibre1.pm.calendar.WorkingCalendar;
 import com.projectlibre1.pm.dependency.Dependency;
@@ -252,7 +254,7 @@ public class MSPDISerializer implements ProjectSerializer {
     public ModifiedMSPDIWriter serializeProject(Project project) throws Exception{
     	return serializeProject(project,false);
     }
-    public ModifiedMSPDIWriter serializeProject(Project project,boolean globalIdsOnly) throws Exception{
+	public ModifiedMSPDIWriter serializeProject(Project project,boolean globalIdsOnly) throws Exception{
         if (globalIdsOnly) 
         	makeGLobal(project);
         ModifiedMSPDIWriter projectData=new ModifiedMSPDIWriter();
@@ -277,15 +279,13 @@ public class MSPDISerializer implements ProjectSerializer {
 //            ProjectCalendar calendarData=projectData.addDefaultBaseCalendar();
 //            calendarData.setName(calendar.getName());
 //        }
-        projectFile.getProjectConfig().setAutoCalendarUniqueID(true);
-		CalendarService service = CalendarService.getInstance();
-		Object[] calendars=CalendarService.allBaseCalendars();
-		if (calendars!=null)
-		for (int i=0;i<calendars.length;i++){
-			WorkingCalendar workCalendar=(WorkingCalendar)calendars[i];
+		projectFile.getProjectConfig().setAutoCalendarUniqueID(true);
+		ImportedCalendarService.cleanUp();
+		LinkedHashSet<WorkingCalendar> calendars = collectProjectCalendars(project);
+		for (WorkingCalendar workCalendar : calendars) {
 			ProjectCalendar cal = projectFile.addCalendar();
-			MPXConverter.toMpxCalendar(workCalendar,cal);
-			ImportedCalendarService.getInstance().addExportedCalendar(cal,workCalendar);
+			MPXConverter.toMpxCalendar(workCalendar, cal);
+			ImportedCalendarService.getInstance().addExportedCalendar(cal, workCalendar);
 		}
 		setDefaultCalendar(project, projectHeader);
         if (job!=null) job.setProgress(0.3f);
@@ -311,6 +311,43 @@ public class MSPDISerializer implements ProjectSerializer {
 		if (exportedCalendar != null) {
 			projectHeader.setDefaultCalendarName(exportedCalendar.getName());
 		}
+	}
+
+	private LinkedHashSet<WorkingCalendar> collectProjectCalendars(Project project) {
+		LinkedHashSet<WorkingCalendar> calendars = new LinkedHashSet<WorkingCalendar>();
+		Set<WorkCalendar> visited = new HashSet<WorkCalendar>();
+		if (project == null) {
+			return calendars;
+		}
+		collectCalendar(project.getWorkCalendar(), calendars, visited);
+		if (project.getResourcePool() != null) {
+			for (Object value : project.getResourcePool().getResourceList()) {
+				if (value instanceof com.projectlibre1.pm.resource.Resource) {
+					collectCalendar(((com.projectlibre1.pm.resource.Resource) value).getWorkCalendar(), calendars, visited);
+				}
+			}
+		}
+		for (Object value : project.getTasks()) {
+			if (value instanceof com.projectlibre1.pm.task.Task) {
+				collectCalendar(((com.projectlibre1.pm.task.Task) value).getWorkCalendar(), calendars, visited);
+			}
+		}
+		return calendars;
+	}
+
+	private void collectCalendar(WorkCalendar calendar, LinkedHashSet<WorkingCalendar> calendars, Set<WorkCalendar> visited) {
+		if (!(calendar instanceof WorkingCalendar)) {
+			return;
+		}
+		if (!visited.add(calendar)) {
+			return;
+		}
+		WorkingCalendar workingCalendar = (WorkingCalendar) calendar;
+		WorkCalendar baseCalendar = workingCalendar.getBaseCalendar();
+		if (baseCalendar != null) {
+			collectCalendar(baseCalendar, calendars, visited);
+		}
+		calendars.add(workingCalendar);
 	}
     
 

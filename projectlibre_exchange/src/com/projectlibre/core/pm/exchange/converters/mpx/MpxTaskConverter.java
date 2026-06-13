@@ -56,6 +56,7 @@
 package com.projectlibre.core.pm.exchange.converters.mpx;
 
 import com.projectlibre.core.fields.FieldUtil;
+import com.projectlibre.pm.calendar.CalendarId;
 import com.projectlibre.pm.calendar.DefaultWorkCalendar;
 import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.tasks.Task;
@@ -102,6 +103,7 @@ public class MpxTaskConverter {
 		"finish:1:10", "finish:1:10", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
 
 		"date:1:10", "date:1:10", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
+		"percentComplete", "percentageComplete", "com.projectlibre.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
 		
 		"duration", "duration", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
 		"duration:1:10", "duration:1:10", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
@@ -121,10 +123,14 @@ public class MpxTaskConverter {
 		if (mpxTask.getCalendar()==null){
 			calendar=state.getProjectBaseCalendar();
 		}else{
-			calendar=new DefaultWorkCalendar();
-			calendar.setName(mpxTask.getName());
-			MpxCalendarConverter calendarConverter=new MpxCalendarConverter();
-			calendarConverter.from(mpxTask.getCalendar(), calendar, state);
+			calendar=state.getCalendarManager().getCalendar(new CalendarId(mpxTask.getCalendar().getUniqueID()));
+			if (calendar == null) {
+				calendar=new DefaultWorkCalendar();
+				calendar.setName(mpxTask.getName());
+				MpxCalendarConverter calendarConverter=new MpxCalendarConverter();
+				calendarConverter.from(mpxTask.getCalendar(), calendar, state);
+				state.registerImportedCalendar(calendar, mpxTask.getCalendar());
+			}
 		}
 		task.setCalendar(calendar);
 	}

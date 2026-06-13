@@ -77,6 +77,11 @@ public class MpxRangeConverter {
 				long start=(Long)converter.from(mpxDateRange.getStart());
 				long end=(Long)converter.from(mpxDateRange.getEnd());
 				if (end==0) end=24*3600000L;
+				if (end < start) {
+					intervals.union(start, 24L * 3600000L);
+					intervals.union(0L, end);
+					continue;
+				}
 				intervals.union(start, end);
 			}
 	}

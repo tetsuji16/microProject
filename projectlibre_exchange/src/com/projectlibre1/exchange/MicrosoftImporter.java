@@ -154,7 +154,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 		log.info("END: Finish import");
 	}
 
-    @Override
+	@Override
 	public Project loadProject(InputStream in)  throws Exception{
 		log.info("BEGIN: MicrosoftImporter.PrepareResources");
 		parse(in, getFileExtension());
