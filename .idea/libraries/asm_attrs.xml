@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="asm-attrs">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/groovy/asm-attrs.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

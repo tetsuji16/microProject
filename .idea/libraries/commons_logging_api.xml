@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="commons-logging-api">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/commons-logging-api.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

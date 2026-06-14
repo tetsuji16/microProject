@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="commons-beanutils">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/projectlibre_contrib/lib/commons-beanutils.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
