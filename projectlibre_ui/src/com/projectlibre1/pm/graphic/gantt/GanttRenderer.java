@@ -549,10 +549,14 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 						node.setGanttShapeHeight(bounds.getHeight());
 					}
 				}else if (g2 != null){
+					double progressRatio = progressRatioFor(node);
+					Color progressTrackColor = (shouldUseModernCapsuleBar(format) && progressRatio < 1.0d)
+							? MondayGanttTheme.soften(statusColor, 0.46f)
+							: statusColor;
 					if (isSummaryBarFormat(format))
-						paintSummaryBar(g2, summaryBounds, statusColor, accentColor, progressRatioFor(node));
+						paintSummaryBar(g2, summaryBounds, statusColor, accentColor, progressRatio);
 					else if (shouldUseModernCapsuleBar(format))
-						paintCapsuleBar(g2, barBounds, statusColor, accentColor, true);
+						paintCapsuleBar(g2, barBounds, progressTrackColor, accentColor, true);
 					else
 						drawConfiguredShape(format.getMiddle(), g2, width, height, x, y, statusColor, accentColor, barBounds, true);
 

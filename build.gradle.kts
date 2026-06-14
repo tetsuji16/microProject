@@ -87,7 +87,8 @@ val windowsMsiDir = windowsReleaseRoot.map { it.dir("msi") }
 val windowsExeDir = windowsReleaseRoot.map { it.dir("exe") }
 val docsDownloadsDir = layout.projectDirectory.dir("docs/downloads")
 val jpackageJavaHomeProvider = providers.environmentVariable("JAVA_HOME")
-    .orElse("C:\\Program Files\\Java\\jdk-25")
+    .orElse(providers.systemProperty("java.home"))
+    .orElse("C:\\Program Files\\Java\\latest")
 val windowsRuntimeModules = listOf(
     "java.compiler",
     "java.datatransfer",
