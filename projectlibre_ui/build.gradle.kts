@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(project(":projectlibre_contrib"))
     implementation(project(":projectlibre_core"))
+    implementation(project(":projectlibre_application"))
     implementation(project(":projectlibre_exchange"))
     implementation(project(":projectlibre_reports"))
     testImplementation(platform("org.junit:junit-bom:5.10.2"))

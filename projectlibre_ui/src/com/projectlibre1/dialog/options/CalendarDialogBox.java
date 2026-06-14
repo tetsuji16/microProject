@@ -75,6 +75,7 @@ import com.projectlibre1.dialog.AbstractDialog;
 import com.projectlibre1.configuration.Settings;
 import com.projectlibre1.options.CalendarOption;
 import com.projectlibre1.strings.Messages;
+import com.projectlibre1.util.TimeInputParser;
 
 /**
  *
@@ -108,8 +109,8 @@ public class CalendarDialogBox extends AbstractDialog{
         	option.setHoursPerWeek(hoursPerWeek.doubleValue());
         	option.setDaysPerMonth(daysPerMonth.doubleValue());
         	option.setShowTimeInDates(showTimeInDates.booleanValue());
-        	option.setDefaultStartHour(8);
-        	option.setDefaultEndHour(17);
+        	option.setDefaultStartHour(parseHour(startTime, option.getDefaultStartHour()));
+        	option.setDefaultEndHour(parseHour(endTime, option.getDefaultEndHour()));
         	
         }
         public Double getDaysPerMonth() {
@@ -172,6 +173,10 @@ public class CalendarDialogBox extends AbstractDialog{
         public void setWeekStart(String weekStart) {
             this.weekStart = weekStart;
         }
+
+        private int parseHour(String value, int fallback) {
+        	return TimeInputParser.parseHour(value, fallback);
+        }
     }	
         
         private Form form;
@@ -231,6 +236,14 @@ public class CalendarDialogBox extends AbstractDialog{
     		daysPerMonth.setEditor(editor3);
     		
             setAsDefault= new JButton(Messages.getString("CalendarDialogBox.SetAsDefault")); //$NON-NLS-1$
+            setAsDefault.addActionListener(new ActionListener(){
+                public void actionPerformed(ActionEvent e) {
+                    if (!bind(false)) {
+                        return;
+                    }
+                    applyFormToDefault(form);
+                }
+            });
 
     		fiscalYearStart.addActionListener(new ActionListener(){
     		    public void actionPerformed(ActionEvent e){
@@ -244,6 +257,10 @@ public class CalendarDialogBox extends AbstractDialog{
 
     		
     	}
+
+	static void applyFormToDefault(CalendarDialogBox.Form form) {
+		form.copyToOption(CalendarOption.getDefaultInstance());
+	}
  
     
     	protected boolean bind(boolean get) {
@@ -300,6 +317,8 @@ public class CalendarDialogBox extends AbstractDialog{
     		builder.append(Messages.getString("CalendarDialogBox.HoursPerWeek"),hoursPerWeek); //$NON-NLS-1$
     		builder.nextLine(2);
     		builder.append(Messages.getString("CalendarDialogBox.DaysPerMonth"),daysPerMonth); //$NON-NLS-1$
+    		builder.nextLine(2);
+    		builder.append(setAsDefault);
     		builder.nextLine(2);
     		builder.append(showTimeInDates);
   

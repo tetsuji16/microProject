@@ -78,6 +78,7 @@ import com.projectlibre1.job.Job;
 import com.projectlibre1.job.JobQueue;
 import com.projectlibre1.job.JobRunnable;
 import com.projectlibre1.session.SessionFactory;
+import com.projectlibre1.util.PdfExportUtil;
 
 public class ImageExport {
 	public static void export(final GraphPageable pageable,Component parentComponent) throws IOException{
@@ -161,18 +162,8 @@ public class ImageExport {
 		chooser.setSelectedFile(new File(projectName+".pdf"));
 		chooser.setFileFilter(pdfFilter);
 		if (chooser.showSaveDialog(parentComponent) == SystemFileChooser.APPROVE_OPTION){
-			return appendPdfExtensionIfMissing(chooser.getSelectedFile());
+			return PdfExportUtil.appendPdfExtensionIfMissing(chooser.getSelectedFile());
 		} else return null;
     }
-
-	static File appendPdfExtensionIfMissing(File file) {
-		if (file == null || file.getName().endsWith(".pdf")) {
-			return file;
-		}
-		File parent = file.getParentFile();
-		return parent == null
-			? new File(file.getName()+".pdf")
-			: new File(parent, file.getName()+".pdf");
-	}
 
 }

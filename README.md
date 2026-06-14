@@ -44,6 +44,7 @@ The figures below describe cumulative change volume since that baseline commit.
 ## Repository Layout
 
 - `projectlibre_core`: scheduling engine, data model, collaboration logic, and configuration
+- `projectlibre_application`: application workflows, file policies, and save/open coordination
 - `projectlibre_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
 - `projectlibre_exchange`: file exchange, import/export, and format integration code
 - `projectlibre_reports`: report-related code and templates

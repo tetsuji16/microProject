@@ -1,14 +1,17 @@
 package com.projectlibre1.pm.graphic.gantt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import com.projectlibre1.pm.scheduling.Schedule;
+import com.projectlibre1.pm.scheduling.ScheduleInterval;
 
 class GanttRendererProgressTest {
 	@Test
@@ -25,6 +28,21 @@ class GanttRendererProgressTest {
 	@Test
 	void progressRatioFallsBackToZeroWhenScheduleIsMissing() {
 		assertEquals(0.0d, GanttRenderer.progressRatioForSchedule(null), 0.00001d);
+	}
+
+	@Test
+	void mergeIntervalsForDisplayReturnsSingleEnvelopeBar() {
+		ScheduleInterval merged = GanttRenderer.mergeIntervalsForDisplay(List.of(
+				new ScheduleInterval(30L, 50L),
+				new ScheduleInterval(10L, 20L),
+				new ScheduleInterval(70L, 90L)));
+		assertEquals(10L, merged.getStart());
+		assertEquals(90L, merged.getEnd());
+	}
+
+	@Test
+	void mergeIntervalsForDisplayReturnsNullWhenEmpty() {
+		assertNull(GanttRenderer.mergeIntervalsForDisplay(List.of()));
 	}
 
 	private static Schedule schedule(final double percentComplete) {

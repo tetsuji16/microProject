@@ -117,6 +117,7 @@ import com.projectlibre1.timescale.TimeInterval;
 import com.projectlibre1.timescale.TimeIterator;
 import com.projectlibre1.util.DateTime;
 import com.projectlibre1.util.Environment;
+import com.projectlibre1.util.DisplayMath;
 import com.projectlibre1.util.FlatUiSupport;
 import com.projectlibre1.util.GanttColorPalette;
 import com.projectlibre1.util.MondayComPalette;
@@ -375,7 +376,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				g2.setPaint(backgroundPaint);
 			g2.fill(backgroundBand);
 
-			double clampedRatio = clampProgressValue(progressRatio);
+			double clampedRatio = DisplayMath.clampProgressValue(progressRatio);
 			if (clampedRatio > 0.0d) {
 				double progressWidth = Math.max(1.5d, bounds.getWidth() * clampedRatio);
 				RoundRectangle2D progressBand = new RoundRectangle2D.Double(
@@ -408,7 +409,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	static double progressRatioForSchedule(Schedule schedule) {
-		return schedule == null ? 0.0d : clampProgressValue(schedule.getPercentComplete());
+		return DisplayMath.clampProgressRatio(schedule);
+	}
+
+	static ScheduleInterval mergeIntervalsForDisplay(Iterable<ScheduleInterval> intervals) {
+		return DisplayMath.mergeIntervals(intervals);
 	}
 
 	private double progressRatioFor(GraphicNode node) {
@@ -491,7 +496,16 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				intervalGenerator=format.getScheduleIntervalGenerator();
 			}
 
-			intervalGenerator.consumeIntervals(node,this);
+			ArrayList<ScheduleInterval> intervals = new ArrayList<ScheduleInterval>();
+			intervalGenerator.consumeIntervals(node, new IntervalConsumer() {
+				@Override
+				public void consumeInterval(ScheduleInterval interval) {
+					intervals.add(interval);
+				}
+			});
+			ScheduleInterval mergedInterval = mergeIntervalsForDisplay(intervals);
+			if (mergedInterval != null)
+				consumeInterval(mergedInterval);
 
 		}
 
@@ -1019,7 +1033,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private double getProgressLineX(CoordinatesConverter coord, Task task) {
 		long start = task.getStart();
 		long end = task.getEnd();
-		double progress = clampProgressValue(task.getPercentComplete());
+		double progress = DisplayMath.clampProgressValue(task.getPercentComplete());
 		long today = getProgressReferenceDate(task);
 		long progressDate;
 		if (today != 0L && progress == 1.0d && end <= today)
@@ -1041,15 +1055,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
 		return rowHeight*node.getRow()+yOffset;
 	}
-
-	static double clampProgressValue(double value) {
-		if (value < 0.0d)
-			return 0.0d;
-		if (value > 1.0d)
-			return 1.0d;
-		return value;
-	}
-
 
 	protected BarFormat calendarFormat;
 	protected Closure calendarClosure=new Closure(){

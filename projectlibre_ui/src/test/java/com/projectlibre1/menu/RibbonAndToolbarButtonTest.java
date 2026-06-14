@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 
+import javax.swing.JPanel;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 
@@ -32,6 +33,7 @@ import org.pushingpixels.flamingo.api.ribbon.AbstractRibbonBand;
 import org.pushingpixels.flamingo.api.ribbon.RibbonTask;
 
 import com.projectlibre1.menu.MenuManager;
+import com.projectlibre1.pm.graphic.frames.GraphicManager;
 
 class RibbonAndToolbarButtonTest {
 	@Test
@@ -64,6 +66,23 @@ class RibbonAndToolbarButtonTest {
 				for (AbstractRibbonBand<?> band : task.getBands()) {
 					assertAttachedButtonsAreVisible(band, task.getTitle() + "/" + band.getTitle());
 				}
+			}
+		});
+	}
+
+	@Test
+	void standardRibbonButtonsResolveAgainstLiveActionWiring() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			GraphicManager graphicManager = new GraphicManager(new JPanel());
+			MenuManager menuManager = graphicManager.getMenuManager();
+			menuManager.getRibbon(MenuManager.STANDARD_RIBBON, null);
+
+			for (String id : ribbonButtonIds()) {
+				String actionId = menuManager.getRibbonFactory().getActionStringFromId(id);
+				assertTrue(actionId != null && !actionId.isBlank(), () -> id + " is missing a ribbon action mapping");
+				org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+					() -> graphicManager.getAction(actionId),
+					() -> id + " does not resolve to a live action: " + actionId);
 			}
 		});
 	}

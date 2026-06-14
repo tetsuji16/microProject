@@ -7,12 +7,14 @@ import java.io.File;
 
 import org.junit.jupiter.api.Test;
 
+import com.projectlibre1.util.PdfExportUtil;
+
 public class ImageExportTest {
 	@Test
 	public void keepsExistingPdfExtension() {
 		File input = new File("C:\\temp\\report.pdf");
 
-		File output = ImageExport.appendPdfExtensionIfMissing(input);
+		File output = PdfExportUtil.appendPdfExtensionIfMissing(input);
 
 		assertEquals(input, output);
 	}
@@ -21,13 +23,13 @@ public class ImageExportTest {
 	public void appendsPdfExtensionWithoutDroppingParentDirectory() {
 		File input = new File("C:\\temp\\report");
 
-		File output = ImageExport.appendPdfExtensionIfMissing(input);
+		File output = PdfExportUtil.appendPdfExtensionIfMissing(input);
 
 		assertEquals(new File("C:\\temp\\report.pdf"), output);
 	}
 
 	@Test
 	public void returnsNullWhenFileIsNull() {
-		assertNull(ImageExport.appendPdfExtensionIfMissing(null));
+		assertNull(PdfExportUtil.appendPdfExtensionIfMissing(null));
 	}
 }

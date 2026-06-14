@@ -318,7 +318,7 @@ public class CollaborationSession {
 	}
 
 	public int checkBeforeSave(Component parent) {
-		if (!externalChangePending) {
+		if (!hasSaveConflicts()) {
 			return SAVE_PROCEED;
 		}
 		ProjectMergeService.ConflictResult conflicts = mergeService.findTaskConflicts(projectFile.getAbsolutePath(), lockBaselineStates);
@@ -345,6 +345,14 @@ public class CollaborationSession {
 			return SAVE_AS_COPY;
 		}
 		return SAVE_CANCEL;
+	}
+
+	public boolean hasSaveConflicts() {
+		if (!externalChangePending) {
+			return false;
+		}
+		ProjectMergeService.ConflictResult conflicts = mergeService.findTaskConflicts(projectFile.getAbsolutePath(), lockBaselineStates);
+		return conflicts.hasConflicts();
 	}
 
 	public void afterSave() {

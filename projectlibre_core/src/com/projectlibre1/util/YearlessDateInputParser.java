@@ -45,7 +45,7 @@ public final class YearlessDateInputParser {
 		throw new ParseException(trimmed, 0);
 	}
 
-	private static Date buildDate(Date referenceDate, int month, int day, String remainder) {
+	private static Date buildDate(Date referenceDate, int month, int day, String remainder) throws ParseException {
 		GregorianCalendar candidate = DateTime.calendarInstance();
 		candidate.setLenient(false);
 		candidate.setTime(referenceDate);
@@ -71,7 +71,9 @@ public final class YearlessDateInputParser {
 
 			return candidate.getTime();
 		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("Invalid yearless date", e);
+			ParseException parseException = new ParseException("Invalid yearless date", 0);
+			parseException.initCause(e);
+			throw parseException;
 		}
 	}
 

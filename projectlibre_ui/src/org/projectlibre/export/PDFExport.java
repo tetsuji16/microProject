@@ -74,6 +74,7 @@ import com.projectlibre1.job.Job;
 import com.projectlibre1.job.JobQueue;
 import com.projectlibre1.job.JobRunnable;
 import com.projectlibre1.session.SessionFactory;
+import com.projectlibre1.util.PdfExportUtil;
 
 public class PDFExport {
 	public static void export(final GraphPageable pageable,Component parentComponent) throws IOException{
@@ -128,9 +129,7 @@ public class PDFExport {
 		chooser.setSelectedFile(new File(projectName+".pdf"));
 		chooser.setFileFilter(pdfFilter);
 		if (chooser.showSaveDialog(parentComponent) == SystemFileChooser.APPROVE_OPTION){
-			File file=chooser.getSelectedFile();
-			if (!file.getName().endsWith(".pdf")) file=new File(file.getName()+".pdf"); //add pdf extension if missing
-			return file;
+			return PdfExportUtil.appendPdfExtensionIfMissing(chooser.getSelectedFile());
 		} else return null;
     }
 

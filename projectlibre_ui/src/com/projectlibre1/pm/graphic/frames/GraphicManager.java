@@ -134,6 +134,8 @@ import org.pushingpixels.flamingo.api.ribbon.RibbonTask;
 import com.projectlibre1.configuration.Configuration;
 import com.projectlibre1.configuration.FieldDictionary;
 import com.projectlibre1.configuration.Settings;
+import com.projectlibre1.application.ProjectDocumentWorkflow;
+import com.projectlibre1.application.ProjectLoadWorkflow;
 import com.projectlibre1.collaboration.CollaborationMetadataStore;
 import com.projectlibre1.collaboration.CollaborationSession;
 import com.projectlibre1.collaboration.ProjectMergeService;
@@ -1010,7 +1012,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private void doProjectInformationDialog() {
 		if (!getCurrentFrame().isActive())
 			return;
-
+		if (!beforeProjectInformationRoute(getCurrentFrame().getProject()))
+			return;
 		finishAnyOperations();
 
 		if (projectInformationDialog == null) {
@@ -1042,6 +1045,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		Object impl=node.getImpl();
 		if (impl instanceof Task||(impl instanceof Assignment&&taskType)){
 			Task task=(Task)((impl instanceof Assignment)?(((Assignment)impl).getTask()):impl);
+			boolean resourcesTab = impl instanceof Assignment;
+			if (!beforeTaskInformationRoute(task, notes, resourcesTab))
+				return;
 			if (!CollaborationHelper.tryLockObject(task.getProject(), task, getCurrentFrame(), "open task details"))
 				return;
 			if (taskInformationDialog == null) {
@@ -1055,12 +1061,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			taskInformationDialog.setLocationRelativeTo(getCurrentFrame());//to center on screen
 			if (notes)
 				taskInformationDialog.showNotes();
-			else if (impl instanceof Assignment)
+			else if (resourcesTab)
 				taskInformationDialog.showResources();
 
 			taskInformationDialog.setVisible(true);
 		} else if (impl instanceof Resource||(impl instanceof Assignment&&resourceType)) {
 			Resource resource=(Resource)((impl instanceof Assignment)?(((Assignment)impl).getResource()):impl);;
+			if (!beforeResourceInformationRoute(resource, notes))
+				return;
 			if (resourceInformationDialog == null) {
 				resourceInformationDialog = ResourceInformationDialog.getInstance(getFrame(),resource);
 				resourceInformationDialog.pack();
@@ -1079,6 +1087,78 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 
 
+	}
+
+	protected boolean beforeActionRoute(String actionId) {
+		return true;
+	}
+
+	protected boolean beforeExternalRoute(String routeId) {
+		return true;
+	}
+
+	protected boolean beforeViewSwitchRoute(String viewId) {
+		return true;
+	}
+
+	protected boolean beforeChooserRoute(String chooserId) {
+		return true;
+	}
+
+	protected boolean beforeFindRoute(Searchable searchable, Field field) {
+		return true;
+	}
+
+	protected boolean beforeToggleRoute(String actionId) {
+		return true;
+	}
+
+	protected boolean beforeProjectInformationRoute(Project project) {
+		return true;
+	}
+
+	protected boolean beforeProjectsDialogRoute(Project project) {
+		return true;
+	}
+
+	protected boolean beforeTaskInformationRoute(Task task, boolean notes, boolean resourcesTab) {
+		return true;
+	}
+
+	protected boolean beforeResourceInformationRoute(Resource resource, boolean notes) {
+		return true;
+	}
+
+	protected boolean beforeAssignResourcesRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeTimesheetRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeChangeWorkingTimeRoute(Project project, boolean restrict) {
+		return true;
+	}
+
+	protected boolean beforeCalendarOptionsRoute() {
+		return true;
+	}
+
+	protected boolean beforeUpdateTasksRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeUpdateProjectRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeSaveBaselineRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeClearBaselineRoute(DocumentFrame documentFrame) {
+		return true;
 	}
 
 
@@ -1206,6 +1286,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("newProject")) return;
 			doNewProjectDialog();
 		}
 		protected boolean allowed(boolean enable){
@@ -1219,6 +1300,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("openProject")) return;
 			if (Environment.getStandAlone()) openLocalProject();
 			else doOpenProjectDialog();
 		}
@@ -1237,6 +1319,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("insertProject")) return;
 			doInsertProjectDialog();
 		}
 		protected boolean allowed(boolean enable) {
@@ -1257,6 +1340,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("openProject")) return;
 			openLocalProject();		}
 	}
 
@@ -1264,6 +1348,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("saveAsProject")) return;
 			saveLocalProject(true);		}
 	}
 
@@ -1271,6 +1356,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("about")) return;
 			showAboutDialog();		}
 	}
 
@@ -1278,6 +1364,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("projectLibre")) return;
 			BrowserControl.displayURL("https://github.com/tetsuji16/ProjectLibre");
 		}
 	}
@@ -1286,6 +1373,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("help")) return;
 			showHelpDialog();		}
 	}
 
@@ -1293,6 +1381,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("tipOfTheDay")) return;
 			TipOfTheDay.showDialog(getFrame(),true);
 			}
 	}
@@ -1308,6 +1397,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeProjectsDialogRoute(getCurrentFrame().getProject())) return;
 			ProjectsDialog.show(GraphicManager.this);
 		}
 	}
@@ -1358,6 +1448,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeCalendarOptionsRoute()) return;
 			doCalendarOptionsDialog();
 		}
 	}
@@ -1382,6 +1473,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeAssignResourcesRoute(getCurrentFrame())) return;
 			showAssignmentDialog(getCurrentFrame());
 		}
 	}
@@ -1390,6 +1482,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeTimesheetRoute(getCurrentFrame())) return;
 			showTimesheetDialog(getCurrentFrame());
 		}
 	}
@@ -1465,6 +1558,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("saveProject")) return;
 			if (Environment.getStandAlone()) saveLocalProject(false);
 			else{
 				if (isDocumentActive()) {
@@ -1497,6 +1591,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("saveAsProject")) return;
 			if (Environment.getStandAlone()) saveLocalProject(true);
 			else{
 				if (isDocumentActive()) {
@@ -1533,6 +1628,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("print")) return;
 			if (isDocumentActive())
 				print();
 		}
@@ -1541,6 +1637,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("printPreview")) return;
 			if (isDocumentActive()) {
 				Component c = (Component)arg0.getSource();
 				Cursor cur = c.getCursor();
@@ -1560,6 +1657,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //				return;
 //			}
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("pdf")) return;
 			if (isDocumentActive()) {
 				Component c = (Component)arg0.getSource();
 				Cursor cur = c.getCursor();
@@ -1574,6 +1672,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("closeProject")) return;
 			if (isDocumentActive())
 				closeProject(getCurrentFrame().getProject());
 		}
@@ -1631,6 +1730,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			JDialog dlg = AbstractDialog.containedInDialog(arg0.getSource());
 			boolean restrict = dlg != null;
+			if (!beforeChangeWorkingTimeRoute(getCurrentFrame().getProject(), restrict)) return;
 			if (isDocumentActive())
 				getCurrentFrame().doChangeWorkingTimeDialog(restrict);
 		}
@@ -1657,6 +1757,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeUpdateTasksRoute(getCurrentFrame())) return;
 			if (isDocumentActive())
 				getCurrentFrame().doUpdateTasksDialog();
 		}
@@ -1669,6 +1770,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeUpdateProjectRoute(getCurrentFrame())) return;
 			if (isDocumentActive())
 				getCurrentFrame().doUpdateProjectDialog();
 		}
@@ -1691,6 +1793,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_BAR_STYLES)) return;
 			showBarStyleChooser();
 		}
 	}
@@ -1698,6 +1801,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_TIMESCALE)) return;
 			showTimescaleChooser();
 		}
 	}
@@ -1705,6 +1809,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_GRIDLINES)) return;
 			toggleGridlines();
 		}
 	}
@@ -1712,6 +1817,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_TEXT_STYLES)) return;
 			showTextStyleChooser();
 		}
 	}
@@ -1719,6 +1825,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_BAR_STYLES)) return;
 			showBarStyleChooser();
 		}
 	}
@@ -1726,6 +1833,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_LAYOUT)) return;
 			showLayoutChooser();
 		}
 	}
@@ -1757,6 +1865,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeSaveBaselineRoute(getCurrentFrame())) return;
 			if (isDocumentActive())
 				getCurrentFrame().doBaselineDialog(true);
 		}
@@ -1770,6 +1879,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeClearBaselineRoute(getCurrentFrame())) return;
 			if (isDocumentActive())
 				getCurrentFrame().doBaselineDialog(false);
 		}
@@ -1783,6 +1893,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_TOGGLE_PROGRESS_LINE)) return;
 			if (!isActiveGanttView())
 				return;
 			var ganttView = getCurrentFrame().getGanttView();
@@ -1795,6 +1906,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_LABEL_RESOURCE_NAMES)) return;
 			if (!isActiveGanttView())
 				return;
 			getCurrentFrame().getGanttView().setCurrentAnnotationFieldId(GanttView.ANNOTATION_FIELD_RESOURCE_NAMES);
@@ -1806,6 +1918,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_LABEL_TASK_NAME)) return;
 			if (!isActiveGanttView())
 				return;
 			getCurrentFrame().getGanttView().setCurrentAnnotationFieldId(GanttView.ANNOTATION_FIELD_TASK_NAME);
@@ -1817,6 +1930,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("locale")) return;
 			Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
 			String previousLocale = pref.get("locale", "default");
 			LocaleDialog localeDialog = LocaleDialog.getInstance(getGraphicManager());
@@ -1953,6 +2067,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (isDocumentActive()){
+				if (beforeActionRoute("paste"))
+					return;
 				addHistory("doPaste");
 				getCurrentFrame().doPaste();
 			}
@@ -2000,6 +2116,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (getCurrentFrame() == null)
 				return;
+			if (!beforeViewSwitchRoute(viewName))
+				return;
 			setColorTheme(viewName);
 			getCurrentFrame().activateView(viewName);
 			setButtonState(null,currentFrame.getProject()); // disable buttons because no selection when first activated
@@ -2020,6 +2138,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent e) {
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive())
+				return;
+			String actionId = switch (type) {
+			case TransformComboBoxModel.SORTER -> ACTION_CHOOSE_SORT;
+			case TransformComboBoxModel.GROUPER -> ACTION_CHOOSE_GROUP;
+			default -> ACTION_CHOOSE_FILTER;
+			};
+			if (!beforeChooserRoute(actionId))
 				return;
 	        CommonSpreadSheet spreadSheet=getCurrentFrame().getTopSpreadSheet();
 	        if (spreadSheet!=null){
@@ -2142,15 +2267,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			project = projectFactory.createProject();
 
 		} else {
-			LoadOptions opt=new LoadOptions();
-			opt.setFileName(fileName);
-			opt.setLocal(true);
-			opt.setSync(false);
-			opt.setCollaborationEnabled(CollaborationMetadataStore.isCollaborationCandidate(fileName));
-			opt.setCollaborationUserKey(getCollaborationUserKey());
-			if (opt.isCollaborationEnabled()) {
-				opt.setSidecarFileName(CollaborationMetadataStore.buildSidecarFile(new File(fileName)).getAbsolutePath());
-			}
+			LoadOptions opt=ProjectLoadWorkflow.prepareLoadOptions(fileName, Environment.getStandAlone() || Environment.getUser() == null, getCollaborationUserKey());
 			opt.setEndSwingClosure(new Closure() {
 				public void execute(Object arg0) {
 					if (arg0 instanceof Project) {
@@ -2175,10 +2292,6 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 				}
 			});
 
-			if (FileHelper.isProjectLibreFile(fileName)){ //$NON-NLS-1$
-				boolean localOnlySession = Environment.getStandAlone() || Environment.getUser() == null;
-				opt.setImporter(localOnlySession ? LocalSession.LOCAL_PROJECT_IMPORTER : LocalSession.SERVER_LOCAL_PROJECT_IMPORTER);
-			}else opt.setImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
 			project=projectFactory.openProject(opt);
 
 		}
@@ -2188,74 +2301,47 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	protected void saveLocalDocument(String fileName,final boolean saveAs){
 		addHistory("saveLocalDocument",new Object[]{fileName,saveAs});
 		//showWaitCursor(true);
-		SaveOptions opt=new SaveOptions();
-		opt.setLocal(true);
 		final Project project=getCurrentFrame().getProject();
-		final String originalFileName = project.getFileName();
-		CollaborationSession collaborationSession = project.getCollaborationSession();
-		if (collaborationSession != null) {
-			persistCollaborationWorkspace(project);
-			int saveDecision = collaborationSession.checkBeforeSave(getCurrentFrame());
-			if (saveDecision == CollaborationSession.SAVE_CANCEL) {
-				return;
-			}
-			if (saveDecision == CollaborationSession.SAVE_AS_COPY) {
-				String copyFileName = SessionFactory.getInstance().getLocalSession().chooseFileName(true, project.getGuessedFileName());
-				if (copyFileName == null) {
-					return;
+		final CollaborationSession collaborationSession = project.getCollaborationSession();
+		SaveOptions opt = com.projectlibre1.application.ProjectDocumentWorkflow.prepareSaveOptions(project, fileName, saveAs, true,
+			collaborationSession,
+			getCollaborationUserKey(),
+			collaborationSession == null ? null : collaborationSession.getSidecarFileName(),
+			new com.projectlibre1.application.ProjectDocumentWorkflow.SaveCallbacks() {
+				public void persistWorkspace(Project projectToPersist) {
+					persistCollaborationWorkspace(projectToPersist);
 				}
-				fileName = copyFileName;
-			}
-			opt.setCollaborationEnabled(true);
-			opt.setCollaborationUserKey(getCollaborationUserKey());
-			opt.setSidecarFileName(CollaborationMetadataStore.buildSidecarFile(new File(fileName)).getAbsolutePath());
-		}
-		if (project.getFileName()!=fileName){
-			final DocumentFrame frame=getCurrentFrame();
-			if (saveAs) opt.setSaveAs(true);
-			opt.setPostSaving(new Closure(){
-				public void execute(Object arg0) {
-					if (saveAs) frame.setId(project.getUniqueId()+""); //$NON-NLS-1$
-					if (project.getCollaborationSession() != null) {
-						project.getCollaborationSession().afterSave();
-						persistCollaborationWorkspace(project);
+
+				public int resolveSaveDecision(Project projectToSave, CollaborationSession session) {
+					if (!session.hasSaveConflicts()) {
+						return CollaborationSession.SAVE_PROCEED;
 					}
-					if (originalFileName == null || !originalFileName.equals(project.getFileName())) {
-						if (project.getCollaborationSession() != null) {
-							project.getCollaborationSession().stop();
-							project.setCollaborationSession(null);
-						}
-						initializeCollaboration(project);
+					return promptForCollaborationSave();
+				}
+
+				public String chooseSaveAsCopyFileName(Project projectToSave) {
+					return SessionFactory.getInstance().getLocalSession().chooseFileName(true, projectToSave.getGuessedFileName());
+				}
+
+				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
+					final DocumentFrame frame = getCurrentFrame();
+					if (saveAsRequested) {
+						frame.setId(savedProject.getUniqueId()+""); //$NON-NLS-1$
+					}
+					if (collaborationEnabled && savedProject.getCollaborationSession() != null) {
+						savedProject.getCollaborationSession().afterSave();
+						persistCollaborationWorkspace(savedProject);
+					}
+					if (fileNameChanged && savedProject.getCollaborationSession() != null) {
+						savedProject.getCollaborationSession().stop();
+						savedProject.setCollaborationSession(null);
+						initializeCollaboration(savedProject);
 					}
 					refreshSaveStatus(true);
 				}
 			});
-		} else if (project.getCollaborationSession() != null) {
-			opt.setPostSaving(new Closure(){
-				public void execute(Object arg0) {
-					project.getCollaborationSession().afterSave();
-					persistCollaborationWorkspace(project);
-					if (originalFileName == null || !originalFileName.equals(project.getFileName())) {
-						project.getCollaborationSession().stop();
-						project.setCollaborationSession(null);
-						initializeCollaboration(project);
-					}
-				}
-			});
-		}
-		if (FileHelper.isProjectLibreFile(fileName)){ //$NON-NLS-1$
-			opt.setFileName(fileName);
-			opt.setImporter(LocalSession.LOCAL_PROJECT_IMPORTER);
-		}
-		else{
-			opt.setFileName(fileName/*+((fileName.endsWith(".xml"))?"":".xml")*/);
-			opt.setImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
-//			if (Environment.isProjectLibre()) {
-//				if (!Alert.okCancel(Messages.getString("Warn.saveXML")))
-//					return;
-//			}
-			//claur
-
+		if (opt == null) {
+			return;
 		}
 		opt.setPreSaving(getSavingClosure());
 		projectFactory.saveProject(getCurrentFrame().getProject(),opt);
@@ -2292,22 +2378,37 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	}
 	protected void saveLocalDocument(Project project,String fileName){
 		//showWaitCursor(true);
-		SaveOptions opt=new SaveOptions();
-		opt.setFileName(fileName);
-		opt.setLocal(true);
-		opt.setPreSaving(getSavingClosure());
-		if (project.getCollaborationSession() != null) {
-			persistCollaborationWorkspace(project);
-			opt.setCollaborationEnabled(true);
-			opt.setCollaborationUserKey(getCollaborationUserKey());
-			opt.setSidecarFileName(project.getCollaborationSession().getSidecarFileName());
-			opt.setPostSaving(new Closure() {
-				public void execute(Object arg0) {
-					project.getCollaborationSession().afterSave();
+		CollaborationSession collaborationSession = project.getCollaborationSession();
+		SaveOptions opt = com.projectlibre1.application.ProjectDocumentWorkflow.prepareSaveOptions(project, fileName, false, true,
+			collaborationSession,
+			getCollaborationUserKey(),
+			collaborationSession == null ? null : collaborationSession.getSidecarFileName(),
+			new com.projectlibre1.application.ProjectDocumentWorkflow.SaveCallbacks() {
+				public void persistWorkspace(Project projectToPersist) {
+					persistCollaborationWorkspace(projectToPersist);
+				}
+
+				public int resolveSaveDecision(Project projectToSave, CollaborationSession session) {
+					if (!session.hasSaveConflicts()) {
+						return CollaborationSession.SAVE_PROCEED;
+					}
+					return promptForCollaborationSave();
+				}
+
+				public String chooseSaveAsCopyFileName(Project projectToSave) {
+					return SessionFactory.getInstance().getLocalSession().chooseFileName(true, projectToSave.getGuessedFileName());
+				}
+
+				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
+					if (collaborationEnabled && savedProject.getCollaborationSession() != null) {
+						savedProject.getCollaborationSession().afterSave();
+					}
 				}
 			});
+		if (opt == null) {
+			return;
 		}
-
+		opt.setPreSaving(getSavingClosure());
 	    projectFactory.saveProject(project,opt);
 		//showWaitCursor(false);
 	}
@@ -2319,6 +2420,29 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			project.setCollaborationSession(null);
 		}
 		projectFactory.removeProject(project,true,true,true);
+	}
+
+	private int promptForCollaborationSave() {
+		Object[] options = new Object[] {
+			"Restore and Save",
+			"Discard My Changes",
+			"Save Copy"
+		};
+		int result = JOptionPane.showOptionDialog(getCurrentFrame(),
+			"One or more tasks you are editing were changed or deleted externally.\nChoose how to resolve the conflict.",
+			"ProjectLibre",
+			JOptionPane.DEFAULT_OPTION,
+			JOptionPane.WARNING_MESSAGE,
+			null,
+			options,
+			options[0]);
+		if (result == 0) {
+			return CollaborationSession.SAVE_PROCEED;
+		}
+		if (result == 2) {
+			return CollaborationSession.SAVE_AS_COPY;
+		}
+		return CollaborationSession.SAVE_CANCEL;
 	}
 
 	public void openLocalProject(){
@@ -3447,6 +3571,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		if (currentFrame==null||!getCurrentFrame().isActive())
 			return;
 		if (searchable == null)
+			return;
+		if (!beforeFindRoute(searchable, field))
 			return;
 		currentFrame.doFind(searchable, field);
 
