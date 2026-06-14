@@ -576,12 +576,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 					// draw middle before ends
 					if (shouldPaintProgressOverlay(node, format) && !isSummaryBarFormat(format)){
-						long completedT=node.getCompleted();
-						if (completedT>=interval.getStart()){
-							double completedW=coord.toX(completedT)-x;
-							if (completedW>width && !GanttOption.getInstance().isCompletionIsContiguous())
-								completedW=width;
-							completedW=CoordinatesConverter.adaptSmallBarEndX(x, x+completedW, node,config)-x;
+						double completedW = DisplayMath.progressWidth(width, progressRatio);
+						if (completedW > 0.0d) {
 							double progressHeight = config.getGanttProgressBarHeight();
 							Rectangle2D progressBounds = createCapsuleBarBounds(x, y, completedW, progressHeight);
 							paintCapsuleBar(g2, progressBounds, statusColor, accentColor, false);

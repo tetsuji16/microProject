@@ -31,6 +31,12 @@ class DisplayMathTest {
 	}
 
 	@Test
+	void progressWidthIsProportionalToRatio() {
+		assertEquals(50.0d, DisplayMath.progressWidth(100.0d, 0.5d), 0.00001d);
+		assertEquals(10.0d, DisplayMath.progressWidth(100.0d, 0.1d), 0.00001d);
+	}
+
+	@Test
 	void mergeIntervalsReturnsSingleEnvelopeBar() {
 		ScheduleInterval merged = DisplayMath.mergeIntervals(List.of(
 				new ScheduleInterval(30L, 50L),

@@ -24,6 +24,10 @@ public final class DisplayMath {
 		return value;
 	}
 
+	public static double progressWidth(double totalWidth, double progressRatio) {
+		return totalWidth * clampProgressValue(progressRatio);
+	}
+
 	public static ScheduleInterval mergeIntervals(Iterable<ScheduleInterval> intervals) {
 		if (intervals == null) {
 			return null;

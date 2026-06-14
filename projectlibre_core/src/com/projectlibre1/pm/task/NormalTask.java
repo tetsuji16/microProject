@@ -1595,6 +1595,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				((Assignment)i.next()).setPercentComplete(pc);
 			}
 		} else {
+			final double pc = percentComplete;
+			Iterator i = getAssignments().iterator();
+			while (i.hasNext()) {
+				((Assignment)i.next()).setPercentComplete(pc);
+			}
 			long actualDuration = DateTime.closestDate(getDurationMillis() * percentComplete);
 			setActualDuration(actualDuration);
 			long stop = getEffectiveWorkCalendar().add(getStart(), actualDuration, false);
