@@ -1,22 +1,22 @@
 package net.sf.mpxj.projectlibre;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import net.sf.mpxj.MPXJException;
+import net.sf.mpxj.Duration;
+import net.sf.mpxj.RelationType;
+import net.sf.mpxj.TimeUnit;
 import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.Resource;
-import net.sf.mpxj.Task;
-import net.sf.mpxj.mspdi.MSPDIReader;
 import net.sf.mpxj.reader.AbstractProjectReader;
+import net.sf.mpxj.mspdi.MSPDIReader;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -24,8 +24,12 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ProjectLibreXlsxReader extends AbstractProjectReader {
+	private static final String META_SHEET = "_PL_META";
+	private static final String DATA_SHEET = "_PL_DATA";
 	private static final String TASKS_SHEET = "Tasks";
-	private static final String EMBEDDED_MSPDI_SHEET = "_ProjectLibre_MSPDI";
+	private static final String RESOURCES_SHEET = "Resources";
+	private static final String ASSIGNMENTS_SHEET = "Assignments";
+	private static final String DEPENDENCIES_SHEET = "Dependencies";
 
 	public ProjectFile read(String fileName) throws MPXJException {
 		return read(new File(fileName));
@@ -56,27 +60,21 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		try {
 			XSSFWorkbook workbook = new XSSFWorkbook(in);
 			try {
+				ProjectFile payload = readPayload(workbook);
+				if (payload != null) {
+					addListenersToProject(payload);
+					return payload;
+				}
+
 				ProjectFile embeddedProject = readEmbeddedMspdi(workbook);
 				if (embeddedProject != null) {
 					addListenersToProject(embeddedProject);
 					return embeddedProject;
 				}
-				ProjectFile project = new ProjectFile();
-				project.addDefaultBaseCalendar();
-				Map<String, Resource> resources = new LinkedHashMap<String, Resource>();
-				Sheet sheet = workbook.getSheet(TASKS_SHEET);
-				if (sheet == null) {
-					throw new MPXJException("Missing Tasks sheet");
-				}
-				for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-					Row row = sheet.getRow(rowIndex);
-					if (row == null || isBlank(row)) {
-						continue;
-					}
-					readTask(project, resources, row);
-				}
-				addListenersToProject(project);
-				return project;
+
+				ProjectFile summaryProject = readSummaryProject(workbook);
+				addListenersToProject(summaryProject);
+				return summaryProject;
 			} finally {
 				workbook.close();
 			}
@@ -91,8 +89,28 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		return Collections.singletonList(read(in));
 	}
 
+	private ProjectFile readPayload(XSSFWorkbook workbook) throws Exception {
+		Sheet sheet = workbook.getSheet(DATA_SHEET);
+		if (sheet == null) {
+			return null;
+		}
+		StringBuilder xml = new StringBuilder();
+		for (int rowIndex = 2; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+			Row row = sheet.getRow(rowIndex);
+			if (row == null || row.getCell(0) == null) {
+				continue;
+			}
+			xml.append(row.getCell(0).getStringCellValue());
+		}
+		if (xml.length() == 0) {
+			return null;
+		}
+		ByteArrayInputStream in = new ByteArrayInputStream(xml.toString().getBytes(StandardCharsets.UTF_8));
+		return new MSPDIReader().read(in);
+	}
+
 	private ProjectFile readEmbeddedMspdi(XSSFWorkbook workbook) throws Exception {
-		Sheet sheet = workbook.getSheet(EMBEDDED_MSPDI_SHEET);
+		Sheet sheet = workbook.getSheet("_ProjectLibre_MSPDI");
 		if (sheet == null) {
 			return null;
 		}
@@ -112,47 +130,135 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		return new MSPDIReader().read(in);
 	}
 
-	private void readTask(ProjectFile project, Map<String, Resource> resources, Row row) {
-		Task task = project.addTask();
-		Integer uniqueId = integerCell(row, 0);
-		Integer id = integerCell(row, 1);
-		if (uniqueId != null) {
-			task.setUniqueID(uniqueId);
+	private ProjectFile readSummaryProject(XSSFWorkbook workbook) throws Exception {
+		ProjectFile project = new ProjectFile();
+		project.addDefaultBaseCalendar();
+		Map<Integer, net.sf.mpxj.Task> tasks = readTasks(project, workbook.getSheet(TASKS_SHEET));
+		Map<Integer, net.sf.mpxj.Resource> resources = readResources(project, workbook.getSheet(RESOURCES_SHEET));
+		readAssignments(workbook.getSheet(ASSIGNMENTS_SHEET), tasks, resources);
+		readDependencies(workbook.getSheet(DEPENDENCIES_SHEET), tasks);
+		return project;
+	}
+
+	private Map<Integer, net.sf.mpxj.Task> readTasks(ProjectFile project, Sheet sheet) {
+		Map<Integer, net.sf.mpxj.Task> tasks = new LinkedHashMap<Integer, net.sf.mpxj.Task>();
+		if (sheet == null) {
+			return tasks;
 		}
-		if (id != null) {
-			task.setID(id);
-		}
-		task.setName(stringCell(row, 2));
-		task.setNotes(stringCell(row, 3));
-		Date start = dateCell(row, 5);
-		Date finish = dateCell(row, 6);
-		if (start != null) {
-			task.setStart(start);
-		}
-		if (finish != null) {
-			task.setFinish(finish);
-		}
-		Double percentComplete = doubleCell(row, 7);
-		if (percentComplete != null) {
-			task.setPercentageComplete(percentComplete);
-		}
-		for (String resourceName : stringCell(row, 4).split(",")) {
-			String trimmed = resourceName.trim();
-			if (trimmed.length() == 0) {
+		for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+			Row row = sheet.getRow(rowIndex);
+			if (row == null || isBlank(row)) {
 				continue;
 			}
-			Resource resource = resources.get(trimmed);
-			if (resource == null) {
-				resource = project.addResource();
-				resource.setName(trimmed);
-				resources.put(trimmed, resource);
+			net.sf.mpxj.Task task = project.addTask();
+			Integer uid = integerCell(row, 0);
+			Integer id = integerCell(row, 1);
+			if (uid != null) {
+				task.setUniqueID(uid);
+				tasks.put(uid, task);
 			}
-			task.addResourceAssignment(resource);
+			if (id != null) {
+				task.setID(id);
+			}
+			task.setName(stringCell(row, 3));
+			task.setNotes(stringCell(row, 4));
+			if (dateCell(row, 5) != null) {
+				task.setStart(dateCell(row, 5));
+			}
+			if (dateCell(row, 6) != null) {
+				task.setFinish(dateCell(row, 6));
+			}
+			Double percent = doubleCell(row, 7);
+			if (percent != null) {
+				task.setPercentageComplete(percent);
+			}
+			String wbs = stringCell(row, 8);
+			if (wbs.length() > 0) {
+				task.setWBS(wbs);
+			}
+		}
+		return tasks;
+	}
+
+	private Map<Integer, net.sf.mpxj.Resource> readResources(ProjectFile project, Sheet sheet) {
+		Map<Integer, net.sf.mpxj.Resource> resources = new LinkedHashMap<Integer, net.sf.mpxj.Resource>();
+		if (sheet == null) {
+			return resources;
+		}
+		for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+			Row row = sheet.getRow(rowIndex);
+			if (row == null || isBlank(row)) {
+				continue;
+			}
+			net.sf.mpxj.Resource resource = project.addResource();
+			Integer uid = integerCell(row, 0);
+			Integer id = integerCell(row, 1);
+			if (uid != null) {
+				resource.setUniqueID(uid);
+				resources.put(uid, resource);
+			}
+			if (id != null) {
+				resource.setID(id);
+			}
+			resource.setName(stringCell(row, 2));
+			resource.setNotes(stringCell(row, 3));
+			resource.setGroup(stringCell(row, 4));
+			resource.setEmailAddress(stringCell(row, 5));
+			Double maxUnits = doubleCell(row, 6);
+			if (maxUnits != null) {
+				resource.setMaxUnits(maxUnits);
+			}
+		}
+		return resources;
+	}
+
+	private void readAssignments(Sheet sheet, Map<Integer, net.sf.mpxj.Task> tasks, Map<Integer, net.sf.mpxj.Resource> resources) {
+		if (sheet == null) {
+			return;
+		}
+		for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+			Row row = sheet.getRow(rowIndex);
+			if (row == null || isBlank(row)) {
+				continue;
+			}
+			Integer taskUid = integerCell(row, 0);
+			Integer resourceUid = integerCell(row, 1);
+			net.sf.mpxj.Task task = tasks.get(taskUid);
+			net.sf.mpxj.Resource resource = resources.get(resourceUid);
+			if (task == null || resource == null) {
+				continue;
+			}
+			net.sf.mpxj.ResourceAssignment assignment = task.addResourceAssignment(resource);
+			Double units = doubleCell(row, 2);
+			if (units != null) {
+				assignment.setUnits(units);
+			}
+		}
+	}
+
+	private void readDependencies(Sheet sheet, Map<Integer, net.sf.mpxj.Task> tasks) {
+		if (sheet == null) {
+			return;
+		}
+		for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+			Row row = sheet.getRow(rowIndex);
+			if (row == null || isBlank(row)) {
+				continue;
+			}
+			Integer successorUid = integerCell(row, 0);
+			Integer predecessorUid = integerCell(row, 1);
+			net.sf.mpxj.Task successor = tasks.get(successorUid);
+			net.sf.mpxj.Task predecessor = tasks.get(predecessorUid);
+			if (successor == null || predecessor == null) {
+				continue;
+			}
+			int relationType = integerCell(row, 2) == null ? RelationType.FINISH_START.getValue() : integerCell(row, 2).intValue();
+			successor.addPredecessor(predecessor, RelationType.getInstance(relationType), Duration.getInstance(0, TimeUnit.DAYS));
 		}
 	}
 
 	private boolean isBlank(Row row) {
-		for (int i = 0; i <= 7; i++) {
+		for (int i = 0; i <= 8; i++) {
 			if (stringCell(row, i).length() > 0) {
 				return false;
 			}
@@ -199,8 +305,8 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		return Double.valueOf(text);
 	}
 
-	private Date dateCell(Row row, int column) {
+	private java.util.Date dateCell(Row row, int column) {
 		Double value = doubleCell(row, column);
-		return value == null || value.longValue() <= 0L ? null : new Date(value.longValue());
+		return value == null || value.longValue() <= 0L ? null : new java.util.Date(value.longValue());
 	}
 }

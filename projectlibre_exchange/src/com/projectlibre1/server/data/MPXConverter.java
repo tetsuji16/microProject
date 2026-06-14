@@ -59,7 +59,9 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.sf.mpxj.AccrueType;
 import net.sf.mpxj.ConstraintType;
@@ -109,6 +111,24 @@ public class MPXConverter {
 	private static Log log = LogFactory.getLog(MPXConverter.class);
 
 	public static int nameFieldWidth = Configuration.getFieldFromId("Field.name").getTextWidth();
+	private static final ThreadLocal<ExportIdAllocator> EXPORT_IDS = new ThreadLocal<ExportIdAllocator>();
+
+	public static void beginExport() {
+		EXPORT_IDS.set(new ExportIdAllocator());
+	}
+
+	public static void endExport() {
+		EXPORT_IDS.remove();
+	}
+
+	private static int exportId(long sourceId) {
+		ExportIdAllocator allocator = EXPORT_IDS.get();
+		if (allocator == null) {
+			allocator = new ExportIdAllocator();
+			EXPORT_IDS.set(allocator);
+		}
+		return allocator.get(sourceId);
+	}
 
 
 	public static void toMPXOptions(ProjectProperties projectHeader) {
@@ -141,7 +161,7 @@ public class MPXConverter {
 
 	public static void toMpxCalendar(WorkingCalendar workCalendar,ProjectCalendar mpx) {
 		mpx.setName(workCalendar.getName());
-//		mpx.setUniqueID((int) workCalendar.getId()); // TODO watch out for int overrun
+		mpx.setUniqueID(Integer.valueOf(exportId(workCalendar.getUniqueId())));
 
 		WorkingCalendar wc = workCalendar;
 		if (workCalendar.isBaseCalendar())
@@ -184,8 +204,6 @@ public class MPXConverter {
 			mpx.setParent(ImportedCalendarService.getInstance().findExportedCalendar(baseCalendar)); //claur
 		}
 
-
-		//mpx.setUniqueID((int)workCalendar.getUniqueId());
 	}
 	public static  void toMpxCalendarDay(WorkDay day,ProjectCalendarHours mpxDay) {
 		if  (day==null)
@@ -237,11 +255,14 @@ public class MPXConverter {
 		mpxResource.setGeneric(projectlibreResource.isGeneric()); // fix for 2024492
 
 		mpxResource.setInitials(projectlibreResource.getInitials());
-		mpxResource.setID((int)projectlibreResource.getId());
+		int resourceId = exportId(projectlibreResource.getId());
+		mpxResource.setID(resourceId);
 		long uid = projectlibreResource.getExternalId(); // try using external id of one set
 		if (uid <= 0)
+			uid = projectlibreResource.getUniqueId();
+		if (uid <= 0)
 			uid = projectlibreResource.getId();
-		mpxResource.setUniqueID((int)uid); // note using id and not unique id
+		mpxResource.setUniqueID(exportId(uid));
 		mpxResource.setMaxUnits(projectlibreResource.getMaximumUnits()*100);
 
 		WorkingCalendar projectlibreCalendar = (WorkingCalendar)projectlibreResource.getWorkCalendar();
@@ -258,8 +279,6 @@ public class MPXConverter {
 			}
 			mpxResource.setCalendar(mpxCalendar);
 		}
-		//TODO The follwing only work because the UID of the resource is the id and not the unique id. A big unique id value  overflows the UID element of the custom field.  It works
-		// here because the id is small
 		toMpxCustomFields(projectlibreResource.getCustomFields(),mpxResource, CustomFieldsMapper.getInstance().resourceMaps);
 
 
@@ -351,8 +370,9 @@ private static int autoId = 0;
 		StringBuilder inBuf = new StringBuilder(in);
 		for (int i = 0; i <inBuf.length(); i++) {
 			char c = inBuf.charAt(i);
-			if (c == '\r' || c == '\n' || c == '\t') // using escape chars of the form &#x0000; is not good - they show up in MSP literally. MSP doesn't seem to support newlines anyway
-				inBuf.setCharAt(i,' ');
+			if ((c < 0x20 && c != '\r' && c != '\n' && c != '\t') || c == 0xFFFE || c == 0xFFFF) {
+				inBuf.setCharAt(i, ' ');
+			}
 		}
 		return inBuf.toString();
 
@@ -362,8 +382,9 @@ private static int autoId = 0;
 		if (projectlibreTask.getWbs() != null)
 			mpxTask.setWBS(removeInvalidChars(projectlibreTask.getWbs()));
 		mpxTask.setNotes(removeInvalidChars(projectlibreTask.getNotes()));
-		mpxTask.setID((int)projectlibreTask.getId());
-		mpxTask.setUniqueID((int)projectlibreTask.getId()); // note using id for unique id
+		int taskId = exportId(projectlibreTask.getId());
+		mpxTask.setID(taskId);
+		mpxTask.setUniqueID(taskId); // note using id for unique id
 		mpxTask.setCreateDate(projectlibreTask.getCreated());
 		mpxTask.setDuration(toMPXDuration(projectlibreTask.getDuration())); // set duration without controls
 		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork()));
@@ -409,8 +430,9 @@ private static int autoId = 0;
 	}
 
 	public static void toMPXVoid(VoidNodeImpl projectlibreVoid, Task mpxTask) {
-		mpxTask.setID((int)projectlibreVoid.getId());
-		mpxTask.setUniqueID((int)projectlibreVoid.getId());
+		int taskId = exportId(projectlibreVoid.getId());
+		mpxTask.setID(taskId);
+		mpxTask.setUniqueID(taskId);
 		mpxTask.setNull(true);
 		// below is for mpxj 2007. These values need to be set
 		mpxTask.setCritical(false);
@@ -500,6 +522,30 @@ private static int autoId = 0;
 				break;
 		}
 		return TimeUnit.getInstance(type);
+	}
+
+	private static final class ExportIdAllocator {
+		private final Map<Long, Integer> ids = new HashMap<Long, Integer>();
+		private int nextId = 1;
+
+		int get(long sourceId) {
+			Long key = Long.valueOf(sourceId);
+			Integer existing = ids.get(key);
+			if (existing != null) {
+				return existing.intValue();
+			}
+			int value;
+			if (sourceId > 0 && sourceId <= Integer.MAX_VALUE && !ids.containsValue(Integer.valueOf((int) sourceId))) {
+				value = (int) sourceId;
+			} else {
+				while (ids.containsValue(Integer.valueOf(nextId))) {
+					++nextId;
+				}
+				value = nextId++;
+			}
+			ids.put(key, Integer.valueOf(value));
+			return value;
+		}
 	}
 
 

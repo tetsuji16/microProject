@@ -257,48 +257,53 @@ public class MSPDISerializer implements ProjectSerializer {
 	public ModifiedMSPDIWriter serializeProject(Project project,boolean globalIdsOnly) throws Exception{
         if (globalIdsOnly) 
         	makeGLobal(project);
-        ModifiedMSPDIWriter projectData=new ModifiedMSPDIWriter();
-        ProjectFile projectFile = new ProjectFile();
-        projectData.setProjectFile(projectFile);
-        
-        projectData.setOPPrProject(project);
-//this doesn't appear in 2007 version of mpxj        projectData.setMicrosoftProjectCompatibleOutput(true);
-        projectFile.getProjectConfig().setAutoTaskUniqueID(true);
-        projectFile.getProjectConfig().setAutoResourceUniqueID(true);
-        //project
-        ProjectProperties projectHeader=projectFile.getProjectProperties();
-        
-		MPXConverter.toMPXOptions(projectHeader);
+        MPXConverter.beginExport();
+        try {
+	        ModifiedMSPDIWriter projectData=new ModifiedMSPDIWriter();
+	        ProjectFile projectFile = new ProjectFile();
+	        projectData.setProjectFile(projectFile);
+	        
+	        projectData.setOPPrProject(project);
+	//this doesn't appear in 2007 version of mpxj        projectData.setMicrosoftProjectCompatibleOutput(true);
+	        projectFile.getProjectConfig().setAutoTaskUniqueID(true);
+	        projectFile.getProjectConfig().setAutoResourceUniqueID(true);
+	        //project
+	        ProjectProperties projectHeader=projectFile.getProjectProperties();
+	        
+			MPXConverter.toMPXOptions(projectHeader);
 
-		MPXConverter.toMPXProject(project,projectHeader);
-        if (job!=null) job.setProgress(0.2f);
-        
-        //calendars
-//        WorkCalendar calendar=project.getWorkCalendar();
-//        if (calendar!=null){
-//            ProjectCalendar calendarData=projectData.addDefaultBaseCalendar();
-//            calendarData.setName(calendar.getName());
-//        }
-		projectFile.getProjectConfig().setAutoCalendarUniqueID(true);
-		ImportedCalendarService.cleanUp();
-		LinkedHashSet<WorkingCalendar> calendars = collectProjectCalendars(project);
-		for (WorkingCalendar workCalendar : calendars) {
-			ProjectCalendar cal = projectFile.addCalendar();
-			MPXConverter.toMpxCalendar(workCalendar, cal);
-			ImportedCalendarService.getInstance().addExportedCalendar(cal, workCalendar);
-		}
-		setDefaultCalendar(project, projectHeader);
-        if (job!=null) job.setProgress(0.3f);
-        
-        //resources
-        Map resourceMap=saveResources(project,projectData);
-        if (job!=null) job.setProgress(0.5f);
-        
-        //tasks
-        saveTasks(project,projectData,resourceMap);
-        if (job!=null) job.setProgress(0.7f);
+			MPXConverter.toMPXProject(project,projectHeader);
+	        if (job!=null) job.setProgress(0.2f);
+	        
+	        //calendars
+	//        WorkCalendar calendar=project.getWorkCalendar();
+	//        if (calendar!=null){
+	//            ProjectCalendar calendarData=projectData.addDefaultBaseCalendar();
+	//            calendarData.setName(calendar.getName());
+	//        }
+			projectFile.getProjectConfig().setAutoCalendarUniqueID(true);
+			ImportedCalendarService.cleanUp();
+			LinkedHashSet<WorkingCalendar> calendars = collectProjectCalendars(project);
+			for (WorkingCalendar workCalendar : calendars) {
+				ProjectCalendar cal = projectFile.addCalendar();
+				MPXConverter.toMpxCalendar(workCalendar, cal);
+				ImportedCalendarService.getInstance().addExportedCalendar(cal, workCalendar);
+			}
+			setDefaultCalendar(project, projectHeader);
+	        if (job!=null) job.setProgress(0.3f);
+	        
+	        //resources
+	        Map resourceMap=saveResources(project,projectData);
+	        if (job!=null) job.setProgress(0.5f);
+	        
+	        //tasks
+	        saveTasks(project,projectData,resourceMap);
+	        if (job!=null) job.setProgress(0.7f);
 
-        return projectData;
+	        return projectData;
+        } finally {
+        	MPXConverter.endExport();
+        }
         
     }
 
