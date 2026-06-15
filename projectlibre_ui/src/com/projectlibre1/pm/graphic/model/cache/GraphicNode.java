@@ -78,6 +78,7 @@ import com.projectlibre1.pm.scheduling.ScheduleService;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.server.data.CommonDataObject;
 import com.projectlibre1.server.data.DataObject;
+import com.projectlibre1.util.GanttProgress;
 /**
  *
  */
@@ -486,7 +487,7 @@ public class GraphicNode implements HierarchicObject{
 	}
 	public boolean isStarted(){
 		if (!(getNode().getImpl() instanceof Schedule)) return false;
-		return ((Schedule)getNode().getImpl()).getPercentComplete() >0.0D;
+		return GanttProgress.hasVisibleProgress(getNode().getImpl());
 //		return ScheduleService.getInstance().getCompleted((Schedule)getNode().getImpl())!=0;
 	}
 

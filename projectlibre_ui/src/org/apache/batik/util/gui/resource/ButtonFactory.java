@@ -68,6 +68,7 @@ import javax.swing.ToolTipManager;
 
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 import org.pushingpixels.flamingo.api.common.JCommandButton;
+import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
 import org.pushingpixels.flamingo.api.common.RichTooltip;
 import org.pushingpixels.flamingo.api.common.icon.ImageWrapperResizableIcon;
 import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
@@ -234,15 +235,31 @@ public class ButtonFactory extends ResourceManager {
 		} catch (MissingResourceException e) {
 		}
 		
-		JCommandButton b=null;
-		if (icon!=null&&title!=null)
-			b = new JCommandButton(title,icon);
-		else if (icon!=null)
-			b = new JCommandButton(icon);
-		else if (title!=null)
-			b = new JCommandButton(title);
-		else
-			b = new JCommandButton("");
+		AbstractCommandButton b=null;
+		String type = null;
+		try {
+			type = getString(name + ".type");
+		} catch (MissingResourceException e) {
+		}
+		if (type != null && type.equals("TOGGLE")) {
+			if (icon!=null&&title!=null)
+				b = new JCommandToggleButton(title,icon);
+			else if (icon!=null)
+				b = new JCommandToggleButton(icon);
+			else if (title!=null)
+				b = new JCommandToggleButton(title);
+			else
+				b = new JCommandToggleButton("");
+		} else {
+			if (icon!=null&&title!=null)
+				b = new JCommandButton(title,icon);
+			else if (icon!=null)
+				b = new JCommandButton(icon);
+			else if (title!=null)
+				b = new JCommandButton(title);
+			else
+				b = new JCommandButton("");
+		}
 			
 			
 			try {

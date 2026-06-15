@@ -232,4 +232,32 @@ class RibbonAndToolbarButtonTest {
 		assertEquals("ChooseSort", internal.getString("ChooseSort.action"));
 		assertEquals("ChooseGroup", internal.getString("ChooseGroup.action"));
 	}
+
+	@Test
+	void toggleTypeRibbonButtonsAreInstantiatedAsJCommandToggleButtonAndTrackSelection() throws Exception {
+		ExtRibbonFactory factory = new ExtRibbonFactory(stubActionMap(), ribbonBundles(Locale.ROOT));
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractCommandButton button = factory.createJButton("RibbonToggleProgressLine");
+			assertTrue(button instanceof org.pushingpixels.flamingo.api.common.JCommandToggleButton,
+				"RibbonToggleProgressLine should be JCommandToggleButton");
+
+			org.pushingpixels.flamingo.api.common.JCommandToggleButton toggleButton = (org.pushingpixels.flamingo.api.common.JCommandToggleButton) button;
+			assertFalse(toggleButton.getActionModel().isSelected());
+
+			MenuManager manager = MenuManager.getInstance(stubActionMap());
+			manager.getRibbon(MenuManager.STANDARD_RIBBON, null);
+			manager.setActionSelected("ToggleProgressLine", true);
+
+			java.util.ArrayList buttons = manager.getToolButtonsFromId("ToggleProgressLine");
+			assertTrue(buttons != null && !buttons.isEmpty());
+			boolean foundToggle = false;
+			for (Object b : buttons) {
+				if (b instanceof org.pushingpixels.flamingo.api.common.JCommandToggleButton) {
+					assertTrue(((org.pushingpixels.flamingo.api.common.JCommandToggleButton) b).getActionModel().isSelected());
+					foundToggle = true;
+				}
+			}
+			assertTrue(foundToggle, "Should have found the JCommandToggleButton");
+		});
+	}
 }

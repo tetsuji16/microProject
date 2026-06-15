@@ -488,6 +488,7 @@
 			<column>Field.indicators</column>
 			<column>Field.name</column>
 			<column>Field.duration</column>
+			<column>Field.percentWorkComplete</column>
 			<column>Field.start</column>
 			<column>Field.finish</column>
 			<column>Field.predecessors</column>

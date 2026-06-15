@@ -8,7 +8,6 @@ import java.awt.geom.Rectangle2D;
 
 import com.projectlibre1.graphic.configuration.BarFormat;
 import com.projectlibre1.pm.scheduling.Schedule;
-
 /**
  * Shared monday.com-inspired colors and painting helpers for Gantt rendering.
  */
@@ -59,14 +58,17 @@ public final class MondayGanttTheme {
 		return GROUP_B;
 	}
 
-	public static Color statusColor(Schedule schedule, Object impl) {
-		if (schedule == null)
-			return GROUP_A;
+	public static double progressRatio(Schedule schedule, Object impl) {
+		return GanttProgress.ratio(schedule, impl);
+	}
 
-		double percentComplete = clamp(schedule.getPercentComplete());
-		if (percentComplete >= 1.0d)
+	public static Color statusColor(Schedule schedule, Object impl) {
+		if (schedule == null && impl == null)
+			return GROUP_A;
+		double progress = progressRatio(schedule, impl);
+		if (progress >= 1.0d)
 			return DONE;
-		if (percentComplete <= 0.0d)
+		if (progress <= 0.0d)
 			return NOT_STARTED;
 		return WORKING_ON_IT;
 	}
@@ -94,7 +96,7 @@ public final class MondayGanttTheme {
 		if ("Link.link1".equals(id))
 			return DEPENDENCY_LINK;
 		if ("Bar.milestone".equals(id))
-			return GROUP_A;
+			return statusColor == null ? GROUP_A : shade(statusColor, 0.18f);
 		if ("Bar.task".equals(id))
 			return statusColor == null ? GROUP_A : shade(statusColor, 0.18f);
 		return GROUP_A;

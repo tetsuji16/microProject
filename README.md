@@ -4,7 +4,7 @@ This repository is an unofficial development fork of ProjectLibre. It keeps the 
 
 Current release in this fork:
 
-- `v0.0.11`
+- `v0.0.12`
 
 Quick links:
 
@@ -114,11 +114,11 @@ Build the Windows release artifacts and stage them locally:
 
 The Gradle Windows release flow stages the packaging input under:
 
-- `build\releases\v0.0.11\jpackage-input\`
+- `build\releases\v0.0.12\jpackage-input\`
 
 The local MSI output is generated under:
 
-- `build\releases\v0.0.11\msi\ProjectLibre-0.0.11.msi`
+- `build\releases\v0.0.12\msi\ProjectLibre-0.0.12.msi`
 
 If you need the portable app-image ZIP or split EXE staging flow, use:
 
@@ -128,7 +128,7 @@ If you need the portable app-image ZIP or split EXE staging flow, use:
 .\gradlew.bat publishReleaseToDocs
 ```
 
-Files under `docs/downloads/` are treated as scratch space only and should not be committed. Public downloads should be published as GitHub Release assets for `v0.0.11`, and the GitHub Pages site should link to that release page instead of serving binaries from the repository itself.
+Files under `docs/downloads/` are treated as scratch space only and should not be committed. Public downloads should be published as GitHub Release assets for `v0.0.12`, and the GitHub Pages site should link to that release page instead of serving binaries from the repository itself.
 
 The GitHub Pages landing page for this release is:
 

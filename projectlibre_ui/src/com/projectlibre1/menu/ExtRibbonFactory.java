@@ -66,7 +66,6 @@ import org.apache.batik.util.gui.resource.ActionMap;
 import org.apache.batik.util.gui.resource.MissingListenerException;
 import org.apache.batik.util.gui.resource.ResourceFormatException;
 import org.apache.batik.util.gui.resource.RibbonFactory;
-import org.apache.batik.util.gui.resource.ToolBarFactory;
 import org.apache.commons.collections.MultiHashMap;
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 
@@ -88,13 +87,22 @@ public class ExtRibbonFactory extends RibbonFactory {
 	
 	public AbstractCommandButton createJButton(String name) throws MissingResourceException,
 	ResourceFormatException, MissingListenerException {
+		return createCommandButton(name);
+	}
+
+	@Override
+	public AbstractCommandButton createCommandButton(String name) throws MissingResourceException,
+	ResourceFormatException, MissingListenerException {
 		AbstractCommandButton button = super.createCommandButton(name);
-    	String actionName = getActionStringFromId(name);
-    	if (actionName != null)
-    		toolButtons.put(actionName,button);
+		registerButton(name, button);
 		return button;
 	}
 	
+	private void registerButton(String id, AbstractCommandButton button) {
+		String actionName = getActionStringFromId(id);
+		if (actionName != null)
+			toolButtons.put(actionName, button);
+	}
 
     public ArrayList getButtonsFromId(String id) {
     	String buttonId = getActionStringFromId(id);

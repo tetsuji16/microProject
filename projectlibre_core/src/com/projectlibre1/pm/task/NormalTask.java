@@ -123,6 +123,7 @@ import com.projectlibre1.pm.snapshot.SnapshottableImpl;
 import com.projectlibre1.server.access.ErrorLogger;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.DateTime;
+import com.projectlibre1.util.DisplayMath;
 
 /**
  * @stereotype thing
@@ -139,6 +140,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	boolean estimated = true;
 	int priority = 500;
+	private double percentWorkCompleteOverride = Double.NaN;
 	public NormalTask(Project project) {
 		this(project.isLocal(),project);
 	}
@@ -1625,6 +1627,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @see com.projectlibre1.pm.task.TaskSpecificFields#getPercentWorkComplete()
 	 */
 	public double getPercentWorkComplete() {
+		if (isWbsParent())
+			return PercentWorkCompleteService.aggregate(this);
+		if (!Double.isNaN(percentWorkCompleteOverride))
+			return percentWorkCompleteOverride;
 		//		NodeModel nodeModel = getProject().getTaskOutline();
 		//		Node node = nodeModel.search(this);
 		//		Number value = (Number)
@@ -1670,27 +1676,20 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			percentWorkComplete = 0;
 		if (percentWorkComplete > 1)
 			percentWorkComplete = 1;
-		if (percentWorkComplete == 0.0D || percentWorkComplete == 1.0D) {
-			setPercentComplete(percentWorkComplete);
+		if (isWbsParent()) {
+			PercentWorkCompleteService.distribute(this, percentWorkComplete);
 			return;
 		}
-		double workValue = percentWorkComplete * calcSummedWork();
-		//		System.out.println("work value is " +
-		// DurationFormat.format((long)workValue) +" get work null is " +
-		// DurationFormat.format(calcSummedWork()));
+		percentWorkCompleteOverride = percentWorkComplete;
 
-		long date = ReverseQuery.getDateAtValue(WORK, this, workValue, true); // allow use of default assignments
-		DeepChildWalker.recursivelyTreatBranch(getProject().getTaskOutline(),
-				this, new NumberClosure(date) {
-					public void execute(Object arg0) {
-						if (arg0 == null)
-							return;
-						Object nodeObject = ((Node) arg0).getImpl();
-						if (nodeObject instanceof NormalTask) // do not treat assignments
-							((NormalTask)nodeObject).setStopNoExtend(getLongValue());
-					}
-				});
+	}
 
+	void applyPercentWorkCompleteOverride(double percentWorkComplete) {
+		percentWorkCompleteOverride = DisplayMath.clampProgressValue(percentWorkComplete);
+	}
+
+	public boolean hasPercentWorkCompleteOverride() {
+		return !Double.isNaN(percentWorkCompleteOverride);
 	}
 
 //	/*
@@ -2063,6 +2062,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			n.priority = priority;
 			n.version=version;
 			n.workCalendar = workCalendar;
+			n.percentWorkCompleteOverride = percentWorkCompleteOverride;
 		}
 
 		super.cloneTo(task);

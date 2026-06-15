@@ -102,6 +102,8 @@ import com.projectlibre1.graphic.configuration.TexturedShape;
 import com.projectlibre1.graphic.configuration.shape.PredefinedPaint;
 import com.projectlibre1.grouping.core.transform.TransformList;
 import com.projectlibre1.grouping.core.transform.filtering.BaseFilter;
+import com.projectlibre1.grouping.core.Node;
+import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.options.GanttOption;
 import com.projectlibre1.pm.calendar.CalendarService;
 import com.projectlibre1.pm.calendar.WorkingCalendar;
@@ -120,6 +122,7 @@ import com.projectlibre1.util.Environment;
 import com.projectlibre1.util.DisplayMath;
 import com.projectlibre1.util.FlatUiSupport;
 import com.projectlibre1.util.GanttColorPalette;
+import com.projectlibre1.util.GanttProgress;
 import com.projectlibre1.util.MondayComPalette;
 import com.projectlibre1.util.MondayGanttTheme;
 
@@ -260,6 +263,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return format != null && "Bar.summary".equals(format.getId());
 	}
 
+	private boolean shouldUsePlannedEnvelopeInterval(BarFormat format) {
+		if (format == null || format.getId() == null)
+			return false;
+		String id = format.getId();
+		return "Bar.task".equals(id) || "Bar.critical".equals(id) || "Bar.summary".equals(id);
+	}
+
 	private boolean shouldUseUniformEndpointColor(BarFormat format) {
 		return shouldUseModernCapsuleBar(format);
 	}
@@ -288,17 +298,41 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return impl instanceof NormalTask && !node.isSummary() && ((NormalTask)impl).hasRealAssignments();
 	}
 
-	private Rectangle2D createCapsuleBarBounds(double x, double y, double width, double height) {
+	static Rectangle2D createCapsuleBarBounds(double x, double y, double width, double height) {
 		double safeWidth = Math.max(1.5d, width);
 		double safeHeight = Math.max(2.0d, height);
 		return new Rectangle2D.Double(x, y - safeHeight / 2.0d, safeWidth, safeHeight);
 	}
 
-	private Rectangle2D createSummaryBandBounds(double x, double y, double width, double height) {
-		double safeWidth = Math.max(1.5d, width);
-		double bandHeight = Math.max(4.0d, height * 0.34d);
-		double topY = y - height / 2.0d;
-		return new Rectangle2D.Double(x, topY, safeWidth, bandHeight);
+	static Rectangle2D createSummaryBandBounds(double x, double y, double width, double height) {
+		Rectangle2D baseBounds = createCapsuleBarBounds(x, y, width, height);
+		double adjustedHeight = Math.max(5.5d, baseBounds.getHeight() * 0.5d);
+		return new Rectangle2D.Double(
+				baseBounds.getX(),
+				baseBounds.getCenterY() - adjustedHeight / 2.0d,
+				baseBounds.getWidth(),
+				adjustedHeight);
+	}
+
+	static Rectangle2D progressOverlayBounds(double x, double y, double totalWidth, double progressHeight, double progressRatio) {
+		double completedWidth = DisplayMath.progressWidth(totalWidth, progressRatio);
+		if (completedWidth <= 0.0d)
+			return null;
+		return createCapsuleBarBounds(x, y, completedWidth, progressHeight);
+	}
+
+	static Rectangle2D summaryProgressBounds(Rectangle2D summaryBounds, double progressRatio) {
+		if (summaryBounds == null)
+			return null;
+		double clampedRatio = DisplayMath.clampProgressValue(progressRatio);
+		if (clampedRatio <= 0.0d)
+			return null;
+		double progressWidth = Math.max(1.5d, summaryBounds.getWidth() * clampedRatio);
+		return new Rectangle2D.Double(
+				summaryBounds.getX(),
+				summaryBounds.getY(),
+				Math.min(summaryBounds.getWidth(), progressWidth),
+				summaryBounds.getHeight());
 	}
 
 	private void paintCapsuleBar(Graphics2D g2, Rectangle2D bounds, Color fillColor, Color accentColor, boolean backgroundLayer) {
@@ -357,18 +391,15 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 		Paint oldPaint = g2.getPaint();
 		Color oldColor = g2.getColor();
-		double arc = Math.min(bounds.getHeight(), bounds.getWidth());
 		try {
 			Color baseColor = progressColor == null ? MondayGanttTheme.GROUP_A : progressColor;
-			Color summaryFill = MondayGanttTheme.soften(baseColor, 0.58f);
-			Color summaryStroke = MondayGanttTheme.shade(summaryFill, 0.18f);
-			RoundRectangle2D backgroundBand = new RoundRectangle2D.Double(
+			Color summaryFill = MondayGanttTheme.soften(baseColor, 0.82f);
+			Color summaryStroke = accentColor == null ? MondayGanttTheme.shade(summaryFill, 0.18f) : accentColor;
+			Rectangle2D backgroundBand = new Rectangle2D.Double(
 					bounds.getX(),
 					bounds.getY(),
 					bounds.getWidth(),
-					bounds.getHeight(),
-					arc,
-					arc);
+					bounds.getHeight());
 			Paint backgroundPaint = createBarPaint(summaryFill, bounds, false);
 			if (backgroundPaint instanceof Color)
 				g2.setColor((Color)backgroundPaint);
@@ -376,16 +407,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				g2.setPaint(backgroundPaint);
 			g2.fill(backgroundBand);
 
-			double clampedRatio = DisplayMath.clampProgressValue(progressRatio);
-			if (clampedRatio > 0.0d) {
-				double progressWidth = Math.max(1.5d, bounds.getWidth() * clampedRatio);
-				RoundRectangle2D progressBand = new RoundRectangle2D.Double(
-						bounds.getX(),
-						bounds.getY(),
-						Math.min(bounds.getWidth(), progressWidth),
-						bounds.getHeight(),
-						arc,
-						arc);
+			Rectangle2D progressBounds = summaryProgressBounds(bounds, progressRatio);
+			if (progressBounds != null) {
+				Rectangle2D progressBand = new Rectangle2D.Double(
+						progressBounds.getX(),
+						progressBounds.getY(),
+						progressBounds.getWidth(),
+						progressBounds.getHeight());
 				Paint progressPaint = createBarPaint(baseColor, progressBand.getBounds2D(), false);
 				if (progressPaint instanceof Color)
 					g2.setColor((Color)progressPaint);
@@ -403,7 +431,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	private boolean shouldPaintProgressOverlay(GraphicNode node, BarFormat format) {
-		if (node == null || format == null || !format.isMain() || !node.isStarted())
+		if (node == null || format == null || !format.isMain())
+			return false;
+		if (!GanttProgress.hasVisibleProgress(getNodeImpl(node)))
 			return false;
 		return "Bar.task".equals(format.getId()) || "Bar.critical".equals(format.getId()) || "Bar.summary".equals(format.getId());
 	}
@@ -412,14 +442,35 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return DisplayMath.clampProgressRatio(schedule);
 	}
 
+	static double progressRatioForObject(Object impl) {
+		return GanttProgress.ratioForObject(impl);
+	}
+
 	static ScheduleInterval mergeIntervalsForDisplay(Iterable<ScheduleInterval> intervals) {
 		return DisplayMath.mergeIntervals(intervals);
 	}
 
 	private double progressRatioFor(GraphicNode node) {
 		Object impl = getNodeImpl(node);
-		Schedule schedule = getSchedule(impl);
-		return progressRatioForSchedule(schedule);
+		return progressRatioForObject(impl);
+	}
+
+	private static Schedule getScheduleForObject(Object impl) {
+		return impl instanceof Schedule ? (Schedule)impl : null;
+	}
+
+	private ScheduleInterval plannedIntervalFor(GraphicNode node, BarFormat format) {
+		if (node == null || format == null || format.getFromField() == null || format.getToField() == null || graphInfo == null || graphInfo.getCache() == null)
+			return null;
+		NodeModel nodeModel = graphInfo.getCache().getModel();
+		Node modelNode = node.getNode();
+		if (nodeModel == null || modelNode == null)
+			return null;
+		Object startDate = format.getFromField().getValue(modelNode, nodeModel, null);
+		Object finishDate = format.getToField().getValue(modelNode, nodeModel, null);
+		if (!(startDate instanceof Date) || !(finishDate instanceof Date))
+			return null;
+		return new ScheduleInterval(((Date)startDate).getTime(), ((Date)finishDate).getTime());
 	}
 
 	private Color resolveAnnotationColor(BarFormat format) {
@@ -504,8 +555,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				}
 			});
 			ScheduleInterval mergedInterval = mergeIntervalsForDisplay(intervals);
-			if (mergedInterval != null)
-				consumeInterval(mergedInterval);
+			ScheduleInterval displayInterval = shouldUsePlannedEnvelopeInterval(format)
+					? plannedIntervalFor(node, format)
+					: mergedInterval;
+			if (displayInterval == null)
+				displayInterval = mergedInterval;
+			if (displayInterval != null)
+				consumeInterval(displayInterval);
 
 		}
 
@@ -576,10 +632,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 					// draw middle before ends
 					if (shouldPaintProgressOverlay(node, format) && !isSummaryBarFormat(format)){
-						double completedW = DisplayMath.progressWidth(width, progressRatio);
-						if (completedW > 0.0d) {
-							double progressHeight = config.getGanttProgressBarHeight();
-							Rectangle2D progressBounds = createCapsuleBarBounds(x, y, completedW, progressHeight);
+						double progressHeight = config.getGanttProgressBarHeight();
+						Rectangle2D progressBounds = progressOverlayBounds(x, y, width, progressHeight, progressRatio);
+						if (progressBounds != null) {
 							paintCapsuleBar(g2, progressBounds, statusColor, accentColor, false);
 						}
 					}
@@ -1029,15 +1084,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private double getProgressLineX(CoordinatesConverter coord, Task task) {
 		long start = task.getStart();
 		long end = task.getEnd();
-		double progress = DisplayMath.clampProgressValue(task.getPercentComplete());
 		long today = getProgressReferenceDate(task);
-		long progressDate;
-		if (today != 0L && progress == 1.0d && end <= today)
-			progressDate = today;
-		else if (today != 0L && progress == 0.0d && start >= today)
-			progressDate = today;
-		else
-			progressDate = start + Math.round((end - start) * progress);
+		long progressDate = GanttProgress.progressDate(start, end, progressRatioForObject(task), today);
 		return coord.toX(progressDate);
 	}
 
