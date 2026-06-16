@@ -58,6 +58,7 @@ package com.projectlibre1.pm.graphic;
 import java.awt.Graphics2D;
 import java.awt.Dimension;
 import java.awt.Image;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.net.URL;
@@ -65,10 +66,10 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
+import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import org.pushingpixels.flamingo.api.common.icon.ImageWrapperResizableIcon;
 import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 
 import com.projectlibre1.util.ClassLoaderUtils;
@@ -157,10 +158,129 @@ public class IconManager {
 		return new ImageIcon(url);
 	}
 
+	private static BufferedImage createRibbonImage(URL url, int width, int height) {
+		if (url == null)
+			return null;
+		if (url.getPath() != null && url.getPath().toLowerCase(Locale.ROOT).endsWith(".svg")) {
+			BufferedImage svgImage = createSvgImage(url, width, height);
+			if (svgImage != null)
+				return svgImage;
+		}
+		return createRasterImage(url, width, height);
+	}
+
+	private static BufferedImage createSvgImage(URL url, int width, int height) {
+		try (InputStream in = url.openStream()) {
+			FlatSVGIcon svgIcon = new FlatSVGIcon(in);
+			if (!svgIcon.hasFound())
+				return null;
+			FlatSVGIcon sizedIcon = svgIcon.derive(width, height);
+			BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D g2 = image.createGraphics();
+			try {
+				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+				sizedIcon.paintIcon(null, g2, 0, 0);
+			} finally {
+				g2.dispose();
+			}
+			return image;
+		} catch (Throwable ex) {
+			return null;
+		}
+	}
+
+	private static BufferedImage createRasterImage(URL url, int width, int height) {
+		try (InputStream in = url.openStream()) {
+			BufferedImage source = ImageIO.read(in);
+			if (source == null)
+				return null;
+			return scaleToCanvas(source, width, height);
+		} catch (Throwable ex) {
+			return null;
+		}
+	}
+
+	private static BufferedImage scaleToCanvas(BufferedImage source, int width, int height) {
+		if (source == null || width <= 0 || height <= 0)
+			return null;
+		double scale = Math.min((double) width / (double) source.getWidth(), (double) height / (double) source.getHeight());
+		int scaledWidth = Math.max(1, (int) Math.round(source.getWidth() * scale));
+		int scaledHeight = Math.max(1, (int) Math.round(source.getHeight() * scale));
+		BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g2 = canvas.createGraphics();
+		try {
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			int x = (width - scaledWidth) / 2;
+			int y = (height - scaledHeight) / 2;
+			g2.drawImage(source, x, y, scaledWidth, scaledHeight, null);
+		} finally {
+			g2.dispose();
+		}
+		return canvas;
+	}
+
+	private static final class BufferedImageResizableIcon implements ResizableIcon {
+		private final BufferedImage originalImage;
+		private int width;
+		private int height;
+		private BufferedImage renderedImage;
+
+		private BufferedImageResizableIcon(BufferedImage image, int width, int height) {
+			this.originalImage = image;
+			this.width = width;
+			this.height = height;
+			this.renderedImage = scaleToCanvas(image, width, height);
+		}
+
+		@Override
+		public synchronized void setDimension(Dimension newDimension) {
+			this.width = newDimension.width;
+			this.height = newDimension.height;
+			this.renderedImage = scaleToCanvas(this.originalImage, this.width, this.height);
+		}
+
+		@Override
+		public synchronized int getIconWidth() {
+			return this.width;
+		}
+
+		@Override
+		public synchronized int getIconHeight() {
+			return this.height;
+		}
+
+		@Override
+		public synchronized void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
+			if (this.renderedImage != null) {
+				g.drawImage(this.renderedImage, x, y, null);
+			}
+		}
+	}
+
 	private static String getIconName(String key) {
 		ResourceBundle bundle = ResourceBundle
 				.getBundle("com/projectlibre1/pm/graphic/images",Locale.getDefault(),classLoader);
 		return bundle.getString(key);
+	}
+
+	public static String getConfiguredIconName(String key) {
+		return getIconName(key);
+	}
+
+	public static URL resolveIconResource(String key) {
+		String iconName = getIconName(key);
+		return iconName == null ? null : getIconResource(iconName);
+	}
+
+	public static URL resolveIconResourceByName(String iconName) {
+		return iconName == null ? null : getIconResource(iconName);
+	}
+
+	public static boolean hasSvgResource(String key) {
+		String iconName = getIconName(key);
+		return iconName != null && getIconResourceWithExtension(iconName, ".svg") != null;
 	}
 
 	public static URL getURL(String key) {
@@ -189,17 +309,19 @@ public class IconManager {
 		return getRibbonIcon(key,48,48);
 	}
 	public static ResizableIcon getRibbonIcon(String name, int width , int height) {
-//		String key=name+"-"+width+"-"+height;
-//		ResizableIcon icon = (ResizableIcon) ribbonIcons.get(key); //don't store
-		ResizableIcon icon=null;
-//		if (icon == null) {
-			URL url = getURL(name);
-			if (url == null)
-				return null;
-			icon = ImageWrapperResizableIcon.getIcon(url, new Dimension(width, height));
-//			ribbonIcons.put(key, icon);
-//		}
-		return icon;
+		String iconName = getConfiguredIconName(name);
+		if (iconName == null)
+			return null;
+		URL preferredUrl = getIconResourceWithExtension(iconName, ".svg");
+		URL fallbackUrl = getIconResourceWithExtension(iconName, null);
+		BufferedImage image = createRibbonImage(preferredUrl, width, height);
+		if (image == null && fallbackUrl != null && !fallbackUrl.equals(preferredUrl))
+			image = createRibbonImage(fallbackUrl, width, height);
+		if (image == null)
+			image = createRibbonImage(fallbackUrl, width, height);
+		if (image == null)
+			return null;
+		return new BufferedImageResizableIcon(image, width, height);
 	}
 
 	public static ImageIcon getHalfSizedIcon(String key) {

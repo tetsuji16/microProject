@@ -76,6 +76,7 @@ import com.projectlibre1.configuration.Settings;
 import com.projectlibre1.field.Field;
 import com.projectlibre1.util.BrowserControl;
 import com.projectlibre1.util.Environment;
+import com.projectlibre1.util.UiLinkTargets;
 
 public class HelpUtil implements KeyEventDispatcher {
 	private  HashMap<Component,String> map = new HashMap<Component, String>();
@@ -108,7 +109,7 @@ public class HelpUtil implements KeyEventDispatcher {
 		getInstance().map.put(c,address);
 	}
 	public static String getHelpURL(String address) {
-		return Settings.HELP_HOME;
+		return UiLinkTargets.resolveHelpUrl(address);
 	}
 	public static void addDocHelp(Component c, String address) {
 		addHelp(c,getHelpURL(address));

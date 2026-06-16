@@ -82,9 +82,12 @@ import com.projectlibre1.functor.IntervalConsumer;
 import com.projectlibre1.pm.dependency.DependencyService;
 import com.projectlibre1.pm.dependency.DependencyType;
 import com.projectlibre1.pm.dependency.HasDependencies;
+import com.projectlibre1.pm.scheduling.ConstraintType;
 import com.projectlibre1.pm.scheduling.Schedule;
 import com.projectlibre1.pm.scheduling.ScheduleInterval;
 import com.projectlibre1.pm.scheduling.ScheduleService;
+import com.projectlibre1.pm.task.Task;
+import com.projectlibre1.undo.TaskConstraintEdit;
 import com.projectlibre1.util.Alert;
 import com.projectlibre1.util.ClassUtils;
 
@@ -159,6 +162,15 @@ public class GanttInteractor extends GraphInteractor{
 				interval=coord.adaptSmallBarTimeInterval(interval, node,config);
 
 			}
+    		if (isMilestoneInterval(interval)) {
+    			// Milestones have no resizable body. Treat the diamond as a movable point.
+    			if (selectedIsNonSummaryNode()) {
+    				state=BAR_MOVE;
+    			}
+    			selectedInterval=interval;
+    			consumed=true;
+    			return;
+    		}
     		if (t<interval.getStart()&&t>=interval.getStart()-deltaOutside){
     			if (selectedIsNonSummaryNode()) state=BAR_MOVE_START;
     		}else if (t>interval.getEnd()&&t<=interval.getEnd()+deltaOutside){
@@ -240,12 +252,14 @@ public class GanttInteractor extends GraphInteractor{
 		CoordinatesConverter coord=getCoord();
 		GraphicNode node=(GraphicNode)selected;
 		Rectangle2D bounds;
-		double xStart=coord.toX((selectedIntervalNumber==0&&state==BAR_MOVE)?node.getStart():selectedInterval.getStart());
+		double xStart=getSelectionStartForNode(node, coord);
 		if (state==PROGRESS_BAR_MOVE){
 			double completedX=coord.toX(node.getCompleted());//CoordinatesConverter.adaptSmallBarEndX(xStart,coord.toX(node.getCompleted()),config);
 			bounds=new Rectangle2D.Double(xStart,((GanttUI)ui).getBarY(node.getRow())+node.getGanttShapeOffset()+(node.getGanttShapeHeight()-config.getGanttProgressBarHeight())/2,completedX-xStart+deltaX,config.getGanttProgressBarHeight());
 		}else{
-			double xEnd=(selectedIntervalNumber==0&&state==BAR_MOVE)?CoordinatesConverter.adaptSmallBarEndX(coord.toX(node.getStart()),coord.toX(node.getEnd()),node,config):coord.toX(selectedInterval.getEnd());
+			double xEnd=(selectedIntervalNumber==0&&state==BAR_MOVE)
+					? getSelectionEndForBar(node, coord)
+					: getSelectionEndForInterval(node, coord, selectedInterval);
 			double w=xEnd-xStart;
 			switch (state) {
 			case BAR_MOVE:
@@ -263,14 +277,13 @@ public class GanttInteractor extends GraphInteractor{
 		}
 		return bounds;
     }
-    protected Rectangle2D getLinkSelectionShadowBounds(GraphicNode node){
+	protected Rectangle2D getLinkSelectionShadowBounds(GraphicNode node){
 		CoordinatesConverter coord=getCoord();
-		double xStart=coord.toX(node.getStart());
-		double xEnd=coord.toX(node.getEnd());
-		xEnd=CoordinatesConverter.adaptSmallBarEndX(xStart,xEnd,node,config);
+		double xStart=getSelectionStartForNode(node, coord);
+		double xEnd=getSelectionEndForNode(node, coord);
 		Rectangle2D selectionRectangle=new Rectangle2D.Double(xStart,((GanttUI)ui).getBarY(node.getRow())+node.getGanttShapeOffset(),xEnd-xStart,node.getGanttShapeHeight());
 		return selectionRectangle;
-    }
+	}
 
 
     public CoordinatesConverter getCoord(){
@@ -281,7 +294,7 @@ public class GanttInteractor extends GraphInteractor{
     	GraphicNode node=(GraphicNode)selected;
 		CoordinatesConverter coord=getCoord();
 		double xStart=coord.toX((selectedIntervalNumber==0)?node.getStart():selectedInterval.getStart());
-		double xEnd=selectedIntervalNumber==0?CoordinatesConverter.adaptSmallBarEndX(coord.toX(node.getStart()),coord.toX(node.getEnd()),node,config):coord.toX(selectedInterval.getEnd());
+		double xEnd=selectedIntervalNumber==0?getSelectionEndForNode(node, coord):getSelectionEndForInterval(node, coord, selectedInterval);
 		x0link=(xStart+xEnd)/2;
 		y0link=((GanttUI)ui).getBarY(node.getRow())+node.getGanttShapeOffset()+node.getGanttShapeHeight()/2;
 
@@ -348,6 +361,7 @@ public class GanttInteractor extends GraphInteractor{
 					if (sourceNode!=null&&destinationNode!=null&&
 							sourceNode.getNode().getImpl() instanceof HasDependencies &&
 							destinationNode.getNode().getImpl() instanceof HasDependencies && !ClassUtils.isObjectReadOnly(destinationNode.getNode().getImpl())){
+						// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
 						DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),(HasDependencies)destinationNode.getNode().getImpl(),DependencyType.FS,0,this);
 					}
 				} catch (InvalidAssociationException e) {
@@ -368,6 +382,14 @@ public class GanttInteractor extends GraphInteractor{
     private boolean applyIntervalDrag(long dt, UndoableEditSupport undoSupport) {
     	long start=selectedInterval.getStart();
     	long end=selectedInterval.getEnd();
+		Schedule schedule = getSourceSchedule();
+		Task task = getSourceTask();
+		long originalScheduleStart = schedule.getStart();
+		long originalScheduleEnd = schedule.getEnd();
+		long originalTaskStart = task == null ? 0L : task.getStart();
+		long originalTaskEnd = task == null ? 0L : task.getEnd();
+		int originalConstraintType = task == null ? ConstraintType.ASAP : task.getConstraintType();
+		long originalConstraintDate = task == null ? 0L : task.getConstraintDate();
     	switch (state) {
 		case BAR_MOVE:
 			start+=dt;
@@ -382,8 +404,33 @@ public class GanttInteractor extends GraphInteractor{
 		default:
 			return false;
 		}
-		ScheduleService.getInstance().setInterval(this,getSourceSchedule(),start,end,selectedInterval,undoSupport);
-		return refreshUndoState(true);
+		boolean updateConstraint = shouldUpdateTaskConstraint();
+		boolean preparedConstraint = false;
+		int targetConstraintType = updateConstraint ? getConstraintTypeForDrag() : ConstraintType.ASAP;
+		long requestedConstraintDate = updateConstraint ? getRequestedConstraintDate(start, end) : 0L;
+		if (updateConstraint && undoSupport != null) {
+			undoSupport.beginUpdate();
+		}
+		boolean scheduleChanged = false;
+		try {
+			if (updateConstraint && task != null) {
+				preparedConstraint = prepareConstraintForIntervalUpdate(task, targetConstraintType, requestedConstraintDate, originalConstraintType, originalConstraintDate);
+			}
+			ScheduleService.getInstance().setInterval(this,schedule,start,end,selectedInterval,undoSupport);
+			scheduleChanged = didScheduleChange(schedule, task, originalScheduleStart, originalScheduleEnd, originalTaskStart, originalTaskEnd);
+			if (updateConstraint) {
+				if (task != null && scheduleChanged) {
+					applyConstraintAfterDrag(task, targetConstraintType, getConstraintDateForDrag(task), originalConstraintType, originalConstraintDate, undoSupport);
+				} else if (task != null && preparedConstraint) {
+					task.setScheduleConstraint(originalConstraintType, originalConstraintDate);
+				}
+			}
+		} finally {
+			if (updateConstraint && undoSupport != null) {
+				undoSupport.endUpdate();
+			}
+		}
+		return refreshUndoState(scheduleChanged);
     }
 
     private boolean applyProgressDrag(long completed, UndoableEditSupport undoSupport) {
@@ -393,6 +440,129 @@ public class GanttInteractor extends GraphInteractor{
 
     private Schedule getSourceSchedule() {
     	return (Schedule)sourceNode.getNode().getImpl();
+    }
+
+    private Task getSourceTask() {
+    	Object impl = sourceNode == null ? null : sourceNode.getNode().getImpl();
+    	return impl instanceof Task ? (Task) impl : null;
+    }
+
+    private boolean shouldUpdateTaskConstraint() {
+    	return sourceNode != null
+    			&& getSourceTask() != null
+    			&& selectedIntervalNumber == 0
+    			&& (state == BAR_MOVE || state == BAR_MOVE_START || state == BAR_MOVE_END);
+    }
+
+    private int getConstraintTypeForDrag() {
+    	return state == BAR_MOVE_END ? ConstraintType.FNLT : ConstraintType.SNET;
+    }
+
+    private long getConstraintDateForDrag(Task task) {
+    	return state == BAR_MOVE_END ? task.getEnd() : task.getStart();
+    }
+
+    private long getRequestedConstraintDate(long requestedStart, long requestedEnd) {
+    	return state == BAR_MOVE_END ? requestedEnd : requestedStart;
+    }
+
+    private boolean prepareConstraintForIntervalUpdate(Task task, int constraintType, long constraintDate, int originalConstraintType, long originalConstraintDate) {
+    	if (task == null) {
+    		return false;
+    	}
+    	if (originalConstraintType == constraintType && originalConstraintDate == constraintDate) {
+    		return false;
+    	}
+    	task.setScheduleConstraint(constraintType, constraintDate);
+    	return true;
+    }
+
+    private void applyConstraintAfterDrag(Task task, int constraintType, long constraintDate, int originalConstraintType, long originalConstraintDate, UndoableEditSupport undoSupport) {
+    	if (task == null) {
+    		return;
+    	}
+    	if (originalConstraintType == constraintType && originalConstraintDate == constraintDate) {
+    		return;
+    	}
+    	task.setScheduleConstraintAndUpdate(constraintType, constraintDate);
+    	if (undoSupport != null) {
+    		undoSupport.postEdit(new TaskConstraintEdit(task, originalConstraintType, originalConstraintDate, constraintType, constraintDate, this));
+    	}
+    }
+
+    private boolean didScheduleChange(Schedule schedule, Task task, long originalScheduleStart, long originalScheduleEnd, long originalTaskStart, long originalTaskEnd) {
+    	if (task != null) {
+    		switch (state) {
+    		case BAR_MOVE:
+    			return task.getStart() != originalTaskStart || task.getEnd() != originalTaskEnd;
+    		case BAR_MOVE_START:
+    			return task.getStart() != originalTaskStart;
+    		case BAR_MOVE_END:
+    			return task.getEnd() != originalTaskEnd;
+    		default:
+    			return false;
+    		}
+    	}
+    	switch (state) {
+    	case BAR_MOVE:
+    		return schedule.getStart() != originalScheduleStart || schedule.getEnd() != originalScheduleEnd;
+    	case BAR_MOVE_START:
+    		return schedule.getStart() != originalScheduleStart;
+    	case BAR_MOVE_END:
+    		return schedule.getEnd() != originalScheduleEnd;
+    	default:
+    		return false;
+    	}
+    }
+
+    private boolean isMilestoneInterval(ScheduleInterval interval) {
+    	if (interval == null || selected == null || !(selected instanceof GraphicNode)) {
+    		return false;
+    	}
+    	Object impl = ((GraphicNode) selected).getNode().getImpl();
+    	return impl instanceof Task && ((Task) impl).isMilestone() && interval.getStart() == interval.getEnd();
+    }
+
+    private double getSelectionEndForBar(GraphicNode node, CoordinatesConverter coord) {
+    	if (isMilestoneNode(node)) {
+    		return getMilestoneSelectionEnd(coord.toX(node.getStart()), node);
+    	}
+    	return CoordinatesConverter.adaptSmallBarEndX(coord.toX(node.getStart()), coord.toX(node.getEnd()), node, config);
+    }
+
+    private double getSelectionEndForInterval(GraphicNode node, CoordinatesConverter coord, ScheduleInterval interval) {
+    	if (interval != null && interval.getEnd() == interval.getStart() && isMilestoneNode(node)) {
+    		return getMilestoneSelectionEnd(coord.toX(interval.getStart()), node);
+    	}
+    	return coord.toX(interval.getEnd());
+    }
+
+    private double getSelectionEndForNode(GraphicNode node, CoordinatesConverter coord) {
+    	if (isMilestoneNode(node)) {
+    		return getMilestoneSelectionEnd(coord.toX(node.getStart()), node);
+    	}
+    	return CoordinatesConverter.adaptSmallBarEndX(coord.toX(node.getStart()), coord.toX(node.getEnd()), node, config);
+    }
+
+    private double getSelectionStartForNode(GraphicNode node, CoordinatesConverter coord) {
+    	double x = coord.toX(node.getStart());
+    	if (!isMilestoneNode(node)) {
+    		return x;
+    	}
+    	double width = Math.max(node.getGanttShapeHeight(), config.getSelectionSquare());
+    	return x - width / 2.0d;
+    }
+
+    private double getMilestoneSelectionEnd(double xCenter, GraphicNode node) {
+    	double width = Math.max(node.getGanttShapeHeight(), config.getSelectionSquare());
+    	return xCenter + width / 2.0d;
+    }
+
+    private boolean isMilestoneNode(GraphicNode node) {
+    	if (node == null || node.getNode() == null || !(node.getNode().getImpl() instanceof Task)) {
+    		return false;
+    	}
+    	return ((Task) node.getNode().getImpl()).isMilestone();
     }
 
     private UndoableEditSupport getUndoableEditSupport() {

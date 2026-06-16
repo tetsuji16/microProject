@@ -226,6 +226,7 @@ import com.projectlibre1.util.BrowserControl;
 import com.projectlibre1.util.ClassUtils;
 import com.projectlibre1.util.Environment;
 import com.projectlibre1.util.FlatUiSupport;
+import com.projectlibre1.util.UiLinkTargets;
 import com.projectlibre1.workspace.SavableToWorkspace;
 import com.projectlibre1.workspace.WorkspaceSetting;
 
@@ -1365,7 +1366,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (!beforeExternalRoute("projectLibre")) return;
-			BrowserControl.displayURL("https://github.com/tetsuji16/ProjectLibre");
+			BrowserControl.displayURL(UiLinkTargets.PROJECT_HOME);
 		}
 	}
 

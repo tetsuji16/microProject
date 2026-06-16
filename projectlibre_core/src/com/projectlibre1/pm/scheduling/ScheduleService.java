@@ -61,6 +61,8 @@ import javax.swing.undo.UndoableEditSupport;
 import com.projectlibre1.configuration.Configuration;
 import com.projectlibre1.field.Field;
 import com.projectlibre1.functor.IntervalConsumer;
+import com.projectlibre1.pm.task.Task;
+import com.projectlibre1.undo.TaskConstraintEdit;
 import com.projectlibre1.undo.FieldEdit;
 import com.projectlibre1.undo.ScheduleEdit;
 import com.projectlibre1.undo.SplitEdit;
@@ -115,6 +117,24 @@ public class ScheduleService {
 		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			undoableEditSupport.postEdit(new FieldEdit(completedField,schedule,value,oldValue,eventSource,null));
 		}
+	}
+
+	public boolean setConstraint(Object eventSource, Task task, int constraintType, long constraintDate, UndoableEditSupport undoableEditSupport) {
+		if (task == null || isReadOnly(task)) {
+			return false;
+		}
+
+		int oldConstraintType = task.getConstraintType();
+		long oldConstraintDate = task.getConstraintDate();
+		if (oldConstraintType == constraintType && oldConstraintDate == constraintDate) {
+			return false;
+		}
+
+		task.setScheduleConstraintAndUpdate(constraintType, constraintDate);
+		if (undoableEditSupport != null && !(eventSource instanceof UndoableEdit)) {
+			undoableEditSupport.postEdit(new TaskConstraintEdit(task, oldConstraintType, oldConstraintDate, constraintType, constraintDate, eventSource));
+		}
+		return true;
 	}
 	
 	public static boolean isReadOnly(Schedule schedule){

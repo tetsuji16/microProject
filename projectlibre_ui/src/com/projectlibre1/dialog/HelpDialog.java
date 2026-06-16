@@ -77,15 +77,16 @@ import com.projectlibre1.configuration.Settings;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.BrowserControl;
 import com.projectlibre1.util.Environment;
+import com.projectlibre1.util.UiLinkTargets;
 import com.projectlibre1.util.VersionUtils;
 
 public final class HelpDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
-	private static final String helpUrl = "https://www.projectlibre.com/projectlibre-documentation"; //$NON-NLS-1$
-	private static final String trialUrl = "https://www.projectlibre.com/trial/";
-	private static final String helpLoginUrl = "https://www.projectlibre.com/login/";
+	private static final String helpUrl = UiLinkTargets.DOCUMENTATION_HOME;
+	private static final String trialUrl = UiLinkTargets.TRIAL_HOME;
+	private static final String helpLoginUrl = UiLinkTargets.LOGIN_HOME;
 	private static final String videosUrl = Settings.SITE_HOME; //$NON-NLS-1$
-	public static final String donateUrl = "https://www.projectlibre.com";
+	public static final String donateUrl = UiLinkTargets.DONATE_HOME;
 	JButton link;
 	JButton trial;
 	JButton registerToHelp;
@@ -187,7 +188,7 @@ public final class HelpDialog extends AbstractDialog {
 		JLabel logo = new JLabel(IconManager.getIcon("logo.ProjectLibre"));
 		logo.addMouseListener(new MouseAdapter() {
 			public void mouseClicked(MouseEvent arg0) {
-				BrowserControl.displayURL("https://github.com/tetsuji16/ProjectLibre");//$NON-NLS-1$
+				BrowserControl.displayURL(UiLinkTargets.PROJECT_HOME);
 			}});
 		builder.nextColumn();
 		builder.append(logo); 

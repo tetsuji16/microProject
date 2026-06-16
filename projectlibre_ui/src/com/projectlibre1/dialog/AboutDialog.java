@@ -74,6 +74,7 @@ import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.BrowserControl;
 import com.projectlibre1.util.ClassLoaderUtils;
 import com.projectlibre1.util.Environment;
+import com.projectlibre1.util.UiLinkTargets;
 import com.projectlibre1.util.VersionUtils;
 
 public final class AboutDialog extends AbstractDialog {
@@ -113,7 +114,7 @@ public final class AboutDialog extends AbstractDialog {
 		logo.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		logo.addMouseListener(new MouseAdapter() {
 			public void mouseClicked(MouseEvent arg0) {
-				BrowserControl.displayURL("https://github.com/tetsuji16/ProjectLibre");//$NON-NLS-1$
+				BrowserControl.displayURL(UiLinkTargets.PROJECT_HOME);
 			}});
 		builder.append(logo); 
 		builder.nextLine(2);

@@ -106,6 +106,10 @@ public final class LicenseDialog extends AbstractDialog {
 			validated = true; // POD validation is on web
 	}
 
+	public static URL resolveThirdPartyLicenseUrl() {
+		return com.projectlibre1.util.UiLinkTargets.bundledThirdPartyLicenseUrl();
+	}
+
 
 	private JEditorPane createEditorPane(URL url,final int fallbackHeight) {
 		JEditorPane pane = null;
@@ -142,13 +146,9 @@ public final class LicenseDialog extends AbstractDialog {
 		init = true;
 		if (Environment.isProjectLibre()) {
 			license = createEditorPane(getClass().getClassLoader().getResource("license/index.html"),7500); //$NON-NLS-1$
-			thirdParty = createEditorPane(getClass().getClassLoader().getResource("license/third-party/index.html"),1200); //$NON-NLS-1$
+			thirdParty = createEditorPane(resolveThirdPartyLicenseUrl(),1200); //$NON-NLS-1$
 		} else {
-			try {
-				thirdParty = createEditorPane(new URL("http://projectlibre.com/license/third-party/index.html"),1200); //$NON-NLS-1$
-			} catch (MalformedURLException e) {
-				e.printStackTrace();
-			} //$NON-NLS-1$
+			thirdParty = createEditorPane(resolveThirdPartyLicenseUrl(),1200); //$NON-NLS-1$
 			
 		}
 		

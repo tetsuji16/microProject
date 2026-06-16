@@ -1846,14 +1846,66 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void moveInterval(Object eventSource, long start, long end, ScheduleInterval oldInterval, boolean isChild) {
 		WorkCalendar cal = getEffectiveWorkCalendar();
 		start = cal.adjustInsideCalendar(start,false);
+		end = CalendarOption.getInstance().makeValidEnd(end, true);
+		if (isMilestone() || oldInterval.getStart() == oldInterval.getEnd()) {
+			if (cal.compare(start, getStart(), false) == 0) {
+				return;
+			}
+			setCurrentScheduleStart(start);
+			setCurrentScheduleFinish(start);
+			setRawDuration(0L);
+			recalculate(eventSource);
+			assignParentActualDatesFromChildren();
+			return;
+		}
+		if (!isWbsParent() && !isExternal() && !isSubproject() && !hasRealAssignments()) {
+			long originalStart = getStart();
+			long originalEnd = getEnd();
+			long newStart = start;
+			long newEnd = end;
+
+			if (newEnd < newStart) {
+				if (cal.compare(start, oldInterval.getStart(), false) != 0) {
+					newEnd = newStart;
+				} else {
+					newStart = newEnd;
+				}
+			}
+			if (newStart == originalStart && newEnd == originalEnd) {
+				return;
+			}
+
+			setCurrentScheduleStart(newStart);
+			setCurrentScheduleFinish(newEnd);
+			setRawDuration(Duration.setAsEstimated(cal.compare(newEnd, newStart, false), estimated));
+			recalculate(eventSource);
+			assignParentActualDatesFromChildren();
+			return;
+		}
 		boolean shifting = cal.compare(start,oldInterval.getStart(),false) != 0;
 		long assignmentStart = getEarliestAssignmentStart();
 		long amountFromStart = cal.compare(oldInterval.getStart(),assignmentStart,false); // possible that they are not the same but there is no working time between them
 		if (shifting && amountFromStart == 0L) { // see if first bar shifted -The first bar is drawn from the first assignment and not from the task start.
-			// To figure out the new task start, see how much the shift of this bar is, then apply that difference to the task start
 			long shift = cal.compare(start,assignmentStart,false);
 			long newTaskStart = cal.add(getStart(),shift,false);
-			setStart(newTaskStart);
+			long newTaskEnd = cal.add(getEnd(),shift,false);
+			setCurrentScheduleStart(newTaskStart);
+			setCurrentScheduleFinish(newTaskEnd);
+
+			Iterator i = getAssignments().iterator();
+			Assignment assignment;
+			while (i.hasNext()) {
+				assignment = (Assignment)i.next();
+				long assignmentStartBeforeMove = assignment.getStart();
+				long assignmentEndBeforeMove = assignment.getEnd();
+				assignment.moveInterval(
+						eventSource,
+						cal.add(assignmentStartBeforeMove, shift, false),
+						cal.add(assignmentEndBeforeMove, shift, false),
+						new ScheduleInterval(assignmentStartBeforeMove, assignmentEndBeforeMove),
+						true);
+			}
+			setRawDuration(Duration.setAsEstimated(cal.compare(newTaskEnd, newTaskStart, false), estimated));
 		} else {
 			long amount =cal.compare(end,oldInterval.getEnd(),false);
 			if (amount == 0L) // skip if nothing moved

@@ -60,10 +60,8 @@ import java.awt.HeadlessException;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
-import javax.swing.JMenuBar;
 import javax.swing.WindowConstants;
 
-import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 import org.pushingpixels.flamingo.api.ribbon.JRibbonFrame;
 
 import com.projectlibre1.pm.graphic.IconManager;
@@ -74,18 +72,12 @@ import com.projectlibre1.util.Environment;
 public class MainRibbonFrame extends JRibbonFrame implements FrameHolder{
 	private static final long serialVersionUID = -5161903673269959353L;
 	protected GraphicManager graphicManager;
-	private ResizableIcon appMenuIcon;
 
 	public MainRibbonFrame(String name, String projectUrl, String server) throws HeadlessException {
 		super(name);
 		setIconImage(IconManager.getImage("application.icon"));
-		appMenuIcon=IconManager.getRibbonIcon("menu.save",26,26);
 		setApplicationIcon(IconManager.getRibbonIcon("application.icon",128,128));
 		init();
-	}
-
-	public synchronized ResizableIcon getApplicationIcon() {
-		return appMenuIcon;
 	}
 
 	public GraphicManager getGraphicManager() {
