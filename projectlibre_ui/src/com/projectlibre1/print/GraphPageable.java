@@ -177,9 +177,12 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 		try {
 			final PrinterJob printerJob=PrinterJob.getPrinterJob();
 			printerJob.setPrintService(printService);
+			setPageFormat(validatePageFormat(printerJob));
+			update();
+			if (printPreview!=null) printPreview.updatePanel();
 
 			ViewPrintable vp=getSafePrintable();
-			vp.setPageFormat(printerJob.validatePage(getSafePageFormat()));
+			vp.setPageFormat(getSafePageFormat());
 			vp.update();
 //			printerJob.setPageable(printable);
 			printerJob.setPrintable(vp, vp.getPageFormat());
@@ -201,7 +204,7 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 							ViewPrintable vp=getSafePrintable();
 							vp.setJr(this);
 							vp.setPrinterJob(printerJob);
-							vp.setPageFormat(printerJob.validatePage(getSafePageFormat()));
+							vp.setPageFormat(getSafePageFormat());
 							vp.update();
 //							printerJob.setPageable(printable);
 							printerJob.setPrintable(vp, vp.getPageFormat());
@@ -288,16 +291,7 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 
 
 	public void update(){
-		GraphParams params=renderer.getParams();
-		double zx=getTotalZoomX();
-		double zy=getTotalZoomY();
-		//zx=pageFormat.getOrientation()==PageFormat.PORTRAIT?zx:zy;
-		//zy=pageFormat.getOrientation()==PageFormat.PORTRAIT?zy:zx;
-		int pageW=(int)Math.ceil((pageFormat.getImageableWidth()-1)/zx);
-		int pageH=(int)Math.ceil((pageFormat.getImageableHeight()-1)/zy);
-		params.setPrintBounds(new Rectangle(0,0,pageW,pageH));
-		documentColCount=params.getPrintCols();
-		documentRowCount=params.getPrintRows();
+		PrintDocument.updatePageLayout(this,pageFormat);
 	}
 
 
@@ -340,9 +334,10 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 		SVGRenderer renderer=getRenderer();
 		GraphParams params=renderer.getParams();
 		double zw=extendedPrintService.getWRatio(pw, iw,params);
-		double zh=extendedPrintService.getHRatio(ph, ih,params);
+		double zh=ph<=0?zw:extendedPrintService.getHRatio(ph, ih,params);
 		setTotalZoomX(zw);
 		setTotalZoomY(zh);
+		update();
 	}
 
 

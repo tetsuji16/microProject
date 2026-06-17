@@ -25,6 +25,7 @@ import com.projectlibre1.collaboration.CollaborationMetadataStore.UserRecord;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.util.Alert;
+import com.projectlibre1.util.PopupDialogSupport;
 import com.projectlibre1.workspace.WorkspaceSetting;
 
 public class CollaborationSession {
@@ -330,14 +331,15 @@ public class CollaborationSession {
 			"Discard My Changes",
 			"Save Copy"
 		};
-		int result = JOptionPane.showOptionDialog(parent,
+		int result = PopupDialogSupport.showOptionDialog(parent,
 			"One or more tasks you are editing were changed or deleted externally.\nChoose how to resolve the conflict.",
 			"ProjectLibre",
 			JOptionPane.DEFAULT_OPTION,
 			JOptionPane.WARNING_MESSAGE,
 			null,
 			options,
-			options[0]);
+			options[0],
+			JOptionPane.CANCEL_OPTION);
 		if (result == 0) {
 			return SAVE_PROCEED;
 		}

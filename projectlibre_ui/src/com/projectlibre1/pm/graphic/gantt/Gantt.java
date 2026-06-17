@@ -64,7 +64,6 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.util.logging.Logger;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -106,7 +105,6 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private static final int AUTO_SCROLL_START_THRESHOLD = 150;
 	private static final int AUTO_SCROLL_LEFT_PADDING = 50;
 	private static final int BOTTOM_SCROLL_BUFFER_ROWS = 5;
-	private static final Logger logger = Logger.getLogger(Gantt.class.getName());
 	private boolean progressLineEnabled = false;
 	private boolean gridLinesVisible = true;
 	public Gantt(Project project,String viewName) {
@@ -293,15 +291,11 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		var parent = getParent();
 		if (parent instanceof JViewport viewport) {
 			int height = getScrollableHeight(viewport.getExtentSize().height);
-			logger.info(() -> "synchronizeViewportSize viewportExtent=" + viewport.getExtentSize().width + "x" + viewport.getExtentSize().height
-					+ " current=" + getPreferredSize().width + "x" + getPreferredSize().height
-					+ " target=" + getDrawingWidth() + "x" + height);
 			viewport.setViewSize(new Dimension(getDrawingWidth(), height));
 			setPreferredSize(new Dimension(getDrawingWidth(), height));
 			clampViewportPosition(viewport, height);
 			return;
 		}
-		logger.info(() -> "synchronizeViewportSize no-viewport visibleRect=" + getVisibleRect().width + "x" + getVisibleRect().height);
 		setPreferredSize(new Dimension(getDrawingWidth(), getScrollableHeight(getVisibleRect().height)));
 	}
 

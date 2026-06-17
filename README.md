@@ -4,13 +4,13 @@ This repository is an unofficial development fork of ProjectLibre. It keeps the 
 
 Current release in this fork:
 
-- `v0.0.13`
+- `v0.0.14`
 
 Quick links:
 
 - [ProjectLibre GitHub Pages documentation](https://tetsuji16.github.io/ProjectLibre/docs/)
 
-![ProjectLibre Gantt view](docs/images/gantt-view-latest.png)
+![ProjectLibre Gantt view](docs/images/demo_gannt.png)
 
 ## What This Fork Is For
 
@@ -114,11 +114,11 @@ Build the Windows release artifacts and stage them locally:
 
 The Gradle Windows release flow stages the packaging input under:
 
-- `build\releases\v0.0.13\jpackage-input\`
+- `build\releases\v0.0.14\jpackage-input\`
 
 The local MSI output is generated under:
 
-- `build\releases\v0.0.13\msi\ProjectLibre-0.0.13.msi`
+- `build\releases\v0.0.14\msi\ProjectLibre-0.0.14.msi`
 
 If you need the portable app-image ZIP or split EXE staging flow, use:
 
@@ -128,7 +128,7 @@ If you need the portable app-image ZIP or split EXE staging flow, use:
 .\gradlew.bat publishReleaseToDocs
 ```
 
-Files under `docs/downloads/` are treated as scratch space only and should not be committed. Public downloads should be published as GitHub Release assets for `v0.0.13`, and the GitHub Pages site should link to that release page instead of serving binaries from the repository itself.
+Files under `docs/downloads/` are treated as scratch space only and should not be committed. Public downloads should be published as GitHub Release assets for `v0.0.14`, and the GitHub Pages site should link to that release page instead of serving binaries from the repository itself.
 
 The GitHub Pages landing page for this release is:
 

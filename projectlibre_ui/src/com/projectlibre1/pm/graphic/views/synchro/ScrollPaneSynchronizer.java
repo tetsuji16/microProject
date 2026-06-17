@@ -68,6 +68,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Stack;
 import java.util.WeakHashMap;
+import java.util.function.DoubleUnaryOperator;
 
 import javax.swing.JComponent;
 import javax.swing.JScrollPane;
@@ -437,10 +438,8 @@ public class ScrollPaneSynchronizer {
 
 		ZoomRestoreState zoomRestoreState = getZoomRestoreState(scrollPane);
 		int currentScaleIndex = coord.getTimescaleManager().getCurrentScaleIndex();
-		// Capture the left-edge date BEFORE zooming. This is the date at pixel 0
-		// (timeline origin), which remains stable across zoom operations and prevents
-		// the visible left-end date from shifting during repeated zoom in/out cycles.
-		double leftEdgeDate = coord.toTime(0);
+		// Keep the currently visible left edge anchored across zoom operations.
+		double leftEdgeDate = resolveViewportLeftEdgeDate(coord::toTime, viewport.getViewPosition());
 		boolean zoomed = false;
 		if (steps < 0) {
 			if (coord.canZoomIn()) {
@@ -470,10 +469,19 @@ public class ScrollPaneSynchronizer {
 				zoomRestoreState.clear();
 			}
 		}
-		newViewPosition.x = (int) Math.round(coord.toX(restoreDate));
+		newViewPosition.x = restoreViewportX(coord::toX, restoreDate);
 		clampViewPosition(viewport, newViewPosition);
 		setViewportViewPosition(viewport, newViewPosition);
 		return true;
+	}
+
+	static double resolveViewportLeftEdgeDate(DoubleUnaryOperator xToTime, Point viewPosition) {
+		int leftEdgeX = viewPosition == null ? 0 : Math.max(0, viewPosition.x);
+		return xToTime.applyAsDouble(leftEdgeX);
+	}
+
+	static int restoreViewportX(DoubleUnaryOperator timeToX, double restoreDate) {
+		return (int) Math.round(timeToX.applyAsDouble(restoreDate));
 	}
 
 	private ZoomRestoreState createZoomRestoreState(JScrollPane scrollPane) {

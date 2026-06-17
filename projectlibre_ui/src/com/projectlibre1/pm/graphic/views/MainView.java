@@ -57,7 +57,6 @@ package com.projectlibre1.pm.graphic.views;
 
 import java.awt.Component;
 import java.awt.Dimension;
-import java.util.logging.Logger;
 
 import javax.swing.JComponent;
 import javax.swing.JSplitPane;
@@ -76,7 +75,6 @@ import com.projectlibre1.workspace.WorkspaceSetting;
  */
 public class MainView extends JSplitPane implements TimeScaleListener, SavableToWorkspace{
 	private static final long serialVersionUID = -6427979080094712783L;
-	private static final Logger logger = Logger.getLogger(MainView.class.getName());
 
 	protected int defaultDividerSize;
 
@@ -184,9 +182,6 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
     
     
     public void setChildrenDividerLocation(Object source,int pos){
-    	logger.info(() -> "setChildrenDividerLocation source="
-    			+ (source == null ? "null" : source.getClass().getSimpleName())
-    			+ " pos=" + pos);
     	SplittedView top=null;
     	SplittedView bottom=null;
          Component c=getBottomComponent();
@@ -200,15 +195,10 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
         	top=tmp;
         }
         int delta=bottom.getDeltaDivider()-top.getDeltaDivider();
-        logger.info("divider sync top=" + top.getClass().getSimpleName()
-        		+ " bottom=" + bottom.getClass().getSimpleName()
-        		+ " delta=" + delta + " topLoc=" + top.getDividerLocation()
-        		+ " bottomLoc=" + bottom.getDividerLocation());
         
         if (source==top&&bottom!=null){
     		int min=top.getMinimumDividerLocation();
     		int max=top.getMaximumDividerLocation();
-    		logger.info("sync from top min=" + min + " max=" + max + " pos=" + pos);
     		if (pos>=max){
     			top.setDividerLocationSilent(Integer.MAX_VALUE);
     			bottom.setDividerLocationSilent(Integer.MAX_VALUE);
@@ -222,7 +212,6 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
         if (source==bottom&&top!=null){
     		int min=bottom.getMinimumDividerLocation();
     		int max=bottom.getMaximumDividerLocation();
-    		logger.info("sync from bottom min=" + min + " max=" + max + " pos=" + pos);
     		if (pos>=max-delta){
     			top.setDividerLocationSilent(Integer.MAX_VALUE);
     			bottom.setDividerLocationSilent(Integer.MAX_VALUE);

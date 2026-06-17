@@ -55,8 +55,12 @@
  *******************************************************************************/
 package com.projectlibre1.print;
 
+import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
+import java.awt.print.PageFormat;
 import java.awt.print.Pageable;
+import java.awt.print.PrinterException;
+import java.awt.print.PrinterJob;
 import java.util.List;
 
 import javax.print.DocFlavor;
@@ -65,6 +69,8 @@ import javax.print.PrintServiceLookup;
 import javax.print.attribute.standard.MediaPrintableArea;
 import javax.print.attribute.standard.MediaSizeName;
 
+import com.projectlibre1.offline_graphics.SVGRenderer;
+import com.projectlibre1.pm.graphic.graph.GraphParams;
 import com.projectlibre1.pm.task.Project;
 
 /**
@@ -155,6 +161,12 @@ public abstract class PrintDocument implements Pageable{
 		}
 		if (scaleToSettings==null) scaleToSettings=new ScaleToSettings();
 		if (fitToSettings==null) fitToSettings=new FitToSettings();
+		if (fitToSettings.getColumns()<=0) fitToSettings.setColumns(1);
+		if (printSettings.isEmpty()){
+			scaleToSelected=false;
+			fitToSettings.setColumns(1);
+			fitToSettings.setRows(FitToSettings.AUTOMATIC);
+		}
 
 
 	}
@@ -216,10 +228,11 @@ public abstract class PrintDocument implements Pageable{
 	public ExtendedPageFormat getPageFormat() {
 		return pageFormat;
 	}
-//	public void setPageFormat(ExtendedPageFormat pageFormat) {
-//		this.pageFormat = pageFormat;
-//		if (printPreview!=null) printPreview.update();
-//	}
+	public void setPageFormat(ExtendedPageFormat pageFormat) {
+		if (pageFormat == null) return;
+		if (this.pageFormat == null) this.pageFormat=(ExtendedPageFormat)pageFormat.clone();
+		else pageFormat.copy(this.pageFormat);
+	}
 
 
 
@@ -247,6 +260,18 @@ public abstract class PrintDocument implements Pageable{
 
 
 	public void update(){}
+
+	public static void updatePageLayout(ViewPrintableParams printableParams,PageFormat pageFormat){
+		SVGRenderer renderer=printableParams.getRenderer();
+		GraphParams params=renderer.getParams();
+		double zx=printableParams.getTotalZoomX();
+		double zy=printableParams.getTotalZoomY();
+		int pageW=(int)Math.ceil((pageFormat.getImageableWidth()-1)/zx);
+		int pageH=(int)Math.ceil((pageFormat.getImageableHeight()-1)/zy);
+		params.setPrintBounds(new Rectangle(0,0,pageW,pageH));
+		printableParams.setDocumentColCount(params.getPrintCols());
+		printableParams.setDocumentRowCount(params.getPrintRows());
+	}
 
 	protected double zoomX=1.0;
 	public double getZoomX() {
@@ -354,6 +379,21 @@ public abstract class PrintDocument implements Pageable{
 	public void restoreZoom() {
 		zoomX=svgZoomX;
 		zoomY=svgZoomY;
+	}
+
+	public ExtendedPageFormat validatePageFormat(PrinterJob printerJob) throws PrinterException {
+		ExtendedPageFormat validated=(ExtendedPageFormat)getPageFormat().clone();
+		PageFormat validatedPageFormat=printerJob.validatePage(validated);
+		if (!(validatedPageFormat instanceof ExtendedPageFormat)){
+			validated.setOrientation(validatedPageFormat.getOrientation());
+			validated.setPrintableArea(new MediaPrintableArea(
+				(float)(validatedPageFormat.getImageableX()/PageSize.POINTS_PER_INCH*PageSize.INCH),
+				(float)(validatedPageFormat.getImageableY()/PageSize.POINTS_PER_INCH*PageSize.INCH),
+				(float)(validatedPageFormat.getImageableWidth()/PageSize.POINTS_PER_INCH*PageSize.INCH),
+				(float)(validatedPageFormat.getImageableHeight()/PageSize.POINTS_PER_INCH*PageSize.INCH),
+				MediaPrintableArea.INCH));
+		}
+		return validated;
 	}
 
 

@@ -81,7 +81,7 @@ public class Alert {
 		System.out.println("warning message " + errorObject);
 
 		if (allowPopups())
-			JOptionPane.showMessageDialog(parent,errorObject, Messages.getContextString("Title.ProjectLibreWarning"),JOptionPane.WARNING_MESSAGE);
+			PopupDialogSupport.showMessageDialog(parent,errorObject, Messages.getContextString("Title.ProjectLibreWarning"),JOptionPane.WARNING_MESSAGE);
 	}
 
 	public static void error(Object errorObject) {
@@ -92,12 +92,12 @@ public class Alert {
 		System.out.println("error message " + errorObject);
 
 		if (allowPopups())
-			JOptionPane.showMessageDialog(parent,errorObject, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
+			PopupDialogSupport.showMessageDialog(parent,errorObject, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
 	}
 	public static int confirmYesNo(Object messageObject) {
 		if (!allowPopups())
 			return JOptionPane.NO_OPTION;
-		return JOptionPane.showConfirmDialog(getFrame(),
+		return PopupDialogSupport.showConfirmDialog(getFrame(),
 		        messageObject,
 		        Messages.getContextString("Text.ApplicationTitle"),
 	            JOptionPane.YES_NO_OPTION);
@@ -105,10 +105,12 @@ public class Alert {
 	public static int confirm(Object messageObject) {
 		if (!allowPopups())
 			return JOptionPane.NO_OPTION;
-		int result = JOptionPane.showConfirmDialog(getFrame(),
+		int result = PopupDialogSupport.showConfirmDialog(getFrame(),
 		        messageObject,
 		        Messages.getContextString("Text.ApplicationTitle"),
-	            JOptionPane.YES_NO_CANCEL_OPTION);
+	            JOptionPane.YES_NO_CANCEL_OPTION,
+	            JOptionPane.QUESTION_MESSAGE,
+	            JOptionPane.CANCEL_OPTION);
 		if (result == JOptionPane.CLOSED_OPTION)
 			result = JOptionPane.CANCEL_OPTION;
 		return result;
@@ -117,10 +119,12 @@ public class Alert {
 		if (!allowPopups())
 			return true;
 
-		return JOptionPane.OK_OPTION == JOptionPane.showConfirmDialog(getFrame(),
+		return JOptionPane.OK_OPTION == PopupDialogSupport.showConfirmDialog(getFrame(),
 		        messageObject,
 		        Messages.getContextString("Text.ApplicationTitle"),
-	            JOptionPane.OK_CANCEL_OPTION);
+	            JOptionPane.OK_CANCEL_OPTION,
+	            JOptionPane.QUESTION_MESSAGE,
+	            JOptionPane.CANCEL_OPTION);
 	}
 
 	public static String renameProject(final String name,Set projectNames,boolean saveAs){
@@ -179,6 +183,7 @@ public class Alert {
 		JOptionPane pane = new JOptionPane(object);
 		String title=Messages.getContextString("Text.ApplicationTitle");
 		JDialog dialog = pane.createDialog(parentComponent,title);
+		PopupDialogSupport.bindEscapeToOptionPane(dialog, pane, JOptionPane.CLOSED_OPTION);
 		JPanel p = new JPanel();
 		p.setLayout(new FlowLayout(FlowLayout.LEFT));
 		JCheckBox notAgain = new JCheckBox(Messages.getString("Text.doNotShowAgain"));

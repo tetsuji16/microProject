@@ -59,7 +59,6 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
 import java.awt.print.PageFormat;
@@ -68,8 +67,6 @@ import java.awt.print.Printable;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 
-import com.projectlibre1.offline_graphics.SVGRenderer;
-import com.projectlibre1.pm.graphic.graph.GraphParams;
 import com.projectlibre1.job.JobRunnable;
 
 public class DocumentPrintable implements Printable,Pageable{
@@ -121,13 +118,7 @@ public class DocumentPrintable implements Printable,Pageable{
 	}
 
 	public void update(){
-		SVGRenderer renderer=printableParams.getRenderer();
-		GraphParams params=renderer.getParams();
-		int pageW=(int)Math.ceil((pageFormat.getImageableWidth()-1)/printableParams.getTotalZoomX());
-		int pageH=(int)Math.ceil((pageFormat.getImageableHeight()-1)/printableParams.getTotalZoomY());
-		params.setPrintBounds(new Rectangle(0,0,pageW,pageH));
-		printableParams.setDocumentColCount(params.getPrintCols());
-		printableParams.setDocumentRowCount(params.getPrintRows());
+		PrintDocument.updatePageLayout(printableParams,pageFormat);
 	}
 
 	public int print (Graphics g, int page) throws PrinterException {

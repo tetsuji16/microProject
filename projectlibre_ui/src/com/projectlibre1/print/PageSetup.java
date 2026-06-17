@@ -61,6 +61,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.print.PageFormat;
+import java.awt.print.PrinterException;
+import java.awt.print.PrinterJob;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.text.DecimalFormat;
@@ -210,6 +212,7 @@ public class PageSetup{
 				PrintServiceOption option=(PrintServiceOption)printers.getSelectedItem();
 				PrintService printService=option.getValue();
 				document.setPrintService(printService,false);
+				validatePageFormat();
 				sizesModel.update(printService);
 				handlePaperSizeChange();
 				switch (pageFormat.getOrientation()){
@@ -516,26 +519,28 @@ public class PageSetup{
 			public void stateChanged(ChangeEvent e) {
 				if (isUpdaping()) return;
 				//pageFormat.setPagesW(((Number)fitToWidth.getValue()).intValue());
-				document.updateZoom(((Number)fitToWidth.getValue()).intValue(),((Number)fitToHeight.getValue()).intValue());
+				document.updateZoom(((Number)fitToWidth.getValue()).intValue(),getRequestedFitToRows());
 				refresh();
 			}
 		});
 		initFont(fitToWidth);
 		fitToHeightLabel=new JLabel(Messages.getString("PageSetupDialog.Scaling.FitToHeight"));
-		fitToHeightLabel.setEnabled(!document.isScaleToSelected());
+		fitToHeightLabel.setEnabled(!document.isScaleToSelected()&&!isFitHeightAutomatic());
 		initFont(fitToHeightLabel);
-		fitToHeight=new JSpinner(new SpinnerNumberModel(document.getFitToSettings().getRows(),1,99999,1));
-		fitToHeight.setEnabled(!document.isScaleToSelected());
+		fitToHeight=new JSpinner(new SpinnerNumberModel(document.getFitToSettings().isRowsAutomatic()?1:document.getFitToSettings().getEffectiveRows(),1,99999,1));
+		fitToHeight.setEnabled(!document.isScaleToSelected()&&!isFitHeightAutomatic());
 		fitToHeight.setEditor(new JSpinner.NumberEditor(fitToHeight,"#"));
 		fitToHeight.addChangeListener(new ChangeListener(){
 			public void stateChanged(ChangeEvent e) {
 				if (isUpdaping()) return;
+				if (isFitHeightAutomatic()) return;
 				//pageFormat.setPagesH(((Number)fitToHeight.getValue()).intValue());
 				document.updateZoom(((Number)fitToWidth.getValue()).intValue(),((Number)fitToHeight.getValue()).intValue());
 				refresh();
 			}
 		});
 		initFont(fitToHeight);
+		updateFitToHeightControl();
 
 
 		scaleTo=new JRadioButton(Messages.getString("PageSetupDialog.Scaling.ScaleTo"),document.isScaleToSelected());
@@ -562,8 +567,8 @@ public class PageSetup{
 				scaleToProportions2.setEnabled(selected);
 				fitToWidth.setEnabled(!selected);
 				fitToWidthLabel.setEnabled(!selected);
-				fitToHeight.setEnabled(!selected);
-				fitToHeightLabel.setEnabled(!selected);
+				fitToHeight.setEnabled(!selected&&!isFitHeightAutomatic());
+				fitToHeightLabel.setEnabled(!selected&&!isFitHeightAutomatic());
 				if (!selected){
 					if (PageSizes.getInstance().isBigPageSize(paperSize.getSelectedItem())){
 						paperSize.setSelectedItem(sizesModel.selectDefault(document.getPrintService(),false));
@@ -637,7 +642,7 @@ public class PageSetup{
 			scaleToSettings.setConstrainProportions(constrainProportions.isSelected());
 			FitToSettings fitToSettings=new FitToSettings();
 			fitToSettings.setColumns(((Number)fitToWidth.getValue()).intValue());
-			fitToSettings.setRows(((Number)fitToHeight.getValue()).intValue());
+			fitToSettings.setRows(isFitHeightAutomatic()?FitToSettings.AUTOMATIC:((Number)fitToHeight.getValue()).intValue());
 			scalingSettings.add(scaleToSettings);
 			scalingSettings.add(fitToSettings);
 			printSettings.setScalingSettings(scalingSettings);
@@ -652,6 +657,30 @@ public class PageSetup{
 
 	private boolean isBigPage(){
 		return PageSizes.getInstance().isBigPageSize(paperSize.getSelectedItem());
+	}
+	private boolean isFitHeightAutomatic(){
+		return document.getFitToSettings().isRowsAutomatic();
+	}
+	private int getRequestedFitToRows(){
+		return isFitHeightAutomatic()?FitToSettings.AUTOMATIC:((Number)fitToHeight.getValue()).intValue();
+	}
+	private void updateFitToHeightControl(){
+		boolean automatic=isFitHeightAutomatic();
+		fitToHeight.setToolTipText(automatic?"Automatically calculated from page width.":null);
+		fitToHeightLabel.setToolTipText(fitToHeight.getToolTipText());
+		JFormattedTextField textField=((JSpinner.DefaultEditor)fitToHeight.getEditor()).getTextField();
+		textField.setEditable(!automatic);
+		textField.setColumns(automatic?4:textField.getColumns());
+	}
+	private void validatePageFormat(){
+		if (document.getPrintService() instanceof PDFPrintService) return;
+		try {
+			PrinterJob printerJob=PrinterJob.getPrinterJob();
+			printerJob.setPrintService(document.getPrintService());
+			document.setPageFormat(document.validatePageFormat(printerJob));
+		} catch (PrinterException e) {
+			Alert.error(e.getMessage());
+		}
 	}
 
 	protected void handlePaperSizeChange(){
@@ -706,17 +735,17 @@ public class PageSetup{
 		document.update();
 		document.getPrintPreviewFrame().updatePanel();
 		beginUpdate();
-		if (!fitTo.isSelected()) updateFitTo();
+		updateFitTo();
 		endUpdate();
 	}
 	public void updateFitTo(){
 		GraphParams params=document.getRenderer().getParams();
-		fitToWidth.setValue(params.getPrintCols());
+		if (!isFitHeightAutomatic()) fitToWidth.setValue(params.getPrintCols());
 		fitToHeight.setValue(params.getPrintRows());
 	}
 
 	private void updateZoom(){
-		document.updateZoom(((Number)fitToWidth.getValue()).intValue(),((Number)fitToHeight.getValue()).intValue());
+		document.updateZoom(((Number)fitToWidth.getValue()).intValue(),getRequestedFitToRows());
 	}
 
 

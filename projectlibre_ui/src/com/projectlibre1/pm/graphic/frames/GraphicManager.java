@@ -226,6 +226,7 @@ import com.projectlibre1.util.BrowserControl;
 import com.projectlibre1.util.ClassUtils;
 import com.projectlibre1.util.Environment;
 import com.projectlibre1.util.FlatUiSupport;
+import com.projectlibre1.util.PopupDialogSupport;
 import com.projectlibre1.util.UiLinkTargets;
 import com.projectlibre1.workspace.SavableToWorkspace;
 import com.projectlibre1.workspace.WorkspaceSetting;
@@ -2429,14 +2430,15 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			"Discard My Changes",
 			"Save Copy"
 		};
-		int result = JOptionPane.showOptionDialog(getCurrentFrame(),
+		int result = PopupDialogSupport.showOptionDialog(getCurrentFrame(),
 			"One or more tasks you are editing were changed or deleted externally.\nChoose how to resolve the conflict.",
 			"ProjectLibre",
 			JOptionPane.DEFAULT_OPTION,
 			JOptionPane.WARNING_MESSAGE,
 			null,
 			options,
-			options[0]);
+			options[0],
+			JOptionPane.CANCEL_OPTION);
 		if (result == 0) {
 			return CollaborationSession.SAVE_PROCEED;
 		}
@@ -2552,8 +2554,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			return;
 		if (combo.getSelectedIndex() < 0)
 			combo.setSelectedIndex(0);
-		int choice = JOptionPane.showConfirmDialog(getFrame(), combo,
-				getMenuManager().getString(actionId + ".text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+				getMenuManager().getString(actionId + ".text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 		if (choice == JOptionPane.OK_OPTION) {
 			combo.transformBasedOnValue();
 		}
@@ -2571,8 +2573,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		}
 		JComboBox<String> combo = new JComboBox<>(labels);
 		combo.setSelectedIndex(ganttView.getScale());
-		int choice = JOptionPane.showConfirmDialog(getFrame(), combo,
-				manager.getString("RibbonTimescale.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+				manager.getString("RibbonTimescale.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 		if (choice == JOptionPane.OK_OPTION) {
 			ganttView.setScale(combo.getSelectedIndex());
 			setZoomButtons();
@@ -2587,8 +2589,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		String[] styles = { "standard", "Tracking" };
 		JComboBox<String> combo = new JComboBox<>(styles);
 		combo.setSelectedItem(ganttView.getCurrentBarStyleName());
-		int choice = JOptionPane.showConfirmDialog(getFrame(), combo,
-				manager.getString("RibbonBarStyles.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+				manager.getString("RibbonBarStyles.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 		if (choice == JOptionPane.OK_OPTION) {
 			ganttView.setBarStyles((String) combo.getSelectedItem());
 			ganttView.getGantt().repaint();
@@ -2613,8 +2615,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		};
 		JComboBox<String> combo = new JComboBox<>(labels);
 		combo.setSelectedIndex(ganttView.isTaskNameAnnotationSelected() ? 1 : 0);
-		int choice = JOptionPane.showConfirmDialog(getFrame(), combo,
-				manager.getString("RibbonTextStyles.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+				manager.getString("RibbonTextStyles.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 		if (choice == JOptionPane.OK_OPTION) {
 			ganttView.setCurrentAnnotationFieldId(combo.getSelectedIndex() == 1
 				? GanttView.ANNOTATION_FIELD_TASK_NAME
@@ -2656,8 +2658,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		panel.add(progressLine);
 		panel.add(gridlines);
 
-		int choice = JOptionPane.showConfirmDialog(getFrame(), panel,
-				manager.getString("RibbonLayout.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
+				manager.getString("RibbonLayout.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 		if (choice == JOptionPane.OK_OPTION) {
 			ganttView.setScale(timescaleCombo.getSelectedIndex());
 			ganttView.setBarStyles((String) barStyleCombo.getSelectedItem());

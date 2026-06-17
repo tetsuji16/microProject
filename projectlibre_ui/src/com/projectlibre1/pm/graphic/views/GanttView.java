@@ -61,7 +61,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.logging.Logger;
 
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
@@ -110,7 +109,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	 *
 	 */
 	private static final long serialVersionUID = 514828655690086836L;
-	private static final Logger logger = Logger.getLogger(GanttView.class.getName());
 	private static final String DEFAULT_GANTT_BAR_STYLE = "standard";
 	public static final String ANNOTATION_FIELD_RESOURCE_NAMES = "Field.resourceNames";
 	public static final String ANNOTATION_FIELD_TASK_NAME = "Field.name";
@@ -167,8 +165,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		};*/
 		super.init();
 		setSpreadsheetGridVisible(true);
-		logger.info(() -> "GanttView init spreadsheetGridVisible=" + spreadsheetGridVisible
-				+ " rowHeight=" + project.getRowHeight(baseLines));
 		updateHeight(project);
 		updateSize();
 
@@ -182,7 +178,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 					return;
 				}
 				olddl = dl;
-				logger.info(() -> "left viewport size changed width=" + dl.width + " height=" + dl.height);
 				synchronizeGanttHeightWithSpreadsheet(dl);
 			}
 		});
@@ -422,7 +417,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		return spreadsheetGridVisible;
 	}
 	public void setSpreadsheetGridVisible(boolean visible) {
-		logger.info(() -> "setSpreadsheetGridVisible " + spreadsheetGridVisible + " -> " + visible);
 		spreadsheetGridVisible = visible;
 		if (gantt != null) {
 			gantt.setGridLinesVisible(visible);
@@ -567,8 +561,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 	private void applySpreadsheetGridStyle() {
 		Color gridLineColor = getSpreadsheetGridLineColor();
-		logger.info(() -> "applySpreadsheetGridStyle visible=" + spreadsheetGridVisible
-				+ " gridColor=" + gridLineColor);
 		if (spreadSheet != null) {
 			spreadSheet.setGridColor(gridLineColor);
 			spreadSheet.setShowHorizontalLines(spreadsheetGridVisible);
@@ -598,10 +590,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (!(viewport.getView() instanceof Gantt ganttView))
 			return;
 		int height = Math.min(spreadsheetSize.height, ganttView.getScrollableHeight(viewport.getExtentSize().height));
-		logger.info(() -> "synchronizeGanttHeightWithSpreadsheet spreadsheet=" + spreadsheetSize.width + "x" + spreadsheetSize.height
-				+ " viewportExtent=" + viewport.getExtentSize().width + "x" + viewport.getExtentSize().height
-				+ " ganttCurrent=" + ganttView.getPreferredSize().width + "x" + ganttView.getPreferredSize().height
-				+ " targetHeight=" + height);
 		ganttView.setPreferredSize(new Dimension(viewport.getViewSize().width, height));
 		ganttView.clampViewportPosition(viewport, height);
 		viewport.revalidate();

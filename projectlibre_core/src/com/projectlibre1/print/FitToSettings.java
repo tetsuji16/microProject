@@ -57,7 +57,8 @@ package com.projectlibre1.print;
 
 public class FitToSettings extends ScalingSettings{
 	static final long serialVersionUID = 6272777892191L;
-	private int rows=1;
+	public static final int AUTOMATIC = 0;
+	private int rows=AUTOMATIC;
 	private int columns=1;
 	public int getColumns() {
 		if (columns<=0) columns=1; //fix persisitence
@@ -67,11 +68,16 @@ public class FitToSettings extends ScalingSettings{
 		this.columns = columns<=0?1:columns;
 	}
 	public int getRows() {
-		if (rows<=0) rows=1; //fix persistence
 		return rows;
 	}
+	public int getEffectiveRows() {
+		return isRowsAutomatic() ? 1 : rows;
+	}
+	public boolean isRowsAutomatic() {
+		return rows<=AUTOMATIC;
+	}
 	public void setRows(int rows) {
-		this.rows = rows<=0?1:rows;
+		this.rows = rows;
 	}
 
 }

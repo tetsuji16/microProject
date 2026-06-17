@@ -254,7 +254,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			}
 		} else {
 			AssociationList assignments =getAssignments();
-			if (assignments.size() == 1) {
+			if (!hasRealAssignments()) {
+				duration = Duration.millis(getRawDuration());
+			} else if (assignments.size() == 1) {
 				duration = ((Assignment)assignments.getFirst()).getDurationMillis();
 			} else {
 				Iterator i = assignments.iterator();
@@ -301,17 +303,62 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param duration
 	 */
 	public void setDuration(long duration) {
-		setRawDuration(duration); // set the schedule duration, primariy for use when reading a file
 		estimated = Duration.isEstimated(duration);
 		duration = Duration.millis(duration);
+		if (isWbsParent()) {
+			setRawDuration(duration);
+			markTaskAsNeedingRecalculation();
+			return;
+		}
 		long actualDurationMillis = Duration.millis(getActualDuration());
+		setRawDuration(duration); // set the schedule duration, primariy for use when reading a file
 		if (duration < actualDurationMillis) // if reducing duration to shorter than the current actual duration
 			setPercentComplete(1);
-		if (!isWbsParent()) {
-			long remainingDuration = duration - actualDurationMillis;
-			getSchedulingRule().adjustRemainingDuration(this, remainingDuration, true);
+		long remainingDuration = duration - actualDurationMillis;
+		getSchedulingRule().adjustRemainingDuration(this, remainingDuration, true);
+		applyDurationToCurrentDates(duration);
+		if (isInitialized())
+			markAllDependentTasksAsNeedingRecalculation(true);
+	}
+
+	private void applyDurationToCurrentDates(long duration) {
+		if (duration == 0) {
+			if (isFinishAnchored())
+				getCurrentSchedule().setStart(getEnd());
+			else
+				getCurrentSchedule().setEnd(getStart());
+			return;
 		}
-		updateCachedDuration();
+		if (isFinishAnchored()) {
+			long start = calculateStartFromFinish(duration);
+			getCurrentSchedule().setStart(start);
+		} else {
+			long end = getEffectiveWorkCalendar().add(getStart(), duration, false);
+			getCurrentSchedule().setEnd(end);
+		}
+	}
+
+	private long calculateStartFromFinish(long duration) {
+		WorkCalendar calendar = getEffectiveWorkCalendar();
+		long finish = getEnd();
+		long start = calendar.add(finish, -duration, true);
+		for (int i = 0; i < 5; i++) {
+			long scheduledDuration = calendar.compare(finish, start, false);
+			long difference = scheduledDuration - duration;
+			if (difference == 0)
+				break;
+			start += difference;
+		}
+		return start;
+	}
+
+	private boolean isFinishAnchored() {
+		int constraintType = getConstraintType();
+		return !getCurrentSchedule().isForward()
+			|| constraintType == ConstraintType.ALAP
+			|| constraintType == ConstraintType.MFO
+			|| constraintType == ConstraintType.FNET
+			|| constraintType == ConstraintType.FNLT;
 	}
 
 /********************************************************************************
@@ -1993,7 +2040,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				assignment.setEnd(end);
 			}
 //			System.out.println("Old End"  + new Date(oldEnd) + " input end " + new Date(end )+ " resulting End " + new Date(getEnd()) + " duration " + DurationFormat.format(getDuration()));
-			setRawDuration(getDurationMillis());
+			if (!hasRealAssignments())
+				setRawDuration(getEffectiveWorkCalendar().compare(getEnd(), getStart(), false));
+			else
+				setRawDuration(getDurationMillis());
 		}
 		assignParentActualDatesFromChildren();
 	}

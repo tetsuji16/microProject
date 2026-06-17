@@ -55,12 +55,20 @@
  *******************************************************************************/
 package com.projectlibre1.dialog;
 
+import java.awt.AWTEvent;
+import java.awt.Toolkit;
+import java.awt.Window;
+import java.awt.event.AWTEventListener;
+import java.awt.event.WindowEvent;
 import java.awt.Component;
 import java.util.prefs.Preferences;
+
+import javax.swing.JDialog;
 
 import com.l2fprod.common.swing.JTipOfTheDay;
 import com.l2fprod.common.swing.tips.TipLoader;
 import com.projectlibre1.strings.Messages;
+import com.projectlibre1.util.PopupDialogSupport;
 
 public class TipOfTheDay {
 	private static JTipOfTheDay tipOfTheDayInstance = null;
@@ -88,7 +96,24 @@ public class TipOfTheDay {
 			}
 		}
 		if (forceShow || tipOfTheDayChoiceInstance.isShowingOnStartup()) {
-			tipOfTheDayInstance.showDialog(owner, tipOfTheDayChoiceInstance,forceShow);
+			AWTEventListener escapeBinder = new AWTEventListener() {
+				public void eventDispatched(AWTEvent event) {
+					if (!(event instanceof WindowEvent)) {
+						return;
+					}
+					Window window = ((WindowEvent) event).getWindow();
+					if (((WindowEvent) event).getID() != WindowEvent.WINDOW_OPENED || !(window instanceof JDialog)) {
+						return;
+					}
+					PopupDialogSupport.bindEscapeToDispose((JDialog) window);
+				}
+			};
+			Toolkit.getDefaultToolkit().addAWTEventListener(escapeBinder, AWTEvent.WINDOW_EVENT_MASK);
+			try {
+				tipOfTheDayInstance.showDialog(owner, tipOfTheDayChoiceInstance,forceShow);
+			} finally {
+				Toolkit.getDefaultToolkit().removeAWTEventListener(escapeBinder);
+			}
 			tipOfTheDayInstance.nextTip(); // move to the next tip
 			
 			//ignore emptyTip

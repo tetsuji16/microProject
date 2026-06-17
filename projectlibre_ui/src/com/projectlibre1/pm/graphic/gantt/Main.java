@@ -67,6 +67,7 @@ import com.projectlibre1.preference.ConfigurationFile;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.Environment;
 import com.projectlibre1.util.FlatLafSupport;
+import com.projectlibre1.util.PopupDialogSupport;
 
 /**
  *
@@ -88,7 +89,7 @@ public class Main {
 			if (Environment.compareJavaVersion(javaVersion,"1.5")<0){
 				String message=Messages.getStringWithParam("Text.badJavaVersion", javaVersion);
 				if (javaExec!=null&&javaExec.length()>0) message+="\n"+Messages.getStringWithParam("Text.javaExecutable", new Object[]{javaExec,"JAVA_EXE","$HOME/.projectlibre/run.conf"});
-				if (!opts.containsKey("silentlyFail")) JOptionPane.showMessageDialog(null,message, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
+				if (!opts.containsKey("silentlyFail")) PopupDialogSupport.showMessageDialog(null,message, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
 				System.exit(64);
 			}
 			//claur -  now assuming that now all vendors have correct implementation
@@ -96,7 +97,7 @@ public class Main {
 //			if (javaVendor==null || !(javaVendor.startsWith("Sun")||javaVendor.startsWith("IBM"))){
 //				String message=Messages.getStringWithParam("Text.badJavaVendor", javaVendor);
 //				if (javaExec!=null&&javaExec.length()>0) message+="\n"+Messages.getStringWithParam("Text.javaExecutable", new Object[]{javaExec,"JAVA_EXE","$HOME/.projectlibre/run.conf"});
-//				if (!opts.containsKey("silentlyFail")) JOptionPane.showMessageDialog(null,message, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
+//				if (!opts.containsKey("silentlyFail")) PopupDialogSupport.showMessageDialog(null,message, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
 //				System.exit(64);
 //			}
 		}
