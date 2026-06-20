@@ -57,6 +57,7 @@ package com.projectlibre1.pm.assignment.functor;
 
 import com.projectlibre1.pm.assignment.Assignment;
 import com.projectlibre1.pm.resource.Resource;
+import com.projectlibre1.pm.availability.Availability;
 import com.projectlibre1.pm.time.HasStartAndEnd;
 
 /**
@@ -64,21 +65,26 @@ import com.projectlibre1.pm.time.HasStartAndEnd;
  */
 public class ResourceAvailabilityFunctor extends AssignmentFieldFunctor {
 	double maxUnits;
+	private Resource resource;
 	private ResourceAvailabilityFunctor(Assignment assignment) {
 		super(assignment,assignment.getResource().getEffectiveWorkCalendar(), null);
 		if (workCalendar == null) {
 			// if no work calendar for resource, then use project's calendar
 			workCalendar = assignment.getTask().getProject().getEffectiveWorkCalendar();
 		}
-		maxUnits = assignment.getResource().getMaximumUnits(); //TODO add support for contoured availability
+		resource = assignment.getResource();
+		maxUnits = resource.getMaximumUnits();
 	}
 	private ResourceAvailabilityFunctor(Resource resource) {
 		super(null,resource.getEffectiveWorkCalendar(), null);
-		maxUnits = resource.getMaximumUnits(); //TODO add support for contoured availability
+		this.resource = resource;
+		maxUnits = resource.getMaximumUnits();
 	}
 	public void execute(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd)object;
-		value += maxUnits * workCalendar.compare(interval.getEnd(),interval.getStart(), false);
+		Availability availability = (Availability) resource.getAvailabilityTable().findActive(interval.getStart());
+		double intervalUnits = (availability == null) ? maxUnits : availability.getMaximumUnits();
+		value += intervalUnits * workCalendar.compare(interval.getEnd(),interval.getStart(), false);
 	}
 	
 	

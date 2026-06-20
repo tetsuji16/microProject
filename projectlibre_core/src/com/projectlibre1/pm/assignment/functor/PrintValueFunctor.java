@@ -55,11 +55,7 @@
  *******************************************************************************/
 package com.projectlibre1.pm.assignment.functor;
 
-import java.util.Date;
-
 import org.apache.commons.collections.Closure;
-
-import com.projectlibre1.pm.time.HasStartAndEnd;
 
 /**
  * 
@@ -78,8 +74,7 @@ public class PrintValueFunctor implements Closure{
 	 * @see org.apache.commons.collections.Closure#execute(java.lang.Object)
 	 */
 	public void execute(Object object) {
-		HasStartAndEnd interval = (HasStartAndEnd)object;
-		System.out.println(new Date(interval.getStart()) + " " + new Date(interval.getEnd()) + " value " +  child);
+		child.execute(object);
 	}
 
 	public static PrintValueFunctor getInstance(Closure child) {

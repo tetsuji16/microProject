@@ -105,7 +105,6 @@ public class DateAtValueFunctor implements CalculationVisitor{
 
 		double sum = childList.getValue();
 		subtotal += sum;
-//System.out.println("subtotal is " + DurationFormat.format((long)subtotal) + "interval is " + new java.util.Date(interval.getStart()) + new java.util.Date(interval.getEnd())); 	
 		if (date == 0 && subtotal >= value) {
 			if (value == 0.0) { // take care of degenerate case
 				date = interval.getStart();
@@ -146,7 +145,6 @@ public class DateAtValueFunctor implements CalculationVisitor{
 	 * @see com.projectlibre1.algorithm.CalculationVisitor#isCumulative()
 	 */
 	public boolean isCumulative() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 }

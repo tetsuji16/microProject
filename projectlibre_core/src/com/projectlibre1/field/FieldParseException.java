@@ -64,14 +64,12 @@ public class FieldParseException extends Exception {
 	 */
 	public FieldParseException() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 	/**
 	 * @param arg0
 	 */
 	public FieldParseException(String arg0) {
 		super(arg0);
-		// TODO Auto-generated constructor stub
 	}
 	/**
 	 * @param arg0
@@ -79,13 +77,11 @@ public class FieldParseException extends Exception {
 	 */
 	public FieldParseException(String arg0, Throwable arg1) {
 		super(arg0, arg1);
-		// TODO Auto-generated constructor stub
 	}
 	/**
 	 * @param arg0
 	 */
 	public FieldParseException(Throwable arg0) {
-		this(arg0.getMessage()); // use message from other one
-//		super(arg0);
+		super(arg0);
 	}
 }

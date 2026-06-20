@@ -76,6 +76,7 @@ import com.projectlibre1.pm.assignment.contour.AbstractContourBucket;
 import com.projectlibre1.pm.assignment.contour.ContourTypes;
 import com.projectlibre1.pm.assignment.contour.PersonalContour;
 import com.projectlibre1.pm.assignment.contour.StandardContour;
+import com.projectlibre1.pm.availability.Availability;
 import com.projectlibre1.pm.calendar.CalendarService;
 import com.projectlibre1.pm.calendar.HasCalendar;
 import com.projectlibre1.pm.calendar.InvalidCalendarIntersectionException;
@@ -244,14 +245,6 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	}
 
 	/**
-	 * @param contour The contour to set.
-	 * TODO get rid of this
-	 */
-	public void debugSetWorkContour(AbstractContour contour) {
-		this.workContour = contour;
-	}
-
-	/**
 	 * Accessor for the assignment's delay
 	 * @return delay
 	 */
@@ -412,8 +405,7 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 			else
 				baselineCalendar = (WorkingCalendar) getEffectiveWorkCalendar().clone();
 		} catch (CloneNotSupportedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new IllegalStateException("Unable to clone effective work calendar", e);
 		}
 	}
 	
@@ -635,11 +627,20 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	 * @return
 	 */
 	long getResourceAvailability() {
-		WorkCalendar cal = resource.getEffectiveWorkCalendar();
-		if (cal == null)
-			cal = task.getOwningProject().getEffectiveWorkCalendar();
-		//TODO implement time-scaled availability
-		return (long) resource.getMaximumUnits() * cal.compare(getFinish(),getStart(),false);
+		WorkCalendar cal = getEffectiveWorkCalendar();
+		long start = getStart();
+		long finish = getFinish();
+		long availability = 0;
+		for (Object entry : resource.getAvailabilityTable().getList()) {
+			Availability resourceAvailability = (Availability) entry;
+			long overlapStart = Math.max(start, resourceAvailability.getAvailableFrom());
+			long overlapFinish = Math.min(finish, resourceAvailability.getAvailableTo());
+			if (overlapFinish <= overlapStart)
+				continue;
+			long overlapDuration = cal.compare(overlapFinish, overlapStart, false);
+			availability += (long) (resourceAvailability.getMaximumUnits() * overlapDuration);
+		}
+		return availability;
 	}
 	
 	
@@ -687,7 +688,14 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	 * @see com.projectlibre1.pm.scheduling.Schedule#split(java.lang.Object, long, long)
 	 */
 	public void split(Object eventSource, long from, long to) {
-		System.out.println("split should not be called for AssignmentDetail");
+		from = Math.max(from, getResume());
+		if (from >= to)
+			return;
+		if (!workContour.isPersonal()) {
+			workContour = PersonalContour.makePersonal(workContour, getDuration());
+		}
+		long duration = getEffectiveWorkCalendar().compare(to, from, false);
+		shift(from, getEnd(), duration);
 	}
 
 	
@@ -706,6 +714,14 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	 * @see com.projectlibre1.pm.calendar.HasCalendar#setWorkCalendar(com.projectlibre1.pm.calendar.WorkCalendar)
 	 */
 	public void setWorkCalendar(WorkCalendar workCalendar) {
+		if (workCalendar == null) {
+			actualExceptionsCalendar = null;
+			return;
+		}
+		if (!(workCalendar instanceof WorkingCalendar)) {
+			throw new IllegalArgumentException("AssignmentDetail requires a WorkingCalendar");
+		}
+		actualExceptionsCalendar = (WorkingCalendar) workCalendar;
 	}
 
 	/* (non-Javadoc)
@@ -1128,8 +1144,7 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 			try {
 				actualExceptionsCalendar.setBaseCalendar(base);
 			} catch (CircularDependencyException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				throw new IllegalStateException("Unable to set base calendar", e);
 			}
 		}
 		actualExceptionsCalendar.addCalendarTime(start, end);

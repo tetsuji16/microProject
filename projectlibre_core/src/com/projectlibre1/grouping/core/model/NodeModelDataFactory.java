@@ -55,37 +55,47 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.model;
 
-import com.projectlibre1.grouping.core.NodeException;
 import com.projectlibre1.undo.DataFactoryUndoController;
 
 /**
- *
+ * Creates, validates, and removes backing objects for a {@link NodeModel}.
  */
 public interface NodeModelDataFactory {
 /**
- * Creates a new node given a parent and a child of the parent.
- * @param nodeModel TODO
- * @param parent TODO
- * @param previous TODO
- * @return new node
+ * Creates an unvalidated backing object for a child of the given parent.
+ * The returned object is expected to be registered later through
+ * {@link #addUnvalidatedObject(Object, NodeModel, Object)} and
+ * {@link #validateObject(Object, NodeModel, Object, Object, boolean)}.
+ * @param nodeModel node model requesting the object
+ * @param parent parent implementation, or {@code null} for a root child
+ * @return newly constructed object
  */
 	Object createUnvalidatedObject(NodeModel nodeModel, Object parent);
 	
+	/**
+	 * Registers an object that has been created but not yet validated.
+	 * @param object backing object to register
+	 * @param nodeModel node model that owns the object
+	 * @param parent parent implementation, or {@code null} for a root child
+	 */
 	void addUnvalidatedObject(Object object,NodeModel nodeModel, Object parent);
  
  /**
-  * Validate an object created by createObject.
- * @param newlyCreated
- * @param nodeModel TODO
- * @param eventSource TODO
- * @param voidNodeInfo TODO
+  * Validates an object that was previously registered as unvalidated.
+ * @param newlyCreated object to validate
+ * @param nodeModel node model that owns the object
+ * @param eventSource source of the change event
+ * @param hierarchyInfo auxiliary hierarchy data associated with the object
+ * @param isNew {@code true} when the object has just been created
   */	
  	void validateObject(Object newlyCreated, NodeModel nodeModel, Object eventSource, Object hierarchyInfo, boolean isNew);
  /**
-  * Remove an object (the impl of a node)
- * @param toRemove
- * @param nodeModel TODO
-  * @throws NodeException if the node can't be removed
+  * Removes a backing object from the model.
+ * @param toRemove backing object to remove
+ * @param nodeModel node model that owns the object
+ * @param deep whether child objects should be removed too
+ * @param undo whether the removal is part of an undo action
+ * @param cleanDependencies whether dependencies should be cleaned up
   */
 	void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean cleanDependencies);
 	

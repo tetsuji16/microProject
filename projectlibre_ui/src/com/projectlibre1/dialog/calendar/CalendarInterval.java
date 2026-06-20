@@ -65,12 +65,10 @@ public class CalendarInterval extends DateSpan implements HasStartAndEnd {
 
 	public CalendarInterval(Date start, Date end) {
 		super(start, end);
-		// TODO Auto-generated constructor stub
 	}
 
 	public CalendarInterval(long start, long end) {
 		super(start, end);
-		// TODO Auto-generated constructor stub
 	}
 
 }

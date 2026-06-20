@@ -21,6 +21,24 @@ Then launch the installed app from:
 projectlibre_ui\build\install\projectlibre_ui\bin\projectlibre_ui.bat
 ```
 
+For the quickest repeatable Windows workflow, use the repository launcher instead:
+
+```powershell
+.\run_projectlibre.ps1
+```
+
+Or double-click:
+
+```text
+run_projectlibre.bat
+```
+
+That launcher:
+
+1. Refreshes `:projectlibre_ui:installDist` unless `-SkipBuild` is passed.
+2. Stops only existing ProjectLibre Java processes instead of killing every Java process on the machine.
+3. Starts the installed app layout and writes per-run logs under `build\logs\projectlibre\`.
+
 ## Why This Matters
 
 `build` alone can leave an already-generated `build/install/...` layout behind from an earlier run. If you execute that stale layout, you may be testing an old `projectlibre_ui.jar` even though the source tree has already been rebuilt.
@@ -30,6 +48,21 @@ To avoid that trap:
 1. Run `clean build installDist` before manual UI verification.
 2. If you only changed code and want a quicker refresh, at minimum run `installDist` again before launching the app.
 3. Treat `projectlibre_ui/build/install/projectlibre_ui` as disposable generated output, not a source-controlled artifact.
+
+## Launcher Log Locations
+
+- Timestamped launcher sessions: `build\logs\projectlibre\yyyyMMdd-HHmmss\`
+- Latest copied session: `build\logs\projectlibre\latest\`
+- Launcher status log: `launcher.log`
+- App stdout log: `app.stdout.log`
+- App stderr log: `app.stderr.log`
+
+Useful launcher options:
+
+```powershell
+.\run_projectlibre.ps1 -SkipBuild
+.\run_projectlibre.ps1 -Clean
+```
 
 ## Quick Checks
 

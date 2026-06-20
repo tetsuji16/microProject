@@ -75,12 +75,12 @@ public class ContourFactory {
 				return StandardContour.LATE_PEAK_CONTOUR;		
 			case ContourTypes.BELL:
 				return StandardContour.BELL_CONTOUR;	
-			case ContourTypes.PLATEAU:
-				return StandardContour.PLATEAU_CONTOUR;		
-			//case ContourTypes.CONTOURED: not valid
+		case ContourTypes.PLATEAU:
+			return StandardContour.PLATEAU_CONTOUR;		
+		//case ContourTypes.CONTOURED: not valid
 				
 		}
-		return null;
+		throw new IllegalArgumentException("Unknown contour type: " + type);
 		
 	}
 }

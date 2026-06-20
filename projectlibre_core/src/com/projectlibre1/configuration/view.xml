@@ -396,6 +396,19 @@
 		</columns>
 	</spreadsheet>
 
+	<spreadsheet id="Spreadsheet.Task.delay" category="taskSpreadsheet">
+		<columns>
+			<column>Field.id</column>
+			<column>Field.name</column>
+			<column>Field.start</column>
+			<column>Field.finish</column>
+			<column>Field.delay</column>
+			<column>Field.levelingDelay</column>
+			<column>Field.predecessors</column>
+			<column>Field.resourceNames</column>
+		</columns>
+	</spreadsheet>
+
 	<spreadsheet id="Spreadsheet.Task.earnedValue" category="taskSpreadsheet;projectSpreadsheet">
 		<columns>
 			<column>Field.id</column>

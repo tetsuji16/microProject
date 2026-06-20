@@ -64,14 +64,10 @@ import com.projectlibre1.pm.graphic.frames.GraphicManager;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
-import com.projectlibre1.configuration.Dictionary;
 import com.projectlibre1.document.Document;
 import com.projectlibre1.document.ObjectEvent;
-import com.projectlibre1.graphic.configuration.SpreadSheetFieldArray;
 import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.pm.task.Project;
-import com.projectlibre1.pm.task.ProjectFactory;
-import com.projectlibre1.strings.Messages;
 import com.projectlibre1.undo.UndoController;
 import com.projectlibre1.workspace.WorkspaceSetting;
 /**
@@ -98,7 +94,7 @@ public class ProjectView extends JScrollPane implements BaseView, ObjectEvent.Li
 	
 	public void cleanUp() {
 		GraphicManager.getInstance(this).getProjectFactory().getPortfolio().removeObjectListener(this);		
-		spreadSheet.cleanUp();
+		SpreadsheetViewSupport.cleanup(spreadSheet);
 		spreadSheet = null;
 		model = null;
 		cache = null;
@@ -111,7 +107,7 @@ public class ProjectView extends JScrollPane implements BaseView, ObjectEvent.Li
 		spreadSheet.setSpreadSheetCategory(spreadsheetCategory); // for columns - must do first
 		
 		cache=NodeModelCacheFactory.getInstance().createDefaultCache(model,document,NodeModelCache.PROJECT_TYPE,getViewName(),null);
-		SpreadSheetFieldArray fields=getFields();
+		com.projectlibre1.graphic.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getProjectFields();
 		spreadSheet.setCache(cache,fields,fields.getCellStyle(),fields.getActionList());
 
 		JViewport viewport = createViewport();
@@ -120,12 +116,6 @@ public class ProjectView extends JScrollPane implements BaseView, ObjectEvent.Li
 		
 		cache.update(); //this is not required by certain views 
 
-	}
-
-	
-	//spreadsheet fields
-	private static SpreadSheetFieldArray getFields() {
-		return (SpreadSheetFieldArray) Dictionary.get(spreadsheetCategory,Messages.getString("Spreadsheet.Project.default")); //TODO don't hardcode
 	}
 
 	/**
@@ -208,13 +198,10 @@ public class ProjectView extends JScrollPane implements BaseView, ObjectEvent.Li
 	}
 
 	public boolean canScrollToTask() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
 	public void scrollToTask() {
-		// TODO Auto-generated method stub
-		
 	}
 	
 	public NodeModelCache getCache(){

@@ -123,9 +123,11 @@ public class PersonalContour extends AbstractContour {
 	}
 	
 	public void validate() {
-		for (int i = 0; i < this.contourBuckets.length; i++)
-			if (contourBuckets[i].getBucketDuration(0) < 0 || contourBuckets[i].getUnits()< 0)
-				System.out.println("error neg bucket!\n" + this.toString(0));
+		for (int i = 0; i < this.contourBuckets.length; i++) {
+			if (contourBuckets[i].getBucketDuration(0) < 0 || contourBuckets[i].getUnits() < 0) {
+				throw new IllegalStateException("Invalid contour bucket at index " + i + ": " + this.toString(0));
+			}
+		}
 	}
 	
 	public static PersonalContour getInstance(AbstractContourBucket[] contourBuckets) {
@@ -148,35 +150,66 @@ public class PersonalContour extends AbstractContour {
 	}
 	
  
- /**
+	/**
 	 * Set the duration of the personal contour. This implies either truncating the bucket array or changing the last bucket
 	 * to accommodate the new duration. Note that only the last bucket will be modified.  The number of buckets will never increase.
 	 * Since the buckets themselves are immutable, the last element will most likely be replaced.
 	 * @param newDuration: The new duration to set to.
 	 */	
 	public AbstractContour adjustDuration(long newDuration, long actualDuration) {
-		//TODO incorporate actual duration
+		if (actualDuration <= 0) {
+			PersonalContour newContour = constructUsingSizeOf(this);
+			PersonalContourBucket bucket = null;
+			for (int i=0; i < contourBuckets.length; i++) {
+				bucket = (PersonalContourBucket)contourBuckets[i];
+				newContour.contourBuckets[i] = bucket;
+				newDuration -= bucket.getDuration();
+				if (newDuration <= 0) {
+					newContour.contourBuckets[i] = bucket.adjustDuration(newDuration);// adding a negative value
+					if (i < contourBuckets.length -1 ) // if shortening number of buckets
+						System.arraycopy(newContour.contourBuckets,0,newContour.contourBuckets,0,i+1); // replace old with new and truncate to correct length
 		
-		
-		PersonalContour newContour = constructUsingSizeOf(this);
-		
-		PersonalContourBucket bucket = null;
-		for (int i=0; i < contourBuckets.length; i++) {
-			bucket = (PersonalContourBucket)contourBuckets[i];
-			newContour.contourBuckets[i] = bucket;
-			newDuration -= bucket.getDuration();
-			if (newDuration <= 0) {
-				newContour.contourBuckets[i] = bucket.adjustDuration(newDuration);// adding a negative value
-				if (i < contourBuckets.length -1 ) // if shortening number of buckets
-					System.arraycopy(newContour.contourBuckets,0,newContour.contourBuckets,0,i+1); // replace old with new and truncate to correct length
-		
-				AbstractContour result = newContour.makePacked(); // pack so as to get rid of any trailing empty buckets
-				return result;
+					AbstractContour result = newContour.makePacked(); // pack so as to get rid of any trailing empty buckets
+					return result;
+				}
 			}
+			// extend last bucket to account for duration
+			newContour.contourBuckets[contourBuckets.length-1] = bucket.adjustDuration(newDuration);
+			return newContour;
 		}
-		// extend last bucket to account for duration
-		newContour.contourBuckets[contourBuckets.length-1] = bucket.adjustDuration(newDuration);
-		return newContour;
+
+		ArrayList newList = bucketsBeforeDuration(actualDuration);
+		ArrayList after = bucketsAfterDuration(actualDuration, false);
+		long remainingDuration = Math.max(0, newDuration - actualDuration);
+		PersonalContourBucket lastBucket = null;
+
+		for (int i = 0; i < after.size(); i++) {
+			PersonalContourBucket bucket = (PersonalContourBucket) after.get(i);
+			if (remainingDuration <= 0) {
+				break;
+			}
+			if (remainingDuration < bucket.getDuration()) {
+				lastBucket = bucket.adjustDuration(remainingDuration - bucket.getDuration());
+				newList.add(lastBucket);
+				remainingDuration = 0;
+				break;
+			}
+			newList.add(bucket);
+			lastBucket = bucket;
+			remainingDuration -= bucket.getDuration();
+		}
+
+		if (remainingDuration > 0) {
+			if (lastBucket == null) {
+				lastBucket = (PersonalContourBucket) newList.get(newList.size() - 1);
+			} else {
+				newList.remove(newList.size() - 1);
+			}
+			lastBucket = lastBucket.adjustDuration(remainingDuration);
+			newList.add(lastBucket);
+		}
+
+		return getInstance(newList).makePacked();
 	}
 
 //	private AbstractContour makeFlatIfPossible() {
@@ -453,7 +486,6 @@ public class PersonalContour extends AbstractContour {
 		for (int i=0; i < contourBuckets.length; i++) {
 			bucket = (PersonalContourBucket) contourBuckets[i];
 			if (bucket == null) {
-				System.out.println("null bucket " + i + " in make packed - skipping");
 				continue;
 			}
 			if (previous != null && previous.getUnits() == bucket.getUnits()  && previous.isFiller() == bucket.isFiller()) { // if matches previous bucket, make new bucket

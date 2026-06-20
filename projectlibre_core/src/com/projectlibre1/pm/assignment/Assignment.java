@@ -64,6 +64,7 @@ import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.Collections;
 
 import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
@@ -320,14 +321,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	/**
-	 * @param contour The contour to set.
-	 * TODO get rid of this
-	 */
-	public void debugSetWorkContour(AbstractContour contour) {
-		newDetail().setWorkContour(contour);
-	}
-
-	/**
 	 * Accessor for the assignment's delay
 	 * @return delay
 	 */
@@ -420,7 +413,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		work = Duration.millis(work);
 		if (isLabor() && work < 60000) {
 			work *= Duration.timeUnitFactor(TimeUnit.HOURS);
-			System.out.println("modifying invalid work to make it hours");
 		}
 		long remainingWork = work - getActualWork(null);
 		WorkCalendar cal = getEffectiveWorkCalendar();
@@ -469,7 +461,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	//        shift the saturday   	=====  =====  shifting the saturday puts the task back as it was
 	//		set the interval     	====== =====  now I set the saturday value
 
-//			System.out.println("before adding" + getWorkContour());
 			addCalendarTime(start, end);
 			cal = getEffectiveWorkCalendar();
 			if (actual && getTask().getActualStart() == 0) {
@@ -477,9 +468,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 				((NormalTask)getTask()).setActualStartNoEvent(taskStart);
 			}
 			long addedDuration = cal.compare(end,start, false);
-//			System.out.println("before shift" + getWorkContour());
 			shift(start,end, addedDuration); // shift the remaining contour to the right by the duration of the inserted time
-//			System.out.println("after shift" + getWorkContour());
 
 			getTask().recalculateLater(this); // task needs to be recalculated
 
@@ -887,7 +876,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			}
 		}
 
-		return null;
+		throw new IllegalArgumentException("Unknown assignment data type: " + type);
 	}
 
 
@@ -1015,7 +1004,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	public long getDateAtWorkFraction(double workFraction) {
-//		System.out.println("all work is " + calcAll(WORK) / (1000*60*60*8));
 		return getDateAtValue(WORK,calcAll(WORK) * workFraction);
 	}
 
@@ -1126,8 +1114,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		} else {
 			if (TimeDistributedHelper.isWork(type)) {
 				Object baseline = TimeDistributedHelper.baselineForData(type);
-//System.out.println("baseline " + baseline + " " + new Date(start) + " " + new Date(end) + " " + value);
-
 				Assignment baselineAssignment = getBaselineAssignment(baseline, true); // get or create baseline assignment
 
 				// update the task schedule too
@@ -1238,7 +1224,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		WorkCalendar cal = getEffectiveWorkCalendar();
 
 		if (getTask().inProgress() && cal.compare(getStop(),start,false) > 0) { // if stop greater than start, can't change it
-		//	System.out.println("Not shifting - stop = " + new Date(getStop()) + "start " + new Date(start));
 			return;
 		}
 		long taskStart = getTask().getStart();
@@ -1311,11 +1296,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 * @see com.projectlibre1.pm.scheduling.Schedule#split(java.lang.Object, long, long)
 	 */
 	public void split(Object eventSource, long from, long to) {
-		from = Math.max(from,getResume());
-		if (from >= to)
-			return;
-		long duration = getEffectiveWorkCalendar().compare(to,from,false); // calculate shift duration
-		shift(from,getEnd(), duration); // shift the remaining contour to the right by the duration
+		detail.split(eventSource, from, to);
 	}
 
 	public void extendBefore(long start, long end, long extendDuration) {
@@ -1710,7 +1691,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public long getWork(FieldContext fieldContext) {
 		long w = work(FieldContext.start(fieldContext),FieldContext.end(fieldContext));
 		if (!isLabor()) {
-//			System.out.println("work before setting non temporal" + DurationFormat.format(w));
 			w = Duration.setAsNonTemporal(w);
 		}
 		return w;
@@ -1898,7 +1878,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 
 	public Collection childrenToRollup() {
-		return null;
+		return Collections.emptyList();
 	}
 
 
@@ -1941,8 +1921,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		if (getTask() != null)
 			getTask().setDirty(true);
 		setDirty(true);
-//System.out.println("after clone " + new Date(detail.getStop()));
-		return detail;
+			return detail;
 	}
 
 
@@ -2375,7 +2354,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return dirty;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("Assignment _setDirty("+dirty+"): "+getName());
 		this.dirty = dirty;
 		if (dirty){
 			Task task=getTask();

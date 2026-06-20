@@ -131,7 +131,7 @@ public class AssignmentFormat extends AssociationFormat {
 				try {
 					parameters.getIdField().setText(found,matcher.group(1),null);
 				} catch (FieldParseException e) {
-					throw new ParseException(e.getMessage(), 0); //TODO don't know about this - can it happen?
+					throw new ParseException(e.getMessage(), pos.getIndex());
 				}
 			} else {
 				throw new ParseException(getErrorMessage(string), pos.getIndex());
@@ -179,6 +179,9 @@ public class AssignmentFormat extends AssociationFormat {
 		} catch (ParseException e) {
 			parameters.setError(e.getMessage());
 			return null;
+		} catch (RuntimeException e) {
+			parameters.setError(e.getMessage());
+			return null;
 		}
 	}
 
@@ -206,15 +209,13 @@ public class AssignmentFormat extends AssociationFormat {
 	protected Collection getContainer(boolean left) {
 		if (left)
 			return ((Task) parameters.getThisObject()).getProject().getResourcePool().getResourceList();
-		else
-			return null; // TODO if we implement projet-specific resource pools, we can handle this
+		throw new IllegalArgumentException("Assignment parsing for the right side is not supported");
 	}
 
 	protected Object createNewObject(boolean left) {
 		if (left)
 			return ((Task) parameters.getThisObject()).getProject().getResourcePool().newResourceInstance();
-		else
-			return null; // TODO if we implement projet-specific resource pools, we can handle this
+		throw new IllegalArgumentException("Assignment parsing for the right side is not supported");
 	}
 	
 }

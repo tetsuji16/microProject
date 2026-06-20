@@ -99,7 +99,6 @@ public class PersonalContourFactoryVisitor implements CalculationVisitor {
 	 * @see com.projectlibre1.algorithm.CalculationVisitor#isCumulative()
 	 */
 	public boolean isCumulative() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 

@@ -94,8 +94,8 @@ import com.projectlibre1.pm.time.MutableInterval;
 public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedData, Serializable, Cloneable{
 	//private static Log log = LogFactory.getLog(HasAssignmentsImpl.class);
 	transient AssociationList assignments;
+	private static final double ALMOST_ZERO = 0.00001D;
 
-//TODO scheduling rule and effort driven don't make sense for resources, so make them go away?
 	int schedulingRule = ScheduleOption.getInstance().getSchedulingRule();
 	boolean effortDriven = ScheduleOption.getInstance().isEffortDriven();
 
@@ -113,10 +113,11 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 */
 	private HasAssignmentsImpl(HasAssignmentsImpl from) {
 		this();
-		Iterator i = from.assignments.iterator();
-		while (i.hasNext()) {
-			assignments.add(new Assignment((Assignment)i.next()));
-		}
+		copyAssignments(from.assignments, new AssignmentFactory() {
+			public Assignment create(Assignment assignment) {
+				return new Assignment(assignment);
+			}
+		});
 	}
 	public HasAssignmentsImpl(Collection details) {
 		this();
@@ -156,10 +157,9 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		}
 	}
 
-	//very deep copy of assignments contrary to copy constructor which doesn't clone assigments' detail
-	public HasAssignments deepCloneWithTask(Task task) { //TODO doesn't
-		HasAssignmentsImpl newOne = (HasAssignmentsImpl)cloneWithTask(task);
-		return newOne;
+	// Very deep copy of assignments, including task rebinding.
+	public HasAssignments deepCloneWithTask(Task task) {
+		return (HasAssignmentsImpl) cloneWithTask(task);
 	}
 	public Object clone(){
 		try {
@@ -172,30 +172,21 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 			HasAssignmentsImpl clone=(HasAssignmentsImpl)clone();
 			clone.assignments=new AssociationList();
 
-			//TODO doesn't work when it's copied between projects
-			Iterator i = assignments.iterator();
-			while (i.hasNext()) {
-				clone.assignments.add(((Assignment)i.next()).cloneWithTask(task));
-//				clone.assignments.add(((Assignment)i.next()).cloneWithResourceAndTask(ResourceImpl.getUnassignedInstance(),task));
-				//break;
-			}
-
-
-//			Iterator i = assignments.iterator();
-//			while (i.hasNext()) {
-//				clone.assignments.add(((Assignment)i.next()).cloneWithTask(task));
-//			}
-
+			clone.copyAssignments(assignments, new AssignmentFactory() {
+				public Assignment create(Assignment assignment) {
+					return (Assignment) assignment.cloneWithTask(task);
+				}
+			});
 			return clone;
 	}
 	public Object cloneWithResource(Resource resource){
 		HasAssignmentsImpl clone=(HasAssignmentsImpl)clone();
 		clone.assignments=new AssociationList();
-		Iterator i = assignments.iterator();
-		while (i.hasNext()) {
-			clone.assignments.add(((Assignment)i.next()).cloneWithResource(resource));
-		}
-
+		clone.copyAssignments(assignments, new AssignmentFactory() {
+			public Assignment create(Assignment assignment) {
+				return (Assignment) assignment.cloneWithResource(resource);
+			}
+		});
 		return clone;
 }
 
@@ -225,28 +216,22 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 * Finds an assignment given a resource
 	 */
 	public Assignment findAssignment(Resource resource) {
-		Iterator i = assignments.iterator();
-		Assignment result = null;
-		while (i.hasNext()) {
-			result = (Assignment)i.next();
-			if (result.getResource() == resource)
-				return result;
-		}
-		return null;
+		return findAssignment(new AssignmentMatcher() {
+			public boolean matches(Assignment assignment) {
+				return assignment.getResource() == resource;
+			}
+		});
 	}
 
 	/**
 	 * Finds an assignment given a task
 	 */
 	public Assignment findAssignment(Task task) {
-		Iterator i = assignments.iterator();
-		Assignment result = null;
-		while (i.hasNext()) {
-			result = (Assignment)i.next();
-			if (result.getTask() == task)
-				return result;
-		}
-		return null;
+		return findAssignment(new AssignmentMatcher() {
+			public boolean matches(Assignment assignment) {
+				return assignment.getTask() == task;
+			}
+		});
 	}
 
 
@@ -284,9 +269,8 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 */
 	public void buildReverseQuery(ReverseQuery reverseQuery) {
 		Iterator i = assignments.iterator();
-		Assignment assignment;
 		while (i.hasNext()) {
-			assignment = (Assignment) i.next();
+			Assignment assignment = (Assignment) i.next();
 			if (assignment.isDefault() && !reverseQuery.isAllowDefaultAssignments())
 				continue;
 			assignment.buildReverseQuery(reverseQuery);
@@ -321,31 +305,34 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 
 
 	public void forEachInterval(Closure visitor, Object type, WorkCalendar workCalendar) {
-		NonGroupedCalculatedValues calculatedValues = new NonGroupedCalculatedValues(false,0);
-		ListIterator i = assignments.listIterator();
-		Assignment assignment = null;
-
-		while (i.hasNext()) { // add in all child groups
-			assignment = (Assignment)i.next();
-			barCallback.setWorkCalendar(assignment.getEffectiveWorkCalendar()); // use this assignments cal because it might work on off calendar time
-			assignment.calcDataBetween(type,null,calculatedValues);
-		}
-		calculatedValues.makeContiguousNonZero(barCallback,workCalendar);
-		//calculatedValues.dump();
+		IntervalVisitorCallback callback = new IntervalVisitorCallback();
+		callback.initialize(workCalendar, visitor, true);
+		collectIntervals(type, workCalendar, callback);
 	}
 	public void forEachWorkingInterval(final Closure visitor, boolean mergeWorking, WorkCalendar workCalendar) {
-		barCallback.initialize(workCalendar,visitor,true);
-		forEachInterval(visitor,ACTUAL_WORK, workCalendar);
+		IntervalVisitorCallback callback = new IntervalVisitorCallback();
+		callback.initialize(workCalendar,visitor,true);
+		collectIntervals(ACTUAL_WORK, workCalendar, callback);
 /* if the splitting should be at latest bar use this code
 		barCallback.finish();
 		barCallback.initialize(workCalendar,visitor,false);
 */
-		barCallback.initialize(workCalendar,visitor,true);
-		forEachInterval(visitor,REMAINING_WORK, workCalendar);
+		callback.initialize(workCalendar,visitor,true);
+		collectIntervals(REMAINING_WORK, workCalendar, callback);
 	}
 
-	private static BarSeriesCallback barCallback = new BarSeriesCallback();
-	private static class BarSeriesCallback implements IntervalCallback {
+	private void collectIntervals(Object type, WorkCalendar workCalendar, IntervalVisitorCallback callback) {
+		NonGroupedCalculatedValues calculatedValues = new NonGroupedCalculatedValues(false,0);
+		ListIterator i = assignments.listIterator();
+		while (i.hasNext()) {
+			Assignment assignment = (Assignment)i.next();
+			callback.setWorkCalendar(assignment.getEffectiveWorkCalendar());
+			assignment.calcDataBetween(type,null,calculatedValues);
+		}
+		calculatedValues.makeContiguousNonZero(callback,workCalendar);
+	}
+
+	private static class IntervalVisitorCallback implements IntervalCallback {
 		long barStart = 0;
 		WorkCalendar workCalendar;
 		MutableInterval interval = new MutableInterval(0,0);
@@ -368,7 +355,6 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 			this.workCalendar = workCalendar;
 
 		}
-		private static double ALMOST_ZERO = 0.00001;
 		public void add(int index, long start, long end, double value) {
 			if (value <= ALMOST_ZERO) { // because of rounding errors, treat 0 as something very small
 				if (workCalendar.compare(end,start,false) == 0)
@@ -393,16 +379,9 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		private void initialize(WorkCalendar workCalendar, Closure visitor, boolean firstTime) {
 			if (firstTime)
 				previousEnd = 0;
+			barStart = 0;
 			this.workCalendar = workCalendar;
 			this.visitor = visitor;
-		}
-
-		private void finish() {
-			if (barStart != 0) {
-//				System.out.println("finishing bar " + new Date(barStart) + " " + new Date(previousEnd));
-				executeVisitor(barStart,previousEnd);
-			}
-			barStart = 0;
 		}
 	}
 
@@ -410,28 +389,28 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 * @see com.projectlibre1.pm.costing.EarnedValueValues#acwp(long, long)
 	 */
 	public double acwp(long start, long end) {
-		return TimeDistributedDataConsolidator.acwp(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.acwp(start,end,rollupChildren());
 	}
 
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.costing.EarnedValueValues#bac(long, long)
 	 */
 	public double bac(long start, long end) {
-		return TimeDistributedDataConsolidator.bac(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.bac(start,end,rollupChildren());
 	}
 
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.costing.EarnedValueValues#bcwp(long, long)
 	 */
 	public double bcwp(long start, long end) {
-		return TimeDistributedDataConsolidator.bcwp(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.bcwp(start,end,rollupChildren());
 	}
 
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.costing.EarnedValueValues#bcws(long, long)
 	 */
 	public double bcws(long start, long end) {
-		return TimeDistributedDataConsolidator.bcws(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.bcws(start,end,rollupChildren());
 	}
 
 
@@ -439,21 +418,21 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#cost(long, long)
 	 */
 	public double cost(long start, long end) {
-		return TimeDistributedDataConsolidator.cost(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.cost(start,end,rollupChildren());
 	}
 
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#cost(long, long)
 	 */
 	public double baselineCost(long start, long end) {
-		return TimeDistributedDataConsolidator.baselineCost(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.baselineCost(start,end,rollupChildren());
 	}
 
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#cost(long, long)
 	 */
 	public long baselineWork(long start, long end) {
-		return TimeDistributedDataConsolidator.baselineWork(start,end,childrenToRollup(),true);
+		return TimeDistributedDataConsolidator.baselineWork(start,end,rollupChildren(),true);
 	}
 
 
@@ -461,25 +440,25 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#actualCost(long, long)
 	 */
 	public double actualCost(long start, long end) {
-		return TimeDistributedDataConsolidator.actualCost(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.actualCost(start,end,rollupChildren());
 	}
 
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#work(long, long)
 	 */
 	public long work(long start, long end) {
-		return TimeDistributedDataConsolidator.work(start,end,childrenToRollup(),true);
+		return TimeDistributedDataConsolidator.work(start,end,rollupChildren(),true);
 	}
 
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#actualWork(long, long)
 	 */
 	public long actualWork(long start, long end) {
-		return TimeDistributedDataConsolidator.actualWork(start,end,childrenToRollup(),true);
+		return TimeDistributedDataConsolidator.actualWork(start,end,rollupChildren(),true);
 	}
 
 	public long remainingWork(long start, long end) {
-		return TimeDistributedDataConsolidator.remainingWork(start,end,childrenToRollup(),true);
+		return TimeDistributedDataConsolidator.remainingWork(start,end,rollupChildren(),true);
 	}
 
 	public void calcDataBetween(Object type, TimeIteratorGenerator generator, CalculatedValues values) {
@@ -487,7 +466,6 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		while (i.hasNext()) {
 			((Assignment)i.next()).calcDataBetween(type,generator,values);
 		}
-
 	}
 
     public static List extractOppositeList(List list, boolean leftObject) {
@@ -496,7 +474,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
     	while (i.hasNext()) { // go thru tasks or resources
     		Object object = i.next();
 			if (! (object instanceof HasAssignments))
-				continue; //TODO currently getting voidNodeImpl's.  This should go away when fixed
+				continue;
 			HasAssignments hasAssignments = (HasAssignments)object;
 			assignments.addAll(hasAssignments.getAssignments());
 		}
@@ -508,6 +486,10 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 */
 	public Collection childrenToRollup() {
 		return assignments;
+	}
+
+	private Collection rollupChildren() {
+		return childrenToRollup();
 	}
 
 
@@ -562,14 +544,12 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#fixedCost(long, long)
 	 */
 	public double fixedCost(long start, long end) {
-		// TODO Auto-generated method stub
 		return 0;
 	}
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#actualFixedCost(long, long)
 	 */
 	public double actualFixedCost(long start, long end) {
-		// TODO Auto-generated method stub
 		return 0;
 	}
 
@@ -577,7 +557,6 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#isLabor()
 	 */
 	public boolean isLabor() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
@@ -621,6 +600,31 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 			result = Math.min(result,((Assignment)i.next()).getStart());
 		}
 		return result;
+	}
+
+	private Assignment findAssignment(AssignmentMatcher matcher) {
+		Iterator i = assignments.iterator();
+		while (i.hasNext()) {
+			Assignment assignment = (Assignment) i.next();
+			if (matcher.matches(assignment))
+				return assignment;
+		}
+		return null;
+	}
+
+	private void copyAssignments(Collection sourceAssignments, AssignmentFactory factory) {
+		Iterator i = sourceAssignments.iterator();
+		while (i.hasNext()) {
+			assignments.add(factory.create((Assignment) i.next()));
+		}
+	}
+
+	private interface AssignmentMatcher {
+		boolean matches(Assignment assignment);
+	}
+
+	private interface AssignmentFactory {
+		Assignment create(Assignment assignment);
 	}
 
 }

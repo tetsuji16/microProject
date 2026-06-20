@@ -96,7 +96,6 @@ public class WorkFunctor extends AssignmentFieldOvertimeFunctor {
 			regularValue += bucket.getEffectiveUnits(assignment.getUnits()) * bucketDuration;
 			overtimeValue += overtimeUnits * bucketDuration;
 			value = regularValue + overtimeValue;
-//			System.out.println("interval " + new java.util.Date(interval.getStart()) + " " + new java.util.Date(interval.getEnd()) +  " bucket " + com.projectlibre1.datatype.DurationFormat.format((long) bucketDuration) + " units " + bucket.getEffectiveUnits(assignment.getUnits()) + " perso " + (bucket instanceof PersonalContourBucket));
 		}
 	}
 

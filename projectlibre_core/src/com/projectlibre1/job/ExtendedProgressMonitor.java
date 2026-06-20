@@ -64,7 +64,6 @@ public class ExtendedProgressMonitor extends ProgressMonitor {
 	public ExtendedProgressMonitor(Component parentComponent, Object message,
 			String note, int min, int max) {
 		super(parentComponent, message, note, min, max);
-		// TODO Auto-generated constructor stub
 	}
     public void close() {
     	super.close();

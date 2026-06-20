@@ -77,13 +77,7 @@ public abstract class AssignmentFieldOvertimeFunctor extends AssignmentFieldFunc
 		this.overtimeUnits = overtimeUnits;
 	}
 
-	/* (non-Javadoc)
-	 * @see org.apache.commons.collections.Closure#execute(java.lang.Object)
-	 */
-	public void execute(Object arg0) {
-		// TODO Auto-generated method stub
-
-	}
+	public abstract void execute(Object arg0);
 
 	protected double overtimeUnits;
 	protected double regularValue = 0.0;

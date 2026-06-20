@@ -87,13 +87,12 @@ public final class TaskSchedule implements Cloneable {
 	private long finish;
 	
 
-	// Calculated fields that are transient
-//TODO don't bother serializing these.  When I make them transient, the program hangs
-	private Task task;
-	private int type;
-	private boolean forward = true;
-	private long dependencyDate = Dependency.NEEDS_CALCULATION;
-	private long remainingDependencyDate = 0;
+	// Calculated fields are re-established from the owning task and schedule type.
+	private transient Task task;
+	private transient int type;
+	private transient boolean forward = true;
+	private transient long dependencyDate = Dependency.NEEDS_CALCULATION;
+	private transient long remainingDependencyDate = 0;
 	
 	public TaskSchedule() {
 		
@@ -106,10 +105,7 @@ public final class TaskSchedule implements Cloneable {
 	public void init(Task task, int type) {
 		this.task = task;
 		this.type = type;
-		if (type == EARLY)
-			forward = true;
-		else if (type == LATE)
-			forward = false;
+		updateForwardFromType();
 		dependencyDate = Dependency.NEEDS_CALCULATION;
 		invalidate();
 	}
@@ -117,10 +113,7 @@ public final class TaskSchedule implements Cloneable {
 	public void initSerialized(Task task, int type) {
 		this.task = task;
 		this.type = type;
-		if (type == EARLY)
-			forward = true;
-		else if (type == LATE)
-			forward = false;
+		updateForwardFromType();
 	}		
 	public void setTask(Task task) {
 		this.task = task;
@@ -275,12 +268,8 @@ public final class TaskSchedule implements Cloneable {
 	public void setForward(boolean forward) {
 		if (this.forward != forward) {
 			this.forward = forward;
-			long s = start;
-			start = -finish;
-			finish = -s;
-			dependencyDate = -dependencyDate;
-			remainingDependencyDate = -remainingDependencyDate;
-			
+			flipStoredBounds();
+			flipDependencyDates();
 		}
 	}
 	/**
@@ -344,20 +333,10 @@ public final class TaskSchedule implements Cloneable {
 			
 			if (context.assign && !unopenedSubproject) {
 				TaskSchedule currentSchedule = task.getCurrentSchedule();
-				if (newBegin < 0) {
-					currentSchedule.setStart(-newEnd);
-					currentSchedule.setFinish(-newBegin);
-					currentSchedule.setRemainingDependencyDate(-remainingDependencyDate);
-				} else {
-					currentSchedule.setStart(newBegin);
-					currentSchedule.setFinish(newEnd);
-					currentSchedule.setRemainingDependencyDate(remainingDependencyDate);
-	
-				}
-				currentSchedule.setDependencyDate(dependencyDate);
+				assignToCurrentSchedule(currentSchedule, newBegin, newEnd);
 				// for parents, set current schedule's duration
 				if (context.taskReferenceType == PredecessorTaskList.TaskReference.PARENT_END) {
-					//TODO this only needs to be done if advancement changed on a task
+					// This only needs to be done if advancement changed on a task.
 					currentSchedule.updateDurationFromDates(); // calculate duration based on parent start/end
 					((NormalTask)(currentSchedule.task)).assignActualDatesFromChildren();
 				}
@@ -703,6 +682,54 @@ public final class TaskSchedule implements Cloneable {
 	 */
 	public static Date d(long l) {
 		return new Date(Math.abs(l));
+	}
+
+	private void resetTransientState() {
+		task = null;
+		type = CURRENT;
+		forward = true;
+		dependencyDate = Dependency.NEEDS_CALCULATION;
+		remainingDependencyDate = 0;
+	}
+
+	private void updateForwardFromType() {
+		if (type == EARLY)
+			forward = true;
+		else if (type == LATE)
+			forward = false;
+	}
+
+	private void flipStoredBounds() {
+		long originalStart = start;
+		start = -finish;
+		finish = -originalStart;
+	}
+
+	private void flipDependencyDates() {
+		dependencyDate = -dependencyDate;
+		remainingDependencyDate = -remainingDependencyDate;
+	}
+
+	private void assignToCurrentSchedule(TaskSchedule currentSchedule, long newBegin, long newEnd) {
+		if (newBegin < 0) {
+			currentSchedule.setStart(-newEnd);
+			currentSchedule.setFinish(-newBegin);
+			currentSchedule.setRemainingDependencyDate(-remainingDependencyDate);
+		} else {
+			currentSchedule.setStart(newBegin);
+			currentSchedule.setFinish(newEnd);
+			currentSchedule.setRemainingDependencyDate(remainingDependencyDate);
+		}
+		currentSchedule.setDependencyDate(dependencyDate);
+	}
+
+	private void writeObject(ObjectOutputStream s) throws IOException {
+		s.defaultWriteObject();
+	}
+
+	private void readObject(ObjectInputStream s) throws IOException, ClassNotFoundException {
+		s.defaultReadObject();
+		resetTransientState();
 	}
 /**
  * Structure used to store variables related to the pass

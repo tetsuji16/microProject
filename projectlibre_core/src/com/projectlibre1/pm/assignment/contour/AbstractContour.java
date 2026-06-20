@@ -89,7 +89,7 @@ public abstract class AbstractContour implements Cloneable{
 		long duration = 0;
 		for (int i=0; i < contourBuckets.length; i++) {
 			if (contourBuckets[i] == null)
-				System.out.println(toString(assignmentDuration));
+				throw new IllegalStateException("Null contour bucket at index " + i + ": " + toString(assignmentDuration));
 			if (!excludeNonWorkBuckets || contourBuckets[i].getUnits() != 0.0) // do not add in durations for time off if excluding nonwork buckets
 				duration += contourBuckets[i].getBucketDuration(assignmentDuration);
 		}		

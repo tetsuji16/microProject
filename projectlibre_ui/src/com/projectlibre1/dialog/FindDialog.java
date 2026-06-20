@@ -107,7 +107,6 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	SearchContext context;
 	JButton next;
 	JButton previous;
-	private static FindDialog instance = null;
 	public static FindDialog getInstance(DocumentFrame owner,Searchable searchable, Field current) {
 		return new FindDialog(owner,searchable,current);
 	}
@@ -178,7 +177,6 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 //		initControls();
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
-		//TODO set minimum size
 		FormLayout layout = new FormLayout("default, 3dlu, default, 3dlu, default", // cols //$NON-NLS-1$
 				"p, 3dlu, p"); // rows //$NON-NLS-1$
 
@@ -231,7 +229,6 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 				context.setForward(false);
 				onOk();
 			}});
-		// TODO Auto-generated method stub
 		search.addKeyListener(new KeyListener() {
 			public void keyPressed(KeyEvent e) {
 			}
@@ -255,6 +252,16 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	@Override
 	protected boolean hasOkAndCancelButtons() {
 		return false;
+	}
+
+	@Override
+	public void dispose() {
+		DocumentSelectedEvent.removeListener(this);
+		if (documentFrame != null) {
+			documentFrame.getProject().removeObjectListener(this);
+			documentFrame = null;
+		}
+		super.dispose();
 	}
 
 }

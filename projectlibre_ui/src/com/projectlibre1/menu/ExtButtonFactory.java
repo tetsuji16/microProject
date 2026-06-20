@@ -81,7 +81,6 @@ public class ExtButtonFactory extends ButtonFactory {
 	public final static String DOC_SUFFIX = ".doc";
 	public static Color BACKGROUND_COLOR = null;
 	public AbstractButton createJToolbarButton(String name) throws MissingResourceException, ResourceFormatException, MissingListenerException {
-		// TODO Auto-generated method stub
 		String type = null;
 		AbstractButton result = null;
 		try {
@@ -117,7 +116,6 @@ public class ExtButtonFactory extends ButtonFactory {
 	 */
 	public ExtButtonFactory(ActionMap am, ResourceBundle...rb) {
 		super(am, rb);
-		// TODO Auto-generated constructor stub
 	}
 
 	public JComponent createJComboBox(String name)

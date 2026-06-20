@@ -56,7 +56,9 @@
 package com.projectlibre1.pm.assignment;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
 import javax.swing.undo.UndoableEditSupport;
 
@@ -95,31 +97,36 @@ public class AssignmentService {
 		if (tasks.size()==0||resources.size()==0) return;
 		int transactionId = 0;
 		Project transactionProject = null;
-		for (Iterator i=tasks.iterator();i.hasNext();){
-			NormalTask task = (NormalTask)i.next();
+		try {
+			for (Iterator i=tasks.iterator();i.hasNext();){
+				NormalTask task = (NormalTask)i.next();
 //			if (!task.isAssignable())
 //				continue;
-			if (transactionId == 0) {
-				transactionProject = task.getProject();
-				transactionProject.beginUndoUpdate();
-				transactionId = transactionProject.fireMultipleTransaction(0,true);
+				if (transactionId == 0) {
+					transactionProject = task.getProject();
+					transactionProject.beginUndoUpdate();
+					transactionId = transactionProject.fireMultipleTransaction(0,true);
 				
-				//backup before any assignment operation
-				transactionProject.getUndoController().getEditSupport().postEdit(new ScheduleBackupEdit(tasks,this));
-			}
-			// if task currently has no assignments, then we should not change duration if adding several at once
-			boolean taskHasNoAssignments = !task.hasRealAssignments() || !task.hasLaborAssignment();
-			int oldSchedulingType = task.getSchedulingType();
-			boolean oldEffortDriven = task.isEffortDriven();
-			if (taskHasNoAssignments) {// if adding for first time
-				task.setSchedulingType(SchedulingType.FIXED_DURATION);
-				task.setEffortDriven(false);
-			}
+					//backup before any assignment operation
+					transactionProject.getUndoController().getEditSupport().postEdit(new ScheduleBackupEdit(tasks,this));
+				}
+				// if task currently has no assignments, then we should not change duration if adding several at once
+				boolean taskHasNoAssignments = !task.hasRealAssignments() || !task.hasLaborAssignment();
+				int oldSchedulingType = task.getSchedulingType();
+				boolean oldEffortDriven = task.isEffortDriven();
+				Set assignedResources = new HashSet();
+				for (Iterator existing = task.getAssignments().iterator(); existing.hasNext();) {
+					assignedResources.add(((Assignment) existing.next()).getResource());
+				}
+				if (taskHasNoAssignments) {// if adding for first time
+					task.setSchedulingType(SchedulingType.FIXED_DURATION);
+					task.setEffortDriven(false);
+				}
 
-			Iterator r = resources.iterator();
-			while (r.hasNext()) {
-				Resource resource = (Resource) r.next();
-				if (null == task.findAssignment(resource)) {
+				Iterator r = resources.iterator();
+				while (r.hasNext()) {
+					Resource resource = (Resource) r.next();
+					if (!assignedResources.contains(resource)) {
 //					double units = 1.0D;
 //TODO Bug 330: this is slow and uses tons of memory when assigning many at once. optimizing by doing just one update
 //The result is that AssignmentNodeModel.objectChanged(ObjectEvent objectEvent) is called for each assignment
@@ -127,21 +134,25 @@ public class AssignmentService {
 //Perhaps one solution would be to replace hierarchy search() with a hash table for mapping impls to nodes
 
 //TODO It throws an event for assignment. A service for updating all the assignments at once should be added.
-					Assignment assignment = newAssignment(task,resource,units,0,eventSource,true);
-					if (!resource.isLabor()) // for assigning non temporal resources, use the value of 1
-						assignment.setRateUnit(TimeUnit.NON_TEMPORAL);
+						Assignment assignment = newAssignment(task,resource,units,0,eventSource,true);
+						if (assignment != null) {
+							if (!resource.isLabor()) // for assigning non temporal resources, use the value of 1
+								assignment.setRateUnit(TimeUnit.NON_TEMPORAL);
+							assignedResources.add(resource);
+						}
+					}
+				}
+				if (taskHasNoAssignments) {// if adding for first time, put back effort driven value
+					task.setSchedulingType(oldSchedulingType);
+					task.setEffortDriven(oldEffortDriven);
 				}
 			}
-			if (taskHasNoAssignments) {// if adding for first time, put back effort driven value
-				task.setSchedulingType(oldSchedulingType);
-				task.setEffortDriven(oldEffortDriven);
+		} finally {
+			if (transactionId != 0) {
+				transactionProject.fireMultipleTransaction(transactionId,false);
+				transactionProject.endUndoUpdate();
 			}
 		}
-		if (transactionId != 0) {
-			transactionProject.fireMultipleTransaction(transactionId,false);
-			transactionProject.endUndoUpdate();
-		}
-
 	}
 
 

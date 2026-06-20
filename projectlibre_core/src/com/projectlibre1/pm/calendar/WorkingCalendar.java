@@ -99,6 +99,10 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		getObjectsUsing().remove(cal);
 	}
 
+	private void invalidateConcreteInstance() {
+		concrete = null;
+	}
+
 	private transient HasCommonKeyImpl hasKey = new HasCommonKeyImpl(true,this); //true if calendars aren't internal
 	private WorkingCalendar() { // for static
 		super();
@@ -115,8 +119,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		try {
 			cal.setBaseCalendar(base);
 		} catch (CircularDependencyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw impossibleCircularDependency(e);
 		}
 		return cal;
 	}
@@ -125,10 +128,9 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		try {
 			cal.setBaseCalendar(WorkingCalendar.getStandardInstance());
 		} catch (CircularDependencyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw impossibleCircularDependency(e);
 		}
-		return cal; //TODO should share this instance
+		return cal;
 	}
 
 	public Object clone() throws CloneNotSupportedException {
@@ -147,8 +149,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 			newOne.setName(getName());
 			newOne.differences = (CalendarDefinition) differences.clone();
 		} catch (CloneNotSupportedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new IllegalStateException("Calendar definition should be cloneable", e);
 		}
 		return newOne;
 	}
@@ -181,7 +182,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 //			CalendarService.getInstance().add(this);
 		}
 		differences = source.differences;
-		concrete = null;
+		invalidateConcreteInstance();
 	}
 
 	private WorkCalendar baseCalendar = null;
@@ -205,10 +206,12 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	public void addOrReplaceException(WorkDay exceptionDay) {
 		exceptionDay.initialize(); // make sure cached duration is set
 		differences.addOrReplaceException(exceptionDay);
+		invalidateConcreteInstance();
 	}
 
 	public void removeException(WorkDay exceptionDay) {
 		differences.dayExceptions.remove(exceptionDay); // remove any existing
+		invalidateConcreteInstance();
 	}
 
 
@@ -227,7 +230,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	}
 
 	public void invalidate() {
-		concrete = null;
+		invalidateConcreteInstance();
 		CalendarService.getInstance().invalidate(this);
 	}
 
@@ -257,6 +260,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		if (baseCalendar != null && baseCalendar.dependsOn(this)) // avoid circular
 			throw new CircularDependencyException(Messages.getString("Calendar.ExceptionCircular"));
 		this.baseCalendar = baseCalendar;
+		invalidateConcreteInstance();
 	}
 
 	public void changeBaseCalendar(WorkCalendar baseCalendar) throws CircularDependencyException {
@@ -522,26 +526,25 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		WorkDay day = getDay(differences.dayExceptions,date);
 		if (day != null)
 			differences.dayExceptions.remove(day);
-		concrete = null;
+		invalidateConcreteInstance();
 	}
 
 	void makeDefaultWeekDay(int dayNum) {
 		dayNum -=1; // SUNDAY is 1, so need to subtract 1
 		differences.week.setWeekDay(dayNum,null);
-		concrete = null;
+		invalidateConcreteInstance();
 	}
 
 	void setDayNonWorking(long date) {
 		WorkDay day = new WorkDay(date,date);
 		addOrReplaceException(day);
-		concrete = null;
 	}
 
 	void setWeekDayNonWorking(int dayNum) {
 		dayNum -=1; // SUNDAY is 1, so need to subtract 1
 		WorkDay day = new WorkDay();
 		differences.week.setWeekDay(dayNum,day);
-		concrete = null;
+		invalidateConcreteInstance();
 	}
 
 	void setDayWorkingHours(long date, WorkingHours workingHours) throws WorkRangeException{
@@ -549,7 +552,6 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		WorkDay day = new WorkDay(date,date);
 		day.setWorkingHours(workingHours);
 		addOrReplaceException(day);
-		concrete = null;
 	}
 	void setWeekDayWorkingHours(int dayNum, WorkingHours workingHours) throws WorkRangeException{
 		dayNum -=1; // SUNDAY is 1, so need to subtract 1
@@ -557,7 +559,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		WorkDay day = new WorkDay();
 		day.setWorkingHours(workingHours);
 		differences.week.setWeekDay(dayNum,day);
-		concrete = null;
+		invalidateConcreteInstance();
 	}
 
 	String serializedName=""; // non transient version of name for serialization
@@ -630,7 +632,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	}
 
 	public void notifyChanged() {
-		concrete = null;
+		invalidateConcreteInstance();
 	}
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.calendar.WorkCalendar#isInvalid()
@@ -715,6 +717,10 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 //			}
 //		}
 
+	}
+
+	private static IllegalStateException impossibleCircularDependency(CircularDependencyException e) {
+		return new IllegalStateException("Unexpected circular calendar dependency during instance creation", e);
 	}
 
 }

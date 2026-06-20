@@ -66,7 +66,6 @@ public class UniqueIdException extends Exception {
 	 */
 	public UniqueIdException() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -74,7 +73,6 @@ public class UniqueIdException extends Exception {
 	 */
 	public UniqueIdException(String message) {
 		super(message);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -82,7 +80,6 @@ public class UniqueIdException extends Exception {
 	 */
 	public UniqueIdException(Throwable cause) {
 		super(cause);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -91,7 +88,6 @@ public class UniqueIdException extends Exception {
 	 */
 	public UniqueIdException(String message, Throwable cause) {
 		super(message, cause);
-		// TODO Auto-generated constructor stub
 	}
 
 }

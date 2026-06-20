@@ -430,8 +430,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	void doRecurringTaskDialog() {
 		finishAnyOperations();
-//		RecurringTaskInformationDialogBox.getInstance(getGraphicManager().getFrame(), null)
-//				.doModal();
+		new RecurringTaskCoordinator().openDialogAndInsert(this);
 	}
 
 	void doBarDialog() {

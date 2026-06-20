@@ -72,11 +72,9 @@ import com.projectlibre1.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.projectlibre1.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
-import com.projectlibre1.configuration.Dictionary;
 import com.projectlibre1.document.Document;
 import com.projectlibre1.field.FieldContext;
 import com.projectlibre1.graphic.configuration.CellStyle;
-import com.projectlibre1.graphic.configuration.SpreadSheetFieldArray;
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.pm.resource.Resource;
@@ -141,7 +139,7 @@ public class ResourceView extends JScrollPane implements BaseView {
 	}
 
 	public void cleanUp() {
-		spreadSheet.cleanUp();
+		SpreadsheetViewSupport.cleanup(spreadSheet);
 		spreadSheet = null;
 		model = null;
 		cache = null;
@@ -218,20 +216,14 @@ public class ResourceView extends JScrollPane implements BaseView {
         };
 		spreadSheet.setSpreadSheetCategory(spreadsheetCategory); // for columns - must do first
 		
-		SpreadSheetFieldArray fields=getFields();
+		com.projectlibre1.graphic.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getResourceFields();
 		if (((ResourcePool)document).isMaster()){
-			fields=(SpreadSheetFieldArray)fields.clone();
+			fields=(com.projectlibre1.graphic.configuration.SpreadSheetFieldArray)fields.clone();
 			fields.removeField("Field.userRole"); //$NON-NLS-1$
 		}
 		spreadSheet.setCache(cache,fields,fields.getCellStyle(),fields.getActionList());
 		((SpreadSheetModel)spreadSheet.getModel()).setFieldContext(fieldContext);
 		spreadSheet.setReadOnly(readOnly);
-	}
-
-	
-	//spreadsheet fields
-	private static SpreadSheetFieldArray getFields() {
-		return (SpreadSheetFieldArray) Dictionary.get(spreadsheetCategory,Messages.getString("Spreadsheet.Resource.entryWorkResources")); //TODO don't hardcode //$NON-NLS-1$
 	}
 
 	/**
@@ -300,13 +292,10 @@ public class ResourceView extends JScrollPane implements BaseView {
 	}
 
 	public boolean canScrollToTask() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
 	public void scrollToTask() {
-		// TODO Auto-generated method stub
-		
 	}
 	
 	public NodeModelCache getCache(){

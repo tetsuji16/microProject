@@ -65,7 +65,6 @@ public class NodeException extends Exception {
 	 */
 	public NodeException() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -73,7 +72,6 @@ public class NodeException extends Exception {
 	 */
 	public NodeException(String message) {
 		super(message);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -81,7 +79,6 @@ public class NodeException extends Exception {
 	 */
 	public NodeException(Throwable cause) {
 		super(cause);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -90,7 +87,6 @@ public class NodeException extends Exception {
 	 */
 	public NodeException(String message, Throwable cause) {
 		super(message, cause);
-		// TODO Auto-generated constructor stub
 	}
 
 }

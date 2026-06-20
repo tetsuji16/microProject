@@ -81,7 +81,7 @@ public class PersonalContourBuilderFunctor extends AssignmentFieldFunctor{
 
 	private PersonalContourBuilderFunctor(Assignment assignment, WorkCalendar workCalendar, ContourBucketIntervalGenerator contourBucketIntervalGenerator, CollectionIntervalGenerator replacementGenerator, Collection collection) {
 		super(assignment, workCalendar, contourBucketIntervalGenerator);
-		assignmentWork = assignment.calcWork(); //TODO verify if need work or duration
+		assignmentWork = assignment.calcWork();
 		this.replacementGenerator = replacementGenerator;
 		this.collection = collection;
 	}
@@ -100,8 +100,6 @@ public class PersonalContourBuilderFunctor extends AssignmentFieldFunctor{
 
 		AbstractContourBucket bucket = null;
 		long intervalDuration = 0;
-//		System.out.println("--interval " + new java.util.Date(interval.getStart()) + " - " + new java.util.Date(interval.getEnd()));
-
 		// if beginning a replacement interval
 		if (replacementGenerator.isCurrentActive() && replacementGenerator.currentStart() == interval.getStart()) {
 			intervalDuration = workCalendar.compare(replacementGenerator.getEnd(),replacementGenerator.getStart(), false); // get duration of new region

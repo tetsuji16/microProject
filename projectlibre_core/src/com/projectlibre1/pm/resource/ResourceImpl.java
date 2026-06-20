@@ -108,6 +108,21 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	static final long serialVersionUID = 9485792329492L;
 	private static ResourceImpl UNASSIGNED = null;
 	static HashSet readOnlyUserFields = null;
+	private static final AssignmentStatusMatcher IN_PROGRESS_MATCHER = new AssignmentStatusMatcher() {
+		public boolean matches(Assignment assignment) {
+			return assignment.inProgress();
+		}
+	};
+	private static final AssignmentStatusMatcher UNSTARTED_MATCHER = new AssignmentStatusMatcher() {
+		public boolean matches(Assignment assignment) {
+			return assignment.isUnstarted();
+		}
+	};
+	private static final AssignmentStatusMatcher COMPLETE_MATCHER = new AssignmentStatusMatcher() {
+		public boolean matches(Assignment assignment) {
+			return assignment.isComplete();
+		}
+	};
 
 	private HashSet getReadOnlyUserFields() {
 		if (readOnlyUserFields == null) {
@@ -644,17 +659,16 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 		globalResource.setRemainingWork(remainingWork, fieldContext);
 	}
 	public double getActualFixedCost(FieldContext fieldContext) {
-		return 0;
+		return globalResource.getActualFixedCost(fieldContext);
 	}
 	public boolean fieldHideActualFixedCost(FieldContext fieldContext) {
-		return true;
+		return globalResource.fieldHideActualFixedCost(fieldContext);
 	}
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.assignment.HasTimeDistributedData#actualFixedCost(long, long)
 	 */
 	public double fixedCost(long start, long end) {
-		// TODO Auto-generated method stub
-		return 0;
+		return globalResource.fixedCost(start, end);
 	}
 
 	/**
@@ -838,12 +852,10 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 		this.dirty = dirty;
 	}
 	public long getFinishOffset() {
-		// TODO Auto-generated method stub
-		return 0;
+		return globalResource.getFinishOffset();
 	}
 	public long getStartOffset() {
-		// TODO Auto-generated method stub
-		return 0;
+		return globalResource.getStartOffset();
 	}
 	public RateFormat getRateFormat(){
 		return globalResource.getRateFormat();
@@ -859,26 +871,14 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	}
 
 	public boolean inProgress(){
-		for (Iterator i=getAssignments().iterator();i.hasNext();){
-			Assignment a=(Assignment)i.next();
-			if (a.inProgress()) return true;
-		}
-		return false;
+		return anyAssignmentMatches(IN_PROGRESS_MATCHER);
 	}
 
 	public boolean isUnstarted(){
-		for (Iterator i=getAssignments().iterator();i.hasNext();){
-			Assignment a=(Assignment)i.next();
-			if (a.isUnstarted()) return true;
-		}
-		return false;
+		return anyAssignmentMatches(UNSTARTED_MATCHER);
 	}
 	public boolean isComplete(){
-		for (Iterator i=getAssignments().iterator();i.hasNext();){
-			Assignment a=(Assignment)i.next();
-			if (!a.isComplete()) return false;
-		}
-		return true;
+		return allAssignmentsMatch(COMPLETE_MATCHER);
 	}
 
 	public boolean isReadOnly(Field f) {
@@ -1010,6 +1010,26 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	}
 	public void setLocal(boolean local) {
 		globalResource.setLocal(local);
+	}
+
+	private boolean anyAssignmentMatches(AssignmentStatusMatcher matcher) {
+		for (Iterator i = getAssignments().iterator(); i.hasNext();) {
+			if (matcher.matches((Assignment) i.next()))
+				return true;
+		}
+		return false;
+	}
+
+	private boolean allAssignmentsMatch(AssignmentStatusMatcher matcher) {
+		for (Iterator i = getAssignments().iterator(); i.hasNext();) {
+			if (!matcher.matches((Assignment) i.next()))
+				return false;
+		}
+		return true;
+	}
+
+	private interface AssignmentStatusMatcher {
+		boolean matches(Assignment assignment);
 	}
 
 }

@@ -315,13 +315,10 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 	}
 
 	public boolean canScrollToTask() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
 	public void scrollToTask() {
-		// TODO Auto-generated method stub
-		
 	}
 
 }

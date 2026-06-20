@@ -65,7 +65,6 @@ public class InvalidCalendarException extends Exception {
 	 */
 	public InvalidCalendarException() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -73,7 +72,6 @@ public class InvalidCalendarException extends Exception {
 	 */
 	public InvalidCalendarException(String arg0) {
 		super(arg0);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -81,7 +79,6 @@ public class InvalidCalendarException extends Exception {
 	 */
 	public InvalidCalendarException(Throwable arg0) {
 		super(arg0);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -90,7 +87,6 @@ public class InvalidCalendarException extends Exception {
 	 */
 	public InvalidCalendarException(String arg0, Throwable arg1) {
 		super(arg0, arg1);
-		// TODO Auto-generated constructor stub
 	}
 
 }

@@ -151,9 +151,6 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 			if (bucketDuration > 0) {
 				specialBucket = PersonalContourBucket.getInstance(bucketDuration,contourBuckets[index].getUnits());
 				index--; // need to repeat the last bucket
-//				System.out.println("before split bucket" + DurationFormat.format(bucketDuration) + " " + this);
-			} else {
-//				System.out.println("before split -nothing before");
 			}
 			splitAtDuration = Long.MAX_VALUE;// we don't want to treat the start split or this again
 			didFirstPart = true;
@@ -162,13 +159,11 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 		
 			if (didSplit == false) {
 				bucketDuration = splitDuration;
-//				System.out.println("in split" + DurationFormat.format(bucketDuration)+ " " + this);
 				specialBucket = FillerContourBucket.getInstance(splitDuration);
 				index--;
 				didSplit = true;
 			} else {
 				bucketDuration = remainingSplitBucketDuration;
-//				System.out.println("after split bucket" + DurationFormat.format(bucketDuration));
 				double units =contourBuckets[index].getUnits();
 
 				if (bucketDuration > 0)	
@@ -177,7 +172,6 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 				didFirstPart = false;
 			}
 		}
-//System.out.println("before " + new java.util.Date(end)  + " after " + new java.util.Date(workCalendar.add(end,bucketDuration,true)));
 		end = workCalendar.add(end,bucketDuration,true);
 
 		return true;
@@ -196,7 +190,6 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 //		consumedDuration += bucketDuration;
 //
 //		if (consumedDuration > splitAtDuration) {
-//System.out.println("consumedDuration > splitAtDuration");
 //			remainingSplitBucketDuration = consumedDuration - splitAtDuration; // for latter half of bucket
 //			consumedDuration = splitAtDuration - bucketDuration; // for next pass we want consumed==splitAt
 //			
@@ -206,16 +199,12 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 //			index--; // need to repeat the last bucket
 //
 //		} else if (consumedDuration == splitAtDuration) { // need to do dead time
-//			System.out.println("consumedDuration == splitAtDuration");
-//
 //			bucketDuration = splitDuration;
 //			specialBucket = FillerContourBucket.getInstance(bucketDuration);
 //
 //			index--;// need to repeat the last bucket
 //			splitAtDuration = Long.MAX_VALUE; // we don't want to treat the start split or this again
 //		} else if (remainingSplitBucketDuration > 0) {
-//			System.out.println("remainingSplitBucketDuration > 0");
-//			
 //			bucketDuration = remainingSplitBucketDuration;
 //			double units =contourBuckets[index].getUnits();
 //// Turn off this handling.  It seems as if we don't want it after all			

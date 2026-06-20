@@ -61,6 +61,7 @@ import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -112,12 +113,14 @@ public class DefaultNodeModel implements NodeModel {
 
 	protected NodeHierarchy hierarchy;
 	protected NodeModelDataFactory dataFactory = null;
+	private transient Map searchIndex = new IdentityHashMap();
 
 	/**
 	 *
 	 */
 	public DefaultNodeModel() {
 		hierarchy=new MutableNodeHierarchy();
+		rebuildSearchIndex();
 	}
 
 	public DefaultNodeModel(NodeModelDataFactory dataFactory) {
@@ -128,6 +131,7 @@ public class DefaultNodeModel implements NodeModel {
 	DefaultNodeModel(NodeHierarchy hierarchy, NodeModelDataFactory dataFactory) {
 		this.hierarchy=hierarchy;
 		this.dataFactory = dataFactory;
+		rebuildSearchIndex();
 	}
 
 	public void addBefore(LinkedList siblings,Node newNode,int actionType){
@@ -153,7 +157,6 @@ public class DefaultNodeModel implements NodeModel {
 		add(parent,siblings,(firstChild)?0:(parent.getIndex(previous)+1),NodeModel.SILENT);
 
 		getDataFactory().setGroupDirty(true);
-		//TODO need undo here
 	}
 
 	public void addBefore(Node sibling,Node newNode,int actionType){
@@ -179,6 +182,7 @@ public class DefaultNodeModel implements NodeModel {
 	}
 	public void add(Node parent,List children,int position,int actionType){
 		hierarchy.add(parent,children,position,actionType);
+		registerNodes(children);
 		//Undo
 		if (isUndo(actionType)) postEdit(new NodeCreationEdit(this,parent,children,position));
 
@@ -216,6 +220,7 @@ public class DefaultNodeModel implements NodeModel {
 		//done in transfert handler
 
 		hierarchy.paste(parent,nodes,position,this,actionType);
+		registerNodes(nodes);
 		//Undo
 		if (isUndo(actionType)) postEdit(new NodePasteEdit(this,parent,nodes,position));
 	}
@@ -245,7 +250,6 @@ public class DefaultNodeModel implements NodeModel {
 		if (!testAncestorOrDescendant(parent,nodes)) // don't allow circular
 			return;
 		List cutNodes=cut(nodes,false,actionType);
-		//List cutNodes=cut(nodes,actionType&UNDO); //TODO fixes bug 225 but it's probably breaking undo
 		paste(parent,cutNodes,position,actionType);
 	}
 
@@ -285,32 +289,12 @@ public class DefaultNodeModel implements NodeModel {
 		remove(nodes, actionType, true,removeDependencies);
 	}
 	public void remove(List nodes,int actionType,boolean filterAssignments,boolean removeDependencies){
-		if (undoController!=null&&isUndo(actionType)){
-			undoController.getEditSupport().beginUpdate();
-		}
+		beginUndoUpdate(actionType);
 		try {
-			ArrayList roots = new ArrayList();
-			HierarchyUtils.extractParents(nodes, roots);
-			if (filterAssignments)
-				for (Iterator i=roots.iterator();i.hasNext();){
-					Node node=(Node)i.next();
-					if (node.getImpl() instanceof Assignment){
-						i.remove();
-						//AssignmentService.getInstance().remove(node, this, true);
-					}
-				}
-			boolean containsSubprojects=false;
+			ArrayList roots = collectRemovalRoots(nodes, filterAssignments);
 			List parents=new ArrayList();
 			List positions=new ArrayList();
-			NodeBridge node,parent;
-			for (Iterator i=roots.iterator();i.hasNext();){
-				node=(NodeBridge)i.next();
-				if (NodeModelUtil.nodeIsSubproject(node))
-					containsSubprojects=true;
-				parent=(NodeBridge)node.getParent();
-				parents.add(parent);
-				positions.add(Integer.valueOf(parent.getIndex(node)));
-			}
+			boolean containsSubprojects=collectRemovalMetadata(roots, parents, positions);
 			if (!confirmRemove(roots))
 				return;
 
@@ -319,6 +303,7 @@ public class DefaultNodeModel implements NodeModel {
 			}
 
 			hierarchy.remove(roots,this,actionType,removeDependencies);
+			unregisterNodes(roots);
 			//it calls back removeApartFromHierarchy for each node to remove
 			hierarchy.checkEndVoidNodes(actionType);
 
@@ -329,11 +314,7 @@ public class DefaultNodeModel implements NodeModel {
 				}
 			}
 		} finally{
-			if (undoController!=null){
-				if (isUndo(actionType)){
-					undoController.getEditSupport().endUpdate();
-				}
-			}
+			endUndoUpdate(actionType);
 		}
 	}
 	public void removeAll(int actionType){
@@ -355,7 +336,7 @@ public class DefaultNodeModel implements NodeModel {
 
 			//AssignmentService.getInstance().remove((Assignment)node.getImpl(),this);
 			}else if (dataFactory!=null&&!node.isVoid())
-				dataFactory.remove(node.getImpl(),this,false,isUndo(actionType),removeDependencies); //TODO make this work properly with subproject
+				dataFactory.remove(node.getImpl(),this,false,isUndo(actionType),removeDependencies);
 //		} finally {
 //			endUpdate();
 //		}
@@ -372,7 +353,6 @@ public class DefaultNodeModel implements NodeModel {
 //		ArrayList parentNodes =new Vector(nodes.size());
 //		HierarchyUtils.extractParents(nodes,parentNodes);
 //		remove(parentNodes,actionType);
-//		//TODO check parent is null
 //		return parentNodes;
 	}
 
@@ -397,55 +377,7 @@ public class DefaultNodeModel implements NodeModel {
 			i.add(newParent);
 		}
 
-		//rebuild dependencies
-		if (Environment.isKeepExternalLinks()){
-			for (Dependency dependency : successors) {
-				TaskLinkReference pt=(TaskLinkReference)dependency.getPredecessor();
-				TaskLinkReference st=(TaskLinkReference)dependency.getSuccessor();
-
-				HasDependencies predecessor=(Task)implMap.get(pt);
-				HasDependencies successor=(Task)implMap.get(st);
-
-				if (predecessor==null) predecessor=new TaskLinkReferenceImpl(pt.getUniqueId(),pt.getProject());
-				if (successor==null) successor=new TaskLinkReferenceImpl(st.getUniqueId(),st.getProject());
-				Dependency d=Dependency.getInstance(predecessor, successor, dependency.getDependencyType(), dependency.getLag());
-				d.setDirty(true);
-				predecessor.getDependencyList(false).add(d);
-				successor.getDependencyList(true).add(d);
-				predecessors.remove(d);
-			}
-			for (Dependency dependency : predecessors) {
-				TaskLinkReference pt=(TaskLinkReference)dependency.getPredecessor();
-				TaskLinkReference st=(TaskLinkReference)dependency.getSuccessor();
-
-				TaskLinkReference predecessor=(TaskLinkReference)implMap.get(pt);
-				TaskLinkReference successor=(TaskLinkReference)implMap.get(st);
-
-				if (predecessor==null) predecessor=new TaskLinkReferenceImpl(pt.getUniqueId(),pt.getProject());
-				if (successor==null) successor=new TaskLinkReferenceImpl(st.getUniqueId(),st.getProject());
-				Dependency d=Dependency.getInstance(predecessor, successor, dependency.getDependencyType(), dependency.getLag());
-				d.setDirty(true);
-				predecessor.getDependencyList(false).add(d);
-				successor.getDependencyList(true).add(d);
-				//successors.remove(d);
-			}
-
-		}else{
-			for (Dependency dependency : predecessors) {
-				if (successors.contains(dependency)){
-					Task predecessor=(Task)implMap.get(dependency.getPredecessor());
-					Task successor=(Task)implMap.get(dependency.getSuccessor());
-					if (predecessor!=null&&successor!=null){
-						Dependency d=Dependency.getInstance(predecessor, successor, dependency.getDependencyType(), dependency.getLag());
-						d.setDirty(true);
-						//Serializer.connectDependency(dependency, predecessor, successor);
-						predecessor.getDependencyList(false).add(d);
-						successor.getDependencyList(true).add(d);
-					}
-				}
-			}
-
-		}
+		rebuildCopiedDependencies(implMap, predecessors, successors);
 
 		for (Iterator i=assignedNodes.iterator();i.hasNext();){
 			addAssignments((Node)i.next());
@@ -485,6 +417,7 @@ public class DefaultNodeModel implements NodeModel {
 
 		Node newNode=NodeFactory.getInstance().createNode(newNodeImpl);
 		if (newParent!=null) newParent.add(newNode);
+		registerNodeSubtree(newNode);
 		if (parentImpl != null&& parentImpl instanceof Task)
 			((Task)parentImpl).setWbsChildrenNodes(getHierarchy().getChildren(newParent)); //rebuild children task's wbs cache
 		return newNode;
@@ -524,6 +457,7 @@ public class DefaultNodeModel implements NodeModel {
 				if (assignment.isDefault()) continue;
 				Node assignmentNode=NodeFactory.getInstance().createNode(assignment);
 				node.insert(assignmentNode,0);
+				registerNodeSubtree(assignmentNode);
 			}
 		}
 	}
@@ -561,6 +495,7 @@ public class DefaultNodeModel implements NodeModel {
 	 */
 	public void setHierarchy(NodeHierarchy hierarchy) {
 		this.hierarchy = hierarchy;
+		rebuildSearchIndex();
 	}
 
 	/* (non-Javadoc)
@@ -601,8 +536,7 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public Node search(Object key) {
-		//TODO consider using a hashtable instead of searching like this
-		return search(key,getImplComparatorInstance());
+		return (key == null) ? null : (Node) searchIndex.get(key);
 	}
 
 
@@ -678,7 +612,7 @@ public class DefaultNodeModel implements NodeModel {
 
 //		No longer sending update event
 //		if (isEvent(actionType)) hierarchy.fireUpdate(new Node[]{node});
-		//TODO treat the ObjectEvent instead
+		// Field notifications are handled by the field implementation.
 
 		//Undo
 		if (isUndo(actionType)) postEdit(new ModelFieldEdit(this,field,node,eventSource,value,oldValue,context));
@@ -742,27 +676,139 @@ public class DefaultNodeModel implements NodeModel {
 		else
 			return dataFactory.getFactoryToUseForChildOfParent(parentImpl);
 	}
-	public Node replaceImplAndSetFieldValue(Node node, LinkedList previous, Object newImpl, Field field, Object eventSource, Object value,FieldContext context,int actionType) throws FieldParseException {
-		List previousPosition=null;
-		//move in hierarchy
-		if (previous!=null){
-			LinkedList p=(LinkedList)previous.clone();
-			Node sibling=(Node)p.removeFirst();
-			Node parent=(Node)sibling.getParent();
-			p.add(node);
-			if (getUndoableEditSupport()!=null&isUndo(actionType)){
-				previousPosition=new ArrayList(p.size());
-				for (Iterator i=p.iterator();i.hasNext();){
-					Node n=(Node)i.next();
-					previousPosition.add(new NodeImplChangeAndValueSetEdit.Position((Node)n.getParent(),n,n.getParent().getIndex(n)));
+
+	private void beginUndoUpdate(int actionType) {
+		if (undoController!=null&&isUndo(actionType)){
+			undoController.getEditSupport().beginUpdate();
+		}
+	}
+
+	private void endUndoUpdate(int actionType) {
+		if (undoController!=null&&isUndo(actionType)){
+			undoController.getEditSupport().endUpdate();
+		}
+	}
+
+	private ArrayList collectRemovalRoots(List nodes, boolean filterAssignments) {
+		ArrayList roots = new ArrayList();
+		HierarchyUtils.extractParents(nodes, roots);
+		if (filterAssignments){
+			for (Iterator i=roots.iterator();i.hasNext();){
+				Node node=(Node)i.next();
+				if (node.getImpl() instanceof Assignment){
+					i.remove();
 				}
 			}
-			remove(p, NodeModel.SILENT);
-			add(parent,p,parent.getIndex(sibling)+1,NodeModel.SILENT);
-			//TODO need undo here
 		}
+		return roots;
+	}
 
+	private boolean collectRemovalMetadata(List roots, List parents, List positions) {
+		boolean containsSubprojects=false;
+		for (Iterator i=roots.iterator();i.hasNext();){
+			NodeBridge node=(NodeBridge)i.next();
+			if (NodeModelUtil.nodeIsSubproject(node))
+				containsSubprojects=true;
+			NodeBridge parent=(NodeBridge)node.getParent();
+			parents.add(parent);
+			positions.add(Integer.valueOf(parent.getIndex(node)));
+		}
+		return containsSubprojects;
+	}
 
+	private void rebuildSearchIndex() {
+		searchIndex = new IdentityHashMap();
+		for (Iterator i = iterator(); i.hasNext();) {
+			registerNodeSubtree((Node)i.next());
+		}
+	}
+
+	private void registerNodes(Collection nodes) {
+		for (Iterator i = nodes.iterator(); i.hasNext();) {
+			registerNodeSubtree((Node)i.next());
+		}
+	}
+
+	private void registerNodeSubtree(Node node) {
+		if (node == null)
+			return;
+		searchIndex.put(node.getImpl(), node);
+		for (Iterator i = node.childrenIterator(); i.hasNext();) {
+			registerNodeSubtree((Node)i.next());
+		}
+	}
+
+	private void unregisterNodes(Collection nodes) {
+		for (Iterator i = nodes.iterator(); i.hasNext();) {
+			unregisterNodeSubtree((Node)i.next());
+		}
+	}
+
+	private void unregisterNodeSubtree(Node node) {
+		if (node == null)
+			return;
+		searchIndex.remove(node.getImpl());
+		for (Iterator i = node.childrenIterator(); i.hasNext();) {
+			unregisterNodeSubtree((Node)i.next());
+		}
+	}
+
+	private void rebuildCopiedDependencies(Map implMap, Set<Dependency> predecessors, Set<Dependency> successors) {
+		//rebuild dependencies
+		if (Environment.isKeepExternalLinks()){
+			rebuildCopiedDependenciesWithExternalLinks(implMap, predecessors, successors);
+		}else{
+			rebuildCopiedDependenciesWithinProject(implMap, predecessors, successors);
+		}
+	}
+
+	private void rebuildCopiedDependenciesWithExternalLinks(Map implMap, Set<Dependency> predecessors,
+			Set<Dependency> successors) {
+		for (Dependency dependency : successors) {
+			Dependency copy = recreateDependencyLink(dependency, implMap);
+			predecessors.remove(copy);
+		}
+		for (Dependency dependency : predecessors) {
+			recreateDependencyLink(dependency, implMap);
+		}
+	}
+
+	private void rebuildCopiedDependenciesWithinProject(Map implMap, Set<Dependency> predecessors,
+			Set<Dependency> successors) {
+		for (Dependency dependency : predecessors) {
+			if (successors.contains(dependency)){
+				Task predecessor=(Task)implMap.get(dependency.getPredecessor());
+				Task successor=(Task)implMap.get(dependency.getSuccessor());
+				if (predecessor!=null&&successor!=null){
+					createAndAttachDependency(predecessor, successor, dependency);
+				}
+			}
+		}
+	}
+
+	private Dependency recreateDependencyLink(Dependency dependency, Map implMap) {
+		TaskLinkReference pt=(TaskLinkReference)dependency.getPredecessor();
+		TaskLinkReference st=(TaskLinkReference)dependency.getSuccessor();
+
+		TaskLinkReference predecessor=(TaskLinkReference)implMap.get(pt);
+		TaskLinkReference successor=(TaskLinkReference)implMap.get(st);
+
+		if (predecessor==null) predecessor=new TaskLinkReferenceImpl(pt.getUniqueId(),pt.getProject());
+		if (successor==null) successor=new TaskLinkReferenceImpl(st.getUniqueId(),st.getProject());
+		return createAndAttachDependency(predecessor, successor, dependency);
+	}
+
+	private Dependency createAndAttachDependency(HasDependencies predecessor, HasDependencies successor,
+			Dependency dependency) {
+		Dependency d=Dependency.getInstance(predecessor, successor, dependency.getDependencyType(), dependency.getLag());
+		d.setDirty(true);
+		predecessor.getDependencyList(false).add(d);
+		successor.getDependencyList(true).add(d);
+		return d;
+	}
+
+	public Node replaceImplAndSetFieldValue(Node node, LinkedList previous, Object newImpl, Field field, Object eventSource, Object value,FieldContext context,int actionType) throws FieldParseException {
+		List previousPosition = repositionPreviousNodes(node, previous, actionType);
 
 		Node parent=(Node)node.getParent();
 
@@ -770,6 +816,7 @@ public class DefaultNodeModel implements NodeModel {
 		NodeModelDataFactory factory = getFactory(parentImpl);
 		factory.addUnvalidatedObject(newImpl,this, parentImpl);
 		Object oldImpl=node.getImpl();
+		unregisterNodeSubtree(node);
 		node.setImpl(newImpl);
 		try {
 			field.setValue(node, this,null, value, context); // will throw if error
@@ -779,12 +826,13 @@ public class DefaultNodeModel implements NodeModel {
 		}
 		// if no exception was thrown, then validate the object and hook it into model
 		factory.validateObject(newImpl, this, eventSource, null,true);
+		registerNodeSubtree(node);
 
 		hierarchy.renumber();
 
 //		dataFactory.fireCreated(newImpl);
 		hierarchy.checkEndVoidNodes(actionType^NodeModel.EVENT);
-		getHierarchy().fireInsertion(new Node[]{node}); //TODO Cause critical path to run twice
+		fireNodeReplaced(node);
 
 		//Undo
 		if (isUndo(actionType)) postEdit(new NodeImplChangeAndValueSetEdit(this,node,previous,previousPosition,oldImpl,field,value,context,eventSource));
@@ -797,13 +845,15 @@ public class DefaultNodeModel implements NodeModel {
 
 		factory.addUnvalidatedObject(newImpl,this, parentImpl);
 		Object oldImpl=node.getImpl();
+		unregisterNodeSubtree(node);
 		node.setImpl(newImpl);
 		factory.validateObject(newImpl, this, eventSource,null,false);
+		registerNodeSubtree(node);
 
 		hierarchy.renumber();
 
 //		dataFactory.fireCreated(newImpl);
-		getHierarchy().fireRemoval(new Node[]{node}); //TODO Cause critical path to run twice
+		fireNodeReplaced(node);
 
 		hierarchy.checkEndVoidNodes(actionType);
 		//Undo
@@ -814,6 +864,30 @@ public class DefaultNodeModel implements NodeModel {
 
 	public NodeModelDataFactory getDataFactory() {
 		return dataFactory;
+	}
+
+	private void fireNodeReplaced(Node node) {
+		getHierarchy().fireUpdate(new Node[]{node});
+	}
+
+	private List repositionPreviousNodes(Node node, LinkedList previous, int actionType) {
+		if (previous == null)
+			return null;
+		LinkedList p=(LinkedList)previous.clone();
+		Node sibling=(Node)p.removeFirst();
+		Node parent=(Node)sibling.getParent();
+		p.add(node);
+		List previousPosition = null;
+		if (getUndoableEditSupport()!=null&isUndo(actionType)){
+			previousPosition=new ArrayList(p.size());
+			for (Iterator i=p.iterator();i.hasNext();){
+				Node n=(Node)i.next();
+				previousPosition.add(new NodeImplChangeAndValueSetEdit.Position((Node)n.getParent(),n,n.getParent().getIndex(n)));
+			}
+		}
+		remove(p, NodeModel.SILENT);
+		add(parent,p,parent.getIndex(sibling)+1,NodeModel.SILENT);
+		return previousPosition;
 	}
 	/**
 	 * @param dataFactory The dataFactory to set.

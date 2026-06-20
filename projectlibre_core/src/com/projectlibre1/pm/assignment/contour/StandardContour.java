@@ -188,7 +188,7 @@ public class StandardContour extends AbstractContour implements ContourTypes {
     
 
     public static StandardContour getStandardContour(int type){
-    	switch (type) {
+		switch (type) {
 			case FLAT: return FLAT_CONTOUR;
 			case BACK_LOADED: return BACK_LOADED_CONTOUR;
 			case FRONT_LOADED: return FRONT_LOADED_CONTOUR;
@@ -197,7 +197,7 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 			case LATE_PEAK: return LATE_PEAK_CONTOUR;
 			case BELL: return BELL_CONTOUR;
 			case PLATEAU: return PLATEAU_CONTOUR;
-			default: return null;
+			default: throw new IllegalArgumentException("Unknown contour type: " + type);
 		}
     }
 
