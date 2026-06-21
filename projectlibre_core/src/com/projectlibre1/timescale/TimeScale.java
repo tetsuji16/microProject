@@ -173,6 +173,12 @@ public class TimeScale {
 	public void increment2(Calendar calendar){
 		calendar.add(calendarField2,number2);
 	}
+	public int getCalendarField1() {
+		return calendarField1;
+	}
+	public int getNumber1() {
+		return number1;
+	}
 	
 	
 	

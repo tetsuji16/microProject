@@ -67,6 +67,7 @@ import com.projectlibre1.configuration.Configuration;
  *
  */
 public class TimeScaleManager {
+	private static final int MIN_ZOOM_IN_SCALE_INDEX = 2;
 	
 	protected int currentScaleIndex=-1;
 	protected List scales;
@@ -137,13 +138,13 @@ public class TimeScaleManager {
     }
 	
 	public boolean canZoomIn() {
-		return getCurrentScaleIndex()>0;
+		return getCurrentScaleIndex()>MIN_ZOOM_IN_SCALE_INDEX;
 	}
 	public boolean canZoomOut() {
 		return getCurrentScaleIndex()<scales.size()-1;
 	}
 	public boolean zoomIn(){
-		if (getCurrentScaleIndex()>0){
+		if (getCurrentScaleIndex()>MIN_ZOOM_IN_SCALE_INDEX){
 			currentScaleIndex--;
 			return true;
 			//fireTimeScaleChanged(this);
