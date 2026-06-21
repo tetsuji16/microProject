@@ -1,6 +1,7 @@
 package com.projectlibre1.pm.scheduling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -110,5 +111,24 @@ class ScheduleServiceConstraintTest {
 		assertEquals(thirdEnd, task.getEnd());
 		assertEquals(ConstraintType.SNET, task.getConstraintType());
 		assertEquals(thirdStart, task.getConstraintDate());
+	}
+
+	@Test
+	void unchangedConstraintAndIntervalDoNotCreateUndoEdits() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		ScheduleInterval originalInterval = new ScheduleInterval(task.getStart(), task.getEnd());
+		boolean intervalChanged = ScheduleService.getInstance().setInterval(this, task, task.getStart(), task.getEnd(), originalInterval, undoController.getEditSupport());
+		boolean changed = ScheduleService.getInstance().setConstraint(this, task, task.getConstraintType(), task.getConstraintDate(), undoController.getEditSupport());
+
+		assertFalse(intervalChanged);
+		assertFalse(changed);
+		assertEquals(task.getStart(), originalInterval.getStart());
+		assertEquals(task.getEnd(), originalInterval.getEnd());
+		assertTrue(!undoController.canUndo());
 	}
 }

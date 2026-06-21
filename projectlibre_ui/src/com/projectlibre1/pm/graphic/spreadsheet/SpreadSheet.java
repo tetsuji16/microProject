@@ -195,29 +195,56 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (transferable.isEmpty()) {
 			return;
 		}
-		var text = getClipboardText(transferable.get());
-		if (text.isPresent()) {
-			NodeListTransferable.pasteString(text.get(), this);
+		pasteClipboardAsValues(transferable.get());
+	}
+
+	void pasteClipboardAsValues(Transferable transferable) {
+		if (transferable == null) {
 			return;
 		}
-		insertClipboardContents(transferable.get());
+		var text = getClipboardText(transferable);
+		if (text.isPresent()) {
+			if (!NodeListTransferable.pasteString(text.get(), this)) {
+				Alert.error(Messages.getString("Message.invalidInput"));
+			}
+			return;
+		}
+		if (hasNodeListFlavor(transferable)) {
+			pasteClipboardContents(transferable);
+			return;
+		}
+		pasteClipboardContents(transferable);
 	}
 
 	public void insertClipboardContents() {
-		getClipboardContents().ifPresent(this::insertClipboardContents);
+		pasteClipboardInsertedContents();
 	}
 
-	private void insertClipboardContents(Transferable transferable) {
+	public void pasteClipboardContents() {
+		getClipboardContents().ifPresent(this::pasteClipboardContents);
+	}
+
+	public void pasteClipboardInsertedContents() {
+		getClipboardContents().ifPresent(this::pasteInsertedClipboardContents);
+	}
+
+	private void pasteClipboardContents(Transferable transferable) {
 		if (transferable == null) {
 			return;
 		}
 		if (getTransferHandler() instanceof NodeListTransferHandler transferHandler) {
-			transferHandler.importData(this, transferable);
+			if (!transferHandler.importData(this, transferable)) {
+				Alert.error(Messages.getString("Message.invalidInput"));
+			}
 			return;
 		}
 		if (NodeListTransferHandler.getPasteAction() != null) {
 			NodeListTransferHandler.getPasteAction().actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, null));
 		}
+	}
+
+	private void pasteInsertedClipboardContents(Transferable transferable) {
+		pasteClipboardContents(transferable);
 	}
 
 	private Optional<Transferable> getClipboardContents() {
@@ -243,6 +270,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return Optional.empty();
 		}
 		return Optional.empty();
+	}
+
+	private boolean hasNodeListFlavor(Transferable transferable) {
+		for (DataFlavor flavor : transferable.getTransferDataFlavors()) {
+			if (NodeListTransferable.NODE_LIST_MIME_TYPE.equals(flavor.getMimeType())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void cleanUp() {
@@ -1091,6 +1127,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	protected SpreadSheetAction newAction=new SpreadSheetAction("Spreadsheet.Action.new",this){
 		public void execute(){
+			finishCurrentOperations();
 			List<GraphicNode> nodes = getSelected();
 			if (nodes == null || nodes.isEmpty()) {
 				int row = getCurrentRow();
@@ -1098,7 +1135,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 					return;
 				getCache().newNode((GraphicNode) getCache().getElementAt(row));
 			} else {
-				getCache().newNode(nodes.get(nodes.size() - 1));
+				getCache().newNode(nodes);
 			}
 		}
 	};
@@ -1258,14 +1295,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		private static final long serialVersionUID = 1L;
 
 		public void execute() {
-			pasteClipboardAsValues();
+			pasteClipboardContents();
 		}
 	};
 	protected SpreadSheetAction pasteInsertAction = new SpreadSheetAction("Spreadsheet.Action.pasteInsert",this) {
 		private static final long serialVersionUID = 1L;
 
 		public void execute() {
-			insertClipboardContents();
+			pasteClipboardInsertedContents();
 		}
 	};
 	

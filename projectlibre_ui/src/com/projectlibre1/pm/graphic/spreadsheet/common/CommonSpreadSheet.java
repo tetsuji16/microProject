@@ -1140,6 +1140,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		return addNodeForImpl(impl,NodeModel.NORMAL);
 	}
 	public Node addNodeForImpl(Object impl,int eventType) {
+		finishCurrentOperations();
         int row = getCurrentRow();
         if (row == -1)  { // fix for bug when inserting subproject and no selection
         	row = 0; // use 0th row if no selection
@@ -1149,11 +1150,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		Node newNode = NodeFactory.getInstance().createNode(impl);
         SpreadSheetModel model=(SpreadSheetModel)getModel();
         NodeModel nodeModel = model.getCache().getModel();
-
-		LinkedList previousNodes=model.getPreviousVisibleNodesFromRow(row);
-		if (previousNodes==null) previousNodes=new LinkedList();
-		previousNodes.add(current);
-        nodeModel.addBefore(previousNodes,newNode,eventType);
+		nodeModel.addBefore(current,newNode,eventType);
         return newNode;
 	}
 

@@ -263,54 +263,77 @@ public class NodeListTransferable implements Transferable {
 		return node;
 	}
 
-	public static void pasteString(String s,SpreadSheet spreadsheet){
+	public static boolean pasteString(String s,SpreadSheet spreadsheet){
 		int[] rows=spreadsheet.getSelectedRows();
 		int[] cols=spreadsheet.getSelectedColumns();
-		if (rows.length>0&&cols.length>0&&pasteStringIntoSelection(s,spreadsheet,rows,cols))
-			return;
+		if (rows.length>0&&cols.length>0){
+			int result=pasteStringIntoSelection(s,spreadsheet,rows,cols);
+			if (result==PASTE_APPLIED||result==PASTE_FAILED)
+				return result==PASTE_APPLIED;
+		}
 		if (rows.length>0&&cols.length>0)
-			pasteString(s,spreadsheet,rows[0],cols[0]);
+			return pasteString(s,spreadsheet,rows[0],cols[0]);
+		return false;
 	}
 
-	private static boolean pasteStringIntoSelection(String s,SpreadSheet spreadsheet,int[] rows,int[] cols){
+	static final int PASTE_NOT_APPLICABLE = 0;
+	static final int PASTE_APPLIED = 1;
+	static final int PASTE_FAILED = 2;
+
+	static int pasteStringIntoSelection(String s,SpreadSheet spreadsheet,int[] rows,int[] cols){
 		String[][] values=parseClipboardTable(s);
 		if (values.length==0||values[0].length==0)
-			return false;
+			return PASTE_NOT_APPLICABLE;
 		if (rows.length==1&&cols.length==1)
-			return false;
+			return PASTE_NOT_APPLICABLE;
 		CommonSpreadSheetModel model=(CommonSpreadSheetModel)spreadsheet.getModel();
 		FieldContext fieldContext=model.getFieldContext();
 		boolean round=fieldContext.isRound();
+		boolean parseOnly=fieldContext.isParseOnly();
 		fieldContext.setRound(true);
 		try {
-			if (values.length==1&&values[0].length==1){
-				for (int i=0;i<rows.length;i++)
-					for (int j=0;j<cols.length;j++)
-						setValueAt(model,values[0][0],rows[i],cols[j]);
-				return true;
+			fieldContext.setParseOnly(true);
+			if (!applyClipboardValues(model, values, rows, cols)) {
+				return PASTE_FAILED;
 			}
-			if (values.length==1&&values[0].length==cols.length){
-				for (int i=0;i<rows.length;i++)
-					for (int j=0;j<cols.length;j++)
-						setValueAt(model,values[0][j],rows[i],cols[j]);
-				return true;
+			fieldContext.setParseOnly(false);
+			if (!applyClipboardValues(model, values, rows, cols)) {
+				return PASTE_FAILED;
 			}
-			if (values[0].length==1&&values.length==rows.length){
-				for (int i=0;i<rows.length;i++)
-					for (int j=0;j<cols.length;j++)
-						setValueAt(model,values[i][0],rows[i],cols[j]);
-				return true;
-			}
-			if (values.length==rows.length&&values[0].length==cols.length){
-				for (int i=0;i<rows.length;i++)
-					for (int j=0;j<cols.length;j++)
-						setValueAt(model,values[i][j],rows[i],cols[j]);
-				return true;
-			}
-			return false;
+			return PASTE_APPLIED;
 		} finally {
+			fieldContext.setParseOnly(parseOnly);
 			fieldContext.setRound(round);
 		}
+	}
+
+	private static boolean applyClipboardValues(CommonSpreadSheetModel model, String[][] values, int[] rows, int[] cols) {
+		boolean ok = true;
+		if (values.length==1&&values[0].length==1){
+			for (int i=0;i<rows.length;i++)
+				for (int j=0;j<cols.length;j++)
+					ok &= setValueAt(model,values[0][0],rows[i],cols[j]);
+			return ok;
+		}
+		if (values.length==1&&values[0].length==cols.length){
+			for (int i=0;i<rows.length;i++)
+				for (int j=0;j<cols.length;j++)
+					ok &= setValueAt(model,values[0][j],rows[i],cols[j]);
+			return ok;
+		}
+		if (values[0].length==1&&values.length==rows.length){
+			for (int i=0;i<rows.length;i++)
+				for (int j=0;j<cols.length;j++)
+					ok &= setValueAt(model,values[i][0],rows[i],cols[j]);
+			return ok;
+		}
+		if (values.length==rows.length&&values[0].length==cols.length){
+			for (int i=0;i<rows.length;i++)
+				for (int j=0;j<cols.length;j++)
+					ok &= setValueAt(model,values[i][j],rows[i],cols[j]);
+			return ok;
+		}
+		return false;
 	}
 
 	private static String[][] parseClipboardTable(String s){
@@ -328,39 +351,48 @@ public class NodeListTransferable implements Transferable {
 		return values;
 	}
 
-	private static void setValueAt(CommonSpreadSheetModel model,String value,int row,int column){
+	private static boolean setValueAt(CommonSpreadSheetModel model,String value,int row,int column){
 		try{
 			model.setValueAt(value,row,column+1);
+			return true;
 		}catch(Exception e){
 			logger.log(Level.FINE, "Failed to paste cell value at row {0}, col {1}", new Object[]{row, column});
+			return false;
 		}
 	}
-	public static void pasteString(String s,SpreadSheet spreadsheet,int row0, int col0){
-		StringTokenizer st=new StringTokenizer(s,"\n");
-		int row=row0;//,maxRow=spreadsheet.getRowCount()-1;
-		while(st.hasMoreTokens()/*&&row<=maxRow*/) //maxRow useless, maxRow increased automatically 
-			pasteStringLine(st.nextToken(),spreadsheet,row++,col0);
-	}
-	public static void pasteStringLine(String s,SpreadSheet spreadsheet,int row0, int col0){
-		String valueS;
+	public static boolean pasteString(String s,SpreadSheet spreadsheet,int row0, int col0){
+		String[][] values=parseClipboardTable(s);
+		if (values.length==0||values[0].length==0)
+			return false;
 		CommonSpreadSheetModel model=(CommonSpreadSheetModel)spreadsheet.getModel();
-		String delim="\t";
-		StringTokenizer st=new StringTokenizer(s,delim,true);
-		int col=col0,maxCol=spreadsheet.getColumnCount()-1;
 		FieldContext fieldContext=model.getFieldContext();
 		boolean round=fieldContext.isRound();
+		boolean parseOnly=fieldContext.isParseOnly();
 		fieldContext.setRound(true);
-		while(st.hasMoreTokens()&&col<=maxCol){
-			valueS=st.nextToken();
-			if (delim.equals(valueS)) valueS="";
-			else if (st.hasMoreTokens()) st.nextToken();
-			try{
-				model.setValueAt(valueS,row0,++col);
-			}catch(Exception e){
-				logger.log(Level.FINE, "Failed to set cell value at row {0}, col {1}", new Object[]{row0, col});
+		try {
+			fieldContext.setParseOnly(true);
+			if (!applyClipboardValues(model, values, row0, col0)) {
+				return false;
+			}
+			fieldContext.setParseOnly(false);
+			return applyClipboardValues(model, values, row0, col0);
+		} finally {
+			fieldContext.setParseOnly(parseOnly);
+			fieldContext.setRound(round);
+		}
+	}
+	public static void pasteStringLine(String s,SpreadSheet spreadsheet,int row0, int col0){
+		pasteString(s,spreadsheet,row0,col0);
+	}
+
+	private static boolean applyClipboardValues(CommonSpreadSheetModel model, String[][] values, int row0, int col0) {
+		boolean ok = true;
+		for (int i=0;i<values.length;i++) {
+			for (int j=0;j<values[i].length;j++) {
+				ok &= setValueAt(model, values[i][j], row0+i, col0+j);
 			}
 		}
-		fieldContext.setRound(round);
+		return ok;
 	}
 
 	

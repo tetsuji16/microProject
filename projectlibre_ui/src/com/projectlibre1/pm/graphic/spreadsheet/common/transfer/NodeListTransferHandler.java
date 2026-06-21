@@ -81,6 +81,7 @@ import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.projectlibre1.grouping.core.Node;
+import com.projectlibre1.grouping.core.NodeBridge;
 import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.grouping.core.model.NodeModelDataFactory;
 import com.projectlibre1.pm.task.NormalTask;
@@ -185,6 +186,7 @@ public class NodeListTransferHandler extends TransferHandler {
 	    public boolean importData(JComponent c, Transferable t) {
 	    	SpreadSheet spreadSheet=getSpreadSheet(c);
 	    	if (spreadSheet==null) return false;
+	    	spreadSheet.finishCurrentOperations();
 	    	DataFlavor flavor=getFlavor(t.getTransferDataFlavors());
 	        if (flavor!=null) {
 	            try {
@@ -211,8 +213,15 @@ public class NodeListTransferHandler extends TransferHandler {
 							});
 	        			}
 
-		    	    	SpreadSheet.SpreadSheetAction a=getNodeListPasteAction().getSpreadSheetAction();
-				    	a.execute(nodes);
+		    	    	List selectedNodes = spreadSheet.getSelectedNodes();
+		    	    	Node parent = null;
+		    	    	int position = 0;
+		    	    	if (selectedNodes.size() > 0) {
+		    	    		Node node = (Node) selectedNodes.get(0);
+		    	    		parent = (Node) node.getParent();
+		    	    		position = ((NodeBridge) parent).getIndex(node);
+		    	    	}
+		    	    	return spreadSheet.getCache().pasteNodes(parent, nodes, position);
 	        		}else if (data instanceof String){
 //	        			ArrayList fields =spreadSheet.getSelectedFields();
 //	        			if (fields==null){
@@ -221,10 +230,17 @@ public class NodeListTransferHandler extends TransferHandler {
 //	        			}else{
 //	        				NodeListTransferable.pasteString((String)data,spreadSheet);
 //	        			}
-        				NodeListTransferable.pasteString((String)data,spreadSheet);
+	        			int[] rows = spreadSheet.getSelectedRows();
+	        			int[] cols = spreadSheet.getSelectedColumns();
+	        			int result = NodeListTransferable.pasteStringIntoSelection((String)data, spreadSheet, rows, cols);
+	        			if (result == NodeListTransferable.PASTE_FAILED) {
+	        				return false;
+	        			}
+	        			if (result == NodeListTransferable.PASTE_NOT_APPLICABLE) {
+	        				return NodeListTransferable.pasteString((String)data,spreadSheet);
+	        			}
+	        			return true;
 	        		}else return false;
-	        		
-	                return true;
 	            } catch (UnsupportedFlavorException ufe) {
 	            } catch (IOException ioe) { }
 	        }

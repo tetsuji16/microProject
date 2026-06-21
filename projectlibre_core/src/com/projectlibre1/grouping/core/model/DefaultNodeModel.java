@@ -151,10 +151,10 @@ public class DefaultNodeModel implements NodeModel {
 			firstChild=(parent==previous);
 			if (firstChild) parent=previous;
 			else parent=(Node)previous.getParent();
-			remove(siblings, NodeModel.SILENT);
+			remove(siblings, actionType);
 		}
 		siblings.add(newNode);
-		add(parent,siblings,(firstChild)?0:(parent.getIndex(previous)+1),NodeModel.SILENT);
+		add(parent,siblings,(firstChild)?0:(parent.getIndex(previous)+1),actionType);
 
 		getDataFactory().setGroupDirty(true);
 	}
@@ -204,13 +204,13 @@ public class DefaultNodeModel implements NodeModel {
 				if (node.getImpl() instanceof Assignment) p++;
 				else{
 					Node newNode=NodeFactory.getInstance().createVoidNode();
-					add(parent,newNode,p,NodeModel.NORMAL);
+					add(parent,newNode,p,actionType);
 					return newNode;
 				}
 			}
 		}
 		Node newNode=NodeFactory.getInstance().createVoidNode();
-		add(parent,newNode,-1,NodeModel.NORMAL);
+		add(parent,newNode,-1,actionType);
 		return newNode;
 
 	}
@@ -818,15 +818,18 @@ public class DefaultNodeModel implements NodeModel {
 		Object oldImpl=node.getImpl();
 		unregisterNodeSubtree(node);
 		node.setImpl(newImpl);
+		registerNodeSubtree(node);
 		try {
 			field.setValue(node, this,null, value, context); // will throw if error
 		} catch (FieldParseException e) {
+			unregisterNodeSubtree(node);
+			node.setImpl(oldImpl);
+			registerNodeSubtree(node);
 			factory.rollbackUnvalidated(this, newImpl); // in some cases, such as ValueObjectForInterval, some cleanup is needed
 			throw e;
 		}
 		// if no exception was thrown, then validate the object and hook it into model
 		factory.validateObject(newImpl, this, eventSource, null,true);
-		registerNodeSubtree(node);
 
 		hierarchy.renumber();
 

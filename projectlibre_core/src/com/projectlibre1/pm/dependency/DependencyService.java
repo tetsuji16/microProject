@@ -92,6 +92,11 @@ public class DependencyService {
 	public Dependency newDependency(HasDependencies predecessor, HasDependencies successor, int dependencyType, long lead, Object eventSource) throws InvalidAssociationException {
 		if (predecessor == successor)
 			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToSelf"));
+		Task predecessorTask = (Task)predecessor;
+		if (predecessorTask.isExternal())
+			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToExternal"));
+		if (predecessorTask.isSubproject() && !((SubProj)predecessorTask).isWritable())
+			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToClosedSubproject"));
 		Task successorTask = (Task)successor;
 		if (successorTask.isExternal())
 			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToExternal"));
@@ -192,7 +197,13 @@ public class DependencyService {
 		long oldLag=dependency.getLag();
 		int oldType=dependency.getDependencyType();
 		dependency.setLag(lag);
-		dependency.setDependencyType(type);
+		try {
+			dependency.setDependencyType(type);
+		} catch (InvalidAssociationException e) {
+			dependency.setLag(oldLag);
+			dependency.setDependencyType(oldType);
+			throw e;
+		}
 		dependency.setDirty(true);
 
 		UndoableEditSupport undoableEditSupport=getUndoableEditSupport(dependency);
@@ -227,25 +238,25 @@ public class DependencyService {
 	 */
 	public void connect(List tasks, Object eventSource, Predicate canBeSuccessorCondition) throws InvalidAssociationException {
 		ArrayList newDependencies = new ArrayList();
+		ArrayList connectableTasks = new ArrayList(tasks.size());
+		for (Object task : tasks) {
+			if (task instanceof HasDependencies && !ClassUtils.isObjectReadOnly(task)) {
+				connectableTasks.add(task);
+			}
+		}
 		// try making new dependencies between all items earlier to all items later, thereby checking all possible circularities
 		HasDependencies pred;
 		HasDependencies succ;
 		Object temp;
-		for (int i = 0; i < tasks.size()-1; i++) {
-			temp = tasks.get(i);
-			if (!(temp instanceof HasDependencies))
-				continue;
+		for (int i = 0; i < connectableTasks.size()-1; i++) {
+			temp = connectableTasks.get(i);
 			pred = (HasDependencies)temp;
-			for (int j = i+1; j < tasks.size(); j++) {
-				temp = tasks.get(j);
-				if (!(temp instanceof HasDependencies))
-					continue;
+			for (int j = i+1; j < connectableTasks.size(); j++) {
+				temp = connectableTasks.get(j);
 				succ = (HasDependencies)temp;
 				if (canBeSuccessorCondition != null && !canBeSuccessorCondition.evaluate(succ)) // allow exclusion of certain nodes that we don't want to be successors
 					continue;
 				if (succ.getPredecessorList().findLeft(pred) != null) // if dependency already exists, skip it
-					continue;
-				if (ClassUtils.isObjectReadOnly(succ))
 					continue;
 				Dependency test = Dependency.getInstance(pred,succ,DependencyType.FS,0); // make a new one
 				test.testValid(false); // test for circularity, throws if bad
@@ -273,10 +284,14 @@ public class DependencyService {
 			temp = tasks.get(i);
 			if (!(temp instanceof HasDependencies))
 				continue;
+			if (ClassUtils.isObjectReadOnly(temp))
+				continue;
 			pred = (HasDependencies)temp;
 			for (int j = i+1; j < tasks.size(); j++) {
 				temp = tasks.get(j);
 				if (!(temp instanceof HasDependencies))
+					continue;
+				if (ClassUtils.isObjectReadOnly(temp))
 					continue;
 				succ = (HasDependencies)temp;
 				removeAnyDependencies(pred,succ,eventSource);
@@ -286,6 +301,8 @@ public class DependencyService {
 	public void removeAnyDependencies(HasDependencies first, HasDependencies second, Object eventSource) {
 		Dependency dependency;
 		if (first == null || second == null)
+			return;
+		if (ClassUtils.isObjectReadOnly(first) || ClassUtils.isObjectReadOnly(second))
 			return;
 		if ((dependency = (Dependency) first.getPredecessorList().findLeft(second)) != null)
 			remove(dependency,eventSource,true);

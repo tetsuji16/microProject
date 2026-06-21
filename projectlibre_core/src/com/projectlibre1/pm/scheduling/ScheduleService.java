@@ -62,6 +62,7 @@ import com.projectlibre1.configuration.Configuration;
 import com.projectlibre1.field.Field;
 import com.projectlibre1.functor.IntervalConsumer;
 import com.projectlibre1.pm.task.Task;
+import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.undo.TaskConstraintEdit;
 import com.projectlibre1.undo.FieldEdit;
 import com.projectlibre1.undo.ScheduleEdit;
@@ -106,17 +107,21 @@ public class ScheduleService {
 		return schedule.getCompletedThrough();
 	}
 	
-	public void setCompleted(Object eventSource, Schedule schedule, long completed,UndoableEditSupport undoableEditSupport) {
+	public boolean setCompleted(Object eventSource, Schedule schedule, long completed,UndoableEditSupport undoableEditSupport) {
 		if (isReadOnly(schedule))
-			return;
+			return false;
 		Field completedField=getCompletedField();
 		Object oldValue=completedField.getValue(schedule);
 		if (oldValue==null) oldValue=Long.valueOf(schedule.getActualStart());
 		Object value=Long.valueOf(completed);
+		if (value.equals(oldValue)) {
+			return false;
+		}
 		completedField.setValue(schedule,eventSource,value);
 		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			undoableEditSupport.postEdit(new FieldEdit(completedField,schedule,value,oldValue,eventSource,null));
 		}
+		return true;
 	}
 
 	public boolean setConstraint(Object eventSource, Task task, int constraintType, long constraintDate, UndoableEditSupport undoableEditSupport) {
@@ -150,14 +155,14 @@ public class ScheduleService {
 	 * @param end - end date millis	 * 
 	 * @param oldStart is the prior start for the bar.  It will be used to identify what bar changed
 	 */
-	public void setInterval(Object eventSource, Schedule schedule, long start, long end, ScheduleInterval interval,UndoableEditSupport undoableEditSupport) {
+	public boolean setInterval(Object eventSource, Schedule schedule, long start, long end, ScheduleInterval interval,UndoableEditSupport undoableEditSupport) {
 		if (isReadOnly(schedule))
-			return;
+			return false;
 		Object detailBackup=null;
 		start = DateTime.hourFloor(start);
 		end = DateTime.hourFloor(end);
 		if (interval.getStart() == start && interval.getEnd() == end) // if no move do nothing
-			return;
+			return false;
 		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			detailBackup=schedule.backupDetail();
 		}
@@ -167,6 +172,7 @@ public class ScheduleService {
 		if (detailBackup!=null){
 			undoableEditSupport.postEdit(new ScheduleEdit(schedule,detailBackup,start,end,interval,false,eventSource));
 		}
+		return true;
 
 	}
 
@@ -178,18 +184,28 @@ public class ScheduleService {
 	 * @param from - beginning of nonwork interval
 	 * @param to - end of nonwork interval
 	 */
-	public void split(Object eventSource, Schedule schedule, long from, long to,UndoableEditSupport undoableEditSupport) {
+	public boolean split(Object eventSource, Schedule schedule, long from, long to,UndoableEditSupport undoableEditSupport) {
 		if (isReadOnly(schedule))
-			return;
+			return false;
 		Object detailBackup=null;
 		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			detailBackup=schedule.backupDetail();
 		}
 		schedule.split(eventSource,DateTime.hourFloor(from),DateTime.hourFloor(to));
 		//Undo
-		if (detailBackup!=null){
+		if (detailBackup!=null&&didSplitChangeSchedule(schedule, detailBackup)){
 			undoableEditSupport.postEdit(new SplitEdit(schedule,detailBackup,from,to,eventSource));
 		}
+		return true;
+	}
+
+	private boolean didSplitChangeSchedule(Schedule schedule, Object detailBackup) {
+		if (!(schedule instanceof Project) || !(detailBackup instanceof Project.ProjectBackup)) {
+			return true;
+		}
+		Project project = (Project) schedule;
+		Project.ProjectBackup backup = (Project.ProjectBackup) detailBackup;
+		return project.getStart() != backup.getStart() || project.getEnd() != backup.getEnd();
 	}
 	
 	/**
@@ -202,7 +218,10 @@ public class ScheduleService {
 		if (consuming)
 			return;
 		consuming = true;
-		schedule.consumeIntervals(consumer);
-		consuming = false;
+		try {
+			schedule.consumeIntervals(consumer);
+		} finally {
+			consuming = false;
+		}
 	}
 }

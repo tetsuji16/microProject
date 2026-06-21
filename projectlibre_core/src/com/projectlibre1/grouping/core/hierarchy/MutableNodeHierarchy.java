@@ -199,8 +199,8 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	int childCount=p.getChildCount();
     	if (position>childCount){
     		NodeFactory nodeFactory=NodeFactory.getInstance();
-    		Node node=nodeFactory.createVoidNode();
     		for (int i=childCount;i<position;i++){
+    			Node node=nodeFactory.createVoidNode();
     			setSubprojectLevel(node,subprojectLevel);
     			p.add(node);
     		}
@@ -678,25 +678,25 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         	Node sibling;
         	Node previous=null;
 
-        	for (ListIterator i=parent.childrenIterator(index);i.hasPrevious();){
-        		sibling=(Node)i.previous();
-        		if (node.canBeChildOf(sibling)){
-        			previous=sibling;
-        			break;
-        		} else if (sibling.isVoid()){
-        			modifiedVoids.add(sibling);
+        		for (ListIterator i=parent.childrenIterator(index);i.hasPrevious();){
+        			sibling=(Node)i.previous();
+        			if (node.canBeChildOf(sibling)){
+        				previous=sibling;
+        				break;
+        			} else if (sibling.isVoid()){
+        				modifiedVoids.add(sibling);
+        			}
         		}
-        	}
-        	if (previous==null||previous.getImpl() instanceof Assignment){
+        		if (previous==null||previous.getImpl() instanceof Assignment){
 
-        		return false;
+        			return false;
+        		}
+        	for (ListIterator i=modifiedVoids.listIterator(modifiedVoids.size());i.hasPrevious();){
+        		previous.add((Node)i.previous());
         	}
-        	for (Iterator i=modifiedVoids.iterator();i.hasNext();){
-        		previous.add((Node)i.next());
-        	}
-        	previous.add(node);
-    		if (isEvent(actionType)) fireNodesChanged(this,new Node[]{node});
-    	}else if (deltaLevel==-1){ //outdent
+        		previous.add(node);
+        		if (isEvent(actionType)) fireNodesChanged(this,new Node[]{node});
+        }else if (deltaLevel==-1){ //outdent
        		Node parent=getParent(node);
        		if (parent==null || parent==root) return false;
        		if (parent.isLazyParent()) // don't allow outdenting of subprojects' children

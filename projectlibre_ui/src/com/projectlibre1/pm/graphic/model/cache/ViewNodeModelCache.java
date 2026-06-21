@@ -271,7 +271,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
     public void createHierarchyDependency(GraphicNode startNode,
             GraphicNode endNode) throws InvalidAssociationException {
-        reference.createDependency(startNode,endNode);
+        reference.getModel().getHierarchy().move(endNode.getNode(), startNode.getNode(), NodeModel.NORMAL);
     }
     public void addNodeModelListener(CacheListener l) {
        visibleNodes.addNodeModelListener(l);
@@ -324,6 +324,37 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		getModel().newNode(parent,index,NodeModel.NORMAL);
 	}
 
+	public void newNode(List nodes) {
+		if (nodes == null || nodes.isEmpty()) {
+			return;
+		}
+		for (int i = nodes.size() - 1; i >= 0; i--) {
+			Object candidate = nodes.get(i);
+			if (!(candidate instanceof GraphicNode)) {
+				continue;
+			}
+			GraphicNode gnode = (GraphicNode) candidate;
+			Node node = gnode.getNode();
+			if (!isNodeEligibleForNew(node)) {
+				continue;
+			}
+			newNode(gnode);
+			return;
+		}
+	}
+
+	private boolean isNodeEligibleForNew(Node node) {
+		if (node == null || !(node.getImpl() instanceof Task)) {
+			return true;
+		}
+		Task task = (Task) node.getImpl();
+		if (task instanceof SubProj) {
+			Project project = task.getOwningProject();
+			return project == null || !project.isReadOnly();
+		}
+		return !task.isReadOnly();
+	}
+
 
 	public void deleteNodes(List nodes){
 		if (!isAllowedAction(nodes,false)) return;
@@ -340,9 +371,10 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		nodes.clear();
 		nodes.addAll(newNodes);
 	}
-	public void pasteNodes(Node parent,List nodes,int position){
-		if (!isAllowedAction(parent,true)) return;
+	public boolean pasteNodes(Node parent,List nodes,int position){
+		if (!isAllowedAction(parent,true)) return false;
 		getModel().paste(parent,nodes,position,NodeModel.NORMAL);
+		return true;
 	}
 
 	public void addNodes(Node sibling,List nodes){

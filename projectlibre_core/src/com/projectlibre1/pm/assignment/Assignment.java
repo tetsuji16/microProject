@@ -2447,7 +2447,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	public ImageLink getScheduleStatusIndicator() {
-		return EarnedValueCalculator.getInstance().getBudgetStatusIndicator(getSpi(null));
+		return EarnedValueCalculator.getInstance().getScheduleStatusIndicator(getSpi(null));
 	}
 
 

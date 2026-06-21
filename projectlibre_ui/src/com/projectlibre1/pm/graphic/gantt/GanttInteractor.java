@@ -86,6 +86,7 @@ import com.projectlibre1.pm.scheduling.ConstraintType;
 import com.projectlibre1.pm.scheduling.Schedule;
 import com.projectlibre1.pm.scheduling.ScheduleInterval;
 import com.projectlibre1.pm.scheduling.ScheduleService;
+import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.undo.TaskConstraintEdit;
 import com.projectlibre1.util.Alert;
@@ -350,31 +351,33 @@ public class GanttInteractor extends GraphInteractor{
 			return applyIntervalDrag((long)getCoord().toDuration(x-x0),undoSupport);
 		case PROGRESS_BAR_MOVE:
 			return applyProgressDrag((long)getCoord().toTime(x),undoSupport);
-		case LINK_CREATION:
-			try {
-					if (sourceNode != null && !CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "link")) {
+				case LINK_CREATION:
+					try {
+							if (sourceNode != null && !CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "link")) {
+								return false;
+							}
+							if (destinationNode != null && !CollaborationHelper.tryLockObject(null, destinationNode.getNode(), getGraph(), "link")) {
+								return false;
+							}
+							if (sourceNode!=null&&destinationNode!=null&&
+								sourceNode.getNode().getImpl() instanceof HasDependencies &&
+								destinationNode.getNode().getImpl() instanceof HasDependencies){
+							// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
+							DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),(HasDependencies)destinationNode.getNode().getImpl(),DependencyType.FS,0,this);
+						}
+					} catch (InvalidAssociationException e) {
+						Alert.error(e.getMessage());
 						return false;
 					}
-					if (destinationNode != null && !CollaborationHelper.tryLockObject(null, destinationNode.getNode(), getGraph(), "link")) {
-						return false;
-					}
-					if (sourceNode!=null&&destinationNode!=null&&
-							sourceNode.getNode().getImpl() instanceof HasDependencies &&
-							destinationNode.getNode().getImpl() instanceof HasDependencies && !ClassUtils.isObjectReadOnly(destinationNode.getNode().getImpl())){
-						// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
-						DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),(HasDependencies)destinationNode.getNode().getImpl(),DependencyType.FS,0,this);
-					}
-				} catch (InvalidAssociationException e) {
-					Alert.error(e.getMessage());
-				}
-				return true;
+					return true;
 		case LINK_SELECTION:
 			showDependencyPropertiesDialog((GraphicDependency)selected);
 			return true;
 		case SPLIT:
 			long t=(long)getCoord().toTime(x);
-			ScheduleService.getInstance().split(this,getSourceSchedule(),t,t,undoSupport);
-			return refreshUndoState(true);
+			Schedule schedule = getSourceSchedule();
+			boolean changed = ScheduleService.getInstance().split(this,schedule,t,t,undoSupport);
+			return refreshUndoState(changed);
 		}
     	return false;
     }
@@ -416,8 +419,10 @@ public class GanttInteractor extends GraphInteractor{
 			if (updateConstraint && task != null) {
 				preparedConstraint = prepareConstraintForIntervalUpdate(task, targetConstraintType, requestedConstraintDate, originalConstraintType, originalConstraintDate);
 			}
-			ScheduleService.getInstance().setInterval(this,schedule,start,end,selectedInterval,undoSupport);
-			scheduleChanged = didScheduleChange(schedule, task, originalScheduleStart, originalScheduleEnd, originalTaskStart, originalTaskEnd);
+			scheduleChanged = ScheduleService.getInstance().setInterval(this,schedule,start,end,selectedInterval,undoSupport);
+			if (!scheduleChanged) {
+				scheduleChanged = didScheduleChange(schedule, task, originalScheduleStart, originalScheduleEnd, originalTaskStart, originalTaskEnd);
+			}
 			if (updateConstraint) {
 				if (task != null && scheduleChanged) {
 					applyConstraintAfterDrag(task, targetConstraintType, getConstraintDateForDrag(task), originalConstraintType, originalConstraintDate, undoSupport);
@@ -433,10 +438,10 @@ public class GanttInteractor extends GraphInteractor{
 		return refreshUndoState(scheduleChanged);
     }
 
-    private boolean applyProgressDrag(long completed, UndoableEditSupport undoSupport) {
-		ScheduleService.getInstance().setCompleted(this,getSourceSchedule(),completed,undoSupport);
-		return refreshUndoState(true);
-    }
+	private boolean applyProgressDrag(long completed, UndoableEditSupport undoSupport) {
+		boolean changed = ScheduleService.getInstance().setCompleted(this,getSourceSchedule(),completed,undoSupport);
+		return refreshUndoState(changed);
+	}
 
     private Schedule getSourceSchedule() {
     	return (Schedule)sourceNode.getNode().getImpl();

@@ -1542,8 +1542,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	private transient BarClosure barClosureInstance = new BarClosure();
 	public void moveInterval(Object eventSource, long start, long end, ScheduleInterval oldInterval) {
-		if (start != oldInterval.getStart())
-			setStart(start); // allow for changing start of subproject.  need to add  test for actuals
+		moveInterval(eventSource, start, end, oldInterval, false);
 	}
 
 	/* (non-Javadoc)
@@ -2068,22 +2067,51 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public void moveInterval(Object eventSource, long start, long end, ScheduleInterval oldInterval, boolean isChild) {
+		long newStart = start;
+		long newEnd = end;
+
+		if (newEnd < newStart) {
+			if (start != oldInterval.getStart()) {
+				newEnd = newStart;
+			} else {
+				newStart = newEnd;
+			}
+		}
+
+		boolean startChanged = newStart != getStart();
+		boolean endChanged = newEnd != getEnd();
+		if (!startChanged && !endChanged) {
+			return;
+		}
+
+		if (startChanged) {
+			setStart(newStart);
+			if (getSchedulingAlgorithm() != null) {
+				getSchedulingAlgorithm().setStartConstraint(newStart);
+			}
+		}
+		if (endChanged) {
+			setEnd(newEnd);
+			if (getSchedulingAlgorithm() != null) {
+				getSchedulingAlgorithm().setEndConstraint(newEnd);
+			}
+		}
 	}
 
 	/* (non-Javadoc)
 	 * @see com.projectlibre1.pm.scheduling.Schedule#split(java.lang.Object, long, long)
 	 */
 	public void split(Object eventSource, long from, long to) {
-		// TODO Auto-generated method stub
-
+		// A project schedule is represented as one span, so there is no
+		// internal work contour to split here.
 	}
 	public final boolean isDirty() {
 		return isDirty;
 	}
 	public final void setDirty(boolean dirty) {
 		//System.out.println("Project _setDirty("+dirty+"): "+getName());
-		this.isDirty = isDirty;
-		if (isDirty)
+		this.isDirty = dirty;
+		if (dirty)
 			setGroupDirty(true);
 	}
 
@@ -2389,20 +2417,42 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public ImageLink getScheduleStatusIndicator() {
-		return EarnedValueCalculator.getInstance().getBudgetStatusIndicator(getSpi(null));
+		return EarnedValueCalculator.getInstance().getScheduleStatusIndicator(getSpi(null));
 	}
 
 	public Object backupDetail() {
-		// TODO Auto-generated method stub
-		return null;
+		return new ProjectBackup(start, end);
 	}
 
 	public void restoreDetail(Object source,Object detail,boolean isChild) {
-		// TODO Auto-generated method stub
-
+		ProjectBackup backup = (ProjectBackup) detail;
+		setStart(backup.start);
+		setEnd(backup.end);
+		if (getSchedulingAlgorithm() != null) {
+			getSchedulingAlgorithm().setStartConstraint(backup.start);
+			getSchedulingAlgorithm().setEndConstraint(backup.end);
+		}
 	}
 
 	public boolean containsAssignments(){return true;}
+
+	public static final class ProjectBackup {
+		private final long start;
+		private final long end;
+
+		private ProjectBackup(long start, long end) {
+			this.start = start;
+			this.end = end;
+		}
+
+		public long getStart() {
+			return start;
+		}
+
+		public long getEnd() {
+			return end;
+		}
+	}
 
 
 	public void beginUndoUpdate(){

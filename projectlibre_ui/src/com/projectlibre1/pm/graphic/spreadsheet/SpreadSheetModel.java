@@ -89,6 +89,8 @@ import org.netbeans.swing.outline.TreePathSupport;
 public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineModel, RowModel {
 	protected boolean readOnly;
 	private transient OutlineModel outlineDelegate;
+	private static final String DEPENDENCY_TYPE_FIELD_ID = "Field.dependencyType";
+	private static final String DEPENDENCY_LAG_FIELD_ID = "Field.lag";
 	/**
 	 * 
 	 */
@@ -187,19 +189,12 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 				Dependency dependency = (Dependency) rowNode.getImpl();
 				DependencyService dependencyService = DependencyService.getInstance();
 				try {
-					Duration duration = (Duration) ((col == 4) ? value : getValueAt(row, 4)); // TODO
-																								// can
-																								// not
-																								// assume
-																								// column
-																								// positions
-					int type = ((Number) DependencyType.mapStringToValue((String) ((col == 3) ? value : getValueAt(row, 3)))).intValue();
-
-					dependencyService.setFields(dependency, duration.getEncodedMillis(), type, this);
+					long lag = getDependencyLag(field, value, dependency);
+					int type = getDependencyType(field, value, dependency);
+					dependencyService.setFields(dependency, lag, type, this);
 					dependencyService.update(dependency, this);
 				} catch (InvalidAssociationException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
+					throw new RuntimeException(e1);
 				}
 			} else {
 				getCache().getModel().setFieldValue(field, rowNode, this, value, fieldContext, NodeModel.NORMAL);
@@ -207,6 +202,24 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		} catch (FieldParseException e) {
 			throw new RuntimeException(e); // exceptions will be treated by the spreadsheet, not the model, because there is a popup.  Because this method doesn't have an exception, a runtime exception will be caught by the spreadsheet
 		}
+	}
+
+	static long getDependencyLag(Field editedField, Object value, Dependency dependency) {
+		if (editedField != null && DEPENDENCY_LAG_FIELD_ID.equals(editedField.getId())) {
+			return ((Duration) value).getEncodedMillis();
+		}
+		return dependency.getLag();
+	}
+
+	static int getDependencyType(Field editedField, Object value, Dependency dependency) {
+		if (editedField != null && DEPENDENCY_TYPE_FIELD_ID.equals(editedField.getId())) {
+			Integer parsedType = DependencyType.mapStringToValue((String) value);
+			if (parsedType == null) {
+				throw new IllegalArgumentException("Invalid dependency type: " + value);
+			}
+			return parsedType.intValue();
+		}
+		return dependency.getDependencyType();
 	}
 
 	public boolean isRowEditable(int row) {

@@ -309,7 +309,7 @@ public class ProjectData extends DocumentData implements HasName,DelegatesFields
 		Double cpi = (Double)fieldValues.get("Field.cpi");
 		if (cpi == null)
 			cpi = Double.valueOf(0.0D);
-		return EarnedValueCalculator.getInstance().getScheduleStatusIndicator(cpi.doubleValue());
+		return EarnedValueCalculator.getInstance().getBudgetStatusIndicator(cpi.doubleValue());
 	}
 	public ImageLink getStatusIndicator() {
 

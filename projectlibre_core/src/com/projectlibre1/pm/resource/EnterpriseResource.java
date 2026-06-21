@@ -1286,7 +1286,7 @@ public class EnterpriseResource implements Resource {
 	}
 
 	public ImageLink getScheduleStatusIndicator() {
-		return EarnedValueCalculator.getInstance().getBudgetStatusIndicator(getSpi(null));
+		return EarnedValueCalculator.getInstance().getScheduleStatusIndicator(getSpi(null));
 	}
 
 	public boolean isUser() {

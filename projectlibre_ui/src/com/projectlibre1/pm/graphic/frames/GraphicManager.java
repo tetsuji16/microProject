@@ -1956,16 +1956,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive())
+			if (isDocumentActive()) {
+				if (beforeActionRoute("link"))
+					return;
 				getCurrentFrame().doLinkTasks();
+			}
 		}
 	}
 	public class UnlinkAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive())
+			if (isDocumentActive()) {
+				if (beforeActionRoute("unlink"))
+					return;
 				getCurrentFrame().doUnlinkTasks();
+			}
 		}
 	}
 	public class ZoomInAction extends MenuActionsMap.DocumentMenuAction {
@@ -2085,6 +2091,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (isDocumentActive()) {
+				if (beforeActionRoute("pasteInsert"))
+					return;
 				addHistory("doPasteInsert");
 				getCurrentFrame().doPasteInsert();
 			}

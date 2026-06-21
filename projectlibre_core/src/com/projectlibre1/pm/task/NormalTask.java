@@ -2390,7 +2390,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public ImageLink getScheduleStatusIndicator() {
-		return EarnedValueCalculator.getInstance().getBudgetStatusIndicator(getSpi(null));
+		return EarnedValueCalculator.getInstance().getScheduleStatusIndicator(getSpi(null));
 	}
 	public Object backupDetail(){
 		return backupDetail(null);

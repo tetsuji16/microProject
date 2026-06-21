@@ -114,13 +114,14 @@ public interface NodeModelCache extends TreeModel{
 	public void expandNodes(List nodes, boolean expand);
 	
 	public void newNode(GraphicNode node);
+	public void newNode(List nodes);
 	
 	public void deleteNodes(List nodes);
 	public void indentNodes(List nodes);
 	public void outdentNodes(List nodes);
 	public void cutNodes(List gnodes);
 	public void copyNodes(List gnodes);
-	public void pasteNodes(Node parent,List nodes,int position);
+	public boolean pasteNodes(Node parent,List nodes,int position);
 	public void addNodes(Node sibling,List nodes);
 
 	

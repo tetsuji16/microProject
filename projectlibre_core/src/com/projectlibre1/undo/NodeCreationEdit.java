@@ -55,6 +55,7 @@
  *******************************************************************************/
 package com.projectlibre1.undo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.undo.AbstractUndoableEdit;
@@ -87,7 +88,7 @@ public class NodeCreationEdit extends AbstractUndoableEdit{
 		super();
 		this.model = model;
 		this.parent = parent;
-		this.children = children;
+		this.children = new ArrayList(children);
 		this.position = position;
 	}
 	public void redo() throws CannotRedoException {
