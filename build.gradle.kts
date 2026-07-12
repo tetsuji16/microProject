@@ -1,17 +1,44 @@
-import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import java.io.File
 
-fun org.gradle.api.Project.projectLibreExternalLibs() =
-    fileTree(rootProject.file("projectlibre_contrib/lib")) {
-        include("**/*.jar")
-    }
+val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+
+val projectLibreMavenDependencyAliases = listOf(
+    "commons-beanutils",
+    "commons-collections",
+    "commons-collections4",
+    "commons-digester",
+    "commons-lang",
+    "commons-lang3",
+    "commons-logging",
+    "commons-pool",
+    "forms",
+    "flatlaf",
+    "flatlaf-extras",
+    "groovy",
+    "itext",
+    "jfreechart",
+    "org-netbeans-swing-outline",
+    "radiance-neon",
+    "radiance-trident",
+    "javax-activation-api",
+    "javax-jaxb-api",
+    "jaxb-runtime",
+    "jackson-annotations",
+    "jackson-core",
+    "jackson-databind",
+    "pdfbox",
+    "poi",
+    "poi-ooxml",
+    "slf4j-api",
+)
 
 plugins {
     base
@@ -36,20 +63,6 @@ subprojects {
         withSourcesJar()
     }
 
-    extensions.configure<SourceSetContainer>("sourceSets") {
-        named("main") {
-            java.setSrcDirs(listOf("src"))
-            java.exclude("test/**")
-
-            resources.setSrcDirs(listOf("src"))
-            resources.exclude("**/*.java", "test/**")
-        }
-        named("test") {
-            java.setSrcDirs(emptyList<String>())
-            resources.setSrcDirs(emptyList<String>())
-        }
-    }
-
     tasks.withType<JavaCompile>().configureEach {
         options.encoding = "UTF-8"
         options.release.set(minimumJavaRelease)
@@ -68,7 +81,9 @@ subprojects {
     }
 
     if (name != "projectlibre_contrib") {
-        dependencies.add("implementation", projectLibreExternalLibs())
+        projectLibreMavenDependencyAliases.forEach { alias ->
+            dependencies.add("implementation", versionCatalog.findLibrary(alias).get())
+        }
     }
 }
 
@@ -76,6 +91,12 @@ tasks.register("stageAppDist") {
     group = "distribution"
     description = "Builds the installable application layout for ProjectLibre."
     dependsOn(":projectlibre_ui:installDist")
+}
+
+tasks.register<Delete>("cleanLegacyPackagingArtifacts") {
+    group = "build"
+    description = "Removes generated legacy packaging artifacts that are not part of the Gradle source of truth."
+    delete(layout.projectDirectory.dir("isolated-build"))
 }
 
 val releaseVersion = project.version.toString()
@@ -86,6 +107,7 @@ val windowsAppImageDir = windowsReleaseRoot.map { it.dir("app-image") }
 val windowsMsiDir = windowsReleaseRoot.map { it.dir("msi") }
 val windowsExeDir = windowsReleaseRoot.map { it.dir("exe") }
 val docsDownloadsDir = layout.projectDirectory.dir("docs/downloads")
+val windowsFileAssociationsDir = layout.projectDirectory.dir("packaging/windows/file-associations")
 val jpackageJavaHomeProvider = providers.environmentVariable("JAVA_HOME")
     .orElse(providers.systemProperty("java.home"))
     .orElse("C:\\Program Files\\Java\\latest")
@@ -110,8 +132,8 @@ tasks.register<Sync>("prepareWindowsReleaseInput") {
     dependsOn(":projectlibre_ui:installDist")
 
     val installLibDir = project(":projectlibre_ui").layout.buildDirectory.dir("install/projectlibre_ui/lib")
-    val iconFile = layout.projectDirectory.file("projectlibre_build/resources/wix/msi_images/projectlibre.ico")
-    val licenseFile = layout.projectDirectory.file("projectlibre_build/license/license.txt")
+    val iconFile = layout.projectDirectory.file("packaging/windows/icons/projectlibre.ico")
+    val licenseFile = layout.projectDirectory.file("packaging/licenses/license.txt")
 
     from(installLibDir)
     from(iconFile) {
@@ -120,34 +142,16 @@ tasks.register<Sync>("prepareWindowsReleaseInput") {
     from(licenseFile) {
         rename { "license.txt" }
     }
+    from(windowsFileAssociationsDir)
     into(windowsJpackageInput)
 
     doLast {
         val inputDir = windowsJpackageInput.get().asFile
         val iconPath = File(inputDir, "projectlibre.ico").absolutePath.replace('\\', '/')
-        val associations = mapOf(
-            "mpp.properties" to listOf(
-                "extension=mpp",
-                "mime-type=application/projectlibre",
-                "description=MPP Project",
-                "icon=$iconPath"
-            ),
-            "pod.properties" to listOf(
-                "extension=pod",
-                "mime-type=application/projectlibre",
-                "description=ProjectLibre POD Project",
-                "icon=$iconPath"
-            ),
-            "xml.properties" to listOf(
-                "extension=xml",
-                "mime-type=application/projectlibre",
-                "description=MSPDI Project",
-                "icon=$iconPath"
-            )
-        )
-
-        associations.forEach { (name, lines) ->
-            File(inputDir, name).writeText(lines.joinToString(System.lineSeparator()), Charsets.UTF_8)
+        listOf("mpp.properties", "pod.properties", "xml.properties").forEach { name ->
+            val associationFile = File(inputDir, name)
+            val content = associationFile.readText(Charsets.UTF_8).replace("@ICON_PATH@", iconPath)
+            associationFile.writeText(content, Charsets.UTF_8)
         }
     }
 }
@@ -262,8 +266,10 @@ tasks.register<JavaExec>("verifyPackagedFileImports") {
     classpath = files(uiTestOutput, uiTestRuntimeClasspath)
     mainClass.set("com.projectlibre1.integration.PackagedImportSmokeMain")
     args(
-        file("sample data/Commercial construction project plan.mpp").absolutePath,
-        file("sample data/Commercial construction project plan.pod").absolutePath
+        "--windows-script",
+        file("modules/projectlibre_ui/build/install/projectlibre_ui/bin/projectlibre_ui.bat").absolutePath,
+        file("samples/Commercial construction project plan.mpp").absolutePath,
+        file("samples/Commercial construction project plan.pod").absolutePath
     )
     jvmArgs("--limit-modules", windowsRuntimeModules.joinToString(","))
 }

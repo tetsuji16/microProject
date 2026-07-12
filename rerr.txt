@@ -1,0 +1,13 @@
+7åé 12, 2026 12:27:32 åﬂå„ com.projectlibre1.pm.graphic.frames.ApplicationStartupFactory dumpOpts
+èÓïÒ: opts:
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.formdev.flatlaf.util.NativeLibrary in an unnamed module (file:/C:/Users/tetsu/vscode/ProjectLibre/modules/projectlibre_ui/build/install/projectlibre_ui/lib/flatlaf-3.7.1.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+7åé 12, 2026 12:27:32 åﬂå„ com.projectlibre1.util.VersionUtils versionCheck
+èÓïÒ: ProjectLibre Version: 1.9.8 local version 1.9.8 updated=false java version=26.0.1
+7åé 12, 2026 12:27:32 åﬂå„ com.projectlibre1.menu.MenuManager getActionStringFromId
+åxçê: Invalid item: RibbonTaskInformationAction it must be a menu item in the menu properties, even if it's only shown in a toolbar
+7åé 12, 2026 12:27:32 åﬂå„ com.projectlibre1.menu.MenuManager getActionStringFromId
+åxçê: Invalid item: RibbonResourceInformationAction it must be a menu item in the menu properties, even if it's only shown in a toolbar

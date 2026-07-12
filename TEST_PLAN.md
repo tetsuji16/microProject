@@ -41,7 +41,7 @@
 | F-03 | 境界 | 大文字拡張子 `PLAN.XLSX`, 混在 `Plan.MpP` | 判定 | 小文字化され正しく認識 |
 | F-04 | 異常 | `null`, 空文字, `file.`, `.pod`, 拡張子なし | 各 FileHelper API 呼出 | NPE なし。仕様上未許可または既定拡張子付与 |
 | F-05 | 異常 | 未対応拡張子 `.csv`, `.txt`, `.xls` | import/export | 明示的失敗、または file type `0` |
-| F-06 | 正常 | 実 `sampledata.mpp` | `MspImporter.importProject` | task/resource/calendar が 0 件でない |
+| F-06 | 正常 | 実 `samples/sampledata.mpp` | `MspImporter.importProject` | task/resource/calendar が 0 件でない |
 | F-07 | 正常 | MPXJ 生成 XLSX | import | project 非 null、root summary 除外、子タスク保持 |
 | F-08 | 境界 | `.xlsx` 拡張子だが中身は XML | `normalizeExtension` | `xml` として読込 |
 | F-09 | 異常 | 空 XLSX, 壊れた ZIP, 途中切断 stream | import | 例外が握り潰されず、UI/job に失敗が伝播 |
@@ -140,6 +140,7 @@
 | B-03 | 正常 | build | `.\gradlew.bat build` | compile/jar 成功 |
 | B-04 | 正常 | packaged import | `.\gradlew.bat verifyPackagedFileImports` | limited modules で MPP/POD 読込成功 |
 | B-05 | 正常 | app dist | `.\gradlew.bat stageAppDist` | `projectlibre_ui/build/install/projectlibre_ui` 生成 |
+| B-05a | 正常 | legacy packaging cleanup | `.\gradlew.bat cleanLegacyPackagingArtifacts` | `isolated-build` が削除され、Gradle 正本の成果物には影響しない |
 | B-06 | 異常 | JAVA_HOME 未設定/不正 | package task | 既定 JDK 25 fallback または明確な失敗 |
 | B-07 | 異常 | WiX なし | MSI/EXE package | 原因が分かる失敗、途中成果物破損なし |
 | B-08 | 境界 | docs downloads 既存巨大 part | publish split exe | 古い part 削除、新 part/rebuild bat 生成 |
@@ -148,7 +149,7 @@
 
 - OS: Windows、JDK 25+、Gradle Wrapper 使用。
 - Headless unit test: `java.awt.headless=true`。Swing/EDT 系は `SwingUtilities.invokeAndWait` を使う。
-- Sample data: `sampledata.mpp`, `sample data/Commercial construction project plan.{mpp,pod,xlsx,xml,json}`。
+- Sample data: `samples/sampledata.mpp`, `samples/Commercial construction project plan.{mpp,pod,xlsx,xml,json}`。
 - 一時ファイル: JUnit の temp directory を使い、POD/XLSX/sidecar を毎回隔離。
 - 並行性: thread pool で sidecar lock、`Timer` poll、UI thread 操作を重ねる。
 - Locale/Timezone: `Asia/Tokyo`, `UTC`, DST あり timezone で日付/カレンダーを再実行。

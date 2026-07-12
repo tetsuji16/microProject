@@ -34,8 +34,9 @@ Thumbs.db
 *.tmp
 *.swp
 *~
-projectlibre_build/*check.png
+packaging/*check.png
 docs/downloads/
+isolated-build/
 *.part
 *.part*
 

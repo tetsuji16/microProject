@@ -1,0 +1,73 @@
+[versions]
+commons-beanutils = "1.9.4"
+commons-collections = "3.2.2"
+commons-collections4 = "4.4"
+commons-digester = "1.8.1"
+commons-lang = "2.6"
+commons-lang3 = "3.18.0"
+commons-logging = "1.3.5"
+commons-pool = "1.6"
+flatlaf = "3.7.1"
+groovy = "2.4.21"
+itext = "2.1.7"
+radiance = "4.5.0"
+javax-activation = "1.2.0"
+javax-jaxb = "2.3.1"
+jaxb-runtime = "2.3.9"
+jackson = "2.22.0"
+jackson-annotations = "2.22"
+jasperreports = "6.21.5"
+jfreechart = "1.5.6"
+netbeans = "RELEASE290"
+mpxj = "10.11.0"
+pdfbox = "3.0.7"
+poi = "5.5.1"
+slf4j = "2.0.17"
+logback = "1.5.18"
+
+[libraries]
+commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
+commons-collections = { module = "commons-collections:commons-collections", version.ref = "commons-collections" }
+commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "commons-collections4" }
+commons-digester = { module = "commons-digester:commons-digester", version.ref = "commons-digester" }
+commons-lang = { module = "commons-lang:commons-lang", version.ref = "commons-lang" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
+commons-logging = { module = "commons-logging:commons-logging", version.ref = "commons-logging" }
+commons-pool = { module = "commons-pool:commons-pool", version.ref = "commons-pool" }
+forms = { module = "com.jgoodies:jgoodies-forms", version = "1.9.0" }
+flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
+flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
+groovy = { module = "org.codehaus.groovy:groovy", version.ref = "groovy" }
+itext = { module = "com.lowagie:itext", version.ref = "itext" }
+radiance-neon = { module = "org.pushing-pixels:radiance-neon", version.ref = "radiance" }
+radiance-trident = { module = "org.pushing-pixels:radiance-trident", version.ref = "radiance" }
+javax-activation-api = { module = "javax.activation:javax.activation-api", version.ref = "javax-activation" }
+javax-jaxb-api = { module = "javax.xml.bind:jaxb-api", version.ref = "javax-jaxb" }
+jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime", version.ref = "jaxb-runtime" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
+jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jasperreports = { module = "net.sf.jasperreports:jasperreports", version.ref = "jasperreports" }
+jfreechart = { module = "org.jfree:jfreechart", version.ref = "jfreechart" }
+org-netbeans-swing-outline = { module = "org.netbeans.api:org-netbeans-swing-outline", version.ref = "netbeans" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+mpxj = { module = "net.sf.mpxj:mpxj", version.ref = "mpxj" }
+pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
+poi = { module = "org.apache.poi:poi", version.ref = "poi" }
+poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "poi" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+
+[bundles]
+commons-legacy = [
+    "commons-beanutils",
+    "commons-collections",
+    "commons-digester",
+    "commons-lang",
+    "commons-lang3",
+    "commons-logging",
+    "commons-pool",
+]
+jackson = ["jackson-annotations", "jackson-core", "jackson-databind"]
+logging = ["slf4j-api", "logback-classic"]
+poi = ["poi", "poi-ooxml"]
+jaxb = ["javax-activation-api", "javax-jaxb-api", "jaxb-runtime"]

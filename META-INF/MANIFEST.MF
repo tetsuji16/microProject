@@ -1,7 +1,0 @@
-Manifest-Version: 1.0
-Ant-Version: Apache Ant 1.10.14
-Created-By: 26 (Eclipse Adoptium)
-Main-Class: com.projectlibre1.main.Main
-Class-Path: lib/projectlibre-contrib.jar lib/projectlibre-script.jar l
- ib/projectlibre-reports.jar
-

@@ -1,0 +1,44 @@
+7Œ 12, 2026 12:19:33 ŒßŒã com.projectlibre1.pm.graphic.frames.ApplicationStartupFactory dumpOpts
+î•ñ: opts:
+7Œ 12, 2026 12:19:33 ŒßŒã com.projectlibre1.util.VersionUtils versionCheck
+î•ñ: ProjectLibre Version: 1.9.8 local version 1.9.8 updated=false java version=26.0.1
+7Œ 12, 2026 12:19:33 ŒßŒã com.projectlibre1.menu.MenuManager getActionStringFromId
+Œx: Invalid item: RibbonTaskInformationAction it must be a menu item in the menu properties, even if it's only shown in a toolbar
+7Œ 12, 2026 12:19:33 ŒßŒã com.projectlibre1.menu.MenuManager getActionStringFromId
+Œx: Invalid item: RibbonResourceInformationAction it must be a menu item in the menu properties, even if it's only shown in a toolbar
+7Œ 12, 2026 12:19:52 ŒßŒã com.projectlibre1.exchange.LocalFileImporter importFile
+î•ñ: Loading C:\Users\tetsu\vscode\ProjectLibre\samples\June_1_sample.pod...
+7Œ 12, 2026 12:19:52 ŒßŒã com.projectlibre1.exchange.LocalFileImporter importFile
+î•ñ: Loading...Done in 151 ms
+7Œ 12, 2026 12:19:52 ŒßŒã com.projectlibre1.exchange.LocalFileImporter importFile
+î•ñ: Deserializing...
+7Œ 12, 2026 12:19:52 ŒßŒã com.projectlibre1.server.access.ErrorLogger log
+d‘å: Repaired task with no assignments
+java.lang.Exception: Simulated Exception
+	at com.projectlibre1.server.access.ErrorLogger.getStackTrace(ErrorLogger.java:102)
+	at com.projectlibre1.server.access.ErrorLogger.log(ErrorLogger.java:83)
+	at com.projectlibre1.server.access.ErrorLogger.logOnce(ErrorLogger.java:126)
+	at com.projectlibre1.pm.task.Project.repairTasks(Project.java:1464)
+	at com.projectlibre1.pm.task.Project.initialize(Project.java:342)
+	at com.projectlibre1.server.data.Serializer.deserializeProject(Serializer.java:1199)
+	at com.projectlibre1.server.data.Serializer.deserializeProject(Serializer.java:746)
+	at com.projectlibre1.server.data.Serializer.deserializeLocalDocument(Serializer.java:736)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at com.projectlibre1.server.data.DataUtil.deserializeLocalDocument(DataUtil.java:108)
+	at com.projectlibre1.exchange.LocalFileImporter.importFile(LocalFileImporter.java:136)
+	at com.projectlibre1.exchange.LocalFileImporter$4.run(LocalFileImporter.java:421)
+	at com.projectlibre1.job.Job$InternalRunnable.run(Job.java:657)
+	at com.projectlibre1.job.Job.runSwing(Job.java:435)
+	at com.projectlibre1.job.Job.runThread(Job.java:409)
+	at com.projectlibre1.job.Job.run(Job.java:370)
+	at com.projectlibre1.job.Job.run(Job.java:397)
+
+7Œ 12, 2026 12:19:52 ŒßŒã com.projectlibre1.exchange.LocalFileImporter importFile
+î•ñ: Deserializing...Done in 563 ms
+7Œ 12, 2026 12:19:54 ŒßŒã org.openide.util.ImageUtilities$CachedLookupLoader getLoader
+Œx: No interface org.openide.util.spi.SVGLoader instance found in ProxyLookup(class=class org.openide.util.Lookup$DefLookup)->[MetaInfServicesLookup[jdk.internal.loader.ClassLoaders$AppClassLoader@251a69d7], SingletonLookup[jdk.internal.loader.ClassLoaders$AppClassLoader@251a69d7]]
+7Œ 12, 2026 12:19:54 ŒßŒã org.openide.util.ImageUtilities getIcon
+î•ñ: No SVG loader available for loading jar:file:/C:/Users/tetsu/vscode/ProjectLibre/modules/projectlibre_ui/build/install/projectlibre_ui/lib/org-netbeans-swing-outline-RELEASE290.jar!/org/netbeans/swing/etable/columns.svg
+7Œ 12, 2026 12:19:54 ŒßŒã com.projectlibre1.pm.graphic.views.SplittedView$1 propertyChange
+î•ñ:  divider changed to 492 source=GanttView

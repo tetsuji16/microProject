@@ -1,0 +1,1 @@
+2026-07-12T03:19:33.773466700Z loadConfig ERROR Log4j API could not find a logging provider.

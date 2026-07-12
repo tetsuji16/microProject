@@ -43,14 +43,15 @@ The figures below describe cumulative change volume since that baseline commit.
 
 ## Repository Layout
 
-- `projectlibre_core`: scheduling engine, data model, collaboration logic, and configuration
-- `projectlibre_application`: application workflows, file policies, and save/open coordination
-- `projectlibre_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
-- `projectlibre_exchange`: file exchange, import/export, and format integration code
-- `projectlibre_reports`: report-related code and templates
-- `projectlibre_contrib`: shared third-party dependencies built into the app distribution
-- `projectlibre_build`: packaging assets, release metadata, icons, installers, and licenses
-- `sample data`: sample project files for screenshots and manual verification
+- `modules/projectlibre_core`: scheduling engine, data model, collaboration logic, and configuration
+- `modules/projectlibre_application`: application workflows, file policies, and save/open coordination
+- `modules/projectlibre_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
+- `modules/projectlibre_exchange`: file exchange, import/export, and format integration code
+- `modules/projectlibre_reports`: report-related code and templates
+- `modules/projectlibre_contrib`: shared third-party dependencies built into the app distribution
+- `packaging`: active packaging assets, licenses, and Windows release icons
+- `samples`: sample project files for screenshots and manual verification
+- `scripts`: launch helpers for local verification
 
 ## Requirements
 
@@ -65,8 +66,7 @@ If `JAVA_HOME` is not set, the Gradle release tasks fall back to `C:\Program Fil
 
 - `Gradle` is the supported build and release entrypoint for this repository
 - `build.gradle.kts` drives module compilation, installable app layout generation, and Windows `jpackage` packaging
-- `projectlibre_build` remains the source of packaging assets, icons, notices, and Windows file-association metadata consumed by the Gradle tasks
-- Ant build files are legacy-only repository artifacts and are not a supported build or release path
+- `packaging` is the source of active packaging assets, icons, and license notices consumed by the Gradle tasks
 - Keep `projectlibre_contrib` jars lean when updating dependencies so the packaged app size does not grow unnecessarily
 - CI is aligned to the Gradle flow and validates the installable desktop layout on JDK 25
 
@@ -89,6 +89,7 @@ Key Gradle entrypoints:
 - `.\gradlew.bat projects`: show the multi-project layout
 - `.\gradlew.bat build`: compile the production modules and assemble per-module jars
 - `.\gradlew.bat stageAppDist`: create the installed desktop app layout from `:projectlibre_ui:installDist`
+- `.\gradlew.bat cleanLegacyPackagingArtifacts`: remove generated legacy packaging scratch output such as `isolated-build`
 - `.\gradlew.bat packageWindowsAppImage`: build a Windows app-image with `jpackage`
 - `.\gradlew.bat packageWindowsMsi`: build the Windows MSI
 - `.\gradlew.bat packageWindowsExe`: build the Windows self-contained EXE
@@ -96,13 +97,19 @@ Key Gradle entrypoints:
 
 When you are manually verifying a UI fix, use the installed app layout created by `stageAppDist` / `installDist`, not an older `build/install` copy. See [docs/build-and-run.md](docs/build-and-run.md) for the exact runbook.
 
+On Windows, the safest one-step launcher is `scripts\run_projectlibre_clean.bat`, and `scripts\run_projectlibre.bat` is a double-click entry point to the same flow.
+
 The runnable application layout is generated under:
 
-- `projectlibre_ui\build\install\projectlibre_ui`
+- `modules\projectlibre_ui\build\install\projectlibre_ui`
 
 The root release work area is generated under:
 
 - `build\releases\v<version>\`
+
+Legacy packaging scratch output, if present, is disposable and should not be committed:
+
+- `isolated-build\`
 
 ## Build The Windows Release
 
@@ -140,18 +147,12 @@ If WiX was installed per-user rather than system-wide, keep its `bin` directory 
 %LOCALAPPDATA%\Programs\WiX Toolset v7.0\bin
 ```
 
-## Legacy Build Artifacts
-
-- `projectlibre_build/build.xml` and related Ant files remain in the repository as historical compatibility artifacts
-- They are not part of the supported build, release, or CI path
-- New build and release fixes should target the Gradle flow
-
 ## Screenshot Procedure Used In This Repository
 
 The README screenshot is intentionally captured so that only the application UI is visible.
 
 - Launch the app by itself, not the whole desktop workspace
-- Open `sampledata.mpp`
+- Open `samples\sampledata.mpp`
 - Arrange the main Gantt view at a readable zoom level
 - Capture only the app window client area so title-bar paths, taskbar items, IDE windows, notifications, and personal information do not appear
 
@@ -164,4 +165,4 @@ The README screenshot is intentionally captured so that only the application UI 
 
 ## License
 
-This fork builds on ProjectLibre and keeps the original license materials and third-party notices in `projectlibre_build/license`.
+This fork builds on ProjectLibre and keeps the original license materials and third-party notices in `packaging/licenses`.
