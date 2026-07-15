@@ -98,9 +98,9 @@
 				classpathref="compile.class.path"
 				debug="off"
 				nowarn="on"
+				includeantruntime="false"
 				encoding="UTF-8"
-				source="21"
-				target="21">
+				release="21">
 					<src path="${src_core}" />
 					<src path="${src_ui}" />
 					<src path="${src_reports}" />
@@ -116,9 +116,9 @@
 				classpathref="compile-no_contrib_built.class.path"
 				debug="off"
 				nowarn="on"
+				includeantruntime="false"
 				encoding="UTF-8"
-				source="21"
-				target="21">
+				release="21">
 					<src path="${src_core}" />
 					<src path="${src_ui}" />
 					<src path="${src_reports}" />

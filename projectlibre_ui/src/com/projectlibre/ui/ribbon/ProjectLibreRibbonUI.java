@@ -1291,7 +1291,7 @@ protected Map<RibbonContextualTaskGroup, GradientPaint> contextualGroupGradients
 					Color hueColor = taskGroup.getHueColor();
 					
 					// Use cached gradient or create new one if needed
-					Paint paint = contextualGroupGradients.get(taskGroup);
+					GradientPaint paint = contextualGroupGradients.get(taskGroup);
 					if (paint == null) {
 						paint = new GradientPaint(
 								0,

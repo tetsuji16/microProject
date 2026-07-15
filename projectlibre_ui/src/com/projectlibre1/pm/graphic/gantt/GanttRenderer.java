@@ -273,9 +273,34 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 					if (completedW>width && !GanttOption.getInstance().isCompletionIsContiguous())
 						completedW=width;
 					completedW=CoordinatesConverter.adaptSmallBarEndX(x, x+completedW, node,config)-x;
-					Rectangle2D progressBar=new Rectangle2D.Double(x,y-config.getGanttProgressBarHeight()/2,completedW,config.getGanttProgressBarHeight());
-					g2.setColor(Color.BLACK);
-					g2.fill(progressBar);
+
+					// Lightning line progress indicator - zigzag pattern
+					if (completedW > 0) {
+						int segments = Math.max(1, (int)(completedW / 8)); // 8px per segment
+						double segmentWidth = completedW / segments;
+						double progressHeight = config.getGanttProgressBarHeight();
+
+						GeneralPath lightningPath = new GeneralPath();
+						lightningPath.moveTo(x, y - progressHeight/2);
+
+						for (int i = 0; i <= segments; i++) {
+							double segmentX = x + (i * segmentWidth);
+							double offset = (i % 2 == 0) ? -progressHeight/4 : progressHeight/4;
+							lightningPath.lineTo(segmentX, y + offset);
+						}
+
+						// Close the path to fill the area under the lightning
+						lightningPath.lineTo(x + completedW, y + progressHeight/2);
+						lightningPath.lineTo(x, y + progressHeight/2);
+						lightningPath.closePath();
+
+						g2.setColor(new Color(0, 100, 200)); // Bright blue for lightning
+						g2.fill(lightningPath);
+
+						// Draw outline
+						g2.setColor(new Color(0, 50, 150));
+						g2.draw(lightningPath);
+					}
 				}
 			}
 

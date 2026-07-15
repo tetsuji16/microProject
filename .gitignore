@@ -5,6 +5,8 @@ projectlibre_build/build-override.properties
 projectlibre_build/build/
 projectlibre_build/dist/
 projectlibre_build/packages/
+projectlibre_core/build/
+projectlibre_core/dist/
 projectlibre_contrib/build/
 projectlibre_contrib/openproj-contrib.jar
 projectlibre_contrib/openproj-reports.jar

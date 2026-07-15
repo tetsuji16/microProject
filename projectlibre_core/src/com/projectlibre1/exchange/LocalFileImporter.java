@@ -66,15 +66,19 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.util.List;
+import java.util.Locale;
 import java.util.Scanner;
 
 import javax.swing.SwingUtilities;
 
+import com.projectlibre1.datatype.Duration;
 import com.projectlibre1.grouping.core.model.DefaultNodeModel;
 import com.projectlibre1.job.Job;
 import com.projectlibre1.job.JobRunnable;
 import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.pm.resource.ResourcePoolFactory;
+import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.server.data.DataUtil;
 import com.projectlibre1.server.data.DocumentData;
@@ -84,6 +88,7 @@ import com.projectlibre1.session.SessionFactory;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.undo.DataFactoryUndoController;
 import com.projectlibre1.util.Alert;
+import com.projectlibre1.util.Environment;
 
 /**
  * Loads/Saves a project from/to a pod file
@@ -93,6 +98,7 @@ public class LocalFileImporter extends FileImporter {
 	private static final String PROJECT_LIBRE_FILE_SEPARATOR="@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@";
 	private static final String OLD_FILE="com.projity.server.data.ProjectData";
 	private static final String XML_FILE_START="<?xml";
+
 	/**
 	 *
 	 */
@@ -100,12 +106,16 @@ public class LocalFileImporter extends FileImporter {
 		super();
 		// TODO Auto-generated constructor stub
 	}
-	
+
 	
 
 	@Override
 	public void importFile() throws Exception{
 		File f=new File(getFileName());
+		if (getFileName().toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
+			importFromXlsx(f);
+			return;
+		}
 		FileInputStream fin=new FileInputStream(f);
 		Exception ex=null;
 		
@@ -145,7 +155,7 @@ public class LocalFileImporter extends FileImporter {
 				}
 			}
 			
-		}
+	}
         
         if (project==null){
         	//recreate project
@@ -434,6 +444,57 @@ public class LocalFileImporter extends FileImporter {
         return job;
     }
     
+    /**
+     * Imports the first worksheet of an XLSX workbook. The expected columns are
+     * task name, start date, end date and progress percentage.
+     */
+    private void importFromXlsx(File file) throws Exception {
+        List<XlsxTaskReader.TaskRow> rows = XlsxTaskReader.read(file);
+        if (rows.isEmpty()) {
+            throw new IOException("No task rows found in XLSX file");
+        }
+
+        DataFactoryUndoController undoController = new DataFactoryUndoController();
+        ResourcePool resourcePool = ResourcePoolFactory.getInstance().createResourcePool("", undoController);
+        resourcePool.setLocal(true);
+        Project importedProject = Project.createProject(resourcePool, undoController);
+        undoController.setDataFactory(importedProject);
+        ((DefaultNodeModel)importedProject.getTaskOutline()).setDataFactory(importedProject);
+
+        boolean wasImporting = Environment.isImporting();
+        Environment.setImporting(true);
+        try {
+            for (XlsxTaskReader.TaskRow row : rows) {
+                if (row.getStart() != null && row.getEnd() != null
+                        && row.getEnd().before(row.getStart())) {
+                    throw new IOException("End date is before start date at worksheet row " + row.getRowNumber());
+                }
+
+                NormalTask task = importedProject.createScriptedTask();
+                task.setName(row.getName());
+                if (row.getStart() != null || row.getEnd() != null) {
+                    long defaultDuration = Duration.millis(task.getRawDuration());
+                    long start = row.getStart() == null
+                            ? task.getEffectiveWorkCalendar().add(row.getEnd().getTime(), -defaultDuration, false)
+                            : row.getStart().getTime();
+                    long finish = row.getEnd() == null
+                            ? task.getEffectiveWorkCalendar().add(start, defaultDuration, true)
+                            : row.getEnd().getTime();
+                    task.setCurrentScheduleStart(start);
+                    task.setCurrentScheduleFinish(finish);
+                    task.setAllSchedulesToCurrentDates();
+                    task.setRawDuration(task.getEffectiveWorkCalendar().compare(finish, start, false));
+                }
+                task.setPercentComplete(row.getProgressPercent() / 100.0d);
+            }
+            importedProject.setInitialized(true);
+        } finally {
+            Environment.setImporting(wasImporting);
+        }
+
+        setProject(importedProject);
+    }
+
     //disabled
     @Override
 	public boolean saveProject(Project project,OutputStream out) throws Exception{
