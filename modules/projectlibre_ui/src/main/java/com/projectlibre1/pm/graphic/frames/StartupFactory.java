@@ -188,6 +188,7 @@ public abstract class StartupFactory {
 		graphicManager.setConnected(false);
 
 		if (!doLogin(graphicManager)) return null;
+		markLoginSuccessful(graphicManager);
 		//if (Environment.isNewLook())
 			graphicManager.initLookAndFeel();
 
@@ -262,6 +263,16 @@ public abstract class StartupFactory {
 	public void doPostInitView(Container container) {
 	}
 
+	/**
+	 * Completes the command-state transition shared by standalone and server
+	 * startup. A successful standalone login used to return before restoring this
+	 * state, leaving New, Open and Import permanently disabled.
+	 */
+	static void markLoginSuccessful(GraphicManager graphicManager) {
+		if (graphicManager != null)
+			graphicManager.setConnected(true);
+	}
+
 	public boolean doLogin(GraphicManager graphicManager) {
 		if (Environment.getStandAlone()){
 //			graphicManager.getFrame().setVisible(true);
@@ -313,8 +324,6 @@ public abstract class StartupFactory {
 								String serverVersion=env.get("serverVersion");
 								checkServerVersion(serverVersion);
 							}
-							gm.setConnected(true);
-
 						}
 					}});
 					if (!((Boolean)SessionFactory.callNoEx(session,"isLicensedToRunClient",null,null)).booleanValue()) {
