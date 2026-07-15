@@ -93,6 +93,9 @@ import com.projectlibre1.pm.dependency.Dependency;
 import com.projectlibre1.pm.dependency.HasDependencies;
 import com.projectlibre1.pm.resource.ResourceImpl;
 import com.projectlibre1.pm.task.NormalTask;
+import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.pm.task.ProjectFactory;
+import com.projectlibre1.pm.task.SubProj;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.pm.task.TaskLinkReference;
 import com.projectlibre1.pm.task.TaskLinkReferenceImpl;
@@ -292,15 +295,9 @@ public class DefaultNodeModel implements NodeModel {
 		beginUndoUpdate(actionType);
 		try {
 			ArrayList roots = collectRemovalRoots(nodes, filterAssignments);
-			List parents=new ArrayList();
-			List positions=new ArrayList();
-			boolean containsSubprojects=collectRemovalMetadata(roots, parents, positions);
+			RemovalSnapshot removalSnapshot = RemovalSnapshot.capture(roots);
 			if (!confirmRemove(roots))
 				return;
-
-			if (undoController!=null&&isUndo(actionType)){
-				if (containsSubprojects) undoController.clear();
-			}
 
 			hierarchy.remove(roots,this,actionType,removeDependencies);
 			unregisterNodes(roots);
@@ -308,11 +305,8 @@ public class DefaultNodeModel implements NodeModel {
 			hierarchy.checkEndVoidNodes(actionType);
 
 			//Undo
-			if (undoController!=null){
-				if (!containsSubprojects&&isUndo(actionType)){
-					postEdit(new NodeDeletionEdit(this,parents,roots,positions));
-				}
-			}
+			if (undoController!=null&&isUndo(actionType))
+				postEdit(new NodeDeletionEdit(this,removalSnapshot));
 		} finally{
 			endUndoUpdate(actionType);
 		}
@@ -697,17 +691,105 @@ public class DefaultNodeModel implements NodeModel {
 		return roots;
 	}
 
-	private boolean collectRemovalMetadata(List roots, List parents, List positions) {
-		boolean containsSubprojects=false;
-		for (Iterator i=roots.iterator();i.hasNext();){
-			NodeBridge node=(NodeBridge)i.next();
-			if (NodeModelUtil.nodeIsSubproject(node))
-				containsSubprojects=true;
-			NodeBridge parent=(NodeBridge)node.getParent();
-			parents.add(parent);
-			positions.add(Integer.valueOf(parent.getIndex(node)));
+	/** Immutable placement and subproject state captured before a deletion. */
+	public static final class RemovalSnapshot {
+		private final List<Entry> entries;
+		private final List<SubprojectState> subprojects;
+
+		private RemovalSnapshot(List<Entry> entries, List<SubprojectState> subprojects) {
+			this.entries = java.util.Collections.unmodifiableList(entries);
+			this.subprojects = java.util.Collections.unmodifiableList(subprojects);
 		}
-		return containsSubprojects;
+
+		static RemovalSnapshot capture(List roots) {
+			List<Entry> entries = new ArrayList<Entry>();
+			List<SubprojectState> subprojects = new ArrayList<SubprojectState>();
+			for (Iterator i = roots.iterator(); i.hasNext();) {
+				Node node = (Node) i.next();
+				Node parent = (Node) node.getParent();
+				entries.add(new Entry(parent, node, parent.getIndex(node)));
+				collectSubprojects(node, subprojects);
+			}
+			return new RemovalSnapshot(entries, subprojects);
+		}
+
+		private static void collectSubprojects(Node node, List<SubprojectState> subprojects) {
+			if (node.getImpl() instanceof SubProj) {
+				SubProj subproject = (SubProj) node.getImpl();
+				subprojects.add(new SubprojectState(node, subproject.getSubproject()));
+			}
+			for (Iterator i = node.childrenIterator(); i.hasNext();)
+				collectSubprojects((Node) i.next(), subprojects);
+		}
+
+		public List<Entry> getEntries() {
+			return entries;
+		}
+
+		public List<SubprojectState> getSubprojects() {
+			return subprojects;
+		}
+
+		public List getNodes() {
+			List nodes = new ArrayList(entries.size());
+			for (Entry entry : entries)
+				nodes.add(entry.getNode());
+			return nodes;
+		}
+
+		public static final class Entry {
+			private final Node parent;
+			private final Node node;
+			private final int position;
+
+			private Entry(Node parent, Node node, int position) {
+				this.parent = parent;
+				this.node = node;
+				this.position = position;
+			}
+
+			public Node getParent() { return parent; }
+			public Node getNode() { return node; }
+			public int getPosition() { return position; }
+		}
+
+		public static final class SubprojectState {
+			private final Node node;
+			private final Project project;
+			private long restoreGeneration;
+
+			private SubprojectState(Node node, Project project) {
+				this.node = node;
+				this.project = project;
+			}
+
+			public Node getNode() { return node; }
+			public Project getProject() { return project; }
+
+			public synchronized void cancelRestore() {
+				restoreGeneration++;
+			}
+
+			public void restoreAfterClose(Project parentProject) {
+				if (project == null || parentProject == null)
+					return;
+				final long generation;
+				synchronized (this) {
+					generation = ++restoreGeneration;
+				}
+				ProjectFactory.getInstance().runAfterProjectClosed(project.getUniqueId(), () -> {
+					synchronized (SubprojectState.this) {
+						if (generation != restoreGeneration)
+							return;
+					}
+					if (ProjectFactory.getInstance().findFromId(project.getUniqueId()) == null) {
+						project.initializeProject();
+						ProjectFactory.getInstance().addProject(project, false, false);
+					}
+					ProjectFactory.getInstance().openSubproject(parentProject, node, false);
+				});
+			}
+		}
 	}
 
 	private void rebuildSearchIndex() {

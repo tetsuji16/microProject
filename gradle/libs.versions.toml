@@ -24,6 +24,7 @@ pdfbox = "3.0.7"
 poi = "5.5.1"
 slf4j = "2.0.17"
 logback = "1.5.18"
+log4j = "2.24.3"
 
 [libraries]
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
@@ -51,6 +52,7 @@ jasperreports = { module = "net.sf.jasperreports:jasperreports", version.ref = "
 jfreechart = { module = "org.jfree:jfreechart", version.ref = "jfreechart" }
 org-netbeans-swing-outline = { module = "org.netbeans.api:org-netbeans-swing-outline", version.ref = "netbeans" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 mpxj = { module = "net.sf.mpxj:mpxj", version.ref = "mpxj" }
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 poi = { module = "org.apache.poi:poi", version.ref = "poi" }

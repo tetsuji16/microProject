@@ -27,6 +27,7 @@ import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
@@ -39,11 +40,13 @@ import com.projectlibre1.util.FlatUiSupport;
 final class ModernRibbonPanel extends JPanel {
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
+	static final String COLLAPSED_POPUP_PROPERTY = "ProjectLibre.ribbonCollapsedPopup";
 	private static final int BAND_MIN_WIDTH = 72;
-	private static final int BAND_INNER_GAP = 2;
+	private static final int BAND_INNER_GAP = 4;
 	private static final int BAND_SIDE_PADDING = 4;
-	private static final int INLINE_COLUMN_GAP = 2;
-	private static final int LARGE_BUTTON_GAP = 1;
+	private static final int INLINE_COLUMN_GAP = 4;
+	private static final int LARGE_BUTTON_GAP = 2;
+	private static final int BAND_GAP = 8;
 	private static final int COMPACT_RIBBON_WIDTH = 1200;
 	private static final int COLLAPSED_RIBBON_WIDTH = 760;
 	private enum RibbonDensity { FULL, COMPACT, COLLAPSED }
@@ -134,7 +137,40 @@ final class ModernRibbonPanel extends JPanel {
 		rowConstraints.anchor = GridBagConstraints.WEST;
 		row.add(tabs, rowConstraints);
 
+		JPanel quickAccess = buildQuickAccessToolbar();
+		GridBagConstraints quickAccessConstraints = new GridBagConstraints();
+		quickAccessConstraints.gridx = 1;
+		quickAccessConstraints.gridy = 0;
+		quickAccessConstraints.anchor = GridBagConstraints.EAST;
+		quickAccessConstraints.insets = new Insets(0, 8, 0, 0);
+		row.add(quickAccess, quickAccessConstraints);
+
 		return row;
+	}
+
+	/**
+	 * The Quick Access Toolbar is deliberately outside every ribbon tab.  This
+	 * prevents Save, Undo and Redo from being duplicated in File while keeping
+	 * the three document-wide commands available when any tab is active.
+	 */
+	private JPanel buildQuickAccessToolbar() {
+		JPanel quickAccess = new JPanel(new GridBagLayout());
+		quickAccess.setOpaque(false);
+		GridBagConstraints constraints = new GridBagConstraints();
+		constraints.gridx = 0;
+		constraints.gridy = 0;
+		constraints.insets = new Insets(0, 0, 0, 2);
+		for (String buttonId : model.getTaskBarButtons()) {
+			SwingRibbonModel.RibbonButton specification = new SwingRibbonModel.RibbonButton(
+				buttonId,
+				SwingRibbonModel.ButtonPriority.LOW);
+			AbstractButton button = createButton(specification, true);
+			buttonStyler.styleActionButton(button, "small");
+			button.setText("");
+			quickAccess.add(button, constraints);
+			constraints.gridx++;
+		}
+		return quickAccess;
 	}
 
 	private JPanel buildTabsStrip() {
@@ -175,6 +211,7 @@ final class ModernRibbonPanel extends JPanel {
 		FlatUiSupport.styleRibbonTabButton(button);
 		button.setHorizontalAlignment(SwingConstants.LEFT);
 		button.addItemListener(event -> updateTabButtonAppearance(button, event.getStateChange() == ItemEvent.SELECTED));
+		button.getModel().addChangeListener(event -> updateTabButtonAppearance(button, button.isSelected()));
 		button.addActionListener(e -> showTab(tab.getId()));
 		if (tabBodies.isEmpty()) {
 			button.setSelected(true);
@@ -259,15 +296,18 @@ final class ModernRibbonPanel extends JPanel {
 		JPanel shell = new JPanel(new BorderLayout());
 		shell.setOpaque(true);
 		shell.setBackground(FlatUiSupport.panelBackground());
-		shell.setBorder(BorderFactory.createEmptyBorder(3, 8, 5, 8));
+		// Keep the command surface visually compact.  The former asymmetric shell
+		// padding made the ribbon look tall even when every band contained only
+		// inline commands.
+		shell.setBorder(BorderFactory.createEmptyBorder(1, 8, 2, 8));
 
 		JPanel bandRow = new OfficeRibbonSurfacePanel();
 		bandRow.setLayout(new GridBagLayout());
 		bandRow.setBackground(FlatUiSupport.ribbonSurfaceColor());
 		bandRow.setBorder(BorderFactory.createEmptyBorder(
-			5,
+			3,
 			8,
-			5,
+			3,
 			8));
 
 		int tallestContent = 0;
@@ -278,11 +318,12 @@ final class ModernRibbonPanel extends JPanel {
 		bandConstraints.gridy = 0;
 		bandConstraints.anchor = GridBagConstraints.NORTHWEST;
 		bandConstraints.fill = GridBagConstraints.NONE;
-		bandConstraints.insets = new Insets(0, 0, 0, 4);
-		for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
-			RibbonBandPanel bandComponent = density == RibbonDensity.COLLAPSED
-				? buildCollapsedBand(band)
-				: buildBand(band, density);
+		bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
+		List<SwingRibbonModel.RibbonBand> visibleBands = density == RibbonDensity.COLLAPSED
+			? List.of(collapsedTabBand(tab))
+			: tab.getBands();
+		for (SwingRibbonModel.RibbonBand band : visibleBands) {
+			RibbonBandPanel bandComponent = buildBand(band, density);
 			tallestContent = Math.max(tallestContent, bandComponent.getContentPreferredHeight());
 			tallestBand = Math.max(tallestBand, bandComponent.getPreferredSize().height);
 			bandPanels.add(bandComponent);
@@ -301,8 +342,8 @@ final class ModernRibbonPanel extends JPanel {
 		bandRow.add(Box.createHorizontalGlue(), bandConstraints);
 		int bandRowHeight = Math.max(
 			FlatUiSupport.ribbonSurfaceHeight(),
-			tallestBand + 10);
-		int shellHeight = bandRowHeight + 8;
+			tallestBand + 6);
+		int shellHeight = bandRowHeight + 3;
 		bandHeights.add(shellHeight);
 		bandRow.setPreferredSize(new Dimension(0, bandRowHeight));
 		shell.add(bandRow, BorderLayout.CENTER);
@@ -310,42 +351,51 @@ final class ModernRibbonPanel extends JPanel {
 		return shell;
 	}
 
-	private RibbonBandPanel buildCollapsedBand(SwingRibbonModel.RibbonBand band) {
-		RibbonBandPanel panel = new RibbonBandPanel();
-		panel.setOpaque(false);
-		panel.setBorder(BorderFactory.createEmptyBorder(2, BAND_SIDE_PADDING + 4, 1, BAND_SIDE_PADDING + 4));
+	private SwingRibbonModel.RibbonBand collapsedTabBand(SwingRibbonModel.RibbonTab tab) {
+		return new SwingRibbonModel.RibbonBand(
+			tab.getId() + ".Collapsed",
+			tab.getTitle(),
+			() -> buildCollapsedTabMenu(tab));
+	}
 
-		JButton trigger = new JButton(band.getTitle() + " …");
+	private JComponent buildCollapsedTabMenu(SwingRibbonModel.RibbonTab tab) {
+		JButton trigger = new JButton(tab.getTitle() + " …");
 		trigger.setFocusable(false);
-		trigger.setToolTipText(band.getTitle());
+		trigger.setToolTipText(tab.getTitle());
 		FlatUiSupport.styleRibbonSmallButton(trigger);
 		trigger.setHorizontalAlignment(SwingConstants.CENTER);
-		trigger.setPreferredSize(new Dimension(128, FlatUiSupport.ribbonInlineButtonHeight()));
+		trigger.setPreferredSize(new Dimension(160, FlatUiSupport.ribbonInlineButtonHeight()));
 		JPopupMenu popup = new JPopupMenu();
-		for (SwingRibbonModel.RibbonButton specification : band.getButtons()) {
-			AbstractButton command = createButton(specification, false);
-			buttonStyler.styleActionButton(command, "small");
-			command.setMaximumSize(new Dimension(260, command.getPreferredSize().height));
-			popup.add(command);
+		for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
+			JMenu bandMenu = new JMenu(band.getTitle());
+			if (band.isCustomBand()) {
+				JComponent custom = band.getCustomBandProvider() == null
+					? null
+					: band.getCustomBandProvider().createComponent();
+				if (custom != null) {
+					bandMenu.add(custom);
+				}
+			} else {
+				for (SwingRibbonModel.RibbonButton specification : band.getButtons()) {
+					AbstractButton command = createButton(specification, false);
+					buttonStyler.styleActionButton(command, "small");
+					command.setMaximumSize(new Dimension(260, command.getPreferredSize().height));
+					bandMenu.add(command);
+				}
+			}
+			if (bandMenu.getMenuComponentCount() > 0) {
+				popup.add(bandMenu);
+			}
 		}
+		trigger.putClientProperty(COLLAPSED_POPUP_PROPERTY, popup);
 		trigger.addActionListener(event -> popup.show(trigger, 0, trigger.getHeight()));
-
-		JPanel content = new RibbonBandContentPanel();
-		content.setOpaque(false);
-		content.setLayout(new BorderLayout());
-		content.add(trigger, BorderLayout.CENTER);
-		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
-		title.setOpaque(false);
-		title.setForeground(FlatUiSupport.ribbonBandTitleForeground());
-		title.setFont(FlatUiSupport.ribbonBandTitleFont());
-		panel.bind(content, title, Math.max(BAND_MIN_WIDTH, trigger.getPreferredSize().width + 12));
-		return panel;
+		return trigger;
 	}
 
 	private RibbonBandPanel buildBand(SwingRibbonModel.RibbonBand band, RibbonDensity ribbonDensity) {
 		RibbonBandPanel panel = new RibbonBandPanel();
 		panel.setOpaque(false);
-		panel.setBorder(BorderFactory.createEmptyBorder(2, BAND_SIDE_PADDING + 4, 1, BAND_SIDE_PADDING + 4));
+		panel.setBorder(BorderFactory.createEmptyBorder(1, BAND_SIDE_PADDING + 4, 0, BAND_SIDE_PADDING + 4));
 
 		if (band.isCustomBand()) {
 			return buildCustomBand(panel, band);
@@ -507,7 +557,7 @@ final class ModernRibbonPanel extends JPanel {
 		rowConstraints.gridy = 0;
 		rowConstraints.anchor = GridBagConstraints.NORTHWEST;
 		rowConstraints.fill = GridBagConstraints.HORIZONTAL;
-			rowConstraints.insets = new Insets(0, 0, 1, 0);
+		rowConstraints.insets = new Insets(0, 0, 0, 0);
 		for (int index = 0; index < buttons.size(); index++) {
 			AbstractButton button = buttons.get(index);
 			if (buttons.size() == 1) {
@@ -615,9 +665,9 @@ final class ModernRibbonPanel extends JPanel {
 				Color border = FlatUiSupport.ribbonSurfaceBorderColor();
 				int width = Math.max(0, getWidth() - 1);
 				int height = Math.max(0, getHeight() - 3);
-				int arc = Math.max(10, FlatUiSupport.ribbonCornerRadius());
-				g2.setColor(new Color(0, 0, 0, 24));
-				g2.fillRoundRect(1, 3, width - 1, height, arc, arc);
+				int arc = Math.max(6, FlatUiSupport.ribbonCornerRadius());
+				g2.setColor(new Color(0, 0, 0, 18));
+				g2.fillRoundRect(1, 2, width - 1, height, arc, arc);
 				g2.setColor(background);
 				g2.fillRoundRect(0, 0, width, height, arc, arc);
 				g2.setColor(border);

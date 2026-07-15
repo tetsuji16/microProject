@@ -57,7 +57,6 @@ package com.projectlibre1.exchange;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -84,6 +83,7 @@ import com.projectlibre1.session.Session;
 import com.projectlibre1.session.SessionFactory;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.Environment;
+import com.projectlibre1.util.SafeObjectInput;
 import com.projectlibre1.server.data.DataObject;
 
 /**
@@ -123,7 +123,7 @@ public class ServerLocalFileImporter extends ServerFileImporter {
     	        logger.info("Loading " + importer.getFileName() + "..."); //$NON-NLS-1$ //$NON-NLS-2$
 
      	        long t1=System.currentTimeMillis();
-     	        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(importer.getFileName()))) {
+				try (var in = SafeObjectInput.create(new FileInputStream(importer.getFileName()))) {
      	        Object obj=in.readObject();
      	        if (obj instanceof String) obj=in.readObject();
     	        projectData=(ProjectData)obj;

@@ -242,6 +242,9 @@ public class MenuManager {
 	}
 
 	public void setActionEnabled(String id, boolean enable) {
+		Action action = getActionFromId(id);
+		if (action != null)
+			action.setEnabled(enable);
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
 			Iterator<?> i = buttons.iterator();
@@ -270,6 +273,9 @@ public class MenuManager {
 			menuItem.setVisible(enable);
 	}
 	public void setActionSelected(String id, boolean enable) {
+		Action action = getActionFromId(id);
+		if (action != null)
+			action.putValue(Action.SELECTED_KEY, enable);
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
 			Iterator<?> i = buttons.iterator();

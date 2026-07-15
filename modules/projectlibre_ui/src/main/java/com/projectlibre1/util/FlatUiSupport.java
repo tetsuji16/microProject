@@ -12,6 +12,7 @@ import java.awt.RenderingHints;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonModel;
 import javax.swing.BorderFactory;
+import javax.swing.event.ChangeListener;
 import javax.swing.JComponent;
 import javax.swing.JToggleButton;
 import javax.swing.JLabel;
@@ -238,11 +239,11 @@ public final class FlatUiSupport {
 	}
 
 	public static Color ribbonTabHoverColor() {
-		return new Color(0xF3F2F1);
+		return new Color(0xEAF3FF);
 	}
 
 	public static Color ribbonTabBorderHoverColor() {
-		return new Color(0xD0D0D0);
+		return new Color(0xB9D7F5);
 	}
 
 	public static Color ribbonTabUnderlineColor() {
@@ -294,7 +295,7 @@ public final class FlatUiSupport {
 	}
 
 	public static Color ribbonBandSeparatorColor() {
-		return new Color(0xD6D6D6);
+		return new Color(0xD8E0EA);
 	}
 
 	public static Color ribbonBandTitleForeground() {
@@ -353,25 +354,53 @@ public final class FlatUiSupport {
 		return BUTTON_STYLE_ROLE_RIBBON_LARGE.equals(role) || BUTTON_STYLE_ROLE_RIBBON_SMALL.equals(role);
 	}
 
+	/**
+	 * Installs state-aware background painting for ribbon commands. Swing paints
+	 * a button's border after its content (including the icon), so a filled
+	 * border would cover the icon in pressed/selected states. Let the button UI
+	 * paint the background first, then let the icon and label paint normally.
+	 */
+	private static void installRibbonCommandStatePainting(AbstractButton button) {
+		if (button.getClientProperty("ProjectLibre.ribbonStateChangeListener") != null) {
+			updateRibbonCommandStatePainting(button);
+			return;
+		}
+		ChangeListener listener = event -> updateRibbonCommandStatePainting(button);
+		button.getModel().addChangeListener(listener);
+		button.putClientProperty("ProjectLibre.ribbonStateChangeListener", listener);
+		button.addPropertyChangeListener("enabled", event -> updateRibbonCommandStatePainting(button));
+		updateRibbonCommandStatePainting(button);
+	}
+
+	private static void updateRibbonCommandStatePainting(AbstractButton button) {
+		if (button == null) {
+			return;
+		}
+		Color fill = resolveCommandButtonBackground(button);
+		button.setBackground(fill == null ? ribbonSurfaceColor() : fill);
+		button.setContentAreaFilled(fill != null);
+		button.setOpaque(fill != null);
+	}
+
 	private static boolean supportsPersistentSelectedState(AbstractButton button) {
 		return button instanceof JToggleButton && !BUTTON_STYLE_ROLE_RIBBON_TAB.equals(button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY));
 	}
 
 	public static Color commandButtonHoverBackground(AbstractButton button) {
 		if (isRibbonCommandButton(button))
-			return new Color(0xF3F2F1);
+			return new Color(0xEAF3FF);
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.08f);
 	}
 
 	public static Color commandButtonPressedBackground(AbstractButton button) {
 		if (isRibbonCommandButton(button))
-			return new Color(0xE1DFDD);
+			return new Color(0xCFE8FF);
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.16f);
 	}
 
 	public static Color commandButtonSelectedBackground(AbstractButton button) {
 		if (isRibbonCommandButton(button))
-			return new Color(0xDFF0E6);
+			return new Color(0xDCEEFF);
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.14f);
 	}
 
@@ -611,6 +640,31 @@ public final class FlatUiSupport {
 		button.setBorderPainted(true);
 		button.setFocusPainted(false);
 		button.setRolloverEnabled(true);
+		installRibbonTabStatePainting(button);
+	}
+
+	/**
+	 * Paint a tab's rollover fill as button content rather than as part of its
+	 * border. Swing paints borders after the label, so painting the fill from
+	 * {@link RibbonTabBorder} would cover the label while the tab is hovered.
+	 */
+	private static void installRibbonTabStatePainting(AbstractButton button) {
+		if (button.getClientProperty("ProjectLibre.ribbonTabStateChangeListener") != null) {
+			updateRibbonTabStatePainting(button);
+			return;
+		}
+		ChangeListener listener = event -> updateRibbonTabStatePainting(button);
+		button.getModel().addChangeListener(listener);
+		button.putClientProperty("ProjectLibre.ribbonTabStateChangeListener", listener);
+		button.addPropertyChangeListener("enabled", event -> updateRibbonTabStatePainting(button));
+		updateRibbonTabStatePainting(button);
+	}
+
+	private static void updateRibbonTabStatePainting(AbstractButton button) {
+		Color fill = resolveRibbonTabBackground(button);
+		button.setBackground(fill == null ? ribbonChromeBackground() : fill);
+		button.setContentAreaFilled(fill != null);
+		button.setOpaque(fill != null);
 	}
 
 	public static void styleRibbonLargeButton(AbstractButton button) {
@@ -621,12 +675,13 @@ public final class FlatUiSupport {
 		button.setOpaque(false);
 		button.setBackground(ribbonSurfaceColor());
 		button.setForeground(labelForeground());
-		button.setBorder(new CommandButtonBorder(new Insets(2, 5, 2, 5), 0));
+		button.setBorder(new CommandButtonBorder(new Insets(2, 5, 2, 5), ribbonButtonArc()));
 		button.setContentAreaFilled(false);
 		button.setBorderPainted(true);
 		button.setFocusPainted(false);
 		button.setRolloverEnabled(true);
 		button.setMargin(new Insets(2, 2, 2, 2));
+		installRibbonCommandStatePainting(button);
 	}
 
 	public static void styleRibbonSmallButton(AbstractButton button) {
@@ -637,12 +692,13 @@ public final class FlatUiSupport {
 		button.setOpaque(false);
 		button.setBackground(ribbonSurfaceColor());
 		button.setForeground(labelForeground());
-		button.setBorder(new CommandButtonBorder(new Insets(1, 3, 1, 3), 0));
+		button.setBorder(new CommandButtonBorder(new Insets(1, 3, 1, 3), ribbonButtonArc()));
 		button.setContentAreaFilled(false);
 		button.setBorderPainted(true);
 		button.setFocusPainted(false);
 		button.setRolloverEnabled(true);
 		button.setMargin(new Insets(1, 2, 1, 2));
+		installRibbonCommandStatePainting(button);
 	}
 
 	public static void styleTabbedPane(JTabbedPane tabbedPane) {
@@ -874,26 +930,16 @@ public final class FlatUiSupport {
 		public void paintBorder(Component component, Graphics graphics, int x, int y, int width, int height) {
 			if (!(component instanceof AbstractButton button) || width <= 0 || height <= 0)
 				return;
-			Color fill = resolveCommandButtonBackground(button);
 			Color border = resolveCommandButtonBorderColor(button);
-			if (fill == null && (!button.isEnabled() || border == null))
+			if (!button.isEnabled() || border == null)
 				return;
 			Graphics2D g2 = (Graphics2D) graphics.create();
 			try {
 				enableAntialiasing(g2);
 				int right = x + width - 1;
 				int bottom = y + height - 1;
-				if (fill != null) {
-					g2.setColor(fill);
-					g2.fillRoundRect(x, y, width - 1, height - 1, arc, arc);
-				}
-				if (border != null && button.isEnabled()) {
-					g2.setColor(border);
-					g2.drawRoundRect(x, y, width - 1, height - 1, arc, arc);
-				} else if (border != null) {
-					g2.setColor(border);
-					g2.drawRoundRect(x, y, right - x, bottom - y, arc, arc);
-				}
+				g2.setColor(border);
+				g2.drawRoundRect(x, y, width - 1, height - 1, arc, arc);
 				if (isRibbonSplit(button)) {
 					int splitX = x + width - 18;
 					g2.setColor(separatorColor());
@@ -942,13 +988,8 @@ public final class FlatUiSupport {
 			Graphics2D g2 = (Graphics2D) graphics.create();
 			try {
 				enableAntialiasing(g2);
-				Color fill = resolveRibbonTabBackground(button);
 				Color border = resolveRibbonTabBorderColor(button);
 				Color underline = resolveRibbonTabUnderlineColor(button);
-				if (fill != null) {
-					g2.setColor(fill);
-					g2.fillRect(x, y, width - 1, height - 2);
-				}
 				if (underline != null) {
 					g2.setColor(underline);
 					g2.fillRect(x, y + height - 3, width, 3);

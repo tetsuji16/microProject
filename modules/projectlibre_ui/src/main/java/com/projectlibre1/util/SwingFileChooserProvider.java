@@ -69,6 +69,16 @@ import com.projectlibre1.strings.Messages;
 
 public final class SwingFileChooserProvider implements UiServices.FileChooserProvider {
 	private static final String DEFAULT_FILE_EXTENSION = "pod";
+	/**
+	 * Native Windows file dialogs do not provide a reliable application-level
+	 * Escape cancellation path. Use the Swing fallback so that Escape always
+	 * invokes JFileChooser's cancel action for open and save dialogs.
+	 */
+	static final String USE_SYSTEM_FILE_CHOOSER_PROPERTY = "flatlaf.useSystemFileChooser";
+
+	static {
+		System.setProperty(USE_SYSTEM_FILE_CHOOSER_PROPERTY, Boolean.FALSE.toString());
+	}
 
 	private SystemFileChooser fileChooser;
 	private String chooserConfigurationSignature;

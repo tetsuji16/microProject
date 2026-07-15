@@ -7,8 +7,10 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 
+import javax.swing.AbstractButton;
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
@@ -20,6 +22,7 @@ import com.projectlibre1.menu.ExtToolBarFactory;
 import com.projectlibre1.menu.MenuActionMapSupport;
 import com.projectlibre1.menu.MenuManager;
 import com.projectlibre1.menu.testsupport.MenuDefinitionSupport;
+import com.projectlibre1.menu.testsupport.UiComponentWalker;
 
 class OfficeChromePanelVisualSmokeTest {
 	@Test
@@ -50,6 +53,61 @@ class OfficeChromePanelVisualSmokeTest {
 
 		assertTrue(Files.exists(output));
 		assertTrue(hasVisibleInk(image));
+	}
+
+	@Test
+	void rendersEveryTabAtOfficeReferenceWidthsInEnglishAndJapanese() throws IOException {
+		for (Locale locale : List.of(Locale.ROOT, Locale.JAPAN)) {
+			for (int width : List.of(720, 760, 1024, 1200, 1440)) {
+				renderTabContactSheet(locale, width);
+			}
+		}
+	}
+
+	private static void renderTabContactSheet(Locale locale, int width) throws IOException {
+		MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		ExtToolBarFactory buttonFactory = new ExtToolBarFactory(
+			MenuActionMapSupport.noopActionMap(),
+			MenuDefinitionSupport.ribbonBundles(locale));
+		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(buttonFactory, MenuDefinitionSupport.ribbonBundles(locale));
+		var model = ribbonFactory.createModel(MenuManager.STANDARD_RIBBON);
+		JPanel ribbonPanel = ribbonFactory.createPanel(model, () -> {});
+		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
+		int rowHeight = 160;
+		BufferedImage sheet = new BufferedImage(width, rowHeight * model.getTabs().size(), BufferedImage.TYPE_INT_ARGB);
+		Graphics2D sheetGraphics = sheet.createGraphics();
+		try {
+			for (int index = 0; index < model.getTabs().size(); index++) {
+				var tab = model.getTabs().get(index);
+				findButton(panel, tab.getTitle()).doClick();
+				panel.setSize(width, rowHeight);
+				panel.doLayout();
+				layoutRecursively(panel);
+				Graphics2D rowGraphics = (Graphics2D) sheetGraphics.create(0, index * rowHeight, width, rowHeight);
+				try {
+					panel.printAll(rowGraphics);
+				} finally {
+					rowGraphics.dispose();
+				}
+			}
+		} finally {
+			sheetGraphics.dispose();
+		}
+
+		String localeName = Locale.JAPAN.equals(locale) ? "ja" : "en";
+		Path output = Path.of("build", "reports", "ribbon", "office-ribbon-" + localeName + "-" + width + ".png");
+		Files.createDirectories(output.getParent());
+		ImageIO.write(sheet, "png", output.toFile());
+		assertTrue(hasVisibleInk(sheet));
+	}
+
+	private static AbstractButton findButton(java.awt.Component root, String text) {
+		return UiComponentWalker.flatten(root).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> text.equals(button.getText()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("Button not found: " + text));
 	}
 
 	private static void layoutRecursively(java.awt.Component component) {

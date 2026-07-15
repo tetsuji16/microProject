@@ -850,7 +850,7 @@ public final class LocaleDialog extends AbstractDialog {
 		JComponent directoryPanel=dbuilder.getPanel();
 
 		FormLayout layout = new FormLayout("default, 3dlu, default, 3dlu, default, 3dlu, fill:80dlu:grow", 
-				"p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, 100dlu, 20dlu, p, p"); 
+				"p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, 100dlu, 20dlu, p");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();

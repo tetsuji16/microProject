@@ -55,58 +55,60 @@
  *******************************************************************************/
 package com.projectlibre1.undo;
 
-import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 
 import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
 import com.projectlibre1.grouping.core.Node;
+import com.projectlibre1.grouping.core.model.DefaultNodeModel.RemovalSnapshot;
+import com.projectlibre1.grouping.core.model.DefaultNodeModel.RemovalSnapshot.Entry;
+import com.projectlibre1.grouping.core.model.DefaultNodeModel.RemovalSnapshot.SubprojectState;
 import com.projectlibre1.grouping.core.model.NodeModel;
+import com.projectlibre1.pm.task.Project;
 
 /**
  *
  */
 public class NodeDeletionEdit extends AbstractUndoableEdit{
 	protected NodeModel model;
-	protected List parents;
-	protected List nodes;
-	protected List positions;
+	protected RemovalSnapshot removalSnapshot;
 	
 	
 	
 	/**
 	 * @param model
-	 * @param parents
-	 * @param nodes
-	 * @param positions
+	 * @param removalSnapshot immutable deletion state captured before removal
 	 */
-	public NodeDeletionEdit(NodeModel model, List parents, List nodes,
-			List positions) {
+	public NodeDeletionEdit(NodeModel model, RemovalSnapshot removalSnapshot) {
 		super();
 		this.model = model;
-		this.parents = parents;
-		this.nodes = nodes;
-		this.positions = positions;
+		this.removalSnapshot = removalSnapshot;
 	}
 	public void redo() throws CannotRedoException {
 		super.redo();
-		model.remove(nodes,NodeModel.EVENT);
+		for (SubprojectState state : removalSnapshot.getSubprojects())
+			state.cancelRestore();
+		model.remove(removalSnapshot.getNodes(),NodeModel.EVENT);
 	}
 	public void undo() throws CannotUndoException {
 		super.undo();
-		Iterator p=parents.iterator();
-		Iterator n=nodes.iterator();
-		Iterator i=positions.iterator();
-		while (n.hasNext()){
+		for (Entry entry : removalSnapshot.getEntries()) {
 			LinkedList nodes=new LinkedList();
-			nodes.add((Node)n.next());
-			model.paste((Node)p.next(), nodes, ((Integer)i.next()).intValue(), NodeModel.EVENT);
-			//model.add((Node)p.next(),(Node)n.next(),((Integer)i.next()).intValue(),NodeModel.EVENT);
+			nodes.add(entry.getNode());
+			model.paste(entry.getParent(), nodes, entry.getPosition(), NodeModel.EVENT);
 		}
+		restoreSubprojects();
 	}	
+
+	private void restoreSubprojects() {
+		if (!(model.getDataFactory() instanceof Project))
+			return;
+		Project parentProject = (Project) model.getDataFactory();
+		for (SubprojectState state : removalSnapshot.getSubprojects())
+			state.restoreAfterClose(parentProject);
+	}
 	public String getPresentationName() {
 		return "NodeDeletion";
 	}

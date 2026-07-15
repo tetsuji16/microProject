@@ -71,6 +71,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -78,6 +79,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -94,6 +96,9 @@ import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
+import javax.swing.undo.AbstractUndoableEdit;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
 
 import org.apache.commons.collections.Closure;
 import org.netbeans.swing.outline.RenderDataProvider;
@@ -121,9 +126,12 @@ import com.projectlibre1.field.Field;
 import com.projectlibre1.graphic.configuration.ActionList;
 import com.projectlibre1.graphic.configuration.CellStyle;
 import com.projectlibre1.graphic.configuration.GraphicConfiguration;
+import com.projectlibre1.graphic.configuration.SpreadSheetFieldArray;
+import com.projectlibre1.graphic.configuration.SpreadSheetCategories;
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.grouping.core.NodeBridge;
 import com.projectlibre1.grouping.core.NodeFactory;
+import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.job.Job;
 import com.projectlibre1.job.JobRunnable;
 import com.projectlibre1.options.GeneralOption;
@@ -144,6 +152,9 @@ import com.projectlibre1.util.BrowserControl;
 @SuppressWarnings("unchecked")
 public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private static final Logger logger = Logger.getLogger(SpreadSheet.class.getName());
+	private static final Map<NodeModel, Map<String, List<WeakReference<SpreadSheet>>>> ACTIVE_LAYOUT_TARGETS = new WeakHashMap<>();
+	private NodeModel registeredLayoutModel;
+	private String registeredLayoutCategory;
 	private static final long serialVersionUID = 5958334223191182318L;
 	public static final String NAME_COLUMN_INDENT_ACTION = "spreadsheet.nameColumnIndent";
 	public static final String NAME_COLUMN_OUTDENT_ACTION = "spreadsheet.nameColumnOutdent";
@@ -287,6 +298,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public void cleanUp() {
+		unregisterLayoutTarget();
 		if (getModel() instanceof CommonSpreadSheetModel commonModel) {
 			NodeModelCache currentCache = commonModel.getCache();
 			if (currentCache != null) {
@@ -296,6 +308,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		super.cleanUp();
 	}
 	public void setCache(NodeModelCache cache, ArrayList fieldArray, CellStyle cellStyle, ActionList actionList) {
+		unregisterLayoutTarget();
 		// if (getCache()!=null) getCache().close();
 		if (getCache() != null) {
 			getCache().getReference().close(); // deepClose
@@ -308,7 +321,101 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				: new SpreadSheetColumnModel(fieldArray);
 		setModel(new SpreadSheetModel(cache, colModel, cellStyle, actionList), (colModel == oldColModel) ? null : colModel);
 		configureOutlineRendering();
+		registerLayoutTarget();
 
+	}
+
+	@Override
+	public void setSpreadSheetCategory(String spreadSheetCategory) {
+		unregisterLayoutTarget();
+		super.setSpreadSheetCategory(spreadSheetCategory);
+		registerLayoutTarget();
+	}
+
+	private void registerLayoutTarget() {
+		NodeModelCache currentCache = getCache();
+		NodeModel currentModel = currentCache == null ? null : currentCache.getModel();
+		String category = getSpreadSheetCategory();
+		if (currentModel == null || category == null)
+			return;
+		registerLayoutTarget(currentModel, category, this);
+		registeredLayoutModel = currentModel;
+		registeredLayoutCategory = category;
+	}
+
+	static void registerLayoutTarget(NodeModel model, String category, SpreadSheet sheet) {
+		synchronized (ACTIVE_LAYOUT_TARGETS) {
+			List<WeakReference<SpreadSheet>> targets = ACTIVE_LAYOUT_TARGETS
+					.computeIfAbsent(model, ignored -> new HashMap<>())
+					.computeIfAbsent(category, ignored -> new ArrayList<>());
+			for (int index = targets.size() - 1; index >= 0; index--) {
+				SpreadSheet target = targets.get(index).get();
+				if (target == null || target == sheet)
+					targets.remove(index);
+			}
+			targets.add(new WeakReference<>(sheet));
+		}
+	}
+
+	private void unregisterLayoutTarget() {
+		if (registeredLayoutModel == null || registeredLayoutCategory == null)
+			return;
+		unregisterLayoutTarget(registeredLayoutModel, registeredLayoutCategory, this);
+		registeredLayoutModel = null;
+		registeredLayoutCategory = null;
+	}
+
+	static void unregisterLayoutTarget(NodeModel model, String category, SpreadSheet sheet) {
+		synchronized (ACTIVE_LAYOUT_TARGETS) {
+			Map<String, List<WeakReference<SpreadSheet>>> targetsByCategory = ACTIVE_LAYOUT_TARGETS.get(model);
+			if (targetsByCategory != null) {
+				List<WeakReference<SpreadSheet>> targets = targetsByCategory.get(category);
+				if (targets != null) {
+					for (int index = targets.size() - 1; index >= 0; index--) {
+						SpreadSheet target = targets.get(index).get();
+						if (target == null || target == sheet)
+							targets.remove(index);
+					}
+					if (targets.isEmpty())
+						targetsByCategory.remove(category);
+				}
+				if (targetsByCategory.isEmpty())
+					ACTIVE_LAYOUT_TARGETS.remove(model);
+			}
+		}
+	}
+
+	static SpreadSheet findLayoutTarget(NodeModel model, String category) {
+		return findLayoutTarget(model, category, null);
+	}
+
+	static SpreadSheet findLayoutTarget(NodeModel model, String category, SpreadSheet preferred) {
+		if (model == null || category == null)
+			return null;
+		synchronized (ACTIVE_LAYOUT_TARGETS) {
+			Map<String, List<WeakReference<SpreadSheet>>> targetsByCategory = ACTIVE_LAYOUT_TARGETS.get(model);
+			List<WeakReference<SpreadSheet>> targets = targetsByCategory == null ? null : targetsByCategory.get(category);
+			if (targets == null)
+				return null;
+			SpreadSheet latest = null;
+			for (int index = targets.size() - 1; index >= 0; index--) {
+				SpreadSheet target = targets.get(index).get();
+				if (target == null) {
+					targets.remove(index);
+					continue;
+				}
+				if (latest == null)
+					latest = target;
+				if (target == preferred)
+					return target;
+			}
+			if (targets.isEmpty()) {
+				targetsByCategory.remove(category);
+				if (targetsByCategory.isEmpty())
+					ACTIVE_LAYOUT_TARGETS.remove(model);
+			}
+			return latest;
+		}
 	}
 
 	private void configureOutlineRendering() {
@@ -712,6 +819,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public void setFieldArray(ArrayList fieldArray) {
+		clearHeaderColumnSelectionState();
 		((SpreadSheetColumnModel) getColumnModel()).setFieldArray(fieldArray);
 		createDefaultColumnsFromModel(fieldArray);
 		resizeAndRepaintHeader();
@@ -923,6 +1031,121 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			spreadSheetModel.getCache().addNodeModelListener(this);
 		}
 
+	}
+
+	/**
+	 * A header click selects every row in one visible column.  Backspace must
+	 * therefore remove that visible column instead of clearing JTable's lead
+	 * cell.  The view change is recorded in the document undo history so the
+	 * standard Ctrl+Z/Ctrl+Y commands restore it.
+	 */
+	@Override
+	protected boolean handleClearCellKey(KeyEvent e) {
+		int column = getSelectedColumn();
+		if (!isColumnFullySelected(column)) {
+			return false;
+		}
+		removeSelectedColumn(column);
+		return true;
+	}
+
+	boolean removeSelectedColumn(int viewColumn) {
+		if (!isCanModifyColumns()) {
+			return false;
+		}
+		if (!(getFieldArray() instanceof SpreadSheetFieldArray fields) || fields.size() <= 2) {
+			return false; // retain the hidden ID field and at least one visible field
+		}
+		int fieldIndex = viewColumn + 1; // field array includes the hidden ID field
+		if (fieldIndex <= 0 || fieldIndex >= fields.size()) {
+			return false;
+		}
+
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) fields.clone();
+		SpreadSheetFieldArray after = fields.removeField(fieldIndex);
+		Project project = getLayoutProject();
+		if (project != null)
+			project.setFieldArray(after);
+		setFieldArray(after);
+		selectColumnAfterColumnChange(Math.min(viewColumn, getColumnCount() - 1));
+
+		var cache = getCache();
+		var undoController = cache == null || cache.getModel() == null ? null : cache.getModel().getUndoController();
+		if (undoController != null) {
+			undoController.getEditSupport().postEdit(new ColumnRemovalEdit(
+					cache.getModel(), this, getSpreadSheetCategory(), project, before, after, viewColumn));
+		}
+		return true;
+	}
+
+	private void selectColumnAfterColumnChange(int column) {
+		if (column >= 0 && getColumnCount() > 0) {
+			selectColumnAndAllRows(column);
+		}
+	}
+
+	private Project getLayoutProject() {
+		var cache = getCache();
+		return cache == null ? null : projectLayoutOwner(cache.getModel(), getSpreadSheetCategory());
+	}
+
+	static Project projectLayoutOwner(NodeModel model, String category) {
+		if (!SpreadSheetCategories.taskSpreadsheetCategory.equals(category)
+				|| model == null
+				|| !(model.getDataFactory() instanceof Project project))
+			return null;
+		return project;
+	}
+
+	private static final class ColumnRemovalEdit extends AbstractUndoableEdit {
+		private static final long serialVersionUID = 1L;
+		private final WeakReference<NodeModel> model;
+		private final WeakReference<SpreadSheet> source;
+		private final String category;
+		private final WeakReference<Project> project;
+		private final SpreadSheetFieldArray before;
+		private final SpreadSheetFieldArray after;
+		private final int selectedColumn;
+
+		private ColumnRemovalEdit(NodeModel model, SpreadSheet source, String category, Project project,
+				SpreadSheetFieldArray before, SpreadSheetFieldArray after, int selectedColumn) {
+			this.model = new WeakReference<>(model);
+			this.source = new WeakReference<>(source);
+			this.category = category;
+			this.project = new WeakReference<>(project);
+			this.before = (SpreadSheetFieldArray) before.clone();
+			this.after = (SpreadSheetFieldArray) after.clone();
+			this.selectedColumn = selectedColumn;
+		}
+
+		@Override
+		public void undo() throws CannotUndoException {
+			super.undo();
+			apply(before, selectedColumn);
+		}
+
+		@Override
+		public void redo() throws CannotRedoException {
+			super.redo();
+			apply(after, selectedColumn);
+		}
+
+		private void apply(SpreadSheetFieldArray fields, int preferredColumn) {
+			SpreadSheetFieldArray restoredFields = (SpreadSheetFieldArray) fields.clone();
+			Project currentProject = project.get();
+			if (currentProject != null)
+				currentProject.setFieldArray(restoredFields);
+			SpreadSheet target = findLayoutTarget(model.get(), category, source.get());
+			if (target == null)
+				return;
+			target.setFieldArray(restoredFields);
+			target.selectColumnAfterColumnChange(Math.min(preferredColumn, target.getColumnCount() - 1));
+		}
+
+		@Override
+		public String getPresentationName() {
+			return Messages.getString("SpreadSheetColumnMenu.HideColumn");
+		}
 	}
 
 	private void selectCellFromClick(int row, int col, MouseEvent e) {

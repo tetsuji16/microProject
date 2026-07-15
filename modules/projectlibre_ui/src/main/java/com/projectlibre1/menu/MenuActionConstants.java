@@ -159,6 +159,7 @@ public interface MenuActionConstants {
 	public static final String ACTION_INFORMATION        	  = "Information";
 	public static final String ACTION_NOTES              	  = "Notes";
 	public static final String ACTION_PROJECT_INFORMATION     = "ProjectInformation";
+	public static final String ACTION_DEFINE_CODE             = "DefineCode";
 	public static final String ACTION_TEAM_FILTER		      = "TeamFilter";
 	public static final String ACTION_ENTERPRISE_RESOURCES    = "EnterpriseResources";
 	public static final String ACTION_DOCUMENTS				  = "Documents";
@@ -184,7 +185,6 @@ public interface MenuActionConstants {
 
 	public static final String ACTION_ABOUT_PROJECTLIBRE           = "AboutProjectLibre";
 	public static final String ACTION_PROJECTLIBRE_DOCUMENTATION   = "ProjectLibreDocumentation";
-	public static final String ACTION_TIP_OF_THE_DAY	  	  = "TipOfTheDay";
 	public static final String ACTION_PROJECTLIBRE	  	  = "ProjectLibre";
 
 

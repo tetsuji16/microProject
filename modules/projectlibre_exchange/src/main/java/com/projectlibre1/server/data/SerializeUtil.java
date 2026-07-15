@@ -68,6 +68,7 @@ import com.projectlibre1.pm.calendar.WorkCalendar;
 import com.projectlibre1.pm.resource.EnterpriseResource;
 import com.projectlibre1.pm.resource.ResourceImpl;
 import com.projectlibre1.session.Session;
+import com.projectlibre1.util.SafeObjectInput;
 
 /**
  *
@@ -86,7 +87,7 @@ public class SerializeUtil {
 
     public static Object deserializeFromByteArray(byte[] bytes) throws IOException, ClassNotFoundException {
         try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
-             ObjectInputStream in = new ObjectInputStream(bin)) {
+             ObjectInputStream in = SafeObjectInput.create(bin)) {
             return in.readObject();
         }
     }
@@ -119,8 +120,8 @@ public class SerializeUtil {
 		if (ZIP&&(sdata.getType()==DataObjectConstants.CALENDAR_TYPE||sdata.getType()==DataObjectConstants.ENTERPRISE_RESOURCE_TYPE||sdata.getType()==DataObjectConstants.RESOURCE_TYPE)){
         	ZipInputStream zin=new ZipInputStream(bin);
             zin.getNextEntry();
-            in=new ObjectInputStream(zin);
-        } else in=new ObjectInputStream(bin);
+            in=SafeObjectInput.create(zin);
+		} else in=SafeObjectInput.create(bin);
         DataObject data=(DataObject)in.readObject();
         data.setUniqueId(session==null?sdata.getUniqueId():session.getId());
         data.setName(sdata.getName());

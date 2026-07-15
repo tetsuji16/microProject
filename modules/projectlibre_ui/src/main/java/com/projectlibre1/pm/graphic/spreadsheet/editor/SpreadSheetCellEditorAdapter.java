@@ -61,6 +61,7 @@ import java.awt.event.InputMethodEvent;
 import java.awt.event.InputMethodListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
+import java.awt.im.InputContext;
 import java.util.EventObject;
 import java.text.AttributedCharacterIterator;
 
@@ -92,6 +93,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	private static final String NAME_NEXT_ACTION = "spreadsheet.nameColumnNext";
 	private static final String NAME_UNDO_ACTION = "spreadsheet.nameColumnUndo";
 	private static final String NAME_REDO_ACTION = "spreadsheet.nameColumnRedo";
+	private static final String RECONVERT_ACTION = "spreadsheet.imeReconvert";
 	protected TableCellEditor editor;
 	private JComponent activeEditorComponent;
 	public SpreadSheetCellEditorAdapter(TableCellEditor editor) {
@@ -105,7 +107,34 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	protected void prepareEditorComponent(JComponent edit) {
 		activeEditorComponent = edit;
 		edit.enableInputMethods(true);
+		installReconversionAction(edit);
 		installCompositionTracking(edit);
+	}
+
+	/**
+	 * Swing's table editing path can consume VK_CONVERT before the active text
+	 * component reaches the input method.  Route it explicitly to the editor's
+	 * input context so a selected, already committed string can be reconverted
+	 * by Microsoft IME.
+	 */
+	private void installReconversionAction(final JComponent edit) {
+		InputMap inputMap = edit.getInputMap(JComponent.WHEN_FOCUSED);
+		ActionMap actionMap = edit.getActionMap();
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_CONVERT, 0), RECONVERT_ACTION);
+		actionMap.put(RECONVERT_ACTION, new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+
+			public void actionPerformed(ActionEvent e) {
+				try {
+					InputContext inputContext = edit.getInputContext();
+					if (inputContext != null) {
+						inputContext.reconvert();
+					}
+				} catch (RuntimeException ignored) {
+					// Reconversion is optional for an input method; keep the selection intact.
+				}
+			}
+		});
 	}
 
 	protected void clearActiveEditorComponent() {

@@ -62,6 +62,7 @@ import javax.swing.JComponent;
 import javax.swing.JTable;
 import javax.swing.border.Border;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
+import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.projectlibre1.graphic.configuration.CellFormat;
 import com.projectlibre1.util.FlatUiSupport;
@@ -159,6 +160,12 @@ public class CellUtility {
 
 	static boolean isActiveCell(JTable table, int row, int column, boolean hasFocus) {
 		if (table == null)
+			return false;
+		// A header selection covers all rows in one column.  JTable still keeps
+		// a lead row, but that lead coordinate is not a separately selected cell.
+		if (table instanceof CommonSpreadSheet spreadSheet
+				? spreadSheet.isHeaderColumnSelectionActive()
+				: table.getSelectedColumnCount() == 1 && table.getSelectedRowCount() == table.getRowCount())
 			return false;
 		/*
 		 * Renderer coordinates are view coordinates.  The selection models may

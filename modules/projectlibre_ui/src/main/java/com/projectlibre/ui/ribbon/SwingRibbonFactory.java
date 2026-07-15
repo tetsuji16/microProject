@@ -37,7 +37,9 @@ public final class SwingRibbonFactory {
 			tabs.add(createTab(tabId, customBandsGenerator));
 		}
 		List<String> taskBarButtons = resolveList(ribbonId + ".TaskBar");
-		return new SwingRibbonModel(ribbonId, tabs, taskBarButtons);
+		SwingRibbonModel model = new SwingRibbonModel(ribbonId, tabs, taskBarButtons);
+		RibbonCommandCatalog.validate(model, bundles);
+		return model;
 	}
 
 	public JPanel createPanel(String ribbonId, Runnable helpAction) {

@@ -154,6 +154,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	protected boolean canSelectFieldArray = true;
 	private PendingUndoSelection pendingUndoSelection;
 	private boolean inputMethodEditingSessionActive;
+	private boolean headerColumnSelectionActive;
 
 	public CommonSpreadSheet() {
 		super();
@@ -211,6 +212,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	public void setFieldArray(ArrayList<Field> fieldArray){
+		clearHeaderColumnSelectionState();
 		((SpreadSheetColumnModel)getColumnModel()).setFieldArray(fieldArray);
 //
 //		((CommonSpreadSheetModel)getModel()).setFieldArray(fieldArray);
@@ -413,6 +415,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 				return;
 			}
 			if (e.getID() == KeyEvent.KEY_PRESSED && isClearCellKey(e)) {
+				if (handleClearCellKey(e)) {
+					e.consume();
+					return;
+				}
 				if (startClearingCurrentCell()) {
 					e.consume();
 					return;
@@ -523,6 +529,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return false;
 		Field field = model.getFieldInViewColumn(column);
 		return field != null && field.isDate() && (field.isStartValue() || field.isEndValue());
+	}
+
+	/**
+	 * Gives specialised spreadsheets a chance to handle Backspace before it is
+	 * interpreted as clearing the lead cell.  In particular, a full-column
+	 * selection is not a cell selection.
+	 */
+	protected boolean handleClearCellKey(KeyEvent e) {
+		return false;
 	}
 
 	private void positionEditorCaretToEnd() {
@@ -1165,16 +1180,19 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
     public void changeSelection(int rowIndex, int columnIndex, boolean toggle,
 			boolean extend,boolean forwards) {
+		headerColumnSelectionActive = false;
     	super.changeSelection(rowIndex,columnIndex,toggle,extend);
 	}
 
 
 
  	public void clearSelection() {
+		headerColumnSelectionActive = false;
  		super.clearSelection();
  	}
 
 	public void selectRowAndAllColumns(int row) {
+		headerColumnSelectionActive = false;
 		if (row < 0 || row >= getRowCount())
 			return;
 		if (!hasSelectionModel())
@@ -1185,6 +1203,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	public void selectColumnAndAllRows(int column) {
+		headerColumnSelectionActive = false;
 		if (column < 0 || column >= getColumnCount())
 			return;
 		if (!hasSelectionModel())
@@ -1192,9 +1211,11 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		SpreadSheetSelectionModel selection = getSelection();
 		selectColumns(selection, column, column);
 		selectRows(selection, 0, getRowCount() - 1);
+		headerColumnSelectionActive = true;
 	}
 
 	public void selectEntireSpreadsheet() {
+		headerColumnSelectionActive = false;
 		if (!hasSelectionModel())
 			return;
 		SpreadSheetSelectionModel selection = getSelection();
@@ -1214,9 +1235,18 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	public boolean isColumnFullySelected(int column) {
 		if (column < 0 || column >= getColumnCount())
 			return false;
-		return getColumnModel().getSelectionModel().isSelectedIndex(column)
+		return headerColumnSelectionActive
+			&& getColumnModel().getSelectionModel().isSelectedIndex(column)
 			&& getSelectedColumnCount() == 1
 			&& getSelectedRowCount() == getRowCount();
+	}
+
+	public boolean isHeaderColumnSelectionActive() {
+		return headerColumnSelectionActive;
+	}
+
+	protected void clearHeaderColumnSelectionState() {
+		headerColumnSelectionActive = false;
 	}
 
 

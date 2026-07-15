@@ -106,19 +106,27 @@ public class UndoController extends UndoManager implements UndoableEditListener{
 
 	public void undo() {
 		if (canUndo()) {
+			boolean previousBatchMode = Environment.isBatchMode();
 			Environment.setBatchMode(true);
-			super.undo();
-//			undoManager.undo();
-			Environment.setBatchMode(false);
+			try {
+				super.undo();
+//				undoManager.undo();
+			} finally {
+				Environment.setBatchMode(previousBatchMode);
+			}
 		}
 	}
 
 	public void redo() {
 		if (canRedo()) {
+			boolean previousBatchMode = Environment.isBatchMode();
 			Environment.setBatchMode(true);
-//			undoManager.redo();
-			super.redo();
-			Environment.setBatchMode(false);
+			try {
+//				undoManager.redo();
+				super.redo();
+			} finally {
+				Environment.setBatchMode(previousBatchMode);
+			}
 		}
 	}
 	public boolean canUndo() {

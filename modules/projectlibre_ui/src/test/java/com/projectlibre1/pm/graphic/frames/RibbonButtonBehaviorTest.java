@@ -1,10 +1,11 @@
 package com.projectlibre1.pm.graphic.frames;
 
-import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds;
+import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonUiButtonIds;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
@@ -19,12 +20,14 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.Action;
+import javax.swing.AbstractButton;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
+import com.projectlibre1.dialog.BaselineDialog;
 import com.projectlibre1.configuration.FieldDictionary;
 import com.projectlibre1.field.Field;
 import com.projectlibre1.grouping.core.Node;
@@ -34,6 +37,7 @@ import com.projectlibre1.menu.MenuManager;
 import com.projectlibre1.pm.assignment.Assignment;
 import com.projectlibre1.pm.resource.Resource;
 import com.projectlibre1.pm.resource.ResourcePool;
+import com.projectlibre1.pm.snapshot.Snapshottable;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.undo.DataFactoryUndoController;
@@ -58,7 +62,7 @@ class RibbonButtonBehaviorTest {
 
 	@Test
 	void everyRibbonButtonFromTheDefinitionHasAnExplicitStrategy() {
-		Set<String> inventory = new LinkedHashSet<>(ribbonButtonIds());
+		Set<String> inventory = new LinkedHashSet<>(ribbonUiButtonIds());
 		assertTrue(COVERAGE.keySet().containsAll(inventory), () -> "Missing coverage for: " + missing(inventory, COVERAGE.keySet()));
 	}
 
@@ -68,7 +72,9 @@ class RibbonButtonBehaviorTest {
 		for (String buttonId : COVERAGE.keySet()) {
 			String actionId = harness.actionId(buttonId);
 			assertNotNull(actionId, () -> buttonId + " does not resolve to an action");
-			assertDoesNotThrow(() -> harness.manager.getAction(actionId), () -> buttonId + " does not resolve to a live action");
+			Action action = assertDoesNotThrow(() -> harness.manager.getAction(actionId),
+				() -> buttonId + " does not resolve to a live action");
+			assertNotNull(action, () -> buttonId + " has no live action");
 		}
 	}
 
@@ -165,11 +171,34 @@ class RibbonButtonBehaviorTest {
 
 		harness.resetCalls();
 		harness.invoke("RibbonSaveBaseline");
-		assertCall(harness, "saveBaseline", harness.frame);
+		assertEquals(1, harness.frame.baselineDialogCallCount(true));
+		assertNotNull(harness.task.getSnapshot(Snapshottable.BASELINE),
+			"Saving a baseline must create a project snapshot");
 
 		harness.resetCalls();
 		harness.invoke("RibbonClearBaseline");
-		assertCall(harness, "clearBaseline", harness.frame);
+		assertEquals(1, harness.frame.baselineDialogCallCount(false));
+		assertNull(harness.task.getSnapshot(Snapshottable.BASELINE),
+			"Clearing a baseline must remove the project snapshot");
+	}
+
+	@Test
+	void baselineRibbonButtonIsEnabledAndWritesASnapshotWhenClicked() throws Exception {
+		Harness harness = newHarness();
+		harness.manager.getMenuManager().createRibbonPanel(MenuManager.STANDARD_RIBBON, () -> { });
+		harness.manager.setButtonState(null, harness.project);
+		AbstractButton button = harness.manager.getMenuManager().getToolButtonsFromId("RibbonSaveBaseline").stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("RibbonSaveBaseline button was not created"));
+
+		assertTrue(button.isEnabled(), "Baseline save must be enabled for a writable project");
+		SwingUtilities.invokeAndWait(button::doClick);
+
+		assertEquals(1, harness.frame.baselineDialogCallCount(true));
+		assertNotNull(harness.task.getSnapshot(Snapshottable.BASELINE),
+			"Clicking the ribbon button must write the baseline snapshot");
 	}
 
 	@Test
@@ -178,8 +207,11 @@ class RibbonButtonBehaviorTest {
 
 		assertExternal(harness, "RibbonNewProject", "newProject");
 		assertExternal(harness, "RibbonOpenProject", "openProject");
+		assertExternal(harness, "RibbonImportProject", "openProject");
 		assertExternal(harness, "RibbonSaveProject", "saveProject");
+		assertExternal(harness, "RibbonTopBarSaveProject", "saveProject");
 		assertExternal(harness, "RibbonSaveProjectAs", "saveAsProject");
+		assertExternal(harness, "RibbonExportProject", "saveAsProject");
 		assertExternal(harness, "RibbonCloseProject", "closeProject");
 		assertExternal(harness, "RibbonPrint", "print");
 		assertExternal(harness, "RibbonPrintPreview", "printPreview");
@@ -187,7 +219,7 @@ class RibbonButtonBehaviorTest {
 		assertExternal(harness, "RibbonLocale", "locale");
 		assertExternal(harness, "RibbonProjectLibreDocumentation", "help");
 		assertExternal(harness, "RibbonAboutProjectLibre", "about");
-		assertExternal(harness, "RibbonTipOfTheDay", "tipOfTheDay");
+		assertExternal(harness, "RibbonInsertProject", "insertProject");
 
 		assertChooser(harness, "RibbonChooseFilter", MenuActionConstants.ACTION_CHOOSE_FILTER);
 		assertChooser(harness, "RibbonChooseSort", MenuActionConstants.ACTION_CHOOSE_SORT);
@@ -197,6 +229,28 @@ class RibbonButtonBehaviorTest {
 		assertChooser(harness, "RibbonBarStyles", MenuActionConstants.ACTION_BAR_STYLES);
 		assertChooser(harness, "RibbonTextStyles", MenuActionConstants.ACTION_TEXT_STYLES);
 		assertChooser(harness, "RibbonLayout", MenuActionConstants.ACTION_LAYOUT);
+	}
+
+	@Test
+	void restoredCommandsReachTheirExistingImplementations() throws Exception {
+		Harness harness = newHarness();
+		harness.selectSingle(harness.taskNode);
+
+		harness.invoke("RibbonDelegateTasks");
+		assertEquals(1, harness.frame.structuralCallCount("RibbonDelegateTasks"));
+
+		boolean previousTeamOnly = harness.manager.getPreferences().isShowProjectResourcesOnly();
+		try {
+			harness.invoke("RibbonTeamFilter");
+			assertEquals(!previousTeamOnly, harness.manager.getPreferences().isShowProjectResourcesOnly());
+			assertEquals(!previousTeamOnly,
+				harness.manager.getAction(MenuActionConstants.ACTION_TEAM_FILTER).getValue(Action.SELECTED_KEY));
+		} finally {
+			harness.manager.getPreferences().setShowProjectResourcesOnly(previousTeamOnly);
+		}
+
+		harness.invoke("RibbonRecalculate");
+		assertCall(harness, "recalculate", harness.project);
 	}
 
 	@Test
@@ -348,8 +402,11 @@ class RibbonButtonBehaviorTest {
 		add(map, Strategy.ROUTE_EXTERNAL,
 			"RibbonNewProject",
 			"RibbonOpenProject",
+			"RibbonImportProject",
 			"RibbonSaveProject",
+			"RibbonTopBarSaveProject",
 			"RibbonSaveProjectAs",
+			"RibbonExportProject",
 			"RibbonCloseProject",
 			"RibbonPrint",
 			"RibbonPrintPreview",
@@ -357,7 +414,11 @@ class RibbonButtonBehaviorTest {
 			"RibbonLocale",
 			"RibbonProjectLibreDocumentation",
 			"RibbonAboutProjectLibre",
-			"RibbonTipOfTheDay");
+			"RibbonInsertProject");
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonDelegateTasks",
+			"RibbonTeamFilter",
+			"RibbonRecalculate");
 		add(map, Strategy.ROUTE_DIALOG,
 			"RibbonTaskInformation",
 			"RibbonResourceInformation",
@@ -657,16 +718,10 @@ class RibbonButtonBehaviorTest {
 		}
 
 		@Override
-		protected boolean beforeSaveBaselineRoute(DocumentFrame documentFrame) {
-			calls.add(new Call("saveBaseline", List.of(documentFrame)));
-			return false;
+		void recalculateProject(Project project) {
+			calls.add(new Call("recalculate", List.of(project)));
 		}
 
-		@Override
-		protected boolean beforeClearBaselineRoute(DocumentFrame documentFrame) {
-			calls.add(new Call("clearBaseline", List.of(documentFrame)));
-			return false;
-		}
 	}
 
 	private static final class StubFrameManager implements FrameManager {
@@ -736,6 +791,7 @@ class RibbonButtonBehaviorTest {
 		private static final long serialVersionUID = 1L;
 		private List<Node> selectedNodes;
 		private final Map<String, Integer> structuralCalls = new LinkedHashMap<>();
+		private final Map<Boolean, Integer> baselineDialogCalls = new LinkedHashMap<>();
 
 		TestDocumentFrame(GraphicManager parentFrame, Project project) {
 			super(parentFrame, project, "ribbon-test");
@@ -748,6 +804,17 @@ class RibbonButtonBehaviorTest {
 		@Override
 		public List<Node> getSelectedNodes(boolean excludeReadOnly) {
 			return selectedNodes;
+		}
+
+		@Override
+		boolean doBaselineDialog(boolean save) {
+			baselineDialogCalls.merge(save, 1, Integer::sum);
+			BaselineDialog.Form form = new BaselineDialog.Form();
+			return applyBaseline(getProject(), save, form, null);
+		}
+
+		int baselineDialogCallCount(boolean save) {
+			return baselineDialogCalls.getOrDefault(save, 0);
 		}
 
 		void resetStructuralCalls() {
@@ -795,6 +862,11 @@ class RibbonButtonBehaviorTest {
 		@Override
 		public void doUnlinkTasks() {
 			recordStructuralCall("RibbonUnlink");
+		}
+
+		@Override
+		void doDelegateTasksDialog() {
+			recordStructuralCall("RibbonDelegateTasks");
 		}
 	}
 

@@ -80,7 +80,6 @@ import com.projectlibre1.contrib.ClassLoaderUtils;
 import com.projectlibre1.dialog.LicenseDialog;
 import com.projectlibre1.dialog.LoginDialog;
 import com.projectlibre1.dialog.LoginForm;
-import com.projectlibre1.dialog.TipOfTheDay;
 import com.projectlibre1.dialog.UserInfoDialog;
 import com.projectlibre1.pm.graphic.laf.LafManagerImpl;
 import com.projectlibre1.pm.task.Project;
@@ -456,15 +455,11 @@ public abstract class StartupFactory {
 							UpdateChecker.checkForUpdateInBackground();
 						}
 						if (welcome&&!Environment.isPlugin()) {
-							if (Environment.isProjectLibre()) {
-								//LicenseDialog.showDialog(gm.getFrame(),false);
-								TipOfTheDay.showDialog(gm.getFrame(), false);
-							} else {
+							if (!Environment.isProjectLibre()) {
 								if (Environment.isNeedToRestart())
 									return;
 								if (!LafManagerImpl.isLafOk()) // for startup glitch - we don't want people to work until restarting.
 									return;
-
 							}
 							gm.doWelcomeDialog();
 						}

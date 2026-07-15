@@ -60,9 +60,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -232,6 +234,7 @@ public class ProjectFactory {
 
 	protected Set loadingProjects=new HashSet();
 	protected Set closingProjects=new HashSet();
+	private final Map<Long, List<Runnable>> projectClosedCallbacks = new HashMap<>();
 	public synchronized Set getOpenOrLoadingProjects(){
 		final Set projectIds=new HashSet();
     	ProjectFactory.getInstance().getPortfolio().forProjects(new Closure(){
@@ -253,11 +256,53 @@ public class ProjectFactory {
 	public synchronized void addClosingProjects(Collection ids){
 		closingProjects.addAll(ids);
 	}
+	private synchronized boolean beginClosingProjects(Collection<Long> ids) {
+		for (Long id : ids) {
+			if (closingProjects.contains(id))
+				return false;
+		}
+		closingProjects.addAll(ids);
+		return true;
+	}
 	public synchronized void addClosingProject(long id){
 		closingProjects.add(Long.valueOf(id));
 	}
-	public synchronized void removeClosingProject(long id){
-		closingProjects.remove(Long.valueOf(id));
+	public void removeClosingProject(long id){
+		completeProjectClosing(id);
+	}
+	public synchronized boolean isProjectClosing(long id) {
+		return closingProjects.contains(Long.valueOf(id));
+	}
+	public void runAfterProjectClosed(long id, Runnable callback) {
+		boolean runNow;
+		synchronized (this) {
+			runNow = !closingProjects.contains(Long.valueOf(id));
+			if (!runNow)
+				projectClosedCallbacks.computeIfAbsent(Long.valueOf(id), ignored -> new ArrayList<>()).add(callback);
+		}
+		if (runNow)
+			callback.run();
+	}
+	void completeProjectClosing(long id) {
+		completeProjectClosings(java.util.Collections.singleton(Long.valueOf(id)));
+	}
+	void completeProjectClosings(Collection<Long> ids) {
+		List<Runnable> callbacks = new ArrayList<>();
+		synchronized (this) {
+			for (Long id : ids) {
+				closingProjects.remove(id);
+				List<Runnable> projectCallbacks = projectClosedCallbacks.remove(id);
+				if (projectCallbacks != null)
+					callbacks.addAll(projectCallbacks);
+			}
+		}
+		for (Runnable callback : callbacks) {
+			try {
+				callback.run();
+			} catch (RuntimeException e) {
+				logger.log(Level.WARNING, "Project close callback failed for " + ids, e);
+			}
+		}
 	}
 
 
@@ -582,7 +627,6 @@ public class ProjectFactory {
 					portfolio.getObjectEventManager().fireDeleteEvent(this,p);
 					portfolio.getNodeModel().remove(node,NodeModel.EVENT);
 
-					removeClosingProject(project.getUniqueId());
 				}
 				System.gc(); // clean up memory used by projects
    	    	return null; //return not used anyway
@@ -592,11 +636,51 @@ public class ProjectFactory {
 	}
 
 	public void removeProject(final Project project, boolean allowCancel, boolean prompt,boolean calledFromSwing) {
+		if (project == null)
+			return;
+		final Set<Long> closingIds = collectProjectBranchIds(project);
+		if (closingIds.isEmpty() || containsClosingProject(closingIds))
+			return;
 		Job job=getRemoveProjectJob(project,allowCancel,prompt,calledFromSwing);
 		if (job != null) { // if not cancelled
+			if (!beginClosingProjects(closingIds))
+				return;
+			job.addCompletionRunnable(() -> {
+				Runnable complete = () -> completeProjectClosings(closingIds);
+				if (calledFromSwing && !SwingUtilities.isEventDispatchThread())
+					SwingUtilities.invokeLater(complete);
+				else
+					complete.run();
+			});
 			Session session=SessionFactory.getInstance().getSession(project.isLocal());
-			session.schedule(job);
+			try {
+				session.schedule(job);
+			} catch (RuntimeException e) {
+				completeProjectClosings(closingIds);
+				throw e;
+			}
 		}
+	}
+
+	private synchronized boolean containsClosingProject(Collection<Long> ids) {
+		for (Long id : ids) {
+			if (closingProjects.contains(id))
+				return true;
+		}
+		return false;
+	}
+
+	private Set<Long> collectProjectBranchIds(final Project project) {
+		final Set<Long> ids = new HashSet<>();
+		ids.add(Long.valueOf(project.getUniqueId()));
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, new Closure() {
+			public void execute(Object value) {
+				Node node = (Node) value;
+				if (node.getImpl() instanceof Project descendant)
+					ids.add(Long.valueOf(descendant.getUniqueId()));
+			}
+		});
+		return ids;
 	}
 
 	public void doRemoveProject(Project project,boolean calledFromSwing) {

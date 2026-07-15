@@ -90,6 +90,8 @@ public class Job extends Thread {
 	protected String title;
 	protected boolean showProgess, sync;
 	protected List runnables=new ArrayList();
+	private final List<Runnable> completionRunnables = new ArrayList<>();
+	private boolean completionRunnablesExecuted;
 	protected InternalRunnable exceptionHandlerRunnable;
 	protected JobMutex mutex;
 	protected Mutex globalMutex,groupMutex;
@@ -303,11 +305,14 @@ public class Job extends Thread {
 			logEnd("global");
 			globalMutex.unlock();
 			if (!asyncExecuting) jobQueue.removeExecutingJob(this); //because it's done in run(false);
+			if (!asyncExecuting)
+				runCompletionRunnables();
 		}
 	}
 
 
 	public void run(boolean sync){
+		boolean exceptionHandlerExecuted = false;
 		try{
 			//System.out.println("run("+sync+")...ok");
 			final JobQueue jobQueue=getJobQueue();
@@ -336,7 +341,8 @@ public class Job extends Thread {
 			}
 
 			while (runnableIterator.hasNext()){
-				if (isInterrupted() || isCanceled()){
+				if (isInterrupted() || (isCanceled()
+						&& (previousRunnable == null || previousRunnable.getException() == null))){
 					log("Job canceled");
 					return;
 				}
@@ -372,7 +378,7 @@ public class Job extends Thread {
 				if (runMutex!=null){
 					if (lock) runMutex.waitUntilUnlocked();
 				}
-				if (isInterrupted() || isCanceled()){
+				if (isInterrupted() || (isCanceled() && runnable.getException() == null)){
 					log("Job canceled");
 					return;
 				}
@@ -386,11 +392,17 @@ public class Job extends Thread {
 //					}
 //					break;
 				}
-				if (runnable.isExceptionHandler()) break;
+				if (runnable.isExceptionHandler()) {
+					exceptionHandlerExecuted = true;
+					break;
+				}
 			}
 		}finally{
+			boolean terminal = exceptionHandlerExecuted || isInterrupted() || isCanceled() || !runnableIterator.hasNext();
 			groupMutex.unlock();
 			jobQueue.removeExecutingJob(this);
+			if (terminal)
+				runCompletionRunnables();
 		}
 	}
 	public void run(){
@@ -414,7 +426,7 @@ public class Job extends Thread {
 			SwingUtilities.invokeLater(new Runnable(){
 		    	public void run(){
 		    		try{
-		    			if (isInterrupted() || isCanceled()) // if thread is not alive, do nothing
+							if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
 		    				return;
 		    			logBegin("running "+runnable.runnable.getName());
 		    			runnable.run();
@@ -428,7 +440,7 @@ public class Job extends Thread {
 		        }
 		    });
 		}else{
-			if (isInterrupted() || isCanceled()) // if thread is not alive, do nothing
+			if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
 				return;
     		try{
     			logBegin("running "+runnable.runnable.getName());
@@ -578,6 +590,36 @@ public class Job extends Thread {
 	public void addExceptionRunnable(JobRunnable runnable){
 		runnables.add(new InternalRunnable(runnable,false,false,true,true));
 		weight+=runnable.getWeight();
+	}
+
+	/** Registers work that runs exactly once after success, failure, or cancellation. */
+	public void addCompletionRunnable(Runnable runnable) {
+		boolean runNow;
+		synchronized (this) {
+			runNow = completionRunnablesExecuted;
+			if (!runNow)
+				completionRunnables.add(runnable);
+		}
+		if (runNow)
+			runnable.run();
+	}
+
+	private void runCompletionRunnables() {
+		List<Runnable> callbacks;
+		synchronized (this) {
+			if (completionRunnablesExecuted)
+				return;
+			completionRunnablesExecuted = true;
+			callbacks = new ArrayList<>(completionRunnables);
+			completionRunnables.clear();
+		}
+		for (Runnable callback : callbacks) {
+			try {
+				callback.run();
+			} catch (RuntimeException e) {
+				ErrorLogger.log("Job completion callback failed: " + getName(), e);
+			}
+		}
 	}
 
 	public void addJob(Job job){

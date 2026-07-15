@@ -25,6 +25,17 @@ class SpreadsheetViewRefactorAuditTest {
 		assertFalse(resourceSource.contains("TODO don't hardcode"));
 	}
 
+	@Test
+	void ganttViewUsesSharedTaskFieldLookupAndCleanupSupport() throws Exception {
+		String ganttSource = source("modules/projectlibre_ui/src/main/java/com/projectlibre1/pm/graphic/views/GanttView.java");
+
+		assertTrue(ganttSource.contains("SpreadsheetViewSupport.resolveTaskFields(project.getFieldArray())"));
+		assertTrue(ganttSource.contains("SpreadsheetViewSupport.getTaskFields(name)"));
+		assertTrue(ganttSource.contains("SpreadsheetViewSupport.cleanup(spreadSheet)"));
+		assertFalse(ganttSource.contains("Dictionary.get(spreadsheetCategory"));
+		assertFalse(ganttSource.contains("private SpreadSheetFieldArray resolveFieldArray()"));
+	}
+
 	private static String source(String relativePath) throws IOException {
 		for (Path current = Path.of("").toAbsolutePath(); current != null; current = current.getParent()) {
 			Path candidate = current.resolve(relativePath).normalize();

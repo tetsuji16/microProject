@@ -60,7 +60,6 @@ import java.awt.Window;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.URL;
@@ -79,6 +78,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.projectlibre1.pm.graphic.IconManager;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.ClassLoaderUtils;
+import com.projectlibre1.util.SafeObjectInput;
 
 public final class LoginDialog extends AbstractDialog {
 	private static final Logger logger = Logger.getLogger(LoginDialog.class.getName());
@@ -124,7 +124,7 @@ public final class LoginDialog extends AbstractDialog {
 			Object ps=ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.ServiceManager").getMethod("lookup",new Class[]{String.class}).invoke(null,new Object[]{"javax.jnlp.PersistenceService"}); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 //			Object ps=Class.forName("javax.jnlp.ServiceManager").getMethod("lookup",new Class[]{String.class}).invoke(null,new Object[]{"javax.jnlp.PersistenceService"});
 			Object contents=ps.getClass().getMethod("get",new Class[]{URL.class}).invoke(ps,new Object[]{serverUrl}); //$NON-NLS-1$
-			try (ObjectInputStream in = new ObjectInputStream((InputStream)ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.FileContents").getMethod("getInputStream", new Class[0]).invoke(contents, new Object[0]))) { //$NON-NLS-1$ //$NON-NLS-2$
+			try (var in = SafeObjectInput.create((InputStream)ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.FileContents").getMethod("getInputStream", new Class[0]).invoke(contents, new Object[0]))) { //$NON-NLS-1$ //$NON-NLS-2$
 //			ObjectInputStream in=new ObjectInputStream((InputStream)Class.forName("javax.jnlp.FileContents").getMethod("getInputStream",null).invoke(contents,null));
 			form=(LoginForm)in.readObject();
 			}

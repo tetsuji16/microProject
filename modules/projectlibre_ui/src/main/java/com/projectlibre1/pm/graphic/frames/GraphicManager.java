@@ -149,7 +149,6 @@ import com.projectlibre1.dialog.RenameProjectDialog;
 import com.projectlibre1.dialog.ResourceInformationDialog;
 import com.projectlibre1.dialog.ResourceMappingDialog;
 import com.projectlibre1.dialog.TaskInformationDialog;
-import com.projectlibre1.dialog.TipOfTheDay;
 import com.projectlibre1.dialog.WelcomeDialog;
 import com.projectlibre1.dialog.assignment.AssignmentDialog;
 import com.projectlibre1.dialog.assignment.TimesheetDialog;
@@ -223,6 +222,7 @@ import com.projectlibre1.util.BrowserControl;
 import com.projectlibre1.util.ClassUtils;
 import com.projectlibre1.util.Environment;
 import com.projectlibre1.util.FlatUiSupport;
+import com.projectlibre1.util.SafeObjectInput;
 import com.projectlibre1.util.PopupDialogSupport;
 import com.projectlibre1.util.UiLinkTargets;
 import com.projectlibre1.workspace.SavableToWorkspace;
@@ -1241,8 +1241,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_ABOUT_PROJECTLIBRE, new AboutAction());
 		actionsMap.addHandler(ACTION_PROJECTLIBRE, new ProjectLibreAction());
 		actionsMap.addHandler(ACTION_PROJECTLIBRE_DOCUMENTATION, new HelpAction());
-		actionsMap.addHandler(ACTION_TIP_OF_THE_DAY, new TipOfTheDayAction());
 		actionsMap.addHandler(ACTION_PROJECT_INFORMATION, new ProjectInformationAction());
+		actionsMap.addHandler(ACTION_DEFINE_CODE, new DefineCodeAction());
 		actionsMap.addHandler(ACTION_PROJECTS_DIALOG, new ProjectsDialogAction());
 		actionsMap.addHandler(ACTION_TEAM_FILTER, new TeamFilterAction());
 		actionsMap.addHandler(ACTION_DOCUMENTS, new DocumentsAction());
@@ -1271,6 +1271,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_DELEGATE_TASKS, new DelegateTasksAction());
 		actionsMap.addHandler(ACTION_UPDATE_TASKS, new UpdateTasksAction());
 		actionsMap.addHandler(ACTION_UPDATE_PROJECT, new UpdateProjectAction());
+		actionsMap.addHandler(ACTION_RECALCULATE, new RecalculateAction());
 		actionsMap.addHandler(ACTION_BAR, new BarAction());
 		actionsMap.addHandler(ACTION_TIMESCALE, new TimescaleAction());
 		actionsMap.addHandler(ACTION_GRIDLINES, new GridlinesAction());
@@ -1427,14 +1428,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			showHelpDialog();		}
 	}
 
-	public class TipOfTheDayAction extends MenuActionsMap.GlobalMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent arg0) {
-			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("tipOfTheDay")) return;
-			TipOfTheDay.showDialog(getFrame(),true);
-			}
-	}
 	public class ProjectInformationAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -1601,8 +1594,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (isDocumentActive())
-				getCurrentFrame().getProject().recalculate();
+				recalculateProject(getCurrentFrame().getProject());
 		}
+	}
+
+	void recalculateProject(Project project) {
+		if (project != null)
+			project.recalculate();
 	}
 
 	public class InsertTaskAction extends MenuActionsMap.DocumentMenuAction {
@@ -1990,7 +1988,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 	
-	public class LocaleAction extends MenuActionsMap.DocumentMenuAction {
+	public class LocaleAction extends MenuActionsMap.GlobalMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
@@ -2898,8 +2896,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 
 		boolean readOnly = !isDocumentWritable();
 		getMenuManager().setActionEnabled(ACTION_INFORMATION,infoEnabled);
-		getMenuManager().setActionEnabled("RibbonTaskInformationAction", taskInfoEnabled);
-		getMenuManager().setActionEnabled("RibbonResourceInformationAction", resourceInfoEnabled);
+		getMenuManager().setActionEnabled("RibbonTaskInformation", taskInfoEnabled);
+		getMenuManager().setActionEnabled("RibbonResourceInformation", resourceInfoEnabled);
 		getMenuManager().setActionEnabled(ACTION_NOTES,infoEnabled);
 		getMenuManager().setActionEnabled(ACTION_INSERT_TASK, !readOnly && (taskType || resourceType)&&(actions==null||actions.contains(ACTION_INSERT_TASK)));
 		getMenuManager().setActionEnabled(ACTION_INSERT_RESOURCE, !readOnly && resourceType && (actions==null||actions.contains(ACTION_INSERT_RESOURCE)));
@@ -3304,7 +3302,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
         ByteArrayInputStream bin=new ByteArrayInputStream((byte[]) lastWorkspace);
         ObjectInputStream in;
 		try {
-			in = new ObjectInputStream(bin);
+			in = SafeObjectInput.create(bin);
 	        return (Workspace) in.readObject();
 		} catch (IOException e) {
 			logger.log(Level.WARNING, "Failed to decode binary workspace", e);

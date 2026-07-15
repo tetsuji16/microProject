@@ -91,7 +91,6 @@ public final class HelpDialog extends AbstractDialog {
 	JButton trial;
 	JButton registerToHelp;
     JButton videos;
-    JButton tipOfTheDay;
     JButton license;
 	private JPanel donatePanel;
 	public static HelpDialog getInstance(Frame owner) {
@@ -131,16 +130,6 @@ public final class HelpDialog extends AbstractDialog {
 				BrowserControl.displayURL(helpLoginUrl);
 			}
 		});
-		if (Environment.isProjectLibre()) {
-			tipOfTheDay = new JButton(Messages.getString("HelpDialog.ShowTipsOfTheDay")); //$NON-NLS-1$
-			tipOfTheDay.setEnabled(true);
-			tipOfTheDay.setToolTipText(Messages.getString("HelpDialog.ShowTipsOfTheDay")); //$NON-NLS-1$
-			tipOfTheDay.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent arg0) {
-					TipOfTheDay.showDialog(HelpDialog.this.getOwner(),true);
-				}
-			});		
-		}
 		license = new JButton(Messages.getString("HelpDialog.ShowLicense")); //$NON-NLS-1$
 		license.setEnabled(true);
 		license.setToolTipText(Messages.getString("HelpDialog.ShowLicense")); //$NON-NLS-1$
@@ -208,11 +197,6 @@ public final class HelpDialog extends AbstractDialog {
 
 //		builder.nextLine(2);
 //		builder.append(videos);
-		if (Environment.isProjectLibre()) {
-			builder.nextLine(2);
-			builder.nextColumn();
-			builder.append(tipOfTheDay);
-		}
 		builder.nextLine(2);
 		builder.nextColumn();
 		builder.append(license);

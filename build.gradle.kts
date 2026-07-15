@@ -34,6 +34,8 @@ val projectLibreMavenDependencyAliases = listOf(
     "jackson-annotations",
     "jackson-core",
     "jackson-databind",
+    "log4j-core",
+    "logback-classic",
     "pdfbox",
     "poi",
     "poi-ooxml",

@@ -2323,6 +2323,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return fieldArray;
 	}
 
+	public void setFieldArray(SpreadSheetFieldArray fieldArray) {
+		this.fieldArray = fieldArray;
+	}
+
 	public void forTasks(Closure c){
 		for (Iterator i=getTaskOutlineIterator();i.hasNext();){
 			c.execute(i.next());
@@ -2837,6 +2841,13 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 		void remove(Object toRemove, NodeModel nodeModel, boolean deep, boolean undo, boolean cleanDependencies) {
 			Object eventSource = nodeModel;
+			if (toRemove instanceof SubProj && !(toRemove instanceof Task)) {
+				Project subproject = ((SubProj) toRemove).getSubproject();
+				if (subproject != null)
+					ProjectFactory.getInstance().removeProject(subproject, false, false, true);
+				objectEventManager.fireDeleteEvent(eventSource, toRemove);
+				return;
+			}
 			if (!(toRemove instanceof Task))
 				return;
 			Task task = (Task) toRemove;
@@ -2848,9 +2859,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			task.cleanUp(eventSource, deep, undo, cleanDependencies);
 			tasks.remove(task);
 			taskOutlines.removeFromAll(task, nodeModel);
-			if (task.isSubproject()) {
+			if (task instanceof SubProj) {
 				Project sub = ((SubProj) task).getSubproject();
-				ProjectFactory.getInstance().removeProject(sub, false, false, true);
+				if (sub != null)
+					ProjectFactory.getInstance().removeProject(sub, false, false, true);
 			}
 			objectEventManager.fireDeleteEvent(eventSource, task);
 		}

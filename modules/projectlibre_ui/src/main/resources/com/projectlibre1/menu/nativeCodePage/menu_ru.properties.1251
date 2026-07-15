@@ -749,7 +749,7 @@ EnterpriseResources.mnemonic    = E
 EnterpriseResources.action      = EnterpriseResourcesAction
 
 
-Help = AboutProjectLibre ProjectLibreDocumentation TipOfTheDay
+Help = AboutProjectLibre ProjectLibreDocumentation
 Help.type        = MENU
 Help.text        = ������
 Help.mnemonic    = H
@@ -766,10 +766,6 @@ ProjectLibreDocumentation.mnemonic    = H
 ProjectLibreDocumentation.action      = ProjectLibreDocumentationAction
 ProjectLibreDocumentation.icon=menu.Help
 
-TipOfTheDay.type        = ITEM
-TipOfTheDay.text        = ����� ���...
-TipOfTheDay.mnemonic    = T
-TipOfTheDay.action      = TipOfTheDayAction
 #
 # Definition of the tool bar
 #

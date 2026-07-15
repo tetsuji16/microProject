@@ -4,7 +4,6 @@ import java.awt.Component;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,6 +25,7 @@ import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.util.Alert;
 import com.projectlibre1.util.PopupDialogSupport;
+import com.projectlibre1.util.SafeObjectInput;
 import com.projectlibre1.workspace.WorkspaceSetting;
 
 public class CollaborationSession {
@@ -417,7 +417,7 @@ public class CollaborationSession {
 			return null;
 		}
 		byte[] data = Base64.getDecoder().decode(state.getWorkspacePayload());
-		try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(data))) {
+		try (var in = SafeObjectInput.create(new ByteArrayInputStream(data))) {
 				return (WorkspaceSetting) in.readObject();
 			} catch (Exception e) {
 			return null;

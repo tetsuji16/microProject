@@ -65,7 +65,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.Scanner;
@@ -86,6 +85,7 @@ import com.projectlibre1.session.SessionFactory;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.undo.DataFactoryUndoController;
 import com.projectlibre1.util.Alert;
+import com.projectlibre1.util.SafeObjectInput;
 
 /**
  * Loads/Saves a project from/to a pod file
@@ -120,7 +120,7 @@ public class LocalFileImporter extends FileImporter {
 				logger.info("Loading " + getFileName() + "..."); //$NON-NLS-1$ //$NON-NLS-2$
 
 				long t1=System.currentTimeMillis();
-				ObjectInputStream in=new ObjectInputStream(fin);
+				var in=SafeObjectInput.create(fin);
 				Object obj=in.readObject();
 				if (obj instanceof String) obj=in.readObject(); //check version in the future
 				DocumentData projectData=(DocumentData)obj;

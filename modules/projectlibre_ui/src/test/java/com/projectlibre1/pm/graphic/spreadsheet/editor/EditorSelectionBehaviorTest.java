@@ -3,6 +3,7 @@ package com.projectlibre1.pm.graphic.spreadsheet.editor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.awt.event.InputMethodEvent;
 import java.awt.event.InputMethodListener;
@@ -11,7 +12,10 @@ import java.text.AttributedString;
 import java.text.SimpleDateFormat;
 
 import javax.swing.DefaultCellEditor;
+import javax.swing.Action;
+import javax.swing.JComponent;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 
@@ -80,6 +84,25 @@ class EditorSelectionBehaviorTest {
 			KeyEvent event = new KeyEvent(field, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_CONVERT, KeyEvent.CHAR_UNDEFINED);
 
 			assertTrue(adapter.isCellEditable(event));
+		});
+	}
+
+	@Test
+	void spreadsheetEditorRoutesConvertKeyToImeWithoutChangingTheSelection() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JTextField field = new JTextField("確定済みの文字");
+			SpreadSheetCellEditorAdapter adapter = new SpreadSheetCellEditorAdapter(new DefaultCellEditor(field));
+			adapter.prepareEditorComponent(field);
+			field.select(2, 5);
+
+			Object actionKey = field.getInputMap(JComponent.WHEN_FOCUSED)
+				.get(KeyStroke.getKeyStroke(KeyEvent.VK_CONVERT, 0));
+			assertEquals("spreadsheet.imeReconvert", actionKey);
+			Action action = field.getActionMap().get(actionKey);
+			assertNotNull(action);
+			action.actionPerformed(new java.awt.event.ActionEvent(field, java.awt.event.ActionEvent.ACTION_PERFORMED, "convert"));
+
+			assertEquals("済みの", field.getSelectedText());
 		});
 	}
 

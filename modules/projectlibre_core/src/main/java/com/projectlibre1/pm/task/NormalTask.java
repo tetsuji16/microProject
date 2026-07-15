@@ -144,13 +144,15 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	int priority = 500;
 	private double percentWorkCompleteOverride = Double.NaN;
 	public NormalTask(Project project) {
-		this(project.isLocal(),project);
+		this(project == null || project.isLocal(),project);
 	}
 	public NormalTask(boolean local,Project project) {
 		super(local);
 		this.project = project;
-		initializeDates();
-		addDefaultAssignment();
+		if (project != null) {
+			initializeDates();
+			addDefaultAssignment();
+		}
 
 	}
 	public NormalTask() {

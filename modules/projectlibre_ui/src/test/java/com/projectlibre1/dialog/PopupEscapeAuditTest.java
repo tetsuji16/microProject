@@ -32,21 +32,9 @@ class PopupEscapeAuditTest {
 	@Test
 	void startupAndTipDialogsHaveEscapeCoverageHooks() throws Exception {
 		String mainSource = source("modules/projectlibre_ui/src/main/java/com/projectlibre1/pm/graphic/gantt/Main.java");
-		String tipSource = source("modules/projectlibre_ui/src/main/java/com/projectlibre1/dialog/TipOfTheDay.java");
 
 		assertTrue(mainSource.contains("PopupDialogSupport.showMessageDialog("));
 		assertFalse(mainSource.contains("JOptionPane.showMessageDialog("));
-		assertTrue(tipSource.contains("PopupDialogSupport.bindEscapeToDispose"));
-		assertTrue(tipSource.contains("AWTEvent.WINDOW_EVENT_MASK"));
-	}
-
-	@Test
-	void tipDialogKeepsModernizedButtonAndPreferenceStructure() throws Exception {
-		String tipSource = source("modules/projectlibre_ui/src/main/java/com/projectlibre1/dialog/TipOfTheDay.java");
-
-		assertTrue(tipSource.contains("FlatUiSupport.styleDialogButton(nextButton, true)"));
-		assertTrue(tipSource.contains("showOnStartupCheckBox"));
-		assertTrue(tipSource.contains("tipCounterLabel"));
 	}
 
 	private static String source(String relativePath) throws IOException {

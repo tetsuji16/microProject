@@ -55,6 +55,16 @@ class SpreadSheetUtilsTest {
 	}
 
 	@Test
+	void trackingSpreadsheetKeepsTaskIndicatorsVisible() {
+		SpreadSheetFieldArray fields = SpreadSheetFieldArray.getFromId(
+			SpreadSheetCategories.taskSpreadsheetCategory,
+			"Spreadsheet.Task.tracking");
+
+		assertTrue(indexOf(fields, "Field.indicators") > indexOf(fields, "Field.id"));
+		assertTrue(indexOf(fields, "Field.indicators") < indexOf(fields, "Field.name"));
+	}
+
+	@Test
 	void viewColumnResolutionFollowsColumnsAfterReordering() {
 		SpreadSheetFieldArray fields = SpreadSheetFieldArray.getFromId(
 			SpreadSheetCategories.taskSpreadsheetCategory,

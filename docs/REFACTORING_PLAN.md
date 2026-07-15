@@ -72,7 +72,6 @@
 - `YearlessDateInputParser` は内部実装を `java.time` ベースへ寄せ、年またぎと時刻付き入力の回帰テストを追加済み。
 - `TimeInputParser` も `java.time` ベースへ寄せ、`ActionJList` / `ResourceAdditionDialog` / `ActionLists` の raw collection を整理済み。
 - `CellStyles` も `ActionLists` と同様に generics 化済み。
-- `TipOfTheDay` を `JTipOfTheDay` / `TipLoader` から切り離し、純 Swing の `JDialog` 実装へ置換済み。
 - `Messages.getTipProperties()` を bundle 直読みへ寄せ、Tip ダイアログの初期化順依存を解消済み。
 - `org.jdesktop.swing.calendar.DateSpan` をローカル実装へ置換し、`jdnc-0_7-all.jar` を bridge から削除済み。
 - `com.jgoodies:jgoodies-forms` へ切り替え、`modules/projectlibre_ui/src/main/java/com/jgoodies/forms/builder/DefaultFormBuilder.java` に互換 shim を置いて旧 API を維持済み。
@@ -142,7 +141,6 @@
 - `:projectlibre_contrib:dependencies --configuration runtimeClasspath` で `l2fprod-common-totd` 非依存化も確認済み。
 - `:projectlibre_contrib:dependencies --configuration runtimeClasspath` で `jdnc-0_7-all` 非依存化も確認済み。
 - `:projectlibre_ui:compileJava` で `com.jgoodies:jgoodies-forms` + `DefaultFormBuilder` shim の互換性を確認済み。
-- `:projectlibre_ui:test --tests com.projectlibre1.dialog.PopupEscapeAuditTest` で `TipOfTheDay` の escape hook を確認済み。
 - `:projectlibre_contrib:test --tests com.projectlibre1.contrib.calendar.ContribIntervalsTest` で `DateSpan` / interval merge の回帰を確認済み。
 - `:projectlibre_ui:compileJava` で `TimeSpreadSheetModel` の境界整理を確認済み。
 

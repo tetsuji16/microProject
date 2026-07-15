@@ -211,7 +211,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	int j=position;
        	for (Iterator i=/*trees*/children.iterator();i.hasNext();){
        		Node node=(Node)i.next();
-       		if ((project!=null && node.getImpl() instanceof Task)||
+		if ((project!=null && (node.getImpl() instanceof Task || node.getImpl() instanceof SubProj))||
        				(resourcePool!=null && node.getImpl() instanceof Resource)||
        				node.isVoid()){
 	        	//if (node.getImpl() instanceof Task) System.out.println("PASTE parent="+parent+":"+(parent==null?"X":parent.isInSubproject())+", node="+node+":"+node.isInSubproject());
@@ -347,11 +347,13 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     			        }
         			}
 
-    	    		project.initializeId(task);
-    	    		project.addPastedTask(task);
+					project.initializeId(task);
+					project.addPastedTask(task);
 
-    	    		insertedNodes.add(descendants[i]);
-        		}
+					insertedNodes.add(descendants[i]);
+				} else if (descendants[i].getImpl() instanceof SubProj) {
+					insertedNodes.add(descendants[i]);
+				}
         	}
     	}else if (resourcePool!=null){
         	for (int i=0;i<descendants.length;i++){

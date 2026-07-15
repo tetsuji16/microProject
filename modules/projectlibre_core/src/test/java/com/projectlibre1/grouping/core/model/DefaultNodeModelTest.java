@@ -1,6 +1,7 @@
 package com.projectlibre1.grouping.core.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -29,6 +30,7 @@ import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.undo.DataFactoryUndoController;
+import com.projectlibre1.undo.UndoController;
 
 class DefaultNodeModelTest {
 	@Test
@@ -87,6 +89,76 @@ class DefaultNodeModelTest {
 		model.remove(node, NodeModel.NORMAL);
 
 		assertNull(model.search(replacementImpl));
+	}
+
+	@Test
+	void deletionUndoRedoRestoresASelectedParentAndItsChildOnce() {
+		UndoController undoController = new UndoController();
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.setUndoController(undoController);
+		model.getHierarchy().setNbEndVoidNodes(0);
+
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node parent = NodeFactory.getInstance().createVoidNode();
+		Node child = NodeFactory.getInstance().createVoidNode();
+		model.add(root, parent, NodeModel.SILENT);
+		model.add(parent, child, NodeModel.SILENT);
+		undoController.clear();
+
+		model.remove(Arrays.asList(parent, child), NodeModel.NORMAL);
+
+		assertTrue(undoController.canUndo());
+		assertEquals(0, root.getChildCount());
+		undoController.undo();
+		assertSame(parent, root.getChildAt(0));
+		assertSame(child, parent.getChildAt(0));
+		assertTrue(undoController.canRedo());
+		undoController.redo();
+		assertEquals(0, root.getChildCount());
+	}
+
+	@Test
+	void deletionOfASubprojectTaskKeepsTheUndoHistory() {
+		Project project = createProject();
+		DataFactoryUndoController undoController = project.getUndoController();
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		model.getHierarchy().setNbEndVoidNodes(0);
+		TestSubProj subprojectTask = new TestSubProj();
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node node = NodeFactory.getInstance().createNode(subprojectTask);
+		model.add(root, node, NodeModel.SILENT);
+		undoController.clear();
+
+		model.remove(node, NodeModel.NORMAL);
+
+		assertTrue(undoController.canUndo());
+		undoController.undo();
+		assertSame(node, root.getChildAt(0));
+		undoController.redo();
+		assertFalse(undoController.canRedo());
+		assertEquals(0, root.getChildCount());
+	}
+
+	@Test
+	void redoCancelsASubprojectRestoreWaitingForCloseCompletion() {
+		Project parentProject = createProject();
+		Project subproject = createProject();
+		subproject.setUniqueId(987654321L);
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node node = NodeFactory.getInstance().createNode(new TestSubProj(subproject));
+		model.add(root, node, NodeModel.SILENT);
+		DefaultNodeModel.RemovalSnapshot snapshot = DefaultNodeModel.RemovalSnapshot.capture(Arrays.asList(node));
+		DefaultNodeModel.RemovalSnapshot.SubprojectState state = snapshot.getSubprojects().get(0);
+		com.projectlibre1.pm.task.ProjectFactory factory = com.projectlibre1.pm.task.ProjectFactory.getInstance();
+
+		factory.addClosingProject(subproject.getUniqueId());
+		state.restoreAfterClose(parentProject);
+		state.cancelRestore();
+		factory.removeClosingProject(subproject.getUniqueId());
+
+		assertNull(factory.findFromId(subproject.getUniqueId()));
 	}
 
 	@Test
@@ -351,6 +423,22 @@ class DefaultNodeModelTest {
 				Object hierarchyInfo, boolean isNew) {
 			nodeSeenDuringValidation = nodeModel.search(newlyCreated);
 		}
+	}
+
+	private static final class TestSubProj implements com.projectlibre1.pm.task.SubProj {
+		private final Project subproject;
+		private TestSubProj() { this(null); }
+		private TestSubProj(Project subproject) { this.subproject = subproject; }
+		public Project getSubproject() { return subproject; }
+		public boolean isSubprojectOpen() { return false; }
+		public boolean isValidAndOpen() { return false; }
+		public boolean isWritable() { return false; }
+		public long getSubprojectUniqueId() { return 0L; }
+		public void setFetching(boolean fetching) { }
+		public boolean isValid() { return false; }
+		public void setSubprojectFieldValues(java.util.Map values) { }
+		public void setSubprojectUniqueId(long subprojectId) { }
+		public void setSchedulesFromSubprojectFieldValues() { }
 	}
 
 	private static final class TrackingField extends Field {

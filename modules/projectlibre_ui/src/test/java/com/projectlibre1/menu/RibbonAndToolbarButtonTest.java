@@ -7,6 +7,7 @@ import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.menuBundl
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonBandIds;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonBandsByTask;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds;
+import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonUiButtonIds;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonButtonIdsForTask;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonBundles;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonTaskIds;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -53,7 +55,7 @@ class RibbonAndToolbarButtonTest {
 	void standardRibbonButtonsCanBeConstructedInDefaultLocale() throws Exception {
 		ExtToolBarFactory factory = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));
 		SwingUtilities.invokeAndWait(() -> {
-			for (String id : ribbonButtonIds()) {
+			for (String id : ribbonUiButtonIds()) {
 				AbstractButton button = factory.createJButton(id);
 				assertValidSwingButton(id, button, true);
 			}
@@ -64,7 +66,7 @@ class RibbonAndToolbarButtonTest {
 	void standardRibbonButtonsCanBeConstructedInJapaneseLocale() throws Exception {
 		ExtToolBarFactory factory = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.JAPANESE));
 		SwingUtilities.invokeAndWait(() -> {
-			for (String id : ribbonButtonIds()) {
+			for (String id : ribbonUiButtonIds()) {
 				AbstractButton button = factory.createJButton(id);
 				assertValidSwingButton(id, button, true);
 			}
@@ -147,7 +149,10 @@ class RibbonAndToolbarButtonTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		SwingUtilities.invokeAndWait(() -> {
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			AbstractButton saveButton = firstButton(manager.getToolButtonsFromId("RibbonSaveProject"));
+			AbstractButton saveButton = manager.getToolButtonsFromId("RibbonSaveProject").stream()
+				.map(AbstractButton.class::cast)
+				.filter(button -> "RibbonSaveProject".equals(button.getActionCommand()))
+				.findFirst().orElseThrow();
 			AbstractButton openButton = firstButton(manager.getToolButtonsFromId("RibbonOpenProject"));
 			assertNotNull(saveButton);
 			assertNotNull(openButton);
@@ -199,7 +204,67 @@ class RibbonAndToolbarButtonTest {
 			MenuManager menuManager = graphicManager.getMenuManager();
 			menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 
-			assertButtonsResolveAgainstLiveActionWiring(graphicManager, menuManager, ribbonButtonIds(), "ribbon");
+			assertButtonsResolveAgainstLiveActionWiring(graphicManager, menuManager, ribbonUiButtonIds(), "ribbon");
+		});
+	}
+
+	@Test
+	void everyRibbonButtonDispatchesItsResolvedActionWhenClicked() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ClickRecordingActionMap actionMap = new ClickRecordingActionMap();
+			MenuManager manager = MenuManager.getInstance(actionMap);
+			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+
+			for (String id : ribbonUiButtonIds()) {
+				String actionId = manager.getToolBarFactory().getActionStringFromId(id);
+				int previousClickCount = actionMap.clickCount(actionId);
+				AbstractButton button = manager.getToolButtonsFromId(id).stream()
+					.map(AbstractButton.class::cast)
+					.filter(candidate -> id.equals(candidate.getActionCommand()))
+					.findFirst()
+					.orElseThrow(() -> new AssertionError(id + " was not created as a clickable ribbon button"));
+				assertTrue(button.isEnabled(), () -> id + " is unexpectedly disabled in the neutral command fixture");
+				button.doClick();
+				assertEquals(previousClickCount + 1, actionMap.clickCount(actionId),
+					() -> id + " did not dispatch " + actionId + " exactly once");
+			}
+		});
+	}
+
+	@Test
+	void fileRibbonButtonsDispatchToTheirCommandRoutesWhenClicked() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ExternalRouteRecordingGraphicManager manager = new ExternalRouteRecordingGraphicManager();
+			MenuManager menuManager = manager.getMenuManager();
+			menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			Map<String, String> expectedRoutes = Map.ofEntries(
+				Map.entry("RibbonNewProject", "newProject"),
+				Map.entry("RibbonOpenProject", "openProject"),
+				Map.entry("RibbonSaveProject", "saveProject"),
+				Map.entry("RibbonSaveProjectAs", "saveAsProject"),
+				Map.entry("RibbonCloseProject", "closeProject"),
+				Map.entry("RibbonImportProject", "openProject"),
+				Map.entry("RibbonExportProject", "saveAsProject"),
+				Map.entry("RibbonPrint", "print"),
+				Map.entry("RibbonPrintPreview", "printPreview"),
+				Map.entry("RibbonPDF", "pdf"),
+				Map.entry("RibbonLocale", "locale"),
+				Map.entry("RibbonProjectLibreDocumentation", "help"),
+				Map.entry("RibbonAboutProjectLibre", "about"));
+
+			for (Map.Entry<String, String> expected : expectedRoutes.entrySet()) {
+				AbstractButton button = menuManager.getToolButtonsFromId(expected.getKey()).stream()
+					.map(AbstractButton.class::cast)
+					.filter(candidate -> expected.getKey().equals(candidate.getActionCommand()))
+					.findFirst().orElseThrow();
+				if ("RibbonLocale".equals(expected.getKey())) {
+					assertTrue(button.isEnabled(), "Locale must be available even when no project is open");
+				} else {
+					button.setEnabled(true); // Exercise document commands without opening a real dialog.
+				}
+				button.doClick();
+				assertEquals(expected.getValue(), manager.lastRoute, expected.getKey() + " did not dispatch when clicked");
+			}
 		});
 	}
 
@@ -215,7 +280,7 @@ class RibbonAndToolbarButtonTest {
 
 	@Test
 	void displayedRibbonUiInventoryCoversRibbonAndRelatedToolbarsWithoutDuplicates() {
-		Set<String> expected = new LinkedHashSet<>(ribbonButtonIds());
+		Set<String> expected = new LinkedHashSet<>(ribbonUiButtonIds());
 		expected.addAll(toolBarButtonIds(MenuManager.RIBBON_VIEW_BAR));
 		expected.addAll(toolBarButtonIds(MenuManager.PRINT_PREVIEW_TOOL_BAR));
 		assertEquals(expected, displayedRibbonUiButtonIds());
@@ -442,9 +507,14 @@ class RibbonAndToolbarButtonTest {
 		for (String id : buttonIds) {
 			String actionId = menuManager.getToolBarFactory().getActionStringFromId(id);
 			assertTrue(actionId != null && !actionId.isBlank(), () -> id + " is missing an action mapping for " + context);
-			assertDoesNotThrow(
+			Action action = assertDoesNotThrow(
 				() -> actionMap.getAction(actionId),
 				() -> id + " does not resolve to a live action for " + context + ": " + actionId);
+			assertNotNull(action, () -> id + " has no live action for " + context + ": " + actionId);
+			List<?> buttons = menuManager.getToolButtonsFromId(id);
+			assertNotNull(buttons, () -> id + " was not registered as a " + context + " button");
+			assertTrue(buttons.stream().map(AbstractButton.class::cast).anyMatch(button -> button.getAction() == action),
+				() -> id + " is not wired to its resolved live action for " + context);
 		}
 	}
 
@@ -502,5 +572,44 @@ class RibbonAndToolbarButtonTest {
 		Object role = button.getClientProperty(FlatUiSupport.BUTTON_STYLE_ROLE_PROPERTY);
 		return FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_LARGE.equals(role)
 			|| FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_SMALL.equals(role);
+	}
+
+	private static final class ExternalRouteRecordingGraphicManager extends GraphicManager {
+		private String lastRoute;
+
+		ExternalRouteRecordingGraphicManager() {
+			super(new JPanel());
+		}
+
+		@Override
+		protected boolean beforeExternalRoute(String routeId) {
+			lastRoute = routeId;
+			return false;
+		}
+	}
+
+	private static final class ClickRecordingActionMap implements com.projectlibre1.menu.ProjectMenuActionMap {
+		private final Map<String, Integer> clickCounts = new HashMap<>();
+		private final Map<String, Action> actions = new HashMap<>();
+
+		@Override
+		public Action getAction(String key) {
+			return actions.computeIfAbsent(key, actionId -> new AbstractAction(actionId) {
+				@Override
+				public void actionPerformed(java.awt.event.ActionEvent event) {
+					clickCounts.merge(actionId, 1, Integer::sum);
+				}
+			});
+		}
+
+		@Override
+		public String getStringFromAction(Action action) {
+			Object name = action.getValue(Action.NAME);
+			return name == null ? "" : name.toString();
+		}
+
+		int clickCount(String actionId) {
+			return clickCounts.getOrDefault(actionId, 0);
+		}
 	}
 }

@@ -48,6 +48,18 @@ public final class MenuDefinitionSupport {
 		return ids;
 	}
 
+	public static Set<String> ribbonUiButtonIds() {
+		ResourceBundle internal = menuInternalBundle();
+		Set<String> ids = new LinkedHashSet<>(ribbonButtonIds());
+		for (String token : tokens(internal, "StandardRibbon.TaskBar")) {
+			String normalized = normalizeButtonToken(token);
+			if (normalized != null) {
+				ids.add(normalized);
+			}
+		}
+		return ids;
+	}
+
 	public static List<String> ribbonTaskIds() {
 		return Collections.unmodifiableList(tokens(menuInternalBundle(), "StandardRibbon"));
 	}
@@ -96,7 +108,7 @@ public final class MenuDefinitionSupport {
 	}
 
 	public static Set<String> displayedRibbonUiButtonIds() {
-		Set<String> ids = new LinkedHashSet<>(ribbonButtonIds());
+		Set<String> ids = new LinkedHashSet<>(ribbonUiButtonIds());
 		ids.addAll(toolBarButtonIds(MenuManager.RIBBON_VIEW_BAR));
 		ids.addAll(toolBarButtonIds(MenuManager.PRINT_PREVIEW_TOOL_BAR));
 		return Collections.unmodifiableSet(ids);

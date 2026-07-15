@@ -3,6 +3,8 @@ package com.projectlibre.ui.theme;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Color;
+
 import javax.swing.UIManager;
 
 import org.junit.jupiter.api.Test;
@@ -31,5 +33,10 @@ class ProjectLibreThemeTest {
 		assertEquals(ProjectLibreTheme.tokens().headerBackground(), ProjectLibreTheme.tokens().spreadsheetHeaderBackground());
 		assertEquals(ProjectLibreTheme.tokens().tableGridColor(), ProjectLibreTheme.tokens().spreadsheetGridColor());
 		assertEquals(ProjectLibreTheme.tokens().tableSelectionBackground(), ProjectLibreTheme.tokens().spreadsheetRangeSelectionBackground());
+	}
+
+	@Test
+	void ribbonChromeMatchesTheWindowsTitleBarGray() {
+		assertEquals(new Color(0xF2F2F2), ProjectLibreThemeTokens.light().ribbonChromeBackground());
 	}
 }

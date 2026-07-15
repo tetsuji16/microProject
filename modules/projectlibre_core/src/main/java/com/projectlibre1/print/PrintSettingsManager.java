@@ -58,13 +58,13 @@ package com.projectlibre1.print;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.prefs.Preferences;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.util.SafeObjectInput;
 import com.projectlibre1.workspace.SavableToWorkspace;
 
 public class PrintSettingsManager {
@@ -75,7 +75,7 @@ public class PrintSettingsManager {
 			if (tmpLocalSettings==null){
 				byte[] buf=Preferences.userNodeForPackage(PrintSettings.class).getByteArray("printSettings",null);
 				if (buf!=null){
-					try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(buf))) {
+					try (var in = SafeObjectInput.create(new ByteArrayInputStream(buf))) {
 						tmpLocalSettings=(PrintSettings)in.readObject();
 					} catch (Exception e) {
 						logger.log(Level.WARNING, "Failed to load persisted print settings", e);

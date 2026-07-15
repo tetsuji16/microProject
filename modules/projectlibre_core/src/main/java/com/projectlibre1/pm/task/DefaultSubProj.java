@@ -57,15 +57,24 @@ package com.projectlibre1.pm.task;
 
 import java.util.Map;
 
-public class DefaultSubProj implements SubProj {
-	private final Project dummyProject;
+public class DefaultSubProj extends NormalTask implements SubProj {
+	private static final long serialVersionUID = 1L;
 	private long subprojectUniqueId;
 	private boolean fetching;
 	private Map subprojectFieldValues;
 
 	public DefaultSubProj(Project dummy, Long id) {
-		this.dummyProject = dummy;
+		super(dummy);
 		setSubprojectUniqueId(id == null ? 0L : id.longValue());
+	}
+
+	public DefaultSubProj() {
+		super();
+	}
+
+	@Override
+	public boolean isSubproject() {
+		return true;
 	}
 	public Project getSubproject() {
 		if (!isValid())

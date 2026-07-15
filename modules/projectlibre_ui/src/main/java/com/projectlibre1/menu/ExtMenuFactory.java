@@ -129,7 +129,8 @@ public class ExtMenuFactory extends MenuFactory {
     
 
     public Action getActionFromId(String id) {
-    	return actions.getAction(getActionStringFromId(id));
+		String actionId = getActionStringFromId(id);
+		return actions.getAction(actionId == null ? id : actionId);
     }
     
     public String getStringFromAction(Action action) {

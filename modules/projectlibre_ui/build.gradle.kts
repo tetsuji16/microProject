@@ -30,9 +30,8 @@ tasks.named<CreateStartScripts>("startScripts") {
             if (!scriptFile.isFile) continue
             val original = scriptFile.readText(Charsets.UTF_8)
             val isWindows = candidate.endsWith(".bat")
-            val separator = if (isWindows) ";" else ":"
             val prefix = if (isWindows) "%APP_HOME%\\lib\\" else "\$APP_HOME/lib/"
-            val classpathValue = "${prefix}projectlibre_ui.jar${separator}${prefix}*"
+            val classpathValue = "${prefix}*"
             val updated = original.replace(Regex("""(?m)^set CLASSPATH=.*$""")) {
                 "set CLASSPATH=$classpathValue"
             }.replace(Regex("""(?m)^CLASSPATH=.*$""")) {

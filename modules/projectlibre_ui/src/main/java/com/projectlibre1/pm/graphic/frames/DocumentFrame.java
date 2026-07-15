@@ -333,11 +333,25 @@ public class DocumentFrame extends NamedFrame implements
 				.getBaselineNumber());
 		boolean entireProject = baselineDialog.getForm().isEntireProject();
 		List selection = entireProject ? null : getSelectedImpls(true);
+		return applyBaseline(getProject(), save, baselineDialog.getForm(), selection);
+	}
+
+	/**
+	 * Applies a confirmed baseline dialog choice.  Keeping this operation separate
+	 * from the Swing dialog makes the command path testable all the way through
+	 * the project snapshot write, rather than only as far as opening a dialog.
+	 */
+	static boolean applyBaseline(Project project, boolean save, BaselineDialog.Form form, List selection) {
+		if (project == null || form == null) {
+			return false;
+		}
+		Integer baselineNumber = Integer.valueOf(form.getBaselineNumber());
+		boolean entireProject = form.isEntireProject();
 		if (save)
-			getProject().saveCurrentToSnapshot(baselineNumber, entireProject,
+			project.saveCurrentToSnapshot(baselineNumber, entireProject,
 					selection,true);
 		else
-			getProject()
+			project
 					.clearSnapshot(baselineNumber, entireProject, selection,true);
 //		getProject().fireBaselineChanged(baselineDialog, null, baselineNumber,
 //				save);

@@ -69,6 +69,7 @@ import com.projectlibre1.grouping.core.hierarchy.AbstractMutableNodeHierarchy;
 import com.projectlibre1.grouping.core.summaries.DeepChildWalker;
 import com.projectlibre1.pm.assignment.Assignment;
 import com.projectlibre1.pm.key.HasId;
+import com.projectlibre1.pm.task.SubProj;
 import com.projectlibre1.pm.task.Task;
 
 public class NodeModelUtil {
@@ -88,7 +89,7 @@ public class NodeModelUtil {
 	}
     public static boolean nodeIsSubproject(Node node) {
    		Object impl =node.getImpl();
-    	return impl instanceof Task && ((Task)impl).isSubproject(); 
+		return impl instanceof SubProj || (impl instanceof Task && ((Task)impl).isSubproject());
     }
 
 	public static void enumerateNonAssignments(NodeModel model) {

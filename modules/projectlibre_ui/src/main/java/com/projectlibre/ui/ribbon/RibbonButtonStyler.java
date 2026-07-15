@@ -22,12 +22,16 @@ final class RibbonButtonStyler {
 	private static final int LARGE_ICON_SIZE = 32;
 	private static final int MEDIUM_ICON_SIZE = 20;
 	private static final int SMALL_ICON_SIZE = 16;
-	private static final int LARGE_TEXT_WIDTH = 72;
-	private static final int LARGE_HORIZONTAL_PADDING = 8;
+	private static final int LARGE_TEXT_WIDTH = 80;
+	// Includes the Office command border and Swing button margins as well as
+	// breathing room around the label. Measuring text alone caused the UI delegate
+	// to replace the last Japanese glyphs with an ellipsis.
+	private static final int LARGE_HORIZONTAL_PADDING = 18;
 	private static final int INLINE_HORIZONTAL_PADDING = 10;
-	private static final int INLINE_ICON_TEXT_GAP = 2;
-	private static final int LARGE_ICON_TEXT_GAP = 2;
-	private static final int LARGE_LONG_LABEL_WIDTH = 76;
+	private static final int INLINE_ICON_TEXT_GAP = 4;
+	private static final int LARGE_ICON_TEXT_GAP = 4;
+	private static final int LARGE_LONG_LABEL_WIDTH = 92;
+	private static final int SPLIT_BUTTON_EXTRA_WIDTH = 18;
 
 	AbstractButton styleActionButton(AbstractButton button, boolean large) {
 		return styleActionButton(button, large ? "large" : "small");
@@ -107,9 +111,13 @@ final class RibbonButtonStyler {
 			button.setIcon(ribbonIcon);
 			String iconKey = (String) button.getClientProperty(ICON_KEY_PROPERTY);
 			Icon disabledIcon = IconManager.getRibbonIconDisabled(iconKey, iconSize, iconSize);
-			Icon rolloverIcon = IconManager.getRibbonIconTinted(iconKey, iconSize, iconSize, FlatUiSupport.ribbonIconHoverColor());
-			button.setRolloverIcon(rolloverIcon == null ? ribbonIcon : rolloverIcon);
-			button.setSelectedIcon(rolloverIcon == null ? ribbonIcon : rolloverIcon);
+			// Keep the source icon for rollover and selection.  Replacing it with a
+			// separately rasterized/tinted SVG can produce a fully transparent icon
+			// with some FlatLaf/SVG rendering combinations, making the command appear
+			// to disappear exactly when the pointer enters it.  The button border and
+			// background already provide the hover/selected affordance.
+			button.setRolloverIcon(ribbonIcon);
+			button.setSelectedIcon(ribbonIcon);
 			button.setDisabledIcon(disabledIcon == null ? ribbonIcon : disabledIcon);
 		}
 	}
@@ -197,7 +205,8 @@ final class RibbonButtonStyler {
 			int longLabelMinWidth = plainText.length() >= 7 ? LARGE_LONG_LABEL_WIDTH : FlatUiSupport.ribbonLargeButtonMinWidth();
 			int preferredWidth = Math.max(
 				longLabelMinWidth,
-				Math.max(LARGE_ICON_SIZE + LARGE_HORIZONTAL_PADDING, textSize.width + LARGE_HORIZONTAL_PADDING));
+				Math.max(LARGE_ICON_SIZE + LARGE_HORIZONTAL_PADDING, textSize.width + LARGE_HORIZONTAL_PADDING))
+				+ splitButtonExtraWidth(button);
 			int preferredHeight = Math.max(
 				FlatUiSupport.ribbonLargeButtonHeight(),
 				LARGE_ICON_SIZE
@@ -214,7 +223,8 @@ final class RibbonButtonStyler {
 			FontMetrics metrics = probe.getFontMetrics(probe.getFont());
 			int preferredWidth = Math.max(
 				minWidth,
-				iconSize + INLINE_ICON_TEXT_GAP + metrics.stringWidth(text) + INLINE_HORIZONTAL_PADDING);
+				iconSize + INLINE_ICON_TEXT_GAP + metrics.stringWidth(text) + INLINE_HORIZONTAL_PADDING)
+				+ splitButtonExtraWidth(button);
 			int preferredHeight = Math.max(
 				minHeight,
 				Math.max(iconSize, metrics.getHeight()) + FlatUiSupport.ribbonButtonVerticalInset());
@@ -227,6 +237,12 @@ final class RibbonButtonStyler {
 
 		Dimension preferredSize() {
 			return preferredSize;
+		}
+
+		private static int splitButtonExtraWidth(AbstractButton button) {
+			return Boolean.TRUE.equals(button.getClientProperty("ProjectLibre.ribbonSplit"))
+				? SPLIT_BUTTON_EXTRA_WIDTH
+				: 0;
 		}
 	}
 }

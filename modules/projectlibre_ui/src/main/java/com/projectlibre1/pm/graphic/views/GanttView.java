@@ -86,13 +86,11 @@ import com.projectlibre1.configuration.Dictionary;
 import com.projectlibre1.field.FieldContext;
 import com.projectlibre1.graphic.configuration.BarStyles;
 import com.projectlibre1.graphic.configuration.GraphicConfiguration;
-import com.projectlibre1.graphic.configuration.SpreadSheetFieldArray;
 import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.pm.scheduling.ScheduleEvent;
 import com.projectlibre1.pm.scheduling.ScheduleEventListener;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.time.HasStartAndEnd;
-import com.projectlibre1.strings.Messages;
 import com.projectlibre1.undo.UndoController;
 import com.projectlibre1.workspace.WorkspaceSetting;
 
@@ -196,12 +194,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (project != null) {
 			project.removeScheduleListener(this);
 		}
-		if (spreadSheet != null) {
-			spreadSheet.cleanUp();
-		}
-		if (gantt != null) {
-			gantt.cleanUp();
-		}
+		cleanupContentViews();
 		super.cleanUp();
 		spreadSheet=null;
 		gantt=null;
@@ -231,7 +224,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
         spreadSheet = new SpreadSheet();
         spreadSheet.setName(project.getName());
 		spreadSheet.setSpreadSheetCategory(spreadsheetCategory); // for columns.  Must do first
-		var fields = resolveFieldArray();
+		var fields = SpreadsheetViewSupport.resolveTaskFields(project.getFieldArray());
 		spreadSheet.setCache(cache, fields, fields.getCellStyle(), fields.getActionList());
 		if (project.getFieldArray() != null) {
 			spreadSheet.setFieldArrayWithWidths(fields);
@@ -260,10 +253,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
     ganttScrollPane.activateEmptyRowHeader(activate);
    }
 
-	//spreadsheet fields
-	private static SpreadSheetFieldArray getFields() {
-		return (SpreadSheetFieldArray) Dictionary.get(spreadsheetCategory,Messages.getString("Spreadsheet.Task.entry"));
-	}
 	/**
 	 *
 	 * @param name
@@ -271,7 +260,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	 */
 	public ArrayList setColumns(String name){
 		ArrayList old = spreadSheet.getFieldArray();
-		setColumns((ArrayList) Dictionary.get(spreadsheetCategory, Messages.getString(name)));
+		setColumns(SpreadsheetViewSupport.getTaskFields(name));
 		return old;
 	}
 	public void setColumns(ArrayList fields){
@@ -450,12 +439,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (coord != null && ganttScrollPane != null) {
 			coord.removeTimeScaleListener(ganttScrollPane);
 		}
-		if (spreadSheet != null) {
-			spreadSheet.cleanUp();
-		}
-		if (gantt != null) {
-			gantt.cleanUp();
-		}
+		cleanupContentViews();
 		super.reinitialize();
 		setSpreadsheetGridVisible(spreadsheetGridVisible);
 		updateHeight(project);
@@ -554,15 +538,11 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		HelpUtil.addDocHelp(this,tracking ? "Tracking_Gantt_Chart":"Gantt_Chart");
 	}
 
-	private SpreadSheetFieldArray resolveFieldArray() {
-		var fields = getFields();
-		if (project.getFieldArray() != null) {
-			fields = project.getFieldArray();
+	private void cleanupContentViews() {
+		SpreadsheetViewSupport.cleanup(spreadSheet);
+		if (gantt != null) {
+			gantt.cleanUp();
 		}
-		if (fields == null) {
-			fields = new SpreadSheetFieldArray();
-		}
-		return fields;
 	}
 
 	private void applyRowHeight(int rowHeight) {

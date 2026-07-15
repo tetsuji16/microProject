@@ -3,6 +3,7 @@ package com.projectlibre.ui.ribbon;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.swing.JLabel;
@@ -49,7 +50,7 @@ class RibbonButtonStylerTest {
 		styler.styleActionButton(button, "medium");
 
 		assertNotNull(button.getIcon());
-		assertNotSame(button.getIcon(), button.getRolloverIcon());
+		assertSame(button.getIcon(), button.getRolloverIcon());
 		assertNotSame(button.getIcon(), button.getDisabledIcon());
 	}
 
@@ -106,6 +107,19 @@ class RibbonButtonStylerTest {
 	}
 
 	@Test
+	void splitButtonsReserveTheChevronHitAreaWithoutClippingTheLabel() {
+		RibbonButtonStyler styler = new RibbonButtonStyler();
+		JButton regular = new JButton("フィルター");
+		JButton split = new JButton("フィルター");
+		split.putClientProperty("ProjectLibre.ribbonSplit", Boolean.TRUE);
+
+		styler.styleActionButton(regular, "large");
+		styler.styleActionButton(split, "large");
+
+		assertEquals(18, split.getPreferredSize().width - regular.getPreferredSize().width);
+	}
+
+	@Test
 	void longJapaneseLargeLabelsKeepReadableWidthWithoutEllipsis() {
 		RibbonButtonStyler styler = new RibbonButtonStyler();
 		JButton button = new JButton("ベースラインのクリア");
@@ -116,5 +130,6 @@ class RibbonButtonStylerTest {
 		assertTrue(button.getText().contains("<br>"));
 		assertTrue(button.getPreferredSize().width >= FlatUiSupport.ribbonLargeButtonMinWidth());
 		assertTrue(!button.getText().contains("..."));
+		assertTrue(button.getPreferredSize().width >= 92);
 	}
 }

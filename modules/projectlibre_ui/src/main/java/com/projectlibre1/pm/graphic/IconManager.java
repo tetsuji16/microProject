@@ -121,6 +121,14 @@ public class IconManager {
 		return result;
 	}
 
+	private static URL getSizeSpecificRibbonResource(String iconName, int size) {
+		if (iconName == null || size <= 0)
+			return null;
+		int dot = iconName.lastIndexOf('.');
+		String baseName = dot >= 0 ? iconName.substring(0, dot) : iconName;
+		return getIconResourceWithExtension(baseName + "-" + size + ".svg", null);
+	}
+
 	private static ImageIcon createImageIcon(URL url) {
 		if (url == null)
 			return null;
@@ -284,6 +292,11 @@ public class IconManager {
 		return iconName != null && getIconResourceWithExtension(iconName, ".svg") != null;
 	}
 
+	static boolean hasSizeSpecificRibbonResource(String key, int size) {
+		String iconName = getIconName(key);
+		return getSizeSpecificRibbonResource(iconName, size) != null;
+	}
+
 	public static URL getURL(String key) {
 		String iconName = getIconName(key);
 		return iconName == null ? null : getIconResource(iconName);
@@ -313,7 +326,9 @@ public class IconManager {
 		String iconName = getConfiguredIconName(name);
 		if (iconName == null)
 			return null;
-		URL preferredUrl = getIconResourceWithExtension(iconName, ".svg");
+		URL preferredUrl = width == height ? getSizeSpecificRibbonResource(iconName, width) : null;
+		if (preferredUrl == null)
+			preferredUrl = getIconResourceWithExtension(iconName, ".svg");
 		URL fallbackUrl = getIconResourceWithExtension(iconName, null);
 		BufferedImage image = createRibbonImage(preferredUrl, width, height);
 		if (image == null && fallbackUrl != null && !fallbackUrl.equals(preferredUrl))
@@ -332,7 +347,9 @@ public class IconManager {
 		String iconName = getConfiguredIconName(name);
 		if (iconName == null)
 			return null;
-		URL preferredUrl = getIconResourceWithExtension(iconName, ".svg");
+		URL preferredUrl = width == height ? getSizeSpecificRibbonResource(iconName, width) : null;
+		if (preferredUrl == null)
+			preferredUrl = getIconResourceWithExtension(iconName, ".svg");
 		URL fallbackUrl = getIconResourceWithExtension(iconName, null);
 		BufferedImage image = createRibbonImage(preferredUrl, width, height);
 		if (image == null && fallbackUrl != null && !fallbackUrl.equals(preferredUrl))
@@ -359,7 +376,9 @@ public class IconManager {
 		String iconName = getConfiguredIconName(name);
 		if (iconName == null)
 			return null;
-		URL preferredUrl = getIconResourceWithExtension(iconName, ".svg");
+		URL preferredUrl = width == height ? getSizeSpecificRibbonResource(iconName, width) : null;
+		if (preferredUrl == null)
+			preferredUrl = getIconResourceWithExtension(iconName, ".svg");
 		URL fallbackUrl = getIconResourceWithExtension(iconName, null);
 		BufferedImage image = createRibbonImage(preferredUrl, width, height);
 		if (image == null && fallbackUrl != null && !fallbackUrl.equals(preferredUrl))

@@ -540,6 +540,7 @@
 	<spreadsheet id="Spreadsheet.Task.tracking" category="taskSpreadsheet">
 		<columns>
 			<column>Field.id</column>
+			<column>Field.indicators</column>
 			<column>Field.name</column>
 			<column>Field.actualStart</column>
 			<column>Field.actualFinish</column>

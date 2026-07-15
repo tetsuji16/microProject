@@ -20,6 +20,20 @@ final class SpreadsheetViewSupport {
 				Messages.getString("Spreadsheet.Resource.entryWorkResources")); //$NON-NLS-1$
 	}
 
+	static SpreadSheetFieldArray getTaskFields() {
+		return getTaskFields("Spreadsheet.Task.entry"); //$NON-NLS-1$
+	}
+
+	static SpreadSheetFieldArray getTaskFields(String messageKey) {
+		return (SpreadSheetFieldArray) Dictionary.get(SpreadSheetCategories.taskSpreadsheetCategory,
+				Messages.getString(messageKey));
+	}
+
+	static SpreadSheetFieldArray resolveTaskFields(SpreadSheetFieldArray projectFields) {
+		SpreadSheetFieldArray fields = projectFields != null ? projectFields : getTaskFields();
+		return fields != null ? fields : new SpreadSheetFieldArray();
+	}
+
 	static void cleanup(SpreadSheet spreadSheet) {
 		if (spreadSheet != null) {
 			spreadSheet.cleanUp();
