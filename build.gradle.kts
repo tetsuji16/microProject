@@ -47,7 +47,7 @@ plugins {
 }
 
 group = "com.projectlibre"
-version = "0.0.15"
+version = "0.0.16"
 val minimumJavaRelease = 25
 val activeToolchainVersion = maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
 
@@ -103,6 +103,9 @@ tasks.register<Delete>("cleanLegacyPackagingArtifacts") {
 
 val releaseVersion = project.version.toString()
 val releaseLabel = "v$releaseVersion"
+val applicationVendor = "ProjectLibre, Inc."
+val applicationDescription = "ProjectLibre desktop project management software"
+val applicationCopyright = "Copyright © 2012-2026 ProjectLibre, Inc."
 val windowsReleaseRoot = layout.buildDirectory.dir("releases/$releaseLabel")
 val windowsJpackageInput = windowsReleaseRoot.map { it.dir("jpackage-input") }
 val windowsAppImageDir = windowsReleaseRoot.map { it.dir("app-image") }
@@ -174,6 +177,9 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--type", "app-image",
             "--name", "ProjectLibre",
             "--app-version", releaseVersion,
+            "--vendor", applicationVendor,
+            "--description", applicationDescription,
+            "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
             "--main-class", "com.projectlibre1.main.Main",
@@ -204,6 +210,9 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--type", "msi",
             "--name", "ProjectLibre",
             "--app-version", releaseVersion,
+            "--vendor", applicationVendor,
+            "--description", applicationDescription,
+            "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
             "--main-class", "com.projectlibre1.main.Main",
@@ -241,6 +250,9 @@ tasks.register<Exec>("packageWindowsExe") {
             "--type", "exe",
             "--name", "ProjectLibre",
             "--app-version", releaseVersion,
+            "--vendor", applicationVendor,
+            "--description", applicationDescription,
+            "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
             "--main-class", "com.projectlibre1.main.Main",

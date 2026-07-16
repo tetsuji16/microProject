@@ -1786,8 +1786,19 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 	public void moveInterval(Object eventSource, long start, long end, ScheduleInterval oldInterval, boolean isChild) {
 		WorkCalendar cal = getEffectiveWorkCalendar();
+		long requestedStart = start;
+		long requestedEnd = end;
+		boolean requestedZeroDuration = requestedStart == requestedEnd;
+		boolean requestedCrossedInterval = requestedStart > requestedEnd;
 		start = cal.adjustInsideCalendar(start,false);
-		end = CalendarOption.getInstance().makeValidEnd(end, true);
+		end = requestedZeroDuration ? start : CalendarOption.getInstance().makeValidEnd(end, false);
+		if (requestedCrossedInterval) {
+			if (cal.compare(requestedStart, oldInterval.getStart(), false) != 0) {
+				end = start;
+			} else {
+				start = end;
+			}
+		}
 		if (isMilestone() || oldInterval.getStart() == oldInterval.getEnd()) {
 			if (cal.compare(start, getStart(), false) == 0) {
 				return;
@@ -1817,9 +1828,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			}
 
 			setCurrentScheduleStart(newStart);
+			setDuration(Duration.setAsEstimated(cal.compare(newEnd, newStart, false), estimated));
 			setCurrentScheduleFinish(newEnd);
-			setRawDuration(Duration.setAsEstimated(cal.compare(newEnd, newStart, false), estimated));
-			recalculate(eventSource);
+			markTaskAsNeedingRecalculation();
 			assignParentActualDatesFromChildren();
 			return;
 		}

@@ -56,8 +56,12 @@
 package com.projectlibre1.graphic.configuration;
 
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.StringTokenizer;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 import org.apache.commons.collections.Closure;
 import org.apache.commons.digester.Digester;
@@ -78,7 +82,8 @@ public class BarStyles implements NamedItem {
 
 	String name = null;
 	String id = null;
-	ArrayList rows = new ArrayList();
+	ArrayList<BarStyle> rows = new IndexedStyleList();
+	private transient List<List<BarStyle>> stylesByKind;
 
 	public BarStyles() {}
 	/**
@@ -91,13 +96,146 @@ public class BarStyles implements NamedItem {
 		apply(ganttable,action,false,false,false, false);
 	}
 	public void apply(Object ganttable, Closure action,boolean link,boolean annotation,boolean calendar, boolean horizontalGrid) {
-		Iterator i = rows.iterator();
-		BarStyle row;
-		while (i.hasNext()) {
-			row = (BarStyle)i.next();
-			if (row.isLink()==link && row.isHorizontalGrid() == horizontalGrid &&row.isAnnotation()==annotation&&row.isCalendar()==calendar&&row.evaluate(ganttable)) { // see if meets filter
+		for (BarStyle row : getStyles(link, annotation, calendar, horizontalGrid)) {
+			if (row.evaluate(ganttable)) { // see if meets filter
 				action.execute(row.getBarFormat());
 			}
+		}
+	}
+
+	private List<BarStyle> getStyles(boolean link, boolean annotation, boolean calendar, boolean horizontalGrid) {
+		if (stylesByKind == null) {
+			stylesByKind = new ArrayList<>(16);
+			for (int i = 0; i < 16; i++)
+				stylesByKind.add(new ArrayList<>());
+			for (BarStyle style : rows)
+				stylesByKind.get(styleKind(style.isLink(), style.isAnnotation(), style.isCalendar(), style.isHorizontalGrid())).add(style);
+		}
+		return stylesByKind.get(styleKind(link, annotation, calendar, horizontalGrid));
+	}
+
+	private static int styleKind(boolean link, boolean annotation, boolean calendar, boolean horizontalGrid) {
+		return (link ? 1 : 0) | (annotation ? 2 : 0) | (calendar ? 4 : 0) | (horizontalGrid ? 8 : 0);
+	}
+
+	void invalidateStyleIndex() {
+		stylesByKind = null;
+	}
+
+	private final class IndexedStyleList extends ArrayList<BarStyle> {
+		private static final long serialVersionUID = 1L;
+
+		private void attach(BarStyle style) {
+			if (style != null)
+				style.setBelongsTo(BarStyles.this);
+		}
+
+		private void changed() {
+			invalidateStyleIndex();
+		}
+
+		@Override
+		public boolean add(BarStyle style) {
+			attach(style);
+			boolean changed = super.add(style);
+			if (changed) changed();
+			return changed;
+		}
+
+		@Override
+		public void add(int index, BarStyle style) {
+			attach(style);
+			super.add(index, style);
+			changed();
+		}
+
+		@Override
+		public boolean addAll(Collection<? extends BarStyle> styles) {
+			styles.forEach(this::attach);
+			boolean changed = super.addAll(styles);
+			if (changed) changed();
+			return changed;
+		}
+
+		@Override
+		public boolean addAll(int index, Collection<? extends BarStyle> styles) {
+			styles.forEach(this::attach);
+			boolean changed = super.addAll(index, styles);
+			if (changed) changed();
+			return changed;
+		}
+
+		@Override
+		public BarStyle set(int index, BarStyle style) {
+			attach(style);
+			BarStyle previous = super.set(index, style);
+			changed();
+			return previous;
+		}
+
+		@Override
+		public BarStyle remove(int index) {
+			BarStyle removed = super.remove(index);
+			changed();
+			return removed;
+		}
+
+		@Override
+		public boolean remove(Object style) {
+			boolean changed = super.remove(style);
+			if (changed) changed();
+			return changed;
+		}
+
+		@Override
+		public boolean removeAll(Collection<?> styles) {
+			boolean changed = super.removeAll(styles);
+			if (changed) changed();
+			return changed;
+		}
+
+		@Override
+		public boolean retainAll(Collection<?> styles) {
+			boolean changed = super.retainAll(styles);
+			if (changed) changed();
+			return changed;
+		}
+
+		@Override
+		public boolean removeIf(Predicate<? super BarStyle> filter) {
+			boolean changed = super.removeIf(filter);
+			if (changed) changed();
+			return changed;
+		}
+
+		@Override
+		public void replaceAll(UnaryOperator<BarStyle> operator) {
+			super.replaceAll(style -> {
+				BarStyle replacement = operator.apply(style);
+				attach(replacement);
+				return replacement;
+			});
+			changed();
+		}
+
+		@Override
+		public void sort(Comparator<? super BarStyle> comparator) {
+			super.sort(comparator);
+			changed();
+		}
+
+		@Override
+		public void clear() {
+			if (isEmpty()) return;
+			super.clear();
+			changed();
+		}
+
+		@Override
+		protected void removeRange(int fromIndex, int toIndex) {
+			if (fromIndex == toIndex) return;
+			super.removeRange(fromIndex, toIndex);
+			changed();
 		}
 	}
 
@@ -106,6 +244,7 @@ public class BarStyles implements NamedItem {
 		style.setBelongsTo(this);
 		style.build(); // set references
 		rows.add(style);
+		invalidateStyleIndex();
 	}
 	/**
 	 * @return Returns the name.
@@ -133,7 +272,7 @@ public class BarStyles implements NamedItem {
 	/**
 	 * @return Returns the rows.
 	 */
-	public ArrayList getRows() {
+	public ArrayList<BarStyle> getRows() {
 		return rows;
 	}
 

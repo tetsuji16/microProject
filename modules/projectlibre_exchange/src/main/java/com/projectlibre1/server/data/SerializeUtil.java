@@ -124,7 +124,8 @@ public class SerializeUtil {
 		} else in=SafeObjectInput.create(bin);
         DataObject data=(DataObject)in.readObject();
         data.setUniqueId(session==null?sdata.getUniqueId():session.getId());
-        data.setName(sdata.getName());
+		if (sdata.getName() != null)
+			data.setName(sdata.getName());
         return data;
     }
 

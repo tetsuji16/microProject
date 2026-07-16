@@ -58,8 +58,12 @@ package com.projectlibre1.scripting;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyObject;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -67,12 +71,10 @@ import com.projectlibre1.field.InvalidFormulaException;
 
 public class FormulaClass {
 	private static final Logger logger = Logger.getLogger(FormulaClass.class.getName());
-	ArrayList formulas = new ArrayList();
+	List<ScriptedFormula> formulas = new ArrayList<>();
 	String className;
-	private boolean init = false;
 	private static final String imports="";
-	private Class groovyClass= null;
-	private GroovyObject groovyObject = null;
+	private volatile Map<String, MethodHandle> invocationTargets;
 
 	public FormulaClass(String className) {
 		this.className = className;
@@ -86,24 +88,27 @@ public class FormulaClass {
 	
 	private Exception compileException = null;
 	public synchronized void compile() {
-		if (groovyClass == null) {
-			Runnable r = new Runnable(){
-				public void run() {
+		if (invocationTargets == null && compileException == null) {
 //					long x = System.currentTimeMillis();
-					String classText = buildClassText();
-					GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
+			String classText = buildClassText();
+			GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
 //					GroovyClassLoader loader = new GroovyClassLoader(ClassLoaderUtils.getLocalClassLoader());
-					try {
-						groovyClass = loader.parseClass(classText); //TODO this his horribly slow (~500ms)  Can we parse all at once or can we do this lazily or initialize in another thread?
-						groovyObject = (GroovyObject) groovyClass.newInstance(); // this would be ideally done by a factory
-					} catch (Exception e) {
-						compileException = e;
-						logger.log(Level.WARNING, "Failed to compile scripted formula class " + className, e);
-					}
-//					System.out.println("compiled class " + className + " in " + (System.currentTimeMillis()-x) + "ms");
+			try {
+				Class groovyClass = loader.parseClass(classText); //TODO this his horribly slow (~500ms)  Can we parse all at once or can we do this lazily or initialize in another thread?
+				GroovyObject groovyObject = (GroovyObject) groovyClass.getDeclaredConstructor().newInstance();
+				Map<String, MethodHandle> targets = new HashMap<>();
+				for (ScriptedFormula formula : formulas) {
+					MethodHandle target = MethodHandles.publicLookup()
+						.unreflect(groovyClass.getMethod(formula.getFormulaName(), Object.class))
+						.bindTo(groovyObject);
+					targets.put(formula.getFormulaName(), target);
 				}
-			};
-			r.run();
+				invocationTargets = Map.copyOf(targets);
+			} catch (Exception e) {
+				compileException = e;
+				logger.log(Level.WARNING, "Failed to compile scripted formula class " + className, e);
+			}
+//					System.out.println("compiled class " + className + " in " + (System.currentTimeMillis()-x) + "ms");
 		}
 	}
 	
@@ -113,25 +118,31 @@ public class FormulaClass {
 		text.append(imports);
 		text.append("class " + className + " {");
 		
-		Iterator i = formulas.iterator();
-		while (i.hasNext()) {
-			ScriptedFormula formula = (ScriptedFormula)i.next();
-			text.append("\n\tObject " + formula.getFormulaName() + "(Object " + formula.getVariableName() + ") {");
-			text.append("\n\t\treturn " + formula.getText()+ ";\n\t}");
+		for (ScriptedFormula formula : formulas) {
+			text.append("\n\tObject ").append(formula.getFormulaName()).append("(Object ")
+				.append(formula.getVariableName()).append(") {");
+			text.append("\n\t\treturn ").append(formula.getText()).append(";\n\t}");
 		}
 		text.append("\n}"); // end of class body
 		return text.toString();
 	}
 	
-	Object args[] = new Object[1];
 	public Object evaluate(String method, Object object) throws InvalidFormulaException {
-		// lets call some method on an instance
 		try {
-			if (groovyClass == null)
+			Map<String, MethodHandle> targets = invocationTargets;
+			if (targets == null) {
 				compile();
-			args[0] = object;
-			return groovyObject.invokeMethod(method, args);		 //TODO eventually cache the Method 
-		} catch (Exception e) {
+				targets = invocationTargets;
+			}
+			if (targets == null)
+				throw compileException == null ? new IllegalStateException("Formula class was not compiled") : compileException;
+			MethodHandle target = targets.get(method);
+			if (target == null)
+				throw new NoSuchMethodException(method);
+			return target.invokeExact(object);
+		} catch (Error e) {
+			throw e;
+		} catch (Throwable e) {
 			logger.log(Level.WARNING, "Failed to evaluate scripted formula method " + method, e);
 			throw new InvalidFormulaException(e);
 		}

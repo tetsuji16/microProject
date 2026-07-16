@@ -4,12 +4,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
+import java.util.logging.Logger;
 
 /**
  * Creates object streams for persisted ProjectLibre data with an explicit class
  * boundary and resource limits.
  */
 public final class SafeObjectInput {
+	private static final Logger logger = Logger.getLogger(SafeObjectInput.class.getName());
 	static final long MAX_DEPTH = 256;
 	static final long MAX_REFERENCES = 1_000_000;
 	static final long MAX_ARRAY_LENGTH = 1_000_000;
@@ -28,6 +30,7 @@ public final class SafeObjectInput {
 		"java.time",
 		"java.util",
 		"java.util.concurrent",
+		"java.util.concurrent.locks",
 		"java.awt",
 		"java.awt.font",
 		"java.awt.geom",
@@ -41,6 +44,9 @@ public final class SafeObjectInput {
 		"javax.swing.table",
 		"javax.swing.tree",
 		"javax.swing.undo"
+	};
+	private static final String[] ALLOWED_JDK_CLASSES = {
+		"sun.util.calendar.ZoneInfo" // serialized by legacy java.util.TimeZone instances in POD files
 	};
 
 	private static final ObjectInputFilter PROJECTLIBRE_FILTER = SafeObjectInput::checkInput;
@@ -71,6 +77,10 @@ public final class SafeObjectInput {
 			return ObjectInputFilter.Status.ALLOWED;
 
 		String className = type.getName();
+		for (String allowedClass : ALLOWED_JDK_CLASSES) {
+			if (className.equals(allowedClass))
+				return ObjectInputFilter.Status.ALLOWED;
+		}
 		for (String prefix : ALLOWED_APPLICATION_PREFIXES) {
 			if (className.startsWith(prefix))
 				return ObjectInputFilter.Status.ALLOWED;
@@ -80,6 +90,7 @@ public final class SafeObjectInput {
 			if (packageName.equals(allowedPackage))
 				return ObjectInputFilter.Status.ALLOWED;
 		}
+		logger.warning("Rejected serialized class: " + className);
 		return ObjectInputFilter.Status.REJECTED;
 	}
 }

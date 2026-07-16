@@ -10,6 +10,8 @@ import java.io.File;
 import java.io.InvalidClassException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.TimeZone;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +24,17 @@ class SafeObjectInputTest {
 			AllowedPayload actual = (AllowedPayload) input.readObject();
 			assertEquals(expected.name, actual.name);
 			assertArrayEquals(expected.values, actual.values);
+		}
+	}
+
+	@Test
+	void acceptsLegacyPodTimeZonesAndLocks() throws Exception {
+		Object[] expected = { TimeZone.getTimeZone("Asia/Tokyo"), new ReentrantLock() };
+
+		try (var input = SafeObjectInput.create(new ByteArrayInputStream(serialize(expected)))) {
+			Object[] actual = (Object[]) input.readObject();
+			assertEquals(expected[0], actual[0]);
+			assertEquals(ReentrantLock.class, actual[1].getClass());
 		}
 	}
 

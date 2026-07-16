@@ -257,8 +257,7 @@ public class Serializer {
             final Collection<AssignmentData> assignments=(flatAssignments==null)?new ArrayList<AssignmentData>():flatAssignments;
             if (taskDirty)
             forAssignments(task, new AssignmentClosure(){ //claur
-            	public void execute(Assignment assignment,int s){
-                    try {
+                public void execute(Assignment assignment,int s) throws IOException {
 						ResourceImpl r=(ResourceImpl)assignment.getResource();
 						AssignmentData assignmentData=(AssignmentData)serialize(assignment,AssignmentData.FACTORY,null);
 						assignmentData.setStatus(SerializedDataObject.UPDATE);
@@ -281,11 +280,6 @@ public class Serializer {
 						assignmentData.setDuration(assignment.getDuration()); //assignments notification
 
 						assignments.add(assignmentData);
-
-
-					} catch (IOException e) {
-						logger.log(Level.WARNING, "Failed to serialize assignment data", e);
-					}
             	}
             });
             if (flatAssignments==null) taskData.setAssignments(assignments);

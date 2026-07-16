@@ -228,12 +228,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient Object resourceCache = null;
 	private transient List<Task> repaired = null;
 	private transient Date creationDate,lastModificationDate;
-	private final IdentityFacade identityFacade = new IdentityFacade();
-	private final BaselineFacade baselineFacade = new BaselineFacade();
-	private final SubprojectFacade subprojectFacade = new SubprojectFacade();
-	private final ScheduleFacade scheduleFacade = new ScheduleFacade();
-	private final TaskAggregationFacade taskAggregationFacade = new TaskAggregationFacade();
-	private final TaskLifecycleFacade taskLifecycleFacade = new TaskLifecycleFacade();
+	private transient IdentityFacade identityFacade = new IdentityFacade();
+	private transient BaselineFacade baselineFacade = new BaselineFacade();
+	private transient SubprojectFacade subprojectFacade = new SubprojectFacade();
+	private transient ScheduleFacade scheduleFacade = new ScheduleFacade();
+	private transient TaskAggregationFacade taskAggregationFacade = new TaskAggregationFacade();
+	private transient TaskLifecycleFacade taskLifecycleFacade = new TaskLifecycleFacade();
 
 	public NodeModel getTaskModel() {
 		if (taskModel == null)
@@ -1327,6 +1327,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private void readObject(ObjectInputStream s) throws IOException, ClassNotFoundException  {
 	    s.defaultReadObject();
 	    hasKey=HasKeyImpl.deserialize(s,this);
+	    initializeFacades();
 	    tasks = new LinkedList<Task>();
 		objectEventManager = new ObjectEventManager();
 		objectSelectionEventManager = new ObjectSelectionEventManager();
@@ -1337,6 +1338,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	    barClosureInstance = new BarClosure();
 
 
+	}
+	private void initializeFacades() {
+		identityFacade = new IdentityFacade();
+		baselineFacade = new BaselineFacade();
+		subprojectFacade = new SubprojectFacade();
+		scheduleFacade = new ScheduleFacade();
+		taskAggregationFacade = new TaskAggregationFacade();
+		taskLifecycleFacade = new TaskLifecycleFacade();
 	}
 
 	private void initSubprojectHandler() {

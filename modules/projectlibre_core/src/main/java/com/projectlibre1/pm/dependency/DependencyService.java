@@ -102,6 +102,9 @@ public class DependencyService {
 			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToExternal"));
 		if (successorTask.isSubproject() && !((SubProj)successorTask).isWritable())
 			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToClosedSubproject"));
+		if ((predecessorTask.getOwningProject() != null && predecessorTask.getOwningProject().isReadOnly())
+				|| (successorTask.getOwningProject() != null && successorTask.getOwningProject().isReadOnly()))
+			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToReadOnly"));
 
 		Dependency dependency = Dependency.getInstance(predecessor, successor, dependencyType, lead);
 		dependency.testValid(false); // throws if exception

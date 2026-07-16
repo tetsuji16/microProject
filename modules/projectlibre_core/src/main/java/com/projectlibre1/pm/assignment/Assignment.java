@@ -167,10 +167,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	private transient long lastTimesheetUpdate = 0;
 	private transient int workflowState = AssignmentWorkflowState.NEW;
 	private transient boolean timesheetAssignment = false;
-	private final TimeFacade timeFacade = new TimeFacade();
-	private final CostFacade costFacade = new CostFacade();
-	private final ContourFacade contourFacade = new ContourFacade();
-	private final SnapshotFacade snapshotFacade = new SnapshotFacade();
+	private transient TimeFacade timeFacade = new TimeFacade();
+	private transient CostFacade costFacade = new CostFacade();
+	private transient ContourFacade contourFacade = new ContourFacade();
+	private transient SnapshotFacade snapshotFacade = new SnapshotFacade();
 
 
 	public static Field getUnitsField() {
@@ -1705,13 +1705,21 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	private void readObject(ObjectInputStream s) throws IOException, ClassNotFoundException  {
 	    s.defaultReadObject();
 	    hasKey=HasKeyImpl.deserialize(s,this);
+	    initializeFacades();
 //	    barClosureInstance = new BarClosure();
+	}
+	private void initializeFacades() {
+		timeFacade = new TimeFacade();
+		costFacade = new CostFacade();
+		contourFacade = new ContourFacade();
+		snapshotFacade = new SnapshotFacade();
 	}
 
 	public Object clone(){
 		try {
 			Assignment a=(Assignment)super.clone();
 			a.hasKey=new HasKeyImpl(true,a);
+			a.initializeFacades();
 			a.setName(getName());
 //			barClosureInstance = new BarClosure();
 			a.detail=a.cloneDetail();

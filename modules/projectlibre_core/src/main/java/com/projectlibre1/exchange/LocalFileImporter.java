@@ -139,6 +139,7 @@ public class LocalFileImporter extends FileImporter {
 			} catch (Exception e) {
 				ex=e;
 				project=null;
+				logger.log(Level.WARNING, "Failed to load serialized POD payload", e);
 			}finally{
 				try {
 					fin.close();

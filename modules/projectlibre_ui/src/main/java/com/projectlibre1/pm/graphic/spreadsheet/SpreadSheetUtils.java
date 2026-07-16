@@ -222,6 +222,8 @@ public class SpreadSheetUtils {
 	}
 
 	public static List getFieldsForCategory(String category) {
+		if (category == null)
+			return null;
 		if (category.equals(SpreadSheetCategories.projectSpreadsheetCategory)) {
 			return FieldDictionary.getInstance().getProjectFields();
 		} else if (category.equals(SpreadSheetCategories.taskSpreadsheetCategory)) {

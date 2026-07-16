@@ -431,17 +431,17 @@ public class GanttInteractor extends GraphInteractor{
     			&& (state == BAR_MOVE || state == BAR_MOVE_START || state == BAR_MOVE_END);
     }
 
-    private int getConstraintTypeForDrag() {
-    	return state == BAR_MOVE_END ? ConstraintType.FNLT : ConstraintType.SNET;
-    }
+	private int getConstraintTypeForDrag() {
+		return ConstraintType.SNET;
+	}
 
-    private long getConstraintDateForDrag(Task task) {
-    	return state == BAR_MOVE_END ? task.getEnd() : task.getStart();
-    }
+	private long getConstraintDateForDrag(Task task) {
+		return task.getStart();
+	}
 
-    private long getRequestedConstraintDate(long requestedStart, long requestedEnd) {
-    	return state == BAR_MOVE_END ? requestedEnd : requestedStart;
-    }
+	private long getRequestedConstraintDate(long requestedStart, long requestedEnd) {
+		return requestedStart;
+	}
 
     private boolean prepareConstraintForIntervalUpdate(Task task, int constraintType, long constraintDate, int originalConstraintType, long originalConstraintDate) {
     	if (task == null) {
@@ -461,7 +461,7 @@ public class GanttInteractor extends GraphInteractor{
     	if (originalConstraintType == constraintType && originalConstraintDate == constraintDate) {
     		return;
     	}
-    	task.setScheduleConstraintAndUpdate(constraintType, constraintDate);
+		task.setScheduleConstraint(constraintType, constraintDate);
     	if (undoSupport != null) {
     		undoSupport.postEdit(new TaskConstraintEdit(task, originalConstraintType, originalConstraintDate, constraintType, constraintDate, this));
     	}

@@ -86,7 +86,10 @@ public class BarStyle implements Predicate {
 	}
 
 	public void setHorizontalGrid(boolean horizontalGrid) {
+		if (this.horizontalGrid == horizontalGrid)
+			return;
 		this.horizontalGrid = horizontalGrid;
+		invalidateStyleIndex();
 	}
 
 	private BarFormat barFormat = null;
@@ -208,7 +211,10 @@ public class BarStyle implements Predicate {
 		return link;
 	}
 	public void setLink(boolean link) {
+		if (this.link == link)
+			return;
 		this.link = link;
+		invalidateStyleIndex();
 	}
 
 	public boolean isAnnotation() {
@@ -216,7 +222,10 @@ public class BarStyle implements Predicate {
 	}
 
 	public void setAnnotation(boolean annotation) {
+		if (this.annotation == annotation)
+			return;
 		this.annotation = annotation;
+		invalidateStyleIndex();
 	}
 
 	public boolean isCalendar() {
@@ -224,7 +233,15 @@ public class BarStyle implements Predicate {
 	}
 
 	public void setCalendar(boolean calendar) {
+		if (this.calendar == calendar)
+			return;
 		this.calendar = calendar;
+		invalidateStyleIndex();
+	}
+
+	private void invalidateStyleIndex() {
+		if (belongsTo != null)
+			belongsTo.invalidateStyleIndex();
 	}
 
 	public void setBelongsTo(BarStyles styles) {
