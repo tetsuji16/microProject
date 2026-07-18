@@ -24,6 +24,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 import javax.swing.event.ChangeEvent;
 
+import com.projectlibre1.association.Association;
 import com.projectlibre1.field.Field;
 import com.projectlibre1.graphic.configuration.GraphicConfiguration;
 import com.projectlibre1.graphic.configuration.SpreadSheetFieldArray;
@@ -188,7 +189,10 @@ public class TimesheetEntryPane extends JScrollPane {
 	private List<Assignment> resolveAssignments() {
 		List<Assignment> assignments = new ArrayList<>();
 		for (Resource resource : resolveResources()) {
-			assignments.addAll(resource.getAssignments());
+			for (Association association : resource.getAssignments()) {
+				if (association instanceof Assignment)
+					assignments.add((Assignment) association);
+			}
 		}
 		return assignments;
 	}

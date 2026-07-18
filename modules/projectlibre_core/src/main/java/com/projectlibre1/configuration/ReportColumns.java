@@ -56,7 +56,6 @@
 package com.projectlibre1.configuration;
 
 import com.projectlibre1.graphic.configuration.SpreadSheetFieldArray;
-import com.projectlibre1.strings.Messages;
 
 
 /**
@@ -108,7 +107,6 @@ public class ReportColumns implements Cloneable {
 	}
 	
 	public SpreadSheetFieldArray getFieldArray() {
-		return SpreadSheetFieldArray.getFromId(getCategorySpreadSheet(), Messages.getString(getIdSpreadSheet()));
-		//TODO getFromId(getCategorySpreadSheet(), getIdSpreadSheet()) instead ?
+		return SpreadSheetFieldArray.getFromId(getCategorySpreadSheet(), getIdSpreadSheet());
 	}
 }

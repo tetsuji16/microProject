@@ -55,12 +55,11 @@
  *******************************************************************************/
 package com.projectlibre1.graphic.configuration;
 
-import groovy.lang.GroovyClassLoader;
-
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.projectlibre1.field.InvalidFormulaException;
+import com.projectlibre1.scripting.GroovyClassCompiler;
 import com.projectlibre1.strings.Messages;
 
 /**
@@ -76,19 +75,12 @@ public class CellStyleFactory {
 	protected String format = null; 
 	
 //	static Log log = LogFactory.getLog(CellStyleFactory.class);
-	private static int count=0;
-	
-	
-	
 	public CellStyle getCellStyle() throws InvalidFormulaException{
 		if (formulaClass!=null){
 			try {
-				return (CellStyle)Class.forName(formulaClass).newInstance();
-			} catch (InstantiationException e) {
-				logger.log(Level.WARNING, "Failed to instantiate cell style class " + formulaClass, e);
-			} catch (IllegalAccessException e) {
-				logger.log(Level.WARNING, "Failed to access cell style class " + formulaClass, e);
-			} catch (ClassNotFoundException e) {
+				return Class.forName(formulaClass).asSubclass(CellStyle.class)
+					.getDeclaredConstructor().newInstance();
+			} catch (ReflectiveOperationException | ClassCastException e) {
 				logger.log(Level.WARNING, "Cell style class not found " + formulaClass, e);
 			}
 			return null;
@@ -96,20 +88,17 @@ public class CellStyleFactory {
 		    StringBuilder classText = new StringBuilder();
 		    classText.append("package com.projectlibre1.graphic.configuration;\n");
 		    classText.append("import com.projectlibre1.pm.graphic.model.cache.GraphicNode;\n");
-		    classText.append("public class CellStyle").append(count++).append(" implements CellStyle{\n");
+			String definition = type + "\n" + format + "\n" + formulaText;
+			String className = GroovyClassCompiler.scriptClassName("CellStyle", definition);
+		    classText.append("public class ").append(className).append(" implements CellStyle{\n");
 		    classText.append("\tpublic CellFormat getCellFormat(Object _nodeObject){\n\t\tGraphicNode ")
 		    	.append(type).append("=(GraphicNode)_nodeObject;\n\t\tCellFormat ")
 		    	.append(format).append("=new CellFormat();\n")
 		    	.append(formulaText).
 		    	append("\n\t\treturn ").append(format).append(";\n\t}\n");
 		    classText.append("}\n");
-	//		GroovyClassLoader loader = new GroovyClassLoader(ClassLoaderUtils.getLocalClassLoader());
-			GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
-	//		GroovyClassLoader loader = new GroovyClassLoader(new TracingClassLoader(getClass().getClassLoader()));
 			try {
-				Class groovyClass = loader.parseClass(classText.toString());
-				CellStyle style= (CellStyle)groovyClass.newInstance();
-				return style;
+				return GroovyClassCompiler.compileAndInstantiate(classText.toString(), CellStyle.class);
 			} catch (Exception e) {
 				logger.log(Level.WARNING, "Failed to compile scripted cell style " + id, e);
 				throw new InvalidFormulaException(e);

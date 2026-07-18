@@ -55,6 +55,9 @@
  *******************************************************************************/
 package com.projectlibre1.association;
 
+import java.util.Collection;
+import java.util.Collections;
+
 /**
  * Inteface for the assocation of two objects of the sort predecessor task/successor task or
  * assignment task/resource
@@ -69,4 +72,7 @@ public interface Association {
     void doUpdateService(Object eventSource);
 	boolean isDefault();	
 	void replace (Object newOne, boolean leftObject);
+	default Collection<AssociationList> getAssociationLists() {
+		return Collections.emptyList();
+	}
 }

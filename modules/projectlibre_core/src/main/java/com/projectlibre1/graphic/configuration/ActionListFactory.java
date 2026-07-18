@@ -55,9 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.graphic.configuration;
 
-import groovy.lang.GroovyClassLoader;
-
 import com.projectlibre1.field.InvalidFormulaException;
+import com.projectlibre1.scripting.GroovyClassCompiler;
 import com.projectlibre1.strings.Messages;
 
 /**
@@ -70,27 +69,20 @@ public class ActionListFactory {
 	protected String type = null; 
 	
 //	static Log log = LogFactory.getLog(ActionListFactory.class);
-	private static int count=0;
-	
-	
-	
 	public ActionList getActionList() throws InvalidFormulaException{
 	    StringBuilder classText = new StringBuilder();
 	    classText.append("package com.projectlibre1.graphic.configuration;\n");
 	    classText.append("import com.projectlibre1.grouping.core.model.NodeModel;\n");
 	    classText.append("import com.projectlibre1.util.Environment;\n");
-	    classText.append("public class ActionList").append(count++).append(" implements ActionList{\n");
+		String className = GroovyClassCompiler.scriptClassName("ActionList", type + "\n" + formulaText);
+	    classText.append("public class ").append(className).append(" implements ActionList{\n");
 	    classText.append("\tpublic String getList(Object _nodeModel){\n\t\tNodeModel ")
 		    	.append(type).append("=(NodeModel)_nodeModel;\n\t\t")
 	    	.append(formulaText)
 	    	.append("\n\t}\n");
 	    classText.append("}\n");
-//		GroovyClassLoader loader = new GroovyClassLoader(ClassLoaderUtils.getLocalClassLoader());
-		GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
 		try {
-			Class groovyClass = loader.parseClass(classText.toString());
-			ActionList actionList= (ActionList)groovyClass.newInstance();
-			return actionList;
+			return GroovyClassCompiler.compileAndInstantiate(classText.toString(), ActionList.class);
 		} catch (Exception e) {
 			throw new InvalidFormulaException(e);
 		}

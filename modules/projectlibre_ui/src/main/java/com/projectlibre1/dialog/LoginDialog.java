@@ -154,7 +154,9 @@ public final class LoginDialog extends AbstractDialog {
 				out.close();
 			} else if (form!=null) ps.getClass().getMethod("delete",new Class[]{URL.class}).invoke(ps,new Object[]{serverUrl}); //$NON-NLS-1$
 			
-		} catch (Exception e) {}
+		} catch (Exception e) {
+			logger.log(Level.FINE, "Failed to store login form in JNLP persistence service", e);
+		}
 		
 		
 		

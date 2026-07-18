@@ -150,7 +150,8 @@ public abstract class CommonTransform {
         if (parameters==null) return; //no parameters
         if (parameterDialog==null){
             try {
-                parameterDialog=(Closure)Class.forName(REGISTERED_PARAMETER_DIALOG).newInstance();
+                parameterDialog = Class.forName(REGISTERED_PARAMETER_DIALOG).asSubclass(Closure.class)
+                    .getDeclaredConstructor().newInstance();
             } catch (Exception e) {logger.log(Level.WARNING, "Transform error", e);}
         }
         if (parameterDialog!=null){

@@ -60,6 +60,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -72,7 +74,7 @@ import com.projectlibre1.field.FieldParseException;
 /**
  * Container for managing lists of associated elements, such as Dependency or Assignment
  */
-public class AssociationList implements List {
+public class AssociationList implements List<Association> {
 
     private static final Logger logger = Logger.getLogger(AssociationList.class.getName());
 
@@ -100,8 +102,8 @@ public class AssociationList implements List {
 
     public Association find(boolean leftObject, Object object) {
     	Association association;
-        for ( Iterator i = list.iterator(); i.hasNext();) {
-        	association = (Association)i.next();
+        for (Iterator<Association> i = list.iterator(); i.hasNext();) {
+			association = i.next();
             if (getObject(association,leftObject) == object)
                 return association;
         }
@@ -127,15 +129,13 @@ public class AssociationList implements List {
         return null;
     }
     
-    public static List extractDistinct(List list, boolean leftObject) {
-    	ArrayList<Object> result = new ArrayList<>();
-        for ( Iterator<?> i = list.iterator(); i.hasNext();) {
-        	Association association = (Association)i.next();
-        	Object object = getObject(association,leftObject);
-        	if (!result.contains(object)) // if not already in list, add it
-        		result.add(object);
+    public static List<Object> extractDistinct(List<? extends Association> list, boolean leftObject) {
+		LinkedHashSet<Object> distinct = new LinkedHashSet<>();
+		for (Association association : list) {
+			Object object = getObject(association,leftObject);
+			distinct.add(object);
         }
-        return result;
+		return new ArrayList<>(distinct);
     }
     
 
@@ -179,11 +179,12 @@ public class AssociationList implements List {
 		
 		// check for duplicates
         for (i = newList.iterator(); i.hasNext();) {
-        	association = (Association)i.next();
+			association = i.next();
         	// if duplicate
         	if (AssociationList.findAssociation(newList,association.getLeft(),association.getRight(),association) != null) {
 //        		newList = oldList;
-        		throw new FieldParseException("Duplicate association"); //TODO better message
+				throw new FieldParseException("Duplicate association between "
+					+ association.getLeft() + " and " + association.getRight());
         	}
         }		
 		
@@ -206,13 +207,12 @@ public class AssociationList implements List {
         		if (associationFormat.getParameters().isAllowDetailsEntry()) // some fields don't allow you to enter details. In which case, ignore values
         			modified.add(oldAssociation); // for later use?
         			oldAssociation.copyPrincipalFieldsFrom(newAssociation);
-        		//TODO fire update event?
-        	}
+			}
         }
         
         // Remove ones that were eliminated
         for (i = removed.iterator(); i.hasNext();) {
-        	((Association)i.next()).doRemoveService(this); // will remove from real list
+			i.next().doRemoveService(this); // will remove from real list
         }
         
         
@@ -221,7 +221,7 @@ public class AssociationList implements List {
         // Get a list of added elements
         LinkedList<Association> added = new LinkedList<>();
         for (i = newList.iterator(); i.hasNext();) {
-        	association = (Association)i.next();
+			association = i.next();
         	if (association.isDefault()) // don't treat default association.  It will be added by later code if needed
         		continue;
         	
@@ -233,17 +233,27 @@ public class AssociationList implements List {
         
         // Add new ones
         for (i = added.iterator(); i.hasNext();) {
-        	((Association)i.next()).doAddService(this); // will remove from real list
+			i.next().doAddService(this); // will add to the real list
         }
         
         // Signal update of modified ones
         for (i = modified.iterator(); i.hasNext();) {
-        	((Association)i.next()).doUpdateService(this); // will send update message
+			i.next().doUpdateService(this); // will send update message
         }        
-        // sort the resulting list
-        // TODO sort inverse lists too
-        Collections.sort(list,new AssociationComparator(associationFormat.getParameters().getIdField()));
+		AssociationComparator comparator = new AssociationComparator(associationFormat.getParameters().getIdField());
+		sortRelatedLists(comparator);
 		return result;
+	}
+
+	private void sortRelatedLists(AssociationComparator comparator) {
+		IdentityHashMap<AssociationList, Boolean> relatedLists = new IdentityHashMap<>();
+		relatedLists.put(this, Boolean.TRUE);
+		for (Association association : list) {
+			for (AssociationList related : association.getAssociationLists())
+				relatedLists.put(related, Boolean.TRUE);
+		}
+		for (AssociationList related : relatedLists.keySet())
+			related.sort(comparator);
 	}
     
     
@@ -265,8 +275,8 @@ public class AssociationList implements List {
 	/**
 	 * @param arg0
 	 */
-	public void addFirst(Object arg0) {
-		list.addFirst((Association)arg0);
+	public void addFirst(Association association) {
+		list.addFirst(association);
 	}
 
 	/**
@@ -286,36 +296,29 @@ public class AssociationList implements List {
 	 * @param arg0
 	 * @param arg1
 	 */
-	public void add(int arg0, Object arg1) {
-		list.add(arg0, (Association)arg1);
-	}
-	/**
-	 * @param arg0
-	 * @return
-	 */
-	public boolean add(Object arg0) {
-		return list.add((Association)arg0);
+	public void add(int index, Association association) {
+		list.add(index, association);
 	}
 	/**
 	 * @param arg0
 	 * @param arg1
 	 * @return
 	 */
-	public boolean addAll(int arg0, Collection arg1) {
-		return list.addAll(arg0, arg1);
+	public boolean addAll(int index, Collection<? extends Association> associations) {
+		return list.addAll(index, associations);
 	}
 	/**
 	 * @param arg0
 	 * @return
 	 */
-	public boolean addAll(Collection arg0) {
-		return list.addAll(arg0);
+	public boolean addAll(Collection<? extends Association> associations) {
+		return list.addAll(associations);
 	}
 	/**
 	 * @param arg0
 	 */
-	public void addLast(Object arg0) {
-		list.addLast((Association)arg0);
+	public void addLast(Association association) {
+		list.addLast(association);
 	}
 	/**
 	 * 
@@ -334,7 +337,7 @@ public class AssociationList implements List {
 	 * @param arg0
 	 * @return
 	 */
-	public boolean containsAll(Collection arg0) {
+	public boolean containsAll(Collection<?> arg0) {
 		return list.containsAll(arg0);
 	}
 	public boolean equals(Object arg0) {
@@ -344,19 +347,19 @@ public class AssociationList implements List {
 	 * @param arg0
 	 * @return
 	 */
-	public Object get(int arg0) {
+	public Association get(int arg0) {
 		return list.get(arg0);
 	}
 	/**
 	 * @return
 	 */
-	public Object getFirst() {
+	public Association getFirst() {
 		return list.getFirst();
 	}
 	/**
 	 * @return
 	 */
-	public Object getLast() {
+	public Association getLast() {
 		return list.getLast();
 	}
 	public int hashCode() {
@@ -379,47 +382,47 @@ public class AssociationList implements List {
 	/**
 	 * @return
 	 */
-	public ListIterator listIterator() {
+	public ListIterator<Association> listIterator() {
 		return list.listIterator();
 	}
 	/**
 	 * @param arg0
 	 * @return
 	 */
-	public ListIterator listIterator(int arg0) {
+	public ListIterator<Association> listIterator(int arg0) {
 		return list.listIterator(arg0);
 	}
 	/**
 	 * @param arg0
 	 * @return
 	 */
-	public Object remove(int arg0) {
+	public Association remove(int arg0) {
 		return list.remove(arg0);
 	}
 	/**
 	 * @param arg0
 	 * @return
 	 */
-	public boolean removeAll(Collection arg0) {
+	public boolean removeAll(Collection<?> arg0) {
 		return list.removeAll(arg0);
 	}
 	/**
 	 * @return
 	 */
-	public Object removeFirst() {
+	public Association removeFirst() {
 		return list.removeFirst();
 	}
 	/**
 	 * @return
 	 */
-	public Object removeLast() {
+	public Association removeLast() {
 		return list.removeLast();
 	}
 	/**
 	 * @param arg0
 	 * @return
 	 */
-	public boolean retainAll(Collection arg0) {
+	public boolean retainAll(Collection<?> arg0) {
 		return list.retainAll(arg0);
 	}
 	/**
@@ -427,8 +430,8 @@ public class AssociationList implements List {
 	 * @param arg1
 	 * @return
 	 */
-	public Object set(int arg0, Object arg1) {
-		return list.set(arg0, (Association)arg1);
+	public Association set(int index, Association association) {
+		return list.set(index, association);
 	}
 	/**
 	 * @return
@@ -441,7 +444,7 @@ public class AssociationList implements List {
 	 * @param arg1
 	 * @return
 	 */
-	public List subList(int arg0, int arg1) {
+	public List<Association> subList(int arg0, int arg1) {
 		return list.subList(arg0, arg1);
 	}
 	/**
@@ -454,8 +457,8 @@ public class AssociationList implements List {
 	 * @param arg0
 	 * @return
 	 */
-	public Object[] toArray(Object[] arg0) {
-		return list.toArray(arg0);
+	public <T> T[] toArray(T[] target) {
+		return list.toArray(target);
 	}
 	public String toString() {
 		return list.toString();

@@ -64,7 +64,9 @@ public class ExtendedPrintServiceFactory {
 	private static final Logger logger = Logger.getLogger(ExtendedPrintServiceFactory.class.getName());
 	public static ExtendedPrintService getExtendedPrintService(){
 		try {
-			return (ExtendedPrintService)Class.forName(Messages.getMetaString("ExtendedPrintService")).newInstance();
+			String className = Messages.getMetaString("ExtendedPrintService");
+			return Class.forName(className).asSubclass(ExtendedPrintService.class)
+				.getDeclaredConstructor().newInstance();
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to create extended print service", e);
 			return null;

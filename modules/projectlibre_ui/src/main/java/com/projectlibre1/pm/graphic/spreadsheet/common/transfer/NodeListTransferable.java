@@ -114,7 +114,9 @@ public class NodeListTransferable implements Transferable {
 		this.nodeSelection=nodeSelection;
 		try {
 			nodeListDataFlavor=new DataFlavor(NODE_LIST_MIME_TYPE);
-		} catch (ClassNotFoundException e) {}
+		} catch (ClassNotFoundException e) {
+			throw new IllegalStateException("Invalid local node-list data flavor", e);
+		}
 		if (nodeSelection){
 				flavors=new DataFlavor[]{
 						nodeListDataFlavor,
@@ -256,7 +258,10 @@ public class NodeListTransferable implements Transferable {
 				field=fieldsIterator.next();
 				try {
 					field.setValue(node,model.getCache().getWalkersModel(),spreadsheet,valueS,model.getFieldContext());
-				} catch (FieldParseException e) {}
+				} catch (FieldParseException e) {
+					logger.log(Level.FINE, "Failed to parse pasted value for field " + field.getId(), e);
+					return null;
+				}
 			}
 		}
 		return node;

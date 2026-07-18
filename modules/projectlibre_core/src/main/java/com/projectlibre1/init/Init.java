@@ -54,7 +54,9 @@
  * logo it must direct them back to http://www.projectlibre.com. 
  *******************************************************************************/
 package com.projectlibre1.init;
-import com.projectlibre1.configuration.Dictionary;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import com.projectlibre1.configuration.ScriptConfiguration;
 import com.projectlibre1.contrib.ClassResolverFilter;
 import com.projectlibre1.field.FieldConverter;
@@ -64,18 +66,17 @@ import com.projectlibre1.util.Environment;
  * Window - Preferences - Java - Code Generation - Code and Comments
  */
 public class Init {
+	private static final Logger logger = Logger.getLogger(Init.class.getName());
 	private static Init instance = null;
 	private Init(boolean loadConfiguration) {
 		instance = this;
-		//if (loadConfiguration)System.setSecurityManager(null); // turn off security mananger so groovy will run.
-		//TODO figure out security issue
-
 		if (loadConfiguration) loadConfiguration();
 		FieldConverter.getInstance();
 		if (!Environment.getStandAlone()){
 			try {
 				Class.forName("org.codehaus.groovy.control.ResolveVisitor").getMethod("setClassResolverFilter", new Class[]{ClassResolverFilter.class}).invoke(null,new Object[]{ScriptConfiguration.getInstance()});
 			} catch (Exception e) {
+				logger.log(Level.FINE, "Groovy resolver filtering hook is unavailable", e);
 			}
 		}
 	}

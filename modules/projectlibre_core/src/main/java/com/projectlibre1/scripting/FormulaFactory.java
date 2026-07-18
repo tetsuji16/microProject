@@ -55,45 +55,37 @@
  *******************************************************************************/
 package com.projectlibre1.scripting;
 
-import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class FormulaFactory {
 	private static final Logger logger = Logger.getLogger(FormulaFactory.class.getName());
-	private static  HashMap scriptClassMap = new HashMap<>();
-	private static  HashMap formulaMap = new HashMap<>();
+	private static final Map<String, FormulaClass> scriptClassMap = new ConcurrentHashMap<>();
+	private static final Map<String, Formula> formulaMap = new ConcurrentHashMap<>();
 	public FormulaFactory() {
 		super();
 	}
 	//	public Formula(String category,String formulaName, String variableName, String text) throws InvalidFormulaException {
 
 	public static Formula addNormal(String className,String formulaName) {
-		Formula formula = (Formula)formulaMap.get(className);
-		if (formula == null) {
+		return formulaMap.computeIfAbsent(className, key -> {
 			try {
-				formula = (Formula)Class.forName(className).newInstance();
+				Formula formula = Class.forName(key).asSubclass(Formula.class)
+					.getDeclaredConstructor().newInstance();
 				formula.setFormulaName(formulaName);
-				formulaMap.put(className,formula);
-			} catch (InstantiationException e) {
-				logger.log(Level.WARNING, "Failed to instantiate formula class " + className, e);
-			} catch (IllegalAccessException e) {
-				logger.log(Level.WARNING, "Failed to access formula class " + className, e);
-			} catch (ClassNotFoundException e) {
-				logger.log(Level.WARNING, "Formula class not found " + className, e);
+				return formula;
+			} catch (ReflectiveOperationException | ClassCastException e) {
+				logger.log(Level.WARNING, "Formula class not found " + key, e);
+				return null;
 			}
-		}
-		return formula;
-		
+		});
 	}
 	public static ScriptedFormula addScripted(String className,String formulaName, String variableName, String text) {
-		String validFormulaName = formulaName.replaceAll(" ", "_");
+		String validFormulaName = formulaName.replace(' ', '_');
 		
-		FormulaClass formulaClass = (FormulaClass) scriptClassMap.get(className);
-		if (formulaClass == null) {
-			formulaClass = new FormulaClass(className);
-			scriptClassMap.put(className,formulaClass);
-		}
+		FormulaClass formulaClass = scriptClassMap.computeIfAbsent(className, FormulaClass::new);
 		ScriptedFormula formula = new ScriptedFormula(validFormulaName,variableName,text);
 		formulaClass.add(formula);
 		return formula;
@@ -101,7 +93,7 @@ public class FormulaFactory {
 	}
 	
 	public static void precompileClass(String className) {
-		FormulaClass formulaClass = (FormulaClass) scriptClassMap.get(className);
+		FormulaClass formulaClass = scriptClassMap.get(className);
 		if (formulaClass!=null) formulaClass.compile();
 	}
 	

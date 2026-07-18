@@ -3612,7 +3612,11 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			while (!lock[0]){
 				try{
 						lock.wait();
-					}catch (InterruptedException e) {}
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						logger.log(Level.FINE, "Interrupted while waiting for projects to close", e);
+						return false;
+					}
 			}
 		}
 		if (closeStatus[0]){

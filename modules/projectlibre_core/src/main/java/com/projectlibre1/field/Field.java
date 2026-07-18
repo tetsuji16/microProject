@@ -107,6 +107,7 @@ import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.TaskSheetScheduleWorkflow;
 import com.projectlibre1.pm.time.Interval;
 import com.projectlibre1.scripting.ScriptedFormula;
+import com.projectlibre1.scripting.FormulaFactory;
 import com.projectlibre1.server.data.DataObject;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.ClassUtils;
@@ -397,10 +398,8 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 
 	// added for groups
 	public SummaryVisitor getSummaryVisitor(int summary, boolean forceDeep) {
-		return SummaryVisitorFactory.getInstance(summary, getDisplayType(),forceDeep); // TODO
-																				// use
-																				// internalType
-																				// instead?
+		// Summary visitors operate on the externally displayed values returned by this field.
+		return SummaryVisitorFactory.getInstance(summary, getDisplayType(),forceDeep);
 	}
 
 	public SummaryVisitor getSummaryVisitor(boolean forceDeep) {
@@ -425,8 +424,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 	/**
 	 * For use in populating a list box
 	 *
-	 * @param object
-	 *            TODO
+	 * @param object object used by dynamic option filters
 	 * @return
 	 */
 	public Object[] getOptions(Object object) {
@@ -630,20 +628,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		}
 
 		if ("Field.duration".equals(id) && (object instanceof GroupNodeImpl)) {
-			Document document = nodeModel.getDocument();
-			if (document == null || !(document instanceof Project))
-				return null;
-			WorkingCalendar wc = (WorkingCalendar) ((Project) document).getWorkCalendar();
-
-			// startDate, endDate calculated twice. Can find better
-			Field startField = FieldDictionary.getInstance().getFieldFromId("Field.start");
-			Field endField = FieldDictionary.getInstance().getFieldFromId("Field.finish");
-			Date start = (Date) getSummarizedValueForField(startField, node, nodeModel, context);
-			Date end = (Date) getSummarizedValueForField(endField, node, nodeModel, context);
-
-			double t = wc.compare(end.getTime(), start.getTime(), false);
-			result = new Duration(Duration.getInstance(t / CalendarOption.getInstance().getMillisPerDay(), TimeUnit.DAYS));
-			// TODO 8 IS A HACK REPLACE ALL THIS SECTION
+			result = getGroupDuration(node, nodeModel, context);
 		} else {
 			if (nodeHasNonSummarizedValue(node, nodeModel)) {// if no summary
 																// or leaf
@@ -659,6 +644,22 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 			((Work) result).setWork(true);
 		}
 		return result;
+	}
+
+	private Object getGroupDuration(Node node, WalkersNodeModel nodeModel, FieldContext context) {
+		Document document = nodeModel.getDocument();
+		if (!(document instanceof Project))
+			return null;
+		Field startField = FieldDictionary.getInstance().getFieldFromId("Field.start");
+		Field endField = FieldDictionary.getInstance().getFieldFromId("Field.finish");
+		Date start = (Date) getSummarizedValueForField(startField, node, nodeModel, context);
+		Date end = (Date) getSummarizedValueForField(endField, node, nodeModel, context);
+		if (start == null || end == null)
+			return null;
+		WorkingCalendar calendar = (WorkingCalendar) ((Project) document).getWorkCalendar();
+		double millis = calendar.compare(end.getTime(), start.getTime(), false);
+		return new Duration(Duration.getInstance(
+			millis / CalendarOption.getInstance().getMillisPerDay(), TimeUnit.DAYS));
 	}
 
 	public Object getValue(ObjectRef objectRef, FieldContext context) {
@@ -691,14 +692,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		if (result instanceof Double) { // convert to proper display type
 			result = ClassUtils.doubleToObject((Double) result, field.getDisplayType());
 		}
-		if ((object instanceof GroupNodeImpl) && field.hasOptions()) { // TODO
-																		// should
-																		// apply
-																		// to
-																		// summaries
-																		// other
-																		// than
-																		// group
+		if ((object instanceof GroupNodeImpl) && field.hasOptions()) {
 			result = field.convertValueToStringUsingOptions(result);
 		}
 		return result;
@@ -1000,8 +994,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 																		// change,
 																		// do
 																		// nothing
-			return false; // TODO certain time-distibued fields need to be
-							// changed
+			return false;
 
 		if (hasExternalType()) { // does the second pass, converting from
 									// say, Date to long
@@ -1012,9 +1005,6 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 																			// long
 																			// for
 																			// example
-			if (value == null && !isMap()) // TODO is this how to treat null values?
-				return false;
-
 		}
 
 		if (range != null) {
@@ -1186,7 +1176,6 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		Boolean value = (Boolean) invokeContextMethod(methodHide, object, context, hideHasNoContext);
 		if (value != null)
 			return value.booleanValue();
-		// TODO maybe test if objet itself is hidden
 		return false;
 	}
 
@@ -1543,8 +1532,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 	 *            The formula to set.
 	 */
 	public void setFormula(String formulaName, String variableName, String formulaText) {
-//		formula = FormulaFactory.addScripted("Field", formulaName, variableName, formulaText);
-		throw new RuntimeException("setFormula"); //TODO if used, need to handle addNormal too
+		formula = FormulaFactory.addScripted("Field", formulaName, variableName, formulaText);
 	}
 
 	public void clearFormula() {

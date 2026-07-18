@@ -65,6 +65,7 @@ import org.jfree.data.xy.XYDataset;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
+import com.projectlibre1.association.Association;
 import com.projectlibre1.pm.graphic.timescale.CoordinatesConverter;
 import com.projectlibre1.pm.graphic.views.ChartView;
 import com.projectlibre1.algorithm.TimeIteratorGenerator;
@@ -119,12 +120,12 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 		while (i.hasNext()) { //loop thru tasks
 			current = i.next();
 			if (current instanceof HasAssignments) {
-				List<Assignment> list = ((HasAssignments)current).getAssignments();
-
-				Iterator<Assignment> a = list.iterator();
+				Iterator<Association> a = ((HasAssignments) current).getAssignments().iterator();
 				while (a.hasNext()) { // loop through assignments,
-					
-					assignment = (Assignment)a.next();
+					Association association = a.next();
+					if (!(association instanceof Assignment))
+						continue;
+					assignment = (Assignment) association;
 					if (histogram) {
 						timeIterator = coord.getProjectTimeIterator();
 						generator = histogram ? TimeIteratorGenerator.getInstance(timeIterator) : null;
@@ -359,4 +360,3 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 	}
 	
 }
-

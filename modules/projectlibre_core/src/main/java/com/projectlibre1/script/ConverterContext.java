@@ -114,7 +114,7 @@ public class  ConverterContext implements Cloneable{
 
 
 	public String getName() {
-		if (name == null)
+		if (name == null && id != null)
 			name = Messages.getString(id);
 		return name;
 	}

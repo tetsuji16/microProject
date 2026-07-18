@@ -55,14 +55,12 @@
  *******************************************************************************/
 package com.projectlibre1.scripting;
 
-import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyObject;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -71,7 +69,7 @@ import com.projectlibre1.field.InvalidFormulaException;
 
 public class FormulaClass {
 	private static final Logger logger = Logger.getLogger(FormulaClass.class.getName());
-	List<ScriptedFormula> formulas = new ArrayList<>();
+	private final Map<String, ScriptedFormula> formulas = new LinkedHashMap<>();
 	String className;
 	private static final String imports="";
 	private volatile Map<String, MethodHandle> invocationTargets;
@@ -80,10 +78,11 @@ public class FormulaClass {
 		this.className = className;
 	}
 	
-	void add(ScriptedFormula formula) {
-		formulas.add(formula);
+	synchronized void add(ScriptedFormula formula) {
+		formulas.put(formula.getFormulaName(), formula);
 		formula.setFormulaClass(this);
-
+		invocationTargets = null;
+		compileException = null;
 	}
 	
 	private Exception compileException = null;
@@ -91,13 +90,11 @@ public class FormulaClass {
 		if (invocationTargets == null && compileException == null) {
 //					long x = System.currentTimeMillis();
 			String classText = buildClassText();
-			GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
-//					GroovyClassLoader loader = new GroovyClassLoader(ClassLoaderUtils.getLocalClassLoader());
 			try {
-				Class groovyClass = loader.parseClass(classText); //TODO this his horribly slow (~500ms)  Can we parse all at once or can we do this lazily or initialize in another thread?
-				GroovyObject groovyObject = (GroovyObject) groovyClass.getDeclaredConstructor().newInstance();
+				Class<? extends GroovyObject> groovyClass = GroovyClassCompiler.compile(classText, GroovyObject.class);
+				GroovyObject groovyObject = groovyClass.getDeclaredConstructor().newInstance();
 				Map<String, MethodHandle> targets = new HashMap<>();
-				for (ScriptedFormula formula : formulas) {
+				for (ScriptedFormula formula : formulas.values()) {
 					MethodHandle target = MethodHandles.publicLookup()
 						.unreflect(groovyClass.getMethod(formula.getFormulaName(), Object.class))
 						.bindTo(groovyObject);
@@ -118,7 +115,7 @@ public class FormulaClass {
 		text.append(imports);
 		text.append("class " + className + " {");
 		
-		for (ScriptedFormula formula : formulas) {
+		for (ScriptedFormula formula : formulas.values()) {
 			text.append("\n\tObject ").append(formula.getFormulaName()).append("(Object ")
 				.append(formula.getVariableName()).append(") {");
 			text.append("\n\t\treturn ").append(formula.getText()).append(";\n\t}");

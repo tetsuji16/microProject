@@ -58,7 +58,6 @@ package com.projectlibre1.script.object;
 import java.io.Serializable;
 import java.util.Calendar;
 import java.util.LinkedList;
-import java.util.ListIterator;
 import java.util.Locale;
 
 import org.apache.commons.lang.time.DateUtils;
@@ -160,93 +159,51 @@ public class TimeIntervals implements Serializable,Cloneable{
 		for (TimeWindow w:win) w.setId(i++);
 	}
 
-	public TimeIntervals translate(int winCount) { //TODO case winCount<0
+	public TimeIntervals translate(int windowCount) {
+		TimeIntervals translated = new TimeIntervals();
+		translated.setScale(scale);
+		if (windowCount == 0 || win.isEmpty())
+			return translated;
 
-//		for (TimeWindow w : history) System.out.println("history0: "+w);
-//		for (TimeWindow w : win) System.out.println("win0: "+w);
+		int currentSize = win.size();
+		int newFirstId = winId + windowCount;
+		int newLastId = newFirstId + currentSize - 1;
+		ensureHistoryContains(newFirstId, newLastId);
 
-		//for (TimeWindow w : history) System.out.println("id="+w.getId());
-		TimeIntervals t=new TimeIntervals();
-		t.setScale(scale);
-		LinkedList<TimeWindow> twin=t.getWin();
-		if (winCount==0||win.size()==0) return t; //or null
-		if (winCount>0){
-			t.winId=winId+win.size();
-			int lastId=t.winId-1+winCount;
-			int maxHistoryId=Math.min(history.getLast().getId(),lastId);
-			int i=t.winId;
-			if (i<=maxHistoryId){
-				ListIterator<TimeWindow> it=history.listIterator();
-				TimeWindow w;
-				while (it.hasNext()){
-					w=it.next();
-					if (w.getId()==t.winId){
-						it.previous();
-						break;
-					}
-				}
-				for(;i<=maxHistoryId&&it.hasNext();i++){
-					w=it.next();
-					twin.add(w);
-//					System.out.println("Found in history: "+w);
-				}
-			}
-			LinkedList<TimeWindow> newWin=new LinkedList<TimeWindow>();
-			generateWindows(scale,(twin.size()>0?twin:win).getLast().getE(),start,end,lastId-i+1,newWin);
-			t.indexWindows(t.winId+t.getWin().size(),newWin);
-//			for (TimeWindow w : newWin) System.out.println("New window: "+w);
-			t.getWin().addAll(newWin);
-			history.addAll(newWin);
-		}else{
-			t.winId=winId-1;
-			int lastId=t.winId+1+winCount;
-			int minHistoryId=Math.max(history.getFirst().getId(),lastId);
-			int i=t.winId;
-			if (i>=minHistoryId){
-				ListIterator<TimeWindow> it=history.listIterator(history.size()-1);
-				TimeWindow w;
-				while (it.hasPrevious()){
-					w=it.previous();
-					if (w.getId()==t.winId){
-						it.next();
-						break;
-					}
-				}
-				for(;i>=minHistoryId;i--){
-					w=it.previous();
-					twin.addFirst(w);
-//					System.out.println("Found in history: "+w);
-				}
-			}
-//			System.out.println("winId="+winId+", t.winId="+t.winId+", lastId="+lastId+", i="+i+" minHistoryId="+minHistoryId);
-			LinkedList<TimeWindow> newWin=new LinkedList<TimeWindow>();
-			generateWindows(scale,(twin.size()>0?twin:win).getFirst().getS(),start,end,lastId-i-1,newWin);
-			t.indexWindows(lastId,newWin);
-//			for (TimeWindow w : newWin) System.out.println("New window: "+w);
-			t.getWin().addAll(0,newWin);
-			history.addAll(0,newWin);
+		int enteringFirstId = windowCount > 0 ? winId + currentSize : newFirstId;
+		int enteringLastId = windowCount > 0 ? newLastId : winId - 1;
+		translated.winId = enteringFirstId;
+		translated.win.addAll(historyRange(enteringFirstId, enteringLastId));
+		translated.translation = windowCount;
+
+		win.clear();
+		win.addAll(historyRange(newFirstId, newLastId));
+		winId = newFirstId;
+		return translated;
+	}
+
+	private void ensureHistoryContains(int firstId, int lastId) {
+		while (history.getFirst().getId() > firstId) {
+			LinkedList<TimeWindow> generated = new LinkedList<>();
+			generateWindows(scale, history.getFirst().getS(), start, end, -1, generated);
+			indexWindows(history.getFirst().getId() - 1, generated);
+			history.addAll(0, generated);
 		}
-
-		int translation=0;
-		for (TimeWindow w : t.getWin()){
-			if (winCount>0){
-				win.removeFirst();
-				win.addLast(w);
-				translation++;
-			}else{
-				win.removeLast();
-				win.addFirst(w);
-				translation--;
-			}
+		while (history.getLast().getId() < lastId) {
+			LinkedList<TimeWindow> generated = new LinkedList<>();
+			generateWindows(scale, history.getLast().getE(), start, end, 1, generated);
+			indexWindows(history.getLast().getId() + 1, generated);
+			history.addAll(generated);
 		}
-		winId=winId+translation;
-		t.setTranslation(translation);
+	}
 
-//		for (TimeWindow w : history) System.out.println("history1: "+w);
-//		for (TimeWindow w : win) System.out.println("win1: "+w);
-//		for (TimeWindow w : twin) System.out.println("t.win1: "+w);
-
-		return t;
+	private LinkedList<TimeWindow> historyRange(int firstId, int lastId) {
+		LinkedList<TimeWindow> result = new LinkedList<>();
+		for (TimeWindow window : history) {
+			if (window.getId() >= firstId && window.getId() <= lastId)
+				result.add(window);
+		}
+		return result;
 	}
 
 

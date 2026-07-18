@@ -86,7 +86,7 @@ public class OutlineCollectionImpl implements OutlineCollection {
 
 	public NodeModel getOutline(int outlineNumber) {
 		NodeModel outline = outlines[outlineNumber];
-		if (outline == null&&outlineNumber==DEFAULT_OUTLINE) { //TODO remove condition if multiple outlines are needed
+		if (outline == null) {
 			outline =  NodeModelFactory.getInstance().createNodeModel(dataFactory);
 			outlines[outlineNumber] = outline;
 			if (dataFactory!=null){

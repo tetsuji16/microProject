@@ -56,6 +56,7 @@
 package com.projectlibre1.algorithm.buffer;
 
 import java.util.TreeMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import com.projectlibre1.options.CalendarOption;
@@ -67,10 +68,10 @@ import com.projectlibre1.pm.calendar.WorkCalendar;
  */
 public class NonGroupedCalculatedValues  implements CalculatedValues  {
 	private static final Logger logger = Logger.getLogger(NonGroupedCalculatedValues.class.getName());
-	TreeMap values = new TreeMap(); //(x,y pairs) //TODO a set would be better because this is often sparse
+	private final TreeMap<Long, Double> values = new TreeMap<>();
+	private volatile long[] indexedDates;
+	private double[] indexedValues;
 	double yScale;
-	Long dates[];
-	Double vals[];
 	boolean cumulative;
 	long origin;
 	private static long MILLIS_PER_DAY = CalendarOption.getInstance().getMillisPerDay();
@@ -86,7 +87,7 @@ public class NonGroupedCalculatedValues  implements CalculatedValues  {
 	}
 
 	public int size() {
-		return vals.length;
+		return values.size();
 	}
 
 /**
@@ -96,12 +97,14 @@ public class NonGroupedCalculatedValues  implements CalculatedValues  {
  */
 	private void setValue(long date, double value) {
 		Long longDate = Long.valueOf(date);
-		Double v = (Double) values.get(longDate);
+		Double v = values.get(longDate);
 		if (v != null) // if already present, add to it
 			v = Double.valueOf(v.doubleValue() + value);
 		else
 			v = Double.valueOf(value);
 		values.put(longDate,v);
+		indexedDates = null;
+		indexedValues = null;
 	}
 
 /**
@@ -160,23 +163,18 @@ public class NonGroupedCalculatedValues  implements CalculatedValues  {
 	
 
 	public void makeSeries(boolean cumulative, SeriesCallback callback) {
-		Long[] d = new Long[values.size()];
-		Double[] v = new Double[values.size()];
-		values.keySet().toArray(d);
-		values.values().toArray(v);
 		double sum = 0;
-		double cum = 0;
-		double z;
+		int index = 0;
 		if (cumulative) {
-			for (int i = 0; i < d.length; i++) {
-				sum += v[i].doubleValue();
-				callback.add(i,d[i].doubleValue(), sum );
+			for (Map.Entry<Long, Double> entry : values.entrySet()) {
+				sum += entry.getValue();
+				callback.add(index++, entry.getKey(), sum);
 			}
 		} else {
-			for (int i = 0; i < d.length; i++) {
-				callback.add(2*i,d[i].doubleValue(),sum);
-				sum += v[i].doubleValue();
-				callback.add(2*i+1,d[i].doubleValue(),sum);
+			for (Map.Entry<Long, Double> entry : values.entrySet()) {
+				callback.add(index++, entry.getKey(), sum);
+				sum += entry.getValue();
+				callback.add(index++, entry.getKey(), sum);
 			}
 		}
 	}
@@ -186,43 +184,65 @@ public class NonGroupedCalculatedValues  implements CalculatedValues  {
 	}
 
 	public void makeContiguousNonZero(IntervalCallback callback, WorkCalendar workCalendar) {
-		Long[] d = new Long[values.size()];
-		Double[] v = new Double[values.size()];
-		values.keySet().toArray(d);
-		values.values().toArray(v);
 		double sum = 0;
-		for (int i = 0; i < d.length-1; i++) {
-			sum += v[i].doubleValue();
-			callback.add(d.length-2 - i, d[i].longValue(),d[i+1].longValue(),sum);
+		Map.Entry<Long, Double> previous = null;
+		int index = 0;
+		for (Map.Entry<Long, Double> entry : values.entrySet()) {
+			if (previous != null)
+				callback.add(values.size() - 1 - index, previous.getKey(), entry.getKey(), sum);
+			sum += entry.getValue();
+			previous = entry;
+			index++;
 		}
 	}	
 	public void makeCumulative(boolean cumulative) {
 		double sum = 0;
-		for (int i = 0; i < vals.length; i++) {
+		for (Map.Entry<Long, Double> entry : values.entrySet()) {
+			double current = entry.getValue();
 			if (cumulative) {
-				sum += vals[i].doubleValue();
-				vals[i] = Double.valueOf(sum);
+				sum += current;
+				entry.setValue(sum);
 			} else {
-				vals[i] = Double.valueOf(vals[i].doubleValue() - sum);
-				sum += vals[i].doubleValue();
+				entry.setValue(current - sum);
+				sum = current;
 			}
 		}
+		indexedDates = null;
+		indexedValues = null;
 	}	
 	
 	
 	public Long getDate(int index) {
-		return dates[index];
+		ensureIndexedValues();
+		return indexedDates[index];
 	}
 	
 	public Double getValue(int index) {
-		return vals[index];
+		ensureIndexedValues();
+		return indexedValues[index] / yScale;
+	}
+
+	private void ensureIndexedValues() {
+		if (indexedDates != null)
+			return;
+		long[] dates = new long[values.size()];
+		double[] calculatedValues = new double[values.size()];
+		int index = 0;
+		for (Map.Entry<Long, Double> entry : values.entrySet()) {
+			dates[index] = entry.getKey();
+			calculatedValues[index] = entry.getValue();
+			index++;
+		}
+		indexedValues = calculatedValues;
+		indexedDates = dates;
 	}
 	
 
  
- 	public void dump() {
-		for (int i = 0; i < vals.length; i++)
-			logger.fine(i + " " + new java.util.Date(dates[i].longValue()) + " " + vals[i]);
+	public void dump() {
+		int index = 0;
+		for (Map.Entry<Long, Double> entry : values.entrySet())
+			logger.fine(index++ + " " + new java.util.Date(entry.getKey()) + " " + entry.getValue());
  	}
 	
 

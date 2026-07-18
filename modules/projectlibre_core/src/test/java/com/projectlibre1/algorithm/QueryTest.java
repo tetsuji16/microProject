@@ -17,4 +17,13 @@ class QueryTest {
 		assertEquals(10L, intervals[0].currentStart());
 		assertEquals(20L, intervals[0].currentEnd());
 	}
+
+	@Test
+	void emptySelectFromClauseCompletesWithoutDereferencingAMissingGenerator() {
+		IntervalGenerator[] intervals = Query.getInstance()
+				.selectFrom(SelectFrom.getInstance())
+				.execute();
+
+		assertEquals(1, intervals.length);
+	}
 }
