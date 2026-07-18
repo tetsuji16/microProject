@@ -55,11 +55,10 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.transform.filtering;
 
-import groovy.lang.GroovyClassLoader;
-
 import com.projectlibre1.field.InvalidFormulaException;
 import com.projectlibre1.grouping.core.transform.CommonTransform;
 import com.projectlibre1.grouping.core.transform.CommonTransformFactory;
+import com.projectlibre1.scripting.GroovyClassCompiler;
 
 /**
  *
@@ -67,10 +66,6 @@ import com.projectlibre1.grouping.core.transform.CommonTransformFactory;
 public class NodeFilterFactory extends CommonTransformFactory{
 //	static Log log = LogFactory.getLog(NodeFilterFactory.class);
 	protected String type = null; 
-	
-	private static int count=0;
-	
-	
 	
 	public CommonTransform getTransform() throws InvalidFormulaException{
 	    CommonTransform t=getTransformFromDefinition();
@@ -83,15 +78,13 @@ public class NodeFilterFactory extends CommonTransformFactory{
 	    classText.append("package com.projectlibre1.grouping.core.transform.filtering;\n");
 	    classText.append("import com.projectlibre1.grouping.core.Node;\n");
 	    classText.append("import com.projectlibre1.datatype.*;\n");
-	    classText.append("public class FilterFormula").append(count++).append(" extends NodeFilter{\n");
+		String className = GroovyClassCompiler.scriptClassName("FilterFormula", type + "\n" + formulaText);
+	    classText.append("public class ").append(className).append(" extends NodeFilter{\n");
 	    classText.append("\tpublic boolean evaluate(Object _nodeObject){\n\t\tObject ")
 	    	.append(type).append("=(_nodeObject instanceof Node)?((Node)_nodeObject).getImpl():_nodeObject;\n \t\t").append(formulaText).append("\n\t}\n");
 	    classText.append("}\n");
-//	    GroovyClassLoader loader = new GroovyClassLoader(ClassLoaderUtils.getLocalClassLoader());
-	    GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
 		try {
-			Class groovyClass = loader.parseClass(classText.toString()); //TODO this his horribly slow (~500ms)  Can we parse all at once or can we do this lazily or initialize in another thread?
-			t=(CommonTransform)groovyClass.newInstance();
+			t = GroovyClassCompiler.compileAndInstantiate(classText.toString(), NodeFilter.class);
 			setProperties(t);
 			return t;
 		} catch (Exception e) {

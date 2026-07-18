@@ -55,11 +55,10 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.transform.transformer;
 
-import groovy.lang.GroovyClassLoader;
-
 import com.projectlibre1.field.InvalidFormulaException;
 import com.projectlibre1.grouping.core.transform.CommonTransform;
 import com.projectlibre1.grouping.core.transform.CommonTransformFactory;
+import com.projectlibre1.scripting.GroovyClassCompiler;
 
 /**
  *
@@ -67,10 +66,6 @@ import com.projectlibre1.grouping.core.transform.CommonTransformFactory;
 public class NodeTransformerFactory extends CommonTransformFactory{
 //	static Log log = LogFactory.getLog(NodeTransformerFactory.class);
 	protected String type = null; 
-	
-	private static int count=0;
-	
-	
 	
 	public CommonTransform getTransform() throws InvalidFormulaException{
 	    CommonTransform t=getTransformFromDefinition();
@@ -84,15 +79,13 @@ public class NodeTransformerFactory extends CommonTransformFactory{
 	    classText.append("import com.projectlibre1.grouping.core.Node;\n");
 	    classText.append("import com.projectlibre1.datatype.*;\n");
 	    classText.append("import com.projectlibre1.pm.assignment.Assignment;\n");
-	    classText.append("public class TransformerFormula").append(count++).append(" extends NodeTransformer{\n");
+		String className = GroovyClassCompiler.scriptClassName("TransformerFormula", type + "\n" + formulaText);
+	    classText.append("public class ").append(className).append(" extends NodeTransformer{\n");
 	    classText.append("\tpublic Object evaluate(Object ").append(type).append("){\n")
 	    		.append("\t\t").append(formulaText).append("\n\t}\n");
 	    classText.append("}\n");
-//	    GroovyClassLoader loader = new GroovyClassLoader(ClassLoaderUtils.getLocalClassLoader());
-	    GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
 		try {
-			Class groovyClass = loader.parseClass(classText.toString()); //TODO this his horribly slow (~500ms)  Can we parse all at once or can we do this lazily or initialize in another thread?
-			t=(CommonTransform)groovyClass.newInstance();
+			t = GroovyClassCompiler.compileAndInstantiate(classText.toString(), NodeTransformer.class);
 			setProperties(t);
 			return t;
 		} catch (Exception e) {

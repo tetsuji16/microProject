@@ -56,6 +56,7 @@
 package com.projectlibre1.pm.dependency;
 
 import com.projectlibre1.association.Association;
+import com.projectlibre1.association.AssociationList;
 import com.projectlibre1.association.InvalidAssociationException;
 import com.projectlibre1.datatype.Duration;
 import com.projectlibre1.datatype.DurationFormat;
@@ -70,6 +71,8 @@ import com.projectlibre1.server.data.DataObject;
 import com.projectlibre1.strings.Messages;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Collection;
+import java.util.List;
 
 public class Dependency implements Association, BelongsToDocument, DataObject {
 	private static final Logger logger = Logger.getLogger(Dependency.class.getName());
@@ -222,6 +225,11 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 	}
 	public void doUpdateService(Object eventSource) {
 		DependencyService.getInstance().update((Dependency)this,eventSource);
+	}
+
+	@Override
+	public Collection<AssociationList> getAssociationLists() {
+		return List.of(predecessor.getSuccessorList(), successor.getPredecessorList());
 	}
 
 	public boolean isDefault() {

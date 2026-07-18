@@ -80,8 +80,7 @@ public class EditOption {
 	 */
 	public EditOption() {
 		super();
-		//TODO integrate correct locale stuff here for web and client
-	//	dateFormat = DateTime.dateFormatInstance("MM/dd/yy");
+		// DateTime delegates patterns to the active JVM locale and pins only the time zone.
 		dateFormat = DateTime.utcDateFormatInstance();
 		shortDateFormat = DateTime.utcShortDateFormatInstance();
 	}

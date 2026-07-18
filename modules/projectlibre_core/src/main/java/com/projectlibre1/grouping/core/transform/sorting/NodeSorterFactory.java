@@ -55,11 +55,10 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.transform.sorting;
 
-import groovy.lang.GroovyClassLoader;
-
 import com.projectlibre1.field.InvalidFormulaException;
 import com.projectlibre1.grouping.core.transform.CommonTransform;
 import com.projectlibre1.grouping.core.transform.CommonTransformFactory;
+import com.projectlibre1.scripting.GroovyClassCompiler;
 
 /**
  *
@@ -70,10 +69,6 @@ public class NodeSorterFactory extends CommonTransformFactory{
 	protected String type2 = null; 
 	protected String groupNameFormula=null;
 	
-	private static int count=0;
-	
-	
-	
 	public CommonTransform getTransform() throws InvalidFormulaException{
 	    CommonTransform t=getTransformFromDefinition();
 	    if (t!=null) return t;
@@ -82,7 +77,9 @@ public class NodeSorterFactory extends CommonTransformFactory{
 	    classText.append("package com.projectlibre1.grouping.core.transform.sorting;\n");
 	    classText.append("import com.projectlibre1.grouping.core.Node;\n");
 	    classText.append("import com.projectlibre1.datatype.*;\n");
-	    classText.append("public class SorterFormula").append(count++).append(" extends NodeSorter{\n");
+		String definition = type1 + "\n" + type2 + "\n" + formulaText + "\n" + groupNameFormula;
+		String className = GroovyClassCompiler.scriptClassName("SorterFormula", definition);
+	    classText.append("public class ").append(className).append(" extends NodeSorter{\n");
 	    
 		if (formulaText!=null){
 	    	//compare
@@ -100,11 +97,8 @@ public class NodeSorterFactory extends CommonTransformFactory{
 		}
 	    classText.append("}\n");
 	    
-//		GroovyClassLoader loader = new GroovyClassLoader(ClassLoaderUtils.getLocalClassLoader());
-		GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
 		try {
-			Class groovyClass = loader.parseClass(classText.toString()); //TODO this his horribly slow (~500ms)  Can we parse all at once or can we do this lazily or initialize in another thread?
-			t=(CommonTransform)groovyClass.newInstance();
+			t = GroovyClassCompiler.compileAndInstantiate(classText.toString(), NodeSorter.class);
 			setProperties(t);
 			return t;
 		} catch (Exception e) {

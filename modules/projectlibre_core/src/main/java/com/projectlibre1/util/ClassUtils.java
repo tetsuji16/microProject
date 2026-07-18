@@ -55,7 +55,6 @@
  *******************************************************************************/
 package com.projectlibre1.util;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Comparator;
 import java.util.Date;
@@ -332,36 +331,25 @@ public class ClassUtils {
 			return false;
 		}
 
-		private static Class<?>[] getterParams = new Class<?>[] {};
 		public static boolean isObjectReadOnly(Object object){
-			if (object==null) return false;
-			Boolean value=null;
-			try {
-				Method m=object.getClass().getMethod("isReadOnly", getterParams);
-				if (m!=null) value=(Boolean)m.invoke(object,new Object[0]);
-			}
-			catch (IllegalArgumentException e) {}
-			catch (IllegalAccessException e) {}
-			catch (InvocationTargetException e) {}
-			catch (NoSuchMethodException e) {}
-			return value != null&&value.booleanValue();
-			
+			return invokeReadOnly(object, new Class<?>[0]);
 		}
-		private static Class<?>[] fieldGetterParams = new Class<?>[] {Field.class};
 		public static boolean isObjectFieldReadOnly(Object object,Field field){
-			if (object==null) return false;
-			Boolean value=null;
+			return invokeReadOnly(object, new Class<?>[] {Field.class}, field);
+		}
+
+		private static boolean invokeReadOnly(Object object, Class<?>[] parameterTypes, Object... arguments) {
+			if (object == null)
+				return false;
 			try {
-				Method m=object.getClass().getMethod("isReadOnly", fieldGetterParams);
-				if (m!=null)
-					value=(Boolean)m.invoke(object,new Object[] {field});
+				Method method = object.getClass().getMethod("isReadOnly", parameterTypes);
+				return Boolean.TRUE.equals(method.invoke(object, arguments));
+			} catch (NoSuchMethodException e) {
+				return false;
+			} catch (ReflectiveOperationException | IllegalArgumentException | ClassCastException e) {
+				logger.log(Level.FINE, "Failed to evaluate read-only state for " + object.getClass().getName(), e);
+				return false;
 			}
-			catch (IllegalArgumentException e) {}
-			catch (IllegalAccessException e) {}
-			catch (InvocationTargetException e) {}
-			catch (NoSuchMethodException e) {}
-			return value != null&&value.booleanValue();
-			
 		}
 		
 		private static Map<Class<?>, Comparator<Object>> comparatorMap = null;

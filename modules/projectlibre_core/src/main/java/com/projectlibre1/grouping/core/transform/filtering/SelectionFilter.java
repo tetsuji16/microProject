@@ -55,7 +55,7 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.transform.filtering;
 
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.collections.Closure;
@@ -71,26 +71,25 @@ import com.projectlibre1.pm.assignment.HasAssignmentsImpl;
 public class SelectionFilter extends NodeFilter {
     protected boolean taskUsage;
     protected Closure callback;
-    protected List implToShow;
-    protected List selectedImpl;
+    protected List<?> implToShow = Collections.emptyList();
+    protected List<?> selectedImpl = Collections.emptyList();
     public SelectionFilter(String arg){
     	preserveHierarchy=false;
         taskUsage=Boolean.valueOf(arg).booleanValue();
     }
-    public void setSelectedNodesImpl(List selectedImpl,boolean taskSelection){
-        this.selectedImpl=selectedImpl;
- 		implToShow = (taskSelection==taskUsage)?selectedImpl:
- 		    HasAssignmentsImpl.extractOppositeList(selectedImpl,!taskSelection);
- 		if (implToShow==null) implToShow=new LinkedList(); //bug in obfuscated version
- 		callback.execute(this);
+    public void setSelectedNodesImpl(List<?> selectedImpl,boolean taskSelection){
+        this.selectedImpl = selectedImpl == null ? Collections.emptyList() : selectedImpl;
+		implToShow = taskSelection == taskUsage
+			? this.selectedImpl
+			: HasAssignmentsImpl.extractOppositeList(this.selectedImpl, !taskSelection);
+		if (callback != null)
+			callback.execute(this);
     }
     
     public boolean evaluate(Object o) {
         Object impl=((Node)o).getImpl();
         if (impl==null)
-        	return false; //TODO Shouldn't happen. But cannot reproduce 
-        if (implToShow == null)
-        	return false; //TODO Shouldn't happen. to reproduce, create a new project, select a sub view and then unselect it.  Then create a task
+			return false;
         if (impl instanceof HasAssignments)
             return implToShow.contains(impl);
         else if (impl instanceof Assignment){

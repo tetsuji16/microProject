@@ -58,13 +58,11 @@ package com.projectlibre1.graphic.configuration;
 import java.awt.Point;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.commons.digester.Digester;
 
@@ -80,13 +78,22 @@ import com.projectlibre1.workspace.WorkspaceSetting;
 /**
  *
  */
-public class SpreadSheetFieldArray extends ArrayList implements NamedItem, Cloneable, WorkspaceSetting {
+public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem, Cloneable, WorkspaceSetting {
 	private static final long serialVersionUID = 6310711336308730391L;
-	transient Map map = new LinkedHashMap();
+	transient Map<String, String> map = new LinkedHashMap<>();
 	transient boolean userCreated = false;
 	ArrayList<Integer> widths = null;//new ArrayList<Integer>();
-	public Object clone() {
-		return super.clone();
+	@Override
+	public SpreadSheetFieldArray clone() {
+		SpreadSheetFieldArray copy = (SpreadSheetFieldArray) super.clone();
+		copy.map = new LinkedHashMap<>(map);
+		copy.widths = widths == null ? null : new ArrayList<>(widths);
+		return copy;
+	}
+
+	private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+		input.defaultReadObject();
+		map = new LinkedHashMap<>();
 	}
 
 	public SpreadSheetFieldArray() {
@@ -123,7 +130,7 @@ public class SpreadSheetFieldArray extends ArrayList implements NamedItem, Clone
 	}
 	public SpreadSheetFieldArray move(int oldPosition, int newPosition) {
 		SpreadSheetFieldArray f = makeEditableVersion();
-		Field field = (Field) f.remove(oldPosition);
+		Field field = f.remove(oldPosition);
 		//Integer w = f.widths.remove(oldPosition);
 		SpreadSheetFieldArray result = f.insertField(newPosition,field);
 		//result.widths.set(newPosition,w);
@@ -141,7 +148,12 @@ public class SpreadSheetFieldArray extends ArrayList implements NamedItem, Clone
 	public boolean equals(Object arg0) {
 		if (! (arg0 instanceof SpreadSheetFieldArray))
 			return false;
-		return name == ((SpreadSheetFieldArray)arg0).getName();
+		return Objects.equals(name, ((SpreadSheetFieldArray)arg0).getName());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hashCode(name);
 	}
 	private String name = null;
 	private String category;
@@ -276,7 +288,7 @@ public class SpreadSheetFieldArray extends ArrayList implements NamedItem, Clone
 		if (fieldId==null) return;
 		map.remove(fieldId);
 		for (int i = 0; i < size(); i++) {
-			Field field=(Field)get(i);
+			Field field=get(i);
 			if (fieldId.equals(field.getId())) {
 				remove(i);
 				//widths.remove(i);
@@ -295,10 +307,6 @@ public class SpreadSheetFieldArray extends ArrayList implements NamedItem, Clone
 		digester.addCallMethod("*/spreadsheet/columns/column", "addField", 	0);
 
 	}
-	public Object next() {
-		return null;
-	}
-
 	public static final SpreadSheetFieldArray getFromId(String category, String id) {
 		SpreadSheetFieldArray result = (SpreadSheetFieldArray) Dictionary.get(category, Messages.getString(id));
 		if (result == null)
@@ -315,7 +323,7 @@ public class SpreadSheetFieldArray extends ArrayList implements NamedItem, Clone
 	}
 
 	public final String getMappedValue(String key) {
-		return (String) map.get(key);
+		return map.get(key);
 	}
 
 	public static Object[] toIdArray(Object[] fieldArray) {
@@ -332,19 +340,19 @@ public class SpreadSheetFieldArray extends ArrayList implements NamedItem, Clone
 		return result;
 	}
 
-	public static Collection toIdArray(Collection fieldArray) {
-		ArrayList result = new ArrayList(fieldArray.size());
-		Iterator i = fieldArray.iterator();
-		while (i.hasNext()) {
-			result.add(TimeDistributedHelper.getIdForObject(i.next()));
+	public static Collection<String> toIdArray(Collection<?> fieldArray) {
+		ArrayList<String> result = new ArrayList<>(fieldArray.size());
+		for (Object field : fieldArray) {
+			result.add(TimeDistributedHelper.getIdForObject(field));
 		}
 		return result;
 	}
-	public static Collection fromIdArray(Collection fieldArray) {
-		ArrayList result = new ArrayList(fieldArray.size());
-		Iterator i = fieldArray.iterator();
-		while (i.hasNext()) {
-			result.add(TimeDistributedHelper.getObjectFromId((String) i.next()));
+	public static Collection<Field> fromIdArray(Collection<?> fieldArray) {
+		ArrayList<Field> result = new ArrayList<>(fieldArray.size());
+		for (Object id : fieldArray) {
+			Object field = TimeDistributedHelper.getObjectFromId((String) id);
+			if (field instanceof Field)
+				result.add((Field) field);
 		}
 		return result;
 	}
@@ -382,7 +390,7 @@ public class SpreadSheetFieldArray extends ArrayList implements NamedItem, Clone
 	public static class Workspace implements WorkspaceSetting {
 		private static final long serialVersionUID = -4517935309304612237L;
 		ArrayList<Integer> widths = new ArrayList<Integer>();
-		ArrayList fields = new ArrayList();
+		ArrayList<String> fields = new ArrayList<>();
 		float version=1.0f;
 	}
 

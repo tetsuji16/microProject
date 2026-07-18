@@ -56,6 +56,7 @@
 package com.projectlibre1.algorithm;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.commons.collections.Closure;
@@ -116,7 +117,7 @@ public class SelectFrom implements HasStartAndEnd {
 	protected IntervalGeneratorSet fromGenerators = null;	
 	
 	public Collection<IntervalGenerator> getFromIntervalGenerators() {
-		return fromGenerators.getGenerators();
+		return fromGenerators == null ? Collections.emptyList() : fromGenerators.getGenerators();
 	}
 	
 	public SelectFrom select(CalculationVisitor[] fieldVisitorArray) {
@@ -213,6 +214,11 @@ public class SelectFrom implements HasStartAndEnd {
 	 * @return true if all of the from generators are still active, false if one of them has been used up.
 	 */
 	public boolean calculate(long groupByStart, long groupByEnd) {
+		if (fromGenerators == null || fromGenerators.getGenerators().isEmpty()) {
+			finished = true;
+			resetCalculations();
+			return false;
+		}
 		if (finished) {// if the last item of a generator was processed in previous call
 			resetCalculations(); // since it is no longer active, should always return 0s from now on
 			return false;
@@ -221,7 +227,7 @@ public class SelectFrom implements HasStartAndEnd {
 			if (generator == null) // will be null on first call, and after the previously active generator has been evaluated
 				generator = fromGenerators.earliestEndingGenerator();
 
-			if (generator == null) { //could be case if there are no from generatros at all TODO is this test needed?
+			if (generator == null) {
 				finished = true;
 				break;
 			}

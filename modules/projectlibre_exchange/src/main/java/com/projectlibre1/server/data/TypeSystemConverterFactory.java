@@ -75,13 +75,10 @@ public class TypeSystemConverterFactory {
 			String className=Messages.getMetaString("TypeSystemConverter");
 			if (className!=null&&className.length()>0){
 				try {
-					converter=(TypeSystemConverter)Class.forName(className).newInstance();
-				} catch (InstantiationException e) {
-					logger.log(Level.WARNING, "Failed to instantiate type system converter", e);
-				} catch (IllegalAccessException e) {
-					logger.log(Level.WARNING, "Failed to access type system converter", e);
-				} catch (ClassNotFoundException e) {
-					logger.log(Level.WARNING, "Type system converter class not found", e);
+					converter = Class.forName(className).asSubclass(TypeSystemConverter.class)
+						.getDeclaredConstructor().newInstance();
+				} catch (ReflectiveOperationException | ClassCastException e) {
+					logger.log(Level.WARNING, "Failed to create type system converter " + className, e);
 				}
 			}
 		}

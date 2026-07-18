@@ -81,13 +81,9 @@ public class DistributionConverter {
 			}
 			if (className!=null){
 				try {
-					delegateClass=Class.forName(className);
-					delegate=delegateClass.newInstance();
-				} catch (InstantiationException e) {
-					logger.log(Level.WARNING, "Failed to create distribution converter delegate", e);
-				} catch (IllegalAccessException e) {
-					logger.log(Level.WARNING, "Failed to create distribution converter delegate", e);
-				} catch (ClassNotFoundException e) {
+					delegateClass = Class.forName(className);
+					delegate = delegateClass.getDeclaredConstructor().newInstance();
+				} catch (ReflectiveOperationException e) {
 					logger.log(Level.WARNING, "Failed to create distribution converter delegate", e);
 				}
 			}

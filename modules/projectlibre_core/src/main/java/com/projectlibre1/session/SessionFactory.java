@@ -91,18 +91,15 @@ public class SessionFactory {
 					String key = st.nextToken();
 					String implClass=Messages.getMetaString(key);
 					if (implClass!=null){
-			            try {
-			            	Session session = (Session) ClassUtils.forName(implClass).newInstance();
+						try {
+							Session session = ClassUtils.forName(implClass).asSubclass(Session.class)
+								.getDeclaredConstructor().newInstance();
 			            	//session.init(credentials);
-		            	if (session.getJobQueue()==null) session.setJobQueue(getJobQueue()); //because this method is called before jobQueue is set
+							if (session.getJobQueue()==null) session.setJobQueue(getJobQueue()); //because this method is called before jobQueue is set
 			            	sessionImpls.put(key.substring(key.lastIndexOf('.')+1), session);
-			            } catch (InstantiationException e) {
-			                logger.log(Level.WARNING, "Error", e);
-			            } catch (IllegalAccessException e) {
-			                logger.log(Level.WARNING, "Error", e);
-			            } catch (ClassNotFoundException e) {
-			                logger.log(Level.WARNING, "Error", e);
-			            }
+						} catch (ReflectiveOperationException | ClassCastException e) {
+							logger.log(Level.WARNING, "Failed to create session implementation " + implClass, e);
+						}
 					}
 				}
     		}

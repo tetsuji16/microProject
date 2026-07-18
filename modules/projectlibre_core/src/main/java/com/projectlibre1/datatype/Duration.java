@@ -107,9 +107,6 @@ public class Duration extends Number implements Comparable {
 	public static final Duration ZERO = new Duration(0); 
 	public void setWork(boolean work) {
 		this.work = work;
-//TODO figure out why lines below don't work when formatting
-//		if (work)
-//			encodedMillis = Duration.setAsTimeUnit(encodedMillis,ScheduleOption.getInstance().getWorkUnit());
 	}
 	
 	public boolean isWork() {
@@ -264,7 +261,7 @@ public class Duration extends Number implements Comparable {
 	}
 
 	public static long setAsElapsedHours(long duration) {
-		return setBits(duration, ELAPSED_AND_UNITS_MASK, ELAPSED_BIT | SECONDS_BIT);
+		return setBits(duration, ELAPSED_AND_UNITS_MASK, ELAPSED_BIT | HOURS_BIT);
 	}
 
 	public static long setAsDays(long duration) {
@@ -403,8 +400,6 @@ public class Duration extends Number implements Comparable {
 			return getPercentAsDecimal(duration);
 		} else {
 			return ((double)millis(duration)) / timeUnitFactor(type);
-			//TODO confirm no rounding error above
-			
 		}
 	}
 	public static int getType(long duration) {

@@ -21,4 +21,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build with Gradle
-        run: ./gradlew clean build -x test installDist --console=plain
+        run: bash ./gradlew clean build -x test installDist --console=plain

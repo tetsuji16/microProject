@@ -93,9 +93,9 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	private final List<Project> projects = new ArrayList<Project>();
 	private ObjectEventManager objectEventManager = new ObjectEventManager();
 	private transient MultipleTransactionManager multipleTransactionManager = new MultipleTransactionManager();
-	private int resourceIdCounter = 0;
+	private long resourceIdCounter = 0;
 	private WorkingCalendar defaultCalendar;
-    private static ResourcePool globalPool = null; // TODO is it ok to be global?
+    private static ResourcePool globalPool = null;
 	protected ResourcePool(String name,DataFactoryUndoController undo) {
 		this.name = name;
 		globalPool = this;
@@ -121,9 +121,19 @@ public class ResourcePool implements Document, NodeModelDataFactory {
         return idMap.get(id);
 	}
 	public void initializeId(Resource resource) {
-		long id = ++resourceIdCounter;
-		resource.setId(id); //starts at 1TODO check for duplicates -
-		//resource.setUniqueId(id); //TODO use a GUID generator
+		long id;
+		do {
+			id = ++resourceIdCounter;
+		} while (containsResourceId(id, resource));
+		resource.setId(id);
+	}
+
+	private boolean containsResourceId(long id, Resource excluded) {
+		for (Resource resource : resourceList) {
+			if (resource != excluded && resource.getId() == id)
+				return true;
+		}
+		return false;
 	}
 	
 	public void initializeOutlines(){
@@ -146,9 +156,12 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	}
 	public void add(Resource resource) {
 		resourceList.add(resource);
+		resourceIdCounter = Math.max(resourceIdCounter, resource.getId());
+		idMap = null;
 	}
 	public void remove(Resource resource) {
 		resourceList.remove(resource);
+		idMap = null;
 	}
 	
 	public ResourceImpl newResourceInstance() {

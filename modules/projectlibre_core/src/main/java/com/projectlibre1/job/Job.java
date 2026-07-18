@@ -332,7 +332,10 @@ public class Job extends Thread {
 								}else if (progressMonitor.isClosed()) break;
 								try {
 									sleep(100);
-								} catch (InterruptedException e) {}
+								} catch (InterruptedException e) {
+									interrupt();
+									return;
+								}
 							}
 						}
 					};

@@ -145,15 +145,7 @@ public class ApplicationStartupFactory extends StartupFactory {
 				password=getOpt("credentials",2);
 			} else if ("session".equals(authType)){
 				String partnerConnectionString =getOpt("credentials",2);
-				String timestamp=getOpt("timestamp");
-				long d=0L;
-				if (timestamp!=null){
-					try {
-						d=System.currentTimeMillis()-Long.parseLong(timestamp);
-					} catch (NumberFormatException e) {}
-				}
 				String sessionId=getOpt("credentials",1);
-				//if (sessionId!=null&&d<=SESSION_EXPIRATION)
 				if (sessionId!=null||partnerConnectionString!=null)
 				try{
 					Properties props=new Properties();

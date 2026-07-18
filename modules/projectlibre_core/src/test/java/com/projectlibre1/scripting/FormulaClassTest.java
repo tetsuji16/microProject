@@ -43,4 +43,18 @@ class FormulaClassTest {
 				result.get();
 		}
 	}
+
+	@Test
+	void addingTheSameFormulaNameReplacesItsDefinition() throws Exception {
+		FormulaClass formulas = new FormulaClass("ReplaceFormulaClassTestScript");
+		ScriptedFormula original = new ScriptedFormula("calculate", "value", "value * 2");
+		formulas.add(original);
+		assertEquals(10, original.evaluate(5));
+
+		ScriptedFormula replacement = new ScriptedFormula("calculate", "value", "value * 3");
+		formulas.add(replacement);
+
+		assertEquals(15, replacement.evaluate(5));
+		assertEquals(15, original.evaluate(5));
+	}
 }

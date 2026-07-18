@@ -74,6 +74,7 @@ import javax.swing.tree.TreePath;
 import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
 
+import com.projectlibre1.association.Association;
 import com.projectlibre1.association.AssociationList;
 import com.projectlibre1.document.Document;
 import com.projectlibre1.field.Field;
@@ -401,8 +402,8 @@ public class DefaultNodeModel implements NodeModel {
 		implMap.put(oldNodeImpl, newNodeImpl);
 		if (oldNodeImpl instanceof Task){
 			Task t=(Task)oldNodeImpl;
-			predecessors.addAll(t.getDependencyList(true));
-			successors.addAll(t.getDependencyList(false));
+			addDependencies(predecessors, t.getDependencyList(true));
+			addDependencies(successors, t.getDependencyList(false));
 		}
 		Object parentImpl = (newParent==null)?null:newParent.getImpl();
 		NodeModelDataFactory factory = getFactory(parentImpl);
@@ -415,6 +416,12 @@ public class DefaultNodeModel implements NodeModel {
 		if (parentImpl != null&& parentImpl instanceof Task)
 			((Task)parentImpl).setWbsChildrenNodes(getHierarchy().getChildren(newParent)); //rebuild children task's wbs cache
 		return newNode;
+	}
+	private static void addDependencies(Set<Dependency> target, AssociationList source) {
+		for (Association association : source) {
+			if (association instanceof Dependency)
+				target.add((Dependency) association);
+		}
 	}
 	private Object cloneNodeImpl(Object impl){
 				if (impl instanceof VoidNodeImpl){

@@ -58,6 +58,7 @@ package com.projectlibre1.script;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Collections;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -77,7 +78,7 @@ public class ContextStore  implements NamedItem {
 
 	protected String name = null;
 	protected String id = null;
-	protected Map<Integer, List<ConverterContext>> contexts=new HashMap<Integer, List<ConverterContext>>();
+	protected Map<Integer, List<ConverterContext>> contexts=new HashMap<>();
 
 
 	public String getCategory() {
@@ -113,7 +114,7 @@ public class ContextStore  implements NamedItem {
 			list=new ArrayList<ConverterContext>();
 			contexts.put(ctx.getType(),list);
 		}
-		if (ctx.getName() == null) //TODO contexts should be named
+		if (ctx.getName() == null && ctx.getFieldArrayId() != null)
 			ctx.setName(Messages.getString(ctx.getFieldArrayId()));
 		list.add(ctx);
 	}
@@ -127,12 +128,11 @@ public class ContextStore  implements NamedItem {
 //			System.out.println("\tctx="+ctx);
 //	}
 		List<ConverterContext> ctxs=contexts.get(type);
-		List<ConverterContext> c=null;
-		if (ctxs!=null){
-			c=new ArrayList<ConverterContext>(ctxs.size());
-			for (ConverterContext ctx: ctxs){
-				if (filter==null||filter.evaluate(ctx)) c.add((ConverterContext)ctx.clone());
-			}
+		if (ctxs == null)
+			return Collections.emptyList();
+		List<ConverterContext> c = new ArrayList<>(ctxs.size());
+		for (ConverterContext ctx: ctxs){
+			if (filter==null||filter.evaluate(ctx)) c.add((ConverterContext)ctx.clone());
 		}
 		return c;
 	}
@@ -146,7 +146,10 @@ public class ContextStore  implements NamedItem {
 //		return contexts.get(type);
 //	}
 	public  ConverterContext createDefaultContext(int type){
-		ConverterContext ctx=contexts.get(type).get(0);
+		List<ConverterContext> available = contexts.get(type);
+		if (available == null || available.isEmpty())
+			return null;
+		ConverterContext ctx=available.get(0);
 		if (ctx==null) return null;
 		else{
 			ConverterContext c=(ConverterContext)ctx.clone();

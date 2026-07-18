@@ -569,7 +569,12 @@ public PagePanel getPagePanel() {
 						defaultCursor=null;
 					}
 				}
-			} catch (NoninvertibleTransformException e1) {}
+			} catch (NoninvertibleTransformException e1) {
+				if (defaultCursor != null) {
+					setCursor(defaultCursor);
+					defaultCursor = null;
+				}
+			}
 	    }
 	}
 }

@@ -65,6 +65,8 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.swing.Action;
 import javax.swing.ActionMap;
@@ -96,6 +98,7 @@ import com.projectlibre1.util.Alert;
  *
  */
 public class NodeListTransferHandler extends TransferHandler {
+	    private static final Logger logger = Logger.getLogger(NodeListTransferHandler.class.getName());
 	    public NodeListTransferHandler(SpreadSheet spreadSheet){
 	    	super();
 	    	this.spreadSheet=spreadSheet;
@@ -241,8 +244,10 @@ public class NodeListTransferHandler extends TransferHandler {
 	        			}
 	        			return true;
 	        		}else return false;
-	            } catch (UnsupportedFlavorException ufe) {
-	            } catch (IOException ioe) { }
+	            } catch (UnsupportedFlavorException | IOException e) {
+	                logger.log(Level.FINE, "Failed to import spreadsheet clipboard data", e);
+	                return false;
+	            }
 	        }
 	        return false;
 	    }

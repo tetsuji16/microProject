@@ -302,7 +302,8 @@ public class LocalSession extends AbstractSession{
 			}
         });
 		try {
-			final FileImporter importer = (FileImporter) ClassUtils.forName(opt.getImporter()).newInstance();
+			final FileImporter importer = ClassUtils.forName(opt.getImporter()).asSubclass(FileImporter.class)
+				.getDeclaredConstructor().newInstance();
 	    	importer.setFileName(opt.getFileName());
 	    	importer.setFileInputStream(opt.getFileInputStream());
 	    	importer.setResourceMapping(opt.getResourceMapping());
@@ -345,11 +346,7 @@ public class LocalSession extends AbstractSession{
 	 			
 	    		}
 	    	});
-		} catch (InstantiationException e) {
-			logger.log(Level.WARNING, "Failed to create importer", e);
-		} catch (IllegalAccessException e) {
-			logger.log(Level.WARNING, "Failed to create importer", e);
-		} catch (ClassNotFoundException e) {
+		} catch (ReflectiveOperationException | ClassCastException e) {
 			logger.log(Level.WARNING, "Failed to create importer", e);
 		}
      	return job;
@@ -359,12 +356,9 @@ public class LocalSession extends AbstractSession{
     public static FileImporter getImporter(String name){
 		FileImporter importer=null;
 		try {
-			importer=(FileImporter) ClassUtils.forName(name).newInstance();
-		} catch (InstantiationException e) {
-			logger.log(Level.WARNING, "Failed to create importer", e);
-		} catch (IllegalAccessException e) {
-			logger.log(Level.WARNING, "Failed to create importer", e);
-		} catch (ClassNotFoundException e) {
+			importer = ClassUtils.forName(name).asSubclass(FileImporter.class)
+				.getDeclaredConstructor().newInstance();
+		} catch (ReflectiveOperationException | ClassCastException e) {
 			logger.log(Level.WARNING, "Failed to create importer", e);
 		}
     	return importer;

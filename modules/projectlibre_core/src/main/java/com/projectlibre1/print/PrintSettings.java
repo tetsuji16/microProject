@@ -112,8 +112,9 @@ public class PrintSettings implements WorkspaceSetting,Cloneable{
 				for (ScalingSettings s: scalingSettings) c.scalingSettings.add((ScalingSettings)s.clone());
 			}
 			return c;
-		} catch (CloneNotSupportedException e) {}
-		return null;
+		} catch (CloneNotSupportedException e) {
+			throw new AssertionError("PrintSettings must remain Cloneable", e);
+		}
 	}
 
 	public ArrayList<ScalingSettings> getScalingSettings() {

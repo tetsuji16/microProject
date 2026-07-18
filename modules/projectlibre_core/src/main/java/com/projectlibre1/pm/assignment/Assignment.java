@@ -65,6 +65,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Collections;
+import java.util.List;
 
 import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
@@ -81,6 +82,7 @@ import com.projectlibre1.algorithm.SelectFrom;
 import com.projectlibre1.algorithm.TimeIteratorGenerator;
 import com.projectlibre1.algorithm.buffer.CalculatedValues;
 import com.projectlibre1.association.Association;
+import com.projectlibre1.association.AssociationList;
 import com.projectlibre1.association.InvalidAssociationException;
 import com.projectlibre1.configuration.Configuration;
 import com.projectlibre1.datatype.CanSupplyRateUnit;
@@ -1091,6 +1093,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public void doUpdateService(Object eventSource) {
 		getUnitsField().fireEvent(this,this,null); // need to update
 
+	}
+	@Override
+	public Collection<AssociationList> getAssociationLists() {
+		return List.of(((NormalTask) getTask()).getAssignments(), getResource().getAssignments());
 	}
 	public  boolean isDefault() {
 		return getTask() == NormalTask.getUnassignedInstance()

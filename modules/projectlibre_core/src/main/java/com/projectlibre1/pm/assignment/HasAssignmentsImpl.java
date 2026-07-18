@@ -74,6 +74,7 @@ import com.projectlibre1.algorithm.TimeIteratorGenerator;
 import com.projectlibre1.algorithm.buffer.CalculatedValues;
 import com.projectlibre1.algorithm.buffer.IntervalCallback;
 import com.projectlibre1.algorithm.buffer.NonGroupedCalculatedValues;
+import com.projectlibre1.association.Association;
 import com.projectlibre1.association.AssociationList;
 import com.projectlibre1.field.FieldContext;
 import com.projectlibre1.functor.CollectionVisitor;
@@ -253,10 +254,12 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	public void updateAssignment(Assignment modified) {
-		@SuppressWarnings("unchecked")
-		ListIterator<Assignment> i = (ListIterator<Assignment>) assignments.listIterator();
+		ListIterator<Association> i = assignments.listIterator();
 		while (i.hasNext()) {
-			Assignment current = i.next();
+			Association association = i.next();
+			if (!(association instanceof Assignment))
+				continue;
+			Assignment current = (Assignment) association;
 			if (current.getTask() == modified.getTask() && current.getResource() == modified.getResource()) {
 				i.set(modified); // replace current with new one
 				break;
@@ -410,15 +413,18 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		}
 	}
 
-    public static List extractOppositeList(List list, boolean leftObject) {
-    	Iterator<?> i = list.iterator();
-    	ArrayList<Assignment> assignments = new ArrayList<Assignment>();
+    public static List<Object> extractOppositeList(List<?> list, boolean leftObject) {
+		Iterator<?> i = list.iterator();
+		ArrayList<Assignment> assignments = new ArrayList<>();
     	while (i.hasNext()) { // go thru tasks or resources
     		Object object = i.next();
 			if (! (object instanceof HasAssignments))
 				continue;
 			HasAssignments hasAssignments = (HasAssignments)object;
-			assignments.addAll(hasAssignments.getAssignments());
+			for (Association association : hasAssignments.getAssignments()) {
+				if (association instanceof Assignment)
+					assignments.add((Assignment) association);
+			}
 		}
 		return AssociationList.extractDistinct(assignments,leftObject);
     }
