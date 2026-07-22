@@ -56,9 +56,6 @@
 package com.projectlibre1.reports.adapter;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
 import net.sf.jasperreports.engine.JRBand;
 import net.sf.jasperreports.engine.JRDataSource;
@@ -129,15 +126,11 @@ public class DataSourceProvider implements JRDataSourceProvider {
 	public static final String COLLECTION_TYPE_PROPERTY="collectionType";
 	public static final String OUTLINE_PROPERTY="outline";
 	public static final String TIME_BASED="timeBased";
-	private static DataSourceProvider instance = null;
-	private JRField[] reportFields = null;
+	private static final DataSourceProvider INSTANCE = new DataSourceProvider();
+	private volatile JRField[] reportFields = null;
 	public static DataSourceProvider getInstance() {
-		if (instance == null)
-			instance = new DataSourceProvider();
-		return instance;
+		return INSTANCE;
 	}
-	
-	private final Map<JRField, Field> map = new HashMap<JRField, Field>();
 
 	private static void applyFont(JRDesignTextElement textElement, JRDesignFont font) {
 		textElement.setFontName(font.getFontName());
@@ -150,31 +143,37 @@ public class DataSourceProvider implements JRDataSourceProvider {
 		textElement.setPdfEncoding(font.getPdfEncoding());
 		textElement.setPdfEmbedded(font.isOwnPdfEmbedded());
 	}
-public boolean supportsGetFieldsOperation() {
+	public boolean supportsGetFieldsOperation() {
 		return true;
 	}
-	@SuppressWarnings("unchecked")
-	private void initFields() {
-		Collection<Field> allFields = (Collection<Field>) Configuration.getAllFields();
-		reportFields = new JRField[allFields.size()];
+	private synchronized void initFields() {
+		if (reportFields != null)
+			return;
+		Collection<Field> allFields = Configuration.getAllFields();
+		JRField[] initializedFields = new JRField[allFields.size()];
 		int index = 0;
-		Iterator<Field> i = allFields.iterator();
-		JRDesignField newOne;
-		while (i.hasNext()) {
-			Field field = i.next();
-			newOne = new JRDesignField();
+		for (Field field : allFields) {
+			JRDesignField newOne = new JRDesignField();
 			newOne.setName(field.getId());
 			newOne.setDescription(field.getName());
-			newOne.setValueClass(field.getClazz());
-			newOne.setValueClassName(field.getDisplayType().getName()); //TODO what should this be?
-			reportFields[index++] = newOne;
-			map.put(newOne, field);
+			newOne.setValueClass(reportValueClass(field));
+			initializedFields[index++] = newOne;
 		}
+		reportFields = initializedFields;
 	}
+
+	static Class<?> reportValueClass(Field field) {
+		if (field.isRate() || field.isMoney())
+			return Double.class;
+		if (field.isDurationOrWork())
+			return Long.class;
+		return field.getDisplayType();
+	}
+
 	public JRField[] getFields(JasperReport arg0) throws JRException, UnsupportedOperationException {
 		if (reportFields == null)
 			initFields();
-		return reportFields;
+		return reportFields.clone();
 	}
 
 	
@@ -297,7 +296,7 @@ public boolean supportsGetFieldsOperation() {
 //		return resourceModel;
 //	}
 public void dispose(JRDataSource arg0) throws JRException {
-		map.clear();
+		// No per-data-source resources are retained by this provider.
 	}
 
 	public static Object fieldValueConverterToPrimitiveType(Field field,Object fieldValue) {

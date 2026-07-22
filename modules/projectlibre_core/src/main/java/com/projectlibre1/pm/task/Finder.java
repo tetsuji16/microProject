@@ -56,7 +56,7 @@
 package com.projectlibre1.pm.task;
 
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.Objects;
 
 import com.projectlibre1.pm.key.HasKey;
 
@@ -66,35 +66,25 @@ import com.projectlibre1.pm.key.HasKey;
  *
  */
 public class Finder {
-	public static Object findByName(Object find, Collection container) {
-		Iterator i = container.iterator();
-		String id = (String)find;
-		HasKey current;
-		while (i.hasNext()) {
-			current = (HasKey)i.next();
-			if (current.getName().equals(id))
+	public static <T extends HasKey> T findByName(Object find, Collection<T> container) {
+		String name = (String)find;
+		for (T current : container) {
+			if (Objects.equals(current.getName(), name))
 				return current;
 		}
 		return null;
 	}
-	public static Object findById(Object find, Collection container) {
-		Iterator i = container.iterator();
-		int id = ((Integer)find).intValue();
-		HasKey current;
-		while (i.hasNext()) {
-			current = (HasKey)i.next();
+	public static <T extends HasKey> T findById(Object find, Collection<T> container) {
+		long id = ((Number)find).longValue();
+		for (T current : container) {
 			if (current.getId() == id)
 				return current;
 		}
 		return null;
 	}
-	//TODO this is a temporary implementation.  Should work with hash table or check server
-	public static Object findByUniqueId(Object find, Collection container) {
-		Iterator i = container.iterator();
-		long uniqueId = ((Long)find).longValue();
-		HasKey current;
-		while (i.hasNext()) {
-			current = (HasKey)i.next();
+	public static <T extends HasKey> T findByUniqueId(Object find, Collection<T> container) {
+		long uniqueId = ((Number)find).longValue();
+		for (T current : container) {
 			if (current.getUniqueId() == uniqueId)
 				return current;
 		}

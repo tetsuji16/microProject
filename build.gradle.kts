@@ -28,6 +28,7 @@ val projectLibreMavenDependencyAliases = listOf(
     "org-netbeans-swing-outline",
     "radiance-neon",
     "radiance-trident",
+    "flamingo",
     "javax-activation-api",
     "javax-jaxb-api",
     "jaxb-runtime",

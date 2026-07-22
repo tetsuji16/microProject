@@ -56,6 +56,7 @@
 package org.projectlibre.core.configuration;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -138,10 +139,14 @@ public class Configuration {
 			Unmarshaller unmarshaller = context.createUnmarshaller();
 			unmarshaller.setSchema(null);
 			unmarshaller.setListener(new DictionaryListener());
-			InputStream in = Configuration.class.getClassLoader().getResourceAsStream(resourceName);
-			//TODO handle null case if not found
-			return unmarshaller.unmarshal(in);
-		} catch(JAXBException e) {
+			try (InputStream in = Configuration.class.getClassLoader().getResourceAsStream(resourceName)) {
+				if (in == null) {
+					logger.log(Level.SEVERE, "Configuration resource not found: {0}", resourceName);
+					return null;
+				}
+				return unmarshaller.unmarshal(in);
+			}
+		} catch(JAXBException | IOException e) {
 			logger.log(Level.SEVERE, "Failed to load configuration {0}", resourceName);
 			logger.log(Level.FINE, "Configuration load failure", e);
 		}

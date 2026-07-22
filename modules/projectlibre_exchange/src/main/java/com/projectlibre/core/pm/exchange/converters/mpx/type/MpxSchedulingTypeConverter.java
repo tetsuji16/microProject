@@ -57,6 +57,7 @@ package com.projectlibre.core.pm.exchange.converters.mpx.type;
 
 import com.projectlibre.core.fields.FieldTypeConverter;
 import com.projectlibre.pm.scheduling.SchedulingType;
+import com.projectlibre1.exchange.mpxj.MpxjApi;
 
 
 /**
@@ -68,13 +69,13 @@ public class MpxSchedulingTypeConverter extends FieldTypeConverter {
 	@Override
 	public Object from(Object o) {
 		net.sf.mpxj.TaskType st=(net.sf.mpxj.TaskType)o;
-		return SchedulingType.getInstance(st.getValue());
+		return SchedulingType.getInstance(MpxjApi.schedulingTypeId(st));
 	}
 
 	@Override
 	public Object to(Object o) {
 		SchedulingType st=(SchedulingType)o;
-		return net.sf.mpxj.TaskType.getInstance(st.getId());
+		return MpxjApi.taskType(st.getId());
 	}
 
 }

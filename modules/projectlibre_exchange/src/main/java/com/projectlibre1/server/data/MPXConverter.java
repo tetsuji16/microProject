@@ -81,6 +81,7 @@ import net.sf.mpxj.ProjectCalendarException;
 import net.sf.mpxj.ProjectCalendarHours;
 import net.sf.mpxj.ProjectProperties;
 import net.sf.mpxj.Resource;
+import net.sf.mpxj.ResourceField;
 import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.Task;
 import net.sf.mpxj.TaskType;
@@ -89,6 +90,7 @@ import net.sf.mpxj.WorkContour;
 import net.sf.mpxj.mspdi.DatatypeConverter;
 
 import com.projectlibre1.exchange.ImportedCalendarService;
+import com.projectlibre1.exchange.mpxj.MpxjApi;
 import com.projectlibre1.configuration.Configuration;
 import com.projectlibre1.contrib.util.Log;
 import com.projectlibre1.contrib.util.LogFactory;
@@ -176,7 +178,7 @@ public class MPXConverter {
 			ProjectCalendarHours mpxDay = null;
 			Day d = Day.getInstance(i+1);
 			if (day == null) {
-				mpx.setWorkingDay(d,DayType.DEFAULT); // claur
+				mpx.setCalendarDayType(d,DayType.DEFAULT); // claur
 			} else {
 				mpx.setWorkingDay(d,day.isWorking());
 				if (day.isWorking()) {
@@ -217,7 +219,7 @@ public class MPXConverter {
 
 		for (WorkRange range:(List<WorkRange>)workingHours.getIntervals()) { //claur
 			if (range!=null)
-				mpxDay.addRange(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));
+				mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));
 		}
 	}
 
@@ -229,17 +231,17 @@ public class MPXConverter {
 
 		range=workingHours.getInterval(0);
 		if (range!=null){
-			mpxDay.addRange(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime()))); //claur
+			mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime()))); //claur
 		}
 
 		range=workingHours.getInterval(1);
 		if (range!=null){
-			mpxDay.addRange(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));//claur
+			mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));//claur
 		}
 
 		range=workingHours.getInterval(2);
 		if (range!=null){
-			mpxDay.addRange(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));//claur
+			mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));//claur
 		}
 	}
 
@@ -248,12 +250,9 @@ public class MPXConverter {
 		mpxResource.setName(removeInvalidChars(projectlibreResource.getName()));
 		mpxResource.setNotes(removeInvalidChars(projectlibreResource.getNotes()));
 		mpxResource.setAccrueAt(AccrueType.getInstance(projectlibreResource.getAccrueAt()));
-		mpxResource
-				.setCostPerUse(Double.valueOf(projectlibreResource.getCostPerUse()));
-		mpxResource.setStandardRate(toMPXRate(projectlibreResource
-				.getStandardRate()));
-		mpxResource.setOvertimeRate(toMPXRate(projectlibreResource
-				.getOvertimeRate()));
+		mpxResource.set(ResourceField.COST_PER_USE, Double.valueOf(projectlibreResource.getCostPerUse()));
+		mpxResource.set(ResourceField.STANDARD_RATE, toMPXRate(projectlibreResource.getStandardRate()));
+		mpxResource.set(ResourceField.OVERTIME_RATE, toMPXRate(projectlibreResource.getOvertimeRate()));
 		mpxResource.setGroup(projectlibreResource.getGroup());
 		mpxResource.setEmailAddress(projectlibreResource.getEmailAddress());
 		mpxResource.setGeneric(projectlibreResource.isGeneric()); // fix for 2024492
@@ -274,7 +273,7 @@ public class MPXConverter {
 			ProjectCalendar mpxCalendar = ImportedCalendarService.getInstance().findExportedCalendar(projectlibreCalendar);
 			if (mpxCalendar == null) {
 				try {
-					mpxCalendar = mpxResource.addResourceCalendar();
+					mpxCalendar = mpxResource.addCalendar();
 				} catch (MPXJException e) {
 					logger.log(Level.WARNING, "Failed to add resource calendar", e);
 					return;
@@ -360,7 +359,7 @@ public class MPXConverter {
     	}
 
 
-    	mpxAssignment.setWorkContour(WorkContour.getInstance(assignment.getWorkContourType()));
+		mpxAssignment.setWorkContour(MpxjApi.workContour(assignment.getWorkContourType()));
 
 
 	}
@@ -399,7 +398,7 @@ private static int autoId = 0;
 		mpxTask.setCritical(Boolean.valueOf(projectlibreTask.isCritical()));
 		mpxTask.setEstimated(projectlibreTask.isEstimated());
 		mpxTask.setEffortDriven(projectlibreTask.isEffortDriven());
-		mpxTask.setType(TaskType.getInstance(projectlibreTask.getSchedulingType()));
+		mpxTask.setType(MpxjApi.taskType(projectlibreTask.getSchedulingType()));
 		mpxTask.setConstraintType(ConstraintType.getInstance(projectlibreTask.getConstraintType()));
 		mpxTask.setConstraintDate(DateTime.fromGmt(new Date(projectlibreTask.getConstraintDate())));
 		mpxTask.setPriority(Priority.getInstance(projectlibreTask.getPriority()));

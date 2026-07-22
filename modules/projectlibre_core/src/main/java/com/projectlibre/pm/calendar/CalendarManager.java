@@ -82,7 +82,8 @@ public class CalendarManager implements Iterable<WorkCalendar>{
 	}
 	public WorkCalendar removeBaseCalendar(WorkCalendar calendar){
 		WorkCalendar removedCalendar=baseCalendarsById.remove(calendar.getId());
-		baseCalendarsByName.remove(calendar.getName()); //TODO check indicated id/name is valid. It can lead to inconsistencies otherwise
+		if (removedCalendar != null)
+			baseCalendarsByName.entrySet().removeIf(entry -> entry.getValue() == removedCalendar);
 		return removedCalendar;
 	}
 	public void fixBaseCalendar(WorkCalendar calendar, String nameSuffix){

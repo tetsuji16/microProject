@@ -112,7 +112,7 @@ public class Configuration implements ProvidesDigesterEvents {
 		return getFieldFromId("Field."+id);
 	}
 	
-	public static Collection getAllFields() {
+	public static Collection<Field> getAllFields() {
 		return getInstance().getFieldDictionary().getAllFields();
 	}
 	/**

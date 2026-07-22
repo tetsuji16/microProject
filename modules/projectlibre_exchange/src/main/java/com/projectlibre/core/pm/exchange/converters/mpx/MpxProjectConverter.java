@@ -79,8 +79,8 @@ public class MpxProjectConverter {
 		FieldUtil.convertFields(project, net.sf.mpxj.ProjectProperties.class, mpxProjectHeader, fieldsToConvert, true);
 
 		WorkCalendar calendar=null;;
-		if (mpxProjectHeader.getDefaultCalendarName()!=null)
-			calendar=state.getMappedBaseCalendar(mpxProjectHeader.getDefaultCalendarName());
+		if (mpxProjectHeader.getDefaultCalendar()!=null)
+			calendar=state.getMappedBaseCalendar(mpxProjectHeader.getDefaultCalendar().getName());
 		if (calendar==null) calendar=state.getCalendarManager().getStandardBaseCalendar();
 		project.setCalendar(calendar);
 	}

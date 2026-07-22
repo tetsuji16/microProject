@@ -17,7 +17,7 @@ import junit.framework.TestCase;
 import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.Task;
 import net.sf.mpxj.writer.ProjectWriter;
-import net.sf.mpxj.writer.ProjectWriterUtility;
+import com.projectlibre1.exchange.mpxj.ProjectWriterFactory;
 
 import com.projectlibre1.collaboration.CollaborationMetadataStore;
 import com.projectlibre1.collaboration.CollaborationSession;
@@ -312,7 +312,7 @@ public class CollaborationConflictTest extends TestCase {
 		second.setName(secondTaskName);
 		second.setUniqueID(Integer.valueOf(2));
 
-		ProjectWriter writer = ProjectWriterUtility.getProjectWriter(file.getAbsolutePath());
+		ProjectWriter writer = ProjectWriterFactory.forFile(file.getAbsolutePath());
 		writer.write(project, file);
 		return file;
 	}

@@ -101,7 +101,7 @@ public class MpxCalendarConverter {
 		for (int i=0; i<7; i++) {
 			Day mpxDayId=Day.getInstance(i+1);
 			ProjectCalendarHours mpxDay=mpxCalendar.getCalendarHours(mpxDayId);
-			net.sf.mpxj.DayType mpxDayType=mpxCalendar.getWorkingDay(mpxDayId);
+			net.sf.mpxj.DayType mpxDayType=mpxCalendar.getDayType(mpxDayId);
 			WorkDay day=null;
 			if (mpxDay == null) {
 				if (mpxCalendar.isDerived() &&

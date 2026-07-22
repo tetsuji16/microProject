@@ -112,7 +112,7 @@ import com.projectlibre1.util.DateTime;
 import com.projectlibre1.util.Environment;
 
 import net.sf.mpxj.writer.ProjectWriter;
-import net.sf.mpxj.writer.ProjectWriterUtility;
+import com.projectlibre1.exchange.mpxj.ProjectWriterFactory;
 import com.projectlibre1.exchange.xlsx.ProjectLibreXlsxWriter;
 /**
  * This class is based on the project mpxj http://www.tapsterrock.com/mpxj/
@@ -436,7 +436,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 			return serializer.saveProject(project, out);
 		}
 
-		ProjectWriter writer = ProjectWriterUtility.getProjectWriter(targetFileName);
+		ProjectWriter writer = ProjectWriterFactory.forFile(targetFileName);
 		writer.write(serializer.serializeProject(project).getProjectFile(), out);
 		return true;
 	}

@@ -1,9 +1,5 @@
 import org.gradle.jvm.tasks.Jar
 
-val legacyBridgeJars: List<String> = emptyList()
-
-val reportsBridgeJars: List<String> = emptyList()
-
 dependencies {
     api(libs.bundles.commons.legacy)
     api(libs.bundles.jackson)
@@ -16,9 +12,8 @@ dependencies {
     api(libs.pdfbox)
     api(libs.radiance.neon)
     api(libs.radiance.trident)
+    api(libs.flamingo)
     api(libs.slf4j.api)
-    implementation(files(legacyBridgeJars))
-    api(files(reportsBridgeJars))
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")

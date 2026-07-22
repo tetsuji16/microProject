@@ -56,7 +56,6 @@
 package com.projectlibre.core.fields;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
@@ -168,7 +167,7 @@ public class FieldUtil {
 				//convert
 				if (converterName!=null){
 					if (value==null) return;
-					FieldTypeConverter converter = (FieldTypeConverter)Class.forName(converterName).newInstance();
+					FieldTypeConverter converter = (FieldTypeConverter)Class.forName(converterName).getDeclaredConstructor().newInstance();
 					value=converter.convert(value, from);
 				}
 				
@@ -185,25 +184,14 @@ public class FieldUtil {
 				//convert
 				if (converterName!=null){
 					if (value==null) return;
-					FieldTypeConverter converter = (FieldTypeConverter)Class.forName(converterName).newInstance();
+					FieldTypeConverter converter = (FieldTypeConverter)Class.forName(converterName).getDeclaredConstructor().newInstance();
 					value=converter.convert(value, from);
 				}
+				if (value==null) return;
 				
 				//set
-				Method method=null;
-				Method methods[]=inClass.getMethods();
 				String methodToFind=toSetterMethodName(fieldName2);
-				for (Method m : methods){
-					if (m.getName().equals(methodToFind)){ //TODO check types too
-						Class<?>[] parameterTypes=m.getParameterTypes();
-						if ((index2==-1&&parameterTypes.length==1) ||
-								(index2!=-1&&parameterTypes.length==2&&"int".equals(parameterTypes[0].getName()))){
-							method=m;
-							break;
-
-						}
-					}
-				}
+				Method method=findCompatibleSetter(inClass, methodToFind, index2 != -1, value.getClass());
 				if (method==null){
 					log.info("Method not found: "+hasFields.getClass()+" "+methodToFind);
 					return;
@@ -217,21 +205,47 @@ public class FieldUtil {
 
 				
 			}
-		} catch (InstantiationException e) {
-			log.log(java.util.logging.Level.WARNING, "Error", e);
-		} catch (ClassNotFoundException e) {
-			log.log(java.util.logging.Level.WARNING, "Error", e);
 		} catch (SecurityException e) {
 			log.log(java.util.logging.Level.WARNING, "Error", e);
 		} catch (IllegalArgumentException e) {
 			log.log(java.util.logging.Level.WARNING, "Error", e);
-		} catch (NoSuchMethodException e) {
-			log.log(java.util.logging.Level.WARNING, "Error", e);
-		} catch (IllegalAccessException e) {
-			log.log(java.util.logging.Level.WARNING, "Error", e);
-		} catch (InvocationTargetException e) {
+		} catch (ReflectiveOperationException e) {
 			log.log(java.util.logging.Level.WARNING, "Error", e);
 		}
+	}
+
+	private static Method findCompatibleSetter(Class<?> type, String methodName, boolean indexed, Class<?> valueType) {
+		Method compatible = null;
+		for (Method method : type.getMethods()) {
+			if (!method.getName().equals(methodName))
+				continue;
+			Class<?>[] parameterTypes = method.getParameterTypes();
+			int valueParameter = indexed ? 1 : 0;
+			if (parameterTypes.length != valueParameter + 1 || indexed && parameterTypes[0] != int.class)
+				continue;
+			Class<?> parameterType = boxedType(parameterTypes[valueParameter]);
+			if (!parameterType.isAssignableFrom(valueType))
+				continue;
+			if (parameterType == valueType)
+				return method;
+			if (compatible == null || boxedType(compatible.getParameterTypes()[valueParameter]).isAssignableFrom(parameterType))
+				compatible = method;
+		}
+		return compatible;
+	}
+
+	private static Class<?> boxedType(Class<?> type) {
+		if (!type.isPrimitive())
+			return type;
+		if (type == boolean.class) return Boolean.class;
+		if (type == byte.class) return Byte.class;
+		if (type == short.class) return Short.class;
+		if (type == int.class) return Integer.class;
+		if (type == long.class) return Long.class;
+		if (type == float.class) return Float.class;
+		if (type == double.class) return Double.class;
+		if (type == char.class) return Character.class;
+		return type;
 	}
 	
 	protected static String toGetterMethodName(String s){

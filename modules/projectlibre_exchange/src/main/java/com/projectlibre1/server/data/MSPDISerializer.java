@@ -319,7 +319,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		}
 		ProjectCalendar exportedCalendar = ImportedCalendarService.getInstance().findExportedCalendar(baseCalendar);
 		if (exportedCalendar != null) {
-			projectHeader.setDefaultCalendarName(exportedCalendar.getName());
+			projectHeader.setDefaultCalendar(exportedCalendar);
 		}
 	}
 

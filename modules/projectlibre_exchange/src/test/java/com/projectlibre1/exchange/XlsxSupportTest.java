@@ -14,7 +14,7 @@ import junit.framework.TestCase;
 import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.Task;
 import net.sf.mpxj.writer.ProjectWriter;
-import net.sf.mpxj.writer.ProjectWriterUtility;
+import com.projectlibre1.exchange.mpxj.ProjectWriterFactory;
 
 import com.projectlibre1.collaboration.ProjectMergeService;
 import com.projectlibre1.exchange.MicrosoftImporter;
@@ -62,8 +62,8 @@ public class XlsxSupportTest extends TestCase {
 		assertTrue(CollaborationMetadataStore.isCollaborationCandidate("plan.xlsx"));
 	}
 
-	public void testProjectWriterUtilitySupportsXlsx() throws Exception {
-		ProjectWriter writer = ProjectWriterUtility.getProjectWriter("plan.xlsx");
+	public void testProjectWriterFactorySupportsXlsx() throws Exception {
+		ProjectWriter writer = ProjectWriterFactory.forFile("plan.xlsx");
 		assertNotNull(writer);
 	}
 
@@ -76,7 +76,7 @@ public class XlsxSupportTest extends TestCase {
 		Task task = file.addTask();
 		task.setName("Imported Task");
 
-		ProjectWriter writer = ProjectWriterUtility.getProjectWriter(tempFile.getAbsolutePath());
+		ProjectWriter writer = ProjectWriterFactory.forFile(tempFile.getAbsolutePath());
 		writer.write(file, tempFile);
 
 		MspImporter importer = new MspImporter();

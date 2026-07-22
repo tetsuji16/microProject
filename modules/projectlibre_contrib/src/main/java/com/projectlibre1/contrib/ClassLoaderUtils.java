@@ -28,6 +28,7 @@ package com.projectlibre1.contrib;
 
 import java.lang.reflect.Method;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.StringTokenizer;
 
@@ -94,26 +95,32 @@ public class ClassLoaderUtils {
     * than, equal to, or greater than the specified version.
     */
 	public static int compareJavaVersionTo(String version){
-		return compareJavaVersion(javaVersion, version);
+		return compareJavaVersion(getJavaVersion(), version);
 	}
 	public static int compareJavaVersion(String version1,String version2){
+		Objects.requireNonNull(version1, "version1");
+		Objects.requireNonNull(version2, "version2");
 		StringTokenizer javaVersionTok1=new StringTokenizer(version1,".");
 		StringTokenizer javaVersionTok2=new StringTokenizer(version2,".");
 		while (javaVersionTok1.hasMoreTokens() || javaVersionTok2.hasMoreTokens()){
-			int v1=-1;
-			try {
-				v1=javaVersionTok1.hasMoreElements()?Integer.parseInt(javaVersionTok1.nextToken()):0;
-			} catch (NumberFormatException e) {}
-			int v2=-1;
-			try {
-				v2=javaVersionTok2.hasMoreElements()?Integer.parseInt(javaVersionTok2.nextToken()):0;
-			} catch (NumberFormatException e) {}
+			int v1=nextVersionPart(javaVersionTok1);
+			int v2=nextVersionPart(javaVersionTok2);
 			if (v1==0 && v2==-1) return -1;
 			else if (v1==-1 && v2==0) return 1;
 			if (v1<v2) return -1;
 			else if (v1>v2) return 1;
 		}
 		return 0;
+	}
+
+	private static int nextVersionPart(StringTokenizer versionTokens) {
+		if (!versionTokens.hasMoreTokens())
+			return 0;
+		try {
+			return Integer.parseInt(versionTokens.nextToken());
+		} catch (NumberFormatException ignored) {
+			return -1;
+		}
 	}
 	public static boolean needModifiedClassloader(){
 		if (javaVersion==null) getJavaVersion(); //init

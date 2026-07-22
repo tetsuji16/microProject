@@ -80,24 +80,30 @@ public class OutlineCode extends Format {
 	static final int CHARACTERS = 3;
 	private static final int ANY_LENGTH = 0;
 	
-	private ArrayList masks = new ArrayList();
+	private final ArrayList<Mask> masks = new ArrayList<>();
 	private transient Pattern pattern = null;
 
 	public Object parseObject(String code, ParsePosition pos) {
-		Object result = null;
-		Iterator i = masks.iterator();
+		if (code == null || pattern == null) {
+			pos.setErrorIndex(pos.getIndex());
+			return null;
+		}
 		String current = code.substring(pos.getIndex());
 		Matcher matcher = pattern.matcher(current);
 		if (matcher.matches()) {
 			pos.setIndex(pos.getIndex() + matcher.end());
 			return current;
 		}
-		else
+		else {
+			pos.setErrorIndex(pos.getIndex());
 			return null;
+		}
 	}
 
 	public StringBuffer format(Object arg0, StringBuffer arg1, FieldPosition arg2) {
-		return null;
+		if (!(arg0 instanceof String code) || !isValid(code))
+			throw new IllegalArgumentException("Invalid outline code: " + arg0);
+		return arg1.append(code);
 	}
 	
 	public boolean isValid(String code) {
@@ -116,7 +122,7 @@ public class OutlineCode extends Format {
 	
 	
 	private void rebuildPattern() {
-		Iterator i = masks.iterator();
+		Iterator<Mask> i = masks.iterator();
 		pattern = Pattern.compile(getPattern(i,""));
 	}
 	
@@ -125,9 +131,9 @@ public class OutlineCode extends Format {
 	 * @param i
 	 * @return
 	 */
-	private String getPattern( Iterator i, String previousSeparator) {
+	private String getPattern(Iterator<Mask> i, String previousSeparator) {
 		StringBuilder pattern = new StringBuilder();
-		Mask mask = (Mask)i.next();
+		Mask mask = i.next();
 		pattern.append(mask.getPattern(previousSeparator));
 		if (i.hasNext()) {
 			pattern.append("(?:" + getPattern(i,mask.getSeparatorRegex()) + ")?"); // add next level as optional
@@ -200,17 +206,15 @@ public class OutlineCode extends Format {
 		}
 		
 		String nextValue(String current) {
-			String result = current; //TODO is this needed?
 			switch (type) {
 				case NUMBERS:
 					int value = Integer.parseInt(current) + 1;
 					if (length == ANY_LENGTH)
-						result = "" + value;
-					else
-						result = new DecimalFormat(StringUtils.repeat("0",length)).format( Integer.getInteger(current));
-					break;
+						return Integer.toString(value);
+					return new DecimalFormat(StringUtils.repeat("0",length)).format(value);
+				default:
+					return current;
 			}
-			return result;		
 		}
 		
 		public Mask() {}

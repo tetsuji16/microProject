@@ -108,16 +108,17 @@ public class MpxResourceConverter {
 		
 		//convert calendar
 		WorkCalendar calendar;
-		if (mpxResource.getResourceCalendar()==null){
+		net.sf.mpxj.ProjectCalendar mpxCalendar = mpxResource.getCalendar();
+		if (mpxCalendar==null){
 			calendar=state.getProjectBaseCalendar();
 		}else{
-			calendar=state.getCalendarManager().getCalendar(new CalendarId(mpxResource.getResourceCalendar().getUniqueID()));
+			calendar=state.getCalendarManager().getCalendar(new CalendarId(mpxCalendar.getUniqueID()));
 			if (calendar == null) {
 				calendar=new DefaultWorkCalendar();
 				calendar.setName(mpxResource.getName());
 				MpxCalendarConverter calendarConverter=new MpxCalendarConverter();
-				calendarConverter.from(mpxResource.getResourceCalendar(), calendar, state);
-				state.registerImportedCalendar(calendar, mpxResource.getResourceCalendar());
+				calendarConverter.from(mpxCalendar, calendar, state);
+				state.registerImportedCalendar(calendar, mpxCalendar);
 			}
 		}
 		resource.setCalendar(calendar);
