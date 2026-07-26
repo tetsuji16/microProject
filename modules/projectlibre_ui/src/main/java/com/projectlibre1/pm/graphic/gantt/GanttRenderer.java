@@ -99,6 +99,7 @@ import com.projectlibre1.functor.IntervalConsumer;
 import com.projectlibre1.functor.ScheduleIntervalGenerator;
 import com.projectlibre1.graphic.configuration.BarFormat;
 import com.projectlibre1.graphic.configuration.BarStyles;
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides;
 import com.projectlibre1.graphic.configuration.GraphicConfiguration;
 import com.projectlibre1.graphic.configuration.TexturedShape;
 import com.projectlibre1.graphic.configuration.shape.PredefinedPaint;
@@ -200,9 +201,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
     }
 
     private Color resolveTaskFillColor(GraphicNode node, BarFormat format, Schedule schedule) {
-        if (GanttBarSupport.isBaselineBarFormat(format))
-            return palette.getBaselineBarColor();
-        return palette.getStatusColor(schedule, getNodeImpl(node));
+        Color defaultColor = GanttBarSupport.isBaselineBarFormat(format)
+                ? palette.getBaselineBarColor()
+                : palette.getStatusColor(schedule, getNodeImpl(node));
+        GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
+        return individualFormat.getMiddleRgb() == null
+                ? defaultColor
+                : new Color(individualFormat.getMiddleRgb());
     }
 
 	private Color resolveTaskFillColor(GraphicNode node, BarFormat format) {
@@ -217,6 +222,21 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private Color resolveAccentColor(GraphicNode node, BarFormat format) {
 		Color statusColor = resolveTaskFillColor(node, format);
 		return resolveAccentColor(node, format, statusColor);
+	}
+
+	private GanttBarFormatOverrides.BarFormat getIndividualBarFormat(GraphicNode node, BarFormat format) {
+		Object impl = getNodeImpl(node);
+		if (!(graphInfo instanceof Gantt gantt)
+				|| !(impl instanceof Task task)
+				|| !GanttBarSupport.isIndividuallyFormattable(format))
+			return GanttBarFormatOverrides.BarFormat.automatic();
+		return gantt.getBarFormat(task);
+	}
+
+	private Color resolveEndpointColor(GraphicNode node, BarFormat format, Color defaultColor, boolean start) {
+		GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
+		Integer rgb = start ? individualFormat.getStartRgb() : individualFormat.getEndRgb();
+		return rgb == null ? defaultColor : new Color(rgb);
 	}
 
 	private Paint createBarPaint(Color fillColor, Rectangle2D bounds, boolean backgroundLayer) {
@@ -580,8 +600,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			Color statusColor = resolveTaskFillColor(node, format);
 			Color accentColor = resolveAccentColor(node, format, statusColor);
 			Color endpointColor = GanttBarSupport.shouldUseUniformEndpointColor(format) ? statusColor : accentColor;
-			if (format.getStart()!=null) drawConfiguredShape(format.getStart(), g2, dw, height, x , y, endpointColor, endpointColor, new Rectangle2D.Double(x, y - height / 2.0, dw, height), false);
-			if (format.getEnd()!=null) drawConfiguredShape(format.getEnd(), g2, dw, height, x+width, y, endpointColor, endpointColor, new Rectangle2D.Double(x + width, y - height / 2.0, dw, height), false);
+			Color startColor = resolveEndpointColor(node, format, endpointColor, true);
+			Color endColor = resolveEndpointColor(node, format, endpointColor, false);
+			if (format.getStart()!=null) drawConfiguredShape(format.getStart(), g2, dw, height, x , y, startColor, startColor, new Rectangle2D.Double(x, y - height / 2.0, dw, height), false);
+			if (format.getEnd()!=null) drawConfiguredShape(format.getEnd(), g2, dw, height, x+width, y, endColor, endColor, new Rectangle2D.Double(x + width, y - height / 2.0, dw, height), false);
 
 
 		}

@@ -42,6 +42,16 @@ final class GanttBarSupport {
 		return shouldUseModernCapsuleBar(format);
 	}
 
+	static boolean isIndividuallyFormattable(BarFormat format) {
+		if (format == null)
+			return false;
+		String id = format.getId();
+		return "Bar.task".equals(id)
+				|| "Bar.critical".equals(id)
+				|| "Bar.summary".equals(id)
+				|| "Bar.milestone".equals(id);
+	}
+
 	static Rectangle2D createCapsuleBarBounds(double x, double y, double width, double height) {
 		double safeWidth = Math.max(1.5d, width);
 		double safeHeight = Math.max(2.0d, height);

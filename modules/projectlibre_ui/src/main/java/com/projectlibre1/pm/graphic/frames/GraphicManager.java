@@ -2657,7 +2657,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		}
 	}
 
-	private void showBarStyleChooser() {
+	public void showBarStyleChooser() {
 		GanttView ganttView = getActiveGanttView();
 		if (ganttView == null)
 			return;

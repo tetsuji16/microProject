@@ -10,6 +10,8 @@ import java.util.List;
 
 import org.junit.Test;
 
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides;
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.projectlibre1.pm.dependency.Dependency;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.Task;
@@ -26,6 +28,11 @@ public class PodRoundTripTest {
 		File source = findSample(sampleName);
 		Project before = load(source);
 		List<TaskState> expected = snapshot(before);
+		Task formattedTask = firstTask(before);
+		before.getGanttBarFormatOverrides().set(
+				GanttBarFormatOverrides.STANDARD_VIEW,
+				formattedTask.getUniqueId(),
+				new BarFormat(null, 0x123456, null));
 
 		File saved = File.createTempFile("projectlibre-roundtrip", ".pod");
 		saved.deleteOnExit();
@@ -36,6 +43,16 @@ public class PodRoundTripTest {
 
 		Project after = load(saved);
 		assertEquals(sampleName, expected, snapshot(after));
+		assertEquals(Integer.valueOf(0x123456), after.getGanttBarFormatOverrides()
+				.get(GanttBarFormatOverrides.STANDARD_VIEW, formattedTask.getUniqueId())
+				.getMiddleRgb());
+	}
+
+	private static Task firstTask(Project project) {
+		Iterator<?> iterator = project.getTaskOutlineIterator();
+		if (!iterator.hasNext())
+			throw new AssertionError("Sample project has no tasks");
+		return (Task) iterator.next();
 	}
 
 	private static File findSample(String name) {

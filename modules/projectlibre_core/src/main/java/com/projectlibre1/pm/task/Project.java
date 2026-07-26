@@ -98,6 +98,7 @@ import com.projectlibre1.field.FieldContext;
 import com.projectlibre1.field.HasExtraFields;
 import com.projectlibre1.functor.IntervalConsumer;
 import com.projectlibre1.graphic.configuration.GraphicConfiguration;
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides;
 import com.projectlibre1.graphic.configuration.SpreadSheetCategories;
 import com.projectlibre1.graphic.configuration.SpreadSheetFieldArray;
 import com.projectlibre1.grouping.core.Node;
@@ -206,6 +207,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	int priority = 500;
 	long currentDate = 0;
 	private Map extraFields = null;
+	private GanttBarFormatOverrides ganttBarFormatOverrides = new GanttBarFormatOverrides();
 	private double risk = 0.0D;
 	private double netPresentValue = 0.0D;
 	private int benefit = 0;
@@ -1919,6 +1921,18 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public final void setExtraFields(Map extraFields) {
 		this.extraFields = extraFields;
+	}
+
+	public GanttBarFormatOverrides getGanttBarFormatOverrides() {
+		if (ganttBarFormatOverrides == null)
+			ganttBarFormatOverrides = new GanttBarFormatOverrides();
+		return ganttBarFormatOverrides;
+	}
+
+	public void setGanttBarFormatOverrides(GanttBarFormatOverrides ganttBarFormatOverrides) {
+		this.ganttBarFormatOverrides = ganttBarFormatOverrides == null
+				? new GanttBarFormatOverrides()
+				: ganttBarFormatOverrides;
 	}
 
 	public final Hyperlink getDocumentFolderUrl() {

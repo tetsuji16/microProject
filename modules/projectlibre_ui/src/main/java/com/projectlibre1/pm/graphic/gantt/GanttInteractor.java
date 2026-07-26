@@ -74,7 +74,6 @@ import com.projectlibre1.pm.graphic.frames.DocumentFrame;
 import com.projectlibre1.pm.graphic.frames.GraphicManager;
 import com.projectlibre1.pm.graphic.model.cache.GraphicDependency;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
-import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
 import com.projectlibre1.pm.graphic.timescale.CoordinatesConverter;
 import com.projectlibre1.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.projectlibre1.association.InvalidAssociationException;
@@ -199,6 +198,7 @@ public class GanttInteractor extends GraphInteractor{
     	}
     	getGraph().requestFocusInWindow();
     	if (SwingUtilities.isRightMouseButton(e)) {
+			select(e.getX(), e.getY());
     		super.mousePressed(e);
     		return;
     	}
@@ -238,7 +238,7 @@ public class GanttInteractor extends GraphInteractor{
     	if (isReadOnly() || !SwingUtilities.isLeftMouseButton(e) || e.getClickCount() != 2) {
     		return;
     	}
-    	openTaskInformationAt(e.getX(), e.getY());
+		openFormatAt(e.getX(), e.getY());
     }
 
     protected void computeNodeSelection(double x,double y){
@@ -606,30 +606,28 @@ public class GanttInteractor extends GraphInteractor{
     	return value;
     }
 
-    private void openTaskInformationAt(int x, int y) {
+    private void openFormatAt(int x, int y) {
     	GraphZone clickedZone = ui.getObjectAt(x, y);
     	Object clickedObject = clickedZone == null ? null : clickedZone.getObject();
-    	if (!(clickedObject instanceof GraphicNode)) {
+		if (clickedObject == null) {
+			GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
+			if (graphicManager != null)
+				graphicManager.showBarStyleChooser();
     		return;
     	}
-
-    	Object impl = ((GraphicNode)clickedObject).getNode().getImpl();
-    	if (impl == null) {
+		if (!(clickedObject instanceof GraphicNode graphicNode)) {
     		return;
     	}
+		Object impl = graphicNode.getNode().getImpl();
+		if (impl instanceof Task task)
+			GanttBarFormatDialog.show(getGraph(), (Gantt)getGraph(), task);
+    }
 
-    	GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
-    	if (graphicManager == null || graphicManager.getCurrentFrame() == null) {
-    		return;
-    	}
-
-    	SpreadSheet spreadSheet = graphicManager.getCurrentFrame().getTopSpreadSheet();
-    	if (spreadSheet == null) {
-    		return;
-    	}
-
-    	spreadSheet.selectObject(impl);
-    	graphicManager.doInformationDialog(false);
+    Task getSelectedTask() {
+		if (!(selected instanceof GraphicNode graphicNode))
+			return null;
+		Object impl = graphicNode.getNode().getImpl();
+		return impl instanceof Task task ? task : null;
     }
 
     protected void select(int x,int y){

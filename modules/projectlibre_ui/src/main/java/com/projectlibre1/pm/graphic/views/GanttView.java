@@ -242,6 +242,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		gantt = new Gantt(project, "Gantt");
 		gantt.setCache(cache);
 		gantt.setAnnotationFieldId(currentAnnotationFieldId);
+		gantt.setTrackingView(tracking);
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, DEFAULT_GANTT_BAR_STYLE));
 		ganttScrollPane = new ScaledScrollPane(gantt, coord, documentFrame, spreadSheet.getRowHeight());
 		ganttScrollPane.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
@@ -533,8 +534,10 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 				standardProgressLineEnabled = gantt.isProgressLineEnabled();
 		}
 		this.tracking = tracking;
-		if (gantt != null)
+		if (gantt != null) {
+			gantt.setTrackingView(tracking);
 			gantt.setProgressLineEnabled(tracking ? trackingProgressLineEnabled : standardProgressLineEnabled);
+		}
 		HelpUtil.addDocHelp(this,tracking ? "Tracking_Gantt_Chart":"Gantt_Chart");
 	}
 

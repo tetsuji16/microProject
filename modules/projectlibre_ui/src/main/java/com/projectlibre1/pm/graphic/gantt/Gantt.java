@@ -64,13 +64,17 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.Objects;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.JViewport;
 import javax.swing.KeyStroke;
+import javax.swing.undo.AbstractUndoableEdit;
 
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides;
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.projectlibre1.pm.graphic.gantt.link_routing.DefaultGanttLinkRouting;
 import com.projectlibre1.pm.graphic.frames.GraphicManager;
 import com.projectlibre1.pm.graphic.graph.Graph;
@@ -82,6 +86,7 @@ import com.projectlibre1.pm.graphic.timescale.CoordinatesConverter;
 import com.projectlibre1.pm.graphic.timescale.ScaledComponent;
 import com.projectlibre1.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.pm.time.HasStartAndEnd;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.timescale.TimeScaleEvent;
@@ -108,6 +113,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private boolean progressLineEnabled = false;
 	private boolean gridLinesVisible = true;
 	private String annotationFieldId;
+	private String formatViewName = GanttBarFormatOverrides.STANDARD_VIEW;
 	public Gantt(Project project,String viewName) {
 		this(new GanttModel(project,viewName),project);
 	}
@@ -240,6 +246,86 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 	public void setGridLineColor(Color color) {
 		// The live gantt grid color is derived from the renderer palette.
+	}
+
+	public String getFormatViewName() {
+		return formatViewName;
+	}
+
+	public void setTrackingView(boolean tracking) {
+		formatViewName = tracking
+				? GanttBarFormatOverrides.TRACKING_VIEW
+				: GanttBarFormatOverrides.STANDARD_VIEW;
+		repaint();
+	}
+
+	public BarFormat getBarFormat(Task task) {
+		if (task == null)
+			return BarFormat.automatic();
+		return project.getGanttBarFormatOverrides().get(formatViewName, task.getUniqueId());
+	}
+
+	public void applyBarFormat(Task task, BarFormat format) {
+		if (task == null || project.isReadOnly())
+			return;
+		BarFormat normalized = format == null ? BarFormat.automatic() : format;
+		BarFormat previous = getBarFormat(task);
+		if (Objects.equals(previous, normalized))
+			return;
+		setBarFormat(task, normalized);
+		if (project.getUndoController() != null) {
+			project.getUndoController().getEditSupport().postEdit(
+					new BarFormatEdit(this, task.getUniqueId(), formatViewName, previous, normalized));
+		}
+		GraphicManager manager = GraphicManager.getInstance(this);
+		if (manager != null && manager.getCurrentFrame() != null)
+			manager.getCurrentFrame().refreshUndoButtons();
+	}
+
+	private void setBarFormat(Task task, BarFormat format) {
+		project.getGanttBarFormatOverrides().set(formatViewName, task.getUniqueId(), format);
+		project.setDirty(true);
+		repaint();
+	}
+
+	private void setBarFormat(long taskUniqueId, String viewName, BarFormat format) {
+		project.getGanttBarFormatOverrides().set(viewName, taskUniqueId, format);
+		project.setDirty(true);
+		repaint();
+	}
+
+	private static final class BarFormatEdit extends AbstractUndoableEdit {
+		private static final long serialVersionUID = 1L;
+		private final Gantt gantt;
+		private final long taskUniqueId;
+		private final String viewName;
+		private final BarFormat before;
+		private final BarFormat after;
+
+		private BarFormatEdit(Gantt gantt, long taskUniqueId, String viewName, BarFormat before, BarFormat after) {
+			this.gantt = gantt;
+			this.taskUniqueId = taskUniqueId;
+			this.viewName = viewName;
+			this.before = before;
+			this.after = after;
+		}
+
+		@Override
+		public String getPresentationName() {
+			return Messages.getString("Gantt.FormatBar.title");
+		}
+
+		@Override
+		public void undo() {
+			super.undo();
+			gantt.setBarFormat(taskUniqueId, viewName, before);
+		}
+
+		@Override
+		public void redo() {
+			super.redo();
+			gantt.setBarFormat(taskUniqueId, viewName, after);
+		}
 	}
 
 	private void installKeyboardActions() {

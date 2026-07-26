@@ -55,12 +55,17 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.gantt;
 
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 import javax.swing.AbstractAction;
 import javax.swing.ButtonGroup;
+import javax.swing.Icon;
 import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
 
 import org.apache.commons.collections.Closure;
@@ -71,9 +76,11 @@ import com.projectlibre1.pm.graphic.graph.GraphModel;
 import com.projectlibre1.pm.graphic.gantt.Gantt;
 import com.projectlibre1.pm.graphic.graph.GraphPopupMenu;
 import com.projectlibre1.graphic.configuration.BarStyle;
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.projectlibre1.grouping.core.transform.TransformList;
 import com.projectlibre1.grouping.core.transform.filtering.BaseFilter;
 import com.projectlibre1.strings.Messages;
+import com.projectlibre1.pm.task.Task;
 
 
 /**
@@ -81,6 +88,10 @@ import com.projectlibre1.strings.Messages;
  */
 public class GanttPopupMenu extends GraphPopupMenu{
 	private static final long serialVersionUID = -5006500626139949187L;
+	private static final int[] STANDARD_COLORS = {
+		0x5B9BD5, 0x4472C4, 0x70AD47, 0xFFC000,
+		0xED7D31, 0xC00000, 0xA5A5A5, 0x7030A0
+	};
 	private static final String ANNOTATION_FIELD_RESOURCE_NAMES = "Field.resourceNames";
 	private static final String ANNOTATION_FIELD_TASK_NAME = "Field.name";
 
@@ -180,6 +191,21 @@ public class GanttPopupMenu extends GraphPopupMenu{
  */
 	protected void init() {
     	removeAll();
+		Task selectedTask = interactor instanceof GanttInteractor ganttInteractor
+				? ganttInteractor.getSelectedTask()
+				: null;
+		if (selectedTask != null && interactor.getGraph() instanceof Gantt gantt) {
+			add(createFillColorMenu(gantt, selectedTask));
+			add(new AbstractAction(Messages.getString("Gantt.FormatBar.title")) {
+				private static final long serialVersionUID = 1L;
+
+				@Override
+				public void actionPerformed(ActionEvent event) {
+					GanttBarFormatDialog.show(gantt, gantt, selectedTask);
+				}
+			});
+			addSeparator();
+		}
     	add(new SplitModeMenuAction());
     	add(new AssignmentsMenuAction());
     	add(new ProgressLineMenuAction());
@@ -215,6 +241,63 @@ public class GanttPopupMenu extends GraphPopupMenu{
         add(annotations);
     	
     }
+
+	private JMenu createFillColorMenu(Gantt gantt, Task task) {
+		JMenu menu = new JMenu(Messages.getString("Gantt.FormatBar.fillColor"));
+		JMenuItem automatic = new JMenuItem(Messages.getString("Gantt.FormatBar.automatic"));
+		automatic.addActionListener(event -> applyFillColor(gantt, task, null));
+		menu.add(automatic);
+		menu.addSeparator();
+		for (int rgb : STANDARD_COLORS) {
+			JMenuItem colorItem = new JMenuItem(String.format("#%06X", rgb), new ColorSwatchIcon(new Color(rgb)));
+			colorItem.addActionListener(event -> applyFillColor(gantt, task, rgb));
+			menu.add(colorItem);
+		}
+		menu.addSeparator();
+		JMenuItem moreColors = new JMenuItem(Messages.getString("Gantt.FormatBar.moreColors"));
+		moreColors.addActionListener(event -> {
+			BarFormat current = gantt.getBarFormat(task);
+			Integer currentRgb = task.isMilestone() ? current.getStartRgb() : current.getMiddleRgb();
+			Color chosen = GanttBarFormatDialog.chooseColor(gantt, currentRgb);
+			if (chosen != null)
+				applyFillColor(gantt, task, chosen.getRGB() & 0x00FFFFFF);
+		});
+		menu.add(moreColors);
+		return menu;
+	}
+
+	private void applyFillColor(Gantt gantt, Task task, Integer rgb) {
+		BarFormat current = gantt.getBarFormat(task);
+		gantt.applyBarFormat(task, task.isMilestone()
+				? current.withStartRgb(rgb)
+				: current.withMiddleRgb(rgb));
+	}
+
+	private static final class ColorSwatchIcon implements Icon {
+		private final Color color;
+
+		private ColorSwatchIcon(Color color) {
+			this.color = color;
+		}
+
+		@Override
+		public int getIconWidth() {
+			return 16;
+		}
+
+		@Override
+		public int getIconHeight() {
+			return 12;
+		}
+
+		@Override
+		public void paintIcon(Component component, Graphics graphics, int x, int y) {
+			graphics.setColor(color);
+			graphics.fillRect(x, y, getIconWidth(), getIconHeight());
+			graphics.setColor(Color.DARK_GRAY);
+			graphics.drawRect(x, y, getIconWidth() - 1, getIconHeight() - 1);
+		}
+	}
 
 	private String getCurrentAnnotationFieldId() {
 		if (interactor.getGraph() instanceof Gantt) {

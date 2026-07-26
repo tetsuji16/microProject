@@ -1,6 +1,7 @@
 package com.projectlibre1.pm.graphic.gantt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,6 +28,8 @@ class GanttRendererProgressTest {
 		assertTrue(GanttBarSupport.shouldUseModernCapsuleBar(task));
 		assertTrue(GanttBarSupport.shouldUsePlannedEnvelopeInterval(task));
 		assertTrue(GanttBarSupport.isBaselineBarFormat(baseline));
+		assertTrue(GanttBarSupport.isIndividuallyFormattable(task));
+		assertFalse(GanttBarSupport.isIndividuallyFormattable(baseline));
 	}
 
 	@Test
