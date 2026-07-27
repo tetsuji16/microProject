@@ -97,8 +97,12 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			selectedFileName = changeFileExtension(selectedFileName, "xml");
 		}
 		SystemFileChooser chooser = getFileChooser();
+		if (selectedFileName != null) {
+			chooser.setSelectedFile(new File(selectedFileName));
+		}
 		ensureFileChooserConfigured(save);
 		if (save) {
+			selectSaveFileFilter(chooser, selectedFileName);
 			applySaveFileFilterDefaults(chooser);
 		}
 		if (selectedFileName != null) {
@@ -164,21 +168,11 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		chooser.resetChoosableFileFilters();
 		chooser.setAcceptAllFileFilterUsed(true);
 		if (save) {
-			File selectedFile = chooser.getSelectedFile();
-			String selectedExtension = selectedFile != null ? FileHelper.getFileExtension(selectedFile.getName()) : null;
-			if ("xlsx".equals(selectedExtension) || "mpp".equals(selectedExtension) || "mpx".equals(selectedExtension)) {
-				if (Environment.getStandAlone()) {
-					chooser.addChoosableFileFilter(projectlibreFilter);
-				}
-				chooser.addChoosableFileFilter(microsoftXMLFilter);
-				chooser.addChoosableFileFilter(microsoftXlsxFilter);
-			} else {
-				chooser.addChoosableFileFilter(microsoftXMLFilter);
-				chooser.addChoosableFileFilter(microsoftXlsxFilter);
-				if (Environment.getStandAlone()) {
-					chooser.addChoosableFileFilter(projectlibreFilter);
-				}
+			if (Environment.getStandAlone()) {
+				chooser.addChoosableFileFilter(projectlibreFilter);
 			}
+			chooser.addChoosableFileFilter(microsoftXMLFilter);
+			chooser.addChoosableFileFilter(microsoftXlsxFilter);
 		} else {
 			if (Environment.getStandAlone()) {
 				chooser.addChoosableFileFilter(projectlibreFilter);
@@ -190,6 +184,31 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			chooser.addChoosableFileFilter(projectFilter);
 			chooser.setFileFilter(chooser.getAcceptAllFileFilter());
 		}
+	}
+
+	private void selectSaveFileFilter(SystemFileChooser chooser, String selectedFileName) {
+		String extension = preferredSaveExtension(selectedFileName, Environment.getStandAlone());
+		if (DEFAULT_FILE_EXTENSION.equals(extension) && projectlibreFilter != null) {
+			chooser.setFileFilter(projectlibreFilter);
+		} else if ("xlsx".equals(extension)) {
+			chooser.setFileFilter(microsoftXlsxFilter);
+		} else {
+			chooser.setFileFilter(microsoftXMLFilter);
+		}
+	}
+
+	static String preferredSaveExtension(String selectedFileName, boolean standalone) {
+		String extension = selectedFileName == null ? null : FileHelper.getFileExtension(selectedFileName);
+		if ("xlsx".equals(extension)) {
+			return "xlsx";
+		}
+		if ("xml".equals(extension)) {
+			return "xml";
+		}
+		if (standalone && DEFAULT_FILE_EXTENSION.equals(extension)) {
+			return DEFAULT_FILE_EXTENSION;
+		}
+		return standalone ? DEFAULT_FILE_EXTENSION : "xml";
 	}
 
 	private void ensureFileChooserConfigured(final boolean save) {

@@ -2379,7 +2379,11 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	protected void saveLocalDocument(String fileName,final boolean saveAs){
 		addHistory("saveLocalDocument",new Object[]{fileName,saveAs});
 		//showWaitCursor(true);
-		final Project project=getCurrentFrame().getProject();
+		final DocumentFrame frame = getCurrentFrame();
+		if (frame == null) {
+			return;
+		}
+		final Project project=frame.getProject();
 		final CollaborationSession collaborationSession = project.getCollaborationSession();
 		SaveOptions opt = com.projectlibre1.application.ProjectDocumentWorkflow.prepareSaveOptions(project, fileName, saveAs, true,
 			collaborationSession,
@@ -2402,18 +2406,17 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 				}
 
 				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
-					final DocumentFrame frame = getCurrentFrame();
 					if (saveAsRequested) {
 						frame.setId(savedProject.getUniqueId()+""); //$NON-NLS-1$
-					}
-					if (collaborationEnabled && savedProject.getCollaborationSession() != null) {
-						savedProject.getCollaborationSession().afterSave();
-						persistCollaborationWorkspace(savedProject);
 					}
 					if (fileNameChanged && savedProject.getCollaborationSession() != null) {
 						savedProject.getCollaborationSession().stop();
 						savedProject.setCollaborationSession(null);
 						initializeCollaboration(savedProject);
+					}
+					if (collaborationEnabled && savedProject.getCollaborationSession() != null) {
+						savedProject.getCollaborationSession().afterSave();
+						persistCollaborationWorkspace(savedProject);
 					}
 					refreshSaveStatus(true);
 				}
@@ -2422,7 +2425,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			return;
 		}
 		opt.setPreSaving(getSavingClosure());
-		projectFactory.saveProject(getCurrentFrame().getProject(),opt);
+		projectFactory.saveProject(project,opt);
 		//showWaitCursor(false);
 	}
 
