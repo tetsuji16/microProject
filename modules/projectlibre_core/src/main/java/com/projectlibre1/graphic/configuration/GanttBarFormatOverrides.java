@@ -84,6 +84,15 @@ public final class GanttBarFormatOverrides implements Serializable {
 			return new BarFormat(startRgb, middleRgb, rgb);
 		}
 
+		/**
+		 * Applies one fill color to every part of an individually formatted bar.
+		 * This mirrors Microsoft Project's Fill Color command, including bars
+		 * whose configured style uses start or end shapes.
+		 */
+		public BarFormat withFillRgb(Integer rgb) {
+			return new BarFormat(rgb, rgb, rgb);
+		}
+
 		public boolean isAutomatic() {
 			return startRgb == null && middleRgb == null && endRgb == null;
 		}

@@ -268,9 +268,7 @@ public class GanttPopupMenu extends GraphPopupMenu{
 
 	private void applyFillColor(Gantt gantt, Task task, Integer rgb) {
 		BarFormat current = gantt.getBarFormat(task);
-		gantt.applyBarFormat(task, task.isMilestone()
-				? current.withStartRgb(rgb)
-				: current.withMiddleRgb(rgb));
+		gantt.applyBarFormat(task, current.withFillRgb(rgb));
 	}
 
 	private static final class ColorSwatchIcon implements Icon {
