@@ -36,6 +36,16 @@ class GanttBarFormatOverridesTest {
 	}
 
 	@Test
+	void fillColorAppliesToAllBarPartsAndCanResetThemTogether() {
+		BarFormat colored = new BarFormat(0x111111, 0x222222, 0x333333).withFillRgb(0xABCDEF);
+
+		assertEquals(0xABCDEF, colored.getStartRgb());
+		assertEquals(0xABCDEF, colored.getMiddleRgb());
+		assertEquals(0xABCDEF, colored.getEndRgb());
+		assertTrue(colored.withFillRgb(null).isAutomatic());
+	}
+
+	@Test
 	void normalizesRgbAndPreservesItAcrossSerialization() throws Exception {
 		GanttBarFormatOverrides overrides = new GanttBarFormatOverrides();
 		overrides.set(GanttBarFormatOverrides.STANDARD_VIEW, 7L, new BarFormat(0xFFABCDEF, null, 0x00123456));
