@@ -295,6 +295,7 @@
 
 - `RangeIntervalGenerator` / `InstantIntervalGenerator` の `current()` が null を返す問題を修正し、`IntervalGeneratorContractTest` で現在区間の契約を固定した
 - `Query.execute()` / `Query.create()` が訪問した区間を配列で返すようにし、`QueryTest` で実行結果の契約を固定した
+- `GroupedCalculatedValues.union()` の手書きマージを JDK 標準の `TreeMap.merge` に置き換え、日付順・同日加算・入力との独立性を回帰テストで固定した
 
 検討メモ:
 
@@ -455,11 +456,13 @@
 着手済み:
 
 - 上記の小さな例外/補助クラス群から auto-generated TODO コメントを除去し、`FieldParseException(Throwable)` は cause を保持する実装に直した
+- `Money` の compact/full 選択を修正し、JDK 標準の `NumberFormat` を呼び出しごとに生成して共有状態を除去した
+- `Money(double)` は `Double.toString` の標準10進表現から構築し、`BigDecimal(double)` 由来の誤差を回避した
 
 残課題:
 
 - `DefaultNodeModel` の挿入/削除/Undo/依存更新/イベント発火の大枠整理はまだ未完了
-- `Money` を含む、まだ掃除対象に入れていない小さな例外/補助クラスの TODO を順次除去する
+- まだ掃除対象に入れていない小さな例外/補助クラスの TODO を順次除去する
 - 意味のない TODO コメントが保守コストだけを増やしているので、継続的に減らす
 
 やること:

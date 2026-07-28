@@ -347,7 +347,7 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		if (timeScrollPane != null && ws.scrollPane != null) {
 			timeScrollPane.restoreWorkspace(ws.scrollPane, context);
 		}
-		setDividerLocation(ws.dividerLocation);
+		restoreDividerLocation(ws.dividerLocation);
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();

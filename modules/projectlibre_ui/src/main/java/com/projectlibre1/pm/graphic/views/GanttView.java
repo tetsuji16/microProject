@@ -458,7 +458,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		else
 			standardProgressLineEnabled = ws.progressLineEnabled;
 		ganttScrollPane.restoreWorkspace(ws.scrollPane, context);
-		setDividerLocation(ws.dividerLocation);
+		restoreDividerLocation(ws.dividerLocation);
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();

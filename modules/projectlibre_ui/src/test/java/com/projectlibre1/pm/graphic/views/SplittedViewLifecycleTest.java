@@ -1,6 +1,7 @@
 package com.projectlibre1.pm.graphic.views;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import com.projectlibre1.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.projectlibre1.pm.graphic.views.synchro.Synchronizer;
+import com.projectlibre1.strings.Messages;
 
 class SplittedViewLifecycleTest {
 	@Test
@@ -25,9 +27,30 @@ class SplittedViewLifecycleTest {
 		assertEquals(2, view.leftCreated);
 		assertEquals(2, view.rightCreated);
 		assertEquals(1, synchronizerCount(synchronizer));
+		assertEquals(1, view.getPropertyChangeListeners(javax.swing.JSplitPane.DIVIDER_LOCATION_PROPERTY).length);
 
 		view.cleanUp();
 		assertEquals(0, synchronizerCount(synchronizer));
+	}
+
+	@Test
+	void splitViewKeepsBothSidesUsableAndDescribed() {
+		TestView view = new TestView(new Synchronizer());
+		view.setSize(500, 300);
+		view.init();
+
+		view.restoreForTest(900);
+		assertTrue(view.getDividerLocation() <= 404);
+		view.restoreForTest(-20);
+		assertTrue(view.getDividerLocation() >= 96);
+		assertEquals(0.5, view.getResizeWeight());
+		assertTrue(view.isContinuousLayout());
+		assertEquals(Messages.getString("SplitView.accessibleName"),
+			view.getAccessibleContext().getAccessibleName());
+		assertEquals(Messages.getString("SplitView.leftPaneAccessibleName"),
+			view.getLeftScrollPane().getAccessibleContext().getAccessibleName());
+		assertEquals(Messages.getString("SplitView.rightPaneAccessibleName"),
+			view.getRightScrollPane().getAccessibleContext().getAccessibleName());
 	}
 
 	private static int synchronizerCount(Synchronizer synchronizer) throws ReflectiveOperationException {
@@ -54,6 +77,10 @@ class SplittedViewLifecycleTest {
 		protected JScrollPane createRightScrollPane() {
 			rightCreated++;
 			return new JScrollPane(new JPanel());
+		}
+
+		private void restoreForTest(int location) {
+			restoreDividerLocation(location);
 		}
 	}
 }

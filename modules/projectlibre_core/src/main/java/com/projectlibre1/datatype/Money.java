@@ -57,9 +57,7 @@ package com.projectlibre1.datatype;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.Locale;
 
 import com.projectlibre1.strings.Messages;
 
@@ -68,27 +66,25 @@ import com.projectlibre1.strings.Messages;
  */
 public class Money extends BigDecimal {
 	private static final long serialVersionUID = -8182666966278921881L;
-	private static NumberFormat moneyFormat = null;
-	private static DecimalFormat moneyCompactFormat = null;
 	
 	public static NumberFormat getMoneyFormatInstance() {
-		if (moneyFormat == null) {
-			moneyFormat = NumberFormat.getCurrencyInstance();
-			moneyFormat.setGroupingUsed(false);
-		}
-		return moneyFormat;
+		return createCurrencyFormat(false);
 	}
+
 	public static NumberFormat getMoneyCompactFormatInstance() {
-		if (moneyCompactFormat == null) {
-			moneyCompactFormat = (DecimalFormat)NumberFormat.getCurrencyInstance();
-			moneyCompactFormat.setGroupingUsed(false);
-			moneyCompactFormat.setMaximumFractionDigits(0);
-		}
-		return moneyCompactFormat;
+		return createCurrencyFormat(true);
+	}
+
+	private static NumberFormat createCurrencyFormat(boolean compact) {
+		NumberFormat format = NumberFormat.getCurrencyInstance();
+		format.setGroupingUsed(false);
+		if (compact)
+			format.setMaximumFractionDigits(0);
+		return format;
 	}
 	
 	public static NumberFormat getFormat(boolean compact) {
-		return compact ? getMoneyFormatInstance() : getMoneyCompactFormatInstance();
+		return compact ? getMoneyCompactFormatInstance() : getMoneyFormatInstance();
 	}
 	
 	public static Money getInstance(double arg0) {
@@ -99,7 +95,7 @@ public class Money extends BigDecimal {
 	 * @param arg0
 	 */
 	private Money(double arg0) {
-		super(arg0);
+		super(Double.toString(arg0));
 	}
 
 	/**

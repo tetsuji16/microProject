@@ -237,7 +237,7 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		chartInfo.setRestoring(true);
 		chartInfo.restoreWorkspace(ws.chartInfo, context);
 		scrollPane.restoreWorkspace(ws.scrollPane, context);
-		setDividerLocation(ws.dividerLocation);
+		restoreDividerLocation(ws.dividerLocation);
 		chartLegend.setControlValues();
 		chartLegend.restoreWorkspace(ws.chartLegend, context);
 		getLeftScrollPane().getViewport().setViewPosition(ws.legendViewPosition);

@@ -59,6 +59,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.ListIterator;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.logging.Logger;
 import org.apache.commons.lang.time.DateUtils;
 
@@ -208,38 +210,21 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
  	public ListIterator<Point> iterator(int index){
  		return values.listIterator(index);
  	}
- 	public static GroupedCalculatedValues union(GroupedCalculatedValues values1,GroupedCalculatedValues values2){
- 		GroupedCalculatedValues c1,c2;
- 		if (values1.size()>=values2.size()){
- 			c1=values1;
- 			c2=values2;
- 		}else{
- 			c1=values2;
- 			c2=values1;
- 		}
- 		GroupedCalculatedValues c=new GroupedCalculatedValues();
- 		ListIterator<Point> i1=c1.values.listIterator();
- 		ListIterator<Point> i2=c2.values.listIterator();
-	 	Point p1,p2=null;
- 		while(i1.hasNext()){
- 			p1=i1.next();
- 	 		while(i2.hasNext()){
- 	 			p2=i2.next();
- 	 			if (p2.date<p1.date){
- 	 				c.values.add(p2);
- 	 			}else if (p2.date>p1.date){
- 	 				i2.previous();
- 	 				break;
- 	 			}else break;
- 	 		}
- 	 		if (p2!=null&&p1.date==p2.date) c.values.add(new Point(p1.date,p1.value+p2.value));
- 	 		else c.values.add(p1);
- 		}
- 		while (i2.hasNext()){
- 			c.values.add((Point)i2.next());
- 		}
- 		return c;
- 	}
+	public static GroupedCalculatedValues union(GroupedCalculatedValues values1, GroupedCalculatedValues values2) {
+		Map<Long, Double> mergedValues = new TreeMap<>();
+		mergeValues(mergedValues, values1);
+		mergeValues(mergedValues, values2);
+
+		GroupedCalculatedValues result = new GroupedCalculatedValues();
+		for (Map.Entry<Long, Double> entry : mergedValues.entrySet())
+			result.values.add(new Point(entry.getKey(), entry.getValue()));
+		return result;
+	}
+
+	private static void mergeValues(Map<Long, Double> mergedValues, GroupedCalculatedValues source) {
+		for (Point point : source.values)
+			mergedValues.merge(point.date, point.value, Double::sum);
+	}
  	
  	public void mergeIn(GroupedCalculatedValues add){
  		ListIterator<Point> baseIterator = values.listIterator();

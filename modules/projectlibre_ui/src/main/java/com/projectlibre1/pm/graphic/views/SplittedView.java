@@ -55,6 +55,7 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.views;
 
+import java.awt.Dimension;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.logging.Logger;
@@ -65,6 +66,7 @@ import javax.swing.JViewport;
 
 import com.projectlibre1.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.projectlibre1.pm.graphic.views.synchro.Synchronizer;
+import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.FlatUiSupport;
 
 /**
@@ -72,6 +74,7 @@ import com.projectlibre1.util.FlatUiSupport;
  */
 public abstract class SplittedView extends JSplitPane {
 	private static final Logger logger = Logger.getLogger(SplittedView.class.getName());
+	private static final int MINIMUM_RESTORED_PANE_WIDTH = 96;
 	protected JScrollPane leftScrollPane;
 	protected JScrollPane rightScrollPane;
 	protected MainView parentView;	
@@ -82,11 +85,17 @@ public abstract class SplittedView extends JSplitPane {
     //protected boolean scaled=true;
     protected boolean needVoidBar=true;
     private Synchronizer synchronizer;
+	private final PropertyChangeListener dividerLocationListener = this::dividerLocationChanged;
 
 	public SplittedView(Synchronizer synchronizer) {
 		super(JSplitPane.HORIZONTAL_SPLIT);
 		this.synchronizer = synchronizer;
+		setContinuousLayout(true);
 		setOneTouchExpandable(true);
+		setResizeWeight(0.5);
+		getAccessibleContext().setAccessibleName(Messages.getString("SplitView.accessibleName"));
+		getAccessibleContext().setAccessibleDescription(Messages.getString("SplitView.accessibleDescription"));
+		addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dividerLocationListener);
 	}
 	public void cleanUp() {
 		disposeSplitView();
@@ -125,31 +134,14 @@ public abstract class SplittedView extends JSplitPane {
 		rightScrollPane = createRightScrollPane();
 		configureScrollPaneSurface(leftScrollPane);
 		configureScrollPaneSurface(rightScrollPane);
+		configurePaneAccessibility(leftScrollPane, "SplitView.leftPaneAccessibleName");
+		configurePaneAccessibility(rightScrollPane, "SplitView.rightPaneAccessibleName");
 		setLeftComponent(leftScrollPane);
 		setRightComponent(rightScrollPane);
 
 		if (sync)
 			synchronizer.addSynchro(leftScrollPane, rightScrollPane,
 				ScrollPaneSynchronizer.HORIZONTAL);
-
-
-		
-
-		addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY,
-				new PropertyChangeListener() {
-					public void propertyChange(PropertyChangeEvent e) {
-						if (silent){
-							silent=false;
-							return;
-						}
-						int dividerLocation = ((Integer) e.getNewValue()).intValue();
-						logger.info(() -> getClass().getSimpleName() + " divider changed to " + dividerLocation
-							+ " source=" + (e.getSource() == null ? "null" : e.getSource().getClass().getSimpleName()));
-						if (parentView != null)
-							parentView.setChildrenDividerLocation(e.getSource(),dividerLocation);
-					}
-				});
-
 	}
 
 	protected void configureScrollPaneSurface(JScrollPane scrollPane) {
@@ -158,6 +150,39 @@ public abstract class SplittedView extends JSplitPane {
 		JViewport viewport = scrollPane.getViewport();
 		if (viewport != null)
 			FlatUiSupport.applyViewportSurface(viewport);
+	}
+
+	private void configurePaneAccessibility(JScrollPane scrollPane, String accessibleNameKey) {
+		if (scrollPane == null)
+			return;
+		scrollPane.setMinimumSize(new Dimension(MINIMUM_RESTORED_PANE_WIDTH, 0));
+		scrollPane.getAccessibleContext().setAccessibleName(Messages.getString(accessibleNameKey));
+	}
+
+	private void dividerLocationChanged(PropertyChangeEvent event) {
+		if (silent) {
+			silent = false;
+			return;
+		}
+		int dividerLocation = ((Integer) event.getNewValue()).intValue();
+		logger.info(() -> getClass().getSimpleName() + " divider changed to " + dividerLocation
+			+ " source=" + (event.getSource() == null ? "null" : event.getSource().getClass().getSimpleName()));
+		if (parentView != null)
+			parentView.setChildrenDividerLocation(event.getSource(), dividerLocation);
+	}
+
+	/**
+	 * Restores a pixel location saved on another window size without allowing
+	 * either pane to disappear off-screen.
+	 */
+	protected final void restoreDividerLocation(int location) {
+		int availableWidth = getWidth() - getDividerSize();
+		if (availableWidth < MINIMUM_RESTORED_PANE_WIDTH * 2) {
+			setDividerLocation(location);
+			return;
+		}
+		int maximumLocation = availableWidth - MINIMUM_RESTORED_PANE_WIDTH;
+		setDividerLocation(Math.max(MINIMUM_RESTORED_PANE_WIDTH, Math.min(location, maximumLocation)));
 	}
 	
 
