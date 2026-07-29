@@ -39,6 +39,7 @@ docs/downloads/
 isolated-build/
 *.part
 *.part*
+/samples/*.projectlibre-sync.json
 
 # Sisyphus session files
 .sisyphus/
