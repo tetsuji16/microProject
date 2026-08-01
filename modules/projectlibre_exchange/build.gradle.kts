@@ -8,4 +8,7 @@ dependencies {
 tasks.test {
     enabled = true
     systemProperty("java.awt.headless", "true")
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }

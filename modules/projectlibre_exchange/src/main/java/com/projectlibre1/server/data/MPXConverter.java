@@ -170,11 +170,8 @@ public class MPXConverter {
 		mpx.setName(workCalendar.getName());
 		mpx.setUniqueID(Integer.valueOf(exportId(workCalendar.getUniqueId())));
 
-		WorkingCalendar wc = workCalendar;
-		if (workCalendar.isBaseCalendar())
-			wc = (WorkingCalendar) workCalendar.getBaseCalendar();
 		for (int i = 0; i < 7; i++) {// MPX days go from SUNDAY=1 to SATURDAY=7
-			WorkDay day= workCalendar.isBaseCalendar() ? workCalendar.getDerivedWeekDay(i) : workCalendar.getWeekDay(i);
+			WorkDay day= workCalendar.getDerivedWeekDay(i);
 			ProjectCalendarHours mpxDay = null;
 			Day d = Day.getInstance(i+1);
 			if (day == null) {
@@ -204,14 +201,11 @@ public class MPXConverter {
 				toMpxExceptionDay(workDays[i],exception);
 				//exception.setWorking(workDays[i].isWorking()); //claur exception is working once it has at least one range
 			}
-		if (!workCalendar.isBaseCalendar()){
-			//claur fix to avoid default hours for bases calendar
-			// base calendars have standard calendar for parent
-			WorkCalendar baseCalendar=workCalendar.getBaseCalendar();
-			mpx.setParent(ImportedCalendarService.getInstance().findExportedCalendar(baseCalendar)); //claur
-		}
-
+		// Write effective working time into each calendar instead of creating
+		// MPXJ parent links. This preserves calendar behavior and prevents a
+		// malformed source hierarchy from forming a recursive derived-calendar graph.
 	}
+
 	public static  void toMpxCalendarDay(WorkDay day,ProjectCalendarHours mpxDay) {
 		if  (day==null)
 			return;
