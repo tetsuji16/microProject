@@ -53,9 +53,10 @@ public class CollaborationSession {
 	private final Map<Long, ProjectMergeService.TaskState> lockBaselineStates = new LinkedHashMap<Long, ProjectMergeService.TaskState>();
 	private volatile ExternalProjectReloadHandler externalReloadHandler;
 	private volatile Timer timer;
-	private long lastKnownProjectModified;
-	private long lastKnownProjectLength;
-	private KnownMetadataState lastKnownMetadataState;
+	private final Object stateLock = new Object();
+	private volatile long lastKnownProjectModified;
+	private volatile long lastKnownProjectLength;
+	private volatile KnownMetadataState lastKnownMetadataState;
 	private volatile boolean externalChangePending;
 	private volatile boolean externalChangeWarned;
 	private volatile boolean externalReloadRequested;
@@ -157,51 +158,67 @@ public class CollaborationSession {
 		long projectLength = projectFile.exists() ? projectFile.length() : 0L;
 		Metadata metadata = store.load();
 		KnownMetadataState currentMetadataState = KnownMetadataState.capture(metadata, userKey, clientInstanceId);
-		boolean projectChanged = projectModified != lastKnownProjectModified || projectLength != lastKnownProjectLength;
-		boolean metadataChanged = !currentMetadataState.equals(lastKnownMetadataState);
-		if (pendingExternalReload) {
-			if (!isPendingProjectStable(projectModified, projectLength)) {
-				rememberPendingExternalReload(projectModified, projectLength, now);
-				return;
+
+		boolean projectChanged;
+		boolean metadataChanged;
+		boolean shouldRequestReload = false;
+
+		synchronized (stateLock) {
+			projectChanged = projectModified != lastKnownProjectModified || projectLength != lastKnownProjectLength;
+			metadataChanged = !currentMetadataState.equals(lastKnownMetadataState);
+			if (pendingExternalReload) {
+				if (!isPendingProjectStable(projectModified, projectLength)) {
+					rememberPendingExternalReload(projectModified, projectLength, now);
+					return;
+				}
+				if (canAutoReloadExternalProject() && now - pendingExternalReloadDetectedAt >= AUTO_RELOAD_SETTLE_MS) {
+					shouldRequestReload = true;
+				} else if (!canAutoReloadExternalProject()) {
+					clearPendingExternalReload();
+				}
 			}
-			if (canAutoReloadExternalProject() && now - pendingExternalReloadDetectedAt >= AUTO_RELOAD_SETTLE_MS) {
-				requestExternalProjectReload(projectModified, projectLength, currentMetadataState);
-				return;
-			}
-			if (canAutoReloadExternalProject()) {
-				return;
-			}
-			clearPendingExternalReload();
-		}
-		if (projectChanged) {
-			markExternalProjectChanged(projectModified, projectLength, now);
-			return;
-		}
-		if (metadataChanged) {
-			markExternalMetadataChanged();
-			if (metadataChanged && !externalChangeWarned) {
-				externalChangeWarned = true;
-				SwingUtilities.invokeLater(new Runnable() {
-					public void run() {
-						Alert.warn("This project was updated externally. Save will re-check for conflicts before writing.");
+			if (!shouldRequestReload) {
+				if (projectChanged) {
+					markExternalProjectChanged(projectModified, projectLength, now);
+					return;
+				}
+				if (metadataChanged) {
+					markExternalMetadataChanged();
+					if (metadataChanged && !externalChangeWarned) {
+						externalChangeWarned = true;
+						SwingUtilities.invokeLater(new Runnable() {
+							public void run() {
+								Alert.warn("This project was updated externally. Save will re-check for conflicts before writing.");
+							}
+						});
 					}
-				});
+				}
+				refreshKnownState(projectModified, projectLength, currentMetadataState);
 			}
 		}
-		refreshKnownState(projectModified, projectLength, currentMetadataState);
+
+		if (shouldRequestReload) {
+			requestExternalProjectReload(projectModified, projectLength, currentMetadataState);
+		}
 	}
 
 	private void markExternalProjectChanged(long projectModified, long projectLength, long now) {
-		externalChangePending = true;
-		rememberPendingExternalReload(projectModified, projectLength, now);
+		synchronized (stateLock) {
+			externalChangePending = true;
+			rememberPendingExternalReload(projectModified, projectLength, now);
+		}
 	}
 
 	private void markExternalMetadataChanged() {
-		externalChangePending = true;
+		synchronized (stateLock) {
+			externalChangePending = true;
+		}
 	}
 
 	private boolean isPendingProjectStable(long projectModified, long projectLength) {
-		return projectModified == pendingExternalReloadModified && projectLength == pendingExternalReloadLength;
+		synchronized (stateLock) {
+			return projectModified == pendingExternalReloadModified && projectLength == pendingExternalReloadLength;
+		}
 	}
 
 	private boolean canAutoReloadExternalProject() {
@@ -211,10 +228,12 @@ public class CollaborationSession {
 	}
 
 	private void requestExternalProjectReload(long projectModified, long projectLength, KnownMetadataState currentMetadataState) {
-		externalReloadRequested = true;
-		clearPendingExternalReload();
-		refreshKnownState(projectModified, projectLength, currentMetadataState);
-		resetExternalChangeState(false);
+		synchronized (stateLock) {
+			externalReloadRequested = true;
+			clearPendingExternalReload();
+			refreshKnownState(projectModified, projectLength, currentMetadataState);
+			resetExternalChangeState(false);
+		}
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				ExternalProjectReloadHandler handler = externalReloadHandler;
@@ -241,23 +260,29 @@ public class CollaborationSession {
 	}
 
 	private void refreshKnownState(long projectModified, long projectLength, KnownMetadataState metadataState) {
-		lastKnownProjectModified = projectModified;
-		lastKnownProjectLength = projectLength;
-		lastKnownMetadataState = metadataState;
+		synchronized (stateLock) {
+			lastKnownProjectModified = projectModified;
+			lastKnownProjectLength = projectLength;
+			lastKnownMetadataState = metadataState;
+		}
 	}
 
 	private void rememberPendingExternalReload(long projectModified, long projectLength, long detectedAt) {
-		pendingExternalReload = true;
-		pendingExternalReloadModified = projectModified;
-		pendingExternalReloadLength = projectLength;
-		pendingExternalReloadDetectedAt = detectedAt;
+		synchronized (stateLock) {
+			pendingExternalReload = true;
+			pendingExternalReloadModified = projectModified;
+			pendingExternalReloadLength = projectLength;
+			pendingExternalReloadDetectedAt = detectedAt;
+		}
 	}
 
 	private void clearPendingExternalReload() {
-		pendingExternalReload = false;
-		pendingExternalReloadModified = 0L;
-		pendingExternalReloadLength = 0L;
-		pendingExternalReloadDetectedAt = 0L;
+		synchronized (stateLock) {
+			pendingExternalReload = false;
+			pendingExternalReloadModified = 0L;
+			pendingExternalReloadLength = 0L;
+			pendingExternalReloadDetectedAt = 0L;
+		}
 	}
 
 	private void rememberLockBaseline(Task task) {
@@ -372,18 +397,19 @@ public class CollaborationSession {
 	}
 
 	private void resetExternalChangeState(boolean clearReloadRequest) {
-		externalChangePending = false;
-		externalChangeWarned = false;
-		if (clearReloadRequest) {
-			externalReloadRequested = false;
+		synchronized (stateLock) {
+			externalChangePending = false;
+			externalChangeWarned = false;
+			if (clearReloadRequest) {
+				externalReloadRequested = false;
+			}
+			clearPendingExternalReload();
 		}
-		clearPendingExternalReload();
 	}
 
 	public Set<Long> getLocalLocks() {
 		return lockManager.getLocalLocks();
 	}
-
 	public void saveWorkspace(WorkspaceSetting workspace) {
 		if (workspace == null) {
 			return;

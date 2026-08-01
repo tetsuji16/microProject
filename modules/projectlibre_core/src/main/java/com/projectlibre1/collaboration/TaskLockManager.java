@@ -18,7 +18,7 @@ public class TaskLockManager {
 	private final String displayName;
 	private final String clientInstanceId;
 	private final String ownerKey;
-	private final Set<Long> localLocks = new LinkedHashSet<Long>();
+	private final Set<Long> localLocks = java.util.Collections.synchronizedSet(new LinkedHashSet<Long>());
 
 	public TaskLockManager(CollaborationMetadataStore store, String userKey, String displayName, String clientInstanceId) {
 		this.store = store;
@@ -83,21 +83,28 @@ public class TaskLockManager {
 	}
 
 	public void releaseAll() {
-		List<Long> locks = new ArrayList<Long>(localLocks);
+		List<Long> locks;
+		synchronized (localLocks) {
+			locks = new ArrayList<Long>(localLocks);
+		}
 		for (Long taskId : locks) {
 			release(taskId.longValue());
 		}
 	}
 
 	public void renewAll() {
-		if (localLocks.isEmpty()) {
-			return;
+		final List<Long> locksToRenew;
+		synchronized (localLocks) {
+			if (localLocks.isEmpty()) {
+				return;
+			}
+			locksToRenew = new ArrayList<Long>(localLocks);
 		}
 		store.mutate(new CollaborationMetadataStore.MetadataMutation() {
 			public void mutate(Metadata metadata) {
 				long now = System.currentTimeMillis();
 				cleanupExpiredLocks(metadata, now);
-				for (Long taskId : localLocks) {
+				for (Long taskId : locksToRenew) {
 					LockRecord existing = metadata.getLocks().get(String.valueOf(taskId.longValue()));
 					if (existing != null && ownerKey.equals(existing.getOwnerKey())) {
 						existing.setUpdatedAt(now);
@@ -110,7 +117,9 @@ public class TaskLockManager {
 	}
 
 	public Set<Long> getLocalLocks() {
-		return new LinkedHashSet<Long>(localLocks);
+		synchronized (localLocks) {
+			return new LinkedHashSet<Long>(localLocks);
+		}
 	}
 
 	public String describeOwner(long taskId) {
