@@ -238,7 +238,7 @@ public class GanttInteractor extends GraphInteractor{
     	if (isReadOnly() || !SwingUtilities.isLeftMouseButton(e) || e.getClickCount() != 2) {
     		return;
     	}
-		openFormatAt(e.getX(), e.getY());
+		openTaskInformationAt(e.getX(), e.getY());
     }
 
     protected void computeNodeSelection(double x,double y){
@@ -606,21 +606,19 @@ public class GanttInteractor extends GraphInteractor{
     	return value;
     }
 
-    private void openFormatAt(int x, int y) {
+    private void openTaskInformationAt(int x, int y) {
     	GraphZone clickedZone = ui.getObjectAt(x, y);
     	Object clickedObject = clickedZone == null ? null : clickedZone.getObject();
-		if (clickedObject == null) {
-			GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
-			if (graphicManager != null)
-				graphicManager.showBarStyleChooser();
-    		return;
-    	}
 		if (!(clickedObject instanceof GraphicNode graphicNode)) {
     		return;
     	}
 		Object impl = graphicNode.getNode().getImpl();
-		if (impl instanceof Task task)
-			GanttBarFormatDialog.show(getGraph(), (Gantt)getGraph(), task);
+		if (!(impl instanceof Task)) {
+			return;
+		}
+		GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
+		if (graphicManager != null)
+			graphicManager.doInformationDialog(false);
     }
 
     Task getSelectedTask() {
