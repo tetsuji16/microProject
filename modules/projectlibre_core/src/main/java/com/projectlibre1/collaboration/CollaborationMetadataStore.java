@@ -78,7 +78,13 @@ public class CollaborationMetadataStore {
 			channel = raf.getChannel();
 			lock = channel.lock();
 			byte[] originalBytes = readAllBytes(raf);
-			Metadata metadata = originalBytes.length == 0 ? createDefaultMetadata() : parseMetadata(originalBytes);
+			Metadata metadata;
+			try {
+				metadata = originalBytes.length == 0 ? createDefaultMetadata() : parseMetadata(originalBytes);
+			} catch (Exception parseEx) {
+				logger.log(Level.WARNING, "Failed to parse collaboration metadata for " + projectFile + ", resetting to default", parseEx);
+				metadata = createDefaultMetadata();
+			}
 			normalize(metadata);
 			T result = callback.execute(metadata);
 			writeMetadataIfChanged(raf, originalBytes, metadata);

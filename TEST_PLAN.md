@@ -52,6 +52,7 @@
 | F-14 | 異常 | circular dependency を含むファイル | import | `CircularDependencyException` 相当で失敗、partial project を残さない |
 | F-15 | 異常 | 書込不可ディレクトリ/既存 read-only file | export | 例外、元ファイルを削除しない |
 | F-16 | 状態 | 既存ファイル export の temp rename | `exportFile` | 失敗時に元ファイル保持、成功時だけ置換 |
+| F-17 | 回帰 | 既存 `.pod` を別名 `.pod` に Save As | UI と `LocalSession` の両方で実行し、15 秒以内の完了を待機 | UI が応答を維持し、完了処理は EDT 上で実行される。元／保存先とも再読込可能で、保存先が現在のファイル名になる |
 
 ### 共同編集 / ロック / メタデータ
 
@@ -165,4 +166,4 @@
 - ファイル: 元ファイル保護、temp rename の原子性、stream close、PDF/XLSX/POD の再読込可能性。
 - 並行性: JSON 破損、二重 lock、期限切れ lock 残留、reload 二重発火がない。
 - 性能: 大量データで OOM/StackOverflow なし。基準時間を CI/nightly で固定。
-- 回帰: 既存テストに加え、上記 ID を unit/integration/manual に分類して CI で少なくとも unit + packaged import を必須化する。
+- 回帰: 既存テストに加え、上記 ID を unit/integration/manual に分類して CI で少なくとも unit + packaged import を必須化する。PR CI で `-x test` を使わず、保存・Save As の回帰テストを必ず実行する。
