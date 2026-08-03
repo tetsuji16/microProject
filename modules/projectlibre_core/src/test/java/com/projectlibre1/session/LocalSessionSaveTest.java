@@ -1,6 +1,7 @@
 package com.projectlibre1.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -42,6 +43,27 @@ class LocalSessionSaveTest {
 		assertEquals(copy.toString(), project.getFileName());
 		assertTrue(Files.size(original) > 0L);
 		assertTrue(Files.size(copy) > 0L);
+	}
+
+	@Test
+	void saveClearsDirtyFlagSoTitleNoLongerShowsModifiedMarker() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("save-dirty-test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		// Simulate an edit so the project becomes dirty before saving.
+		project.setGroupDirty(true);
+		assertTrue(project.needsSaving(), "project must be dirty before save");
+
+		LocalSession session = new LocalSession();
+		session.setJobQueue(new JobQueue("save-dirty-test", false));
+
+		Path destination = tempDirectory.resolve("dirty-cleared.pod");
+		saveAndAwait(session, project, destination, false);
+
+		// After a successful Save, the modified marker ("*") must be cleared.
+		assertFalse(project.isGroupDirty(), "groupDirty must be cleared after save");
+		assertFalse(project.needsSaving(), "needsSaving() must be false after save");
+		assertTrue(Files.size(destination) > 0L, "saved file must exist");
 	}
 
 	private static void saveAndAwait(LocalSession session, Project project, Path destination, boolean saveAs)
