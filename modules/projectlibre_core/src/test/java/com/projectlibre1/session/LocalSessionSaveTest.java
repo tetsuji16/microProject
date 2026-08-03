@@ -20,6 +20,8 @@ import com.projectlibre1.job.Job;
 import com.projectlibre1.job.JobQueue;
 import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.pm.task.ProjectEvent;
+import com.projectlibre1.pm.task.ProjectListener;
 import com.projectlibre1.undo.DataFactoryUndoController;
 
 class LocalSessionSaveTest {
@@ -46,13 +48,35 @@ class LocalSessionSaveTest {
 	}
 
 	@Test
-	void saveClearsDirtyFlagSoTitleNoLongerShowsModifiedMarker() throws Exception {
+	void saveClearsDirtyAndNotifiesListenersOnEventDispatchThread() throws Exception {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("save-dirty-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
-		// Simulate an edit so the project becomes dirty before saving.
+		// Simulate an edit so the project is dirty before saving. Drive the precondition
+		// off the model flag directly (needsSaving() also depends on isSavable(), which is
+		// environmental and would make the precondition brittle in a headless run).
 		project.setGroupDirty(true);
-		assertTrue(project.needsSaving(), "project must be dirty before save");
+		assertTrue(project.isGroupDirty(), "project must be dirty before save");
+
+		// The title's "*" marker is driven by groupDirtyChanged, not by reading the flag
+		// directly. Register a listener so we verify the notification actually reaches a
+		// listener on the Swing EDT and reports a clean state -- the exact path issue #20
+		// reported broken (UI not updated after Save).
+		CountDownLatch notified = new CountDownLatch(1);
+		AtomicBoolean notifiedOnEdt = new AtomicBoolean();
+		AtomicBoolean notifiedClean = new AtomicBoolean();
+		project.addProjectListener(new ProjectListener() {
+			@Override
+			public void nameChanged(ProjectEvent e) {
+			}
+
+			@Override
+			public void groupDirtyChanged(ProjectEvent e) {
+				notifiedOnEdt.set(SwingUtilities.isEventDispatchThread());
+				notifiedClean.set(!e.getProject().isGroupDirty());
+				notified.countDown();
+			}
+		});
 
 		LocalSession session = new LocalSession();
 		session.setJobQueue(new JobQueue("save-dirty-test", false));
@@ -60,7 +84,11 @@ class LocalSessionSaveTest {
 		Path destination = tempDirectory.resolve("dirty-cleared.pod");
 		saveAndAwait(session, project, destination, false);
 
-		// After a successful Save, the modified marker ("*") must be cleared.
+		// The dirty notification must reach listeners so the UI title can drop the "*".
+		assertTrue(notified.await(15, TimeUnit.SECONDS), "groupDirtyChanged was not fired after save");
+		assertTrue(notifiedOnEdt.get(), "groupDirtyChanged must be delivered on the Swing event dispatch thread");
+		assertTrue(notifiedClean.get(), "groupDirtyChanged must report a clean (non-dirty) project");
+		// Model-level post-conditions, independent of the listener path above.
 		assertFalse(project.isGroupDirty(), "groupDirty must be cleared after save");
 		assertFalse(project.needsSaving(), "needsSaving() must be false after save");
 		assertTrue(Files.size(destination) > 0L, "saved file must exist");
