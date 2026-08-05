@@ -111,7 +111,7 @@ final class GanttBarFormatDialog {
 			shapePanel.add(preview, sample);
 
 			JTabbedPane tabs = new JTabbedPane();
-			tabs.addTab(Messages.getString("Gantt.FormatBar.barShape"), shapePanel);
+			tabs.addTab(Messages.getString("Gantt.FormatBar.barColor"), shapePanel);
 			add(tabs, BorderLayout.CENTER);
 
 			JButton reset = new JButton(Messages.getString("Gantt.FormatBar.reset"));

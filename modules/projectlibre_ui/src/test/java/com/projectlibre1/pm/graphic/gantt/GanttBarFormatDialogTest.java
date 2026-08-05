@@ -27,8 +27,25 @@ class GanttBarFormatDialogTest {
 	void formatBarMessagesAreAvailable() {
 		assertFalse(Messages.getString("Gantt.FormatBar.title").startsWith("!"));
 		assertFalse(Messages.getString("Gantt.FormatBar.automatic").startsWith("!"));
-		assertFalse(Messages.getString("Gantt.FormatBar.barShape").startsWith("!"));
+		// The bar formatting tab exposes color selection (start/middle/end), so its
+		// label must read "Bar Color", not "Bar Shape" (issue #16). Verify the English
+		// resource directly so the assertion is independent of the test JVM locale.
+		assertFalse(Messages.getString("Gantt.FormatBar.barColor").startsWith("!"));
+		String english = readEnglishString("Gantt.FormatBar.barColor");
+		assertEquals("Bar Color", english);
 		assertFalse(Messages.getString("Gantt.FormatBar.reset").startsWith("!"));
+	}
+
+	private static String readEnglishString(String key) {
+		try (java.io.InputStream in = GanttBarFormatDialogTest.class
+				.getClassLoader()
+				.getResourceAsStream("com/projectlibre1/strings/client.properties")) {
+			java.util.Properties props = new java.util.Properties();
+			props.load(in);
+			return props.getProperty(key);
+		} catch (java.io.IOException e) {
+			throw new AssertionError("failed to load client.properties", e);
+		}
 	}
 
 	@Test
