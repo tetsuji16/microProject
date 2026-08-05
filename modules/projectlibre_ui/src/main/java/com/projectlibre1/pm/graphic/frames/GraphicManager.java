@@ -1073,6 +1073,28 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	}
 
+	public void doInformationDialog(Task task, boolean notes) {
+		if (!isDocumentActive())
+			return;
+		finishAnyOperations();
+		if (!beforeTaskInformationRoute(task, notes, false))
+			return;
+		if (!CollaborationHelper.tryLockObject(task.getProject(), task, getCurrentFrame(), "open task details"))
+			return;
+		if (taskInformationDialog == null) {
+			taskInformationDialog = TaskInformationDialog.getInstance(getFrame(), task, notes);
+			taskInformationDialog.pack();
+			taskInformationDialog.setModal(false);
+		} else {
+			taskInformationDialog.setObject(task);
+			taskInformationDialog.updateAll();
+		}
+		taskInformationDialog.setLocationRelativeTo(getCurrentFrame());//to center on screen
+		if (notes)
+			taskInformationDialog.showNotes();
+		taskInformationDialog.setVisible(true);
+	}
+
 	private Object getSingleSelectedImpl() {
 		if (!isDocumentActive())
 			return null;

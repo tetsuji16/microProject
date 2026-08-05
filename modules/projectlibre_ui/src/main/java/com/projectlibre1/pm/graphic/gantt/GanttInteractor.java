@@ -613,12 +613,12 @@ public class GanttInteractor extends GraphInteractor{
     		return;
     	}
 		Object impl = graphicNode.getNode().getImpl();
-		if (!(impl instanceof Task)) {
+		if (!(impl instanceof Task task)) {
 			return;
 		}
 		GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
 		if (graphicManager != null)
-			graphicManager.doInformationDialog(false);
+			graphicManager.doInformationDialog(task, false);
     }
 
     Task getSelectedTask() {

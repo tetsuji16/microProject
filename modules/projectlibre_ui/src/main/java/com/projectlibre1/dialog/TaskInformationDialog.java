@@ -122,15 +122,32 @@ public class TaskInformationDialog extends InformationDialog {
 	private BarColorField barEndColor;
 
 	private Gantt getGantt() {
-		DocumentFrame frame = GraphicManager.getInstance(this).getCurrentFrame();
-		return frame.getGanttView().getGantt();
+		try {
+			GraphicManager manager = GraphicManager.getInstance(this);
+			DocumentFrame frame = manager == null ? null : manager.getCurrentFrame();
+			if (frame == null)
+				return null;
+			return frame.getGanttView().getGantt();
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private BarFormat currentBarFormat(Task task) {
+		Gantt gantt = getGantt();
+		if (gantt == null || task == null)
+			return BarFormat.automatic();
+		return gantt.getBarFormat(task);
 	}
 
 	private void applyBarFormatFromFields() {
 		Task task = (Task) getObject();
 		if (task == null)
 			return;
-		getGantt().applyBarFormat(task,
+		Gantt gantt = getGantt();
+		if (gantt == null)
+			return;
+		gantt.applyBarFormat(task,
 				new BarFormat(barStartColor.getRgb(), barMiddleColor.getRgb(), barEndColor.getRgb()));
 	}
 
@@ -221,7 +238,7 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.nextLine(4);
 		builder.addSeparator(Messages.getString("TaskInformationDialog.BarColor")); //$NON-NLS-1$
 		builder.nextLine(2);
-		BarFormat barFormat = getGantt().getBarFormat((Task) getObject());
+		BarFormat barFormat = currentBarFormat((Task) getObject());
 		Runnable applyOnChange = this::applyBarFormatFromFields;
 		barStartColor = new BarColorField(this, barFormat.getStartRgb(), applyOnChange);
 		barMiddleColor = new BarColorField(this, barFormat.getMiddleRgb(), applyOnChange);
@@ -462,7 +479,7 @@ public class TaskInformationDialog extends InformationDialog {
 		Task task = (Task) getObject();
 		if (task == null)
 			return true;
-		BarFormat barFormat = getGantt().getBarFormat(task);
+		BarFormat barFormat = currentBarFormat(task);
 		if (get) {
 			// Initialize the bar color fields from the current format.
 			barStartColor.setRgb(barFormat.getStartRgb());
