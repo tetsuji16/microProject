@@ -73,6 +73,9 @@ import com.projectlibre1.menu.MenuActionConstants;
 import com.projectlibre1.pm.graphic.frames.DocumentFrame;
 import com.projectlibre1.pm.graphic.frames.DocumentSelectedEvent;
 import com.projectlibre1.pm.graphic.frames.GraphicManager;
+import com.projectlibre1.pm.graphic.gantt.BarColorField;
+import com.projectlibre1.pm.graphic.gantt.Gantt;
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
@@ -112,7 +115,25 @@ public class TaskInformationDialog extends InformationDialog {
 	private JTabbedPane taskTabbedPane;
 	private int notesTabIndex;
 	private int resourcesTabIndex;
-	
+
+	// Bar color fields shown in the General tab (issue #16)
+	private BarColorField barStartColor;
+	private BarColorField barMiddleColor;
+	private BarColorField barEndColor;
+
+	private Gantt getGantt() {
+		DocumentFrame frame = GraphicManager.getInstance(this).getCurrentFrame();
+		return frame.getGanttView().getGantt();
+	}
+
+	private void applyBarFormatFromFields() {
+		Task task = (Task) getObject();
+		if (task == null)
+			return;
+		getGantt().applyBarFormat(task,
+				new BarFormat(barStartColor.getRgb(), barMiddleColor.getRgb(), barEndColor.getRgb()));
+	}
+
 	public void setObject(Object object) {
 		super.setObject(object);
 		String title = Messages.getString("TaskInformationDialog.TaskInformation");
@@ -197,9 +218,21 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.nextLine(2);
 		map.append(builder,"Field.baselineStart"); //$NON-NLS-1$
 		map.append(builder,"Field.baselineFinish"); //$NON-NLS-1$
+		builder.nextLine(4);
+		builder.addSeparator(Messages.getString("TaskInformationDialog.BarColor")); //$NON-NLS-1$
+		builder.nextLine(2);
+		BarFormat barFormat = getGantt().getBarFormat((Task) getObject());
+		Runnable applyOnChange = this::applyBarFormatFromFields;
+		barStartColor = new BarColorField(this, barFormat.getStartRgb(), applyOnChange);
+		barMiddleColor = new BarColorField(this, barFormat.getMiddleRgb(), applyOnChange);
+		barEndColor = new BarColorField(this, barFormat.getEndRgb(), applyOnChange);
+		builder.append(Messages.getString("Gantt.FormatBar.start"), barStartColor); //$NON-NLS-1$
+		builder.append(Messages.getString("Gantt.FormatBar.middle"), barMiddleColor); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("Gantt.FormatBar.end"), barEndColor); //$NON-NLS-1$
 		return builder.getPanel();
 	}
-	
+
 	private JComponent createAdvancedPanel(){
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
@@ -421,7 +454,27 @@ public class TaskInformationDialog extends InformationDialog {
 		updateSuccessorsSpreadsheet();
 		updateAssignmentSpreadsheet();
 	}
-	
+
+	@Override
+	protected boolean bind(boolean get) {
+		if (!super.bind(get))
+			return false;
+		Task task = (Task) getObject();
+		if (task == null)
+			return true;
+		BarFormat barFormat = getGantt().getBarFormat(task);
+		if (get) {
+			// Initialize the bar color fields from the current format.
+			barStartColor.setRgb(barFormat.getStartRgb());
+			barMiddleColor.setRgb(barFormat.getMiddleRgb());
+			barEndColor.setRgb(barFormat.getEndRgb());
+		} else {
+			// Commit bar color changes when the user confirms the dialog.
+			applyBarFormatFromFields();
+		}
+		return true;
+	}
+
 	public void documentSelected(DocumentSelectedEvent evt) {
 		if (assignmentSpreadSheet==null) return;
         DocumentFrame df=evt.getCurrent();

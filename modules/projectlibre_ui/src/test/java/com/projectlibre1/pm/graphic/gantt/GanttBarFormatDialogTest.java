@@ -24,6 +24,18 @@ class GanttBarFormatDialogTest {
 	}
 
 	@Test
+	void barColorFieldRgbRoundTripsThroughAutomatic() {
+		// null means "Automatic" and must round-trip, since Task Information reuses
+		// the same field and the renderer falls back to the view palette (issue #16).
+		BarColorField field = new BarColorField(null, null, () -> { });
+		assertEquals(null, field.getRgb());
+		field.setRgb(0xFF0033);
+		assertEquals(Integer.valueOf(0xFF0033), field.getRgb());
+		field.setRgb(null);
+		assertEquals(null, field.getRgb());
+	}
+
+	@Test
 	void formatBarMessagesAreAvailable() {
 		assertFalse(Messages.getString("Gantt.FormatBar.title").startsWith("!"));
 		assertFalse(Messages.getString("Gantt.FormatBar.automatic").startsWith("!"));
