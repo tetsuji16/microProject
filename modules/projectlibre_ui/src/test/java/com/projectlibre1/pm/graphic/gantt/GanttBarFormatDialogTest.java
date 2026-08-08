@@ -120,6 +120,26 @@ class GanttBarFormatDialogTest {
 	}
 
 	@Test
+	void taskInformationColorEditsRemainLocalUntilConfirmed() {
+		BarFormat original = new BarFormat(0x112233, 0x445566, 0x778899);
+		BarColorEditorPanel editor = new BarColorEditorPanel(null, original, false, false, null);
+
+		editor.getStart().setRgb(0xAABBCC);
+		editor.getMiddle().setRgb(null);
+		editor.getEnd().setRgb(0x010203);
+
+		// Task Information applies editor.getFormat() only from its OK binding.
+		// Editing its local fields must therefore leave the pre-dialog format intact
+		// when the dialog is cancelled (issue #27).
+		assertEquals(Integer.valueOf(0x112233), original.getStartRgb());
+		assertEquals(Integer.valueOf(0x445566), original.getMiddleRgb());
+		assertEquals(Integer.valueOf(0x778899), original.getEndRgb());
+		assertEquals(Integer.valueOf(0xAABBCC), editor.getFormat().getStartRgb());
+		assertEquals(null, editor.getFormat().getMiddleRgb());
+		assertEquals(Integer.valueOf(0x010203), editor.getFormat().getEndRgb());
+	}
+
+	@Test
 	void barColorControlsExposeTheirRoleToAssistiveTechnology() {
 		JPanel panel = GanttBarFormatDialog.createPanelForTest(
 				new BarFormat(null, null, null),
