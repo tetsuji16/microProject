@@ -192,7 +192,6 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--main-jar", "projectlibre_ui.jar",
             "--main-class", "com.projectlibre1.main.Main",
             "--icon", File(inputDir, "projectlibre.ico").absolutePath,
-            "--license-file", File(inputDir, "license.txt").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--dest", windowsAppImageDir.get().asFile.absolutePath,
             "--verbose"

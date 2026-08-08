@@ -47,11 +47,14 @@ jobs:
 
       - name: Build, package, and verify
         shell: pwsh
-        run: .\gradlew.bat clean build packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\gradlew.bat clean build packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
 
       - name: Stage release assets
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $version = '${{ steps.version.outputs.release_version }}'
           New-Item -ItemType Directory -Path release-assets | Out-Null
           Copy-Item "build/releases/v$version/msi/ProjectLibre-$version.msi" "release-assets/ProjectLibre-$version.msi"
