@@ -144,7 +144,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
     protected GraphicConfiguration config;
     protected JComponent container;
-    protected GanttColorPalette palette = new MondayComPalette();
+	protected GanttColorPalette palette = new MondayComPalette();
+
+	/** Colors resolved exactly as an automatically formatted task bar is painted. */
+	public record DisplayedBarColors(Integer startRgb, Integer middleRgb, Integer endRgb) {
+	}
 
 
 	public GanttRenderer(){
@@ -199,6 +203,38 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
             this.palette = palette;
         }
     }
+
+	public DisplayedBarColors resolveDisplayedBarColors(Task task) {
+		if (task == null)
+			return new DisplayedBarColors(BarColorField.DEFAULT_BAR_RGB, BarColorField.DEFAULT_BAR_RGB,
+					BarColorField.DEFAULT_BAR_RGB);
+		BarFormat format = resolveMainBarFormat(task);
+		Color middle = palette.getStatusColor(task, task);
+		Color endpoint = format != null && GanttBarSupport.shouldUseUniformEndpointColor(format)
+				? middle
+				: palette.getAccentColor(format, middle, task);
+		GanttBarFormatOverrides.BarFormat individual = graphInfo instanceof Gantt gantt
+				&& GanttBarSupport.isIndividuallyFormattable(format)
+				? gantt.getBarFormat(task)
+				: GanttBarFormatOverrides.BarFormat.automatic();
+		return new DisplayedBarColors(
+				individual.getStartRgb() == null ? endpoint.getRGB() & 0x00FFFFFF : individual.getStartRgb(),
+				individual.getMiddleRgb() == null ? middle.getRGB() & 0x00FFFFFF : individual.getMiddleRgb(),
+				individual.getEndRgb() == null ? endpoint.getRGB() & 0x00FFFFFF : individual.getEndRgb());
+	}
+
+	private BarFormat resolveMainBarFormat(Task task) {
+		BarStyles barStyles = graphInfo == null ? null : graphInfo.getBarStyles();
+		if (barStyles == null)
+			return null;
+		final BarFormat[] mainFormat = new BarFormat[1];
+		barStyles.apply(task, argument -> {
+			BarFormat candidate = (BarFormat)argument;
+			if (mainFormat[0] == null && candidate.isMain())
+				mainFormat[0] = candidate;
+		});
+		return mainFormat[0];
+	}
 
     private Color resolveTaskFillColor(GraphicNode node, BarFormat format, Schedule schedule) {
         Color defaultColor = GanttBarSupport.isBaselineBarFormat(format)

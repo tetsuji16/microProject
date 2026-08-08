@@ -3,20 +3,11 @@ package com.projectlibre1.pm.graphic.gantt;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.awt.RenderingHints;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
@@ -36,7 +27,10 @@ final class GanttBarFormatDialog {
 
 	static void show(Component parent, Gantt gantt, Task task) {
 		BarFormat original = gantt.getBarFormat(task);
-		FormatPanel fields = new FormatPanel(parent, original, task.isMilestone(), task.isSummary());
+		// Automatic fields must preview the same palette colors as the bar that
+		// opened this dialog.  Do not fall back to the editor's generic blue.
+		FormatPanel fields = new FormatPanel(parent, original, gantt.getDisplayedBarColors(task),
+				task.isMilestone(), task.isSummary());
 
 		int result = JOptionPane.showConfirmDialog(
 				parent,
@@ -50,6 +44,7 @@ final class GanttBarFormatDialog {
 		gantt.applyBarFormat(task, fields.getFormat());
 	}
 
+	/** Retained for the Gantt context menu; the editor owns the chooser UI. */
 	static Color chooseColor(Component parent, Integer currentRgb) {
 		return BarColorField.chooseColor(parent, currentRgb);
 	}
@@ -59,161 +54,45 @@ final class GanttBarFormatDialog {
 	}
 
 	static JPanel createPanelForTest(BarFormat format, boolean milestone, boolean summary) {
-		return new FormatPanel(null, format, milestone, summary);
+		return createPanelForTest(format, new GanttRenderer.DisplayedBarColors(
+				BarColorField.DEFAULT_BAR_RGB,
+				BarColorField.DEFAULT_BAR_RGB,
+				BarColorField.DEFAULT_BAR_RGB), milestone, summary);
+	}
+
+	static JPanel createPanelForTest(BarFormat format, GanttRenderer.DisplayedBarColors displayedColors,
+			boolean milestone, boolean summary) {
+		return new FormatPanel(null, format, displayedColors, milestone, summary);
 	}
 
 	private static final class FormatPanel extends JPanel {
 		private static final long serialVersionUID = 1L;
-		private final BarColorField start;
-		private final BarColorField middle;
-		private final BarColorField end;
+		private final BarColorEditorPanel editor;
 
-		private FormatPanel(Component parent, BarFormat format, boolean milestone, boolean summary) {
+		private FormatPanel(Component parent, BarFormat format, GanttRenderer.DisplayedBarColors displayedColors,
+				boolean milestone, boolean summary) {
 			super(new BorderLayout());
 			setBorder(BorderFactory.createEmptyBorder(8, 8, 4, 8));
 
-			BarPreview preview = new BarPreview(milestone, summary);
-			Runnable refreshPreview = preview::repaint;
-			start = new BarColorField(parent, format.getStartRgb(), refreshPreview);
-			middle = new BarColorField(parent, format.getMiddleRgb(), refreshPreview);
-			end = new BarColorField(parent, format.getEndRgb(), refreshPreview);
-			preview.setFields(start, middle, end);
-
-			JPanel shapePanel = new JPanel(new GridBagLayout());
-			shapePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-			addCell(shapePanel, new JLabel(), 0, 0, 0.0d);
-			addCell(shapePanel, centeredLabel("Gantt.FormatBar.start"), 1, 0, 1.0d);
-			addCell(shapePanel, centeredLabel("Gantt.FormatBar.middle"), 2, 0, 1.0d);
-			addCell(shapePanel, centeredLabel("Gantt.FormatBar.end"), 3, 0, 1.0d);
-			addCell(shapePanel, new JLabel(Messages.getString("Gantt.FormatBar.color")), 0, 1, 0.0d);
-			addCell(shapePanel, start, 1, 1, 1.0d);
-			addCell(shapePanel, middle, 2, 1, 1.0d);
-			addCell(shapePanel, end, 3, 1, 1.0d);
-
-			GridBagConstraints sampleLabel = constraints(0, 2, 0.0d);
-			sampleLabel.anchor = GridBagConstraints.NORTHWEST;
-			shapePanel.add(new JLabel(Messages.getString("Gantt.FormatBar.sample")), sampleLabel);
-			GridBagConstraints sample = constraints(1, 2, 1.0d);
-			sample.gridwidth = 3;
-			sample.fill = GridBagConstraints.BOTH;
-			sample.weighty = 1.0d;
-			shapePanel.add(preview, sample);
+			editor = new BarColorEditorPanel(parent, format, displayedColors, milestone, summary, null);
 
 			JTabbedPane tabs = new JTabbedPane();
-			tabs.addTab(Messages.getString("Gantt.FormatBar.barColor"), shapePanel);
+			tabs.addTab(Messages.getString("Gantt.FormatBar.barColor"), editor);
 			add(tabs, BorderLayout.CENTER);
 
 			JButton reset = new JButton(Messages.getString("Gantt.FormatBar.reset"));
 			reset.addActionListener(event -> {
-				start.setRgb(null);
-				middle.setRgb(null);
-				end.setRgb(null);
+				editor.getStart().setRgb(null);
+				editor.getMiddle().setRgb(null);
+				editor.getEnd().setRgb(null);
 			});
 			JPanel resetPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 8));
 			resetPanel.add(reset);
 			add(resetPanel, BorderLayout.SOUTH);
 		}
 
-		private static JLabel centeredLabel(String key) {
-			return new JLabel(Messages.getString(key), JLabel.CENTER);
-		}
-
-		private static void addCell(JPanel panel, JComponent component, int x, int y, double weightX) {
-			panel.add(component, constraints(x, y, weightX));
-		}
-
-		private static GridBagConstraints constraints(int x, int y, double weightX) {
-			GridBagConstraints constraints = new GridBagConstraints();
-			constraints.gridx = x;
-			constraints.gridy = y;
-			constraints.weightx = weightX;
-			constraints.fill = GridBagConstraints.HORIZONTAL;
-			constraints.anchor = GridBagConstraints.WEST;
-			constraints.insets = new Insets(4, x == 0 ? 0 : 6, 4, 0);
-			return constraints;
-		}
-
 		private BarFormat getFormat() {
-			return new BarFormat(start.getRgb(), middle.getRgb(), end.getRgb());
-		}
-	}
-
-	private static final class BarPreview extends JComponent {
-		private static final long serialVersionUID = 1L;
-		private final boolean milestone;
-		private final boolean summary;
-		private BarColorField start;
-		private BarColorField middle;
-		private BarColorField end;
-
-		private BarPreview(boolean milestone, boolean summary) {
-			this.milestone = milestone;
-			this.summary = summary;
-			setPreferredSize(new Dimension(390, 72));
-			setMinimumSize(new Dimension(280, 58));
-			setBorder(BorderFactory.createEtchedBorder());
-		}
-
-		private void setFields(BarColorField start, BarColorField middle, BarColorField end) {
-			this.start = start;
-			this.middle = middle;
-			this.end = end;
-		}
-
-		@Override
-		protected void paintComponent(Graphics graphics) {
-			super.paintComponent(graphics);
-			if (start == null || middle == null || end == null)
-				return;
-			Graphics2D g2 = (Graphics2D) graphics.create();
-			try {
-				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				int centerY = getHeight() / 2;
-				int left = 42;
-				int right = Math.max(left + 40, getWidth() - 42);
-				if (milestone) {
-					paintDiamond(g2, left + (right - left) / 2, centerY, resolve(start.getRgb()));
-					return;
-				}
-
-				Color middleColor = resolve(middle.getRgb());
-				if (summary) {
-					g2.setColor(middleColor);
-					g2.fillRect(left, centerY - 3, right - left, 6);
-					paintSummaryEnd(g2, left, centerY, resolve(start.getRgb()), false);
-					paintSummaryEnd(g2, right, centerY, resolve(end.getRgb()), true);
-				} else {
-					g2.setColor(middleColor);
-					g2.fillRoundRect(left, centerY - 8, right - left, 16, 10, 10);
-					if (start.getRgb() != null)
-						paintDiamond(g2, left, centerY, resolve(start.getRgb()));
-					if (end.getRgb() != null)
-						paintDiamond(g2, right, centerY, resolve(end.getRgb()));
-				}
-			} finally {
-				g2.dispose();
-			}
-		}
-
-		private static Color resolve(Integer rgb) {
-			return new Color(rgb == null ? BarColorField.DEFAULT_BAR_RGB : rgb);
-		}
-
-		private static void paintDiamond(Graphics2D graphics, int x, int y, Color color) {
-			graphics.setColor(color);
-			graphics.fillPolygon(
-					new int[] { x, x + 9, x, x - 9 },
-					new int[] { y - 9, y, y + 9, y },
-					4);
-		}
-
-		private static void paintSummaryEnd(Graphics2D graphics, int x, int y, Color color, boolean right) {
-			int direction = right ? -1 : 1;
-			graphics.setColor(color);
-			graphics.fillPolygon(
-					new int[] { x, x + direction * 10, x },
-					new int[] { y - 6, y - 6, y + 8 },
-					3);
+			return editor.getFormat();
 		}
 	}
 }

@@ -31,7 +31,11 @@ tasks.named<CreateStartScripts>("startScripts") {
             val original = scriptFile.readText(Charsets.UTF_8)
             val isWindows = candidate.endsWith(".bat")
             val prefix = if (isWindows) "%APP_HOME%\\lib\\" else "\$APP_HOME/lib/"
-            val classpathValue = "${prefix}*"
+            // projectlibre_ui.jar contains the compatibility DefaultFormBuilder.
+            // It must precede the bundled JGoodies jars, which expose an older
+            // binary-incompatible implementation of the same class.
+            val separator = if (isWindows) ";" else ":"
+            val classpathValue = "${prefix}projectlibre_ui.jar${separator}${prefix}jgoodies-forms-1.9.0.jar${separator}${prefix}*"
             val updated = original.replace(Regex("""(?m)^set CLASSPATH=.*$""")) {
                 "set CLASSPATH=$classpathValue"
             }.replace(Regex("""(?m)^CLASSPATH=.*$""")) {
@@ -63,4 +67,3 @@ tasks.test {
     useJUnitPlatform()
     systemProperty("java.awt.headless", "true")
 }
-

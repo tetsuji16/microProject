@@ -214,7 +214,7 @@ public final class BaselineDialog extends AbstractDialog {
 		builder.append(baseline);
 		builder.nextLine(2);
 		builder.addSeparator(""); //$NON-NLS-1$
-		builder.nextLine(2);
+		builder.nextLine();
 		builder.append(Messages.getString("BaselineDialog.For")); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.append(entireProject);

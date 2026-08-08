@@ -202,6 +202,10 @@ public class ComponentFactory {
 	}
 
 	private static JComponent componentFor(final Field field, Object value, boolean readOnly) {
+		return componentFor(field, value, readOnly, null);
+	}
+
+	private static JComponent componentFor(final Field field, Object value, boolean readOnly, Object object) {
 		JComponent component = null;
 		Range range = field.getRange();
 		JTextComponent text = null;
@@ -215,7 +219,6 @@ public class ComponentFactory {
 			
 		} else if (field.isDate()) {
 			ExtDateField d = createDateField(field);
-			Object o = d.getComponents();
 			d.getFormattedTextField().addActionListener(new FieldVerifier.VerifierListener());
 			component = d;
 			text = (JTextComponent) verifiedComponent(component);
@@ -223,7 +226,7 @@ public class ComponentFactory {
 		} else if (field.getLookupTypes() != null) {
 			component = new LookupField(field,null);
 		} else if (field.hasOptions()) {
-			final JComboBox combo = new JComboBox(field.getOptions(null));
+			final JComboBox combo = new JComboBox(field.getOptions(object) == null ? new Object[0] : field.getOptions(object));
 //			if ("Field.accessControlPolicy".equals(field.getId())){
 //				combo.setInputVerifier(new InputVerifier(){
 //					@Override
@@ -414,7 +417,7 @@ public class ComponentFactory {
 		readOnly |= fieldReadOnly;
 		if (sometimesReadOnly)
 			readOnly = false;
-		JComponent component = componentFor(field,value,readOnly);
+		JComponent component = componentFor(field,value,readOnly, objectRef.getObject());
 		if (component instanceof LookupField) { //checkboxes update immediately on clicking
 			((LookupField)component).addChangeListener(new FieldChangeListener(field,objectRef));
 		} else if (!readOnly) {

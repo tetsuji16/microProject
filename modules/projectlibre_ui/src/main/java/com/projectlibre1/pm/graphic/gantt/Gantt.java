@@ -265,6 +265,20 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		return project.getGanttBarFormatOverrides().get(formatViewName, task.getUniqueId());
 	}
 
+	/**
+	 * Returns the colors currently used to paint this task, including automatic
+	 * palette colors and any individual overrides. UI previews must use this
+	 * instead of a fixed fallback color.
+	 */
+	public GanttRenderer.DisplayedBarColors getDisplayedBarColors(Task task) {
+		if (getUI() instanceof GanttUI ganttUi)
+			return ganttUi.getGanttRenderer().resolveDisplayedBarColors(task);
+		return new GanttRenderer.DisplayedBarColors(
+				BarColorField.DEFAULT_BAR_RGB,
+				BarColorField.DEFAULT_BAR_RGB,
+				BarColorField.DEFAULT_BAR_RGB);
+	}
+
 	public void applyBarFormat(Task task, BarFormat format) {
 		if (task == null || project.isReadOnly())
 			return;

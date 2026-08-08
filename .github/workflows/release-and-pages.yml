@@ -1,0 +1,88 @@
+name: Release and deploy Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: release-and-pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish Windows release
+    runs-on: windows-latest
+    outputs:
+      release_version: ${{ steps.version.outputs.release_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          choco install wixtoolset --yes --no-progress
+          'C:\Program Files (x86)\WiX Toolset v3.11\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          where.exe candle.exe
+
+      - name: Derive release version
+        id: version
+        shell: pwsh
+        run: |
+          $baseVersion = (Select-String -Path build.gradle.kts -Pattern 'version = .*"([0-9]+\.[0-9]+\.[0-9]+)"').Matches[0].Groups[1].Value
+          $releaseVersion = "$baseVersion.$env:GITHUB_RUN_NUMBER"
+          "release_version=$releaseVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Build, package, and verify
+        shell: pwsh
+        run: .\gradlew.bat clean build packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
+
+      - name: Stage release assets
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.release_version }}'
+          New-Item -ItemType Directory -Path release-assets | Out-Null
+          Copy-Item "build/releases/v$version/msi/ProjectLibre-$version.msi" "release-assets/ProjectLibre-$version.msi"
+          Copy-Item "docs/downloads/ProjectLibre-$version-app-image.zip" "release-assets/ProjectLibre-$version-app-image.zip"
+          Copy-Item "release-assets/ProjectLibre-$version.msi" "release-assets/ProjectLibre-latest.msi"
+          Copy-Item "release-assets/ProjectLibre-$version-app-image.zip" "release-assets/ProjectLibre-latest-app-image.zip"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.release_version }}
+          name: ProjectLibre v${{ steps.version.outputs.release_version }}
+          generate_release_notes: true
+          files: release-assets/*
+
+  deploy-pages:
+    name: Deploy GitHub Pages
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

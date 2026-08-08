@@ -862,7 +862,7 @@ public final class LocaleDialog extends AbstractDialog {
 		builder.append(countryCombo);
 		builder.nextLine(2);
 		builder.addSeparator(Messages.getString("Text.ExternalLocale")); 
-		builder.nextLine(2);
+		builder.nextLine();
 
 		builder.add(externalCheckbox,cc.xyw(builder.getColumn(), builder
 				.getRow(), 7)); 

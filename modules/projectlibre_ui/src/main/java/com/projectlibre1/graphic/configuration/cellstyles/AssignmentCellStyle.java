@@ -70,13 +70,16 @@ public class AssignmentCellStyle implements CellStyle {
 		//CellFormat format=new CellFormat();		
 		format.reset();
 		format.setBold(node.isSummary());
-		format.setItalic(node.isAssignment());
+		// Assignment rows use the standard spreadsheet font. The former italic
+		// treatment conflicts with the FlatLaf table typography.
+		format.setItalic(false);
 		format.setCompositeIcon(node.isSummary()||node.isValidLazyParent());
 		if (node.isGroup()){
 			if (node.getLevel()==1) format.setBackground("TAN");
 			else format.setBackground("LINEN");
 		}
-		else format.setBackground("NORMAL_YELLOW");
+		// Ordinary assignments inherit the table's alternating background instead
+		// of the legacy yellow highlight.
 		return format;
 	}
 }

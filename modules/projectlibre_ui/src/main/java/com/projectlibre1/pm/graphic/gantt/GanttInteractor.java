@@ -193,6 +193,13 @@ public class GanttInteractor extends GraphInteractor{
 
     public void mousePressed(MouseEvent e) {
     	if (isReadOnly()) {
+			// Read-only applies to bar editing, not to inspecting a task.  Keep
+			// Task Information available for imported/read-only projects.
+			if (SwingUtilities.isLeftMouseButton(e)) {
+				select(e.getX(), e.getY());
+				if (e.getClickCount() == 2)
+				openTaskInformationAt(e.getX(), e.getY());
+			}
     		super.mousePressed(e);
     		return;
     	}
@@ -212,6 +219,14 @@ public class GanttInteractor extends GraphInteractor{
     		startPan(e);
     		return;
     	}
+		// The Gantt component begins its drag interaction from mousePressed and
+		// can consume the following click notification.  Handle a double-click
+		// here, after hit-testing has selected the bar, rather than relying on
+		// mouseClicked() which is not reliably delivered for this component.
+		if (e.getClickCount() == 2) {
+			openTaskInformationAt(e.getX(), e.getY());
+			return;
+		}
     	super.mousePressed(e);
     }
 
@@ -235,10 +250,7 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     public void mouseClicked(MouseEvent e) {
-    	if (isReadOnly() || !SwingUtilities.isLeftMouseButton(e) || e.getClickCount() != 2) {
-    		return;
-    	}
-		openTaskInformationAt(e.getX(), e.getY());
+		// Double-click handling is deliberately in mousePressed(); see above.
     }
 
     protected void computeNodeSelection(double x,double y){
@@ -609,16 +621,24 @@ public class GanttInteractor extends GraphInteractor{
     private void openTaskInformationAt(int x, int y) {
     	GraphZone clickedZone = ui.getObjectAt(x, y);
     	Object clickedObject = clickedZone == null ? null : clickedZone.getObject();
-		if (!(clickedObject instanceof GraphicNode graphicNode)) {
-    		return;
-    	}
+		// A Gantt bar can select its node even when the renderer has no zone at
+		// the exact click coordinate (notably narrow bars and endpoint markers).
+		// Prefer the hit-tested object but fall back to that selection.
+		GraphicNode graphicNode = clickedObject instanceof GraphicNode
+				? (GraphicNode) clickedObject
+				: selected instanceof GraphicNode ? (GraphicNode) selected : null;
+		if (graphicNode == null) {
+			return;
+		}
 		Object impl = graphicNode.getNode().getImpl();
 		if (!(impl instanceof Task task)) {
 			return;
 		}
 		GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
 		if (graphicManager != null)
-			graphicManager.doInformationDialog(task, false);
+			// Finish the graph's press/release sequence before showing a dialog.
+			// Opening it during mousePressed competes with the drag/selection cleanup.
+			SwingUtilities.invokeLater(() -> graphicManager.doInformationDialog(task, false));
     }
 
     Task getSelectedTask() {

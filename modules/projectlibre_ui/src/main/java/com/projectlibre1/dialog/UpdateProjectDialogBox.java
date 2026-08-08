@@ -254,7 +254,7 @@ public class UpdateProjectDialogBox extends AbstractDialog {
 		builder.append(rescheduleDateChooser);
 		builder.nextLine(8);
 		builder.addSeparator(""); //$NON-NLS-1$
-		builder.nextLine(2);
+		builder.nextLine();
 		builder.append(Messages.getString("UpdateProjectDialogBox.For")); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.nextColumn(2);

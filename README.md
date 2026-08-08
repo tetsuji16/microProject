@@ -137,6 +137,12 @@ If you need the portable app-image ZIP or split EXE staging flow, use:
 
 Files under `docs/downloads/` are treated as scratch space only and should not be committed. Public downloads should be published as GitHub Release assets for `v0.0.23`, and the GitHub Pages site should link to that release page instead of serving binaries from the repository itself.
 
+## Automated Release and Pages Deployment
+
+Every push to `main` (and `master` during the branch-name transition) runs the release workflow. It builds the Windows MSI and portable ZIP, creates a uniquely versioned GitHub Release, and deploys `docs/` to GitHub Pages. The site links to the release's stable `latest` assets, so no release-specific HTML edit is needed.
+
+Before the first automated deployment, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The workflow needs repository Actions permissions to create releases and deploy Pages.
+
 The GitHub Pages landing page for this release is:
 
 - `docs/index.html`

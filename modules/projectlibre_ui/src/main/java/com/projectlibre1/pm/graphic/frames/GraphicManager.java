@@ -1034,21 +1034,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				return;
 			if (!CollaborationHelper.tryLockObject(task.getProject(), task, getCurrentFrame(), "open task details"))
 				return;
-			if (taskInformationDialog == null) {
-				taskInformationDialog = TaskInformationDialog.getInstance(getFrame(),task, notes);
-				taskInformationDialog.pack();
-				taskInformationDialog.setModal(false);
-			} else {
-				taskInformationDialog.setObject(task);
-				taskInformationDialog.updateAll();
-			}
-			taskInformationDialog.setLocationRelativeTo(getCurrentFrame());//to center on screen
-			if (notes)
-				taskInformationDialog.showNotes();
-			else if (resourcesTab)
-				taskInformationDialog.showResources();
-
-			taskInformationDialog.setVisible(true);
+			showTaskInformationDialog(task, notes, resourcesTab);
 		} else if (impl instanceof Resource||(impl instanceof Assignment&&resourceType)) {
 			Resource resource=(Resource)((impl instanceof Assignment)?(((Assignment)impl).getResource()):impl);;
 			if (!beforeResourceInformationRoute(resource, notes))
@@ -1081,17 +1067,35 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		if (!CollaborationHelper.tryLockObject(task.getProject(), task, getCurrentFrame(), "open task details"))
 			return;
+		showTaskInformationDialog(task, notes, false);
+	}
+
+	/**
+	 * Builds the task dialog before publishing it to the reusable dialog cache.
+	 * A layout failure during {@code pack()} must not leave a title-only dialog
+	 * cached: the next Information command would otherwise display that partial
+	 * instance instead of retrying construction.
+	 */
+	private void showTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
 		if (taskInformationDialog == null) {
-			taskInformationDialog = TaskInformationDialog.getInstance(getFrame(), task, notes);
-			taskInformationDialog.pack();
-			taskInformationDialog.setModal(false);
+			TaskInformationDialog dialog = TaskInformationDialog.getInstance(getFrame(), task, notes);
+			try {
+				dialog.pack();
+				dialog.setModal(false);
+				taskInformationDialog = dialog;
+			} catch (RuntimeException | Error e) {
+				dialog.dispose();
+				throw e;
+			}
 		} else {
 			taskInformationDialog.setObject(task);
 			taskInformationDialog.updateAll();
 		}
-		taskInformationDialog.setLocationRelativeTo(getCurrentFrame());//to center on screen
+		taskInformationDialog.setLocationRelativeTo(getCurrentFrame());
 		if (notes)
 			taskInformationDialog.showNotes();
+		else if (resourcesTab)
+			taskInformationDialog.showResources();
 		taskInformationDialog.setVisible(true);
 	}
 
@@ -1124,18 +1128,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		if (!CollaborationHelper.tryLockObject(task.getProject(), task, getCurrentFrame(), "open task details"))
 			return;
-		if (taskInformationDialog == null) {
-			taskInformationDialog = TaskInformationDialog.getInstance(getFrame(), task, notes);
-			taskInformationDialog.pack();
-			taskInformationDialog.setModal(false);
-		} else {
-			taskInformationDialog.setObject(task);
-			taskInformationDialog.updateAll();
-		}
-		taskInformationDialog.setLocationRelativeTo(getCurrentFrame());
-		if (notes)
-			taskInformationDialog.showNotes();
-		taskInformationDialog.setVisible(true);
+		showTaskInformationDialog(task, notes, false);
 	}
 
 	private void showResourceInformationForSelection(boolean notes) {

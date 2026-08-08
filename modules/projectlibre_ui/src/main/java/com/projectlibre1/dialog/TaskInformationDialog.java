@@ -73,8 +73,10 @@ import com.projectlibre1.menu.MenuActionConstants;
 import com.projectlibre1.pm.graphic.frames.DocumentFrame;
 import com.projectlibre1.pm.graphic.frames.DocumentSelectedEvent;
 import com.projectlibre1.pm.graphic.frames.GraphicManager;
+import com.projectlibre1.pm.graphic.gantt.BarColorEditorPanel;
 import com.projectlibre1.pm.graphic.gantt.BarColorField;
 import com.projectlibre1.pm.graphic.gantt.Gantt;
+import com.projectlibre1.pm.graphic.gantt.GanttRenderer;
 import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
@@ -120,6 +122,7 @@ public class TaskInformationDialog extends InformationDialog {
 	private BarColorField barStartColor;
 	private BarColorField barMiddleColor;
 	private BarColorField barEndColor;
+	private BarColorEditorPanel barColorEditor;
 
 	private Gantt getGantt() {
 		try {
@@ -142,7 +145,8 @@ public class TaskInformationDialog extends InformationDialog {
 
 	private void applyBarFormatFromFields() {
 		Task task = (Task) getObject();
-		if (task == null)
+		if (task == null || task.isReadOnly()
+				|| barStartColor == null || barMiddleColor == null || barEndColor == null)
 			return;
 		Gantt gantt = getGantt();
 		if (gantt == null)
@@ -207,8 +211,11 @@ public class TaskInformationDialog extends InformationDialog {
 	private JComponent createGeneralPanel(){
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
-		        "max(50dlu;pref), 3dlu, 90dlu 10dlu, p, 3dlu,90dlu,60dlu", // extra padding on right is for estimated field //$NON-NLS-1$
-				"p, 3dlu,p, 3dlu,p, 3dlu, p, 3dlu, p, 3dlu, p,3dlu, p, 3dlu,p, 3dlu, fill:50dlu:grow"); //$NON-NLS-1$
+		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,90dlu,60dlu", // extra padding on right is for estimated field //$NON-NLS-1$
+				// The builder advances one row after each separator.  Keep the
+				// growing row at the end so the Bar Color controls (rows 20-25)
+				// are within the grid instead of aborting dialog construction.
+				"p,3dlu,p,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
@@ -238,15 +245,19 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.nextLine(4);
 		builder.addSeparator(Messages.getString("TaskInformationDialog.BarColor")); //$NON-NLS-1$
 		builder.nextLine(2);
-		BarFormat barFormat = currentBarFormat((Task) getObject());
-		Runnable applyOnChange = this::applyBarFormatFromFields;
-		barStartColor = new BarColorField(this, barFormat.getStartRgb(), applyOnChange);
-		barMiddleColor = new BarColorField(this, barFormat.getMiddleRgb(), applyOnChange);
-		barEndColor = new BarColorField(this, barFormat.getEndRgb(), applyOnChange);
-		builder.append(Messages.getString("Gantt.FormatBar.start"), barStartColor); //$NON-NLS-1$
-		builder.append(Messages.getString("Gantt.FormatBar.middle"), barMiddleColor); //$NON-NLS-1$
-		builder.nextLine(2);
-		builder.append(Messages.getString("Gantt.FormatBar.end"), barEndColor); //$NON-NLS-1$
+		Task task = (Task) getObject();
+		Gantt gantt = getGantt();
+		barColorEditor = new BarColorEditorPanel(this, currentBarFormat(task),
+				gantt == null ? new GanttRenderer.DisplayedBarColors(
+						null, null, null)
+						: gantt.getDisplayedBarColors(task),
+				task.isMilestone(), task.isSummary(), null);
+		barColorEditor.setEnabled(!task.isReadOnly());
+		barStartColor = barColorEditor.getStart();
+		barMiddleColor = barColorEditor.getMiddle();
+		barEndColor = barColorEditor.getEnd();
+		builder.add(barColorEditor,
+				cc.xyw(builder.getColumn(), builder.getRow(), 8));
 		return builder.getPanel();
 	}
 
@@ -267,14 +278,17 @@ public class TaskInformationDialog extends InformationDialog {
 		map.append(builder,"Field.markTaskAsMilestone",3); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.addSeparator(Messages.getString("TaskInformationDialog.ConstrainTask")); //$NON-NLS-1$
-		builder.nextLine(2);
+		// addSeparator already advances one row. Move to the next content row,
+		// not the following 3dlu spacer row, otherwise the constraint controls
+		// are clipped to the height of that spacer.
+		builder.nextLine();
 		map.append(builder,"Field.constraintType"); //$NON-NLS-1$
 		map.appendSometimesReadOnly(builder,"Field.constraintDate"); //$NON-NLS-1$
 		builder.nextLine(2);
 		map.append(builder,"Field.deadline"); //$NON-NLS-1$
 		builder.nextLine(4);
 		builder.addSeparator("	"); //$NON-NLS-1$
-		builder.nextLine(2);
+		builder.nextLine();
 		map.append(builder,"Field.taskType"); //$NON-NLS-1$
 		map.append(builder,"Field.effortDriven",3); //$NON-NLS-1$
 		builder.nextLine(2);
@@ -442,9 +456,9 @@ public class TaskInformationDialog extends InformationDialog {
 		return panel;	
 	}
 
-	protected SpreadSheet assignmentSpreadSheet;
+    protected SpreadSheet assignmentSpreadSheet;
     protected JScrollPane createAssignmentSpreadsheet() {
-        assignmentSpreadSheet = SpreadSheetUtils.createFilteredSpreadsheet(GraphicManager.getInstance(this).getCurrentFrame()
+		assignmentSpreadSheet = SpreadSheetUtils.createFilteredSpreadsheet(GraphicManager.getInstance(this).getCurrentFrame()
         							,false
 									,"View.TaskInformation.Assignments" //$NON-NLS-1$
 									,UsageDetailView.resourceAssignmentSpreadsheetCategory
@@ -467,9 +481,12 @@ public class TaskInformationDialog extends InformationDialog {
 	public void updateAll() {
 		activateListeners();
 		super.updateAll();
-		updatePredecessorsSpreadsheet();
-		updateSuccessorsSpreadsheet();
-		updateAssignmentSpreadsheet();
+		if (predecessorsSpreadSheet != null)
+			updatePredecessorsSpreadsheet();
+		if (successorsSpreadSheet != null)
+			updateSuccessorsSpreadsheet();
+		if (assignmentSpreadSheet != null)
+			updateAssignmentSpreadsheet();
 	}
 
 	@Override
@@ -482,9 +499,14 @@ public class TaskInformationDialog extends InformationDialog {
 		BarFormat barFormat = currentBarFormat(task);
 		if (get) {
 			// Initialize the bar color fields from the current format.
-			barStartColor.setRgb(barFormat.getStartRgb());
-			barMiddleColor.setRgb(barFormat.getMiddleRgb());
-			barEndColor.setRgb(barFormat.getEndRgb());
+			if (barColorEditor != null)
+				barColorEditor.setEnabled(!task.isReadOnly());
+			if (barStartColor != null)
+				barStartColor.setRgb(barFormat.getStartRgb());
+			if (barMiddleColor != null)
+				barMiddleColor.setRgb(barFormat.getMiddleRgb());
+			if (barEndColor != null)
+				barEndColor.setRgb(barFormat.getEndRgb());
 		} else {
 			// Commit bar color changes when the user confirms the dialog.
 			applyBarFormatFromFields();
@@ -506,15 +528,19 @@ public class TaskInformationDialog extends InformationDialog {
 	
 	protected void activateListeners() {
 		super.activateListeners();
-		predecessorsSpreadSheet.getCache().setReceiveEvents(true);
-		successorsSpreadSheet.getCache().setReceiveEvents(true);
+		if (predecessorsSpreadSheet != null)
+			predecessorsSpreadSheet.getCache().setReceiveEvents(true);
+		if (successorsSpreadSheet != null)
+			successorsSpreadSheet.getCache().setReceiveEvents(true);
 		//assignmentSpreadSheet.getCache().setReceiveEvents(true);
 	}
 
 	protected void desactivateListeners() {
 		super.desactivateListeners();
-		predecessorsSpreadSheet.getCache().setReceiveEvents(false);
-		successorsSpreadSheet.getCache().setReceiveEvents(false);
+		if (predecessorsSpreadSheet != null)
+			predecessorsSpreadSheet.getCache().setReceiveEvents(false);
+		if (successorsSpreadSheet != null)
+			successorsSpreadSheet.getCache().setReceiveEvents(false);
 		//assignmentSpreadSheet.getCache().setReceiveEvents(false); 
 		//causes an update problem of the filtered cache
 	}

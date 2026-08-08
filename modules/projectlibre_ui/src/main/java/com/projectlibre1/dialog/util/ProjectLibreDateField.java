@@ -64,12 +64,17 @@ public class ProjectLibreDateField extends JPanel {
 	private void initialize() {
 		textField.setColumns(10);
 		textField.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+		textField.setOpaque(true);
 		popupButton.setFocusable(false);
 		popupButton.setMargin(new java.awt.Insets(0, 6, 0, 6));
 		popupButton.addActionListener(e -> showPopup());
 		add(textField, BorderLayout.CENTER);
 		add(popupButton, BorderLayout.EAST);
-		setOpaque(false);
+		// The field must paint a solid background. When transparent the date digits
+		// show whatever is behind the (modal) dialog -- e.g. the spreadsheet/Gantt --
+		// which makes them look "hidden behind other characters". See issue reported
+		// for the Task Information dialog date section.
+		setOpaque(true);
 	}
 
 	private void showPopup() {

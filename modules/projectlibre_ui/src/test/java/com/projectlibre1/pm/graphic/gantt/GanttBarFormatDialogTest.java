@@ -6,14 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.swing.JComboBox;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
 import org.junit.jupiter.api.Test;
 
 import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.projectlibre1.pm.graphic.gantt.BarColorField;
 import com.projectlibre1.strings.Messages;
 
 class GanttBarFormatDialogTest {
@@ -33,6 +36,30 @@ class GanttBarFormatDialogTest {
 		assertEquals(Integer.valueOf(0xFF0033), field.getRgb());
 		field.setRgb(null);
 		assertEquals(null, field.getRgb());
+	}
+
+	@Test
+	void barColorFieldDoesNotNotifyWhileItIsBeingConstructed() {
+		AtomicInteger changes = new AtomicInteger();
+		BarColorField field = new BarColorField(null, 0xFF0033, changes::incrementAndGet);
+
+		assertEquals(0, changes.get(), "initial model state is not a user edit");
+		field.setRgb(0x00AA55);
+		assertEquals(1, changes.get());
+	}
+
+	@Test
+	void disablingAColorFieldDisablesEveryEditableChild() {
+		BarColorField field = new BarColorField(null, 0xFF0033, () -> { });
+
+		field.setEnabled(false);
+
+		assertFalse(field.isEnabled());
+		assertFalse(field.getSwatchButton().isEnabled());
+		assertFalse(field.getAutomaticCheckBox().isEnabled());
+		field.setEnabled(true);
+		assertTrue(field.getSwatchButton().isEnabled());
+		assertTrue(field.getAutomaticCheckBox().isEnabled());
 	}
 
 	@Test
@@ -67,10 +94,49 @@ class GanttBarFormatDialogTest {
 				false,
 				false);
 
-		assertEquals(3, countComponents(panel, JComboBox.class));
-		assertTrue(allComponentsEnabled(panel, JComboBox.class));
+		assertEquals(3, countComponents(panel, BarColorField.class));
+		assertEquals(1, countComponents(panel, BarColorEditorPanel.class));
+		assertTrue(allComponentsEnabled(panel, BarColorField.class));
 		assertEquals(1, countComponents(panel, JTabbedPane.class));
 		assertTrue(panel.getPreferredSize().width > 420);
+	}
+
+	@Test
+	void automaticFormatBarColorsUseTheRendererResolvedColors() {
+		JPanel panel = GanttBarFormatDialog.createPanelForTest(
+				new BarFormat(null, null, null),
+				new GanttRenderer.DisplayedBarColors(0x112233, 0x445566, 0x778899),
+				false,
+				false);
+
+		List<BarColorField> fields = findComponents(panel, BarColorField.class);
+		assertEquals(3, fields.size());
+		assertEquals(null, fields.get(0).getRgb());
+		assertEquals(null, fields.get(1).getRgb());
+		assertEquals(null, fields.get(2).getRgb());
+		assertEquals(Integer.valueOf(0x112233), fields.get(0).getDisplayRgb());
+		assertEquals(Integer.valueOf(0x445566), fields.get(1).getDisplayRgb());
+		assertEquals(Integer.valueOf(0x778899), fields.get(2).getDisplayRgb());
+	}
+
+	@Test
+	void barColorControlsExposeTheirRoleToAssistiveTechnology() {
+		JPanel panel = GanttBarFormatDialog.createPanelForTest(
+				new BarFormat(null, null, null),
+				false,
+				false);
+
+		List<BarColorField> fields = findComponents(panel, BarColorField.class);
+		assertEquals(3, fields.size());
+		String startColor = Messages.getString("Gantt.FormatBar.startColor"); //$NON-NLS-1$
+		String chooseColor = Messages.getString("Gantt.FormatBar.chooseColor"); //$NON-NLS-1$
+		String automatic = Messages.getString("Gantt.FormatBar.automatic"); //$NON-NLS-1$
+		assertEquals(chooseColor + ": " + startColor,
+				fields.get(0).getSwatchButton().getAccessibleContext().getAccessibleName());
+		assertEquals(startColor + ": " + automatic,
+				fields.get(0).getAutomaticCheckBox().getAccessibleContext().getAccessibleName());
+		assertEquals(fields.get(0).getSwatchButton().getToolTipText(),
+				fields.get(0).getSwatchButton().getAccessibleContext().getAccessibleDescription());
 	}
 
 	private static int countComponents(Container root, Class<?> type) {
@@ -82,6 +148,17 @@ class GanttBarFormatDialogTest {
 				count += countComponents(container, type);
 		}
 		return count;
+	}
+
+	private static <T> List<T> findComponents(Container root, Class<T> type) {
+		List<T> result = new ArrayList<>();
+		for (Component component : root.getComponents()) {
+			if (type.isInstance(component))
+				result.add(type.cast(component));
+			if (component instanceof Container container)
+				result.addAll(findComponents(container, type));
+		}
+		return result;
 	}
 
 	private static boolean allComponentsEnabled(Container root, Class<?> type) {

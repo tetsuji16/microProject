@@ -254,12 +254,27 @@ public class FieldDictionary {
 		digester.addSetNext("*/fieldDictionary/class/field", "addField", "com.projectlibre1.field.Field");
 
 		digester.addObjectCreate("*/field/select", "com.projectlibre1.field.StaticSelect"); // create a select
-		digester.addSetProperties("*/field/select"); // set name of select
+		// NOTE: Select implements java.util.Map, so digester's SetPropertiesRule routes the
+		// "name" attribute through commons-beanutils' Map-bean path and calls put("name", <value>)
+		// instead of setName(...). That spurious entry became the first dropdown item of every
+		// static select (constraintType, taskType, earnedValueMethod, ...). Use an explicit
+		// call-method rule so setName is invoked directly and no bogus option is injected.
+		digester.addCallMethod("*/field/select", "setName", 1, new Class[] { String.class });
+		digester.addCallParam("*/field/select", 0, "name");
 		digester.addSetNext("*/field/select", "setSelect", "com.projectlibre1.field.StaticSelect"); // attach to field
 		
 
-		digester.addObjectCreate("*/field/choice", "com.projectlibre1.field.DynamicSelect"); // create a cohice
-		digester.addSetProperties("*/field/choice"); // set name of choice, finder and list methods
+		digester.addObjectCreate("*/field/choice", "com.projectlibre1.field.DynamicSelect"); // create a choice
+		// Use explicit call-method rules instead of addSetProperties: the DynamicSelect
+		// choice attributes (list/finder/allowNull) were not applied by SetPropertiesRule,
+		// leaving listMethod null and the combo empty. CallMethodRule resolves setters by
+		// reflection directly and works regardless of any BeanInfo on Select.
+		digester.addCallMethod("*/field/choice", "setList", 1, new Class[] { String.class });
+		digester.addCallParam("*/field/choice", 0, "list");
+		digester.addCallMethod("*/field/choice", "setFinder", 1, new Class[] { String.class });
+		digester.addCallParam("*/field/choice", 0, "finder");
+		digester.addCallMethod("*/field/choice", "setAllowNull", 1, new Class[] { boolean.class });
+		digester.addCallParam("*/field/choice", 0, "allowNull");
 		digester.addSetNext("*/field/choice", "setSelect", "com.projectlibre1.field.DynamicSelect"); // attach to field
 		
 		digester.addObjectCreate("*/field/select/option","com.projectlibre1.field.SelectOption"); // create an option when seeing one

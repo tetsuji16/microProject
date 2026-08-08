@@ -73,6 +73,10 @@ public class GanttUI extends GraphUI{
     	interactor=new GanttInteractor(this);
 	}
 
+	public GanttRenderer getGanttRenderer() {
+		return (GanttRenderer)graphRenderer;
+	}
+
 
 
 

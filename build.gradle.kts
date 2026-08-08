@@ -48,14 +48,21 @@ plugins {
 }
 
 group = "com.projectlibre"
-version = "0.0.23"
+version = providers.gradleProperty("releaseVersion").getOrElse("0.0.23")
 val minimumJavaRelease = 25
 val activeToolchainVersion = maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
 
 subprojects {
-    apply(plugin = "java-library")
+	apply(plugin = "java-library")
 
-    repositories {
+	// Flamingo still declares the obsolete JGoodies Forms artifact.  It contains
+	// the same com.jgoodies.forms classes as jgoodies-forms 1.9.0, so including
+	// both makes Swing layout behavior depend on wildcard classpath order.
+	configurations.configureEach {
+		exclude(group = "com.jgoodies", module = "forms")
+	}
+
+	repositories {
         mavenCentral()
     }
 

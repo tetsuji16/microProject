@@ -1,0 +1,50 @@
+package com.projectlibre1.dialog;
+
+import java.awt.GraphicsEnvironment;
+
+import javax.swing.JComponent;
+import javax.swing.SwingUtilities;
+
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+
+import com.projectlibre1.pm.resource.ResourcePool;
+import com.projectlibre1.pm.task.NormalTask;
+import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.undo.DataFactoryUndoController;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+/**
+ * Regression test for issue #16 (Bar Color integrated into Task Information General tab)
+ * and the double-click "first click fails, second opens empty" bug.
+ *
+ * It builds the full content panel (all tabs) through the production code path on the
+ * EDT and asserts that no exception is thrown. A thrown exception here means the dialog
+ * would fail to construct on the first double-click and leave a broken cached dialog
+ * behind, so the second click would open that empty/broken dialog.
+ *
+ * Skipped automatically when running headless (GraphicsEnvironment.isHeadless()), since
+ * createContentPanel() constructs real Swing components.
+ */
+class TaskInformationDialogGeneralPanelTest {
+
+	@Test
+	void firstConstructionBuildsContentPanelWithoutException() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+				"createContentPanel builds real Swing components; skip on headless CI");
+
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		final JComponent[] panelHolder = new JComponent[1];
+		SwingUtilities.invokeAndWait(() -> {
+			TaskInformationDialog dlg = TaskInformationDialog.getInstance(null, task, false);
+			panelHolder[0] = dlg.createContentPanel(); // must not throw
+		});
+		assertNotNull(panelHolder[0], "content panel should be constructed without exception");
+	}
+}

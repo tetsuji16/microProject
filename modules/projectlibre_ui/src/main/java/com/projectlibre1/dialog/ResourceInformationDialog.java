@@ -371,7 +371,7 @@ public class ResourceInformationDialog extends InformationDialog {
 		createCostTableSpreadsheets();
 		builder.nextLine(2);
 		builder.addSeparator(Messages.getString("Text.CostRateTables")); //$NON-NLS-1$
-		builder.nextLine(2);
+		builder.nextLine();
 		builder.add(costTabbedPane,cc.xyw(builder.getColumn(), builder
 				.getRow(), 5));
 		builder.nextLine(2);

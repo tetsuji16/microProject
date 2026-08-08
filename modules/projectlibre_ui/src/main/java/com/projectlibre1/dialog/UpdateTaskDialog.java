@@ -115,7 +115,7 @@ public final class UpdateTaskDialog extends FieldDialog {
 		builder.add(taskNames,cc.xyw(builder.getColumn(), builder.getRow(), builder.getColumnCount()));
 		builder.nextLine(2);
 		builder.addSeparator(""); //$NON-NLS-1$
-		builder.nextLine(2);
+		builder.nextLine();
 		map.append(builder,"Field.name",5); //$NON-NLS-1$
 		builder.nextLine(2);
 		map.append(builder,"Field.percentComplete"); //$NON-NLS-1$
@@ -125,7 +125,7 @@ public final class UpdateTaskDialog extends FieldDialog {
 		map.append(builder,"Field.finish"); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.addSeparator(""); //$NON-NLS-1$
-		builder.nextLine(2);
+		builder.nextLine();
 		map.append(builder,"Field.actualDuration"); //$NON-NLS-1$
 		map.append(builder,"Field.remainingDuration"); //$NON-NLS-1$
 		builder.nextLine(2);
@@ -133,7 +133,7 @@ public final class UpdateTaskDialog extends FieldDialog {
 		map.append(builder,"Field.actualFinish"); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.addSeparator(""); //$NON-NLS-1$
-		builder.nextLine(2);
+		builder.nextLine();
 		map.append(builder,"Field.taskType");
 		return builder.getPanel();
 	}
