@@ -114,6 +114,7 @@ import com.projectlibre1.util.Environment;
 import net.sf.mpxj.writer.ProjectWriter;
 import com.projectlibre1.exchange.mpxj.ProjectWriterFactory;
 import com.projectlibre1.exchange.xlsx.ProjectLibreXlsxWriter;
+import com.projectlibre1.exchange.xlsx.ProjectLibreXlsxReader;
 /**
  * This class is based on the project mpxj http://www.tapsterrock.com/mpxj/
  * The enumerated types in projectlibre currently correspond exactly to the types in mpx, so there is no need to convert them.
@@ -223,6 +224,17 @@ public class MicrosoftImporter extends ServerFileImporter{
 		
 		
 		MspImporter plImporter=new MspImporter();
+		if ("xlsx".equalsIgnoreCase(extension)) {
+			byte[] data = in.readAllBytes();
+			Project nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(new java.io.ByteArrayInputStream(data));
+			if (nativeProject != null) {
+				project = nativeProject;
+				plProject = null;
+				setProgress(1f);
+				return;
+			}
+			in = new java.io.ByteArrayInputStream(data);
+		}
 		plProject=plImporter.importProject(in, extension, new MspImporter.ProgressClosure() {
 			@Override
 			public void updateProgress(float progress, String label) {
@@ -255,6 +267,15 @@ public class MicrosoftImporter extends ServerFileImporter{
 		
 		
 		MspImporter plImporter=new MspImporter();
+		if (fileInputStream == null && "xlsx".equals(getFileExtension())) {
+			Project nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(new File(fileName));
+			if (nativeProject != null) {
+				project = nativeProject;
+				plProject = null;
+				setProgress(1f);
+				return;
+			}
+		}
 		if (fileInputStream==null)
 			plProject=plImporter.importProject(fileName, new MspImporter.ProgressClosure() {
 				@Override
@@ -364,6 +385,10 @@ public class MicrosoftImporter extends ServerFileImporter{
     }
 
     private Project convertToProjectLibre1() throws Exception {
+		if (plProject == null && project != null) {
+			Environment.setImporting(false);
+			return project;
+		}
 
 		log.info("import options"); //$NON-NLS-1$
 		importOptions();

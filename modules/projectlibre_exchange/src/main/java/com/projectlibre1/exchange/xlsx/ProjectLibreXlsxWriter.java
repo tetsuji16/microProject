@@ -4,9 +4,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -21,6 +23,7 @@ import com.projectlibre1.pm.resource.ResourceImpl;
 import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.server.data.Serializer;
 
 import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.ProjectProperties;
@@ -39,6 +42,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 public class ProjectLibreXlsxWriter implements ProjectWriter {
 	private static final String META_SHEET = "_PL_META";
 	private static final String DATA_SHEET = "_PL_DATA";
+	private static final String NATIVE_DATA_SHEET = "_PL_NATIVE";
 	private static final String TASKS_SHEET = "Tasks";
 	private static final String RESOURCES_SHEET = "Resources";
 	private static final String ASSIGNMENTS_SHEET = "Assignments";
@@ -82,8 +86,9 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 	private void writeWorkbookFromProjectLibreProject(Project project, OutputStream out) throws IOException {
 		XSSFWorkbook workbook = new XSSFWorkbook();
 		try {
-			writeMeta(workbook, "projectlibre", "2");
+			writeMeta(workbook, "projectlibre", "3");
 			writePayload(workbook, serializeProjectLibreXml(project), "projectlibre");
+			writeNativePayload(workbook, project);
 			writeProjectLibreSummarySheets(workbook, project);
 			workbook.write(out);
 		} catch (Exception e) {
@@ -91,6 +96,22 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		} finally {
 			workbook.close();
 		}
+	}
+
+	private void writeNativePayload(XSSFWorkbook workbook, Project project) throws Exception {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+			out.writeObject(new Serializer().serializeDocument(project));
+		}
+		String payload = Base64.getEncoder().encodeToString(bytes.toByteArray());
+		Sheet sheet = workbook.createSheet(NATIVE_DATA_SHEET);
+		sheet.createRow(0).createCell(0).setCellValue("ProjectLibreNativeData");
+		int rowIndex = 1;
+		for (int offset = 0; offset < payload.length(); offset += PAYLOAD_CHUNK_SIZE) {
+			int end = Math.min(offset + PAYLOAD_CHUNK_SIZE, payload.length());
+			sheet.createRow(rowIndex++).createCell(0).setCellValue(payload.substring(offset, end));
+		}
+		workbook.setSheetHidden(workbook.getSheetIndex(sheet), true);
 	}
 
 	private IOException wrap(String message, Exception cause) {

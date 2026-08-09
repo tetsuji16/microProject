@@ -12,8 +12,10 @@ import org.junit.Test;
 
 import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides;
 import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.projectlibre1.pm.assignment.Assignment;
 import com.projectlibre1.pm.dependency.Dependency;
 import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.pm.task.ProjectFactory;
 
@@ -82,9 +84,17 @@ public class PodRoundTripTest {
 				Task predecessor = (Task) dependency.getPredecessor();
 				predecessors.add(predecessor.getName() + ":" + dependency.getDependencyType() + ":" + dependency.getLag());
 			}
+			List<String> assignments = new ArrayList<String>();
+			for (Object value : ((NormalTask) task).getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				assignments.add(assignment.getResource().getName() + ":" + assignment.getUnits() + ":"
+						+ assignment.getWork(null) + ":" + assignment.getActualWork(null) + ":"
+						+ assignment.getRemainingWork());
+			}
 			Task parent = task.getWbsParentTask();
 			result.add(new TaskState(task.getName(), parent == null ? null : parent.getName(), task.getStart(),
-					task.getEnd(), task.getDuration(), predecessors));
+					task.getEnd(), task.getDuration(), task.getNotes(), task.getPercentComplete(), task.getPriority(),
+					task.getConstraintType(), task.getConstraintDate(), task.getDeadline(), predecessors, assignments));
 		}
 		return result;
 	}
@@ -95,16 +105,31 @@ public class PodRoundTripTest {
 		private final long start;
 		private final long end;
 		private final long duration;
+		private final String notes;
+		private final double percentComplete;
+		private final int priority;
+		private final int constraintType;
+		private final long constraintDate;
+		private final long deadline;
 		private final List<String> predecessors;
+		private final List<String> assignments;
 
-		private TaskState(String name, String parentName, long start, long end, long duration,
-				List<String> predecessors) {
+		private TaskState(String name, String parentName, long start, long end, long duration, String notes,
+				double percentComplete, int priority, int constraintType, long constraintDate, long deadline,
+				List<String> predecessors, List<String> assignments) {
 			this.name = name;
 			this.parentName = parentName;
 			this.start = start;
 			this.end = end;
 			this.duration = duration;
+			this.notes = notes;
+			this.percentComplete = percentComplete;
+			this.priority = priority;
+			this.constraintType = constraintType;
+			this.constraintDate = constraintDate;
+			this.deadline = deadline;
 			this.predecessors = predecessors;
+			this.assignments = assignments;
 		}
 
 		@Override
@@ -113,7 +138,11 @@ public class PodRoundTripTest {
 			TaskState other = (TaskState) value;
 			return name.equals(other.name) && java.util.Objects.equals(parentName, other.parentName)
 					&& start == other.start && end == other.end && duration == other.duration
-					&& predecessors.equals(other.predecessors);
+					&& java.util.Objects.equals(notes, other.notes)
+					&& Double.compare(percentComplete, other.percentComplete) == 0 && priority == other.priority
+					&& constraintType == other.constraintType && constraintDate == other.constraintDate
+					&& deadline == other.deadline && predecessors.equals(other.predecessors)
+					&& assignments.equals(other.assignments);
 		}
 
 		@Override
@@ -124,7 +153,7 @@ public class PodRoundTripTest {
 		@Override
 		public String toString() {
 			return name + "[parent=" + parentName + "," + start + "," + end + "," + duration + ","
-					+ predecessors + "]";
+					+ percentComplete + "," + priority + "," + predecessors + "," + assignments + "]";
 		}
 	}
 }

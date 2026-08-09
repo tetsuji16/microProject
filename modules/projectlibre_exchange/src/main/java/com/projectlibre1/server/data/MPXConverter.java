@@ -330,6 +330,7 @@ public class MPXConverter {
 //		long work = assignment.isDefault() ? 0 : assignment.getWork(null); // microsoft considers no work on default assignments
 		long work = assignment.getWork(null); // microsoft considers no work on default assignments
     	mpxAssignment.setWork(MPXConverter.toMPXDuration(work));
+		mpxAssignment.setActualWork(MPXConverter.toMPXDuration(assignment.getActualWork(null)));
     	mpxAssignment.setUnits(MathUtils.roundToDecentPrecision(assignment.getUnits()*100.0D));
     	mpxAssignment.setRemainingWork(MPXConverter.toMPXDuration(assignment.getRemainingWork())); //2007
     	long delay = Duration.millis(assignment.getDelay());

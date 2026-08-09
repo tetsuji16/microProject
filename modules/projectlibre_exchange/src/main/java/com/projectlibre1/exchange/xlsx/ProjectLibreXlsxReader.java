@@ -5,10 +5,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import net.sf.mpxj.MPXJException;
 import net.sf.mpxj.Duration;
@@ -24,9 +27,16 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import com.projectlibre1.pm.task.Project;
+import com.projectlibre1.server.data.DocumentData;
+import com.projectlibre1.server.data.Serializer;
+import com.projectlibre1.util.SafeObjectInput;
+
 public class ProjectLibreXlsxReader extends AbstractProjectReader {
+	private static final Logger logger = Logger.getLogger(ProjectLibreXlsxReader.class.getName());
 	private static final String META_SHEET = "_PL_META";
 	private static final String DATA_SHEET = "_PL_DATA";
+	private static final String NATIVE_DATA_SHEET = "_PL_NATIVE";
 	private static final String TASKS_SHEET = "Tasks";
 	private static final String RESOURCES_SHEET = "Resources";
 	private static final String ASSIGNMENTS_SHEET = "Assignments";
@@ -88,6 +98,42 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 
 	public List<ProjectFile> readAll(InputStream in) throws MPXJException {
 		return Collections.singletonList(read(in));
+	}
+
+	public static Project readProjectLibreProject(File file) throws Exception {
+		try (FileInputStream in = new FileInputStream(file)) {
+			return readProjectLibreProject(in);
+		}
+	}
+
+	public static Project readProjectLibreProject(InputStream in) throws Exception {
+		try (XSSFWorkbook workbook = new XSSFWorkbook(in)) {
+			Sheet sheet = workbook.getSheet(NATIVE_DATA_SHEET);
+			if (sheet == null) {
+				return null;
+			}
+			StringBuilder encoded = new StringBuilder();
+			for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+				Row row = sheet.getRow(rowIndex);
+				if (row != null && row.getCell(0) != null) {
+					encoded.append(row.getCell(0).getStringCellValue());
+				}
+			}
+			if (encoded.length() == 0) {
+				return null;
+			}
+			byte[] serialized = Base64.getDecoder().decode(encoded.toString());
+			try (var objectIn = SafeObjectInput.create(new ByteArrayInputStream(serialized))) {
+				Object value = objectIn.readObject();
+				if (!(value instanceof DocumentData)) {
+					throw new MPXJException("Invalid ProjectLibre native XLSX payload");
+				}
+				return new Serializer().deserializeLocalDocument((DocumentData) value);
+			} catch (Exception | LinkageError e) {
+				logger.log(Level.WARNING, "Ignoring unusable ProjectLibre native XLSX payload", e);
+				return null;
+			}
+		}
 	}
 
 	private ProjectFile readPayload(XSSFWorkbook workbook) throws Exception {

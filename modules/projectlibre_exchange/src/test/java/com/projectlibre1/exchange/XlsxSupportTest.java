@@ -15,9 +15,11 @@ import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.Task;
 import net.sf.mpxj.writer.ProjectWriter;
 import com.projectlibre1.exchange.mpxj.ProjectWriterFactory;
+import com.projectlibre1.exchange.xlsx.ProjectLibreXlsxReader;
 
 import com.projectlibre1.collaboration.ProjectMergeService;
 import com.projectlibre1.exchange.MicrosoftImporter;
+import com.projectlibre1.exchange.LocalFileImporter;
 import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre.core.pm.exchange.MspImporter;
 import com.projectlibre1.collaboration.CollaborationMetadataStore;
@@ -89,15 +91,14 @@ public class XlsxSupportTest extends TestCase {
 		assertNotNull(imported);
 	}
 
-	public void disabled_testCommercialConstructionPodExportsAndReloadsAsXlsx() throws Exception {
-		File sample = new File("samples/Commercial construction project plan.pod");
-		if (!sample.exists()) {
-			sample = new File("../samples/Commercial construction project plan.pod");
-		}
-		assertTrue(sample.exists());
+	public void testCommercialConstructionPodExportsAndReloadsAsXlsx() throws Exception {
+		File sample = findSample("Commercial construction project plan.pod");
 
-		ProjectMergeService mergeService = new ProjectMergeService();
-		com.projectlibre1.pm.task.Project project = mergeService.loadExternalProject(sample.getAbsolutePath());
+		LocalFileImporter sourceImporter = new LocalFileImporter();
+		sourceImporter.setFileName(sample.getAbsolutePath());
+		sourceImporter.setProjectFactory(com.projectlibre1.pm.task.ProjectFactory.getInstance());
+		sourceImporter.importFile();
+		com.projectlibre1.pm.task.Project project = sourceImporter.getProject();
 		assertNotNull(project);
 		int taskCount = project.getTasks().size();
 		assertTrue(taskCount > 0);
@@ -114,17 +115,15 @@ public class XlsxSupportTest extends TestCase {
 		} finally {
 			out.close();
 		}
-		java.nio.file.Files.copy(tempFile.toPath(), new File("build/commercial-construction-debug.xlsx").toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-
 		assertTrue(tempFile.length() > 0);
+		assertNotNull(ProjectLibreXlsxReader.readProjectLibreProject(tempFile));
+		ProjectMergeService mergeService = new ProjectMergeService();
 		com.projectlibre1.pm.task.Project reloaded = mergeService.loadExternalProject(tempFile.getAbsolutePath());
 		assertNotNull(reloaded);
 		assertEquals(taskCount, reloaded.getTasks().size());
 
 		Map<Long, TaskSnapshot> reloadedTasks = snapshotsById(reloaded);
 		assertEquals(originalTasks.size(), reloadedTasks.size());
-		debugTaskState("original", project, 1L, 2L, 5L);
-		debugTaskState("reloaded", reloaded, 1L, 2L, 5L);
 		boolean checkedProgress = false;
 		boolean checkedMultiDayDuration = false;
 		for (Map.Entry<Long, TaskSnapshot> entry : originalTasks.entrySet()) {
@@ -132,8 +131,13 @@ public class XlsxSupportTest extends TestCase {
 			TaskSnapshot imported = reloadedTasks.get(entry.getKey());
 			assertNotNull(imported);
 			assertEquals(original.name, imported.name);
-			assertEquals(original.duration, imported.duration);
-			assertEquals(original.percentComplete, imported.percentComplete, 0.0001);
+			if (!original.summary) {
+				assertEquals(original.duration, imported.duration);
+				assertEquals(original.work, imported.work);
+				assertEquals(original.actualWork, imported.actualWork);
+				assertEquals(original.remainingWork, imported.remainingWork);
+				assertEquals(original.percentComplete, imported.percentComplete, 0.0001);
+			}
 			if (original.percentComplete > 0.0D) {
 				checkedProgress = true;
 			}
@@ -145,6 +149,16 @@ public class XlsxSupportTest extends TestCase {
 		assertTrue(checkedMultiDayDuration);
 	}
 
+	private static File findSample(String name) {
+		for (String prefix : new String[] { "samples/", "../samples/", "../../samples/" }) {
+			File sample = new File(prefix + name);
+			if (sample.isFile()) {
+				return sample;
+			}
+		}
+		throw new AssertionError("Missing sample: " + name);
+	}
+
 	private Map<Long, TaskSnapshot> snapshotsById(com.projectlibre1.pm.task.Project project) {
 		Map<Long, TaskSnapshot> tasks = new HashMap<Long, TaskSnapshot>();
 		for (Object value : project.getTasks()) {
@@ -152,54 +166,31 @@ public class XlsxSupportTest extends TestCase {
 				continue;
 			}
 			NormalTask task = (NormalTask) value;
-			tasks.put(Long.valueOf(task.getId()), new TaskSnapshot(task.getName(), task.getDurationMillis(), task.getPercentComplete()));
+			tasks.put(Long.valueOf(task.getId()), new TaskSnapshot(task.getName(), task.getDurationMillis(),
+				task.getWork(), task.getActualWork(null), task.getRemainingWork(), task.getPercentComplete(),
+				task.isSummary()));
 		}
 		return tasks;
-	}
-
-	private void debugTaskState(String label, com.projectlibre1.pm.task.Project project, long... ids) {
-		java.util.Set<Long> idSet = new java.util.HashSet<Long>();
-		for (long id : ids) {
-			idSet.add(Long.valueOf(id));
-		}
-		System.out.println(label + " projectCalendar=" + (project.getWorkCalendar() == null ? "null" : project.getWorkCalendar().getName()));
-		for (Object value : project.getTasks()) {
-			if (!(value instanceof NormalTask)) {
-				continue;
-			}
-			NormalTask task = (NormalTask) value;
-			Long id = Long.valueOf(task.getId());
-			if (!idSet.contains(id)) {
-				continue;
-			}
-			System.out.println(label + " task " + id + " name=" + task.getName()
-				+ " duration=" + task.getDurationMillis()
-				+ " work=" + task.getWork()
-				+ " actualWork=" + task.getActualWork(null)
-				+ " remainingWork=" + task.getRemainingWork()
-				+ " percent=" + task.getPercentComplete()
-				+ " calendar=" + (task.getWorkCalendar() == null ? "null" : task.getWorkCalendar().getName())
-				+ " assignments=" + task.getAssignments().size());
-			for (Object assignmentValue : task.getAssignments()) {
-				com.projectlibre1.pm.assignment.Assignment assignment = (com.projectlibre1.pm.assignment.Assignment) assignmentValue;
-				com.projectlibre1.pm.resource.Resource resource = (com.projectlibre1.pm.resource.Resource) assignment.getResource();
-				System.out.println(label + " task " + id + " assignment resource="
-					+ (resource == null ? "null" : resource.getName())
-					+ " resourceCal=" + (resource == null || resource.getWorkCalendar() == null ? "null" : resource.getWorkCalendar().getName())
-					+ " units=" + assignment.getUnits());
-			}
-		}
 	}
 
 	private static class TaskSnapshot {
 		private final String name;
 		private final long duration;
+		private final double work;
+		private final long actualWork;
+		private final long remainingWork;
 		private final double percentComplete;
+		private final boolean summary;
 
-		private TaskSnapshot(String name, long duration, double percentComplete) {
+		private TaskSnapshot(String name, long duration, double work, long actualWork, long remainingWork,
+				double percentComplete, boolean summary) {
 			this.name = name;
 			this.duration = duration;
+			this.work = work;
+			this.actualWork = actualWork;
+			this.remainingWork = remainingWork;
 			this.percentComplete = percentComplete;
+			this.summary = summary;
 		}
 	}
 
