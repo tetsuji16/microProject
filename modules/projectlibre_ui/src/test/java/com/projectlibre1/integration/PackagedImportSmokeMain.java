@@ -41,12 +41,12 @@ public final class PackagedImportSmokeMain {
 		} catch (IOException e) {
 			throw new IllegalStateException("Failed to read generated Windows start script: " + scriptPath, e);
 		}
-		if (!script.contains("set CLASSPATH=%APP_HOME%\\lib\\*")) {
-			throw new IllegalStateException("Generated Windows start script does not use wildcard classpath: " + scriptPath);
+		String expectedClasspath = "set CLASSPATH=%APP_HOME%\\lib\\projectlibre_ui.jar;"
+				+ "%APP_HOME%\\lib\\jgoodies-forms-1.9.0.jar;%APP_HOME%\\lib\\*";
+		if (!script.contains(expectedClasspath)) {
+			throw new IllegalStateException(
+					"Generated Windows start script does not preserve the required classpath order: " + scriptPath);
 		}
-		if (script.contains("set CLASSPATH=%APP_HOME%\\lib\\projectlibre_ui.jar;")) {
-			throw new IllegalStateException("Generated Windows start script still uses expanded classpath entries: " + scriptPath);
-		}
-		System.out.println("OK " + scriptPath + " uses wildcard classpath");
+		System.out.println("OK " + scriptPath + " preserves compatibility jars before the wildcard classpath");
 	}
 }
