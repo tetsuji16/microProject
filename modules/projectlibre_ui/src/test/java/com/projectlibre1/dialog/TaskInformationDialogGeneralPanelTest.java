@@ -8,11 +8,15 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import com.projectlibre1.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.projectlibre1.pm.graphic.gantt.BarColorEditorPanel;
 import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.undo.DataFactoryUndoController;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
@@ -28,6 +32,25 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * createContentPanel() constructs real Swing components.
  */
 class TaskInformationDialogGeneralPanelTest {
+
+	@Test
+	void reusedDialogRefreshesBarColorsAndReadOnlyState() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			BarColorEditorPanel editor = new BarColorEditorPanel(null,
+					new BarFormat(0x111111, 0x222222, 0x333333), false, false, null);
+
+			TaskInformationDialog.refreshBarColorFields(editor,
+					new BarFormat(0xAABBCC, null, 0x010203), true);
+
+			assertEquals(Integer.valueOf(0xAABBCC), editor.getStart().getRgb());
+			assertEquals(null, editor.getMiddle().getRgb());
+			assertEquals(Integer.valueOf(0x010203), editor.getEnd().getRgb());
+			assertFalse(editor.isEnabled());
+			assertFalse(editor.getStart().isEnabled());
+			assertFalse(editor.getMiddle().isEnabled());
+			assertFalse(editor.getEnd().isEnabled());
+		});
+	}
 
 	@Test
 	void firstConstructionBuildsContentPanelWithoutException() throws Exception {

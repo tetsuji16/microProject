@@ -155,6 +155,23 @@ public class TaskInformationDialog extends InformationDialog {
 				new BarFormat(barStartColor.getRgb(), barMiddleColor.getRgb(), barEndColor.getRgb()));
 	}
 
+	private void refreshBarColorFields() {
+		Task task = (Task) getObject();
+		if (task == null || barColorEditor == null)
+			return;
+		refreshBarColorFields(barColorEditor, currentBarFormat(task), task.isReadOnly());
+	}
+
+	static void refreshBarColorFields(BarColorEditorPanel editor, BarFormat format, boolean readOnly) {
+		if (editor == null)
+			return;
+		BarFormat resolved = format == null ? BarFormat.automatic() : format;
+		editor.setEnabled(!readOnly);
+		editor.getStart().setRgb(resolved.getStartRgb());
+		editor.getMiddle().setRgb(resolved.getMiddleRgb());
+		editor.getEnd().setRgb(resolved.getEndRgb());
+	}
+
 	public void setObject(Object object) {
 		super.setObject(object);
 		String title = Messages.getString("TaskInformationDialog.TaskInformation");
@@ -481,6 +498,10 @@ public class TaskInformationDialog extends InformationDialog {
 	public void updateAll() {
 		activateListeners();
 		super.updateAll();
+		// This dialog instance is reused for different tasks. Keep the custom bar
+		// controls in sync just like the FieldComponentMap-backed controls; this
+		// also discards unconfirmed edits when Cancel refreshes the dialog.
+		refreshBarColorFields();
 		if (predecessorsSpreadSheet != null)
 			updatePredecessorsSpreadsheet();
 		if (successorsSpreadSheet != null)
@@ -496,17 +517,8 @@ public class TaskInformationDialog extends InformationDialog {
 		Task task = (Task) getObject();
 		if (task == null)
 			return true;
-		BarFormat barFormat = currentBarFormat(task);
 		if (get) {
-			// Initialize the bar color fields from the current format.
-			if (barColorEditor != null)
-				barColorEditor.setEnabled(!task.isReadOnly());
-			if (barStartColor != null)
-				barStartColor.setRgb(barFormat.getStartRgb());
-			if (barMiddleColor != null)
-				barMiddleColor.setRgb(barFormat.getMiddleRgb());
-			if (barEndColor != null)
-				barEndColor.setRgb(barFormat.getEndRgb());
+			refreshBarColorFields();
 		} else {
 			// Commit bar color changes when the user confirms the dialog.
 			applyBarFormatFromFields();
