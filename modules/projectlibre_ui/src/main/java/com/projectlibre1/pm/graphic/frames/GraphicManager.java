@@ -112,6 +112,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
+import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.LookAndFeel;
 import javax.swing.JOptionPane;
@@ -132,6 +133,7 @@ import com.projectlibre1.configuration.FieldDictionary;
 import com.projectlibre1.configuration.Settings;
 import com.projectlibre1.application.ProjectDocumentWorkflow;
 import com.projectlibre1.application.ProjectLoadWorkflow;
+import com.projectlibre1.application.RecentProjectStore;
 import com.projectlibre1.collaboration.CollaborationMetadataStore;
 import com.projectlibre1.collaboration.CollaborationSession;
 import com.projectlibre1.collaboration.ProjectMergeService;
@@ -150,6 +152,7 @@ import com.projectlibre1.dialog.ResourceInformationDialog;
 import com.projectlibre1.dialog.ResourceMappingDialog;
 import com.projectlibre1.dialog.TaskInformationDialog;
 import com.projectlibre1.dialog.WelcomeDialog;
+import com.projectlibre1.dialog.UsabilityStrings;
 import com.projectlibre1.dialog.assignment.AssignmentDialog;
 import com.projectlibre1.dialog.assignment.TimesheetDialog;
 import com.projectlibre1.dialog.options.CalendarDialogBox;
@@ -174,6 +177,8 @@ import com.projectlibre1.menu.MenuManager;
 import com.projectlibre1.menu.ProjectMenuActionMap;
 import com.projectlibre1.options.CalendarOption;
 import com.projectlibre1.pm.assignment.Assignment;
+import com.projectlibre1.pm.dependency.DependencyService;
+import com.projectlibre1.pm.dependency.DependencyType;
 import com.projectlibre1.pm.graphic.IconManager;
 import com.projectlibre1.pm.graphic.TabbedNavigation;
 import com.projectlibre1.pm.graphic.collaboration.CollaborationHelper;
@@ -196,6 +201,7 @@ import com.projectlibre1.pm.resource.Resource;
 import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.ProjectFactory;
+import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.SubProj;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.pm.time.HasStartAndEnd;
@@ -260,6 +266,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     private BaselineDialog baselineDialog = null;
     private ResourceMappingDialog resourceMappingDialog=null;
 	ProjectFactory projectFactory = null;
+	private final AutoRecoveryManager autoRecoveryManager;
+	private final RecentProjectStore recentProjectStore = new RecentProjectStore();
+	private volatile boolean quitting;
 	protected Container container;
 	protected Frame frame;
 	TabbedNavigation topTabs = null;
@@ -345,6 +354,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}});
 
 		projectFactory = ProjectFactory.getInstance();
+		autoRecoveryManager = new AutoRecoveryManager(projectFactory, this);
 		projectFactory.getPortfolio().addObjectListener(this);
 
 		//this.projectUrl = projectUrl;
@@ -371,6 +381,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public void cleanUp() {
+		autoRecoveryManager.stop();
 
 //		On quitting, a sleep interrupted exception (below) is thrown by Substance. Without changing the source
 //		java.lang.InterruptedException: sleep interrupted
@@ -536,6 +547,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		frameList.add(frame);
 		frameMap.put(project, frame);
+		if (project.getFileName() != null) recentProjectStore.recordOpened(project.getFileName());
+		updateStoredSession();
 
 		// clear filter/grouping/sort for newly opened or created project
 		if (!Environment.isPlugin()) SwingUtilities.invokeLater( new Runnable() {
@@ -680,6 +693,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 		}
+		if (!quitting) updateStoredSession();
 		setAllButResourceDisabled(false);
 		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,true); // no matter what, you can open a project after closing, since if you closed resource pool you can open after
 	}
@@ -712,8 +726,54 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				else doOpenProjectDialog();
 			}else if (instance.getForm().isManageResources()) {
 				loadMasterProject();
+			}else if (instance.getForm().getRecentPath() != null) {
+				loadLocalDocument(instance.getForm().getRecentPath(), false);
+			}else if (instance.getForm().getTemplateId() != null) {
+				createProjectFromTemplate(instance.getForm().getTemplateId());
 			}
 		}
+	}
+
+	private void createProjectFromTemplate(String templateId) {
+		Project project = projectFactory.createProject();
+		if (project == null) return;
+		String[][] definitions = switch (templateId) {
+			case "software" -> new String[][] { {"Plan backlog", "2"}, {"Architecture", "3"}, {"Implementation", "10"}, {"Test", "5"}, {"Release", "0"} };
+			case "construction" -> new String[][] { {"Site preparation", "5"}, {"Foundation", "8"}, {"Structure", "15"}, {"Utilities", "8"}, {"Inspection", "0"} };
+			default -> new String[][] { {"Planning", "2"}, {"Execution", "5"}, {"Review", "2"}, {"Complete", "0"} };
+		};
+		project.setName(switch (templateId) { case "software" -> "Software Delivery"; case "construction" -> "Construction Project"; default -> "New Project"; });
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		NormalTask previous = null;
+		for (String[] definition : definitions) {
+			NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+			task.setName(definition[0]);
+			task.getCurrentSchedule().setStart(project.getStart()); task.setDuration(day * Long.parseLong(definition[1]));
+			if ("0".equals(definition[1])) task.setMarkTaskAsMilestone(true);
+			if (previous != null) try { DependencyService.getInstance().newDependency(previous, task, DependencyType.FS, 0L, this); } catch (Exception ignored) { }
+			previous = task;
+		}
+		project.setDirty(true); project.recalculate();
+	}
+
+	public boolean restorePreviousSessionAtStartup() {
+		if (!recentProjectStore.isRestoreSessionEnabled()) return false;
+		List<java.nio.file.Path> files = recentProjectStore.session();
+		if (files.isEmpty()) return false;
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), java.text.MessageFormat.format(UsabilityStrings.text("session.prompt"), files.size()), UsabilityStrings.text("session.title"), JOptionPane.YES_NO_OPTION);
+		if (choice != JOptionPane.YES_OPTION) return false;
+		boolean opened = false;
+		for (java.nio.file.Path file : files) opened |= loadLocalDocument(file.toString(), false);
+		return opened;
+	}
+
+	private void updateStoredSession() {
+		List<String> files = new ArrayList<>();
+		for (Object value : frameList) {
+			if (value instanceof DocumentFrame documentFrame && documentFrame.getProject().getFileName() != null)
+				files.add(documentFrame.getProject().getFileName());
+		}
+		recentProjectStore.saveSession(files);
 	}
 
 	public boolean doNewProjectDialog() {
@@ -1284,6 +1344,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_CHANGE_WORKING_TIME, new ChangeWorkingTimeAction());
 		actionsMap.addHandler(ACTION_LEVEL_RESOURCES, new LevelResourcesAction());
 		actionsMap.addHandler(ACTION_DELEGATE_TASKS, new DelegateTasksAction());
+		actionsMap.addHandler(ACTION_TIMELINE, new TimelineAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new CalendarViewAction());
+		actionsMap.addHandler(ACTION_CUSTOM_REPORT, new CustomReportAction());
 		actionsMap.addHandler(ACTION_UPDATE_TASKS, new UpdateTasksAction());
 		actionsMap.addHandler(ACTION_UPDATE_PROJECT, new UpdateProjectAction());
 		actionsMap.addHandler(ACTION_RECALCULATE, new RecalculateAction());
@@ -1582,8 +1645,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive())
-				doFind(getCurrentFrame().getTopSpreadSheet(),null);
+			if (isDocumentActive()) {
+				String query = arg0.getSource() instanceof JTextField ? arg0.getActionCommand() : null;
+				Field field = query == null || query.isBlank() ? null : Configuration.getFieldFromId("Field.name");
+				doFind(getCurrentFrame().getTopSpreadSheet(), field, query);
+			}
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2256,6 +2322,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	public void closeApplication(){
 		addHistory("closeApplication");
+		updateStoredSession();
+		quitting = true;
 //		if (Environment.getStandAlone()) {
 //			Frame frame=getFrame();
 //			if (frame!=null)
@@ -2421,6 +2489,9 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 				}
 
 				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
+					autoRecoveryManager.discard(savedProject);
+					recentProjectStore.recordOpened(savedProject.getFileName());
+					updateStoredSession();
 					if (saveAsRequested) {
 						frame.setId(savedProject.getUniqueId()+""); //$NON-NLS-1$
 					}
@@ -2496,6 +2567,9 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 				}
 
 				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
+					autoRecoveryManager.discard(savedProject);
+					recentProjectStore.recordOpened(savedProject.getFileName());
+					updateStoredSession();
 					if (collaborationEnabled && savedProject.getCollaborationSession() != null) {
 						savedProject.getCollaborationSession().afterSave();
 					}
@@ -2510,6 +2584,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	}
 
 	protected void closeProject(Project project){
+		autoRecoveryManager.discard(project);
 		persistCollaborationWorkspace(project);
 		if (project.getCollaborationSession() != null) {
 			project.getCollaborationSession().stop();
@@ -3160,7 +3235,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			if (ProjectLibreShell.showRestartMessageIfNeeded(contentPane, Environment.isNeedToRestart())) {
 				return;
 			}
-			ProjectLibreShell.installRibbonShell((MainRibbonFrame) container, getMenuManager(), this::showHelpDialog);
+			ProjectLibreShell.installRibbonShell((MainRibbonFrame) container, getMenuManager(), this::showHelpDialog,
+				autoRecoveryManager);
     	} else if (Environment.isNewLook()) {
 			if (ProjectLibreShell.showRestartMessageIfNeeded(contentPane, Environment.isNeedToRestart())) {
 				return;
@@ -3536,13 +3612,37 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		if (topTabs!=null) topTabs.setAllButResourceDisabled(disable);
 	}
 	public void doFind(Searchable searchable, Field field) {
+		doFind(searchable, field, null);
+	}
+	public class TimelineAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().doTimelineDialog();
+		}
+	}
+	public class CalendarViewAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().doCalendarViewDialog();
+		}
+	}
+	public class CustomReportAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().doCustomReportDialog();
+		}
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery) {
 		if (currentFrame==null||!getCurrentFrame().isActive())
 			return;
 		if (searchable == null)
 			return;
 		if (!beforeFindRoute(searchable, field))
 			return;
-		currentFrame.doFind(searchable, field);
+		currentFrame.doFind(searchable, field, initialQuery);
 
 	}
 
@@ -3602,6 +3702,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	}
 
 	public boolean quitApplication() throws Exception{
+		updateStoredSession();
+		quitting = true;
 		for (Object frameObj : new ArrayList(frameList)) {
 			if (frameObj instanceof DocumentFrame) {
 				Project project = ((DocumentFrame)frameObj).getProject();
@@ -3664,6 +3766,24 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		if (lastGraphicManager == null)
 			return null;
 		return lastGraphicManager.history;
+	}
+
+	Project loadRecoveryDocument(com.projectlibre1.application.AutoRecoveryStore.Entry entry) {
+		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions(entry.snapshot().toString(), true,
+			getCollaborationUserKey());
+		Project project = projectFactory.openProject(options);
+		if (project != null) {
+			project.setFileName(entry.originalFileName());
+			project.setGroupDirty(true);
+			if (entry.originalFileName() != null) {
+				initializeCollaboration(project);
+			}
+		}
+		return project;
+	}
+
+	boolean offerRecoveryAtStartup() {
+		return autoRecoveryManager.offerRecoveryAtStartup();
 	}
 
 }

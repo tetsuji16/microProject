@@ -51,16 +51,19 @@ class ProjectLibreShellTest {
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonBody, () -> {});
 
 		assertSame(ribbonBody, ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER));
-		assertFalse(hasComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME));
-		assertFalse(hasComponent(panel, OfficeChromePanel.SEARCH_FIELD_NAME));
-		assertFalse(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
-		assertFalse(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_FIELD_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
 	}
 
 	@Test
 	void officeChromeSearchBoxKeepsResponsiveBounds() {
 		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
-		assertEquals(1, panel.getComponentCount());
+		assertEquals(2, panel.getComponentCount());
+		JComponent search = findComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
+		assertEquals(220, search.getMinimumSize().width);
+		assertTrue(search.getMaximumSize().width >= search.getPreferredSize().width);
 	}
 
 	private static JComponent findComponent(JComponent root, String name) {

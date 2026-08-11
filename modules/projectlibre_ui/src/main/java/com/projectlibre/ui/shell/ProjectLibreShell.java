@@ -60,11 +60,16 @@ public final class ProjectLibreShell {
 	}
 
 	public static ShellHandles installRibbonShell(MainRibbonFrame frame, MenuManager menuManager, Runnable helpAction) {
+		return installRibbonShell(frame, menuManager, helpAction, AutoSaveControl.DISABLED);
+	}
+
+	public static ShellHandles installRibbonShell(MainRibbonFrame frame, MenuManager menuManager, Runnable helpAction,
+		AutoSaveControl autoSaveControl) {
 		JPanel ribbonPanel = menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, helpAction);
 		if (ribbonPanel == null) {
 			ribbonPanel = new JPanel(new BorderLayout());
 		}
-		JPanel shell = new OfficeChromePanel(menuManager, ribbonPanel, helpAction);
+		JPanel shell = new OfficeChromePanel(menuManager, ribbonPanel, helpAction, autoSaveControl);
 		frame.setRibbonPanel(shell);
 		return new ShellHandles(null, null, null);
 	}

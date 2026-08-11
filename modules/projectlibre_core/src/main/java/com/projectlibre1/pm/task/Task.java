@@ -169,6 +169,14 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected long actualStart = 0;
 
 	protected long levelingDelay = 0L;
+	/** Keeps incomplete planning data fixed until the user returns to automatic scheduling. */
+	protected boolean manuallyScheduled = false;
+	/** Keeps a scenario task in the plan without affecting dates, dependencies, or resource load. */
+	protected boolean inactiveTask = false;
+	/** Explicit user choice for the concise project timeline. */
+	protected boolean displayOnTimeline = false;
+	protected long manualStart = 0L;
+	protected long manualFinish = 0L;
 	protected transient int calculationStateCount = 0;
 	protected transient boolean markerStatus = false;
 	protected int earnedValueMethod = EarnedValueMethodType.PERCENT_COMPLETE;
@@ -1252,6 +1260,11 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		task.actualStart = actualStart;
 
 		task.levelingDelay = levelingDelay;
+		task.manuallyScheduled = manuallyScheduled;
+		task.inactiveTask = inactiveTask;
+		task.displayOnTimeline = displayOnTimeline;
+		task.manualStart = manualStart;
+		task.manualFinish = manualFinish;
 		task.calculationStateCount = calculationStateCount;
 		task.markerStatus = markerStatus;
 		task.earnedValueMethod = earnedValueMethod;
@@ -1898,6 +1911,61 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 	public final void setLevelingDelay(long levelingDelay) {
 		this.levelingDelay = levelingDelay;
+	}
+	public final boolean isManuallyScheduled() {
+		return manuallyScheduled;
+	}
+	public final void setManuallyScheduled(boolean manuallyScheduled) {
+		if (this.manuallyScheduled == manuallyScheduled)
+			return;
+		if (manuallyScheduled) {
+			captureManualDates();
+		}
+		this.manuallyScheduled = manuallyScheduled;
+		setDirty(true);
+		if (project != null)
+			project.recalculate();
+	}
+	public final boolean isInactiveTask() {
+		return inactiveTask;
+	}
+	public final void setInactiveTask(boolean inactiveTask) {
+		if (this.inactiveTask == inactiveTask)
+			return;
+		if (inactiveTask)
+			captureManualDates();
+		this.inactiveTask = inactiveTask;
+		setDirty(true);
+		if (project != null)
+			project.recalculate();
+	}
+	public final boolean isDisplayOnTimeline() {
+		return displayOnTimeline;
+	}
+	public final void setDisplayOnTimeline(boolean displayOnTimeline) {
+		if (this.displayOnTimeline == displayOnTimeline)
+			return;
+		this.displayOnTimeline = displayOnTimeline;
+		setDirty(true);
+	}
+	public final long getManualStart() {
+		return manualStart == 0L ? getStart() : manualStart;
+	}
+	public final long getManualFinish() {
+		return manualFinish == 0L ? getEnd() : manualFinish;
+	}
+	public final void setManualDates(long start, long finish) {
+		if (start <= 0L || finish < start)
+			throw new IllegalArgumentException("Manual finish must not be before manual start");
+		manualStart = start;
+		manualFinish = finish;
+		manuallyScheduled = true;
+		setAllSchedules(start, finish);
+		setDirty(true);
+	}
+	private void captureManualDates() {
+		manualStart = getStart();
+		manualFinish = getEnd();
 	}
 	public CustomFields getCustomFields() {
 		return customFields;

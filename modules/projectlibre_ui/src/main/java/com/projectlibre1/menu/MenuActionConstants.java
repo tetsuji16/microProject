@@ -105,6 +105,7 @@ public interface MenuActionConstants {
 	public static final String ACTION_WBS                     = "WBS";
 	public static final String ACTION_RBS                     = "RBS";
 	public static final String ACTION_REPORT                  = "Report";
+	public static final String ACTION_CUSTOM_REPORT           = "CustomReport";
 	public static final String ACTION_RESOURCES               = "Resources";
 	public static final String ACTION_PROJECTS                = "Projects";
 	public static final String ACTION_PROJECTS_DIALOG         = "ProjectsDialog";
@@ -113,6 +114,8 @@ public interface MenuActionConstants {
 	public static final String ACTION_TASK_USAGE              = "TaskUsage";
 	public static final String ACTION_RESOURCE_USAGE          = "ResourceUsage";
 	public static final String ACTION_NO_SUB_WINDOW           = "NoSubWindow";
+	public static final String ACTION_TIMELINE                = "Timeline";
+	public static final String ACTION_CALENDAR_VIEW           = "CalendarView";
 
 	public static final String ACTION_ZOOM_IN                 = "ZoomIn";
 	public static final String ACTION_ZOOM_OUT                = "ZoomOut";

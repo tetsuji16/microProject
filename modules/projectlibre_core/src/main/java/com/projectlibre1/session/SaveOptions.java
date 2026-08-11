@@ -73,6 +73,12 @@ public class SaveOptions implements Cloneable{
 	protected String collaborationUserKey;
 	protected String sidecarFileName;
 	protected boolean reloadFromCollaborationSync;
+	/**
+	 * Writes a recovery copy without changing the document identity or persisted
+	 * dirty state. Recovery snapshots deliberately use the normal exporter so
+	 * they exercise the same complete project serialization as an explicit save.
+	 */
+	protected boolean recoverySnapshot;
 	
 	public SaveOptions() {
 	}
@@ -155,6 +161,12 @@ public class SaveOptions implements Cloneable{
 	}
 	public void setReloadFromCollaborationSync(boolean reloadFromCollaborationSync) {
 		this.reloadFromCollaborationSync = reloadFromCollaborationSync;
+	}
+	public boolean isRecoverySnapshot() {
+		return recoverySnapshot;
+	}
+	public void setRecoverySnapshot(boolean recoverySnapshot) {
+		this.recoverySnapshot = recoverySnapshot;
 	}
 	
 	

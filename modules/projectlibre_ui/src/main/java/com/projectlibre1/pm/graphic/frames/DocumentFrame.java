@@ -78,6 +78,12 @@ import org.apache.commons.collections.Closure;
 import com.projectlibre1.dialog.BaselineDialog;
 import com.projectlibre1.dialog.DelegateTaskDialog;
 import com.projectlibre1.dialog.FindDialog;
+import com.projectlibre1.dialog.ResourceLevelingDialogBox;
+import com.projectlibre1.dialog.TeamPlannerDialogBox;
+import com.projectlibre1.dialog.TimelineDialogBox;
+import com.projectlibre1.dialog.CalendarViewDialogBox;
+import com.projectlibre1.dialog.CustomFieldsDialogBox;
+import com.projectlibre1.dialog.CustomReportDialogBox;
 import com.projectlibre1.dialog.UpdateProjectDialogBox;
 import com.projectlibre1.dialog.UpdateTaskDialog;
 import com.projectlibre1.dialog.calendar.ChangeWorkingTimeDialogBox;
@@ -394,20 +400,16 @@ public class DocumentFrame extends NamedFrame implements
 
 
 	void doLevelResourcesDialog() {
-//		ResourceLevelingDialogBox.getInstance(getGraphicManager().getFrame(), null).doModal();
+		finishAnyOperations();
+		if (java.awt.GraphicsEnvironment.isHeadless())
+			return;
+		ResourceLevelingDialogBox.getInstance(getGraphicManager().getFrame(), project).setVisible(true);
 	}
 
 
 	void doDelegateTasksDialog() {
 		finishAnyOperations();
-		List nodes = getSelectedNodes(true); //nodes, not impls!
-		if (nodes == null)
-			return;
-
-		DelegateTaskDialog dlg = DelegateTaskDialog.getInstance(getGraphicManager().getFrame(),
-				nodes);
-		dlg.setLocationRelativeTo(null);//to center on screen
-		dlg.doModal();
+		TeamPlannerDialogBox.getInstance(getGraphicManager().getFrame(), project).setVisible(true);
 
 	}
 
@@ -441,12 +443,29 @@ public class DocumentFrame extends NamedFrame implements
 
 	void doDefineCodeDialog() {
 		finishAnyOperations();
-//		OutlineCodeDefinitionDialogBox.getInstance(getGraphicManager().getFrame(), null).doModal();
+		List<Task> selected = new ArrayList<>();
+		for (Object value : getSelectedImpls(false)) if (value instanceof Task task) selected.add(task);
+		new CustomFieldsDialogBox(getGraphicManager().getFrame(), project, selected).setVisible(true);
 	}
 
 	void doRecurringTaskDialog() {
 		finishAnyOperations();
 		new RecurringTaskCoordinator().openDialogAndInsert(this);
+	}
+
+	void doTimelineDialog() {
+		finishAnyOperations();
+		new TimelineDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
+	}
+
+	void doCalendarViewDialog() {
+		finishAnyOperations();
+		new CalendarViewDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
+	}
+
+	void doCustomReportDialog() {
+		finishAnyOperations();
+		new CustomReportDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
 	}
 
 	void doBarDialog() {
@@ -1538,6 +1557,9 @@ public class DocumentFrame extends NamedFrame implements
 
 	}
 	public void doFind(Searchable searchable, Field field) {
+		doFind(searchable, field, null);
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery) {
 		if (!isActive())
 			return;
 
@@ -1545,9 +1567,8 @@ public class DocumentFrame extends NamedFrame implements
     		findDialog = FindDialog.getInstance(this,searchable,field);
     		findDialog.pack();
     		findDialog.setModal(false);
-    	} else {
-    		findDialog.init(searchable,field);
-    	}
+		}
+		findDialog.init(searchable, field, initialQuery);
     	findDialog.setLocationRelativeTo(this);//to center on screen
         findDialog.setVisible(true);
 

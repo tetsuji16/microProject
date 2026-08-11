@@ -413,8 +413,10 @@ public class LocalSession extends AbstractSession{
 			job.addJob(importer.getExportFileJob());
 			job.addSwingRunnable(new JobRunnable("Local: saveProject end"){
 				public Object run() throws Exception{
-					project.setFileName(fileName);
-		    		project.setGroupDirty(false);
+					if (!opt.isRecoverySnapshot()) {
+						project.setFileName(fileName);
+					project.setGroupDirty(false);
+					}
 					if (opt.getPostSaving()!=null) opt.getPostSaving().execute(project);
 	    	    	return null;
 				}

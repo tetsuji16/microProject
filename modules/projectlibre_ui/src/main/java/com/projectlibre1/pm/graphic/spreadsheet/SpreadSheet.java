@@ -162,6 +162,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private static final String NAME_COLUMN_JUMP_NEXT_ACTION = "spreadsheet.nameColumnJumpNext";
 	private static final String CLIPBOARD_PASTE_VALUES_ACTION = "spreadsheet.clipboardPasteValues";
 	private static final String CLIPBOARD_INSERT_ACTION = "spreadsheet.clipboardInsert";
+	public static final String FILL_DOWN_ACTION = "spreadsheet.fillDown";
 	private Object defaultTabActionKey;
 	private Object defaultShiftTabActionKey;
 	protected SpreadSheetPopupMenu popup=null;
@@ -174,7 +175,34 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		super();
 		NodeListTransferHandler.registerWith(this);
 		installClipboardPasteBindings();
+		installFillDownBinding();
 
+	}
+
+	private void installFillDownBinding() {
+		getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ctrl D"), FILL_DOWN_ACTION);
+		getActionMap().put(FILL_DOWN_ACTION, new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) { fillDownSelection(); }
+		});
+	}
+
+	/** Copies each selected column's first selected value into the remaining selected rows. */
+	public void fillDownSelection() {
+		finishCurrentOperations();
+		int[] rows = getSelectedRows();
+		int[] columns = getSelectedColumns();
+		if (rows.length < 2)
+			return;
+		if (columns.length == 0 && getSelectedColumn() >= 0)
+			columns = new int[] { getSelectedColumn() };
+		for (int column : columns) {
+			Object value = getValueAt(rows[0], column);
+			for (int index = 1; index < rows.length; index++) {
+				if (getModel().isCellEditable(rows[index], column))
+					setValueAt(value, rows[index], column);
+			}
+		}
 	}
 
 	private void installClipboardPasteBindings() {
