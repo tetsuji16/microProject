@@ -459,6 +459,12 @@ public abstract class StartupFactory {
 			}else{
 				SwingUtilities.invokeLater(new Runnable() {
 					public void run() {
+						if (gm.offerRecoveryAtStartup()) {
+							return;
+						}
+						if (gm.restorePreviousSessionAtStartup()) {
+							return;
+						}
 						if (Environment.isProjectLibre()&&!Environment.isPlugin()) {
 							LicenseDialog.showDialog(gm.getFrame(),false);
 							UserInfoDialog.showDialog(gm.getFrame(),false);

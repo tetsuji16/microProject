@@ -409,6 +409,8 @@ public final class TaskSchedule implements Cloneable {
 				if (dependency.isDisabled())
 					continue;
 				dependencyTask = (Task) dependency.getTask(!forward);				// get the successor(pred) task
+				if (task.isInactiveTask() || dependencyTask.isInactiveTask())
+					continue;
 				dependencyTaskSchedule = dependencyTask.getSchedule(type);
 				// if this task is the only predecessor(successor) for the successor(predecessor) task, avoid long calculation and just calculate the date, otherwise
 				// flag the task for later calculation
@@ -483,6 +485,8 @@ public final class TaskSchedule implements Cloneable {
 				continue;
 			
 			child = (NormalTask) current;
+			if (child.isInactiveTask())
+				continue;
 			estimated |= child.isEstimated();
 
 				
@@ -534,6 +538,10 @@ public final class TaskSchedule implements Cloneable {
 			dependency = (Dependency) i.next();
 			if (dependency.isDisabled())
 				continue;
+			Task predecessor = (Task) dependency.getTask(true);
+			Task successor = (Task) dependency.getTask(false);
+			if (predecessor.isInactiveTask() || successor.isInactiveTask())
+				continue;
 			current = dependency.getDate(forward);
 			if (result == 0)
 				result = current;
@@ -556,6 +564,18 @@ public final class TaskSchedule implements Cloneable {
 	 * @return
 	 */
 	private void calcStartAndFinish(CalculationContext context) {
+		if (!task.isWbsParent() && (task.isManuallyScheduled() || task.isInactiveTask())) {
+			long manualStart = task.getManualStart();
+			long manualFinish = task.getManualFinish();
+			if (context.forward) {
+				setBegin(manualStart);
+				setEnd(manualFinish);
+			} else {
+				setBegin(-manualFinish);
+				setEnd(-manualStart);
+			}
+			return;
+		}
 		long begin = getBeginDependency();
 		Task parent = task.getWbsParentTask();
 		

@@ -94,6 +94,22 @@ class LocalSessionSaveTest {
 		assertTrue(Files.size(destination) > 0L, "saved file must exist");
 	}
 
+	@Test
+	void recoverySnapshotDoesNotRenameOrMarkProjectClean() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("recovery-save", undoController), undoController);
+		project.setGroupDirty(true);
+		LocalSession session = new LocalSession(); session.setJobQueue(new JobQueue("recovery-save", false));
+		Path destination = tempDirectory.resolve("snapshot.recovery.pod"); CountDownLatch completed = new CountDownLatch(1);
+		SaveOptions options = new SaveOptions(); options.setLocal(true); options.setFileName(destination.toString());
+		options.setImporter(LocalSession.LOCAL_PROJECT_IMPORTER); options.setRecoverySnapshot(true); options.setPostSaving(value -> completed.countDown());
+
+		session.getSaveProjectJob(Collections.singletonList(project), options).execute();
+
+		assertTrue(completed.await(15, TimeUnit.SECONDS)); assertTrue(Files.isRegularFile(destination));
+		assertTrue(project.isGroupDirty()); assertEquals(null, project.getFileName());
+	}
+
 	private static void saveAndAwait(LocalSession session, Project project, Path destination, boolean saveAs)
 			throws Exception {
 		CountDownLatch completed = new CountDownLatch(1);

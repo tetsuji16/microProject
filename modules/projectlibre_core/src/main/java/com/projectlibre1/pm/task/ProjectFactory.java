@@ -465,9 +465,11 @@ public class ProjectFactory {
 			o.setPostSaving(new Closure() {
 				public void execute(Object obj) {
 					Project p = (Project)obj;
-					p.setAllTasksAsUnchangedFromPersisted(true);
-					p.validateNewDistributionMap();
-					portfolio.handleExternalTasks(p,false, true); 		// external link handling
+					if (!opt.isRecoverySnapshot()) {
+						p.setAllTasksAsUnchangedFromPersisted(true);
+						p.validateNewDistributionMap();
+						portfolio.handleExternalTasks(p,false, true); 		// external link handling
+					}
 					if (opt.getPostSaving()!=null) opt.getPostSaving().execute(obj); //id, combobox update
 				}
 			});

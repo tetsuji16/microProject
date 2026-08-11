@@ -57,12 +57,15 @@ package com.projectlibre1.dialog;
 
 import java.awt.Component;
 import java.awt.Frame;
+import java.util.Locale;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -95,6 +98,7 @@ import com.projectlibre1.pm.dependency.DependencyNodeModelDataFactory;
 import com.projectlibre1.pm.key.HasId;
 import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.Task;
+import com.projectlibre1.pm.task.ScheduleDiagnosticsService;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.FlatUiSupport;
 /**
@@ -196,6 +200,7 @@ public class TaskInformationDialog extends InformationDialog {
 		resourcesTabIndex = taskTabbedPane.indexOfTab(resources);
 
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Advanced"),createAdvancedPanel()); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Diagnostics"), createDiagnosticsPanel()); //$NON-NLS-1$
 		
 		String notes = Messages.getString("TaskInformationDialog.Notes"); //$NON-NLS-1$
 		taskTabbedPane.addTab(notes,createNotesPanel());
@@ -204,6 +209,30 @@ public class TaskInformationDialog extends InformationDialog {
 		mainComponent = taskTabbedPane;
 
 		return builder.getPanel();
+	}
+
+	private JComponent createDiagnosticsPanel() {
+		String[] columns = {
+			Messages.getString("TaskInformationDialog.Severity"),
+			Messages.getString("TaskInformationDialog.Issue"),
+			Messages.getString("TaskInformationDialog.Cause"),
+			Messages.getString("TaskInformationDialog.Recommendation")
+		};
+		DefaultTableModel model = new DefaultTableModel(columns, 0) {
+			private static final long serialVersionUID = 1L;
+			@Override public boolean isCellEditable(int row, int column) { return false; }
+		};
+		for (var issue : new ScheduleDiagnosticsService().diagnose((Task) getObject())) {
+			String key = "diagnostic." + issue.type().name().toLowerCase(Locale.ROOT);
+			model.addRow(new Object[] { issue.severity(), UsabilityStrings.text(key + ".summary"), UsabilityStrings.text(key + ".cause"), UsabilityStrings.text(key + ".recommendation") });
+		}
+		JTable table = new JTable(model);
+		table.setAutoCreateRowSorter(true);
+		table.setRowHeight(Math.max(table.getRowHeight(), 24));
+		table.getAccessibleContext().setAccessibleName(Messages.getString("TaskInformationDialog.Diagnostics"));
+		JScrollPane pane = new JScrollPane(table);
+		pane.setBorder(javax.swing.BorderFactory.createEmptyBorder(8, 8, 8, 8));
+		return pane;
 	}
 
 	public void showNotes() {
@@ -232,7 +261,7 @@ public class TaskInformationDialog extends InformationDialog {
 				// The builder advances one row after each separator.  Keep the
 				// growing row at the end so the Bar Color controls (rows 20-25)
 				// are within the grid instead of aborting dialog construction.
-				"p,3dlu,p,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,fill:50dlu:grow"); //$NON-NLS-1$
+				"p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
@@ -247,7 +276,10 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.nextLine(2);
 		map.appendSometimesReadOnly(builder,"Field.percentComplete"); //$NON-NLS-1$
 		map.append(builder,"Field.priority"); //$NON-NLS-1$
-		
+		builder.nextLine(2);
+		map.append(builder,"Field.manuallyScheduled"); //$NON-NLS-1$
+		map.append(builder,"Field.inactiveTask"); //$NON-NLS-1$
+
 		builder.nextLine(2);
 		map.append(builder,"Field.cost"); //$NON-NLS-1$
 		map.append(builder,"Field.work"); //$NON-NLS-1$

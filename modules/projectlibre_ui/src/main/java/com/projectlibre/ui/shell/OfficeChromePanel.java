@@ -52,15 +52,22 @@ final class OfficeChromePanel extends JPanel {
 	private final MenuManager menuManager;
 	private final Runnable helpAction;
 	private final JTextField searchField;
+	private final AutoSaveControl autoSaveControl;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
+		this(menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
+	}
+
+	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction, AutoSaveControl autoSaveControl) {
 		super(new BorderLayout());
 		this.menuManager = menuManager;
 		this.helpAction = helpAction;
+		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
 		this.searchField = new JTextField(28);
 		setName(NAME);
 		setOpaque(true);
 		setBackground(CHROME_BACKGROUND);
+		add(buildHeader(), BorderLayout.NORTH);
 		add(ribbonPanel, BorderLayout.CENTER);
 	}
 
@@ -116,7 +123,7 @@ final class OfficeChromePanel extends JPanel {
 		constraints.insets = new Insets(0, 0, 0, 4);
 		cluster.add(createLabel("AutoSave", TEXT_COLOR), constraints);
 		constraints.gridx++;
-		cluster.add(new OfficeSwitchButton(true), constraints);
+		cluster.add(new OfficeSwitchButton(autoSaveControl), constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, CLUSTER_GAP, 0, 6);
 		cluster.add(new VerticalDivider(), constraints);
@@ -333,10 +340,11 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private static final class OfficeSwitchButton extends JToggleButton {
-		private OfficeSwitchButton(boolean selected) {
+		private OfficeSwitchButton(AutoSaveControl control) {
 			super();
 			setName(AUTO_SAVE_NAME);
-			setSelected(selected);
+			setSelected(control.isEnabled());
+			addActionListener(event -> control.setEnabled(isSelected()));
 			setOpaque(false);
 			setContentAreaFilled(false);
 			setBorderPainted(false);

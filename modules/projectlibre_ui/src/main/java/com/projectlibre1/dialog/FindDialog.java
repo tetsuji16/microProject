@@ -254,6 +254,19 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		return false;
 	}
 
+	/** Initializes the dialog from the application-wide search box and selects the first match. */
+	public void init(Searchable searchable, Field field, String initialQuery) {
+		init(searchable, field);
+		if (initialQuery == null || initialQuery.isBlank())
+			return;
+		search.setText(initialQuery);
+		context.setForward(true);
+		bind(false);
+		updateFindButtonState();
+		if (!searchable.findNext(context))
+			Alert.warn(Messages.getString("FindDialog.NoMatches")); //$NON-NLS-1$
+	}
+
 	@Override
 	public void dispose() {
 		DocumentSelectedEvent.removeListener(this);

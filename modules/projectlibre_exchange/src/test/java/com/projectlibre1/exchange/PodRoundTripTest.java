@@ -2,6 +2,7 @@ package com.projectlibre1.exchange;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -18,8 +19,25 @@ import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.pm.task.ProjectFactory;
+import com.projectlibre1.pm.resource.ResourcePool;
+import com.projectlibre1.undo.DataFactoryUndoController;
 
 public class PodRoundTripTest {
+	@Test
+	public void podRoundTripPreservesManualInactiveAndTimelineFlags() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("roundtrip-flags", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl(); task.setName("Scenario");
+		task.getCurrentSchedule().setStart(project.getStart()); task.setDuration(8L * 60L * 60L * 1000L);
+		task.setManualDates(task.getStart(), task.getEnd()); task.setInactiveTask(true); task.setDisplayOnTimeline(true);
+		File saved = File.createTempFile("projectlibre-task-flags", ".pod"); saved.deleteOnExit();
+		LocalFileImporter exporter = new LocalFileImporter(); exporter.setFileName(saved.getAbsolutePath()); exporter.setProject(project); exporter.exportFile();
+
+		Task restored = firstTask(load(saved));
+		assertTrue(restored.isManuallyScheduled()); assertTrue(restored.isInactiveTask()); assertTrue(restored.isDisplayOnTimeline());
+	}
+
 	@Test
 	public void samplePodRoundTripPreservesTaskLayoutAndDependencies() throws Exception {
 		assertRoundTrip("June_1_sample.pod");

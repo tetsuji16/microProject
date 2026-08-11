@@ -420,6 +420,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonTeamFilter",
 			"RibbonRecalculate");
 		add(map, Strategy.ROUTE_DIALOG,
+			"RibbonCustomFields",
+			"RibbonCustomReport",
 			"RibbonTaskInformation",
 			"RibbonResourceInformation",
 			"RibbonProjectInformation",
@@ -435,6 +437,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonSaveBaseline",
 			"RibbonClearBaseline");
 		add(map, Strategy.ROUTE_VIEW,
+			"RibbonTimeline",
+			"RibbonCalendarView",
 			"RibbonGantt",
 			"RibbonTrackingGantt",
 			"RibbonNetwork",
