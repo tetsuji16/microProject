@@ -95,6 +95,9 @@ public class ReportViewer extends JRViewer {
 		viewerContext.setZoomRatio(clampZoomRatio(zoomRatio));
 	}
 	static float clampZoomRatio(float zoomRatio) {
+		if (Float.isNaN(zoomRatio)) {
+			return 1.0f;
+		}
 		return Math.max(0.1f, Math.min(zoomRatio, 4.0f));
 	}
 }

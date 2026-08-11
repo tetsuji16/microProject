@@ -20,6 +20,15 @@ public class ImageExportTest {
 	}
 
 	@Test
+	public void keepsExistingPdfExtensionRegardlessOfCase() {
+		File input = new File("C:\\temp\\report.PDF");
+
+		File output = PdfExportUtil.appendPdfExtensionIfMissing(input);
+
+		assertEquals(input, output);
+	}
+
+	@Test
 	public void appendsPdfExtensionWithoutDroppingParentDirectory() {
 		File input = new File("C:\\temp\\report");
 

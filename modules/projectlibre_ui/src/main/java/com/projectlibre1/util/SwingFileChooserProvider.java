@@ -97,9 +97,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			selectedFileName = changeFileExtension(selectedFileName, "xml");
 		}
 		SystemFileChooser chooser = getFileChooser();
-		if (selectedFileName != null) {
-			chooser.setSelectedFile(new File(selectedFileName));
-		}
+		chooser.setSelectedFile(initialSelectedFile(selectedFileName));
 		ensureFileChooserConfigured(save);
 		if (save) {
 			selectSaveFileFilter(chooser, selectedFileName);
@@ -127,6 +125,10 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", file.getParent());
 		return fileName;
+	}
+
+	static File initialSelectedFile(String selectedFileName) {
+		return selectedFileName == null ? null : new File(selectedFileName);
 	}
 
 	private SystemFileChooser getFileChooser() {

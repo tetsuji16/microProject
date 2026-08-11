@@ -55,6 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.session;
 
+import java.util.Locale;
+
 public class FileHelper {
 	public static final String DEFAULT_FILE_EXTENSION ="pod";
 	public static final int PROJECTLIBRE_FILE_TYPE=1;
@@ -64,8 +66,8 @@ public class FileHelper {
 		if (fileName == null || extension == null) {
 			return false;
 		}
-		String normalized = fileName.toLowerCase();
-		String suffix = "." + extension.toLowerCase();
+		String normalized = fileName.toLowerCase(Locale.ROOT);
+		String suffix = "." + extension.toLowerCase(Locale.ROOT);
 		return normalized.endsWith(suffix);
 	}
 
@@ -89,8 +91,9 @@ public class FileHelper {
 	}
 
     public static String getFileExtension(String fileName) {
+		if (fileName == null) return null;
         int i=fileName.lastIndexOf('.');
-        if (i>0&&i<fileName.length()-1) return fileName.substring(i+1).toLowerCase();
+		if (i>0&&i<fileName.length()-1) return fileName.substring(i+1).toLowerCase(Locale.ROOT);
         return null;
     }
     public static String changeFileExtension(String fileName,int fileType) {

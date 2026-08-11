@@ -1,6 +1,7 @@
 package com.projectlibre1.dialog;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,10 +11,29 @@ import java.nio.charset.StandardCharsets;
 import java.util.prefs.Preferences;
 
 import javax.swing.JEditorPane;
+import javax.swing.UIManager;
 
 import org.junit.jupiter.api.Test;
 
 class LicenseDialogResourceTest {
+	@Test
+	void dialogTitleDoesNotRepeatApplicationName() {
+		assertEquals("ProjectLibre License",
+			LicenseDialog.buildDialogTitle("ProjectLibre", "ProjectLibre License"));
+		assertEquals("ProjectLibre ライセンス",
+			LicenseDialog.buildDialogTitle("ProjectLibre", "ライセンス"));
+	}
+
+	@Test
+	void licenseHtmlUsesTheStandardUiFont() {
+		JEditorPane pane = new JEditorPane();
+
+		LicenseDialog.configureReadableHtml(pane);
+
+		assertEquals(Boolean.TRUE, pane.getClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES));
+		assertEquals(UIManager.getFont("Label.font"), pane.getFont());
+	}
+
 	@Test
 	void licenseDialogResourcesLoadWithoutAcceptedLicensePreference() throws Exception {
 		Preferences preferences = Preferences.userNodeForPackage(LicenseDialog.class);
@@ -32,6 +52,10 @@ class LicenseDialogResourceTest {
 		assertTrue(license.startsWith("PROJECTLIBRE LICENSE"));
 		assertTrue(license.contains("Common Public Attribution License"));
 		assertFalse(license.contains("Attibution"));
+
+		String licenseHtml = readResource("license/index.html");
+		assertFalse(licenseHtml.contains("FONT SIZE=2"));
+		assertTrue(licenseHtml.contains("FONT SIZE=3"));
 	}
 
 	private void assertCurrentOpenSourceNotices() throws Exception {

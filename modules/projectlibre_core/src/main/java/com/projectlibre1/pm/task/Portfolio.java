@@ -62,6 +62,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import org.apache.commons.collections.Closure;
@@ -140,7 +141,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 			return;
 		Node oldNode=nodeModel.search(project,comparator);
 		if (oldNode!=null){
-			if (Alert.confirm(Messages.getString("Message.projectAlreadyExists"))==1){
+			if (!shouldReplaceExistingProject(Alert.confirm(Messages.getString("Message.projectAlreadyExists")))){
 				//TODO be sure all references are removed
 				return;
 			}else{
@@ -176,6 +177,10 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	   	else job.addJob(addProjectJob);
     	SessionFactory.getInstance().getSession(project.isLocal()).schedule(job);
 
+	}
+
+	static boolean shouldReplaceExistingProject(int confirmation) {
+		return confirmation == JOptionPane.YES_OPTION;
 	}
 
 	private void _addProject(Project project){

@@ -2208,7 +2208,13 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		}
 	}
 	public String getTitle(){
-		return getName()+(fileName==null?"":(" - "+fileName));
+		return formatTitle(getName(), fileName);
+	}
+
+	static String formatTitle(String name, String fileName) {
+		if (name == null || name.isBlank()) return fileName == null ? "" : fileName;
+		if (fileName == null || fileName.isBlank()) return name;
+		return name + " - " + fileName;
 	}
 
 	protected transient int fileType=FileHelper.PROJECTLIBRE_FILE_TYPE;
