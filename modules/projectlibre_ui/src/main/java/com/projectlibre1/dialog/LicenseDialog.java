@@ -66,6 +66,7 @@ import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
+import javax.swing.UIManager;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 
@@ -101,9 +102,22 @@ public final class LicenseDialog extends AbstractDialog {
 	}
 
 	private LicenseDialog(Frame owner) {
-		super(owner, Messages.getContextString("Text.ApplicationTitle") + " "+Messages.getString("LicenseDialog.License"), true); //$NON-NLS-1$ //$NON-NLS-2$
+		super(owner, buildDialogTitle(
+			Messages.getContextString("Text.ApplicationTitle"),
+			Messages.getString("LicenseDialog.License")), true); //$NON-NLS-1$ //$NON-NLS-2$
 		if (!Environment.isProjectLibre())
 			validated = true; // POD validation is on web
+	}
+
+	static String buildDialogTitle(String applicationTitle, String licenseTitle) {
+		if (licenseTitle == null || licenseTitle.isBlank()) {
+			return applicationTitle;
+		}
+		if (applicationTitle == null || applicationTitle.isBlank()
+				|| licenseTitle.regionMatches(true, 0, applicationTitle, 0, applicationTitle.length())) {
+			return licenseTitle;
+		}
+		return applicationTitle + " " + licenseTitle;
 	}
 
 	public static URL resolveThirdPartyLicenseUrl() {
@@ -114,7 +128,9 @@ public final class LicenseDialog extends AbstractDialog {
 	private JEditorPane createEditorPane(URL url,final int fallbackHeight) {
 		JEditorPane pane = null;
 		try {
-			pane = new JEditorPane(url);
+			pane = new JEditorPane();
+			configureReadableHtml(pane);
+			pane.setPage(url);
 		} catch (Exception e) {
 			if (!validated) {
 				Alert.error(Messages.getString("LicenseDialog.CouldNotLoadExiting")); //$NON-NLS-1$
@@ -139,6 +155,11 @@ public final class LicenseDialog extends AbstractDialog {
 					BrowserControl.displayURL(e.getURL().toExternalForm());
 			}});
 		return pane;
+	}
+
+	static void configureReadableHtml(JEditorPane pane) {
+		pane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+		pane.setFont(UIManager.getFont("Label.font"));
 	}
 	protected void initComponents() {
 		if (init)

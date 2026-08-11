@@ -1,13 +1,14 @@
 package com.projectlibre1.util;
 
 import java.io.File;
+import java.util.Locale;
 
 public final class PdfExportUtil {
 	private PdfExportUtil() {
 	}
 
 	public static File appendPdfExtensionIfMissing(File file) {
-		if (file == null || file.getName().endsWith(".pdf")) {
+		if (file == null || file.getName().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
 			return file;
 		}
 		File parent = file.getParentFile();

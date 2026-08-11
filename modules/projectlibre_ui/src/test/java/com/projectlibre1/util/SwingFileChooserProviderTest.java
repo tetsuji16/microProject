@@ -1,6 +1,9 @@
 package com.projectlibre1.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import java.io.File;
 
 import org.junit.jupiter.api.Test;
 
@@ -9,6 +12,13 @@ class SwingFileChooserProviderTest {
 	void fileDialogsUseTheSwingFallbackSoEscapeCancelsThem() {
 		new SwingFileChooserProvider();
 		assertEquals("false", System.getProperty(SwingFileChooserProvider.USE_SYSTEM_FILE_CHOOSER_PROPERTY));
+	}
+
+	@Test
+	void openDialogWithoutSuggestedNameClearsThePreviousSelection() {
+		assertNull(SwingFileChooserProvider.initialSelectedFile(null));
+		assertEquals(new File("C:\\projects\\plan.pod"),
+			SwingFileChooserProvider.initialSelectedFile("C:\\projects\\plan.pod"));
 	}
 
 	@Test
