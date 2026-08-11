@@ -885,7 +885,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		
 	}
 	public SpreadSheetPopupMenu getPopup(){
-		if (popup == null && hasRowPopup()) {
+		if (popup == null && (hasRowPopup()
+				|| SpreadSheetCategories.taskSpreadsheetCategory.equals(getSpreadSheetCategory()))) {
 			popup = new SpreadSheetPopupMenu(this);
 		}
 		return popup;
@@ -957,67 +958,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 //			}
 
 			public void mousePressed(MouseEvent e) { // changed to mousePressed instead of mouseClicked() for snappier handling 17/5/04 hk
-				var p = e.getPoint();
-				var row = rowAtPoint(p);
-				var col = columnAtPoint(p);
-				var popup = getPopup();
-				if (row < 0 || col < 0) {
-					return;
-				}
-				if (SwingUtilities.isLeftMouseButton(e)) {
-					if (!(getModel() instanceof SpreadSheetModel model))
-						return;
-					var field = model.getFieldInViewColumn(col);
-					if (field != null && field.isNameField()) {
-						// if (col == columnModel.getNameIndex()) {
-						var node = model.getNode(row);
-						if (node != null && isOnIcon(e)) {
-							if (model.getCellProperties(node).isCompositeIcon()) {
-								finishCurrentOperations();
-								selection.getRowSelection().clearSelection();
-								boolean change = true;
-								if (!node.isFetched()) // for subprojects
-									change = node.fetch();
-								if (change)
-									model.changeCollapsedState(row);
-								e.consume(); // prevent dbl click treatment below
-
-								// because editor may have already been
-								// installed we
-								// have to update its collapsed state
-								// updateNameCellEditor(node);
-
-								// editCellAt(row,model.findGraphicNodeRow(node));
-							}
-						}
-					} else if (field != null && row >= 0 && field.isHyperlink()) {
-						int modelColumn = model.getModelColumnForViewColumn(col);
-						Hyperlink link = modelColumn < 0 ? null : (Hyperlink) model.getValueAt(row, modelColumn);
-						if (link != null) {
-							BrowserControl.displayURL(link.getAddress());
-							e.consume(); // prevent dbl click treatment below
-						}
-						
-					}
-					if (!e.isConsumed()) {
-						if (e.getClickCount() == 2) {
-							finishCurrentOperations();
-							if (editCellAt(row, col, e)) {
-								e.consume();
-							}
-						} else {
-							doClick(row,col);
-						}
-					}
-								
-					
-				} else if (popup != null && SwingUtilities.isRightMouseButton(e)) { // e.isPopupTrigger() can be used too
-//					selection.getRowSelection().clearSelection();
-//					selection.getRowSelection().addSelectionInterval(row, row);
-					popup.setRow(row);
-					popup.setCol(col);
-					popup.show(SpreadSheet.this, e.getX(), e.getY());
-				}
+				handleTableMousePressed(e);
 			}
 		});
 
@@ -1031,6 +972,72 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			spreadSheetModel.getCache().addNodeModelListener(this);
 		}
 
+	}
+
+	void handleTableMousePressed(MouseEvent e) {
+		var p = e.getPoint();
+		var row = rowAtPoint(p);
+		var col = columnAtPoint(p);
+		var popup = getPopup();
+		if (row < 0 || col < 0) {
+			return;
+		}
+		if (SwingUtilities.isLeftMouseButton(e)) {
+			selectCellFromClick(row, col, e);
+			if (!(getModel() instanceof SpreadSheetModel model))
+				return;
+			var field = model.getFieldInViewColumn(col);
+			if (field != null && field.isNameField()) {
+				// if (col == columnModel.getNameIndex()) {
+				var node = model.getNode(row);
+				if (node != null && isOnIcon(e)) {
+					if (model.getCellProperties(node).isCompositeIcon()) {
+						finishCurrentOperations();
+						selection.getRowSelection().clearSelection();
+						boolean change = true;
+						if (!node.isFetched()) // for subprojects
+							change = node.fetch();
+						if (change)
+							model.changeCollapsedState(row);
+						e.consume(); // prevent dbl click treatment below
+
+						// because editor may have already been
+						// installed we
+						// have to update its collapsed state
+						// updateNameCellEditor(node);
+
+						// editCellAt(row,model.findGraphicNodeRow(node));
+					}
+				}
+			} else if (field != null && field.isHyperlink()) {
+				int modelColumn = model.getModelColumnForViewColumn(col);
+				Hyperlink link = modelColumn < 0 ? null : (Hyperlink) model.getValueAt(row, modelColumn);
+				if (link != null) {
+					BrowserControl.displayURL(link.getAddress());
+					e.consume(); // prevent dbl click treatment below
+				}
+			}
+			if (!e.isConsumed()) {
+				if (e.getClickCount() == 2) {
+					finishCurrentOperations();
+					doDoubleClick(row, col);
+					e.consume();
+				} else {
+					doClick(row,col);
+				}
+			}
+		} else if (popup != null && SwingUtilities.isRightMouseButton(e)) { // e.isPopupTrigger() can be used too
+			if (!isCellSelected(row, col)) {
+				selectCellFromClick(row, col, null);
+			}
+			popup.setRow(row);
+			popup.setCol(col);
+			showPopupMenu(popup, e);
+		}
+	}
+
+	protected void showPopupMenu(SpreadSheetPopupMenu popup, MouseEvent e) {
+		popup.show(this, e.getX(), e.getY());
 	}
 
 	/**
@@ -1154,7 +1161,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		finishCurrentOperations();
 		requestFocusInWindow();
 		boolean extend = e != null && e.isShiftDown();
-		boolean toggle = e != null && (e.getModifiersEx() & Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()) != 0;
+		boolean toggle = e != null && (e.isControlDown() || e.isMetaDown());
 		changeSelection(row, col, toggle, extend);
 		scrollRectToVisible(getCellRect(row, col, true));
 	}

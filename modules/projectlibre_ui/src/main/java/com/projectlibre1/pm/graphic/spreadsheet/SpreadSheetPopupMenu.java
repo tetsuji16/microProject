@@ -55,6 +55,7 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.spreadsheet;
 
+import java.awt.event.ActionEvent;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -64,7 +65,9 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 
 import com.projectlibre1.menu.MenuActionConstants;
+import com.projectlibre1.graphic.configuration.SpreadSheetCategories;
 import com.projectlibre1.pm.graphic.IconManager;
+import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.Environment;
 
 /**
@@ -83,11 +86,24 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 	        
 	        //setLabel("");
 	        final SpreadSheet sp=spreadSheet;
-			AbstractAction action;
+			String[] actions=spreadSheet.getActionList();
+			if (SpreadSheetCategories.taskSpreadsheetCategory
+					.equals(spreadSheet.getSpreadSheetCategory())) {
+				add(new AbstractAction(Messages.getString("TaskInformationDialog.TaskInformation")) {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void actionPerformed(ActionEvent e) {
+						spreadSheet.doDoubleClick(row, col);
+					}
+				}, Environment.isNewLook() ? "menu24.taskInformation" : "menu.taskInformation");
+				if (actions != null && actions.length > 0) {
+					addSeparator();
+				}
+			}
 			
 			//Normal spreadsheet
 			//NodeListTransferHandler.registerWith(this);
-			String[] actions=spreadSheet.getActionList();
 			if (actions!=null)
 			for (int i=0;i<actions.length;i++){
 				String actionId = actions[i];
