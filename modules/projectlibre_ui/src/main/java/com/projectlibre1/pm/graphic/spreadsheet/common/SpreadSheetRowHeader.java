@@ -152,14 +152,12 @@ public class SpreadSheetRowHeader extends JTable {
 				SpreadSheetPopupMenu popup=getPopup();
 				if (SwingUtilities.isLeftMouseButton(e)){
 					int row = rowAtPoint(e.getPoint());
-					if (e.getClickCount() == 1 && table.isRowFullySelected(row)) {
-						SpreadSheetRowHeader.this.clearSelection();
-						table.clearSelection();
-						e.consume();
+					if (row < 0) {
 						return;
 					}
+					table.selectRowAndAllColumns(row);
 					if (e.getClickCount()==2){
-						((SpreadSheet)table).doDoubleClick(0,0);
+						spreadSheet.doDoubleClick(row,0);
 //						Component comp=SpreadSheetRowHeader.this;
 //						while(!((comp=comp.getParent()) instanceof MainFrame));
 //						MainFrame mainFrame=(MainFrame)comp;
