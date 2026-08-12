@@ -32,22 +32,23 @@ class MondayGanttThemeTest {
 	}
 
 	@Test
-	void statusColorUsesPercentWorkCompleteForLeafTasks() {
+	void statusColorUsesPercentCompleteForLeafTasks() {
 		NormalTask task = createTask();
+		task.setPercentComplete(0.44d);
 		task.setPercentWorkComplete(0.0d);
-		assertEquals(MondayGanttTheme.NOT_STARTED, MondayGanttTheme.statusColor(task, task));
+		assertEquals(MondayGanttTheme.WORKING_ON_IT, MondayGanttTheme.statusColor(task, task));
 
-		task.setPercentWorkComplete(1.0d);
+		task.setPercentComplete(1.0d);
 		assertEquals(MondayGanttTheme.DONE, MondayGanttTheme.statusColor(task, task));
 	}
 
 	@Test
-	void statusColorUsesPercentWorkCompleteForSummaryTasks() {
+	void statusColorUsesPercentCompleteForSummaryTasks() {
 		Schedule summary = taskSpecificSchedule(0.44d, 0.0d, true);
-		assertEquals(MondayGanttTheme.NOT_STARTED, MondayGanttTheme.statusColor(summary, summary));
-
-		summary = taskSpecificSchedule(0.44d, 0.44d, true);
 		assertEquals(MondayGanttTheme.WORKING_ON_IT, MondayGanttTheme.statusColor(summary, summary));
+
+		summary = taskSpecificSchedule(1.0d, 0.44d, true);
+		assertEquals(MondayGanttTheme.DONE, MondayGanttTheme.statusColor(summary, summary));
 	}
 
 	@Test

@@ -67,6 +67,7 @@ import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
+import java.awt.geom.Line2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Serializable;
@@ -136,6 +137,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private static final Logger logger = Logger.getLogger(GanttRenderer.class.getName());
 	private static final Stroke PROGRESS_LINE_STROKE = new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 	private static final Stroke PROGRESS_LINE_HALO_STROKE = new BasicStroke(4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+	private static final Stroke PROGRESS_BAR_STROKE = new BasicStroke(1.25f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 	private static final int PROGRESS_LINE_POINT_SIZE = 6;
 	protected NodeRenderer nodeRenderer = new NodeRenderer();
 	protected LinkRenderer linkRenderer = new LinkRenderer();
@@ -249,6 +251,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private Color resolveTaskFillColor(GraphicNode node, BarFormat format) {
 		Object impl = getNodeImpl(node);
 		return resolveTaskFillColor(node, format, getSchedule(impl));
+	}
+
+	private Color resolveProgressFillColor(GraphicNode node) {
+		Object impl = getNodeImpl(node);
+		return palette.getStatusColor(getSchedule(impl), impl);
 	}
 
 	private Color resolveAccentColor(GraphicNode node, BarFormat format, Color statusColor) {
@@ -367,14 +374,16 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 	}
 
-	private void paintSummaryBar(Graphics2D g2, Rectangle2D bounds, Color progressColor, Color accentColor, double progressRatio) {
+	private void paintSummaryBar(Graphics2D g2, Rectangle2D bounds, Color barColor, Color progressColor,
+			Color accentColor, double progressRatio) {
 		if (g2 == null || bounds == null)
 			return;
 
 			Paint oldPaint = g2.getPaint();
 			Color oldColor = g2.getColor();
 			try {
-				Color baseColor = progressColor == null ? palette.getProjectLineColor() : progressColor;
+				Color baseColor = barColor == null ? palette.getProjectLineColor() : barColor;
+				Color progressBaseColor = progressColor == null ? baseColor : progressColor;
 				Color summaryFill = MondayGanttTheme.soften(baseColor, 0.82f);
 				Color summaryStroke = accentColor == null ? MondayGanttTheme.shade(summaryFill, 0.18f) : accentColor;
 			Rectangle2D backgroundBand = new Rectangle2D.Double(
@@ -396,12 +405,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 						progressBounds.getY(),
 						progressBounds.getWidth(),
 						progressBounds.getHeight());
-				Paint progressPaint = createBarPaint(baseColor, progressBand.getBounds2D(), false);
+				Paint progressPaint = createBarPaint(progressBaseColor, progressBand.getBounds2D(), false);
 				if (progressPaint instanceof Color)
 					g2.setColor((Color)progressPaint);
 				else
 					g2.setPaint(progressPaint);
 				g2.fill(progressBand);
+				paintProgressIndicator(g2, progressBand);
 			}
 
 			g2.setColor(summaryStroke);
@@ -409,6 +419,24 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		} finally {
 			g2.setPaint(oldPaint);
 			g2.setColor(oldColor);
+		}
+	}
+
+	static void paintProgressIndicator(Graphics2D g2, Rectangle2D bounds) {
+		if (g2 == null || bounds == null || bounds.getWidth() <= 0.0d)
+			return;
+		Color oldColor = g2.getColor();
+		Stroke oldStroke = g2.getStroke();
+		try {
+			double inset = Math.min(2.0d, bounds.getWidth() / 2.0d);
+			double startX = bounds.getX() + inset;
+			double endX = Math.max(startX, bounds.getMaxX() - inset);
+			g2.setColor(Color.BLACK);
+			g2.setStroke(PROGRESS_BAR_STROKE);
+			g2.draw(new Line2D.Double(startX, bounds.getCenterY(), endX, bounds.getCenterY()));
+		} finally {
+			g2.setColor(oldColor);
+			g2.setStroke(oldStroke);
 		}
 	}
 
@@ -611,11 +639,12 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 					}
 				}else if (g2 != null){
 					double progressRatio = progressRatioFor(node);
+					Color progressFillColor = resolveProgressFillColor(node);
 					Color progressTrackColor = (GanttBarSupport.shouldUseModernCapsuleBar(format) && progressRatio < 1.0d)
 							? MondayGanttTheme.soften(statusColor, 0.46f)
 							: statusColor;
 					if (format != null && "Bar.summary".equals(format.getId()))
-						paintSummaryBar(g2, summaryBounds, statusColor, accentColor, progressRatio);
+						paintSummaryBar(g2, summaryBounds, statusColor, progressFillColor, accentColor, progressRatio);
 					else if (GanttBarSupport.shouldUseModernCapsuleBar(format))
 						paintCapsuleBar(g2, barBounds, progressTrackColor, accentColor, true);
 					else
@@ -626,7 +655,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 						double progressHeight = config.getGanttProgressBarHeight();
 						Rectangle2D progressBounds = GanttBarSupport.progressOverlayBounds(x, y, width, progressHeight, progressRatio);
 						if (progressBounds != null) {
-							paintCapsuleBar(g2, progressBounds, statusColor, accentColor, false);
+							paintCapsuleBar(g2, progressBounds, progressFillColor, accentColor, false);
+							paintProgressIndicator(g2, progressBounds);
 						}
 					}
 				}
@@ -1001,6 +1031,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			return null;
 
 		GeneralPath path = null;
+		double referenceX = Double.NaN;
+		double lastY = Double.NaN;
 		for (Iterator<GraphicNode> i=nodeList.iterator(); i.hasNext();) {
 			GraphicNode node = i.next();
 			if (!shouldIncludeInProgressLine(node))
@@ -1011,11 +1043,14 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			double y = getProgressLineY(node);
 			if (path == null) {
 				path = new GeneralPath();
-				path.moveTo((float)progressX, (float)y);
-			} else {
-				path.lineTo((float)progressX, (float)y);
+				referenceX = coord.toX(getProgressReferenceDate(task));
+				path.moveTo((float)referenceX, (float)(y - ((GanttParams)graphInfo).getRowHeight() / 2.0d));
 			}
+			path.lineTo((float)progressX, (float)y);
+			lastY = y;
 		}
+		if (path != null)
+			path.lineTo((float)referenceX, (float)(lastY + ((GanttParams)graphInfo).getRowHeight() / 2.0d));
 		return path;
 	}
 
@@ -1039,10 +1074,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	private double getProgressLineX(CoordinatesConverter coord, Task task) {
-		long start = task.getStart();
-		long end = task.getEnd();
 		long today = getProgressReferenceDate(task);
-		long progressDate = GanttProgress.progressDate(start, end, progressRatioForObject(task), today);
+		long progressDate = GanttProgress.progressLineDate(task, today);
 		return coord.toX(progressDate);
 	}
 

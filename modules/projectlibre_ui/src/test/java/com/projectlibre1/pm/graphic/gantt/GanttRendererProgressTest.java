@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -38,13 +41,21 @@ class GanttRendererProgressTest {
 	}
 
 	@Test
-	void progressRatioUsesPercentWorkCompleteForTasks() {
-		assertEquals(0.10d, GanttRenderer.progressRatioForObject(taskSpecificSchedule(0.44d, 0.10d)), 0.00001d);
+	void progressRatioUsesPercentCompleteForTasks() {
+		assertEquals(0.44d, GanttRenderer.progressRatioForObject(taskSpecificSchedule(0.44d, 0.10d)), 0.00001d);
 	}
 
 	@Test
-	void progressRatioUsesPercentWorkCompleteForSummaryTasks() {
-		assertEquals(0.10d, GanttRenderer.progressRatioForObject(summaryTaskSchedule(0.44d, 0.10d)), 0.00001d);
+	void progressRatioUsesPercentCompleteForSummaryTasks() {
+		assertEquals(0.44d, GanttRenderer.progressRatioForObject(summaryTaskSchedule(0.44d, 0.10d)), 0.00001d);
+	}
+
+	@Test
+	void assignmentBarsCanPaintWorkProgress() {
+		com.projectlibre1.graphic.configuration.BarFormat assignment = new com.projectlibre1.graphic.configuration.BarFormat();
+		assignment.setId("Bar.assignment");
+		assignment.setMain(true);
+		assertTrue(GanttRendererSupport.shouldPaintProgressOverlay(schedule(0.50d), assignment));
 	}
 
 	@Test
@@ -90,6 +101,20 @@ class GanttRendererProgressTest {
 	void progressOverlayBoundsCoverFullWidthForCompleteProgress() {
 		Rectangle2D bounds = GanttRenderer.progressOverlayBounds(10.0d, 20.0d, 100.0d, 8.0d, 1.0d);
 		assertEquals(100.0d, bounds.getWidth(), 0.00001d);
+	}
+
+	@Test
+	void progressOverlayIncludesDarkMicrosoftProjectStyleIndicator() {
+		BufferedImage image = new BufferedImage(60, 20, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D graphics = image.createGraphics();
+		try {
+			graphics.setColor(Color.WHITE);
+			graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+			GanttRenderer.paintProgressIndicator(graphics, new Rectangle2D.Double(5.0d, 7.0d, 40.0d, 6.0d));
+		} finally {
+			graphics.dispose();
+		}
+		assertEquals(Color.BLACK.getRGB(), image.getRGB(20, 10));
 	}
 
 	@Test
