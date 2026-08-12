@@ -9,11 +9,7 @@ import java.lang.reflect.Proxy;
 import org.junit.jupiter.api.Test;
 
 import com.projectlibre1.graphic.configuration.BarFormat;
-import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.pm.scheduling.Schedule;
-import com.projectlibre1.pm.task.NormalTask;
-import com.projectlibre1.pm.task.Project;
-import com.projectlibre1.undo.DataFactoryUndoController;
 
 class MondayGanttThemeTest {
 	@Test
@@ -33,12 +29,10 @@ class MondayGanttThemeTest {
 
 	@Test
 	void statusColorUsesPercentCompleteForLeafTasks() {
-		NormalTask task = createTask();
-		task.setPercentComplete(0.44d);
-		task.setPercentWorkComplete(0.0d);
+		Schedule task = taskSpecificSchedule(0.44d, 0.0d, false);
 		assertEquals(MondayGanttTheme.WORKING_ON_IT, MondayGanttTheme.statusColor(task, task));
 
-		task.setPercentComplete(1.0d);
+		task = taskSpecificSchedule(1.0d, 0.44d, false);
 		assertEquals(MondayGanttTheme.DONE, MondayGanttTheme.statusColor(task, task));
 	}
 
@@ -120,12 +114,4 @@ class MondayGanttThemeTest {
 		return format;
 	}
 
-	private static NormalTask createTask() {
-		DataFactoryUndoController undoController = new DataFactoryUndoController();
-		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
-		Project project = Project.createProject(resourcePool, undoController);
-		NormalTask task = new NormalTask(project);
-		project.connectTask(task);
-		return task;
-	}
 }

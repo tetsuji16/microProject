@@ -1574,6 +1574,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			logger.warning("percent complete less than 0%");
 			percentComplete = 0.0;
 		}
+		updateInactivePercentComplete(percentComplete);
 		if (isZeroDuration()) { // special case for completion on milestones
 			updateAssignmentPercentComplete(percentComplete);
 		} else {
@@ -1608,41 +1609,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public double getPercentWorkComplete() {
 		if (isWbsParent())
 			return PercentWorkCompleteService.aggregate(this);
-		if (!Double.isNaN(percentWorkCompleteOverride))
-			return percentWorkCompleteOverride;
-		//		NodeModel nodeModel = getProject().getTaskOutline();
-		//		Node node = nodeModel.search(this);
-		//		Number value = (Number)
-		// Configuration.getFieldFromId("Field.work").getValue(node,nodeModel,null);
-		//		if (value.doubleValue() == 0)
-		//			return 0;
-		//		Number actualValue = (Number)
-		// Configuration.getFieldFromId("Field.actualWork").getValue(node,nodeModel,null);
-		//		return actualValue.doubleValue() / value.doubleValue();
-		long work = calcSummedWork();
+		long work = Duration.millis(getWork(null));
 		if (work == 0)
-			return 0;
+			return Double.isNaN(percentWorkCompleteOverride) ? 0.0d : percentWorkCompleteOverride;
 		else
-			return ((double) calcSummedActualWork()) / work;
-	}
-
-	private long calcSummedWork() {
-		NodeModel nodeModel = getProject().getTaskOutline();
-		Node node = nodeModel.search(this);
-		if (node == null)
-			return 0;
-		Number value = (Number) Configuration.getFieldFromId("Field.work")
-				.getValue(node, nodeModel, null);
-		return value.longValue();
-	}
-
-	private long calcSummedActualWork() {
-		NodeModel nodeModel = getProject().getTaskOutline();
-		Node node = nodeModel.search(this);
-		Number value = (Number) Configuration
-				.getFieldFromId("Field.actualWork").getValue(node, nodeModel,
-						null);
-		return value.longValue();
+			return ((double) Duration.millis(getActualWork(null))) / work;
 	}
 
 	public void setPercentWorkComplete(double percentWorkComplete) {
@@ -1654,12 +1625,18 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			PercentWorkCompleteService.distribute(this, percentWorkComplete);
 			return;
 		}
-		percentWorkCompleteOverride = percentWorkComplete;
+		long work = Duration.millis(getWork(null));
+		if (work == 0L) {
+			percentWorkCompleteOverride = percentWorkComplete;
+			return;
+		}
+		percentWorkCompleteOverride = Double.NaN;
+		setPercentComplete(percentWorkComplete);
 
 	}
 
 	void applyPercentWorkCompleteOverride(double percentWorkComplete) {
-		percentWorkCompleteOverride = DisplayMath.clampProgressValue(percentWorkComplete);
+		setPercentWorkComplete(DisplayMath.clampProgressValue(percentWorkComplete));
 	}
 
 	public boolean hasPercentWorkCompleteOverride() {
@@ -2085,8 +2062,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			}
 		} else {
 			long workValue = Duration.millis(actualWork);
+			long totalWork = Duration.millis(getWork(null));
 			if (workValue == 0L) {
 				setPercentComplete(0);
+			} else if (workValue <= totalWork) {
+				setPercentComplete(((double) workValue) / totalWork);
 			} else {
 				long  date = ReverseQuery.getDateAtValue(WORK, this, workValue, false);
 				setStop(date);

@@ -48,6 +48,23 @@ class ManualAndInactiveTaskSchedulingTest {
 		assertFalse(inactive.isInactiveTask());
 	}
 
+	@Test
+	void inactiveTaskRetainsProgressAndRestoresItWhenReactivated() {
+		Project project = project();
+		NormalTask task = task(project, "Historical alternative");
+		task.setPercentComplete(0.40d);
+
+		task.setInactiveTask(true);
+		project.recalculate();
+		assertEquals(0.40d, task.getPercentComplete(), 0.00001d);
+
+		task.setPercentComplete(0.60d);
+		assertEquals(0.60d, task.getPercentComplete(), 0.00001d);
+
+		task.setInactiveTask(false);
+		assertEquals(0.60d, task.getPercentComplete(), 0.00001d);
+	}
+
 	private Project project() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("manual-test", undo), undo);

@@ -60,6 +60,7 @@ import com.projectlibre.pm.calendar.CalendarId;
 import com.projectlibre.pm.calendar.DefaultWorkCalendar;
 import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.tasks.Task;
+import net.sf.mpxj.TaskMode;
 
 /**
  * @author Laurent Chretienneau
@@ -104,6 +105,15 @@ public class MpxTaskConverter {
 
 		"date:1:10", "date:1:10", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
 		"percentComplete", "percentageComplete", "com.projectlibre.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
+		"percentWorkComplete", "percentageWorkComplete", "com.projectlibre.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
+		"physicalPercentComplete", "physicalPercentComplete", "com.projectlibre.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
+		"actualStart", "actualStart", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
+		"actualFinish", "actualFinish", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
+		"actualDuration", "actualDuration", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
+		"remainingDuration", "remainingDuration", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
+		"work", "work", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
+		"actualWork", "actualWork", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
+		"remainingWork", "remainingWork", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
 		
 		"duration", "duration", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
 		"duration:1:10", "duration:1:10", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
@@ -117,6 +127,8 @@ public class MpxTaskConverter {
 	public void from(net.sf.mpxj.Task mpxTask, Task task, MpxImportState state) {
 		//convert fields
 		FieldUtil.convertFields(task, net.sf.mpxj.Task.class, mpxTask, fieldsToConvert, true);
+		task.setPropertyValue("inactiveTask", Boolean.valueOf(!mpxTask.getActive()));
+		task.setPropertyValue("manuallyScheduled", Boolean.valueOf(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED));
 		
 		//convert calendar
 		WorkCalendar calendar;

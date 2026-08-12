@@ -163,11 +163,9 @@ public class MSPDISerializer implements ProjectSerializer {
                         
                     }
                 }
-            }
-
-    		
-
-            transformationMap.put(task,taskData);
+			}
+			MPXConverter.toMPXTaskTracking(task, taskData);
+			transformationMap.put(task,taskData);
             return taskData;
     	}
     	public boolean addOutlineElement(Object outlineChild,Object outlineParent,long position){
