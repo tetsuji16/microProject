@@ -49,7 +49,10 @@ final class GanttRendererSupport {
 			return false;
 		if (!GanttProgress.hasVisibleProgress(impl))
 			return false;
-		return "Bar.task".equals(format.getId()) || "Bar.critical".equals(format.getId()) || "Bar.summary".equals(format.getId());
+		return "Bar.task".equals(format.getId())
+				|| "Bar.critical".equals(format.getId())
+				|| "Bar.summary".equals(format.getId())
+				|| "Bar.assignment".equals(format.getId());
 	}
 
 	static Color resolveEndpointColor(BarFormat format, Color statusColor, Color accentColor) {
