@@ -58,6 +58,8 @@ package com.projectlibre.core.pm.exchange.converters.op;
 import java.math.BigInteger;
 
 import com.projectlibre.core.fields.FieldUtil;
+import com.projectlibre.core.pm.exchange.converters.op.type.OpDurationConverter;
+import com.projectlibre.core.pm.exchange.converters.type.LongDateConverter;
 import com.projectlibre.core.time.Duration;
 import com.projectlibre.core.time.TimeInterval;
 import com.projectlibre.core.time.TimeIntervals;
@@ -104,6 +106,7 @@ public class OpAssignmentConverter {
 		
 		//convert fields
 		FieldUtil.convertFields(assignment, com.projectlibre1.pm.assignment.Assignment.class, opAssignment, fieldsToConvert, false);
+		applyTrackingFields(assignment, opAssignment);
 
 		//timephased		
 		TimeIntervals timephasedIntervals=assignment.getTimephased();
@@ -128,5 +131,23 @@ public class OpAssignmentConverter {
 		opAssignment.makeFlatIfPossible();
 		
 		return opAssignment;
-	}	
+	}
+
+	private void applyTrackingFields(Assignment assignment, com.projectlibre1.pm.assignment.Assignment opAssignment) {
+		Duration work = (Duration) assignment.getPropertyValue("work");
+		if (work != null)
+			opAssignment.setWork((Long) new OpDurationConverter().to(work), null);
+
+		java.util.Date actualStart = (java.util.Date) assignment.getPropertyValue("actualStart");
+		if (actualStart != null)
+			opAssignment.setActualStart((Long) new LongDateConverter().to(actualStart));
+
+		Number percentWorkComplete = (Number) assignment.getPropertyValue("percentWorkComplete");
+		if (percentWorkComplete != null)
+			opAssignment.setPercentComplete(Math.max(0.0d, Math.min(1.0d, percentWorkComplete.doubleValue())));
+
+		java.util.Date actualFinish = (java.util.Date) assignment.getPropertyValue("actualFinish");
+		if (actualFinish != null)
+			opAssignment.setActualFinish((Long) new LongDateConverter().to(actualFinish));
+	}
 }

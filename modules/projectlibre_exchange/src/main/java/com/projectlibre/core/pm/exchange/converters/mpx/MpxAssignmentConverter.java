@@ -82,8 +82,13 @@ public class MpxAssignmentConverter {
 			//ProjectLibre, mpx, converter (mpx-> ProjectLibre
 		"units", "units", "com.projectlibre.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
 		"start", "start", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
-		"finish", "finish", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",		
-		"work", "work", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",		
+		"finish", "finish", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
+		"work", "work", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
+		"percentWorkComplete", "percentageWorkComplete", "com.projectlibre.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
+		"actualStart", "actualStart", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
+		"actualFinish", "actualFinish", "com.projectlibre.core.pm.exchange.converters.type.DateUTCConverter",
+		"actualWork", "actualWork", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
+		"remainingWork", "remainingWork", "com.projectlibre.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
 	};
 
 	public void from(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment, MpxImportState state, int snapshotId) {

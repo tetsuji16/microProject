@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
+import com.projectlibre1.datatype.Duration;
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.pm.calendar.WorkCalendar;
 import com.projectlibre1.util.DisplayMath;
@@ -17,18 +18,18 @@ final class PercentWorkCompleteService {
 		List<NormalTask> leaves = new ArrayList<NormalTask>();
 		collectLeafTasks(parent, leaves);
 
-		double weightedTotal = 0.0d;
-		long totalDuration = 0L;
+		long actualWork = 0L;
+		long totalWork = 0L;
 		for (NormalTask leaf : leaves) {
-			long duration = leaf.getDurationMillis();
-			if (duration <= 0L)
+			long work = Duration.millis(leaf.getWork(null));
+			if (work <= 0L)
 				continue;
-			weightedTotal += duration * DisplayMath.clampProgressValue(leaf.getPercentWorkComplete());
-			totalDuration += duration;
+			actualWork += Math.min(work, Duration.millis(leaf.getActualWork(null)));
+			totalWork += work;
 		}
-		if (totalDuration <= 0L)
+		if (totalWork <= 0L)
 			return 0.0d;
-		return weightedTotal / totalDuration;
+		return ((double) actualWork) / totalWork;
 	}
 
 	static void distribute(NormalTask parent, double targetProgress) {
@@ -36,30 +37,31 @@ final class PercentWorkCompleteService {
 		collectLeafTasks(parent, leaves);
 
 		List<LeafTaskProgress> activeLeaves = new ArrayList<LeafTaskProgress>();
-		long totalDuration = 0L;
+		long totalWork = 0L;
 		for (NormalTask leaf : leaves) {
 			long duration = leaf.getDurationMillis();
-			if (duration <= 0L)
+			long work = Duration.millis(leaf.getWork(null));
+			if (duration <= 0L || work <= 0L)
 				continue;
-			totalDuration += duration;
-			activeLeaves.add(new LeafTaskProgress(leaf, duration));
+			totalWork += work;
+			activeLeaves.add(new LeafTaskProgress(leaf, duration, work));
 		}
-		if (totalDuration <= 0L)
+		if (totalWork <= 0L)
 			return;
 
-		long targetCompletedDuration = Math.round(DisplayMath.clampProgressValue(targetProgress) * totalDuration);
-		targetCompletedDuration = Math.max(0L, Math.min(targetCompletedDuration, totalDuration));
+		long targetCompletedWork = Math.round(DisplayMath.clampProgressValue(targetProgress) * totalWork);
+		targetCompletedWork = Math.max(0L, Math.min(targetCompletedWork, totalWork));
 		if (activeLeaves.isEmpty())
 			return;
 
 		double currentProgress = aggregate(parent);
 		boolean rollback = DisplayMath.clampProgressValue(targetProgress) < currentProgress;
 		long cutoff = rollback
-				? resolveRollbackCutoff(activeLeaves, targetCompletedDuration)
-				: resolveForwardCutoff(activeLeaves, targetCompletedDuration);
+				? resolveRollbackCutoff(activeLeaves, targetCompletedWork)
+				: resolveForwardCutoff(activeLeaves, targetCompletedWork);
 		for (LeafTaskProgress leaf : activeLeaves) {
 			long completed = rollback ? completedBeforeRollbackCutoff(leaf, cutoff) : completedBeforeCutoff(leaf, cutoff);
-			double progress = leaf.duration <= 0L ? 0.0d : ((double) completed) / leaf.duration;
+			double progress = leaf.work <= 0L ? 0.0d : ((double) completed) / leaf.work;
 			leaf.task.applyPercentWorkCompleteOverride(progress);
 		}
 	}
@@ -135,12 +137,13 @@ final class PercentWorkCompleteService {
 		long completedDuration = currentCompletedDuration(leaf);
 		if (completedDuration <= 0L)
 			return 0L;
-		return completedDuration(
+		long duration = completedDuration(
 				leaf.task.getEffectiveWorkCalendar(),
 				leaf.task.getStart(),
 				completedEnd(leaf),
 				cutoff,
 				completedDuration);
+		return Math.round(((double) duration / leaf.duration) * leaf.work);
 	}
 
 	private static long currentCompletedDuration(LeafTaskProgress leaf) {
@@ -164,7 +167,8 @@ final class PercentWorkCompleteService {
 	}
 
 	private static long completedBeforeCutoff(LeafTaskProgress leaf, long cutoff) {
-		return completedDuration(leaf.task.getEffectiveWorkCalendar(), leaf.task.getStart(), leaf.task.getEnd(), cutoff, leaf.duration);
+		long duration = completedDuration(leaf.task.getEffectiveWorkCalendar(), leaf.task.getStart(), leaf.task.getEnd(), cutoff, leaf.duration);
+		return Math.round(((double) duration / leaf.duration) * leaf.work);
 	}
 
 	private static long completedDuration(WorkCalendar calendar, long start, long end, long cutoff, long plannedDuration) {
@@ -206,10 +210,12 @@ final class PercentWorkCompleteService {
 	private static final class LeafTaskProgress {
 		private final NormalTask task;
 		private final long duration;
+		private final long work;
 
-		private LeafTaskProgress(NormalTask task, long duration) {
+		private LeafTaskProgress(NormalTask task, long duration, long work) {
 			this.task = task;
 			this.duration = duration;
+			this.work = work;
 		}
 	}
 }

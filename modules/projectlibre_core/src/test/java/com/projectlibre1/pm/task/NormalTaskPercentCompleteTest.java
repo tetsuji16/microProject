@@ -19,6 +19,8 @@ import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.grouping.core.NodeException;
 import com.projectlibre1.grouping.core.NodeVisitor;
 import com.projectlibre1.pm.assignment.Assignment;
+import com.projectlibre1.pm.assignment.AssignmentService;
+import com.projectlibre1.pm.resource.ResourceImpl;
 import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.undo.DataFactoryUndoController;
 
@@ -62,7 +64,7 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
-	void settingPercentWorkCompleteDoesNotChangePlannedBarBounds() {
+	void settingPercentWorkCompleteSynchronizesDefaultTrackingWithoutChangingPlannedBarBounds() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
@@ -77,7 +79,7 @@ class NormalTaskPercentCompleteTest {
 		task.setPercentWorkComplete(0.2d);
 		task.setPercentWorkComplete(0.4d);
 
-		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
+		assertEquals(0.4d, task.getPercentComplete(), 0.00001d);
 		assertEquals(originalStart, task.getStart());
 		assertEquals(originalEnd, task.getEnd());
 		assertEquals(originalDuration, task.getDuration());
@@ -96,7 +98,54 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
-	void parentPercentWorkCompleteUsesDurationWeightedChildCompletion() {
+	void settingPercentWorkCompleteUpdatesActualAndRemainingWork() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = assignWork(project, task, 8L * 60L * 60L * 1000L);
+		long plannedWork = task.getWork(null);
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+
+		task.setPercentWorkComplete(0.25d);
+
+		assertEquals(Math.round(plannedWork * 0.25d), task.getActualWork(null));
+		assertEquals(plannedWork - Math.round(plannedWork * 0.25d), task.getRemainingWork(null));
+		assertEquals(Math.round(assignment.getWork(null) * 0.25d), assignment.getActualWork(null));
+		assertEquals(0.25d, task.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.25d, task.getPercentComplete(), 0.00001d);
+		assertEquals(originalStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd());
+	}
+
+	@Test
+	void settingActualWorkUpdatesBothTrackingPercentages() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assignWork(project, task, 8L * 60L * 60L * 1000L);
+
+		task.setActualWork(2L * 60L * 60L * 1000L, null);
+
+		assertEquals(0.25d, task.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.25d, task.getPercentComplete(), 0.00001d);
+		assertEquals(2L * 60L * 60L * 1000L, task.getActualWork(null));
+		assertEquals(6L * 60L * 60L * 1000L, task.getRemainingWork(null));
+	}
+
+	@Test
+	void percentWorkCompleteSetsActualStartAndFinishAtMsProjectBoundaries() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assignWork(project, task, 8L * 60L * 60L * 1000L);
+
+		task.setPercentWorkComplete(0.25d);
+		assertEquals(task.getStart(), task.getActualStart());
+
+		task.setPercentWorkComplete(1.0d);
+		assertEquals(task.getEnd(), task.getActualFinish());
+	}
+
+	@Test
+	void parentPercentWorkCompleteUsesWorkWeightedChildCompletion() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
@@ -109,7 +158,9 @@ class NormalTaskPercentCompleteTest {
 		project.connectTask(secondChild);
 
 		firstChild.setDuration(10L);
-		secondChild.setDuration(30L);
+		secondChild.setDuration(10L);
+		assignWork(project, firstChild, 10L * 60L * 60L * 1000L);
+		assignWork(project, secondChild, 30L * 60L * 60L * 1000L);
 		firstChild.setPercentWorkComplete(1.0d);
 		secondChild.setPercentWorkComplete(0.5d);
 
@@ -121,7 +172,7 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
-	void parentPercentWorkCompleteIgnoresZeroDurationLeaves() {
+	void parentPercentWorkCompleteIgnoresZeroWorkLeaves() {
 		Project project = createProject();
 		NormalTask parent = createTask(project);
 		NormalTask firstChild = createTask(project);
@@ -129,8 +180,10 @@ class NormalTaskPercentCompleteTest {
 		NormalTask milestoneChild = createTask(project);
 
 		firstChild.setDuration(10L);
-		secondChild.setDuration(30L);
+		secondChild.setDuration(10L);
 		milestoneChild.setDuration(0L);
+		assignWork(project, firstChild, 10L * 60L * 60L * 1000L);
+		assignWork(project, secondChild, 30L * 60L * 60L * 1000L);
 		firstChild.setPercentWorkComplete(1.0d);
 		secondChild.setPercentWorkComplete(0.5d);
 		milestoneChild.setPercentWorkComplete(0.0d);
@@ -299,7 +352,9 @@ class NormalTaskPercentCompleteTest {
 	private Project createProject() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
-		return Project.createProject(resourcePool, undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		return project;
 	}
 
 	private NormalTask createTask(Project project) {
@@ -311,6 +366,13 @@ class NormalTaskPercentCompleteTest {
 	private Assignment firstAssignment(NormalTask task) {
 		Iterator iterator = task.getAssignments().iterator();
 		return (Assignment) iterator.next();
+	}
+
+	private Assignment assignWork(Project project, NormalTask task, long work) {
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		assignment.setWork(work, null);
+		return assignment;
 	}
 
 	private void configureTask(NormalTask task, long start, long duration) {

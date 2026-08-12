@@ -173,6 +173,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected boolean manuallyScheduled = false;
 	/** Keeps a scenario task in the plan without affecting dates, dependencies, or resource load. */
 	protected boolean inactiveTask = false;
+	protected Double inactivePercentComplete;
 	/** Explicit user choice for the concise project timeline. */
 	protected boolean displayOnTimeline = false;
 	protected long manualStart = 0L;
@@ -1083,6 +1084,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
  * Percent complete is calculated based on assignments
  */
 	public double getPercentComplete() {
+		if (isInactiveTask() && inactivePercentComplete != null)
+			return inactivePercentComplete.doubleValue();
 		boolean parent = isWbsParent();
 		DivisionSummaryVisitor divisionClosure = ScheduleUtil.percentCompleteClosureInstance(parent);
 		Project proj = (Project) (getMasterDocument() == null ? getProject() : getMasterDocument());
@@ -1262,6 +1265,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		task.levelingDelay = levelingDelay;
 		task.manuallyScheduled = manuallyScheduled;
 		task.inactiveTask = inactiveTask;
+		task.inactivePercentComplete = inactivePercentComplete;
 		task.displayOnTimeline = displayOnTimeline;
 		task.manualStart = manualStart;
 		task.manualFinish = manualFinish;
@@ -1932,12 +1936,23 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final void setInactiveTask(boolean inactiveTask) {
 		if (this.inactiveTask == inactiveTask)
 			return;
-		if (inactiveTask)
+		double preservedPercentComplete = getPercentComplete();
+		if (inactiveTask) {
 			captureManualDates();
+			inactivePercentComplete = preservedPercentComplete;
+		}
 		this.inactiveTask = inactiveTask;
+		if (!inactiveTask && inactivePercentComplete != null) {
+			setPercentComplete(inactivePercentComplete.doubleValue());
+			inactivePercentComplete = null;
+		}
 		setDirty(true);
 		if (project != null)
 			project.recalculate();
+	}
+	protected final void updateInactivePercentComplete(double percentComplete) {
+		if (inactiveTask)
+			inactivePercentComplete = percentComplete;
 	}
 	public final boolean isDisplayOnTimeline() {
 		return displayOnTimeline;

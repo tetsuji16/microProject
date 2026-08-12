@@ -84,6 +84,7 @@ import net.sf.mpxj.Resource;
 import net.sf.mpxj.ResourceField;
 import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.Task;
+import net.sf.mpxj.TaskMode;
 import net.sf.mpxj.TaskType;
 import net.sf.mpxj.TimeUnit;
 import net.sf.mpxj.WorkContour;
@@ -331,6 +332,14 @@ public class MPXConverter {
 		long work = assignment.getWork(null); // microsoft considers no work on default assignments
     	mpxAssignment.setWork(MPXConverter.toMPXDuration(work));
 		mpxAssignment.setActualWork(MPXConverter.toMPXDuration(assignment.getActualWork(null)));
+		long assignmentWork = Duration.millis(assignment.getWork(null));
+		double percentWorkComplete = assignmentWork == 0L ? 0.0d
+				: ((double) Duration.millis(assignment.getActualWork(null))) / assignmentWork;
+		mpxAssignment.setPercentageWorkComplete(percentWorkComplete * 100.0d);
+		if (assignment.getActualStart() != 0L)
+			mpxAssignment.setActualStart(DateTime.fromGmt(new Date(assignment.getActualStart())));
+		if (assignment.getActualFinish() != 0L)
+			mpxAssignment.setActualFinish(DateTime.fromGmt(new Date(assignment.getActualFinish())));
     	mpxAssignment.setUnits(MathUtils.roundToDecentPrecision(assignment.getUnits()*100.0D));
     	mpxAssignment.setRemainingWork(MPXConverter.toMPXDuration(assignment.getRemainingWork())); //2007
     	long delay = Duration.millis(assignment.getDelay());
@@ -400,8 +409,7 @@ private static int autoId = 0;
 		mpxTask.setFixedCost(projectlibreTask.getFixedCost());
 		mpxTask.setFixedCostAccrual(AccrueType.getInstance(projectlibreTask.getFixedCostAccrual()));
 		mpxTask.setMilestone(projectlibreTask.isMarkTaskAsMilestone());
-		mpxTask.setPercentageComplete(projectlibreTask.getPercentComplete()*100.0D);
-		mpxTask.setPercentageWorkComplete(projectlibreTask.getPercentWorkComplete()*100.0D); 
+		toMPXTaskTracking(projectlibreTask, mpxTask);
 		mpxTask.setLevelingDelay(toMPXDuration(projectlibreTask.getLevelingDelay()));
 		if (projectlibreTask.getDeadline() != 0)
 			mpxTask.setDeadline(DateTime.fromGmt(new Date(projectlibreTask.getDeadline())));
@@ -425,6 +433,21 @@ private static int autoId = 0;
 //	Not needed - it will be set when hierarchy is done		mpxTask.setOutlineLevel(new Integer(projectlibreTask.getOutlineLevel()));
 
 		toMpxCustomFields(projectlibreTask.getCustomFields(),mpxTask, CustomFieldsMapper.getInstance().taskMaps);
+	}
+
+	public static void toMPXTaskTracking(NormalTask projectlibreTask, Task mpxTask) {
+		mpxTask.setPercentageComplete(projectlibreTask.getPercentComplete()*100.0D);
+		mpxTask.setPercentageWorkComplete(projectlibreTask.getPercentWorkComplete()*100.0D);
+		mpxTask.setPhysicalPercentComplete(projectlibreTask.getPhysicalPercentComplete()*100.0D);
+		if (projectlibreTask.getActualStart() != 0L)
+			mpxTask.setActualStart(DateTime.fromGmt(new Date(projectlibreTask.getActualStart())));
+		if (projectlibreTask.getActualFinish() != 0L)
+			mpxTask.setActualFinish(DateTime.fromGmt(new Date(projectlibreTask.getActualFinish())));
+		mpxTask.setActualDuration(toMPXDuration(projectlibreTask.getActualDuration()));
+		mpxTask.setActive(!projectlibreTask.isInactiveTask());
+		mpxTask.setTaskMode(projectlibreTask.isManuallyScheduled() ? TaskMode.MANUALLY_SCHEDULED : TaskMode.AUTO_SCHEDULED);
+		if (projectlibreTask.isManuallyScheduled())
+			mpxTask.setManualDuration(toMPXDuration(projectlibreTask.getDuration()));
 	}
 
 	public static void toMPXVoid(VoidNodeImpl projectlibreVoid, Task mpxTask) {

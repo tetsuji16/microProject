@@ -435,6 +435,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 					throw new Exception(e.getMessage());
 				}
 			}
+			applyImportedTrackingFields();
 			//project.setGroupDirty(!Environment.getStandAlone());
 			if (!Environment.getStandAlone()) project.setAllDirty();
 
@@ -710,6 +711,39 @@ public class MicrosoftImporter extends ServerFileImporter{
 				}
 			}
 		}
+	}
+
+	private void applyImportedTrackingFields() {
+		for (Task task : plProject.getTasks()) {
+			NormalTask opTask = state.getOpTask(task);
+			if (opTask != null)
+				applyImportedTrackingFields(task, opTask);
+		}
+	}
+
+	void applyImportedTrackingFields(Task task, NormalTask opTask) {
+		Number percentComplete = (Number) task.getPropertyValue("percentComplete");
+		Number percentWorkComplete = (Number) task.getPropertyValue("percentWorkComplete");
+		if (percentComplete != null)
+			opTask.setPercentComplete(clampProgress(percentComplete.doubleValue()));
+		else if (percentWorkComplete != null)
+			opTask.setPercentWorkComplete(clampProgress(percentWorkComplete.doubleValue()));
+
+		Number physicalPercentComplete = (Number) task.getPropertyValue("physicalPercentComplete");
+		if (physicalPercentComplete != null)
+			opTask.setPhysicalPercentComplete(clampProgress(physicalPercentComplete.doubleValue()));
+
+		Date actualStart = (Date) task.getPropertyValue("actualStart");
+		if (actualStart != null)
+			opTask.setActualStart(actualStart.getTime());
+
+		Date actualFinish = (Date) task.getPropertyValue("actualFinish");
+		if (actualFinish != null && opTask.getPercentComplete() >= 1.0d)
+			opTask.setActualFinish(actualFinish.getTime());
+	}
+
+	private double clampProgress(double value) {
+		return Math.max(0.0d, Math.min(1.0d, value));
 	}
 
 	protected double assignmentPercentFactor() {
