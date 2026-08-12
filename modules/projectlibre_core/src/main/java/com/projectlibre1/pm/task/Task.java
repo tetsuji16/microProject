@@ -1590,7 +1590,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
  * Critical path methods for slack
 ***************************************************************************/
 	public final long getTotalSlack() {
-		return getEffectiveWorkCalendar().compare(getLateFinish(),getEarlyFinish(), false);
+		return Math.min(getStartSlack(), getFinishSlack());
 	}
 
 	/** The amount of excess time an activity has between its Early Start and Late Start dates. */

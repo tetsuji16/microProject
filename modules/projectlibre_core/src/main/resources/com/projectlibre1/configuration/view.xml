@@ -66,7 +66,9 @@
 			<start shapeName="DIAMOND" colorName="MONDAY_GROUP_A" paintName="SOLID"/>
 		</format>
 		<format id="Bar.summary" row="1" layer="1" intervalGenerator="com.projectlibre1.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+			<start shapeName="PENTAGON_DOWN" colorName="MONDAY_GROUP_A" paintName="SOLID" />
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="SOLID" strokeName="SOLID"/>
+			<end shapeName="PENTAGON_DOWN" colorName="MONDAY_GROUP_A" paintName="SOLID"/>
 		</format>
 		<format id="Bar.critical" row="1" layer="1" intervalGenerator="com.projectlibre1.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="DEFAULT" strokeName="FRAMED"/>
@@ -81,7 +83,7 @@
 		</format>
 
 		<format id="Bar.deadline" row="1" layer="1" from="Field.deadline" to="Field.deadline">
-				<start shapeName="DIAMOND" colorName="MONDAY_WORKING_ON_IT" paintName="SOLID"/>
+				<start shapeName="ARROW_DOWN" colorName="MONDAY_WORKING_ON_IT" paintName="SOLID"/>
 		</format>
 
 		<format id="Bar.baseline" row="2" from="Field.baselineStart" to="Field.baselineFinish">

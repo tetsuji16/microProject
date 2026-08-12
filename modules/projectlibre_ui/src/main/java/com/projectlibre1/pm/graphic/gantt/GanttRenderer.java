@@ -75,6 +75,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 import java.util.ListIterator;
 import java.util.HashSet;
 import java.util.Set;
@@ -138,6 +139,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private static final Stroke PROGRESS_LINE_STROKE = new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 	private static final Stroke PROGRESS_LINE_HALO_STROKE = new BasicStroke(4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 	private static final Stroke PROGRESS_BAR_STROKE = new BasicStroke(1.25f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+	private static final Stroke SPLIT_CONNECTOR_STROKE = new BasicStroke(1.0f, BasicStroke.CAP_BUTT,
+			BasicStroke.JOIN_MITER, 10.0f, new float[] { 1.5f, 2.5f }, 0.0f);
 	private static final int PROGRESS_LINE_POINT_SIZE = 6;
 	protected NodeRenderer nodeRenderer = new NodeRenderer();
 	protected LinkRenderer linkRenderer = new LinkRenderer();
@@ -472,6 +475,19 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return GanttBarSupport.mergeIntervalsForDisplay(intervals);
 	}
 
+	static List<ScheduleInterval> displayIntervals(BarFormat format, Iterable<ScheduleInterval> generatedIntervals,
+			ScheduleInterval plannedInterval) {
+		return GanttBarSupport.displayIntervals(format, generatedIntervals, plannedInterval);
+	}
+
+	static List<ScheduleInterval> splitGaps(List<ScheduleInterval> intervals) {
+		return GanttBarSupport.splitGaps(intervals);
+	}
+
+	static List<Double> progressRatiosForIntervals(List<ScheduleInterval> intervals, double progressRatio) {
+		return GanttBarSupport.progressRatiosForIntervals(intervals, progressRatio);
+	}
+
 	private double progressRatioFor(GraphicNode node) {
 		Object impl = getNodeImpl(node);
 		return progressRatioForObject(impl);
@@ -519,6 +535,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		protected int yrow;
 		protected int maxLayer=Integer.MAX_VALUE;
 		protected int minLayer=0;
+		protected double intervalProgressRatio;
 
 		public void initialize(Graphics2D g2, GraphicNode node) {
 			this.g2 = g2;
@@ -572,15 +589,41 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 					intervals.add(interval);
 				}
 			});
-			ScheduleInterval mergedInterval = mergeIntervalsForDisplay(intervals);
-			ScheduleInterval displayInterval = GanttBarSupport.shouldUsePlannedEnvelopeInterval(format)
-					? plannedIntervalFor(node, format)
-					: mergedInterval;
-			if (displayInterval == null)
-				displayInterval = mergedInterval;
-			if (displayInterval != null)
-				consumeInterval(displayInterval);
+			List<ScheduleInterval> displayIntervals = GanttBarSupport.displayIntervals(
+					format, intervals, plannedIntervalFor(node, format));
+			if (displayIntervals.isEmpty())
+				return;
+			paintSplitConnectors(displayIntervals);
+			List<Double> progressRatios = GanttBarSupport.progressRatiosForIntervals(
+					displayIntervals, progressRatioFor(node));
+			for (int i = 0; i < displayIntervals.size(); i++) {
+				intervalProgressRatio = progressRatios.get(i);
+				consumeInterval(displayIntervals.get(i));
+			}
 
+		}
+
+		private void paintSplitConnectors(List<ScheduleInterval> displayIntervals) {
+			if (g2 == null || !GanttBarSupport.shouldPreserveSplitIntervals(format))
+				return;
+			List<ScheduleInterval> gaps = GanttBarSupport.splitGaps(displayIntervals);
+			if (gaps.isEmpty())
+				return;
+			CoordinatesConverter coord = ((GanttParams)graphInfo).getCoord();
+			double height = format.getRow() == 1 ? config.getGanttBarHeight() : config.getBaselineHeight();
+			double y = yrow + config.getGanttBarYOffset() + height / 2.0d;
+			Color oldColor = g2.getColor();
+			Stroke oldStroke = g2.getStroke();
+			try {
+				g2.setColor(resolveTaskFillColor(node, format));
+				g2.setStroke(SPLIT_CONNECTOR_STROKE);
+				for (ScheduleInterval gap : gaps) {
+					g2.draw(new Line2D.Double(coord.toX(gap.getStart()), y, coord.toX(gap.getEnd()), y));
+				}
+			} finally {
+				g2.setColor(oldColor);
+				g2.setStroke(oldStroke);
+			}
 		}
 
 
@@ -638,7 +681,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 						node.setGanttShapeHeight(bounds.getHeight());
 					}
 				}else if (g2 != null){
-					double progressRatio = progressRatioFor(node);
+					double progressRatio = intervalProgressRatio;
 					Color progressFillColor = resolveProgressFillColor(node);
 					Color progressTrackColor = (GanttBarSupport.shouldUseModernCapsuleBar(format) && progressRatio < 1.0d)
 							? MondayGanttTheme.soften(statusColor, 0.46f)

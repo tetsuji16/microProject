@@ -2,6 +2,7 @@ package com.projectlibre1.pm.graphic.gantt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,11 +17,35 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.projectlibre1.configuration.Dictionary;
+import com.projectlibre1.graphic.configuration.BarFormat;
+import com.projectlibre1.graphic.configuration.shape.PredefinedShape;
 import com.projectlibre1.pm.scheduling.Schedule;
 import com.projectlibre1.pm.scheduling.ScheduleInterval;
 import com.projectlibre1.pm.task.TaskSpecificFields;
+import com.projectlibre1.strings.Messages;
 
 class GanttRendererProgressTest {
+	@Test
+	void summaryBarUsesMicrosoftProjectStyleDropEnds() {
+		BarFormat summary = (BarFormat)Dictionary.get(BarFormat.category, Messages.getString("Bar.summary"));
+
+		assertNotNull(summary);
+		assertNotNull(summary.getStart());
+		assertNotNull(summary.getEnd());
+		assertEquals(PredefinedShape.PENTAGON_DOWN, summary.getStart().getShape());
+		assertEquals(PredefinedShape.PENTAGON_DOWN, summary.getEnd().getShape());
+	}
+
+	@Test
+	void deadlineUsesMicrosoftProjectStyleArrow() {
+		BarFormat deadline = (BarFormat)Dictionary.get(BarFormat.category, Messages.getString("Bar.deadline"));
+
+		assertNotNull(deadline);
+		assertNotNull(deadline.getStart());
+		assertEquals(PredefinedShape.ARROW_DOWN, deadline.getStart().getShape());
+	}
+
 	@Test
 	void ganttBarSupportClassifiesTaskAndBaselineBars() {
 		com.projectlibre1.graphic.configuration.BarFormat task = new com.projectlibre1.graphic.configuration.BarFormat();
@@ -30,6 +55,7 @@ class GanttRendererProgressTest {
 
 		assertTrue(GanttBarSupport.shouldUseModernCapsuleBar(task));
 		assertTrue(GanttBarSupport.shouldUsePlannedEnvelopeInterval(task));
+		assertTrue(GanttBarSupport.shouldPreserveSplitIntervals(task));
 		assertTrue(GanttBarSupport.isBaselineBarFormat(baseline));
 		assertTrue(GanttBarSupport.isIndividuallyFormattable(task));
 		assertFalse(GanttBarSupport.isIndividuallyFormattable(baseline));
@@ -82,6 +108,61 @@ class GanttRendererProgressTest {
 	@Test
 	void mergeIntervalsForDisplayReturnsNullWhenEmpty() {
 		assertNull(GanttRenderer.mergeIntervalsForDisplay(List.of()));
+	}
+
+	@Test
+	void splitTaskKeepsItsSectionsInsteadOfUsingThePlannedEnvelope() {
+		BarFormat task = barFormat("Bar.task");
+		List<ScheduleInterval> intervals = GanttRenderer.displayIntervals(task, List.of(
+				new ScheduleInterval(10L, 30L),
+				new ScheduleInterval(50L, 90L)), new ScheduleInterval(10L, 90L));
+
+		assertEquals(2, intervals.size());
+		assertInterval(intervals.get(0), 10L, 30L);
+		assertInterval(intervals.get(1), 50L, 90L);
+	}
+
+	@Test
+	void unsplitTaskUsesItsFullPlannedEnvelope() {
+		BarFormat task = barFormat("Bar.task");
+		List<ScheduleInterval> intervals = GanttRenderer.displayIntervals(task,
+				List.of(new ScheduleInterval(12L, 88L)), new ScheduleInterval(10L, 90L));
+
+		assertEquals(1, intervals.size());
+		assertInterval(intervals.get(0), 10L, 90L);
+	}
+
+	@Test
+	void splitSummaryStillUsesOneRollupEnvelope() {
+		BarFormat summary = barFormat("Bar.summary");
+		List<ScheduleInterval> intervals = GanttRenderer.displayIntervals(summary, List.of(
+				new ScheduleInterval(10L, 30L),
+				new ScheduleInterval(50L, 90L)), new ScheduleInterval(10L, 90L));
+
+		assertEquals(1, intervals.size());
+		assertInterval(intervals.get(0), 10L, 90L);
+	}
+
+	@Test
+	void splitTaskGapsBecomeConnectorRanges() {
+		List<ScheduleInterval> gaps = GanttRenderer.splitGaps(List.of(
+				new ScheduleInterval(10L, 30L),
+				new ScheduleInterval(50L, 90L),
+				new ScheduleInterval(100L, 120L)));
+
+		assertEquals(2, gaps.size());
+		assertInterval(gaps.get(0), 30L, 50L);
+		assertInterval(gaps.get(1), 90L, 100L);
+	}
+
+	@Test
+	void splitTaskProgressIsAllocatedAcrossSectionsInWorkOrder() {
+		List<Double> ratios = GanttRenderer.progressRatiosForIntervals(List.of(
+				new ScheduleInterval(10L, 30L),
+				new ScheduleInterval(50L, 90L)), 0.5d);
+
+		assertEquals(1.0d, ratios.get(0), 0.00001d);
+		assertEquals(0.25d, ratios.get(1), 0.00001d);
 	}
 
 	@Test
@@ -146,6 +227,17 @@ class GanttRendererProgressTest {
 		Rectangle2D summaryBounds = GanttRenderer.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 12.0d);
 		Rectangle2D progressBounds = GanttRenderer.summaryProgressBounds(summaryBounds, 1.0d);
 		assertEquals(summaryBounds.getWidth(), progressBounds.getWidth(), 0.00001d);
+	}
+
+	private static BarFormat barFormat(String id) {
+		BarFormat format = new BarFormat();
+		format.setId(id);
+		return format;
+	}
+
+	private static void assertInterval(ScheduleInterval interval, long start, long end) {
+		assertEquals(start, interval.getStart());
+		assertEquals(end, interval.getEnd());
 	}
 
 	private static Schedule schedule(final double percentComplete) {

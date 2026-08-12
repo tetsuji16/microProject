@@ -1,6 +1,9 @@
 package com.projectlibre1.pm.graphic.gantt;
 
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 import com.projectlibre1.graphic.configuration.BarFormat;
 import com.projectlibre1.pm.scheduling.Schedule;
@@ -36,6 +39,14 @@ final class GanttBarSupport {
 		}
 		String id = format.getId();
 		return "Bar.task".equals(id) || "Bar.critical".equals(id) || "Bar.summary".equals(id);
+	}
+
+	static boolean shouldPreserveSplitIntervals(BarFormat format) {
+		if (format == null || format.getId() == null) {
+			return false;
+		}
+		String id = format.getId();
+		return "Bar.task".equals(id) || "Bar.critical".equals(id) || "Bar.assignment".equals(id);
 	}
 
 	static boolean shouldUseUniformEndpointColor(BarFormat format) {
@@ -94,6 +105,93 @@ final class GanttBarSupport {
 
 	static ScheduleInterval mergeIntervalsForDisplay(Iterable<ScheduleInterval> intervals) {
 		return DisplayMath.mergeIntervals(intervals);
+	}
+
+	static List<ScheduleInterval> displayIntervals(BarFormat format, Iterable<ScheduleInterval> generatedIntervals,
+			ScheduleInterval plannedInterval) {
+		List<ScheduleInterval> normalized = normalizeIntervals(generatedIntervals);
+		if (shouldPreserveSplitIntervals(format) && normalized.size() > 1) {
+			return normalized;
+		}
+		if (shouldUsePlannedEnvelopeInterval(format) && plannedInterval != null) {
+			return List.of(plannedInterval);
+		}
+		ScheduleInterval merged = mergeIntervalsForDisplay(normalized);
+		return merged == null ? List.of() : List.of(merged);
+	}
+
+	static List<ScheduleInterval> normalizeIntervals(Iterable<ScheduleInterval> intervals) {
+		if (intervals == null) {
+			return List.of();
+		}
+		ArrayList<ScheduleInterval> sorted = new ArrayList<>();
+		for (ScheduleInterval interval : intervals) {
+			if (interval != null && interval.getStart() <= interval.getEnd()) {
+				sorted.add(new ScheduleInterval(interval.getStart(), interval.getEnd()));
+			}
+		}
+		sorted.sort(Comparator.comparingLong(ScheduleInterval::getStart)
+				.thenComparingLong(ScheduleInterval::getEnd));
+		if (sorted.isEmpty()) {
+			return List.of();
+		}
+
+		ArrayList<ScheduleInterval> normalized = new ArrayList<>();
+		long start = sorted.get(0).getStart();
+		long end = sorted.get(0).getEnd();
+		for (int i = 1; i < sorted.size(); i++) {
+			ScheduleInterval next = sorted.get(i);
+			if (next.getStart() <= end) {
+				end = Math.max(end, next.getEnd());
+			} else {
+				normalized.add(new ScheduleInterval(start, end));
+				start = next.getStart();
+				end = next.getEnd();
+			}
+		}
+		normalized.add(new ScheduleInterval(start, end));
+		return List.copyOf(normalized);
+	}
+
+	static List<ScheduleInterval> splitGaps(List<ScheduleInterval> intervals) {
+		List<ScheduleInterval> normalized = normalizeIntervals(intervals);
+		if (normalized.size() < 2) {
+			return List.of();
+		}
+		ArrayList<ScheduleInterval> gaps = new ArrayList<>(normalized.size() - 1);
+		for (int i = 1; i < normalized.size(); i++) {
+			gaps.add(new ScheduleInterval(normalized.get(i - 1).getEnd(), normalized.get(i).getStart()));
+		}
+		return List.copyOf(gaps);
+	}
+
+	static List<Double> progressRatiosForIntervals(List<ScheduleInterval> intervals, double progressRatio) {
+		List<ScheduleInterval> normalized = normalizeIntervals(intervals);
+		if (normalized.isEmpty()) {
+			return List.of();
+		}
+		double clampedRatio = DisplayMath.clampProgressValue(progressRatio);
+		double totalDuration = 0.0d;
+		for (ScheduleInterval interval : normalized) {
+			totalDuration += Math.max(0L, interval.getEnd() - interval.getStart());
+		}
+		if (totalDuration <= 0.0d) {
+			ArrayList<Double> zeroDurationRatios = new ArrayList<>(normalized.size());
+			for (int i = 0; i < normalized.size(); i++) {
+				zeroDurationRatios.add(i == 0 ? clampedRatio : 0.0d);
+			}
+			return List.copyOf(zeroDurationRatios);
+		}
+
+		double remainingCompletedDuration = totalDuration * clampedRatio;
+		ArrayList<Double> ratios = new ArrayList<>(normalized.size());
+		for (ScheduleInterval interval : normalized) {
+			double duration = Math.max(0L, interval.getEnd() - interval.getStart());
+			double completed = Math.min(duration, Math.max(0.0d, remainingCompletedDuration));
+			ratios.add(duration <= 0.0d ? 0.0d : completed / duration);
+			remainingCompletedDuration -= completed;
+		}
+		return List.copyOf(ratios);
 	}
 
 	static double progressRatioForSchedule(Schedule schedule) {

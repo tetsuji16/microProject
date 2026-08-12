@@ -209,10 +209,20 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 
 	public boolean isCritical() {
-		if (currentSchedule.isForward())
-			return getEarlyFinish() >= getLateFinish();
-		else // reverse schedule
-			return getLateStart() <= getEarlyStart();
+		if (isComplete() || isInactiveTask())
+			return false;
+
+		int constraintType = getConstraintType();
+		if (constraintType == ConstraintType.MSO || constraintType == ConstraintType.MFO)
+			return true;
+		if (currentSchedule.isForward() && constraintType == ConstraintType.ALAP)
+			return true;
+		if (!currentSchedule.isForward() && constraintType == ConstraintType.ASAP)
+			return true;
+		if (getDeadline() != 0L && getEnd() >= getDeadline())
+			return true;
+
+		return getTotalSlack() <= CalculationOption.getInstance().getCriticalSlackThreshold();
 	}
 
 	public boolean isMilestone() {
