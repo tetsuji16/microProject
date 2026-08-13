@@ -290,6 +290,7 @@ public class NameCellComponent extends JPanel {
 		component.setOffline(false);
 		CellUtility.setAppearance(table, value, isSelected, hasFocus, row,
 				column, component);
+		component.setBorder(CellUtility.withRowGridOverlay(table, component.getBorder()));
 		CommonSpreadSheetModel model = (CommonSpreadSheetModel) table.getModel();
 		GraphicNode node = model.getNode(row);
 		component.setText(value == null ? "" : value.toString());
