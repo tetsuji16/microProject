@@ -487,6 +487,22 @@ class RibbonAndToolbarButtonTest {
 		});
 	}
 
+	@Test
+	void teamResourcesRibbonButtonTracksItsFilterState() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			AbstractButton toggle = firstButton(manager.getToolButtonsFromId("RibbonTeamFilter"));
+			assertNotNull(toggle);
+			assertTrue(toggle instanceof JToggleButton);
+
+			manager.setActionSelected("TeamFilter", true);
+			assertTrue(toggle.isSelected());
+			manager.setActionSelected("TeamFilter", false);
+			assertFalse(toggle.isSelected());
+		});
+	}
+
 	private static AbstractButton firstButton(List<?> buttons) {
 		assertNotNull(buttons);
 		assertFalse(buttons.isEmpty());

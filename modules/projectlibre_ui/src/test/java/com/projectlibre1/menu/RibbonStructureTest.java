@@ -1,5 +1,6 @@
 package com.projectlibre1.menu;
 
+import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.menuInternalBundle;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonBandIds;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonTaskIds;
@@ -50,6 +51,18 @@ class RibbonStructureTest {
 		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
 		assertEquals(List.of("RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate"),
 			ribbonButtonIds("ProjectScheduleRibbonBand"));
+	}
+
+	@Test
+	void issue36ResourceCommandsMatchTheMsProjectRibbonModel() {
+		assertEquals(List.of("RibbonTaskUsageDetail", "RibbonResourceUsageDetail"),
+			ribbonButtonIds("ViewResourceRibbonBand").stream()
+				.filter(id -> id.endsWith("UsageDetail"))
+				.toList());
+		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"),
+			ribbonButtonIds("ResourceAssignmentsRibbonBand"));
+		assertEquals(List.of("RibbonLevelResources"), ribbonButtonIds("ResourceLevelRibbonBand"));
+		assertEquals("TOGGLE", menuInternalBundle().getString("RibbonTeamFilter.type"));
 	}
 
 	@Test
