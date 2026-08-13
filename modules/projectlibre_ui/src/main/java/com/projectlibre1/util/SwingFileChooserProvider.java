@@ -96,16 +96,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		if (!Environment.getStandAlone() && save && selectedFileName != null && selectedFileName.endsWith("." + DEFAULT_FILE_EXTENSION)) {
 			selectedFileName = changeFileExtension(selectedFileName, "xml");
 		}
-		SystemFileChooser chooser = getFileChooser();
-		chooser.setSelectedFile(initialSelectedFile(selectedFileName));
-		ensureFileChooserConfigured(save);
-		if (save) {
-			selectSaveFileFilter(chooser, selectedFileName);
-			applySaveFileFilterDefaults(chooser);
-		}
-		if (selectedFileName != null) {
-			chooser.setSelectedFile(new File(getSuggestedSaveFileName(selectedFileName, chooser.getFileFilter())));
-		}
+		SystemFileChooser chooser = prepareFileChooser(save, selectedFileName);
 		if (selectedFileName == null) {
 			try {
 				String initialDirName = Preferences.userNodeForPackage(FileHelper.class).get("lastDirectory", System.getProperty("user.home") + File.separator + "ProjectLibre");
@@ -125,6 +116,22 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", file.getParent());
 		return fileName;
+	}
+
+	SystemFileChooser prepareFileChooser(boolean save, String selectedFileName) {
+		SystemFileChooser chooser = getFileChooser();
+		chooser.setSelectedFile(initialSelectedFile(selectedFileName));
+		ensureFileChooserConfigured(save);
+		if (save) {
+			selectSaveFileFilter(chooser, selectedFileName);
+			applySaveFileFilterDefaults(chooser);
+			if (selectedFileName != null) {
+				chooser.setSelectedFile(new File(getSuggestedSaveFileName(selectedFileName, chooser.getFileFilter())));
+			}
+		} else {
+			selectOpenFileFilter(chooser);
+		}
+		return chooser;
 	}
 
 	static File initialSelectedFile(String selectedFileName) {
@@ -147,7 +154,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		return Locale.getDefault().toString() + "|" + useExternalLocales + "|" + externalLocalesDirectory;
 	}
 
-	private void configureFileChooser(SystemFileChooser chooser, final boolean save) {
+	void configureFileChooser(SystemFileChooser chooser, final boolean save) {
 		projectlibreFilter = new FileNameExtensionFilter(
 			Messages.getString("File.projectlibre") + " (*." + DEFAULT_FILE_EXTENSION + ")",
 			DEFAULT_FILE_EXTENSION);
@@ -184,8 +191,11 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			chooser.addChoosableFileFilter(microsoftXlsxFilter);
 			chooser.addChoosableFileFilter(plannerFilter);
 			chooser.addChoosableFileFilter(projectFilter);
-			chooser.setFileFilter(chooser.getAcceptAllFileFilter());
 		}
+	}
+
+	void selectOpenFileFilter(SystemFileChooser chooser) {
+		chooser.setFileFilter(Environment.getStandAlone() ? projectlibreFilter : projectFilter);
 	}
 
 	private void selectSaveFileFilter(SystemFileChooser chooser, String selectedFileName) {
