@@ -11,7 +11,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
-import javax.swing.border.CompoundBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.table.DefaultTableModel;
 
@@ -66,8 +65,8 @@ class SpreadsheetSelectionAppearanceTest {
 				.getTableCellRendererComponent(rowHeader, "2", true, false, 1, 0);
 
 			assertEquals(FlatUiSupport.spreadsheetHeaderSelectedBackground(), component.getBackground());
-			CompoundBorder border = assertInstanceOf(CompoundBorder.class, component.getBorder());
-			assertTrue(border.getOutsideBorder() instanceof LineBorder);
+			LineBorder border = assertInstanceOf(LineBorder.class, component.getBorder());
+			assertEquals(FlatUiSupport.spreadsheetActiveCellBorderColor(), border.getLineColor());
 		});
 	}
 

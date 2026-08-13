@@ -78,7 +78,7 @@ public class TimeSpreadSheetRowHeaderRenderer extends DefaultTableCellRenderer {
 	public Component getTableCellRendererComponent (JTable table, Object value,boolean isSelected, boolean hasFocus, int row, int column){
 		JLabel component=(JLabel)super.getTableCellRendererComponent(table,value,isSelected,hasFocus,row,column);
 		FlatUiSupport.applyTableHeaderCellStyle(component, isSelected);
-		component.setBorder(FlatUiSupport.tableHeaderRowBorder(table == null ? FlatUiSupport.tableGridColor() : table.getGridColor()));
+		component.setBorder(FlatUiSupport.tableHeaderBorder());
 		component.setHorizontalAlignment (CENTER);
 		component.setText (value == null ? "" : value.toString ());
 		//component.setBorder (UIManager.getBorder ("TableHeader.cellBorder"));

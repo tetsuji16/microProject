@@ -146,7 +146,7 @@ public class IndicatorsRenderer extends DefaultTableCellRenderer implements Offl
 		} else {
 			baseBorder = FlatUiSupport.tableCellBorder();
 		}
-		return CellUtility.withSpreadsheetGrid(table, baseBorder);
+		return baseBorder;
 	}
 	
 	public static JLabel getCellHeader() {

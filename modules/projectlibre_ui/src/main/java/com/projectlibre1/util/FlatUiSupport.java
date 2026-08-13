@@ -736,25 +736,6 @@ public final class FlatUiSupport {
 		return border;
 	}
 
-	public static Border tableRowSeparatorBorder() {
-		return BorderFactory.createMatteBorder(0, 0, 1, 0, tableGridColor());
-	}
-
-	public static Border tableRowSeparatorBorder(Color color) {
-		return BorderFactory.createMatteBorder(0, 0, 1, 0, color == null ? tableGridColor() : color);
-	}
-
-	public static Border withRowSeparator(Border baseBorder, Color separatorColor) {
-		Border separator = tableRowSeparatorBorder(separatorColor);
-		return baseBorder == null ? separator : BorderFactory.createCompoundBorder(baseBorder, separator);
-	}
-
-	public static Border tableHeaderRowBorder(Color separatorColor) {
-		return BorderFactory.createCompoundBorder(
-			BorderFactory.createEmptyBorder(0, 0, 0, 0),
-			tableRowSeparatorBorder(separatorColor));
-	}
-
 	public static Color spreadsheetAlternateRowBackground(int row) {
 		Color alternate = UIManager.getColor("Table.alternateRowColor");
 		if (alternate != null)
@@ -776,7 +757,7 @@ public final class FlatUiSupport {
 		table.setSelectionForeground(tableSelectionForeground());
 		table.setGridColor(spreadsheetGridColor());
 		table.setIntercellSpacing(new Dimension(0, 0));
-		table.setShowHorizontalLines(false);
+		table.setShowHorizontalLines(true);
 		table.setShowVerticalLines(true);
 		table.setRowMargin(0);
 		table.setFillsViewportHeight(true);

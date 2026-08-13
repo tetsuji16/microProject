@@ -38,10 +38,11 @@ final class TaskGanttSyncSupport {
 	static void applySpreadsheetGridStyle(SpreadSheet spreadSheet, Gantt gantt, boolean spreadsheetGridVisible, Color gridLineColor) {
 		if (spreadSheet != null) {
 			spreadSheet.setGridColor(gridLineColor);
-			spreadSheet.setShowHorizontalLines(false);
+			spreadSheet.setShowHorizontalLines(spreadsheetGridVisible);
 			spreadSheet.setShowVerticalLines(spreadsheetGridVisible);
 			if (spreadSheet.getRowHeader() != null) {
 				spreadSheet.getRowHeader().setGridColor(gridLineColor);
+				spreadSheet.getRowHeader().setShowHorizontalLines(spreadsheetGridVisible);
 				spreadSheet.getRowHeader().repaint();
 			}
 			spreadSheet.repaint();

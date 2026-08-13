@@ -98,11 +98,11 @@ public class OfflineCapableBooleanRenderer extends JCheckBox implements OfflineR
 		setSelected((value != null && ((Boolean)value).booleanValue()));
 
 		if (table != null && table.isEditing() && table.getEditingRow() == row && table.getEditingColumn() == column) {
-			setBorder(CellUtility.withSpreadsheetGrid(table, FlatUiSupport.spreadsheetEditingCellBorder()));
+			setBorder(FlatUiSupport.spreadsheetEditingCellBorder());
 		} else if (CellUtility.isActiveCell(table, row, column, hasFocus)) {
-			setBorder(CellUtility.withSpreadsheetGrid(table, FlatUiSupport.spreadsheetActiveCellBorder()));
+			setBorder(FlatUiSupport.spreadsheetActiveCellBorder());
 		} else {
-			setBorder(CellUtility.withSpreadsheetGrid(table, FlatUiSupport.tableCellBorder()));
+			setBorder(FlatUiSupport.tableCellBorder());
 		}
 
 		return this;

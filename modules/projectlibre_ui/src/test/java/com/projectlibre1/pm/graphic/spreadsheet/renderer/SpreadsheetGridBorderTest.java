@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.util.Date;
 
 import javax.swing.JComponent;
@@ -27,7 +29,7 @@ class SpreadsheetGridBorderTest {
 	}
 
 	@Test
-	void rowHeaderTracksSpreadsheetGridSettingsAndKeepsBottomBorder() throws Exception {
+	void rowHeaderUsesOneNativeHorizontalGridLine() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			CommonSpreadSheet sheet = new CommonSpreadSheet();
 			SpreadSheetRowHeader rowHeader = new SpreadSheetRowHeader(sheet);
@@ -40,61 +42,86 @@ class SpreadsheetGridBorderTest {
 
 			JComponent component = (JComponent) new SpreadSheetRowHeaderRenderer()
 				.getTableCellRendererComponent(rowHeader, "1", false, false, 0, 0);
-			assertTrue(hasBottomSeparator(component.getBorder(), rowHeader.getGridColor()));
+			assertFalse(hasBottomSeparator(component.getBorder(), rowHeader.getGridColor()));
 		});
 	}
 
 	@Test
-	void nameCellComponentAddsBottomSeparatorWhenGridlinesAreEnabled() throws Exception {
+	void spreadsheetTablesUseNativeGridLinesInBothDirections() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			NameCellComponent component = NameCellComponent.getInstance();
-			Color separatorColor = new Color(0x33, 0x66, 0x99);
-
-			component.syncRowSeparator(true, separatorColor);
-
-			assertTrue(hasBottomSeparator(component.getBorder(), separatorColor));
+			CommonSpreadSheet sheet = new CommonSpreadSheet();
+			assertTrue(sheet.getShowHorizontalLines());
+			assertTrue(sheet.getShowVerticalLines());
 		});
 	}
 
 	@Test
-	void spreadsheetTablesShowVerticalLinesByDefaultWhileRowHeaderDoesNot() throws Exception {
+	void nativeGridPaintsAContinuousSinglePixelIntersection() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(2, 2));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			Color gridColor = new Color(0xCC, 0x22, 0x99);
+			table.setGridColor(gridColor);
+			table.setRowHeight(20);
+			table.getColumnModel().getColumn(0).setPreferredWidth(40);
+			table.getColumnModel().getColumn(1).setPreferredWidth(40);
+			table.setSize(80, 40);
+			table.doLayout();
+
+			BufferedImage image = new BufferedImage(80, 40, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				table.paint(graphics);
+			} finally {
+				graphics.dispose();
+			}
+
+			int horizontalY = table.getCellRect(0, 0, true).y
+				+ table.getCellRect(0, 0, true).height - 1;
+			int verticalX = table.getCellRect(0, 0, true).x
+				+ table.getCellRect(0, 0, true).width - 1;
+			assertEquals(gridColor.getRGB(), image.getRGB(verticalX, horizontalY));
+			assertEquals(gridColor.getRGB(), image.getRGB(verticalX - 1, horizontalY));
+			assertEquals(gridColor.getRGB(), image.getRGB(verticalX, horizontalY - 1));
+		});
+	}
+
+	@Test
+	void rowHeaderDoesNotDrawVerticalGridLines() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			CommonSpreadSheet sheet = new CommonSpreadSheet();
 			SpreadSheetRowHeader rowHeader = new SpreadSheetRowHeader(sheet);
 
-			assertFalse(sheet.getShowHorizontalLines());
-			assertTrue(sheet.getShowVerticalLines());
 			assertFalse(rowHeader.getShowVerticalLines());
 		});
 	}
 
 	@Test
-	void indicatorsRendererKeepsBottomSeparatorForNormalSelectedAndFocusedStates() throws Exception {
+	void indicatorsRendererLeavesGridPaintingToTable() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			CommonSpreadSheet sheet = new CommonSpreadSheet();
 			Color separatorColor = sheet.getGridColor();
 
-			assertTrue(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, false, false), separatorColor));
-			assertTrue(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, true, false), separatorColor));
-			assertTrue(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, false, true), separatorColor));
+			assertFalse(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, false, false), separatorColor));
+			assertFalse(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, true, false), separatorColor));
+			assertFalse(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, false, true), separatorColor));
 		});
 	}
 
 	@Test
-	void cellUtilityAddsBottomSeparatorForNormalAndFocusedBorders() throws Exception {
+	void cellBordersAreNotShrunkByAnExtraRowSeparator() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			PlainTable table = new PlainTable();
 			table.setModel(new DefaultTableModel(new Object[][] { { "Task", new Date() } }, new Object[] { "Name", "Date" }));
 			FlatUiSupport.applySpreadsheetTableStyle(table);
-			Color separatorColor = table.getGridColor();
-
-			assertTrue(hasBottomSeparator(CellUtility.withSpreadsheetGrid(table, FlatUiSupport.tableCellBorder()), separatorColor));
-			assertTrue(hasBottomSeparator(CellUtility.withSpreadsheetGrid(table, FlatUiSupport.spreadsheetActiveCellBorder()), separatorColor));
+			assertFalse(hasBottomSeparator(
+				CellUtility.resolveCellBorder(false, true, false), table.getGridColor()));
 		});
 	}
 
 	@Test
-	void booleanRendererUsesSpreadsheetRowSeparatorBorder() throws Exception {
+	void booleanRendererLeavesGridPaintingToTable() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			PlainTable table = new PlainTable();
 			table.setModel(new DefaultTableModel(new Object[][] { { Boolean.TRUE } }, new Object[] { "Done" }));
@@ -104,7 +131,7 @@ class SpreadsheetGridBorderTest {
 			JComponent component = (JComponent) new OfflineCapableBooleanRenderer()
 				.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
 
-			assertTrue(hasBottomSeparator(component.getBorder(), separatorColor));
+			assertFalse(hasBottomSeparator(component.getBorder(), separatorColor));
 		});
 	}
 
