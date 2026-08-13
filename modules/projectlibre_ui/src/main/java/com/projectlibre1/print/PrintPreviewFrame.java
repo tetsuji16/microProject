@@ -139,6 +139,7 @@ public class PrintPreviewFrame extends JFrame implements  ProjectMenuActionMap, 
    protected MenuManager menuManager;
 	public void init() {
 		//setSize(800,600);
+		setIconImage(IconManager.getImage("application.icon")); //$NON-NLS-1$
 		setExtendedState(getExtendedState()|MAXIMIZED_BOTH);
 		setTitle(Messages.getString("PrintPreviewFrame.PrintPreview")); //$NON-NLS-1$
 		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);

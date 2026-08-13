@@ -50,7 +50,8 @@ class IconManagerRibbonIconTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {"ribbon.save", "ribbon.open", "ribbon.print", "ribbon.pdf", "ribbon.insertRecurring", "application.icon", "logo.ProjectLibre.ribbon"})
+	@ValueSource(strings = {"ribbon.save", "ribbon.open", "ribbon.print", "ribbon.pdf", "ribbon.insertRecurring",
+		"application.icon", "application.icon.small", "logo.microProject", "logo.ProjectLibre.ribbon"})
 	void ribbonIconsLoadSynchronouslyAndPaintVisiblePixels(String key) {
 		var icon = IconManager.getRibbonIcon(key, 32, 32);
 		assertNotNull(icon, () -> key + " did not resolve to a ribbon icon");

@@ -87,6 +87,7 @@ import javax.swing.UIManager;
 import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
 import javax.swing.event.EventListenerList;
+import javax.swing.event.ListSelectionEvent;
 import javax.swing.plaf.UIResource;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableModel;
@@ -270,6 +271,20 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	protected void initListeners(){
+	}
+
+	@Override
+	public void columnSelectionChanged(ListSelectionEvent event) {
+		super.columnSelectionChanged(event);
+		if (getTableHeader() != null)
+			getTableHeader().repaint();
+	}
+
+	@Override
+	public void valueChanged(ListSelectionEvent event) {
+		super.valueChanged(event);
+		if (rowHeader != null)
+			rowHeader.repaint();
 	}
 
 	/**

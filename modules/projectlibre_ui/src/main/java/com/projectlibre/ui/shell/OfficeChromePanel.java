@@ -33,6 +33,7 @@ import com.projectlibre1.util.FlatUiSupport;
 
 final class OfficeChromePanel extends JPanel {
 	static final String NAME = "officeChromePanel";
+	static final String APPLICATION_ICON_NAME = "officeChromeApplicationIcon";
 	static final String AUTO_SAVE_NAME = "officeChromeAutoSave";
 	static final String SEARCH_BOX_NAME = "officeChromeSearchBox";
 	static final String SEARCH_FIELD_NAME = "officeChromeSearchField";
@@ -135,6 +136,9 @@ final class OfficeChromePanel extends JPanel {
 		constraints.gridx = 0;
 		constraints.gridy = 0;
 		constraints.anchor = GridBagConstraints.WEST;
+		constraints.insets = new Insets(0, 0, 0, 6);
+		cluster.add(createApplicationIcon(), constraints);
+		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 4);
 		cluster.add(createLabel("AutoSave", TEXT_COLOR), constraints);
 		constraints.gridx++;
@@ -153,6 +157,16 @@ final class OfficeChromePanel extends JPanel {
 		constraints.insets = new Insets(0, 12, 0, 0);
 		cluster.add(documentTitleLabel, constraints);
 		return cluster;
+	}
+
+	private JComponent createApplicationIcon() {
+		JLabel icon = new JLabel(IconManager.getRibbonIcon("application.icon.small", 16, 16));
+		icon.setName(APPLICATION_ICON_NAME);
+		icon.setToolTipText("microProject");
+		icon.setPreferredSize(new Dimension(16, 16));
+		icon.setMinimumSize(new Dimension(16, 16));
+		icon.setMaximumSize(new Dimension(16, 16));
+		return icon;
 	}
 
 	private JComponent buildCenterCluster() {

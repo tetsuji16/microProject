@@ -145,12 +145,12 @@ tasks.register<Sync>("prepareWindowsReleaseInput") {
     dependsOn(":projectlibre_ui:installDist")
 
     val installLibDir = project(":projectlibre_ui").layout.buildDirectory.dir("install/projectlibre_ui/lib")
-    val iconFile = layout.projectDirectory.file("packaging/windows/icons/projectlibre.ico")
+    val iconFile = layout.projectDirectory.file("packaging/windows/icons/microproject.ico")
     val licenseFile = layout.projectDirectory.file("packaging/licenses/license.txt")
 
     from(installLibDir)
     from(iconFile) {
-        rename { "projectlibre.ico" }
+        rename { "microproject.ico" }
     }
     from(licenseFile) {
         rename { "license.txt" }
@@ -160,7 +160,7 @@ tasks.register<Sync>("prepareWindowsReleaseInput") {
 
     doLast {
         val inputDir = windowsJpackageInput.get().asFile
-        val iconPath = File(inputDir, "projectlibre.ico").absolutePath.replace('\\', '/')
+        val iconPath = File(inputDir, "microproject.ico").absolutePath.replace('\\', '/')
         listOf("mpp.properties", "pod.properties", "xml.properties").forEach { name ->
             val associationFile = File(inputDir, name)
             val content = associationFile.readText(Charsets.UTF_8).replace("@ICON_PATH@", iconPath)
@@ -191,7 +191,7 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
             "--main-class", "com.projectlibre1.main.Main",
-            "--icon", File(inputDir, "projectlibre.ico").absolutePath,
+            "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--dest", windowsAppImageDir.get().asFile.absolutePath,
             "--verbose"
@@ -223,7 +223,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
             "--main-class", "com.projectlibre1.main.Main",
-            "--icon", File(inputDir, "projectlibre.ico").absolutePath,
+            "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--jlink-options", "--strip-native-commands --strip-debug --no-man-pages --no-header-files --compress zip-9",
@@ -263,7 +263,7 @@ tasks.register<Exec>("packageWindowsExe") {
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
             "--main-class", "com.projectlibre1.main.Main",
-            "--icon", File(inputDir, "projectlibre.ico").absolutePath,
+            "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--win-menu",
