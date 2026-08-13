@@ -55,6 +55,15 @@ class ProjectLibreShellTest {
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_FIELD_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME));
+	}
+
+	@Test
+	void compactDocumentTitleKeepsTheFileNameAndModifiedMarker() {
+		assertEquals("Commercial construction project plan2.pod *",
+			OfficeChromePanel.compactDocumentTitle("C:\\projects\\Commercial construction project plan2.pod *"));
+		assertEquals("ProjectLibre", OfficeChromePanel.compactDocumentTitle(""));
 	}
 
 	@Test
@@ -62,8 +71,20 @@ class ProjectLibreShellTest {
 		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
 		assertEquals(2, panel.getComponentCount());
 		JComponent search = findComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
-		assertEquals(220, search.getMinimumSize().width);
+		assertEquals(180, search.getMinimumSize().width);
 		assertTrue(search.getMaximumSize().width >= search.getPreferredSize().width);
+	}
+
+	@Test
+	void officeChromeHeaderUsesCompactOfficeLikeHeight() {
+		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
+		JComponent header = (JComponent) ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.NORTH);
+		JComponent search = findComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
+		JComponent autoSave = findComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME);
+
+		assertEquals(32, header.getPreferredSize().height);
+		assertEquals(24, search.getPreferredSize().height);
+		assertEquals(18, autoSave.getPreferredSize().height);
 	}
 
 	private static JComponent findComponent(JComponent root, String name) {

@@ -11,6 +11,7 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
+import java.beans.PropertyChangeListener;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
@@ -18,6 +19,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -34,9 +36,11 @@ final class OfficeChromePanel extends JPanel {
 	static final String AUTO_SAVE_NAME = "officeChromeAutoSave";
 	static final String SEARCH_BOX_NAME = "officeChromeSearchBox";
 	static final String SEARCH_FIELD_NAME = "officeChromeSearchField";
+	static final String DOCUMENT_TITLE_NAME = "officeChromeDocumentTitle";
 	static final String QUICK_ACCESS_NAME = "officeChromeQuickAccess";
 	static final String RIGHT_ACTIONS_NAME = "officeChromeRightActions";
 	static final String HELP_BUTTON_NAME = "officeChromeHelpButton";
+	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
 
 	private static final Color CHROME_BACKGROUND = FlatUiSupport.ribbonChromeBackground();
 	private static final Color BORDER_COLOR = FlatUiSupport.ribbonSurfaceBorderColor();
@@ -45,30 +49,41 @@ final class OfficeChromePanel extends JPanel {
 	private static final Dimension ICON_BUTTON_SIZE = new Dimension(
 		FlatUiSupport.ribbonQuickAccessButtonSize(),
 		FlatUiSupport.ribbonQuickAccessButtonSize());
-	private static final int CLUSTER_GAP = 10;
-	private static final Dimension AUTOSAVE_SIZE = new Dimension(42, 22);
+	private static final int CLUSTER_GAP = 8;
+	private static final Dimension AUTOSAVE_SIZE = new Dimension(36, 18);
 	private static final int QUICK_ACCESS_ICON_SIZE = 16;
 
 	private final MenuManager menuManager;
 	private final Runnable helpAction;
 	private final JTextField searchField;
+	private final JLabel documentTitleLabel;
 	private final AutoSaveControl autoSaveControl;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
-		this(menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
+		this(null, menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
 	}
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction, AutoSaveControl autoSaveControl) {
+		this(null, menuManager, ribbonPanel, helpAction, autoSaveControl);
+	}
+
+	OfficeChromePanel(JFrame frame, MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction,
+		AutoSaveControl autoSaveControl) {
 		super(new BorderLayout());
 		this.menuManager = menuManager;
 		this.helpAction = helpAction;
 		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
 		this.searchField = new JTextField(28);
+		this.documentTitleLabel = createDocumentTitleLabel(frame == null ? "" : frame.getTitle());
 		setName(NAME);
 		setOpaque(true);
 		setBackground(CHROME_BACKGROUND);
 		add(buildHeader(), BorderLayout.NORTH);
 		add(ribbonPanel, BorderLayout.CENTER);
+		if (frame != null) {
+			PropertyChangeListener titleListener = event -> updateDocumentTitle((String) event.getNewValue());
+			frame.addPropertyChangeListener("title", titleListener);
+		}
 	}
 
 	private JComponent buildHeader() {
@@ -93,14 +108,14 @@ final class OfficeChromePanel extends JPanel {
 		constraints.gridx = 0;
 		constraints.gridy = 0;
 		constraints.anchor = GridBagConstraints.WEST;
-		constraints.insets = new Insets(0, 0, 0, 10);
+		constraints.insets = new Insets(0, 0, 0, 8);
 		content.add(buildLeftCluster(), constraints);
 
 		constraints.gridx = 1;
 		constraints.weightx = 1.0;
 		constraints.fill = GridBagConstraints.HORIZONTAL;
 		constraints.anchor = GridBagConstraints.CENTER;
-		constraints.insets = new Insets(0, 0, 0, 10);
+		constraints.insets = new Insets(0, 0, 0, 8);
 		content.add(buildCenterCluster(), constraints);
 
 		constraints.gridx = 2;
@@ -129,11 +144,14 @@ final class OfficeChromePanel extends JPanel {
 		cluster.add(new VerticalDivider(), constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 2);
-		cluster.add(createActionButton("RibbonTopBarUndo", 24, 24), constraints);
+		cluster.add(createActionButton("RibbonTopBarUndo"), constraints);
 		constraints.gridx++;
-		cluster.add(createActionButton("RibbonTopBarRedo", 24, 24), constraints);
+		cluster.add(createActionButton("RibbonTopBarRedo"), constraints);
 		constraints.gridx++;
-		cluster.add(createActionButton("RibbonTopBarSaveProject", 24, 24), constraints);
+		cluster.add(createActionButton("RibbonTopBarSaveProject"), constraints);
+		constraints.gridx++;
+		constraints.insets = new Insets(0, 12, 0, 0);
+		cluster.add(documentTitleLabel, constraints);
 		return cluster;
 	}
 
@@ -153,16 +171,53 @@ final class OfficeChromePanel extends JPanel {
 		JPanel cluster = new JPanel(new GridBagLayout());
 		cluster.setOpaque(false);
 		cluster.setName(RIGHT_ACTIONS_NAME);
-		cluster.add(createHelpButton());
+		GridBagConstraints constraints = new GridBagConstraints();
+		constraints.gridx = 0;
+		constraints.insets = new Insets(0, 0, 0, 4);
+		cluster.add(createHelpButton(), constraints);
+		constraints.gridx = 1;
+		constraints.insets = new Insets(0, 0, 0, 0);
+		cluster.add(createWindowButtonsPlaceholder(), constraints);
 		return cluster;
+	}
+
+	private JLabel createDocumentTitleLabel(String title) {
+		JLabel label = createLabel(compactDocumentTitle(title), TEXT_COLOR);
+		label.setName(DOCUMENT_TITLE_NAME);
+		label.setToolTipText(title);
+		label.setPreferredSize(new Dimension(220, 22));
+		label.setMinimumSize(new Dimension(80, 22));
+		label.setMaximumSize(new Dimension(240, 22));
+		return label;
+	}
+
+	private void updateDocumentTitle(String title) {
+		documentTitleLabel.setText(compactDocumentTitle(title));
+		documentTitleLabel.setToolTipText(title);
+	}
+
+	static String compactDocumentTitle(String title) {
+		if (title == null || title.isBlank()) {
+			return "ProjectLibre";
+		}
+		int separator = Math.max(title.lastIndexOf('\\'), title.lastIndexOf('/'));
+		return separator >= 0 ? title.substring(separator + 1) : title;
+	}
+
+	private JComponent createWindowButtonsPlaceholder() {
+		JPanel placeholder = new JPanel();
+		placeholder.setName(WINDOW_BUTTONS_PLACEHOLDER_NAME);
+		placeholder.setOpaque(false);
+		placeholder.putClientProperty("FlatLaf.fullWindowContent.buttonsPlaceholder", "win horizontal");
+		return placeholder;
 	}
 
 	private JComponent buildSearchBox() {
 		JPanel box = new SearchBoxPanel();
 		box.setName(SEARCH_BOX_NAME);
-		box.setLayout(new BorderLayout(6, 0));
-		box.setBorder(new EmptyBorder(2, 10, 2, 10));
-		box.setMinimumSize(new Dimension(220, FlatUiSupport.ribbonSearchHeight()));
+		box.setLayout(new BorderLayout(4, 0));
+		box.setBorder(new EmptyBorder(1, 8, 1, 8));
+		box.setMinimumSize(new Dimension(180, FlatUiSupport.ribbonSearchHeight()));
 		box.setPreferredSize(new Dimension(
 			FlatUiSupport.ribbonSearchPreferredWidth(),
 			FlatUiSupport.ribbonSearchHeight()));
@@ -198,7 +253,7 @@ final class OfficeChromePanel extends JPanel {
 		return label;
 	}
 
-	private AbstractButton createActionButton(String actionId, int width, int height) {
+	private AbstractButton createActionButton(String actionId) {
 		OfficeIconButton button = new OfficeIconButton(resolveActionIcon(actionId, QUICK_ACCESS_ICON_SIZE), actionId, false);
 		Action action = menuManager == null ? null : menuManager.getActionFromId(actionId);
 		if (action != null) {
@@ -207,9 +262,6 @@ final class OfficeChromePanel extends JPanel {
 		button.setText("");
 		button.setName(actionId);
 		button.setToolTipText(resolveTooltip(actionId));
-		button.setPreferredSize(new Dimension(width, height));
-		button.setMinimumSize(new Dimension(width, height));
-		button.setMaximumSize(new Dimension(width, height));
 		return button;
 	}
 
@@ -288,7 +340,7 @@ final class OfficeChromePanel extends JPanel {
 
 	private static final class VerticalDivider extends JComponent {
 		private VerticalDivider() {
-			setPreferredSize(new Dimension(1, 18));
+			setPreferredSize(new Dimension(1, 16));
 		}
 
 		@Override
@@ -364,8 +416,8 @@ final class OfficeChromePanel extends JPanel {
 				FlatUiSupport.enableAntialiasing(g2);
 				Color track = isSelected() ? ACCENT_COLOR : new Color(0xC6CBD1);
 				g2.setColor(track);
-				g2.fill(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 22, 22));
-				int knobDiameter = 16;
+				g2.fill(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 18, 18));
+				int knobDiameter = 14;
 				int x = isSelected() ? getWidth() - knobDiameter - 3 : 3;
 				int y = (getHeight() - knobDiameter) / 2;
 				g2.setColor(Color.WHITE);

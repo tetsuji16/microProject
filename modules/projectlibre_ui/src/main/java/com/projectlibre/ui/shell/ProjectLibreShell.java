@@ -65,11 +65,15 @@ public final class ProjectLibreShell {
 
 	public static ShellHandles installRibbonShell(MainRibbonFrame frame, MenuManager menuManager, Runnable helpAction,
 		AutoSaveControl autoSaveControl) {
+		frame.getRootPane().putClientProperty("FlatLaf.fullWindowContent", Boolean.TRUE);
+		frame.getRootPane().putClientProperty("JRootPane.titleBarShowTitle", Boolean.FALSE);
+		frame.getRootPane().putClientProperty("JRootPane.titleBarShowIcon", Boolean.FALSE);
+		frame.getRootPane().putClientProperty("JRootPane.titleBarHeight", Integer.valueOf(32));
 		JPanel ribbonPanel = menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, helpAction);
 		if (ribbonPanel == null) {
 			ribbonPanel = new JPanel(new BorderLayout());
 		}
-		JPanel shell = new OfficeChromePanel(menuManager, ribbonPanel, helpAction, autoSaveControl);
+		JPanel shell = new OfficeChromePanel(frame, menuManager, ribbonPanel, helpAction, autoSaveControl);
 		frame.setRibbonPanel(shell);
 		return new ShellHandles(null, null, null);
 	}
