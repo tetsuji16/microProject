@@ -736,6 +736,44 @@ public final class FlatUiSupport {
 		return border;
 	}
 
+	public static Border withRowGridOverlay(Border baseBorder, Color gridColor) {
+		return new RowGridOverlayBorder(baseBorder, gridColor == null ? tableGridColor() : gridColor);
+	}
+
+	private static final class RowGridOverlayBorder extends AbstractBorder {
+		private final Border baseBorder;
+		private final Color gridColor;
+
+		private RowGridOverlayBorder(Border baseBorder, Color gridColor) {
+			this.baseBorder = baseBorder;
+			this.gridColor = gridColor;
+		}
+
+		@Override
+		public Insets getBorderInsets(Component component) {
+			return baseBorder == null ? new Insets(0, 0, 0, 0) : baseBorder.getBorderInsets(component);
+		}
+
+		@Override
+		public Insets getBorderInsets(Component component, Insets target) {
+			Insets resolved = getBorderInsets(component);
+			target.set(resolved.top, resolved.left, resolved.bottom, resolved.right);
+			return target;
+		}
+
+		@Override
+		public void paintBorder(Component component, Graphics graphics, int x, int y, int width, int height) {
+			if (width <= 0 || height <= 0)
+				return;
+			Color oldColor = graphics.getColor();
+			graphics.setColor(gridColor);
+			graphics.drawLine(x, y + height - 1, x + width - 1, y + height - 1);
+			graphics.setColor(oldColor);
+			if (baseBorder != null)
+				baseBorder.paintBorder(component, graphics, x, y, width, height);
+		}
+	}
+
 	public static Color spreadsheetAlternateRowBackground(int row) {
 		Color alternate = UIManager.getColor("Table.alternateRowColor");
 		if (alternate != null)

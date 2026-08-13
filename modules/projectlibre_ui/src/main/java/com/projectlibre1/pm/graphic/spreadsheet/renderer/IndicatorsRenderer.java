@@ -99,7 +99,7 @@ public class IndicatorsRenderer extends DefaultTableCellRenderer implements Offl
 			if (table!=null) {
 				label.setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
 			}
-			label.setBorder(resolveCellBorder(table, isSelected, hasFocus));
+			label.setBorder(CellUtility.withRowGridOverlay(table, resolveCellBorder(table, isSelected, hasFocus)));
 			label.setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
 			StringBuilder text = new StringBuilder();
 			

@@ -149,6 +149,12 @@ public class CellUtility {
 		return FlatUiSupport.tableCellBorder();
 	}
 
+	static Border withRowGridOverlay(JTable table, Border baseBorder) {
+		if (table == null || !table.getShowHorizontalLines())
+			return baseBorder;
+		return FlatUiSupport.withRowGridOverlay(baseBorder, table.getGridColor());
+	}
+
 	static boolean isActiveCell(JTable table, int row, int column, boolean hasFocus) {
 		if (table == null)
 			return false;

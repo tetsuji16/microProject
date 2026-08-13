@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.image.BufferedImage;
 import java.util.Date;
 
@@ -132,6 +133,41 @@ class SpreadsheetGridBorderTest {
 				.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
 
 			assertFalse(hasBottomSeparator(component.getBorder(), separatorColor));
+		});
+	}
+
+	@Test
+	void specialRendererOverlayPaintsGridWithoutShrinkingSelectionBorder() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(1, 1));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			Color gridColor = new Color(0xCC, 0x22, 0x99);
+			table.setGridColor(gridColor);
+			Border activeBorder = FlatUiSupport.spreadsheetActiveCellBorder();
+			Border activeOverlay = CellUtility.withRowGridOverlay(table, activeBorder);
+			Border gridOverlay = CellUtility.withRowGridOverlay(table, null);
+
+			assertEquals(activeBorder.getBorderInsets(table), activeOverlay.getBorderInsets(table));
+
+			BufferedImage image = new BufferedImage(40, 20, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				gridOverlay.paintBorder(table, graphics, 0, 0, 40, 20);
+			} finally {
+				graphics.dispose();
+			}
+			Insets insets = activeOverlay.getBorderInsets(table);
+			assertEquals(1, insets.bottom);
+			assertEquals(gridColor.getRGB(), image.getRGB(20, 19));
+
+			graphics = image.createGraphics();
+			try {
+				activeOverlay.paintBorder(table, graphics, 0, 0, 40, 20);
+			} finally {
+				graphics.dispose();
+			}
+			assertEquals(FlatUiSupport.spreadsheetActiveCellBorderColor().getRGB(), image.getRGB(0, 19));
 		});
 	}
 
