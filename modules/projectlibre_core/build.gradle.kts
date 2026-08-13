@@ -9,9 +9,11 @@ dependencies {
 tasks.test {
     enabled = true
     useJUnitPlatform()
+    systemProperty("projectlibre.test.releaseVersion", rootProject.version.toString())
 }
 
 tasks.processResources {
+    inputs.property("releaseVersion", rootProject.version.toString())
     filesMatching("com/projectlibre1/version/version.properties") {
         expand("version" to rootProject.version.toString())
     }

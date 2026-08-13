@@ -165,7 +165,7 @@ public final class HelpDialog extends AbstractDialog {
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
-		JLabel logo = new JLabel(IconManager.getIcon("logo.ProjectLibre"));
+		JLabel logo = new JLabel(IconManager.getIcon("logo.microProject"));
 		logo.addMouseListener(new MouseAdapter() {
 			public void mouseClicked(MouseEvent arg0) {
 				BrowserControl.displayURL(UiLinkTargets.PROJECT_HOME);

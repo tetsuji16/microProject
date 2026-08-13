@@ -109,7 +109,7 @@ public final class AboutDialog extends AbstractDialog {
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
-		JLabel logo = new JLabel(IconManager.getIcon("logo.ProjectLibre"));
+		JLabel logo = new JLabel(IconManager.getIcon("logo.microProject"));
 		logo.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		logo.addMouseListener(new MouseAdapter() {
 			public void mouseClicked(MouseEvent arg0) {

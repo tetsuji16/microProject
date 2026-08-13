@@ -14,12 +14,19 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToolBar;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.projectlibre.ui.theme.ProjectLibreTheme;
 import com.projectlibre1.menu.MenuActionMapSupport;
 import com.projectlibre1.menu.MenuManager;
 
 class ProjectLibreShellTest {
+	@BeforeAll
+	static void installProjectLibreTheme() {
+		ProjectLibreTheme.installLight();
+	}
+
 	@Test
 	void attachNewLookChromePlacesTopAndBottomInExpectedRegions() {
 		JPanel container = new JPanel(new BorderLayout());
@@ -53,6 +60,7 @@ class ProjectLibreShellTest {
 		assertSame(ribbonBody, ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER));
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_FIELD_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.APPLICATION_ICON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
