@@ -33,6 +33,16 @@ class RibbonStructureTest {
 	}
 
 	@Test
+	void issue37FileTabExposesRecentProjectsBesideOpen() {
+		assertEquals(List.of(
+			"RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects",
+			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonCloseProject"),
+			ribbonButtonIds("FileRibbonBand"));
+		assertEquals("RecentProjectsAction",
+			menuInternalBundle().getString("RibbonRecentProjects.action"));
+	}
+
+	@Test
 	void taskAndResourceTabsSeparateOutlineAssignmentsAndTrackingWork() {
 		assertEquals(List.of("RibbonImportProject", "RibbonExportProject"),
 			ribbonButtonIds("FileExchangeRibbonBand"));

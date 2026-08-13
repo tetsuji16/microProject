@@ -207,6 +207,7 @@ class RibbonButtonBehaviorTest {
 
 		assertExternal(harness, "RibbonNewProject", "newProject");
 		assertExternal(harness, "RibbonOpenProject", "openProject");
+		assertExternal(harness, "RibbonRecentProjects", "openProject");
 		assertExternal(harness, "RibbonImportProject", "openProject");
 		assertExternal(harness, "RibbonSaveProject", "saveProject");
 		assertExternal(harness, "RibbonTopBarSaveProject", "saveProject");
@@ -402,6 +403,7 @@ class RibbonButtonBehaviorTest {
 		add(map, Strategy.ROUTE_EXTERNAL,
 			"RibbonNewProject",
 			"RibbonOpenProject",
+			"RibbonRecentProjects",
 			"RibbonImportProject",
 			"RibbonSaveProject",
 			"RibbonTopBarSaveProject",

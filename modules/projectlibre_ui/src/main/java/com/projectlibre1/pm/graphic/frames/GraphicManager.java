@@ -557,6 +557,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			 	frame.getFilterToolBarManager().clear();
 			}});
 		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,frame==null || !frame.isEditingResourcePool()); //resource pool can not be opened at same time as another proj
+		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,frame==null || !frame.isEditingResourcePool());
 		return frame;
 	}
 
@@ -697,6 +698,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (!quitting) updateStoredSession();
 		setAllButResourceDisabled(false);
 		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,true); // no matter what, you can open a project after closing, since if you closed resource pool you can open after
+		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,true);
 	}
 	public String doRenameProjectDialog(String name,Set projectNames,boolean saveAs) {
 		finishAnyOperations();
@@ -717,7 +719,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		}
 
-		WelcomeDialog instance = WelcomeDialog.getInstance(getFrame(),getMenuManager());
+		showWelcomeDialog(false);
+	}
+
+	public void doRecentProjectsDialog() {
+		showWelcomeDialog(true);
+	}
+
+	private void showWelcomeDialog(boolean focusRecentProjects) {
+		WelcomeDialog instance = focusRecentProjects
+			? WelcomeDialog.getRecentProjectsInstance(getFrame(),getMenuManager())
+			: WelcomeDialog.getInstance(getFrame(),getMenuManager());
 		if (instance.doModal()) {
 			waitInitialization();
 			if (instance.getForm().isCreateProject())
@@ -1310,6 +1322,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap = new MenuActionsMap(menuManager);
 		actionsMap.addHandler(ACTION_NEW_PROJECT, new NewProjectAction());
 		actionsMap.addHandler(ACTION_OPEN_PROJECT, new OpenProjectAction());
+		actionsMap.addHandler(ACTION_RECENT_PROJECTS, new RecentProjectsAction());
 		actionsMap.addHandler(ACTION_INSERT_PROJECT, new InsertProjectAction());
 		actionsMap.addHandler(ACTION_EXIT, new ExitAction());
 		actionsMap.addHandler(ACTION_IMPORT_MSPROJECT, new ImportMSProjectAction());
@@ -1443,6 +1456,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 
 
+	}
+
+	public class RecentProjectsAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("openProject")) return;
+			doRecentProjectsDialog();
+		}
+		protected boolean allowed(boolean enable){
+			DocumentFrame dframe = getCurrentFrame();
+			return dframe == null || !dframe.isEditingResourcePool();
+		}
+		protected boolean needsDocument() {
+			return !allowed(true);
+		}
 	}
 
 	public class InsertProjectAction extends MenuActionsMap.DocumentMenuAction {
@@ -2962,6 +2991,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	public void setConnected(boolean connected){
 		getMenuManager().setActionEnabled(ACTION_IMPORT_MSPROJECT,connected);
 		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,connected);
+		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,connected);
 		getMenuManager().setActionEnabled(ACTION_NEW_PROJECT,connected);
 		if (connected) refreshSaveStatus(true);
 

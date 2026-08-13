@@ -61,6 +61,10 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -73,6 +77,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JCheckBox;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
@@ -116,6 +121,7 @@ public final class WelcomeDialog extends AbstractDialog {
 	}
 	private Form form;
 	private MenuManager menuManager;
+	private final boolean focusRecentProjects;
 	// use property utils to copy to project like struts
 
 	ButtonGroup radioGroup;
@@ -138,12 +144,16 @@ public final class WelcomeDialog extends AbstractDialog {
 		return true;
 	}
 	public static WelcomeDialog getInstance(Frame owner, MenuManager menuManager) {
-		return new WelcomeDialog(owner,menuManager);
+		return new WelcomeDialog(owner,menuManager,false);
+	}
+	public static WelcomeDialog getRecentProjectsInstance(Frame owner, MenuManager menuManager) {
+		return new WelcomeDialog(owner,menuManager,true);
 	}
 
-	private WelcomeDialog(Frame owner, MenuManager menuManager) {
+	private WelcomeDialog(Frame owner, MenuManager menuManager, boolean focusRecentProjects) {
 		super(owner, Messages.getContextString("Text.welcomeToPod"), true); //$NON-NLS-1$
 		this.menuManager = menuManager;
+		this.focusRecentProjects = focusRecentProjects;
 		form = new Form();
 	}
 
@@ -165,6 +175,19 @@ public final class WelcomeDialog extends AbstractDialog {
 				String prefix = entry.pinned() ? "★ " : "";
 				String suffix = entry.exists() ? "" : "  (" + UsabilityStrings.text("welcome.missing") + ")";
 				return super.getListCellRendererComponent(list, prefix + entry.path().getFileName() + " — " + entry.path().getParent() + suffix, index, selected, focus);
+			}
+		});
+		recentProjects.addMouseListener(new MouseAdapter() {
+			@Override public void mouseClicked(MouseEvent event) {
+				if (event.getClickCount() == 2) openSelectedRecentProject();
+			}
+		});
+		recentProjects.addKeyListener(new KeyAdapter() {
+			@Override public void keyPressed(KeyEvent event) {
+				if (event.getKeyCode() == KeyEvent.VK_ENTER) {
+					openSelectedRecentProject();
+					event.consume();
+				}
 			}
 		});
 		templateChoice = new JComboBox<>(new String[] { "Basic project", "Software delivery", "Construction" });
@@ -219,13 +242,28 @@ public final class WelcomeDialog extends AbstractDialog {
 		JPanel recent = new JPanel(new BorderLayout(4, 4)); recent.add(new JLabel(UsabilityStrings.text("welcome.recent")), BorderLayout.NORTH);
 		recentProjects.setVisibleRowCount(9); recent.add(new JScrollPane(recentProjects), BorderLayout.CENTER);
 		JPanel recentButtons = new JPanel(); JButton openRecent = new JButton(UsabilityStrings.text("welcome.openSelected"));
-		openRecent.addActionListener(event -> { RecentProjectStore.Entry entry = recentProjects.getSelectedValue(); if (entry != null && entry.exists()) { createProject.setSelected(false); openProject.setSelected(false); manageResources.setSelected(false); form.recentPath = entry.path().toString(); onOk(); } });
+		openRecent.addActionListener(event -> openSelectedRecentProject());
 		JButton pin = new JButton(UsabilityStrings.text("welcome.pin")); pin.addActionListener(event -> { RecentProjectStore.Entry entry = recentProjects.getSelectedValue(); if (entry != null) { recentStore.setPinned(entry.path(), !entry.pinned()); recentProjects.setListData(recentStore.entries().toArray(RecentProjectStore.Entry[]::new)); } });
 		JButton remove = new JButton(UsabilityStrings.text("welcome.remove")); remove.addActionListener(event -> { RecentProjectStore.Entry entry = recentProjects.getSelectedValue(); if (entry != null) { recentStore.remove(entry.path()); recentProjects.setListData(recentStore.entries().toArray(RecentProjectStore.Entry[]::new)); } });
 		recentButtons.add(openRecent); recentButtons.add(pin); recentButtons.add(remove); recent.add(recentButtons, BorderLayout.SOUTH); recent.setPreferredSize(new Dimension(560, 260));
 		builder.add(recent, BorderLayout.CENTER);
+		if (focusRecentProjects) SwingUtilities.invokeLater(() -> {
+			if (recentProjects.isSelectionEmpty() && recentProjects.getModel().getSize() > 0)
+				recentProjects.setSelectedIndex(0);
+			recentProjects.requestFocusInWindow();
+		});
 		requestFocusInWindow();
 		return builder;
+	}
+
+	private void openSelectedRecentProject() {
+		RecentProjectStore.Entry entry = recentProjects.getSelectedValue();
+		if (entry == null || !entry.exists()) return;
+		createProject.setSelected(false);
+		openProject.setSelected(false);
+		manageResources.setSelected(false);
+		form.recentPath = entry.path().toString();
+		onOk();
 	}
 
 	/**
