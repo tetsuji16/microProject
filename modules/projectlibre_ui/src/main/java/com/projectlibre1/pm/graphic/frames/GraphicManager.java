@@ -91,6 +91,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.prefs.Preferences;
 
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -1526,18 +1527,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public class TeamFilterAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
-			GlobalPreferences preferences=getPreferences();;
+			setMeAsLastGraphicManager();
+			GlobalPreferences preferences=getPreferences();
 			//Field field = Configuration.getFieldFromId("Field.showProjectResourcesOnly");
 			boolean teamOnly=!preferences.isShowProjectResourcesOnly();
 			//field.setValue(preferences,this,teamOnly);
 			preferences.setShowProjectResourcesOnly(teamOnly);
-			List<?> buttons = getMenuManager().getToolBarFactory().getButtonsFromId("TeamFilter"); //$NON-NLS-1$
-			if (buttons!=null&&buttons.size()==1){
-				JButton b=(JButton)buttons.get(0);
-				if (Environment.isNewLook())
-					b.setIcon(IconManager.getIcon(teamOnly?"menu24.showTeamResources":"menu24.showAllResources")); //$NON-NLS-1$ //$NON-NLS-2$
-				else
-					b.setIcon(IconManager.getIcon(teamOnly?"menu.showTeamResourcesSmall":"menu.showAllResourcesSmall")); //$NON-NLS-1$ //$NON-NLS-2$
+			List<AbstractButton> buttons = getMenuManager().getToolBarFactory().getButtonsFromId("TeamFilter"); //$NON-NLS-1$
+			if (buttons!=null){
+				for (AbstractButton button : buttons) {
+					if (Environment.isNewLook())
+						button.setIcon(IconManager.getIcon(teamOnly?"menu24.showTeamResources":"menu24.showAllResources")); //$NON-NLS-1$ //$NON-NLS-2$
+					else
+						button.setIcon(IconManager.getIcon(teamOnly?"menu.showTeamResourcesSmall":"menu.showAllResourcesSmall")); //$NON-NLS-1$ //$NON-NLS-2$
+				}
 			}
 			menuManager.setActionSelected(ACTION_TEAM_FILTER,teamOnly);
 
