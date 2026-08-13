@@ -240,6 +240,7 @@ class RibbonAndToolbarButtonTest {
 			Map<String, String> expectedRoutes = Map.ofEntries(
 				Map.entry("RibbonNewProject", "newProject"),
 				Map.entry("RibbonOpenProject", "openProject"),
+				Map.entry("RibbonRecentProjects", "openProject"),
 				Map.entry("RibbonSaveProject", "saveProject"),
 				Map.entry("RibbonSaveProjectAs", "saveAsProject"),
 				Map.entry("RibbonCloseProject", "closeProject"),

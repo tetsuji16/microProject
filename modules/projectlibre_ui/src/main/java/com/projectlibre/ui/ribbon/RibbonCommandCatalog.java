@@ -96,7 +96,7 @@ final class RibbonCommandCatalog {
 	private static Map<String, Placement> placements() {
 		Map<String, Placement> result = new LinkedHashMap<>();
 		register(result, CommandScope.GLOBAL, FILE,
-			"RibbonNewProject", "RibbonOpenProject", "RibbonImportProject",
+			"RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject",
 			"RibbonLocale", "RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre");
 		register(result, CommandScope.DOCUMENT, FILE,
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonCloseProject", "RibbonExportProject",

@@ -28,7 +28,7 @@ class StartupFactoryCommandStateTest {
 	}
 
 	private static void assertCommandsEnabled(MenuManager menuManager, boolean expected) {
-		for (String id : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonImportProject")) {
+		for (String id : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject")) {
 			AbstractButton button = menuManager.getToolButtonsFromId(id).stream()
 				.map(AbstractButton.class::cast)
 				.filter(candidate -> id.equals(candidate.getActionCommand()))

@@ -58,6 +58,7 @@ package com.projectlibre1.menu;
 public interface MenuActionConstants {
 	public static final String ACTION_NEW_PROJECT             = "NewProject";
 	public static final String ACTION_OPEN_PROJECT            = "OpenProject";
+	public static final String ACTION_RECENT_PROJECTS         = "RecentProjects";
 	public static final String ACTION_IMPORT_MSPROJECT        = "ImportMSProject";
 	public static final String ACTION_EXPORT_MSPROJECT        = "ExportMSProject";
 	public static final String ACTION_CLOSE_PROJECT           = "CloseProject";
