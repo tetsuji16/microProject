@@ -57,7 +57,6 @@ package com.projectlibre1.pm.graphic.spreadsheet.renderer;
 
 import java.awt.Color;
 
-import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JTable;
 import javax.swing.border.Border;
@@ -104,7 +103,7 @@ public class CellUtility {
 				component.setForeground(FlatUiSupport.spreadsheetReadOnlyForeground());
 			}
 		}
-		component.setBorder(withSpreadsheetGrid(table, baseBorder));
+		component.setBorder(baseBorder);
 	}
 
 	public static void setAppearance(CellFormat format, JComponent component){
@@ -116,14 +115,6 @@ public class CellUtility {
 //			if (!model.isRowEditable(row))
 //				component.setForeground(Color.GRAY);
 
-	}
-
-	public static Border withSpreadsheetGrid(JTable table, Border baseBorder) {
-		Border resolvedBase = baseBorder == null ? BorderFactory.createEmptyBorder() : baseBorder;
-		if (table == null)
-			return resolvedBase;
-		Color separatorColor = table.getGridColor();
-		return FlatUiSupport.withRowSeparator(resolvedBase, separatorColor);
 	}
 
 	private static Color resolveTableForeground(Color foreground) {

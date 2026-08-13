@@ -149,10 +149,6 @@ public class NameCellComponent extends JPanel {
 	public void setOffline(boolean offline) {
 		this.offline = offline;
 	}
-	void syncRowSeparator(boolean visible, Color color) {
-		Border baseBorder = getBorder();
-		setBorder(visible ? FlatUiSupport.withRowSeparator(baseBorder, color) : baseBorder);
-	}
 	/**
 	 * @return Returns the text component.
 	 */

@@ -14,18 +14,20 @@ import com.projectlibre1.util.FlatUiSupport;
 
 class GanttViewGridStyleTest {
 	@Test
-	void spreadsheetGridStyleKeepsHorizontalLinesOff() throws Exception {
+	void spreadsheetGridStyleTogglesBothGridDirectionsAndRowHeader() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();
 			Color gridColor = FlatUiSupport.tableGridColor();
 
 			GanttView.applySpreadsheetGridStyle(sheet, null, true, gridColor);
-			assertFalse(sheet.getShowHorizontalLines());
+			assertTrue(sheet.getShowHorizontalLines());
 			assertTrue(sheet.getShowVerticalLines());
+			assertTrue(sheet.getRowHeader().getShowHorizontalLines());
 
 			GanttView.applySpreadsheetGridStyle(sheet, null, false, gridColor);
 			assertFalse(sheet.getShowHorizontalLines());
 			assertFalse(sheet.getShowVerticalLines());
+			assertFalse(sheet.getRowHeader().getShowHorizontalLines());
 		});
 	}
 }

@@ -94,7 +94,7 @@ public class SpreadSheetRowHeaderRenderer extends DefaultTableCellRenderer  impl
 			FlatUiSupport.applyTableHeaderCellStyle(component, isSelected, active);
 		}
 		Border baseBorder = active ? FlatUiSupport.spreadsheetActiveCellBorder() : FlatUiSupport.tableHeaderBorder();
-		component.setBorder(FlatUiSupport.withRowSeparator(baseBorder, table == null ? FlatUiSupport.tableGridColor() : table.getGridColor()));
+		component.setBorder(baseBorder);
 		component.setHorizontalAlignment (CENTER);
 		component.setText (value == null ? "" : value.toString ());
 		return component;
