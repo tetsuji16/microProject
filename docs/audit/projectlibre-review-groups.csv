@@ -97,16 +97,16 @@ GRP-00095,CONSTRUCTOR,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/
 GRP-00096,CONSTRUCTOR,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/print/PrintDocument.java,1,1,LOW,PLD-266FFA6C23B86550,review related Java symbols in the same source file
 GRP-00097,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/dialog/PODOnlyFeature.java,1,1,LOW,PLD-71200AEAA18E1124,review related Java symbols in the same source file
 GRP-00098,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/dialog/TryPODDialog.java,1,1,LOW,PLD-BE6FC0F95BD54751,review related Java symbols in the same source file
-GRP-00099,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/menu/ExtButtonFactory.java,1,1,HIGH,PLD-A494908AFF268FFE,review related Java symbols in the same source file
-GRP-00100,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/menu/ExtMenuFactory.java,1,1,HIGH,PLD-39BD547B626CDCAA,review related Java symbols in the same source file
-GRP-00101,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/menu/ExtToolBarFactory.java,1,1,HIGH,PLD-4C6861C71DEF3703,review related Java symbols in the same source file
+GRP-00099,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/menu/ExtButtonFactory.java,1,0,HIGH,PLD-A494908AFF268FFE,review related Java symbols in the same source file
+GRP-00100,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/menu/ExtMenuFactory.java,1,0,HIGH,PLD-39BD547B626CDCAA,review related Java symbols in the same source file
+GRP-00101,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/menu/ExtToolBarFactory.java,1,0,HIGH,PLD-4C6861C71DEF3703,review related Java symbols in the same source file
 GRP-00102,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/print/GraphPageable.java,1,1,LOW,PLD-B5D03316D58E3E9C,review related Java symbols in the same source file
 GRP-00103,CONSTRUCTOR,projectlibre_ui,openproj_ui/src/com/projity/print/PrintDocument.java,1,1,LOW,PLD-D88FDA189A95B87E,review related Java symbols in the same source file
 GRP-00104,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre/ui/ribbon/ProjectLibreRibbonUI.java,3,3,LOW,"PLD-3037AEF4805F0404,PLD-E5B70FB5511B33CE,PLD-71080CA10E676F95",review related Java symbols in the same source file
-GRP-00105,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre1/menu/ExtButtonFactory.java,1,1,HIGH,PLD-2A1D876FE9408E42,review related Java symbols in the same source file
-GRP-00106,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre1/menu/ExtMenuFactory.java,1,1,HIGH,PLD-E99C3D0D47633D61,review related Java symbols in the same source file
+GRP-00105,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre1/menu/ExtButtonFactory.java,1,0,HIGH,PLD-2A1D876FE9408E42,review related Java symbols in the same source file
+GRP-00106,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre1/menu/ExtMenuFactory.java,1,0,HIGH,PLD-E99C3D0D47633D61,review related Java symbols in the same source file
 GRP-00107,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre1/menu/ExtRibbonFactory.java,1,1,HIGH,PLD-6DD9D14AD25BC564,review related Java symbols in the same source file
-GRP-00108,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre1/menu/ExtToolBarFactory.java,1,1,HIGH,PLD-1B36E3CCFD00A291,review related Java symbols in the same source file
+GRP-00108,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre1/menu/ExtToolBarFactory.java,1,0,HIGH,PLD-1B36E3CCFD00A291,review related Java symbols in the same source file
 GRP-00109,CONSTRUCTOR,projectlibre_ui,projectlibre_ui/src/com/projectlibre1/menu/MenuManager.java,1,1,HIGH,PLD-A848993D95B9BE53,review related Java symbols in the same source file
 GRP-00110,FIELD,projectlibre_core,modules/projectlibre_core/src/main/java/com/projectlibre/core/fields/Field.java,5,5,LOW,"PLD-F3A3F8505A9E40D1,PLD-0B765E730416F272,PLD-B1B063C1D0345F99,PLD-9ABE94D64DAFFBF1,PLD-1687B9CA200217C6",review related Java symbols in the same source file
 GRP-00111,FIELD,projectlibre_core,modules/projectlibre_core/src/main/java/com/projectlibre/core/fields/FieldList.java,3,3,LOW,"PLD-16D861311C406F43,PLD-D2D26CDBDC623694,PLD-7786B0D5AFDF464D",review related Java symbols in the same source file
@@ -255,7 +255,7 @@ GRP-00253,FIELD,projectlibre_ui,openproj_ui/src/com/projity/dialog/TryPODDialog.
 GRP-00254,FIELD,projectlibre_ui,openproj_ui/src/com/projity/dialog/assignment/AssignmentDialog.java,5,5,LOW,"PLD-6F37BEE4CF19C610,PLD-B4BD4E9402F6F2E1,PLD-62BD12BA3C12DF28,PLD-3D3C7AACB344905B,PLD-D60017EC008CAE9D",review related Java symbols in the same source file
 GRP-00255,FIELD,projectlibre_ui,openproj_ui/src/com/projity/dialog/calendar/ChangeWorkingTimeDialogBox.java,1,1,LOW,PLD-F8AB4245C5C735C6,review related Java symbols in the same source file
 GRP-00256,FIELD,projectlibre_ui,openproj_ui/src/com/projity/menu/MenuActionConstants.java,3,3,HIGH,"PLD-6B9EE4C894698996,PLD-76C6830813AC45E0,PLD-A78EC7307AF49301",review related Java symbols in the same source file
-GRP-00257,FIELD,projectlibre_ui,openproj_ui/src/com/projity/menu/MenuManager.java,1,1,HIGH,PLD-B5271BD0CB84A37A,review related Java symbols in the same source file
+GRP-00257,FIELD,projectlibre_ui,openproj_ui/src/com/projity/menu/MenuManager.java,1,0,HIGH,PLD-B5271BD0CB84A37A,review related Java symbols in the same source file
 GRP-00258,FIELD,projectlibre_ui,openproj_ui/src/com/projity/pm/graphic/Statusbar.java,1,1,LOW,PLD-481E6AB6B50A22F3,review related Java symbols in the same source file
 GRP-00259,FIELD,projectlibre_ui,openproj_ui/src/com/projity/pm/graphic/chart/ChartLegend.java,1,1,LOW,PLD-35B1FEA356068218,review related Java symbols in the same source file
 GRP-00260,FIELD,projectlibre_ui,openproj_ui/src/com/projity/pm/graphic/chart/TimeChartPopupMenu.java,1,1,HIGH,PLD-43014D5C7A1CE9EC,review related Java symbols in the same source file
@@ -691,7 +691,7 @@ GRP-00689,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/proje
 GRP-00690,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/dialog/calendar/NewBaseCalendarDialog.java,2,2,LOW,"PLD-BFFADB27F0CA62A0,PLD-A36C5D5362B7310B",review related Java symbols in the same source file
 GRP-00691,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/main/Main.java,3,3,LOW,"PLD-2774F9475331455E,PLD-379560EBD31E620E,PLD-8888B668F5D7CFCB",review related Java symbols in the same source file
 GRP-00692,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/menu/ExtRibbonFactory.java,3,3,HIGH,"PLD-812A8401FE8240A2,PLD-9D796FDF6E6967F3,PLD-DE0E7F291579A679",review related Java symbols in the same source file
-GRP-00693,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/menu/HyperLinkToolTip.java,1,1,HIGH,PLD-8B5899965FEA92A0,review related Java symbols in the same source file
+GRP-00693,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/menu/HyperLinkToolTip.java,1,0,HIGH,PLD-8B5899965FEA92A0,review related Java symbols in the same source file
 GRP-00694,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/menu/MenuManager.java,9,9,HIGH,"PLD-12647B18CD5AAF31,PLD-C5949FB946F432DC,PLD-E6C0069FC0FAAB1A,PLD-342DD155C8B8B0B6,PLD-8E36A395FE178F04",review related Java symbols in the same source file
 GRP-00695,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/pm/graphic/IconManager.java,3,3,LOW,"PLD-CD9538801F26BFF5,PLD-FCA104EF409361C7,PLD-9734ACD2EA36EB25",review related Java symbols in the same source file
 GRP-00696,METHOD,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/pm/graphic/chart/ChartCorner.java,1,1,LOW,PLD-EFED097EC7350DA0,review related Java symbols in the same source file
@@ -744,7 +744,7 @@ GRP-00742,METHOD,projectlibre_ui,openproj_ui/src/com/projity/dialog/calendar/New
 GRP-00743,METHOD,projectlibre_ui,openproj_ui/src/com/projity/dialog/options/CalendarDialogBox.java,1,1,LOW,PLD-50F88416C045B484,review related Java symbols in the same source file
 GRP-00744,METHOD,projectlibre_ui,openproj_ui/src/com/projity/dialog/util/ComponentFactory.java,12,12,LOW,"PLD-E69DBB7CBC65D114,PLD-837B531B506536EA,PLD-782F26130430B858,PLD-BC5718C619485297,PLD-F992E14B6F842EC0",review related Java symbols in the same source file
 GRP-00745,METHOD,projectlibre_ui,openproj_ui/src/com/projity/dialog/util/LookupField.java,1,1,LOW,PLD-320A6F7267EEEF60,review related Java symbols in the same source file
-GRP-00746,METHOD,projectlibre_ui,openproj_ui/src/com/projity/menu/HyperLinkToolTip.java,1,1,HIGH,PLD-9B511A4A8E8215B5,review related Java symbols in the same source file
+GRP-00746,METHOD,projectlibre_ui,openproj_ui/src/com/projity/menu/HyperLinkToolTip.java,1,0,HIGH,PLD-9B511A4A8E8215B5,review related Java symbols in the same source file
 GRP-00747,METHOD,projectlibre_ui,openproj_ui/src/com/projity/offline_graphics/UILister.java,2,2,LOW,"PLD-86C75931648C1C11,PLD-2C14B4A4AD99D483",review related Java symbols in the same source file
 GRP-00748,METHOD,projectlibre_ui,openproj_ui/src/com/projity/pm/graphic/ChangeAwareTextField.java,1,1,LOW,PLD-BE156B5094907482,review related Java symbols in the same source file
 GRP-00749,METHOD,projectlibre_ui,openproj_ui/src/com/projity/pm/graphic/Statusbar.java,2,2,LOW,"PLD-C3C0715E0287B5FF,PLD-D9145B08EF0A2828",review related Java symbols in the same source file
@@ -1295,7 +1295,7 @@ GRP-01293,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/project
 GRP-01294,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/dialog/calendar/Intervals.java,1,1,LOW,PLD-1A72EFA3A64E1781,review related Java symbols in the same source file
 GRP-01295,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/dialog/calendar/NewBaseCalendarDialog.java,2,2,LOW,"PLD-9BE0904C33C47060,PLD-9EFBCDD6C26AFA09",review related Java symbols in the same source file
 GRP-01296,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/menu/ExtRibbonFactory.java,1,1,HIGH,PLD-3CDA730AEAD054E9,review related Java symbols in the same source file
-GRP-01297,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/menu/HyperLinkToolTip.java,2,2,HIGH,"PLD-6CDAB0DF5B71B5EB,PLD-6EF75ECA0ED743B0",review related Java symbols in the same source file
+GRP-01297,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/menu/HyperLinkToolTip.java,2,0,HIGH,"PLD-6CDAB0DF5B71B5EB,PLD-6EF75ECA0ED743B0",review related Java symbols in the same source file
 GRP-01298,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/pm/graphic/chart/ChartCorner.java,1,1,LOW,PLD-18960414FF447F84,review related Java symbols in the same source file
 GRP-01299,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/pm/graphic/chart/TimeChartPanel.java,2,2,LOW,"PLD-D81CFA1F251B2CA1,PLD-CD7E1D63A987E64A",review related Java symbols in the same source file
 GRP-01300,TYPE,projectlibre_ui,modules/projectlibre_ui/src/main/java/com/projectlibre1/pm/graphic/frames/GraphicManager.java,2,2,LOW,"PLD-3A63ED137A8626AF,PLD-EB626CC5A34F421D",review related Java symbols in the same source file
@@ -1339,7 +1339,7 @@ GRP-01337,TYPE,projectlibre_ui,openproj_ui/src/com/projity/dialog/calendar/NewBa
 GRP-01338,TYPE,projectlibre_ui,openproj_ui/src/com/projity/dialog/options/CalendarDialogBox.java,1,1,LOW,PLD-DD69DF978EBB12CA,review related Java symbols in the same source file
 GRP-01339,TYPE,projectlibre_ui,openproj_ui/src/com/projity/dialog/util/ComponentFactory.java,5,5,LOW,"PLD-19F190CD302340A6,PLD-DB567A37B155DAFB,PLD-69C639780FF30BD5,PLD-300B895864E17A3D,PLD-14385CC3D3679F31",review related Java symbols in the same source file
 GRP-01340,TYPE,projectlibre_ui,openproj_ui/src/com/projity/dialog/util/LookupField.java,1,1,LOW,PLD-C245F3D54EE6F207,review related Java symbols in the same source file
-GRP-01341,TYPE,projectlibre_ui,openproj_ui/src/com/projity/menu/HyperLinkToolTip.java,2,2,HIGH,"PLD-21B114C6A205E5BD,PLD-13FCAA3482955A38",review related Java symbols in the same source file
+GRP-01341,TYPE,projectlibre_ui,openproj_ui/src/com/projity/menu/HyperLinkToolTip.java,2,0,HIGH,"PLD-21B114C6A205E5BD,PLD-13FCAA3482955A38",review related Java symbols in the same source file
 GRP-01342,TYPE,projectlibre_ui,openproj_ui/src/com/projity/offline_graphics/UILister.java,2,2,LOW,"PLD-226F633B7B64810A,PLD-7DA3A1AFBCAB2A3C",review related Java symbols in the same source file
 GRP-01343,TYPE,projectlibre_ui,openproj_ui/src/com/projity/pm/graphic/ChangeAwareTextField.java,1,1,LOW,PLD-56BB10EA5B9C309A,review related Java symbols in the same source file
 GRP-01344,TYPE,projectlibre_ui,openproj_ui/src/com/projity/pm/graphic/Statusbar.java,2,2,LOW,"PLD-92934716E31C8A19,PLD-51198CAF10E13255",review related Java symbols in the same source file
