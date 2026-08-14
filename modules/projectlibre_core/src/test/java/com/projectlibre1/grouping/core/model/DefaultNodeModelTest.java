@@ -373,6 +373,108 @@ class DefaultNodeModelTest {
 		assertSame(copiedSuccessor, copiedDependency.getSuccessor());
 	}
 
+	@Test
+	void moveSelectedTaskPreservesIdentityUniqueIdDependencyAndUndoRedo() throws Exception {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask first = createTask(project, "First");
+		NormalTask second = createTask(project, "Second");
+		NormalTask third = createTask(project, "Third");
+		Dependency dependency = DependencyService.getInstance().newDependency(second, third, DependencyType.FS, 0L, this);
+		DefaultNodeModel model = (DefaultNodeModel)project.getTaskModel();
+		Node firstNode = model.search(first);
+		Node secondNode = model.search(second);
+		Node thirdNode = model.search(third);
+		long secondUniqueId = second.getUniqueId();
+		project.getUndoController().clear();
+
+		assertTrue(model.moveSelectedNodes(Arrays.asList(secondNode), -1, NodeModel.NORMAL));
+
+		Node root = (Node)model.getHierarchy().getRoot();
+		assertSame(secondNode, root.getChildAt(0));
+		assertSame(firstNode, root.getChildAt(1));
+		assertSame(thirdNode, root.getChildAt(2));
+		assertSame(second, secondNode.getImpl());
+		assertEquals(secondUniqueId, second.getUniqueId());
+		assertSame(dependency, findDependency(second, third));
+		assertEquals(1L, second.getId());
+		assertEquals(2L, first.getId());
+
+		project.getUndoController().undo();
+		assertSame(firstNode, root.getChildAt(0));
+		assertSame(secondNode, root.getChildAt(1));
+		assertSame(dependency, findDependency(second, third));
+		project.getUndoController().redo();
+		assertSame(secondNode, root.getChildAt(0));
+		assertEquals(secondUniqueId, second.getUniqueId());
+	}
+
+	@Test
+	void movingSummaryTaskMovesItsWholeBranch() {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask summary = createTask(project, "Summary");
+		NormalTask child = createTask(project, "Child");
+		NormalTask sibling = createTask(project, "Sibling");
+		DefaultNodeModel model = (DefaultNodeModel)project.getTaskModel();
+		Node summaryNode = model.search(summary);
+		Node childNode = model.search(child);
+		Node siblingNode = model.search(sibling);
+		assertTrue(model.relocate(Arrays.asList(childNode), summaryNode, 0, NodeModel.NORMAL));
+
+		assertTrue(model.moveSelectedNodes(Arrays.asList(summaryNode), 1, NodeModel.NORMAL));
+
+		Node root = (Node)model.getHierarchy().getRoot();
+		assertSame(siblingNode, root.getChildAt(0));
+		assertSame(summaryNode, root.getChildAt(1));
+		assertSame(childNode, summaryNode.getChildAt(0));
+		assertSame(summaryNode, childNode.getParent());
+		assertEquals(1, child.getOutlineLevel());
+	}
+
+	@Test
+	void movingContiguousSelectionPreservesItsOrder() {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask first = createTask(project, "First");
+		NormalTask second = createTask(project, "Second");
+		NormalTask third = createTask(project, "Third");
+		NormalTask fourth = createTask(project, "Fourth");
+		DefaultNodeModel model = (DefaultNodeModel)project.getTaskModel();
+		Node firstNode = model.search(first);
+		Node secondNode = model.search(second);
+		Node thirdNode = model.search(third);
+		Node fourthNode = model.search(fourth);
+
+		assertTrue(model.moveSelectedNodes(Arrays.asList(secondNode, thirdNode), 1, NodeModel.NORMAL));
+
+		Node root = (Node)model.getHierarchy().getRoot();
+		assertSame(firstNode, root.getChildAt(0));
+		assertSame(fourthNode, root.getChildAt(1));
+		assertSame(secondNode, root.getChildAt(2));
+		assertSame(thirdNode, root.getChildAt(3));
+		assertFalse(model.moveSelectedNodes(Arrays.asList(firstNode), -1, NodeModel.NORMAL));
+		assertFalse(model.moveSelectedNodes(Arrays.asList(secondNode, thirdNode), 1, NodeModel.NORMAL));
+		assertFalse(model.moveSelectedNodes(Arrays.asList(firstNode, secondNode), -1, NodeModel.NORMAL));
+	}
+
+	@Test
+	void relocateCanMoveTaskToAnotherOutlineParentWithoutChangingUniqueId() {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask firstSummary = createTask(project, "First summary");
+		NormalTask secondSummary = createTask(project, "Second summary");
+		NormalTask child = createTask(project, "Child");
+		DefaultNodeModel model = (DefaultNodeModel)project.getTaskModel();
+		Node firstSummaryNode = model.search(firstSummary);
+		Node secondSummaryNode = model.search(secondSummary);
+		Node childNode = model.search(child);
+		long uniqueId = child.getUniqueId();
+		assertTrue(model.relocate(Arrays.asList(childNode), firstSummaryNode, 0, NodeModel.NORMAL));
+
+		assertTrue(model.relocate(Arrays.asList(childNode), secondSummaryNode, 0, NodeModel.NORMAL));
+
+		assertSame(secondSummaryNode, childNode.getParent());
+		assertEquals(uniqueId, child.getUniqueId());
+		assertEquals(1, child.getOutlineLevel());
+	}
+
 	private static class StubDataFactory implements NodeModelDataFactory {
 		public Object createUnvalidatedObject(NodeModel nodeModel, Object parent) {
 			return new Object();
@@ -466,6 +568,13 @@ class DefaultNodeModelTest {
 		Project project = Project.createProject(resourcePool, undoController);
 		project.initialize(false, false);
 		project.getTaskModel();
+		return project;
+	}
+
+	private Project createProjectWithoutVoidRows() {
+		Project project = createProject();
+		project.getTaskModel().getHierarchy().setNbEndVoidNodes(0);
+		project.getTaskModel().getHierarchy().cleanVoidChildren();
 		return project;
 	}
 

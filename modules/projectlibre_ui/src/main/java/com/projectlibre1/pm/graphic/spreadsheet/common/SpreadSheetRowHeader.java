@@ -55,8 +55,10 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.spreadsheet.common;
 
+import java.awt.Cursor;
+import java.awt.Graphics;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 import javax.swing.AbstractAction;
@@ -65,6 +67,7 @@ import javax.swing.JTable;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.event.MouseInputAdapter;
 import javax.swing.table.DefaultTableColumnModel;
 
 import com.projectlibre1.menu.MenuActionConstants;
@@ -78,6 +81,9 @@ import com.projectlibre1.util.FlatUiSupport;
  */
 public class SpreadSheetRowHeader extends JTable {
 	protected CommonSpreadSheet table;
+	private int dropRow=-1;
+	private boolean dropAfter;
+	private boolean mouseHandlersInstalled;
 	//protected SpreadSheetPopupMenu popup=null;
 	public SpreadSheetRowHeader(CommonSpreadSheet table) {
 		super();
@@ -111,6 +117,7 @@ public class SpreadSheetRowHeader extends JTable {
 			inputMap.put(KeyStroke.getKeyStroke("ctrl C"), "copy");
 			inputMap.put(KeyStroke.getKeyStroke("ctrl V"), "paste");
 			inputMap.put(KeyStroke.getKeyStroke("shift ctrl V"), "insertClipboard");
+			spreadSheet.installTaskMoveBindings(this);
 			
 		}
 		setFont(FlatUiSupport.headerFont());
@@ -147,7 +154,11 @@ public class SpreadSheetRowHeader extends JTable {
 		
 		if (table instanceof SpreadSheet){
 			final SpreadSheet spreadSheet=(SpreadSheet)table;
-			addMouseListener(new MouseAdapter() {
+			if (!mouseHandlersInstalled){
+			mouseHandlersInstalled=true;
+			MouseInputAdapter handler=new MouseInputAdapter() {
+				private Point pressPoint;
+				private boolean dragging;
 			public void mousePressed(MouseEvent e) {
 				SpreadSheetPopupMenu popup=getPopup();
 				if (SwingUtilities.isLeftMouseButton(e)){
@@ -155,7 +166,10 @@ public class SpreadSheetRowHeader extends JTable {
 					if (row < 0) {
 						return;
 					}
-					table.selectRowAndAllColumns(row);
+					boolean keepExisting=isRowSelected(row)&&getSelectedRowCount()>1&&!e.isControlDown()&&!e.isShiftDown();
+					selectRowForMove(row,e.isShiftDown(),e.isControlDown(),keepExisting);
+					pressPoint=e.getPoint();
+					dragging=false;
 					if (e.getClickCount()==2){
 						spreadSheet.doDoubleClick(row,0);
 //						Component comp=SpreadSheetRowHeader.this;
@@ -172,10 +186,66 @@ public class SpreadSheetRowHeader extends JTable {
 					popup.show(SpreadSheetRowHeader.this,e.getX(),e.getY());
 				}
 			}
-		});
+			public void mouseDragged(MouseEvent e) {
+				if (pressPoint==null||(e.getModifiersEx()&MouseEvent.BUTTON1_DOWN_MASK)==0) return;
+				if (!dragging&&pressPoint.distance(e.getPoint())<4.0d) return;
+				dragging=true;
+				updateDropLocation(e);
+			}
+			public void mouseReleased(MouseEvent e) {
+				if (dragging&&dropRow>=0) spreadSheet.moveSelectedTaskRowsTo(dropRow,dropAfter);
+				pressPoint=null;
+				dragging=false;
+				dropRow=-1;
+				setCursor(Cursor.getDefaultCursor());
+				repaint();
+			}
+			private void updateDropLocation(MouseEvent e){
+				int row=rowAtPoint(e.getPoint());
+				if (row<0){
+					if (getRowCount()==0) return;
+					row=e.getY()<0?0:getRowCount()-1;
+					dropAfter=e.getY()>=0;
+				}else{
+					java.awt.Rectangle bounds=getCellRect(row,0,true);
+					dropAfter=e.getY()>=bounds.y+bounds.height/2;
+				}
+				dropRow=row;
+				setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+				repaint();
+			}
+			};
+			addMouseListener(handler);
+			addMouseMotionListener(handler);
+			}
 		}
 
 	}	
+
+	private void selectRowForMove(int row,boolean extend,boolean toggle,boolean keepExisting){
+		if (extend){
+			int anchor=getSelectionModel().getAnchorSelectionIndex();
+			if (anchor<0) anchor=row;
+			getSelectionModel().setSelectionInterval(Math.min(anchor,row),Math.max(anchor,row));
+		}else if (toggle){
+			if (isRowSelected(row)) getSelectionModel().removeSelectionInterval(row,row);
+			else getSelectionModel().addSelectionInterval(row,row);
+		}else if (!keepExisting){
+			getSelectionModel().setSelectionInterval(row,row);
+		}
+		if (table.getColumnCount()>0)
+			table.getColumnModel().getSelectionModel().setSelectionInterval(0,table.getColumnCount()-1);
+	}
+
+	@Override
+	protected void paintComponent(Graphics graphics){
+		super.paintComponent(graphics);
+		if (dropRow<0||dropRow>=getRowCount()) return;
+		java.awt.Rectangle bounds=getCellRect(dropRow,0,true);
+		int y=dropAfter?bounds.y+bounds.height-1:bounds.y;
+		graphics.setColor(getSelectionBackground().darker());
+		graphics.fillRect(0,y,getWidth(),2);
+	}
 	
 	public CommonSpreadSheet getSpreadSheet(){
 		return table;

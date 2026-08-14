@@ -391,7 +391,7 @@ private static int autoId = 0;
 		mpxTask.setNotes(removeInvalidChars(projectlibreTask.getNotes()));
 		int taskId = exportId(projectlibreTask.getId());
 		mpxTask.setID(taskId);
-		mpxTask.setUniqueID(taskId); // note using id for unique id
+		mpxTask.setUniqueID(exportId(projectlibreTask.getUniqueId()));
 		mpxTask.setCreateDate(projectlibreTask.getCreated());
 		mpxTask.setDuration(toMPXDuration(projectlibreTask.getDuration())); // set duration without controls
 		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork()));

@@ -114,9 +114,12 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
    public void add(Node parent,List children,int position,int actionType){
 		hierarchy.add(parent, children, position,actionType);
     }
-   public void paste(Node parent,List children,int position, NodeModel model, int actionType){
-	hierarchy.paste(parent, children, position, model, actionType);
-}
+    public void paste(Node parent,List children,int position, NodeModel model, int actionType){
+		hierarchy.paste(parent, children, position, model, actionType);
+	}
+	public boolean relocate(Node parent,List nodes,int position,int actionType){
+		return hierarchy.relocate(parent,nodes,position,actionType);
+	}
     public void cleanVoidChildren(){
     	hierarchy.cleanVoidChildren();
     }

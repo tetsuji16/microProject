@@ -123,6 +123,8 @@ public interface NodeModelCache extends TreeModel{
 	public void copyNodes(List gnodes);
 	public boolean pasteNodes(Node parent,List nodes,int position);
 	public void addNodes(Node sibling,List nodes);
+	public boolean moveNodes(List nodes,int direction);
+	public boolean relocateNodes(List nodes,Node anchor,boolean after);
 
 	
 	public void createDependency(GraphicNode startNode,GraphicNode endNode) throws InvalidAssociationException;
