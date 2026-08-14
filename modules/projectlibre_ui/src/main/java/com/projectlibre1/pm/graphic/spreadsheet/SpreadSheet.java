@@ -236,7 +236,13 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean canMoveSelectedTaskRowsTo(int targetRow, boolean after) {
-		if (!hasEntireRowSelection() || !(getModel() instanceof SpreadSheetModel model))
+		// Microsoft Project lets you drag a selected task to a new position from any
+		// selected cell, not only when the entire row is selected. Requiring the whole
+		// row here (while the keyboard/ribbon move paths no longer do) was an extra
+		// source of the "refresh sometimes does not work" symptom reported in issue
+		// #45: after a "select column then click a cell" sequence the selection is a
+		// single cell and the drop was silently rejected. See issue #45.
+		if (!(getModel() instanceof SpreadSheetModel model))
 			return false;
 		if (targetRow < 0 || targetRow >= getRowCount() || !hasOnlyTaskRowsSelected())
 			return false;
