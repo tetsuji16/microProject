@@ -387,6 +387,7 @@ class DefaultNodeModelTest {
 		long secondUniqueId = second.getUniqueId();
 		project.getUndoController().clear();
 
+		assertTrue(model.canMoveSelectedNodes(Arrays.asList(secondNode),-1));
 		assertTrue(model.moveSelectedNodes(Arrays.asList(secondNode), -1, NodeModel.NORMAL));
 
 		Node root = (Node)model.getHierarchy().getRoot();
@@ -453,6 +454,9 @@ class DefaultNodeModelTest {
 		assertFalse(model.moveSelectedNodes(Arrays.asList(firstNode), -1, NodeModel.NORMAL));
 		assertFalse(model.moveSelectedNodes(Arrays.asList(secondNode, thirdNode), 1, NodeModel.NORMAL));
 		assertFalse(model.moveSelectedNodes(Arrays.asList(firstNode, secondNode), -1, NodeModel.NORMAL));
+		assertFalse(model.canMoveSelectedNodes(Arrays.asList(firstNode),-1));
+		assertFalse(model.canMoveSelectedNodes(Arrays.asList(secondNode,thirdNode),1));
+		assertFalse(model.canRelocate(Arrays.asList(secondNode,thirdNode),root,2));
 	}
 
 	@Test

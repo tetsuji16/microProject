@@ -170,6 +170,8 @@ public interface MenuActionConstants {
 
 	public static final String ACTION_INDENT                  = "Indent";
 	public static final String ACTION_OUTDENT                 = "Outdent";
+	public static final String ACTION_MOVE_TASK_UP            = "MoveTaskUp";
+	public static final String ACTION_MOVE_TASK_DOWN          = "MoveTaskDown";
 	public static final String ACTION_EXPAND                = "Expand";
 	public static final String ACTION_COLLAPSE                = "Collapse";
 	public static final String ACTION_HIDE_ASSIGNMENTS        = "HideAssignments";

@@ -202,25 +202,49 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean moveSelectedTaskRows(int direction) {
+		return moveSelectedTaskRows(direction, true);
+	}
+
+	public boolean moveSelectedTaskRowsFromCommand(int direction) {
+		return moveSelectedTaskRows(direction, false);
+	}
+
+	public boolean canMoveSelectedTaskRows(int direction, boolean requireEntireRow) {
+		if (requireEntireRow && !hasEntireRowSelection())
+			return false;
+		return hasOnlyTaskRowsSelected() && getCache().canMoveNodes(getSelectedGraphicNodes(), direction);
+	}
+
+	private boolean moveSelectedTaskRows(int direction, boolean requireEntireRow) {
 		finishCurrentOperations();
-		if (!hasEntireRowSelection())
+		if (!canMoveSelectedTaskRows(direction, requireEntireRow))
 			return false;
 		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
 		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, nodes, this, "move task"))
 			return false;
 		boolean moved = getCache().moveNodes(getSelectedGraphicNodes(), direction);
-		if (moved)
+		if (moved) {
+			refreshTaskMoveViews();
 			restoreTaskRowSelection(nodes);
+		}
 		return moved;
+	}
+
+	public boolean canMoveSelectedTaskRowsTo(int targetRow, boolean after) {
+		if (!hasEntireRowSelection() || !(getModel() instanceof SpreadSheetModel model))
+			return false;
+		if (targetRow < 0 || targetRow >= getRowCount() || !hasOnlyTaskRowsSelected())
+			return false;
+		GraphicNode target = model.getNode(targetRow);
+		return target != null && target.getNode() != null
+			&& getCache().canRelocateNodes(getSelectedGraphicNodes(), target.getNode(), after);
 	}
 
 	public boolean moveSelectedTaskRowsTo(int targetRow, boolean after) {
 		finishCurrentOperations();
-		if (!hasEntireRowSelection() || !(getModel() instanceof SpreadSheetModel model))
+		if (!canMoveSelectedTaskRowsTo(targetRow, after) || !(getModel() instanceof SpreadSheetModel model))
 			return false;
 		GraphicNode target = model.getNode(targetRow);
-		if (target == null || target.getNode() == null)
-			return false;
 		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
 		List<Node> locks = new ArrayList<Node>(nodes);
 		if (!locks.contains(target.getNode()))
@@ -228,8 +252,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, locks, this, "drag task"))
 			return false;
 		boolean moved = getCache().relocateNodes(getSelectedGraphicNodes(), target.getNode(), after);
-		if (moved)
+		if (moved) {
+			refreshTaskMoveViews();
 			restoreTaskRowSelection(nodes);
+		}
 		return moved;
 	}
 
@@ -237,12 +263,37 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return getSelectedRowCount() > 0 && getColumnCount() > 0 && getSelectedColumnCount() == getColumnCount();
 	}
 
+	private boolean hasOnlyTaskRowsSelected() {
+		List<Node> nodes = getSelectedNodes();
+		if (nodes.isEmpty())
+			return false;
+		for (Node node : nodes)
+			if (node == null || !(node.getImpl() instanceof com.projectlibre1.pm.task.Task))
+				return false;
+		return true;
+	}
+
+	private void refreshTaskMoveViews() {
+		getCache().getReference().update();
+		if (getModel() instanceof CommonSpreadSheetModel model)
+			model.fireUpdateAll();
+		revalidate();
+		repaint();
+		if (getRowHeader() != null) {
+			getRowHeader().revalidate();
+			getRowHeader().repaint();
+		}
+		if (getParent() != null)
+			getParent().repaint();
+	}
+
 	private void restoreTaskRowSelection(List<Node> nodes) {
 		if (!(getModel() instanceof SpreadSheetModel model) || nodes == null || nodes.isEmpty())
 			return;
-		getCache().update();
 		clearSelection();
+		setRowHeaderSelectionActive(true);
 		boolean first = true;
+		int firstRow = -1;
 		for (Node node : nodes) {
 			GraphicNode graphicNode = (GraphicNode)getCache().getGraphicNode(node);
 			int row = graphicNode == null ? -1 : model.findGraphicNodeRow(graphicNode);
@@ -250,6 +301,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				continue;
 			if (first) {
 				getSelectionModel().setSelectionInterval(row, row);
+				firstRow = row;
 				first = false;
 			} else {
 				getSelectionModel().addSelectionInterval(row, row);
@@ -257,6 +309,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		if (!first && getColumnCount() > 0)
 			getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
+		if (firstRow >= 0)
+			scrollRectToVisible(getCellRect(firstRow, 0, true));
 	}
 
 	private void installFillDownBinding() {
