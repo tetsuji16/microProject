@@ -125,6 +125,35 @@ class NodeListTransferablePasteFailureTest {
 	}
 
 	@Test
+	void clipboardTextIsSnapshotAtCopyTime() throws Exception {
+		final Project project = createProject();
+		final NormalTask task = createTask(project, "Copied");
+		final NodeListTransferable[] transferableRef = new NodeListTransferable[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = new SpreadSheet();
+			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				"clipboard-snapshot-test",
+				null);
+			SpreadSheetUtils.setFieldsAndContext(sheet,
+				cache,
+				SpreadSheetCategories.taskSpreadsheetCategory,
+				"Spreadsheet.Task.entry",
+				true);
+			int row = sheet.getValueAt(0, 1) != null ? 0 : 1;
+			sheet.setRowSelectionInterval(row, row);
+			sheet.setColumnSelectionInterval(1, 1);
+			transferableRef[0] = new NodeListTransferable(new ArrayList<>(sheet.getSelectedNodes()),
+				sheet.getSelectedFields(), sheet, sheet.getSelectedRows(), sheet.getSelectedColumns(), false);
+			task.setName("Changed after copy");
+		});
+
+		assertEquals("Copied\n", transferableRef[0].getTransferData(DataFlavor.stringFlavor));
+	}
+
+	@Test
 	void invalidMultiCellValueImportDoesNotReportSuccess() throws Exception {
 		final Project project = createProject();
 		final NormalTask task = createTask(project, "Original");

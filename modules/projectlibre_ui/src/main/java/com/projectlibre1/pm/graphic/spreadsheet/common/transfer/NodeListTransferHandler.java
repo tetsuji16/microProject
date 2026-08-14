@@ -153,12 +153,14 @@ public class NodeListTransferHandler extends TransferHandler {
 	    	ArrayList<Field> fields = copyFields(spreadSheet.getSelectedFields());
 	    	boolean nodeSelection=(fields==null);
 		    if (fields==null) fields=copyFields(spreadSheet.getSelectableFields());
+		    NodeListTransferable transferable = new NodeListTransferable(nodes,fields,spreadSheet,
+				spreadSheet.getSelectedRows(),spreadSheet.getSelectedColumns(),nodeSelection);
 		    if (action==TransferHandler.COPY){
 		    	if (nodeSelection){
 		    		SpreadSheet.SpreadSheetAction a=getNodeListCopyAction().getSpreadSheetAction();
 			    	a.execute(nodes);
 		    	}
-		    	return new NodeListTransferable(nodes,fields,spreadSheet,spreadSheet.getSelectedRows(),spreadSheet.getSelectedColumns(),nodeSelection);
+				return transferable;
 		    }else if (action==TransferHandler.MOVE){//cut
 		    	if (nodeSelection){
 		    		SpreadSheet.SpreadSheetAction a=((nodeSelection)?getNodeListCutAction():getNodeListCopyAction()).getSpreadSheetAction();
@@ -181,7 +183,7 @@ public class NodeListTransferHandler extends TransferHandler {
 		    		
 		    		a.execute(nodes);
 		    	}
-		    	return new NodeListTransferable(nodes,fields,spreadSheet,spreadSheet.getSelectedRows(),spreadSheet.getSelectedColumns(),nodeSelection);
+				return transferable;
 		    } else return null;
 	    }
 	    protected void exportDone(JComponent source, Transferable data, int action) {
@@ -270,11 +272,12 @@ public class NodeListTransferHandler extends TransferHandler {
 //    		for (int i=0;i<flavors.length;i++){
 //    			System.out.println("flavor #"+i+": "+flavors[i]);
 //    		}
-	        NodeListTransferable t=new NodeListTransferable(null,null,null,null,null,true);
-    		for (int i=0;i<flavors.length;i++){
-    			if (t.isDataFlavorSupported(flavors[i]))
-    				return flavors[i];
-    		}
+			for (int i=0;i<flavors.length;i++){
+				if (NodeListTransferable.NODE_LIST_MIME_TYPE.equals(flavors[i].getMimeType())
+						|| DataFlavor.stringFlavor.equals(flavors[i])
+						|| DataFlavor.getTextPlainUnicodeFlavor().equals(flavors[i]))
+					return flavors[i];
+			}
 	        return null;
 	    }
 

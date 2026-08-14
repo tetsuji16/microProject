@@ -1231,7 +1231,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	protected boolean beforeActionRoute(String actionId) {
-		return true;
+		return false;
 	}
 
 	protected boolean beforeExternalRoute(String routeId) {

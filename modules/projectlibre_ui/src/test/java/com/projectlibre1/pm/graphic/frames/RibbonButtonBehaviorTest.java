@@ -309,6 +309,18 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void pasteRunsLocallyWhenTheActionRouteDoesNotInterceptIt() throws Exception {
+		Harness harness = newHarness();
+		harness.selectSingle(harness.taskNode);
+		harness.manager.setInterceptPaste(false);
+		harness.frame.resetStructuralCalls();
+
+		harness.invoke("RibbonPaste");
+
+		assertEquals(1, harness.frame.structuralCallCount("RibbonPaste"));
+	}
+
+	@Test
 	void taskOnlyStructuralButtonsIgnoreResourceAndMixedSelections() throws Exception {
 		Harness harness = newHarness();
 
@@ -610,6 +622,7 @@ class RibbonButtonBehaviorTest {
 	private static final class RecordingGraphicManager extends GraphicManager {
 		private final List<Call> calls;
 		private final FrameManager frameManager = new StubFrameManager();
+		private boolean interceptPaste = true;
 
 		RecordingGraphicManager(JPanel panel, List<Call> calls) {
 			super(panel);
@@ -623,11 +636,15 @@ class RibbonButtonBehaviorTest {
 
 		@Override
 		protected boolean beforeActionRoute(String actionId) {
-			if ("paste".equals(actionId)) {
+			if (interceptPaste && "paste".equals(actionId)) {
 				calls.add(new Call("action", List.of(actionId)));
 				return true;
 			}
-			return false;
+			return super.beforeActionRoute(actionId);
+		}
+
+		void setInterceptPaste(boolean interceptPaste) {
+			this.interceptPaste = interceptPaste;
 		}
 
 		@Override
@@ -868,6 +885,16 @@ class RibbonButtonBehaviorTest {
 		@Override
 		public void doUnlinkTasks() {
 			recordStructuralCall("RibbonUnlink");
+		}
+
+		@Override
+		protected boolean canPasteIntoCurrentSelection() {
+			return true;
+		}
+
+		@Override
+		public void doPaste() {
+			recordStructuralCall("RibbonPaste");
 		}
 
 		@Override
