@@ -156,6 +156,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	private PendingUndoSelection pendingUndoSelection;
 	private boolean inputMethodEditingSessionActive;
 	private boolean headerColumnSelectionActive;
+	private boolean rowHeaderSelectionActive;
 
 	public CommonSpreadSheet() {
 		super();
@@ -639,7 +640,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	private boolean hasRowHeaderSelection() {
-		return getRowHeader().getSelectedColumns().length > 0;
+		return rowHeaderSelectionActive;
 	}
 
 	private void selectRows(SpreadSheetSelectionModel selection, int startRow, int endRow) {
@@ -1193,21 +1194,24 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			boolean extend) {
 		changeSelection(rowIndex,columnIndex,toggle,extend,true);
 	}
-    public void changeSelection(int rowIndex, int columnIndex, boolean toggle,
+	public void changeSelection(int rowIndex, int columnIndex, boolean toggle,
 			boolean extend,boolean forwards) {
 		headerColumnSelectionActive = false;
-    	super.changeSelection(rowIndex,columnIndex,toggle,extend);
+		rowHeaderSelectionActive = false;
+		super.changeSelection(rowIndex,columnIndex,toggle,extend);
 	}
 
 
 
- 	public void clearSelection() {
+	public void clearSelection() {
 		headerColumnSelectionActive = false;
- 		super.clearSelection();
- 	}
+		rowHeaderSelectionActive = false;
+		super.clearSelection();
+	}
 
 	public void selectRowAndAllColumns(int row) {
 		headerColumnSelectionActive = false;
+		rowHeaderSelectionActive = false;
 		if (row < 0 || row >= getRowCount())
 			return;
 		if (!hasSelectionModel())
@@ -1215,10 +1219,12 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		SpreadSheetSelectionModel selection = getSelection();
 		selectRows(selection, row, row);
 		selectColumns(selection, 0, getColumnCount() - 1);
+		rowHeaderSelectionActive = true;
 	}
 
 	public void selectColumnAndAllRows(int column) {
 		headerColumnSelectionActive = false;
+		rowHeaderSelectionActive = false;
 		if (column < 0 || column >= getColumnCount())
 			return;
 		if (!hasSelectionModel())
@@ -1231,6 +1237,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	public void selectEntireSpreadsheet() {
 		headerColumnSelectionActive = false;
+		rowHeaderSelectionActive = true;
 		if (!hasSelectionModel())
 			return;
 		SpreadSheetSelectionModel selection = getSelection();
@@ -1258,6 +1265,13 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	public boolean isHeaderColumnSelectionActive() {
 		return headerColumnSelectionActive;
+	}
+
+	public void setRowHeaderSelectionActive(boolean active) {
+		rowHeaderSelectionActive = active;
+		if (active) {
+			headerColumnSelectionActive = false;
+		}
 	}
 
 	protected void clearHeaderColumnSelectionState() {

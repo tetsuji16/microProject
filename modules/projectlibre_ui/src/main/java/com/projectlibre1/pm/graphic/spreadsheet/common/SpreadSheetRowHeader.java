@@ -94,21 +94,25 @@ public class SpreadSheetRowHeader extends JTable {
 			
 			getActionMap().put("cut",new AbstractAction(){
 				public void actionPerformed(java.awt.event.ActionEvent e) {
+					spreadSheet.setRowHeaderSelectionActive(true);
 					spreadSheet.prepareAction(MenuActionConstants.ACTION_CUT).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
 				}
 			});
 			getActionMap().put("copy",new AbstractAction(){
 				public void actionPerformed(java.awt.event.ActionEvent e) {
+					spreadSheet.setRowHeaderSelectionActive(true);
 					spreadSheet.prepareAction(MenuActionConstants.ACTION_COPY).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
 				}
 			});
 			getActionMap().put("paste",new AbstractAction(){
 				public void actionPerformed(java.awt.event.ActionEvent e) {
+					spreadSheet.setRowHeaderSelectionActive(true);
 					spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
 				}
 			});
 			getActionMap().put("insertClipboard",new AbstractAction(){
 				public void actionPerformed(java.awt.event.ActionEvent e) {
+					spreadSheet.setRowHeaderSelectionActive(true);
 					spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
 				}
 			});
@@ -223,6 +227,7 @@ public class SpreadSheetRowHeader extends JTable {
 	}	
 
 	private void selectRowForMove(int row,boolean extend,boolean toggle,boolean keepExisting){
+		table.setRowHeaderSelectionActive(true);
 		if (extend){
 			int anchor=getSelectionModel().getAnchorSelectionIndex();
 			if (anchor<0) anchor=row;

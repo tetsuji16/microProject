@@ -71,6 +71,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringWriter;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -326,6 +328,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		var text = getClipboardText(transferable);
 		if (text.isPresent()) {
+			if (!prepareCellPaste()) {
+				return;
+			}
 			if (!NodeListTransferable.pasteString(text.get(), this)) {
 				Alert.error(Messages.getString("Message.invalidInput"));
 			}
@@ -366,7 +371,28 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	private void pasteInsertedClipboardContents(Transferable transferable) {
-		pasteClipboardContents(transferable);
+		if (transferable == null) {
+			return;
+		}
+		if (hasNodeListFlavor(transferable)) {
+			pasteClipboardContents(transferable);
+			return;
+		}
+		var text = getClipboardText(transferable);
+		if (text.isEmpty()) {
+			Alert.error(Messages.getString("Message.invalidInput"));
+			return;
+		}
+		NodeModel model = ((CommonSpreadSheetModel)getModel()).getCache().getModel();
+		List<Field> fields = getSelectedFields();
+		if (fields == null || fields.isEmpty()) {
+			fields = getSelectableFields();
+		}
+		List<Node> nodes = NodeListTransferable.stringToNodeList(text.get(), this,
+			fields, model.getDataFactory());
+		if (nodes.isEmpty() || !pasteNodesFromClipboard(nodes)) {
+			Alert.error(Messages.getString("Message.invalidInput"));
+		}
 	}
 
 	private Optional<Transferable> getClipboardContents() {
@@ -384,7 +410,13 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				return Optional.of((String) transferable.getTransferData(DataFlavor.stringFlavor));
 			}
 			if (transferable.isDataFlavorSupported(DataFlavor.getTextPlainUnicodeFlavor())) {
-				return Optional.of(transferable.getTransferData(DataFlavor.getTextPlainUnicodeFlavor()).toString());
+				Object data = transferable.getTransferData(DataFlavor.getTextPlainUnicodeFlavor());
+				if (data instanceof Reader reader) {
+					StringWriter writer = new StringWriter();
+					reader.transferTo(writer);
+					return Optional.of(writer.toString());
+				}
+				return Optional.of(data.toString());
 			}
 		} catch (UnsupportedFlavorException ignored) {
 			return Optional.empty();
@@ -396,11 +428,80 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	private boolean hasNodeListFlavor(Transferable transferable) {
 		for (DataFlavor flavor : transferable.getTransferDataFlavors()) {
-			if (NodeListTransferable.NODE_LIST_MIME_TYPE.equals(flavor.getMimeType())) {
+			if (NodeListTransferable.isNodeListFlavor(flavor)) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	public boolean pasteNodesFromClipboard(List<Node> pastedNodes) {
+		if (pastedNodes == null || pastedNodes.isEmpty() || isClipboardTargetReadOnly()) {
+			return false;
+		}
+		finishCurrentOperations();
+		List<Node> selectedNodes = getSelectedNodes();
+		if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "paste")) {
+			return false;
+		}
+		Node parent = null;
+		int position = 0;
+		if (!selectedNodes.isEmpty()) {
+			Node node = selectedNodes.get(0);
+			parent = (Node)node.getParent();
+			if (parent != null) {
+				position = ((NodeBridge)parent).getIndex(node);
+			}
+		}
+		clearSelection();
+		return getCache().pasteNodes(parent, pastedNodes, position);
+	}
+
+	public boolean prepareCellPaste() {
+		if (isClipboardTargetReadOnly()) {
+			return false;
+		}
+		finishCurrentOperations();
+		return CollaborationHelper.tryLockNodes(null, getSelectedNodes(), this, "paste");
+	}
+
+	public boolean cutSelectedCellValues(int[] rows, int[] columns) {
+		if (rows == null || columns == null || rows.length == 0 || columns.length == 0 || isClipboardTargetReadOnly()) {
+			return false;
+		}
+		List<Node> selectedNodes = getSelectedNodes();
+		if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "cut")) {
+			return false;
+		}
+		boolean cleared = false;
+		for (int row : rows) {
+			for (int column : columns) {
+				if (isCellEditable(row, column)) {
+					setValueAt("", row, column);
+					cleared = true;
+				}
+			}
+		}
+		return cleared;
+	}
+
+	public boolean commitTaskCut(List<Node> selectedNodes) {
+		if (selectedNodes == null || selectedNodes.isEmpty() || isClipboardTargetReadOnly()) {
+			return false;
+		}
+		finishCurrentOperations();
+		List<Node> nodes = getSelectedCuttableRows(new ArrayList<>(selectedNodes));
+		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, nodes, this, "cut")) {
+			return false;
+		}
+		getCache().deleteNodes(nodes);
+		return true;
+	}
+
+	private boolean isClipboardTargetReadOnly() {
+		if (isReadOnly()) return true;
+		NodeModel model=((CommonSpreadSheetModel)getModel()).getCache().getModel();
+		return model.getDataFactory() instanceof Project project && project.isReadOnly();
 	}
 
 	public void cleanUp() {

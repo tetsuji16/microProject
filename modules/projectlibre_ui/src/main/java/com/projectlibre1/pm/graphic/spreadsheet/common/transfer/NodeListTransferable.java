@@ -109,9 +109,11 @@ public class NodeListTransferable implements Transferable {
 	protected int[] rows,cols;
 	protected boolean nodeSelection;
 	private final String stringData;
+	private final NodeModel nodeModel;
 
 	public NodeListTransferable(ArrayList<Node> nodeList, ArrayList<Field> fields,SpreadSheet spreadSheet,int[] rows,int[] cols, boolean nodeSelection) {
 		this.nodeSelection=nodeSelection;
+		nodeModel=((CommonSpreadSheetModel)spreadSheet.getModel()).getCache().getModel();
 		try {
 			nodeListDataFlavor=new DataFlavor(NODE_LIST_MIME_TYPE);
 		} catch (ClassNotFoundException e) {
@@ -122,7 +124,7 @@ public class NodeListTransferable implements Transferable {
 						nodeListDataFlavor,
 						DataFlavor.stringFlavor,
 						DataFlavor.getTextPlainUnicodeFlavor()};
-			this.nodeList=nodeList;
+			this.nodeList=new ArrayList<>((List<Node>)nodeModel.copy(nodeList,NodeModel.SILENT));
 			this.fields=fields;
 		}else{
 			flavors=new DataFlavor[]{
@@ -159,11 +161,10 @@ public class NodeListTransferable implements Transferable {
 			throws UnsupportedFlavorException, IOException {
 		if (!flavorSet.contains(flavor)) throw new UnsupportedFlavorException(flavor);
 		if (nodeListDataFlavor.equals(flavor)){
-			NodeModel model=((CommonSpreadSheetModel)spreadsheet.getModel()).getCache().getModel();
 //			ArrayList nl =nodeList;
 //			nodeList=new Vector(nl.size());
 //			nodeList.addAll(model.copy(nl,NodeModel.SILENT));
-			return model.copy(nodeList,NodeModel.SILENT);
+			return nodeModel.copy(nodeList,NodeModel.SILENT);
 		}else if (DataFlavor.stringFlavor.equals(flavor))
 		    return stringData;
 		else if (DataFlavor.getTextPlainUnicodeFlavor().equals(flavor))
@@ -279,6 +280,10 @@ public class NodeListTransferable implements Transferable {
 		if (rows.length>0&&cols.length>0)
 			return pasteString(s,spreadsheet,rows[0],cols[0]);
 		return false;
+	}
+
+	public static boolean isNodeListFlavor(DataFlavor flavor) {
+		return flavor != null && flavor.isMimeTypeEqual(NODE_LIST_MIME_TYPE);
 	}
 
 	static final int PASTE_NOT_APPLICABLE = 0;

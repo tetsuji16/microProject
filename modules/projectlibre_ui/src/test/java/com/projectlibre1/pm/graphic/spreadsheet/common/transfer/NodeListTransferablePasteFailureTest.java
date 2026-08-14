@@ -3,6 +3,8 @@ package com.projectlibre1.pm.graphic.spreadsheet.common.transfer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationTargetException;
@@ -11,13 +13,19 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.io.StringReader;
 import javax.swing.SwingUtilities;
+import javax.swing.TransferHandler;
 
 import org.junit.jupiter.api.Test;
 import org.apache.commons.collections.Predicate;
 
 import com.projectlibre1.graphic.configuration.SpreadSheetCategories;
+import com.projectlibre1.collaboration.CollaborationSession;
 import com.projectlibre1.menu.MenuActionConstants;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -32,9 +40,291 @@ import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.pm.task.NormalTask;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.SubProj;
+import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.undo.DataFactoryUndoController;
 
 class NodeListTransferablePasteFailureTest {
+	@Test
+	void nodeListFlavorUsesMimeSemantics() throws Exception {
+		Project project = createProject();
+		createTask(project, "Source");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] handlerRef = new NodeListTransferHandler[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = createSheet(project, "flavor-test");
+			sheet.selectRowAndAllColumns(0);
+			handlerRef[0] = new NodeListTransferHandler(sheet);
+			sheetRef[0] = sheet;
+		});
+
+		Clipboard clipboard = new Clipboard("flavor-test");
+		SwingUtilities.invokeAndWait(() -> handlerRef[0].exportToClipboard(sheetRef[0], clipboard, TransferHandler.COPY));
+		Transferable transferable = clipboard.getContents(null);
+
+		assertTrue(handlerRef[0].canImport(sheetRef[0], transferable.getTransferDataFlavors()));
+		assertTrue(Arrays.stream(transferable.getTransferDataFlavors()).anyMatch(NodeListTransferable::isNodeListFlavor));
+	}
+
+	@Test
+	void copiedTaskRowsPasteAboveSelectionAndCanBePastedRepeatedly() throws Exception {
+		Project sourceProject = createProject();
+		createTask(sourceProject, "Copied");
+		Project targetProject = createProject();
+		NormalTask targetTask = createTask(targetProject, "Target");
+		int targetTaskCount = targetProject.getTasks().size();
+		SpreadSheet[] sourceSheetRef = new SpreadSheet[1];
+		SpreadSheet[] targetSheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] sourceHandlerRef = new NodeListTransferHandler[1];
+		NodeListTransferHandler[] targetHandlerRef = new NodeListTransferHandler[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sourceSheetRef[0] = createSheet(sourceProject, "copy-source");
+			sourceSheetRef[0].selectRowAndAllColumns(0);
+			sourceHandlerRef[0] = new NodeListTransferHandler(sourceSheetRef[0]);
+			targetSheetRef[0] = createSheet(targetProject, "copy-target");
+			targetSheetRef[0].selectRowAndAllColumns(0);
+			targetHandlerRef[0] = new NodeListTransferHandler(targetSheetRef[0]);
+		});
+
+		Clipboard clipboard = new Clipboard("copy-paste-test");
+		SwingUtilities.invokeAndWait(() -> sourceHandlerRef[0].exportToClipboard(
+			sourceSheetRef[0], clipboard, TransferHandler.COPY));
+		Transferable transferable = clipboard.getContents(null);
+		boolean[] pasted = new boolean[2];
+		SwingUtilities.invokeAndWait(() -> {
+			pasted[0] = targetHandlerRef[0].importData(targetSheetRef[0], transferable);
+			targetSheetRef[0].selectRowAndAllColumns(1);
+			pasted[1] = targetHandlerRef[0].importData(targetSheetRef[0], transferable);
+		});
+
+		assertTrue(pasted[0]);
+		assertTrue(pasted[1]);
+		Node firstCopy = findNodeByName(targetProject, "Copied");
+		assertNotNull(targetProject.getTaskModel().search(firstCopy.getImpl()));
+		assertNotNull(targetProject.getTaskModel().search(targetTask));
+		assertEquals(targetTaskCount + 2, targetProject.getTasks().size());
+		assertEquals(Arrays.asList("Copied", "Copied", "Target"), rootTaskNames(targetProject));
+	}
+
+	@Test
+	void pastedTaskRowsRemainIndexedAcrossUndoAndRedo() {
+		Project sourceProject = createProject();
+		NormalTask sourceTask = createTask(sourceProject, "Copied");
+		Project targetProject = createProject();
+		createTask(targetProject, "Target");
+		ArrayList<Node> sourceNodes = new ArrayList<>();
+		sourceNodes.add(sourceProject.getTaskModel().search(sourceTask));
+		List<Node> copiedNodes = sourceProject.getTaskModel().copy(sourceNodes, NodeModel.SILENT);
+		Node pastedNode = copiedNodes.get(0);
+		Node root = (Node)targetProject.getTaskModel().getHierarchy().getRoot();
+		targetProject.getUndoController().clear();
+
+		targetProject.getTaskModel().paste(root, copiedNodes, 0, NodeModel.NORMAL);
+		assertNotNull(targetProject.getTaskModel().search(pastedNode.getImpl()));
+
+		targetProject.getUndoController().undo();
+		assertNull(targetProject.getTaskModel().search(pastedNode.getImpl()));
+		targetProject.getUndoController().redo();
+		assertNotNull(targetProject.getTaskModel().search(pastedNode.getImpl()));
+	}
+
+	@Test
+	void clipboardFailureDoesNotRemoveCutTask() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project, "Keep me");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] handlerRef = new NodeListTransferHandler[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "failed-cut");
+			sheetRef[0].selectRowAndAllColumns(0);
+			handlerRef[0] = new NodeListTransferHandler(sheetRef[0]);
+		});
+		Clipboard busyClipboard = new Clipboard("busy") {
+			@Override
+			public synchronized void setContents(Transferable contents, java.awt.datatransfer.ClipboardOwner owner) {
+				throw new IllegalStateException("busy");
+			}
+		};
+
+		SwingUtilities.invokeAndWait(() -> handlerRef[0].exportToClipboard(
+			sheetRef[0], busyClipboard, TransferHandler.MOVE));
+
+		assertNotNull(project.getTaskModel().search(task));
+		assertEquals("Keep me", task.getName());
+	}
+
+	@Test
+	void acceptedTaskCutCanBePastedWithANewUniqueId() throws Exception {
+		Project project = createProject();
+		NormalTask sourceTask = createTask(project, "Moved");
+		long sourceUniqueId = sourceTask.getUniqueId();
+		createTask(project, "Target");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] handlerRef = new NodeListTransferHandler[1];
+		Clipboard clipboard = new Clipboard("task-cut");
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "cut-paste");
+			sheetRef[0].selectRowAndAllColumns(0);
+			handlerRef[0] = new NodeListTransferHandler(sheetRef[0]);
+			handlerRef[0].exportToClipboard(sheetRef[0], clipboard, TransferHandler.MOVE);
+		});
+
+		assertNull(project.getTaskModel().search(sourceTask));
+		boolean[] pasted = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0].selectRowAndAllColumns(0);
+			pasted[0] = handlerRef[0].importData(sheetRef[0], clipboard.getContents(null));
+		});
+
+		assertTrue(pasted[0]);
+		Node movedNode = findNodeByName(project, "Moved");
+		assertTrue(((NormalTask)movedNode.getImpl()).getUniqueId() != sourceUniqueId);
+		assertEquals(Arrays.asList("Moved", "Target"), rootTaskNames(project));
+	}
+
+	@Test
+	void cellCutClearsSourceOnlyAfterClipboardAcceptsSnapshot() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project, "Original");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] handlerRef = new NodeListTransferHandler[1];
+		Clipboard clipboard = new Clipboard("cell-cut");
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "cell-cut");
+			sheetRef[0].changeSelection(0, 1, false, false);
+			handlerRef[0] = new NodeListTransferHandler(sheetRef[0]);
+			handlerRef[0].exportToClipboard(sheetRef[0], clipboard, TransferHandler.MOVE);
+		});
+
+		assertEquals("Original\n", clipboard.getContents(null).getTransferData(DataFlavor.stringFlavor));
+		assertTrue(task.getName() == null || task.getName().isEmpty());
+	}
+
+	@Test
+	void clickingCellAfterRowHeaderSwitchesBackToCellCopy() throws Exception {
+		Project project = createProject();
+		createTask(project, "Task");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "selection-mode");
+			sheetRef[0].selectRowAndAllColumns(0);
+			assertNull(sheetRef[0].getSelectedFields());
+			sheetRef[0].changeSelection(0, 1, false, false);
+		});
+
+		assertNotNull(sheetRef[0].getSelectedFields());
+		assertEquals(1, sheetRef[0].getSelectedFields().size());
+	}
+
+	@Test
+	void pasteAsValuesReadsPlainUnicodeReader() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project, "Original");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		Method pasteAsValuesMethod = SpreadSheet.class.getDeclaredMethod(
+			"pasteClipboardAsValues", Transferable.class);
+		pasteAsValuesMethod.setAccessible(true);
+		Transferable unicodeOnly = unicodeTransferable("Unicode value");
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "unicode-paste");
+			sheetRef[0].changeSelection(0, 1, false, false);
+			try {
+				pasteAsValuesMethod.invoke(sheetRef[0], unicodeOnly);
+			} catch (IllegalAccessException | InvocationTargetException e) {
+				throw new RuntimeException(e);
+			}
+		});
+
+		assertEquals("Unicode value", task.getName());
+	}
+
+	@Test
+	void normalPasteReadsPlainUnicodeReader() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project, "Original");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] handlerRef = new NodeListTransferHandler[1];
+		boolean[] pasted = new boolean[1];
+		Transferable unicodeOnly = unicodeTransferable("Unicode value");
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "unicode-normal-paste");
+			sheetRef[0].changeSelection(0, 1, false, false);
+			handlerRef[0] = new NodeListTransferHandler(sheetRef[0]);
+			pasted[0] = handlerRef[0].importData(sheetRef[0], unicodeOnly);
+		});
+
+		assertTrue(pasted[0]);
+		assertEquals("Unicode value", task.getName());
+	}
+
+	@Test
+	void readonlyProjectRejectsCellPaste() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project, "Original");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] handlerRef = new NodeListTransferHandler[1];
+		boolean[] pasted = new boolean[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "readonly-paste");
+			sheetRef[0].changeSelection(0, 1, false, false);
+			handlerRef[0] = new NodeListTransferHandler(sheetRef[0]);
+			project.setReadOnly(true);
+			pasted[0] = handlerRef[0].importData(sheetRef[0], new StringSelection("Changed"));
+		});
+
+		assertFalse(pasted[0]);
+		assertEquals("Original", task.getName());
+	}
+
+	@Test
+	void collaborationLockRejectionPreventsCellPaste() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project, "Original");
+		project.setCollaborationSession(new RejectingCollaborationSession(project));
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] handlerRef = new NodeListTransferHandler[1];
+		boolean[] pasted = new boolean[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "locked-paste");
+			sheetRef[0].changeSelection(0, 1, false, false);
+			handlerRef[0] = new NodeListTransferHandler(sheetRef[0]);
+			pasted[0] = handlerRef[0].importData(sheetRef[0], new StringSelection("Changed"));
+		});
+
+		assertFalse(pasted[0]);
+		assertEquals("Original", task.getName());
+	}
+
+	@Test
+	void pasteInsertCreatesTextTasksAboveSelectedRow() throws Exception {
+		Project project = createProject();
+		createTask(project, "Target");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		Method pasteInsertedMethod = SpreadSheet.class.getDeclaredMethod(
+			"pasteInsertedClipboardContents", Transferable.class);
+		pasteInsertedMethod.setAccessible(true);
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "paste-insert");
+			sheetRef[0].changeSelection(0, 1, false, false);
+			try {
+				pasteInsertedMethod.invoke(sheetRef[0], new StringSelection("Inserted"));
+			} catch (IllegalAccessException | InvocationTargetException e) {
+				throw new RuntimeException(e);
+			}
+		});
+
+		assertEquals(Arrays.asList("Inserted", "Target"), rootTaskNames(project));
+	}
 	@Test
 	void invalidMultiCellValuePasteDoesNotFallBackToLinePaste() throws Exception {
 		final Project project = createProject();
@@ -342,6 +632,21 @@ class NodeListTransferablePasteFailureTest {
 		return NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
 	}
 
+	private SpreadSheet createSheet(Project project, String viewName) {
+		SpreadSheet sheet = new SpreadSheet();
+		sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+			viewName,
+			null);
+		SpreadSheetUtils.setFieldsAndContext(sheet,
+			cache,
+			SpreadSheetCategories.taskSpreadsheetCategory,
+			"Spreadsheet.Task.entry",
+			true);
+		return sheet;
+	}
+
 	private SubprojectTask createSubprojectTask(Project project, String name) {
 		SubprojectTask task = new SubprojectTask(project);
 		task.setName(name);
@@ -360,6 +665,28 @@ class NodeListTransferablePasteFailureTest {
 			}
 		}
 		throw new AssertionError("Could not find pasted node named " + name);
+	}
+
+	private List<String> rootTaskNames(Project project) {
+		List<String> names = new ArrayList<>();
+		Node root = (Node)project.getTaskModel().getHierarchy().getRoot();
+		for (Object child : project.getTaskModel().getHierarchy().getChildren(root)) {
+			Object impl = ((Node)child).getImpl();
+			if (impl instanceof NormalTask task) names.add(task.getName());
+		}
+		return names;
+	}
+
+	private Transferable unicodeTransferable(String text) {
+		return new Transferable() {
+			private final DataFlavor flavor = DataFlavor.getTextPlainUnicodeFlavor();
+			public DataFlavor[] getTransferDataFlavors() { return new DataFlavor[] { flavor }; }
+			public boolean isDataFlavorSupported(DataFlavor candidate) { return flavor.equals(candidate); }
+			public Object getTransferData(DataFlavor candidate) throws UnsupportedFlavorException {
+				if (!isDataFlavorSupported(candidate)) throw new UnsupportedFlavorException(candidate);
+				return new StringReader(text);
+			}
+		};
 	}
 
 	private static final class SubprojectTask extends NormalTask implements SubProj {
@@ -407,6 +734,18 @@ class NodeListTransferablePasteFailureTest {
 		}
 
 		public void setSchedulesFromSubprojectFieldValues() {
+		}
+	}
+
+	private static final class RejectingCollaborationSession extends CollaborationSession {
+		private RejectingCollaborationSession(Project project) {
+			super(project, new java.io.File(System.getProperty("java.io.tmpdir"),
+				"projectlibre-lock-test.pod").getAbsolutePath(), "test-user");
+		}
+
+		@Override
+		public boolean tryLockTasks(Iterable<Task> tasks, java.awt.Component parent, String actionLabel) {
+			return false;
 		}
 	}
 }

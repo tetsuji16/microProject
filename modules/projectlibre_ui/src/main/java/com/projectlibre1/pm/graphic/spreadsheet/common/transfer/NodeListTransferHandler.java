@@ -60,7 +60,8 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.IOException;
-import java.text.MessageFormat;
+import java.io.Reader;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -84,7 +85,6 @@ import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheet;
 import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.projectlibre1.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.projectlibre1.grouping.core.Node;
-import com.projectlibre1.grouping.core.NodeBridge;
 import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.grouping.core.model.NodeModelDataFactory;
 import com.projectlibre1.pm.task.NormalTask;
@@ -104,6 +104,10 @@ public class NodeListTransferHandler extends TransferHandler {
 	    	this.spreadSheet=spreadSheet;
 	    }
 	    transient protected SpreadSheet spreadSheet;
+	    private transient List<Node> pendingCutNodes;
+	    private transient int[] pendingCutRows;
+	    private transient int[] pendingCutColumns;
+	    private transient boolean pendingCellCut;
 	    
 	    public SpreadSheet getSpreadSheet() {
 			return spreadSheet;
@@ -118,8 +122,12 @@ public class NodeListTransferHandler extends TransferHandler {
 	        if (action != NONE) {
 	            t = createTransferable(c,action);
 	            if (t != null) {
-	                clip.setContents(t, null);
-	                exportSuccess = true;
+				try {
+					clip.setContents(t, null);
+					exportSuccess = true;
+				} catch (IllegalStateException e) {
+					logger.log(Level.FINE, "Clipboard is currently unavailable", e);
+				}
 	            }
 	        }
 
@@ -145,49 +153,61 @@ public class NodeListTransferHandler extends TransferHandler {
 			return true;
 		}
 		
-	    protected Transferable createTransferable(JComponent c, int action) {
-	    	SpreadSheet spreadSheet=getSpreadSheet(c);
-	    	if (spreadSheet==null) return null;
-	    	ArrayList<Node> nodes = new ArrayList<>(spreadSheet.getSelectedNodes());
-	    	
-	    	ArrayList<Field> fields = copyFields(spreadSheet.getSelectedFields());
-	    	boolean nodeSelection=(fields==null);
-		    if (fields==null) fields=copyFields(spreadSheet.getSelectableFields());
-		    NodeListTransferable transferable = new NodeListTransferable(nodes,fields,spreadSheet,
-				spreadSheet.getSelectedRows(),spreadSheet.getSelectedColumns(),nodeSelection);
-		    if (action==TransferHandler.COPY){
-		    	if (nodeSelection){
-		    		SpreadSheet.SpreadSheetAction a=getNodeListCopyAction().getSpreadSheetAction();
-			    	a.execute(nodes);
-		    	}
-				return transferable;
-		    }else if (action==TransferHandler.MOVE){//cut
-		    	if (nodeSelection){
-		    		SpreadSheet.SpreadSheetAction a=((nodeSelection)?getNodeListCutAction():getNodeListCopyAction()).getSpreadSheetAction();
-		    		
-        	    	for (Iterator<Node> i=nodes.iterator();i.hasNext();) {
-        	    		Node node=i.next();
-        	    		final boolean[] okForAll=new boolean[]{false}; 
-	        			if (!transformSubprojectBranches(node,spreadSheet.getCache().getModel().getDataFactory(),new Predicate(){
-								public boolean evaluate(Object arg0) {
-									if (okForAll[0]) return true;
-									Node parent=(Node)arg0;
-									boolean r=Alert.okCancel( Messages.getString("Message.subprojectCut") );
-									if (r) okForAll[0]=true;
-									return r;
-								}
-								
-						})) return null;
-        			}
+	protected Transferable createTransferable(JComponent c, int action) {
+		SpreadSheet spreadSheet=getSpreadSheet(c);
+		if (spreadSheet==null) return null;
+		spreadSheet.finishCurrentOperations();
+		ArrayList<Node> nodes = new ArrayList<>(spreadSheet.getSelectedNodes());
 
-		    		
-		    		a.execute(nodes);
-		    	}
-				return transferable;
-		    } else return null;
-	    }
-	    protected void exportDone(JComponent source, Transferable data, int action) {
-	    }
+		ArrayList<Field> fields = copyFields(spreadSheet.getSelectedFields());
+		boolean nodeSelection=(fields==null);
+		if (fields==null) fields=copyFields(spreadSheet.getSelectableFields());
+		int[] rows=spreadSheet.getSelectedRows();
+		int[] columns=spreadSheet.getSelectedColumns();
+		NodeListTransferable transferable = new NodeListTransferable(nodes,fields,spreadSheet,
+			rows,columns,nodeSelection);
+		pendingCutNodes=null;
+		pendingCutRows=null;
+		pendingCutColumns=null;
+		pendingCellCut=false;
+		if (action==TransferHandler.COPY) return transferable;
+		if (action!=TransferHandler.MOVE) return null;
+		if (nodeSelection){
+			for (Node node:nodes) {
+				final boolean[] okForAll=new boolean[]{false};
+				if (!transformSubprojectBranches(node,spreadSheet.getCache().getModel().getDataFactory(),new Predicate(){
+					public boolean evaluate(Object arg0) {
+						if (okForAll[0]) return true;
+						boolean r=Alert.okCancel(Messages.getString("Message.subprojectCut"));
+						if (r) okForAll[0]=true;
+						return r;
+					}
+				})) return null;
+			}
+			pendingCutNodes=nodes;
+		}else{
+			pendingCutRows=rows;
+			pendingCutColumns=columns;
+			pendingCellCut=true;
+		}
+		return transferable;
+	}
+
+	protected void exportDone(JComponent source, Transferable data, int action) {
+		try {
+			if (data==null||action!=TransferHandler.MOVE) return;
+			if (pendingCellCut){
+				spreadSheet.cutSelectedCellValues(pendingCutRows,pendingCutColumns);
+			}else if (pendingCutNodes!=null){
+				spreadSheet.commitTaskCut(pendingCutNodes);
+			}
+		}finally{
+			pendingCutNodes=null;
+			pendingCutRows=null;
+			pendingCutColumns=null;
+			pendingCellCut=false;
+		}
+	}
 	    public boolean importData(JComponent c, Transferable t) {
 	    	SpreadSheet spreadSheet=getSpreadSheet(c);
 	    	if (spreadSheet==null) return false;
@@ -197,6 +217,11 @@ public class NodeListTransferHandler extends TransferHandler {
 	            try {
 	            	NodeModel model=((CommonSpreadSheetModel)spreadSheet.getModel()).getCache().getModel();
 	            	Object data=t.getTransferData(flavor);
+				if (data instanceof Reader reader){
+					StringWriter writer=new StringWriter();
+					reader.transferTo(writer);
+					data=writer.toString();
+				}
 	        		if (data==null) return false;
 	            	List nodes=null;
 	        		if (data instanceof List<?>){
@@ -218,16 +243,9 @@ public class NodeListTransferHandler extends TransferHandler {
 							});
 	        			}
 
-		    	    	List<Node> selectedNodes = spreadSheet.getSelectedNodes();
-		    	    	Node parent = null;
-		    	    	int position = 0;
-		    	    	if (selectedNodes.size() > 0) {
-		    	    		Node node = (Node) selectedNodes.get(0);
-		    	    		parent = (Node) node.getParent();
-		    	    		position = ((NodeBridge) parent).getIndex(node);
-		    	    	}
-		    	    	return spreadSheet.getCache().pasteNodes(parent, nodes, position);
+					return spreadSheet.pasteNodesFromClipboard(nodes);
 	        		}else if (data instanceof String){
+					if (!spreadSheet.prepareCellPaste()) return false;
 //	        			ArrayList fields =spreadSheet.getSelectedFields();
 //	        			if (fields==null){
 //	        				fields=spreadSheet.getSelectableFields(); //The whole line is selected
@@ -273,7 +291,7 @@ public class NodeListTransferHandler extends TransferHandler {
 //    			System.out.println("flavor #"+i+": "+flavors[i]);
 //    		}
 			for (int i=0;i<flavors.length;i++){
-				if (NodeListTransferable.NODE_LIST_MIME_TYPE.equals(flavors[i].getMimeType())
+				if (NodeListTransferable.isNodeListFlavor(flavors[i])
 						|| DataFlavor.stringFlavor.equals(flavors[i])
 						|| DataFlavor.getTextPlainUnicodeFlavor().equals(flavors[i]))
 					return flavors[i];
