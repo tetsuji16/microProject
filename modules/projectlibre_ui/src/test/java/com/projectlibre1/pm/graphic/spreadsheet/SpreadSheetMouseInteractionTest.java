@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
@@ -28,6 +28,24 @@ import com.projectlibre1.strings.Messages;
 import com.projectlibre1.undo.DataFactoryUndoController;
 
 class SpreadSheetMouseInteractionTest {
+	@Test
+	void msProjectShortcutMovesAWholeTaskRowAndHonorsBoundaries() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture=createFixture();
+			RecordingSpreadSheet sheet=fixture.sheet();
+			int firstRow=findRow(sheet,fixture.firstTask());
+			int secondRow=findRow(sheet,fixture.secondTask());
+			sheet.selectRowAndAllColumns(secondRow);
+			assertTrue(sheet.canMoveSelectedTaskRows(-1,true));
+			sheet.getActionMap().get(SpreadSheet.MOVE_TASK_UP_ACTION).actionPerformed(
+				new ActionEvent(sheet,ActionEvent.ACTION_PERFORMED,SpreadSheet.MOVE_TASK_UP_ACTION));
+
+			assertTrue(findRow(sheet,fixture.secondTask())<findRow(sheet,fixture.firstTask()));
+			assertFalse(sheet.canMoveSelectedTaskRows(-1,true));
+			assertEquals(firstRow,findRow(sheet,fixture.secondTask()));
+		});
+	}
+
 	@Test
 	void singleClickSelectsTheClickedCellWithoutStartingAnEdit() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
@@ -139,8 +157,13 @@ class SpreadSheetMouseInteractionTest {
 			int firstRow = findRow(sheet, fixture.firstTask());
 			int secondRow = findRow(sheet, fixture.secondTask());
 			long uniqueId = fixture.firstTask().getUniqueId();
+			AtomicInteger tableUpdates=new AtomicInteger();
+			sheet.getModel().addTableModelListener(event -> tableUpdates.incrementAndGet());
 
-			fireProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, true);
+			dispatchProjectLibreRowHeaderDrag(rowHeader,firstRow,secondRow,true,false);
+			assertTrue(rowHeader.isTaskMoveDropValid());
+			assertEquals(secondRow,rowHeader.getTaskMoveDropRow());
+			dispatchRowHeaderRelease(rowHeader,secondRow,true);
 
 			Node firstNode = sheet.getCache().getModel().search(fixture.firstTask());
 			Node secondNode = sheet.getCache().getModel().search(fixture.secondTask());
@@ -148,6 +171,8 @@ class SpreadSheetMouseInteractionTest {
 			assertTrue(parent.getIndex(secondNode) < parent.getIndex(firstNode));
 			assertEquals(uniqueId, fixture.firstTask().getUniqueId());
 			assertTrue(sheet.isRowFullySelected(findRow(sheet, fixture.firstTask())));
+			assertTrue(findRow(sheet,fixture.secondTask()) < findRow(sheet,fixture.firstTask()));
+			assertTrue(tableUpdates.get()>0,"A task move must notify the visible table model");
 		});
 	}
 
@@ -161,6 +186,13 @@ class SpreadSheetMouseInteractionTest {
 			assertTrue(sheet.getCache().getModel().relocate(Collections.singletonList(secondNode), firstNode, 0,
 				com.projectlibre1.grouping.core.model.NodeModel.NORMAL));
 			sheet.getCache().update();
+			int firstRow=findRow(sheet,fixture.firstTask());
+			int secondRow=findRow(sheet,fixture.secondTask());
+			SpreadSheetRowHeader rowHeader=sheet.getRowHeader();
+			dispatchProjectLibreRowHeaderDrag(rowHeader,firstRow,secondRow,false,false);
+			assertFalse(rowHeader.isTaskMoveDropValid());
+			assertEquals(-1,rowHeader.getTaskMoveDropRow());
+			dispatchRowHeaderRelease(rowHeader,secondRow,false);
 
 			assertFalse(sheet.getCache().relocateNodes(
 				Collections.singletonList(sheet.getCache().getGraphicNode(firstNode)), secondNode, false));
@@ -245,36 +277,31 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	private void fireProjectLibreRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
-		MouseEvent event = rowHeaderMousePress(rowHeader, row, clickCount);
-		for (MouseListener listener : rowHeader.getMouseListeners()) {
-			if (listener.getClass().getName().startsWith(SpreadSheetRowHeader.class.getName() + "$")) {
-				listener.mousePressed(event);
-				return;
-			}
-		}
-		throw new AssertionError("ProjectLibre row-header mouse listener was not installed");
+		rowHeader.setUI(null);
+		rowHeader.dispatchEvent(rowHeaderMousePress(rowHeader,row,clickCount));
 	}
 
 	private void fireProjectLibreRowHeaderDrag(SpreadSheetRowHeader rowHeader, int sourceRow, int targetRow, boolean after) {
-		MouseEvent press = rowHeaderMousePress(rowHeader, sourceRow, 1);
-		MouseListener projectLibreListener = null;
-		for (MouseListener listener : rowHeader.getMouseListeners()) {
-			if (listener.getClass().getName().startsWith(SpreadSheetRowHeader.class.getName() + "$")) {
-				listener.mousePressed(press);
-				projectLibreListener = listener;
-				break;
-			}
-		}
-		if (!(projectLibreListener instanceof MouseMotionListener motionListener))
-			throw new AssertionError("ProjectLibre row-header drag listener was not installed");
+		dispatchProjectLibreRowHeaderDrag(rowHeader,sourceRow,targetRow,after,true);
+	}
+
+	private void dispatchProjectLibreRowHeaderDrag(SpreadSheetRowHeader rowHeader,int sourceRow,int targetRow,boolean after,boolean release) {
+		rowHeader.setUI(null);
+		rowHeader.dispatchEvent(rowHeaderMousePress(rowHeader,sourceRow,1));
 		Rectangle target = rowHeader.getCellRect(targetRow, 0, true);
 		int y = after ? target.y + target.height - 2 : target.y + 2;
 		MouseEvent drag = new MouseEvent(rowHeader, MouseEvent.MOUSE_DRAGGED, System.currentTimeMillis(),
 			MouseEvent.BUTTON1_DOWN_MASK, target.x + Math.max(1, target.width / 2), y, 0, false, MouseEvent.NOBUTTON);
-		motionListener.mouseDragged(drag);
+		rowHeader.dispatchEvent(drag);
+		if (release) dispatchRowHeaderRelease(rowHeader,targetRow,after);
+	}
+
+	private void dispatchRowHeaderRelease(SpreadSheetRowHeader rowHeader,int targetRow,boolean after) {
+		Rectangle target=rowHeader.getCellRect(targetRow,0,true);
+		int y=after?target.y+target.height-2:target.y+2;
 		MouseEvent release = new MouseEvent(rowHeader, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
-			0, drag.getX(), drag.getY(), 1, false, MouseEvent.BUTTON1);
-		projectLibreListener.mouseReleased(release);
+			0,target.x+Math.max(1,target.width/2),y,1,false,MouseEvent.BUTTON1);
+		rowHeader.dispatchEvent(release);
 	}
 
 	private record Fixture(RecordingSpreadSheet sheet, NormalTask firstTask, NormalTask secondTask) {}

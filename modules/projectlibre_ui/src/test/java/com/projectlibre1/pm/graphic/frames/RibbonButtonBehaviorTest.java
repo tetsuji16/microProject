@@ -299,6 +299,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonScrollToTask",
 			"RibbonIndent",
 			"RibbonOutdent",
+			"RibbonMoveTaskUp",
+			"RibbonMoveTaskDown",
 			"RibbonExpand",
 			"RibbonCollapse",
 			"RibbonLink",
@@ -329,6 +331,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonScrollToTask",
 			"RibbonIndent",
 			"RibbonOutdent",
+			"RibbonMoveTaskUp",
+			"RibbonMoveTaskDown",
 			"RibbonExpand",
 			"RibbonCollapse")) {
 			harness.frame.resetStructuralCalls();
@@ -341,6 +345,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonScrollToTask",
 			"RibbonIndent",
 			"RibbonOutdent",
+			"RibbonMoveTaskUp",
+			"RibbonMoveTaskDown",
 			"RibbonExpand",
 			"RibbonCollapse")) {
 			harness.frame.resetStructuralCalls();
@@ -498,6 +504,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonScrollToTask",
 			"RibbonIndent",
 			"RibbonOutdent",
+			"RibbonMoveTaskUp",
+			"RibbonMoveTaskDown",
 			"RibbonExpand",
 			"RibbonCollapse",
 			"RibbonLink",
@@ -865,6 +873,11 @@ class RibbonButtonBehaviorTest {
 		@Override
 		public void doOutdent() {
 			recordStructuralCall("RibbonOutdent");
+		}
+
+		@Override
+		public void doMoveSelectedTasks(int direction) {
+			recordStructuralCall(direction < 0?"RibbonMoveTaskUp":"RibbonMoveTaskDown");
 		}
 
 		@Override

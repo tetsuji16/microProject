@@ -1387,6 +1387,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_LABEL_TASK_NAME, new LabelTaskNameAction());
 		actionsMap.addHandler(ACTION_INDENT, new IndentAction());
 		actionsMap.addHandler(ACTION_OUTDENT, new OutdentAction());
+		actionsMap.addHandler(ACTION_MOVE_TASK_UP, new MoveTaskUpAction());
+		actionsMap.addHandler(ACTION_MOVE_TASK_DOWN, new MoveTaskDownAction());
 		actionsMap.addHandler(ACTION_COLLAPSE, new CollapseAction());
 		actionsMap.addHandler(ACTION_EXPAND, new ExpandAction());
 
@@ -2227,6 +2229,26 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return isDocumentWritable();
 		}
 	}
+	public class MoveTaskUpAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false,1,false)) getCurrentFrame().doMoveSelectedTasks(-1);
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+	public class MoveTaskDownAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false,1,false)) getCurrentFrame().doMoveSelectedTasks(1);
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
 	public class CutAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -3038,6 +3060,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		boolean writable = (currentImpl != null && !ClassUtils.isObjectReadOnly(currentImpl));
 		getMenuManager().setActionEnabled(ACTION_INDENT,!readOnly &&(isTask || isResource)&&(actions==null||actions.contains(ACTION_INDENT)));
 		getMenuManager().setActionEnabled(ACTION_OUTDENT,!readOnly &&(isTask || isResource)&&(actions==null||actions.contains(ACTION_OUTDENT)));
+		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_UP,!readOnly && isTask && currentFrame != null && currentFrame.canMoveSelectedTasks(-1));
+		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && currentFrame != null && currentFrame.canMoveSelectedTasks(1));
 		getMenuManager().setActionEnabled(ACTION_EXPAND,!readOnly && notVoid && (actions==null||actions.contains(ACTION_EXPAND)));
 		getMenuManager().setActionEnabled(ACTION_COLLAPSE,!readOnly && notVoid && (actions==null||actions.contains(ACTION_COLLAPSE)));
 		getMenuManager().setActionEnabled(ACTION_LINK,isTask);

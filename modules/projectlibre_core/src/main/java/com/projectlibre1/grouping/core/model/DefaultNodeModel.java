@@ -262,17 +262,31 @@ public class DefaultNodeModel implements NodeModel {
 	 * Moves a contiguous set of sibling outline branches while preserving the task
 	 * instances, unique IDs, dependencies, assignments, baselines, and notes.
 	 */
-	public boolean relocate(List nodes,Node parent,int position,int actionType){
+	public boolean canRelocate(List nodes,Node parent,int position){
 		ArrayList<Node> branches=collectRelocationRoots(nodes);
 		if (branches.isEmpty()) return false;
 		Node sourceParent=(Node)branches.get(0).getParent();
 		if (sourceParent==null||!areContiguousSiblings(branches,sourceParent)) return false;
 		Node destination=(parent==null)?(Node)hierarchy.getRoot():parent;
 		if (!canRelocateTo(branches,destination)) return false;
+		int remainingChildren=destination.getChildCount();
+		for (Node branch:branches)
+			if (branch.getParent()==destination) remainingChildren--;
+		int finalPosition=Math.max(0,Math.min(position,remainingChildren));
+		return sourceParent!=destination||sourceParent.getIndex(branches.get(0))!=finalPosition;
+	}
+
+	public boolean relocate(List nodes,Node parent,int position,int actionType){
+		if (!canRelocate(nodes,parent,position)) return false;
+		ArrayList<Node> branches=collectRelocationRoots(nodes);
+		Node sourceParent=(Node)branches.get(0).getParent();
+		Node destination=(parent==null)?(Node)hierarchy.getRoot():parent;
 
 		int beforeIndex=sourceParent.getIndex(branches.get(0));
-		int finalPosition=Math.max(0,position);
-		if (sourceParent==destination&&beforeIndex==finalPosition) return false;
+		int remainingChildren=destination.getChildCount();
+		for (Node branch:branches)
+			if (branch.getParent()==destination) remainingChildren--;
+		int finalPosition=Math.max(0,Math.min(position,remainingChildren));
 		boolean doTransaction=getDocument()!=null&&isEvent(actionType);
 		int transactionId=0;
 		if (doTransaction) transactionId=getDocument().fireMultipleTransaction(0,true);
@@ -291,7 +305,7 @@ public class DefaultNodeModel implements NodeModel {
 		return true;
 	}
 
-	public boolean moveSelectedNodes(List nodes,int direction,int actionType){
+	public boolean canMoveSelectedNodes(List nodes,int direction){
 		if (direction!=-1&&direction!=1) return false;
 		ArrayList<Node> branches=collectRelocationRoots(nodes);
 		if (branches.isEmpty()) return false;
@@ -299,12 +313,15 @@ public class DefaultNodeModel implements NodeModel {
 		if (parent==null||!areContiguousSiblings(branches,parent)) return false;
 		int start=parent.getIndex(branches.get(0));
 		int end=start+branches.size()-1;
-		if (direction<0){
-			if (start==0) return false;
-			return relocate(branches,parent,start-1,actionType);
-		}
-		if (end>=parent.getChildCount()-1) return false;
-		return relocate(branches,parent,start+1,actionType);
+		return direction<0?start>0:end<parent.getChildCount()-1;
+	}
+
+	public boolean moveSelectedNodes(List nodes,int direction,int actionType){
+		if (!canMoveSelectedNodes(nodes,direction)) return false;
+		ArrayList<Node> branches=collectRelocationRoots(nodes);
+		Node parent=(Node)branches.get(0).getParent();
+		int start=parent.getIndex(branches.get(0));
+		return relocate(branches,parent,direction<0?start-1:start+1,actionType);
 	}
 
 	private ArrayList<Node> collectRelocationRoots(List nodes){

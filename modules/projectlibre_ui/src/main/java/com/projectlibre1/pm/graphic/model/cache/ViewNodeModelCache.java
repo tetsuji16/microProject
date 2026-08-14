@@ -382,35 +382,86 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		getModel().addBefore(sibling,nodes,NodeModel.NORMAL);
 	}
 
+	public boolean isTaskOrderEditable(){
+		if (getModel().getDataFactory() instanceof Project project && project.isReadOnly()) return false;
+		var transformer=((NodeCacheTransformer)visibleNodes.getTransformer()).getTransformer();
+		return transformer.isNoneFilter()&&transformer.isNoneSorter()&&transformer.isNoneGrouper();
+	}
+
+	public boolean canMoveNodes(List nodes,int direction){
+		if (!isTaskOrderEditable()||nodes==null||nodes.isEmpty()||!isAllowedActionQuietly(nodes,false)) return false;
+		List validNodes=validBaseNodes(nodes);
+		return !validNodes.isEmpty()&&getModel().canMoveSelectedNodes(validNodes,direction);
+	}
+
 	public boolean moveNodes(List nodes,int direction){
-		if (nodes==null||nodes.isEmpty()||!isAllowedAction(nodes,false)) return false;
-		ArrayList baseNodes=new ArrayList(nodes);
-		convertToBase(baseNodes);
-		List validNodes=TransformList.getNotVoidFilter().filterList(baseNodes);
-		return !validNodes.isEmpty()&&getModel().moveSelectedNodes(validNodes,direction,NodeModel.NORMAL);
+		if (!canMoveNodes(nodes,direction)||!isAllowedAction(nodes,false)) return false;
+		return getModel().moveSelectedNodes(validBaseNodes(nodes),direction,NodeModel.NORMAL);
+	}
+
+	public boolean canRelocateNodes(List nodes,Node anchor,boolean after){
+		return resolveRelocationTarget(nodes,anchor,after,false)!=null;
 	}
 
 	public boolean relocateNodes(List nodes,Node anchor,boolean after){
-		if (nodes==null||nodes.isEmpty()||anchor==null||anchor.getParent()==null) return false;
-		if (!isAllowedAction(nodes,false)) return false;
-		Node destination=(Node)anchor.getParent();
-		if (!isAllowedAction(destination,true)) return false;
-		ArrayList baseNodes=new ArrayList(nodes);
-		convertToBase(baseNodes);
-		List validNodes=TransformList.getNotVoidFilter().filterList(baseNodes);
-		if (validNodes.isEmpty()) return false;
+		RelocationTarget target=resolveRelocationTarget(nodes,anchor,after,true);
+		return target!=null&&getModel().relocate(target.nodes,target.parent,target.position,NodeModel.NORMAL);
+	}
 
+	private RelocationTarget resolveRelocationTarget(List nodes,Node anchor,boolean after,boolean showReadOnlyAlert){
+		if (!isTaskOrderEditable()||nodes==null||nodes.isEmpty()||anchor==null||anchor.getParent()==null) return null;
+		if (!(showReadOnlyAlert?isAllowedAction(nodes,false):isAllowedActionQuietly(nodes,false))) return null;
+		Node destination=(Node)anchor.getParent();
+		if (!(showReadOnlyAlert?isAllowedAction(destination,true):isAllowedActionQuietly(destination,true))) return null;
+		List validNodes=validBaseNodes(nodes);
+		if (validNodes.isEmpty()) return null;
 		ArrayList roots=new ArrayList();
 		HierarchyUtils.extractParents(validNodes,roots);
 		Node sourceParent=(Node)((Node)roots.get(0)).getParent();
 		if (sourceParent==null||getModel().getHierarchy().getLevel(sourceParent)!=getModel().getHierarchy().getLevel(destination))
-			return false;
+			return null;
 		int position=destination.getIndex(anchor)+(after?1:0);
 		for (Object value:roots){
 			Node node=(Node)value;
 			if (node.getParent()==destination&&destination.getIndex(node)<position) position--;
 		}
-		return getModel().relocate(validNodes,destination,position,NodeModel.NORMAL);
+		return getModel().canRelocate(validNodes,destination,position)
+			?new RelocationTarget(validNodes,destination,position):null;
+	}
+
+	private List validBaseNodes(List nodes){
+		ArrayList baseNodes=new ArrayList(nodes);
+		convertToBase(baseNodes);
+		return TransformList.getNotVoidFilter().filterList(baseNodes);
+	}
+
+	private boolean isAllowedActionQuietly(List<?> nodes,boolean checkForROSubproject){
+		if (nodes==null) return true;
+		for (Object value:nodes){
+			if (value instanceof GraphicNode) value=((GraphicNode)value).getNode();
+			if (value instanceof Node&&!isAllowedActionQuietly((Node)value,checkForROSubproject)) return false;
+		}
+		return true;
+	}
+
+	private boolean isAllowedActionQuietly(Node node,boolean isParent){
+		if (node==null||!(node.getImpl() instanceof Task task)) return true;
+		if (task instanceof SubProj subproject){
+			Project project=isParent?subproject.getSubproject():task.getOwningProject();
+			return project==null||!project.isReadOnly();
+		}
+		return !task.isReadOnly();
+	}
+
+	private static final class RelocationTarget{
+		private final List nodes;
+		private final Node parent;
+		private final int position;
+		private RelocationTarget(List nodes,Node parent,int position){
+			this.nodes=nodes;
+			this.parent=parent;
+			this.position=position;
+		}
 	}
 
 

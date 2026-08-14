@@ -1,6 +1,7 @@
 package com.projectlibre1.menu;
 
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.menuInternalBundle;
+import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.menuBundle;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonBandIds;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds;
 import static com.projectlibre1.menu.testsupport.MenuDefinitionSupport.ribbonTaskIds;
@@ -13,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
@@ -50,8 +52,12 @@ class RibbonStructureTest {
 			"ClipboardRibbonBand", "TaskInsertRibbonBand", "TaskOutlineRibbonBand", "TaskDependenciesRibbonBand",
 			"TaskPropertiesRibbonBand", "TaskTrackingRibbonBand", "TaskEditingRibbonBand"),
 			ribbonBandIds("TaskRibbonTask"));
-		assertEquals(List.of("RibbonIndent", "RibbonOutdent", "RibbonExpand", "RibbonCollapse"),
+		assertEquals(List.of("RibbonIndent", "RibbonOutdent", "RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonExpand", "RibbonCollapse"),
 			ribbonButtonIds("TaskOutlineRibbonBand"));
+		assertEquals("MoveTaskUpAction",menuInternalBundle().getString("RibbonMoveTaskUp.action"));
+		assertEquals("MoveTaskDownAction",menuInternalBundle().getString("RibbonMoveTaskDown.action"));
+		assertTrue(menuBundle(Locale.ROOT).getString("RibbonMoveTaskUp.tooltip").contains("Alt+Shift+Up"));
+		assertTrue(menuBundle(Locale.ROOT).getString("RibbonMoveTaskDown.tooltip").contains("Alt+Shift+Down"));
 		assertEquals(List.of("RibbonLink", "RibbonUnlink", "RibbonAssignResources", "RibbonDelegateTasks"),
 			ribbonButtonIds("TaskDependenciesRibbonBand"));
 		assertEquals(List.of("RibbonUpdateTasks"), ribbonButtonIds("TaskTrackingRibbonBand"));

@@ -672,6 +672,14 @@ public class DocumentFrame extends NamedFrame implements
 			ss.executeAction(MenuActionConstants.ACTION_INDENT);
 		}
 	}
+	public boolean canMoveSelectedTasks(int direction) {
+		SpreadSheet spreadSheet=getActiveSpreadSheet();
+		return spreadSheet != null && spreadSheet.canMoveSelectedTaskRows(direction,false);
+	}
+	public void doMoveSelectedTasks(int direction) {
+		SpreadSheet spreadSheet=getActiveSpreadSheet();
+		if (spreadSheet != null) spreadSheet.moveSelectedTaskRowsFromCommand(direction);
+	}
 	public void doDelete() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null)
