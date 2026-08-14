@@ -108,7 +108,7 @@ public class NodeListTransferable implements Transferable {
 	protected SpreadSheet spreadsheet;
 	protected int[] rows,cols;
 	protected boolean nodeSelection;
-	//protected String sdata;
+	private final String stringData;
 
 	public NodeListTransferable(ArrayList<Node> nodeList, ArrayList<Field> fields,SpreadSheet spreadSheet,int[] rows,int[] cols, boolean nodeSelection) {
 		this.nodeSelection=nodeSelection;
@@ -137,6 +137,9 @@ public class NodeListTransferable implements Transferable {
 		this.spreadsheet=spreadSheet;
 		this.rows=rows;
 		this.cols=cols;
+		stringData = nodeSelection
+				? nodeListToString(nodeList, spreadSheet, fields)
+				: selectionToString(spreadSheet, rows, cols);
 	}
 
 	public DataFlavor[] getTransferDataFlavors() {
@@ -162,11 +165,9 @@ public class NodeListTransferable implements Transferable {
 //			nodeList.addAll(model.copy(nl,NodeModel.SILENT));
 			return model.copy(nodeList,NodeModel.SILENT);
 		}else if (DataFlavor.stringFlavor.equals(flavor))
-		    return selectionToString(spreadsheet,rows,cols);
-//		    return (sdata==null)?nodeListToString(nodeList,spreadsheet,fields):sdata;
+		    return stringData;
 		else if (DataFlavor.getTextPlainUnicodeFlavor().equals(flavor))
-		    return new StringReader(selectionToString(spreadsheet,rows,cols));
-	    	//return new StringReader((sdata==null)?nodeListToString(nodeList,spreadsheet,fields):sdata);
+		    return new StringReader(stringData);
 		else throw new UnsupportedFlavorException(flavor);
 	}
 	
