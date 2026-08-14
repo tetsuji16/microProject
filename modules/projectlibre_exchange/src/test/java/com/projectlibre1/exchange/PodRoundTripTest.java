@@ -21,6 +21,8 @@ import com.projectlibre1.pm.task.Task;
 import com.projectlibre1.pm.task.ProjectFactory;
 import com.projectlibre1.pm.resource.ResourcePool;
 import com.projectlibre1.undo.DataFactoryUndoController;
+import com.projectlibre1.grouping.core.Node;
+import com.projectlibre1.grouping.core.model.NodeModel;
 
 public class PodRoundTripTest {
 	@Test
@@ -42,6 +44,40 @@ public class PodRoundTripTest {
 	public void samplePodRoundTripPreservesTaskLayoutAndDependencies() throws Exception {
 		assertRoundTrip("June_1_sample.pod");
 		assertRoundTrip("Commercial construction project plan.pod");
+	}
+
+	@Test
+	public void movedTaskOrderSurvivesPodRoundTrip() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("roundtrip-move", undo), undo);
+		project.initialize(false, false);
+		Node firstNode = project.createLocalTaskNode(null);
+		Node secondNode = project.createLocalTaskNode(null);
+		Node thirdNode = project.createLocalTaskNode(null);
+		Task first = (Task)firstNode.getImpl(); first.setName("First");
+		Task second = (Task)secondNode.getImpl(); second.setName("Second");
+		Task third = (Task)thirdNode.getImpl(); third.setName("Third");
+
+		assertTrue(project.getTaskModel().moveSelectedNodes(java.util.Collections.singletonList(secondNode), -1, NodeModel.NORMAL));
+
+		File saved = File.createTempFile("projectlibre-task-move", ".pod");
+		saved.deleteOnExit();
+		LocalFileImporter exporter = new LocalFileImporter();
+		exporter.setFileName(saved.getAbsolutePath());
+		exporter.setProject(project);
+		exporter.exportFile();
+
+		Project restored = load(saved);
+		List<Task> tasks = new ArrayList<Task>();
+		for (Iterator<?> iterator = restored.getTaskOutlineIterator(); iterator.hasNext();)
+			tasks.add((Task)iterator.next());
+		assertEquals(3, tasks.size());
+		assertEquals("Second", tasks.get(0).getName());
+		assertEquals("First", tasks.get(1).getName());
+		assertEquals("Third", tasks.get(2).getName());
+		assertEquals(1L, tasks.get(0).getId());
+		assertEquals(2L, tasks.get(1).getId());
+		assertEquals(3L, tasks.get(2).getId());
 	}
 
 	private static void assertRoundTrip(String sampleName) throws Exception {

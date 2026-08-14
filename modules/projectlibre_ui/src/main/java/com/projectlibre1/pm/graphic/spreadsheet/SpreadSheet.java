@@ -163,6 +163,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private static final String CLIPBOARD_PASTE_VALUES_ACTION = "spreadsheet.clipboardPasteValues";
 	private static final String CLIPBOARD_INSERT_ACTION = "spreadsheet.clipboardInsert";
 	public static final String FILL_DOWN_ACTION = "spreadsheet.fillDown";
+	public static final String MOVE_TASK_UP_ACTION = "spreadsheet.moveTaskUp";
+	public static final String MOVE_TASK_DOWN_ACTION = "spreadsheet.moveTaskDown";
 	private Object defaultTabActionKey;
 	private Object defaultShiftTabActionKey;
 	protected SpreadSheetPopupMenu popup=null;
@@ -176,7 +178,83 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		NodeListTransferHandler.registerWith(this);
 		installClipboardPasteBindings();
 		installFillDownBinding();
+		installTaskMoveBindings(this);
 
+	}
+
+	public void installTaskMoveBindings(JComponent component) {
+		if (component == null)
+			return;
+		InputMap inputMap = component.getInputMap(JComponent.WHEN_FOCUSED);
+		ActionMap actionMap = component.getActionMap();
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.ALT_DOWN_MASK | KeyEvent.SHIFT_DOWN_MASK), MOVE_TASK_UP_ACTION);
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.ALT_DOWN_MASK | KeyEvent.SHIFT_DOWN_MASK), MOVE_TASK_DOWN_ACTION);
+		actionMap.put(MOVE_TASK_UP_ACTION, new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) { moveSelectedTaskRows(-1); }
+		});
+		actionMap.put(MOVE_TASK_DOWN_ACTION, new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) { moveSelectedTaskRows(1); }
+		});
+	}
+
+	public boolean moveSelectedTaskRows(int direction) {
+		finishCurrentOperations();
+		if (!hasEntireRowSelection())
+			return false;
+		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
+		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, nodes, this, "move task"))
+			return false;
+		boolean moved = getCache().moveNodes(getSelectedGraphicNodes(), direction);
+		if (moved)
+			restoreTaskRowSelection(nodes);
+		return moved;
+	}
+
+	public boolean moveSelectedTaskRowsTo(int targetRow, boolean after) {
+		finishCurrentOperations();
+		if (!hasEntireRowSelection() || !(getModel() instanceof SpreadSheetModel model))
+			return false;
+		GraphicNode target = model.getNode(targetRow);
+		if (target == null || target.getNode() == null)
+			return false;
+		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
+		List<Node> locks = new ArrayList<Node>(nodes);
+		if (!locks.contains(target.getNode()))
+			locks.add(target.getNode());
+		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, locks, this, "drag task"))
+			return false;
+		boolean moved = getCache().relocateNodes(getSelectedGraphicNodes(), target.getNode(), after);
+		if (moved)
+			restoreTaskRowSelection(nodes);
+		return moved;
+	}
+
+	private boolean hasEntireRowSelection() {
+		return getSelectedRowCount() > 0 && getColumnCount() > 0 && getSelectedColumnCount() == getColumnCount();
+	}
+
+	private void restoreTaskRowSelection(List<Node> nodes) {
+		if (!(getModel() instanceof SpreadSheetModel model) || nodes == null || nodes.isEmpty())
+			return;
+		getCache().update();
+		clearSelection();
+		boolean first = true;
+		for (Node node : nodes) {
+			GraphicNode graphicNode = (GraphicNode)getCache().getGraphicNode(node);
+			int row = graphicNode == null ? -1 : model.findGraphicNodeRow(graphicNode);
+			if (row < 0)
+				continue;
+			if (first) {
+				getSelectionModel().setSelectionInterval(row, row);
+				first = false;
+			} else {
+				getSelectionModel().addSelectionInterval(row, row);
+			}
+		}
+		if (!first && getColumnCount() > 0)
+			getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
 	}
 
 	private void installFillDownBinding() {

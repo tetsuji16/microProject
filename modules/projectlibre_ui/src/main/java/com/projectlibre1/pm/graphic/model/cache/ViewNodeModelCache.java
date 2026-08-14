@@ -74,6 +74,7 @@ import com.projectlibre1.pm.graphic.model.transform.DependencyCacheTransformer;
 import com.projectlibre1.pm.graphic.model.transform.NodeCacheTransformer;
 import com.projectlibre1.association.InvalidAssociationException;
 import com.projectlibre1.grouping.core.Node;
+import com.projectlibre1.grouping.core.hierarchy.HierarchyUtils;
 import com.projectlibre1.grouping.core.model.NodeModel;
 import com.projectlibre1.grouping.core.model.WalkersNodeModel;
 import com.projectlibre1.grouping.core.transform.TransformList;
@@ -378,6 +379,37 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
 	public void addNodes(Node sibling,List nodes){
 		getModel().addBefore(sibling,nodes,NodeModel.NORMAL);
+	}
+
+	public boolean moveNodes(List nodes,int direction){
+		if (nodes==null||nodes.isEmpty()||!isAllowedAction(nodes,false)) return false;
+		ArrayList baseNodes=new ArrayList(nodes);
+		convertToBase(baseNodes);
+		List validNodes=TransformList.getNotVoidFilter().filterList(baseNodes);
+		return !validNodes.isEmpty()&&getModel().moveSelectedNodes(validNodes,direction,NodeModel.NORMAL);
+	}
+
+	public boolean relocateNodes(List nodes,Node anchor,boolean after){
+		if (nodes==null||nodes.isEmpty()||anchor==null||anchor.getParent()==null) return false;
+		if (!isAllowedAction(nodes,false)) return false;
+		Node destination=(Node)anchor.getParent();
+		if (!isAllowedAction(destination,true)) return false;
+		ArrayList baseNodes=new ArrayList(nodes);
+		convertToBase(baseNodes);
+		List validNodes=TransformList.getNotVoidFilter().filterList(baseNodes);
+		if (validNodes.isEmpty()) return false;
+
+		ArrayList roots=new ArrayList();
+		HierarchyUtils.extractParents(validNodes,roots);
+		Node sourceParent=(Node)((Node)roots.get(0)).getParent();
+		if (sourceParent==null||getModel().getHierarchy().getLevel(sourceParent)!=getModel().getHierarchy().getLevel(destination))
+			return false;
+		int position=destination.getIndex(anchor)+(after?1:0);
+		for (Object value:roots){
+			Node node=(Node)value;
+			if (node.getParent()==destination&&destination.getIndex(node)<position) position--;
+		}
+		return getModel().relocate(validNodes,destination,position,NodeModel.NORMAL);
 	}
 
 

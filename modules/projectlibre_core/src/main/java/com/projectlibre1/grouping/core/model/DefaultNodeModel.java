@@ -106,6 +106,7 @@ import com.projectlibre1.undo.NodeDeletionEdit;
 import com.projectlibre1.undo.NodeImplChangeAndValueSetEdit;
 import com.projectlibre1.undo.NodeImplChangeEdit;
 import com.projectlibre1.undo.NodePasteEdit;
+import com.projectlibre1.undo.NodeRelocationEdit;
 import com.projectlibre1.undo.NodeUndoInfo;
 import com.projectlibre1.undo.UndoController;
 import com.projectlibre1.util.Environment;
@@ -255,6 +256,92 @@ public class DefaultNodeModel implements NodeModel {
 			return;
 		List cutNodes=cut(nodes,false,actionType);
 		paste(parent,cutNodes,position,actionType);
+	}
+
+	/**
+	 * Moves a contiguous set of sibling outline branches while preserving the task
+	 * instances, unique IDs, dependencies, assignments, baselines, and notes.
+	 */
+	public boolean relocate(List nodes,Node parent,int position,int actionType){
+		ArrayList<Node> branches=collectRelocationRoots(nodes);
+		if (branches.isEmpty()) return false;
+		Node sourceParent=(Node)branches.get(0).getParent();
+		if (sourceParent==null||!areContiguousSiblings(branches,sourceParent)) return false;
+		Node destination=(parent==null)?(Node)hierarchy.getRoot():parent;
+		if (!canRelocateTo(branches,destination)) return false;
+
+		int beforeIndex=sourceParent.getIndex(branches.get(0));
+		int finalPosition=Math.max(0,position);
+		if (sourceParent==destination&&beforeIndex==finalPosition) return false;
+		boolean doTransaction=getDocument()!=null&&isEvent(actionType);
+		int transactionId=0;
+		if (doTransaction) transactionId=getDocument().fireMultipleTransaction(0,true);
+		boolean changed;
+		try {
+			changed=hierarchy.relocate(destination,branches,finalPosition,actionType);
+		} finally {
+			if (doTransaction) getDocument().fireMultipleTransaction(transactionId,false);
+		}
+		if (!changed) return false;
+
+		int afterIndex=destination.getIndex(branches.get(0));
+		if (isUndo(actionType))
+			postEdit(new NodeRelocationEdit(this,branches,sourceParent,beforeIndex,destination,afterIndex));
+		if (dataFactory!=null) dataFactory.setGroupDirty(true);
+		return true;
+	}
+
+	public boolean moveSelectedNodes(List nodes,int direction,int actionType){
+		if (direction!=-1&&direction!=1) return false;
+		ArrayList<Node> branches=collectRelocationRoots(nodes);
+		if (branches.isEmpty()) return false;
+		Node parent=(Node)branches.get(0).getParent();
+		if (parent==null||!areContiguousSiblings(branches,parent)) return false;
+		int start=parent.getIndex(branches.get(0));
+		int end=start+branches.size()-1;
+		if (direction<0){
+			if (start==0) return false;
+			return relocate(branches,parent,start-1,actionType);
+		}
+		if (end>=parent.getChildCount()-1) return false;
+		return relocate(branches,parent,start+1,actionType);
+	}
+
+	private ArrayList<Node> collectRelocationRoots(List nodes){
+		ArrayList<Node> branches=new ArrayList<Node>();
+		if (nodes==null) return branches;
+		HierarchyUtils.extractParents(nodes,branches);
+		if (branches.isEmpty()) return branches;
+		Node parent=(Node)branches.get(0).getParent();
+		if (parent==null){
+			branches.clear();
+			return branches;
+		}
+		for (Node branch:branches){
+			if (branch==null||branch.isRoot()||branch.getParent()!=parent){
+				branches.clear();
+				return branches;
+			}
+		}
+		branches.sort((left,right)->parent.getIndex(left)-parent.getIndex(right));
+		return branches;
+	}
+
+	private boolean areContiguousSiblings(List<Node> branches,Node parent){
+		int expected=parent.getIndex(branches.get(0));
+		for (Node branch:branches){
+			if (parent.getIndex(branch)!=expected++) return false;
+		}
+		return true;
+	}
+
+	private boolean canRelocateTo(List<Node> branches,Node destination){
+		if (destination==null||destination.isLazyParent()) return false;
+		for (Node branch:branches){
+			if (branch==destination||isAncestor(branch,destination)) return false;
+			if (!destination.isRoot()&&!branch.canBeChildOf(destination)) return false;
+		}
+		return true;
 	}
 
 

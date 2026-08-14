@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.util.Collections;
 
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
@@ -128,6 +130,45 @@ class SpreadSheetMouseInteractionTest {
 		});
 	}
 
+	@Test
+	void draggingSelectedTaskIdMovesTheTaskWithoutChangingItsUniqueId() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
+			int firstRow = findRow(sheet, fixture.firstTask());
+			int secondRow = findRow(sheet, fixture.secondTask());
+			long uniqueId = fixture.firstTask().getUniqueId();
+
+			fireProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, true);
+
+			Node firstNode = sheet.getCache().getModel().search(fixture.firstTask());
+			Node secondNode = sheet.getCache().getModel().search(fixture.secondTask());
+			Node parent = (Node)firstNode.getParent();
+			assertTrue(parent.getIndex(secondNode) < parent.getIndex(firstNode));
+			assertEquals(uniqueId, fixture.firstTask().getUniqueId());
+			assertTrue(sheet.isRowFullySelected(findRow(sheet, fixture.firstTask())));
+		});
+	}
+
+	@Test
+	void taskIdDragCannotChangeTheTaskOutlineLevel() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			Node firstNode = sheet.getCache().getModel().search(fixture.firstTask());
+			Node secondNode = sheet.getCache().getModel().search(fixture.secondTask());
+			assertTrue(sheet.getCache().getModel().relocate(Collections.singletonList(secondNode), firstNode, 0,
+				com.projectlibre1.grouping.core.model.NodeModel.NORMAL));
+			sheet.getCache().update();
+
+			assertFalse(sheet.getCache().relocateNodes(
+				Collections.singletonList(sheet.getCache().getGraphicNode(firstNode)), secondNode, false));
+			assertTrue(((Node)firstNode.getParent()).isRoot());
+			assertEquals(0, fixture.firstTask().getOutlineLevel());
+		});
+	}
+
 	private Fixture createFixture() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("mouse-test", undoController);
@@ -212,6 +253,28 @@ class SpreadSheetMouseInteractionTest {
 			}
 		}
 		throw new AssertionError("ProjectLibre row-header mouse listener was not installed");
+	}
+
+	private void fireProjectLibreRowHeaderDrag(SpreadSheetRowHeader rowHeader, int sourceRow, int targetRow, boolean after) {
+		MouseEvent press = rowHeaderMousePress(rowHeader, sourceRow, 1);
+		MouseListener projectLibreListener = null;
+		for (MouseListener listener : rowHeader.getMouseListeners()) {
+			if (listener.getClass().getName().startsWith(SpreadSheetRowHeader.class.getName() + "$")) {
+				listener.mousePressed(press);
+				projectLibreListener = listener;
+				break;
+			}
+		}
+		if (!(projectLibreListener instanceof MouseMotionListener motionListener))
+			throw new AssertionError("ProjectLibre row-header drag listener was not installed");
+		Rectangle target = rowHeader.getCellRect(targetRow, 0, true);
+		int y = after ? target.y + target.height - 2 : target.y + 2;
+		MouseEvent drag = new MouseEvent(rowHeader, MouseEvent.MOUSE_DRAGGED, System.currentTimeMillis(),
+			MouseEvent.BUTTON1_DOWN_MASK, target.x + Math.max(1, target.width / 2), y, 0, false, MouseEvent.NOBUTTON);
+		motionListener.mouseDragged(drag);
+		MouseEvent release = new MouseEvent(rowHeader, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
+			0, drag.getX(), drag.getY(), 1, false, MouseEvent.BUTTON1);
+		projectLibreListener.mouseReleased(release);
 	}
 
 	private record Fixture(RecordingSpreadSheet sheet, NormalTask firstTask, NormalTask secondTask) {}

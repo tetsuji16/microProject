@@ -107,6 +107,8 @@ public interface NodeModel extends TreeModel, WalkersNodeModel{
 	public List copy(List nodes,int actionType);
 
 	public void move(Node parent,List nodes,int position,int actionType);
+	public boolean relocate(List nodes,Node parent,int position,int actionType);
+	public boolean moveSelectedNodes(List nodes,int direction,int actionType);
 
 
 	//Node implementation or field modifications

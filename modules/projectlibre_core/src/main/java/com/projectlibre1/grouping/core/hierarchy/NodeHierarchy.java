@@ -91,6 +91,7 @@ public interface NodeHierarchy extends TreeModel{
 //    public void move(Node node,Node newParent);
 //    public void move(List nodes,Node newParent);
     public void move(Node node,Node newParent,int actionType);	
+	public boolean relocate(Node parent,List nodes,int position,int actionType);
 //	public void indent(Node node,int deltaLevel,int actionType);
 	public void indent(List nodes,int deltaLevel, NodeModel model, int actionType);
 	
