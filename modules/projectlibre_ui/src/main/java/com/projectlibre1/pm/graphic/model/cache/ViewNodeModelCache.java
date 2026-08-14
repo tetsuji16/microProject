@@ -372,6 +372,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		nodes.addAll(newNodes);
 	}
 	public boolean pasteNodes(Node parent,List nodes,int position){
+		if (getModel().getDataFactory() instanceof Project project && project.isReadOnly()) return false;
 		if (!isAllowedAction(parent,true)) return false;
 		getModel().paste(parent,nodes,position,NodeModel.NORMAL);
 		return true;

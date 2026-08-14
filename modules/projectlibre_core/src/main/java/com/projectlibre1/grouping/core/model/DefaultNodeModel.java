@@ -621,7 +621,13 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public Node search(Object key) {
-		return (key == null) ? null : (Node) searchIndex.get(key);
+		if (key == null) return null;
+		Node node=(Node)searchIndex.get(key);
+		if (node==null){
+			node=hierarchy.search(key,getImplComparatorInstance());
+			if (node!=null) searchIndex.put(key,node);
+		}
+		return node;
 	}
 
 
