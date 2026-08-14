@@ -202,7 +202,12 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean moveSelectedTaskRows(int direction) {
-		return moveSelectedTaskRows(direction, true);
+		// Microsoft Project moves the selected task from any selected cell (a single
+		// cell in the task row is enough), not only when the entire row is selected.
+		// Requiring the whole row broke the keyboard move after a "select column then
+		// click a cell" sequence, which collapses the selection to a single cell and
+		// silently rejected the move. See issue #45.
+		return moveSelectedTaskRows(direction, false);
 	}
 
 	public boolean moveSelectedTaskRowsFromCommand(int direction) {
