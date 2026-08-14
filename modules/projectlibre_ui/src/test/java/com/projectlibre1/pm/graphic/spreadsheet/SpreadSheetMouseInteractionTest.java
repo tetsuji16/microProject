@@ -201,6 +201,74 @@ class SpreadSheetMouseInteractionTest {
 		});
 	}
 
+	@Test
+	void keyboardMoveWorksFromASingleTaskCellSelection() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int firstRow = findRow(sheet, fixture.firstTask());
+			int secondRow = findRow(sheet, fixture.secondTask());
+			int column = findNameColumn(sheet);
+
+			// Reproduce the reported sequence: select a column, then click a single
+			// cell. This collapses the selection to one cell (1 row, 1 column) instead
+			// of a whole row.
+			sheet.selectColumnAndAllRows(column);
+			assertTrue(sheet.isColumnFullySelected(column),
+					"after selectColumnAndAllRows the column must be fully selected");
+			sheet.changeSelection(secondRow, column, false, false);
+			assertEquals(1, sheet.getSelectedRowCount(),
+					"after selecting a column then a single cell, exactly one row is selected");
+			assertEquals(1, sheet.getSelectedColumnCount(),
+					"after selecting a column then a single cell, exactly one column is selected");
+			assertFalse(sheet.getColumnCount() == sheet.getSelectedColumnCount(),
+					"the selection is a single cell, NOT a whole row");
+
+			// Before the fix the keyboard move required the entire row and was silently
+			// rejected here, so the task list never refreshed. Microsoft Project moves
+			// the selected task from any selected cell, so the keyboard shortcut (which
+			// uses requireEntireRow=false) must now move and refresh.
+			assertTrue(sheet.canMoveSelectedTaskRows(-1, false),
+					"keyboard/drag move precondition must accept a single task-cell selection");
+			sheet.getActionMap().get(SpreadSheet.MOVE_TASK_UP_ACTION).actionPerformed(
+					new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, SpreadSheet.MOVE_TASK_UP_ACTION));
+			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()),
+					"the selected task must move up after the keyboard shortcut from a single cell");
+		});
+	}
+
+	@Test
+	void movePreconditionStillRequiresEntireRowWhenExplicitlyRequested() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int row = findRow(sheet, fixture.secondTask());
+			int column = findNameColumn(sheet);
+
+			// Whole-row selection (all columns): move precondition is satisfied.
+			sheet.selectRowAndAllColumns(row);
+			assertTrue(sheet.isRowFullySelected(row),
+					"selecting the whole row must be a fully-selected row");
+			assertEquals(sheet.getColumnCount(), sheet.getSelectedColumnCount(),
+					"whole-row selection selects every column");
+			assertTrue(sheet.canMoveSelectedTaskRows(-1, true),
+					"move up must be allowed when the whole row is selected");
+
+			// A single-cell selection must still be rejected when the caller explicitly
+			// requires the entire row (drag path keeps its stricter check).
+			sheet.selectColumnAndAllRows(column);
+			assertTrue(sheet.isColumnFullySelected(column),
+					"after selectColumnAndAllRows the column must be fully selected");
+			sheet.changeSelection(row, column, false, false);
+			assertEquals(1, sheet.getSelectedColumnCount(),
+					"after selecting a column then a single cell, exactly one column is selected");
+			assertFalse(sheet.canMoveSelectedTaskRows(-1, true),
+					"explicit requireEntireRow=true must still reject a single-cell selection");
+			assertTrue(sheet.moveSelectedTaskRowsFromCommand(-1),
+					"Move Up/Down command (requireEntireRow=false) still works on a single-cell selection");
+		});
+	}
+
 	private Fixture createFixture() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("mouse-test", undoController);
