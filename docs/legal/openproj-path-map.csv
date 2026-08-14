@@ -1,0 +1,8 @@
+current_module,openproj_module,current_source_roots,openproj_source_roots,package_normalization,notes
+projectlibre_contrib,openproj_contrib,src/main/java|src/main/resources|src/test,src,com.projectlibre1->com.projity|org.projectlibre1->org.projity,Third-party sources must be separated before disposition
+projectlibre_core,openproj_core,src/main/java|src/main/resources|src/test,src,com.projectlibre1->com.projity|org.projectlibre1->org.projity,OpenProj core baseline is the primary comparison
+projectlibre_exchange,openproj_exchange,src/main/java|src/main/resources|src/test,src,com.projectlibre1->com.projity|org.projectlibre1->org.projity,Server and collaboration additions require hunk review
+projectlibre_reports,openproj_reports,src/main/java|src/main/resources|src/test,src,com.projectlibre1->com.projity|org.projectlibre1->org.projity,Templates and adapters require separate review
+projectlibre_ui,openproj_ui,src/main/java|src/main/resources|src/test,src,com.projectlibre1->com.projity|org.projectlibre1->org.projity,UI assets and translations require separate review
+projectlibre_application,,src/main/java|src/main/resources|src/test,,,No matching OpenProj module; review as a separate ProjectLibre/fork-origin candidate
+packaging,,packaging,,,Packaging and brand assets are reviewed independently

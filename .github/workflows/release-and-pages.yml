@@ -57,16 +57,16 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.version.outputs.release_version }}'
           New-Item -ItemType Directory -Path release-assets | Out-Null
-          Copy-Item "build/releases/v$version/msi/ProjectLibre-$version.msi" "release-assets/ProjectLibre-$version.msi"
-          Copy-Item "docs/downloads/ProjectLibre-$version-app-image.zip" "release-assets/ProjectLibre-$version-app-image.zip"
-          Copy-Item "release-assets/ProjectLibre-$version.msi" "release-assets/ProjectLibre-latest.msi"
-          Copy-Item "release-assets/ProjectLibre-$version-app-image.zip" "release-assets/ProjectLibre-latest-app-image.zip"
+          Copy-Item "build/releases/v$version/msi/microProject-$version.msi" "release-assets/microProject-$version.msi"
+          Copy-Item "docs/downloads/microProject-$version-app-image.zip" "release-assets/microProject-$version-app-image.zip"
+          Copy-Item "release-assets/microProject-$version.msi" "release-assets/microProject-latest.msi"
+          Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.release_version }}
-          name: ProjectLibre v${{ steps.version.outputs.release_version }}
+          name: microProject v${{ steps.version.outputs.release_version }}
           generate_release_notes: true
           files: release-assets/*
 

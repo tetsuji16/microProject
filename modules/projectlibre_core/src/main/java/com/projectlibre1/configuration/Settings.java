@@ -72,7 +72,7 @@ public class Settings {
 	public static final boolean CLUSTERED=true;
 	public static final String CLUSTER_NODES="jnp://localhost:1100";
 	public static final String SITE_HOME = "https://github.com/tetsuji16/ProjectLibre";
-	public static final String HELP_HOME = "https://projectlibre.com/projectlibre-documentation/";
+	public static final String HELP_HOME = SITE_HOME + "/tree/master/docs";
 	public static final String WEB_APP= "web";
 	public static final String WEB_HOME = SITE_HOME + "/" + WEB_APP;
 	

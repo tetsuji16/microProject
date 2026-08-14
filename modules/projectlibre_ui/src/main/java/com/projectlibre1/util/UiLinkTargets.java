@@ -10,9 +10,9 @@ import com.projectlibre1.configuration.Settings;
 public final class UiLinkTargets {
 	public static final String PROJECT_HOME = Settings.SITE_HOME;
 	public static final String DOCUMENTATION_HOME = Settings.HELP_HOME;
-	public static final String TRIAL_HOME = "https://www.projectlibre.com/trial/";
-	public static final String LOGIN_HOME = "https://www.projectlibre.com/login/";
-	public static final String DONATE_HOME = "https://www.projectlibre.com/";
+	public static final String TRIAL_HOME = PROJECT_HOME;
+	public static final String LOGIN_HOME = PROJECT_HOME;
+	public static final String DONATE_HOME = "https://github.com/sponsors/tetsuji16";
 
 	private UiLinkTargets() {
 	}

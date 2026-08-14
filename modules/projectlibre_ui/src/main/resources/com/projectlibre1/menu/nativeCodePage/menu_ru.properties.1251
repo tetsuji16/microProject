@@ -149,7 +149,7 @@ CloseProject.action      = CloseProjectAction
 ProjectLibre.type= ITEM
 ProjectLibre.text =
 ProjectLibre.action = ProjectLibreAction
-ProjectLibre.icon=logo.ProjectLibre
+ProjectLibre.icon=logo.microProject
 ProjectLibre.tooltip=Go to github.com/tetsuji16/ProjectLibre
 
 SaveProject.type        = ITEM

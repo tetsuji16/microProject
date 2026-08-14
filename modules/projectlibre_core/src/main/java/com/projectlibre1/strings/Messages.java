@@ -235,6 +235,9 @@ public class Messages {
 		return sb.toString();
 	}
 	public static String getContextString(String key) {
+		if ("Text.ApplicationTitle".equals(key) || "Text.ShortTitle".equals(key)) {
+			return "microProject";
+		}
 		if (Environment.isProjectLibre()) {
 			String result = getStringFromBundles("Open_" + key);
 			if (result == null) {

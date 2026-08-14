@@ -69,7 +69,6 @@ import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 
 import org.apache.commons.collections.Closure;
-import org.projectlibre1.util.UpdateChecker;
 
 import com.projectlibre1.company.DefaultUser;
 import com.projectlibre1.configuration.Configuration;
@@ -77,10 +76,8 @@ import com.projectlibre1.configuration.ConfigurationReader;
 import com.projectlibre1.configuration.Dictionary;
 import com.projectlibre1.configuration.Settings;
 import com.projectlibre1.contrib.ClassLoaderUtils;
-import com.projectlibre1.dialog.LicenseDialog;
 import com.projectlibre1.dialog.LoginDialog;
 import com.projectlibre1.dialog.LoginForm;
-import com.projectlibre1.dialog.UserInfoDialog;
 import com.projectlibre1.pm.graphic.laf.LafManagerImpl;
 import com.projectlibre1.pm.task.Project;
 import com.projectlibre1.pm.task.ProjectFactory;
@@ -464,12 +461,6 @@ public abstract class StartupFactory {
 						}
 						if (gm.restorePreviousSessionAtStartup()) {
 							return;
-						}
-						if (Environment.isProjectLibre()&&!Environment.isPlugin()) {
-							LicenseDialog.showDialog(gm.getFrame(),false);
-							UserInfoDialog.showDialog(gm.getFrame(),false);
-//							DonateDialog.maybeShow(gm.getFrame(),false);
-							UpdateChecker.checkForUpdateInBackground();
 						}
 						if (welcome&&!Environment.isPlugin()) {
 							if (!Environment.isProjectLibre()) {

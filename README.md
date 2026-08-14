@@ -1,6 +1,6 @@
-# ProjectLibre Development Fork
+# microProject
 
-This repository is an unofficial development fork of ProjectLibre. It keeps the original desktop planning tool as its base and extends it with practical improvements for day-to-day scheduling, collaboration, import/export, and Gantt usability.
+microProject is an independent desktop planning application based on the OpenProj and ProjectLibre code history. It extends that foundation with practical improvements for day-to-day scheduling, collaboration, import/export, and Gantt usability.
 
 Current release in this fork:
 
@@ -8,16 +8,26 @@ Current release in this fork:
 
 Quick links:
 
-- [ProjectLibre GitHub Pages documentation](https://tetsuji16.github.io/ProjectLibre/docs/)
+- [microProject documentation](https://tetsuji16.github.io/ProjectLibre/docs/)
 
-![ProjectLibre Gantt view](docs/images/demo_gannt.png)
+![microProject Gantt view](docs/images/demo_gannt.png)
 
 ## What This Fork Is For
 
-- Keep ProjectLibre usable on a modern JDK and packaging toolchain
+- Keep microProject usable on a modern JDK and packaging toolchain
 - Improve real-world planning workflows instead of only preserving legacy behavior
 - Add collaboration-oriented features for teams sharing project files locally
 - Make the Gantt and spreadsheet views smoother to use for large schedules
+
+## Clean-room reconstruction status
+
+microProject is being rebuilt through clean-room implementations based on
+documented behavior, the OpenProj prototype, and independent fixtures. The
+reconstruction is still in progress: some corrections have not yet been
+completed, and legacy, compatibility, and newly reconstructed source code are
+currently mixed in parts of the repository. Until this work is finished,
+internal implementation boundaries may change and some areas should be
+treated as transitional.
 
 ## Baseline And Update Ratio
 
@@ -52,6 +62,11 @@ The figures below describe cumulative change volume since that baseline commit.
 - `packaging`: active packaging assets, licenses, and Windows release icons
 - `samples`: sample project files for screenshots and manual verification
 - `scripts`: launch helpers for local verification
+
+The reports and import/export modules have an enforced independent boundary:
+they may depend on the core model and their format/report libraries, but not on
+the desktop UI or application workflow. Run `.\gradlew.bat verifyIndependentBoundaries`
+to check this rule.
 
 ## Requirements
 
@@ -125,7 +140,7 @@ The Gradle Windows release flow stages the packaging input under:
 
 The local MSI output is generated under:
 
-- `build\releases\v0.0.23\msi\ProjectLibre-0.0.23.msi`
+- `build\releases\v0.0.23\msi\microProject-0.0.23.msi`
 
 If you need the portable app-image ZIP or split EXE staging flow, use:
 
@@ -171,4 +186,4 @@ The README screenshot is intentionally captured so that only the application UI 
 
 ## License
 
-This fork builds on ProjectLibre and keeps the original license materials and third-party notices in `packaging/licenses`.
+microProject keeps the original OpenProj/ProjectLibre license materials and third-party notices in `packaging/licenses`; product branding and distribution metadata are maintained separately.

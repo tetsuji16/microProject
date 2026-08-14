@@ -66,33 +66,23 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JPanel;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.projectlibre1.pm.graphic.IconManager;
 import com.projectlibre1.pm.graphic.frames.GraphicManager;
-import com.projectlibre1.configuration.Settings;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.BrowserControl;
-import com.projectlibre1.util.Environment;
 import com.projectlibre1.util.UiLinkTargets;
 import com.projectlibre1.util.VersionUtils;
 
 public final class HelpDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
 	private static final String helpUrl = UiLinkTargets.DOCUMENTATION_HOME;
-	private static final String trialUrl = UiLinkTargets.TRIAL_HOME;
-	private static final String helpLoginUrl = UiLinkTargets.LOGIN_HOME;
-	private static final String videosUrl = Settings.SITE_HOME; //$NON-NLS-1$
-	public static final String donateUrl = UiLinkTargets.DONATE_HOME;
 	JButton link;
-	JButton trial;
-	JButton registerToHelp;
-    JButton videos;
+	JButton donate;
     JButton license;
-	private JPanel donatePanel;
 	public static HelpDialog getInstance(Frame owner) {
 		return new HelpDialog(owner);
 	}
@@ -110,26 +100,14 @@ public final class HelpDialog extends AbstractDialog {
 				BrowserControl.displayURL(helpUrl);
 			}
 		});
-
-		trial = new JButton(Messages.getString("HelpDialog.GoToCloudTrial"));
-		trial.setEnabled(true);
-		trial.setToolTipText(trialUrl);
-		trial.addActionListener(new ActionListener() {
+		donate = new JButton("Support microProject");
+		donate.setToolTipText(UiLinkTargets.DONATE_HOME);
+		donate.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				BrowserControl.displayURL(trialUrl);
+				BrowserControl.displayURL(UiLinkTargets.DONATE_HOME);
 			}
 		});
 
-
-
-		registerToHelp = new JButton(Messages.getString("HelpDialog.RegisterToOnlineHelp")); //$NON-NLS-1$
-		registerToHelp.setEnabled(true);
-		registerToHelp.setToolTipText(helpUrl);
-		registerToHelp.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				BrowserControl.displayURL(helpLoginUrl);
-			}
-		});
 		license = new JButton(Messages.getString("HelpDialog.ShowLicense")); //$NON-NLS-1$
 		license.setEnabled(true);
 		license.setToolTipText(Messages.getString("HelpDialog.ShowLicense")); //$NON-NLS-1$
@@ -177,26 +155,8 @@ public final class HelpDialog extends AbstractDialog {
 		builder.append(link);
 		builder.nextLine(2);
 		builder.nextColumn();
-		builder.append(trial);
+		builder.append(donate);
 		builder.nextLine(2);
-		builder.nextColumn();
-		builder.addLabel(Messages.getString("HelpDialog.RegisterToOnlineHelp1"),cc.xyw(1,  7, 3));
-		builder.nextLine(2);
-		builder.nextColumn();
-		builder.addLabel(Messages.getString("HelpDialog.RegisterToOnlineHelp2"),cc.xyw(1,  9, 3));
-		builder.nextLine(2);
-		builder.nextColumn();
-		builder.addLabel(Messages.getString("HelpDialog.RegisterToOnlineHelp3"),cc.xyw(1,  11, 3));
-		builder.nextLine(2);
-		builder.nextColumn();
-		builder.addLabel(Messages.getString("HelpDialog.RegisterToOnlineHelp4"),cc.xyw(1,  13, 3));
-		builder.nextLine(2);
-
-		builder.nextColumn();
-		builder.append(registerToHelp);
-
-//		builder.nextLine(2);
-//		builder.append(videos);
 		builder.nextLine(2);
 		builder.nextColumn();
 		builder.append(license);
@@ -208,14 +168,7 @@ public final class HelpDialog extends AbstractDialog {
 		builder.addLabel(Messages.getString("AboutDialog.copyright"),cc.xyw(1,  23, 3));
 
 		
-		if (false || Environment.isProjectLibre()) { // removed donation link
-			JPanel p = new JPanel();
-			p.add(builder.getPanel());
-	//		p.add(makeDonatePanel(false));
-			return p;
-		}
-		else 
-			return builder.getPanel();
+		return builder.getPanel();
 	}
 	protected boolean hasCloseButton() {
 		return true;
@@ -225,30 +178,5 @@ public final class HelpDialog extends AbstractDialog {
 		return false;
 	}
 
-	public static JPanel makeDonatePanel(boolean border) {
-		FormLayout layout = new FormLayout("250px" , // cols //$NON-NLS-1$
-		"p, 6dlu,  p"); // rows //$NON-NLS-1$
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		if (border)
-			builder.setDefaultDialogBorder();
-
-		JLabel msg = new JLabel(Messages.getString("Text.donateMessage"));
-		
-		builder.append(msg);
-		builder.nextLine(2);
-		ImageIcon icon = IconManager.getIcon("paypal.donate");
-		JButton donate = new JButton(icon);
-		donate.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-		builder.append(donate);
-		donate.setEnabled(true);
-		donate.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				BrowserControl.displayURL(donateUrl);
-			}
-		});		
-
-		return builder.getPanel();
-	}
 }
 

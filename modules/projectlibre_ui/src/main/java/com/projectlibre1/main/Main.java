@@ -56,9 +56,7 @@
 package com.projectlibre1.main;
 
 import java.io.File;
-import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.prefs.Preferences;
 import java.util.logging.Level;
@@ -66,8 +64,6 @@ import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
 
-import com.projectlibre1.dialog.UserInfoDialog;
-import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.Environment;
 import com.projectlibre1.util.FlatLafSupport;
 
@@ -84,10 +80,6 @@ public class Main {
 		long firstRun=getFirstRun();
 		Preferences.userNodeForPackage(Main.class).putInt("projectlibreRunNumber",runNumber);
 		Preferences.userNodeForPackage(Main.class).putLong("projectlibrefirstRun",firstRun);		
-		System.setProperty("projectlibre.runNumber", runNumber+"");
-		System.setProperty("projectlibre.firstRun", firstRun+"");
-		System.setProperty("projectlibre.projectLibreRunNumber", getProjectLibreRunNumber()+"");
-		System.setProperty("projectlibre.projectLibreFirstRun", getProjectLibreFirstRun()+"");
 		
 //		System.setProperty("file.encoding", "UTF-8");
 
@@ -160,16 +152,6 @@ public class Main {
 	public static long getFirstRun() {
 		return Preferences.userNodeForPackage(Main.class).getLong("projectlibreFirstRun",System.currentTimeMillis());
 	}
-	public static int getProjectLibreRunNumber() {
-		return Preferences.userNodeForPackage(Main.class).getInt("runNumber",0);
-	}
-	public static long getProjectLibreFirstRun() {
-		return Preferences.userNodeForPackage(Main.class).getLong("firstRun",System.currentTimeMillis());
-	}
-	public static String getRunSinceMessage() {
-		return MessageFormat.format(Messages.getString("Text.runsSinceMessage"),new Object[] {getRunNumber(),new Date(getFirstRun())});
-	}
-
 	private static void configureRuntimeLogging() {
 		Logger.getLogger("com.projectlibre1.pm.calendar.WorkWeek").setLevel(Level.WARNING);
 		Logger.getLogger("org.openide.util").setLevel(Level.SEVERE);

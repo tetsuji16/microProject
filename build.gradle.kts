@@ -99,8 +99,32 @@ subprojects {
 
 tasks.register("stageAppDist") {
     group = "distribution"
-    description = "Builds the installable application layout for ProjectLibre."
+    description = "Builds the installable application layout for microProject."
     dependsOn(":projectlibre_ui:installDist")
+}
+
+tasks.register("verifyIndependentBoundaries") {
+    group = "verification"
+    description = "Verifies that reports and exchange remain independent of UI and application layers."
+
+    doLast {
+        val boundaryRules = mapOf(
+            "projectlibre_reports" to listOf("com.projectlibre1.exchange", "com.projectlibre1.application", "com.projectlibre.ui"),
+            "projectlibre_exchange" to listOf("com.projectlibre1.reports", "com.projectlibre1.application", "com.projectlibre.ui")
+        )
+        boundaryRules.forEach { (module, forbiddenPackages) ->
+            val sourceRoot = project(":$module").projectDir.resolve("src/main")
+            fileTree(sourceRoot).matching { include("**/*.java", "**/*.kt") }.forEach { sourceFile ->
+                sourceFile.useLines { lines ->
+                    lines.forEach { line ->
+                        if (line.trimStart().startsWith("import ") && forbiddenPackages.any { line.contains(it) }) {
+                            throw GradleException("Independent boundary violation in ${sourceFile}: $line")
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 tasks.register<Delete>("cleanLegacyPackagingArtifacts") {
@@ -111,9 +135,9 @@ tasks.register<Delete>("cleanLegacyPackagingArtifacts") {
 
 val releaseVersion = project.version.toString()
 val releaseLabel = "v$releaseVersion"
-val applicationVendor = "ProjectLibre, Inc."
-val applicationDescription = "ProjectLibre desktop project management software"
-val applicationCopyright = "Copyright © 2012-2026 ProjectLibre, Inc."
+val applicationVendor = "microProject contributors"
+val applicationDescription = "microProject desktop project management software"
+val applicationCopyright = "Copyright © 2026 microProject contributors"
 val windowsReleaseRoot = layout.buildDirectory.dir("releases/$releaseLabel")
 val windowsJpackageInput = windowsReleaseRoot.map { it.dir("jpackage-input") }
 val windowsAppImageDir = windowsReleaseRoot.map { it.dir("app-image") }
@@ -183,7 +207,7 @@ tasks.register<Exec>("packageWindowsAppImage") {
         commandLine(
             File(javaHome, "bin/jpackage.exe").absolutePath,
             "--type", "app-image",
-            "--name", "ProjectLibre",
+            "--name", "microProject",
             "--app-version", releaseVersion,
             "--vendor", applicationVendor,
             "--description", applicationDescription,
@@ -215,7 +239,7 @@ tasks.register<Exec>("packageWindowsMsi") {
         commandLine(
             File(javaHome, "bin/jpackage.exe").absolutePath,
             "--type", "msi",
-            "--name", "ProjectLibre",
+            "--name", "microProject",
             "--app-version", releaseVersion,
             "--vendor", applicationVendor,
             "--description", applicationDescription,
@@ -255,7 +279,7 @@ tasks.register<Exec>("packageWindowsExe") {
         commandLine(
             File(javaHome, "bin/jpackage.exe").absolutePath,
             "--type", "exe",
-            "--name", "ProjectLibre",
+            "--name", "microProject",
             "--app-version", releaseVersion,
             "--vendor", applicationVendor,
             "--description", applicationDescription,
@@ -300,12 +324,12 @@ tasks.register<Zip>("packageWindowsZip") {
     description = "Archives the Windows app-image as a downloadable ZIP."
     dependsOn("packageWindowsAppImage")
 
-    from(windowsAppImageDir.map { it.dir("ProjectLibre") })
-    archiveFileName.set("ProjectLibre-$releaseVersion-app-image.zip")
+    from(windowsAppImageDir.map { it.dir("microProject") })
+    archiveFileName.set("microProject-$releaseVersion-app-image.zip")
     destinationDirectory.set(docsDownloadsDir)
 
     doFirst {
-        delete(docsDownloadsDir.file("ProjectLibre-$releaseVersion-app-image.zip"))
+        delete(docsDownloadsDir.file("microProject-$releaseVersion-app-image.zip"))
     }
 }
 
@@ -314,7 +338,7 @@ tasks.register<Copy>("publishWindowsMsiToDocs") {
     description = "Copies the Windows MSI into docs/downloads for GitHub Pages."
     dependsOn("packageWindowsMsi")
 
-    from(windowsMsiDir.map { it.file("ProjectLibre-$releaseVersion.msi") })
+    from(windowsMsiDir.map { it.file("microProject-$releaseVersion.msi") })
     into(docsDownloadsDir)
 }
 
@@ -324,10 +348,10 @@ tasks.register("publishSplitExeToDocs") {
     dependsOn("packageWindowsExe")
 
     doLast {
-        val exeFile = windowsExeDir.get().file("ProjectLibre-$releaseVersion.exe").asFile
+        val exeFile = windowsExeDir.get().file("microProject-$releaseVersion.exe").asFile
         val downloadsDir = docsDownloadsDir.asFile
         val partSize = 95L * 1024L * 1024L
-        val baseName = "ProjectLibre-$releaseVersion.exe"
+        val baseName = "microProject-$releaseVersion.exe"
         val partPrefix = File(downloadsDir, baseName)
 
         downloadsDir.mkdirs()
