@@ -238,6 +238,56 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void dragMovePreconditionAcceptsSingleCellSelection() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int firstRow = findRow(sheet, fixture.firstTask());
+			int secondRow = findRow(sheet, fixture.secondTask());
+			int column = findNameColumn(sheet);
+
+			// Reproduce the reported sequence again, this time for the ID-column
+			// drag-and-drop move path: select a column, then click a single cell.
+			// The drag drop target validation is canMoveSelectedTaskRowsTo, which
+			// (unlike the keyboard/ribbon paths) still required the entire row.
+			sheet.selectColumnAndAllRows(column);
+			sheet.changeSelection(secondRow, column, false, false);
+			assertEquals(1, sheet.getSelectedRowCount(),
+					"after selecting a column then a single cell, exactly one row is selected");
+			assertEquals(1, sheet.getSelectedColumnCount(),
+					"after selecting a column then a single cell, exactly one column is selected");
+			assertFalse(sheet.getColumnCount() == sheet.getSelectedColumnCount(),
+					"the selection is a single cell, NOT a whole row");
+
+			// The single selected task row must be a valid drag target, just like the
+			// keyboard/ribbon move. Before the fix this returned false and the drop
+			// was silently rejected (beep only), so the list never refreshed.
+			assertTrue(sheet.canMoveSelectedTaskRowsTo(firstRow, false),
+					"drag-drop move target must accept a single task-cell selection");
+			assertTrue(sheet.moveSelectedTaskRowsTo(firstRow, false),
+					"drag-drop move must succeed from a single task-cell selection");
+			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()),
+					"the selected task must move above the target from a single-cell drag");
+		});
+	}
+
+	@Test
+	void taskMoveIsRejectedWhenSelectionContainsANonTaskRow() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int column = findNameColumn(sheet);
+			// A single-cell selection on a real task row must still be movable (the
+			// regression from issue #45); this guards that the relaxed precondition
+			// did not accidentally start accepting non-task rows.
+			sheet.selectColumnAndAllRows(column);
+			sheet.changeSelection(findRow(sheet, fixture.secondTask()), column, false, false);
+			assertTrue(sheet.canMoveSelectedTaskRows(-1, false),
+					"a single task cell must remain movable");
+		});
+	}
+
+	@Test
 	void movePreconditionStillRequiresEntireRowWhenExplicitlyRequested() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
