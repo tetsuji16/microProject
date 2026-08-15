@@ -20,16 +20,16 @@ Use `rg` / `rg --files` for discovery. Search by symbol and behavior before intr
 
 ## Module map
 
-- `modules/projectlibre_core`: scheduling engine, data model, shared utilities, and core configuration.
-- `modules/projectlibre_application`: open/save workflows, document coordination, and file policies.
-- `modules/projectlibre_ui`: Swing UI, spreadsheet and Gantt views, rendering, menus, and startup.
-- `modules/projectlibre_exchange`: MPP/POD/XML/XLSX import/export and collaboration metadata integration.
-- `modules/projectlibre_reports`: report code and templates.
-- `modules/projectlibre_contrib`: bundled compatibility and third-party code; avoid growing packaged dependencies unnecessarily.
+- `modules/micrproject_core`: scheduling engine, data model, shared utilities, and core configuration.
+- `modules/micrproject_application`: open/save workflows, document coordination, and file policies.
+- `modules/micrproject_ui`: Swing UI, spreadsheet and Gantt views, rendering, menus, and startup.
+- `modules/micrproject_exchange`: MPP/POD/XML/XLSX import/export and collaboration metadata integration.
+- `modules/micrproject_reports`: report code and templates.
+- `modules/micrproject_contrib`: bundled compatibility and third-party code; avoid growing packaged dependencies unnecessarily.
 - `packaging`: authoritative icons, licenses, file associations, and Windows release inputs.
 - `samples`: manual-verification fixtures. Application runs can modify files here, so inspect changes and do not commit incidental rewrites.
 
-Respect the dependency direction expressed in the Gradle files. Put workflow coordination in `projectlibre_application`, reusable domain behavior in `projectlibre_core`, format conversion in `projectlibre_exchange`, and view-only behavior in `projectlibre_ui`.
+Respect the dependency direction expressed in the Gradle files. Put workflow coordination in `micrproject_application`, reusable domain behavior in `micrproject_core`, format conversion in `micrproject_exchange`, and view-only behavior in `micrproject_ui`.
 
 ## Implementation conventions
 
@@ -47,14 +47,14 @@ Choose the narrowest command that exercises the change, then widen verification 
 
 ```powershell
 # One module
-.\gradlew.bat :projectlibre_core:test --console=plain
-.\gradlew.bat :projectlibre_application:test --console=plain
-.\gradlew.bat :projectlibre_exchange:test --console=plain
-.\gradlew.bat :projectlibre_ui:test --console=plain
-.\gradlew.bat :projectlibre_reports:test --console=plain
+.\gradlew.bat :micrproject_core:test --console=plain
+.\gradlew.bat :micrproject_application:test --console=plain
+.\gradlew.bat :micrproject_exchange:test --console=plain
+.\gradlew.bat :micrproject_ui:test --console=plain
+.\gradlew.bat :micrproject_reports:test --console=plain
 
 # One test class (replace module and class)
-.\gradlew.bat :projectlibre_ui:test --tests "com.example.MyTest" --console=plain
+.\gradlew.bat :micrproject_ui:test --tests "com.example.MyTest" --console=plain
 
 # Repository-wide verification
 .\gradlew.bat clean build --console=plain
@@ -72,13 +72,13 @@ Choose the narrowest command that exercises the change, then widen verification 
 
 ```powershell
 .\gradlew.bat clean build installDist --console=plain
-.\scripts\run_projectlibre_clean.bat
+.\scripts\run_micrproject_clean.bat
 ```
 
 For a faster logged incremental launch, use `scripts\run_projectlibre.ps1`; see `docs/build-and-run.md` for its options. The authoritative runnable layout is:
 
 ```text
-modules\projectlibre_ui\build\install\projectlibre_ui
+modules\micrproject_ui\build\install\micrproject_ui
 ```
 
 Never validate against an older `build/install` copy. For UI changes, record the scenario and sample file used, and verify state after redraw plus save/reload when applicable.

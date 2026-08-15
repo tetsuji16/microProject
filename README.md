@@ -53,12 +53,12 @@ The figures below describe cumulative change volume since that baseline commit.
 
 ## Repository Layout
 
-- `modules/projectlibre_core`: scheduling engine, data model, collaboration logic, and configuration
-- `modules/projectlibre_application`: application workflows, file policies, and save/open coordination
-- `modules/projectlibre_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
-- `modules/projectlibre_exchange`: file exchange, import/export, and format integration code
-- `modules/projectlibre_reports`: report-related code and templates
-- `modules/projectlibre_contrib`: shared third-party dependencies built into the app distribution
+- `modules/micrproject_core`: scheduling engine, data model, collaboration logic, and configuration
+- `modules/micrproject_application`: application workflows, file policies, and save/open coordination
+- `modules/micrproject_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
+- `modules/micrproject_exchange`: file exchange, import/export, and format integration code
+- `modules/micrproject_reports`: report-related code and templates
+- `modules/micrproject_contrib`: shared third-party dependencies built into the app distribution
 - `packaging`: active packaging assets, licenses, and Windows release icons
 - `samples`: sample project files for screenshots and manual verification
 - `scripts`: launch helpers for local verification
@@ -82,7 +82,7 @@ If `JAVA_HOME` is not set, the Gradle release tasks fall back to `C:\Program Fil
 - `Gradle` is the supported build and release entrypoint for this repository
 - `build.gradle.kts` drives module compilation, installable app layout generation, and Windows `jpackage` packaging
 - `packaging` is the source of active packaging assets, icons, and license notices consumed by the Gradle tasks
-- Keep `projectlibre_contrib` jars lean when updating dependencies so the packaged app size does not grow unnecessarily
+- Keep `micrproject_contrib` jars lean when updating dependencies so the packaged app size does not grow unnecessarily
 - CI is aligned to the Gradle flow and validates the installable desktop layout on JDK 25
 
 ## Build The App
@@ -103,7 +103,7 @@ Key Gradle entrypoints:
 
 - `.\gradlew.bat projects`: show the multi-project layout
 - `.\gradlew.bat build`: compile the production modules and assemble per-module jars
-- `.\gradlew.bat stageAppDist`: create the installed desktop app layout from `:projectlibre_ui:installDist`
+- `.\gradlew.bat stageAppDist`: create the installed desktop app layout from `:micrproject_ui:installDist`
 - `.\gradlew.bat cleanLegacyPackagingArtifacts`: remove generated legacy packaging scratch output such as `isolated-build`
 - `.\gradlew.bat packageWindowsAppImage`: build a Windows app-image with `jpackage`
 - `.\gradlew.bat packageWindowsMsi`: build the Windows MSI
@@ -112,11 +112,11 @@ Key Gradle entrypoints:
 
 When you are manually verifying a UI fix, use the installed app layout created by `stageAppDist` / `installDist`, not an older `build/install` copy. See [docs/build-and-run.md](docs/build-and-run.md) for the exact runbook.
 
-On Windows, the safest one-step launcher is `scripts\run_projectlibre_clean.bat`, and `scripts\run_projectlibre.bat` is a double-click entry point to the same flow.
+On Windows, the safest one-step launcher is `scripts\run_micrproject_clean.bat`, and `scripts\run_projectlibre.bat` is a double-click entry point to the same flow.
 
 The runnable application layout is generated under:
 
-- `modules\projectlibre_ui\build\install\projectlibre_ui`
+- `modules\micrproject_ui\build\install\micrproject_ui`
 
 The root release work area is generated under:
 

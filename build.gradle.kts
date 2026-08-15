@@ -47,7 +47,7 @@ plugins {
     base
 }
 
-group = "com.projectlibre"
+group = "com.microproject"
 version = providers.gradleProperty("releaseVersion").getOrElse("0.0.23")
 val minimumJavaRelease = 25
 val activeToolchainVersion = maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
@@ -90,7 +90,7 @@ subprojects {
         enabled = false
     }
 
-    if (name != "projectlibre_contrib") {
+    if (name != "micrproject_contrib") {
         projectLibreMavenDependencyAliases.forEach { alias ->
             dependencies.add("implementation", versionCatalog.findLibrary(alias).get())
         }
@@ -100,7 +100,7 @@ subprojects {
 tasks.register("stageAppDist") {
     group = "distribution"
     description = "Builds the installable application layout for microProject."
-    dependsOn(":projectlibre_ui:installDist")
+    dependsOn(":micrproject_ui:installDist")
 }
 
 tasks.register("verifyIndependentBoundaries") {
@@ -109,8 +109,8 @@ tasks.register("verifyIndependentBoundaries") {
 
     doLast {
         val boundaryRules = mapOf(
-            "projectlibre_reports" to listOf("com.microproject.exchange", "com.microproject.application", "com.projectlibre.ui"),
-            "projectlibre_exchange" to listOf("com.microproject.reports", "com.microproject.application", "com.projectlibre.ui")
+            "micrproject_reports" to listOf("com.microproject.exchange", "com.microproject.application", "com.projectlibre.ui"),
+            "micrproject_exchange" to listOf("com.microproject.reports", "com.microproject.application", "com.projectlibre.ui")
         )
         boundaryRules.forEach { (module, forbiddenPackages) ->
             val sourceRoot = project(":$module").projectDir.resolve("src/main")
@@ -166,9 +166,9 @@ val windowsRuntimeModules = listOf(
 tasks.register<Sync>("prepareWindowsReleaseInput") {
     group = "distribution"
     description = "Prepares jpackage input files from the Gradle installDist output."
-    dependsOn(":projectlibre_ui:installDist")
+    dependsOn(":micrproject_ui:installDist")
 
-    val installLibDir = project(":projectlibre_ui").layout.buildDirectory.dir("install/projectlibre_ui/lib")
+    val installLibDir = project(":micrproject_ui").layout.buildDirectory.dir("install/micrproject_ui/lib")
     val iconFile = layout.projectDirectory.file("packaging/windows/icons/microproject.ico")
     val licenseFile = layout.projectDirectory.file("packaging/licenses/license.txt")
 
@@ -213,7 +213,7 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "projectlibre_ui.jar",
+            "--main-jar", "micrproject_ui.jar",
             "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
@@ -245,7 +245,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "projectlibre_ui.jar",
+            "--main-jar", "micrproject_ui.jar",
             "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
@@ -285,7 +285,7 @@ tasks.register<Exec>("packageWindowsExe") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "projectlibre_ui.jar",
+            "--main-jar", "micrproject_ui.jar",
             "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
@@ -302,9 +302,9 @@ tasks.register<Exec>("packageWindowsExe") {
 tasks.register<JavaExec>("verifyPackagedFileImports") {
     group = "verification"
     description = "Loads sample MPP and POD files with the same limited modules as the packaged app."
-    dependsOn(":projectlibre_ui:installDist", ":projectlibre_ui:compileTestJava")
+    dependsOn(":micrproject_ui:installDist", ":micrproject_ui:compileTestJava")
 
-    val uiSourceSets = project(":projectlibre_ui").extensions.getByType<SourceSetContainer>()
+    val uiSourceSets = project(":micrproject_ui").extensions.getByType<SourceSetContainer>()
     val uiTestOutput = uiSourceSets.named("test").map { it.output }
     val uiTestRuntimeClasspath = uiSourceSets.named("test").map { it.runtimeClasspath }
 
@@ -312,7 +312,7 @@ tasks.register<JavaExec>("verifyPackagedFileImports") {
     mainClass.set("com.microproject.integration.PackagedImportSmokeMain")
     args(
         "--windows-script",
-        file("modules/projectlibre_ui/build/install/projectlibre_ui/bin/projectlibre_ui.bat").absolutePath,
+        file("modules/micrproject_ui/build/install/micrproject_ui/bin/micrproject_ui.bat").absolutePath,
         file("samples/Commercial construction project plan.mpp").absolutePath,
         file("samples/Commercial construction project plan.pod").absolutePath
     )

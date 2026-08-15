@@ -137,10 +137,10 @@
 | ID | 種別 | 入力/条件 | 手順 | 期待結果 / Assertion |
 |---|---|---|---|---|
 | B-01 | 正常 | clean checkout | `.\gradlew.bat projects` | multi-project 解決 |
-| B-02 | 正常 | unit tests | `:projectlibre_core:test`, `:projectlibre_exchange:test`, `:projectlibre_ui:test`, `:projectlibre_reports:test` | 全 pass |
+| B-02 | 正常 | unit tests | `:micrproject_core:test`, `:micrproject_exchange:test`, `:micrproject_ui:test`, `:micrproject_reports:test` | 全 pass |
 | B-03 | 正常 | build | `.\gradlew.bat build` | compile/jar 成功 |
 | B-04 | 正常 | packaged import | `.\gradlew.bat verifyPackagedFileImports` | limited modules で MPP/POD 読込成功 |
-| B-05 | 正常 | app dist | `.\gradlew.bat stageAppDist` | `projectlibre_ui/build/install/projectlibre_ui` 生成 |
+| B-05 | 正常 | app dist | `.\gradlew.bat stageAppDist` | `micrproject_ui/build/install/micrproject_ui` 生成 |
 | B-05a | 正常 | legacy packaging cleanup | `.\gradlew.bat cleanLegacyPackagingArtifacts` | `isolated-build` が削除され、Gradle 正本の成果物には影響しない |
 | B-06 | 異常 | JAVA_HOME 未設定/不正 | package task | 既定 JDK 25 fallback または明確な失敗 |
 | B-07 | 異常 | WiX なし | MSI/EXE package | 原因が分かる失敗、途中成果物破損なし |

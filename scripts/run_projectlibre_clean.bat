@@ -4,7 +4,7 @@ setlocal EnableExtensions
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "PROJECT_ROOT=%%~fI"
 set "GRADLEW=%PROJECT_ROOT%\gradlew.bat"
-set "LIB_DIR=%PROJECT_ROOT%\modules\projectlibre_ui\build\install\projectlibre_ui\lib"
+set "LIB_DIR=%PROJECT_ROOT%\modules\micrproject_ui\build\install\micrproject_ui\lib"
 set "ARG_FILE=%TEMP%\projectlibre-java-args-%RANDOM%.txt"
 
 if not exist "%GRADLEW%" (
@@ -20,7 +20,7 @@ set "GRADLE_EXIT=%ERRORLEVEL%"
 popd
 if not "%GRADLE_EXIT%"=="0" exit /b %GRADLE_EXIT%
 
-if not exist "%LIB_DIR%\projectlibre_ui.jar" (
+if not exist "%LIB_DIR%\micrproject_ui.jar" (
   echo ERROR: installDist output not found at "%LIB_DIR%".
   exit /b 1
 )
@@ -28,7 +28,7 @@ if not exist "%LIB_DIR%\projectlibre_ui.jar" (
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$lib = '%LIB_DIR%';" ^
   "$arg = '%ARG_FILE%';" ^
-  "$preferred = @('projectlibre_ui.jar','projectlibre_application.jar','projectlibre_exchange.jar','projectlibre_reports.jar','projectlibre_core.jar','projectlibre-contrib.jar');" ^
+  "$preferred = @('micrproject_ui.jar','micrproject_application.jar','micrproject_exchange.jar','micrproject_reports.jar','micrproject_core.jar','projectlibre-contrib.jar');" ^
   "$paths = New-Object System.Collections.Generic.List[string];" ^
   "foreach ($name in $preferred) { $paths.Add((Join-Path $lib $name)) }" ^
   "Get-ChildItem -LiteralPath $lib -Filter *.jar | Sort-Object Name | Where-Object { $preferred -notcontains $_.Name } | ForEach-Object { $paths.Add($_.FullName) };" ^

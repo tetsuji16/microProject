@@ -1,15 +1,15 @@
-rootProject.name = "projectlibre"
+rootProject.name = "micrproject"
 
-include("projectlibre_contrib")
-include("projectlibre_core")
-include("projectlibre_application")
-include("projectlibre_ui")
-include("projectlibre_exchange")
-include("projectlibre_reports")
+include("micrproject_contrib")
+include("micrproject_core")
+include("micrproject_application")
+include("micrproject_ui")
+include("micrproject_exchange")
+include("micrproject_reports")
 
-project(":projectlibre_contrib").projectDir = file("modules/projectlibre_contrib")
-project(":projectlibre_core").projectDir = file("modules/projectlibre_core")
-project(":projectlibre_application").projectDir = file("modules/projectlibre_application")
-project(":projectlibre_ui").projectDir = file("modules/projectlibre_ui")
-project(":projectlibre_exchange").projectDir = file("modules/projectlibre_exchange")
-project(":projectlibre_reports").projectDir = file("modules/projectlibre_reports")
+project(":micrproject_contrib").projectDir = file("modules/micrproject_contrib")
+project(":micrproject_core").projectDir = file("modules/micrproject_core")
+project(":micrproject_application").projectDir = file("modules/micrproject_application")
+project(":micrproject_ui").projectDir = file("modules/micrproject_ui")
+project(":micrproject_exchange").projectDir = file("modules/micrproject_exchange")
+project(":micrproject_reports").projectDir = file("modules/micrproject_reports")

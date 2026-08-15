@@ -1,7 +1,7 @@
 # ProjectLibre incremental launcher
 #
 # Preferred one-step verification flow:
-#   .\scripts\run_projectlibre_clean.bat
+#   .\scripts\run_micrproject_clean.bat
 #
 # Use this script when you want to reuse an existing installDist output or
 # refresh it without switching to the clean build wrapper.
@@ -21,7 +21,7 @@ param(
 $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = (Resolve-Path (Join-Path $scriptDir "..")).Path
-$launcherPath = Join-Path $projectRoot "modules\projectlibre_ui\build\install\projectlibre_ui\bin\projectlibre_ui.bat"
+$launcherPath = Join-Path $projectRoot "modules\micrproject_ui\build\install\micrproject_ui\bin\micrproject_ui.bat"
 $gradlePath = Join-Path $projectRoot "gradlew.bat"
 $resolvedLogRoot = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $LogRoot))
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -82,7 +82,7 @@ function Invoke-Build {
         $gradleArgs += "clean"
         $gradleArgs += "cleanLegacyPackagingArtifacts"
     }
-    $gradleArgs += ":projectlibre_ui:installDist"
+    $gradleArgs += ":micrproject_ui:installDist"
     $gradleArgs += "--console=plain"
 
     Write-Status "Refreshing installed app layout with Gradle: $($gradleArgs -join ' ')" "Cyan"

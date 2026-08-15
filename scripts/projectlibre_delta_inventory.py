@@ -35,18 +35,18 @@ JAVA_EXTRACTOR = REPO_ROOT / "scripts" / "audit" / "JavaSymbolExtractor.java"
 
 MODULE_NAMES = {
     "openproj_build": "packaging",
-    "openproj_contrib": "projectlibre_contrib",
-    "openproj_core": "projectlibre_core",
-    "openproj_exchange": "projectlibre_exchange",
-    "openproj_reports": "projectlibre_reports",
-    "openproj_ui": "projectlibre_ui",
-    "projectlibre_build": "packaging",
-    "projectlibre_contrib": "projectlibre_contrib",
-    "projectlibre_core": "projectlibre_core",
-    "projectlibre_exchange": "projectlibre_exchange",
-    "projectlibre_reports": "projectlibre_reports",
-    "projectlibre_ui": "projectlibre_ui",
-    "projectlibre_application": "projectlibre_application",
+    "openproj_contrib": "micrproject_contrib",
+    "openproj_core": "micrproject_core",
+    "openproj_exchange": "micrproject_exchange",
+    "openproj_reports": "micrproject_reports",
+    "openproj_ui": "micrproject_ui",
+    "micrproject_build": "packaging",
+    "micrproject_contrib": "micrproject_contrib",
+    "micrproject_core": "micrproject_core",
+    "micrproject_exchange": "micrproject_exchange",
+    "micrproject_reports": "micrproject_reports",
+    "micrproject_ui": "micrproject_ui",
+    "micrproject_application": "micrproject_application",
     "packaging": "packaging",
 }
 
@@ -102,8 +102,8 @@ KNOWN_VERIFIED_ASSET_PATHS = {
     "resources/openproj.png",
     "resources/projectlibre.png",
     "resources/wix/msi_images/projectlibre.ico",
-    "resources/wix/msi_images/projectlibre_msi_banner.bmp",
-    "resources/wix/msi_images/projectlibre_msi_splash.bmp",
+    "resources/wix/msi_images/micrproject_msi_banner.bmp",
+    "resources/wix/msi_images/micrproject_msi_splash.bmp",
     "src/com/projity/pm/graphic/images/projity.png",
 }
 
@@ -194,7 +194,7 @@ def extract_archive(archive: Path, destination: Path) -> Path:
 
 def git_top_level(ref: str) -> list[str]:
     lines = run("git", "ls-tree", "-d", "--name-only", ref).splitlines()
-    return [line for line in lines if line.startswith(("openproj_", "projectlibre_")) or line == "packaging"]
+    return [line for line in lines if line.startswith(("openproj_", "micrproject_")) or line == "packaging"]
 
 
 def extract_git_tree(ref: str, destination: Path) -> Path:

@@ -10,8 +10,8 @@ import sys
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-import projectlibre_delta_inventory as inventory
-from projectlibre_review_groups import build_groups
+import micrproject_delta_inventory as inventory
+from micrproject_review_groups import build_groups
 
 
 class DeltaInventoryTest(unittest.TestCase):
@@ -28,8 +28,8 @@ class DeltaInventoryTest(unittest.TestCase):
 	def test_paths_from_all_snapshots_share_one_identity(self):
 		paths = (
 			"openproj_core/src/com/projity/example/Thing.java",
-			"projectlibre_core/src/com/projectlibre1/example/Thing.java",
-			"modules/projectlibre_core/src/main/java/com/projectlibre1/example/Thing.java",
+			"micrproject_core/src/com/projectlibre1/example/Thing.java",
+			"modules/micrproject_core/src/main/java/com/projectlibre1/example/Thing.java",
 		)
 		normalized = [inventory.normalize_path(path) for path in paths]
 		self.assertEqual(normalized[0], normalized[1])
@@ -67,7 +67,7 @@ class DeltaInventoryTest(unittest.TestCase):
 
 	def test_xml_is_indexed_by_element_path_without_file_level_template(self):
 		with tempfile.TemporaryDirectory() as temporary:
-			root = Path(temporary) / "modules" / "projectlibre_reports" / "src" / "main" / "resources"
+			root = Path(temporary) / "modules" / "micrproject_reports" / "src" / "main" / "resources"
 			path = root / "com" / "projectlibre1" / "reports" / "definition" / "sample.jrxml"
 			path.parent.mkdir(parents=True)
 			path.write_text(

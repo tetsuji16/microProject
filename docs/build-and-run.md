@@ -3,7 +3,7 @@
 This project has two different build outputs that matter during verification:
 
 - `build` compiles and tests the code.
-- `installDist` refreshes the runnable desktop app layout under `modules/projectlibre_ui/build/install/projectlibre_ui`.
+- `installDist` refreshes the runnable desktop app layout under `modules/micrproject_ui/build/install/micrproject_ui`.
 
 When you need to execute the app for manual verification, always run the installed layout produced by `installDist`, not an older copy of the generated files.
 
@@ -24,13 +24,13 @@ If you also want to remove generated legacy packaging scratch output before rebu
 Then launch the installed app from:
 
 ```powershell
-modules\projectlibre_ui\build\install\projectlibre_ui\bin\projectlibre_ui.bat
+modules\micrproject_ui\build\install\micrproject_ui\bin\micrproject_ui.bat
 ```
 
 For the quickest repeatable Windows workflow, use the repository launcher instead:
 
 ```powershell
-.\scripts\run_projectlibre_clean.bat
+.\scripts\run_micrproject_clean.bat
 ```
 
 Or double-click:
@@ -47,13 +47,13 @@ That launcher:
 
 ## Why This Matters
 
-`build` alone can leave an already-generated `build/install/...` layout behind from an earlier run. If you execute that stale layout, you may be testing an old `projectlibre_ui.jar` even though the source tree has already been rebuilt.
+`build` alone can leave an already-generated `build/install/...` layout behind from an earlier run. If you execute that stale layout, you may be testing an old `micrproject_ui.jar` even though the source tree has already been rebuilt.
 
 To avoid that trap:
 
 1. Run `clean build installDist` before manual UI verification.
 2. If you only changed code and want a quicker refresh, at minimum run `installDist` again before launching the app.
-3. Treat `modules/projectlibre_ui/build/install/projectlibre_ui` as disposable generated output, not a source-controlled artifact.
+3. Treat `modules/micrproject_ui/build/install/micrproject_ui` as disposable generated output, not a source-controlled artifact.
 
 ## Incremental Launcher
 
@@ -73,13 +73,13 @@ It writes per-run logs under:
 - `app.stdout.log`
 - `app.stderr.log`
 
-Use `run_projectlibre.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_projectlibre_clean.bat` when you want the safest one-step clean rebuild and launch.
+Use `run_projectlibre.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_micrproject_clean.bat` when you want the safest one-step clean rebuild and launch.
 
 ## Quick Checks
 
 - Confirm the installed app layout was refreshed recently.
 - Confirm the title bar and UI reflect the latest source change.
-- If a fix appears missing, verify that the executable came from `modules/projectlibre_ui/build/install/projectlibre_ui`, not an older local copy.
+- If a fix appears missing, verify that the executable came from `modules/micrproject_ui/build/install/micrproject_ui`, not an older local copy.
 
 ## Notes For Codex
 

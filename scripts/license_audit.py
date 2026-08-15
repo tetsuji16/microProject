@@ -27,11 +27,11 @@ DEFAULT_OPENPROJ_SOURCE_URL = "https://sourceforge.net/projects/openproj/files/O
 DEFAULT_ARCHIVE_SHA256 = "20071b090d841388860049ce49724e2773b8cec250d76e74264c71adf2a79ac6"
 
 MODULE_MAP = {
-    "projectlibre_contrib": "openproj_contrib",
-    "projectlibre_core": "openproj_core",
-    "projectlibre_exchange": "openproj_exchange",
-    "projectlibre_reports": "openproj_reports",
-    "projectlibre_ui": "openproj_ui",
+    "micrproject_contrib": "openproj_contrib",
+    "micrproject_core": "openproj_core",
+    "micrproject_exchange": "openproj_exchange",
+    "micrproject_reports": "openproj_reports",
+    "micrproject_ui": "openproj_ui",
 }
 
 DISPOSITIONS = (
@@ -182,7 +182,7 @@ def build_rows() -> list[dict[str, str]]:
                 "openproj_commit": OPENPROJ_COMMIT,
                 "openproj_path": old_path,
                 "openproj_sha256": sha256(old) if old else "",
-                "projectlibre_baseline": PROJECTLIBRE_BASELINE,
+                "micrproject_baseline": PROJECTLIBRE_BASELINE,
                 # Per-file history is intentionally left for the human review.
                 # Running `git log --follow` 1,900 times makes the inventory
                 # needlessly slow and can also obscure rename history.
