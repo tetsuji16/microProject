@@ -76,7 +76,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.collections.Closure;
-import org.apache.commons.collections.CollectionUtils;
 
 import com.projectlibre1.server.data.linker.Linker;
 import com.projectlibre1.server.data.linker.ResourceLinker;
@@ -1402,16 +1401,16 @@ public class Serializer {
     	for (Object value : getTaskDataCollection(project)){
     		TaskData t=(TaskData)value;
     		c.execute(t);
-    		CollectionUtils.forAllDo(t.getAssignments(),c);
-    		CollectionUtils.forAllDo(t.getPredecessors(),c);
+    		if (t.getAssignments() != null) for (Object a : t.getAssignments()) c.execute(a);
+    		if (t.getPredecessors() != null) for (Object p : t.getPredecessors()) c.execute(p);
     		//calendars?
     	}
     }
     public static void forProjectDataReversedDo(ProjectData project,Closure c){
     	for (Object value : getTaskDataCollection(project)){
     		TaskData t=(TaskData)value;
-    		CollectionUtils.forAllDo(t.getAssignments(),c);
-    		CollectionUtils.forAllDo(t.getPredecessors(),c);
+    		if (t.getAssignments() != null) for (Object a : t.getAssignments()) c.execute(a);
+    		if (t.getPredecessors() != null) for (Object p : t.getPredecessors()) c.execute(p);
     		c.execute(t);
     		//calendars?
     	}
