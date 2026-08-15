@@ -56,7 +56,6 @@
 package com.microproject.exchange;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import com.microproject.pm.calendar.CalendarService;
@@ -92,12 +91,9 @@ public class ImportedCalendarService {
 		return importedCalendarMap.get(mpxCal);
 	}
 	public ProjectCalendar findImportedMPXCalendar(String name) {
-		Iterator<ProjectCalendar> i = importedCalendarMap.keySet().iterator();
-		ProjectCalendar cal;
 		if (name == null)
 			return null;
-		while (i.hasNext()) {
-			cal = i.next();
+		for (ProjectCalendar cal : importedCalendarMap.keySet()) {
 			if (name.equals(cal.getName()))
 				return cal;
 		}
