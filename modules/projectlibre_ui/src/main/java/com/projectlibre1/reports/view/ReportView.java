@@ -60,6 +60,7 @@ import java.awt.Cursor;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -74,7 +75,6 @@ import net.sf.jasperreports.engine.JasperFillManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.engine.JasperReport;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 
@@ -130,7 +130,7 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 	NodeModelCache taskCache = null;
 	NodeModelCache resourceCache = null;
 	private String viewName = DataSourceProvider.TASK_REPORT_VIEW;// initial report is task based
-	private Closure transformerClosure;
+	private Consumer<Object> transformerClosure;
 	private Float pendingZoomRatio;
 	/**
 	 * 

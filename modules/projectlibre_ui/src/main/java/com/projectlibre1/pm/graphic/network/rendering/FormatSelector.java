@@ -56,11 +56,11 @@
 package com.projectlibre1.pm.graphic.network.rendering;
 
 import java.util.HashMap;
+import java.util.function.Consumer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.pm.graphic.graph.GraphParams;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
@@ -83,11 +83,11 @@ public class FormatSelector {
 	FormatSelectionFunctor selectionFunctor = new FormatSelectionFunctor();
 	
 	
-	private class FormatSelectionFunctor implements Closure {
+	private class FormatSelectionFunctor implements Consumer<Object> {
 		void initialize() {
 			selectedFormats.clear();
 		}
-		public void execute(Object arg0) {			
+		public void accept(Object arg0) {			
 			BarFormat format = (BarFormat)arg0;
 			if (!format.isMain()) return;
 			selectedFormats.add(format);

@@ -56,6 +56,7 @@
 package com.projectlibre1.pm.graphic.model.transform;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Enumeration;
@@ -69,7 +70,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.MultiHashMap;
 import org.apache.commons.collections.MultiMap;
 
@@ -101,7 +101,7 @@ public class NodeCacheTransformer implements CacheTransformer {
     protected String viewName;
     protected ViewConfiguration view;
 
-    public NodeCacheTransformer(String viewName,ReferenceNodeModelCache refCache,Closure transformerClosure){
+    public NodeCacheTransformer(String viewName,ReferenceNodeModelCache refCache,Consumer<Object> transformerClosure){
     	//System.out.println("viewName="+viewName);
     	view=ViewConfiguration.getView(viewName);
         if (view == null || view.getTransform() == null) {
@@ -111,7 +111,7 @@ public class NodeCacheTransformer implements CacheTransformer {
         } else {
             transformer=view.getTransform();
         }
-        if (transformerClosure!=null) transformerClosure.execute(transformer);
+        if (transformerClosure!=null) transformerClosure.accept(transformer);
 
     	this.refCache=refCache;
     	this.viewName=viewName;

@@ -60,8 +60,8 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Iterator;
+import java.util.function.Consumer;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
@@ -86,7 +86,7 @@ public class PertLayout extends AbstractNetworkLayout {
 	}
 	
 	protected TexturedShapeFinder texturedShapeFinder=new TexturedShapeFinder();
-	protected class TexturedShapeFinder implements Closure{
+	protected class TexturedShapeFinder implements Consumer<Object>{
 		protected BarFormat format;
 		protected GraphicNode node;
 		protected TexturedShape shape;
@@ -94,7 +94,7 @@ public class PertLayout extends AbstractNetworkLayout {
 			this.node = node;
 			shape=null;
 		}
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			format = (BarFormat)arg0;
 			if (format.getMiddle()!=null)
 				shape=format.getMiddle();

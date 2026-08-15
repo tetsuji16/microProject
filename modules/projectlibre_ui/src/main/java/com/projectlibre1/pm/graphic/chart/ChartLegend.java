@@ -64,6 +64,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.List;
 
@@ -88,7 +89,6 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeSelectionModel;
 import javax.swing.tree.TreePath;
 
-import org.apache.commons.collections.Closure;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -439,8 +439,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		final List resultList = new ArrayList();
 		Iterator i = implList.iterator();
 		while (i.hasNext()) {
-			((Project)i.next()).forTasks(new Closure(){
-				public void execute(Object arg0) {
+			((Project)i.next()).forTasks(new Consumer<Object>() { public void accept(Object arg0) {
 					resultList.add(arg0);
 				}
 			});

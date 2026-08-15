@@ -60,6 +60,7 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -73,7 +74,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.UndoableEditEvent;
 import javax.swing.event.UndoableEditListener;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.dialog.BaselineDialog;
 import com.projectlibre1.dialog.DelegateTaskDialog;
@@ -1149,7 +1149,7 @@ public class DocumentFrame extends NamedFrame implements
 			spreadSheet.getColumnModel().getSelectionModel().setSelectionInterval(column, column);
 		}
 	}
-	private void forTasksDo(Closure closure, boolean all) {
+	private void forTasksDo(Consumer<Object> closure, boolean all) {
 		DataUtils.forAllDo(closure, all, project.getTaskOutlineIterator(),
 				getSelectedNodes(true), Task.class);
 	}
@@ -1294,9 +1294,8 @@ public class DocumentFrame extends NamedFrame implements
 
 	private ArrayList<ResourceInTeamFilter> resourcesInTeamFilters=new ArrayList<ResourceInTeamFilter>();
 
-	public Closure addTransformerInitializationClosure(){
-		return new Closure(){
-			public void execute(Object arg) {
+	public Consumer<Object> addTransformerInitializationClosure(){
+		return new Consumer<Object>() { public void accept(Object arg) {
 				ViewTransformer transformer=(ViewTransformer)arg;
 		        NodeFilter hiddenFilter=transformer.getHiddenFilter();
 		        if (hiddenFilter!=null&& hiddenFilter instanceof ResourceInTeamFilter){
@@ -1354,8 +1353,7 @@ public class DocumentFrame extends NamedFrame implements
 			getUndoController().getEditSupport().removeUndoableEditListener(this);
 		if (coord != null)
 			coord.removeTimeScaleListener(mainView);
-    	forAllViews(new Closure() {
-			public void execute(Object v) {
+    	forAllViews(new Consumer<Object>() { public void accept(Object v) {
 				if (v != null)
 					((BaseView)v).cleanUp();
 			}});
@@ -1385,7 +1383,7 @@ public class DocumentFrame extends NamedFrame implements
 		activeTopView = null;
 		activeBottomView = null;
 	}
-	private void forAllViews(Closure c) {
+	private void forAllViews(Consumer<Object> c) {
 		Object[] views = {
 			ganttView,
 			taskUsageDetailView,

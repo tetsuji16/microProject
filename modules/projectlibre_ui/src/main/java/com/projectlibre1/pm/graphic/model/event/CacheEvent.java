@@ -56,10 +56,10 @@
 package com.projectlibre1.pm.graphic.model.event;
 
 import java.util.EventObject;
+import java.util.function.Consumer;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.apache.commons.collections.Closure;
 
 /**
  *
@@ -102,13 +102,13 @@ public class CacheEvent extends EventObject {
     }
     
     
-    public void forIntervals(Closure f){
+    public void forIntervals(Consumer<Object> f){
         if (type==NODES_REMOVED){
 			for (ListIterator i=intervals.listIterator(intervals.size());i.hasPrevious();)
-				f.execute(i.previous());
+				f.accept(i.previous());
         }else{
 			for (ListIterator i=intervals.listIterator();i.hasNext();)
-				f.execute(i.next());            
+				f.accept(i.next());            
         }
     }
     

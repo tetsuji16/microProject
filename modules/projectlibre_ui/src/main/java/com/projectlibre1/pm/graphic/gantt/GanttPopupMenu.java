@@ -55,6 +55,9 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.gantt;
 
+import com.projectlibre1.util.DataUtils;
+import java.util.function.Consumer;
+
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Graphics;
@@ -68,7 +71,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.CollectionUtils;
 
 import com.projectlibre1.pm.graphic.graph.GraphInteractor;
@@ -220,8 +222,7 @@ public class GanttPopupMenu extends GraphPopupMenu{
         annotationText.add(resourceNamesItem);
         annotationText.add(taskNamesItem);
         annotations.add(annotationText);
-		CollectionUtils.forAllDo(interactor.getGraph().getBarStyles().getRows(), new Closure() {
-			public void execute(Object arg0) {
+		DataUtils.forAllDo(interactor.getGraph().getBarStyles().getRows().iterator(), new Consumer<Object>() { public void accept(Object arg0) {
 				BarStyle barStyle = (BarStyle)arg0;
 				BarMenuAction menuAction =new BarMenuAction(barStyle); 
 				if (barStyle.isLink()) // move the show links item to the main menu

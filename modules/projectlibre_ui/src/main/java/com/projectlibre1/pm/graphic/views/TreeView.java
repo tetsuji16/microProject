@@ -56,12 +56,12 @@
 package com.projectlibre1.pm.graphic.views;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.List;
 
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.help.HelpUtil;
 import com.projectlibre1.menu.MenuActionConstants;
@@ -101,7 +101,7 @@ public class TreeView extends JScrollPane implements BaseView {
 		this.documentFrame = documentFrame;
 		this.project = documentFrame.getProject();
 	}
-	public void init(ReferenceNodeModelCache cache, NodeModel model,String viewName,Closure transformerClosure){
+	public void init(ReferenceNodeModelCache cache, NodeModel model,String viewName,Consumer<Object> transformerClosure){
 		tree=new Xbs(project,viewName);
 		this.viewName = viewName;
 		this.cache=NodeModelCacheFactory.getInstance().createAntiAssignmentFilteredCache((ReferenceNodeModelCache)cache,viewName,transformerClosure);

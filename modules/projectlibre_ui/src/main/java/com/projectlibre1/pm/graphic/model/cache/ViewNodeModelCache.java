@@ -57,6 +57,7 @@ package com.projectlibre1.pm.graphic.model.cache;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
@@ -66,7 +67,6 @@ import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreePath;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.pm.graphic.model.event.CacheListener;
 import com.projectlibre1.pm.graphic.model.event.CompositeCacheEvent;
@@ -96,7 +96,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
     protected String viewName;
 
 
-    ViewNodeModelCache(ReferenceNodeModelCache reference,String viewName,Closure transformerClosure) {
+    ViewNodeModelCache(ReferenceNodeModelCache reference,String viewName,Consumer<Object> transformerClosure) {
         this(reference,new VisibleNodes(viewName,new NodeCacheTransformer(viewName,reference,transformerClosure)),
                 new VisibleDependencies(viewName,new DependencyCacheTransformer(viewName,reference)));
         this.viewName=viewName;

@@ -57,12 +57,12 @@ package com.projectlibre1.pm.graphic.xbs;
 
 import java.awt.Frame;
 import java.util.LinkedList;
+import java.util.function.Consumer;
 import java.util.List;
 
 import javax.swing.JOptionPane;
 import javax.swing.tree.TreeNode;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.dialog.XbsDependencyDialog;
 import com.projectlibre1.pm.graphic.graph.GraphUI;
@@ -109,8 +109,7 @@ public class XbsInteractor extends NetworkInteractor {
     		Frame parent=JOptionPane.getFrameForComponent(getGraph());
     		dependencyPropertiesDialog = new XbsDependencyDialog(parent,dependency);
     	}
-    	boolean didAction = XbsDependencyDialog.doDialog(dependencyPropertiesDialog,dependency,new Closure(){
-    		public void execute(Object arg0) {
+    	boolean didAction = XbsDependencyDialog.doDialog(dependencyPropertiesDialog,dependency,new Consumer<Object>() { public void accept(Object arg0) {
     			Node child=dependency.getSuccessor().getNode();
     			int position=0;
     			TreeNode[] path=((NodeBridge)child).getPath();

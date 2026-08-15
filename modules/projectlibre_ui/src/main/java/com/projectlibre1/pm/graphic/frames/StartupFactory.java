@@ -60,6 +60,7 @@ import java.awt.HeadlessException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.function.Consumer;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -68,7 +69,6 @@ import javax.swing.JOptionPane;
 import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.company.DefaultUser;
 import com.projectlibre1.configuration.Configuration;
@@ -316,8 +316,7 @@ public abstract class StartupFactory {
 					Session session = SessionFactory.getInstance().getSession(false);
 					logger.fine("logging in");
 					final GraphicManager gm = graphicManager;
-					SessionFactory.callNoEx(session,"login",new Class[]{Closure.class},new Object[]{new Closure(){
-						public void execute(Object arg0) {
+					SessionFactory.callNoEx(session,"login",new Class[]{Consumer.class},new Object[]{new Consumer<Object>() { public void accept(Object arg0) {
 							Map<String,String> env=(Map<String,String>)arg0;
 							if (env!=null){
 								String serverVersion=env.get("serverVersion");
@@ -441,8 +440,7 @@ public abstract class StartupFactory {
 					writable = verifyOpenWritable(projectId);
 				if (writable == null)
 					return;
-				gm.loadDocument(projectId, true,!writable,new Closure(){
-					public void execute(Object arg0) {
+				gm.loadDocument(projectId, true,!writable,new Consumer<Object>() { public void accept(Object arg0) {
 						Project project=(Project)arg0;
 						DocumentFrame frame=gm.getCurrentFrame();
 						if (frame!=null&&frame.getProject().getUniqueId() != projectId) {

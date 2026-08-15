@@ -63,6 +63,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
@@ -76,7 +77,6 @@ import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.TransferHandler;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
 import org.apache.commons.collections.Transformer;
 

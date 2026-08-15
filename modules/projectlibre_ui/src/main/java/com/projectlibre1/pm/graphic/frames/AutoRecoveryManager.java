@@ -3,6 +3,7 @@ package com.projectlibre1.pm.graphic.frames;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -13,7 +14,6 @@ import java.util.prefs.Preferences;
 import javax.swing.JOptionPane;
 import javax.swing.Timer;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre.ui.shell.AutoSaveControl;
 import com.projectlibre1.application.AutoRecoveryStore;
@@ -143,8 +143,7 @@ final class AutoRecoveryManager implements AutoSaveControl {
 			options.setRecoverySnapshot(true);
 			options.setImporter(LocalSession.LOCAL_PROJECT_IMPORTER);
 			options.setFileName(store.snapshotPath(projectId).toString());
-			options.setPostSaving(new Closure() {
-				public void execute(Object ignored) {
+			options.setPostSaving(new Consumer<Object>() { public void accept(Object ignored) {
 					try {
 						store.recordCompletedSnapshot(projectId, project.getName(), originalFileName, Instant.now());
 					} catch (IOException ex) {

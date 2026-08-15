@@ -57,9 +57,9 @@ package com.projectlibre1.pm.graphic.chart;
 
 import java.io.Serializable;
 import java.util.Iterator;
+import java.util.function.Consumer;
 import java.util.List;
 
-import org.apache.commons.collections.Closure;
 import org.jfree.data.xy.AbstractXYDataset;
 import org.jfree.data.xy.XYDataset;
 import org.jfree.data.xy.XYSeries;

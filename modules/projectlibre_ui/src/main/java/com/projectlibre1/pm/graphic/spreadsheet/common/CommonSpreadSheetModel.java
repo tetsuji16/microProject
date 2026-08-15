@@ -55,6 +55,7 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.spreadsheet.common;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -64,7 +65,6 @@ import java.util.StringTokenizer;
 
 import javax.swing.table.AbstractTableModel;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.pm.graphic.model.cache.CacheInterval;
 import com.projectlibre1.pm.graphic.model.cache.GraphicNode;

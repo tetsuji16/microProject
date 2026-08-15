@@ -66,6 +66,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashSet;
+import java.util.function.Consumer;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -86,7 +87,6 @@ import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 
-import org.apache.commons.collections.Closure;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
@@ -129,8 +129,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 	    if (anyProjectButThisOne != null) {
 	    	currentProjectIds.add(Long.valueOf(anyProjectButThisOne.getUniqueId()));
 	    } else {
-	    	ProjectFactory.getInstance().getPortfolio().forProjects(new Closure(){
-	    		public void execute(Object impl) {
+	    	ProjectFactory.getInstance().getPortfolio().forProjects(new Consumer<Object>() { public void accept(Object impl) {
 	    			Project project=(Project)impl;
 	    			currentProjectIds.add(Long.valueOf(project.getUniqueId()));
 	    		}

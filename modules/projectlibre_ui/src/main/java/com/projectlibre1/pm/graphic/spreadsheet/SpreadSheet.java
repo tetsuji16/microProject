@@ -75,6 +75,7 @@ import java.io.Reader;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -102,7 +103,6 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import org.apache.commons.collections.Closure;
 import org.netbeans.swing.outline.RenderDataProvider;
 
 import com.projectlibre1.dialog.ResourceAdditionDialog;
@@ -1665,7 +1665,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 //
 //	public static final int PASTE = 6;
 
-	public static abstract class SpreadSheetAction extends AbstractAction implements Closure,CommonSpreadSheetAction {
+	public static abstract class SpreadSheetAction extends AbstractAction implements CommonSpreadSheetAction {
 		protected SpreadSheet spreadSheet;
 
 		protected int[] rows;
@@ -1749,12 +1749,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			Job job = (Job) SessionFactory.callNoEx(session, "getLoadProjectDescriptorsJob", new Class[]{boolean.class, java.util.List.class, boolean.class}, new Object[]{true, descriptors, true});
 			job.addSwingRunnable(new JobRunnable("Local: addNodes"){
 				public Object run() throws Exception{
-					final Closure setter = new Closure(){
-						public void execute(Object obj){
+					final Consumer<Object> setter = new Consumer<Object>() { public void accept(Object obj) {
 						}
 					};
-					final Closure getter = new Closure(){
-						public void execute(Object obj){
+					final Consumer<Object> getter = new Consumer<Object>() { public void accept(Object obj) {
 							ResourceAdditionDialog.Form form = (ResourceAdditionDialog.Form) obj;
 							List<Node> nodes = new ArrayList<>();
 							for (Object selectedResource : form.getSelectedResources()){
@@ -1812,7 +1810,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 		public void execute() {
 			finishCurrentOperations();
-			execute(getSelectedRows());
+			accept(getSelectedRows());
 		}
 
 		public void execute(Object object) {
@@ -1836,7 +1834,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		private static final long serialVersionUID = -7593036949653490043L;
 
 		public void execute() {
-			execute(getSelectedNodes());
+			accept(getSelectedNodes());
 		}
 
 		public void execute(Object object) {
@@ -1852,7 +1850,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		private static final long serialVersionUID = 5904764895696983803L;
 
 		public void execute() {
-			execute(getSelectedNodes());
+			accept(getSelectedNodes());
 		}
 
 		public void execute(Object object) {

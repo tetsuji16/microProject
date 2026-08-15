@@ -129,8 +129,8 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 //    	fireTableStructureChanged();
 ////        for (Iterator i=compositeEvent.getNodeEvents().iterator();i.hasNext();){
 ////            final CacheEvent e=(CacheEvent)i.next();
-////            e.forIntervals(new Closure() {
-////                public void execute(Object obj) {
+////            e.forIntervals(new Consumer<Object>() {
+////                public void accept(Object obj) {
 ////                    CacheInterval i = (CacheInterval) obj;
 ////                     if (e.getType()==CacheEvent.NODES_CHANGED)
 ////                        fireTableRowsUpdated(i.getStart(), i.getEnd());

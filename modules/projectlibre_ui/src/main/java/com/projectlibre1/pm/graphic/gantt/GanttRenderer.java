@@ -72,6 +72,7 @@ import java.awt.geom.RoundRectangle2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
@@ -84,7 +85,6 @@ import java.util.logging.Logger;
 
 import javax.swing.JComponent;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.pm.graphic.gantt.link_routing.GanttLinkRouting;
 import com.projectlibre1.pm.graphic.graph.GraphParams;
@@ -525,7 +525,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 
 
-	private class NodeRenderer implements Closure, IntervalConsumer, Serializable {
+	private class NodeRenderer implements Consumer<Object>, IntervalConsumer, Serializable {
 		private static final long serialVersionUID = -1348039741030744803L;
 		GraphicNode node;
 		Graphics2D g2;
@@ -567,7 +567,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 /**
  * This is the callback which is called from barStyles.apply() below
  */
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			format = (BarFormat)arg0;
 			if (format.getLayer()>maxLayer||format.getLayer()<minLayer) return;
 			if (shouldSuppressTaskBarForAssignments(node, format)) return;
@@ -719,7 +719,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 	}
 
-	private class AnnotationRenderer implements Closure, Serializable {
+	private class AnnotationRenderer implements Consumer<Object>, Serializable {
 		private static final long serialVersionUID = -137778741030744803L;
 		protected BarFormat format;
 		GraphicNode node;
@@ -742,7 +742,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			annotationRenderedForNode = false;
 		}
 
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			format = (BarFormat)arg0;
 			if (shouldSuppressTaskAnnotationForAssignments(node))
 				return;
@@ -823,7 +823,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 	}
 
-	private class HorizontalLineRenderer implements Closure, Serializable {
+	private class HorizontalLineRenderer implements Consumer<Object>, Serializable {
 		private static final long serialVersionUID = -6350307720624037262L;
 		protected BarFormat format;
 		GraphicNode node;
@@ -839,7 +839,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 		}
 
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			format = (BarFormat)arg0;
 			if (!((GanttParams)graphInfo).isGridLinesVisible()) {
 				return;
@@ -856,7 +856,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 
-	private class LinkRenderer implements Closure, Serializable {
+	private class LinkRenderer implements Consumer<Object>, Serializable {
 		private static final long serialVersionUID = -2031158189787837110L;
 		protected BarFormat format;
 		protected GraphicDependency dependency;
@@ -868,7 +868,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 
 		private double[] extraPoints=new double[3];
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			format = (BarFormat)arg0;
 
 			GanttLinkRouting routing=(GanttLinkRouting)((GanttParams)graphInfo).getRouting();
@@ -1134,8 +1134,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	protected BarFormat calendarFormat;
-	protected Closure calendarClosure=new Closure(){
-		public void execute(Object arg0) {
+	protected Consumer<Object> calendarClosure=new Consumer<Object>() { public void accept(Object arg0) {
 			calendarFormat = (BarFormat)arg0;
 		}
 	};

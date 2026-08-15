@@ -55,12 +55,13 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.views;
 
+import java.util.function.Consumer;
+
 import java.awt.Dimension;
 import java.awt.Point;
 
 import javax.swing.JScrollPane;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.menu.MenuActionConstants;
 import com.projectlibre1.menu.MenuManager;
@@ -94,13 +95,13 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 	MenuManager menuManager;
 	DocumentFrame documentFrame;
 	private ChartLegend chartLegend;
-	private Closure transformerClosure;
+	private Consumer<Object> transformerClosure;
 	/**
 	 * @param synchronizer 
 	 * @param manager
 	 *  
 	 */
-	public ChartView(DocumentFrame documentFrame, boolean simple, MenuManager menuManager, Synchronizer synchronizer,Closure transformerClosure) {
+	public ChartView(DocumentFrame documentFrame, boolean simple, MenuManager menuManager, Synchronizer synchronizer,Consumer<Object> transformerClosure) {
 		super(synchronizer);
 		this.menuManager = menuManager;
 		this.documentFrame = documentFrame;

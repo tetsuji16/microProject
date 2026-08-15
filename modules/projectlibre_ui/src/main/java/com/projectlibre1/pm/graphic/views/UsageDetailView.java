@@ -57,11 +57,11 @@ package com.projectlibre1.pm.graphic.views;
 
 import java.awt.Dimension;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 
 import javax.swing.JScrollPane;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.help.HelpUtil;
 import com.projectlibre1.menu.MenuManager;
@@ -134,7 +134,7 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		setDeltaDivider(GraphicConfiguration.getInstance().getRowHeaderWidth());
 	}
 
-	public void init(ReferenceNodeModelCache refCache, boolean taskUsage, CoordinatesConverter coord, boolean subView, String viewName,Closure transformerClosure) {
+	public void init(ReferenceNodeModelCache refCache, boolean taskUsage, CoordinatesConverter coord, boolean subView, String viewName,Consumer<Object> transformerClosure) {
 		this.coord = coord;
 		this.subView = subView;
 		hasEmptyRows = !subView;

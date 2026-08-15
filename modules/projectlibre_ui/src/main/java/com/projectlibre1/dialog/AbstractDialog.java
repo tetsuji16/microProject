@@ -55,6 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.dialog;
 
+import java.util.function.Consumer;
+
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -84,7 +86,6 @@ import javax.swing.KeyStroke;
 import javax.swing.plaf.ButtonUI;
 import javax.swing.plaf.basic.BasicButtonUI;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.help.HelpUtil;
 import com.projectlibre1.menu.HyperLinkToolTip;
@@ -318,15 +319,15 @@ public abstract class AbstractDialog extends JDialog {
 	}
 
 
-	public int execute(Closure setter, Closure getter) {
+	public int execute(Consumer<Object> setter, Consumer<Object> getter) {
 		pack();
-		setter.execute(getBean());
+		setter.accept(getBean());
 		bind(true);
 		setLocationRelativeTo(null);// to center on screen
 		setVisible(true);
 		if (getDialogResult() != JOptionPane.CANCEL_OPTION) {
 			if (getter != null)
-				getter.execute(getBean());
+				getter.accept(getBean());
 		}
 		return getDialogResult();
 	}

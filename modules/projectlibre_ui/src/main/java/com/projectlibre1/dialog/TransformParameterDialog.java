@@ -56,13 +56,13 @@
 package com.projectlibre1.dialog;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Date;
 import java.util.List;
 
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 
-import org.apache.commons.collections.Closure;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -74,7 +74,7 @@ import com.projectlibre1.grouping.core.transform.TransformParameter;
 import com.projectlibre1.strings.Messages;
 import com.projectlibre1.util.DateTime;
 
-public final class TransformParameterDialog extends AbstractDialog implements Closure{
+public final class TransformParameterDialog extends AbstractDialog implements Consumer<Object>{
 
 
 	List<String> labels=new ArrayList<>();
@@ -86,7 +86,7 @@ public final class TransformParameterDialog extends AbstractDialog implements Cl
 		setModal(true);
 	}
 	
-	public void execute(Object obj){
+	public void accept(Object obj) {
 	    labels.clear();
 	    valueComponents.clear();
 	    transform=(CommonTransform)obj;

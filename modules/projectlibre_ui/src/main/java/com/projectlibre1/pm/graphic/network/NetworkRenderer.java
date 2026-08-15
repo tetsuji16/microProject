@@ -65,12 +65,12 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.util.Iterator;
+import java.util.function.Consumer;
 import java.util.ListIterator;
 
 import javax.swing.CellRendererPane;
 import javax.swing.JComponent;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.pm.graphic.graph.GraphParams;
 import com.projectlibre1.pm.graphic.graph.GraphRenderer;
@@ -131,7 +131,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 	}
 	
 
-	private class LinkRenderer implements Closure{
+	private class LinkRenderer implements Consumer<Object>{
 		protected BarFormat format;
 		protected GraphicDependency dependency;
 		protected Graphics2D g2;
@@ -142,7 +142,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 
 
 		
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			format = (BarFormat)arg0;
 			
 			//if (format.getMiddle()!=null){

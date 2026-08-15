@@ -58,6 +58,7 @@ package com.projectlibre1.dialog.assignment;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.List;
 
@@ -68,7 +69,6 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Transformer;
 
 import com.projectlibre1.pm.graphic.model.cache.NodeModelCache;
@@ -268,9 +268,9 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 		}
     }
 
-	protected Closure transformerClosure;
+	protected Consumer<Object> transformerClosure;
 	
-	public AssignmentEntryPane(CommonAssignmentDialog dialog, Project project, ResourceAssigner resourceAssigner, boolean replace,Closure transformerClosure) {
+	public AssignmentEntryPane(CommonAssignmentDialog dialog, Project project, ResourceAssigner resourceAssigner, boolean replace,Consumer<Object> transformerClosure) {
 		super();
 		this.replace = replace;
 		this.resourceAssigner = resourceAssigner;
@@ -334,14 +334,14 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 	
 	/**
 	 * Functor to call setAssignmentsFromTaskList
- */	private class AssignmentEntrySetter implements Closure {
+ */	private class AssignmentEntrySetter implements Consumer<Object> {
 		List<NormalTask> taskList;
 		AssignmentEntrySetter(List<NormalTask> taskList) {
 			this.taskList = taskList;
 		}
 		
 
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			AssignmentEntry entry = (AssignmentEntry)(((Node)arg0).getImpl());
 			entry.setAssignmentsFromTaskList(taskList);
 		}

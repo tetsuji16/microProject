@@ -55,13 +55,14 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.frames.workspace;
 
+import java.util.function.Consumer;
+
 import java.awt.Container;
 import java.awt.HeadlessException;
 
 import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 
-import org.apache.commons.collections.Closure;
 
 public abstract class NamedFrame extends JPanel {
 	private boolean showTitleBar = true;
@@ -107,28 +108,26 @@ public abstract class NamedFrame extends JPanel {
 	}
 	
 	public void fireNamedFrameActivated(final NamedFrameEvent evt) {
-		fire(evt,new Closure() {
-			public void execute(Object arg0) {
+		fire(evt,new Consumer<Object>() { public void accept(Object arg0) {
 				((NamedFrameListener)arg0).namedFrameActivated(evt);
 			}
 		});
 	}
 
 	public void fireNamedFrameTabShown(final NamedFrameEvent evt) {
-		fire(evt,new Closure() {
-			public void execute(Object arg0) {
+		fire(evt,new Consumer<Object>() { public void accept(Object arg0) {
 				((NamedFrameListener)arg0).namedFrameShown(evt);
 			}
 		});
 	}
 
-	private void fire(NamedFrameEvent evt, Closure closure) {    	
+	private void fire(NamedFrameEvent evt, Consumer<Object> closure) {    	
         Object[] listeners = listenerList.getListenerList();
         // Each listener occupies two elements - the first is the listener class
         // and the second is the listener instance
         for (int i=0; i<listeners.length; i+=2) {
             if (listeners[i]==NamedFrameListener.class) {
-            	closure.execute(((NamedFrameListener)listeners[i+1]));
+            	closure.accept(((NamedFrameListener)listeners[i+1]));
             }
         }
     }

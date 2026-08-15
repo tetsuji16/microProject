@@ -77,6 +77,7 @@ import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -126,7 +127,6 @@ import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
 import com.projectlibre1.menu.resource.MissingListenerException;
-import org.apache.commons.collections.Closure;
 import org.projectlibre.strings.Strings;
 import com.projectlibre.ui.shell.ProjectLibreShell;
 import com.projectlibre1.configuration.Configuration;
@@ -798,8 +798,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		ProjectDialog.Form form=doNewProjectNoDialog1();
 		if (form==null) return false;
 		if (opts!=null){
-			Closure updateViewClosure=(Closure)opts.get("updateViewClosure");
-			if (updateViewClosure!=null) updateViewClosure.execute(form);
+			Consumer<Object> updateViewClosure=(Consumer<Object>)opts.get("updateViewClosure");
+			if (updateViewClosure!=null) updateViewClosure.accept(form);
 		}
 		return doNewProjectDialog2(form);
 	}
@@ -903,13 +903,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     		}
     	});
     	session.schedule(job);
-		final Closure setter=new Closure(){
-		    public void execute(Object obj){
+		final Consumer<Object> setter=new Consumer<Object>() { public void accept(Object obj) {
 
 		    }
 		};
-		final Closure getter=new Closure(){
-		    public void execute(Object obj){
+		final Consumer<Object> getter=new Consumer<Object>() { public void accept(Object obj) {
 		    	final Object[] r=(Object[])obj;
 		    	if (r!=null){
 		    		DocumentData data=(DocumentData)r[0];
@@ -961,13 +959,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
     	job.addSwingRunnable(new JobRunnable("Local: add"){ //$NON-NLS-1$
     		public Object run() throws Exception{
-	    	    Closure setter=new Closure(){
-	    	        public void execute(Object obj){
+	    	    Consumer<Object> setter=new Consumer<Object>() { public void accept(Object obj) {
 
 	    	        }
 	    	    };
-	    	    Closure getter=new Closure(){
-	    	        public void execute(Object obj){
+	    	    Consumer<Object> getter=new Consumer<Object>() { public void accept(Object obj) {
 	    		        final Object[] r=(Object[])obj;
 	    		        if (r!=null){
    		        			final DocumentData data=(DocumentData)r[0];
@@ -1742,8 +1738,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					final DocumentFrame frame=getCurrentFrame();
 					final Project project = frame.getProject();
 					SaveOptions opt=new SaveOptions();
-					opt.setPostSaving(new Closure(){
-						public void execute(Object arg0) {
+					opt.setPostSaving(new Consumer<Object>() { public void accept(Object arg0) {
 							refreshSaveStatus(true);
 						}
 					});
@@ -1775,8 +1770,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					final DocumentFrame frame=getCurrentFrame();
 					final Project project = frame.getProject();
 					SaveOptions opt=new SaveOptions();
-					opt.setPostSaving(new Closure(){
-						public void execute(Object arg0) {
+					opt.setPostSaving(new Consumer<Object>() { public void accept(Object arg0) {
 							frame.setId(project.getUniqueId()+""); //$NON-NLS-1$
 							refreshSaveStatus(true);
 						}
@@ -2452,10 +2446,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	protected Document loadDocument(long id,boolean sync,boolean openAs,boolean local){
 		return loadDocument(id, sync, openAs, local, null);
 	}
-	protected Document loadDocument(long id,boolean sync,boolean openAs,Closure endSwingClosure){
+	protected Document loadDocument(long id,boolean sync,boolean openAs,Consumer<Object> endSwingClosure){
 		return loadDocument(id, sync, openAs, false, endSwingClosure);
 	}
-	protected Document loadDocument(long id,boolean sync,boolean openAs,boolean local,Closure endSwingClosure){
+	protected Document loadDocument(long id,boolean sync,boolean openAs,boolean local,Consumer<Object> endSwingClosure){
 		addHistory("loadDocument", new Object[]{id,sync,openAs,endSwingClosure==null});
 		//showWaitCursor(true);
 		if (id==-1L)
@@ -2483,8 +2477,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 
 		} else {
 			LoadOptions opt=ProjectLoadWorkflow.prepareLoadOptions(fileName, Environment.getStandAlone() || Environment.getUser() == null, getCollaborationUserKey());
-			opt.setEndSwingClosure(new Closure() {
-				public void execute(Object arg0) {
+			opt.setEndSwingClosure(new Consumer<Object>() { public void accept(Object arg0) {
 					if (arg0 instanceof Project) {
 						initializeCollaboration((Project)arg0);
 					}
@@ -2569,11 +2562,11 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		//showWaitCursor(false);
 	}
 
-	private Closure getSavingClosure() {
+	private Consumer<Object> getSavingClosure() {
 		return null;
-//		return new Closure() {
+//		return new Consumer<Object>() {
 //
-//			public void execute(Object arg0) {
+//			public void accept(Object arg0) {
 //				Project proj = (Project)arg0;
 //				SpreadSheetFieldArray fieldArray = (SpreadSheetFieldArray) getCurrentFrame().getGanttView().getSpreadSheet().getFieldArray();
 //				proj.getDocumentWorkspace().setSetting("fieldArray", fieldArray);
@@ -2583,11 +2576,11 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 //
 	}
 
-	private Closure getLoadClosure() {
+	private Consumer<Object> getLoadClosure() {
 		return null;
-//		return new Closure() {
+//		return new Consumer<Object>() {
 //
-//			public void execute(Object arg0) {
+//			public void accept(Object arg0) {
 //				Project proj = (Project)arg0;
 //				SpreadSheetFieldArray fieldArray = (SpreadSheetFieldArray) proj.getDocumentWorkspace().getSetting("fieldArray");
 //				if (fieldArray != null)
@@ -3614,9 +3607,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 
 	//for AssignmentDialog
 	private ResourceInTeamFilter assignmentDialogTransformerInitializationClosure;
-	public Closure setAssignmentDialogTransformerInitializationClosure(){
-		return new Closure(){
-			public void execute(Object arg) {
+	public Consumer<Object> setAssignmentDialogTransformerInitializationClosure(){
+		return new Consumer<Object>() { public void accept(Object arg) {
 				ViewTransformer transformer=(ViewTransformer)arg;
 		        NodeFilter hiddenFilter=transformer.getHiddenFilter();
 		        if (hiddenFilter!=null&& hiddenFilter instanceof ResourceInTeamFilter){

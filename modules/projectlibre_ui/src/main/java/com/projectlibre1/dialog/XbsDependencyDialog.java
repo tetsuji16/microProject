@@ -55,6 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.dialog;
 
+import java.util.function.Consumer;
+
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 
@@ -64,7 +66,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
-import org.apache.commons.collections.Closure;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -83,12 +84,12 @@ public class XbsDependencyDialog extends AbstractDialog {
 	boolean remove=false;
 	GraphicDependency dependency;
 	
-	public static boolean doDialog(XbsDependencyDialog dialog, GraphicDependency dependency,Closure removeClosure) {
+	public static boolean doDialog(XbsDependencyDialog dialog, GraphicDependency dependency,Consumer<Object> removeClosure) {
 		dialog.setDependency(dependency);
 		boolean result;
 		if (result = dialog.doModal()) {
 			if (dialog.remove) 
-				removeClosure.execute(null);
+				removeClosure.accept(null);
 		}
 		dialog.dependency = null;
 		return result;

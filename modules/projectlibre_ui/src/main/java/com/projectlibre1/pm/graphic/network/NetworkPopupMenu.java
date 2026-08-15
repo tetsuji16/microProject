@@ -55,13 +55,15 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.network;
 
+import com.projectlibre1.util.DataUtils;
+import java.util.function.Consumer;
+
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 import javax.swing.JMenu;
 import javax.swing.JRadioButtonMenuItem;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.CollectionUtils;
 
 import com.projectlibre1.pm.graphic.graph.GraphInteractor;
@@ -108,8 +110,7 @@ public class NetworkPopupMenu extends GraphPopupMenu{
 	protected void init() {
     	removeAll();
         final JMenu bars=new JMenu(Messages.getString("Network.Popup.barStylesMenu"));
-		CollectionUtils.forAllDo(interactor.getGraph().getBarStyles().getRows(), new Closure() {
-			public void execute(Object arg0) {
+		DataUtils.forAllDo(interactor.getGraph().getBarStyles().getRows().iterator(), new Consumer<Object>() { public void accept(Object arg0) {
 				BarStyle barStyle = (BarStyle)arg0;
 				BarMenuAction menuAction =new BarMenuAction(barStyle); 
 				bars.add(menuAction);

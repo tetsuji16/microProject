@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.pm.graphic.model.cache;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.document.Document;
 import com.projectlibre1.grouping.core.model.NodeModel;
@@ -75,14 +76,14 @@ public class NodeModelCacheFactory {
 		return new ReferenceNodeModelCache(model,document,type);
 	}
 	
-	public NodeModelCache createAntiAssignmentFilteredCache(ReferenceNodeModelCache cache,String viewName,Closure transformerClosure){
+	public NodeModelCache createAntiAssignmentFilteredCache(ReferenceNodeModelCache cache,String viewName,Consumer<Object> transformerClosure){
 	    return new ViewNodeModelCache(cache,viewName,transformerClosure);
 	}
-	public NodeModelCache createFilteredCache(ReferenceNodeModelCache cache,String viewName,Closure transformerClosure){
+	public NodeModelCache createFilteredCache(ReferenceNodeModelCache cache,String viewName,Consumer<Object> transformerClosure){
 	    return new ViewNodeModelCache(cache,viewName,transformerClosure);
 	}
 	
-	public NodeModelCache createDefaultCache(NodeModel model,Document document,int type,String viewName,Closure transformerClosure){
+	public NodeModelCache createDefaultCache(NodeModel model,Document document,int type,String viewName,Consumer<Object> transformerClosure){
 	    return createFilteredCache(createReferenceCache(model,document,type),viewName,transformerClosure);
 	}
 
