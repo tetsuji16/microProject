@@ -124,7 +124,7 @@ public class ContribIntervals extends TreeSet{
 		}
 	}
 
-	/*public void xorAdd(HasStartAndEnd o,Closure removeFunctor,Closure addFunctor){
+	/*public void xorAdd(HasStartAndEnd o,Consumer<Object> removeFunctor,Consumer<Object> addFunctor){
 		HasStartAndEnd toAdd=o;
 		SortedSet set=headSet(o);
 		if (set.size()>0){

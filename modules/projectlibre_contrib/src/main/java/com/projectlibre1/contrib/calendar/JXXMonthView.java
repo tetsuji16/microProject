@@ -1930,10 +1930,10 @@ public class JXXMonthView extends JComponent {
 
 
 	/*
-	 * private Closure removeFunctor=new Closure(){ public void execute(Object
+	 * private Consumer<Object> removeFunctor=new Consumer<Object>(){ public void execute(Object
 	 * o){ DateSpan interval=(DateSpan)o;
 	 * calculateDirtyRectForSelection(interval); repaint(_dirtyRect); } };
-	 * private Closure addFunctor=new Closure(){ public void execute(Object o){
+	 * private Consumer<Object> addFunctor=new Consumer<Object>(){ public void accept(Object o) {
 	 * DateSpan interval=(DateSpan)o; calculateDirtyRectForSelection(interval);
 	 * repaint(_dirtyRect); } };
 	 */

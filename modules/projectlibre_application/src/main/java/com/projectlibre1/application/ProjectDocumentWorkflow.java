@@ -1,6 +1,7 @@
 package com.projectlibre1.application;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.collaboration.CollaborationSession;
 import com.projectlibre1.pm.task.Project;
@@ -58,8 +59,7 @@ public final class ProjectDocumentWorkflow {
 		options.setFileName(requestedFileName);
 		ProjectFilePolicies.configureSaveOptions(options, requestedFileName);
 		if (callbacks != null && (collaborationEnabled || fileNameChanged || finalSaveAs)) {
-			options.setPostSaving(new Closure() {
-				public void execute(Object arg0) {
+			options.setPostSaving(new Consumer<Object>() { public void accept(Object arg0) {
 					callbacks.afterSave(project, finalSaveAs, fileNameChanged, collaborationEnabled);
 				}
 			});
