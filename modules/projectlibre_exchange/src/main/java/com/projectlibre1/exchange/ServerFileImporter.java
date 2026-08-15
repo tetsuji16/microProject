@@ -58,10 +58,9 @@ package com.projectlibre1.exchange;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.apache.commons.collections.Predicate;
 
 import com.projectlibre1.exchange.ResourceMappingForm.MergeField;
 import com.projectlibre1.server.data.EnterpriseResourceData;
@@ -77,7 +76,7 @@ public abstract class ServerFileImporter extends FileImporter{
 	
 
 
-	protected void prepareResources(List<?> srcResources,Predicate resourceFilter,boolean resourceDescriptorsOnly) throws Exception{
+	protected void prepareResources(List<?> srcResources,Predicate<Object> resourceFilter,boolean resourceDescriptorsOnly) throws Exception{
 		
 		ResourceMappingForm form=getResourceMapping();
 		if (form==null) return;
@@ -105,7 +104,7 @@ public abstract class ServerFileImporter extends FileImporter{
 		List<Object> resourcesToMap=new ArrayList<>();
 		if (srcResources!=null)
 			for (Object resource:srcResources){
-				if (resourceFilter==null||resourceFilter.evaluate(resource))
+				if (resourceFilter==null||resourceFilter.test(resource))
 					resourcesToMap.add(resource);
 			}
 		form.setImportedResources(resourcesToMap);
