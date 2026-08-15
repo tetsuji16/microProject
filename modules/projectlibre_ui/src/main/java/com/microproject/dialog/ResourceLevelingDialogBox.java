@@ -1,0 +1,201 @@
+package com.microproject.dialog;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
+import javax.swing.table.AbstractTableModel;
+
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceLevelingService;
+import com.microproject.help.HelpUtil;
+import com.microproject.pm.task.Project;
+import com.microproject.util.FlatUiSupport;
+import com.microproject.util.PopupDialogSupport;
+
+/** Preview-first resource leveling workflow. */
+public final class ResourceLevelingDialogBox extends JDialog {
+	private static final long serialVersionUID = 1L;
+	private final Project project;
+	private final ResourceLevelingService service = new ResourceLevelingService();
+	private final JComboBox<ResourceLevelingService.Order> order = new JComboBox<>(ResourceLevelingService.Order.values());
+	private final JCheckBox slackOnly = new JCheckBox(UsabilityStrings.text("leveling.slackOnly"));
+	private final JCheckBox allowSplits = new JCheckBox(UsabilityStrings.text("leveling.splits"), true);
+	private final JList<Resource> resources;
+	private final ChangeTableModel changes = new ChangeTableModel();
+	private final JTable table = new JTable(changes);
+	private final JLabel status = new JLabel(" ");
+	private final JButton apply = new JButton(UsabilityStrings.text("leveling.apply"));
+	private ResourceLevelingService.Plan currentPlan;
+
+	public static ResourceLevelingDialogBox getInstance(Frame owner, Project project) {
+		return new ResourceLevelingDialogBox(owner, project);
+	}
+
+	private ResourceLevelingDialogBox(Frame owner, Project project) {
+		super(owner, UsabilityStrings.text("leveling.title"), true);
+		HelpUtil.addDocHelp(getRootPane(), "Resource_Leveling");
+		getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("leveling.slackOnly"));
+		PopupDialogSupport.bindEscapeToDispose(this);
+		this.project = project;
+		List<Resource> resourceList = project.getResourcePool().getResourceList().stream()
+			.filter(Resource::isLabor)
+			.filter(value -> !value.getAssignments().isEmpty())
+			.toList();
+		resources = new JList<>(resourceList.toArray(Resource[]::new));
+		resources.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+		if (!resourceList.isEmpty()) {
+			resources.setSelectionInterval(0, resourceList.size() - 1);
+		}
+		buildUi();
+		preview();
+	}
+
+	private void buildUi() {
+		FlatUiSupport.styleDialogRoot(getRootPane());
+		JPanel options = new JPanel(new GridBagLayout());
+		options.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+		GridBagConstraints constraints = new GridBagConstraints();
+		constraints.gridx = 0;
+		constraints.gridy = 0;
+		constraints.anchor = GridBagConstraints.WEST;
+		constraints.insets = new Insets(3, 3, 3, 8);
+		options.add(new JLabel(UsabilityStrings.text("leveling.order")), constraints);
+		constraints.gridx = 1;
+		constraints.weightx = 1;
+		constraints.fill = GridBagConstraints.HORIZONTAL;
+		options.add(order, constraints);
+		constraints.gridx = 0;
+		constraints.gridy++;
+		constraints.gridwidth = 2;
+		options.add(slackOnly, constraints);
+		constraints.gridy++;
+		options.add(allowSplits, constraints);
+		constraints.gridy++;
+		constraints.weighty = 1;
+		constraints.fill = GridBagConstraints.BOTH;
+		options.add(new JScrollPane(resources), constraints);
+
+		table.setAutoCreateRowSorter(true);
+		table.setFillsViewportHeight(true);
+		JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, options, new JScrollPane(table));
+		split.setResizeWeight(0.25D);
+		split.setDividerLocation(230);
+
+		JButton preview = new JButton(UsabilityStrings.text("leveling.preview"));
+		preview.addActionListener(event -> preview());
+		apply.addActionListener(event -> apply());
+		JButton clear = new JButton(UsabilityStrings.text("leveling.clear"));
+		clear.addActionListener(event -> clear());
+		JButton close = new JButton(UsabilityStrings.text("common.close"));
+		close.addActionListener(event -> dispose());
+		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+		buttons.add(status);
+		buttons.add(preview);
+		buttons.add(clear);
+		buttons.add(apply);
+		buttons.add(close);
+
+		setLayout(new BorderLayout());
+		add(split, BorderLayout.CENTER);
+		add(buttons, BorderLayout.SOUTH);
+		setPreferredSize(new Dimension(900, 520));
+		pack();
+		setLocationRelativeTo(getOwner());
+	}
+
+	private void preview() {
+		List<Resource> selected = resources.getSelectedValuesList();
+		currentPlan = service.preview(project, selected.isEmpty() ? null : selected,
+			new ResourceLevelingService.Options((ResourceLevelingService.Order) order.getSelectedItem(),
+				slackOnly.isSelected(), allowSplits.isSelected(), Long.MIN_VALUE, Long.MAX_VALUE));
+		changes.setPlan(currentPlan);
+		apply.setEnabled(!currentPlan.changes().isEmpty());
+		status.setText(java.text.MessageFormat.format(UsabilityStrings.text("leveling.status"),
+			currentPlan.changes().size(), currentPlan.splits().size(), currentPlan.unresolved().size()));
+	}
+
+	private void apply() {
+		if (currentPlan == null || currentPlan.changes().isEmpty()) {
+			return;
+		}
+		if (!currentPlan.isComplete()) {
+			int answer = JOptionPane.showConfirmDialog(this,
+				UsabilityStrings.text("leveling.partial"),
+				UsabilityStrings.text("leveling.title"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (answer != JOptionPane.YES_OPTION) {
+				return;
+			}
+		}
+		currentPlan.apply(project.getUndoController().getEditSupport());
+		preview();
+	}
+
+	private void clear() {
+		service.clear(project, project.getUndoController().getEditSupport());
+		preview();
+	}
+
+	private static final class ChangeTableModel extends AbstractTableModel {
+		private static final long serialVersionUID = 1L;
+		private static final String[] COLUMNS = { UsabilityStrings.text("common.task"), UsabilityStrings.text("leveling.currentStart"), UsabilityStrings.text("leveling.leveledStart"), UsabilityStrings.text("leveling.delay"), UsabilityStrings.text("common.resource") };
+		private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+			.withZone(ZoneId.systemDefault());
+		private List<ResourceLevelingService.Change> rows = List.of();
+
+		void setPlan(ResourceLevelingService.Plan plan) {
+			rows = plan == null ? List.of() : plan.changes();
+			fireTableDataChanged();
+		}
+
+		public int getRowCount() {
+			return rows.size();
+		}
+
+		public int getColumnCount() {
+			return COLUMNS.length;
+		}
+
+		public String getColumnName(int column) {
+			return COLUMNS[column];
+		}
+
+		public Object getValueAt(int rowIndex, int columnIndex) {
+			ResourceLevelingService.Change change = rows.get(rowIndex);
+			return switch (columnIndex) {
+				case 0 -> change.task().getName();
+				case 1 -> formatter.format(Instant.ofEpochMilli(change.oldStart()));
+				case 2 -> formatter.format(Instant.ofEpochMilli(change.projectedStart()));
+				case 3 -> humanDuration(change.addedDelayMillis());
+				case 4 -> change.limitingResource();
+				default -> "";
+			};
+		}
+
+		private static String humanDuration(long milliseconds) {
+			long hours = milliseconds / (60L * 60L * 1000L);
+			return hours % 8L == 0L ? (hours / 8L) + "d" : hours + "h";
+		}
+	}
+}

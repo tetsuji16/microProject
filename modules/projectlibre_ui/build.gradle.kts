@@ -17,7 +17,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.projectlibre1.main.Main")
+    mainClass.set("com.microproject.main.Main")
 }
 
 tasks.named<CreateStartScripts>("startScripts") {
@@ -58,7 +58,7 @@ tasks.register<JavaExec>("imeSandbox") {
     group = "application"
     description = "Launch the spreadsheet IME sandbox."
     classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("com.projectlibre1.pm.graphic.spreadsheet.common.SpreadsheetImeSandbox")
+    mainClass.set("com.microproject.pm.graphic.spreadsheet.common.SpreadsheetImeSandbox")
     dependsOn(tasks.classes)
 }
 

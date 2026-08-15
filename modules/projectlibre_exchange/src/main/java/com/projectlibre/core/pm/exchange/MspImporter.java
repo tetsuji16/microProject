@@ -76,7 +76,7 @@ import net.sf.mpxj.mspdi.schema.TimephasedDataType;
 import net.sf.mpxj.reader.AbstractProjectReader;
 import net.sf.mpxj.reader.UniversalProjectReader;
 import net.sf.mpxj.planner.PlannerReader;
-import com.projectlibre1.exchange.xlsx.ProjectLibreXlsxReader;
+import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
 
 import com.projectlibre.core.pm.exchange.converters.mpx.MpxAssignmentConverter;
 import com.projectlibre.core.pm.exchange.converters.mpx.MpxCalendarConverter;

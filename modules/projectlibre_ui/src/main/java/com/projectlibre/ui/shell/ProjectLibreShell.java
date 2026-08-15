@@ -18,15 +18,15 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
 
-import com.projectlibre1.menu.MenuManager;
-import com.projectlibre1.pm.graphic.TabbedNavigation;
-import com.projectlibre1.pm.graphic.frames.MainRibbonFrame;
-import com.projectlibre1.pm.graphic.frames.workspace.DefaultFrameManager;
-import com.projectlibre1.pm.graphic.frames.workspace.FrameManager;
-import com.projectlibre1.pm.graphic.laf.LafManager;
-import com.projectlibre1.strings.Messages;
-import com.projectlibre1.toolbar.FilterToolBarManager;
-import com.projectlibre1.util.FlatUiSupport;
+import com.microproject.menu.MenuManager;
+import com.microproject.pm.graphic.TabbedNavigation;
+import com.microproject.pm.graphic.frames.MainRibbonFrame;
+import com.microproject.pm.graphic.frames.workspace.DefaultFrameManager;
+import com.microproject.pm.graphic.frames.workspace.FrameManager;
+import com.microproject.pm.graphic.laf.LafManager;
+import com.microproject.strings.Messages;
+import com.microproject.toolbar.FilterToolBarManager;
+import com.microproject.util.FlatUiSupport;
 
 /**
  * Builds shell chrome while leaving action orchestration in GraphicManager.

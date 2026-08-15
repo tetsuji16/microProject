@@ -32,7 +32,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$paths = New-Object System.Collections.Generic.List[string];" ^
   "foreach ($name in $preferred) { $paths.Add((Join-Path $lib $name)) }" ^
   "Get-ChildItem -LiteralPath $lib -Filter *.jar | Sort-Object Name | Where-Object { $preferred -notcontains $_.Name } | ForEach-Object { $paths.Add($_.FullName) };" ^
-  "@('--enable-native-access=ALL-UNNAMED','-classpath', ($paths -join ';'), 'com.projectlibre1.main.Main') | Set-Content -LiteralPath $arg -Encoding ASCII"
+  "@('--enable-native-access=ALL-UNNAMED','-classpath', ($paths -join ';'), 'com.microproject.main.Main') | Set-Content -LiteralPath $arg -Encoding ASCII"
 if errorlevel 1 exit /b %ERRORLEVEL%
 
 if defined JAVA_HOME (

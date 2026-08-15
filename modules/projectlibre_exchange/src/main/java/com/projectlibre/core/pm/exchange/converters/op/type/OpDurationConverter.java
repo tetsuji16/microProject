@@ -69,7 +69,7 @@ public class OpDurationConverter extends FieldTypeConverter {
 	@Override
 	public Object from(Object o) {
 		long d=(Long)o;
-		return new Duration(com.projectlibre1.datatype.Duration.getValue(d),TimeUnit.getInstance(com.projectlibre1.datatype.Duration.getType(d)));
+		return new Duration(com.microproject.datatype.Duration.getValue(d),TimeUnit.getInstance(com.microproject.datatype.Duration.getType(d)));
 	}
 
 	@Override
@@ -77,7 +77,7 @@ public class OpDurationConverter extends FieldTypeConverter {
 		Duration d=(Duration)o;
 		if (d==null)
 			return 0;		
-		else return com.projectlibre1.datatype.Duration.getInstance(d.getValue(),d.getUnit().getId());
+		else return com.microproject.datatype.Duration.getInstance(d.getValue(),d.getUnit().getId());
 	}
 
 }

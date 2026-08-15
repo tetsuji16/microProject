@@ -109,8 +109,8 @@ tasks.register("verifyIndependentBoundaries") {
 
     doLast {
         val boundaryRules = mapOf(
-            "projectlibre_reports" to listOf("com.projectlibre1.exchange", "com.projectlibre1.application", "com.projectlibre.ui"),
-            "projectlibre_exchange" to listOf("com.projectlibre1.reports", "com.projectlibre1.application", "com.projectlibre.ui")
+            "projectlibre_reports" to listOf("com.microproject.exchange", "com.microproject.application", "com.projectlibre.ui"),
+            "projectlibre_exchange" to listOf("com.microproject.reports", "com.microproject.application", "com.projectlibre.ui")
         )
         boundaryRules.forEach { (module, forbiddenPackages) ->
             val sourceRoot = project(":$module").projectDir.resolve("src/main")
@@ -214,7 +214,7 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
-            "--main-class", "com.projectlibre1.main.Main",
+            "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--dest", windowsAppImageDir.get().asFile.absolutePath,
@@ -246,7 +246,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
-            "--main-class", "com.projectlibre1.main.Main",
+            "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
@@ -286,7 +286,7 @@ tasks.register<Exec>("packageWindowsExe") {
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
             "--main-jar", "projectlibre_ui.jar",
-            "--main-class", "com.projectlibre1.main.Main",
+            "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
@@ -309,7 +309,7 @@ tasks.register<JavaExec>("verifyPackagedFileImports") {
     val uiTestRuntimeClasspath = uiSourceSets.named("test").map { it.runtimeClasspath }
 
     classpath = files(uiTestOutput, uiTestRuntimeClasspath)
-    mainClass.set("com.projectlibre1.integration.PackagedImportSmokeMain")
+    mainClass.set("com.microproject.integration.PackagedImportSmokeMain")
     args(
         "--windows-script",
         file("modules/projectlibre_ui/build/install/projectlibre_ui/bin/projectlibre_ui.bat").absolutePath,

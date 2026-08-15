@@ -18,11 +18,11 @@ import org.junit.jupiter.api.Test;
 
 import com.projectlibre.ui.ribbon.SwingRibbonFactory;
 import com.projectlibre.ui.theme.ProjectLibreTheme;
-import com.projectlibre1.menu.ExtToolBarFactory;
-import com.projectlibre1.menu.MenuActionMapSupport;
-import com.projectlibre1.menu.MenuManager;
-import com.projectlibre1.menu.testsupport.MenuDefinitionSupport;
-import com.projectlibre1.menu.testsupport.UiComponentWalker;
+import com.microproject.menu.ExtToolBarFactory;
+import com.microproject.menu.MenuActionMapSupport;
+import com.microproject.menu.MenuManager;
+import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.menu.testsupport.UiComponentWalker;
 
 class OfficeChromePanelVisualSmokeTest {
 	@Test

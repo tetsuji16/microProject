@@ -181,7 +181,7 @@ public final class JavaSymbolExtractor {
 	}
 
 	private static String normalizeName(String value) {
-		return value.replace("com.projectlibre1", "com.projity")
+		return value.replace("com.microproject", "com.projity")
 			.replace("org.projectlibre1", "org.projity");
 	}
 

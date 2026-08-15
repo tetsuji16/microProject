@@ -11,10 +11,10 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.projectlibre1.menu.ExtToolBarFactory;
-import com.projectlibre1.menu.MenuActionMapSupport;
-import com.projectlibre1.menu.MenuManager;
-import com.projectlibre1.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.menu.ExtToolBarFactory;
+import com.microproject.menu.MenuActionMapSupport;
+import com.microproject.menu.MenuManager;
+import com.microproject.menu.testsupport.MenuDefinitionSupport;
 
 class RibbonCommandCatalogTest {
 	@Test

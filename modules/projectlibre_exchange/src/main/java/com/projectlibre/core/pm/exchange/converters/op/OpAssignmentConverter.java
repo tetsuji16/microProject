@@ -66,11 +66,11 @@ import com.projectlibre.core.time.TimeIntervals;
 import com.projectlibre.core.time.TimephasedValue;
 import com.projectlibre.core.time.WorkContour;
 import com.projectlibre.pm.tasks.Assignment;
-import com.projectlibre1.pm.assignment.AssignmentService;
-import com.projectlibre1.pm.assignment.contour.ContourTypes;
-import com.projectlibre1.pm.resource.ResourceImpl;
-import com.projectlibre1.pm.task.NormalTask;
-import com.projectlibre1.server.data.mspdi.TimeDistributedTypeMapper;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.assignment.contour.ContourTypes;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.server.data.mspdi.TimeDistributedTypeMapper;
 
 /**
  * @author Laurent Chretienneau
@@ -85,8 +85,8 @@ public class OpAssignmentConverter {
 //		"work", "work", "com.projectlibre.core.pm.exchange.converters.op.type.OpDurationConverter",		
 	};
 
-	public com.projectlibre1.pm.assignment.Assignment to(Assignment assignment, OpImportState state) {
-		com.projectlibre1.pm.resource.Resource resource;
+	public com.microproject.pm.assignment.Assignment to(Assignment assignment, OpImportState state) {
+		com.microproject.pm.resource.Resource resource;
 		if (assignment.getResource().isUnassigned()) 
 			resource=ResourceImpl.getUnassignedInstance();
 		else resource = state.getOpResource(assignment.getResource());
@@ -100,12 +100,12 @@ public class OpAssignmentConverter {
 		
 		
 		//create assignment
-		com.projectlibre1.pm.assignment.Assignment opAssignment=com.projectlibre1.pm.assignment.Assignment.getInstance(task,resource
+		com.microproject.pm.assignment.Assignment opAssignment=com.microproject.pm.assignment.Assignment.getInstance(task,resource
 				,(Double)assignment.getPropertyValue("units"),0);
 
 		
 		//convert fields
-		FieldUtil.convertFields(assignment, com.projectlibre1.pm.assignment.Assignment.class, opAssignment, fieldsToConvert, false);
+		FieldUtil.convertFields(assignment, com.microproject.pm.assignment.Assignment.class, opAssignment, fieldsToConvert, false);
 		applyTrackingFields(assignment, opAssignment);
 
 		//timephased		
@@ -133,7 +133,7 @@ public class OpAssignmentConverter {
 		return opAssignment;
 	}
 
-	private void applyTrackingFields(Assignment assignment, com.projectlibre1.pm.assignment.Assignment opAssignment) {
+	private void applyTrackingFields(Assignment assignment, com.microproject.pm.assignment.Assignment opAssignment) {
 		Duration work = (Duration) assignment.getPropertyValue("work");
 		if (work != null)
 			opAssignment.setWork((Long) new OpDurationConverter().to(work), null);

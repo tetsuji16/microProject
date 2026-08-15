@@ -1,0 +1,599 @@
+/*******************************************************************************
+ * The contents of this file are subject to the Common Public Attribution License 
+ * Version 1.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at 
+ * http://www.projectlibre.com/license . The License is based on the Mozilla Public 
+ * License Version 1.1 but Sections 14 and 15 have been added to cover use of 
+ * software over a computer network and provide for limited attribution for the 
+ * Original Developer. In addition, Exhibit A has been modified to be consistent 
+ * with Exhibit B. 
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis, 
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for the 
+ * specific language governing rights and limitations under the License. The 
+ * Original Code is ProjectLibre. The Original Developer is the Initial Developer 
+ * and is ProjectLibre Inc. All portions of the code written by ProjectLibre are 
+ * Copyright (c) 2012-2019. All Rights Reserved. All portions of the code written by 
+ * ProjectLibre are Copyright (c) 2012-2019. All Rights Reserved. Contributor 
+ * ProjectLibre, Inc.
+ *
+ * Alternatively, the contents of this file may be used under the terms of the 
+ * ProjectLibre End-User License Agreement (the ProjectLibre License) in which case 
+ * the provisions of the ProjectLibre License are applicable instead of those above. 
+ * If you wish to allow use of your version of this file only under the terms of the 
+ * ProjectLibre License and not to allow others to use your version of this file 
+ * under the CPAL, indicate your decision by deleting the provisions above and 
+ * replace them with the notice and other provisions required by the ProjectLibre 
+ * License. If you do not delete the provisions above, a recipient may use your 
+ * version of this file under either the CPAL or the ProjectLibre Licenses. 
+ *
+ *
+ * [NOTE: The text of this Exhibit A may differ slightly from the text of the notices 
+ * in the Source Code files of the Original Code. You should use the text of this 
+ * Exhibit A rather than the text found in the Original Code Source Code for Your 
+ * Modifications.] 
+ *
+ * EXHIBIT B. Attribution Information for ProjectLibre required
+ *
+ * Attribution Copyright Notice: Copyright (c) 2012-2019, ProjectLibre, Inc.
+ * Attribution Phrase (not exceeding 10 words): 
+ * ProjectLibre, open source project management software.
+ * Attribution URL: http://www.projectlibre.com
+ * Graphic Image as provided in the Covered Code as file: projectlibre-logo.png with 
+ * alternatives listed on http://www.projectlibre.com/logo 
+ *
+ * Display of Attribution Information is required in Larger Works which are defined 
+ * in the CPAL as a work which combines Covered Code or portions thereof with code 
+ * not governed by the terms of the CPAL. However, in addition to the other notice 
+ * obligations, all copies of the Covered Code in Executable and Source Code form 
+ * distributed must, as a form of attribution of the original author, include on 
+ * each user interface screen the "ProjectLibre" logo visible to all users. 
+ * The ProjectLibre logo should be located horizontally aligned with the menu bar 
+ * The 
+ * logo must be at least 144 x 31 pixels. When users click on the "ProjectLibre" 
+ * logo it must direct them back to http://www.projectlibre.com. 
+ *******************************************************************************/
+package com.microproject.dialog;
+
+import java.awt.Component;
+import java.awt.Frame;
+import java.util.Locale;
+
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+
+import com.jgoodies.forms.builder.DefaultFormBuilder;
+import com.jgoodies.forms.layout.CellConstraints;
+import com.jgoodies.forms.layout.FormLayout;
+import com.microproject.dialog.util.FieldComponentMap;
+import com.microproject.help.HelpUtil;
+import com.microproject.menu.MenuActionConstants;
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.DocumentSelectedEvent;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.gantt.BarColorEditorPanel;
+import com.microproject.pm.graphic.gantt.BarColorField;
+import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.gantt.GanttRenderer;
+import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.microproject.pm.graphic.views.UsageDetailView;
+import com.microproject.association.AssociationList;
+import com.microproject.configuration.Configuration;
+import com.microproject.field.Field;
+import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.graphic.configuration.shape.Colors;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentEntry;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyNodeModelDataFactory;
+import com.microproject.pm.key.HasId;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.task.ScheduleDiagnosticsService;
+import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
+/**
+ *
+ */
+public class TaskInformationDialog extends InformationDialog {
+	private static final long serialVersionUID = 1L;
+
+	public static TaskInformationDialog getInstance(Frame owner, Task task, boolean notes) {
+		return new TaskInformationDialog(owner, task, notes);
+	}
+
+	private TaskInformationDialog(Frame owner, Task task, boolean notes) {
+		super(owner, Messages.getString("TaskInformationDialog.TaskInformation")); //$NON-NLS-1$
+		setObjectClass(Task.class);
+		setObject(task);
+		addDocHelp("Task_Information_Dialog");
+		}
+
+	private JTabbedPane taskTabbedPane;
+	private int notesTabIndex;
+	private int resourcesTabIndex;
+
+	// Bar color fields shown in the General tab (issue #16)
+	private BarColorField barStartColor;
+	private BarColorField barMiddleColor;
+	private BarColorField barEndColor;
+	private BarColorEditorPanel barColorEditor;
+
+	private Gantt getGantt() {
+		try {
+			GraphicManager manager = GraphicManager.getInstance(this);
+			DocumentFrame frame = manager == null ? null : manager.getCurrentFrame();
+			if (frame == null)
+				return null;
+			return frame.getGanttView().getGantt();
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private BarFormat currentBarFormat(Task task) {
+		Gantt gantt = getGantt();
+		if (gantt == null || task == null)
+			return BarFormat.automatic();
+		return gantt.getBarFormat(task);
+	}
+
+	private void applyBarFormatFromFields() {
+		Task task = (Task) getObject();
+		if (task == null || task.isReadOnly()
+				|| barStartColor == null || barMiddleColor == null || barEndColor == null)
+			return;
+		Gantt gantt = getGantt();
+		if (gantt == null)
+			return;
+		gantt.applyBarFormat(task,
+				new BarFormat(barStartColor.getRgb(), barMiddleColor.getRgb(), barEndColor.getRgb()));
+	}
+
+	private void refreshBarColorFields() {
+		Task task = (Task) getObject();
+		if (task == null || barColorEditor == null)
+			return;
+		refreshBarColorFields(barColorEditor, currentBarFormat(task), task.isReadOnly());
+	}
+
+	static void refreshBarColorFields(BarColorEditorPanel editor, BarFormat format, boolean readOnly) {
+		if (editor == null)
+			return;
+		BarFormat resolved = format == null ? BarFormat.automatic() : format;
+		editor.setEnabled(!readOnly);
+		editor.getStart().setRgb(resolved.getStartRgb());
+		editor.getMiddle().setRgb(resolved.getMiddleRgb());
+		editor.getEnd().setRgb(resolved.getEndRgb());
+	}
+
+	public void setObject(Object object) {
+		super.setObject(object);
+		String title = Messages.getString("TaskInformationDialog.TaskInformation");
+		if (object != null)
+			title += " - " + ((HasId)object).getId();
+		this.setTitle(title);
+	}
+	public JComponent createContentPanel() {	
+	    	
+		FormLayout layout = new FormLayout("350dlu:grow","fill:250dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.setDefaultDialogBorder();
+		CellConstraints cc = new CellConstraints();
+		
+		taskTabbedPane= new JTabbedPane();
+		FlatUiSupport.styleTabbedPane(taskTabbedPane);
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.General"),createGeneralPanel()); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Predecessors"),createPredecessorsPanel()); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Successors"),createSuccessorsPanel()); //$NON-NLS-1$
+		String resources = Messages.getString("TaskInformationDialog.Resources"); //$NON-NLS-1$
+		taskTabbedPane.addTab(resources,createResourcesPanel());
+		resourcesTabIndex = taskTabbedPane.indexOfTab(resources);
+
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Advanced"),createAdvancedPanel()); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Diagnostics"), createDiagnosticsPanel()); //$NON-NLS-1$
+		
+		String notes = Messages.getString("TaskInformationDialog.Notes"); //$NON-NLS-1$
+		taskTabbedPane.addTab(notes,createNotesPanel());
+		notesTabIndex = taskTabbedPane.indexOfTab(notes);
+		builder.add(taskTabbedPane);
+		mainComponent = taskTabbedPane;
+
+		return builder.getPanel();
+	}
+
+	private JComponent createDiagnosticsPanel() {
+		String[] columns = {
+			Messages.getString("TaskInformationDialog.Severity"),
+			Messages.getString("TaskInformationDialog.Issue"),
+			Messages.getString("TaskInformationDialog.Cause"),
+			Messages.getString("TaskInformationDialog.Recommendation")
+		};
+		DefaultTableModel model = new DefaultTableModel(columns, 0) {
+			private static final long serialVersionUID = 1L;
+			@Override public boolean isCellEditable(int row, int column) { return false; }
+		};
+		for (var issue : new ScheduleDiagnosticsService().diagnose((Task) getObject())) {
+			String key = "diagnostic." + issue.type().name().toLowerCase(Locale.ROOT);
+			model.addRow(new Object[] { issue.severity(), UsabilityStrings.text(key + ".summary"), UsabilityStrings.text(key + ".cause"), UsabilityStrings.text(key + ".recommendation") });
+		}
+		JTable table = new JTable(model);
+		table.setAutoCreateRowSorter(true);
+		table.setRowHeight(Math.max(table.getRowHeight(), 24));
+		table.getAccessibleContext().setAccessibleName(Messages.getString("TaskInformationDialog.Diagnostics"));
+		JScrollPane pane = new JScrollPane(table);
+		pane.setBorder(javax.swing.BorderFactory.createEmptyBorder(8, 8, 8, 8));
+		return pane;
+	}
+
+	public void showNotes() {
+		taskTabbedPane.setSelectedIndex(notesTabIndex);
+	}
+	public void showResources() {
+		taskTabbedPane.setSelectedIndex(resourcesTabIndex);
+	}
+
+	protected JComponent createHeaderFieldsPanel(FieldComponentMap map) {
+		// Repeat of fields from general tab 
+		FormLayout layout = new FormLayout(
+		        "p,3dlu,300dlu" //$NON-NLS-1$
+				,"p,3dlu"); //$NON-NLS-1$
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		map.append(builder,"Field.name"); //$NON-NLS-1$
+		builder.nextLine(); // border at bottom
+		return builder.getPanel();
+	}
+	
+
+	private JComponent createGeneralPanel(){
+		FieldComponentMap map = createMap();
+		FormLayout layout = new FormLayout(
+		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,90dlu,60dlu", // extra padding on right is for estimated field //$NON-NLS-1$
+				// The builder advances one row after each separator.  Keep the
+				// growing row at the end so the Bar Color controls (rows 20-25)
+				// are within the grid instead of aborting dialog construction.
+				"p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,fill:50dlu:grow"); //$NON-NLS-1$
+
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		CellConstraints cc = new CellConstraints();
+		builder.setDefaultDialogBorder();
+		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
+				.getRow(), 8));
+		
+		
+		builder.nextLine(2);
+		map.appendSometimesReadOnly(builder,"Field.duration"); //$NON-NLS-1$
+		map.append(builder,"Field.estimated"); //$NON-NLS-1$
+		builder.nextLine(2);
+		map.appendSometimesReadOnly(builder,"Field.percentComplete"); //$NON-NLS-1$
+		map.append(builder,"Field.priority"); //$NON-NLS-1$
+		builder.nextLine(2);
+		map.append(builder,"Field.manuallyScheduled"); //$NON-NLS-1$
+		map.append(builder,"Field.inactiveTask"); //$NON-NLS-1$
+
+		builder.nextLine(2);
+		map.append(builder,"Field.cost"); //$NON-NLS-1$
+		map.append(builder,"Field.work"); //$NON-NLS-1$
+		builder.nextLine(4);
+		builder.addSeparator(Messages.getString("TaskInformationDialog.Dates")); //$NON-NLS-1$
+		builder.nextLine(2);
+		map.append(builder,"Field.start"); //$NON-NLS-1$
+		map.append(builder,"Field.finish"); //$NON-NLS-1$
+		builder.nextLine(2);
+		map.append(builder,"Field.baselineStart"); //$NON-NLS-1$
+		map.append(builder,"Field.baselineFinish"); //$NON-NLS-1$
+		builder.nextLine(4);
+		builder.addSeparator(Messages.getString("TaskInformationDialog.BarColor")); //$NON-NLS-1$
+		builder.nextLine(2);
+		Task task = (Task) getObject();
+		Gantt gantt = getGantt();
+		barColorEditor = new BarColorEditorPanel(this, currentBarFormat(task),
+				gantt == null ? new GanttRenderer.DisplayedBarColors(
+						null, null, null)
+						: gantt.getDisplayedBarColors(task),
+				task.isMilestone(), task.isSummary(), null);
+		barColorEditor.setEnabled(!task.isReadOnly());
+		barStartColor = barColorEditor.getStart();
+		barMiddleColor = barColorEditor.getMiddle();
+		barEndColor = barColorEditor.getEnd();
+		builder.add(barColorEditor,
+				cc.xyw(builder.getColumn(), builder.getRow(), 8));
+		return builder.getPanel();
+	}
+
+	private JComponent createAdvancedPanel(){
+		FieldComponentMap map = createMap();
+		FormLayout layout = new FormLayout(
+		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,90dlu,30dlu", // extra padding on right is for estimated field //$NON-NLS-1$
+	    		  "p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu, fill:50dlu:grow"); //$NON-NLS-1$
+
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.setDefaultDialogBorder();
+		CellConstraints cc = new CellConstraints();
+		
+		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
+				.getRow(), 8));
+		builder.nextLine(2);
+		map.append(builder,"Field.wbs"); //$NON-NLS-1$
+		map.append(builder,"Field.markTaskAsMilestone",3); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.addSeparator(Messages.getString("TaskInformationDialog.ConstrainTask")); //$NON-NLS-1$
+		// addSeparator already advances one row. Move to the next content row,
+		// not the following 3dlu spacer row, otherwise the constraint controls
+		// are clipped to the height of that spacer.
+		builder.nextLine();
+		map.append(builder,"Field.constraintType"); //$NON-NLS-1$
+		map.appendSometimesReadOnly(builder,"Field.constraintDate"); //$NON-NLS-1$
+		builder.nextLine(2);
+		map.append(builder,"Field.deadline"); //$NON-NLS-1$
+		builder.nextLine(4);
+		builder.addSeparator("	"); //$NON-NLS-1$
+		builder.nextLine();
+		map.append(builder,"Field.taskType"); //$NON-NLS-1$
+		map.append(builder,"Field.effortDriven",3); //$NON-NLS-1$
+		builder.nextLine(2);
+		map.append(builder,"Field.taskCalendar"); //$NON-NLS-1$
+		map.append(builder,"Field.ignoreResourceCalendar",3); //$NON-NLS-1$
+		builder.nextLine(2);
+		map.append(builder,"Field.earnedValueMethod"); //$NON-NLS-1$
+
+		return builder.getPanel();
+	}	
+	
+	public JComponent createPredecessorsPanel() {
+		FieldComponentMap map = createMap();		
+		FormLayout layout = new FormLayout("p:grow","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.setDefaultDialogBorder();
+		CellConstraints cc = new CellConstraints();
+		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
+				.getRow(), 1));
+		builder.nextLine(2);
+		builder.append(Messages.getString("Spreadsheet.Dependency.predecessors")+":"); //$NON-NLS-1$ //$NON-NLS-2$
+		builder.nextLine(2);
+		builder.add(createPredecessorsSpreadsheet());
+		JComponent pred = builder.getPanel();
+		HelpUtil.addDocHelp(pred,"Linking");
+		return pred;	
+	}
+	
+	private class DependencySpreadSheet extends SpreadSheet {
+    	InformationDialog dlg;
+		Field clickField;
+		boolean predecessor;
+    	DependencySpreadSheet(InformationDialog dlg, boolean predecessor) {
+    		this.dlg = dlg;
+    		this.clickField = Configuration.getFieldFromId(predecessor ? "Field.predecessorName" : "Field.successorName");
+    		this.predecessor = predecessor;
+    	}
+    	public void doDoubleClick(int row, int col) {}
+    	public void doClick(int row, int col) {
+    		Object obj = getCurrentRowImpl();
+    		if (obj!= null) {
+				Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(col+1);
+				if (field == clickField) {
+        			NormalTask pred = (NormalTask) (predecessor ? ((Dependency)obj).getLeft() : ((Dependency)obj).getRight());
+        			dlg.setObject(pred);
+        			dlg.updateAll();
+        			pred.getDocument().getObjectSelectionEventManager().fire(this,pred);
+				}
+    		}
+    	}
+    	
+		public Component prepareRenderer(TableCellRenderer renderer, int row,
+				int column) {
+			Component component =  super.prepareRenderer(renderer, row, column);
+			Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column+1);
+			if (field == clickField) {
+				JLabel l = (JLabel)component;
+				l.setText("<html><a href=\"\">" + l.getText() + "</a></html>");
+			}
+			return component;
+		}
+		
+	}
+	
+	protected SpreadSheet predecessorsSpreadSheet;
+ 	public static final String DEPENDENCY_SPREADSHEET=SpreadSheetCategories.dependencySpreadsheetCategory;
+    protected JScrollPane createPredecessorsSpreadsheet() {
+    	final TaskInformationDialog self = this;
+        predecessorsSpreadSheet = new DependencySpreadSheet(this,true);
+		predecessorsSpreadSheet.setSpreadSheetCategory(DEPENDENCY_SPREADSHEET);
+    	predecessorsSpreadSheet.setCanModifyColumns(false);
+    	predecessorsSpreadSheet.setCanSelectFieldArray(false);
+    	predecessorsSpreadSheet.setActions(new String[]{MenuActionConstants.ACTION_DELETE});
+    	SpreadSheetUtils.createCollectionSpreadSheet(predecessorsSpreadSheet
+				,(object==null)?new AssociationList():((Task)object).getPredecessorList()
+				//,(object==null)?null:((NormalTask)object).getDocument()
+				,"View.TaskInformation.Predecessors" //$NON-NLS-1$
+				,DEPENDENCY_SPREADSHEET
+				,"Spreadsheet.Dependency.predecessors" //$NON-NLS-1$
+				,true
+				,new DependencyNodeModelDataFactory()
+				, 0
+//				,false
+//				,true
+				);
+	    return SpreadSheetUtils.makeSpreadsheetScrollPane(predecessorsSpreadSheet);
+
+    }
+    //cache reconstructed because the main cache holding edges isn't ordered
+    protected void updatePredecessorsSpreadsheet() {
+    	SpreadSheetUtils.updateCollectionSpreadSheet(predecessorsSpreadSheet
+    					,(object==null)?new AssociationList():((Task)object).getPredecessorList()
+						,new DependencyNodeModelDataFactory()
+						, 0);
+    }
+
+	public JComponent createSuccessorsPanel() {
+		FieldComponentMap map = createMap();		
+		FormLayout layout = new FormLayout("p:grow","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.setDefaultDialogBorder();
+		CellConstraints cc = new CellConstraints();
+		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
+				.getRow(), 1));
+		builder.nextLine(2);
+		builder.append(Messages.getString("Spreadsheet.Dependency.successors")+":"); //$NON-NLS-1$ //$NON-NLS-2$
+		builder.nextLine(2);
+		builder.add(createSuccessorsSpreadsheet());
+		JComponent succ = builder.getPanel();
+		HelpUtil.addDocHelp(succ,"Linking");
+		return succ;	
+	}
+	
+	protected SpreadSheet successorsSpreadSheet;
+    protected JScrollPane createSuccessorsSpreadsheet() {
+        successorsSpreadSheet = new DependencySpreadSheet(this,false);
+		successorsSpreadSheet.setSpreadSheetCategory(DEPENDENCY_SPREADSHEET);
+    	successorsSpreadSheet.setCanModifyColumns(false);
+    	successorsSpreadSheet.setCanSelectFieldArray(false);
+    	successorsSpreadSheet.setActions(new String[]{MenuActionConstants.ACTION_DELETE});
+    	
+    	SpreadSheetUtils.createCollectionSpreadSheet(successorsSpreadSheet
+				,(object==null)?new AssociationList():((Task)object).getSuccessorList()
+				//,(object==null)?null:((NormalTask)object).getDocument()
+				,"View.TaskInformation.Successors" //$NON-NLS-1$
+				,DEPENDENCY_SPREADSHEET
+				,"Spreadsheet.Dependency.successors" //$NON-NLS-1$
+				,false
+				,new DependencyNodeModelDataFactory()
+				, 0
+//				,false
+//				,true
+				);
+
+	    return SpreadSheetUtils.makeSpreadsheetScrollPane(successorsSpreadSheet);
+
+    }
+    //cache reconstructed because the main cache holding edges isn't ordered
+    protected void updateSuccessorsSpreadsheet() {
+    	SpreadSheetUtils.updateCollectionSpreadSheet(successorsSpreadSheet
+				,(object==null)?new AssociationList():((Task)object).getSuccessorList()
+				,new DependencyNodeModelDataFactory()
+				, 0);
+    }
+
+	public JComponent createResourcesPanel() {
+		FieldComponentMap map = createMap();
+		
+		FormLayout layout = new FormLayout("p:grow,0dlu,right:p","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.setDefaultDialogBorder();
+		CellConstraints cc = new CellConstraints();
+		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
+				.getRow(), 3));
+		builder.nextLine(2);
+		builder.append(Messages.getString("TaskInformationDialog.Resources") + ":",getAssignResourceButton()); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.add(createAssignmentSpreadsheet(),cc.xyw(builder.getColumn(), builder
+				.getRow(), 3));
+		JComponent panel = builder.getPanel();
+		HelpUtil.addDocHelp(panel,"Assign_Resources");
+		return panel;	
+	}
+
+    protected SpreadSheet assignmentSpreadSheet;
+    protected JScrollPane createAssignmentSpreadsheet() {
+		assignmentSpreadSheet = SpreadSheetUtils.createFilteredSpreadsheet(GraphicManager.getInstance(this).getCurrentFrame()
+        							,false
+									,"View.TaskInformation.Assignments" //$NON-NLS-1$
+									,UsageDetailView.resourceAssignmentSpreadsheetCategory
+									,UsageDetailView.getUsageAssignmentSpreadsheetId(false)
+									,true
+									//, 0
+									,new String[]{MenuActionConstants.ACTION_DELETE}
+									/*, new int[] {SpreadSheet.DELETE}*/);
+        assignmentSpreadSheet.setActions(new String[]{MenuActionConstants.ACTION_DELETE});
+
+		updateAssignmentSpreadsheet();
+	    return SpreadSheetUtils.makeSpreadsheetScrollPane(assignmentSpreadSheet);
+
+    }
+    protected void updateAssignmentSpreadsheet() {
+    	SpreadSheetUtils.updateFilteredSpreadsheet(assignmentSpreadSheet,(object==null)?new AssociationList():((NormalTask)object).getAssignments());
+    	((SpreadSheetModel)assignmentSpreadSheet.getModel()).fireUpdateAll();
+    }
+    
+	public void updateAll() {
+		activateListeners();
+		super.updateAll();
+		// This dialog instance is reused for different tasks. Keep the custom bar
+		// controls in sync just like the FieldComponentMap-backed controls; this
+		// also discards unconfirmed edits when Cancel refreshes the dialog.
+		refreshBarColorFields();
+		if (predecessorsSpreadSheet != null)
+			updatePredecessorsSpreadsheet();
+		if (successorsSpreadSheet != null)
+			updateSuccessorsSpreadsheet();
+		if (assignmentSpreadSheet != null)
+			updateAssignmentSpreadsheet();
+	}
+
+	@Override
+	protected boolean bind(boolean get) {
+		if (!super.bind(get))
+			return false;
+		Task task = (Task) getObject();
+		if (task == null)
+			return true;
+		if (get) {
+			refreshBarColorFields();
+		} else {
+			// Commit bar color changes when the user confirms the dialog.
+			applyBarFormatFromFields();
+		}
+		return true;
+	}
+
+	public void documentSelected(DocumentSelectedEvent evt) {
+		if (assignmentSpreadSheet==null) return;
+        DocumentFrame df=evt.getCurrent();
+        if (df!=null){
+//        	List impls=df.getSelectedImpls();
+//        	if (impls!=null&&impls.size()>0) setObject(impls.get(0));
+        	NodeModelCache cache = df.createCache(false,Messages.getString("View.TaskInformation.Assignments")); //$NON-NLS-1$
+			assignmentSpreadSheet.setCache(cache);
+        }
+	}
+	
+	
+	protected void activateListeners() {
+		super.activateListeners();
+		if (predecessorsSpreadSheet != null)
+			predecessorsSpreadSheet.getCache().setReceiveEvents(true);
+		if (successorsSpreadSheet != null)
+			successorsSpreadSheet.getCache().setReceiveEvents(true);
+		//assignmentSpreadSheet.getCache().setReceiveEvents(true);
+	}
+
+	protected void desactivateListeners() {
+		super.desactivateListeners();
+		if (predecessorsSpreadSheet != null)
+			predecessorsSpreadSheet.getCache().setReceiveEvents(false);
+		if (successorsSpreadSheet != null)
+			successorsSpreadSheet.getCache().setReceiveEvents(false);
+		//assignmentSpreadSheet.getCache().setReceiveEvents(false); 
+		//causes an update problem of the filtered cache
+	}
+
+
+	protected boolean hasHelpButton() {
+		return true;
+	}
+
+	
+}
+

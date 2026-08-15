@@ -11,9 +11,9 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 
 import com.projectlibre.ui.ribbon.SwingRibbonModel.CustomBandProvider;
-import com.projectlibre1.menu.ExtToolBarFactory;
+import com.microproject.menu.ExtToolBarFactory;
 import com.projectlibre.ui.ribbon.CustomRibbonBandGenerator;
-import com.projectlibre1.util.FlatUiSupport;
+import com.microproject.util.FlatUiSupport;
 
 public final class SwingRibbonFactory {
 	private final ExtToolBarFactory buttonFactory;

@@ -58,9 +58,9 @@ package com.projectlibre.core.pm.exchange.converters.op;
 import com.projectlibre.core.pm.exchange.converters.op.type.OpDependencyTypeConverter;
 import com.projectlibre.core.pm.exchange.converters.op.type.OpDurationConverter;
 import com.projectlibre.pm.tasks.Dependency;
-import com.projectlibre1.association.InvalidAssociationException;
-import com.projectlibre1.pm.dependency.DependencyService;
-import com.projectlibre1.pm.task.NormalTask;
+import com.microproject.association.InvalidAssociationException;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.task.NormalTask;
 
 /**
  * @author Laurent Chretienneau
@@ -68,11 +68,11 @@ import com.projectlibre1.pm.task.NormalTask;
  */
 public class OpDependencyConverter {
 
-	public com.projectlibre1.pm.dependency.Dependency to(Dependency dependency, OpImportState state) {
+	public com.microproject.pm.dependency.Dependency to(Dependency dependency, OpImportState state) {
 		NormalTask predecessor=state.getOpTask(dependency.getPredecessor());
 		NormalTask successor=state.getOpTask(dependency.getSuccessor());
 
-		com.projectlibre1.pm.dependency.Dependency opDependency=null;
+		com.microproject.pm.dependency.Dependency opDependency=null;
 		try {
 			OpDurationConverter durationConverter=new OpDurationConverter();
 			Long opDuration=(Long)durationConverter.to(dependency.getLag());

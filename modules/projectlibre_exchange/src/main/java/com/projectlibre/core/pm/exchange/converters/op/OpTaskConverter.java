@@ -62,8 +62,8 @@ import com.projectlibre.core.pm.exchange.converters.type.LongDateConverter;
 import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.scheduling.ConstraintType;
 import com.projectlibre.pm.tasks.Task;
-import com.projectlibre1.field.CustomFields;
-import com.projectlibre1.pm.task.NormalTask;
+import com.microproject.field.CustomFields;
+import com.microproject.pm.task.NormalTask;
 
 /**
  * @author Laurent Chretienneau
@@ -128,7 +128,7 @@ public class OpTaskConverter {
 		//find calendar
 		WorkCalendar calendar=task.getCalendar();
 		if (calendar!=null){
-			com.projectlibre1.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
+			com.microproject.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
 			if (opCalendar==null)
 				log.warning("Calendar "+calendar.getId()+" for task "+task.getId()+" not found");
 			else

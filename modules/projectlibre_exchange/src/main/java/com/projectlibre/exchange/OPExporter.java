@@ -59,7 +59,7 @@ import java.util.GregorianCalendar;
 
 import com.projectlibre.pm.calendar.CalendarOptions;
 import com.projectlibre.pm.tasks.Project;
-import com.projectlibre1.options.CalendarOption;
+import com.microproject.options.CalendarOption;
 
 /**
  * @author Laurent Chretienneau

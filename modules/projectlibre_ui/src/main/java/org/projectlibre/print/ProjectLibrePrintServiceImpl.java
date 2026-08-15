@@ -59,11 +59,11 @@ import java.util.Enumeration;
 
 import javax.swing.table.TableColumn;
 
-import com.projectlibre1.pm.graphic.graph.GraphParams;
-import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetParams;
-import com.projectlibre1.pm.graphic.spreadsheet.SpreadSheetParamsImpl;
-import com.projectlibre1.print.ExtendedPrintService;
-import com.projectlibre1.graphic.configuration.GraphicConfiguration;
+import com.microproject.pm.graphic.graph.GraphParams;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetParamsImpl;
+import com.microproject.print.ExtendedPrintService;
+import com.microproject.graphic.configuration.GraphicConfiguration;
 
 public class ProjectLibrePrintServiceImpl implements ExtendedPrintService {
 

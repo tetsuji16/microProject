@@ -27,9 +27,9 @@ import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
-import com.projectlibre1.menu.MenuManager;
-import com.projectlibre1.pm.graphic.IconManager;
-import com.projectlibre1.util.FlatUiSupport;
+import com.microproject.menu.MenuManager;
+import com.microproject.pm.graphic.IconManager;
+import com.microproject.util.FlatUiSupport;
 
 final class OfficeChromePanel extends JPanel {
 	static final String NAME = "officeChromePanel";

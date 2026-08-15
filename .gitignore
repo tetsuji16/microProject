@@ -43,3 +43,9 @@ isolated-build/
 
 # Sisyphus session files
 .sisyphus/
+
+# Agent scratch / temporary analysis files
+.freebuff/
+scripts/_tmpcheck/
+scripts/_*.py
+scripts/_*.txt

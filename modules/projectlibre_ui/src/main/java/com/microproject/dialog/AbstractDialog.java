@@ -1,0 +1,441 @@
+/*******************************************************************************
+ * The contents of this file are subject to the Common Public Attribution License 
+ * Version 1.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at 
+ * http://www.projectlibre.com/license . The License is based on the Mozilla Public 
+ * License Version 1.1 but Sections 14 and 15 have been added to cover use of 
+ * software over a computer network and provide for limited attribution for the 
+ * Original Developer. In addition, Exhibit A has been modified to be consistent 
+ * with Exhibit B. 
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis, 
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for the 
+ * specific language governing rights and limitations under the License. The 
+ * Original Code is ProjectLibre. The Original Developer is the Initial Developer 
+ * and is ProjectLibre Inc. All portions of the code written by ProjectLibre are 
+ * Copyright (c) 2012-2019. All Rights Reserved. All portions of the code written by 
+ * ProjectLibre are Copyright (c) 2012-2019. All Rights Reserved. Contributor 
+ * ProjectLibre, Inc.
+ *
+ * Alternatively, the contents of this file may be used under the terms of the 
+ * ProjectLibre End-User License Agreement (the ProjectLibre License) in which case 
+ * the provisions of the ProjectLibre License are applicable instead of those above. 
+ * If you wish to allow use of your version of this file only under the terms of the 
+ * ProjectLibre License and not to allow others to use your version of this file 
+ * under the CPAL, indicate your decision by deleting the provisions above and 
+ * replace them with the notice and other provisions required by the ProjectLibre 
+ * License. If you do not delete the provisions above, a recipient may use your 
+ * version of this file under either the CPAL or the ProjectLibre Licenses. 
+ *
+ *
+ * [NOTE: The text of this Exhibit A may differ slightly from the text of the notices 
+ * in the Source Code files of the Original Code. You should use the text of this 
+ * Exhibit A rather than the text found in the Original Code Source Code for Your 
+ * Modifications.] 
+ *
+ * EXHIBIT B. Attribution Information for ProjectLibre required
+ *
+ * Attribution Copyright Notice: Copyright (c) 2012-2019, ProjectLibre, Inc.
+ * Attribution Phrase (not exceeding 10 words): 
+ * ProjectLibre, open source project management software.
+ * Attribution URL: http://www.projectlibre.com
+ * Graphic Image as provided in the Covered Code as file: projectlibre-logo.png with 
+ * alternatives listed on http://www.projectlibre.com/logo 
+ *
+ * Display of Attribution Information is required in Larger Works which are defined 
+ * in the CPAL as a work which combines Covered Code or portions thereof with code 
+ * not governed by the terms of the CPAL. However, in addition to the other notice 
+ * obligations, all copies of the Covered Code in Executable and Source Code form 
+ * distributed must, as a form of attribution of the original author, include on 
+ * each user interface screen the "ProjectLibre" logo visible to all users. 
+ * The ProjectLibre logo should be located horizontally aligned with the menu bar 
+ * The 
+ * logo must be at least 144 x 31 pixels. When users click on the "ProjectLibre" 
+ * logo it must direct them back to http://www.projectlibre.com. 
+ *******************************************************************************/
+package com.microproject.dialog;
+
+import java.util.function.Consumer;
+
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Frame;
+import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.logging.Logger;
+
+import javax.swing.BoxLayout;
+import javax.swing.ComboBoxModel;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JRadioButton;
+import javax.swing.JRootPane;
+import javax.swing.JToolTip;
+import javax.swing.KeyStroke;
+import javax.swing.plaf.ButtonUI;
+import javax.swing.plaf.basic.BasicButtonUI;
+
+
+import com.microproject.help.HelpUtil;
+import com.microproject.menu.HyperLinkToolTip;
+import com.microproject.menu.MenuManager;
+import com.microproject.pm.graphic.IconManager;
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.configuration.Settings;
+import com.microproject.strings.Messages;
+import com.microproject.util.BrowserControl;
+import com.microproject.util.FlatUiSupport;
+
+/**
+ *
+ */
+public abstract class AbstractDialog extends JDialog {
+	private static final Logger logger = Logger.getLogger(AbstractDialog.class.getName());
+	protected JButton ok;
+
+	protected JButton cancel;
+	protected JComponent help;
+
+	protected Frame owner;
+    private int dialogResult = JOptionPane.CANCEL_OPTION;
+
+    protected JComponent contentPanel = null;
+    protected ButtonPanel buttonPanel = null;
+    private String helpAddress = null;
+
+	public AbstractDialog() {
+		super();
+	}
+
+	public AbstractDialog(Frame owner/*, MainFrame main*/, String title, boolean modal) {
+		super(owner, title, modal);
+		createRootPane();
+		setLocationRelativeTo(null);
+		this.owner = owner;
+		FlatUiSupport.styleDialogRoot(getRootPane());
+	}
+
+	protected JRootPane createRootPane() {
+		ActionListener escapeListener = new ActionListener() {
+			public void actionPerformed(ActionEvent actionEvent) {
+				onCancel();
+
+			}
+		};
+		ActionListener enterListener = new ActionListener() {
+			public void actionPerformed(ActionEvent actionEvent) {
+				onOk();
+
+			}
+		};
+
+		ActionListener helpListener = new ActionListener() {
+			public void actionPerformed(ActionEvent actionEvent) {
+				onHelp();
+
+			}
+
+
+		};
+		JRootPane rootPane = new JRootPane();
+		KeyStroke escapeStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		rootPane.registerKeyboardAction(escapeListener, escapeStroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
+		KeyStroke enterStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
+		rootPane.registerKeyboardAction(enterListener, enterStroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
+		KeyStroke f1Stroke = KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0);
+		rootPane.registerKeyboardAction(helpListener, f1Stroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
+		return rootPane;
+	}
+
+	protected boolean hasHelp() {
+		return helpAddress !=null;
+	}
+	protected boolean hasHelpButton() {
+		return hasHelp();
+	}
+
+	protected void onHelp() {
+		if (helpAddress != null)
+			BrowserControl.displayURL(HelpUtil.getHelpURL(helpAddress));
+		else
+			logger.info("no help available");
+	}
+	protected void onCancel() {
+		setVisible(false);
+		setDialogResult(JOptionPane.CANCEL_OPTION);
+	}
+
+	public void onOk() {
+		if (!bind(false))
+			return;
+		setDialogResult(JOptionPane.OK_OPTION);
+		setVisible(false);
+	}
+
+	public abstract JComponent createContentPanel();
+
+	public void setVisible(boolean b) {
+		if (b && !listenersActivated)
+			activateListeners();
+		else if (!b && listenersActivated)
+			desactivateListeners();
+		super.setVisible(b);
+	}
+
+	protected boolean listenersActivated = true;
+
+	protected void activateListeners() {
+		listenersActivated = true;
+	}
+
+	protected void desactivateListeners() {
+		listenersActivated = false;
+	}
+
+	protected boolean bind(boolean get) {
+		return true;
+	}
+
+	protected void initComponents() {
+		contentPanel = createContentPanel();
+		buttonPanel = createButtonPanel();
+        getContentPane().setLayout(new BorderLayout());
+		if (getContentPane() instanceof JComponent content) {
+			FlatUiSupport.styleDialogContent(content);
+		}
+		if (contentPanel != null)
+			getContentPane().add(contentPanel, BorderLayout.CENTER);
+		if (buttonPanel != null)
+			getContentPane().add(buttonPanel, BorderLayout.AFTER_LAST_LINE);
+
+	}
+	protected void clearComponents() {
+		if (contentPanel != null)
+			getContentPane().remove(contentPanel);
+		if (buttonPanel != null)
+			getContentPane().remove(buttonPanel);
+		
+	}
+    public void pack() {
+       	initComponents();
+        super.pack();
+        lockMinimumSizeToCurrentPack();
+    }
+
+    protected void lockMinimumSizeToCurrentPack() {
+        if (getWidth() > 0 && getHeight() > 0 && getMinimumSize().equals(new Dimension())) {
+            FlatUiSupport.applyMinimumSize(this, getSize());
+        }
+    }
+
+	protected void createOkCancelButtons(String okText,String cancelText) {
+		ok = new JButton(okText);
+		ok.setEnabled(initialOkEnabledState());
+		FlatUiSupport.styleDialogButton(ok, true);
+		ok.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				AbstractDialog.this.onOk();
+			}
+		});
+		cancel = new JButton(cancelText);
+		FlatUiSupport.styleDialogButton(cancel, false);
+		cancel.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				AbstractDialog.this.onCancel();
+			}
+		});
+    }
+    
+		protected JComponent getHelpButton() {
+	    	if (help  == null) {
+				help= new JButton(MenuManager.getMenuString("Help.text"));//,IconManager.getIcon("menu24.help"));
+				FlatUiSupport.styleDialogButton((JButton) help, false);
+
+				help.addMouseListener(new MouseAdapter() {
+				public void mouseClicked(MouseEvent arg0) {
+					AbstractDialog.this.onHelp();
+			}});
+    	}
+    	return help;
+    }
+    protected void createOkCancelButtons() {
+    	createOkCancelButtons(Messages.getString("ButtonText.OK"), Messages.getString("ButtonText.Cancel"));
+    }
+
+	protected void createCloseButton() {
+		ok = new JButton(Messages.getString("ButtonText.Close"));
+		FlatUiSupport.styleDialogButton(ok, true);
+		ok.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				AbstractDialog.this.onOk();
+			}
+		});
+	}
+
+	public ButtonPanel createButtonPanel() {
+		if (!hasOkAndCancelButtons() && !hasCloseButton())
+			return null;
+		if (hasCloseButton())
+			createCloseButton();
+		else
+			createOkCancelButtons();
+		ButtonPanel buttonPanel = new ButtonPanel();
+		buttonPanel.addButton(ok);
+		if (hasOkAndCancelButtons())
+			buttonPanel.addButton(cancel);
+		if (hasHelpButton())
+			buttonPanel.add(getHelpButton());
+		return buttonPanel;
+	}
+
+	public JComponent createBannerPanel() {
+		return null;
+	}
+
+	public boolean doModal() {
+		pack();
+		setLocationRelativeTo(getParent());// to center on parent
+		setVisible(true);
+		return (getDialogResult() != JOptionPane.CANCEL_OPTION);
+	}
+
+	public Object getBean() {
+		return null;
+	}
+
+
+	public int execute(Consumer<Object> setter, Consumer<Object> getter) {
+		pack();
+		setter.accept(getBean());
+		bind(true);
+		setLocationRelativeTo(null);// to center on screen
+		setVisible(true);
+		if (getDialogResult() != JOptionPane.CANCEL_OPTION) {
+			if (getter != null)
+				getter.accept(getBean());
+		}
+		return getDialogResult();
+	}
+
+	protected boolean initialOkEnabledState() {
+		return true;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static ComboBoxModel<Object> getComboBoxModel(String fieldId) {
+		Object[] options = FieldDictionary.getInstance().getFieldFromId(fieldId).getOptions(null);
+		return new DefaultComboBoxModel<Object>(options);
+	}
+
+	public ReferenceNodeModelCache getReferenceCache(boolean task) {
+		DocumentFrame df = GraphicManager.getInstance(this).getCurrentFrame();
+		return df.getReferenceCache(task);
+	}
+
+	public NodeModelCache createCache(boolean task, String viewName) {
+		DocumentFrame df = GraphicManager.getInstance(this).getCurrentFrame();
+		return df.createCache(task, viewName);
+	}
+
+	protected boolean hasOkAndCancelButtons() {
+		return !hasCloseButton();
+	}
+
+	protected boolean hasCloseButton() {
+		return false;
+	}
+
+	public static JDialog containedInDialog(Object object) {
+		if (!(object instanceof Component))
+			return null;
+		Component c = (Component) object;
+		while (c != null) {
+			if (c instanceof JDialog)
+				return (JDialog) c;
+			c = c.getParent();
+		}
+		return null;
+	}
+
+	public class DoubleClickRadio extends JRadioButton implements MouseListener {
+		private static final long serialVersionUID = 1L;
+		public DoubleClickRadio(String label, String tooltip) {
+			super(label);
+			this.setToolTipText(tooltip);
+			addMouseListener(this);
+		}
+		public Point getToolTipLocation(MouseEvent event) { // the tip MUST be touching the button if html because you can click on links
+			return new Point(getWidth()-2, -20);
+		}
+
+		public JToolTip createToolTip() {
+				JToolTip tip = new HyperLinkToolTip();
+				tip.setComponent(this);
+				return tip;
+		}
+
+		public void mouseClicked(MouseEvent e) {
+			if (e.getClickCount() == 2) {
+				bind(false);
+				((JRadioButton) e.getSource()).setSelected(true);
+				AbstractDialog.this.onOk();
+			}
+		}
+
+		public void mousePressed(MouseEvent e) {
+		}
+
+		public void mouseReleased(MouseEvent e) {
+		}
+
+		public void mouseEntered(MouseEvent e) {
+		}
+
+		public void mouseExited(MouseEvent e) {
+		}
+	}
+
+	public int getDialogResult() {
+		return dialogResult;
+	}
+
+	public void setDialogResult(int dialogResult) {
+		this.dialogResult = dialogResult;
+	}
+
+	public ButtonPanel getButtonPanel() {
+		return buttonPanel;
+	}
+
+	public void setButtonPanel(ButtonPanel buttonPanel) {
+		this.buttonPanel = buttonPanel;
+	}
+
+	public JComponent getContentPanel() {
+		return contentPanel;
+	}
+
+	public void setContentPanel(JComponent contentPanel) {
+		this.contentPanel = contentPanel;
+	}
+	public void addDocHelp(String helpAddress) {
+		HelpUtil.addDocHelp(this,helpAddress);
+		this.helpAddress = helpAddress;
+	}
+}
+

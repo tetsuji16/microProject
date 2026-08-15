@@ -13,8 +13,8 @@ import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
 
-import com.projectlibre1.pm.graphic.IconManager;
-import com.projectlibre1.util.FlatUiSupport;
+import com.microproject.pm.graphic.IconManager;
+import com.microproject.util.FlatUiSupport;
 
 final class RibbonButtonStyler {
 	static final String SIZE_PROPERTY = "ProjectLibre.ribbonButtonSize";

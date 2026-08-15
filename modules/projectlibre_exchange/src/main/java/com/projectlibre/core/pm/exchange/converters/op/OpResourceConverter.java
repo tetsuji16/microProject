@@ -60,7 +60,7 @@ import java.util.logging.Logger;
 import com.projectlibre.core.fields.FieldUtil;
 import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.resources.Resource;
-import com.projectlibre1.field.CustomFields;
+import com.microproject.field.CustomFields;
 
 /**
  * @author Laurent Chretienneau
@@ -97,16 +97,16 @@ public class OpResourceConverter {
 		
 	};
 
-	public void to(com.projectlibre1.pm.resource.ResourceImpl opResource, Resource resource, OpImportState state) {
+	public void to(com.microproject.pm.resource.ResourceImpl opResource, Resource resource, OpImportState state) {
 		//convert fields
-		FieldUtil.convertFields(resource, com.projectlibre1.pm.resource.ResourceImpl.class, opResource, fieldsToConvert, false);
+		FieldUtil.convertFields(resource, com.microproject.pm.resource.ResourceImpl.class, opResource, fieldsToConvert, false);
 		FieldUtil.convertFields(resource, CustomFields.class, opResource.getCustomFields(), customFieldsToConvert, false);
 		
 		
 		//find calendar
 		WorkCalendar calendar=resource.getCalendar();
 		if (calendar!=null){
-			com.projectlibre1.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
+			com.microproject.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
 			if (opCalendar==null)
 				log.warning("Calendar "+calendar.getId()+" for resource "+resource.getId()+" not found");
 			else

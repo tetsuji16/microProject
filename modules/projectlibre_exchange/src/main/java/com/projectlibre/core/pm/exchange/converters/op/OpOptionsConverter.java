@@ -64,7 +64,7 @@ import com.projectlibre.pm.calendar.CalendarOptions;
  *
  */
 public class OpOptionsConverter {
-	public static void to(com.projectlibre1.options.CalendarOption opCalendarOptions, CalendarOptions calendarOptions, OpImportState state) {
+	public static void to(com.microproject.options.CalendarOption opCalendarOptions, CalendarOptions calendarOptions, OpImportState state) {
 		opCalendarOptions.setHoursPerDay(calendarOptions.getHoursPerDay());
 		opCalendarOptions.setHoursPerWeek(calendarOptions.getHoursPerWeek());
 		opCalendarOptions.setDaysPerMonth(calendarOptions.getDaysPerMonth());

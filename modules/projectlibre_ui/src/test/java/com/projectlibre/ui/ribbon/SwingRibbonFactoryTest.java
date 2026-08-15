@@ -33,12 +33,12 @@ import javax.swing.border.EmptyBorder;
 
 import org.junit.jupiter.api.Test;
 
-import com.projectlibre1.menu.ExtToolBarFactory;
-import com.projectlibre1.menu.MenuActionMapSupport;
-import com.projectlibre1.menu.MenuManager;
-import com.projectlibre1.menu.testsupport.MenuDefinitionSupport;
-import com.projectlibre1.menu.testsupport.UiComponentWalker;
-import com.projectlibre1.util.FlatUiSupport;
+import com.microproject.menu.ExtToolBarFactory;
+import com.microproject.menu.MenuActionMapSupport;
+import com.microproject.menu.MenuManager;
+import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.util.FlatUiSupport;
 
 class SwingRibbonFactoryTest {
 	@Test
@@ -216,7 +216,7 @@ class SwingRibbonFactoryTest {
 	@Test
 	void actionStateSurvivesResponsiveRebuildBeforeAnInactiveTabIsOpened() {
 		Map<String, Action> actions = new LinkedHashMap<>();
-		var actionMap = new com.projectlibre1.menu.ProjectMenuActionMap() {
+		var actionMap = new com.microproject.menu.ProjectMenuActionMap() {
 			@Override
 			public Action getAction(String key) {
 				return actions.computeIfAbsent(key, actionId -> new AbstractAction(actionId) {
@@ -409,7 +409,7 @@ class SwingRibbonFactoryTest {
 			.max()
 			.orElse(0);
 
-		assertTrue(panel.getPreferredSize().height >= com.projectlibre1.util.FlatUiSupport.ribbonTabHeight() + tallestLargeButton);
+		assertTrue(panel.getPreferredSize().height >= com.microproject.util.FlatUiSupport.ribbonTabHeight() + tallestLargeButton);
 	}
 
 	@Test
@@ -429,7 +429,7 @@ class SwingRibbonFactoryTest {
 			.sorted(Comparator.naturalOrder())
 			.collect(Collectors.toList());
 
-		assertEquals(List.of(com.projectlibre1.util.FlatUiSupport.ribbonLargeButtonHeight()), largeButtonHeights);
+		assertEquals(List.of(com.microproject.util.FlatUiSupport.ribbonLargeButtonHeight()), largeButtonHeights);
 	}
 
 	@Test
@@ -440,8 +440,8 @@ class SwingRibbonFactoryTest {
 		SwingRibbonFactory factory = new SwingRibbonFactory(buttonFactory, MenuDefinitionSupport.ribbonBundles(Locale.ROOT));
 
 		JPanel panel = factory.createPanel(MenuManager.STANDARD_RIBBON, null);
-		int maxExpectedHeight = com.projectlibre1.util.FlatUiSupport.ribbonTabHeight()
-			+ com.projectlibre1.util.FlatUiSupport.ribbonSurfaceHeight()
+		int maxExpectedHeight = com.microproject.util.FlatUiSupport.ribbonTabHeight()
+			+ com.microproject.util.FlatUiSupport.ribbonSurfaceHeight()
 			+ 32; // outer rounded-surface insets and shadow
 
 		assertTrue(panel.getPreferredSize().height <= maxExpectedHeight,

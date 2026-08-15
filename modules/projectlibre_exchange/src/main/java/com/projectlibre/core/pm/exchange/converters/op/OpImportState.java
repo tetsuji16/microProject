@@ -63,9 +63,9 @@ import com.projectlibre.pm.calendar.CalendarManager;
 import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.resources.Resource;
 import com.projectlibre.pm.tasks.Task;
-import com.projectlibre1.grouping.core.Node;
-import com.projectlibre1.pm.calendar.WorkingCalendar;
-import com.projectlibre1.pm.task.NormalTask;
+import com.microproject.grouping.core.Node;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.task.NormalTask;
 
 /**
  * @author Laurent Chretienneau
@@ -77,8 +77,8 @@ public class OpImportState {
 	protected Map<CalendarId,WorkCalendar> baseCalendarMap=new HashMap<CalendarId, WorkCalendar>();
 	protected Map<Task,NormalTask> opTaskMap=new HashMap<Task, NormalTask>();
 	protected Map<NormalTask,Node> opTaskNodeMap=new HashMap<NormalTask, Node>();
-	protected Map<Resource,com.projectlibre1.pm.resource.Resource> opResourceMap=new HashMap<Resource, com.projectlibre1.pm.resource.Resource>();
-	protected Map<com.projectlibre1.pm.resource.Resource,Node> opResourceNodeMap=new HashMap<com.projectlibre1.pm.resource.Resource, Node>();
+	protected Map<Resource,com.microproject.pm.resource.Resource> opResourceMap=new HashMap<Resource, com.microproject.pm.resource.Resource>();
+	protected Map<com.microproject.pm.resource.Resource,Node> opResourceNodeMap=new HashMap<com.microproject.pm.resource.Resource, Node>();
 	protected CalendarManager calendarManager;
 	public CalendarManager getCalendarManager() {
 		return calendarManager;
@@ -109,16 +109,16 @@ public class OpImportState {
 	public Node getOpTaskNode(NormalTask task){
 		return opTaskNodeMap.get(task);
 	}
-	public void mapOpResource(Resource resource, com.projectlibre1.pm.resource.Resource opResource){
+	public void mapOpResource(Resource resource, com.microproject.pm.resource.Resource opResource){
 		opResourceMap.put(resource,opResource);
 	}
-	public com.projectlibre1.pm.resource.Resource getOpResource(Resource resource){
+	public com.microproject.pm.resource.Resource getOpResource(Resource resource){
 		return opResourceMap.get(resource);
 	}
-	public void mapOpResourceNode(com.projectlibre1.pm.resource.Resource resource, Node resourceNode){
+	public void mapOpResourceNode(com.microproject.pm.resource.Resource resource, Node resourceNode){
 		opResourceNodeMap.put(resource,resourceNode);
 	}
-	public Node getOpResourceNode(com.projectlibre1.pm.resource.Resource resource){
+	public Node getOpResourceNode(com.microproject.pm.resource.Resource resource){
 		return opResourceNodeMap.get(resource);
 	}
 

@@ -57,7 +57,7 @@ package com.projectlibre.core.pm.exchange.converters.mpx.type;
 
 import com.projectlibre.core.fields.FieldTypeConverter;
 import com.projectlibre.pm.scheduling.SchedulingType;
-import com.projectlibre1.exchange.mpxj.MpxjApi;
+import com.microproject.exchange.mpxj.MpxjApi;
 
 
 /**

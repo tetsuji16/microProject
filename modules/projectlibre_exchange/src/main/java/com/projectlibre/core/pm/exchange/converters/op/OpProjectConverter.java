@@ -61,7 +61,7 @@ import java.util.logging.Level;
 import com.projectlibre.core.fields.FieldUtil;
 import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.tasks.Project;
-import com.projectlibre1.configuration.CircularDependencyException;
+import com.microproject.configuration.CircularDependencyException;
 
 /**
  * @author Laurent Chretienneau
@@ -77,13 +77,13 @@ public class OpProjectConverter {
 		"start", "startDate", "com.projectlibre.core.pm.exchange.converters.type.LongDateConverter",
 		"statusDate", "statusDate", "com.projectlibre.core.pm.exchange.converters.type.LongDateConverter",
 	};
-	public void to(com.projectlibre1.pm.task.Project opProject, Project project, OpImportState state) {
-		FieldUtil.convertFields(project, com.projectlibre1.pm.task.Project.class, opProject, fieldsToConvert, false);
+	public void to(com.microproject.pm.task.Project opProject, Project project, OpImportState state) {
+		FieldUtil.convertFields(project, com.microproject.pm.task.Project.class, opProject, fieldsToConvert, false);
 
 		//find calendar
 		WorkCalendar calendar=project.getCalendar();
 		if (calendar!=null){
-			com.projectlibre1.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
+			com.microproject.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
 			if (opCalendar==null)
 				log.warning("Calendar "+calendar.getId()+" for task "+project.getId()+" not found");
 			else {

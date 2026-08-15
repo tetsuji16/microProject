@@ -62,10 +62,10 @@ import com.projectlibre.pm.calendar.WorkCalendar;
 import com.projectlibre.pm.calendar.WorkCalendarException;
 import com.projectlibre.pm.calendar.WorkDay;
 import com.projectlibre.pm.calendar.WorkWeek;
-import com.projectlibre1.configuration.CircularDependencyException;
-import com.projectlibre1.pm.calendar.CalendarService;
-import com.projectlibre1.pm.calendar.WorkingCalendar;
-import com.projectlibre1.util.DateTime;
+import com.microproject.configuration.CircularDependencyException;
+import com.microproject.pm.calendar.CalendarService;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.util.DateTime;
 import java.util.logging.Level;
 
 /**
@@ -98,24 +98,24 @@ public class OpCalendarConverter {
 		OpRangeConverter rangeConverter=new OpRangeConverter();
 		WorkWeek week=calendar.getWeek();
 		WorkDay day;
-		com.projectlibre1.pm.calendar.WorkDay opDay;
+		com.microproject.pm.calendar.WorkDay opDay;
 		for (int i=0; i<7; i++){
 			day=week.getDay(i);
 			if (day==null){
 				opDay=null;
 				if (calendar.getBase()==null &&
 						opStandardCalendar.getWeekDay(i).isWorking())
-					opDay=com.projectlibre1.pm.calendar.WorkDay.getNonWorkingDay();				
+					opDay=com.microproject.pm.calendar.WorkDay.getNonWorkingDay();				
 			}else{
 				switch (day.getType()) {
 				case NON_WORKING:
-					opDay=com.projectlibre1.pm.calendar.WorkDay.getNonWorkingDay();
+					opDay=com.microproject.pm.calendar.WorkDay.getNonWorkingDay();
 					break;
 //				case DEFAULT:
-//					opDay=com.projectlibre1.pm.calendar.WorkDay.getDefaultWorkDay();
+//					opDay=com.microproject.pm.calendar.WorkDay.getDefaultWorkDay();
 //					break;
 				default:
-					opDay=new com.projectlibre1.pm.calendar.WorkDay();
+					opDay=new com.microproject.pm.calendar.WorkDay();
 					rangeConverter.to(opDay,day);
 					if (calendar.getBase()==null) {
 						if (opStandardCalendar.getWeekDay(i).hasSameWorkHours(opDay))
@@ -130,7 +130,7 @@ public class OpCalendarConverter {
 		//exceptions
 		for (WorkCalendarException exception : calendar.getExceptions()){
 			for (long time=exception.getStart(); time<exception.getEnd(); time=DateTime.nextDay(time)) {
-				com.projectlibre1.pm.calendar.WorkDay opExceptionDay = new com.projectlibre1.pm.calendar.WorkDay(time,time);
+				com.microproject.pm.calendar.WorkDay opExceptionDay = new com.microproject.pm.calendar.WorkDay(time,time);
 				rangeConverter.to(opExceptionDay,exception);
 
 				opCalendar.addOrReplaceException(opExceptionDay);

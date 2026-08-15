@@ -7,7 +7,7 @@ import java.io.File;
 
 import org.junit.jupiter.api.Test;
 
-import com.projectlibre1.util.PdfExportUtil;
+import com.microproject.util.PdfExportUtil;
 
 public class ImageExportTest {
 	@Test

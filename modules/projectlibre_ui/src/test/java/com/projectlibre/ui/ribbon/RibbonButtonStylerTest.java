@@ -11,7 +11,7 @@ import javax.swing.JButton;
 
 import org.junit.jupiter.api.Test;
 
-import com.projectlibre1.util.FlatUiSupport;
+import com.microproject.util.FlatUiSupport;
 
 class RibbonButtonStylerTest {
 	@Test
@@ -25,7 +25,7 @@ class RibbonButtonStylerTest {
 		assertNotNull(button.getIcon());
 		JLabel probe = new JLabel(button.getText());
 		probe.setFont(button.getFont());
-		assertTrue(button.getPreferredSize().height >= button.getIcon().getIconHeight() + probe.getPreferredSize().height + com.projectlibre1.util.FlatUiSupport.ribbonButtonVerticalInset());
+		assertTrue(button.getPreferredSize().height >= button.getIcon().getIconHeight() + probe.getPreferredSize().height + com.microproject.util.FlatUiSupport.ribbonButtonVerticalInset());
 	}
 
 	@Test
@@ -74,7 +74,7 @@ class RibbonButtonStylerTest {
 
 		styler.styleActionButton(button, true);
 
-		assertEquals(com.projectlibre1.util.FlatUiSupport.ribbonLargeButtonHeight(), button.getPreferredSize().height);
+		assertEquals(com.microproject.util.FlatUiSupport.ribbonLargeButtonHeight(), button.getPreferredSize().height);
 	}
 
 	@Test
@@ -85,7 +85,7 @@ class RibbonButtonStylerTest {
 
 		styler.styleActionButton(button, "medium");
 
-		assertEquals(com.projectlibre1.util.FlatUiSupport.ribbonInlineButtonHeight(), button.getPreferredSize().height);
+		assertEquals(com.microproject.util.FlatUiSupport.ribbonInlineButtonHeight(), button.getPreferredSize().height);
 		assertTrue(button.getPreferredSize().height >= button.getIcon().getIconHeight());
 	}
 

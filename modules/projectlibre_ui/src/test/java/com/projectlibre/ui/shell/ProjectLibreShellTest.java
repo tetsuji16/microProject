@@ -18,8 +18,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.projectlibre.ui.theme.ProjectLibreTheme;
-import com.projectlibre1.menu.MenuActionMapSupport;
-import com.projectlibre1.menu.MenuManager;
+import com.microproject.menu.MenuActionMapSupport;
+import com.microproject.menu.MenuManager;
 
 class ProjectLibreShellTest {
 	@BeforeAll
@@ -96,7 +96,7 @@ class ProjectLibreShellTest {
 	}
 
 	private static JComponent findComponent(JComponent root, String name) {
-		for (java.awt.Component component : com.projectlibre1.menu.testsupport.UiComponentWalker.flatten(root)) {
+		for (java.awt.Component component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
 			if (component instanceof JComponent jComponent && name.equals(jComponent.getName())) {
 				return jComponent;
 			}
@@ -105,7 +105,7 @@ class ProjectLibreShellTest {
 	}
 
 	private static boolean hasComponent(JComponent root, String name) {
-		for (java.awt.Component component : com.projectlibre1.menu.testsupport.UiComponentWalker.flatten(root)) {
+		for (java.awt.Component component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
 			if (component instanceof JComponent jComponent && name.equals(jComponent.getName())) {
 				return true;
 			}

@@ -68,14 +68,14 @@ public class OpRateConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		com.projectlibre1.datatype.Rate r=(com.projectlibre1.datatype.Rate)o;
-		return new Rate(r.getValue() * com.projectlibre1.datatype.Duration.timeUnitFactor(r.getTimeUnit()),TimeUnit.getInstance(r.getTimeUnit()));
+		com.microproject.datatype.Rate r=(com.microproject.datatype.Rate)o;
+		return new Rate(r.getValue() * com.microproject.datatype.Duration.timeUnitFactor(r.getTimeUnit()),TimeUnit.getInstance(r.getTimeUnit()));
 	}
 
 	@Override
 	public Object to(Object o) {
 		Rate r=(Rate)o;
-		return new com.projectlibre1.datatype.Rate(r.getValue() / com.projectlibre1.datatype.Duration.timeUnitFactor(r.getUnit().getId()), r.getUnit().getId());
+		return new com.microproject.datatype.Rate(r.getValue() / com.microproject.datatype.Duration.timeUnitFactor(r.getUnit().getId()), r.getUnit().getId());
 	}
 	
 }

@@ -34,8 +34,8 @@ import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
-import com.projectlibre1.menu.ExtToolBarFactory;
-import com.projectlibre1.util.FlatUiSupport;
+import com.microproject.menu.ExtToolBarFactory;
+import com.microproject.util.FlatUiSupport;
 
 final class ModernRibbonPanel extends JPanel {
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
@@ -268,7 +268,7 @@ final class ModernRibbonPanel extends JPanel {
 	}
 
 	private void unregisterButtons(Iterable<JPanel> bodies) {
-		if (!(buttonFactory instanceof com.projectlibre1.menu.ExtToolBarFactory extFactory)) {
+		if (!(buttonFactory instanceof com.microproject.menu.ExtToolBarFactory extFactory)) {
 			return;
 		}
 		for (JPanel body : bodies) {
@@ -276,7 +276,7 @@ final class ModernRibbonPanel extends JPanel {
 		}
 	}
 
-	private void unregisterButtons(Component component, com.projectlibre1.menu.ExtToolBarFactory factory) {
+	private void unregisterButtons(Component component, com.microproject.menu.ExtToolBarFactory factory) {
 		if (component instanceof AbstractButton button) {
 			factory.unregisterButton(button);
 		}
@@ -600,7 +600,7 @@ final class ModernRibbonPanel extends JPanel {
 		String buttonId = specification.getId();
 		AbstractButton button;
 		try {
-			button = register || !(buttonFactory instanceof com.projectlibre1.menu.ExtToolBarFactory extFactory)
+			button = register || !(buttonFactory instanceof com.microproject.menu.ExtToolBarFactory extFactory)
 				? buttonFactory.createJButton(buttonId)
 				: extFactory.createUnregisteredJButton(buttonId);
 		} catch (RuntimeException ex) {

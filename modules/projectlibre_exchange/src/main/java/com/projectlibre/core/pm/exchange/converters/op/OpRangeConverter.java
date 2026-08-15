@@ -60,9 +60,9 @@ import java.util.logging.Logger;
 
 import com.projectlibre.core.time.TimeInterval;
 import com.projectlibre.pm.calendar.WorkRange;
-import com.projectlibre1.pm.calendar.WorkDay;
-import com.projectlibre1.pm.calendar.WorkRangeException;
-import com.projectlibre1.pm.calendar.WorkingHours;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkRangeException;
+import com.microproject.pm.calendar.WorkingHours;
 
 /**
  * @author Laurent Chretienneau
