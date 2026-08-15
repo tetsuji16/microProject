@@ -65,8 +65,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.collections.Closure;
-
 import com.projectlibre.core.hierarchy.Hierarchy;
 import com.projectlibre.core.hierarchy.HierarchyNode;
 import com.projectlibre.core.pm.exchange.MspImporter;
@@ -528,26 +526,26 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 	protected boolean importResources() throws Exception{
-		return importResources(resourceMap,new Closure() {
-			public void execute(Object arg0) {
+		return importResources(resourceMap,new Runnable() {
+			public void run() {
 				importLocalResources();
 			}
 		});
 	}
 
 	@SuppressWarnings("unchecked")
-	protected boolean importResources(Map<Number, Object> resourceMap,Closure importLocalResources) throws Exception{
+	protected boolean importResources(Map<Number, Object> resourceMap,Runnable importLocalResources) throws Exception{
 		ResourceMappingForm form=getResourceMapping();
 
 
 
 		if (form==null||form.isLocal()){ //claur
-				importLocalResources.execute(null);
+					importLocalResources.run();
 		}else{
 			if (!form.execute()) return false;
 			if (form.isLocal()){
-				importLocalResources.execute(null);
-				return true;
+					importLocalResources.run();
+					return true;
 			}
 
 			com.projectlibre1.pm.resource.Resource projectlibre1Resource=null;
