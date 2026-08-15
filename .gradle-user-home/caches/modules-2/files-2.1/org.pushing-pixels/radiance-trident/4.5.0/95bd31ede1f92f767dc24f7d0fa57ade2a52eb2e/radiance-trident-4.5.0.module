@@ -1,0 +1,60 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "org.pushing-pixels",
+    "module": "radiance-trident",
+    "version": "4.5.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "7.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 9,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "radiance-trident-4.5.0.jar",
+          "url": "radiance-trident-4.5.0.jar",
+          "size": 90229,
+          "sha512": "cd649e0f60c5040adcaee34e91c45ae2614c935205cc25ca31a0430dc6b8eb2b6c5ec9d758a7bf6fba14a843fae8e6cdc14ad3523f261e40c2fe5c86595131a0",
+          "sha256": "9a3749537095523a801da6a7097e09fbf954e692237ad158cbdef68e5171593b",
+          "sha1": "f421520c10969080364924d5bf581570c1a9bac9",
+          "md5": "fa61a130d41ea4d9124cb27cfc92fe9c"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 9,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "radiance-trident-4.5.0.jar",
+          "url": "radiance-trident-4.5.0.jar",
+          "size": 90229,
+          "sha512": "cd649e0f60c5040adcaee34e91c45ae2614c935205cc25ca31a0430dc6b8eb2b6c5ec9d758a7bf6fba14a843fae8e6cdc14ad3523f261e40c2fe5c86595131a0",
+          "sha256": "9a3749537095523a801da6a7097e09fbf954e692237ad158cbdef68e5171593b",
+          "sha1": "f421520c10969080364924d5bf581570c1a9bac9",
+          "md5": "fa61a130d41ea4d9124cb27cfc92fe9c"
+        }
+      ]
+    }
+  ]
+}

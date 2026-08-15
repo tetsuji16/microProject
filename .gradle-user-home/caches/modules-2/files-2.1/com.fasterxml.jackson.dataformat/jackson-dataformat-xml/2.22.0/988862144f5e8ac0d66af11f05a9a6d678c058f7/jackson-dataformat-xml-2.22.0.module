@@ -1,0 +1,215 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.fasterxml.jackson.dataformat",
+    "module": "jackson-dataformat-xml",
+    "version": "2.22.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "com.fasterxml.jackson.core",
+          "module": "jackson-core",
+          "version": {
+            "requires": "2.22.0"
+          }
+        },
+        {
+          "group": "com.fasterxml.jackson.core",
+          "module": "jackson-annotations",
+          "version": {
+            "requires": "2.22"
+          }
+        },
+        {
+          "group": "com.fasterxml.jackson.core",
+          "module": "jackson-databind",
+          "version": {
+            "requires": "2.22.0"
+          }
+        },
+        {
+          "group": "org.codehaus.woodstox",
+          "module": "stax2-api",
+          "version": {
+            "requires": "4.3.0"
+          },
+          "excludes": [
+            {
+              "group": "javax.xml.stream",
+              "module": "stax-api"
+            }
+          ]
+        },
+        {
+          "group": "com.fasterxml.woodstox",
+          "module": "woodstox-core",
+          "version": {
+            "requires": "7.2.0"
+          },
+          "excludes": [
+            {
+              "group": "javax.xml.stream",
+              "module": "stax-api"
+            }
+          ]
+        },
+        {
+          "group": "com.fasterxml.jackson",
+          "module": "jackson-bom",
+          "version": {
+            "requires": "2.22.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        }
+      ],
+      "files": [
+        {
+          "name": "jackson-dataformat-xml-2.22.0.jar",
+          "url": "jackson-dataformat-xml-2.22.0.jar",
+          "size": 135711,
+          "sha512": "b51769a242fd5a5898554f35d41c96c4c2d7466446e19fdda03cc25d73df9b362dca51a61e871b17f8c8e5f79d2d75bb000b57cc2e5ac0a187f38ec87db4534f",
+          "sha256": "bf7e8b9f737879636c3374b4fd05c5ef14cd7c9b8d840438be55c03dcd547218",
+          "sha1": "165dbf511d2148fd8448e0c62e532a83c949eef9",
+          "md5": "b69b46e9e74f3abedd6fc5e129b7f23e"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "com.fasterxml.jackson.core",
+          "module": "jackson-core",
+          "version": {
+            "requires": "2.22.0"
+          }
+        },
+        {
+          "group": "com.fasterxml.jackson.core",
+          "module": "jackson-annotations",
+          "version": {
+            "requires": "2.22"
+          }
+        },
+        {
+          "group": "com.fasterxml.jackson.core",
+          "module": "jackson-databind",
+          "version": {
+            "requires": "2.22.0"
+          }
+        },
+        {
+          "group": "org.codehaus.woodstox",
+          "module": "stax2-api",
+          "version": {
+            "requires": "4.3.0"
+          },
+          "excludes": [
+            {
+              "group": "javax.xml.stream",
+              "module": "stax-api"
+            }
+          ]
+        },
+        {
+          "group": "com.fasterxml.woodstox",
+          "module": "woodstox-core",
+          "version": {
+            "requires": "7.2.0"
+          },
+          "excludes": [
+            {
+              "group": "javax.xml.stream",
+              "module": "stax-api"
+            }
+          ]
+        },
+        {
+          "group": "com.fasterxml.jackson",
+          "module": "jackson-bom",
+          "version": {
+            "requires": "2.22.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          },
+          "endorseStrictVersions": true
+        }
+      ],
+      "files": [
+        {
+          "name": "jackson-dataformat-xml-2.22.0.jar",
+          "url": "jackson-dataformat-xml-2.22.0.jar",
+          "size": 135711,
+          "sha512": "b51769a242fd5a5898554f35d41c96c4c2d7466446e19fdda03cc25d73df9b362dca51a61e871b17f8c8e5f79d2d75bb000b57cc2e5ac0a187f38ec87db4534f",
+          "sha256": "bf7e8b9f737879636c3374b4fd05c5ef14cd7c9b8d840438be55c03dcd547218",
+          "sha1": "165dbf511d2148fd8448e0c62e532a83c949eef9",
+          "md5": "b69b46e9e74f3abedd6fc5e129b7f23e"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [],
+      "files": [
+        {
+          "name": "jackson-dataformat-xml-2.22.0-javadoc.jar",
+          "url": "jackson-dataformat-xml-2.22.0-javadoc.jar",
+          "size": 429155,
+          "sha512": "fd35395b5bebdb9a97c253034e72f8a0473b98edd80c24527698dd6833dea37132f0c622d5b7b1b2846e18d5866ceb7a70f1cd02f5f0e66e413e19ce792c4c63",
+          "sha256": "4cdfb344511470314ead668f397ec79d0f5fbd8f08a0c0f99f2ab290e109443e",
+          "sha1": "366e6c6634df948e236c7c26ffc08fd74d799428",
+          "md5": "5eeb651cf8c0196b71d181d255d9d000"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [],
+      "files": [
+        {
+          "name": "jackson-dataformat-xml-2.22.0-sources.jar",
+          "url": "jackson-dataformat-xml-2.22.0-sources.jar",
+          "size": 104249,
+          "sha512": "520f368ac720629567319515dd85f132a2ce75507f64919529687eb9254733090a61ae9a8b75b070bfbe11fadd7dc92679c3e44f9267be6c68801473b63b549d",
+          "sha256": "b8774d2a9d5dd4356c135ca555547295e3e47f69b56e3a87e10c7f24c9ff4edf",
+          "sha1": "8b21cf320ab37f51baf0d7be76a59b2138943bbe",
+          "md5": "610ac4fe5c7ebd3eb4c7d4cabe609c14"
+        }
+      ]
+    }
+  ]
+}

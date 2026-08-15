@@ -1,0 +1,116 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.formdev",
+    "module": "flatlaf-extras",
+    "version": "3.7.1",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "flatlaf-extras-3.7.1.jar",
+          "url": "flatlaf-extras-3.7.1.jar",
+          "size": 120146,
+          "sha512": "07f0fdbd34f379bf3864fe1c2c033287a4f9b1b70cd47671b293774d18eb968cf0eb5e7c116b6085020618dcdc9671ad665c42c12ec5f6c9ecc52817ff53e4a2",
+          "sha256": "3a1687e7ad23c78418cc0837ed9a0bbfc16b69bd7d3dfec12b4df6d4dac27b2a",
+          "sha1": "aaf32f5861510dd7196ab42ea4e8e5a0352118e1",
+          "md5": "4e2a85517602b5e7b94e3a5e5e6179cd"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "com.formdev",
+          "module": "flatlaf",
+          "version": {
+            "requires": "3.7.1"
+          }
+        },
+        {
+          "group": "com.github.weisj",
+          "module": "jsvg",
+          "version": {
+            "requires": "2.0.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "flatlaf-extras-3.7.1.jar",
+          "url": "flatlaf-extras-3.7.1.jar",
+          "size": 120146,
+          "sha512": "07f0fdbd34f379bf3864fe1c2c033287a4f9b1b70cd47671b293774d18eb968cf0eb5e7c116b6085020618dcdc9671ad665c42c12ec5f6c9ecc52817ff53e4a2",
+          "sha256": "3a1687e7ad23c78418cc0837ed9a0bbfc16b69bd7d3dfec12b4df6d4dac27b2a",
+          "sha1": "aaf32f5861510dd7196ab42ea4e8e5a0352118e1",
+          "md5": "4e2a85517602b5e7b94e3a5e5e6179cd"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "flatlaf-extras-3.7.1-sources.jar",
+          "url": "flatlaf-extras-3.7.1-sources.jar",
+          "size": 82378,
+          "sha512": "d90770e686870b9000a9a4bbbb3df9af4fb342f0c3b3a4ca264178ea2825b20b6813b59cb9b2e61c804b9d04660d855bdc13e60151ddd2dddf5fb9fe46f95bda",
+          "sha256": "d3fc8cf502dcd76a481c9b6960b66ee03d2a421d598da727d1c08472e6c85595",
+          "sha1": "6d8da32671275a1c7cac212cb92d8cd89773b5a1",
+          "md5": "252905e8cba37913ddda2b0bb6fbfabd"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "flatlaf-extras-3.7.1-javadoc.jar",
+          "url": "flatlaf-extras-3.7.1-javadoc.jar",
+          "size": 4715529,
+          "sha512": "e52019d83cf2e2db0b5447ce0701fdb061563d8ff56110efd3e2f662dab2a70ee98765970b7660716e9dd82c99abc508fb668344322cd3b1e1b76e4bb5493a33",
+          "sha256": "9382f4a86e0cc1ad09936da747ea7d2b176184a94895385f8037382eb5c90108",
+          "sha1": "130251dc05fee80255e802f9116901d8513e3be4",
+          "md5": "814e067f2e52db6858b4a861eea4e159"
+        }
+      ]
+    }
+  ]
+}

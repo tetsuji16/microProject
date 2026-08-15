@@ -1,0 +1,60 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "org.pushing-pixels",
+    "module": "radiance-neon",
+    "version": "4.5.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "7.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 9,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "radiance-neon-4.5.0.jar",
+          "url": "radiance-neon-4.5.0.jar",
+          "size": 49749,
+          "sha512": "863c4c974ca91c70407639eee18429fa188e3d3e9100c5eb005270227008fc927348318a76f193c0b44aaf3910b16465eee665845133ac17ef07a9bd4016ed42",
+          "sha256": "dfef05080c1d47f07dbb24307c96add3679d370a53564d751f01e69a676a758f",
+          "sha1": "38eef9fcf4e55a6e5304af42d8fc720fc3f46ed5",
+          "md5": "44de25c2819b6f4044da25e35e399f6a"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 9,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "radiance-neon-4.5.0.jar",
+          "url": "radiance-neon-4.5.0.jar",
+          "size": 49749,
+          "sha512": "863c4c974ca91c70407639eee18429fa188e3d3e9100c5eb005270227008fc927348318a76f193c0b44aaf3910b16465eee665845133ac17ef07a9bd4016ed42",
+          "sha256": "dfef05080c1d47f07dbb24307c96add3679d370a53564d751f01e69a676a758f",
+          "sha1": "38eef9fcf4e55a6e5304af42d8fc720fc3f46ed5",
+          "md5": "44de25c2819b6f4044da25e35e399f6a"
+        }
+      ]
+    }
+  ]
+}
