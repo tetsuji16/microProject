@@ -55,11 +55,14 @@
  *******************************************************************************/
 package com.projectlibre1.server.data;
 
+import com.projectlibre1.util.DataUtils;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -75,7 +78,6 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.CollectionUtils;
 
 import com.projectlibre1.server.data.linker.Linker;
@@ -736,7 +738,7 @@ public class Serializer {
     public Project deserializeProject(ProjectData projectData, final boolean subproject, final Session reindex, Map<Long, EnterpriseResourceData> enterpriseResources) throws IOException, ClassNotFoundException {
     	return deserializeProject(projectData, subproject, reindex, enterpriseResources,null,true);
     }
-    public Project deserializeProject(ProjectData projectData, final boolean subproject, final Session reindex, Map<Long, EnterpriseResourceData> enterpriseResources,Closure loadResources) throws IOException, ClassNotFoundException {
+    public Project deserializeProject(ProjectData projectData, final boolean subproject, final Session reindex, Map<Long, EnterpriseResourceData> enterpriseResources,Consumer<Object> loadResources) throws IOException, ClassNotFoundException {
     	return deserializeProject(projectData, subproject, reindex, enterpriseResources,loadResources,true);
     }
 
@@ -749,7 +751,7 @@ public class Serializer {
 //    	_existingProject = existingProject;
 //    	_localResourceMap = localResourceMap;
 //    }
-    public Project deserializeProject(ProjectData projectData, final boolean subproject, final Session reindex, Map<Long, EnterpriseResourceData> enterpriseResources,Closure loadResources,boolean updateDistribution) throws IOException, ClassNotFoundException {
+    public Project deserializeProject(ProjectData projectData, final boolean subproject, final Session reindex, Map<Long, EnterpriseResourceData> enterpriseResources,Consumer<Object> loadResources,boolean updateDistribution) throws IOException, ClassNotFoundException {
     	DataFactoryUndoController undoController=new DataFactoryUndoController();
     	Project project=(Project)deserialize(projectData,reindex);
     	project.setUndoController(undoController);
@@ -839,9 +841,9 @@ public class Serializer {
     		project.getResourcePool().getResourceOutline().getHierarchy().cleanVoidChildren();
 
     		//renumber resources
-    		project.getResourcePool().getResourceOutline().getHierarchy().visitAll(new Closure(){
+    		project.getResourcePool().getResourceOutline().getHierarchy().visitAll(new Consumer<Object>(){
     			int id=1;
-    			public void execute(Object o) {
+    			public void accept(Object o) {
     				Node node=(Node)o;
     				if (node.getImpl() instanceof HasId){
     					HasId impl=(HasId)node.getImpl();
@@ -853,10 +855,9 @@ public class Serializer {
     	}
 
     	if (loadResources!=null){
-    		loadResources.execute(project);
+    		loadResources.accept(project);
     		resourceNodeMap.clear();
-    		project.getResourcePool().getResourceOutline().getHierarchy().visitAll(new Closure(){
-    			public void execute(Object o) {
+    		project.getResourcePool().getResourceOutline().getHierarchy().visitAll(new Consumer<Object>() { public void accept(Object o) {
     				Node node=(Node)o;
     				resourceNodeMap.put(((ResourceImpl)node.getImpl()).getGlobalResource(), node);
     			}
@@ -1150,9 +1151,9 @@ public class Serializer {
 
     		}
     		//renumber tasks and save outline
-    		project.getTaskOutline().getHierarchy().visitAll(new Closure(){
+    		project.getTaskOutline().getHierarchy().visitAll(new Consumer<Object>(){
     			int id=1;
-    			public void execute(Object o) {
+    			public void accept(Object o) {
     				Node node=(Node)o;
     				if (node.getImpl() instanceof HasId){ //renumber
     					HasId impl=(HasId)node.getImpl();
@@ -1387,53 +1388,53 @@ public class Serializer {
 
 
 
-    public static void forProjectDataDo(ProjectData project,Closure c){
-    	c.execute(project);
+    public static void forProjectDataDo(ProjectData project,Consumer<Object> c){
+    	c.accept(project);
     	if (project.getCalendar()!=null){
-    		c.execute(project.getCalendar());
+    		c.accept(project.getCalendar());
     		//base calendars to handle?
     	}
     	for (Object value : project.getResources()){
     		ResourceData r=(ResourceData)value;
-    		c.execute(r);
-    		c.execute(r.getEnterpriseResource());
+    		c.accept(r);
+    		c.accept(r.getEnterpriseResource());
     		//calendars?
     	}
     	for (Object value : getTaskDataCollection(project)){
     		TaskData t=(TaskData)value;
-    		c.execute(t);
-    		CollectionUtils.forAllDo(t.getAssignments(),c);
-    		CollectionUtils.forAllDo(t.getPredecessors(),c);
+    		c.accept(t);
+    		DataUtils.forAllDo(t.getAssignments().iterator(), c);
+    		DataUtils.forAllDo(t.getPredecessors().iterator(), c);
     		//calendars?
     	}
     }
-    public static void forProjectDataReversedDo(ProjectData project,Closure c){
+    public static void forProjectDataReversedDo(ProjectData project,Consumer<Object> c){
     	for (Object value : getTaskDataCollection(project)){
     		TaskData t=(TaskData)value;
-    		CollectionUtils.forAllDo(t.getAssignments(),c);
-    		CollectionUtils.forAllDo(t.getPredecessors(),c);
-    		c.execute(t);
+    		DataUtils.forAllDo(t.getAssignments().iterator(), c);
+    		DataUtils.forAllDo(t.getPredecessors().iterator(), c);
+    		c.accept(t);
     		//calendars?
     	}
     	for (Object value : project.getResources()){
     		ResourceData r=(ResourceData)value;
-    		c.execute(r.getEnterpriseResource());
-    		c.execute(r);
+    		c.accept(r.getEnterpriseResource());
+    		c.accept(r);
     		//calendars?
     	}
     	if (project.getCalendar()!=null){
-    		c.execute(project.getCalendar());
+    		c.accept(project.getCalendar());
     		//base calendars to handle?
     	}
-    	c.execute(project);
+    	c.accept(project);
     }
 
-    private static abstract class IdClosure implements Closure{
+    private static abstract class IdClosure implements Consumer<Object>{
     	long id=1;
     }
     public static void renumberProject(ProjectData project){
     	forProjectDataDo(project,new IdClosure(){
-			public void execute(Object arg0) {
+			public void accept(Object arg0) {
 				((CommonDataObject)arg0).setUniqueId(id++);
 			}
     	});

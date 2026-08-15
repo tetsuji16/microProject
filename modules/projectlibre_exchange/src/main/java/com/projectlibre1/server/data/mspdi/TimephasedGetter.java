@@ -57,13 +57,13 @@ package com.projectlibre1.server.data.mspdi;
 
 import java.math.BigInteger;
 import java.util.Calendar;
+import java.util.function.Consumer;
 import java.util.Date;
 
 import net.sf.mpxj.TimeUnit;
 import net.sf.mpxj.mspdi.schema.ObjectFactory;
 import net.sf.mpxj.mspdi.schema.TimephasedDataType;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.pm.assignment.functor.AssignmentFieldFunctor;
 import com.projectlibre1.pm.calendar.WorkCalendar;
@@ -73,7 +73,7 @@ import com.projectlibre1.util.DateTime;
 /**
  *
  */
-public class TimephasedGetter implements Closure {
+public class TimephasedGetter implements Consumer<Object> {
 	ObjectFactory factory;
 	AssignmentFieldFunctor functor;
 	BigInteger type;
@@ -90,7 +90,7 @@ public class TimephasedGetter implements Closure {
 		this.type = BigInteger.valueOf(type);
 		this.id = BigInteger.valueOf(id);
 	}
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		if (!consumer.acceptValue(functor.getValue())) return;
 		
 		TimephasedDataType timephasedDataType;

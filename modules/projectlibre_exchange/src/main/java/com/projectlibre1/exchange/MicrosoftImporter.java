@@ -60,12 +60,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre.core.hierarchy.Hierarchy;
 import com.projectlibre.core.hierarchy.HierarchyNode;
@@ -528,25 +528,24 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 	protected boolean importResources() throws Exception{
-		return importResources(resourceMap,new Closure() {
-			public void execute(Object arg0) {
+		return importResources(resourceMap,new Consumer<Object>() { public void accept(Object arg0) {
 				importLocalResources();
 			}
 		});
 	}
 
 	@SuppressWarnings("unchecked")
-	protected boolean importResources(Map<Number, Object> resourceMap,Closure importLocalResources) throws Exception{
+	protected boolean importResources(Map<Number, Object> resourceMap,Consumer<Object> importLocalResources) throws Exception{
 		ResourceMappingForm form=getResourceMapping();
 
 
 
 		if (form==null||form.isLocal()){ //claur
-				importLocalResources.execute(null);
+				importLocalResources.accept(null);
 		}else{
 			if (!form.execute()) return false;
 			if (form.isLocal()){
-				importLocalResources.execute(null);
+				importLocalResources.accept(null);
 				return true;
 			}
 

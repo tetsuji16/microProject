@@ -56,6 +56,7 @@
 package com.projectlibre1.server.data.linker;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,7 +64,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.grouping.core.hierarchy.NodeHierarchy;
@@ -142,9 +142,9 @@ public abstract class Linker {
     public void addOutline(Node root){
     	final Set endVoids=new HashSet();
     	//lastIndex=0;
-        getHierarchy().visitAll(root, true,new Closure(){
+        getHierarchy().visitAll(root, true,new Consumer<Object>(){
         	//int tmpIndex=0;
-        	public void execute(Object arg){
+        	public void accept(Object arg) {
         		Node node=(Node)arg;
         		Object nodeImpl=node.getImpl();
         		if (!(nodeImpl instanceof Assignment)){
@@ -156,11 +156,11 @@ public abstract class Linker {
         	}
         });
 
-        getHierarchy().visitAllLevelOrder(root, true,new Closure(){
+        getHierarchy().visitAllLevelOrder(root, true,new Consumer<Object>(){
         	Node thisParent=null;
         	long position=0;
         	//int index=0;
-        	public void execute(Object arg){
+        	public void accept(Object arg) {
         		//if (index++>lastIndex) return;
         		Node node=(Node)arg;
         		if (endVoids.contains(node)) return;
@@ -179,10 +179,10 @@ public abstract class Linker {
         });
     }
 //    public void addOutline(Node root){
-//        getHierarchy().visitAllLevelOrder(root, true,new Closure(){
+//        getHierarchy().visitAllLevelOrder(root, true,new Consumer<Object>(){
 //        	Node thisParent=null;
 //        	long position=0;
-//        	public void execute(Object arg){
+//        	public void accept(Object arg) {
 //        		Node node=(Node)arg;
 //        		Object nodeImpl=node.getImpl();
 //        		if (!(nodeImpl instanceof Assignment)&&!node.isVoid()){
