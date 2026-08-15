@@ -99,7 +99,12 @@ public class CriticalPath implements SchedulingAlgorithm {
 	private static Task traceTask;
 	TaskSchedule.CalculationContext context;
 	private static CriticalPath lastInstance;
-	private static Field constraintTypeField = Configuration.getFieldFromId("Field.constraintType");
+	private static Field constraintTypeField = null;
+	private static Field getConstraintTypeField() {
+		if (constraintTypeField == null)
+			constraintTypeField = Configuration.getFieldFromId("Field.constraintType");
+		return constraintTypeField;
+	}
 	public CriticalPath(Project project) {
 		this.project = project;
 		project.setSchedulingAlgorithm(this); 
@@ -403,7 +408,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 				Field field = objectEvent.getField();
 				if (field != null && !fieldUpdater.inputContains(field))
 					return;
-				if (field == constraintTypeField) {
+				if (field == getConstraintTypeField()) {
 					reset();
 					task.invalidateSchedules();
 					task.markTaskAsNeedingRecalculation();

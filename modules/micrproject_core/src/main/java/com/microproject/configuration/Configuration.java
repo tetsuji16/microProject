@@ -77,19 +77,24 @@ public class Configuration implements ProvidesDigesterEvents {
 	private static Configuration instance = null;
 	public static synchronized Configuration getInstance() {
 		if (instance == null) {
-			instance = new  Configuration();
+			Configuration temp = new Configuration();
+			temp.fieldDictionary = new FieldDictionary(); // initialize early so re-entrant callers (e.g. classes loaded during read()) never see a null dictionary
 			String [] files = Messages.getMetaString("ConfigurationFiles").split(";");
 			for (String file : files) 
-				ConfigurationReader.read(file, instance) ;
-			instance.setDonePopulating(); // makes its hash table fast if using a FastHashMap
+				ConfigurationReader.read(file, temp) ;
+			temp.setDonePopulating(); // makes its hash table fast if using a FastHashMap
+			instance = temp; // publish only after fully built to avoid re-entrant use of a half-initialized instance
 		}
 		return instance;
 	}
 	public Configuration() {
+		if (fieldDictionary == null)
+			fieldDictionary = new FieldDictionary();
 	}
 	
 	public void setDonePopulating() {
-		fieldDictionary.setDonePopulating(); // makes its hash table fast if using a FastHashMap
+		if (fieldDictionary != null)
+			fieldDictionary.setDonePopulating(); // makes its hash table fast if using a FastHashMap
 		
 	}
 	/**
