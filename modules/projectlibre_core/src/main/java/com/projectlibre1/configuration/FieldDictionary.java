@@ -54,17 +54,19 @@
  * logo it must direct them back to http://www.projectlibre.com. 
  *******************************************************************************/
 package com.projectlibre1.configuration;
+
+import com.projectlibre1.util.DataUtils;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapIterator;
 import org.apache.commons.collections.Predicate;
@@ -308,8 +310,7 @@ public class FieldDictionary {
 		result.append("<p><b>").append(title).append("</b><br />");
 		result.append("<table border='1'>");
 		tabbedStringToHtmlRow(result,Field.getMetadataStringHeader(),true);
-		CollectionUtils.forAllDo(FieldDictionary.getInstance().getProjectFields(), new Closure() {
-			public void execute(Object arg0) {
+		DataUtils.forAllDo(FieldDictionary.getInstance().getProjectFields().iterator(), new Consumer<Object>() { public void accept(Object arg0) {
 				tabbedStringToHtmlRow(result,((Field)arg0).getMetadataString(),false);
 			}}
 		);

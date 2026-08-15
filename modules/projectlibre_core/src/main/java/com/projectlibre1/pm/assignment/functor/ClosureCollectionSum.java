@@ -91,7 +91,7 @@ public class ClosureCollectionSum implements CalculationVisitor, DoubleValue {
 	public void reset() {
 		value = 0;
 	}
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd) object;
 		value = childList.getValue();
 		total+= value;

@@ -56,11 +56,11 @@
 package com.projectlibre1.grouping.core.transform;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Transformer;
 
 import java.util.logging.Level;
@@ -94,7 +94,7 @@ public abstract class CommonTransform {
         this.composition = composition;
     }
 
-    public abstract void setRedefinitionCallBack(Closure callback);
+    public abstract void setRedefinitionCallBack(Consumer<Object> callback);
 
 
     protected List<Object> subTransforms;
@@ -107,7 +107,7 @@ public abstract class CommonTransform {
 
 
     private final static String REGISTERED_PARAMETER_DIALOG="com.projectlibre1.dialog.TransformParameterDialog";
-    protected Closure parameterDialog;
+    protected Consumer<Object> parameterDialog;
     protected List<TransformParameter> parameters;
     protected Map<String, Object> parametersMap;
     public List<TransformParameter> getParameters() {
@@ -150,12 +150,12 @@ public abstract class CommonTransform {
         if (parameters==null) return; //no parameters
         if (parameterDialog==null){
             try {
-                parameterDialog = Class.forName(REGISTERED_PARAMETER_DIALOG).asSubclass(Closure.class)
+                parameterDialog = Class.forName(REGISTERED_PARAMETER_DIALOG).asSubclass(Consumer.class)
                     .getDeclaredConstructor().newInstance();
             } catch (Exception e) {logger.log(Level.WARNING, "Transform error", e);}
         }
         if (parameterDialog!=null){
-            parameterDialog.execute(this);
+            parameterDialog.accept(this);
         }
     }
 

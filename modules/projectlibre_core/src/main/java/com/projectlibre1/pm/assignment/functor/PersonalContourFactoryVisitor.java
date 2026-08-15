@@ -83,7 +83,7 @@ public class PersonalContourFactoryVisitor implements CalculationVisitor {
 
 	public void initialize() {
 	}
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		Query query = (Query)arg0;
 		AbstractContourBucket fromBucket = (AbstractContourBucket) query.currentGroupByObject();
 		costContour[index++] = PersonalContourBucket.getInstance(fromBucket.getBucketDuration(assignmentDuration),cost.getValue());

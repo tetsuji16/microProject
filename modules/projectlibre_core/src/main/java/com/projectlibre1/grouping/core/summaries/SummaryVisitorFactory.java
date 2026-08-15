@@ -87,8 +87,8 @@ public class SummaryVisitorFactory implements SummaryNames {
 		}
 		if (type == THIS) {
 			return new NodeWalker(new ThisValueSummaryVisitor()) {
-				public void execute(Object arg0) {
-					visitor.execute(arg0);
+				public void accept(Object arg0) {
+					visitor.accept(arg0);
 				}
 			};
 		}

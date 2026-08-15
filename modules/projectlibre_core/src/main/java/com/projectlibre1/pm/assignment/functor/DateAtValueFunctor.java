@@ -97,7 +97,7 @@ public class DateAtValueFunctor implements CalculationVisitor{
 	 * Increment the subtotal by adding up all child functors.  If the value is achieved, calculate the
 	 * instant in the range at which it occurs.
 	 */
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd) object;
 
 		double sum = childList.getValue();

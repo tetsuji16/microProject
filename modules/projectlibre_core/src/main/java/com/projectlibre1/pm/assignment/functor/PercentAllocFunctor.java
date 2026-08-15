@@ -72,7 +72,7 @@ public class PercentAllocFunctor extends AssignmentFieldFunctor {
 		if (threshold)
 			maximumUnits = assignment.getResource().getMaximumUnits();
 	}
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd)object;
 		AbstractContourBucket bucket = (AbstractContourBucket) contourBucketIntervalGenerator.current();
 		if (bucket != null) {		

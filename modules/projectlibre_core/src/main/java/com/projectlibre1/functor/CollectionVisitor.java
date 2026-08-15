@@ -55,10 +55,12 @@
  *******************************************************************************/
 package com.projectlibre1.functor;
 
+import com.projectlibre1.util.DataUtils;
+
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.Iterator;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
 
 /**
@@ -68,25 +70,25 @@ public abstract class CollectionVisitor extends ClosureVisitor {
 	/**
 	 * 
 	 */
-	public CollectionVisitor(Closure visitor, Predicate filter) {
+	public CollectionVisitor(Consumer<Object> visitor, Predicate filter) {
 		super(visitor,filter);
 	}
 
-	public CollectionVisitor(Closure visitor) {
+	public CollectionVisitor(Consumer<Object> visitor) {
 		super(visitor);
 	}
 	
 	protected abstract Collection getCollection(Object arg0);
 	
-	public final void execute(Object arg0) {
+	public final void accept(Object arg0) {
 		Iterator i = getCollection(arg0).iterator();
 		Object current;
 		while (i.hasNext()) {
 			current = i.next();
 			if (filter.evaluate(current))
-				visitor.execute(current);
+				visitor.accept(current);
 		}
-		// not doing this because added filter CollectionUtils.forAllDo(getCollection(arg0),visitor);
+		// not doing this because added filter DataUtils.forAllDo(getCollection(arg0).iterator(), visitor);
 	}
 
 }

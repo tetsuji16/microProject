@@ -55,14 +55,15 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 
 
 /**
  * A fied calculation vistor. Used by summarization but can be more general
  */
-public interface NodeVisitor extends Closure {
+public interface NodeVisitor extends Consumer<Object> {
 	/**
 	 * To be able to pool visitors. 
 	 * No need to create a visitor each time, just call reset() and use the same visitor. 

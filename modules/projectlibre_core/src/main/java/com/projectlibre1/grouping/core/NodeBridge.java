@@ -133,7 +133,7 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 	 * @see com.projectlibre1.analysis.core.Node#accept(com.projectlibre1.analysis.core.NodeVisitor)
 	 */
 	public void accept(NodeVisitor visitor) {
-		visitor.execute(this);
+		visitor.accept(this);
 	}
 
 	public String toString() {

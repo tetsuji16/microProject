@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.session;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.graphic.configuration.SpreadSheetFieldArray;
 import com.projectlibre1.pm.task.Project;
@@ -66,8 +67,8 @@ public class SaveOptions implements Cloneable{
 	protected String fileType;
 	protected String importer;
 	protected boolean saveAs;
-	protected Closure postSaving;
-	protected Closure preSaving;
+	protected Consumer<Object> postSaving;
+	protected Consumer<Object> preSaving;
 	protected boolean sync;
 	protected boolean collaborationEnabled;
 	protected String collaborationUserKey;
@@ -100,10 +101,10 @@ public class SaveOptions implements Cloneable{
 	public void setFileName(String fileName) {
 		this.fileName = fileName;
 	}
-	public Closure getPostSaving() {
+	public Consumer<Object> getPostSaving() {
 		return postSaving;
 	}
-	public void setPostSaving(Closure postSaving) {
+	public void setPostSaving(Consumer<Object> postSaving) {
 		this.postSaving = postSaving;
 	}
 	public String getImporter() {
@@ -132,10 +133,10 @@ public class SaveOptions implements Cloneable{
 	public void setFileType(String fileType) {
 		this.fileType = fileType;
 	}
-	public Closure getPreSaving() {
+	public Consumer<Object> getPreSaving() {
 		return preSaving;
 	}
-	public void setPreSaving(Closure preSaving) {
+	public void setPreSaving(Consumer<Object> preSaving) {
 		this.preSaving = preSaving;
 	}
 	public boolean isCollaborationEnabled() {

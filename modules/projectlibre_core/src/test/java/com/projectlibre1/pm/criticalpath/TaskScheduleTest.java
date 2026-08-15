@@ -140,7 +140,7 @@ class TaskScheduleTest {
 		}
 
 		public void accept(NodeVisitor visitor) {
-			visitor.execute(this);
+			visitor.accept(this);
 		}
 
 		public Class getType() throws NodeException {

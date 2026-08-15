@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.functor;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.algorithm.DoubleValue;
 
@@ -63,7 +64,7 @@ import com.projectlibre1.algorithm.DoubleValue;
 /**
  * Abstract class for summing double functor
  */
-public abstract class DoubleSum implements Closure, DoubleValue {
+public abstract class DoubleSum implements Consumer<Object>, DoubleValue {
 	double sum = 0D;
 	/**
 	 * 
@@ -72,7 +73,7 @@ public abstract class DoubleSum implements Closure, DoubleValue {
 		super();
 	}
 
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		sum += getValueForElement(arg0);
 	}
 	

@@ -56,9 +56,9 @@
 package com.projectlibre1.util;
 
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.Iterator;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Transformer;
 
 import com.projectlibre1.functor.StringList;
@@ -105,9 +105,9 @@ public class DataUtils {
 		}
 	}
 	
-	public static void forAllDo(Iterator<?> i, Closure closure) {
+	public static void forAllDo(Iterator<?> i, Consumer<Object> closure) {
 		while (i.hasNext())
-			closure.execute(i.next());
+			closure.accept(i.next());
 	}
 
 	/**
@@ -119,10 +119,10 @@ public class DataUtils {
 	 * @param nodeList
 	 * @param clazz
 	 */
-	public static void forAllDo(Closure closure, boolean all, Collection<?> allList, Collection<?> nodeList, Class<?> clazz) {
+	public static void forAllDo(Consumer<Object> closure, boolean all, Collection<?> allList, Collection<?> nodeList, Class<?> clazz) {
 		forAllDo(closure, all, allList.iterator(), nodeList, clazz);
 	}
-	public static void forAllDo(Closure closure, boolean all, Iterator<?> allIterator, Collection<?> nodeList, Class<?> clazz) {
+	public static void forAllDo(Consumer<Object> closure, boolean all, Iterator<?> allIterator, Collection<?> nodeList, Class<?> clazz) {
 		Iterator<?> i = all ? allIterator : TypedNodeIterator.getInstance(nodeList,clazz);
 		forAllDo(i,closure);
 	}

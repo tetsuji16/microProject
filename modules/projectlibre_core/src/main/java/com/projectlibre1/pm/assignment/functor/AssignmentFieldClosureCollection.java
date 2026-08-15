@@ -55,19 +55,19 @@
  *******************************************************************************/
 package com.projectlibre1.pm.assignment.functor;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.LinkedList;
-
-import org.apache.commons.collections.Closure;
-import org.apache.commons.collections.functors.ChainedClosure;
 
 /**
  *
  */
 public class AssignmentFieldClosureCollection extends AssignmentFieldFunctor {
 	Collection closures;
-	Closure chain = null;
+	List<Consumer<Object>> chain = null;
 	AssignmentFieldFunctor aNonZeroFunctor = null;
 	
 	public static AssignmentFieldClosureCollection getInstance(AssignmentFieldFunctor child) {
@@ -82,17 +82,21 @@ public class AssignmentFieldClosureCollection extends AssignmentFieldFunctor {
 		super();
 		closures = new LinkedList();
 		closures.add(child);
-		chain = new ChainedClosure(new Closure[] {child});
+		chain = new ArrayList<Consumer<Object>>();
+		chain.add(child);
 	}
 	
 	private AssignmentFieldClosureCollection(Collection closures) {
 		this.closures = closures;
-		chain = ChainedClosure.getInstance(closures);
+		chain = new ArrayList<Consumer<Object>>(closures.size());
+		for (Iterator i = closures.iterator(); i.hasNext();)
+			chain.add((Consumer<Object>) i.next());
 	}
 
 	
-	public void execute(Object arg0) {
-		chain.execute(arg0);
+	public void accept(Object arg0) {
+		for (Consumer<Object> c : chain)
+			c.accept(arg0);
 	}
 
 	public void initialize() {

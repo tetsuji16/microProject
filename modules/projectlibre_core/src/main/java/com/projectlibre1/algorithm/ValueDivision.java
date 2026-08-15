@@ -79,7 +79,7 @@ public class ValueDivision implements CalculationVisitor, DoubleValue {
 		value = 0.0;
 
 	}
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		double denominator = second.getValue();
 		if (denominator != 0.0)
 			value = first.getValue() / second.getValue();

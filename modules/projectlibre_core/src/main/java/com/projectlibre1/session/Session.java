@@ -89,7 +89,7 @@ public interface Session {
 //    
 //    public Job getSaveProjectJob(final Project project);
 //    public Job getSaveProjectJob(final Project project, final boolean cloneMaster);
-//    public Job getSaveProjectJob(final List projs,final Closure postSaving, final boolean cloneMaster);
+//    public Job getSaveProjectJob(final List projs,final Consumer<Object> postSaving, final boolean cloneMaster);
 
     public Job getCloseProjectsJob(final Collection projects);
     

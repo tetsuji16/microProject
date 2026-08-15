@@ -80,7 +80,7 @@ public class ResourceAvailabilityFunctor extends AssignmentFieldFunctor {
 		this.resource = resource;
 		maxUnits = resource.getMaximumUnits();
 	}
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd)object;
 		Availability availability = (Availability) resource.getAvailabilityTable().findActive(interval.getStart());
 		double intervalUnits = (availability == null) ? maxUnits : availability.getMaximumUnits();

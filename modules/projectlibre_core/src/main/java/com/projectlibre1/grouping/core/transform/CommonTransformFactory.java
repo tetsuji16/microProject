@@ -56,9 +56,9 @@
 package com.projectlibre1.grouping.core.transform;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Iterator;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Transformer;
 
 import com.projectlibre1.field.InvalidFormulaException;
@@ -222,7 +222,7 @@ public abstract class CommonTransformFactory extends CommonTransform{
 		return getName();
 	}
 
-    public void setRedefinitionCallBack(Closure callback){}
+    public void setRedefinitionCallBack(Consumer<Object> callback){}
     
     
     public void addFactory(CommonTransformFactory factory){

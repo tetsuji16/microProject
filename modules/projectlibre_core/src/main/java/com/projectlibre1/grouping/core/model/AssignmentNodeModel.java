@@ -56,6 +56,7 @@
 package com.projectlibre1.grouping.core.model;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -64,7 +65,6 @@ import java.util.Map;
 
 import javax.swing.undo.UndoableEditSupport;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.document.Document;
 import com.projectlibre1.document.ObjectEvent;
@@ -263,8 +263,7 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 		HierarchyUtils.extractParents(nodes, roots);
 		final List freeAssignments=new ArrayList();
 		for (Iterator i=roots.iterator();i.hasNext();)
-			hierarchy.visitLeaves((Node)i.next(), new Closure(){
-				public void execute(Object o) {
+			hierarchy.visitLeaves((Node)i.next(), new Consumer<Object>() { public void accept(Object o) {
 					Node node=(Node)o;
 					if (node.getImpl() instanceof Assignment){
 						Assignment assignment=(Assignment)node.getImpl();

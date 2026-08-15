@@ -63,7 +63,7 @@ import com.projectlibre1.util.DateTime;
 
 
 /**
- * Closure that holds parameters from UpdateProject dialog and executes the action by visiting a task collection
+ * Consumer<Object> that holds parameters from UpdateProject dialog and executes the action by visiting a task collection
  */
 public class UpdateProjectCommand extends Command {
 	Project project;
@@ -77,7 +77,7 @@ public class UpdateProjectCommand extends Command {
 		this.updateWorkAsCompleteThrough = updateWorkAsCompleteThrough;
 		this.setFractionalPercentComplete = setFractionalPercentComplete;
 	}
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		project.setStatusDate(date);
 		((Task)arg0).updateProjectTask(date,updateWorkAsCompleteThrough,setFractionalPercentComplete);
 	}

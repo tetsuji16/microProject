@@ -55,6 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.summaries;
 
+import com.projectlibre1.util.DataUtils;
+
 import java.util.Collection;
 import org.apache.commons.collections.CollectionUtils;
 
@@ -69,10 +71,10 @@ public class ShallowChildWalker extends NodeWalker {
 		super(visitor);
 	}
 	
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		Node node = (Node)arg0;
 		Collection nodeList = nodeModel.getChildren(node);
 		if (nodeList != null)
-			CollectionUtils.forAllDo(nodeList, visitor);
+			DataUtils.forAllDo(nodeList.iterator(), visitor);
 	}
 }

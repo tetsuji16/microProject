@@ -56,13 +56,13 @@
 package com.projectlibre1.grouping.core.hierarchy;
 
 import java.util.Comparator;
+import java.util.function.Consumer;
 import java.util.EventListener;
 import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.tree.TreeModel;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
 
 import com.projectlibre1.grouping.core.Node;
@@ -107,11 +107,11 @@ public interface NodeHierarchy extends TreeModel{
 	public Iterator iterator();
 	public Iterator iterator(Node rootNode);
 	public Iterator shallowIterator(int maxLevel,boolean returnRoot);
-	public void visitAll(Closure visitor);
-	public void visitAll(Node parent, Closure visitor);
-    public void visitAllLevelOrder(Node root, boolean skipLazyParents,Closure visitor);
-    public void visitAll(Node root, boolean skipLazyParents,Closure visitor);
-    public void visitLeaves(Node node, Closure visitor);
+	public void visitAll(Consumer<Object> visitor);
+	public void visitAll(Node parent, Consumer<Object> visitor);
+    public void visitAllLevelOrder(Node root, boolean skipLazyParents,Consumer<Object> visitor);
+    public void visitAll(Node root, boolean skipLazyParents,Consumer<Object> visitor);
+    public void visitLeaves(Node node, Consumer<Object> visitor);
 	public Node search(Object key, Comparator c);
 	public int getIndexOfNode(Node key, boolean skipVoid);
 	public boolean isSummary(Node node);

@@ -61,8 +61,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.function.Consumer;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.algorithm.ReverseQuery;
 import com.projectlibre1.algorithm.TimeIteratorGenerator;
@@ -230,14 +230,14 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	 * @param visitor
 	 * @return
 	 */
-	public static Closure forAllAssignments(Closure visitor) {
+	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor) {
 		return HasAssignmentsImpl.forAllAssignments(visitor);
 	}
 	/**
 	 * @param visitor
 	 * @param mergeWorking
 	 */
-	public void forEachWorkingInterval(Closure visitor, boolean mergeWorking, WorkCalendar workCalendar) {
+	public void forEachWorkingInterval(Consumer<Object> visitor, boolean mergeWorking, WorkCalendar workCalendar) {
 		hasAssignments.forEachWorkingInterval(visitor, mergeWorking, workCalendar);
 	}
 	/**

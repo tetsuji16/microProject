@@ -59,10 +59,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.association.AssociationList;
 import com.projectlibre1.functor.CollectionVisitor;
@@ -89,14 +89,14 @@ public class HasDependenciesImpl implements HasDependencies, Serializable {
 	private transient AssociationList predecessors = new AssociationList();
 	private transient AssociationList successors = new AssociationList();
 
-	public Closure forAllPredecessors(Closure visitor) {
+	public Consumer<Object> forAllPredecessors(Consumer<Object> visitor) {
 		return new CollectionVisitor(visitor) {
 			protected final Collection getCollection(Object arg0) {
 				return ((HasDependencies)arg0).getPredecessorList().getList();
 			}
 		};
 	}
-	public Closure forAllSuccesssors(Closure visitor) {
+	public Consumer<Object> forAllSuccesssors(Consumer<Object> visitor) {
 		return new CollectionVisitor(visitor) {
 			protected final Collection getCollection(Object arg0) {
 				return ((HasDependencies)arg0).getSuccessorList().getList();

@@ -55,9 +55,11 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.summaries;
 
-import java.util.Collection;
+import com.projectlibre1.util.DataUtils;
 
-import org.apache.commons.collections.Closure;
+import java.util.Collection;
+import java.util.function.Consumer;
+
 import org.apache.commons.collections.CollectionUtils;
 
 import com.projectlibre1.grouping.core.Node;
@@ -68,18 +70,18 @@ import com.projectlibre1.grouping.core.model.NodeModel;
  */
 public class LeafWalker extends NodeWalker {
 	
-	public LeafWalker(Closure visitor) {
+	public LeafWalker(Consumer<Object> visitor) {
 		super(visitor);
 	}
 	
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		Node node = (Node)arg0;
 		Collection nodeList = nodeModel.getChildren(node);
 		if (nodeList == null || nodeList.isEmpty()) { // if has no children
 			if (visitor != null)	
-				visitor.execute(node); // add value
+				visitor.accept(node); // add value
 		} else {
-			CollectionUtils.forAllDo(nodeList, this); // treat children
+			DataUtils.forAllDo(nodeList.iterator(), this); // treat children
 		}
 	}
 	
@@ -89,10 +91,10 @@ public class LeafWalker extends NodeWalker {
 	 * @param node
 	 * @param closure
 	 */
-	public static void recursivelyTreatBranch(NodeModel nodeModel, Node node, Closure closure) {
+	public static void recursivelyTreatBranch(NodeModel nodeModel, Node node, Consumer<Object> closure) {
 		LeafWalker walker = new LeafWalker(closure);
 		walker.setNodeModel(nodeModel);
-		walker.execute(node);
+		walker.accept(node);
 	}
 	/**
 	 * Applies a closure to the starting object and recursively all children
@@ -100,9 +102,9 @@ public class LeafWalker extends NodeWalker {
 	 * @param node
 	 * @param closure
 	 */
-	public static void recursivelyTreatBranch(NodeModel nodeModel, Object impl, Closure closure) {
+	public static void recursivelyTreatBranch(NodeModel nodeModel, Object impl, Consumer<Object> closure) {
 		LeafWalker walker = new LeafWalker(closure);
 		walker.setNodeModel(nodeModel);
-		walker.execute(nodeModel.search(impl));
+		walker.accept(nodeModel.search(impl));
 	}
 }

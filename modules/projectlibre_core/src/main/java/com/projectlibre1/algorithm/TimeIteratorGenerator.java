@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.algorithm;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.pm.time.HasStartAndEnd;
 import com.projectlibre1.timescale.TimeIterator;
@@ -67,7 +68,7 @@ public class TimeIteratorGenerator implements IntervalGenerator, HasStartAndEnd 
 	TimeIterator timeIterator;
 	HasStartAndEnd currentInterval = null;
 	long currentEnd;
-	Closure visitor = null;
+	Consumer<Object> visitor = null;
 	int index = 0;
 
 	private TimeIteratorGenerator(TimeIterator timeIterator) {

@@ -84,7 +84,7 @@ public class ValueSum implements CalculationVisitor, DoubleValue {
 
 	}
 
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		value = first.getValue() + second.getValue();
 
 	}

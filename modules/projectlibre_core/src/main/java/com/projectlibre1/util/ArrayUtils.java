@@ -56,8 +56,8 @@
 package com.projectlibre1.util;
 
 import java.util.Arrays;
+import java.util.function.Consumer;
 
-import org.apache.commons.collections.Closure;
 
 /**
  * Utility methods for working with arrays.
@@ -142,9 +142,9 @@ public abstract class ArrayUtils {
         }
         return true;
     }
-    public static void forAllDo(Object[] array, Closure c) {
+    public static void forAllDo(Object[] array, Consumer<Object> c) {
     	for (int i = 0; i < array.length; i++) {
-    		c.execute(array[i]);
+    		c.accept(array[i]);
     	}
     }
 }

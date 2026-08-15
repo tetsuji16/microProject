@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.transform.filtering;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.pm.assignment.AssignmentEntry;
@@ -91,12 +92,12 @@ public class ResourceInTeamFilter extends NodeFilter {
 	public void setFilterTeam(boolean filterTeam) {
 		if (this.filterTeam==filterTeam) return;
 		this.filterTeam = filterTeam;
-		if (callback!=null) callback.execute(this);
+		if (callback!=null) callback.accept(this);
 	}
 	
 	
-    protected Closure callback;
-    public void setRedefinitionCallBack(Closure callback){
+    protected Consumer<Object> callback;
+    public void setRedefinitionCallBack(Consumer<Object> callback){
         this.callback=callback;
     }
 

@@ -56,6 +56,7 @@
 package com.projectlibre1.grouping.core.hierarchy;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -70,7 +71,6 @@ import java.util.logging.Logger;
 import javax.swing.event.EventListenerList;
 import javax.swing.tree.TreeNode;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.collections.Predicate;
 
@@ -180,12 +180,12 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	return found;
     	
     }
-    public void visitAll(Closure visitor) {
+    public void visitAll(Consumer<Object> visitor) {
     	visitAll(null,visitor);
     }
-    public void visitAll(Node parent, Closure visitor) {
+    public void visitAll(Node parent, Consumer<Object> visitor) {
     	if (parent != null)
-    		visitor.execute(parent);
+    		visitor.accept(parent);
     	Collection children = getChildren(parent);
     	if (children != null) {
         	Iterator i = children.iterator();
@@ -195,11 +195,11 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	}
     }
     //doesn't visit parent
-    public void visitAllLevelOrder(Node parent, boolean skipLazyParents, Closure visitor) {
+    public void visitAllLevelOrder(Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
     	visitAllLevelOrder(true,parent,skipLazyParents,visitor);
     }
 
-   	public void visitAllLevelOrder(boolean first, Node parent, boolean skipLazyParents, Closure visitor) {
+   	public void visitAllLevelOrder(boolean first, Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
    		// when saving a project, we do not want to save the children of subproject tasks, except when 
    		// saving a suproject itself, in which case, the root element will be a subproject task and first will be true
     	if (!first && skipLazyParents && parent != null && parent.getImpl() instanceof LazyParent) 
@@ -208,7 +208,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	if (children != null) {
         	Iterator i = children.iterator();
         	while (i.hasNext()) {
-        		visitor.execute(i.next());
+        		visitor.accept(i.next());
         	}
         	i=children.iterator();
         	while (i.hasNext()) {
@@ -217,10 +217,10 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	}
     }
    	
-    public void visitAll(Node parent, boolean skipLazyParents, Closure visitor) {
+    public void visitAll(Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
     	visitAll(true,parent,skipLazyParents,visitor);
     }
-   	public void visitAll(boolean first, Node parent, boolean skipLazyParents, Closure visitor) {
+   	public void visitAll(boolean first, Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
    		// when saving a project, we do not want to save the children of subproject tasks, except when 
    		// saving a suproject itself, in which case, the root element will be a subproject task and first will be true
     	if (!first && skipLazyParents && parent != null && parent.getImpl() instanceof LazyParent) 
@@ -231,14 +231,14 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
         	i=children.iterator();
         	while (i.hasNext()) {
         		Node node=(Node)i.next();
-        		visitor.execute(node);
+        		visitor.accept(node);
         		visitAll(false,node,skipLazyParents,visitor);
         	}
     	}
     }
    	
-    public void visitLeaves(Node node, Closure visitor) {
-    	if (node.isLeaf()) visitor.execute(node);
+    public void visitLeaves(Node node, Consumer<Object> visitor) {
+    	if (node.isLeaf()) visitor.accept(node);
     	else for (Enumeration e=node.children();e.hasMoreElements();){
     		visitLeaves((Node)e.nextElement(), visitor);
     	}
@@ -318,23 +318,21 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 
 	
     public void dump() {
-    	dump(null,"",new Closure(){
-    		public void execute(Object obj) {
+    	dump(null,"",new Consumer<Object>() { public void accept(Object obj) {
     			logger.log(Level.FINE, "{0}", obj);
     		}
     	});
    }
     public void dump(final StringBuffer buf) {
-    	dump(null,"",new Closure(){
-    		public void execute(Object obj) {
+    	dump(null,"",new Consumer<Object>() { public void accept(Object obj) {
     			buf.append((String)obj).append('\n');
     		}
     	});
    }
     
-    private void dump(Node parent, String indent,Closure c) {
+    private void dump(Node parent, String indent,Consumer<Object> c) {
     	if (parent != null)
-    		c.execute(indent + ">"+parent.toString());
+    		c.accept(indent + ">"+parent.toString());
     	Collection children = getChildren(parent);
     	if (children != null) {
         	Iterator i = children.iterator();
@@ -444,8 +442,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 	 */
 	public List toList(final boolean isNode, final Predicate filter) {
 		final ArrayList list = new ArrayList();
-    	visitAll(new Closure(){
-			public void execute(Object node) {
+    	visitAll(new Consumer<Object>() { public void accept(Object node) {
 				if (filter != null  && !filter.evaluate(((Node) node).getImpl()))
 					return;
 				if (isNode) 
@@ -458,9 +455,9 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 	
 	
 	public void renumber(){
-		visitAll(new Closure(){
+		visitAll(new Consumer<Object>(){
 			private int index=0;
-			public void execute(Object o) {
+			public void accept(Object o) {
 				Node node=(Node)o;
 				if (node.hasNumber()){
 					HasKey impl=(HasKey)node.getImpl();

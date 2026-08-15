@@ -56,6 +56,7 @@
 package com.projectlibre1.graphic.configuration;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -63,7 +64,6 @@ import java.util.StringTokenizer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.digester.Digester;
 
 import com.projectlibre1.configuration.NamedItem;
@@ -92,13 +92,13 @@ public class BarStyles implements NamedItem {
 	 * @param ganttable - A task, resource, assignment... whatever can be displayed in gantt
 	 * @param action - Callback - The callback parametes are BarFormats
 	 */
-	public void apply(Object ganttable, Closure action) {
+	public void apply(Object ganttable, Consumer<Object> action) {
 		apply(ganttable,action,false,false,false, false);
 	}
-	public void apply(Object ganttable, Closure action,boolean link,boolean annotation,boolean calendar, boolean horizontalGrid) {
+	public void apply(Object ganttable, Consumer<Object> action,boolean link,boolean annotation,boolean calendar, boolean horizontalGrid) {
 		for (BarStyle row : getStyles(link, annotation, calendar, horizontalGrid)) {
 			if (row.evaluate(ganttable)) { // see if meets filter
-				action.execute(row.getBarFormat());
+				action.accept(row.getBarFormat());
 			}
 		}
 	}

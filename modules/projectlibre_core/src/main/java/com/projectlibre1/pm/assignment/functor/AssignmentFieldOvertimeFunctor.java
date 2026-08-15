@@ -77,7 +77,7 @@ public abstract class AssignmentFieldOvertimeFunctor extends AssignmentFieldFunc
 		this.overtimeUnits = overtimeUnits;
 	}
 
-	public abstract void execute(Object arg0);
+	public abstract void accept(Object arg0);
 
 	protected double overtimeUnits;
 	protected double regularValue = 0.0;

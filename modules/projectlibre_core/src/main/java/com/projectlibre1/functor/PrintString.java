@@ -55,14 +55,15 @@
  *******************************************************************************/
 package com.projectlibre1.functor;
 
+import java.util.function.Consumer;
+
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.Closure;
 
 /**
  *
  */
-public class PrintString implements Closure{
+public class PrintString implements Consumer<Object>{
 	public static final PrintString INSTANCE = new PrintString();
 	private static final Logger logger = Logger.getLogger(PrintString.class.getName());
 	/**
@@ -71,7 +72,7 @@ public class PrintString implements Closure{
 	private PrintString() {
 	}
 
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		logger.fine(String.valueOf(arg0));
 
 		

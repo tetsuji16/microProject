@@ -82,7 +82,7 @@ public abstract class SummaryVisitor implements NodeVisitor {
 	}
 	
 	
-	public void execute(Object node) {
+	public void accept(Object node) {
 	    Object nodeImpl=((Node)node).getImpl();
 		Object value = field.getValue(nodeImpl,context);
 		if (value != null)

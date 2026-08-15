@@ -85,7 +85,7 @@ public class ValueAtInstant extends AssignmentFieldFunctor {
 		this.constant = constant;
 	}
 
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd)object;
 	
 		if (interval.getStart() == triggerDate && interval.getEnd() == triggerDate) {		

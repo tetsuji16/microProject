@@ -88,7 +88,7 @@ public class PersonalContourMaker extends AssignmentFieldFunctor{
 	 * Add buckets to the collection.  The new interval has priority over the existing contour.  Buckets
 	 * are re-used if they are identical.
 	 */
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd)object;
 		AbstractContourBucket bucket = (AbstractContourBucket) contourBucketIntervalGenerator.current();
 		if (bucket == null)

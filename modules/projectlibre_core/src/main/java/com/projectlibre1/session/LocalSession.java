@@ -59,6 +59,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -71,7 +72,6 @@ import java.util.prefs.Preferences;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.exchange.FileImporter;
 import com.projectlibre1.grouping.core.model.DefaultNodeModel;
@@ -295,8 +295,7 @@ public class LocalSession extends AbstractSession{
     		}
     	}
     final Job job=new Job(jobQueue,"loadProject","Loading...",true);
-        job.setCancelMonitorClosure(new Closure(){
-			public void execute(Object o) {
+        job.setCancelMonitorClosure(new Consumer<Object>() { public void accept(Object o) {
 				logger.fine("Monitor Canceled");
 				jobQueue.endCriticalSection(job);
 			}
@@ -368,8 +367,7 @@ public class LocalSession extends AbstractSession{
     public Job getSaveProjectJob(final List<Project> projs,final SaveOptions opt){
     	final String title="Saving";
 		final Job job=new Job(jobQueue,"saveProject",title+"...",true);
-        job.setCancelMonitorClosure(new Closure(){
-			public void execute(Object o) {
+        job.setCancelMonitorClosure(new Consumer<Object>() { public void accept(Object o) {
 				logger.fine("Monitor Canceled");
 				jobQueue.endCriticalSection(job);
 			}
@@ -408,7 +406,7 @@ public class LocalSession extends AbstractSession{
 			importer.setFileName(fileName);
 			importer.setProject(project);
 			if (opt.getPreSaving() != null)
-				opt.getPreSaving().execute(project);
+				opt.getPreSaving().accept(project);
 
 			job.addJob(importer.getExportFileJob());
 			job.addSwingRunnable(new JobRunnable("Local: saveProject end"){
@@ -417,7 +415,7 @@ public class LocalSession extends AbstractSession{
 						project.setFileName(fileName);
 					project.setGroupDirty(false);
 					}
-					if (opt.getPostSaving()!=null) opt.getPostSaving().execute(project);
+					if (opt.getPostSaving()!=null) opt.getPostSaving().accept(project);
 	    	    	return null;
 				}
 			});

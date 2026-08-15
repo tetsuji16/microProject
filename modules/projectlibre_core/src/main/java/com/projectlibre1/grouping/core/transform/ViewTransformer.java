@@ -56,13 +56,13 @@
 package com.projectlibre1.grouping.core.transform;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.EventListener;
 import java.util.List;
 import java.util.StringTokenizer;
 
 import javax.swing.event.EventListenerList;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.grouping.core.transform.filtering.NodeFilter;
 import com.projectlibre1.grouping.core.transform.grouping.NodeGrouper;
@@ -135,8 +135,7 @@ public class ViewTransformer{
     }
 
 
-    private Closure redefinition=new Closure(){
-        public void execute(Object o){
+    private Consumer<Object> redefinition=new Consumer<Object>() { public void accept(Object o) {
             fireTransformerChanged(o);
         }
     };

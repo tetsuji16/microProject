@@ -19,7 +19,7 @@ public class CountNonsummariesWalker extends NodeWalker {
 		super(visitor);
 	}
 
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		countNonSummaryDescendants((Node)arg0);
 	}
 
@@ -31,7 +31,7 @@ public class CountNonsummariesWalker extends NodeWalker {
 		for (Object childObject : nodeList) {
 			Node child = (Node) childObject;
 			if (!child.isVoid() && !child.isRoot() && !nodeModel.isSummary(child)) {
-				visitor.execute(child);
+				visitor.accept(child);
 			}
 			countNonSummaryDescendants(child);
 		}

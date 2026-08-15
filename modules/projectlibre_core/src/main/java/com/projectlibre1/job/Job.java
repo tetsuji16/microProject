@@ -57,6 +57,7 @@ package com.projectlibre1.job;
 
 import java.awt.Component;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -66,7 +67,6 @@ import java.util.Set;
 import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.server.access.ErrorLogger;
 import com.projectlibre1.util.Alert;
@@ -85,7 +85,7 @@ public class Job extends Thread {
 	protected long t;
 	protected ExtendedProgressMonitor progressMonitor=null;
 	protected Thread monitorChecker=null;
-	protected Closure cancelMonitorClosure=null;
+	protected Consumer<Object> cancelMonitorClosure=null;
 	protected JobQueue jobQueue;
 	protected String title;
 	protected boolean showProgess, sync;
@@ -162,7 +162,7 @@ public class Job extends Thread {
 		this.queued = queued;
 	}
 
-	public void setCancelMonitorClosure(Closure cancelMonitorClosure){
+	public void setCancelMonitorClosure(Consumer<Object> cancelMonitorClosure){
 		this.cancelMonitorClosure=cancelMonitorClosure;
 	}
 
@@ -327,7 +327,7 @@ public class Job extends Thread {
 
 							while(true){
 								if (progressMonitor.isCanceled()){
-									cancelMonitorClosure.execute(null);
+									cancelMonitorClosure.accept(null);
 									break;
 								}else if (progressMonitor.isClosed()) break;
 								try {

@@ -59,6 +59,7 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -74,7 +75,6 @@ import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.grouping.core.model.AssignmentNodeModel;
@@ -237,8 +237,7 @@ public class ProjectFactory {
 	private final Map<Long, List<Runnable>> projectClosedCallbacks = new HashMap<>();
 	public synchronized Set getOpenOrLoadingProjects(){
 		final Set projectIds=new HashSet();
-    	ProjectFactory.getInstance().getPortfolio().forProjects(new Closure(){
-    		public void execute(Object impl) {
+    	ProjectFactory.getInstance().getPortfolio().forProjects(new Consumer<Object>() { public void accept(Object impl) {
     			Project project=(Project)impl;
         		projectIds.add(Long.valueOf(project.getUniqueId()));
     		}
@@ -332,7 +331,7 @@ public class ProjectFactory {
 					if (project!=null) addProject(project,false,true);
 					if (opt.getId()>0) removeLoadingProject(opt.getId());
 				}
-				if (opt.getEndSwingClosure()!=null) opt.getEndSwingClosure().execute(project);
+				if (opt.getEndSwingClosure()!=null) opt.getEndSwingClosure().accept(project);
 
 
 				if (project != null && opt.isOpenAs() && project.isMaster())
@@ -444,9 +443,9 @@ public class ProjectFactory {
 	public Job getSaveProjectJob(final Project project, final SaveOptions opt){
 		// Save the project and all of its subprojects
 		final List<Project> projects=new ArrayList<>();
-		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Closure() {
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() {
 			boolean dirty=false;
-			public void execute(Object arg0) {
+			public void accept(Object arg0) {
 				Node n=(Node)arg0;
 				Object impl = n.getImpl();
 				if (impl instanceof Project){
@@ -462,15 +461,14 @@ public class ProjectFactory {
 		if (projects.size()>0){
 			Session session=SessionFactory.getInstance().getSession(opt.isLocal());
 			final SaveOptions o=(SaveOptions)opt.clone();
-			o.setPostSaving(new Closure() {
-				public void execute(Object obj) {
+			o.setPostSaving(new Consumer<Object>() { public void accept(Object obj) {
 					Project p = (Project)obj;
 					if (!opt.isRecoverySnapshot()) {
 						p.setAllTasksAsUnchangedFromPersisted(true);
 						p.validateNewDistributionMap();
 						portfolio.handleExternalTasks(p,false, true); 		// external link handling
 					}
-					if (opt.getPostSaving()!=null) opt.getPostSaving().execute(obj); //id, combobox update
+					if (opt.getPostSaving()!=null) opt.getPostSaving().accept(obj); //id, combobox update
 				}
 			});
 			Job job=session.getSaveProjectJob(projects,o);
@@ -489,8 +487,7 @@ public class ProjectFactory {
 	public Job getCloseProjectsOnServerJob(Project project){
 		// Save the project and all of its subprojects
 		final List<Project> projects=new ArrayList<>();
-		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Closure() {
-			public void execute(Object arg0) {
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() { public void accept(Object arg0) {
 				Object impl = ((Node)arg0).getImpl();
 				if (impl instanceof Project){
 					projects.add((Project) impl);
@@ -593,8 +590,7 @@ public class ProjectFactory {
 
 		final ArrayList toRemove = new ArrayList();
 		final ArrayList projects = new ArrayList();
-		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Closure() {
-			public void execute(Object arg0) {
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() { public void accept(Object arg0) {
 				Node node = (Node)arg0;
 				Object impl = node.getImpl();
 				if (!(impl instanceof Project))
@@ -675,8 +671,7 @@ public class ProjectFactory {
 	private Set<Long> collectProjectBranchIds(final Project project) {
 		final Set<Long> ids = new HashSet<>();
 		ids.add(Long.valueOf(project.getUniqueId()));
-		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, new Closure() {
-			public void execute(Object value) {
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, new Consumer<Object>() { public void accept(Object value) {
 				Node node = (Node) value;
 				if (node.getImpl() instanceof Project descendant)
 					ids.add(Long.valueOf(descendant.getUniqueId()));

@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.transform.transformer;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.grouping.core.transform.CommonTransform;
 
@@ -70,7 +71,7 @@ public abstract class NodeTransformer extends CommonTransform{
     public void setShowEndEmptyLines(boolean showEndEmptyLines){}
     public boolean isShowSummary(){return false;}
     public void setShowSummary(boolean showSummary){}
-    public void setRedefinitionCallBack(Closure callback){}
+    public void setRedefinitionCallBack(Consumer<Object> callback){}
     public boolean isPreserveHierarchy() {return false;}
 	public boolean isShowAssignments() {return true;}
 	public boolean isShowEmptySummaries()  {return true;}

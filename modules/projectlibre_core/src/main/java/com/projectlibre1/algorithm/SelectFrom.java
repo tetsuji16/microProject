@@ -56,12 +56,11 @@
 package com.projectlibre1.algorithm;
 
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
-import org.apache.commons.collections.functors.ChainedClosure;
 import org.apache.commons.collections.functors.FalsePredicate;
 import org.apache.commons.collections.functors.TruePredicate;
 
@@ -76,7 +75,7 @@ public class SelectFrom implements HasStartAndEnd {
 	boolean finished = false;
 	private IntervalGenerator generator = null;	
 	boolean mustProcessAll = false;
-	Closure fieldVisitors = null;
+	Consumer<Object> fieldVisitors = null;
 	CalculationVisitor[] fieldVisitorArray = null;
 	Predicate wherePredicate = TruePredicate.INSTANCE;
 	
@@ -122,7 +121,8 @@ public class SelectFrom implements HasStartAndEnd {
 	
 	public SelectFrom select(CalculationVisitor[] fieldVisitorArray) {
 		this.fieldVisitorArray = fieldVisitorArray;
-		this.fieldVisitors = new ChainedClosure(fieldVisitorArray);
+		this.fieldVisitors = (fieldVisitorArray == null) ? null
+				: obj -> { for (CalculationVisitor v : fieldVisitorArray) v.accept(obj); };
 		return this;
 	}
 	
@@ -242,7 +242,7 @@ public class SelectFrom implements HasStartAndEnd {
 					for (int i = 0; i < fieldVisitorArray.length; i++) {
 						// if we are in the calculation range, or if the functor is cumulative
 						if (whereConditionMet || fieldVisitorArray[i].isCumulative()) {
-							fieldVisitorArray[i].execute(this);
+							fieldVisitorArray[i].accept(this);
 						}
 					}
 				}

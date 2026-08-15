@@ -54,11 +54,14 @@
  * logo it must direct them back to http://www.projectlibre.com. 
  *******************************************************************************/
 package com.projectlibre1.pm.task;
+
+import com.projectlibre1.util.DataUtils;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Date;
 import java.util.EventListener;
@@ -76,7 +79,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.EventListenerList;
 import javax.swing.undo.UndoableEditSupport;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 
@@ -526,7 +528,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
     }
 
 	public void accept(NodeVisitor visitor) {
-		visitor.execute(this);
+		visitor.accept(this);
 	}
 
 	public Class getType() throws NodeException {
@@ -852,7 +854,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public void saveCurrentToSnapshot(Object snapshotId, boolean entireProject, List selection, boolean undo) {
 		if (entireProject) forTasks(new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
-		else CollectionUtils.forAllDo(selection, new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
+		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
 
 		fireSnapshotBaselineChanged(snapshotId, true);
 
@@ -886,7 +888,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		final Collection snapshotDetails = undo ? collectSnapshotDetails(snapshotId, i, foundSnapshot) : null;
 
 		if (entireProject) forTasks(new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
-		else CollectionUtils.forAllDo(selection, new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
+		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
 		fireSnapshotBaselineChanged(snapshotId, false);
 
 		if (foundSnapshot[0]){
@@ -985,7 +987,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		}
 	}
 
-	public void forEachWorkingInterval(Closure visitor, boolean mergeWorking, WorkCalendar workCalendar) {
+	public void forEachWorkingInterval(Consumer<Object> visitor, boolean mergeWorking, WorkCalendar workCalendar) {
 		Iterator i = tasks.iterator();
 		while (i.hasNext()) {
 			((Task)i.next()).forEachWorkingInterval(visitor,mergeWorking, workCalendar);
@@ -1264,8 +1266,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			final Task _newParentTask = newParentTask;
 			final Object eventSource = e.getSource();
 
-			taskOutlines.getDefaultOutline().getHierarchy().visitAll(newParentNode, new Closure() {
-				public void execute(Object arg) {
+			taskOutlines.getDefaultOutline().getHierarchy().visitAll(newParentNode, new Consumer<Object>() { public void accept(Object arg) {
 					Node node=(Node)arg;
 					if (!(node.getImpl() instanceof Task)) return;
 					Task task = (Task) node.getImpl();
@@ -1479,9 +1480,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		}
 	}
 	public void setAllTasksAsUnchangedFromPersisted(boolean justSaved) {
-		getTaskOutline().getHierarchy().visitAll(new Closure(){
+		getTaskOutline().getHierarchy().visitAll(new Consumer<Object>(){
 			int id=1;
-			public void execute(Object o) {
+			public void accept(Object o) {
 				Node node=(Node)o;
 				if (node.getImpl() instanceof NormalTask){
 					NormalTask task=(NormalTask)node.getImpl();
@@ -2356,9 +2357,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		this.fieldArray = fieldArray;
 	}
 
-	public void forTasks(Closure c){
+	public void forTasks(Consumer<Object> c){
 		for (Iterator i=getTaskOutlineIterator();i.hasNext();){
-			c.execute(i.next());
+			c.accept(i.next());
 		}
 	}
 

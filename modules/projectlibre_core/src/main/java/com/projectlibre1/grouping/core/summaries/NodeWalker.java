@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.summaries;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.field.Field;
 import com.projectlibre1.field.FieldContext;
@@ -67,10 +68,10 @@ import com.projectlibre1.grouping.core.model.WalkersNodeModel;
  */
 public abstract class NodeWalker extends SummaryVisitor {
 	protected SummaryVisitor visitor;
-	protected Closure closure;
+	protected Consumer<Object> closure;
 	protected WalkersNodeModel nodeModel;
 	private Node node = null;
-	protected NodeWalker(Closure closure) {
+	protected NodeWalker(Consumer<Object> closure) {
 		this.closure = closure;
 		if (closure instanceof SummaryVisitor)
 			this.visitor = (SummaryVisitor)closure;
@@ -85,7 +86,7 @@ public abstract class NodeWalker extends SummaryVisitor {
 	}
 
 	public Object getSummary() {
-		execute(node);
+		accept(node);
 		return visitor.getSummary();
 	}
 

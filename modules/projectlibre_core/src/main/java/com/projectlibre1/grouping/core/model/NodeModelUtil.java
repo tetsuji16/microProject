@@ -56,13 +56,13 @@
 package com.projectlibre1.grouping.core.model;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.grouping.core.hierarchy.AbstractMutableNodeHierarchy;
@@ -74,10 +74,10 @@ import com.projectlibre1.pm.task.Task;
 
 public class NodeModelUtil {
 	private static final Logger logger = Logger.getLogger(NodeModelUtil.class.getName());
-	static class NonAssignmentEnumerator implements Closure {
+	static class NonAssignmentEnumerator implements Consumer<Object> {
 		int count = 0;
 
-		public void execute(Object node) {
+		public void accept(Object node) {
 			if (node == null)
 				return;
 			Object impl = ((Node) node).getImpl();

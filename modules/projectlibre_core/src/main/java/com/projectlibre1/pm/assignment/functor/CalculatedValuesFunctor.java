@@ -80,10 +80,10 @@ public class CalculatedValuesFunctor extends AssignmentFieldFunctor {
 			mustExecuteChild = true;
 	}
 
-	public void execute(Object object) {
+	public void accept(Object object) {
 		if (mustExecuteChild) {
 			child.reset();
-			child.execute(object);
+			child.accept(object);
 		}
 
 		HasStartAndEnd interval = (HasStartAndEnd)object;

@@ -70,7 +70,7 @@ public class ZeroFunctor extends AssignmentFieldFunctor {
 		super(null,null, null);
 	}
 
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 	}
 	private static ZeroFunctor instance = null;		
 	public static ZeroFunctor getInstance() {

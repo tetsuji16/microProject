@@ -55,14 +55,15 @@
  *******************************************************************************/
 package com.projectlibre1.command;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 import com.projectlibre1.document.Document;
 
 /**
  * Base class for commands - could be used with undo in the future
  */
-public abstract class Command implements Closure {
+public abstract class Command implements Consumer<Object> {
 	private String text;
 	private Document document;
 	

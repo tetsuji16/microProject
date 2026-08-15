@@ -54,10 +54,12 @@
  * logo it must direct them back to http://www.projectlibre.com. 
  *******************************************************************************/
 package com.projectlibre1.functor;
+
+import com.projectlibre1.util.DataUtils;
 import java.text.MessageFormat;
 import java.util.Collection;
+import java.util.function.Consumer;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Transformer;
 import org.apache.commons.collections.functors.StringValueTransformer;
@@ -66,7 +68,7 @@ import com.projectlibre1.configuration.Settings;
 /**
  *
  */
-public class StringList implements Closure {
+public class StringList implements Consumer<Object> {
 	private StringBuilder buffer= new StringBuilder();
 	private String separator = Settings.LIST_SEPARATOR;
 	private Transformer transformer = null;
@@ -86,7 +88,7 @@ public class StringList implements Closure {
 		this.separator = separator;
 	}
 	
-	public void execute(Object object) {
+	public void accept(Object object) {
 		if (object != null) {
 			if (buffer.length() > 0)
 				buffer.append(separator);
@@ -108,13 +110,13 @@ public class StringList implements Closure {
 	public static String commaSeparatedList(Collection collection) {
 		StringList l = getInstance(StringValueTransformer.INSTANCE);
 		l.setSeparator(",");
-		CollectionUtils.forAllDo(collection,l);
+		DataUtils.forAllDo(collection.iterator(), l);
 		return l.toString();
 	}
 	public static String brSeparatedList(Collection collection) {
 		StringList l = getInstance(StringValueTransformer.INSTANCE);
 		l.setSeparator("<br>");
-		CollectionUtils.forAllDo(collection,l);
+		DataUtils.forAllDo(collection.iterator(), l);
 		return l.toString();
 	}
 
@@ -128,13 +130,13 @@ public class StringList implements Closure {
 
 	public static String list(Collection collection, Transformer transformer) {
 		StringList l = getInstance(transformer);
-		CollectionUtils.forAllDo(collection,l);
+		DataUtils.forAllDo(collection.iterator(), l);
 		return l.toString();
 	}	
 	public static String list(Collection collection, String separator, Transformer transformer) {
 		StringList l = getInstance(transformer);
 		l.setSeparator(separator);
-		CollectionUtils.forAllDo(collection,l);
+		DataUtils.forAllDo(collection.iterator(), l);
 		return l.toString();
 	}	
 	
@@ -151,7 +153,7 @@ public class StringList implements Closure {
 	public static String rows(java.util.Collection collection) {
 		StringList l = getInstance();
 		l.setSeparator("\n");
-		CollectionUtils.forAllDo(collection,l);
+		DataUtils.forAllDo(collection.iterator(), l);
 		return l.toString();
 	}
 

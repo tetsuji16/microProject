@@ -62,12 +62,12 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
 
 import com.projectlibre1.algorithm.CollectionIntervalGenerator;
@@ -502,7 +502,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 
-	public Closure forResource(Closure visitor) {
+	public Consumer<Object> forResource(Consumer<Object> visitor) {
 		return new ObjectVisitor(visitor) {
 			protected final Object getObject(Object caller) {
 				return ((Assignment)caller).getResource();
@@ -510,7 +510,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		};
 	}
 
-	public Closure forTask(Closure visitor) {
+	public Consumer<Object> forTask(Consumer<Object> visitor) {
 		return new ObjectVisitor(visitor) {
 			protected final Object getObject(Object caller) {
 				return ((Assignment)caller).getTask();
@@ -741,7 +741,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return dataFunctor.getValue();
 	}
 
-//	public void forEach(Object type, Closure actionVisitor) {
+//	public void forEach(Object type, Consumer<Object> actionVisitor) {
 //		SelectFrom clause = SelectFrom.getInstance();
 //		AssignmentFieldFunctor dataFunctor = getDataSelect(type,clause,false);
 //		Query.getInstance().selectFrom(clause)
@@ -764,7 +764,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
  * @param mergeWorking : if true, then matching occurs if the periods hava non-zero work, otherwise the work
  * must be an exact match.
  */
-	public void forEachWorkingInterval(Closure visitor, boolean mergeWorking, WorkCalendar workCalendar) {
+	public void forEachWorkingInterval(Consumer<Object> visitor, boolean mergeWorking, WorkCalendar workCalendar) {
 		Comparator comparator = (mergeWorking ? null : WorkComparator.getInstance()); 	// if a value of null is used , then the bars will be grouped based on time only
 		Merge merge =  Merge.getInstance(visitor, comparator);
 		Query.getInstance().groupBy(contourGeneratorInstance(WORK))

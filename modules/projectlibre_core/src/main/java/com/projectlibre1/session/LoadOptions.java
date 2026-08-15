@@ -55,9 +55,10 @@
  *******************************************************************************/
 package com.projectlibre1.session;
 
+import java.util.function.Consumer;
+
 import java.io.InputStream;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.exchange.ResourceMappingForm;
 
@@ -71,7 +72,7 @@ public class LoadOptions {
 	protected String importer;
 	protected boolean openAs;
 	protected ResourceMappingForm resourceMapping;
-	protected Closure endSwingClosure;
+	protected Consumer<Object> endSwingClosure;
 	protected boolean collaborationEnabled;
 	protected String collaborationUserKey;
 	protected String sidecarFileName;
@@ -124,10 +125,10 @@ public class LoadOptions {
 	public void setOpenAs(boolean openAs) {
 		this.openAs = openAs;
 	}
-	public Closure getEndSwingClosure() {
+	public Consumer<Object> getEndSwingClosure() {
 		return endSwingClosure;
 	}
-	public void setEndSwingClosure(Closure endSwingClosure) {
+	public void setEndSwingClosure(Consumer<Object> endSwingClosure) {
 		this.endSwingClosure = endSwingClosure;
 	}
 	public InputStream getFileInputStream() {

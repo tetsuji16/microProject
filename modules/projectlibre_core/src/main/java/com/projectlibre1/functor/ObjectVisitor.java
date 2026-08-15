@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.functor;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 import org.apache.commons.collections.Predicate;
 
 /**
@@ -65,19 +66,19 @@ public abstract class ObjectVisitor extends ClosureVisitor {
 	/**
 	 * 
 	 */
-	public ObjectVisitor(Closure visitor, Predicate filter) {
+	public ObjectVisitor(Consumer<Object> visitor, Predicate filter) {
 		super(visitor,filter);
 	}
 
-	public ObjectVisitor(Closure visitor) {
+	public ObjectVisitor(Consumer<Object> visitor) {
 		super(visitor);
 	}
 	
 	protected abstract Object getObject(Object caller);
 	
-	public final void execute(Object arg0) {
+	public final void accept(Object arg0) {
 		if (filter.evaluate(arg0))
-			visitor.execute(getObject(arg0));
+			visitor.accept(getObject(arg0));
 	}
 
 }

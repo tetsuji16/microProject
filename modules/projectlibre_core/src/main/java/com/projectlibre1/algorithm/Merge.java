@@ -56,42 +56,42 @@
 package com.projectlibre1.algorithm;
 
 import java.util.Comparator;
+import java.util.function.Consumer;
 import java.util.Date;
 
-import org.apache.commons.collections.Closure;
 
 /**
  * Merge is a functor which groups time intervals together and calls a vistor object on the resulting merged intervals
  * You can specify a comparator as well to determine whether two intervals are mergeable
  */
-public class Merge implements Closure {
+public class Merge implements Consumer<Object> {
 	boolean started = false;
 	long currentStart;
 	long currentEnd;
 	Object currentObject = null;
-	Closure callBack;
+	Consumer<Object> callBack;
 	Comparator comparator = null;
 //	boolean ignoreZeroValueIntervals = false;
 	
-	public static Merge getInstance(Closure callBack) {
+	public static Merge getInstance(Consumer<Object> callBack) {
 		return new Merge(callBack);
 	}
 
-	public static Merge getInstance(Closure callBack, Comparator comparator) {
+	public static Merge getInstance(Consumer<Object> callBack, Comparator comparator) {
 		return new Merge(callBack, comparator);
 	}
 
-	private Merge(Closure callBack) {
+	private Merge(Consumer<Object> callBack) {
 		this.callBack = callBack;
 		initializeDates();
 	}
 	
-	private Merge(Closure callBack, Comparator comparator) {
+	private Merge(Consumer<Object> callBack, Comparator comparator) {
 		this(callBack);
 		this.comparator = comparator;
 	}
 	
-	public void setCallBack(Closure callBack) {
+	public void setCallBack(Consumer<Object> callBack) {
 		this.callBack = callBack;
 	}
 	
@@ -108,7 +108,7 @@ public class Merge implements Closure {
 			// System.out.println("Merge.treatCurrentInterval currentObject is null - using 0.0 for value");
 		}
 //		if (!ignoreZeroValueIntervals || value != 0.0D)
-		callBack.execute(IntervalValue.getInstance(currentStart, currentEnd, value)); // finish previous
+		callBack.accept(IntervalValue.getInstance(currentStart, currentEnd, value)); // finish previous
 		started = false;
 		initializeDates();
 	}
@@ -116,7 +116,7 @@ public class Merge implements Closure {
 	 * Execution of the functor.
 	 * This takes care of merging and calling the visitor.
 	 */
-	public void execute(Object obj) {
+	public void accept(Object obj) {
 		Query query = (Query)obj;
 		IntervalGenerator generator = query.getGroupByGenerator();
 		if (generator.isCurrentActive()) {

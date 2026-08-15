@@ -69,7 +69,7 @@ public class FixedCostFunctor extends AssignmentFieldFunctor {
 	private FixedCostFunctor(Assignment assignment) {
 		super(assignment,assignment.getEffectiveWorkCalendar(), null);
 	}
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd)object;		
 		value = assignment.getTask().fixedCost(interval.getStart(),interval.getEnd());
 	}

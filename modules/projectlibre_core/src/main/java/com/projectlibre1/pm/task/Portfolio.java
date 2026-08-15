@@ -56,6 +56,7 @@
 package com.projectlibre1.pm.task;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -65,7 +66,6 @@ import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
 
 import com.projectlibre1.document.Document;
@@ -193,8 +193,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 
 	void handleExternalTasks(final Project project, final boolean opening, final boolean saving) {
 		// external link handling
-		forProjects(new Closure() {
-			public void execute(Object arg0) {
+		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
 				Project p = (Project)arg0;
 				if (p != project)
 					p.handleExternalTasks(project, opening, saving);
@@ -301,19 +300,18 @@ public class Portfolio implements Document, NodeModelDataFactory {
 		return nodeModel;
 	}
 
-	public void forProjects(Closure c){
+	public void forProjects(Consumer<Object> c){
     	Object impl;
     	for (Iterator i=getNodeModel().iterator();i.hasNext();){
     		impl=((Node)i.next()).getImpl();
     		if (!(impl instanceof Project)) continue;
-    		c.execute(impl);
+    		c.accept(impl);
     	}
 	}
 
 	public Collection getDirtyProjectList() {
 		final ArrayList list = new ArrayList();
-		forProjects(new Closure() {
-			public void execute(Object arg0) {
+		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
 				if (((Project)arg0).needsSaving())
 					list.add(arg0);
 			}});
@@ -322,8 +320,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 
 	public Collection getWritableProjectList() {
 		final ArrayList list = new ArrayList();
-		forProjects(new Closure() {
-			public void execute(Object arg0) {
+		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
 				if (!((Project)arg0).isReadOnly())
 					list.add(arg0);
 			}});
@@ -368,8 +365,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 
 	public void setAllChildrenDirty(boolean dirty) {
 		setGroupDirty(dirty);
-		forProjects(new Closure() {
-			public void execute(Object arg0) {
+		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
 				((Project) arg0).setGroupDirty(dirty);
 			}
 		});
@@ -379,8 +375,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 		if (nodeModel == null)
 			return false;
 		final boolean[] result = new boolean[] {false};
-		forProjects(new Closure() {
-			public void execute(Object arg0) {
+		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
 				result[0] |= ((Project) arg0).containsAssignments();
 			}
 		});

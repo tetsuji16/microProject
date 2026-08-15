@@ -55,26 +55,27 @@
  *******************************************************************************/
 package com.projectlibre1.pm.assignment.functor;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 /**
  * 
  */
-public class PrintValueFunctor implements Closure{
-	Closure child;
+public class PrintValueFunctor implements Consumer<Object>{
+	Consumer<Object> child;
 	/**
 	 * 
 	 */
-	private PrintValueFunctor(Closure child) {
+	private PrintValueFunctor(Consumer<Object> child) {
 		super();
 		this.child = child;
 	}
 
-	public void execute(Object object) {
-		child.execute(object);
+	public void accept(Object object) {
+		child.accept(object);
 	}
 
-	public static PrintValueFunctor getInstance(Closure child) {
+	public static PrintValueFunctor getInstance(Consumer<Object> child) {
 		return new PrintValueFunctor(child);
 	}
 

@@ -55,9 +55,11 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.summaries;
 
-import java.util.Collection;
+import com.projectlibre1.util.DataUtils;
 
-import org.apache.commons.collections.Closure;
+import java.util.Collection;
+import java.util.function.Consumer;
+
 import org.apache.commons.collections.CollectionUtils;
 
 import com.projectlibre1.grouping.core.Node;
@@ -69,18 +71,18 @@ import com.projectlibre1.pm.task.Project;
  */
 public class DeepChildWalker extends NodeWalker {
 	boolean parentsOnlyIfProject = false;
-	public DeepChildWalker(Closure closure, boolean parentsOnlyIfProject) {
+	public DeepChildWalker(Consumer<Object> closure, boolean parentsOnlyIfProject) {
 		super(closure);
 		this.parentsOnlyIfProject = parentsOnlyIfProject;
 	}
 
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		Node node = (Node) arg0;
 		Collection nodeList = nodeModel.getChildren(node);
-		closure.execute(node);
+		closure.accept(node);
 		
 		if (nodeList != null && (!parentsOnlyIfProject  || !(node.getImpl() instanceof Project)))
-			CollectionUtils.forAllDo(nodeList, this);
+			DataUtils.forAllDo(nodeList.iterator(), this);
 	}
 
 	/**
@@ -89,10 +91,10 @@ public class DeepChildWalker extends NodeWalker {
 	 * @param node
 	 * @param closure
 	 */
-	public static void recursivelyTreatBranch(NodeModel nodeModel, Node node, Closure closure) {
+	public static void recursivelyTreatBranch(NodeModel nodeModel, Node node, Consumer<Object> closure) {
 		DeepChildWalker walker = new DeepChildWalker(closure,false);
 		walker.setNodeModel(nodeModel);
-		walker.execute(node);
+		walker.accept(node);
 	}
 
 	/**
@@ -101,10 +103,10 @@ public class DeepChildWalker extends NodeWalker {
 	 * @param node
 	 * @param closure
 	 */
-	public static void recursivelyTreatBranch(NodeModel nodeModel, Object impl, Closure closure) {
+	public static void recursivelyTreatBranch(NodeModel nodeModel, Object impl, Consumer<Object> closure) {
 		DeepChildWalker walker = new DeepChildWalker(closure,false);
 		walker.setNodeModel(nodeModel);
-		walker.execute(nodeModel.search(impl));
+		walker.accept(nodeModel.search(impl));
 	}
 	
 }

@@ -55,7 +55,10 @@
  *******************************************************************************/
 package com.projectlibre1.pm.task;
 
+import com.projectlibre1.util.DataUtils;
+
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -67,7 +70,6 @@ import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 import org.apache.commons.collections.functors.TruePredicate;
@@ -317,14 +319,14 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		this.project = project;
 	}
 
-	public static Closure forProject(Closure visitor) {
+	public static Consumer<Object> forProject(Consumer<Object> visitor) {
 		return new ObjectVisitor(visitor) {
 			protected final Object getObject(Object caller) {
 				return ((Task)caller).getProject();
 			}
 		};
 	}
-		public static Closure forParent(Closure visitor) {
+		public static Consumer<Object> forParent(Consumer<Object> visitor) {
 		return new ObjectVisitor(visitor) {
 			protected final Object getObject(Object caller) {
 				return ((Task)caller).getProject().getTaskOutline().getHierarchy().getParent((Node)caller);
@@ -333,7 +335,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 
 
-	public static Closure forAllChildren(Closure visitor, Predicate filter) {
+	public static Consumer<Object> forAllChildren(Consumer<Object> visitor, Predicate filter) {
 		return new CollectionVisitor(visitor,filter) {
 			protected Collection getCollection(Object caller) {
 				return ((Task)caller).getProject().getTaskOutline().getHierarchy().getChildren((Node)caller);
@@ -341,7 +343,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		};
 	}
 
-	public static Closure forAllChildren(Closure visitor) {
+	public static Consumer<Object> forAllChildren(Consumer<Object> visitor) {
 		return forAllChildren(visitor, TruePredicate.INSTANCE);
 	}
 
@@ -1098,7 +1100,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 				return 0;  // better this than crashing
 			}
 		} else {
-			CollectionUtils.forAllDo(((NormalTask)this).getAssignments(),divisionClosure);
+			DataUtils.forAllDo(((NormalTask)this).getAssignments().iterator(), divisionClosure);
 		}
 		double val = divisionClosure.getValue();
 		if (val >=COMPLETE_THRESHOLD) // adjust for rounding
@@ -2185,7 +2187,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return del == null ? "" : del.getName();
 	}
 
-	public void forSnapshotsAssignments(Closure c,boolean onlyCurrent){
+	public void forSnapshotsAssignments(Consumer<Object> c,boolean onlyCurrent){
 		if (onlyCurrent) forSnapshotsAssignments(c,-1);
 		else{
 		    for (int s=0;s<Settings.numBaselines();s++){
@@ -2194,7 +2196,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		}
 	}
 
-	public void forSnapshotsAssignments(Closure c,int s){
+	public void forSnapshotsAssignments(Consumer<Object> c,int s){
 		TaskSnapshot snapshot;
 		if (s==-1) snapshot=(TaskSnapshot)getCurrentSnapshot();
 		else snapshot=(TaskSnapshot)getSnapshot(Integer.valueOf(s));
@@ -2203,13 +2205,13 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
         if (snapshotAssignments.size()>0){
             for (Iterator j=snapshotAssignments.iterator();j.hasNext();){
                 Assignment assignment=(Assignment)j.next();
-                c.execute(assignment);
+                c.accept(assignment);
             }
         }
 	}
-	public void forSnapshots(Closure c){
+	public void forSnapshots(Consumer<Object> c){
 	}
-	public void forSnapshots(Closure c,int s){
+	public void forSnapshots(Consumer<Object> c,int s){
 	}
 
 /**

@@ -56,11 +56,11 @@
 package com.projectlibre1.grouping.core.transform.filtering;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.collections.Predicate;
 
@@ -154,7 +154,7 @@ public abstract class NodeFilter extends CommonTransform implements Predicate{
 		}
 		return filtered.toArray();
 	}
-    public void setRedefinitionCallBack(Closure callback){}
+    public void setRedefinitionCallBack(Consumer<Object> callback){}
     
     public void reset(){} //for state filters
 	

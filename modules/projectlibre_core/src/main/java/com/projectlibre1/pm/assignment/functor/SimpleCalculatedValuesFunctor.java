@@ -80,7 +80,7 @@ public class SimpleCalculatedValuesFunctor implements CalculationVisitor, Double
 		this.generator = generator;
 	}
 
-	public void execute(Object object) {
+	public void accept(Object object) {
 		value += ((DoubleValue)object).getValue();
 
 		HasStartAndEnd interval = (HasStartAndEnd)object;

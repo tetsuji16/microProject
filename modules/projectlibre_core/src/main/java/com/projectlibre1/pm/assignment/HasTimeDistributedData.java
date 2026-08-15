@@ -56,8 +56,8 @@
 package com.projectlibre1.pm.assignment;
 
 import java.util.Collection;
+import java.util.function.Consumer;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.algorithm.ReverseQuery;
 import com.projectlibre1.pm.calendar.WorkCalendar;
@@ -70,7 +70,7 @@ public interface HasTimeDistributedData extends TimeDistributedConstants {
 	public static final double NO_VALUE_DOUBLE = 0.0D;
 	
 	public void buildReverseQuery(ReverseQuery reverseQuery);	
-	public void forEachWorkingInterval(Closure visitor, boolean mergeWorking, WorkCalendar workCalendar);
+	public void forEachWorkingInterval(Consumer<Object> visitor, boolean mergeWorking, WorkCalendar workCalendar);
 	public double cost(long start, long end);
 	public double actualCost(long start, long end);
 	public double actualFixedCost(long start, long end);

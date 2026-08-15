@@ -56,6 +56,7 @@
 package com.projectlibre1.grouping.core.transform.sorting;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -64,7 +65,6 @@ import java.util.ListIterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.impl.GenericObjectPool;
 
@@ -200,7 +200,7 @@ private class ListFactory extends BasePoolableObjectFactory {
 
 
 
-    public void setRedefinitionCallBack(Closure callback){}
+    public void setRedefinitionCallBack(Consumer<Object> callback){}
 	
     
     //used by label formula

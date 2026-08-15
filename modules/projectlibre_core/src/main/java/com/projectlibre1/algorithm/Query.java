@@ -56,11 +56,11 @@
 package com.projectlibre1.algorithm;
 
 import java.util.Iterator;
+import java.util.function.Consumer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Factory;
 
 import com.projectlibre1.pm.time.HasStartAndEnd;
@@ -76,7 +76,7 @@ public class Query implements Factory, HasStartAndEnd {
 
 	private List<SelectFrom> selectFromClauses = new LinkedList<>();
 	private IntervalGenerator groupByGenerator = null;
-	private Closure actionVisitor = null;
+	private Consumer<Object> actionVisitor = null;
 	private List<IntervalGenerator> executedIntervals = new ArrayList<>();
 
 	/**
@@ -107,7 +107,7 @@ public class Query implements Factory, HasStartAndEnd {
 		return this;
 	}
 	
-	public Query action(Closure actionVisitor) {
+	public Query action(Consumer<Object> actionVisitor) {
 		this.actionVisitor = actionVisitor;
 		return this;
 	}
@@ -147,7 +147,7 @@ public class Query implements Factory, HasStartAndEnd {
 			}
 			
 			if (start != 0L && actionVisitor != null)
-				actionVisitor.execute(this);
+				actionVisitor.accept(this);
 			
 
 			// in case where there is no specified group by, should stop when no more things to treat
@@ -186,7 +186,7 @@ public class Query implements Factory, HasStartAndEnd {
 	/**
 	 * @return Returns the actionVisitor.
 	 */
-	public Closure getActionVisitor() {
+	public Consumer<Object> getActionVisitor() {
 		return actionVisitor;
 	}
 

@@ -58,6 +58,7 @@ package com.projectlibre1.job;
 import java.awt.Component;
 import java.awt.Frame;
 import java.util.Collections;
+import java.util.function.Consumer;
 import java.util.EventListener;
 import java.util.HashSet;
 import java.util.Set;
@@ -67,7 +68,6 @@ import java.util.logging.Logger;
 import javax.swing.ProgressMonitor;
 import javax.swing.event.EventListenerList;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.util.Environment;
 
@@ -176,10 +176,10 @@ public class JobQueue extends ThreadGroup{
  	protected Job criticalSectionOwner;
 
  	//for free jobs (queued==false)
-	public boolean executeCriticalSectionClosure(Job job,Closure c,Object arg) {
+	public boolean executeCriticalSectionClosure(Job job,Consumer<Object> c,Object arg) {
 		 synchronized (criticalSectionMutex) {
 			 if (criticalSectionOwner==job){
-				 c.execute(arg);
+				 c.accept(arg);
 				 return true;
 			 }else{
 			 	 logger.fine(job.getName() + " can execute, lost critical section");

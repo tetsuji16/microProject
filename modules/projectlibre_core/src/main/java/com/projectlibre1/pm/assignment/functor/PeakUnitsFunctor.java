@@ -70,7 +70,7 @@ public class PeakUnitsFunctor extends AssignmentFieldFunctor {
 	private PeakUnitsFunctor(Assignment assignment, WorkCalendar workCalendar, ContourBucketIntervalGenerator contourBucketIntervalGenerator) {
 		super(assignment,workCalendar, contourBucketIntervalGenerator);
 	}
-	public void execute(Object object) {
+	public void accept(Object object) {
 		AbstractContourBucket bucket = (AbstractContourBucket) contourBucketIntervalGenerator.current();
 		if (bucket != null) {
 			value = Math.max(value,bucket.getEffectiveUnits(assignment.getUnits()));

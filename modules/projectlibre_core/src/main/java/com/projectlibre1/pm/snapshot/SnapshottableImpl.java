@@ -55,9 +55,10 @@
  *******************************************************************************/
 package com.projectlibre1.pm.snapshot;
 
+import java.util.function.Consumer;
+
 import java.io.Serializable;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.configuration.Settings;
 import com.projectlibre1.pm.task.Task;
@@ -102,23 +103,23 @@ public class SnapshottableImpl implements Snapshottable, Serializable {
 		snapshots[((Integer)snapshotId).intValue()] = null;
 	}
 	
-	public static class SaveCurrentToSnapshotClosure implements Closure {
+	public static class SaveCurrentToSnapshotClosure implements Consumer<Object> {
 		Object snapshotId;
 		public SaveCurrentToSnapshotClosure(Object snapshotId) {
 			this.snapshotId = snapshotId;
 		}
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			if (arg0 instanceof Snapshottable)
 				((Snapshottable) arg0).saveCurrentToSnapshot(snapshotId);
 		}
 	}
 
-	public static class ClearSnapshotClosure implements Closure {
+	public static class ClearSnapshotClosure implements Consumer<Object> {
 		Object snapshotId;
 		public ClearSnapshotClosure(Object snapshotId) {
 			this.snapshotId = snapshotId;
 		}
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			if (arg0 instanceof Snapshottable)			
 				((Snapshottable) arg0).clearSnapshot(snapshotId);
 		}

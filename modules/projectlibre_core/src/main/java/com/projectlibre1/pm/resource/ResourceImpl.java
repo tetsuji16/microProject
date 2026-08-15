@@ -60,13 +60,13 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
 
 import com.projectlibre1.algorithm.ReverseQuery;
@@ -206,7 +206,7 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 
 // Delegated methods
 
-	public static Closure forAllAssignments(Closure visitor) {
+	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor) {
 		return EnterpriseResource.forAllAssignments(visitor);
 	}
 	public double actualCost(long start, long end) {
@@ -319,7 +319,7 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	public Assignment findAssignment(Task task) {
 		return globalResource.findAssignment(task);
 	}
-	public void forEachWorkingInterval(Closure visitor, boolean mergeWorking,
+	public void forEachWorkingInterval(Consumer<Object> visitor, boolean mergeWorking,
 			WorkCalendar workCalendar) {
 		globalResource.forEachWorkingInterval(visitor, mergeWorking,
 				workCalendar);

@@ -55,7 +55,8 @@
  *******************************************************************************/
 package com.projectlibre1.functor;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 import org.apache.commons.collections.Predicate;
 import org.apache.commons.collections.functors.TruePredicate;
 
@@ -63,11 +64,11 @@ import org.apache.commons.collections.functors.TruePredicate;
 /**
  *
  */
-public abstract class ClosureVisitor implements Closure {
-	protected Closure visitor;
+public abstract class ClosureVisitor implements Consumer<Object> {
+	protected Consumer<Object> visitor;
 	protected Predicate filter;
 
-	public ClosureVisitor(Closure visitor, Predicate filter) {
+	public ClosureVisitor(Consumer<Object> visitor, Predicate filter) {
 		this.visitor = visitor;
 		this.filter = filter;
 	}
@@ -76,7 +77,7 @@ public abstract class ClosureVisitor implements Closure {
 	/**
 	 * 
 	 */
-	public ClosureVisitor(Closure visitor) {
+	public ClosureVisitor(Consumer<Object> visitor) {
 		this(visitor,TruePredicate.INSTANCE); //use TruePredicate for null object pattern
 	}
 	

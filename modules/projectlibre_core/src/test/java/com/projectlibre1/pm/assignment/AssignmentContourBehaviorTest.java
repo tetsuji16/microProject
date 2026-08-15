@@ -90,8 +90,8 @@ class AssignmentContourBehaviorTest {
 
 		ResourceAvailabilityFunctor functor = ResourceAvailabilityFunctor.getInstance(resource);
 		functor.initialize();
-		functor.execute(new MutableInterval(assignment.getStart(), split));
-		functor.execute(new MutableInterval(split, assignment.getEffectiveWorkCalendar().add(split, day, false)));
+		functor.accept(new MutableInterval(assignment.getStart(), split));
+		functor.accept(new MutableInterval(split, assignment.getEffectiveWorkCalendar().add(split, day, false)));
 
 		assertEquals((long) (1.5D * day), (long) functor.getValue());
 	}

@@ -55,13 +55,14 @@
  *******************************************************************************/
 package com.projectlibre1.algorithm;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 
 /**
  * An interface for functors called from within a SelectFrom as a field, or from the GroupBy
  */
-public interface CalculationVisitor extends Closure {
+public interface CalculationVisitor extends Consumer<Object> {
 	public void initialize();
 	public void reset();
 	public boolean isCumulative();

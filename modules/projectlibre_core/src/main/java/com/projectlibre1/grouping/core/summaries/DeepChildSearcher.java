@@ -55,9 +55,11 @@
  *******************************************************************************/
 package com.projectlibre1.grouping.core.summaries;
 
-import java.util.Collection;
+import com.projectlibre1.util.DataUtils;
 
-import org.apache.commons.collections.Closure;
+import java.util.Collection;
+import java.util.function.Consumer;
+
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 
@@ -70,13 +72,13 @@ import com.projectlibre1.pm.key.HasKey;
  */
 public class DeepChildSearcher extends NodeWalker {
 	FindClosure findClosure;
-	private static class FindClosure implements Closure {
+	private static class FindClosure implements Consumer<Object> {
 		Predicate condition;
 		Object result = null;
 		FindClosure(Predicate condition) {
 			this.condition = condition;
 		}
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			Node node = (Node) arg0;
 			Object impl = node.getImpl();
 			if (condition.evaluate(impl))
@@ -89,15 +91,15 @@ public class DeepChildSearcher extends NodeWalker {
 	}
 
 	
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		if (findClosure.result != null)
 			return;
 		Node node = (Node) arg0;
 		if (node != null)
-			closure.execute(node);
+			closure.accept(node);
 		Collection nodeList = nodeModel.getChildren(node);
 		if (nodeList != null)
-			CollectionUtils.forAllDo(nodeList, this);
+			DataUtils.forAllDo(nodeList.iterator(), this);
 	}
 
 	/**
@@ -110,7 +112,7 @@ public class DeepChildSearcher extends NodeWalker {
 		FindClosure f = new FindClosure(condition);
 		DeepChildSearcher walker = new DeepChildSearcher(f);
 		walker.setNodeModel(nodeModel);
-		walker.execute(null);
+		walker.accept(null);
 		return f.result;
 	}
 	

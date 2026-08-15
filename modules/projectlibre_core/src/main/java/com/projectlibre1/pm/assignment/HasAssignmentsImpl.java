@@ -60,12 +60,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.apache.commons.collections.Closure;
 import org.apache.commons.collections.Predicate;
 import org.apache.commons.collections.functors.TruePredicate;
 
@@ -267,24 +267,24 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		}
 	}
 
-	public static Closure forAllAssignments(Closure visitor, Predicate filter) {
+	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor, Predicate filter) {
 		return new CollectionVisitor(visitor,filter) {
 			protected final Collection getCollection(Object arg0) {
 				return ((HasAssignments)arg0).getAssignments();
 			}
 		};
 	}
-	public static Closure forAllAssignments(Closure visitor) {
+	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor) {
 		return forAllAssignments(visitor,TruePredicate.INSTANCE);
 	}
 
 
-	public void forEachInterval(Closure visitor, Object type, WorkCalendar workCalendar) {
+	public void forEachInterval(Consumer<Object> visitor, Object type, WorkCalendar workCalendar) {
 		IntervalVisitorCallback callback = new IntervalVisitorCallback();
 		callback.initialize(workCalendar, visitor, true);
 		collectIntervals(type, workCalendar, callback);
 	}
-	public void forEachWorkingInterval(final Closure visitor, boolean mergeWorking, WorkCalendar workCalendar) {
+	public void forEachWorkingInterval(final Consumer<Object> visitor, boolean mergeWorking, WorkCalendar workCalendar) {
 		IntervalVisitorCallback callback = new IntervalVisitorCallback();
 		callback.initialize(workCalendar,visitor,true);
 		collectIntervals(ACTUAL_WORK, workCalendar, callback);
@@ -311,7 +311,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		long barStart = 0;
 		WorkCalendar workCalendar;
 		MutableInterval interval = new MutableInterval(0,0);
-		Closure visitor;
+		Consumer<Object> visitor;
 		long previousEnd = 0;
 		private void executeVisitor(long start, long end) {
 			start = Math.max(start,previousEnd); // prevent overlap in case of multiple assignments that do not have same advancement
@@ -323,7 +323,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 
 			previousEnd = end;
 //System.out.println("bar " + new Date(start) + " " + new Date(end));
-			visitor.execute(interval);
+			visitor.accept(interval);
 			barStart = 0;
 		}
 		public void setWorkCalendar(WorkCalendar workCalendar) {
@@ -351,7 +351,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 			}
 		}
 
-		private void initialize(WorkCalendar workCalendar, Closure visitor, boolean firstTime) {
+		private void initialize(WorkCalendar workCalendar, Consumer<Object> visitor, boolean firstTime) {
 			if (firstTime)
 				previousEnd = 0;
 			barStart = 0;
@@ -442,14 +442,14 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	/**
 	 *
 	 */
-	private class AssignmentDurationSummer implements Closure {
+	private class AssignmentDurationSummer implements Consumer<Object> {
 		private long sum;
 		private WorkCalendar workCalendar;
 		AssignmentDurationSummer(WorkCalendar workCalendar) {
 			this.workCalendar =workCalendar;
 			sum = 0;
 		}
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			HasStartAndEnd interval = (HasStartAndEnd)arg0;
 			sum += workCalendar.compare(interval.getEnd(), interval.getStart(),false);
 		}

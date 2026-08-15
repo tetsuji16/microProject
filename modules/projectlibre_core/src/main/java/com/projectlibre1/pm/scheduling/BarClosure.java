@@ -55,22 +55,23 @@
  *******************************************************************************/
 package com.projectlibre1.pm.scheduling;
 
+import java.util.function.Consumer;
+
 import java.io.Serializable;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.functor.IntervalConsumer;
 import com.projectlibre1.pm.criticalpath.ScheduleWindow;
 import com.projectlibre1.pm.time.HasStartAndEnd;
 
 
-public class BarClosure implements Closure, Serializable, Cloneable {
+public class BarClosure implements Consumer<Object>, Serializable, Cloneable {
 	HasStartAndEnd bounds = null;
 	static final long serialVersionUID = 7866653353331L;
 		private IntervalConsumer consumer;
 		private Schedule schedule;
 		private long count;
-		public void execute(Object arg0) {
+		public void accept(Object arg0) {
 			HasStartAndEnd interval = (HasStartAndEnd)arg0;
 			long start = interval.getStart();
 			if (schedule instanceof ScheduleWindow && start == schedule.getResume() && ((ScheduleWindow)schedule).getSplitDuration() == 0)

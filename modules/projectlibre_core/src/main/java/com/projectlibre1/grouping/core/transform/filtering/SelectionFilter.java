@@ -56,9 +56,9 @@
 package com.projectlibre1.grouping.core.transform.filtering;
 
 import java.util.Collections;
+import java.util.function.Consumer;
 import java.util.List;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.grouping.core.Node;
 import com.projectlibre1.pm.assignment.Assignment;
@@ -70,7 +70,7 @@ import com.projectlibre1.pm.assignment.HasAssignmentsImpl;
  */
 public class SelectionFilter extends NodeFilter {
     protected boolean taskUsage;
-    protected Closure callback;
+    protected Consumer<Object> callback;
     protected List<?> implToShow = Collections.emptyList();
     protected List<?> selectedImpl = Collections.emptyList();
     public SelectionFilter(String arg){
@@ -83,7 +83,7 @@ public class SelectionFilter extends NodeFilter {
 			? this.selectedImpl
 			: HasAssignmentsImpl.extractOppositeList(this.selectedImpl, !taskSelection);
 		if (callback != null)
-			callback.execute(this);
+			callback.accept(this);
     }
     
     public boolean evaluate(Object o) {
@@ -98,7 +98,7 @@ public class SelectionFilter extends NodeFilter {
         }
         else return false;
     }
-    public void setRedefinitionCallBack(Closure callback){
+    public void setRedefinitionCallBack(Consumer<Object> callback){
         this.callback=callback;
     }
 

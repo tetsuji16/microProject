@@ -83,7 +83,7 @@ public class CostFunctor extends AssignmentFieldOvertimeFunctor {
 		this.fixedCostDate = fixedCostDate;
 		this.proratedCost = proratedCost;
 	}
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd)object;		
 		AbstractContourBucket bucket = (AbstractContourBucket) contourBucketIntervalGenerator.current();
 		

@@ -60,6 +60,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
@@ -69,7 +70,6 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.configuration.CircularDependencyException;
 import com.projectlibre1.grouping.core.Node;
@@ -602,9 +602,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 	public static ArrayList extractCalendars(NodeHierarchy hierarchy) {
 		final ArrayList list = new ArrayList();
-		hierarchy.visitAll(new Closure() {
-
-			public void execute(Object arg0) {
+		hierarchy.visitAll(new Consumer<Object>() { public void accept(Object arg0) {
 				if (arg0 != null) {
 					Object impl = ((Node)arg0).getImpl();
 					if (impl instanceof HasCalendar)

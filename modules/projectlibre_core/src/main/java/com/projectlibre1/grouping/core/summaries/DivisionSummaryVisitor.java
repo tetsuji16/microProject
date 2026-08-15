@@ -66,7 +66,7 @@ public abstract class DivisionSummaryVisitor extends NumberSummaryVisitor implem
 	public DivisionSummaryVisitor(boolean nodeBased) {
 		this.nodeBased = nodeBased;
 	}
-	public void execute(Object node) {
+	public void accept(Object node) {
 	    Object nodeImpl= nodeBased ? ((Node)node).getImpl() : node;
 		summary += getNumerator(nodeImpl);
 		denominator += getDenominator(nodeImpl);

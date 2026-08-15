@@ -55,12 +55,13 @@
  *******************************************************************************/
 package com.projectlibre1.functor;
 
-import org.apache.commons.collections.Closure;
+import java.util.function.Consumer;
+
 
 /**
  * A closure which holds a number
  */
-public abstract class NumberClosure extends Number implements Closure {
+public abstract class NumberClosure extends Number implements Consumer<Object> {
 	Number value;
 
 	public NumberClosure(long l) {

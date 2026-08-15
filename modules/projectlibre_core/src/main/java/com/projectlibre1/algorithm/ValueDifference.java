@@ -85,7 +85,7 @@ public class ValueDifference implements CalculationVisitor, DoubleValue {
 		value = 0.0;
 
 	}
-	public void execute(Object arg0) {
+	public void accept(Object arg0) {
 		value = first.getValue() - second.getValue();
 
 	}

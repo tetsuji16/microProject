@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.collections.Closure;
 import org.junit.jupiter.api.Test;
 
 import com.projectlibre1.options.CalendarOption;
@@ -85,8 +85,7 @@ class HasAssignmentsImplTest {
 		hasAssignments.addAssignment(firstAssignment(task));
 
 		List<long[]> intervals = new ArrayList<long[]>();
-		hasAssignments.forEachWorkingInterval(new Closure() {
-			public void execute(Object arg0) {
+		hasAssignments.forEachWorkingInterval(new Consumer<Object>() { public void accept(Object arg0) {
 				HasStartAndEnd interval = (HasStartAndEnd) arg0;
 				intervals.add(new long[] { interval.getStart(), interval.getEnd() });
 			}

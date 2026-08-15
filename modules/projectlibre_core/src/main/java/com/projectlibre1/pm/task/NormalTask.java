@@ -55,15 +55,17 @@
  *******************************************************************************/
 package com.projectlibre1.pm.task;
 
+import com.projectlibre1.util.DataUtils;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.algorithm.ReverseQuery;
 import com.projectlibre1.algorithm.TimeIteratorGenerator;
@@ -677,7 +679,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return ((TaskSnapshot) getCurrentSnapshot()).isReadOnlyEffortDriven(fieldContext);
 	}
 
-	public static Closure forAllAssignments(Closure visitor) {
+	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor) {
 		return new ObjectVisitor(visitor) {
 			protected Object getObject(Object arg0) {
 				return ((TaskSnapshot) ((Task) arg0).getCurrentSnapshot())
@@ -727,7 +729,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	}
 
-	public void forEachWorkingInterval(Closure visitor, boolean mergeWorking, WorkCalendar workCalendarToUse) {
+	public void forEachWorkingInterval(Consumer<Object> visitor, boolean mergeWorking, WorkCalendar workCalendarToUse) {
 		((TaskSnapshot) getCurrentSnapshot()).forEachWorkingInterval(visitor,
 				mergeWorking, workCalendarToUse);
 	}
@@ -884,7 +886,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	//				return ((Assignment)object).calcAll(Assignment.WORK);
 	//			}};
 	//
-	//		CollectionUtils.forAllDo(getAssignments(),sumFunctor);
+	//		DataUtils.forAllDo(getAssignments().iterator(), sumFunctor);
 	//		return (long) sumFunctor.getValue();
 	//	}
 
@@ -1584,7 +1586,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			long stop = getEffectiveWorkCalendar().add(getStart(), actualDuration, false);
 			DeepChildWalker.recursivelyTreatBranch(getProject().getTaskOutline(),
 					this, new NumberClosure(stop) {
-						public void execute(Object arg0) {
+						public void accept(Object arg0) {
 							if (arg0 == null) {
 								return;
 							}
@@ -2283,12 +2285,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (!isChild) recalculate(source); //to send update event
 	}
 
-	private static abstract class ResultClosure implements Closure{
+	private static abstract class ResultClosure implements Consumer<Object>{
 		boolean result=false;
 	}
 	public boolean renumber(final boolean localOnly){
 		ResultClosure c=new ResultClosure(){
-			public void execute(Object arg0) {
+			public void accept(Object arg0) {
                 result|=((Assignment)arg0).renumber(localOnly);
 			}
 		};

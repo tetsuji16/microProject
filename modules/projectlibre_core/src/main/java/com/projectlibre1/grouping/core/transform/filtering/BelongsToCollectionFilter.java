@@ -56,8 +56,8 @@
 package com.projectlibre1.grouping.core.transform.filtering;
 
 import java.util.Collection;
+import java.util.function.Consumer;
 
-import org.apache.commons.collections.Closure;
 
 import com.projectlibre1.grouping.core.Node;
 
@@ -65,7 +65,7 @@ import com.projectlibre1.grouping.core.Node;
  *
  */
 public class BelongsToCollectionFilter extends NodeFilter {
-    protected Closure callback;
+    protected Consumer<Object> callback;
     protected Collection impls=null;
     public BelongsToCollectionFilter(String arg){
     	preserveHierarchy=false;
@@ -75,14 +75,14 @@ public class BelongsToCollectionFilter extends NodeFilter {
     }
     public void setSelectedNodesImpl(Collection impls,boolean needCallback){
         this.impls=impls;
- 		if (needCallback) callback.execute(this);
+ 		if (needCallback) callback.accept(this);
     }
     
     public boolean evaluate(Object o) {
         if (impls==null) return false;
         return impls.contains(((Node)o).getImpl());
     }
-    public void setRedefinitionCallBack(Closure callback){
+    public void setRedefinitionCallBack(Consumer<Object> callback){
         this.callback=callback;
     }
 

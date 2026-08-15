@@ -1,10 +1,11 @@
 package com.projectlibre1.graphic.configuration;
 
+import java.util.function.Consumer;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections.Closure;
 import org.junit.jupiter.api.Test;
 
 class BarStylesTest {
@@ -71,7 +72,7 @@ class BarStylesTest {
 		return style;
 	}
 
-	private static Closure countingClosure(AtomicInteger matches) {
+	private static Consumer<Object> countingClosure(AtomicInteger matches) {
 		return ignored -> matches.incrementAndGet();
 	}
 }

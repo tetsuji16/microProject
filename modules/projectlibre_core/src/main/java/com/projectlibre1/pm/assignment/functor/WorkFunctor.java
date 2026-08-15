@@ -79,7 +79,7 @@ public class WorkFunctor extends AssignmentFieldOvertimeFunctor {
 	 * Calculate regular work, overtime work, and add them to get total work
 	 * @param object The SelectFrom from the algorithm
 	 */	
-	public void execute(Object object) {
+	public void accept(Object object) {
 		HasStartAndEnd interval = (HasStartAndEnd)object;
 		AbstractContourBucket bucket = (AbstractContourBucket) contourBucketIntervalGenerator.current();
 		if (bucket != null && bucket.getUnits() != 0) { // neither regular or overtime if contour has 0 units
