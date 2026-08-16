@@ -86,7 +86,9 @@ public class MpxTimephasedConverter {
 				"PT0H0M0S".equals(rawValue))
 			value=new Duration(0.0D, TimeUnit.HOURS);
 		else if ("PT8H0M0S".equals(rawValue))
-			value=new Duration(8*3600000D, TimeUnit.HOURS);
+			// keep the same scale as the MpxDurationConverter path below (value in
+			// natural units, not millis) - 8 hours, not 8*3600000 "hours"
+			value=new Duration(8.0D, TimeUnit.HOURS);
 		else{
 			MpxDurationConverter durationConverter=new MpxDurationConverter();
 			net.sf.mpxj.Duration mpxDuration=DatatypeConverter.parseDuration(state.getMpxProjectFile(),null,rawValue);

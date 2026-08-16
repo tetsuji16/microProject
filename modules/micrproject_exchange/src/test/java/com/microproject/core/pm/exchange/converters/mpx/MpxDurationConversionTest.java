@@ -58,4 +58,25 @@ public class MpxDurationConversionTest {
 	public void toMillisHandlesNull() {
 		assertEquals(0L, MpxUtils.toMillis(null));
 	}
+
+	@Test
+	public void everyMpxTimeUnitConvertsWithoutOutOfBounds() {
+		// Regression for issue #155: the old minutesPerUnit[] array was indexed
+		// by TimeUnit.getValue() and threw ArrayIndexOutOfBoundsException for
+		// every elapsed unit (values >= 7). No TimeUnit value may throw.
+		for (TimeUnit unit : TimeUnit.values()) {
+			long millis = MpxUtils.toMillis(Duration.getInstance(1, unit));
+			org.junit.Assert.assertTrue(
+					"unit " + unit + " (value=" + unit.getValue() + ") produced invalid result " + millis,
+					millis >= 0L);
+		}
+	}
+
+	@Test
+	public void elapsedUnitsConvertWithNonElapsedMultipliers() {
+		assertEquals(1440L * 60000L, MpxUtils.toMillis(Duration.getInstance(1, TimeUnit.ELAPSED_DAYS)));
+		assertEquals(10080L * 60000L, MpxUtils.toMillis(Duration.getInstance(1, TimeUnit.ELAPSED_WEEKS)));
+		assertEquals(43200L * 60000L, MpxUtils.toMillis(Duration.getInstance(1, TimeUnit.ELAPSED_MONTHS)));
+		assertEquals(518400L * 60000L, MpxUtils.toMillis(Duration.getInstance(1, TimeUnit.ELAPSED_YEARS)));
+	}
 }
