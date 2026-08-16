@@ -83,7 +83,7 @@ public class OpAssignmentConverter {
 			throw new IllegalStateException("Unable to resolve task for assignment " + assignment);
 
 		com.microproject.pm.assignment.Assignment opAssignment = com.microproject.pm.assignment.Assignment
-				.getInstance(task, resource, assignment.getUnits(), 0);
+				.getInstance(task, resource, assignment.getUnits(), assignment.getDelay());
 
 		if (assignment.getName() != null)
 			opAssignment.setName(assignment.getName());

@@ -116,6 +116,11 @@ public class CommonDataObject implements DataObject{
 		else return ((DataObject)obj).getUniqueId()==getUniqueId();
 	}
 
+	@Override
+	public int hashCode() {
+		return Long.hashCode(getUniqueId());
+	}
+
     public static boolean isLocal(DataObject data){
         return isLocal(data.getUniqueId());
     }

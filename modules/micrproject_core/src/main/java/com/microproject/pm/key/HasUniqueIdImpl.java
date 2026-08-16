@@ -112,6 +112,11 @@ public class HasUniqueIdImpl implements Serializable{
 		return uniqueId == ((HasUniqueIdImpl)other).getUniqueId();
 	}
 
+	@Override
+	public int hashCode() {
+		return Long.hashCode(uniqueId);
+	}
+
 	public boolean renumber(boolean localOnly){
 		if (uniqueId==-1) return false;
 		if (localOnly&&!CommonDataObject.isLocal(uniqueId)) return false;

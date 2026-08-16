@@ -1713,12 +1713,16 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		return field;
 	}
 
-	static SimpleDateFormat f=new SimpleDateFormat("E");
+	// SimpleDateFormat is not thread-safe; a shared static instance would corrupt
+	// day-of-week labels when getLabel() runs concurrently (EDT vs import/export
+	// threads). Use a per-thread instance instead (issue #158).
+	private static final ThreadLocal<SimpleDateFormat> dayOfWeekFormat = ThreadLocal.withInitial(
+			() -> new SimpleDateFormat("E"));
 	public String getLabel() {
 		if (specialFieldContext == null)
 			return getName();
 		long start = specialFieldContext.getInterval().getStart();
-		return f.format(new Date(start));
+		return dayOfWeekFormat.get().format(new Date(start));
 	}
 
 

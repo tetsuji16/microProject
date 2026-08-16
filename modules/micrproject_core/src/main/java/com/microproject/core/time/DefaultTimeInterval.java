@@ -145,6 +145,11 @@ public class DefaultTimeInterval implements TimeInterval {
 	}
 	
 	@Override
+	public int hashCode() {
+		return Long.hashCode(start) * 31 + Long.hashCode(end);
+	}
+	
+	@Override
 	public String toString() {
 		return "["+new Date(start)+","+new Date(end)+"]";
 	}

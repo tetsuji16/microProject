@@ -94,7 +94,13 @@ public class CalendarEvent extends ImmutableInterval implements Serializable {
 			return false;
 		if (! super.equals(e))
 			return false;
-		return description.equals(((CalendarEvent)e).description);
+		String otherDescription = ((CalendarEvent)e).description;
+		return description == null ? otherDescription == null : description.equals(otherDescription);
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * super.hashCode() + (description == null ? 0 : description.hashCode());
 	}
 
 	public int compare(Object event1, Object event2) {

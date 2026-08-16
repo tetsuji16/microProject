@@ -421,9 +421,17 @@ public class WorkingHours implements Cloneable, Serializable {
 		}
 		return true;
 	}
+
+	@Override
+	public int hashCode() {
+		return java.util.Arrays.hashCode(workRange);
+	}
 	
 	public boolean hasHours() {
-		duration = 0;
+		// Query only: must not mutate duration (see issue #156). Callers rely on
+		// duration to decide whether a day is working; zeroing it here corrupted
+		// the cached working time and, via the shared default WorkDay singleton,
+		// the app-wide default calendar.
 		for (int i =0; i <workRange.length; i++) {
 			if (workRange[i] != null)
 				return true;

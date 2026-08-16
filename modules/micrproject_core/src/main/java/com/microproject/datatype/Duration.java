@@ -88,6 +88,11 @@ public class Duration extends Number implements Comparable {
 			return false;
 	}
 
+	@Override
+	public int hashCode() {
+		return Long.hashCode(encodedMillis);
+	}
+
 	public int compareTo(Object arg0) {
 		if (arg0 == null)
 			 throw new NullPointerException();
