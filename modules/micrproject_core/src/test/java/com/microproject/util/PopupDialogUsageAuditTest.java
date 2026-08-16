@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class PopupDialogUsageAuditTest {
 	@Test
 	void alertRoutesAllJOptionPaneCallsThroughPopupDialogSupport() throws Exception {
-		String source = source("modules/micrproject_core/src/main/java/com/projectlibre1/util/Alert.java");
+		String source = source("modules/micrproject_core/src/main/java/com/microproject/util/Alert.java");
 
 		assertTrue(source.contains("PopupDialogSupport.showMessageDialog"));
 		assertTrue(source.contains("PopupDialogSupport.showConfirmDialog"));
@@ -24,7 +24,7 @@ class PopupDialogUsageAuditTest {
 
 	@Test
 	void collaborationSessionUsesPopupDialogSupportForConflictResolution() throws Exception {
-		String source = source("modules/micrproject_core/src/main/java/com/projectlibre1/collaboration/CollaborationSession.java");
+		String source = source("modules/micrproject_core/src/main/java/com/microproject/collaboration/CollaborationSession.java");
 
 		assertTrue(source.contains("PopupDialogSupport.showOptionDialog("));
 		assertFalse(source.contains("JOptionPane.showOptionDialog("));

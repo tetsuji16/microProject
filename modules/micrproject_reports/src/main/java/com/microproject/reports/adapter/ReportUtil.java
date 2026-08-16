@@ -84,7 +84,7 @@ import com.microproject.contrib.util.LogFactory;
  */
 public class ReportUtil {
 	private static final Log log = LogFactory.getLog(ReportUtil.class);
-	private static final String REPORT_ROOT = "com/projectlibre1/reports/definition/";
+	private static final String REPORT_ROOT = "com/microproject/reports/definition/";
 	private static final String JASPER_XML_LOGGER_NAME = "net.sf.jasperreports.engine.xml";
 	private static final Object JASPER_XML_LOGGER_LOCK = new Object();
 

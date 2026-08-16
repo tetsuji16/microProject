@@ -21,7 +21,7 @@ import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.pm.task.NormalTask;
-import com.projectlibre.core.pm.exchange.MspImporter;
+import com.microproject.core.pm.exchange.MspImporter;
 import com.microproject.collaboration.CollaborationMetadataStore;
 import com.microproject.session.FileHelper;
 
@@ -44,7 +44,7 @@ public class XlsxSupportTest extends TestCase {
 		assertTrue(sample.exists());
 
 		MspImporter importer = new MspImporter();
-		com.projectlibre.pm.tasks.Project imported = importer.importProject(sample.getAbsolutePath(), new MspImporter.ProgressClosure() {
+		com.microproject.pm.task.Project imported = importer.importProject(sample.getAbsolutePath(), new MspImporter.ProgressClosure() {
 			@Override
 			public void updateProgress(float progress, String label) {
 			}
@@ -82,7 +82,7 @@ public class XlsxSupportTest extends TestCase {
 		writer.write(file, tempFile);
 
 		MspImporter importer = new MspImporter();
-		com.projectlibre.pm.tasks.Project imported = importer.importProject(tempFile.getAbsolutePath(), new MspImporter.ProgressClosure() {
+		com.microproject.pm.task.Project imported = importer.importProject(tempFile.getAbsolutePath(), new MspImporter.ProgressClosure() {
 			@Override
 			public void updateProgress(float progress, String label) {
 			}
@@ -258,7 +258,7 @@ public class XlsxSupportTest extends TestCase {
 
 		MspImporter importer = new MspImporter();
 		InputStream in = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8));
-		com.projectlibre.pm.tasks.Project imported = importer.importProject(in, "xlsx", new MspImporter.ProgressClosure() {
+		com.microproject.pm.task.Project imported = importer.importProject(in, "xlsx", new MspImporter.ProgressClosure() {
 			@Override
 			public void updateProgress(float progress, String label) {
 			}
@@ -266,6 +266,6 @@ public class XlsxSupportTest extends TestCase {
 
 		assertNotNull(imported);
 		assertEquals(1, imported.getTasks().size());
-		assertEquals("Child Task", imported.getTasks().get(0).getPropertyValue("name"));
+		assertEquals("Child Task", imported.getTasks().get(0).getName());
 	}
 }

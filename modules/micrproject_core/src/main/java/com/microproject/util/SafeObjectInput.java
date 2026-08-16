@@ -3,6 +3,7 @@ package com.microproject.util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputFilter;
+import java.io.ObjectStreamClass;
 import java.io.ObjectInputStream;
 import java.util.logging.Logger;
 
@@ -19,6 +20,7 @@ public final class SafeObjectInput {
 
 	private static final String[] ALLOWED_APPLICATION_PREFIXES = {
 		"com.microproject.",
+		"com.projectlibre1.", // legacy POD files serialized under the old package (see issue #154)
 		"org.projectlibre.",
 		"org.projectlibre1.",
 		"org.jdesktop.swingx.calendar." // legacy workspace compatibility
@@ -55,9 +57,35 @@ public final class SafeObjectInput {
 	}
 
 	public static ObjectInputStream create(InputStream input) throws IOException {
-		ObjectInputStream stream = new ObjectInputStream(input);
+		ObjectInputStream stream = new RemappingObjectInputStream(input);
 		stream.setObjectInputFilter(PROJECTLIBRE_FILTER);
 		return stream;
+	}
+
+	/**
+	 * ObjectInputStream that rewrites legacy {@code com.projectlibre1.*} class names to the
+	 * renamed {@code com.microproject.*} package during deserialization, so POD files written
+	 * by older ProjectLibre releases can still be loaded (see issue #154).
+	 */
+	private static final class RemappingObjectInputStream extends ObjectInputStream {
+
+		RemappingObjectInputStream(InputStream input) throws IOException {
+			super(input);
+		}
+
+		@Override
+		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+			String name = desc.getName();
+			String remapped = name.replace("com.projectlibre1.", "com.microproject.");
+			if (!remapped.equals(name)) {
+				try {
+					return Class.forName(remapped, false, RemappingObjectInputStream.class.getClassLoader());
+				} catch (ClassNotFoundException ignored) {
+					// fall through to the original name so the filter reports a clear rejection
+				}
+			}
+			return super.resolveClass(desc);
+		}
 	}
 
 	private static ObjectInputFilter.Status checkInput(ObjectInputFilter.FilterInfo info) {

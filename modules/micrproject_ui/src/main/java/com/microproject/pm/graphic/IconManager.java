@@ -83,9 +83,9 @@ public class IconManager {
 	protected static HashMap icons = new HashMap();
 	protected static HashMap ribbonIcons = new HashMap();
 	private final static String[] iconPackages = new String[] {
-			"com/projectlibre1/pm/graphic/images/"
-			,"com/projectlibre1/pm/graphic/images/big/"
-			,"com/projectlibre1/pm/graphic/images/ribbon/"
+			"com/microproject/pm/graphic/images/"
+			,"com/microproject/pm/graphic/images/big/"
+			,"com/microproject/pm/graphic/images/ribbon/"
 			,"toolbarButtonGraphics/general/"
 			,"toolbarButtonGraphics/text/"			
 			,"toolbarButtonGraphics/table/"
@@ -270,7 +270,7 @@ public class IconManager {
 
 	private static String getIconName(String key) {
 		ResourceBundle bundle = ResourceBundle
-				.getBundle("com/projectlibre1/pm/graphic/images",Locale.getDefault(),classLoader);
+				.getBundle("com/microproject/pm/graphic/images",Locale.getDefault(),classLoader);
 		return bundle.getString(key);
 	}
 

@@ -62,8 +62,8 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.projectlibre.core.fields.Field;
-import com.projectlibre.core.fields.FieldList;
+import com.microproject.core.fields.Field;
+import com.microproject.core.fields.FieldList;
 
 /**
  * @author Laurent Chretienneau

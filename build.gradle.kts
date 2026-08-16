@@ -17,7 +17,7 @@ val projectLibreMavenDependencyAliases = listOf(
     "commons-digester",
     "commons-lang",
     "commons-lang3",
-    "commons-logging",
+    "jcl-over-slf4j",
     "commons-pool",
     "forms",
     "flatlaf",
@@ -41,6 +41,7 @@ val projectLibreMavenDependencyAliases = listOf(
     "poi",
     "poi-ooxml",
     "slf4j-api",
+    "slf4j-simple",
 )
 
 plugins {
@@ -60,6 +61,18 @@ subprojects {
 	// both makes Swing layout behavior depend on wildcard classpath order.
 	configurations.configureEach {
 		exclude(group = "com.jgoodies", module = "forms")
+		// Exclude log4j2 core and logback: commons-logging 1.3.x auto-discovers them and
+		// recurses via StackWalker on modern JDKs (StackOverflowError in
+		// Configuration.getInstance / Digester config parse), which breaks .pod loading.
+		// log4j-api is kept (POI needs it); jcl-over-slf4j replaces commons-logging and
+		// routes to slf4j-simple (issue #154).
+		exclude(group = "org.apache.logging.log4j", module = "log4j-core")
+		exclude(group = "ch.qos.logback", module = "logback-classic")
+		exclude(group = "commons-logging", module = "commons-logging")
+		// Also drop commons-logging by module name alone so transitive suppliers
+		// (e.g. jasperreports) cannot reintroduce it; jcl-over-slf4j provides the
+		// org.apache.commons.logging API instead (issue #154).
+		exclude(module = "commons-logging")
 	}
 
 	repositories {

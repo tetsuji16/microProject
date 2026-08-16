@@ -78,7 +78,7 @@ class GanttBarFormatDialogTest {
 	private static String readEnglishString(String key) {
 		try (java.io.InputStream in = GanttBarFormatDialogTest.class
 				.getClassLoader()
-				.getResourceAsStream("com/projectlibre1/strings/client.properties")) {
+				.getResourceAsStream("com/microproject/strings/client.properties")) {
 			java.util.Properties props = new java.util.Properties();
 			props.load(in);
 			return props.getProperty(key);
