@@ -53,15 +53,11 @@
  * logo must be at least 144 x 31 pixels. When users click on the "ProjectLibre" 
  * logo it must direct them back to http://www.projectlibre.com. 
  *******************************************************************************/
-package com.microproject.core.pm.exchange.converters.mpx;
+package com.microproject.core.pm.exchange.converters.mpx;	import net.sf.mpxj.Relation;
 
-import net.sf.mpxj.Duration;
-import net.sf.mpxj.Relation;
-
-import com.microproject.association.InvalidAssociationException;
-import com.microproject.core.pm.exchange.converters.mpx.type.MpxDependencyTypeConverter;
-import com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter;
-import com.microproject.pm.dependency.Dependency;
+	import com.microproject.association.InvalidAssociationException;
+	import com.microproject.core.pm.exchange.converters.mpx.type.MpxDependencyTypeConverter;
+	import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.Task;
@@ -81,10 +77,10 @@ public class MpxDependencyConverter {
 			return null;
 		}
 
-		MpxDurationConverter durationConverter = new MpxDurationConverter();
-		com.microproject.core.time.Duration lagDuration =
-				(com.microproject.core.time.Duration) durationConverter.from(mpxRelation.getLag());
-		long lag = lagDuration == null ? 0L : (long) lagDuration.getValue();
+		// Dependency lag is stored in milliseconds (see Dependency.getLeadValue).
+		// Convert the MPXJ lag (value + unit) to millis instead of dropping the
+		// unit: "2d" must become 172800000 ms, not 2 ms (see issue #155).
+		long lag = MpxUtils.toMillis(mpxRelation.getLag());
 
 		MpxDependencyTypeConverter dependencyTypeConverter = new MpxDependencyTypeConverter();
 		Integer dependencyType = (Integer) dependencyTypeConverter.from(mpxRelation.getType());
