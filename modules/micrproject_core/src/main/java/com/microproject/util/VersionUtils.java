@@ -72,14 +72,14 @@ public class VersionUtils {
 		String version=null;
 		try {
 			ResourceBundle bundle=ResourceBundle.getBundle("com.microproject.version.version",Locale.ENGLISH,ClassLoaderUtils.getLocalClassLoader()); //$NON-NLS-1$
-			if (bundle!=null) version=bundle.getString("projectlibre1.version");
+			if (bundle!=null) version=bundle.getString("microproject.version");
 		} catch (Exception e) {
 			logger.log(Level.FINE, "Failed to load version from com.microproject.version.version", e);
 		}
 		if (version==null){
 			try {
 				ResourceBundle bundle=ResourceBundle.getBundle("com.microproject.strings.version",Locale.ENGLISH,ClassLoaderUtils.getLocalClassLoader()); //$NON-NLS-1$
-				if (bundle!=null) version=bundle.getString("projectlibre1.version");
+				if (bundle!=null) version=bundle.getString("microproject.version");
 			} catch (Exception e) {
 				logger.log(Level.FINE, "Failed to load version from com.microproject.strings.version", e);
 			}
@@ -90,7 +90,7 @@ public class VersionUtils {
 
 	}
 	public static String getJnlpVersion(){
-		return System.getProperty("projectlibre1.version");
+		return System.getProperty("microproject.version");
 	}
 
 	public static String toAppletVersion(String v){
