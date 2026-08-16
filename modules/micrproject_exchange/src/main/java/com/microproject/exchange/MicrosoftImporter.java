@@ -35,22 +35,22 @@ import java.util.List;
 import java.util.Map;
 
 
-import com.projectlibre.core.hierarchy.Hierarchy;
-import com.projectlibre.core.hierarchy.HierarchyNode;
-import com.projectlibre.core.pm.exchange.MspImporter;
-import com.projectlibre.core.pm.exchange.ProjectConverter;
-import com.projectlibre.core.pm.exchange.converters.op.OpAssignmentConverter;
-import com.projectlibre.core.pm.exchange.converters.op.OpDependencyConverter;
-import com.projectlibre.core.pm.exchange.converters.op.OpImportState;
-import com.projectlibre.core.pm.exchange.converters.op.OpProjectConverter;
-import com.projectlibre.core.pm.exchange.converters.op.OpResourceConverter;
-import com.projectlibre.core.pm.exchange.converters.op.OpTaskConverter;
-import com.projectlibre.pm.calendar.CalendarOptions;
-import com.projectlibre.pm.calendar.WorkCalendar;
-import com.projectlibre.pm.scheduling.ScheduleFrom;
-import com.projectlibre.pm.tasks.SnapshotList;
-import com.projectlibre.pm.tasks.Task;
-import com.projectlibre.pm.tasks.TaskSnapshot;
+import com.microproject.core.hierarchy.Hierarchy;
+import com.microproject.core.hierarchy.HierarchyNode;
+import com.microproject.core.pm.exchange.MspImporter;
+import com.microproject.core.pm.exchange.ProjectConverter;
+import com.microproject.core.pm.exchange.converters.op.OpAssignmentConverter;
+import com.microproject.core.pm.exchange.converters.op.OpDependencyConverter;
+import com.microproject.core.pm.exchange.converters.op.OpImportState;
+import com.microproject.core.pm.exchange.converters.op.OpProjectConverter;
+import com.microproject.core.pm.exchange.converters.op.OpResourceConverter;
+import com.microproject.core.pm.exchange.converters.op.OpTaskConverter;
+import com.microproject.pm.calendar.CalendarOptions;
+import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.scheduling.ScheduleFrom;
+import com.microproject.pm.tasks.SnapshotList;
+import com.microproject.pm.tasks.Task;
+import com.microproject.pm.tasks.TaskSnapshot;
 import com.microproject.configuration.CircularDependencyException;
 import com.microproject.contrib.util.Log;
 import com.microproject.contrib.util.LogFactory;
@@ -91,7 +91,7 @@ import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
  */
 public class MicrosoftImporter extends ServerFileImporter{
 	static Log log = LogFactory.getLog(MicrosoftImporter.class);
-	protected com.projectlibre.pm.tasks.Project plProject= null;
+	protected com.microproject.pm.tasks.Project plProject= null;
 	protected OpImportState state=new OpImportState();
 	List<Object> allTasks = null;
 	ArrayList<Object> subprojects;
@@ -481,7 +481,7 @@ public class MicrosoftImporter extends ServerFileImporter{
         resourcePool.updateOutlineTypes();
 		ResourceImpl opResource;
 		OpResourceConverter converter=new OpResourceConverter();
-		for (com.projectlibre.pm.resources.Resource plResource : plProject.getResourcePool().getResources()){
+		for (com.microproject.pm.resources.Resource plResource : plProject.getResourcePool().getResources()){
 			opResource = resourcePool.newResourceInstance();
 			converter.to(opResource,plResource,state);
 			state.mapOpResource(plResource, opResource);
@@ -585,7 +585,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 		plProject.getHierarchy().visit(new Hierarchy.Visitor(){ //pre-order visitor, parents must be treated before children
 			@Override
 			public void visit(HierarchyNode hierarchyNode) {
-				com.projectlibre.core.nodes.Node node=hierarchyNode.getNode();
+				com.microproject.core.nodes.Node node=hierarchyNode.getNode();
 				if (!(node instanceof Task)) //ignore assignments present in task hierarchy
 					return;
 				Task task=(Task)node;
@@ -647,7 +647,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 		final OpDependencyConverter converter=new OpDependencyConverter();
-		for (com.projectlibre.pm.tasks.Dependency plDependency : plProject.getDependencies()){
+		for (com.microproject.pm.tasks.Dependency plDependency : plProject.getDependencies()){
 			converter.to(plDependency,state);
 		}
 		CalendarOption.setInstance(oldOptions);
@@ -662,7 +662,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 		OpAssignmentConverter converter=new OpAssignmentConverter();
 		for (Task task : plProject.getTasks()){
 			NormalTask opTask=state.getOpTask(task);
-			for (com.projectlibre.pm.tasks.Assignment assignment : task.getAssignments()){
+			for (com.microproject.pm.tasks.Assignment assignment : task.getAssignments()){
 				Assignment opAssignment=converter.to(assignment, state);
 				AssignmentService.getInstance().connect(opAssignment, null);
 			}
@@ -671,7 +671,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 				TaskSnapshot s=snapshots.getSnapshot(snapshotId);
 				com.microproject.pm.task.TaskSnapshot opSnapshot=(com.microproject.pm.task.TaskSnapshot)opTask.getSnapshot(snapshotId);
 				if (s!=null && opSnapshot!=null){
-					for (com.projectlibre.pm.tasks.Assignment assignment : s.getAssignments()){
+					for (com.microproject.pm.tasks.Assignment assignment : s.getAssignments()){
 						Assignment opAssignment=converter.to(assignment, state);
 						opSnapshot.addAssignment(opAssignment);
 					}

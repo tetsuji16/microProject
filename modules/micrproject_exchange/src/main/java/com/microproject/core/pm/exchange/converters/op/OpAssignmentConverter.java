@@ -1,0 +1,153 @@
+/*******************************************************************************
+ * The contents of this file are subject to the Common Public Attribution License 
+ * Version 1.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at 
+ * http://www.projectlibre.com/license . The License is based on the Mozilla Public 
+ * License Version 1.1 but Sections 14 and 15 have been added to cover use of 
+ * software over a computer network and provide for limited attribution for the 
+ * Original Developer. In addition, Exhibit A has been modified to be consistent 
+ * with Exhibit B. 
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis, 
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for the 
+ * specific language governing rights and limitations under the License. The 
+ * Original Code is ProjectLibre. The Original Developer is the Initial Developer 
+ * and is ProjectLibre Inc. All portions of the code written by ProjectLibre are 
+ * Copyright (c) 2012-2019. All Rights Reserved. All portions of the code written by 
+ * ProjectLibre are Copyright (c) 2012-2019. All Rights Reserved. Contributor 
+ * ProjectLibre, Inc.
+ *
+ * Alternatively, the contents of this file may be used under the terms of the 
+ * ProjectLibre End-User License Agreement (the ProjectLibre License) in which case 
+ * the provisions of the ProjectLibre License are applicable instead of those above. 
+ * If you wish to allow use of your version of this file only under the terms of the 
+ * ProjectLibre License and not to allow others to use your version of this file 
+ * under the CPAL, indicate your decision by deleting the provisions above and 
+ * replace them with the notice and other provisions required by the ProjectLibre 
+ * License. If you do not delete the provisions above, a recipient may use your 
+ * version of this file under either the CPAL or the ProjectLibre Licenses. 
+ *
+ *
+ * [NOTE: The text of this Exhibit A may differ slightly from the text of the notices 
+ * in the Source Code files of the Original Code. You should use the text of this 
+ * Exhibit A rather than the text found in the Original Code Source Code for Your 
+ * Modifications.] 
+ *
+ * EXHIBIT B. Attribution Information for ProjectLibre required
+ *
+ * Attribution Copyright Notice: Copyright (c) 2012-2019, ProjectLibre, Inc.
+ * Attribution Phrase (not exceeding 10 words): 
+ * ProjectLibre, open source project management software.
+ * Attribution URL: http://www.projectlibre.com
+ * Graphic Image as provided in the Covered Code as file: projectlibre-logo.png with 
+ * alternatives listed on http://www.projectlibre.com/logo 
+ *
+ * Display of Attribution Information is required in Larger Works which are defined 
+ * in the CPAL as a work which combines Covered Code or portions thereof with code 
+ * not governed by the terms of the CPAL. However, in addition to the other notice 
+ * obligations, all copies of the Covered Code in Executable and Source Code form 
+ * distributed must, as a form of attribution of the original author, include on 
+ * each user interface screen the "ProjectLibre" logo visible to all users. 
+ * The ProjectLibre logo should be located horizontally aligned with the menu bar 
+ * and left justified on the top left of the screen adjacent to the File menu. The 
+ * logo must be at least 144 x 31 pixels. When users click on the "ProjectLibre" 
+ * logo it must direct them back to http://www.projectlibre.com. 
+ *******************************************************************************/
+package com.microproject.core.pm.exchange.converters.op;
+
+import java.math.BigInteger;
+
+import com.microproject.core.fields.FieldUtil;
+import com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter;
+import com.microproject.core.pm.exchange.converters.type.LongDateConverter;
+import com.microproject.core.time.Duration;
+import com.microproject.core.time.TimeInterval;
+import com.microproject.core.time.TimeIntervals;
+import com.microproject.core.time.TimephasedValue;
+import com.microproject.core.time.WorkContour;
+import com.microproject.pm.tasks.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.assignment.contour.ContourTypes;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.server.data.mspdi.TimeDistributedTypeMapper;
+
+/**
+ * @author Laurent Chretienneau
+ *
+ */
+public class OpAssignmentConverter {
+	protected String[] fieldsToConvert=new String[]{
+			//ProjectLibre, mpx, converter (mpx-> ProjectLibre
+//		"units", "unit", null,
+		"start", "start", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",
+		"finish", "end", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",		
+//		"work", "work", "com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter",		
+	};
+
+	public com.microproject.pm.assignment.Assignment to(Assignment assignment, OpImportState state) {
+		com.microproject.pm.resource.Resource resource;
+		if (assignment.getResource().isUnassigned()) 
+			resource=ResourceImpl.getUnassignedInstance();
+		else resource = state.getOpResource(assignment.getResource());
+		if (resource==null)
+			throw new IllegalStateException("Unable to resolve resource for assignment " + assignment);
+		
+		NormalTask task=state.getOpTask(assignment.getTask());
+		if (task == null) {
+			throw new IllegalStateException("Unable to resolve task for assignment " + assignment);
+		}
+		
+		
+		//create assignment
+		com.microproject.pm.assignment.Assignment opAssignment=com.microproject.pm.assignment.Assignment.getInstance(task,resource
+				,(Double)assignment.getPropertyValue("units"),0);
+
+		
+		//convert fields
+		FieldUtil.convertFields(assignment, com.microproject.pm.assignment.Assignment.class, opAssignment, fieldsToConvert, false);
+		applyTrackingFields(assignment, opAssignment);
+
+		//timephased		
+		TimeIntervals timephasedIntervals=assignment.getTimephased();
+		if (timephasedIntervals!=null)
+		for (TimeInterval interval : timephasedIntervals){
+			TimephasedValue<?> timephasedValue=(TimephasedValue<?>)interval;
+			Object opType = TimeDistributedTypeMapper.getOPPrField(BigInteger.valueOf(timephasedValue.getType().getId()));
+			Duration duration=(Duration)timephasedValue.getValue();
+			opAssignment.setInterval(opType, timephasedValue.getStart(), timephasedValue.getEnd(),duration.getValue());
+		}
+				
+		//contour
+		WorkContour contour=assignment.getContour();
+		if (contour == null)
+			opAssignment.setWorkContourType(ContourTypes.FLAT);
+		else if (contour == WorkContour.CONTOURED)
+			opAssignment.makeContourPersonal();
+		else
+			opAssignment.setWorkContourType(contour.getId());
+		
+		
+		opAssignment.makeFlatIfPossible();
+		
+		return opAssignment;
+	}
+
+	private void applyTrackingFields(Assignment assignment, com.microproject.pm.assignment.Assignment opAssignment) {
+		Duration work = (Duration) assignment.getPropertyValue("work");
+		if (work != null)
+			opAssignment.setWork((Long) new OpDurationConverter().to(work), null);
+
+		java.util.Date actualStart = (java.util.Date) assignment.getPropertyValue("actualStart");
+		if (actualStart != null)
+			opAssignment.setActualStart((Long) new LongDateConverter().to(actualStart));
+
+		Number percentWorkComplete = (Number) assignment.getPropertyValue("percentWorkComplete");
+		if (percentWorkComplete != null)
+			opAssignment.setPercentComplete(Math.max(0.0d, Math.min(1.0d, percentWorkComplete.doubleValue())));
+
+		java.util.Date actualFinish = (java.util.Date) assignment.getPropertyValue("actualFinish");
+		if (actualFinish != null)
+			opAssignment.setActualFinish((Long) new LongDateConverter().to(actualFinish));
+	}
+}

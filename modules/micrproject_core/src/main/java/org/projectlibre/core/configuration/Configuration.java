@@ -76,7 +76,7 @@ import org.projectlibre.core.dictionary.Dictionary;
 import org.projectlibre.core.dictionary.DictionaryCategory;
 import org.projectlibre.core.dictionary.HasStringId;
 
-import com.projectlibre.core.fields.FieldManager;
+import com.microproject.core.fields.FieldManager;
 
 /**
  * @author Laurent Chretienneau
