@@ -56,15 +56,15 @@
 package com.microproject.script;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Collections;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.beanutils.Converter;
-import org.apache.commons.collections.Predicate;
 import org.apache.commons.digester.Digester;
 
 import com.microproject.configuration.Dictionary;
@@ -120,7 +120,7 @@ public class ContextStore  implements NamedItem {
 	}
 
 
-	public List<ConverterContext> getContexts(int type,Predicate filter){
+	public List<ConverterContext> getContexts(int type,Predicate<ConverterContext> filter){
 //	System.out.println("getContext type="+type);
 //	for (int t: contexts.keySet()){
 //		System.out.println("type="+t);
@@ -132,7 +132,7 @@ public class ContextStore  implements NamedItem {
 			return Collections.emptyList();
 		List<ConverterContext> c = new ArrayList<>(ctxs.size());
 		for (ConverterContext ctx: ctxs){
-			if (filter==null||filter.evaluate(ctx)) c.add((ConverterContext)ctx.clone());
+			if (filter==null||filter.test(ctx)) c.add((ConverterContext)ctx.clone());
 		}
 		return c;
 	}
