@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
 class SpreadsheetViewRefactorAuditTest {
 	@Test
 	void projectAndResourceViewsUseSharedFieldLookupSupport() throws Exception {
-		String projectSource = source("modules/micrproject_ui/src/main/java/com/projectlibre1/pm/graphic/views/ProjectView.java");
-		String resourceSource = source("modules/micrproject_ui/src/main/java/com/projectlibre1/pm/graphic/views/ResourceView.java");
+		String projectSource = source("modules/micrproject_ui/src/main/java/com/microproject/pm/graphic/views/ProjectView.java");
+		String resourceSource = source("modules/micrproject_ui/src/main/java/com/microproject/pm/graphic/views/ResourceView.java");
 
 		assertTrue(projectSource.contains("SpreadsheetViewSupport.getProjectFields()"));
 		assertTrue(projectSource.contains("SpreadsheetViewSupport.cleanup(spreadSheet)"));
@@ -27,7 +27,7 @@ class SpreadsheetViewRefactorAuditTest {
 
 	@Test
 	void ganttViewUsesSharedTaskFieldLookupAndCleanupSupport() throws Exception {
-		String ganttSource = source("modules/micrproject_ui/src/main/java/com/projectlibre1/pm/graphic/views/GanttView.java");
+		String ganttSource = source("modules/micrproject_ui/src/main/java/com/microproject/pm/graphic/views/GanttView.java");
 
 		assertTrue(ganttSource.contains("SpreadsheetViewSupport.resolveTaskFields(project.getFieldArray())"));
 		assertTrue(ganttSource.contains("SpreadsheetViewSupport.getTaskFields(name)"));
