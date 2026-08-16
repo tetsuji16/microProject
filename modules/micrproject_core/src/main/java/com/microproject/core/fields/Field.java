@@ -32,10 +32,10 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlID;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.projectlibre.core.configuration.Configuration;
-import org.projectlibre.core.dictionary.HasCategories;
-import org.projectlibre.core.dictionary.HasStringId;
-import org.projectlibre.strings.Strings;
+import com.microproject.core.configuration.Configuration;
+import com.microproject.core.dictionary.HasCategories;
+import com.microproject.core.dictionary.HasStringId;
+import com.microproject.core.strings.Strings;
 
 /**
  * @author Laurent Chretienneau

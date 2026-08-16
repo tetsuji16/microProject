@@ -34,8 +34,8 @@ import javax.xml.bind.annotation.XmlID;
 import javax.xml.bind.annotation.XmlIDREF;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.projectlibre.core.dictionary.HasCategories;
-import org.projectlibre.core.dictionary.HasStringId;
+import com.microproject.core.dictionary.HasCategories;
+import com.microproject.core.dictionary.HasStringId;
 
 /**
  * @author Laurent Chretienneau

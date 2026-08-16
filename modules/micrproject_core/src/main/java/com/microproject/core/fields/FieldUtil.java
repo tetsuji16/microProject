@@ -36,9 +36,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import org.projectlibre.core.configuration.Configuration;
-import org.projectlibre.core.dictionary.DictionaryCategory;
-import org.projectlibre.core.dictionary.HasStringId;
+import com.microproject.core.configuration.Configuration;
+import com.microproject.core.dictionary.DictionaryCategory;
+import com.microproject.core.dictionary.HasStringId;
 
 import com.microproject.pm.task.Task;
 

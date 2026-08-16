@@ -27,8 +27,8 @@ package com.microproject.core.nodes;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.projectlibre.core.configuration.Configuration;
-import org.projectlibre.core.dictionary.DictionaryCategory;
+import com.microproject.core.configuration.Configuration;
+import com.microproject.core.dictionary.DictionaryCategory;
 
 import com.microproject.core.fields.Field;
 import com.microproject.core.fields.FieldUtil;

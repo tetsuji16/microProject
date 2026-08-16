@@ -96,7 +96,7 @@ import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
 import com.microproject.menu.resource.MissingListenerException;
-import org.projectlibre.strings.Strings;
+import com.microproject.core.strings.Strings;
 import com.microproject.ui.shell.ProjectLibreShell;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
@@ -2875,7 +2875,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	void savePDF() {
 		GraphPageable document=PrintDocumentFactory.getInstance().createDocument(getCurrentFrame(),false,false);
 		try {
-			Class generator=ClassLoaderUtils.forName("org.projectlibre.export.ImageExport"); //claur
+			Class generator=ClassLoaderUtils.forName("com.microproject.export.ImageExport"); //claur
 			generator.getMethod("export", new Class[]{GraphPageable.class,Component.class}).invoke(null,new Object[]{document,getContainer()});
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to export PDF", e);

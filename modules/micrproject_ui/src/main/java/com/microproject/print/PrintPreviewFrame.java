@@ -184,7 +184,7 @@ public class PrintPreviewFrame extends JFrame implements  ProjectMenuActionMap, 
 //				return;
 //			}
 			try {
-				Class generator=ClassLoaderUtils.forName("org.projectlibre.export.ImageExport");
+				Class generator=ClassLoaderUtils.forName("com.microproject.export.ImageExport");
 				generator.getMethod("export", new Class[]{GraphPageable.class,Component.class}).invoke(null,new Object[]{document,PrintPreviewFrame.this});
 			} catch (Exception e) {
 				logger.log(Level.WARNING, "Failed to export PDF preview", e);
