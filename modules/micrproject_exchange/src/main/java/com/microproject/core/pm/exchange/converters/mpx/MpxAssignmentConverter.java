@@ -112,10 +112,6 @@ public class MpxAssignmentConverter {
 	}
 
 	private static long toLong(net.sf.mpxj.Duration d) {
-		if (d == null)
-			return 0L;
-		final double[] minutesPerUnit = { 1.0, 1.0, 60.0, 1440.0, 10080.0, 43200.0, 518400.0 };
-		double minutes = d.getDuration() * minutesPerUnit[d.getUnits().getValue()];
-		return (long) (minutes * 60000.0);
+		return MpxUtils.toMillis(d);
 	}
 }

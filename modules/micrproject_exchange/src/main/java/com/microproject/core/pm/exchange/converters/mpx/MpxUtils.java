@@ -49,6 +49,7 @@ package com.microproject.core.pm.exchange.converters.mpx;
 import java.math.BigInteger;
 
 import com.microproject.core.time.TimephasedType;
+import net.sf.mpxj.Duration;
 
 /**
  * Utility class for safe handling of MPXJ nullable wrapper types.
@@ -125,5 +126,49 @@ public class MpxUtils {
     public static TimephasedType safeGetTimephasedTypeOrDefault(Integer typeId) {
         TimephasedType result = safeGetTimephasedType(typeId);
         return result != null ? result : TimephasedType.REMAINING_WORK;
+    }
+
+    /**
+     * Number of minutes represented by one unit of the given MPXJ TimeUnit value
+     * (see {@code net.sf.mpxj.TimeUnit.getValue()}).
+     *
+     * MPXJ TimeUnit is 0-based: MINUTES=0, HOURS=1, DAYS=2, WEEKS=3, MONTHS=4,
+     * PERCENT=5, YEARS=6, ELAPSED_MINUTES=7 ... ELAPSED_YEARS=12, ELAPSED_PERCENT=13,
+     * NULL=14. Elapsed variants use the same multipliers as their non-elapsed forms.
+     * PERCENT, NULL and unknown values fall back to minutes (1.0) so that malformed
+     * data never indexes out of bounds.
+     *
+     * @param timeUnitValue MPXJ TimeUnit value (0-based)
+     * @return minutes per unit
+     */
+    public static double minutesPerUnit(int timeUnitValue) {
+        switch (timeUnitValue) {
+            case 1:  // HOURS
+            case 8:  // ELAPSED_HOURS
+                return 60.0;
+            case 2:  // DAYS
+            case 9:  // ELAPSED_DAYS
+                return 1440.0;
+            case 3:  // WEEKS
+            case 10: // ELAPSED_WEEKS
+                return 10080.0;
+            case 4:  // MONTHS
+            case 11: // ELAPSED_MONTHS
+                return 43200.0;
+            case 6:  // YEARS
+            case 12: // ELAPSED_YEARS
+                return 518400.0;
+            default: // MINUTES(0), ELAPSED_MINUTES(7), PERCENT(5), ELAPSED_PERCENT(13), NULL(14), unknown
+                return 1.0;
+        }
+    }
+
+    /**
+     * Convert an MPXJ Duration to milliseconds, returning 0L for null.
+     */
+    public static long toMillis(Duration d) {
+        if (d == null)
+            return 0L;
+        return (long) (d.getDuration() * minutesPerUnit(d.getUnits().getValue()) * 60000.0);
     }
 }

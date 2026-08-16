@@ -145,20 +145,6 @@ public class MpxTaskConverter {
 	}
 
 	private static long toLong(Duration d) {
-		if (d == null)
-			return 0L;
-		// convert MPXJ duration (value in its units) to milliseconds.
-		// MPXJ TimeUnit encoding: 1=minutes, 2=hours, 3=days, 4=weeks, 5=months, 6=years
-		double minutesPerUnit;
-		switch (d.getUnits().getValue()) {
-			case 1: minutesPerUnit = 1.0; break;          // minutes
-			case 2: minutesPerUnit = 60.0; break;         // hours
-			case 3: minutesPerUnit = 1440.0; break;       // days
-			case 4: minutesPerUnit = 10080.0; break;      // weeks
-			case 5: minutesPerUnit = 43200.0; break;      // months (30 days)
-			case 6: minutesPerUnit = 518400.0; break;     // years (360 days)
-			default: minutesPerUnit = 1.0; break;
-		}
-		return (long) (d.getDuration() * minutesPerUnit * 60000.0);
+		return MpxUtils.toMillis(d);
 	}
 }
