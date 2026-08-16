@@ -1,7 +1,6 @@
-package com.microproject.core.pm.exchange.converters.mpx;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+package com.microproject.core.pm.exchange.converters.mpx;	import static org.junit.Assert.assertEquals;
+	import static org.junit.Assert.assertNotNull;
+	import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -73,6 +72,28 @@ public class MpxDependencyConverterLagTest {
 
 		assertNotNull(dependency);
 		assertEquals(-1L * 60L * 60L * 1000L, dependency.getLag());
+	}
+
+	@Test
+	public void percentLagIsEncodedAsPercentNotLiteralMinutes() {
+		// Issue #163: a 50% lag used to become a literal 50-minute lag because
+		// MpxUtils.toMillis treats PERCENT as minutes. It must keep the percent
+		// encoding so Dependency.getLeadValue computes it against the
+		// predecessor duration.
+		long lag = MpxDependencyConverter.toDependencyLag(Duration.getInstance(50, TimeUnit.PERCENT));
+		assertTrue(com.microproject.datatype.Duration.isPercent(lag));
+		assertEquals(0.5f, com.microproject.datatype.Duration.getPercentAsDecimal(lag), 0.0001f);
+
+		long elapsedLag = MpxDependencyConverter.toDependencyLag(Duration.getInstance(25, TimeUnit.ELAPSED_PERCENT));
+		assertEquals(com.microproject.datatype.TimeUnit.ELAPSED_PERCENT, com.microproject.datatype.Duration.getType(elapsedLag));
+		assertEquals(0.25f, com.microproject.datatype.Duration.getPercentAsDecimal(elapsedLag), 0.0001f);
+	}
+
+	@Test
+	public void timeLagIsStillPlainMillis() {
+		long lag = MpxDependencyConverter.toDependencyLag(Duration.getInstance(2, TimeUnit.DAYS));
+		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.datatype.Duration.millis(lag));
+		assertEquals(0L, MpxDependencyConverter.toDependencyLag(null));
 	}
 
 	@Test

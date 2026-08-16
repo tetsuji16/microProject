@@ -70,6 +70,26 @@ import com.microproject.pm.task.Task;
  */
 public class MpxDependencyConverter {
 
+	/**
+	 * Converts an MPXJ relation lag into the microproject Dependency lag
+	 * encoding. Time-based lags are stored as plain milliseconds (see
+	 * Dependency.getLeadValue); percent lags keep their percent encoding so
+	 * getLeadValue computes them against the predecessor duration (issue #163).
+	 */
+	static long toDependencyLag(net.sf.mpxj.Duration mpxLag) {
+		if (mpxLag == null) {
+			return 0L;
+		}
+		net.sf.mpxj.TimeUnit unit = mpxLag.getUnits();
+		if (unit == net.sf.mpxj.TimeUnit.PERCENT) {
+			return com.microproject.datatype.Duration.getInstance(mpxLag.getDuration() / 100.0, com.microproject.datatype.TimeUnit.PERCENT);
+		}
+		if (unit == net.sf.mpxj.TimeUnit.ELAPSED_PERCENT) {
+			return com.microproject.datatype.Duration.getInstance(mpxLag.getDuration() / 100.0, com.microproject.datatype.TimeUnit.ELAPSED_PERCENT);
+		}
+		return MpxUtils.toMillis(mpxLag);
+	}
+
 	public Dependency from(net.sf.mpxj.Relation mpxRelation, MpxImportState state) {
 		Task predecessor = state.getTask(mpxRelation.getTargetTask());
 		Task successor = state.getTask(mpxRelation.getSourceTask());
@@ -77,10 +97,7 @@ public class MpxDependencyConverter {
 			return null;
 		}
 
-		// Dependency lag is stored in milliseconds (see Dependency.getLeadValue).
-		// Convert the MPXJ lag (value + unit) to millis instead of dropping the
-		// unit: "2d" must become 172800000 ms, not 2 ms (see issue #155).
-		long lag = MpxUtils.toMillis(mpxRelation.getLag());
+		long lag = toDependencyLag(mpxRelation.getLag());
 
 		MpxDependencyTypeConverter dependencyTypeConverter = new MpxDependencyTypeConverter();
 		Integer dependencyType = (Integer) dependencyTypeConverter.from(mpxRelation.getType());

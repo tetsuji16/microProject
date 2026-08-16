@@ -349,7 +349,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 					valueOf(task.getUniqueId()),
 					valueOf(predecessor.getUniqueId()),
 					valueOf(dependency.getDependencyType()),
-					valueOf(dependency.getLag()));
+					lagCellValue(dependency.getLag()));
 			}
 		}
 		autoSize(sheet, 4);
@@ -516,6 +516,23 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		for (int i = 0; i <= columns; i++) {
 			sheet.autoSizeColumn(i);
 		}
+	}
+
+	/**
+	 * Renders a dependency lag for the Dependencies sheet (issue #162).
+	 * Time-based lags are written as plain milliseconds so the value survives
+	 * the numeric cell round-trip exactly (the old encoded form lost low bits
+	 * through the double cell and, worse, was never read back). Percent lags
+	 * are written as {@code %<fraction>} ({@code e%<fraction>} when elapsed)
+	 * so the reader can rebuild the percent encoding.
+	 */
+	private String lagCellValue(long lag) {
+		int type = com.microproject.datatype.Duration.getType(lag);
+		if (type == com.microproject.datatype.TimeUnit.PERCENT)
+			return "%" + com.microproject.datatype.Duration.getPercentAsDecimal(lag);
+		if (type == com.microproject.datatype.TimeUnit.ELAPSED_PERCENT)
+			return "e%" + com.microproject.datatype.Duration.getPercentAsDecimal(lag);
+		return String.valueOf(com.microproject.datatype.Duration.millis(lag));
 	}
 
 	private String safe(Object value) {
