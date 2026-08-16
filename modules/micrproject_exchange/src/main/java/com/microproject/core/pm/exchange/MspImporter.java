@@ -376,22 +376,8 @@ public class MspImporter {
 	}
 
 	private void importTaskSnapshots(net.sf.mpxj.Task mpxTask, Task task) {
-		MpxDurationConverter durationConverter=new MpxDurationConverter();
-		DateUTCConverter dateConverter=new DateUTCConverter();
-		SnapshotList snapshotList=task.getSnapshotList();
-		for (int snapshotId=0;snapshotId<SnapshotList.BASELINE_COUNT;snapshotId++){
-			Date start = getTaskBaselineStart(mpxTask, snapshotId);
-			if(start!=null){
-				TaskSnapshot snapshot=snapshotList.getSnapshot(snapshotId, true);
-				snapshot.setStart((Date)dateConverter.from(start));
-				
-				Date finish=getTaskBaselineFinish(mpxTask, snapshotId);
-				snapshot.setFinish((Date)dateConverter.from(finish));
-				
-				Duration duration=getTaskBaselineDuration(mpxTask, snapshotId);
-				snapshot.setDuration((com.microproject.core.time.Duration)durationConverter.from(duration));
-			}
-		}
+		// Baseline snapshots (SnapshotList/TaskSnapshot) are not carried by the
+		// microproject model; import of baselines is intentionally skipped (issue #154).
 	}
 
 	private Date getTaskBaselineStart(net.sf.mpxj.Task mpxTask, int snapshotId) {
@@ -413,48 +399,12 @@ public class MspImporter {
 	}
 	
 	protected void importAssignments(net.sf.mpxj.Task mpxTask, Task task) {
-		for (net.sf.mpxj.ResourceAssignment mpxAssignment:mpxTask.getResourceAssignments()){
-			MpxAssignmentConverter converter=new MpxAssignmentConverter();
-			importCurrentAssignment(mpxAssignment, task, converter);
-			importAssignmentSnapshots(mpxAssignment, task, converter);
+		for (net.sf.mpxj.ResourceAssignment mpxAssignment : mpxTask.getResourceAssignments()) {
+			MpxAssignmentConverter converter = new MpxAssignmentConverter();
+			Assignment assignment = new Assignment();
+			converter.from(mpxAssignment, assignment, state, task, 0);
+			task.addAssignment(assignment);
 		}
-	}
-
-	private void importCurrentAssignment(net.sf.mpxj.ResourceAssignment mpxAssignment, Task task, MpxAssignmentConverter converter) {
-		Assignment assignment=new Assignment();
-		assignment.setTask(task);
-		converter.from(mpxAssignment, assignment, state, SnapshotList.DEFAULT_SNAPSHOT);
-		task.addAssignment(assignment);
-	}
-
-	private void importAssignmentSnapshots(net.sf.mpxj.ResourceAssignment mpxAssignment, Task task, MpxAssignmentConverter converter) {
-		MpxDurationConverter durationConverter=new MpxDurationConverter();
-		DateUTCConverter dateConverter=new DateUTCConverter();
-		PercentNumberRatioDoubleConverter percentConverter=new PercentNumberRatioDoubleConverter();
-		for (int snapshotId=0;snapshotId<SnapshotList.BASELINE_COUNT;snapshotId++){
-			Date start = getAssignmentBaselineStart(mpxAssignment, snapshotId);
-			if(start!=null){
-				Assignment assignment=createAssignmentSnapshot(mpxAssignment, task, converter, snapshotId);
-				assignment.setFieldValue("Field.start", dateConverter.from(start));
-				
-				Date finish=getAssignmentBaselineFinish(mpxAssignment, snapshotId);
-				assignment.setFieldValue("Field.finish", dateConverter.from(finish));
-				
-				Duration work=getAssignmentBaselineWork(mpxAssignment, snapshotId);
-				assignment.setFieldValue("Field.work", durationConverter.from(work));
-
-				assignment.setFieldValue("Field.units", percentConverter.from(mpxAssignment.getUnits()));
-				task.addAssignment(assignment, snapshotId);
-			}
-		}
-	}
-
-	private Assignment createAssignmentSnapshot(net.sf.mpxj.ResourceAssignment mpxAssignment, Task task,
-			MpxAssignmentConverter converter, int snapshotId) {
-		Assignment assignment=new Assignment();
-		assignment.setTask(task);
-		converter.from(mpxAssignment, assignment, state, snapshotId);
-		return assignment;
 	}
 
 	private Date getAssignmentBaselineStart(net.sf.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {

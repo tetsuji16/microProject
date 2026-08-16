@@ -55,93 +55,55 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Date;
 
-import com.microproject.core.fields.FieldUtil;
-import com.microproject.core.nodes.NodeId;
-import com.microproject.core.time.DefaultTimephasedValues;
-import com.microproject.core.time.TimephasedType;
-import com.microproject.core.time.TimephasedValue;
-import com.microproject.core.time.WorkContour;
-import com.microproject.pm.resource.Resource;
+import com.microproject.core.time.TimeUtil;
 import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.SnapshotList;
-
-import net.sf.mpxj.mspdi.schema.TimephasedDataType;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.task.Task;
 
 /**
+ * Converts an MPXJ ResourceAssignment into a microproject Assignment.
+ * Only fields carried by the microproject Assignment model are mapped; timephased
+ * data, baseline snapshots and work contour details are intentionally skipped
+ * (see issue #154).
  * @author Laurent Chretienneau
- *
  */
 public class MpxAssignmentConverter {
-	private static final Logger logger = Logger.getLogger(MpxAssignmentConverter.class.getName());
 
-	protected String[] fieldsToConvert=new String[]{
-			//ProjectLibre, mpx, converter (mpx-> ProjectLibre
-		"units", "units", "com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
-		"start", "start", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"finish", "finish", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"work", "work", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		"percentWorkComplete", "percentageWorkComplete", "com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
-		"actualStart", "actualStart", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"actualFinish", "actualFinish", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"actualWork", "actualWork", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		"remainingWork", "remainingWork", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-	};
-
-	public void from(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment, MpxImportState state, int snapshotId) {
-		logger.log(Level.FINE, "MpxAssignmentConverter.from mpx start={0} baseline1={1}",
-			new Object[] { mpxAssignment.getStart(), mpxAssignment.getBaselineStart() });
-		Resource resource;
-		Integer resourceUniqueID = mpxAssignment.getResourceUniqueID();
-		if (resourceUniqueID == null || resourceUniqueID.intValue() == Resource.UNASSIGNED_ID) 
-			resource=state.getResourcePool().getUnassignedResource();
-		else {
-			net.sf.mpxj.Resource mpxResource = mpxAssignment.getResource();
-			resource = mpxResource != null ? state.getResource(mpxResource) : null;
-		}
+	public void from(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment, MpxImportState state, Task task, int snapshotId) {
+		Resource resource = resolveResource(mpxAssignment, state);
 		if (resource == null) {
 			throw new IllegalStateException("Unable to resolve resource for assignment " + mpxAssignment.getResourceUniqueID());
 		}
-		assignment.setResource(resource);
-		
-		//convert fields
-		if (snapshotId<0 || snapshotId>=SnapshotList.BASELINE_COUNT)
-			FieldUtil.convertFields(assignment, net.sf.mpxj.ResourceAssignment.class, mpxAssignment, fieldsToConvert, true);
+		assignment.setTaskAndResource(task, resource);
 
-		// timephased
-		List<TimephasedDataType> mpxRawTimephasedData = state.getMpxTimephasedMap().get(mpxAssignment);
-		if (mpxRawTimephasedData!= null) {
-			DefaultTimephasedValues timephasedValues=new DefaultTimephasedValues();
-			assignment.setTimephased(timephasedValues);
-			MpxTimephasedConverter converter=new MpxTimephasedConverter();
-			for (TimephasedDataType mpxTimephased : mpxRawTimephasedData){
-				TimephasedType tt = MpxUtils.safeGetTimephasedType(mpxTimephased.getType());
-				if (tt == null) continue;
-				int s = tt.getSnapshotId();
-				if (s==snapshotId){
-					TimephasedValue<?> timephased=converter.from(mpxTimephased, state);
-					if (timephased==null)
-						continue;
-					timephasedValues.addInterval(timephased);
-				}
-			}
-		}
-		
-		//contour
-		net.sf.mpxj.WorkContour mpxContour=mpxAssignment.getWorkContour();
-		WorkContour contour;
-		if (mpxContour==null) {
-			contour=WorkContour.FLAT;
-		} else {
-			try {
-				contour=WorkContour.valueOf(mpxContour.getName());
-			} catch (IllegalArgumentException e) {
-				throw new IllegalStateException("Unsupported work contour for assignment " + mpxAssignment.getResourceUniqueID(), e);
-			}
-		}
-		assignment.setContour(contour);
-	}	
+		// main snapshot only (snapshotId handling for baselines is skipped, see #154)
+		assignment.setStart(toLong(mpxAssignment.getStart()));
+		assignment.setEnd(toLong(mpxAssignment.getFinish()));
+		assignment.setWork(toLong(mpxAssignment.getWork()));
+		assignment.setPercentComplete(mpxAssignment.getPercentageWorkComplete() == null ? 0.0 : mpxAssignment.getPercentageWorkComplete().doubleValue());
+		assignment.setActualStart(toLong(mpxAssignment.getActualStart()));
+		assignment.setActualFinish(toLong(mpxAssignment.getActualFinish()));
+		assignment.setActualWork(toLong(mpxAssignment.getActualWork()));
+		assignment.setRemainingWork(toLong(mpxAssignment.getRemainingWork()));
+		if (mpxAssignment.getUniqueID() != null)
+			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
+		// work contour: default to flat (0) for import; contour details skipped (#154)
+		assignment.setWorkContourType(0);
+	}
+
+	private static Resource resolveResource(net.sf.mpxj.ResourceAssignment mpxAssignment, MpxImportState state) {
+		Integer resourceUniqueID = mpxAssignment.getResourceUniqueID();
+		if (resourceUniqueID == null || resourceUniqueID.intValue() == Resource.UNASSIGNED_ID)
+			return state.getResourcePool().getUnassignedResource();
+		net.sf.mpxj.Resource mpxResource = mpxAssignment.getResource();
+		return mpxResource != null ? state.getResource(mpxResource) : null;
+	}
+
+	private static long toLong(Date d) {
+		if (d == null)
+			return 0L;
+		return TimeUtil.addTimeZoneOffset(d.getTime());
+	}
 }

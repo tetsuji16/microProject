@@ -55,73 +55,57 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import com.microproject.core.fields.FieldUtil;
-import com.microproject.pm.calendar.CalendarId;
-import com.microproject.pm.calendar.DefaultWorkCalendar;
 import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.Resource;
 
+import net.sf.mpxj.ProjectCalendar;
+
 /**
+ * Converts an MPXJ Resource into a microproject Resource.
+ * Only fields carried by the microproject Resource interface are mapped. Rates,
+ * cost, maximum units, start/finish and availability are intentionally skipped
+ * (see issue #154).
  * @author Laurent Chretienneau
- *
  */
 public class MpxResourceConverter {
-	protected String[] fieldsToConvert=new String[]{
-			//ProjectLibre, mpx, converter (mpx-> ProjectLibre
-		"name", "name", null,
-		"notes", "notes", null,
-		"generic", "generic", null,
-		"group", "group", null,
-		"initials", "initials", null,
-		"emailAddress", "emailAddress", null,
-		"id", "iD", null,
-		"externalId", "uniqueID", null,
-		"accrueAt", "accrueAt", "com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConverter",
-		"costPerUse", "costPerUse", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		"standardRate", "standardRate", "com.microproject.core.pm.exchange.converters.mpx.type.MpxRateConverter",
-		"overtimeRate", "overtimeRate", "com.microproject.core.pm.exchange.converters.mpx.type.MpxRateConverter",
-		"maximumUnits", "maxUnits", "com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
-		
-		"cost", "cost", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		"cost:1:10", "cost:1:10", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		
-		"start", "start", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"start:1:10", "start:1:10", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		
-		"finish", "finish", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"finish:1:10", "finish:1:10", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-
-		"date:1:10", "date:1:10", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		
-//		"duration", "duration", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		"duration:1:10", "duration:1:10", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-
-		"text:1:30", "text:1:30", null,
-		"flag:1:20", "flag:1:20", null,
-		"number:1:20", "number:1:20", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		
-	};
+	private MpxCalendarConverter calendarConverter = new MpxCalendarConverter();
 
 	public void from(net.sf.mpxj.Resource mpxResource, Resource resource, MpxImportState state) {
-		//convert fields
-		FieldUtil.convertFields(resource, net.sf.mpxj.Resource.class, mpxResource, fieldsToConvert, true);
-		
-		//convert calendar
+		if (mpxResource.getName() != null)
+			resource.setName(mpxResource.getName());
+		if (mpxResource.getNotes() != null)
+			resource.setNotes(mpxResource.getNotes());
+		resource.setGeneric(mpxResource.getGeneric());
+		if (mpxResource.getGroup() != null)
+			resource.setGroup(mpxResource.getGroup());
+		if (mpxResource.getInitials() != null)
+			resource.setInitials(mpxResource.getInitials());
+		if (mpxResource.getEmailAddress() != null)
+			resource.setEmailAddress(mpxResource.getEmailAddress());
+		if (mpxResource.getID() != null)
+			resource.setId(mpxResource.getID().longValue());
+		if (mpxResource.getUniqueID() != null)
+			resource.setUniqueId(mpxResource.getUniqueID().longValue());
+		if (mpxResource.getAccrueAt() != null)
+			resource.setAccrueAt(mpxResource.getAccrueAt().getValue());
+		if (mpxResource.getCostPerUse() != null)
+			resource.setCostPerUse(mpxResource.getCostPerUse().doubleValue());
+
+		// convert calendar
 		WorkCalendar calendar;
-		net.sf.mpxj.ProjectCalendar mpxCalendar = mpxResource.getCalendar();
-		if (mpxCalendar==null){
-			calendar=state.getProjectBaseCalendar();
-		}else{
-			calendar=state.getCalendarManager().getCalendar(new CalendarId(mpxCalendar.getUniqueID()));
+		ProjectCalendar mpxCalendar = mpxResource.getCalendar();
+		if (mpxCalendar == null) {
+			calendar = state.getProjectBaseCalendar();
+		} else {
+			calendar = state.getImportedCalendar(mpxCalendar);
 			if (calendar == null) {
-				calendar=new DefaultWorkCalendar();
+				calendar = WorkingCalendar.getStandardBasedInstance();
 				calendar.setName(mpxResource.getName());
-				MpxCalendarConverter calendarConverter=new MpxCalendarConverter();
-				calendarConverter.from(mpxCalendar, calendar, state);
+				calendarConverter.from(mpxCalendar, (WorkingCalendar) calendar, state);
 				state.registerImportedCalendar(calendar, mpxCalendar);
 			}
 		}
-		resource.setCalendar(calendar);
+		resource.setWorkCalendar(calendar);
 	}
-
 }

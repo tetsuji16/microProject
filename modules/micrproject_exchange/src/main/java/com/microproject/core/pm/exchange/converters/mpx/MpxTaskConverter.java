@@ -91,10 +91,10 @@ public class MpxTaskConverter {
 			task.setConstraintType(mpxTask.getConstraintType().getValue());
 		if (mpxTask.getEarnedValueMethod() != null)
 			task.setEarnedValueMethod(mpxTask.getEarnedValueMethod().getValue());
-		if (mpxTask.getMarkTaskAsMilestone())
+		if (mpxTask.getMilestone())
 			task.setMarkTaskAsMilestone(true);
 
-		task.setCreated(toLong(mpxTask.getCreateDate()));
+		task.setCreated(mpxTask.getCreateDate());
 		task.setDeadline(toLong(mpxTask.getDeadline()));
 		task.setConstraintDate(toLong(mpxTask.getConstraintDate()));
 		task.setLevelingDelay(toLong(mpxTask.getLevelingDelay()));
@@ -102,16 +102,12 @@ public class MpxTaskConverter {
 		task.setStart(toLong(mpxTask.getStart()));
 		task.setEnd(toLong(mpxTask.getFinish()));
 		task.setPercentComplete(mpxTask.getPercentageComplete() == null ? 0.0 : mpxTask.getPercentageComplete().doubleValue());
-		task.setPercentWorkComplete(mpxTask.getPercentageWorkComplete() == null ? 0.0 : mpxTask.getPercentageWorkComplete().doubleValue());
 		if (mpxTask.getPhysicalPercentComplete() != null)
 			task.setPhysicalPercentComplete(mpxTask.getPhysicalPercentComplete().doubleValue());
 		task.setActualStart(toLong(mpxTask.getActualStart()));
 		task.setActualFinish(toLong(mpxTask.getActualFinish()));
 		task.setActualDuration(toLong(mpxTask.getActualDuration()));
 		task.setRemainingDuration(toLong(mpxTask.getRemainingDuration()));
-		task.setWork(toLong(mpxTask.getWork()));
-		task.setActualWork(toLong(mpxTask.getActualWork()));
-		task.setRemainingWork(toLong(mpxTask.getRemainingWork()));
 		task.setDuration(toLong(mpxTask.getDuration()));
 
 		task.setInactiveTask(!mpxTask.getActive());

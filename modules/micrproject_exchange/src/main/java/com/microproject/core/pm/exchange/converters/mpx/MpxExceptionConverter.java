@@ -55,21 +55,17 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import com.microproject.core.pm.exchange.converters.type.DateHoursMinsConverter;
-import com.microproject.core.time.TimeUtil;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingHours;
-
+import net.sf.mpxj.DateRange;
 import net.sf.mpxj.ProjectCalendarException;
 
 /**
  * Converts an MPXJ calendar exception into a microproject WorkDay exception.
+ * The exception date bounds are supplied via the WorkDay constructor; this
+ * converter copies the exception's working hours, if any.
  * @author Laurent Chretienneau
  */
 public class MpxExceptionConverter {
 	public void from(ProjectCalendarException mpxException, WorkDay exception) {
-		exception.setStart(TimeUtil.removeTimeZoneOffset(mpxException.getFromDate().getTime()));
-		exception.setEnd(TimeUtil.removeTimeZoneOffset(mpxException.getToDate().getTime()));
 		// copy the exception's working hours, if any
 		net.sf.mpxj.DateRange range = mpxException.getRange();
 		if (range != null && range.getStart() != null && range.getEnd() != null) {

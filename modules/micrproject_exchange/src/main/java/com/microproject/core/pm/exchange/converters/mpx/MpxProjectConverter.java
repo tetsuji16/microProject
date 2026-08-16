@@ -55,34 +55,43 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import com.microproject.core.fields.FieldUtil;
+import java.util.Date;
+
+import com.microproject.core.time.TimeUtil;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.task.Project;
 
 import net.sf.mpxj.ProjectProperties;
 
 /**
+ * Converts MPXJ ProjectProperties into a microproject Project header.
+ * Only fields carried by the microproject Project model are mapped; fields the
+ * model does not expose are intentionally skipped (see issue #154).
  * @author Laurent Chretienneau
- *
  */
 public class MpxProjectConverter {
-	protected String[] fieldsToConvert=new String[]{
-			//ProjectLibre, mpx, converter (mpx-> ProjectLibre
-		"name", "name", null,
-		"mamager", "manager", null,
-		"notes", "comments", null,
-		"start", "startDate", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"statusDate", "statusDate", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"scheduleFrom","scheduleFrom", "com.microproject.core.pm.exchange.converters.mpx.type.MpxScheduleFromConverter",
-	};
-	public void from(ProjectProperties mpxProjectHeader, Project project, MpxImportState state) {
-		FieldUtil.convertFields(project, net.sf.mpxj.ProjectProperties.class, mpxProjectHeader, fieldsToConvert, true);
 
-		WorkCalendar calendar=null;;
-		if (mpxProjectHeader.getDefaultCalendar()!=null)
-			calendar=state.getMappedBaseCalendar(mpxProjectHeader.getDefaultCalendar().getName());
-		if (calendar==null) calendar=state.getCalendarManager().getStandardBaseCalendar();
-		project.setCalendar(calendar);
+	public void from(ProjectProperties mpxProjectHeader, Project project, MpxImportState state) {
+		if (mpxProjectHeader.getName() != null)
+			project.setName(mpxProjectHeader.getName());
+		if (mpxProjectHeader.getManager() != null)
+			project.setManager(mpxProjectHeader.getManager());
+		if (mpxProjectHeader.getComments() != null)
+			project.setNotes(mpxProjectHeader.getComments());
+		project.setStartDate(toLong(mpxProjectHeader.getStartDate()));
+		project.setStatusDate(toLong(mpxProjectHeader.getStatusDate()));
+
+		WorkCalendar calendar = null;
+		if (mpxProjectHeader.getDefaultCalendar() != null)
+			calendar = state.getMappedBaseCalendar(mpxProjectHeader.getDefaultCalendar().getName());
+		if (calendar == null)
+			calendar = state.getProjectBaseCalendar();
+		project.setBaseCalendar(calendar);
 	}
 
+	private static long toLong(Date d) {
+		if (d == null)
+			return 0L;
+		return TimeUtil.addTimeZoneOffset(d.getTime());
+	}
 }

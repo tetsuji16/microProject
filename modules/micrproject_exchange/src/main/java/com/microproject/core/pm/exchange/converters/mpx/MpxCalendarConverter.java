@@ -55,7 +55,7 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import com.microproject.core.pm.exchange.converters.mpx.type.MpxRangeConverter;
+import com.microproject.core.time.TimeUtil;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkDay;
@@ -68,23 +68,24 @@ import net.sf.mpxj.ProjectCalendarHours;
 
 /**
  * Converts an MPXJ ProjectCalendar into a microproject WorkingCalendar.
+ * Exact per-day working hours are collapsed to the standard working-day template
+ * (see issue #154); calendar exceptions are carried as date-bounded WorkDay
+ * entries.
  * @author Laurent Chretienneau
  */
 public class MpxCalendarConverter {
-	public void from(ProjectCalendar mpxCalendar, WorkingCalendar calendar, MpxImportState state){	
+	public void from(ProjectCalendar mpxCalendar, WorkingCalendar calendar, MpxImportState state){
 		calendar.setName(mpxCalendar.getName());
 		calendar.setId(mpxCalendar.getUniqueID());
 
-		//base calendar
-		WorkingCalendar standardCalendar = (WorkingCalendar) ImportedCalendarService.getInstance().getStandardInstance();
-		ProjectCalendar mpxBaseCalendar = null;
+		// base calendar
+		WorkingCalendar standardCalendar = WorkingCalendar.getStandardBasedInstance();
 		WorkingCalendar baseCalendar = null;
 		if (mpxCalendar.isDerived()) {
-			mpxBaseCalendar = mpxCalendar.getParent();
-			if (mpxBaseCalendar == null) {
-				mpxBaseCalendar = state.getMpxStandardBaseCalendar();
+			ProjectCalendar mpxBaseCalendar = mpxCalendar.getParent();
+			if (mpxBaseCalendar != null) {
+				baseCalendar = (WorkingCalendar) state.getImportedCalendar(mpxBaseCalendar);
 			}
-			baseCalendar = (WorkingCalendar) state.getImportedCalendar(mpxBaseCalendar);
 			if (baseCalendar == null)
 				baseCalendar = standardCalendar;
 			try {
@@ -94,39 +95,46 @@ public class MpxCalendarConverter {
 			}
 		}
 
-		//work weeks
-		MpxRangeConverter rangeConverter = new MpxRangeConverter();
+		// work weeks
 		for (int i = 0; i < 7; i++) {
 			Day mpxDayId = Day.getInstance(i + 1);
 			ProjectCalendarHours mpxDay = mpxCalendar.getCalendarHours(mpxDayId);
 			net.sf.mpxj.DayType mpxDayType = mpxCalendar.getDayType(mpxDayId);
 			WorkDay day = null;
 			if (mpxDay == null) {
-				if (mpxCalendar.isDerived() && mpxBaseCalendar != null) {
+				if (mpxCalendar.isDerived() && baseCalendar != null) {
 					if (mpxDayType == net.sf.mpxj.DayType.DEFAULT)
-						day = calendar.getBase().getWeekDay(i);
-					else if (mpxBaseCalendar.isWorkingDay(mpxDayId)) // Keep the working-day mapping aligned with MPX's day mask.
+						day = baseCalendar.getWeekDay(i);
+					else if (mpxBaseCalendarIsWorking(mpxCalendar, mpxDayId))
 						day = WorkDay.getNonWorkingDay();
 				}
 			} else {
-				day = new WorkDay();
 				if (mpxDayType == net.sf.mpxj.DayType.WORKING) {
-					rangeConverter.from(mpxDay, day);
+					day = WorkDay.getDefaultWorkDay();
 				} else {
 					day = WorkDay.getNonWorkingDay();
 				}
 			}
-			calendar.setWeekDay(i, day);
+			if (day != null)
+				calendar.setWeekDay(i, day);
 		}
 
-		//exceptions
+		// exceptions
 		MpxExceptionConverter exceptionConverter = new MpxExceptionConverter();
 		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
-			WorkDay exception = new WorkDay(
-					com.microproject.util.DateTime.previousDay(mpxException.getFromDate().getTime()),
-					com.microproject.util.DateTime.previousDay(mpxException.getFromDate().getTime()));
+			long from = TimeUtil.removeTimeZoneOffset(mpxException.getFromDate().getTime());
+			long to = TimeUtil.removeTimeZoneOffset(mpxException.getToDate().getTime());
+			WorkDay exception = new WorkDay(from, to);
 			exceptionConverter.from(mpxException, exception);
 			calendar.addOrReplaceException(exception);
+		}
+	}
+
+	private static boolean mpxBaseCalendarIsWorking(ProjectCalendar mpxCalendar, Day day) {
+		try {
+			return mpxCalendar.isWorkingDay(day);
+		} catch (Exception e) {
+			return false;
 		}
 	}
 }
