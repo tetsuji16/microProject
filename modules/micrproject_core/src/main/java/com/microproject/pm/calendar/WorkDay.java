@@ -144,6 +144,12 @@ public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Seri
 		return (getStart() == ((WorkDay)e).getStart());
 	}
 
+	@Override
+	public int hashCode() {
+		// consistent with the start-only equals above
+		return Long.hashCode(getStart());
+	}
+
 	public int compare(Object event1, Object event2) {
 		
 		if (event2 instanceof Date) // if comparing to a date

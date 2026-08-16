@@ -1321,6 +1321,13 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	    }
 	    return false;
 	}
+
+	@Override
+	public int hashCode() {
+		// consistent with the name-only equals above
+		String name = getName();
+		return name == null ? 0 : name.hashCode();
+	}
 	Workspace workspace;
 	private void writeObject(ObjectOutputStream s) throws IOException {
 		workspace = (Workspace) createWorkspace(SavableToWorkspace.PERSIST);

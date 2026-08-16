@@ -100,4 +100,9 @@ public abstract class Interval implements HasStartAndEnd, Comparable, Comparator
 		Interval to = (Interval)arg0;
 		return (start == to.start && end == to.end);
 	}
+
+	@Override
+	public int hashCode() {
+		return Long.hashCode(start) * 31 + Long.hashCode(end);
+	}
 }

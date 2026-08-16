@@ -192,6 +192,11 @@ public class DefaultTimeIntervals implements TimeIntervals {
 	}
 
 	@Override
+	public int hashCode() {
+		return intervals.hashCode();
+	}
+
+	@Override
 	public String toString() {
 		StringBuilder s = new StringBuilder();
 		int i=0;

@@ -116,7 +116,14 @@ public class ValueObjectForInterval implements MutableHasStartAndEnd, Comparable
 		return MathUtils.signum(((ValueObjectForInterval)arg0).start - ((ValueObjectForInterval)arg1).start); 
 	}
 	public boolean equals(Object arg0) {
+		if (! (arg0 instanceof ValueObjectForInterval))
+			return false;
 		return start == ((ValueObjectForInterval)arg0).start;
+	}
+
+	@Override
+	public int hashCode() {
+		return Long.hashCode(start);
 	}
 
 	public int compareTo(Object arg0) {

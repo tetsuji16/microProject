@@ -421,6 +421,11 @@ public class WorkingHours implements Cloneable, Serializable {
 		}
 		return true;
 	}
+
+	@Override
+	public int hashCode() {
+		return java.util.Arrays.hashCode(workRange);
+	}
 	
 	public boolean hasHours() {
 		// Query only: must not mutate duration (see issue #156). Callers rely on
