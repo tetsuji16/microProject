@@ -64,9 +64,9 @@ import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.mspdi.schema.TimephasedDataType;
 
-import com.microproject.pm.calendar.CalendarManager;
-import com.microproject.pm.calendar.DuplicateCalendarException;
+import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Task;
@@ -85,7 +85,6 @@ public class MpxImportState {
 	
 	protected WorkCalendar projectBaseCalendar;
 	protected String projectTitle;
-	protected CalendarManager calendarManager;
 	protected ResourcePool resourcePool;
 	protected boolean mspdi;
 	protected ProjectFile mpxProjectFile;
@@ -108,11 +107,12 @@ public class MpxImportState {
 	public void setProjectTitle(String projectTitle) {
 		this.projectTitle = projectTitle;
 	}
-	public CalendarManager getCalendarManager() {
-		return calendarManager;
-	}
-	public void setCalendarManager(CalendarManager calendarManager) {
-		this.calendarManager = calendarManager;
+	/**
+	 * Returns the microproject-native calendar bridge used during import.
+	 * Base calendars are registered into the global CalendarService through it.
+	 */
+	public ImportedCalendarService getImportedCalendarService() {
+		return ImportedCalendarService.getInstance();
 	}
 	public WorkCalendar getProjectBaseCalendar() {
 		return projectBaseCalendar;
@@ -132,20 +132,10 @@ public class MpxImportState {
 		if (mpxCalendar == null) {
 			throw new IllegalArgumentException("mpxCalendar must not be null");
 		}
-		if (calendarManager == null) {
-			throw new IllegalStateException("calendarManager must be initialized before importing calendars");
-		}
 		if (calendar == projectBaseCalendar) {
 			return;
 		}
-		try {
-			calendarManager.addBaseCalendar(calendar);
-		} catch (DuplicateCalendarException e) {
-			WorkCalendar existingCalendar = calendarManager.getCalendar(calendar.getId());
-			if (existingCalendar != null) {
-				calendar = existingCalendar;
-			}
-		}
+		ImportedCalendarService.getInstance().addImportedCalendar((WorkingCalendar) calendar, mpxCalendar);
 		mapBaseCalendar(calendar, mpxCalendar);
 	}
 	public ProjectCalendar getMappedMpxBaseCalendar(String calendarName){
@@ -153,6 +143,12 @@ public class MpxImportState {
 	}
 	public WorkCalendar getMappedBaseCalendar(String calendarName){
 		return baseCalendarMap.get(calendarName);
+	}
+	/**
+	 * Resolves a previously imported microproject calendar for the given MPXJ calendar.
+	 */
+	public WorkCalendar getImportedCalendar(ProjectCalendar mpxCalendar){
+		return ImportedCalendarService.getInstance().findImportedCalendar(mpxCalendar);
 	}
 	
 	public void mapTask(net.sf.mpxj.Task mpxTask, Task task){

@@ -55,97 +55,105 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import com.microproject.core.fields.FieldUtil;
-import com.microproject.pm.calendar.CalendarId;
-import com.microproject.pm.calendar.DefaultWorkCalendar;
+import java.util.Date;
+
+import com.microproject.core.time.TimeUtil;
 import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.Task;
+
+import net.sf.mpxj.Duration;
 import net.sf.mpxj.TaskMode;
 
 /**
+ * Converts an MPXJ Task into a microproject Task.
+ * Only fields that exist on the microproject Task model are mapped; fields that
+ * the microproject model does not carry (estimated, effortDriven, schedulingType,
+ * priority, cost, fixedCost, fixedCostAccrual, external, ...) are intentionally
+ * skipped. See issue #154 for the model-extension discussion.
  * @author Laurent Chretienneau
- *
  */
 public class MpxTaskConverter {
-	protected String[] fieldsToConvert=new String[]{
-			//ProjectLibre, mpx, converter ( mpx-> ProjectLibre )
-		"name", "name", "com.microproject.core.pm.exchange.converters.type.TruncatedStringConverter",
-		"wbs", "wBS", null,
-		"notes", "notes", null,
-		"id", "iD", null, // Keep the MPX id if present; the importer can synthesize one when absent.
-		"externalId", "uniqueID", null,
-		"estimated", "estimated", null,
-		"effortDriven", "effortDriven", null,
-		"milestone", "milestone", null,
-		"ignoreResourceCalendar", "ignoreResourceCalendar", null,
-		"priority", "priority", "com.microproject.core.pm.exchange.converters.mpx.type.MpxPriorityConverter",
-		"constraintType", "constraintType", "com.microproject.core.pm.exchange.converters.mpx.type.MpxConstraintTypeConverter",
-		"schedulingType", "type", "com.microproject.core.pm.exchange.converters.mpx.type.MpxSchedulingTypeConverter",		
-		"earnedValueMethod","earnedValueMethod", "com.microproject.core.pm.exchange.converters.mpx.type.MpxEarnedValueMethodConverter",
-		
-		"created", "createDate", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"stop", "stop", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"deadline", "deadline", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"constraintDate", "constraintDate", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		
-
-		"levelingDelay", "levelingDelay", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-
-		"fixedCost", "fixedCost", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		"fixedCostAccrual", "fixedCostAccrual", "com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConverter",
-		
-		"cost", "cost", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		"cost:1:10", "cost:1:10", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		
-		"start", "start", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"start:1:10", "start:1:10", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		
-		"finish", "finish", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"finish:1:10", "finish:1:10", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-
-		"date:1:10", "date:1:10", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"percentComplete", "percentageComplete", "com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
-		"percentWorkComplete", "percentageWorkComplete", "com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
-		"physicalPercentComplete", "physicalPercentComplete", "com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter",
-		"actualStart", "actualStart", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"actualFinish", "actualFinish", "com.microproject.core.pm.exchange.converters.type.DateUTCConverter",
-		"actualDuration", "actualDuration", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		"remainingDuration", "remainingDuration", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		"work", "work", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		"actualWork", "actualWork", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		"remainingWork", "remainingWork", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		
-		"duration", "duration", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-		"duration:1:10", "duration:1:10", "com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter",
-
-		"text:1:30", "text:1:30", null,
-		"flag:1:20", "flag:1:20", null,
-		"number:1:20", "number:1:20", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		
-	};
+	private MpxCalendarConverter calendarConverter = new MpxCalendarConverter();
 
 	public void from(net.sf.mpxj.Task mpxTask, Task task, MpxImportState state) {
-		//convert fields
-		FieldUtil.convertFields(task, net.sf.mpxj.Task.class, mpxTask, fieldsToConvert, true);
-		task.setPropertyValue("inactiveTask", Boolean.valueOf(!mpxTask.getActive()));
-		task.setPropertyValue("manuallyScheduled", Boolean.valueOf(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED));
-		
-		//convert calendar
+		if (mpxTask.getName() != null)
+			task.setName(mpxTask.getName());
+		if (mpxTask.getWBS() != null)
+			task.setWbs(mpxTask.getWBS());
+		if (mpxTask.getNotes() != null)
+			task.setNotes(mpxTask.getNotes());
+		if (mpxTask.getID() != null)
+			task.setId(mpxTask.getID().longValue());
+		if (mpxTask.getUniqueID() != null)
+			task.setUniqueId(mpxTask.getUniqueID().longValue());
+		if (mpxTask.getConstraintType() != null)
+			task.setConstraintType(mpxTask.getConstraintType().getValue());
+		if (mpxTask.getEarnedValueMethod() != null)
+			task.setEarnedValueMethod(mpxTask.getEarnedValueMethod().getValue());
+		if (mpxTask.getMarkTaskAsMilestone())
+			task.setMarkTaskAsMilestone(true);
+
+		task.setCreated(toLong(mpxTask.getCreateDate()));
+		task.setDeadline(toLong(mpxTask.getDeadline()));
+		task.setConstraintDate(toLong(mpxTask.getConstraintDate()));
+		task.setLevelingDelay(toLong(mpxTask.getLevelingDelay()));
+
+		task.setStart(toLong(mpxTask.getStart()));
+		task.setEnd(toLong(mpxTask.getFinish()));
+		task.setPercentComplete(mpxTask.getPercentageComplete() == null ? 0.0 : mpxTask.getPercentageComplete().doubleValue());
+		task.setPercentWorkComplete(mpxTask.getPercentageWorkComplete() == null ? 0.0 : mpxTask.getPercentageWorkComplete().doubleValue());
+		if (mpxTask.getPhysicalPercentComplete() != null)
+			task.setPhysicalPercentComplete(mpxTask.getPhysicalPercentComplete().doubleValue());
+		task.setActualStart(toLong(mpxTask.getActualStart()));
+		task.setActualFinish(toLong(mpxTask.getActualFinish()));
+		task.setActualDuration(toLong(mpxTask.getActualDuration()));
+		task.setRemainingDuration(toLong(mpxTask.getRemainingDuration()));
+		task.setWork(toLong(mpxTask.getWork()));
+		task.setActualWork(toLong(mpxTask.getActualWork()));
+		task.setRemainingWork(toLong(mpxTask.getRemainingWork()));
+		task.setDuration(toLong(mpxTask.getDuration()));
+
+		task.setInactiveTask(!mpxTask.getActive());
+		task.setManuallyScheduled(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED);
+
+		// convert calendar
 		WorkCalendar calendar;
-		if (mpxTask.getCalendar()==null){
-			calendar=state.getProjectBaseCalendar();
-		}else{
-			calendar=state.getCalendarManager().getCalendar(new CalendarId(mpxTask.getCalendar().getUniqueID()));
+		if (mpxTask.getCalendar() == null) {
+			calendar = state.getProjectBaseCalendar();
+		} else {
+			calendar = state.getImportedCalendar(mpxTask.getCalendar());
 			if (calendar == null) {
-				calendar=new DefaultWorkCalendar();
+				calendar = WorkingCalendar.getStandardBasedInstance();
 				calendar.setName(mpxTask.getName());
-				MpxCalendarConverter calendarConverter=new MpxCalendarConverter();
-				calendarConverter.from(mpxTask.getCalendar(), calendar, state);
+				calendarConverter.from(mpxTask.getCalendar(), (WorkingCalendar) calendar, state);
 				state.registerImportedCalendar(calendar, mpxTask.getCalendar());
 			}
 		}
-		task.setCalendar(calendar);
+		task.setWorkCalendar(calendar);
 	}
 
-	
+	private static long toLong(Date d) {
+		if (d == null)
+			return 0L;
+		return TimeUtil.addTimeZoneOffset(d.getTime());
+	}
+
+	private static long toLong(Duration d) {
+		if (d == null)
+			return 0L;
+		// convert MPXJ duration (value in its units) to milliseconds.
+		// MPXJ TimeUnit encoding: 1=minutes, 2=hours, 3=days, 4=weeks, 5=months, 6=years
+		double minutesPerUnit;
+		switch (d.getUnits().getValue()) {
+			case 1: minutesPerUnit = 1.0; break;          // minutes
+			case 2: minutesPerUnit = 60.0; break;         // hours
+			case 3: minutesPerUnit = 1440.0; break;       // days
+			case 4: minutesPerUnit = 10080.0; break;      // weeks
+			case 5: minutesPerUnit = 43200.0; break;      // months (30 days)
+			case 6: minutesPerUnit = 518400.0; break;     // years (360 days)
+			default: minutesPerUnit = 1.0; break;
+		}
+		return (long) (d.getDuration() * minutesPerUnit * 60000.0);
+	}
 }

@@ -21,7 +21,7 @@
  * ProjectLibre End-User License Agreement (the ProjectLibre License) in which case 
  * the provisions of the ProjectLibre License are applicable instead of those above. 
  * If you wish to allow use of your version of this file only under the terms of the 
- * ProjectLibre License and not to allow others to use your version of this file 
+ * ProjectLibre License and not to allow others to use this version of this file 
  * under the CPAL, indicate your decision by deleting the provisions above and 
  * replace them with the notice and other provisions required by the ProjectLibre 
  * License. If you do not delete the provisions above, a recipient may use your 
@@ -56,25 +56,24 @@
 package com.microproject.core.pm.exchange.converters.mpx.type;
 
 import com.microproject.core.fields.FieldTypeConverter;
-import com.microproject.pm.scheduling.EarnedValueMethod;
 
 
 /**
+ * Maps an MPXJ EarnedValueMethod to the microproject integer representation.
  * @author Laurent Chretienneau
- *
  */
 public class MpxEarnedValueMethodConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
 		net.sf.mpxj.EarnedValueMethod evm=(net.sf.mpxj.EarnedValueMethod)o;
-		return EarnedValueMethod.getInstance(evm.getValue());
+		return Integer.valueOf(evm.getValue());
 	}
 
 	@Override
 	public Object to(Object o) {
-		EarnedValueMethod evm=(EarnedValueMethod)o;
-		return net.sf.mpxj.EarnedValueMethod.getInstance(evm.getId());
+		Integer evm=(Integer)o;
+		return net.sf.mpxj.EarnedValueMethod.getInstance(evm.intValue());
 	}
 
 }

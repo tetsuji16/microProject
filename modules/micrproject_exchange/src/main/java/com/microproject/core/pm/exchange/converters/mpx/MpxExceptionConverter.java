@@ -55,19 +55,39 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
+import com.microproject.core.pm.exchange.converters.type.DateHoursMinsConverter;
 import com.microproject.core.time.TimeUtil;
-import com.microproject.pm.calendar.WorkCalendarException;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkingHours;
 
 import net.sf.mpxj.ProjectCalendarException;
 
 /**
+ * Converts an MPXJ calendar exception into a microproject WorkDay exception.
  * @author Laurent Chretienneau
- *
  */
-public class MpxExceptionConverter extends MpxRangeConverter{
-	public void from(ProjectCalendarException mpxException, WorkCalendarException exception) {
-		super.from(mpxException, exception);
+public class MpxExceptionConverter {
+	public void from(ProjectCalendarException mpxException, WorkDay exception) {
 		exception.setStart(TimeUtil.removeTimeZoneOffset(mpxException.getFromDate().getTime()));
 		exception.setEnd(TimeUtil.removeTimeZoneOffset(mpxException.getToDate().getTime()));
+		// copy the exception's working hours, if any
+		net.sf.mpxj.DateRange range = mpxException.getRange();
+		if (range != null && range.getStart() != null && range.getEnd() != null) {
+			DateHoursMinsConverter converter = new DateHoursMinsConverter();
+			long start = (Long) converter.from(range.getStart());
+			long end = (Long) converter.from(range.getEnd());
+			if (end == 0)
+				end = 24 * 3600000L;
+			WorkingHours workingHours = exception.getWorkingHours();
+			if (workingHours == null) {
+				workingHours = new WorkingHours();
+				exception.setWorkingHours(workingHours);
+			}
+			try {
+				workingHours.setInterval(0, start, end);
+			} catch (com.microproject.pm.calendar.WorkRangeException e) {
+				// leave the exception as a non-working day
+			}
+		}
 	}
 }

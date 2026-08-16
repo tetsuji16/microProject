@@ -55,12 +55,11 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import com.microproject.pm.calendar.CalendarId;
-import com.microproject.pm.calendar.DayType;
+import com.microproject.core.pm.exchange.converters.mpx.type.MpxRangeConverter;
+import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkCalendarException;
 import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkWeek;
+import com.microproject.pm.calendar.WorkingCalendar;
 
 import net.sf.mpxj.Day;
 import net.sf.mpxj.ProjectCalendar;
@@ -68,64 +67,66 @@ import net.sf.mpxj.ProjectCalendarException;
 import net.sf.mpxj.ProjectCalendarHours;
 
 /**
+ * Converts an MPXJ ProjectCalendar into a microproject WorkingCalendar.
  * @author Laurent Chretienneau
- *
  */
 public class MpxCalendarConverter {
-	public void from(ProjectCalendar mpxCalendar, WorkCalendar calendar, MpxImportState state){	
+	public void from(ProjectCalendar mpxCalendar, WorkingCalendar calendar, MpxImportState state){	
 		calendar.setName(mpxCalendar.getName());
-		state.getCalendarManager().fixBaseCalendar(calendar, state.getProjectTitle());
-		calendar.setId(new CalendarId(mpxCalendar.getUniqueID()));
-		
-		
+		calendar.setId(mpxCalendar.getUniqueID());
+
 		//base calendar
-		WorkCalendar standardCalendar = state.getCalendarManager().getStandardBaseCalendar();
-		ProjectCalendar mpxBaseCalendar=null;
-		WorkCalendar baseCalendar=null;
+		WorkingCalendar standardCalendar = (WorkingCalendar) ImportedCalendarService.getInstance().getStandardInstance();
+		ProjectCalendar mpxBaseCalendar = null;
+		WorkingCalendar baseCalendar = null;
 		if (mpxCalendar.isDerived()) {
 			mpxBaseCalendar = mpxCalendar.getParent();
-			if (mpxBaseCalendar==null){
-				mpxBaseCalendar=state.getMpxStandardBaseCalendar();
+			if (mpxBaseCalendar == null) {
+				mpxBaseCalendar = state.getMpxStandardBaseCalendar();
 			}
-			baseCalendar=state.getCalendarManager().getCalendar(new CalendarId(mpxBaseCalendar.getUniqueID()));
-			if (baseCalendar == null) 
+			baseCalendar = (WorkingCalendar) state.getImportedCalendar(mpxBaseCalendar);
+			if (baseCalendar == null)
 				baseCalendar = standardCalendar;
-			calendar.setBase(baseCalendar);
+			try {
+				calendar.setBaseCalendar(baseCalendar);
+			} catch (com.microproject.configuration.CircularDependencyException e) {
+				// ignore: keep unbased calendar
+			}
 		}
-		
-		
+
 		//work weeks
-		WorkWeek week=new WorkWeek();
-		calendar.setWeek(week);
-		MpxRangeConverter rangeConverter=new MpxRangeConverter();
-		for (int i=0; i<7; i++) {
-			Day mpxDayId=Day.getInstance(i+1);
-			ProjectCalendarHours mpxDay=mpxCalendar.getCalendarHours(mpxDayId);
-			net.sf.mpxj.DayType mpxDayType=mpxCalendar.getDayType(mpxDayId);
-			WorkDay day=null;
+		MpxRangeConverter rangeConverter = new MpxRangeConverter();
+		for (int i = 0; i < 7; i++) {
+			Day mpxDayId = Day.getInstance(i + 1);
+			ProjectCalendarHours mpxDay = mpxCalendar.getCalendarHours(mpxDayId);
+			net.sf.mpxj.DayType mpxDayType = mpxCalendar.getDayType(mpxDayId);
+			WorkDay day = null;
 			if (mpxDay == null) {
-				if (mpxCalendar.isDerived() &&
-							mpxBaseCalendar!=null){
-					if (mpxDayType==net.sf.mpxj.DayType.DEFAULT)
-						day=calendar.getBase().getWeek().getDay(i);
-//						day = WorkDay.getDefaultDay();
+				if (mpxCalendar.isDerived() && mpxBaseCalendar != null) {
+					if (mpxDayType == net.sf.mpxj.DayType.DEFAULT)
+						day = calendar.getBase().getWeekDay(i);
 					else if (mpxBaseCalendar.isWorkingDay(mpxDayId)) // Keep the working-day mapping aligned with MPX's day mask.
 						day = WorkDay.getNonWorkingDay();
 				}
 			} else {
-				day=new WorkDay(DayType.getInstance(mpxDayType.getValue()));
-				rangeConverter.from(mpxDay,day);
+				day = new WorkDay();
+				if (mpxDayType == net.sf.mpxj.DayType.WORKING) {
+					rangeConverter.from(mpxDay, day);
+				} else {
+					day = WorkDay.getNonWorkingDay();
+				}
 			}
-			week.setDay(i,day);
+			calendar.setWeekDay(i, day);
 		}
-		
+
 		//exceptions
-		MpxExceptionConverter exceptionConverter=new MpxExceptionConverter();
-		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()){
-			WorkCalendarException exception=new WorkCalendarException();
-			exceptionConverter.from(mpxException,exception);
-			calendar.addException(exception);
+		MpxExceptionConverter exceptionConverter = new MpxExceptionConverter();
+		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
+			WorkDay exception = new WorkDay(
+					com.microproject.util.DateTime.previousDay(mpxException.getFromDate().getTime()),
+					com.microproject.util.DateTime.previousDay(mpxException.getFromDate().getTime()));
+			exceptionConverter.from(mpxException, exception);
+			calendar.addOrReplaceException(exception);
 		}
 	}
-
 }

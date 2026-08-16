@@ -56,24 +56,23 @@
 package com.microproject.core.pm.exchange.converters.mpx.type;
 
 import com.microproject.core.fields.FieldTypeConverter;
-import com.microproject.pm.scheduling.AccrueType;
 
 
 /**
+ * Maps an MPXJ AccrueType to the microproject integer accrual representation.
  * @author Laurent Chretienneau
- *
  */
 public class MpxAccrueTypeConverter extends FieldTypeConverter {
 	@Override
 	public Object from(Object o) {
 		net.sf.mpxj.AccrueType a=(net.sf.mpxj.AccrueType)o;
-		return AccrueType.getInstance(a.getValue());
+		return Integer.valueOf(a.getValue());
 	}
 
 	@Override
 	public Object to(Object o) {
-		AccrueType a=(AccrueType)o;
-		return net.sf.mpxj.AccrueType.getInstance(a.getId());
+		Integer a=(Integer)o;
+		return net.sf.mpxj.AccrueType.getInstance(a.intValue());
 	}
 
 }

@@ -89,9 +89,10 @@ import com.microproject.core.pm.exchange.converters.mpx.MpxTaskConverter;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter;
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
-import com.microproject.pm.calendar.DefaultWorkCalendar;
-import com.microproject.pm.calendar.DuplicateCalendarException;
+import com.microproject.exchange.ImportedCalendarService;
+import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.assignment.Assignment;
@@ -248,25 +249,27 @@ public class MspImporter {
 
 	
 	protected void importCalendars(Project project) {
-		state.setCalendarManager(project.getCalendarManager());
 		state.setProjectTitle(mpxProjectFile.getProjectProperties().getProjectTitle());
-		
-		MpxCalendarConverter converter=new MpxCalendarConverter();
+
+		MpxCalendarConverter converter = new MpxCalendarConverter();
+		WorkCalendar standardBaseCalendar = null;
 		for (ProjectCalendar mpxBaseCalendar : mpxProjectFile.getCalendars()) {
-			WorkCalendar calendar=new DefaultWorkCalendar();
-			if (ProjectCalendar.DEFAULT_BASE_CALENDAR_NAME.equals(mpxBaseCalendar.getName())){
+			WorkCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+			if (ProjectCalendar.DEFAULT_BASE_CALENDAR_NAME.equals(mpxBaseCalendar.getName())) {
 				state.setMpxStandardBaseCalendar(mpxBaseCalendar);
-				project.getCalendarManager().setStandardBaseCalendar(calendar);
+				standardBaseCalendar = calendar;
 			}
 			converter.from(mpxBaseCalendar, calendar, state);
-			try {
-				project.getCalendarManager().addBaseCalendar(calendar);
-				state.mapBaseCalendar(calendar,mpxBaseCalendar);
-			} catch (DuplicateCalendarException e) {
-				logger.log(Level.WARNING, "Failed to import base calendar", e);
-			}
+			// register into the global calendar service via the import bridge
+			ImportedCalendarService.getInstance().addImportedCalendar((WorkingCalendar) calendar, mpxBaseCalendar);
+			state.mapBaseCalendar(calendar, mpxBaseCalendar);
 		}
-		state.setProjectBaseCalendar(project.getCalendarManager().getStandardBaseCalendar());
+		if (standardBaseCalendar == null) {
+			standardBaseCalendar = CalendarService.getInstance().getStandardInstance();
+		}
+		project.setBaseCalendar(standardBaseCalendar);
+		project.setWorkCalendar(standardBaseCalendar);
+		state.setProjectBaseCalendar(standardBaseCalendar);
 	}
 	
 	protected void importResourcePool(Project project) {
