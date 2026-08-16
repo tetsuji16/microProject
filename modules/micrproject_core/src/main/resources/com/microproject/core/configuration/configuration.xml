@@ -56,11 +56,11 @@
  -->
 
 <configuration>
-	<field id="Field.id" category="com.projectlibre.core.nodes.Node"/>
-	<field id="Field.name" category="com.projectlibre.core.nodes.Node"/>
-	<field id="Field.duration" category="com.projectlibre.core.nodes.Node"/>
-	<field id="Field.start" category="com.projectlibre.core.nodes.Node"/>
-	<field id="Field.finish" category="com.projectlibre.core.nodes.Node"/>
+	<field id="Field.id" category="com.microproject.core.nodes.Node"/>
+	<field id="Field.name" category="com.microproject.core.nodes.Node"/>
+	<field id="Field.duration" category="com.microproject.core.nodes.Node"/>
+	<field id="Field.start" category="com.microproject.core.nodes.Node"/>
+	<field id="Field.finish" category="com.microproject.core.nodes.Node"/>
 	
 	
 	
