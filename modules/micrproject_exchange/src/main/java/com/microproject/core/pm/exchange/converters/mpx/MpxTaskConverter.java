@@ -106,14 +106,14 @@ public class MpxTaskConverter {
 
 		task.setStart(toLong(mpxTask.getStart()));
 		task.setEnd(toLong(mpxTask.getFinish()));
-		task.setPercentComplete(mpxTask.getPercentageComplete() == null ? 0.0 : mpxTask.getPercentageComplete().doubleValue());
-		if (mpxTask.getPhysicalPercentComplete() != null)
-			task.setPhysicalPercentComplete(mpxTask.getPhysicalPercentComplete().doubleValue());
 		task.setActualStart(toLong(mpxTask.getActualStart()));
 		task.setActualFinish(toLong(mpxTask.getActualFinish()));
 		task.setActualDuration(toLong(mpxTask.getActualDuration()));
 		task.setRemainingDuration(toLong(mpxTask.getRemainingDuration()));
 		task.setDuration(toLong(mpxTask.getDuration()));
+		task.setPercentComplete(toRatio(mpxTask.getPercentageComplete()));
+		if (mpxTask.getPhysicalPercentComplete() != null)
+			task.setPhysicalPercentComplete(toRatio(mpxTask.getPhysicalPercentComplete()));
 
 		task.setInactiveTask(!mpxTask.getActive());
 		task.setManuallyScheduled(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED);
@@ -138,6 +138,10 @@ public class MpxTaskConverter {
 		if (d == null)
 			return 0L;
 		return TimeUtil.addTimeZoneOffset(d.getTime());
+	}
+
+	private static double toRatio(Number percentage) {
+		return percentage == null ? 0.0 : percentage.doubleValue() / 100.0;
 	}
 
 	private static long toLong(Duration d) {

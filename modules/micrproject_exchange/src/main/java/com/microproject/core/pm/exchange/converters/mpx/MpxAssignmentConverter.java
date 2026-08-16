@@ -85,7 +85,8 @@ public class MpxAssignmentConverter {
 		assignment.setStart(toLong(mpxAssignment.getStart()));
 		assignment.setEnd(toLong(mpxAssignment.getFinish()));
 		assignment.setWork(toLong(mpxAssignment.getWork()), null);
-		assignment.setPercentComplete(mpxAssignment.getPercentageWorkComplete() == null ? 0.0 : mpxAssignment.getPercentageWorkComplete().doubleValue());
+		assignment.setPercentComplete(mpxAssignment.getPercentageWorkComplete() == null
+				? 0.0 : mpxAssignment.getPercentageWorkComplete().doubleValue() / 100.0);
 		assignment.setActualStart(toLong(mpxAssignment.getActualStart()));
 		assignment.setActualFinish(toLong(mpxAssignment.getActualFinish()));
 		assignment.setActualWork(toLong(mpxAssignment.getActualWork()), null);

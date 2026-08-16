@@ -90,6 +90,7 @@ import com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverte
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
 import com.microproject.exchange.ImportedCalendarService;
+import com.microproject.grouping.core.Node;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
@@ -293,12 +294,12 @@ public class MspImporter {
 				continue;
 			}
 			Resource resource;
-			if (mpxResource.getID()==0)
+			if (mpxResource.getID()==0) {
 				resource=ResourceImpl.getUnassignedInstance();
-			else {
-				resource=new ResourceImpl();
-				// resource registered via converter
+				state.mapResource(mpxResource, resource);
+				continue;
 			}
+			resource=resourcePool.newResourceInstance();
 			converter.from(mpxResource, resource, state);
 			state.mapResource(mpxResource, resource);
 		}
@@ -354,18 +355,18 @@ public class MspImporter {
 	}
 
 	private Task importRegularTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {
-		Task task = createTask(project, mpxTask);
+		Task task = createTask(project, mpxTask, parentTask);
 		updateEarliestTaskStart(task);
-		// task added to hierarchy via converter
 		state.mapTask(mpxTask, task);
 		importTaskSnapshots(mpxTask, task);
 		importAssignments(mpxTask, task);
 		return task;
 	}
 
-	private Task createTask(Project project, net.sf.mpxj.Task mpxTask) {
+	private Task createTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {
 		MpxTaskConverter converter=new MpxTaskConverter();
-		Task task = new NormalTask(project);
+		Node parentNode = parentTask == null ? null : project.getTaskModel().search(parentTask);
+		Task task = (Task) project.createLocalTaskNode(parentNode).getImpl();
 		converter.from(mpxTask, task, state);
 		return task;
 	}
