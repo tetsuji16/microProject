@@ -31,11 +31,44 @@ Use `rg` / `rg --files` for discovery. Search by symbol and behavior before intr
 
 Respect the dependency direction expressed in the Gradle files. Put workflow coordination in `micrproject_application`, reusable domain behavior in `micrproject_core`, format conversion in `micrproject_exchange`, and view-only behavior in `micrproject_ui`.
 
+## Dependency and namespace hygiene (eliminate ProjectLibre coupling)
+
+The fork's canonical namespace is `com.microproject` (and the legacy serialization
+alias `com.projectlibre1` kept only inside `SafeObjectInput` for reading old `.pod`
+files — see issue #154). Anything that still carries the `projectLibre` / `ProjectLibre`
+/ `com.projectlibre` name is unfinished rename work and must not be widened.
+
+- **Module names**: every module under `modules/` must be `micrproject_*`. The
+  `modules/projectlibre_*` directories are dead legacy modules (not included in
+  `settings.gradle`); do not reference or revive them. Rename or delete before they
+  accrue new code.
+- **Packages**: source under `com.projectlibre` / `com.projectlibre1` is a leftover
+  from the rename. New code always uses `com.microproject`. Do not add new
+  `com.projectlibre*` packages or imports from `micrproject_*` modules. The only
+  tolerated `com.projectlibre1` reference is the deserialization remap in
+  `SafeObjectInput` (backward-compatible `.pod` reads).
+- **Brand/identifier names**: method/constant names such as `isProjectLibreFile`,
+  `LOCAL_PROJECT_IMPORTER`, `ProjectLibreShell` are acceptable only as established
+  internal identifiers for the *file format*; do not introduce new `ProjectLibre`-prefixed
+  public types or APIs. Prefer neutral names (`isNativeFile`, `LOCAL_IMPORTER`, …) for
+  new code.
+- **Third-party / contrib**: keep `micrproject_contrib` for bundled compatibility code
+  and avoid growing packaged dependencies. External libraries must not pull the old
+  ProjectLibre namespace into `micrproject_*` runtime modules.
+- **License headers**: files should carry the MIT header with
+  `Copyright (c) 2026 microProject`. Old CPAL/`Copyright (c) 2012-2019 ProjectLibre Inc.`
+  headers are being phased out (see issue #43 phase 1); do not copy the old header into
+  new or moved files.
+
 ## Implementation conventions
 
 - The project requires a full JDK 25 or newer and compiles with Java release 25. Use the checked-in Gradle Wrapper (`.\gradlew.bat` on Windows).
 - Follow `.editorconfig`: UTF-8, CRLF, final newline, and tabs by default; YAML uses two spaces and properties files use four spaces.
-- Follow nearby Java style and existing package conventions; both `com.projectlibre1` and compatibility namespaces exist, so do not rename packages opportunistically.
+- Follow nearby Java style and existing package conventions. The rename from
+  `com.projectlibre1`/`com.projectlibre` to `com.microproject` is the ongoing goal
+  (issue #43); complete partial renames when you touch a file rather than leaving
+  mixed namespaces, but do not launch opportunistic broad renames unrelated to the
+  task at hand. See "Dependency and namespace hygiene" above.
 - Keep UI work Swing-safe. Preserve EDT boundaries, model/view index conversions, selection state, and repaint/revalidation behavior.
 - Avoid broad refactors unless they remove duplicated responsibility directly involved in the bug. Do not mix unrelated formatting or cleanup into a functional patch.
 - Treat file formats and serialized data as compatibility boundaries. Prefer backward-compatible reads, deterministic writes, clear failure behavior, and tests that cover save/reload or import/export round trips.
