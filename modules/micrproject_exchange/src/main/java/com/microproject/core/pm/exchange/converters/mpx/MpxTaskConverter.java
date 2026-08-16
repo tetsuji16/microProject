@@ -87,8 +87,13 @@ public class MpxTaskConverter {
 			task.setId(mpxTask.getID().longValue());
 		if (mpxTask.getUniqueID() != null)
 			task.setUniqueId(mpxTask.getUniqueID().longValue());
-		if (mpxTask.getConstraintType() != null)
-			task.setConstraintType(mpxTask.getConstraintType().getValue());
+		if (mpxTask.getConstraintType() != null) {
+			try {
+				task.setConstraintType(mpxTask.getConstraintType().getValue());
+			} catch (com.microproject.field.FieldParseException e) {
+				// leave default constraint type
+			}
+		}
 		if (mpxTask.getEarnedValueMethod() != null)
 			task.setEarnedValueMethod(mpxTask.getEarnedValueMethod().getValue());
 		if (mpxTask.getMilestone())

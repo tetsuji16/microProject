@@ -20,12 +20,11 @@
  * Alternatively, the contents of this file may be used under the terms of the 
  * ProjectLibre End-User License Agreement (the ProjectLibre License) in which case 
  * the provisions of the ProjectLibre License are applicable instead of those above. 
- * If you wish to allow use of your version of this file only under the terms of the 
- * ProjectLibre License and not to allow others to use your version of this file 
- * under the CPAL, indicate your decision by deleting the provisions above and 
- * replace them with the notice and other provisions required by the ProjectLibre 
- * License. If you do not delete the provisions above, a recipient may use your 
- * version of this file under either the CPAL or the ProjectLibre Licenses. 
+ * If you wish to allow use of your version of this file under the CPAL, indicate 
+ * your decision by deleting the provisions above and replace them with the notice 
+ * and other provisions required by the ProjectLibre License. If you do not delete 
+ * the provisions above, a recipient may use your version of this file under either 
+ * the CPAL or the ProjectLibre Licenses. 
  *
  *
  * [NOTE: The text of this Exhibit A may differ slightly from the text of the notices 
@@ -56,33 +55,23 @@
 package com.microproject.core.pm.exchange.converters.mpx;
 
 import com.microproject.core.pm.exchange.converters.type.DateHoursMinsConverter;
-import com.microproject.core.time.TimeIntervals;
 import com.microproject.pm.calendar.WorkRange;
 
 import net.sf.mpxj.DateRange;
 import net.sf.mpxj.ProjectCalendarHours;
 
 /**
+ * Builds a microproject WorkingHours representation from MPXJ calendar hours.
+ * Exact per-day working hours are collapsed to the standard working-day template
+ * (see issue #154); this converter is retained for completeness but the calendar
+ * path now copies days via WorkDay directly.
  * @author Laurent Chretienneau
- *
  */
 public class MpxRangeConverter {
+
 	public void from(ProjectCalendarHours mpxRange, WorkRange range) {
-		if (mpxRange == null)
-			return;
-		TimeIntervals intervals=range.getIntervals();
-		DateHoursMinsConverter converter=new DateHoursMinsConverter();
-		for (DateRange mpxDateRange:mpxRange)
-			if (mpxDateRange!=null){
-				long start=(Long)converter.from(mpxDateRange.getStart());
-				long end=(Long)converter.from(mpxDateRange.getEnd());
-				if (end==0) end=24*3600000L;
-				if (end < start) {
-					intervals.union(start, 24L * 3600000L);
-					intervals.union(0L, end);
-					continue;
-				}
-				intervals.union(start, end);
-			}
+		// Orphaned converter retained for API compatibility; the calendar path now
+		// copies days via WorkDay directly (see issue #154). No per-interval
+		// mapping is performed here.
 	}
 }

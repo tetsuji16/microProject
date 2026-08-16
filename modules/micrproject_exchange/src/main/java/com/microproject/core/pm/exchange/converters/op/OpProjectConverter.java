@@ -78,25 +78,24 @@ public class OpProjectConverter {
 		"statusDate", "statusDate", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",
 	};
 	public void to(com.microproject.pm.task.Project opProject, Project project, OpImportState state) {
-		FieldUtil.convertFields(project, com.microproject.pm.task.Project.class, opProject, fieldsToConvert, false);
+		if (project.getName() != null)
+			opProject.setName(project.getName());
+		if (project.getManager() != null)
+			opProject.setManager(project.getManager());
+		if (project.getNotes() != null)
+			opProject.setNotes(project.getNotes());
+		opProject.setStartDate(project.getStart());
+		opProject.setStatusDate(project.getStatusDate());
 
-		//find calendar
-		WorkCalendar calendar=project.getCalendar();
-		if (calendar!=null){
-			com.microproject.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
-			if (opCalendar==null)
-				log.warning("Calendar "+calendar.getId()+" for task "+project.getId()+" not found");
-			else {
-				try {
-					opProject.setBaseCalendar(opCalendar);
-				} catch (CircularDependencyException e) {
-					log.log(Level.WARNING, "Failed to set base calendar", e);
-				}
-				//opProject.setWorkCalendar(opCalendar);
+		//copy base calendar
+		WorkCalendar calendar = project.getBaseCalendar();
+		if (calendar != null) {
+			try {
+				opProject.setBaseCalendar(calendar);
+			} catch (CircularDependencyException e) {
+				log.log(Level.WARNING, "Failed to set base calendar", e);
 			}
 		}
-
-		
 	}
 
 }

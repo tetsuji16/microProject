@@ -67,14 +67,12 @@ public class OpSchedulingTypeConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		int st=(Integer)o;
-		return SchedulingType.getInstance(st);
+		return o;
 	}
 
 	@Override
 	public Object to(Object o) {
-		SchedulingType st=(SchedulingType)o;
-		return st.getId();
+		return Integer.valueOf(((Number)o).intValue());
 	}
 
 }

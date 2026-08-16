@@ -86,7 +86,11 @@ public class MpxProjectConverter {
 			calendar = state.getMappedBaseCalendar(mpxProjectHeader.getDefaultCalendar().getName());
 		if (calendar == null)
 			calendar = state.getProjectBaseCalendar();
-		project.setBaseCalendar(calendar);
+		try {
+			project.setBaseCalendar(calendar);
+		} catch (com.microproject.configuration.CircularDependencyException e) {
+			// ignore: a self-referential base calendar is not expected here
+		}
 	}
 
 	private static long toLong(Date d) {

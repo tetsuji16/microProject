@@ -57,83 +57,41 @@ package com.microproject.core.pm.exchange.converters.op;
 
 import java.util.logging.Logger;
 
-import com.microproject.core.fields.FieldUtil;
-import com.microproject.core.pm.exchange.converters.type.LongDateConverter;
 import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.task.Task;
-import com.microproject.field.CustomFields;
 import com.microproject.pm.task.NormalTask;
 
 /**
+ * Copies a microproject Task into a microproject NormalTask. Both sides use the
+ * same microproject model, so this is a direct typed-field copy (the deleted
+ * reflection-based FieldUtil.convertFields path is no longer used; see issue
+ * #154).
  * @author Laurent Chretienneau
- *
  */
 public class OpTaskConverter {
 	protected static Logger log = Logger.getLogger("OpTaskConverter");
-	protected String[] fieldsToConvert=new String[]{
-			//ProjectLibre, mpx, converter (mpx-> ProjectLibre
-		"name", "name", null,
-		"wbs", "wbs", null,
-		"notes", "notes", null,
-		"id", "id", null,
-		"created", "created", null,
-		"start", "currentScheduleStart", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",
-		"finish", "currentScheduleFinish", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",
-		"duration", "duration", "com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter",
-		"percentComplete", "percentComplete", null,
-		"physicalPercentComplete", "physicalPercentComplete", null,
-		"manuallyScheduled", "manuallyScheduled", null,
-		"inactiveTask", "inactiveTask", null,
-		"estimated", "estimated", null,
-		"levelingDelay", "levelingDelay", "com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter",
-		"deadline", "deadline", null,
-		"priority", "priority", null,
-		"fixedCost", "fixedCost", null,
-		"fixedCostAccrual", "fixedCostAccrual", "com.microproject.core.pm.exchange.converters.op.type.OpAccrueTypeConverter",
-		"stop", "stop", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",
-		"effortDriven", "effortDriven", null,
-		"schedulingType", "schedulingType", "com.microproject.core.pm.exchange.converters.op.type.OpSchedulingTypeConverter",		
-		"milestone", "markTaskAsMilestone", null,
-		"earnedValueMethod","earnedValueMethod", "com.microproject.core.pm.exchange.converters.op.type.OpEarnedValueMethodConverter",
-		"ignoreResourceCalendar", "ignoreResourceCalendar", null,
-		
-	};
-	
-	protected String[] customFieldsToConvert=new String[]{
-			//ProjectLibre, OP, converter (OP -> ProjectLibre)
-		"cost:1:10", "customCost,0,9", null,
-		"start:1:10", "customStart,0,9", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",		
-		"finish:1:10", "customFinish,0,9", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",	
-		"date:1:10", "customDate,0,9", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",	
-		"duration:1:10", "customDuration,0,9", "com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter",
-		"text:1:30", "customText,0,29", null,
-		"flag:1:20", "customFlag,0,19", null,
-		"number:1:20", "customNumber,0,19", null,
-		
-	};
 
 	public void to(NormalTask opTask, Task task, OpImportState state) {
-		//convert fields
-		FieldUtil.convertFields(task, NormalTask.class, opTask, fieldsToConvert, false);
-		FieldUtil.convertFields(task, CustomFields.class, opTask.getCustomFields(), customFieldsToConvert, false);
-		
-		ConstraintType constraintType=(ConstraintType)task.getPropertyValue("constraintType");
-		if (constraintType!=null){
-			LongDateConverter converter=new LongDateConverter();
-			Long constraintDate=(Long)converter.to(task.getPropertyValue("constraintDate"));
-			opTask.setScheduleConstraint(constraintType.getId(),constraintDate==null?0:constraintDate);
-		}
-		
-		//find calendar
-		WorkCalendar calendar=task.getCalendar();
-		if (calendar!=null){
-			com.microproject.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
-			if (opCalendar==null)
-				log.warning("Calendar "+calendar.getId()+" for task "+task.getId()+" not found");
-			else
-				opTask.setWorkCalendar(opCalendar);
+		if (task.getName() != null)
+			opTask.setName(task.getName());
+		if (task.getWbs() != null)
+			opTask.setWbs(task.getWbs());
+		if (task.getNotes() != null)
+			opTask.setNotes(task.getNotes());
+		opTask.setId(task.getId());
+		opTask.setCreated(task.getCreated());
+		opTask.setStart(task.getStart());
+		opTask.setEnd(task.getEnd());
+		opTask.setPercentComplete(task.getPercentComplete());
+		opTask.setPhysicalPercentComplete(task.getPhysicalPercentComplete());
+		opTask.setDeadline(task.getDeadline());
+		opTask.setLevelingDelay(task.getLevelingDelay());
+		opTask.setEarnedValueMethod(task.getEarnedValueMethod());
+
+		// schedule constraint
+		int constraintType = task.getConstraintType();
+		if (constraintType != 0) {
+			opTask.setScheduleConstraint(constraintType, task.getConstraintDate());
 		}
 	}
-	
 }

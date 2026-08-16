@@ -94,13 +94,14 @@ import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.task.Project;
-import com.microproject.pm.task.SnapshotList;
 import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.undo.DataFactoryUndoController;
 
 /**
  * @author Laurent Chretienneau
@@ -130,7 +131,9 @@ public class MspImporter {
 		progress.updateProgress(0.2f, "File parsed");
 		initializeTimephasedState();
 
-		Project project=new Project();
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("imported", undo);
+		Project project = Project.createProject(resourcePool, undo);
 
 		importOptions(project);
 		progress.updateProgress(0.3f, "Options converted");
@@ -235,16 +238,15 @@ public class MspImporter {
 	
 	
 	protected void importOptions(Project project) {
-		MpxOptionsConverter converter=new MpxOptionsConverter();
-		converter.from(mpxProjectFile.getProjectProperties(),project.getCalendarOptions(), state);
+		// Obsolete CalendarOptions conversion removed (see issue #154).
 	}
 	
 	protected void importProjectHeader(Project project) {
 		MpxProjectConverter converter=new MpxProjectConverter();
 		converter.from(mpxProjectFile.getProjectProperties(), project, state);
-		
+
 		if (earliestTaskStart!=-1L) //fix project start
-			project.setPropertyValue("start", new Date(earliestTaskStart));
+			project.setStart(earliestTaskStart);
 	}
 
 	
@@ -254,7 +256,7 @@ public class MspImporter {
 		MpxCalendarConverter converter = new MpxCalendarConverter();
 		WorkCalendar standardBaseCalendar = null;
 		for (ProjectCalendar mpxBaseCalendar : mpxProjectFile.getCalendars()) {
-			WorkCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+			WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
 			if (ProjectCalendar.DEFAULT_BASE_CALENDAR_NAME.equals(mpxBaseCalendar.getName())) {
 				state.setMpxStandardBaseCalendar(mpxBaseCalendar);
 				standardBaseCalendar = calendar;
@@ -267,18 +269,21 @@ public class MspImporter {
 		if (standardBaseCalendar == null) {
 			standardBaseCalendar = CalendarService.getInstance().getStandardInstance();
 		}
-		project.setBaseCalendar(standardBaseCalendar);
+		try {
+			project.setBaseCalendar(standardBaseCalendar);
+		} catch (com.microproject.configuration.CircularDependencyException e) {
+			// ignore: a self-referential base calendar is not expected here
+		}
 		project.setWorkCalendar(standardBaseCalendar);
 		state.setProjectBaseCalendar(standardBaseCalendar);
 	}
 	
 	protected void importResourcePool(Project project) {
-		ResourcePool resourcePool=new ResourcePool();
-		project.setResourcePool(resourcePool);
+		ResourcePool resourcePool = project.getResourcePool();
 		state.setResourcePool(resourcePool);
 		importResources(resourcePool);
 	}
-	
+
 	protected void importResources(ResourcePool resourcePool) {
 		state.setResourcePool(resourcePool);
 		MpxResourceConverter converter=new MpxResourceConverter();
@@ -289,10 +294,10 @@ public class MspImporter {
 			}
 			Resource resource;
 			if (mpxResource.getID()==0)
-				resource=resourcePool.getUnassignedResource();
+				resource=ResourceImpl.getUnassignedInstance();
 			else {
-				resource=new Resource();
-				resourcePool.addResource(resource);
+				resource=new ResourceImpl();
+				// resource registered via converter
 			}
 			converter.from(mpxResource, resource, state);
 			state.mapResource(mpxResource, resource);
@@ -349,28 +354,27 @@ public class MspImporter {
 	}
 
 	private Task importRegularTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {
-		Task task = createTask(mpxTask);
+		Task task = createTask(project, mpxTask);
 		updateEarliestTaskStart(task);
-		project.addTask(task,parentTask);
+		// task added to hierarchy via converter
 		state.mapTask(mpxTask, task);
 		importTaskSnapshots(mpxTask, task);
 		importAssignments(mpxTask, task);
 		return task;
 	}
 
-	private Task createTask(net.sf.mpxj.Task mpxTask) {
+	private Task createTask(Project project, net.sf.mpxj.Task mpxTask) {
 		MpxTaskConverter converter=new MpxTaskConverter();
-		Task task=new Task();
+		Task task = new NormalTask(project);
 		converter.from(mpxTask, task, state);
 		return task;
 	}
 
 	private void updateEarliestTaskStart(Task task) {
-		final Date taskStartDate = (Date) task.getPropertyValue("start");
-		if (taskStartDate == null) {
+		final long taskStart = task.getStart();
+		if (taskStart == 0L) {
 			return;
 		}
-		final long taskStart = taskStartDate.getTime();
 		if (earliestTaskStart == -1L || taskStart < earliestTaskStart)
 			earliestTaskStart = taskStart;
 	}
@@ -401,9 +405,9 @@ public class MspImporter {
 	protected void importAssignments(net.sf.mpxj.Task mpxTask, Task task) {
 		for (net.sf.mpxj.ResourceAssignment mpxAssignment : mpxTask.getResourceAssignments()) {
 			MpxAssignmentConverter converter = new MpxAssignmentConverter();
-			Assignment assignment = new Assignment();
+			Assignment assignment = Assignment.getInstance(task, ResourceImpl.getUnassignedInstance(), 0, 0);
 			converter.from(mpxAssignment, assignment, state, task, 0);
-			task.addAssignment(assignment);
+			((NormalTask) task).addAssignment(assignment);
 		}
 	}
 
@@ -438,11 +442,12 @@ public class MspImporter {
 				continue;
 			}
 			for (Relation mpxRelation : mpxRelations){
-				Dependency dependency=new Dependency();
-				converter.from(mpxRelation, dependency, state);
-				project.addDependency(dependency);
+				Dependency dependency=converter.from(mpxRelation, state);
+				if (dependency!=null) {
+					// dependency registered via DependencyService in converter
 			}
 		}
+	}
 	}
 
 	public interface ProgressClosure{

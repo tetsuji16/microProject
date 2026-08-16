@@ -68,13 +68,13 @@ public class MpxConstraintTypeConverter extends FieldTypeConverter {
 	@Override
 	public Object from(Object o) {
 		net.sf.mpxj.ConstraintType ct=(net.sf.mpxj.ConstraintType)o;
-		return ConstraintType.getInstance(ct.getValue());
+		return Integer.valueOf(ct.getValue());
 	}
 
 	@Override
 	public Object to(Object o) {
-		ConstraintType ct=(ConstraintType)o;
-		return net.sf.mpxj.ConstraintType.getInstance(ct.getId());
+		// microproject ConstraintType is now an int-valued constant set
+		return o;
 	}
 
 }

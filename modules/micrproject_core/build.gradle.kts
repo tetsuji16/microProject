@@ -1,5 +1,9 @@
 dependencies {
     implementation(project(":micrproject_contrib"))
+    // slf4j-simple is the logging backend. commons-logging 1.3.x routes through slf4j;
+    // log4j2/logback are excluded project-wide (see root build.gradle.kts) because they
+    // recurse via StackWalker on modern JDKs and break Configuration.getInstance()/.pod load.
+    implementation(libs.slf4j.simple)
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
@@ -14,7 +18,7 @@ tasks.test {
 
 tasks.processResources {
     inputs.property("releaseVersion", rootProject.version.toString())
-    filesMatching("com/projectlibre1/version/version.properties") {
+    filesMatching("com/microproject/version/version.properties") {
         expand("version" to rootProject.version.toString())
     }
 }

@@ -55,99 +55,48 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.op;
 
-import java.math.BigInteger;
-
-import com.microproject.core.fields.FieldUtil;
-import com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter;
-import com.microproject.core.pm.exchange.converters.type.LongDateConverter;
-import com.microproject.core.time.Duration;
-import com.microproject.core.time.TimeInterval;
-import com.microproject.core.time.TimeIntervals;
-import com.microproject.core.time.TimephasedValue;
-import com.microproject.core.time.WorkContour;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.assignment.contour.ContourTypes;
+import com.microproject.pm.resource.EnterpriseResource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
-import com.microproject.server.data.mspdi.TimeDistributedTypeMapper;
 
 /**
+ * Converts a microproject Assignment into another microproject Assignment (the .pod
+ * (de)serialization path). Both sides use the same microproject model, so this is a
+ * direct typed-field copy. Timephased data is intentionally skipped (see issue #154).
  * @author Laurent Chretienneau
- *
  */
 public class OpAssignmentConverter {
-	protected String[] fieldsToConvert=new String[]{
-			//ProjectLibre, mpx, converter (mpx-> ProjectLibre
-//		"units", "unit", null,
-		"start", "start", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",
-		"finish", "end", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",		
-//		"work", "work", "com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter",		
-	};
 
 	public com.microproject.pm.assignment.Assignment to(Assignment assignment, OpImportState state) {
 		com.microproject.pm.resource.Resource resource;
-		if (assignment.getResource().isUnassigned()) 
-			resource=ResourceImpl.getUnassignedInstance();
-		else resource = state.getOpResource(assignment.getResource());
-		if (resource==null)
-			throw new IllegalStateException("Unable to resolve resource for assignment " + assignment);
-		
-		NormalTask task=state.getOpTask(assignment.getTask());
-		if (task == null) {
-			throw new IllegalStateException("Unable to resolve task for assignment " + assignment);
-		}
-		
-		
-		//create assignment
-		com.microproject.pm.assignment.Assignment opAssignment=com.microproject.pm.assignment.Assignment.getInstance(task,resource
-				,(Double)assignment.getPropertyValue("units"),0);
-
-		
-		//convert fields
-		FieldUtil.convertFields(assignment, com.microproject.pm.assignment.Assignment.class, opAssignment, fieldsToConvert, false);
-		applyTrackingFields(assignment, opAssignment);
-
-		//timephased		
-		TimeIntervals timephasedIntervals=assignment.getTimephased();
-		if (timephasedIntervals!=null)
-		for (TimeInterval interval : timephasedIntervals){
-			TimephasedValue<?> timephasedValue=(TimephasedValue<?>)interval;
-			Object opType = TimeDistributedTypeMapper.getOPPrField(BigInteger.valueOf(timephasedValue.getType().getId()));
-			Duration duration=(Duration)timephasedValue.getValue();
-			opAssignment.setInterval(opType, timephasedValue.getStart(), timephasedValue.getEnd(),duration.getValue());
-		}
-				
-		//contour
-		WorkContour contour=assignment.getContour();
-		if (contour == null)
-			opAssignment.setWorkContourType(ContourTypes.FLAT);
-		else if (contour == WorkContour.CONTOURED)
-			opAssignment.makeContourPersonal();
+		if (assignment.getResource().getUniqueId() == EnterpriseResource.UNASSIGNED_ID)
+			resource = ResourceImpl.getUnassignedInstance();
 		else
-			opAssignment.setWorkContourType(contour.getId());
-		
-		
-		opAssignment.makeFlatIfPossible();
-		
+			resource = state.getOpResource(assignment.getResource());
+		if (resource == null)
+			throw new IllegalStateException("Unable to resolve resource for assignment " + assignment);
+
+		NormalTask task = state.getOpTask(assignment.getTask());
+		if (task == null)
+			throw new IllegalStateException("Unable to resolve task for assignment " + assignment);
+
+		com.microproject.pm.assignment.Assignment opAssignment = com.microproject.pm.assignment.Assignment
+				.getInstance(task, resource, assignment.getUnits(), 0);
+
+		if (assignment.getName() != null)
+			opAssignment.setName(assignment.getName());
+		opAssignment.setStart(assignment.getStart());
+		opAssignment.setEnd(assignment.getEnd());
+		opAssignment.setWork(assignment.getWork(null), null);
+		opAssignment.setActualStart(assignment.getActualStart());
+		opAssignment.setActualFinish(assignment.getActualFinish());
+		opAssignment.setActualWork(assignment.getActualWork(null), null);
+		opAssignment.setRemainingWork(assignment.getRemainingWork(null), null);
+		opAssignment.setPercentComplete(assignment.getPercentComplete());
+		opAssignment.setWorkContourType(assignment.getWorkContourType());
+
 		return opAssignment;
-	}
-
-	private void applyTrackingFields(Assignment assignment, com.microproject.pm.assignment.Assignment opAssignment) {
-		Duration work = (Duration) assignment.getPropertyValue("work");
-		if (work != null)
-			opAssignment.setWork((Long) new OpDurationConverter().to(work), null);
-
-		java.util.Date actualStart = (java.util.Date) assignment.getPropertyValue("actualStart");
-		if (actualStart != null)
-			opAssignment.setActualStart((Long) new LongDateConverter().to(actualStart));
-
-		Number percentWorkComplete = (Number) assignment.getPropertyValue("percentWorkComplete");
-		if (percentWorkComplete != null)
-			opAssignment.setPercentComplete(Math.max(0.0d, Math.min(1.0d, percentWorkComplete.doubleValue())));
-
-		java.util.Date actualFinish = (java.util.Date) assignment.getPropertyValue("actualFinish");
-		if (actualFinish != null)
-			opAssignment.setActualFinish((Long) new LongDateConverter().to(actualFinish));
 	}
 }

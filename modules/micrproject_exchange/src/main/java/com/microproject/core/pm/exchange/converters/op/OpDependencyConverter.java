@@ -55,36 +55,32 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.op;
 
-import com.microproject.core.pm.exchange.converters.op.type.OpDependencyTypeConverter;
-import com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Task;
 
 /**
+ * Converts a microproject Dependency into another microproject Dependency (the .pod
+ * (de)serialization path). Both sides use the same microproject model.
  * @author Laurent Chretienneau
- *
  */
 public class OpDependencyConverter {
 
 	public com.microproject.pm.dependency.Dependency to(Dependency dependency, OpImportState state) {
-		NormalTask predecessor=state.getOpTask(dependency.getPredecessor());
-		NormalTask successor=state.getOpTask(dependency.getSuccessor());
+		NormalTask predecessor = state.getOpTask((Task) dependency.getPredecessor());
+		NormalTask successor = state.getOpTask((Task) dependency.getSuccessor());
 
-		com.microproject.pm.dependency.Dependency opDependency=null;
+		com.microproject.pm.dependency.Dependency opDependency = null;
 		try {
-			OpDurationConverter durationConverter=new OpDurationConverter();
-			Long opDuration=(Long)durationConverter.to(dependency.getLag());
-
-			OpDependencyTypeConverter dependencyTypeConverter=new OpDependencyTypeConverter();
-			int opDependencyType=(Integer)dependencyTypeConverter.to(dependency.getType());
-			
+			int dependencyType = dependency.getDependencyType();
+			long lag = dependency.getLag();
 			opDependency = DependencyService.getInstance().newDependency(
-					predecessor, successor, opDependencyType, opDuration, null); //claur, mpxj classes have changed
+					predecessor, successor, dependencyType, lag, null);
 		} catch (InvalidAssociationException e) {
-			opDependency=null;
+			opDependency = null;
 		}
 		return opDependency;
-	}	
+	}
 }

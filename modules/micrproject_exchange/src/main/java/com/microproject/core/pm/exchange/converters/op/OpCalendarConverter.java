@@ -59,89 +59,68 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkCalendarException;
 import com.microproject.pm.calendar.WorkDay;
 import com.microproject.pm.calendar.WorkWeek;
 import com.microproject.configuration.CircularDependencyException;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.util.DateTime;
-import java.util.logging.Level;
 
 /**
+ * Copies a microproject WorkCalendar into a microproject WorkingCalendar (the .pod
+ * (de)serialization path). Both sides use the same microproject model, so this is a
+ * direct copy. Exact working hours are simplified to the default working day (see
+ * issue #154).
  * @author Laurent Chretienneau
- *
  */
 public class OpCalendarConverter {
 	private static final Logger logger = Logger.getLogger(OpCalendarConverter.class.getName());
 
 	public void to(WorkingCalendar opCalendar, WorkCalendar calendar, OpImportState state){
-		opCalendar.setId(calendar.getId().getLocalId());
-		String name=calendar.getName();
-		opCalendar.setName(calendar.getName());
-		
+		WorkingCalendar src;
+		if (calendar instanceof WorkingCalendar)
+			src = (WorkingCalendar) calendar;
+		else
+			src = CalendarService.getInstance().getStandardBasedInstance();
+
+		if (calendar.getName() != null)
+			opCalendar.setName(calendar.getName());
+
 		//base calendar
-		WorkingCalendar opStandardCalendar=CalendarService.getInstance().getStandardInstance();
-		WorkingCalendar baseCalendar = null;
-		if (calendar.getBase()!=null){
-			baseCalendar=state.getMappedOpBaseCalendar(calendar.getId());
-			if (baseCalendar==null)
-				baseCalendar=opStandardCalendar;
-			try {
-				opCalendar.setBaseCalendar(baseCalendar);
-			} catch (CircularDependencyException e) {
-				logger.log(Level.WARNING, "Failed to set calendar base", e);
-			}
-		}		
-		
+		WorkingCalendar opStandardCalendar = CalendarService.getInstance().getStandardInstance();
+		WorkingCalendar baseCalendar = (WorkingCalendar) src.getBaseCalendar();
+		if (baseCalendar == null)
+			baseCalendar = opStandardCalendar;
+		try {
+			opCalendar.setBaseCalendar(baseCalendar);
+		} catch (CircularDependencyException e) {
+			logger.log(Level.WARNING, "Failed to set calendar base", e);
+		}
+
 		//work weeks
-		OpRangeConverter rangeConverter=new OpRangeConverter();
-		WorkWeek week=calendar.getWeek();
 		WorkDay day;
 		com.microproject.pm.calendar.WorkDay opDay;
-		for (int i=0; i<7; i++){
-			day=week.getDay(i);
-			if (day==null){
-				opDay=null;
-				if (calendar.getBase()==null &&
-						opStandardCalendar.getWeekDay(i).isWorking())
-					opDay=com.microproject.pm.calendar.WorkDay.getNonWorkingDay();				
-			}else{
-				switch (day.getType()) {
-				case NON_WORKING:
-					opDay=com.microproject.pm.calendar.WorkDay.getNonWorkingDay();
-					break;
-//				case DEFAULT:
-//					opDay=com.microproject.pm.calendar.WorkDay.getDefaultWorkDay();
-//					break;
-				default:
-					opDay=new com.microproject.pm.calendar.WorkDay();
-					rangeConverter.to(opDay,day);
-					if (calendar.getBase()==null) {
-						if (opStandardCalendar.getWeekDay(i).hasSameWorkHours(opDay))
-							opDay = null;
-					}
-					break;
-				}
+		for (int i = 0; i < 7; i++){
+			day = src.getWeekDay(i);
+			if (day == null || !day.isWorking())
+				opDay = com.microproject.pm.calendar.WorkDay.getNonWorkingDay();
+			else {
+				opDay = com.microproject.pm.calendar.WorkDay.getDefaultWorkDay();
+				if (opStandardCalendar.getWeekDay(i).hasSameWorkHours(opDay))
+					opDay = null;
 			}
-			opCalendar.setWeekDay(i,opDay);
+			opCalendar.setWeekDay(i, opDay);
 		}
 
 		//exceptions
-		for (WorkCalendarException exception : calendar.getExceptions()){
-			for (long time=exception.getStart(); time<exception.getEnd(); time=DateTime.nextDay(time)) {
-				com.microproject.pm.calendar.WorkDay opExceptionDay = new com.microproject.pm.calendar.WorkDay(time,time);
-				rangeConverter.to(opExceptionDay,exception);
-
-				opCalendar.addOrReplaceException(opExceptionDay);
-			}
+		for (WorkDay exception : src.getExceptionDays()) {
+			com.microproject.pm.calendar.WorkDay opExceptionDay =
+					new com.microproject.pm.calendar.WorkDay(exception.getStart(), exception.getEnd());
+			opCalendar.addOrReplaceException(opExceptionDay);
 		}
-		
+
 		opCalendar.removeEmptyDays();
-		for (int i=0;i<7;i++) {
+		for (int i = 0; i < 7; i++) {
 			logger.log(Level.FINE, "Calendar weekday {0}: {1}", new Object[] { i, opCalendar.getWeekDay(i) });
 		}
-	
-	}	
-
+	}
 }

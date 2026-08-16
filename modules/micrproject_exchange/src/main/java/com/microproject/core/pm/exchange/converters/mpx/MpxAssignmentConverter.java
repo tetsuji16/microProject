@@ -57,9 +57,12 @@ package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.Date;
 
+import net.sf.mpxj.Duration;
 import com.microproject.core.time.TimeUtil;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.resource.EnterpriseResource;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Task;
 
 /**
@@ -81,12 +84,12 @@ public class MpxAssignmentConverter {
 		// main snapshot only (snapshotId handling for baselines is skipped, see #154)
 		assignment.setStart(toLong(mpxAssignment.getStart()));
 		assignment.setEnd(toLong(mpxAssignment.getFinish()));
-		assignment.setWork(toLong(mpxAssignment.getWork()));
+		assignment.setWork(toLong(mpxAssignment.getWork()), null);
 		assignment.setPercentComplete(mpxAssignment.getPercentageWorkComplete() == null ? 0.0 : mpxAssignment.getPercentageWorkComplete().doubleValue());
 		assignment.setActualStart(toLong(mpxAssignment.getActualStart()));
 		assignment.setActualFinish(toLong(mpxAssignment.getActualFinish()));
-		assignment.setActualWork(toLong(mpxAssignment.getActualWork()));
-		assignment.setRemainingWork(toLong(mpxAssignment.getRemainingWork()));
+		assignment.setActualWork(toLong(mpxAssignment.getActualWork()), null);
+		assignment.setRemainingWork(toLong(mpxAssignment.getRemainingWork()), null);
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
 		// work contour: default to flat (0) for import; contour details skipped (#154)
@@ -95,8 +98,8 @@ public class MpxAssignmentConverter {
 
 	private static Resource resolveResource(net.sf.mpxj.ResourceAssignment mpxAssignment, MpxImportState state) {
 		Integer resourceUniqueID = mpxAssignment.getResourceUniqueID();
-		if (resourceUniqueID == null || resourceUniqueID.intValue() == Resource.UNASSIGNED_ID)
-			return state.getResourcePool().getUnassignedResource();
+		if (resourceUniqueID == null || resourceUniqueID.intValue() == EnterpriseResource.UNASSIGNED_ID)
+			return ResourceImpl.getUnassignedInstance();
 		net.sf.mpxj.Resource mpxResource = mpxAssignment.getResource();
 		return mpxResource != null ? state.getResource(mpxResource) : null;
 	}
@@ -105,5 +108,13 @@ public class MpxAssignmentConverter {
 		if (d == null)
 			return 0L;
 		return TimeUtil.addTimeZoneOffset(d.getTime());
+	}
+
+	private static long toLong(net.sf.mpxj.Duration d) {
+		if (d == null)
+			return 0L;
+		final double[] minutesPerUnit = { 1.0, 1.0, 60.0, 1440.0, 10080.0, 43200.0, 518400.0 };
+		double minutes = d.getDuration() * minutesPerUnit[d.getUnits().getValue()];
+		return (long) (minutes * 60000.0);
 	}
 }

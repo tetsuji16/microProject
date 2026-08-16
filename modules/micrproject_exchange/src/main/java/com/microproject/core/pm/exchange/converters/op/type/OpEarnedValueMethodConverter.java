@@ -56,25 +56,22 @@
 package com.microproject.core.pm.exchange.converters.op.type;
 
 import com.microproject.core.fields.FieldTypeConverter;
-import com.microproject.pm.scheduling.EarnedValueMethod;
-
 
 /**
+ * Maps an earned-value-method identifier. The deleted EarnedValueMethod enum is
+ * replaced by the microproject integer EVM identifier, so this is now an identity
+ * mapping.
  * @author Laurent Chretienneau
- *
  */
 public class OpEarnedValueMethodConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		int evm=(Integer)o;
-		return EarnedValueMethod.getInstance(evm);
+		return o;
 	}
 
 	@Override
 	public Object to(Object o) {
-		EarnedValueMethod evm=(EarnedValueMethod)o;
-		return evm.getId();
+		return o;
 	}
-
 }

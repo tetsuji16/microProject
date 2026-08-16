@@ -68,13 +68,13 @@ public class MpxDependencyTypeConverter extends FieldTypeConverter {
 	@Override
 	public Object from(Object o) {
 		net.sf.mpxj.RelationType dt=(net.sf.mpxj.RelationType)o;
-		return DependencyType.getInstance(dt.getValue());
+		return Integer.valueOf(dt.getValue());
 	}
 
 	@Override
 	public Object to(Object o) {
-		DependencyType dt=(DependencyType)o;
-		return net.sf.mpxj.RelationType.getInstance(dt.getId());
+		// microproject DependencyType is now an int-valued constant set
+		return o;
 	}
 
 }

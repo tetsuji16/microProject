@@ -69,13 +69,12 @@ public class MpxSchedulingTypeConverter extends FieldTypeConverter {
 	@Override
 	public Object from(Object o) {
 		net.sf.mpxj.TaskType st=(net.sf.mpxj.TaskType)o;
-		return SchedulingType.getInstance(MpxjApi.schedulingTypeId(st));
+		return Integer.valueOf(MpxjApi.schedulingTypeId(st));
 	}
 
 	@Override
 	public Object to(Object o) {
-		SchedulingType st=(SchedulingType)o;
-		return MpxjApi.taskType(st.getId());
+		return MpxjApi.taskType(((Number)o).intValue());
 	}
 
 }

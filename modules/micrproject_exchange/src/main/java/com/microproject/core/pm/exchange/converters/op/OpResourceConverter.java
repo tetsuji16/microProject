@@ -57,63 +57,38 @@ package com.microproject.core.pm.exchange.converters.op;
 
 import java.util.logging.Logger;
 
-import com.microproject.core.fields.FieldUtil;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.resource.Resource;
-import com.microproject.field.CustomFields;
+import com.microproject.pm.resource.ResourceImpl;
 
 /**
+ * Copies a microproject Resource into a microproject ResourceImpl. Both sides use
+ * the same microproject model, so this is a direct typed-field copy. Rates / cost /
+ * maximum-units are intentionally skipped (see issue #154).
  * @author Laurent Chretienneau
- *
  */
 public class OpResourceConverter {
 	protected static Logger log = Logger.getLogger("OpTaskConverter");
-	protected String[] fieldsToConvert=new String[]{
-			//ProjectLibre, OP , converter (OP -> ProjectLibre)
-		"name", "name", null,
-		"notes", "notes", null,
-		"generic", "generic", null,
-		"group", "group", null,
-		"initials", "initials", null,
-		"emailAddress", "emailAddress", null,
-		"id", "id", null,
-		"externalId", "externalId", null,
-		"accrueAt", "accrueAt", "com.microproject.core.pm.exchange.converters.op.type.OpAccrueTypeConverter",
-		"costPerUse", "costPerUse", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-		"standardRate", "standardRate", "com.microproject.core.pm.exchange.converters.op.type.OpRateConverter",
-		"overtimeRate", "overtimeRate", "com.microproject.core.pm.exchange.converters.op.type.OpRateConverter",
-		"maximumUnits", "maximumUnits", "com.microproject.core.pm.exchange.converters.type.NumberDoubleConverter",
-	};
-	protected String[] customFieldsToConvert=new String[]{
-			//ProjectLibre, OP, converter (OP -> ProjectLibre)
-			"cost:1:10", "customCost,0,9", null,
-			"start:1:10", "customStart,0,9", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",		
-			"finish:1:10", "customFinish,0,9", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",		
-			"date:1:10", "customDate,0,9", "com.microproject.core.pm.exchange.converters.type.LongDateConverter",	
-			"duration:1:10", "customDuration,0,9", "com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter",
-			"text:1:30", "customText,0,29", null,
-			"flag:1:20", "customFlag,0,19", null,
-			"number:1:20", "customNumber,0,19", null,
-		
-	};
 
 	public void to(com.microproject.pm.resource.ResourceImpl opResource, Resource resource, OpImportState state) {
-		//convert fields
-		FieldUtil.convertFields(resource, com.microproject.pm.resource.ResourceImpl.class, opResource, fieldsToConvert, false);
-		FieldUtil.convertFields(resource, CustomFields.class, opResource.getCustomFields(), customFieldsToConvert, false);
-		
-		
-		//find calendar
-		WorkCalendar calendar=resource.getCalendar();
-		if (calendar!=null){
-			com.microproject.pm.calendar.WorkCalendar opCalendar=state.getMappedOpBaseCalendar(calendar.getId());
-			if (opCalendar==null)
-				log.warning("Calendar "+calendar.getId()+" for resource "+resource.getId()+" not found");
-			else
-				opResource.setWorkCalendar(opCalendar);
+		if (resource.getName() != null)
+			opResource.setName(resource.getName());
+		if (resource.getNotes() != null)
+			opResource.setNotes(resource.getNotes());
+		opResource.setGeneric(resource.isGeneric());
+		if (resource.getGroup() != null)
+			opResource.setGroup(resource.getGroup());
+		if (resource.getInitials() != null)
+			opResource.setInitials(resource.getInitials());
+		if (resource.getEmailAddress() != null)
+			opResource.setEmailAddress(resource.getEmailAddress());
+		opResource.setId(resource.getId());
+		opResource.setExternalId(resource.getExternalId());
+		opResource.setAccrueAt(resource.getAccrueAt());
+
+		WorkCalendar calendar = resource.getWorkCalendar();
+		if (calendar != null) {
+			opResource.setWorkCalendar(calendar);
 		}
-
-		
 	}
-
 }

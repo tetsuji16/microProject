@@ -75,16 +75,25 @@ public class Configuration implements ProvidesDigesterEvents {
 	ScriptConfiguration scriptConfiguration = null;
 	
 	private static Configuration instance = null;
+	// Tracks the instance currently being built so that re-entrant calls
+	// (e.g. a Field subclass static initializer invoking Configuration.getFieldFromId
+	// while Digester is still parsing configuration.xml) return the in-progress
+	// instance instead of starting a second parse that recurses into StackOverflowError.
+	private static Configuration buildingInstance = null;
 	public static synchronized Configuration getInstance() {
-		if (instance == null) {
-			Configuration temp = new Configuration();
-			temp.fieldDictionary = new FieldDictionary(); // initialize early so re-entrant callers (e.g. classes loaded during read()) never see a null dictionary
-			String [] files = Messages.getMetaString("ConfigurationFiles").split(";");
-			for (String file : files) 
-				ConfigurationReader.read(file, temp) ;
-			temp.setDonePopulating(); // makes its hash table fast if using a FastHashMap
-			instance = temp; // publish only after fully built to avoid re-entrant use of a half-initialized instance
-		}
+		if (instance != null)
+			return instance;
+		if (buildingInstance != null)
+			return buildingInstance;
+		Configuration temp = new Configuration();
+		buildingInstance = temp; // publish before parsing so re-entrant callers see it
+		temp.fieldDictionary = new FieldDictionary(); // initialize early so re-entrant callers (e.g. classes loaded during read()) never see a null dictionary
+		String [] files = Messages.getMetaString("ConfigurationFiles").split(";");
+		for (String file : files) 
+			ConfigurationReader.read(file, temp) ;
+		temp.setDonePopulating(); // makes its hash table fast if using a FastHashMap
+		instance = temp; // publish only after fully built to avoid re-entrant use of a half-initialized instance
+		buildingInstance = null;
 		return instance;
 	}
 	public Configuration() {

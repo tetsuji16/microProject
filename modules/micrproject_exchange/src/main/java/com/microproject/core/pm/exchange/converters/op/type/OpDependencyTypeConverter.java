@@ -67,14 +67,12 @@ public class OpDependencyTypeConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		int dt=(Integer)o;
-		return DependencyType.getInstance(dt);
+		return o;
 	}
 
 	@Override
 	public Object to(Object o) {
-		DependencyType dt=(DependencyType)o;
-		return dt.getId();
+		return Integer.valueOf(((Number)o).intValue());
 	}
 
 }

@@ -58,8 +58,6 @@ package com.microproject.core.pm.exchange.converters.op;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.microproject.pm.calendar.CalendarId;
-import com.microproject.pm.calendar.CalendarManager;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Task;
@@ -68,32 +66,28 @@ import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.NormalTask;
 
 /**
+ * Import state shared by the OpenProj (POD) converters. Calendar bookkeeping is
+ * keyed by the microproject WorkingCalendar identifier (the deleted CalendarId /
+ * CalendarManager model is no longer used; see issue #154).
  * @author Laurent Chretienneau
- *
  */
 public class OpImportState {
-//	protected ProjectCalendar mpxDefaultBaseCalendar;
-	protected Map<CalendarId,WorkingCalendar> opBaseCalendarMap=new HashMap<CalendarId, WorkingCalendar>();
-	protected Map<CalendarId,WorkCalendar> baseCalendarMap=new HashMap<CalendarId, WorkCalendar>();
+	protected Map<Long,WorkingCalendar> opBaseCalendarMap=new HashMap<Long, WorkingCalendar>();
+	protected Map<Long,WorkCalendar> baseCalendarMap=new HashMap<Long, WorkCalendar>();
 	protected Map<Task,NormalTask> opTaskMap=new HashMap<Task, NormalTask>();
 	protected Map<NormalTask,Node> opTaskNodeMap=new HashMap<NormalTask, Node>();
 	protected Map<Resource,com.microproject.pm.resource.Resource> opResourceMap=new HashMap<Resource, com.microproject.pm.resource.Resource>();
 	protected Map<com.microproject.pm.resource.Resource,Node> opResourceNodeMap=new HashMap<com.microproject.pm.resource.Resource, Node>();
-	protected CalendarManager calendarManager;
-	public CalendarManager getCalendarManager() {
-		return calendarManager;
-	}
-	public void setCalendarManager(CalendarManager calendarManager) {
-		this.calendarManager = calendarManager;
-	}
+
 	public void mapBaseCalendar(WorkCalendar calendar,WorkingCalendar opCalendar){
-		opBaseCalendarMap.put(calendar.getId(),opCalendar);
-		baseCalendarMap.put(calendar.getId(),calendar);
+		Long id = opCalendar.getId();
+		opBaseCalendarMap.put(id,opCalendar);
+		baseCalendarMap.put(id,calendar);
 	}
-	public WorkingCalendar getMappedOpBaseCalendar(CalendarId id){
+	public WorkingCalendar getMappedOpBaseCalendar(Long id){
 		return opBaseCalendarMap.get(id);
 	}
-	public WorkCalendar getMappedBaseCalendar(CalendarId id){
+	public WorkCalendar getMappedBaseCalendar(Long id){
 		return baseCalendarMap.get(id);
 	}
 	

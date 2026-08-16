@@ -55,30 +55,45 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
+import net.sf.mpxj.Duration;
+import net.sf.mpxj.Relation;
+
+import com.microproject.association.InvalidAssociationException;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxDependencyTypeConverter;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter;
-import com.microproject.core.time.Duration;
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.Task;
 
 /**
+ * Converts an MPXJ relation into a microproject Dependency. The Dependency is
+ * created via the DependencyService (microproject has no public Dependency
+ * constructor), so this method returns the created instance (or null on failure).
  * @author Laurent Chretienneau
- *
  */
 public class MpxDependencyConverter {
 
-	public void from(net.sf.mpxj.Relation mpxRelation, Dependency dependency, MpxImportState state) {
-		Task predecessor=state.getTask(mpxRelation.getTargetTask());
-		Task successor=state.getTask(mpxRelation.getSourceTask());
-		dependency.setPredecessor(predecessor);
-		dependency.setSuccessor(successor);
+	public Dependency from(net.sf.mpxj.Relation mpxRelation, MpxImportState state) {
+		Task predecessor = state.getTask(mpxRelation.getTargetTask());
+		Task successor = state.getTask(mpxRelation.getSourceTask());
+		if (predecessor == null || successor == null) {
+			return null;
+		}
 
-		MpxDurationConverter durationConverter=new MpxDurationConverter();
-		dependency.setLag((Duration)durationConverter.from(mpxRelation.getLag()));
+		MpxDurationConverter durationConverter = new MpxDurationConverter();
+		com.microproject.core.time.Duration lagDuration =
+				(com.microproject.core.time.Duration) durationConverter.from(mpxRelation.getLag());
+		long lag = lagDuration == null ? 0L : (long) lagDuration.getValue();
 
-		MpxDependencyTypeConverter dependencyTypeConverter=new MpxDependencyTypeConverter();
-		dependency.setType((DependencyType)dependencyTypeConverter.from(mpxRelation.getType()));
+		MpxDependencyTypeConverter dependencyTypeConverter = new MpxDependencyTypeConverter();
+		Integer dependencyType = (Integer) dependencyTypeConverter.from(mpxRelation.getType());
+		int type = dependencyType == null ? 0 : dependencyType.intValue();
 
-	}	
+		try {
+			return DependencyService.getInstance().newDependency(predecessor, successor, type, lag, null);
+		} catch (InvalidAssociationException e) {
+			return null;
+		}
+	}
 }

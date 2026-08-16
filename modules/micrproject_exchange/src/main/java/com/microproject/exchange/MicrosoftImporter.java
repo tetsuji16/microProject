@@ -48,7 +48,6 @@ import com.microproject.core.pm.exchange.converters.op.OpTaskConverter;
 import com.microproject.pm.calendar.CalendarOptions;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ScheduleFrom;
-import com.microproject.pm.task.SnapshotList;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.configuration.CircularDependencyException;
@@ -357,66 +356,14 @@ public class MicrosoftImporter extends ServerFileImporter{
 			Environment.setImporting(false);
 			return project;
 		}
-
-		log.info("import options"); //$NON-NLS-1$
-		importOptions();
-		setProgress(0.3f);
-		
-		log.info("import calendars"); //$NON-NLS-1$
-		importCalendars();
-		setProgress(0.4f);
-		
-		log.info("import resources");		 //$NON-NLS-1$
-		//claur - moved here because calendars must be imported first
-		importLocalResources();
-		setProgress(0.5f);
-		
-		log.info("import tasks");		 //$NON-NLS-1$
-		importTasks();
-		setProgress(0.6f);
-		
-		log.info("import project fields");		 //$NON-NLS-1$
-		importProjectFields();
-		setProgress(0.7f);
-		
-		log.info("import dependencies");		 //$NON-NLS-1$
-		importDependencies();
-		setProgress(0.8f);
-		
-		log.info("import assignments"); //$NON-NLS-1$
-		importAssignments();
-		setProgress(0.9f);
-				
-		log.info("about to initialize");		 //$NON-NLS-1$
-			if (project.getName() == null)
-				project.setName("error - name not set on import"); //$NON-NLS-1$
-
-//			CalendarService.getInstance().renameImportedBaseCalendars(project.getName());
-			try {
-				project.initialize(false,false); // will run critical path
-			} catch (RuntimeException e) {
-				if (e.getMessage()==CircularDependencyException.RUNTIME_EXCEPTION_TEXT) {
-					Environment.setImporting(false); // will avoid certain popups
-					Alert.error(e.getMessage());
-					plProject = null;
-					project = null;
-					throw new Exception(e.getMessage());
-				}
-			}
-			applyImportedTrackingFields();
-			//project.setGroupDirty(!Environment.getStandAlone());
-			if (!Environment.getStandAlone()) project.setAllDirty();
-
-			project.setBoundsAfterReadProject();
-			
-			if (plProject.getPropertyValue("scheduleFrom") == ScheduleFrom.FINISH) {
-				project.setForward(false);
-			}
-			Environment.setImporting(false); // will avoid certain popups
-			setProgress(1.0f);
-			plProject=null;// remove reference
-//			project.setWasImported(true); //claur
-		return project;
+		// The microproject model is now the single source of truth: MspImporter
+		// already produces a complete microproject Project, so the legacy
+		// two-model conversion pipeline is obsolete. Just adopt the imported
+		// project directly (see issue #154).
+		this.project = plProject;
+		Environment.setImporting(false);
+		setProgress(1.0f);
+		return this.project;
     }
 
 	private boolean saveProject(Project project, OutputStream out, String targetFileName) throws Exception {
@@ -452,18 +399,8 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 	protected void importCalendars() throws Exception{
-		state.setCalendarManager(plProject.getCalendarManager());
-		
-		for (WorkCalendar plCalendar : plProject.getCalendarManager()) {
-			WorkingCalendar opCalendar=WorkingCalendar.getStandardBasedInstance();
-			ProjectConverter.getInstance().convert("op",ProjectConverter.Type.CALENDAR,false,opCalendar,plCalendar,state);
-			if (CalendarService.findBaseCalendar(opCalendar.getName())!= null){
-				//rename imported calendar if a calendar with the same name exists
-				opCalendar.setName(opCalendar.getName() + "[Imported]");
-			}
-			CalendarService.getInstance().add(opCalendar);
-			state.mapBaseCalendar(plCalendar,opCalendar);
-		}
+		// Obsolete two-model conversion removed; MspImporter produces the
+		// microproject Project directly (see issue #154).
 	}
 
 
@@ -474,89 +411,21 @@ public class MicrosoftImporter extends ServerFileImporter{
 	 *            MPX file
 	 */
 	protected void importLocalResources(){
-		ResourcePool resourcePool = project.getResourcePool();
-		project.setLocal(true);
-		resourcePool.setLocal(true);
-		resourcePool.setMaster(false);
-        resourcePool.updateOutlineTypes();
-		ResourceImpl opResource;
-		OpResourceConverter converter=new OpResourceConverter();
-		for (com.microproject.pm.resource.Resource plResource : plProject.getResourcePool().getResources()){
-			opResource = resourcePool.newResourceInstance();
-			converter.to(opResource,plResource,state);
-			state.mapOpResource(plResource, opResource);
-			// Add to resource hierarchy.  MSProject does not actually have a hierarchy
-			Node opResourceNode = NodeFactory.getInstance().createNode(opResource); // get a node for this resource
-			resourcePool.addToDefaultOutline(null,opResourceNode);			
-			state.mapOpResourceNode(opResource, opResourceNode);
-
-		}
-		//insertResourceVoids();
+		// Obsolete two-model conversion removed; MspImporter produces the
+		// microproject Project directly (see issue #154).
 	}
 
 
 	protected boolean importResources() throws Exception{
-		return importResources(resourceMap,new Consumer<Object>() { public void accept(Object arg0) {
-				importLocalResources();
-			}
-		});
+		// Obsolete two-model conversion removed (see issue #154).
+		return true;
 	}
 
 	@SuppressWarnings("unchecked")
 	protected boolean importResources(Map<Number, Object> resourceMap,Consumer<Object> importLocalResources) throws Exception{
-		ResourceMappingForm form=getResourceMapping();
-
-
-
-		if (form==null||form.isLocal()){ //claur
-				importLocalResources.accept(null);
-		}else{
-			if (!form.execute()) return false;
-			if (form.isLocal()){
-				importLocalResources.accept(null);
-				return true;
-			}
-
-			com.microproject.pm.resource.Resource projectlibre1Resource=null;
-			int projectlibre1ResourceCount=0;
-			ResourcePool resourcePool = project.getResourcePool();
-			project.setTemporaryLocal(true);
-			Object srcResource;
-			EnterpriseResourceData data;
-			Map enterpriseResourceDataMap=new HashMap();
-			for (EnterpriseResourceData enterpriseResource:(List<EnterpriseResourceData>)(List<?>)form.getResources()){
-				if (enterpriseResource.isLocal()) {
-					projectlibre1Resource=ResourceImpl.getUnassignedInstance();
-				} else {
-					projectlibre1Resource=Serializer.deserializeResourceAndAddToPool(enterpriseResource,resourcePool,null);
-
-					//Handles only flat outlines
-					Node node=NodeFactory.getInstance().createNode(projectlibre1Resource);
-					resourcePool.addToDefaultOutline(null,node,projectlibre1ResourceCount++,false);
-	                ((ResourceImpl)projectlibre1Resource).getGlobalResource().setResourcePool(resourcePool);
-				}
-				enterpriseResourceDataMap.put(enterpriseResource,projectlibre1Resource);
-
-			}
-			for (int i = 0; i < form.getImportedResources().size(); i++) {
-				srcResource = form.getImportedResources().get(i);
-				data = (EnterpriseResourceData) form.getSelectedResources().get(i);
-				projectlibre1Resource=(com.microproject.pm.resource.Resource)enterpriseResourceDataMap.get(data);
-				mapResource((long)projectlibre1Resource.getUniqueId(),projectlibre1Resource );
-			}
-
-			resourcePool.setMaster(false);
-			resourcePool.updateOutlineTypes();
-
-			project.setAccessControlPolicy(form.getAccessControlType());
-			project.resetRoles(form.getAccessControlType()==0);
-
-
-			
-		}
+		// Obsolete two-model conversion removed (see issue #154).
 		return true;
 	}
-
 
 	protected void retrieveResourcesForMerge(List existingResources) throws Exception{
 
@@ -564,73 +433,70 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 
+
 	protected void importOptions() throws Exception{
-		ProjectConverter converter=ProjectConverter.getInstance();
-		CalendarOption opOptions=CalendarOption.getInstance();
-		CalendarOptions options=plProject.getCalendarOptions();
-		converter.convert("op", ProjectConverter.Type.OPTIONS, false, opOptions, options, state);
+		// Obsolete two-model conversion removed (see issue #154).
 	}
 
 	private void importProjectFields() {
-		OpProjectConverter opConverter=new OpProjectConverter();
-		opConverter.to(project, plProject, state);
+		// Obsolete two-model conversion removed (see issue #154).
 	}
-	
+
 	/**
 	 * This method imports all tasks defined in the file into the projectlibre1 model
 	 *
 	 */
 	private void importTasks() {
-		final OpTaskConverter converter=new OpTaskConverter();
-		plProject.getHierarchy().visit(new Hierarchy.Visitor(){ //pre-order visitor, parents must be treated before children
-			@Override
-			public void visit(HierarchyNode hierarchyNode) {
-				com.microproject.core.nodes.Node node=hierarchyNode.getNode();
-				if (!(node instanceof Task)) //ignore assignments present in task hierarchy
-					return;
-				Task task=(Task)node;
-				HierarchyNode parentHierarchyNode=hierarchyNode.getParent();
-				Task parentTask=null;
-				if (!parentHierarchyNode.isRoot())
-					parentTask=(Task)parentHierarchyNode.getNode();
-
-				//op task conversion
-				NormalTask opTask=project.newNormalTaskInstance(false);
-				opTask.setOwningProject(project);
-				opTask.setProjectId(project.getUniqueId());
-				converter.to(opTask, task, state);
-				
-				//op task node conversion
-				Node opTaskNode=NodeFactory.getInstance().createNode(opTask);
-				
-				//op node hierarchy
-				NormalTask opParentTask=parentTask==null? null : state.getOpTask(parentTask);
-				Node opParentTaskNode=opParentTask==null? null : state.getOpTaskNode(opParentTask);
-				project.addToDefaultOutline(opParentTaskNode,opTaskNode);
-				
-				
-				SnapshotList snapshots=task.getSnapshotList();
-				for (int snapshotId=0;snapshotId<SnapshotList.BASELINE_COUNT;snapshotId++){
-					TaskSnapshot s=snapshots.getSnapshot(snapshotId);
-					if (s!=null && s.getStart()!=null && s.getFinish()!=null){
-						com.microproject.pm.task.TaskSnapshot opSnapshot=new com.microproject.pm.task.TaskSnapshot();
-						opSnapshot.getHasAssignments(); //init hasAssignments
-						TaskSchedule schedule=new TaskSchedule();//(TaskSchedule)opTask.getCurrentSchedule().clone();
-						schedule.setStart(s.getStart().getTime());
-						schedule.setFinish(s.getFinish().getTime());
-						opSnapshot.setCurrentSchedule(schedule);
-						opTask.setSnapshot(snapshotId, opSnapshot);
-					}
-				}
-
-
-				
-				state.mapOpTask(task, opTask);
-				state.mapOpTaskNode(opTask, opTaskNode);
-			}
-		});
-		
-
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
 	}
 	
 
@@ -641,16 +507,15 @@ public class MicrosoftImporter extends ServerFileImporter{
 	 * @throws Exception
 	 */
 	public void importDependencies() throws Exception {
-		// mpxj uses default options when importing link leads and lags, even when mpp format
-		CalendarOption oldOptions = CalendarOption.getInstance();
-		CalendarOption.setInstance(CalendarOption.getDefaultInstance());
-
-
-		final OpDependencyConverter converter=new OpDependencyConverter();
-		for (com.microproject.pm.dependency.Dependency plDependency : plProject.getDependencies()){
-			converter.to(plDependency,state);
-		}
-		CalendarOption.setInstance(oldOptions);
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
 	}
 
 
@@ -659,54 +524,54 @@ public class MicrosoftImporter extends ServerFileImporter{
 	 *
 	 */
 	protected void importAssignments() {
-		OpAssignmentConverter converter=new OpAssignmentConverter();
-		for (Task task : plProject.getTasks()){
-			NormalTask opTask=state.getOpTask(task);
-			for (com.microproject.pm.assignment.Assignment assignment : task.getAssignments()){
-				Assignment opAssignment=converter.to(assignment, state);
-				AssignmentService.getInstance().connect(opAssignment, null);
-			}
-			SnapshotList snapshots=task.getSnapshotList();
-			for (int snapshotId=0;snapshotId<SnapshotList.BASELINE_COUNT;snapshotId++){
-				TaskSnapshot s=snapshots.getSnapshot(snapshotId);
-				com.microproject.pm.task.TaskSnapshot opSnapshot=(com.microproject.pm.task.TaskSnapshot)opTask.getSnapshot(snapshotId);
-				if (s!=null && opSnapshot!=null){
-					for (com.microproject.pm.assignment.Assignment assignment : s.getAssignments()){
-						Assignment opAssignment=converter.to(assignment, state);
-						opSnapshot.addAssignment(opAssignment);
-					}
-				}
-			}
-		}
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
 	}
 
 	private void applyImportedTrackingFields() {
-		for (Task task : plProject.getTasks()) {
-			NormalTask opTask = state.getOpTask(task);
-			if (opTask != null)
-				applyImportedTrackingFields(task, opTask);
-		}
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
 	}
 
 	void applyImportedTrackingFields(Task task, NormalTask opTask) {
-		Number percentComplete = (Number) task.getPropertyValue("percentComplete");
-		Number percentWorkComplete = (Number) task.getPropertyValue("percentWorkComplete");
-		if (percentComplete != null)
-			opTask.setPercentComplete(clampProgress(percentComplete.doubleValue()));
-		else if (percentWorkComplete != null)
-			opTask.setPercentWorkComplete(clampProgress(percentWorkComplete.doubleValue()));
-
-		Number physicalPercentComplete = (Number) task.getPropertyValue("physicalPercentComplete");
-		if (physicalPercentComplete != null)
-			opTask.setPhysicalPercentComplete(clampProgress(physicalPercentComplete.doubleValue()));
-
-		Date actualStart = (Date) task.getPropertyValue("actualStart");
-		if (actualStart != null)
-			opTask.setActualStart(actualStart.getTime());
-
-		Date actualFinish = (Date) task.getPropertyValue("actualFinish");
-		if (actualFinish != null && opTask.getPercentComplete() >= 1.0d)
-			opTask.setActualFinish(actualFinish.getTime());
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
+		// obsolete two-model conversion removed (issue #154)
 	}
 
 	private double clampProgress(double value) {

@@ -56,25 +56,21 @@
 package com.microproject.core.pm.exchange.converters.op.type;
 
 import com.microproject.core.fields.FieldTypeConverter;
-import com.microproject.pm.scheduling.AccrueType;
-
 
 /**
+ * Maps an accrual-type identifier. The deleted AccrueType enum is replaced by the
+ * microproject integer accrual identifier, so this is now an identity mapping.
  * @author Laurent Chretienneau
- *
  */
 public class OpAccrueTypeConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		int a=(Integer)o;
-		return AccrueType.getInstance(a);
+		return o;
 	}
 
 	@Override
 	public Object to(Object o) {
-		AccrueType a=(AccrueType)o;
-		return a.getId();
+		return o;
 	}
-
 }

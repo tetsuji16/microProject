@@ -20,7 +20,7 @@
  * Alternatively, the contents of this file may be used under the terms of the 
  * ProjectLibre End-User License Agreement (the ProjectLibre License) in which case 
  * the provisions of the ProjectLibre License are applicable instead of those above. 
- * If you wish to allow use of your version of this file only under the terms of the 
+ * If you wish to allow use of your version of your file only under the terms of the 
  * ProjectLibre License and not to allow others to use your version of this file 
  * under the CPAL, indicate your decision by deleting the provisions above and 
  * replace them with the notice and other provisions required by the ProjectLibre 
@@ -59,30 +59,29 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microproject.core.time.TimeInterval;
-import com.microproject.pm.calendar.WorkRange;
 import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkRange;
 import com.microproject.pm.calendar.WorkRangeException;
 import com.microproject.pm.calendar.WorkingHours;
 
 /**
+ * Copies a microproject WorkRange into a microproject WorkDay's working hours (the
+ * .pod (de)serialization path). Both sides use the same microproject model.
  * @author Laurent Chretienneau
- *
  */
 public class OpRangeConverter {
+
 	private static final Logger logger = Logger.getLogger(OpRangeConverter.class.getName());
 
 	public void to(WorkDay opDay, WorkRange range) {
 		if (range == null)
 			return;
 		WorkingHours workingHours = new WorkingHours();
-		if (opDay!= null){
-			int i=0;
-			for (TimeInterval interval : range.getIntervals()){
-					try {
-						workingHours.setInterval(i++,interval.getStart(), interval.getEnd());
-					} catch (WorkRangeException e) {
-						logger.log(Level.WARNING, "Failed to map work range interval", e);
-					}
+		if (opDay != null) {
+			try {
+				workingHours.setInterval(0, range.getStart(), range.getEnd());
+			} catch (WorkRangeException e) {
+				logger.log(Level.WARNING, "Failed to map work range interval", e);
 			}
 			opDay.setWorkingHours(workingHours);
 		}
