@@ -47,9 +47,9 @@ import javax.swing.JToolBar;
 
 import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
 
-import com.projectlibre.ui.ribbon.SwingRibbonFactory;
-import com.projectlibre.ui.ribbon.SwingRibbonModel;
-import com.projectlibre.ui.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ui.ribbon.SwingRibbonFactory;
+import com.microproject.ui.ribbon.SwingRibbonModel;
+import com.microproject.ui.ribbon.CustomRibbonBandGenerator;
 import com.microproject.pm.graphic.TabbedNavigation;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.util.ClassLoaderUtils;
