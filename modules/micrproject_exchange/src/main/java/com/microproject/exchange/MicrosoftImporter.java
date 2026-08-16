@@ -662,7 +662,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 		OpAssignmentConverter converter=new OpAssignmentConverter();
 		for (Task task : plProject.getTasks()){
 			NormalTask opTask=state.getOpTask(task);
-			for (com.microproject.pm.tasks.Assignment assignment : task.getAssignments()){
+			for (com.microproject.pm.assignment.Assignment assignment : task.getAssignments()){
 				Assignment opAssignment=converter.to(assignment, state);
 				AssignmentService.getInstance().connect(opAssignment, null);
 			}
@@ -671,7 +671,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 				TaskSnapshot s=snapshots.getSnapshot(snapshotId);
 				com.microproject.pm.task.TaskSnapshot opSnapshot=(com.microproject.pm.task.TaskSnapshot)opTask.getSnapshot(snapshotId);
 				if (s!=null && opSnapshot!=null){
-					for (com.microproject.pm.tasks.Assignment assignment : s.getAssignments()){
+					for (com.microproject.pm.assignment.Assignment assignment : s.getAssignments()){
 						Assignment opAssignment=converter.to(assignment, state);
 						opSnapshot.addAssignment(opAssignment);
 					}

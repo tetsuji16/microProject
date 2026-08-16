@@ -71,7 +71,7 @@ import org.projectlibre.core.configuration.Configuration;
 import org.projectlibre.core.dictionary.DictionaryCategory;
 import org.projectlibre.core.dictionary.HasStringId;
 
-import com.microproject.pm.tasks.Task;
+import com.microproject.pm.task.Task;
 
 /**
  * @author Laurent Chretienneau

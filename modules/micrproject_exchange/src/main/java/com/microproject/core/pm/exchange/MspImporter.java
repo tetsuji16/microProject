@@ -92,14 +92,14 @@ import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubl
 import com.microproject.pm.calendar.DefaultWorkCalendar;
 import com.microproject.pm.calendar.DuplicateCalendarException;
 import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.resources.Resource;
-import com.microproject.pm.resources.ResourcePool;
-import com.microproject.pm.tasks.Assignment;
-import com.microproject.pm.tasks.Dependency;
-import com.microproject.pm.tasks.Project;
-import com.microproject.pm.tasks.SnapshotList;
-import com.microproject.pm.tasks.Task;
-import com.microproject.pm.tasks.TaskSnapshot;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.Assignment;
+import com.microproject.pm.task.Dependency;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.SnapshotList;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSnapshot;
 
 /**
  * @author Laurent Chretienneau

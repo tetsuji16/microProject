@@ -60,13 +60,13 @@ import java.util.Date;
 import java.util.List;
 
 import com.microproject.core.time.Duration;
-import com.microproject.pm.scheduling.Schedule;
+import com.microproject.pm.assignment.Assignment;
 
 /**
  * @author Laurent Chretienneau
  *
  */
-public class TaskSnapshot implements Schedule{
+public class TaskSnapshot {
 	protected List<Assignment> assignments=new ArrayList<Assignment>();
 	protected Date start,finish;
 	protected Duration duration;
@@ -105,7 +105,7 @@ public class TaskSnapshot implements Schedule{
 		
 		s.append(tab).append("\t").append("assignments=\n");
 		for (Assignment assignment : assignments)
-			s.append(assignment.toString(tab+"\t\t"));
+			s.append(assignment.toString());
 		
 		
 		return s.toString();
