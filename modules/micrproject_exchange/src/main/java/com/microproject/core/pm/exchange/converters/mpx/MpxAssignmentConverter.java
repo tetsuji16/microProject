@@ -65,9 +65,9 @@ import com.microproject.core.time.DefaultTimephasedValues;
 import com.microproject.core.time.TimephasedType;
 import com.microproject.core.time.TimephasedValue;
 import com.microproject.core.time.WorkContour;
-import com.microproject.pm.resources.Resource;
-import com.microproject.pm.tasks.Assignment;
-import com.microproject.pm.tasks.SnapshotList;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.task.SnapshotList;
 
 import net.sf.mpxj.mspdi.schema.TimephasedDataType;
 

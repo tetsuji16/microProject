@@ -65,7 +65,7 @@ import com.microproject.core.time.TimeInterval;
 import com.microproject.core.time.TimeIntervals;
 import com.microproject.core.time.TimephasedValue;
 import com.microproject.core.time.WorkContour;
-import com.microproject.pm.tasks.Assignment;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.pm.resource.ResourceImpl;

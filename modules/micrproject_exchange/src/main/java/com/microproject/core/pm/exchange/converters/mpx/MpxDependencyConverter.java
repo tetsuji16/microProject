@@ -58,9 +58,9 @@ package com.microproject.core.pm.exchange.converters.mpx;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxDependencyTypeConverter;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter;
 import com.microproject.core.time.Duration;
-import com.microproject.pm.tasks.Dependency;
-import com.microproject.pm.tasks.DependencyType;
-import com.microproject.pm.tasks.Task;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.task.Task;
 
 /**
  * @author Laurent Chretienneau

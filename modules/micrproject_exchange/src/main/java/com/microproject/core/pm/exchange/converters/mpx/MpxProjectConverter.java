@@ -57,7 +57,7 @@ package com.microproject.core.pm.exchange.converters.mpx;
 
 import com.microproject.core.fields.FieldUtil;
 import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.tasks.Project;
+import com.microproject.pm.task.Project;
 
 import net.sf.mpxj.ProjectProperties;
 

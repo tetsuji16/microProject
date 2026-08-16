@@ -57,7 +57,7 @@ package com.microproject.core.pm.exchange.converters.op;
 
 import com.microproject.core.pm.exchange.converters.op.type.OpDependencyTypeConverter;
 import com.microproject.core.pm.exchange.converters.op.type.OpDurationConverter;
-import com.microproject.pm.tasks.Dependency;
+import com.microproject.pm.dependency.Dependency;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.task.NormalTask;

@@ -59,7 +59,7 @@ import com.microproject.core.fields.FieldUtil;
 import com.microproject.pm.calendar.CalendarId;
 import com.microproject.pm.calendar.DefaultWorkCalendar;
 import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.resources.Resource;
+import com.microproject.pm.resource.Resource;
 
 /**
  * @author Laurent Chretienneau

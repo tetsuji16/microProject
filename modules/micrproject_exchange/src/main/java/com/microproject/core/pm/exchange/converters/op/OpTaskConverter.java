@@ -61,7 +61,7 @@ import com.microproject.core.fields.FieldUtil;
 import com.microproject.core.pm.exchange.converters.type.LongDateConverter;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ConstraintType;
-import com.microproject.pm.tasks.Task;
+import com.microproject.pm.task.Task;
 import com.microproject.field.CustomFields;
 import com.microproject.pm.task.NormalTask;
 

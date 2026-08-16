@@ -48,9 +48,9 @@ import com.microproject.core.pm.exchange.converters.op.OpTaskConverter;
 import com.microproject.pm.calendar.CalendarOptions;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ScheduleFrom;
-import com.microproject.pm.tasks.SnapshotList;
-import com.microproject.pm.tasks.Task;
-import com.microproject.pm.tasks.TaskSnapshot;
+import com.microproject.pm.task.SnapshotList;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.configuration.CircularDependencyException;
 import com.microproject.contrib.util.Log;
 import com.microproject.contrib.util.LogFactory;
@@ -91,7 +91,7 @@ import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
  */
 public class MicrosoftImporter extends ServerFileImporter{
 	static Log log = LogFactory.getLog(MicrosoftImporter.class);
-	protected com.microproject.pm.tasks.Project plProject= null;
+	protected com.microproject.pm.task.Project plProject= null;
 	protected OpImportState state=new OpImportState();
 	List<Object> allTasks = null;
 	ArrayList<Object> subprojects;
@@ -481,7 +481,7 @@ public class MicrosoftImporter extends ServerFileImporter{
         resourcePool.updateOutlineTypes();
 		ResourceImpl opResource;
 		OpResourceConverter converter=new OpResourceConverter();
-		for (com.microproject.pm.resources.Resource plResource : plProject.getResourcePool().getResources()){
+		for (com.microproject.pm.resource.Resource plResource : plProject.getResourcePool().getResources()){
 			opResource = resourcePool.newResourceInstance();
 			converter.to(opResource,plResource,state);
 			state.mapOpResource(plResource, opResource);
@@ -647,7 +647,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 		final OpDependencyConverter converter=new OpDependencyConverter();
-		for (com.microproject.pm.tasks.Dependency plDependency : plProject.getDependencies()){
+		for (com.microproject.pm.dependency.Dependency plDependency : plProject.getDependencies()){
 			converter.to(plDependency,state);
 		}
 		CalendarOption.setInstance(oldOptions);

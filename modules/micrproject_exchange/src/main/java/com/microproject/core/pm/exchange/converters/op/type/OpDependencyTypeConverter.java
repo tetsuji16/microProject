@@ -56,7 +56,7 @@
 package com.microproject.core.pm.exchange.converters.op.type;
 
 import com.microproject.core.fields.FieldTypeConverter;
-import com.microproject.pm.tasks.DependencyType;
+import com.microproject.pm.dependency.DependencyType;
 
 
 /**

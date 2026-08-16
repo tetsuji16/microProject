@@ -59,7 +59,7 @@ import java.util.logging.Logger;
 
 import com.microproject.core.fields.FieldUtil;
 import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.resources.Resource;
+import com.microproject.pm.resource.Resource;
 import com.microproject.field.CustomFields;
 
 /**

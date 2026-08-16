@@ -67,9 +67,9 @@ import net.sf.mpxj.mspdi.schema.TimephasedDataType;
 import com.microproject.pm.calendar.CalendarManager;
 import com.microproject.pm.calendar.DuplicateCalendarException;
 import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.resources.Resource;
-import com.microproject.pm.resources.ResourcePool;
-import com.microproject.pm.tasks.Task;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.Task;
 
 /**
  * @author Laurent Chretienneau
