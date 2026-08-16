@@ -498,7 +498,7 @@ public final class LocaleDialog extends AbstractDialog {
 				
 				String spath=directoryField.getText();
 				File path;
-				if (spath==null || spath=="")
+				if (spath==null || spath.isEmpty())
 					path=FileSystemView.getFileSystemView().getHomeDirectory();
 				else {
 					path=new File(spath);

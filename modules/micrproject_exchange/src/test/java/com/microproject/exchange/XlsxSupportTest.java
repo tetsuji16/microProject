@@ -1,10 +1,14 @@
 package test.com.microproject.exchange;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
+import java.io.BufferedInputStream;	import java.io.ByteArrayInputStream;
+	import java.io.ByteArrayOutputStream;
+	import java.io.File;
+	import java.io.FileOutputStream;
+	import java.io.InputStream;
+
+	import org.apache.poi.ss.usermodel.Row;
+	import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -67,6 +71,66 @@ public class XlsxSupportTest extends TestCase {
 	public void testProjectWriterFactorySupportsXlsx() throws Exception {
 		ProjectWriter writer = ProjectWriterFactory.forFile("plan.xlsx");
 		assertNotNull(writer);
+	}
+
+	public void testXlsxDependencyLagRoundTrip() throws Exception {
+		// Issue #162: the Dependencies sheet Lag column was written but never read,
+		// silently dropping every dependency lag on the summary-sheet fallback path.
+		// Build a workbook containing only the summary sheets (no _PL_DATA payload)
+		// so the reader must use readDependencies().
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+			org.apache.poi.ss.usermodel.Sheet tasks = workbook.createSheet("Tasks");
+			writeRow(tasks, 0, "UID", "ID", "ParentUID", "Name", "Notes");
+			writeRow(tasks, 1, 1.0, 1.0, null, "Pred", null);
+			writeRow(tasks, 2, 2.0, 2.0, null, "Succ", null);
+			writeRow(tasks, 3, 3.0, 3.0, null, "OtherSucc", null);
+			writeRow(tasks, 4, 4.0, 4.0, null, "PercentSucc", null);
+			writeRow(tasks, 5, 5.0, 5.0, null, "ElapsedSucc", null);
+			org.apache.poi.ss.usermodel.Sheet resources = workbook.createSheet("Resources");
+			writeRow(resources, 0, "UID", "ID", "Name", "Notes", "Group", "Email", "MaxUnits");
+			org.apache.poi.ss.usermodel.Sheet assignments = workbook.createSheet("Assignments");
+			writeRow(assignments, 0, "TaskUID", "ResourceUID", "Units", "Delay", "LevelingDelay", "WorkContour");
+			org.apache.poi.ss.usermodel.Sheet deps = workbook.createSheet("Dependencies");
+			writeRow(deps, 0, "SuccessorUniqueID", "PredecessorUniqueID", "Type", "Lag");
+			writeRow(deps, 1, 2.0, 1.0, 0.0, "2.0d");            // MPXJ toString form
+			writeRow(deps, 2, 3.0, 1.0, 0.0, "-1.0h");           // negative lead
+			writeRow(deps, 3, 4.0, 1.0, 0.0, "50.0%");           // MPXJ percent form
+			writeRow(deps, 4, 5.0, 1.0, 0.0, "2.0ed");           // elapsed
+			workbook.write(out);
+		}
+
+		ProjectFile reloaded = new ProjectLibreXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
+		Map<String, Task> byName = new HashMap<String, Task>();
+		for (Task task : reloaded.getTasks()) {
+			if (task.getName() != null) {
+				byName.put(task.getName(), task);
+			}
+		}
+
+		assertEquals(2L * 24L * 60L * 60L * 1000L,
+				com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(byName.get("Succ").getPredecessors().get(0).getLag()));
+		assertEquals(-1L * 60L * 60L * 1000L,
+				com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(byName.get("OtherSucc").getPredecessors().get(0).getLag()));
+		net.sf.mpxj.Duration percentLag = byName.get("PercentSucc").getPredecessors().get(0).getLag();
+		assertEquals(net.sf.mpxj.TimeUnit.PERCENT, percentLag.getUnits());
+		assertEquals(50.0, percentLag.getDuration(), 0.0001);
+		net.sf.mpxj.Duration elapsedLag = byName.get("ElapsedSucc").getPredecessors().get(0).getLag();
+		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(elapsedLag));
+	}
+
+	private static void writeRow(org.apache.poi.ss.usermodel.Sheet sheet, int rowIndex, Object... values) {
+		Row row = sheet.createRow(rowIndex);
+		for (int i = 0; i < values.length; i++) {
+			if (values[i] == null) {
+				continue;
+			}
+			if (values[i] instanceof Number) {
+				row.createCell(i).setCellValue(((Number) values[i]).doubleValue());
+			} else {
+				row.createCell(i).setCellValue(String.valueOf(values[i]));
+			}
+		}
 	}
 
 	public void testMspImporterCanReadGeneratedXlsx() throws Exception {

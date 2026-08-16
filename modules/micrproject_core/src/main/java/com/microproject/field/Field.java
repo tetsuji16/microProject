@@ -1709,7 +1709,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		FieldContext fieldContext = new FieldContext();
 		fieldContext.setInterval(interval);
 		Field field =(Field) f.clone();
-		field.specialFieldContext = new FieldContext();
+		field.specialFieldContext = fieldContext; // keep the interval-configured context (issue #166)
 		return field;
 	}
 

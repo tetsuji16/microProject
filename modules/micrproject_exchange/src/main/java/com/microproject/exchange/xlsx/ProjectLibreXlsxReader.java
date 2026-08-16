@@ -9,9 +9,11 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Map;	import java.util.logging.Level;
+	import java.util.logging.Logger;
+	import java.util.regex.Matcher;
+	import java.util.regex.Pattern;
+
 
 import net.sf.mpxj.MPXJException;
 import net.sf.mpxj.Duration;
@@ -300,7 +302,105 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 				continue;
 			}
 			int relationType = integerCell(row, 2) == null ? RelationType.FINISH_START.getValue() : integerCell(row, 2).intValue();
-			successor.addPredecessor(predecessor, RelationType.getInstance(relationType), Duration.getInstance(0, TimeUnit.DAYS));
+			Duration lag = durationCell(row, 3);
+			successor.addPredecessor(predecessor, RelationType.getInstance(relationType),
+					lag == null ? Duration.getInstance(0, TimeUnit.DAYS) : lag);
+		}
+	}
+
+	private static final long ENCODED_LAG_THRESHOLD = 1L << 57; // unit flags occupy bits 57+, plain millis never reach this
+
+	/**
+	 * Reads the Dependencies sheet Lag cell (issue #162). Supported forms:
+	 * <ul>
+	 * <li>plain milliseconds (current ProjectLibreXlsxWriter format)</li>
+	 * <li>the old encoded long (unit flags in bits 57+) for backward compatibility</li>
+	 * <li>{@code %<fraction>} / {@code e%<fraction>} percent lags</li>
+	 * <li>MPXJ {@code Duration#toString()} form (e.g. {@code 2.0d}, {@code -1.0h}, {@code 90.0m})</li>
+	 * </ul>
+	 * Returns null when the cell is empty or unparseable (caller falls back to zero).
+	 */
+	private Duration durationCell(Row row, int column) {
+		Cell cell = row.getCell(column);
+		if (cell == null) {
+			return null;
+		}
+		if (cell.getCellType() == CellType.NUMERIC) {
+			long value = (long) cell.getNumericCellValue();
+			if (Math.abs(value) >= ENCODED_LAG_THRESHOLD) {
+				return decodeEncodedLag(value); // old writer format
+			}
+			return Duration.getInstance(value / 60000.0, TimeUnit.MINUTES); // plain millis
+		}
+		String text = stringCell(row, column).trim();
+		if (text.length() == 0) {
+			return null;
+		}
+		if (text.startsWith("%") || text.startsWith("e%")) {
+			boolean elapsed = text.startsWith("e");
+			try {
+				double fraction = Double.parseDouble(text.substring(elapsed ? 2 : 1));
+				return Duration.getInstance(fraction * 100.0,
+						elapsed ? TimeUnit.ELAPSED_PERCENT : TimeUnit.PERCENT);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		}
+		Matcher matcher = MPXJ_DURATION_PATTERN.matcher(text);
+		if (matcher.matches()) {
+			double value = Double.parseDouble(matcher.group(2));
+			if (matcher.group(1) != null) {
+				value = -value;
+			}
+			boolean elapsed = matcher.group(3) != null;
+			TimeUnit unit = mpxjUnit(matcher.group(4), elapsed);
+			return Duration.getInstance(value, unit);
+		}
+		return null;
+	}
+
+	private static final Pattern MPXJ_DURATION_PATTERN =
+			Pattern.compile("^(-)?(\\d+(?:\\.\\d+)?)(e)?([mhdw]|mo|y|%)$");
+
+	private static TimeUnit mpxjUnit(String unit, boolean elapsed) {
+		switch (unit) {
+		case "m": return elapsed ? TimeUnit.ELAPSED_MINUTES : TimeUnit.MINUTES;
+		case "h": return elapsed ? TimeUnit.ELAPSED_HOURS : TimeUnit.HOURS;
+		case "d": return elapsed ? TimeUnit.ELAPSED_DAYS : TimeUnit.DAYS;
+		case "w": return elapsed ? TimeUnit.ELAPSED_WEEKS : TimeUnit.WEEKS;
+		case "mo": return elapsed ? TimeUnit.ELAPSED_MONTHS : TimeUnit.MONTHS;
+		case "y": return elapsed ? TimeUnit.ELAPSED_YEARS : TimeUnit.YEARS;
+		case "%": return elapsed ? TimeUnit.ELAPSED_PERCENT : TimeUnit.PERCENT;
+		default: return TimeUnit.MINUTES;
+		}
+	}
+
+	/**
+	 * Decodes the old ProjectLibreXlsxWriter format: a datatype Duration encoded
+	 * long (millis in the low bits, unit flags in bits 57+).
+	 */
+	private static Duration decodeEncodedLag(long encoded) {
+		int type = com.microproject.datatype.Duration.getType(encoded);
+		if (type == com.microproject.datatype.TimeUnit.PERCENT) {
+			return Duration.getInstance(com.microproject.datatype.Duration.getPercentAsDecimal(encoded) * 100.0, TimeUnit.PERCENT);
+		}
+		if (type == com.microproject.datatype.TimeUnit.ELAPSED_PERCENT) {
+			return Duration.getInstance(com.microproject.datatype.Duration.getPercentAsDecimal(encoded) * 100.0, TimeUnit.ELAPSED_PERCENT);
+		}
+		long millis = com.microproject.datatype.Duration.millis(encoded);
+		TimeUnit unit = mpxjUnit(unitSuffix(type), com.microproject.datatype.Duration.isElapsed(encoded));
+		return Duration.getInstance(millis / 60000.0, unit);
+	}
+
+	private static String unitSuffix(int type) {
+		switch (type) {
+		case com.microproject.datatype.TimeUnit.MINUTES: case com.microproject.datatype.TimeUnit.ELAPSED_MINUTES: return "m";
+		case com.microproject.datatype.TimeUnit.HOURS: case com.microproject.datatype.TimeUnit.ELAPSED_HOURS: return "h";
+		case com.microproject.datatype.TimeUnit.DAYS: case com.microproject.datatype.TimeUnit.ELAPSED_DAYS: return "d";
+		case com.microproject.datatype.TimeUnit.WEEKS: case com.microproject.datatype.TimeUnit.ELAPSED_WEEKS: return "w";
+		case com.microproject.datatype.TimeUnit.MONTHS: case com.microproject.datatype.TimeUnit.ELAPSED_MONTHS: return "mo";
+		case com.microproject.datatype.TimeUnit.YEARS: case com.microproject.datatype.TimeUnit.ELAPSED_YEARS: return "y";
+		default: return "m";
 		}
 	}
 

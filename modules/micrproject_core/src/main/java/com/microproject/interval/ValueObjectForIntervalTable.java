@@ -185,10 +185,14 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	/**
 	 * Finds the Rate/Availability which is on or before a date
 	 * @param date
-	 * @return
+	 * @return null when the table is empty or the date precedes the first entry
+	 *         (callers such as ResourceAvailabilityFunctor already handle null)
 	 */
 	public ValueObjectForInterval findActive(long date) {
-		return (ValueObjectForInterval) valueObjects.get(findActiveIndex(date));
+		int index = findActiveIndex(date);
+		if (index < 0 || index >= valueObjects.size()) // issue #167: get(-1) used to throw
+			return null;
+		return (ValueObjectForInterval) valueObjects.get(index);
 	}
 	
 	public ValueObjectForInterval findCurrent() {

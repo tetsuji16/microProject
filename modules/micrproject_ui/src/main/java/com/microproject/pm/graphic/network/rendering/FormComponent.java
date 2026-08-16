@@ -301,7 +301,7 @@ public class FormComponent extends JPanel{
 		String propertyName,
 		Object oldValue,
 		Object newValue) {
-		if (propertyName == "text")
+		if ("text".equals(propertyName))
 			super.firePropertyChange(propertyName, oldValue, newValue);
 	}
 

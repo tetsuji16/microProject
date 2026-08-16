@@ -130,9 +130,13 @@ public class HyperLinkToolTip extends JToolTip {
 	public static String extractTip(String htmlTip) {
 		if (!htmlTip.startsWith("<html>"))
 			return htmlTip;
+		if (htmlTip.length() < htmlPrefix.length()) // tooltip shorter than our prefix template: not ours, return as-is
+			return htmlTip;
 		String t = htmlTip.substring(htmlPrefix.length());
-		t = t.substring(0,t.indexOf('<'));
-		return t;
+		int tagStart = t.indexOf('<');
+		if (tagStart < 0) // no closing tag: plain text after prefix
+			return t;
+		return t.substring(0, tagStart);
 		
 	}
  
