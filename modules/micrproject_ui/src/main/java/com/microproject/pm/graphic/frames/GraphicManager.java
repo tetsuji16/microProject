@@ -731,9 +731,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		NormalTask previous = null;
 		for (String[] definition : definitions) {
+			if (definition == null || definition.length == 0) {
+				// Malformed template row: skip instead of indexing past the array.
+				continue;
+			}
 			NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 			task.setName(definition[0]);
-			long durationDays = parseTemplateDurationDays(definition[1]);
+			long durationDays = templateTaskDurationDays(definition);
 			task.getCurrentSchedule().setStart(project.getStart());
 			task.setDuration(day * durationDays);
 			if (durationDays == 0) task.setMarkTaskAsMilestone(true);
@@ -741,6 +745,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			previous = task;
 		}
 		project.setDirty(true); project.recalculate();
+	}
+
+	/**
+	 * Parses a template task duration (in days) from the task definition row.
+	 * A malformed token or a short row degrades to a zero-day (milestone) task
+	 * instead of crashing template creation with an uncaught
+	 * NumberFormatException / ArrayIndexOutOfBoundsException (issue #178).
+	 */
+	static long templateTaskDurationDays(String[] definition) {
+		if (definition == null || definition.length < 2) {
+			return 0L;
+		}
+		return parseTemplateDurationDays(definition[1]);
 	}
 
 	/**
