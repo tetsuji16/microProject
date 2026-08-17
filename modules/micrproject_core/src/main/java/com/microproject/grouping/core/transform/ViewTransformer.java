@@ -225,6 +225,10 @@ public class ViewTransformer{
     }
     public void setHiddenFilter(NodeFilter hiddenFilter) {
         this.hiddenFilter = hiddenFilter;
+        if (hiddenFilter != null) {
+            hiddenFilter.setRedefinitionCallBack(redefinition);
+        }
+        fireTransformerChanged(this);
     }
     public NodeGrouper getHiddenGrouper() {
         if (hiddenGrouperIdDirty){

@@ -41,6 +41,7 @@ public final class MondayGanttTheme {
 	private static final Color SUMMARY_BACKGROUND = new Color(0xDDE7F5);
 	private static final Color SUMMARY_PROGRESS_BACKGROUND = new Color(0xEEF3FA);
 	private static final Color CRITICAL_ACCENT = new Color(0x5F, 0x64, 0x6D);
+	private static final Color CRITICAL_TASK = new Color(0xD0, 0x30, 0x30);
 
 	public static final Color DONE = new Color(0x00C875);
 	public static final Color WORKING_ON_IT = new Color(0xFDAB3D);
@@ -136,6 +137,10 @@ public final class MondayGanttTheme {
 
 	public static Color criticalAccent() {
 		return CRITICAL_ACCENT;
+	}
+
+	public static Color criticalTaskColor() {
+		return CRITICAL_TASK;
 	}
 
 	public static Paint createLayerPaint(Color baseColor, Rectangle2D bounds, boolean backgroundLayer) {

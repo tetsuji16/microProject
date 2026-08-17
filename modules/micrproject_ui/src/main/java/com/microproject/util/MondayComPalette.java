@@ -97,6 +97,11 @@ public class MondayComPalette implements GanttColorPalette {
     }
 
     @Override
+    public Color getCriticalTaskColor() {
+        return MondayGanttTheme.criticalTaskColor();
+    }
+
+    @Override
     public Color getExternalLinkColor() {
         return MondayGanttTheme.externalLinkColor();
     }

@@ -74,7 +74,7 @@ public final class TeamPlannerDialogBox extends JDialog {
 	}
 
 	private TeamPlannerDialogBox(java.awt.Frame owner, Project project) {
-		super(owner, UsabilityStrings.text("team.title"), true);
+		super(owner, UsabilityStrings.text("team.title"), false);
 		HelpUtil.addDocHelp(getRootPane(), "Team_Planner");
 		getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("team.hint"));
 		PopupDialogSupport.bindEscapeToDispose(this);

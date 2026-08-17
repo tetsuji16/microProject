@@ -99,6 +99,12 @@ public interface GanttColorPalette {
     Color getBaselineBarColor();
 
     /**
+     * Color for tasks on the critical path (MS Project renders them red).
+     * Only used when the task has no user-defined individual bar color.
+     */
+    Color getCriticalTaskColor();
+
+    /**
      * External dependency color for cross-project links.
      */
     Color getExternalLinkColor();

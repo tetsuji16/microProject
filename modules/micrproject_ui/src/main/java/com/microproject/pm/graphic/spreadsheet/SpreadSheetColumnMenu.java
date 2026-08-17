@@ -30,6 +30,7 @@ import java.awt.event.ActionListener;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 
+import com.microproject.dialog.AutoFilterDialog;
 import com.microproject.dialog.ColumnDialog;
 import com.microproject.dialog.FieldAliasDialog;
 import com.microproject.pm.graphic.IconManager;
@@ -51,6 +52,7 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 	private JMenuItem hide = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.HideColumn")); //$NON-NLS-1$
 	private JMenuItem rename = new JMenuItem(Messages.getString("RenameDialog.Rename")); //$NON-NLS-1$
 	private JMenuItem find = new JMenuItem(Messages.getString("LookupDialog.Find")); //$NON-NLS-1$
+	private JMenuItem autoFilter = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.AutoFilter")); //$NON-NLS-1$
 
 	/**
 	 * @param col column that was clicked on
@@ -107,11 +109,19 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 			}
 		});		
 		
+		autoFilter.setIcon(IconManager.getIcon("menu.filter")); //$NON-NLS-1$
+		autoFilter.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				AutoFilterDialog.open(GraphicManager.getInstance().getFrame(), sp, f);
+			}
+		});
+		
 		add(insert);
 		add(hide);
 		if (f.isCustom())
 			add(rename);
 		add(find);
+		add(autoFilter);
 	}
 }
 

@@ -125,6 +125,14 @@ public abstract class NodeFilter extends CommonTransform implements Predicate{
 	}
     public void setRedefinitionCallBack(Consumer<Object> callback){}
     
+    /**
+     * Whether this filter currently restricts the visible set. Subclasses
+     * with an "empty criteria means no filtering" semantics override it.
+     */
+    public boolean isActive() {
+        return true;
+    }
+    
     public void reset(){} //for state filters
 	
 }
