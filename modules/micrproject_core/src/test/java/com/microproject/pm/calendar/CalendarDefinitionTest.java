@@ -103,6 +103,22 @@ class CalendarDefinitionTest {
 	}
 
 	@Test
+	void addWithZeroWorkingTimeWeekIsSignConsistentWithElapsedPath() {
+		// Issue #175: a no-working-time calendar must behave exactly like the
+		// elapsed-time path, including for negative (reverse-scheduling) dates.
+		CalendarDefinition calendar = new CalendarDefinition();
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++) {
+			calendar.week.setWeekDay(day, nonWorkingDay(0L));
+		}
+		calendar.addSentinelsAndMakeArray();
+
+		long start = -timestamp(2024, Calendar.JUNE, 3, 9);
+		long result = calendar.add(start, eightHours(), true);
+
+		assertEquals(start + eightHours(), result);
+	}
+
+	@Test
 	void addWithUninitializedWeekTreatsNullDaysAsDefaultWorkingDays() {
 		// Issue #175: an uninitialized week (all null weekdays) resolves each day
 		// to the default working day instead of dividing by the cached zero.
