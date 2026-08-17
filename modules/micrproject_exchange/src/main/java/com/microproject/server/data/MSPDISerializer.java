@@ -42,7 +42,7 @@ import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.server.data.linker.Linker;
 import com.microproject.server.data.linker.ResourceLinker;
 import com.microproject.server.data.linker.TaskLinker;
-import com.microproject.server.data.mspdi.ModifiedMSPDIWriter;
+import net.sf.mpxj.mspdi.MSPDIWriter;
 import com.microproject.association.AssociationList;
 import com.microproject.configuration.Settings;
 import com.microproject.grouping.core.Node;
@@ -85,10 +85,10 @@ public class MSPDISerializer implements ProjectSerializer {
 //    	int count = 0; // unassigned should start at 0
     	public Object addTransformedObjects(Object child) throws Exception{
     		Project project=(Project)parent;
-    		ModifiedMSPDIWriter projectData=(ModifiedMSPDIWriter)transformedParent;
+    		ProjectFile projectFile=(ProjectFile)transformedParent;
     		ResourceImpl resource=(ResourceImpl)child;
 //    		resource.setId(count++); // enumerate them
-    		net.sf.mpxj.Resource resourceData=projectData.getProjectFile().addResource();
+    		net.sf.mpxj.Resource resourceData=projectFile.addResource();
     		MPXConverter.toMPXResource(resource,resourceData);
     		            
             transformationMap.put(resource,resourceData);
@@ -102,10 +102,10 @@ public class MSPDISerializer implements ProjectSerializer {
     protected Linker taskLinker=new TaskLinker(){
     	public Object addTransformedObjects(Object child) throws Exception{
     		Project project=(Project)parent;
-    		ModifiedMSPDIWriter projectData=(ModifiedMSPDIWriter)transformedParent;
+    		ProjectFile projectFile=(ProjectFile)transformedParent;
     		NormalTask task=(NormalTask)child;
     		
-    		net.sf.mpxj.Task taskData=projectData.getProjectFile().addTask();
+    		net.sf.mpxj.Task taskData=projectFile.addTask();
     		MPXConverter.toMPXTask(task,taskData);
 
     		@SuppressWarnings("unchecked")
@@ -122,10 +122,6 @@ public class MSPDISerializer implements ProjectSerializer {
                         net.sf.mpxj.Resource resourceData=(net.sf.mpxj.Resource)resourceMap.get(r);
                         
                         ResourceAssignment assignmentData=taskData.addResourceAssignment(resourceData);
-                 
-                        
-                        projectData.putOPPrAssignmentMap(assignmentData,assignment);
-                        projectData.putOPPrSnapshotIdMap(assignmentData,Integer.valueOf(s));
                         if (s==Snapshottable.CURRENT.intValue()){
                         	MPXConverter.toMPXAssignment(assignment,assignmentData);
                         }
@@ -155,11 +151,11 @@ public class MSPDISerializer implements ProjectSerializer {
     };
     
     @SuppressWarnings("unchecked")
-    protected Map<ResourceImpl, net.sf.mpxj.Resource> saveResources(Project project,ModifiedMSPDIWriter projectData) throws Exception{
+    protected Map<ResourceImpl, net.sf.mpxj.Resource> saveResources(Project project,ProjectFile projectFile) throws Exception{
 
 		NodeModelUtil.enumerateNonAssignments(project.getResourcePool().getResourceOutline());
     	resourceLinker.setParent(project);
-    	resourceLinker.setTransformedParent(projectData);
+    	resourceLinker.setTransformedParent(projectFile);
     	//resourceLinker.setGlobalIdsOnly(globalIdsOnly);
     	resourceLinker.init();
     	resourceLinker.addTransformedObjects(ResourceImpl.getUnassignedInstance());
@@ -169,10 +165,10 @@ public class MSPDISerializer implements ProjectSerializer {
         return (Map<ResourceImpl, net.sf.mpxj.Resource>) resourceLinker.getTransformationMap();
     }
 
-    protected Map<net.sf.mpxj.Task, Task> saveTasks(Project project,ModifiedMSPDIWriter projectData,Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap) throws Exception{
+    protected Map<net.sf.mpxj.Task, Task> saveTasks(Project project,ProjectFile projectFile,Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap) throws Exception{
 		NodeModelUtil.enumerateNonAssignments(project.getTaskOutline()); // to fix bug, I moved this before tasks are saved. 16.2.06 hk
     	taskLinker.setParent(project);
-    	taskLinker.setTransformedParent(projectData);
+    	taskLinker.setTransformedParent(projectFile);
     	//taskLinker.setGlobalIdsOnly(globalIdsOnly);
     	taskLinker.setArgs(new Object[]{resourceMap});
     	taskLinker.init();
@@ -191,7 +187,7 @@ public class MSPDISerializer implements ProjectSerializer {
     		if (voidTasksQueue.size()>0 && !(obj instanceof VoidNodeImpl)){
     			//insert voids
     			for (Object voidTask:voidTasksQueue){
-            		net.sf.mpxj.Task taskData=projectData.getProjectFile().addTask();
+            		net.sf.mpxj.Task taskData=projectFile.addTask();
             		MPXConverter.toMPXVoid((VoidNodeImpl)voidTask,taskData);
     			}
     			voidTasksQueue.clear();
@@ -206,7 +202,6 @@ public class MSPDISerializer implements ProjectSerializer {
 	            Task task=(Task)obj; //ResourceImpl to have the EnterpriseResource link
 //	            task.setUniqueId(task.getId()); // set unique id and id to the same thing on export. Ensures unique id is unique
 	            net.sf.mpxj.Task taskData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(task);
-	            projectData.putOPPrTaskMap(taskData,task);
 		        
 	            for (Iterator j=task.getPredecessorList().iterator();j.hasNext();){
 	            	Dependency dependency=(Dependency)j.next();
@@ -223,19 +218,15 @@ public class MSPDISerializer implements ProjectSerializer {
         return taskLinker.getTransformationMap();
     }
 
-    public ModifiedMSPDIWriter serializeProject(Project project) throws Exception{
+    public ProjectFile serializeProject(Project project) throws Exception{
     	return serializeProject(project,false);
     }
-	public ModifiedMSPDIWriter serializeProject(Project project,boolean globalIdsOnly) throws Exception{
+	public ProjectFile serializeProject(Project project,boolean globalIdsOnly) throws Exception{
         if (globalIdsOnly) 
         	makeGLobal(project);
         MPXConverter.beginExport();
         try {
-	        ModifiedMSPDIWriter projectData=new ModifiedMSPDIWriter();
 	        ProjectFile projectFile = new ProjectFile();
-	        projectData.setProjectFile(projectFile);
-	        
-	        projectData.setOPPrProject(project);
 	//this doesn't appear in 2007 version of mpxj        projectData.setMicrosoftProjectCompatibleOutput(true);
 	        projectFile.getProjectConfig().setAutoTaskUniqueID(true);
 	        projectFile.getProjectConfig().setAutoResourceUniqueID(true);
@@ -265,14 +256,14 @@ public class MSPDISerializer implements ProjectSerializer {
 	        if (job!=null) job.setProgress(0.3f);
 	        
 	        //resources
-        Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap=saveResources(project,projectData);
+        Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap=saveResources(project,projectFile);
 	        if (job!=null) job.setProgress(0.5f);
 	        
 	        //tasks
-	        saveTasks(project,projectData,resourceMap);
+	        saveTasks(project,projectFile,resourceMap);
 	        if (job!=null) job.setProgress(0.7f);
 
-	        return projectData;
+	        return projectFile;
         } finally {
         	MPXConverter.endExport();
         }
@@ -370,9 +361,9 @@ public class MSPDISerializer implements ProjectSerializer {
 	public boolean saveProject(Project project,OutputStream out) {
 		try {
 			//MSPDISerializer serializer=new MSPDISerializer();
-			ModifiedMSPDIWriter data=/*serializer.*/serializeProject(project);
+			ProjectFile data=serializeProject(project);
 			if (job!=null) job.setProgress(0.9f);
-			data.write(data.getProjectFile(),out);
+			new MSPDIWriter().write(data,out);
 			if (job!=null) job.setProgress(1.0f);
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to save ProjectLibre project as MSPDI", e);
