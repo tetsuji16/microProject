@@ -2,6 +2,7 @@
 commons-beanutils = "1.9.4"
 commons-collections = "3.2.2"
 commons-collections4 = "4.4"
+commons-csv = "1.14.1"
 commons-digester = "1.8.1"
 commons-lang = "2.6"
 commons-lang3 = "3.18.0"
@@ -33,6 +34,7 @@ log4j = "2.24.3"
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
 commons-collections = { module = "commons-collections:commons-collections", version.ref = "commons-collections" }
 commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "commons-collections4" }
+commons-csv = { module = "org.apache.commons:commons-csv", version.ref = "commons-csv" }
 commons-digester = { module = "commons-digester:commons-digester", version.ref = "commons-digester" }
 commons-lang = { module = "commons-lang:commons-lang", version.ref = "commons-lang" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
