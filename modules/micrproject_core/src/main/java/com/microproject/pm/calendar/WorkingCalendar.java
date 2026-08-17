@@ -82,6 +82,13 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	public boolean equals(Object arg0) {
 		return (this == arg0);
 	}
+
+	@Override
+	public int hashCode() {
+		// equals() is identity-based (this == arg0), so the hash code is the
+		// identity hash as well (issue #177).
+		return System.identityHashCode(this);
+	}
 	public static WorkingCalendar getInstance() {
 		return new WorkingCalendar();
 	}

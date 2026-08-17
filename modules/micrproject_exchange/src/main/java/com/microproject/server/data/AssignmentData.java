@@ -115,8 +115,13 @@ public class AssignmentData extends SerializedDataObject {
 		if (!super.equals(obj)) return false;
 		if (obj instanceof AssignmentData){
 			AssignmentData data=(AssignmentData)obj;
-			return data.getTaskId()==getTaskId()&&data.getSnapshotId()==data.getSnapshotId();
+			return data.getTaskId()==getTaskId()&&data.getSnapshotId()==getSnapshotId();
 		}else return false;
+	}
+	@Override
+	public int hashCode(){
+		// consistent with the uniqueId + taskId + snapshotId equals above (issue #177)
+		return Long.hashCode(getUniqueId()) * 31 + Long.hashCode(getTaskId()) * 31 + Integer.hashCode(getSnapshotId());
 	}
 	public final Date getCachedStart() {
 		return cachedStart;

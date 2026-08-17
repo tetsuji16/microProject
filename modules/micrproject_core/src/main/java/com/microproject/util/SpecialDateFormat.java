@@ -43,18 +43,23 @@ public class SpecialDateFormat extends SimpleDateFormat {
 	
 	public static String DATE_FORMAT="EEE MM/dd/yy H:mm";
 
-	private static DateFormat instance = null;
-	private static DateFormat defaultInstance = DateFormat.getDateTimeInstance(DateFormat.MEDIUM,DateFormat.SHORT);
+	private final DateFormat defaultInstance;
+
+	/**
+	 * Returns a freshly created formatter. DateFormat is not thread-safe, so a
+	 * shared static instance would corrupt its internal state under concurrent
+	 * format()/parse() calls (issue #176, same root cause as #158). Returning a
+	 * fresh instance per call keeps every caller isolated with no shared state.
+	 */
 	public static DateFormat getSpecialInstance() {
-		if (instance == null) {
-			instance = new SpecialDateFormat();
-			instance.setTimeZone(DateUtils.UTC_TIME_ZONE);
-			defaultInstance.setTimeZone(DateUtils.UTC_TIME_ZONE);
-		}
-		return instance; 
+		SpecialDateFormat instance = new SpecialDateFormat();
+		instance.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		return instance;
 	}
 	protected SpecialDateFormat() {
 		super(DATE_FORMAT);
+		defaultInstance = DateFormat.getDateTimeInstance(DateFormat.MEDIUM,DateFormat.SHORT);
+		defaultInstance.setTimeZone(DateUtils.UTC_TIME_ZONE);
 	}
 	
 	public StringBuffer format(Date date, StringBuffer arg1, FieldPosition arg2) {

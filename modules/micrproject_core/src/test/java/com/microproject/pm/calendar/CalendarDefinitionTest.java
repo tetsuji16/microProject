@@ -85,6 +85,37 @@ class CalendarDefinitionTest {
 		assertEquals(WorkDay.getDefaultWorkDay().getDuration(), calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 3, 9)).getDuration());
 	}
 
+	@Test
+	void addWithZeroWorkingTimeWeekDegradesGracefully() {
+		// Issue #175: a week with no working time must not divide by zero
+		// (ArithmeticException) or walk non-working days forever.
+		CalendarDefinition calendar = new CalendarDefinition();
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++) {
+			calendar.week.setWeekDay(day, nonWorkingDay(0L));
+		}
+		calendar.addSentinelsAndMakeArray();
+
+		long start = timestamp(2024, Calendar.JUNE, 3, 9);
+		long result = calendar.add(start, eightHours(), true);
+
+		// Falls back to elapsed-time arithmetic: no crash, deterministic result.
+		assertEquals(start + eightHours(), result);
+	}
+
+	@Test
+	void addWithUninitializedWeekTreatsNullDaysAsDefaultWorkingDays() {
+		// Issue #175: an uninitialized week (all null weekdays) resolves each day
+		// to the default working day instead of dividing by the cached zero.
+		CalendarDefinition calendar = new CalendarDefinition();
+		calendar.addSentinelsAndMakeArray();
+
+		long start = timestamp(2024, Calendar.JUNE, 3, 9);
+		long result = calendar.add(start, eightHours(), true);
+
+		// Default 8h working day: Mon 09:00 + 8h -> Tue 09:00.
+		assertEquals(timestamp(2024, Calendar.JUNE, 4, 9), result);
+	}
+
 	private static CalendarDefinition standardWeekCalendar() {
 		CalendarDefinition calendar = new CalendarDefinition();
 		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++) {
