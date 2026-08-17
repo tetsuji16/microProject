@@ -620,17 +620,34 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 
 	/**
-	 * Selecting a task bar directly in the chart also selects its row in the
-	 * task table, so both panes highlight the same tasks (issue #179).
+	 * Clicking the chart updates the task table selection exactly like
+	 * Microsoft Project (issue #179): a plain click selects the task, Ctrl/
+	 * Cmd+click toggles it in the selection, Shift+click extends the
+	 * selection, and a click on empty chart space clears the selection.  Both
+	 * panes therefore always highlight the same tasks.
 	 */
 	private void installGanttBarSelectionListener() {
 		if (gantt == null) {
 			return;
 		}
-		gantt.setBarSelectionListener(this::selectSpreadsheetRowForGraphicNode);
+		gantt.setBarSelectionListener(this::onGanttChartClick);
 	}
 
-	private void selectSpreadsheetRowForGraphicNode(GraphicNode node) {
+	private void onGanttChartClick(Gantt.BarClick click) {
+		if (click == null) {
+			return;
+		}
+		if (click.node() == null) {
+			if (spreadSheet != null) {
+				spreadSheet.clearSelection();
+			}
+			return;
+		}
+		selectSpreadsheetRowForGraphicNode(click);
+	}
+
+	private void selectSpreadsheetRowForGraphicNode(Gantt.BarClick click) {
+		GraphicNode node = click.node();
 		if (node == null || spreadSheet == null
 				|| !(spreadSheet.getModel() instanceof com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model)) {
 			return;
@@ -646,7 +663,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (column >= spreadSheet.getColumnCount()) {
 			column = Math.max(0, spreadSheet.getColumnCount() - 1);
 		}
-		spreadSheet.changeSelection(row, column, false, false);
+		spreadSheet.changeSelection(row, column, click.toggle(), click.extend());
 	}
 
 	private void applySpreadsheetGridStyle() {

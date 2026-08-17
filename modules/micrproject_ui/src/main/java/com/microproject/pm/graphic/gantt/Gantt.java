@@ -90,7 +90,16 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private String formatViewName = GanttBarFormatOverrides.STANDARD_VIEW;
 	/** Rows whose full calendar width is highlighted because they are selected in the task table. */
 	private Set<Integer> highlightedRows = Collections.emptySet();
-	private Consumer<GraphicNode> barSelectionListener;
+	private Consumer<BarClick> barSelectionListener;
+
+	/**
+	 * A click on the Gantt chart that drives task selection, mirroring
+	 * Microsoft Project: a plain click selects the task, Ctrl/Cmd+click
+	 * toggles it in the selection, Shift+click extends the selection, and a
+	 * click on empty chart space (node == null) clears the selection.
+	 */
+	public record BarClick(GraphicNode node, boolean toggle, boolean extend) {
+	}
 	public Gantt(Project project,String viewName) {
 		this(new GanttModel(project,viewName),project);
 	}
@@ -148,17 +157,18 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 
 	/**
-	 * Registers a callback invoked when the user clicks a task bar in the chart.
-	 * The view uses it to keep the task table selection in sync with the chart.
+	 * Registers a callback invoked when the user clicks the chart (a task bar
+	 * or empty chart space). The view uses it to keep the task table selection
+	 * in sync with the chart.
 	 */
-	public void setBarSelectionListener(Consumer<GraphicNode> listener) {
+	public void setBarSelectionListener(Consumer<BarClick> listener) {
 		barSelectionListener = listener;
 	}
 
-	void notifyBarSelection(GraphicNode node) {
+	void notifyBarSelection(BarClick click) {
 		repaint();
 		if (barSelectionListener != null) {
-			barSelectionListener.accept(node);
+			barSelectionListener.accept(click);
 		}
 	}
 

@@ -166,7 +166,7 @@ public class GanttInteractor extends GraphInteractor{
 			// Task Information available for imported/read-only projects.
 			if (SwingUtilities.isLeftMouseButton(e)) {
 				select(e.getX(), e.getY());
-				notifyBarSelection();
+				notifyBarSelection(e);
 				if (e.getClickCount() == 2)
 				openTaskInformationAt(e.getX(), e.getY());
 			}
@@ -176,7 +176,7 @@ public class GanttInteractor extends GraphInteractor{
     	getGraph().requestFocusInWindow();
     	if (SwingUtilities.isRightMouseButton(e)) {
 			select(e.getX(), e.getY());
-			notifyBarSelection();
+			notifyBarSelection(e);
     		super.mousePressed(e);
     		return;
     	}
@@ -186,7 +186,7 @@ public class GanttInteractor extends GraphInteractor{
     	}
 
     	select(e.getX(), e.getY());
-    	notifyBarSelection();
+    	notifyBarSelection(e);
     	if (selected == null) {
     		startPan(e);
     		return;
@@ -635,15 +635,25 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     /**
-     * Informs the Gantt that a task bar was clicked so the view can keep the
-     * task table selection in sync with the chart.  Only fired on an actual
-     * press (not on hover), so moving the pointer over bars never changes the
-     * table selection.
+     * Informs the Gantt that the chart was clicked so the view can keep the
+     * task table selection in sync with the chart, matching Microsoft Project:
+     * plain click selects the task, Ctrl/Cmd+click toggles it, Shift+click
+     * extends the selection, and a left click on empty chart space clears the
+     * selection.  Only fired on an actual press (not on hover), so moving the
+     * pointer over bars never changes the table selection.
      */
-    private void notifyBarSelection(){
-    	if (selected instanceof GraphicNode node && getGraph() instanceof Gantt gantt) {
-    		gantt.notifyBarSelection(node);
-    	}
+    private void notifyBarSelection(MouseEvent e){
+    	if (!(getGraph() instanceof Gantt gantt)) return;
+    	GraphicNode node = selected instanceof GraphicNode graphicNode ? graphicNode : null;
+    	boolean leftClick = e != null && SwingUtilities.isLeftMouseButton(e);
+    	// A right click on empty space (or on a link) keeps the current
+    	// selection; only left clicks on empty chart space clear it.
+    	if (node == null && !(leftClick && selected == null)) return;
+    	gantt.notifyBarSelection(new Gantt.BarClick(node, isToggleModifier(e), e != null && e.isShiftDown()));
+    }
+
+    private static boolean isToggleModifier(MouseEvent e){
+    	return e != null && (e.isControlDown() || e.isMetaDown());
     }
 
     protected boolean isMove(){
