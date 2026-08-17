@@ -987,6 +987,37 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			g2.setPaint(oldPaint);
 	}
 
+	/**
+	 * Highlights the complete calendar row of every selected task, spanning the
+	 * full chart width so the selection made in the task table is also visible
+	 * in the chart (issue #179). The band is painted before the bars so task
+	 * bars and grid lines stay visible on top.
+	 */
+	void paintSelectedRows(Graphics2D g2, Rectangle bounds) {
+		if (g2 == null || bounds == null || !(graphInfo instanceof Gantt gantt))
+			return;
+		Set<Integer> rows = gantt.getHighlightedRows();
+		if (rows == null || rows.isEmpty())
+			return;
+		int rowHeight = ((GanttParams) graphInfo).getRowHeight();
+		if (rowHeight <= 0)
+			return;
+		Color oldColor = g2.getColor();
+		try {
+			g2.setColor(FlatUiSupport.spreadsheetRangeSelectionBackground());
+			for (int row : rows) {
+				if (row < 0)
+					continue;
+				int y = row * rowHeight;
+				if (y + rowHeight < bounds.y || y > bounds.y + bounds.height)
+					continue;
+				g2.fillRect(bounds.x, y, bounds.width, rowHeight);
+			}
+		} finally {
+			g2.setColor(oldColor);
+		}
+	}
+
 	private void paintProgressLine(Graphics2D g2) {
 		if (!(graphInfo instanceof Gantt))
 			return;
@@ -1221,6 +1252,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 		paintChartBackground(g2, clipBounds);
 		paintNonWorkingDays(g2,clipBounds);
+		paintSelectedRows(g2, clipBounds);
 
 		//Modif for offline graphics
 

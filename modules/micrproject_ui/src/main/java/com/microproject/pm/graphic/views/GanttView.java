@@ -27,7 +27,10 @@ package com.microproject.pm.graphic.views;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -35,12 +38,14 @@ import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.event.ListSelectionListener;
 
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
@@ -92,6 +97,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	private boolean spreadsheetGridVisible = true;
 	private String currentAnnotationFieldId = ANNOTATION_FIELD_RESOURCE_NAMES;
 	private ChangeListener spreadsheetViewportListener;
+	private ListSelectionListener spreadsheetSelectionListener;
 	private boolean synchronizingRowGeometry;
 	public static final String spreadsheetCategory=taskSpreadsheetCategory;
 
@@ -134,6 +140,8 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 		//sync the height of spreadsheet and gantt
 		installSpreadsheetViewportListener();
+		installSpreadsheetSelectionListener();
+		installGanttBarSelectionListener();
 
 //		spreadSheet.getRowHeader().getSelectionModel().addListSelectionListener(new ListSelectionListener(){
 //			public void valueChanged(ListSelectionEvent e) {
@@ -157,6 +165,10 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void cleanUp() {
 		removeSpreadsheetViewportListener();
+		removeSpreadsheetSelectionListener();
+		if (gantt != null) {
+			gantt.setBarSelectionListener(null);
+		}
 		if (coord != null && ganttScrollPane != null) {
 			coord.removeTimeScaleListener(ganttScrollPane);
 		}
@@ -415,6 +427,8 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		updateHeight(project);
 		updateSize();
 		installSpreadsheetViewportListener();
+		installSpreadsheetSelectionListener();
+		installGanttBarSelectionListener();
 		synchronizeGanttHeightWithSpreadsheet(leftScrollPane.getViewport().getViewSize());
 	}
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
@@ -560,6 +574,79 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			leftScrollPane.getViewport().removeChangeListener(spreadsheetViewportListener);
 		}
 		spreadsheetViewportListener = null;
+	}
+
+	/**
+	 * Keeps the Gantt chart's row highlight in sync with the task table
+	 * selection: selecting tasks in the table highlights their complete
+	 * calendar row in the chart (issue #179).
+	 */
+	private void installSpreadsheetSelectionListener() {
+		if (spreadsheetSelectionListener == null && spreadSheet != null) {
+			spreadsheetSelectionListener = e -> {
+				if (e.getValueIsAdjusting()) {
+					return;
+				}
+				updateGanttHighlightedRows();
+			};
+			spreadSheet.getSelectionModel().addListSelectionListener(spreadsheetSelectionListener);
+		}
+	}
+
+	private void removeSpreadsheetSelectionListener() {
+		if (spreadsheetSelectionListener != null && spreadSheet != null
+				&& spreadSheet.getSelectionModel() != null) {
+			spreadSheet.getSelectionModel().removeListSelectionListener(spreadsheetSelectionListener);
+		}
+		spreadsheetSelectionListener = null;
+	}
+
+	private void updateGanttHighlightedRows() {
+		if (gantt == null || spreadSheet == null) {
+			return;
+		}
+		int[] rows = spreadSheet.getSelectedRows();
+		if (rows == null || rows.length == 0) {
+			gantt.setHighlightedRows(Collections.emptySet());
+			return;
+		}
+		Set<Integer> highlighted = new HashSet<>(rows.length);
+		for (int row : rows) {
+			if (row >= 0) {
+				highlighted.add(row);
+			}
+		}
+		gantt.setHighlightedRows(highlighted);
+	}
+
+	/**
+	 * Selecting a task bar directly in the chart also selects its row in the
+	 * task table, so both panes highlight the same tasks (issue #179).
+	 */
+	private void installGanttBarSelectionListener() {
+		if (gantt == null) {
+			return;
+		}
+		gantt.setBarSelectionListener(this::selectSpreadsheetRowForGraphicNode);
+	}
+
+	private void selectSpreadsheetRowForGraphicNode(GraphicNode node) {
+		if (node == null || spreadSheet == null
+				|| !(spreadSheet.getModel() instanceof com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model)) {
+			return;
+		}
+		int row = model.findGraphicNodeRow(node);
+		if (row < 0 || row >= spreadSheet.getRowCount()) {
+			return;
+		}
+		int column = spreadSheet.getSelectedColumn();
+		if (column < 0) {
+			column = 0;
+		}
+		if (column >= spreadSheet.getColumnCount()) {
+			column = Math.max(0, spreadSheet.getColumnCount() - 1);
+		}
+		spreadSheet.changeSelection(row, column, false, false);
 	}
 
 	private void applySpreadsheetGridStyle() {

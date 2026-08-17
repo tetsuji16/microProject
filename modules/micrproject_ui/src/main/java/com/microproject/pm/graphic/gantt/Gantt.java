@@ -33,7 +33,11 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -45,6 +49,7 @@ import javax.swing.undo.AbstractUndoableEdit;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.graphic.gantt.link_routing.DefaultGanttLinkRouting;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.graph.Graph;
 import com.microproject.pm.graphic.graph.GraphParams;
@@ -83,6 +88,9 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private boolean gridLinesVisible = true;
 	private String annotationFieldId;
 	private String formatViewName = GanttBarFormatOverrides.STANDARD_VIEW;
+	/** Rows whose full calendar width is highlighted because they are selected in the task table. */
+	private Set<Integer> highlightedRows = Collections.emptySet();
+	private Consumer<GraphicNode> barSelectionListener;
 	public Gantt(Project project,String viewName) {
 		this(new GanttModel(project,viewName),project);
 	}
@@ -95,6 +103,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 
 	public void cleanUp() {
+		barSelectionListener = null;
 		var coord = getCoord();
 		if (coord != null) {
 			coord.removeTimeScaleListener(this);
@@ -118,6 +127,39 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 	public void setAnnotationFieldId(String annotationFieldId) {
 		this.annotationFieldId = annotationFieldId;
+	}
+
+	/**
+	 * Rows whose complete calendar width should be highlighted in the chart,
+	 * mirroring the selection made in the task table on the left. Row indexes
+	 * refer to the shared node cache that backs both the table and the chart.
+	 */
+	public void setHighlightedRows(Set<Integer> rows) {
+		Set<Integer> copy = (rows == null || rows.isEmpty()) ? Collections.emptySet() : new HashSet<>(rows);
+		if (copy.equals(highlightedRows)) {
+			return;
+		}
+		highlightedRows = copy;
+		repaint();
+	}
+
+	public Set<Integer> getHighlightedRows() {
+		return highlightedRows;
+	}
+
+	/**
+	 * Registers a callback invoked when the user clicks a task bar in the chart.
+	 * The view uses it to keep the task table selection in sync with the chart.
+	 */
+	public void setBarSelectionListener(Consumer<GraphicNode> listener) {
+		barSelectionListener = listener;
+	}
+
+	void notifyBarSelection(GraphicNode node) {
+		repaint();
+		if (barSelectionListener != null) {
+			barSelectionListener.accept(node);
+		}
 	}
 
 //	public GanttPopupMenu getPopup() {

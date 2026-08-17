@@ -166,6 +166,7 @@ public class GanttInteractor extends GraphInteractor{
 			// Task Information available for imported/read-only projects.
 			if (SwingUtilities.isLeftMouseButton(e)) {
 				select(e.getX(), e.getY());
+				notifyBarSelection();
 				if (e.getClickCount() == 2)
 				openTaskInformationAt(e.getX(), e.getY());
 			}
@@ -175,6 +176,7 @@ public class GanttInteractor extends GraphInteractor{
     	getGraph().requestFocusInWindow();
     	if (SwingUtilities.isRightMouseButton(e)) {
 			select(e.getX(), e.getY());
+			notifyBarSelection();
     		super.mousePressed(e);
     		return;
     	}
@@ -184,6 +186,7 @@ public class GanttInteractor extends GraphInteractor{
     	}
 
     	select(e.getX(), e.getY());
+    	notifyBarSelection();
     	if (selected == null) {
     		startPan(e);
     		return;
@@ -628,6 +631,18 @@ public class GanttInteractor extends GraphInteractor{
 	    		 findState(x,y);
 	    	}
 	    	selectCursor();
+    	}
+    }
+
+    /**
+     * Informs the Gantt that a task bar was clicked so the view can keep the
+     * task table selection in sync with the chart.  Only fired on an actual
+     * press (not on hover), so moving the pointer over bars never changes the
+     * table selection.
+     */
+    private void notifyBarSelection(){
+    	if (selected instanceof GraphicNode node && getGraph() instanceof Gantt gantt) {
+    		gantt.notifyBarSelection(node);
     	}
     }
 
