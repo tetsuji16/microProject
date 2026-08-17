@@ -25,7 +25,6 @@
 package com.microproject.pm.assignment;
 
 import java.text.FieldPosition;
-import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.ParsePosition;
 import java.util.Collection;
@@ -59,8 +58,6 @@ public class AssignmentFormat extends AssociationFormat {
 		return Messages.getString("Message.invalidAssignments");
 	}
 
-	private static NumberFormat percentFormat = NumberFormat.getPercentInstance();
-	
 	private static String typePatternString =  	
 		 	"\\s*" // optional whitespace before 
 			+ "(" // group1 

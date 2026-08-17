@@ -34,7 +34,7 @@ import javax.swing.JTextField;
 import com.microproject.datatype.PercentFormat;
 
 public class PercentEditor extends SimpleEditor {
-	private static final NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance();
+	// NumberFormat/DecimalFormat is not thread-safe; use a fresh instance per call (issue #184).
 
 	public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
 		JTextField result = (JTextField)super.getTableCellEditorComponent(table, value, isSelected, row, column);
@@ -56,7 +56,7 @@ public class PercentEditor extends SimpleEditor {
 			if (text.indexOf('%') >= 0) {
 				parsed = (Number)PercentFormat.getInstance().parseObject(text);
 			} else {
-				parsed = NUMBER_FORMAT.parse(text);
+				parsed = NumberFormat.getNumberInstance().parse(text);
 				double value = parsed.doubleValue();
 				parsed = Double.valueOf(Math.abs(value) <= 1.0D ? value : value / 100.0D);
 			}

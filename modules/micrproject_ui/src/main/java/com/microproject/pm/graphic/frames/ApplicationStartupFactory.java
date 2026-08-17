@@ -65,7 +65,13 @@ public class ApplicationStartupFactory extends StartupFactory {
 			serverUrl=defaultServerUrl;
 
 		String projectIdS=getOpt("projectId");
-		if (projectIdS!=null) projectId=Long.parseLong(projectIdS);
+		if (projectIdS!=null) {
+			try {
+				projectId=Long.parseLong(projectIdS);
+			} catch (NumberFormatException e) {
+				logger.log(Level.WARNING, "Ignoring malformed --projectId ''{0}''", projectIdS);
+			}
+		}
 
 		String font=(String)getOpt("font");
 		if (font==null){

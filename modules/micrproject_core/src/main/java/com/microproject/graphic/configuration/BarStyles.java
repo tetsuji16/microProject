@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.StringTokenizer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.digester.Digester;
 
@@ -42,7 +44,7 @@ import com.microproject.strings.Messages;
  * Styles of bars on the gantt chart.  Holds a collection of bar formats.
  */
 public class BarStyles implements NamedItem {
-//	static Log log = LogFactory.getLog(BarStyles.class);
+	private static final Logger logger = Logger.getLogger(BarStyles.class.getName());
 	public static final String category="BarStylesCategory";
 
 	public String getCategory() {
@@ -279,7 +281,17 @@ public class BarStyles implements NamedItem {
 			while (st.hasMoreTokens()){
 				String s=st.nextToken();
 				if ("*".equals(s)) defaultZoomIndexX=index;
-				else zoomRatioX[index++]=Double.parseDouble(s);
+				else {
+					try {
+						// parse before assigning: if it throws, index must not have been incremented,
+						// otherwise the catch below would skip a slot and could overflow the array
+						double ratio = Double.parseDouble(s);
+						zoomRatioX[index++] = ratio;
+					} catch (NumberFormatException e) {
+						logger.log(Level.WARNING, "Ignoring malformed zoom ratio ''{0}'' in zoomX", s);
+						zoomRatioX[index++] = 1.0;
+					}
+				}
 			}
 		}
 	}
@@ -301,7 +313,17 @@ public class BarStyles implements NamedItem {
 			while (st.hasMoreTokens()){
 				String s=st.nextToken();
 				if ("*".equals(s)) defaultZoomIndexY=index;
-				else zoomRatioY[index++]=Double.parseDouble(s);
+				else {
+					try {
+						// parse before assigning: if it throws, index must not have been incremented,
+						// otherwise the catch below would skip a slot and could overflow the array
+						double ratio = Double.parseDouble(s);
+						zoomRatioY[index++] = ratio;
+					} catch (NumberFormatException e) {
+						logger.log(Level.WARNING, "Ignoring malformed zoom ratio ''{0}'' in zoomY", s);
+						zoomRatioY[index++] = 1.0;
+					}
+				}
 			}
 		}
 	}

@@ -473,7 +473,13 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		if (text.length() == 0) {
 			return null;
 		}
-		return Double.valueOf(text);
+		try {
+			return Double.valueOf(text);
+		} catch (NumberFormatException e) {
+			// A non-numeric text cell in a numeric column degrades to null so one
+			// bad cell is skipped instead of failing the whole import (issue #186).
+			return null;
+		}
 	}
 
 	private java.util.Date dateCell(Row row, int column) {

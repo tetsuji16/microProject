@@ -40,7 +40,7 @@ import com.microproject.datatype.RateFormat;
  *
  */
 public class RateEditor extends SimpleEditor {
-	private static NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance();
+	// NumberFormat/DecimalFormat is not thread-safe; use a fresh instance per call (issue #184).
 	public Component getTableCellEditorComponent(JTable table, Object value,
 			boolean arg2, int row, int column) {
 		SpreadSheetModel model  = (SpreadSheetModel) table.getModel();
@@ -84,7 +84,7 @@ public class RateEditor extends SimpleEditor {
 		} catch (ParseException e) {
 		}
 		try { // try parsing as number
-			return NUMBER_FORMAT.parseObject(component.getText());
+			return NumberFormat.getNumberInstance().parseObject(component.getText());
 		} catch (ParseException e1) {
 		}
 		//neither parse was good

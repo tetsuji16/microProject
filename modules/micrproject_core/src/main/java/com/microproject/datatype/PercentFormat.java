@@ -35,8 +35,14 @@ import com.microproject.util.ClassUtils;
  * Adds ability for percentage formatter to parse non percents
  */
 public class PercentFormat extends Format {
-	private static NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance();
-	private static NumberFormat PERCENT_FORMAT = NumberFormat.getPercentInstance();	
+	// NumberFormat/DecimalFormat is not thread-safe; always use a fresh instance
+	// per call instead of a shared static one (issue #184).
+	private static NumberFormat numberFormat() {
+		return NumberFormat.getNumberInstance();
+	}
+	private static NumberFormat percentFormat() {
+		return NumberFormat.getPercentInstance();
+	}
 	public static double NULL_VALUE = -987654.321; // a never used value used as flag to indicate multiple values	
 	private static Format percentFormatterInstance = null;
 	public static Format getInstance() {
@@ -45,9 +51,9 @@ public class PercentFormat extends Format {
 		return percentFormatterInstance;
 	}
 	public Object parseObject(String arg0, ParsePosition arg1) {
-		Number result = PERCENT_FORMAT.parse(arg0,arg1);
+		Number result = percentFormat().parse(arg0,arg1);
 		if (result == null) {
-			result = NUMBER_FORMAT.parse(arg0,arg1);
+			result = numberFormat().parse(arg0,arg1);
 			if (result != null)
 				result = Double.valueOf(result.doubleValue() / 100.0D);
 		}
@@ -65,7 +71,7 @@ public class PercentFormat extends Format {
 			value = Double.valueOf(((Rate)arg0).getValue());
 		else
 			value = arg0;
-		PERCENT_FORMAT.format(value,arg1,arg2);
+		percentFormat().format(value,arg1,arg2);
 		return arg1;
 	}
 	

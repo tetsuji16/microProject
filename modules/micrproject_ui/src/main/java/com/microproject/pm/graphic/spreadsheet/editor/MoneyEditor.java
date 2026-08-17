@@ -34,7 +34,7 @@ import com.microproject.datatype.Money;
  *
  */
 public class MoneyEditor extends SimpleEditor {
-	private static NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance();
+	// NumberFormat/DecimalFormat is not thread-safe; use a fresh instance per call (issue #184).
 	
 //	public Component getTableCellEditorComponent(JTable arg0, Object value,
 //			boolean arg2, int arg3, int arg4) {
@@ -66,7 +66,7 @@ public class MoneyEditor extends SimpleEditor {
 		} catch (ParseException e) {
 		}
 		try { // try parsing as number
-			return NUMBER_FORMAT.parseObject(component.getText());
+			return NumberFormat.getNumberInstance().parseObject(component.getText());
 		} catch (ParseException e1) {
 		}
 		//neither parse was good

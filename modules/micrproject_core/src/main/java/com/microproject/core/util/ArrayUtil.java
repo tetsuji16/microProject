@@ -56,7 +56,11 @@ public class ArrayUtil {
 		StringTokenizer st=new StringTokenizer(s.trim(),",");
 		if (st.countTokens() != 2)
 			throw ArrayFormatException.forInputString(s);
-		return new double[]{Double.parseDouble(st.nextToken().trim()), Double.parseDouble(st.nextToken().trim())};
+		try {
+			return new double[]{Double.parseDouble(st.nextToken().trim()), Double.parseDouble(st.nextToken().trim())};
+		} catch (NumberFormatException e) {
+			throw ArrayFormatException.forInputString(s);
+		}
 	}
 	public static String coordinatesToString(double[] c) {
 		return coordinatesToString(c,new StringBuilder()).toString();

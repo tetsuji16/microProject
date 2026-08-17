@@ -37,10 +37,18 @@ import com.microproject.util.ClassUtils;
  *
  */
 public class RateFormat extends Format implements TimeUnit {
-	private static NumberFormat MONEY_FORMAT = Money.getMoneyFormatInstance(); //NumberFormat.getCurrencyInstance();
-	private static NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance();
-	private static NumberFormat PERCENT_FORMAT = NumberFormat.getPercentInstance();
-	
+	// NumberFormat/DecimalFormat is not thread-safe; always use a fresh instance
+	// per call instead of a shared static one (issue #184).
+	private static NumberFormat moneyFormat() {
+		return Money.getMoneyFormatInstance(); // creates a new instance per call
+	}
+	private static NumberFormat numberFormat() {
+		return NumberFormat.getNumberInstance();
+	}
+	private static NumberFormat percentFormat() {
+		return NumberFormat.getPercentInstance();
+	}
+
 	private static RateFormat moneyInstance = null;
 	private static RateFormat instance = null;
 	private static RateFormat percentInstance = null;
@@ -101,9 +109,9 @@ public class RateFormat extends Format implements TimeUnit {
 				
 		Number numberResult = null;
 		if (percent) {
-			numberResult = PERCENT_FORMAT.parse(rateString,pos);
+			numberResult = percentFormat().parse(rateString,pos);
 			if (numberResult == null) {
-				numberResult = NUMBER_FORMAT.parse(rateString,pos);
+				numberResult = numberFormat().parse(rateString,pos);
 				if (numberResult != null)
 					numberResult = Double.valueOf(numberResult.doubleValue() / 100.0D);
 			}
@@ -113,9 +121,9 @@ public class RateFormat extends Format implements TimeUnit {
 		}
 
 		if (money) 
-			numberResult = MONEY_FORMAT.parse(rateString, pos);
+			numberResult = moneyFormat().parse(rateString, pos);
 		if (numberResult == null)
-			numberResult = NUMBER_FORMAT.parse(rateString, pos);
+			numberResult = numberFormat().parse(rateString, pos);
 		if (numberResult == null)
 			return null;
 		double rate = numberResult.doubleValue();
@@ -154,11 +162,11 @@ public class RateFormat extends Format implements TimeUnit {
 			type = getDefaultType();
 
 		if (percent) {
-			PERCENT_FORMAT.format(Double.valueOf(rateValue),toAppendTo,pos);
+			percentFormat().format(Double.valueOf(rateValue),toAppendTo,pos);
 		} else {
 			rateValue *= Duration.timeUnitFactor(type);
 			if (money) {
-				MONEY_FORMAT.format(Double.valueOf(rateValue),toAppendTo,pos);
+				moneyFormat().format(Double.valueOf(rateValue),toAppendTo,pos);
 			} else {
 				NumberFormat.getInstance().format(Double.valueOf(rateValue),toAppendTo,pos);
 				if (timeUnitLabel != null && !timeUnitLabel.equals(""))

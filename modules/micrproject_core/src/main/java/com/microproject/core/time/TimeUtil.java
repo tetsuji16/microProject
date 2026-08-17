@@ -24,11 +24,9 @@
  *******************************************************************************/
 package com.microproject.core.time;
 
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
 
@@ -36,26 +34,13 @@ import java.util.TimeZone;
  * @author Laurent Chretienneau
  *
  */
-public class TimeUtil { //not thread safe
+public class TimeUtil { //thread safe: no shared mutable state (issue #184)
 	protected static long MINUTE=60000L;
 	protected static long HOUR=60*MINUTE;
 	protected static long DAY=24*HOUR;
-	protected static Calendar calendar;
-	protected static Calendar localCalendar;
-	protected static DateFormat format;
-	protected static Calendar getCalendar(){
-		if (calendar==null)
-			calendar=Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-		return calendar;
-	}
-	protected static Calendar getLocalCalendar(){
-		if (localCalendar==null)
-			localCalendar=Calendar.getInstance();
-		return localCalendar;
-	}
-	
-	protected static int getTimeZoneOffset(long t){ 
-		Calendar c=getLocalCalendar();
+
+	private static int getTimeZoneOffset(long t){ 
+		Calendar c=Calendar.getInstance(); // local time zone
 		c.setTimeInMillis(t);
 		return c.get(Calendar.ZONE_OFFSET) + c.get(Calendar.DST_OFFSET);
 	}
@@ -67,15 +52,13 @@ public class TimeUtil { //not thread safe
 	}
 	
 	public static String toUTCString(long t){
-		if (format==null){
-			format=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			format.setTimeZone(TimeZone.getTimeZone("UTC"));
-		}
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		format.setTimeZone(TimeZone.getTimeZone("UTC"));
 		return format.format(new Date(t));
 	}
 	
 	public static long toHoursAndMinutes(long date) { //corrects the problem of mpx giving hours in local timezone not utc
-		Calendar calendar=getCalendar();
+		Calendar calendar=Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 		calendar.setTimeInMillis(date);
 		int tz=getTimeZoneOffset(date);
 		long t=(60L * calendar.get(Calendar.HOUR_OF_DAY) + calendar.get(Calendar.MINUTE)) * MINUTE + tz;

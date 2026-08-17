@@ -109,8 +109,8 @@ public class Environment {
 		Environment.partnerId = partnerId;
 	}
 	public static final boolean isWindows() {
-		//false for some linux window managers
-		return true;//System.getProperty("os.name").toUpperCase().contains("WINDOWS");
+		String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+		return osName.startsWith("windows");
 	}
 	public static boolean isImporting() {
 		return importing;
