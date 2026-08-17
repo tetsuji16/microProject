@@ -119,7 +119,11 @@ public class DurationFormat extends Format {
 	}
 	
 	
-	private static NumberFormat DECIMAL_FORMAT = NumberFormat.getNumberInstance();
+	// NumberFormat/DecimalFormat is not thread-safe; always use a fresh instance
+	// per call instead of a shared static one (issue #184).
+	private static NumberFormat decimalFormat() {
+		return NumberFormat.getNumberInstance();
+	}
 	
 	public Object parseObject(String durationString, ParsePosition pos) {
 		Object result = null;
@@ -130,7 +134,7 @@ public class DurationFormat extends Format {
 			pos.setIndex(pos.getIndex()+1);
 				
 				
-		Number numberResult = DECIMAL_FORMAT.parse(durationString, pos);
+		Number numberResult = decimalFormat().parse(durationString, pos);
 		if (numberResult == null)
 			return null;
 		String durationPart = durationString.substring(pos.getIndex());
@@ -177,7 +181,7 @@ public class DurationFormat extends Format {
 		boolean isPercent = Duration.isPercent(duration);
 		if (isPercent)
 			value *= 100.0;
-		DECIMAL_FORMAT.format(value,toAppendTo,pos);
+		decimalFormat().format(value,toAppendTo,pos);
 		
 		String unit = formatTypeUnit(type
 				,(Math.abs(value) == 1.0)
@@ -203,7 +207,7 @@ public class DurationFormat extends Format {
 		boolean isPercent = Duration.isPercent(duration);
 		if (isPercent)
 			value *= 100.0;
-		toAppendTo.append(DECIMAL_FORMAT.format(value));
+		toAppendTo.append(decimalFormat().format(value));
 		
 		String unit = formatTypeUnit(type
 				,(Math.abs(value) == 1.0)

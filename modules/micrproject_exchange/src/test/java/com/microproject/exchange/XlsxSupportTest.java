@@ -237,6 +237,23 @@ public class XlsxSupportTest extends TestCase {
 		assertTrue(checkedMultiDayDuration);
 	}
 
+	public void testXlsxSummaryImportSkipsNonNumericTextInNumericColumns() throws Exception {
+		// Issue #186: a non-numeric text cell in a numeric column (e.g. "50%" typed
+		// into % Complete, or a hand-edited UID) used to abort the entire import
+		// with NumberFormatException instead of being skipped.
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+			org.apache.poi.ss.usermodel.Sheet tasks = workbook.createSheet("Tasks");
+			writeRow(tasks, 0, "UID", "ID", "ParentUID", "Name", "Notes", "Start", "Finish", "% Complete");
+			writeRow(tasks, 1, "abc", 1.0, null, "Bad UID", null, null, null, "50%");
+			writeRow(tasks, 2, 2.0, 2.0, null, "Good", null, null, null, "75%");
+			workbook.write(out);
+		}
+
+		ProjectFile reloaded = new ProjectLibreXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
+		assertNotNull(reloaded);
+	}
+
 	private static File findSample(String name) {
 		for (String prefix : new String[] { "samples/", "../samples/", "../../samples/" }) {
 			File sample = new File(prefix + name);

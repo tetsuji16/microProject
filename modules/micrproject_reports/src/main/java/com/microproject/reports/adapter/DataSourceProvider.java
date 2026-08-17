@@ -156,13 +156,28 @@ public class DataSourceProvider implements JRDataSourceProvider {
 	}
 	
 	/**
+	 * Parses the report {@code collectionType} property. Returns -1 for a null
+	 * or non-numeric value instead of throwing NumberFormatException (issue #186).
+	 */
+	static int parseCollectionType(String value) {
+		if (value == null) {
+			return -1;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			return -1;
+		}
+	}
+
+	/**
 	 * get the view corresponding to a report.  This is used primarily to set filter and sort combos
 	 * @param report
 	 * @return
 	 */
 	public static String getViewName(JasperReport report) {
 		String collectionType = report.getProperty(COLLECTION_TYPE_PROPERTY);
-		int type = Integer.parseInt(collectionType);
+		int type = parseCollectionType(collectionType);
 		switch (type) {
 			case PROJECT: 
 				return REPORT_VIEW;
@@ -194,11 +209,18 @@ public class DataSourceProvider implements JRDataSourceProvider {
 		String collectionType = report.getProperty(COLLECTION_TYPE_PROPERTY);
 		if (collectionType == null)
 			throw new JRException("must specify collectionType property in report definition");
-		int type = Integer.parseInt(collectionType);
+		int type = parseCollectionType(collectionType);
+		if (type < 0)
+			throw new JRException("Invalid collectionType property in report definition: " + collectionType);
 		int outline = 0;
 		String outlineNumber = report.getProperty(OUTLINE_PROPERTY);
-		if (outlineNumber != null)
-			outline = Integer.parseInt(outlineNumber);
+		if (outlineNumber != null) {
+			try {
+				outline = Integer.parseInt(outlineNumber);
+			} catch (NumberFormatException e) {
+				logger.warn("Ignoring malformed outline property {}", outlineNumber);
+			}
+		}
 		
 		
 		Predicate predicate = null;

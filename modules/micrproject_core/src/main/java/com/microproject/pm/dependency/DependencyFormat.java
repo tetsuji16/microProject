@@ -59,11 +59,9 @@ public class DependencyFormat extends AssociationFormat {
 					Messages.getString("Text.successor")});
 		return errorMessage;
 	}
-	private static NumberFormat integerFormat = NumberFormat
-	.getIntegerInstance();
-
+	// NumberFormat/DecimalFormat is not thread-safe; use a fresh instance per call (issue #184).
 	private Object doParse(String string, ParsePosition pos) throws ParseException {
-		Long number = (Long) integerFormat.parseObject(string, pos);
+		Long number = (Long) NumberFormat.getIntegerInstance().parseObject(string, pos);
 		if (number == null)
 			throw new ParseException(getErrorMessage(string), pos.getIndex());
 		
