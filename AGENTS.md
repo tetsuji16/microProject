@@ -71,6 +71,54 @@ files — see issue #154). Anything that still carries the `projectLibre` / `Pro
   task at hand. See "Dependency and namespace hygiene" above.
 - Keep UI work Swing-safe. Preserve EDT boundaries, model/view index conversions, selection state, and repaint/revalidation behavior.
 - Avoid broad refactors unless they remove duplicated responsibility directly involved in the bug. Do not mix unrelated formatting or cleanup into a functional patch.
+
+## Refactoring when similar implementations appear
+
+This codebase (a large legacy fork) carries multiple overlapping implementations for the
+same concern — e.g. several keystroke-binding helpers (`addCtrlAccel`, `addShortcut`,
+`applyMicrosoftShortcuts` + `putCtrlAccel`/`putShortcut`), parallel menu/ribbon paths, and
+legacy `com.projectlibre*` compatibility code. When you discover **two or more paths that
+do the same job**, treat that as a latent bug source (a future change fixes only one path
+and silently diverges) and consolidate rather than leave both:
+
+- **Trigger (refactor, do not just patch):** you find duplicated responsibility directly
+  involved in the task — duplicate helpers, copy-pasted logic, or parallel code paths that
+  a single fix must keep in sync. Symptom-hiding edits (fixing only the path you happened
+  to hit) are explicitly disallowed by this guide.
+- **Confirm before consolidating:** search every caller (`rg -n "<symbol>" modules/*/src`)
+  so you keep the API the rest of the code uses and delete only the dead/duplicated one.
+  Some near-duplicates are intentional (different file formats, legacy vs. ribbon UI) —
+  preserve those; only merge what is genuinely the same behavior.
+- **Consolidate to one canonical implementation:** route all callers through the single
+  helper, then delete the dead duplicate. Prefer extracting a small, side-effect-free core
+  (e.g. `putCtrlAccel(InputMap, ActionMap, ...)`) that the legacy callers and new callers
+  both delegate to.
+- **Keep verification proportionate:** if the refactor is within one module, run that
+  module's tests; if it touches a shared helper, run the callers' modules too. The
+  completion list below still applies — do not claim the merge is safe without running.
+
+### Keyboard-shortcut wiring rule (hardened after issue #47)
+
+Shortcut keys MUST resolve through exactly **one** registration layer: the document
+root-pane `InputMap`/`ActionMap` (`WHEN_IN_FOCUSED_WINDOW`), installed by
+`GraphicManager.applyMicrosoftShortcuts(...)` via `putCtrlAccel`/`putShortcut`. No other
+layer may bind the same key:
+
+- No `KeyListener` on `SpreadSheet` for shortcut keys (was a source of double-firing:
+  the listener and the root-pane input map both ran). Removed.
+- No `InputMap.put(...)` on the component's `WHEN_FOCUSED` for keys already wired
+  globally (`Ctrl+X/C/V/D`, `Delete`, `Insert`, `F2`, `F3`, `Ctrl+F`). Removed the
+  `NodeListTransferHandler` and `SpreadSheet` component-level duplicate registrations.
+- Every key maps to **one** action constant. Never register the same `KeyStroke` to two
+  different constants (a past bug had `Ctrl+Delete` bound twice, last-write-wins, so the
+  intended `ClearContents` was silently overwritten by `Delete`).
+- Keep shortcut wiring **headless-safe**: `Toolkit.getMenuShortcutKeyMaskEx()` throws
+  `HeadlessException`, so resolve the menu-shortcut mask through `menuShortcutMask()`
+  (falls back to `InputEvent.CTRL_DOWN_MASK`). This keeps `applyMicrosoftShortcuts`
+  unit-testable without a window.
+
+If a new shortcut is needed, add it in `applyMicrosoftShortcuts` only — never re-open a
+component-level `InputMap` for it.
 - Treat file formats and serialized data as compatibility boundaries. Prefer backward-compatible reads, deterministic writes, clear failure behavior, and tests that cover save/reload or import/export round trips.
 - Do not hand-edit generated output under `**/build/`, `build/releases/`, `docs/downloads/`, or `isolated-build/`.
 

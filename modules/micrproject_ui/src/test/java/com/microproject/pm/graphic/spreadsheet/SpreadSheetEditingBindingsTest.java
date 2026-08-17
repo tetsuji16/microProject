@@ -37,17 +37,6 @@ import org.junit.jupiter.api.Test;
 
 class SpreadSheetEditingBindingsTest {
 	@Test
-	void ctrlDFillsDownSelectedCells() throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			SpreadSheet sheet = new SpreadSheet();
-			Object action = sheet.getInputMap(JComponent.WHEN_FOCUSED)
-				.get(KeyStroke.getKeyStroke(KeyEvent.VK_D, KeyEvent.CTRL_DOWN_MASK));
-			assertEquals(SpreadSheet.FILL_DOWN_ACTION, action);
-			assertNotNull(sheet.getActionMap().get(action));
-		});
-	}
-
-	@Test
 	void msProjectTaskMoveShortcutsAreInstalledOnSheetAndRowHeader() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();

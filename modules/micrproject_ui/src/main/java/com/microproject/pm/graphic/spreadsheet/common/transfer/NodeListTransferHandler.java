@@ -39,9 +39,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.Action;
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.TransferHandler;
@@ -274,29 +271,7 @@ public class NodeListTransferHandler extends TransferHandler {
 	    
 	    public static void registerWith(SpreadSheet spreadSheet){
 	    	NodeListTransferHandler handler=new NodeListTransferHandler(spreadSheet);
-//	    	if (c instanceof SpreadSheet){
-//	    		SpreadSheet spreadSheet=(SpreadSheet)c;
-//	    		handler.setSpreadSheet(spreadSheet);
-//	    	}
 			spreadSheet.setTransferHandler(handler);
-			
-			InputMap imap = spreadSheet.getInputMap();
-			imap.put(KeyStroke.getKeyStroke("ctrl X"),
-					NodeListTransferHandler.getCutAction().getValue(Action.NAME));
-			imap.put(KeyStroke.getKeyStroke("ctrl C"),
-					NodeListTransferHandler.getCopyAction().getValue(Action.NAME));
-			imap.put(KeyStroke.getKeyStroke("ctrl V"),
-					NodeListTransferHandler.getPasteAction().getValue(Action.NAME));
-			//c.setInputMap(JComponent.WHEN_FOCUSED,imap);
-			
-			ActionMap amap = spreadSheet.getActionMap();
-			amap.put(NodeListTransferHandler.getCutAction().getValue(Action.NAME),
-					NodeListTransferHandler.getCutAction());
-			amap.put(NodeListTransferHandler.getCopyAction().getValue(Action.NAME),
-					NodeListTransferHandler.getCopyAction());
-			amap.put(NodeListTransferHandler.getPasteAction().getValue(Action.NAME),
-					NodeListTransferHandler.getPasteAction());
-
 	    }
 	    
 	    

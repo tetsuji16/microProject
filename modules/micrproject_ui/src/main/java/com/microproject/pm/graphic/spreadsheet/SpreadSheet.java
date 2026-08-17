@@ -35,7 +35,6 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -132,8 +131,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private static final String NAME_COLUMN_JUMP_PREVIOUS_ACTION = "spreadsheet.nameColumnJumpPrevious";
 	private static final String NAME_COLUMN_JUMP_NEXT_ACTION = "spreadsheet.nameColumnJumpNext";
 	private static final String CLIPBOARD_PASTE_VALUES_ACTION = "spreadsheet.clipboardPasteValues";
-	private static final String CLIPBOARD_INSERT_ACTION = "spreadsheet.clipboardInsert";
-	public static final String FILL_DOWN_ACTION = "spreadsheet.fillDown";
 	public static final String MOVE_TASK_UP_ACTION = "spreadsheet.moveTaskUp";
 	public static final String MOVE_TASK_DOWN_ACTION = "spreadsheet.moveTaskDown";
 	private Object defaultTabActionKey;
@@ -148,7 +145,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		super();
 		NodeListTransferHandler.registerWith(this);
 		installClipboardPasteBindings();
-		installFillDownBinding();
 		installTaskMoveBindings(this);
 
 	}
@@ -293,14 +289,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			scrollRectToVisible(getCellRect(firstRow, 0, true));
 	}
 
-	private void installFillDownBinding() {
-		getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ctrl D"), FILL_DOWN_ACTION);
-		getActionMap().put(FILL_DOWN_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override public void actionPerformed(ActionEvent event) { fillDownSelection(); }
-		});
-	}
-
 	/** Copies each selected column's first selected value into the remaining selected rows. */
 	public void fillDownSelection() {
 		finishCurrentOperations();
@@ -321,8 +309,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	private void installClipboardPasteBindings() {
 		var inputMap = getInputMap(JComponent.WHEN_FOCUSED);
-		inputMap.put(KeyStroke.getKeyStroke("ctrl V"), CLIPBOARD_PASTE_VALUES_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke("shift ctrl V"), CLIPBOARD_INSERT_ACTION);
+		// Ctrl+V (normal paste) is wired globally on the document root pane via
+		// ACTION_PASTE (NodeListTransferHandler). Keep only the "paste values" variant
+		// here so a single key resolves to a single action across the app.
+		inputMap.put(KeyStroke.getKeyStroke("shift ctrl V"), CLIPBOARD_PASTE_VALUES_ACTION);
 
 		var actionMap = getActionMap();
 		actionMap.put(CLIPBOARD_PASTE_VALUES_ACTION, new AbstractAction() {
@@ -331,18 +321,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				pasteClipboardAsValues();
-			}
-		});
-		actionMap.put(CLIPBOARD_INSERT_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				CommonSpreadSheetAction action = prepareAction(MenuActionConstants.ACTION_PASTE_INSERT);
-				if (action != null) {
-					action.actionPerformed(
-						new ActionEvent(SpreadSheet.this, ActionEvent.ACTION_PERFORMED, MenuActionConstants.ACTION_PASTE_INSERT));
-				}
 			}
 		});
 	}
@@ -1460,24 +1438,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	protected void initListeners() {
-		addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyPressed(KeyEvent e) {
-				int row = getSelectedRow();
-				if (row < 0)
-					return;
-				if (e.getKeyCode() == KeyEvent.VK_INSERT)
-					executeAction(MenuActionConstants.ACTION_NEW);
-				else if (e.getKeyCode() == KeyEvent.VK_DELETE)
-					executeAction(MenuActionConstants.ACTION_DELETE);
-				else if (e.getKeyCode() == KeyEvent.VK_F3)
-					GraphicManager.getInstance().doFind(SpreadSheet.this,null);
-				else if (e.getKeyCode() == KeyEvent.VK_F && e.isControlDown())
-					GraphicManager.getInstance().doFind(SpreadSheet.this,null);
-
-
-			}
-		});
 
 	}
 

@@ -29,6 +29,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.awt.event.InputEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
@@ -63,6 +64,8 @@ import java.util.prefs.Preferences;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -3284,37 +3287,172 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		}
 
 		//accelerators
-		    addCtrlAccel(KeyEvent.VK_G, ACTION_GOTO, null);
-		    addCtrlAccel(KeyEvent.VK_L, ACTION_GOTO, null);
-		    addCtrlAccel(KeyEvent.VK_F, ACTION_FIND, null);
-		    addCtrlAccel(KeyEvent.VK_Z, ACTION_UNDO, null);			//- Sanhita
-		    addCtrlAccel(KeyEvent.VK_Y, ACTION_REDO, null);
-		    addCtrlAccel(KeyEvent.VK_N, ACTION_NEW_PROJECT, null);
-		    addCtrlAccel(KeyEvent.VK_O, ACTION_OPEN_PROJECT, null);
-		    addCtrlAccel(KeyEvent.VK_S, ACTION_SAVE_PROJECT, null);
-		    addCtrlAccel(KeyEvent.VK_P, ACTION_PRINT, null);			//-Sanhita
-		    addCtrlAccel(KeyEvent.VK_I, ACTION_INSERT_TASK, null);
-		    addCtrlAccel(KeyEvent.VK_PERIOD, ACTION_INDENT, null);
-		    addCtrlAccel(KeyEvent.VK_COMMA, ACTION_OUTDENT, null);
-		    addCtrlAccel(KeyEvent.VK_PLUS, ACTION_EXPAND, new ExpandAction());
-		    addCtrlAccel(KeyEvent.VK_ADD, ACTION_EXPAND, new ExpandAction());
-		    addCtrlAccel(KeyEvent.VK_EQUALS, ACTION_EXPAND, new ExpandAction());
-		    addCtrlAccel(KeyEvent.VK_MINUS, ACTION_COLLAPSE, new CollapseAction());
-		    addCtrlAccel(KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, new CollapseAction());
+	    addCtrlAccel(KeyEvent.VK_G, ACTION_GOTO, null);
+	    addCtrlAccel(KeyEvent.VK_L, ACTION_GOTO, null);
+	    addCtrlAccel(KeyEvent.VK_F, ACTION_FIND, null);
+	    addCtrlAccel(KeyEvent.VK_Z, ACTION_UNDO, null);			//- Sanhita
+	    addCtrlAccel(KeyEvent.VK_Y, ACTION_REDO, null);
+	    addCtrlAccel(KeyEvent.VK_N, ACTION_NEW_PROJECT, null);
+	    addCtrlAccel(KeyEvent.VK_O, ACTION_OPEN_PROJECT, null);
+	    addCtrlAccel(KeyEvent.VK_S, ACTION_SAVE_PROJECT, null);
+	    addCtrlAccel(KeyEvent.VK_P, ACTION_PRINT, null);			//-Sanhita
+	    addCtrlAccel(KeyEvent.VK_I, ACTION_INSERT_TASK, null);
+	    addCtrlAccel(KeyEvent.VK_PERIOD, ACTION_INDENT, null);
+	    addCtrlAccel(KeyEvent.VK_COMMA, ACTION_OUTDENT, null);
+	    addCtrlAccel(KeyEvent.VK_PLUS, ACTION_EXPAND, new ExpandAction());
+	    addCtrlAccel(KeyEvent.VK_ADD, ACTION_EXPAND, new ExpandAction());
+	    addCtrlAccel(KeyEvent.VK_EQUALS, ACTION_EXPAND, new ExpandAction());
+	    addCtrlAccel(KeyEvent.VK_MINUS, ACTION_COLLAPSE, new CollapseAction());
+	    addCtrlAccel(KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, new CollapseAction());
 
 			// To force a recalculation. This normally shouldn't be needed.
-		    addCtrlAccel(KeyEvent.VK_R, ACTION_RECALCULATE, new RecalculateAction());
+	    addCtrlAccel(KeyEvent.VK_R, ACTION_RECALCULATE, new RecalculateAction());
+
+		// Microsoft Project editing / outline / information shortcuts (issue #47).
+		// These were missing from the global (root-pane) layer, so in the ribbon UI
+		// the JMenuItem accelerators never dispatched and clipboard/delete via the
+		// keyboard did not work. All of these route through existing handlers that
+		// act on the active document/frame, so the only change is wiring the keys.
+		RootPaneContainer microsoftShortcutRoot = (RootPaneContainer)container;
+		applyMicrosoftShortcuts(
+				microsoftShortcutRoot.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+				microsoftShortcutRoot.getRootPane().getActionMap());
     }
+
+    /**
+     * Installs the Microsoft Project keyboard shortcuts (issue #47) onto the supplied
+     * input/action maps. Extracted from {@link #setToolBarAndMenus} so the same wiring
+     * can be unit-tested without a window. Keys resolve to the existing action constants
+     * (or to {@link SpreadSheetDispatchAction} instances that route to the active
+     * spreadsheet), all of which already exist elsewhere in the app.
+     */
+    void applyMicrosoftShortcuts(InputMap inputMap, ActionMap actionMap) {
+		int ctrl = menuShortcutMask();
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_X, ACTION_CUT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_COPY, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_V, ACTION_PASTE, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_D, ACTION_FILL_DOWN, 0, new SpreadSheetDispatchAction("FillDown") {
+			private static final long serialVersionUID = 1L;
+			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.fillDownSelection(); }
+		});
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F2, ACTION_LINK, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F2, ACTION_UNLINK, InputEvent.SHIFT_DOWN_MASK, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), ACTION_GOTO, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK), ACTION_FIND, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_FIND, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), ACTION_NEW, new SpreadSheetDispatchAction("NewTask") {
+			private static final long serialVersionUID = 1L;
+			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.executeAction(ACTION_NEW); }
+		});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), ACTION_DELETE, new SpreadSheetDispatchAction("Delete") {
+			private static final long serialVersionUID = 1L;
+			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.executeAction(ACTION_DELETE); }
+		});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "EditField", new SpreadSheetDispatchAction("EditField") {
+			private static final long serialVersionUID = 1L;
+			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.editCellAt(sheet.getSelectedRow(), sheet.getSelectedColumn()); }
+		});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, InputEvent.SHIFT_DOWN_MASK), ACTION_INFORMATION, null);
+		// Microsoft Project outline keys: Alt+Shift+Right/Left indent/outdent, Alt+Shift++/= expand, Alt+Shift+- collapse.
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_INDENT, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_OUTDENT, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, new ExpandAction());
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, new CollapseAction());
+		// Microsoft Project selection shortcuts: Ctrl+Space selects the row, Shift+Space
+		// the column, Ctrl+Shift+Space the whole sheet.
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK), "SelectRow",
+				new SpreadSheetDispatchAction("SelectRow") {
+					private static final long serialVersionUID = 1L;
+					@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+						sheet.selectRowAndAllColumns(sheet.getSelectedRow());
+					}
+				});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.SHIFT_DOWN_MASK), "SelectColumn",
+				new SpreadSheetDispatchAction("SelectColumn") {
+					private static final long serialVersionUID = 1L;
+					@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+						sheet.selectColumnAndAllRows(sheet.getSelectedColumn());
+					}
+				});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), "SelectAll",
+				new SpreadSheetDispatchAction("SelectAll") {
+					private static final long serialVersionUID = 1L;
+					@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.selectAll(); }
+				});
+		// Microsoft Project "Ctrl+Minus" deletes the selected row (MS sheet-view behavior).
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK), ACTION_DELETE,
+				new SpreadSheetDispatchAction("DeleteRow") {
+					private static final long serialVersionUID = 1L;
+					@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+						sheet.selectRowAndAllColumns(sheet.getSelectedRow());
+						sheet.executeAction(ACTION_DELETE);
+					}
+				});
+    }
+
+    private void putCtrlAccel(InputMap inputMap, ActionMap actionMap, int vk, String actionConstant, int extraModifiers, Action action) {
+		int modifiers = menuShortcutMask() | extraModifiers;
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(vk, modifiers), actionConstant, action);
+	}
+
+	/**
+	 * The platform menu-shortcut mask (Ctrl on Windows/Linux, Cmd on macOS).
+	 * {@link Toolkit#getMenuShortcutKeyMaskEx()} throws {@link HeadlessException} under a
+	 * headless toolkit, which would crash shortcut wiring during headless tests and any
+	 * future headless launch. Fall back to {@link InputEvent#CTRL_DOWN_MASK} so the wiring
+	 * is always safe and the same key bindings resolve on every platform.
+	 */
+	private static int menuShortcutMask() {
+		try {
+			return Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+		} catch (HeadlessException e) {
+			return InputEvent.CTRL_DOWN_MASK;
+		}
+	}
+
+	private void putShortcut(InputMap inputMap, ActionMap actionMap, KeyStroke key, String actionConstant, Action action) {
+		inputMap.put(key, actionConstant);
+		if (action == null) {
+			try {
+				action = menuManager.getActionFromId(actionConstant);
+			} catch (RuntimeException e) {
+				// An action constant without a menu.properties definition (or handler) must
+				// not crash shortcut wiring. Leave the key bound but the action unresolved;
+				// a later, fully-initialized environment may still resolve it, and callers
+				// that need a guaranteed action pass it explicitly.
+				action = null;
+			}
+		}
+		actionMap.put(actionConstant, action);
+	}
 
     private void addCtrlAccel(int vk, String actionConstant, Action action) {
 		RootPaneContainer root = (RootPaneContainer)container;
-		InputMap inputMap = root.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		putCtrlAccel(root.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+				root.getRootPane().getActionMap(), vk, actionConstant, 0, action);
+	}
 
-		KeyStroke key = KeyStroke.getKeyStroke(vk, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()); // use the platform shortcut modifier on all supported JDKs.
-		inputMap.put(key, actionConstant);
-		if (action == null)
-			action = menuManager.getActionFromId(actionConstant);
-		root.getRootPane().getActionMap().put(actionConstant, action);
+	/**
+	 * Routes a shortcut to the active spreadsheet when one exists. Keeps the existing
+	 * document/frame handlers authoritative for selection and collaboration locking while
+	 * letting keyboard shortcuts fire from anywhere in the focused document window.
+	 */
+	private abstract class SpreadSheetDispatchAction extends AbstractAction {
+		private static final long serialVersionUID = 1L;
+		protected SpreadSheetDispatchAction(String name) { putValue(Action.NAME, name); }
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive())
+				return;
+			DocumentFrame frame = getCurrentFrame();
+			if (frame == null)
+				return;
+			SpreadSheet sheet = frame.getActiveSpreadSheet();
+			if (sheet != null)
+				runOnSpreadSheet(sheet);
+		}
+		protected abstract void runOnSpreadSheet(SpreadSheet sheet);
 	}
     private LookAndFeel getPlaf() {
     	return getLafManager().getPlaf();
