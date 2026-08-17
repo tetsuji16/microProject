@@ -26,6 +26,7 @@ package com.microproject.pm.graphic.frames;
 
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.BorderLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
@@ -128,6 +129,7 @@ public class DocumentFrame extends NamedFrame implements
 	private static final long serialVersionUID = 2075764134837908178L;
 	private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(DocumentFrame.class.getName());
 	protected MainView mainView;
+	protected final DocumentStatusBar statusBar = new DocumentStatusBar();
 	protected GanttView ganttView;
 	protected UsageDetailView taskUsageDetailView;
 	protected UsageDetailView resourceUsageDetailView;
@@ -217,6 +219,7 @@ public class DocumentFrame extends NamedFrame implements
 
 		this.project = project;
 		coord = new CoordinatesConverter(project);
+		coord.addTimeScaleListener(event -> updateStatusBarZoom());
 
 		project.addObjectListener(this); // for project name changes
 		getGraphicManager().getPreferences().addObjectListener(this);
@@ -226,13 +229,20 @@ public class DocumentFrame extends NamedFrame implements
 		setMainView(true);
 
 	}
+	private void updateStatusBarZoom() {
+		statusBar.setZoom(coord.getTimescaleManager().getCurrentScaleIndex(),
+				coord.getTimescaleManager().getScaleCount());
+	}
+
 	private void setMainView(boolean activate) {
 		if (mainView != null)
 			remove(mainView); // any previous
 		mainView = new MainView();
 		mainView.setBorder(null);
-		setLayout(new GridLayout(1,1)); // fill up all of the space always
-		add(mainView);
+		setLayout(new BorderLayout()); // main view fills the center, status bar below
+		add(mainView, BorderLayout.CENTER);
+		add(statusBar, BorderLayout.SOUTH);
+		updateStatusBarZoom();
 
 //		toolBarListener = new ToolBarListener();
 //		registerToolBarActions();
@@ -1058,6 +1068,7 @@ public class DocumentFrame extends NamedFrame implements
 	 */
 	public void selectionChanged(SelectionNodeEvent e) {
 		lastSelectionEvent=e;
+		statusBar.setSelectedCount(e.getNodes() == null ? 0 : e.getNodes().size());
 		Component bottom = mainView.getBottomComponent();
 		if (bottom != null && bottom instanceof SelectionNodeListener)
 			((SelectionNodeListener) bottom).selectionChanged(e);

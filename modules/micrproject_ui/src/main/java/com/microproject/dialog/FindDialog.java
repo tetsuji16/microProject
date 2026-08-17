@@ -42,6 +42,7 @@ import java.util.ResourceBundle;
 import javax.swing.ComboBoxModel;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -72,6 +73,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	private static final long serialVersionUID = 1L;
 	JComboBox combo;
 	JTextField search  = new JTextField(30);
+	JCheckBox caseSensitive = new JCheckBox(Messages.getString("FindDialog.MatchCase")); //$NON-NLS-1$
 	DocumentFrame documentFrame;
 	SearchContext context;
 	JButton next;
@@ -123,10 +125,12 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 				combo.setSelectedItem(context.getField());
 			if (search != null)
 				search.setText("");
+			caseSensitive.setSelected(context.isCaseSensitive());
 
 		} else {
 			context.setField((Field)combo.getSelectedItem());
 			context.setSearchValue(search.getText());
+			context.setCaseSensitive(caseSensitive.isSelected());
 
 		}
 		return true;
@@ -147,7 +151,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		FormLayout layout = new FormLayout("default, 3dlu, default, 3dlu, default", // cols //$NON-NLS-1$
-				"p, 3dlu, p"); // rows //$NON-NLS-1$
+				"p, 3dlu, p, 3dlu, p"); // rows //$NON-NLS-1$
 
 
 
@@ -162,6 +166,8 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		builder.append(Messages.getString("LookupDialog.Find"),search); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.append(Messages.getString("Text.Field"),combo); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(caseSensitive); //$NON-NLS-1$
 		return builder.getPanel();
 	}
 

@@ -183,7 +183,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			return new DisplayedBarColors(BarColorField.DEFAULT_BAR_RGB, BarColorField.DEFAULT_BAR_RGB,
 					BarColorField.DEFAULT_BAR_RGB);
 		BarFormat format = resolveMainBarFormat(task);
-		Color middle = palette.getStatusColor(task, task);
+		Color middle = task.isCritical() ? palette.getCriticalTaskColor() : palette.getStatusColor(task, task);
 		Color endpoint = format != null && GanttBarSupport.shouldUseUniformEndpointColor(format)
 				? middle
 				: palette.getAccentColor(format, middle, task);
@@ -215,10 +215,16 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
                 ? palette.getBaselineBarColor()
                 : palette.getStatusColor(schedule, getNodeImpl(node));
         GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
-        return individualFormat.getMiddleRgb() == null
-                ? defaultColor
-                : new Color(individualFormat.getMiddleRgb());
+        if (individualFormat.getMiddleRgb() != null)
+            return new Color(individualFormat.getMiddleRgb());
+        if (!GanttBarSupport.isBaselineBarFormat(format) && isCriticalTask(getNodeImpl(node)))
+            return palette.getCriticalTaskColor();
+        return defaultColor;
     }
+
+	private boolean isCriticalTask(Object impl) {
+		return impl instanceof Task task && task.isCritical();
+	}
 
 	private Color resolveTaskFillColor(GraphicNode node, BarFormat format) {
 		Object impl = getNodeImpl(node);

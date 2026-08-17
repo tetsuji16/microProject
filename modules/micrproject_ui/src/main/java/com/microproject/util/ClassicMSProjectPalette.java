@@ -43,6 +43,7 @@ public class ClassicMSProjectPalette implements GanttColorPalette {
     private static final Color TEXT = new Color(0x1F, 0x1F, 0x1F);
     private static final Color LINK = new Color(0x5F, 0x64, 0x6D);
     private static final Color BASELINE = new Color(0xA6, 0xAA, 0xB0);
+    private static final Color CRITICAL_RED = new Color(0xFF, 0x00, 0x00);
 
     @Override
     public String getName() {
@@ -125,6 +126,11 @@ public class ClassicMSProjectPalette implements GanttColorPalette {
     @Override
     public Color getBaselineBarColor() {
         return BASELINE;
+    }
+
+    @Override
+    public Color getCriticalTaskColor() {
+        return CRITICAL_RED;
     }
 
     @Override
