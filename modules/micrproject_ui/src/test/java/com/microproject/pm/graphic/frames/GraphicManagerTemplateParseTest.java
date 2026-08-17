@@ -49,4 +49,12 @@ class GraphicManagerTemplateParseTest {
 		assertEquals(0L, GraphicManager.parseTemplateDurationDays(""));
 		assertEquals(0L, GraphicManager.parseTemplateDurationDays(null));
 	}
+
+	@Test
+	void templateTaskDurationDaysGuardsShortOrMissingRows() {
+		assertEquals(5L, GraphicManager.templateTaskDurationDays(new String[] {"Task", "5"}));
+		assertEquals(0L, GraphicManager.templateTaskDurationDays(new String[] {"Task"}));
+		assertEquals(0L, GraphicManager.templateTaskDurationDays(new String[] {}));
+		assertEquals(0L, GraphicManager.templateTaskDurationDays(null));
+	}
 }
