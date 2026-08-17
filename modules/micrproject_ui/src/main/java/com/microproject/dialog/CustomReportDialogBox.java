@@ -29,6 +29,10 @@ import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.print.PrinterException;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,6 +62,10 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerDateModel;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableModel;
+
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
@@ -226,12 +234,26 @@ public final class CustomReportDialogBox extends JDialog {
 
 	private void exportCsv() {
 		generate(); JFileChooser chooser = new JFileChooser(); chooser.setSelectedFile(new java.io.File("project-report.csv")); if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-		StringBuilder csv = new StringBuilder(); for (int column = 0; column < previewModel.getColumnCount(); column++) { if (column > 0) csv.append(','); csv.append(csv(previewModel.getColumnName(column))); } csv.append("\r\n");
-		for (int row = 0; row < previewModel.getRowCount(); row++) { for (int column = 0; column < previewModel.getColumnCount(); column++) { if (column > 0) csv.append(','); csv.append(csv(String.valueOf(previewModel.getValueAt(row, column)))); } csv.append("\r\n"); }
-		try { Path path = chooser.getSelectedFile().toPath(); Files.writeString(path, "\uFEFF" + csv, StandardCharsets.UTF_8); }
+		try (OutputStream out = Files.newOutputStream(chooser.getSelectedFile().toPath())) { writeReportCsv(previewModel, out); }
 		catch (Exception error) { Alert.error(t("report.exportError") + " " + error.getMessage()); }
 	}
-	static String csv(String value) { String safe = value == null ? "" : value; return '"' + safe.replace("\"", "\"\"") + '"'; }
+
+	/**
+	 * Writes a table model as CSV (RFC 4180), prefixed with a UTF-8 BOM so Excel opens it correctly.
+	 * Null cells are exported as empty fields.
+	 */
+	static void writeReportCsv(TableModel model, OutputStream out) throws IOException {
+		try (Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+			writer.write('\uFEFF');
+			try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.RFC4180)) {
+				List<String> header = new ArrayList<>(); for (int column = 0; column < model.getColumnCount(); column++) header.add(model.getColumnName(column)); printer.printRecord(header);
+				for (int row = 0; row < model.getRowCount(); row++) {
+					List<String> values = new ArrayList<>(); for (int column = 0; column < model.getColumnCount(); column++) { Object value = model.getValueAt(row, column); values.add(value == null ? "" : String.valueOf(value)); }
+					printer.printRecord(values);
+				}
+			}
+		}
+	}
 	private static String t(String key) { return UsabilityStrings.text(key); }
 	private void print() { try { preview.print(JTable.PrintMode.FIT_WIDTH, new java.text.MessageFormat(project.getName()), new java.text.MessageFormat("Page {0}")); } catch (PrinterException error) { Alert.error(error.getMessage()); } }
 }
