@@ -27,6 +27,7 @@ package com.microproject.pm.calendar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Calendar;
 
@@ -113,6 +114,29 @@ class CalendarDefinitionTest {
 		calendar.addSentinelsAndMakeArray();
 
 		long start = -timestamp(2024, Calendar.JUNE, 3, 9);
+		long result = calendar.add(start, eightHours(), true);
+
+		assertEquals(start + eightHours(), result);
+	}
+
+	@Test
+	void addWithNonWorkingWeekAndWorkingExceptionSchedulesAsElapsedTime() {
+		// Issue #175: a week with no working weekdays is degenerate even when an
+		// exception day carries working time - the fine-tuning walk would loop
+		// forever when the schedule direction never reaches that exception. It
+		// must degrade to elapsed-time arithmetic instead of hanging.
+		CalendarDefinition calendar = new CalendarDefinition();
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++) {
+			calendar.week.setWeekDay(day, nonWorkingDay(0L));
+		}
+		WorkDay workingException = new WorkDay(timestamp(2024, Calendar.JUNE, 1, 0));
+		workingException.setWorkingHours((WorkingHours) WorkingHours.getDefault().clone());
+		workingException.initialize();
+		calendar.addOrReplaceException(workingException);
+		calendar.addSentinelsAndMakeArray();
+		assertTrue(workingException.getDuration() > 0); // the exception really carries working time
+
+		long start = timestamp(2024, Calendar.JUNE, 3, 9); // after the working exception
 		long result = calendar.add(start, eightHours(), true);
 
 		assertEquals(start + eightHours(), result);

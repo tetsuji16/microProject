@@ -118,33 +118,20 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	}
 
 	/**
-	 * Whether any exception day contributes working time.
-	 */
-	private boolean hasWorkingExceptions() {
-		if (exceptions == null) {
-			return false;
-		}
-		for (WorkDay exceptionDay : exceptions) {
-			if (exceptionDay.getDuration() > 0) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Whether the calendar has no working time at all: no working weekdays
-	 * (after resolving null weekdays to the default working day) and no working
-	 * exception days. Such a calendar schedules like elapsed time (issue #175).
+	 * Whether the week contributes no working time at all (after resolving null
+	 * weekdays to the default working day). Such a week is invalid - the
+	 * codebase rejects zero-working-time weeks elsewhere (intersectWith throws
+	 * InvalidCalendarIntersectionException) - so scheduling against it falls
+	 * back to elapsed-time arithmetic in calculateAddition() (issue #175).
+	 * Exception days are deliberately not consulted: they cannot rescue a
+	 * degenerate week when the schedule direction never reaches them, which
+	 * would let the per-day fine-tuning walk in addScheduledTime loop forever.
 	 */
 	private boolean hasNoWorkingTime() {
 		if (week.getDuration() > 0) {
 			return false;
 		}
-		if (effectiveWeekDuration() > 0) {
-			return false;
-		}
-		return !hasWorkingExceptions();
+		return effectiveWeekDuration() <= 0;
 	}
 	public WorkDay[] getExceptions() {
 		return exceptions;
