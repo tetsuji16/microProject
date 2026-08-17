@@ -131,6 +131,21 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		}
 		return false;
 	}
+
+	/**
+	 * Whether the calendar has no working time at all: no working weekdays
+	 * (after resolving null weekdays to the default working day) and no working
+	 * exception days. Such a calendar schedules like elapsed time (issue #175).
+	 */
+	private boolean hasNoWorkingTime() {
+		if (week.getDuration() > 0) {
+			return false;
+		}
+		if (effectiveWeekDuration() > 0) {
+			return false;
+		}
+		return !hasWorkingExceptions();
+	}
 	public WorkDay[] getExceptions() {
 		return exceptions;
 	}
@@ -271,7 +286,20 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 				forward = false;
 			}
 		}
-		long result = elapsed ? addElapsedTime(date, duration, useSooner) : addScheduledTime(date, duration, useSooner, forward);
+		long result;
+		if (elapsed) {
+			result = addElapsedTime(date, duration, useSooner);
+		} else if (hasNoWorkingTime()) {
+			// Issue #175: the calendar has no working time at all. Schedule as
+			// elapsed time - the same date + duration arithmetic addElapsedTime
+			// performs, without the adjustInsideCalendar normalization which
+			// would recurse into add(). This keeps degenerate calendars from
+			// dividing by a zero week duration or walking non-working days
+			// forever, and is sign-consistent with the elapsed path.
+			result = date + duration;
+		} else {
+			result = addScheduledTime(date, duration, useSooner, forward);
+		}
 		return negative ? -result : result;
 	}
 
@@ -309,14 +337,12 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		int weekTries = 0;
 		long weekDuration = week.getDuration();
 		if (weekDuration <= 0) {
-			// Degenerate or uninitialized week: no explicitly configured working time.
-			// Treat null weekdays as default working days; if the calendar really has
-			// no working time anywhere, fall back to elapsed-time arithmetic instead
-			// of dividing by zero or walking non-working days forever (issue #175).
+			// Uninitialized or degenerate week: resolve null weekdays as default
+			// working days so the weekly tuning below divides by the effective
+			// duration instead of the cached zero (issue #175). Calendars with no
+			// working time at all were already routed to elapsed-time arithmetic
+			// in calculateAddition().
 			weekDuration = effectiveWeekDuration();
-			if (weekDuration <= 0 && !hasWorkingExceptions()) {
-				return date + duration;
-			}
 		}
 		long numWeeks;
 		while (weekDuration > 0 && (numWeeks = (duration / weekDuration)) != 0) {
