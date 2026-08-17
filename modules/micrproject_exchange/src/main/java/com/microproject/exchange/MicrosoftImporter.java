@@ -38,13 +38,6 @@ import java.util.Map;
 import com.microproject.core.hierarchy.Hierarchy;
 import com.microproject.core.hierarchy.HierarchyNode;
 import com.microproject.core.pm.exchange.MspImporter;
-import com.microproject.core.pm.exchange.ProjectConverter;
-import com.microproject.core.pm.exchange.converters.op.OpAssignmentConverter;
-import com.microproject.core.pm.exchange.converters.op.OpDependencyConverter;
-import com.microproject.core.pm.exchange.converters.op.OpImportState;
-import com.microproject.core.pm.exchange.converters.op.OpProjectConverter;
-import com.microproject.core.pm.exchange.converters.op.OpResourceConverter;
-import com.microproject.core.pm.exchange.converters.op.OpTaskConverter;
 import com.microproject.pm.calendar.CalendarOptions;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ScheduleFrom;
@@ -91,7 +84,6 @@ import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
 public class MicrosoftImporter extends ServerFileImporter{
 	static Log log = LogFactory.getLog(MicrosoftImporter.class);
 	protected com.microproject.pm.task.Project plProject= null;
-	protected OpImportState state=new OpImportState();
 	List<Object> allTasks = null;
 	ArrayList<Object> subprojects;
 	private Date earliestStart = DateTime.getMaxDate();
@@ -378,7 +370,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 		}
 
 		ProjectWriter writer = ProjectWriterFactory.forFile(targetFileName);
-		writer.write(serializer.serializeProject(project).getProjectFile(), out);
+		writer.write(serializer.serializeProject(project), out);
 		return true;
 	}
 

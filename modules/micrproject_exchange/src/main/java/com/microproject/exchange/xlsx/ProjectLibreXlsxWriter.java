@@ -160,8 +160,8 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 
 	private String serializeProjectLibreXml(Project project) throws Exception {
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		com.microproject.server.data.mspdi.ModifiedMSPDIWriter data = new com.microproject.server.data.MSPDISerializer().serializeProject(project);
-		data.write(data.getProjectFile(), xml);
+		ProjectFile projectFile = new com.microproject.server.data.MSPDISerializer().serializeProject(project);
+		new MSPDIWriter().write(projectFile, xml);
 		return xml.toString(StandardCharsets.UTF_8.name());
 	}
 
