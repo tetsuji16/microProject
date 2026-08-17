@@ -30,6 +30,7 @@ import java.awt.Point;
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 import java.awt.event.MouseEvent;
+import java.util.function.Consumer;
 
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
@@ -70,6 +71,40 @@ public class GanttInteractor extends GraphInteractor{
 	protected static final int PROGRESS_BAR_MOVE=6;
 	protected static final int SPLIT=7;
 	private static final int HORIZONTAL_PAN_SPEED_MULTIPLIER = 2;
+
+	protected Consumer<String> modeListener;
+
+	public void setModeListener(Consumer<String> modeListener) {
+		this.modeListener = modeListener;
+	}
+
+	protected void notifyMode() {
+		notifyMode(modeText(state));
+	}
+
+	protected void notifyMode(String modeKey) {
+		if (modeListener != null)
+			modeListener.accept(modeKey);
+	}
+
+	private static String modeText(int state) {
+		switch (state) {
+		case BAR_MOVE_START:
+		case BAR_MOVE_END:
+			return "StatusBar.Resizing";
+		case PROGRESS_BAR_MOVE:
+			return "StatusBar.UpdatingProgress";
+		case SPLIT:
+			return "StatusBar.Splitting";
+		case BAR_MOVE:
+			return "StatusBar.Dragging";
+		case LINK_CREATION:
+		case LINK_SELECTION:
+			return "StatusBar.Linking";
+		default:
+			return "StatusBar.Ready";
+		}
+	}
 
 	protected ScheduleInterval selectedInterval;
 	protected int selectedIntervalNumber;
@@ -189,6 +224,7 @@ public class GanttInteractor extends GraphInteractor{
     	notifyBarSelection(e);
     	if (selected == null) {
     		startPan(e);
+    		notifyMode("StatusBar.Panning");
     		return;
     	}
 		// The Gantt component begins its drag interaction from mousePressed and
@@ -200,6 +236,7 @@ public class GanttInteractor extends GraphInteractor{
 			return;
 		}
     	super.mousePressed(e);
+    	notifyMode();
     }
 
     public void mouseDragged(MouseEvent e) {
@@ -214,11 +251,13 @@ public class GanttInteractor extends GraphInteractor{
     public void mouseReleased(MouseEvent e) {
     	if (panning) {
     		stopPan();
+    		notifyMode("StatusBar.Ready");
     		e.consume();
     		return;
     	}
     	getGraph().requestFocusInWindow();
     	super.mouseReleased(e);
+    	notifyMode("StatusBar.Ready");
     }
 
     public void mouseClicked(MouseEvent e) {

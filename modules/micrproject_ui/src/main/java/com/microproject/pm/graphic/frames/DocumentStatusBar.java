@@ -43,14 +43,21 @@ public class DocumentStatusBar extends JPanel {
 
 	private final JLabel zoomLabel = new JLabel();
 	private final JLabel selectionLabel = new JLabel();
+	private final JLabel modeLabel = new JLabel();
 
 	public DocumentStatusBar() {
 		setLayout(new FlowLayout(FlowLayout.LEFT, 16, 2));
 		setBorder(new EmptyBorder(1, 6, 1, 6));
 		add(zoomLabel);
 		add(selectionLabel);
+		add(modeLabel);
 		setZoom(1, 1);
 		setSelectedCount(0);
+		setMode("StatusBar.Ready");
+	}
+
+	public void setMode(String modeKey) {
+		modeLabel.setText(Messages.getString(modeKey));
 	}
 
 	public void setZoom(int scaleIndex, int scaleCount) {

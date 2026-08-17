@@ -182,6 +182,10 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		return ((GanttModel) model).getCoord();
 	}
 
+	public GanttInteractor getInteractor() {
+		return ((GanttUI) ui).getInteractor();
+	}
+
 	public void setCoord(CoordinatesConverter coord) {
 		var modelCoord = getCoord();
 		if (modelCoord != null) {
