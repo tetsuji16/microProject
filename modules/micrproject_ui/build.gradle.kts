@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":micrproject_exchange"))
     implementation(project(":micrproject_reports"))
     implementation(libs.commons.csv)
+    implementation(libs.imgscalr.lib)
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")

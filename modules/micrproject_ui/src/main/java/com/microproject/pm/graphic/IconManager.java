@@ -30,6 +30,7 @@ import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.awt.image.BufferedImageOp;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import org.imgscalr.Scalr;
 import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 
 import com.microproject.util.ClassLoaderUtils;
@@ -179,20 +181,20 @@ public class IconManager {
 		}
 	}
 
-	private static BufferedImage scaleToCanvas(BufferedImage source, int width, int height) {
+	static BufferedImage scaleToCanvas(BufferedImage source, int width, int height) {
 		if (source == null || width <= 0 || height <= 0)
 			return null;
-		double scale = Math.min((double) width / (double) source.getWidth(), (double) height / (double) source.getHeight());
+		double scale = Math.min((double) width / source.getWidth(), (double) height / source.getHeight());
 		int scaledWidth = Math.max(1, (int) Math.round(source.getWidth() * scale));
 		int scaledHeight = Math.max(1, (int) Math.round(source.getHeight() * scale));
+		BufferedImage resized = Scalr.resize(source, Scalr.Method.QUALITY, scaledWidth, scaledHeight, new BufferedImageOp[0]);
 		BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g2 = canvas.createGraphics();
 		try {
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			int x = (width - scaledWidth) / 2;
-			int y = (height - scaledHeight) / 2;
-			g2.drawImage(source, x, y, scaledWidth, scaledHeight, null);
+			int x = (width - resized.getWidth()) / 2;
+			int y = (height - resized.getHeight()) / 2;
+			g2.drawImage(resized, x, y, null);
 		} finally {
 			g2.dispose();
 		}
@@ -373,11 +375,33 @@ public class IconManager {
 		return new ImageIcon(disabled);
 	}
 
+	private static BufferedImage toBufferedImage(Image image) {
+		if (image instanceof BufferedImage)
+			return (BufferedImage) image;
+		if (image == null)
+			return null;
+		int width = image.getWidth(null);
+		int height = image.getHeight(null);
+		if (width <= 0 || height <= 0)
+			return null;
+		BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g2 = canvas.createGraphics();
+		try {
+			g2.drawImage(image, 0, 0, null);
+		} finally {
+			g2.dispose();
+		}
+		return canvas;
+	}
+
 	public static ImageIcon getHalfSizedIcon(String key) {
 		ImageIcon icon = getIcon(key);
-		Image image = icon.getImage();
-		Image half = image.getScaledInstance(icon.getIconWidth()/2, icon.getIconHeight()/2, Image.SCALE_DEFAULT);
-		return new ImageIcon(half);
+		BufferedImage image = toBufferedImage(icon.getImage());
+		if (image == null)
+			return null;
+		BufferedImage resized = Scalr.resize(image, Scalr.Method.QUALITY,
+				Math.max(1, icon.getIconWidth() / 2), Math.max(1, icon.getIconHeight() / 2), new BufferedImageOp[0]);
+		return new ImageIcon(resized);
 	}
 	
 	
