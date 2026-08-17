@@ -90,6 +90,12 @@ public class HasCommonKeyImpl extends HasUniqueIdImpl implements HasKey{
 		return uniqueId == ((HasKey)other).getUniqueId();
 	}
 
+	@Override
+	public int hashCode() {
+		// consistent with the uniqueId-based equals above (issue #177)
+		return Long.hashCode(uniqueId);
+	}
+
 	public void serialize(ObjectOutputStream s) throws IOException {
 	    s.writeLong(getUniqueId());
 	    //s.writeLong(getId());

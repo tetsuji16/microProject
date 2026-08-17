@@ -733,12 +733,32 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		for (String[] definition : definitions) {
 			NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 			task.setName(definition[0]);
-			task.getCurrentSchedule().setStart(project.getStart()); task.setDuration(day * Long.parseLong(definition[1]));
-			if ("0".equals(definition[1])) task.setMarkTaskAsMilestone(true);
+			long durationDays = parseTemplateDurationDays(definition[1]);
+			task.getCurrentSchedule().setStart(project.getStart());
+			task.setDuration(day * durationDays);
+			if (durationDays == 0) task.setMarkTaskAsMilestone(true);
 			if (previous != null) try { DependencyService.getInstance().newDependency(previous, task, DependencyType.FS, 0L, this); } catch (Exception ignored) { }
 			previous = task;
 		}
 		project.setDirty(true); project.recalculate();
+	}
+
+	/**
+	 * Parses a template task duration (in days) from the template definition.
+	 * A malformed token degrades to a zero-day (milestone) task instead of
+	 * crashing template creation with an uncaught NumberFormatException
+	 * (issue #178).
+	 */
+	static long parseTemplateDurationDays(String token) {
+		if (token == null) {
+			return 0L;
+		}
+		try {
+			return Long.parseLong(token);
+		} catch (NumberFormatException e) {
+			logger.log(Level.WARNING, "Ignoring malformed template task duration ''{0}''", token);
+			return 0L;
+		}
 	}
 
 	public boolean restorePreviousSessionAtStartup() {

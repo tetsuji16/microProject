@@ -92,6 +92,11 @@ public class LinkData extends SerializedDataObject {
 			return data.getPredecessorId()==getPredecessorId();
 		}else return false;
 	}
+	@Override
+	public int hashCode(){
+		// consistent with the uniqueId + predecessorId equals above (issue #177)
+		return Long.hashCode(getUniqueId()) * 31 + Long.hashCode(getPredecessorId());
+	}
 
 	public String toString() {
 		return "predId = " + getPredecessorId()

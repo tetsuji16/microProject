@@ -101,6 +101,36 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		dayExceptions.toArray(exceptions);
 
 	}
+
+	/**
+	 * Total working time of the week, treating null weekdays as the default
+	 * working day (matching the {@link CalendarIterator} behavior). Used when
+	 * {@link WorkWeek#getDuration()} is zero so that an uninitialized week is
+	 * not mistaken for a calendar without working time (issue #175).
+	 */
+	private long effectiveWeekDuration() {
+		long total = 0;
+		for (int i = 0; i < WorkWeek.DAYS_IN_WEEK; i++) {
+			WorkDay day = week.getWeekDay(i);
+			total += (day == null ? WorkDay.getDefaultWorkDay() : day).getDuration();
+		}
+		return total;
+	}
+
+	/**
+	 * Whether any exception day contributes working time.
+	 */
+	private boolean hasWorkingExceptions() {
+		if (exceptions == null) {
+			return false;
+		}
+		for (WorkDay exceptionDay : exceptions) {
+			if (exceptionDay.getDuration() > 0) {
+				return true;
+			}
+		}
+		return false;
+	}
 	public WorkDay[] getExceptions() {
 		return exceptions;
 	}
@@ -278,8 +308,18 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		 */
 		int weekTries = 0;
 		long weekDuration = week.getDuration();
+		if (weekDuration <= 0) {
+			// Degenerate or uninitialized week: no explicitly configured working time.
+			// Treat null weekdays as default working days; if the calendar really has
+			// no working time anywhere, fall back to elapsed-time arithmetic instead
+			// of dividing by zero or walking non-working days forever (issue #175).
+			weekDuration = effectiveWeekDuration();
+			if (weekDuration <= 0 && !hasWorkingExceptions()) {
+				return date + duration;
+			}
+		}
 		long numWeeks;
-		while ((numWeeks = (duration / weekDuration)) != 0) {
+		while (weekDuration > 0 && (numWeeks = (duration / weekDuration)) != 0) {
 			if (weekTries++ == 4) {
 				break;
 			}

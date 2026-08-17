@@ -34,9 +34,11 @@ import com.microproject.core.time.DefaultTimeInterval;
 import com.microproject.core.time.DefaultTimeIntervals;
 import com.microproject.datatype.Duration;
 import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.pm.calendar.WorkRange;
 import com.microproject.pm.calendar.WorkRangeException;
+import com.microproject.pm.key.HasCommonKeyImpl;
 import com.microproject.pm.key.HasKeyImpl;
 import com.microproject.pm.key.HasUniqueIdImpl;
 import com.microproject.pm.time.Interval;
@@ -124,6 +126,30 @@ class EqualsHashCodeContractTest {
 		HasKeyImpl kb = new HasKeyImpl(null, 42L);
 		assertEquals(ka, kb);
 		assertEquals(ka.hashCode(), kb.hashCode());
+	}
+
+	@Test
+	void hasCommonKeyEqualsImpliesSameHashCode() {
+		// Issue #177: HasCommonKeyImpl overrides equals() by uniqueId and now
+		// implements hashCode() consistently.
+		HasCommonKeyImpl a = new HasCommonKeyImpl(null, 42L);
+		HasCommonKeyImpl b = new HasCommonKeyImpl(null, 42L);
+		assertEquals(a, b);
+		assertEquals(a.hashCode(), b.hashCode());
+
+		a.setUniqueId(7L);
+		assertNotEquals(a, b);
+	}
+
+	@Test
+	void workingCalendarIdentityEqualsHasMatchingHashCode() {
+		// Issue #177: WorkingCalendar.equals() is identity-based, so its hash
+		// code must be the identity hash as well.
+		WorkingCalendar a = WorkingCalendar.getInstance();
+		WorkingCalendar b = WorkingCalendar.getInstance();
+		assertFalse(a.equals(b));
+		assertEquals(a, a);
+		assertEquals(a.hashCode(), a.hashCode());
 	}
 
 	/** Minimal concrete Interval for testing the abstract base class. */

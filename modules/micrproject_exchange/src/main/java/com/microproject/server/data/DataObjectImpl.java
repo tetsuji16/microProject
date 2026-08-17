@@ -61,12 +61,18 @@ public class DataObjectImpl extends CommonDataObject{
     public boolean equals(Object o){
         if (o instanceof DataObjectImpl){
             DataObjectImpl dob=(DataObjectImpl)o;
-            if (id!=dob.getUniqueId()) return false;
+            if (getId()!=dob.getId() || getUniqueId()!=dob.getUniqueId()) return false;
             //if ((name==null&&dob.getName()!=null)||(name!=null&&dob.getName()==null)) return false;
             //if (!name.equals(dob.getName())) return false;
             return true;
         } else return false;
         
+    }
+
+    @Override
+    public int hashCode() {
+        // consistent with the id + uniqueId equals above (issue #177)
+        return Long.hashCode(getId()) * 31 + Long.hashCode(getUniqueId());
     }
 
     public String toString() {

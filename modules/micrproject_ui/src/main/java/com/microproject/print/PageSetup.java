@@ -151,6 +151,11 @@ public class PageSetup{
 			PrintServiceOption p=(PrintServiceOption)o;
 			return printService.equals(p.getValue());
 		}
+		@Override
+		public int hashCode(){
+			// consistent with the printService-based equals above (issue #177)
+			return printService.hashCode();
+		}
 	}
 	protected PrintServiceOption pdfPrintServiceOption;
 
