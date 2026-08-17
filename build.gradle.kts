@@ -23,7 +23,7 @@ val projectLibreMavenDependencyAliases = listOf(
     "flatlaf",
     "flatlaf-extras",
     "groovy",
-    "itext",
+    "openpdf",
     "jfreechart",
     "org-netbeans-swing-outline",
     "radiance-neon",
