@@ -41,5 +41,13 @@ class DocumentStatusBarTest {
 		bar.setSelectedCount(7);
 		assertTrue(bar.getComponent(0).isVisible());
 		assertTrue(bar.getComponent(1).isVisible());
+		assertTrue(bar.getComponent(2).isVisible());
+	}
+
+	@Test
+	void modeLabelResolvesLocalizedModeText() {
+		DocumentStatusBar bar = new DocumentStatusBar();
+		bar.setMode("StatusBar.Ready");
+		assertTrue(bar.getComponent(2).isVisible());
 	}
 }

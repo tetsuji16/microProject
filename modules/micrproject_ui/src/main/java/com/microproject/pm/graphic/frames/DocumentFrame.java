@@ -74,6 +74,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.views.ChartView;
+import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.pm.graphic.views.MainView;
 import com.microproject.pm.graphic.views.PertView;
@@ -697,6 +698,9 @@ public class DocumentFrame extends NamedFrame implements
 		if (ganttView == null) {
 			ganttView = new GanttView(this, graphicManager.getMenuManager(),mainView.getSynchronizer());
 			ganttView.init(getTaskNodeModelCache(), getTaskModel(), coord);
+			Gantt gantt = ganttView.getGantt();
+			if (gantt != null)
+				gantt.getInteractor().setModeListener(statusBar::setMode);
 			restoreWorkspaceFor(ganttView);
 		}
 		return ganttView;

@@ -44,6 +44,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JViewport;
 import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -384,7 +385,19 @@ public class ScrollPaneSynchronizer {
 		if (!e.isControlDown()) {
 			return false;
 		}
-		return performZoom(scrollPane, getWheelSteps(e));
+		return performZoom(scrollPane, getWheelSteps(e), resolveWheelCursorX(scrollPane, e));
+	}
+
+	/**
+	 * Content x coordinate under the mouse cursor, or -1 when it cannot be
+	 * resolved (callers then fall back to left-edge anchored zoom).
+	 */
+	private int resolveWheelCursorX(JScrollPane scrollPane, MouseWheelEvent e) {
+		JViewport viewport = scrollPane.getViewport();
+		if (viewport == null || viewport.getView() == null || !(e.getSource() instanceof Component source)) {
+			return -1;
+		}
+		return SwingUtilities.convertPoint(source, e.getPoint(), viewport.getView()).x;
 	}
 
 	public static boolean zoomIn(Component component) {
@@ -414,6 +427,10 @@ public class ScrollPaneSynchronizer {
 	}
 
 	private boolean performZoom(JScrollPane scrollPane, int steps) {
+		return performZoom(scrollPane, steps, -1);
+	}
+
+	private boolean performZoom(JScrollPane scrollPane, int steps, int cursorX) {
 		if (steps == 0) {
 			return true;
 		}
@@ -433,9 +450,11 @@ public class ScrollPaneSynchronizer {
 		}
 
 		ZoomRestoreState zoomRestoreState = getZoomRestoreState(scrollPane);
-		double keptLeftDate = resolveKeptLeftDate(zoomRestoreState,
-				resolveViewportLeftEdgeDate(coord::toTime, viewport.getViewPosition()));
-		performZoomStep(scrollPane, coord, zoomRestoreState, keptLeftDate, steps < 0);
+		double anchorDate = cursorX >= 0
+				? coord.toTime(cursorX)
+				: resolveViewportLeftEdgeDate(coord::toTime, viewport.getViewPosition());
+		double keptLeftDate = cursorX >= 0 ? anchorDate : resolveKeptLeftDate(zoomRestoreState, anchorDate);
+		performZoomStep(scrollPane, coord, zoomRestoreState, keptLeftDate, steps < 0, cursorX);
 		return true;
 	}
 
@@ -484,6 +503,11 @@ public class ScrollPaneSynchronizer {
 
 	private void performZoomStep(JScrollPane scrollPane, CoordinatesConverter coord, ZoomRestoreState zoomRestoreState,
 			double keptLeftDate, boolean zoomIn) {
+		performZoomStep(scrollPane, coord, zoomRestoreState, keptLeftDate, zoomIn, -1);
+	}
+
+	private void performZoomStep(JScrollPane scrollPane, CoordinatesConverter coord, ZoomRestoreState zoomRestoreState,
+			double keptLeftDate, boolean zoomIn, int cursorX) {
 		boolean zoomed = false;
 		if (zoomIn) {
 			if (coord.canZoomIn()) {
@@ -506,7 +530,8 @@ public class ScrollPaneSynchronizer {
 		double minimumLeftDate = resolveMinimumLeftDate(coord.getTimescaleManager().getScale(),
 				coord.getProject().getEarliestStartingTaskOrStart(), keptLeftDate);
 		double restoreDate = chooseZoomLeftDate(keptLeftDate, minimumLeftDate);
-		newViewPosition.x = restoreViewportX(coord::toX, restoreDate);
+		int restoreX = restoreViewportX(coord::toX, restoreDate);
+		newViewPosition.x = cursorX >= 0 ? restoreX - cursorX : restoreX;
 		clampViewPosition(viewport, newViewPosition);
 		setViewportViewPosition(viewport, newViewPosition);
 		updateKeptLeftDate(zoomRestoreState, resolveViewportLeftEdgeDate(coord::toTime, newViewPosition));
