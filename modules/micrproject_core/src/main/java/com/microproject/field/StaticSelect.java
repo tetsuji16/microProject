@@ -28,8 +28,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.collections.MapIterator;
-import org.apache.commons.collections.bidimap.DualHashBidiMap;
+import org.apache.commons.collections4.MapIterator;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import org.apache.commons.lang.ObjectUtils;
 
 /**

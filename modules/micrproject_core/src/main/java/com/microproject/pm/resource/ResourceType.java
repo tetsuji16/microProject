@@ -23,8 +23,8 @@
  * SOFTWARE.
  *******************************************************************************/
 package com.microproject.pm.resource;
-import org.apache.commons.collections.BidiMap;
-import org.apache.commons.collections.bidimap.DualHashBidiMap;
+import org.apache.commons.collections4.BidiMap;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 import com.microproject.strings.*;
 

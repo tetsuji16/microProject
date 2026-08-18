@@ -2,6 +2,7 @@ import org.gradle.jvm.tasks.Jar
 
 dependencies {
     api(libs.bundles.commons.legacy)
+    api(libs.commons.collections4)
     api(libs.bundles.jackson)
     api(libs.jasperreports)
     api(libs.bundles.jaxb)
