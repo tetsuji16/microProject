@@ -836,7 +836,7 @@ public class EnterpriseResource implements Resource {
 			resource.setName(getName());
 			if (notes!=null) resource.notes = notes;
 			if (group!=null)resource.group = group;
-			if (group!=null)resource.initials = initials;
+			if (initials!=null)resource.initials = initials;
 			if (phonetics!=null)resource.phonetics = phonetics;
 			if (rbsCode!=null)resource.rbsCode = rbsCode;
 			if (emailAddress!=null)resource.emailAddress = emailAddress;

@@ -162,7 +162,9 @@ public class PredefinedShape {
 	public static final PredefinedShape[] END_LIST = { SQUARE, DIAMOND, PENTAGON_UP, PENTAGON_DOWN, TRIANGLE_UP, TRIANGLE_DOWN, TRIANGLE_RIGHT,
 			TRIANGLE_LEFT, ARROW_UP, ARROW_DOWN, LINK_ARROW1 };
 
-	public static final PredefinedShape[] NETWORK_LIST = { FULL_HEIGHT, HEXAGON, PARALLELOGRAM };	private static Map<String, PredefinedShape> initialize() {
+	public static final PredefinedShape[] NETWORK_LIST = { FULL_HEIGHT, HEXAGON, PARALLELOGRAM };
+
+	private static Map<String, PredefinedShape> initialize() {
 		Map<String, PredefinedShape> m = new HashMap<>();
 
 		add(m, FULL_HEIGHT);
