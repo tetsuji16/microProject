@@ -27,6 +27,7 @@ package com.microproject.graphic.configuration.shape;
 import java.awt.BasicStroke;
 import java.awt.Stroke;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -40,20 +41,28 @@ public class PredefinedStroke {
 	public static final BasicStroke LARGE_FRAMED = new BasicStroke(3f); // Default
 	public static final BasicStroke SOLID = null; // is always null - means no stroke
 	
-	private static HashMap predefinedStrokeMap = null;
+	private static volatile Map<String, Stroke> predefinedStrokeMap;
 	
-	private static void initialize() {
-		predefinedStrokeMap.put("DASHED", DASHED);
-		predefinedStrokeMap.put("FRAMED", FRAMED);
-		predefinedStrokeMap.put("LARGE_FRAMED", LARGE_FRAMED);
+	private static Map<String, Stroke> initialize() {
+		Map<String, Stroke> m = new HashMap<>();
+		m.put("DASHED", DASHED);
+		m.put("FRAMED", FRAMED);
+		m.put("LARGE_FRAMED", LARGE_FRAMED);
+		return m;
 	}
 	
-	private static HashMap getPredefinedStrokeMap() {
-		if (predefinedStrokeMap == null) {
-			predefinedStrokeMap = new HashMap();
-			initialize();
+	private static Map<String, Stroke> getPredefinedStrokeMap() {
+		Map<String, Stroke> result = predefinedStrokeMap;
+		if (result == null) {
+			synchronized (PredefinedStroke.class) {
+				result = predefinedStrokeMap;
+				if (result == null) {
+					result = Map.copyOf(initialize());
+					predefinedStrokeMap = result;
+				}
+			}
 		}
-		return predefinedStrokeMap;
+		return result;
 	}
 	
 	public static Stroke find(String key) {

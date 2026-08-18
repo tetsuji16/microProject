@@ -26,6 +26,7 @@ package com.microproject.grouping.core.summaries;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.collections.BidiMap;
 import org.apache.commons.collections.bidimap.DualHashBidiMap;
@@ -147,24 +148,25 @@ public class SummaryVisitorFactory implements SummaryNames {
 		TEXT_SUMMARY_MAP.put(Messages.getString("Summary.List"), Integer.valueOf(LIST));
 	}
 	
-	private static HashMap ALL_SUMMARY_MAP = new HashMap<>();
+	private static final Map<String, Integer> ALL_SUMMARY_MAP;
 	static {
-		ALL_SUMMARY_MAP.put("None", Integer.valueOf(NONE));
-		ALL_SUMMARY_MAP.put("This", Integer.valueOf(THIS));
-		ALL_SUMMARY_MAP.put("List", Integer.valueOf(LIST));
-		ALL_SUMMARY_MAP.put("Average", Integer.valueOf(AVERAGE));
-		ALL_SUMMARY_MAP.put("AverageFirstSublevel", Integer.valueOf(AVERAGE_FIRST_SUBLEVEL));
-		ALL_SUMMARY_MAP.put("CountAll", Integer.valueOf(COUNT_ALL));
-		ALL_SUMMARY_MAP.put("CountFirstSublevel", Integer.valueOf(COUNT_FIRST_SUBLEVEL));
-		ALL_SUMMARY_MAP.put("CountNonsummaries", Integer.valueOf(COUNT_NONSUMMARIES));
-		ALL_SUMMARY_MAP.put("Maximum", Integer.valueOf(MAXIMUM));
-		ALL_SUMMARY_MAP.put("Minimum", Integer.valueOf(MINIMUM));
-		ALL_SUMMARY_MAP.put("Sum", Integer.valueOf(SUM));
-		ALL_SUMMARY_MAP.put("OR", Integer.valueOf(OR));
-		ALL_SUMMARY_MAP.put("AND", Integer.valueOf(AND));
-
-		ALL_SUMMARY_MAP.put("Same", Integer.valueOf(SAME));
-}
+		Map<String, Integer> m = new HashMap<>();
+		m.put("None", Integer.valueOf(NONE));
+		m.put("This", Integer.valueOf(THIS));
+		m.put("List", Integer.valueOf(LIST));
+		m.put("Average", Integer.valueOf(AVERAGE));
+		m.put("AverageFirstSublevel", Integer.valueOf(AVERAGE_FIRST_SUBLEVEL));
+		m.put("CountAll", Integer.valueOf(COUNT_ALL));
+		m.put("CountFirstSublevel", Integer.valueOf(COUNT_FIRST_SUBLEVEL));
+		m.put("CountNonsummaries", Integer.valueOf(COUNT_NONSUMMARIES));
+		m.put("Maximum", Integer.valueOf(MAXIMUM));
+		m.put("Minimum", Integer.valueOf(MINIMUM));
+		m.put("Sum", Integer.valueOf(SUM));
+		m.put("OR", Integer.valueOf(OR));
+		m.put("AND", Integer.valueOf(AND));
+		m.put("Same", Integer.valueOf(SAME));
+		ALL_SUMMARY_MAP = Map.copyOf(m);
+	}
  
 /**
  * Used when reading in config file to transform a summary name into an id
