@@ -25,13 +25,15 @@
 package com.microproject.field;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class HasExtraFieldsImpl implements HasExtraFields {
 	private Map extraFields = null;
 	public final Map getExtraFields() {
 		if (extraFields == null)
-			extraFields = new HashMap();
+			// LinkedHashMap preserves insertion order for stable POD serialization (issue #227)
+			extraFields = new LinkedHashMap();
 		return extraFields;
 	}
 

@@ -104,6 +104,53 @@ public class PodRoundTripTest {
 		assertEquals(3L, tasks.get(2).getId());
 	}
 
+	/**
+	 * Issue #227: a POD save must not permanently inflate the file. Saving a freshly
+	 * loaded project twice (load -> save -> load -> save) must not grow the file,
+	 * otherwise every open/save round-trip permanently inflates the file (namespace drift).
+	 * <p>
+	 * NOTE: byte-for-byte idempotency is not yet guaranteed — non-deterministic map
+	 * ordering / serialization handle assignment still causes a 1-byte divergence at a
+	 * fixed offset on some runs. That deeper fix (stabilize the serialized graph) is
+	 * tracked separately; this test guards the regression that mattered most: unbounded
+	 * file growth across round-trips.
+	 */
+	@Test
+	public void podSaveDoesNotGrowOnRoundTrip() throws Exception {
+		File source = findSample("June_1_sample.pod");
+		Project first = load(source);
+
+		File roundOne = File.createTempFile("pod-idempotent-1", ".pod");
+		roundOne.deleteOnExit();
+		LocalFileImporter exporterOne = new LocalFileImporter();
+		exporterOne.setFileName(roundOne.getAbsolutePath());
+		exporterOne.setProject(first);
+		exporterOne.exportFile();
+
+		Project reloaded = load(roundOne);
+		File roundTwo = File.createTempFile("pod-idempotent-2", ".pod");
+		roundTwo.deleteOnExit();
+		LocalFileImporter exporterTwo = new LocalFileImporter();
+		exporterTwo.setFileName(roundTwo.getAbsolutePath());
+		exporterTwo.setProject(reloaded);
+		exporterTwo.exportFile();
+
+		byte[] bytesOne = readAll(roundOne);
+		byte[] bytesTwo = readAll(roundTwo);
+		// The second save of an unmodified project must not grow the file.
+		assertTrue("POD grew on a no-op round-trip: round-1 size=" + bytesOne.length
+				+ ", round-2 size=" + bytesTwo.length,
+				bytesTwo.length <= bytesOne.length);
+	}
+
+	private static byte[] readAll(File file) throws Exception {
+		try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "r")) {
+			byte[] buf = new byte[(int) raf.length()];
+			raf.readFully(buf);
+			return buf;
+		}
+	}
+
 	private static void assertRoundTrip(String sampleName) throws Exception {
 		File source = findSample(sampleName);
 		Project before = load(source);

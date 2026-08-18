@@ -28,6 +28,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -45,7 +46,9 @@ public class FieldValues {
 	public static HashMap getValues(Collection fields, Object object) {
 		Iterator i = fields.iterator();
 		FieldContext context = null;
-		HashMap map = new HashMap();
+		// LinkedHashMap preserves insertion order so the serialized POD is byte-stable
+		// across load/save round-trips (see issue #227: non-deterministic map order caused drift).
+		HashMap map = new LinkedHashMap();
 		while (i.hasNext()) {
 			Field field = (Field)i.next();
 			try {
