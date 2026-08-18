@@ -199,7 +199,7 @@ public class ReportAdapter {
 		
 		String mod = "";
 		
-		fieldName = fieldName.substring(new String("Field.").length());
+		fieldName = fieldName.substring("Field.".length());
 		
 		if( (!field.isMoney())) {
 			if(!asDuration) {

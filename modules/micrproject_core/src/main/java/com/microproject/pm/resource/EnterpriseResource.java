@@ -833,16 +833,16 @@ public class EnterpriseResource implements Resource {
 		try {
 			EnterpriseResource resource=(EnterpriseResource)super.clone();
 			resource.hasKey=new HasKeyImpl(isLocal()&&Environment.getStandAlone(),resource);
-			resource.setName(new String(getName()));
-			if (notes!=null) resource.notes = new String(notes);
-			if (group!=null)resource.group = new String(group);
-			if (group!=null)resource.initials = new String(initials);
-			if (phonetics!=null)resource.phonetics = new String(phonetics);
-			if (rbsCode!=null)resource.rbsCode = new String(rbsCode);
-			if (emailAddress!=null)resource.emailAddress = new String(emailAddress);
-			if (materialLabel!=null)resource.materialLabel = new String(materialLabel);
+			resource.setName(getName());
+			if (notes!=null) resource.notes = notes;
+			if (group!=null)resource.group = group;
+			if (group!=null)resource.initials = initials;
+			if (phonetics!=null)resource.phonetics = phonetics;
+			if (rbsCode!=null)resource.rbsCode = rbsCode;
+			if (emailAddress!=null)resource.emailAddress = emailAddress;
+			if (materialLabel!=null)resource.materialLabel = materialLabel;
 			if (userAccount != null)
-			   resource.userAccount = new String(userAccount);
+			   resource.userAccount = userAccount;
 
 			resource.costRateTables=(CostRateTables)costRateTables.clone();
 			resource.hasAssignments=(HasAssignments)((HasAssignmentsImpl)hasAssignments).cloneWithResource(resource);

@@ -1183,7 +1183,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	private void _cloneTo(Task task){
 		task.hasKey=new HasKeyImpl(isLocal()&&Environment.getStandAlone(),task);
-		task.setName(new String(getName()));
+		task.setName(getName());
 		task.setRawDuration(getRawDuration());
 
 		task.earlySchedule=(TaskSchedule)earlySchedule.cloneWithTask(task);
@@ -1191,8 +1191,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		task.customFields=(CustomFieldsImpl)customFields.clone();
 		task.snapshots=(Snapshottable)((SnapshottableImpl)snapshots).cloneWithTask(task);
 		task.currentSchedule= ((TaskSnapshot)task.getCurrentSnapshot()).getCurrentSchedule();
-		task.notes=new String(notes);
-		task.wbs=new String(wbs);
+		task.notes=notes;
+		task.wbs=wbs;
 		task.wbsChildrenNodes=null;
 		task.wbsParentTask=null;
 
