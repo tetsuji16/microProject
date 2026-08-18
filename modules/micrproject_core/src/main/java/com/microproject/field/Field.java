@@ -46,8 +46,6 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
-import com.microproject.contrib.util.Log;
-import com.microproject.contrib.util.LogFactory;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.datatype.Hyperlink;
@@ -80,12 +78,14 @@ import com.microproject.scripting.FormulaFactory;
 import com.microproject.server.data.DataObject;
 import com.microproject.strings.Messages;
 import com.microproject.util.ClassUtils;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  *
  */
 public class Field implements SummaryNames, Cloneable, Comparable, Finder, Comparator<Object> {
-	static Log log = LogFactory.getLog(FieldDictionary.class);
+	private static final Logger logger = Logger.getLogger(Field.class.getName());
 	private static final String EMPTY_STRING = "";
 	private static final String PASSWORD_MASK = "********";
 	private static final String NON_IMPLEMENTED = "<not implemented>";
@@ -279,7 +279,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 
 	public final String convertIdToString(Object id) {
 		if (select == null) {
-			log.error("calling convertIdToString on non select field" + getName());
+			logger.severe("calling convertIdToString on non select field" + getName());
 			return null;
 		}
 		return (String) select.getKey(id);
@@ -293,13 +293,13 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 	public final void setSummary(String summaryType) {
 		this.summary = SummaryVisitorFactory.getSummaryId(summaryType);
 		if (summary == NONE)
-			log.warn("unknown summary type: " + summaryType + " for field " + getName());
+			logger.warning("unknown summary type: " + summaryType + " for field " + getName());
 	}
 
 	public final void setGroupSum(String summaryType) {
 		this.groupSummary = SummaryVisitorFactory.getSummaryId(summaryType);
 		if (groupSummary == NONE)
-			log.warn("unknown summary type: " + summaryType + " for field " + getName());
+			logger.warning("unknown summary type: " + summaryType + " for field " + getName());
 	}
 
 	public final void setExternalType(Class externalType) {
@@ -485,7 +485,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 				return convertValueToStringUsingOptions(value);
 			}
 		} catch (IllegalArgumentException e1) {
-			log.error("Unexpected error", e1);
+			logger.log(Level.SEVERE, "Unexpected error", e1);
 		}
 		return toText(value, object);
 	}
@@ -506,7 +506,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 				return convertValueToStringUsingOptions(value);
 			}
 		} catch (IllegalArgumentException e1) {
-			log.error("Unexpected error", e1);
+			logger.log(Level.SEVERE, "Unexpected error", e1);
 		}
 		return toText(value, object);
 	}
@@ -589,7 +589,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 				try {
 					result = FieldConverter.convert(result, externalType, context);
 				} catch (FieldParseException e) {
-					log.error("Unexpected error", e);
+					logger.log(Level.SEVERE, "Unexpected error", e);
 					return null;
 				}
 			}
@@ -687,14 +687,14 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 				}
 
 			} catch (IllegalArgumentException e) {
-				log.error("Bad field " + this, e);
-				log.error("Unexpected error", e);
+				logger.log(Level.SEVERE, "Bad field " + this, e);
+				logger.log(Level.SEVERE, "Unexpected error", e);
 			} catch (IllegalAccessException e) {
-				log.error("Bad field " + this, e);
-				log.error("Unexpected error", e);
+				logger.log(Level.SEVERE, "Bad field " + this, e);
+				logger.log(Level.SEVERE, "Unexpected error", e);
 			} catch (InvocationTargetException e) {
-				log.error("Bad field " + this, e);
-				log.error("Unexpected error", e);
+				logger.log(Level.SEVERE, "Bad field " + this, e);
+				logger.log(Level.SEVERE, "Unexpected error", e);
 			}
 		}
 		return result;
@@ -732,7 +732,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 				try {// convert to external type
 					result = FieldConverter.convert(result, externalType, context); // convert a long to date for example
 				} catch (FieldParseException e1) {
-					log.error("Unexpected error", e1);
+					logger.log(Level.SEVERE, "Unexpected error", e1);
 					result = null;
 				}
 			}
@@ -759,7 +759,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 			context = specialFieldContext;
 		if (isReadOnly(object, context)) { // don't allow setting of read only
 											// fields
-		// log.warn("Tried to set text of read only field" + getId());
+		// logger.warning("Tried to set text of read only field" + getId());
 			return;
 		}
 		Object value = preprocessText(object, textValue, context);
@@ -795,7 +795,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 			context = specialFieldContext;
 		if (isReadOnly(node, nodeModel, context)) { // don't allow setting of
 													// read only fields
-		// log.warn("Tried to set text of read only field" + getId());
+		// logger.warning("Tried to set text of read only field" + getId());
 			return;
 		}
 		Object object = node.getImpl();
@@ -954,7 +954,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 			context = specialFieldContext;
 		if (!FieldContext.isForceValue(context) && isReadOnly(object, context)) { // don't allow setting of read only
 											// fields
-		// log.warn("Tried to set value of read only field" + getId());
+		// logger.warning("Tried to set value of read only field" + getId());
 			return false;
 		}
 
@@ -1014,10 +1014,10 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		} catch (IllegalArgumentException e) {
 			throw new FieldParseException(e);
 		} catch (IllegalAccessException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 		} catch (InvocationTargetException e) {
 			Throwable cause = e.getCause();
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 			if (cause != null && cause instanceof FieldParseException)
 				throw (FieldParseException) cause;
 			else {
@@ -1219,7 +1219,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 			if (methodGet != null)
 				internalType = methodGet.getReturnType();
 			else
-				log.error("Not getter found for field " + getId());
+				logger.severe("Not getter found for field " + getId());
 
 			// First look for a setter that has a context (indexed or not)
 			methodSet = MethodUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class[] { int.class, internalType,
@@ -1232,7 +1232,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 						: new Class[] { internalType }));
 			}
 			if (methodSet == null && !readOnly) {
-				log.warn("No setter found for non-read-only field: " + getId());
+				logger.warning("No setter found for non-read-only field: " + getId());
 			}
 			methodReset = MethodUtils.getAccessibleMethod(clazz, "fieldReset" + javaName, getterContextParams);
 
@@ -1273,11 +1273,11 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 					return method.invoke(object, new Object[] { context });
 			}
 		} catch (IllegalArgumentException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 		} catch (IllegalAccessException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 		} catch (InvocationTargetException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 		}
 		return null;
 	}
@@ -1333,11 +1333,11 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 								// initial value
 		boolean result = true;
 		if (id == null) {
-			log.error("Field has no id!");
+			logger.severe("Field has no id!");
 			result = false;
 		}
 		if (property == null) {
-			log.error("Field has no property:" + id);
+			logger.severe("Field has no property:" + id);
 			result = false;
 		}
 
@@ -1365,7 +1365,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		if (finder != null) {
 			finderMethod = ClassUtils.staticMethodFromFullName(finder, new Class[] { Object.class, Object.class });
 			if (finderMethod == null)
-				Field.log.error("invalid finder method " + finder + " for field" + name);
+				Field.logger.severe("invalid finder method " + finder + " for field" + name);
 
 		}
 		if (columnWidth == 0)
@@ -1380,7 +1380,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		try {
 			setExternalType(Class.forName(type));
 		} catch (ClassNotFoundException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 		}
 	}
 	/**
@@ -1512,7 +1512,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		try {
 			return formula.evaluate(object);
 		} catch (InvalidFormulaException e) {
-			log.error("Formula is invalid " + formula.getText());
+			logger.severe("Formula is invalid " + formula.getText());
 			return null;
 		}
 	}
@@ -1649,7 +1649,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		try {
 			return super.clone();
 		} catch (CloneNotSupportedException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 			return null;
 		}
 	}
@@ -1746,7 +1746,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 			try {
 				setValue(current, eventSource, value, context);
 			} catch (FieldParseException e) {
-				log.error("Unexpected error", e);
+				logger.log(Level.SEVERE, "Unexpected error", e);
 			}
 		}
 

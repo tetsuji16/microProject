@@ -45,14 +45,12 @@ import com.microproject.configuration.ReportDefinition;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.timescale.TimeIterator;
 import com.microproject.util.ClassLoaderUtils;
-import com.microproject.contrib.util.Log;
-import com.microproject.contrib.util.LogFactory;
 
 /**
  *
  */
 public class ReportUtil {
-	private static final Log log = LogFactory.getLog(ReportUtil.class);
+	private static final Logger logger = Logger.getLogger(ReportUtil.class.getName());
 	private static final String REPORT_ROOT = "com/microproject/reports/definition/";
 	private static final String JASPER_XML_LOGGER_NAME = "net.sf.jasperreports.engine.xml";
 	private static final Object JASPER_XML_LOGGER_LOCK = new Object();
@@ -88,7 +86,7 @@ public class ReportUtil {
 		} catch (IllegalArgumentException | IllegalStateException e) {
 			throw new JRException("Unable to load report definition " + fileName, e);
 		} catch (IOException e) {
-			log.error("Unable to close report definition " + fileName, e);
+			logger.log(Level.SEVERE, "Unable to close report definition " + fileName, e);
 			throw new JRException("Unable to close report definition " + fileName, e);
 		}
 	}

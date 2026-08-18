@@ -42,8 +42,6 @@ import org.apache.commons.collections.Predicate;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.digester.Digester;
 
-import com.microproject.contrib.util.Log;
-import com.microproject.contrib.util.LogFactory;
 import com.microproject.field.Field;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
@@ -54,12 +52,14 @@ import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  * Dictionary of all fields
  */
 public class FieldDictionary {
-	private static Log log = LogFactory.getLog(FieldDictionary.class);
+	private static final Logger logger = Logger.getLogger(FieldDictionary.class.getName());
 	private HashedMap map = new HashedMap();
 	private HashMap<String, Field> actionsMap = new HashMap<>();
 	public void addField(Field field) {
@@ -69,19 +69,19 @@ public class FieldDictionary {
 			if (field.isIndexed()) {
 				for (int i=0; i < field.getIndexes(); i++) {
 					Field indexField = field.createIndexedField(i);
-					log.debug("adding indexfield " + clazz.getName() + "." +  indexField.getName() + " id " + indexField.getId() + " field "+ indexField);
+					logger.fine("adding indexfield " + clazz.getName() + "." +  indexField.getName() + " id " + indexField.getId() + " field "+ indexField);
 					map.put(indexField.getId(),indexField);					
 					
 				}
 			} else {
-				log.debug("adding field " + clazz.getName() + "." +  field.getName() + " " + field);
+				logger.fine("adding field " + clazz.getName() + "." +  field.getName() + " " + field);
 				map.put(field.getId(),field);
 				if (field.getAction() != null)
 					actionsMap.put(field.getAction(),field);
 
 			}
 		} else {
-			log.warn("Field not added" + field.getId());
+			logger.warning("Field not added" + field.getId());
 		}
 	}
 	
@@ -103,7 +103,7 @@ public class FieldDictionary {
 		try {
 			clazz = ClassUtils.forName(className);
 		} catch (ClassNotFoundException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 		}
 	}
 	
@@ -299,9 +299,9 @@ public class FieldDictionary {
 		try (FileOutputStream fos = new FileOutputStream(fileName)) {
 			fos.write(result.toString().getBytes());
 		} catch (FileNotFoundException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 		} catch (IOException e) {
-			log.error("Unexpected error", e);
+			logger.log(Level.SEVERE, "Unexpected error", e);
 		}
 	}
 	public static void main(String args[]) {

@@ -31,30 +31,30 @@ import java.net.URL;
 
 import org.apache.commons.digester.Digester;
 import org.xml.sax.SAXException;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
-import com.microproject.contrib.util.Log;
-import com.microproject.contrib.util.LogFactory;
 
 /**
  * Reads configuration xml file using the digester
  */
 public class ConfigurationReader {
-	static Log log = LogFactory.getLog(ConfigurationReader.class);
+	private static final Logger logger = Logger.getLogger(ConfigurationReader.class.getName());
 
 	public static ProvidesDigesterEvents read(String configurationUrl, ProvidesDigesterEvents root) {
 		URL url = ConfigurationReader.class.getClassLoader().getResource(configurationUrl);
 		if (url == null) {
-			log.fatal("could not find xml configuration file: " + configurationUrl);
+			logger.log(Level.SEVERE, "could not find xml configuration file: " + configurationUrl);
 			return null;
 		}
-		//log.info("Reading configuration from " + url + " " + new java.util.Date());
+		//logger.info("Reading configuration from " + url + " " + new java.util.Date());
 		ProvidesDigesterEvents result = null;
 		try {
 			result = readStream(url.openStream(), root);
 		} catch (IOException e) {
-			log.error("Could not read field xml configuration file " + url, e);
+			logger.log(Level.SEVERE, "Could not read field xml configuration file " + url, e);
 		}
-		//log.info("Done reading configuration from " + url + " " + new java.util.Date());
+		//logger.info("Done reading configuration from " + url + " " + new java.util.Date());
 		return result;
 	}
 
@@ -77,7 +77,7 @@ public class ConfigurationReader {
 		try {
 			result = (ProvidesDigesterEvents) digester.parse(stream);
 		} catch (Exception e1) { //claur
-			log.error("Error parsing reading/parsing field xml configuration file.", e1);
+			logger.log(Level.SEVERE, "Error parsing reading/parsing field xml configuration file.", e1);
 		}
 		return result;
 	}

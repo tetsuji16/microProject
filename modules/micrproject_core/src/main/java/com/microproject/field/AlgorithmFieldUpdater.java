@@ -24,7 +24,9 @@
  *******************************************************************************/
 package com.microproject.field;
 
-import java.util.HashSet;
+import java.util.HashSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.Iterator;
 
 import com.microproject.configuration.Configuration;
@@ -36,6 +38,8 @@ import com.microproject.document.ObjectEvent;
  * This abstract class manages a list of input fields and output fields for an algorithm as well as field updating
  */
 public abstract class AlgorithmFieldUpdater extends Thread {
+
+	private static final Logger logger = Logger.getLogger(AlgorithmFieldUpdater.class.getName());
 	Object eventSource;
 	Document document;
 	public AlgorithmFieldUpdater(Object eventSource, Document document) {
@@ -81,7 +85,7 @@ public abstract class AlgorithmFieldUpdater extends Thread {
 	protected void addInputField(String fieldId) {
 		Field field = Configuration.getFieldFromId(fieldId);
 		if (field == null) {
-			Field.log.error("could not add input field (probably not yet implemented)" + fieldId);
+			logger.severe("could not add input field (probably not yet implemented)" + fieldId);
 		} else {
 			inputFields.add(field);
 		}
@@ -89,7 +93,7 @@ public abstract class AlgorithmFieldUpdater extends Thread {
 	protected void addOutputField(String fieldId) {
 		Field field = Configuration.getFieldFromId(fieldId);
 		if (field == null) {
-			Field.log.error("could not add output field (probably not yet implemented)" + fieldId);
+			logger.severe("could not add output field (probably not yet implemented)" + fieldId);
 		} else {
 			outputFields.add(field);
 		}

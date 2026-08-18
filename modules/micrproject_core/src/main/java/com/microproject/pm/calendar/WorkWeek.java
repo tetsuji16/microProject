@@ -26,16 +26,15 @@ package com.microproject.pm.calendar;
 
 import java.io.Serializable;
 
-import com.microproject.contrib.util.Log;
-import com.microproject.contrib.util.LogFactory;
 import com.microproject.strings.Messages;
+import java.util.logging.Logger;
 
 public class WorkWeek implements Cloneable,Serializable {
 	static final long serialVersionUID = 2555674567677L;
     public static final int DAYS_IN_WEEK = 7;
 	public static final long MS_IN_WEEK = DAYS_IN_WEEK * 24L*60*60*1000;
     WorkDay workDay[] = new WorkDay[DAYS_IN_WEEK];
-    static Log log = LogFactory.getLog(WorkWeek.class);
+    private static final Logger logger = Logger.getLogger(WorkWeek.class.getName());
 
     private static String WEEKDAY_MASK = new String(Messages.getString("Calendar.WeekdayBitMaskFromSundayToSaturday"));
 	public Object clone() {

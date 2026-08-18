@@ -25,6 +25,10 @@
 package com.microproject.field;
 
 import java.lang.reflect.Method;
+
+import java.util.logging.Level;
+
+import java.util.logging.Logger;
 import java.util.Collection;
 import java.util.List;
 
@@ -37,7 +41,8 @@ import com.microproject.util.ClassUtils;
  * This class represents a set of choices where the list of choices and the finder are specified via reflection.
  * It is used by Fields
  */
-public class DynamicSelect extends Select implements Finder {
+public class DynamicSelect extends Select implements Finder {
+	private static final Logger logger = Logger.getLogger(DynamicSelect.class.getName());
 	/**
 	 * 
 	 */
@@ -49,7 +54,7 @@ public class DynamicSelect extends Select implements Finder {
 		try {
 			return (Object[]) listMethod.invoke(null, new Object[0]);
 		} catch (Exception e) {
-			Field.log.error("error calling keyArrayFromMethod for:" + listMethod);
+			logger.severe("error calling keyArrayFromMethod for:" + listMethod);
 			return null;
 		}
 	}
@@ -63,12 +68,12 @@ public class DynamicSelect extends Select implements Finder {
 	public void setList(String methodName) {
 		listMethod = ClassUtils.staticVoidMethodFromFullName(methodName);
 		if (listMethod == null)
-			Field.log.error("invalid method in select:" + methodName);
+			logger.severe("invalid method in select:" + methodName);
 	}
 	public void setFinder(String finderName) {
 		finderMethod = ClassUtils.staticMethodFromFullName(finderName, new Class[] {String.class});
 		if (finderMethod == null)
-			Field.log.error("invalid method in select:" + finderName);
+			logger.severe("invalid method in select:" + finderName);
 	}
 
 	public Object getValue(Object arg0) throws InvalidChoiceException  {

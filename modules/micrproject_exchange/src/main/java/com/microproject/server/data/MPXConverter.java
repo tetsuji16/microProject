@@ -62,8 +62,6 @@ import net.sf.mpxj.mspdi.DatatypeConverter;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.exchange.mpxj.MpxjApi;
 import com.microproject.configuration.Configuration;
-import com.microproject.contrib.util.Log;
-import com.microproject.contrib.util.LogFactory;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.Rate;
 import com.microproject.field.CustomFields;
@@ -84,7 +82,6 @@ import com.microproject.util.MathUtils;
  *
  */
 public class MPXConverter {
-	private static Log log = LogFactory.getLog(MPXConverter.class);
 	private static final Logger logger = Logger.getLogger(MPXConverter.class.getName());
 
 	public static int nameFieldWidth = Configuration.getFieldFromId("Field.name").getTextWidth();

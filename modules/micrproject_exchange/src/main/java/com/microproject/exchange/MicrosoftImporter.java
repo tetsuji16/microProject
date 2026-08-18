@@ -44,8 +44,6 @@ import com.microproject.pm.scheduling.ScheduleFrom;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.configuration.CircularDependencyException;
-import com.microproject.contrib.util.Log;
-import com.microproject.contrib.util.LogFactory;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.job.Job;
@@ -75,6 +73,7 @@ import net.sf.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
 import com.microproject.exchange.xlsx.ProjectLibreXlsxWriter;
 import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
+import java.util.logging.Logger;
 /**
  * This class is based on the project mpxj http://www.tapsterrock.com/mpxj/
  * The enumerated types in projectlibre currently correspond exactly to the types in mpx, so there is no need to convert them.
@@ -82,7 +81,7 @@ import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
  *
  */
 public class MicrosoftImporter extends ServerFileImporter{
-	static Log log = LogFactory.getLog(MicrosoftImporter.class);
+	private static final Logger logger = Logger.getLogger(MicrosoftImporter.class.getName());
 	protected com.microproject.pm.task.Project plProject= null;
 	List<Object> allTasks = null;
 	ArrayList<Object> subprojects;
@@ -98,30 +97,30 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 	protected Context context = new Context();
 	public MicrosoftImporter() {
-		log.info("-------MicrosoftImporter ctor");
+		logger.info("-------MicrosoftImporter ctor");
 	}
 
 
 	@Override
 	public void importFile() throws Exception {
-		log.info("BEGIN: MicrosoftImporter.PrepareResources");
+		logger.info("BEGIN: MicrosoftImporter.PrepareResources");
 		parse();
-		log.info("END: MicrosoftImporter.PrepareResources");
+		logger.info("END: MicrosoftImporter.PrepareResources");
 		Environment.setImporting(false);
-		log.info("BEGIN: Finish import");
+		logger.info("BEGIN: Finish import");
 		convertToProjectLibre1();
-		log.info("END: Finish import");
+		logger.info("END: Finish import");
 	}
 
 	@Override
 	public Project loadProject(InputStream in)  throws Exception{
-		log.info("BEGIN: MicrosoftImporter.PrepareResources");
+		logger.info("BEGIN: MicrosoftImporter.PrepareResources");
 		parse(in, getFileExtension());
-		log.info("END: MicrosoftImporter.PrepareResources");
+		logger.info("END: MicrosoftImporter.PrepareResources");
 		Environment.setImporting(false);
-		log.info("BEGIN: Finish import");
+		logger.info("BEGIN: Finish import");
 		convertToProjectLibre1();
-		log.info("END: Finish import");
+		logger.info("END: Finish import");
     	return project;
 	}
     
@@ -163,19 +162,19 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 	private void setProgress(float p) {
 		if (jobRunnable == null)
-			log.info("Progress " + 100 * p + "%");
+			logger.info("Progress " + 100 * p + "%");
 		else
 			jobRunnable.setProgress(p);
 	}
 	public void importProject(Project p) throws Exception {
-		log.info("MicrosoftImporter.importProject()");
+		logger.info("MicrosoftImporter.importProject()");
 
 		this.project = p;
 		parse();
 		convertToProjectLibre1();
 	}
 	public void parse(InputStream in, String extension) throws Exception {
-		log.info("MicrosoftImporter.parse()");
+		logger.info("MicrosoftImporter.parse()");
 
 		Environment.setImporting(true); // will avoid certain popups
 		
@@ -211,14 +210,14 @@ public class MicrosoftImporter extends ServerFileImporter{
 			Environment.setImporting(false); // will avoid certain popups
 			throw lastException == null ? new Exception("Failed to import file") : lastException; //$NON-NLS-1$
 		}
-		log.info(plProject.toString());
+		logger.info(plProject.toString());
 
 		setProgress(0.2f);
 		setProgress(1f);
 
 	}
 	public void parse() throws Exception {
-		log.info("MicrosoftImporter.parse()");
+		logger.info("MicrosoftImporter.parse()");
 
 		Environment.setImporting(true); // will avoid certain popups
 		
@@ -261,7 +260,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 			Environment.setImporting(false); // will avoid certain popups
 			throw lastException == null ? new Exception("Failed to import file") : lastException; //$NON-NLS-1$
 		}
-		log.info(plProject.toString());
+		logger.info(plProject.toString());
 
 		setProgress(0.2f);
 		setProgress(1f);
@@ -276,7 +275,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 	 *             on file read error
 	 */
     public Job getImportFileJob(){
-		log.info("MicrosoftImporter.getImportFileJob()");
+		logger.info("MicrosoftImporter.getImportFileJob()");
 
     	subprojects = new ArrayList<>();
     	errorDescription = null;
@@ -287,10 +286,10 @@ public class MicrosoftImporter extends ServerFileImporter{
 //    	job.addRunnable(new JobRunnable(Messages.getString("MicrosoftImporter.PrepareResources"),1.0f){ //$NON-NLS-1$
 //
 //			public Object run() throws Exception{
-//				log.info("BEGIN: MicrosoftImporter.PrepareResources");
+//				logger.info("BEGIN: MicrosoftImporter.PrepareResources");
 //				//MicrosoftImporter.this.jobRunnable = this;
 //				importFile();
-//				log.info("END: MicrosoftImporter.PrepareResources");
+//				logger.info("END: MicrosoftImporter.PrepareResources");
 //				return null;
 //			}
 //    	});
@@ -299,17 +298,17 @@ public class MicrosoftImporter extends ServerFileImporter{
     	job.addRunnable(new JobRunnable(Messages.getString("MicrosoftImporter.PrepareResources"),1.0f){ //$NON-NLS-1$
 
 			public Object run() throws Exception{
-				log.info("BEGIN: MicrosoftImporter.PrepareResources");
+				logger.info("BEGIN: MicrosoftImporter.PrepareResources");
 				MicrosoftImporter.this.jobRunnable = this;
 				parse();
-				log.info("END: MicrosoftImporter.PrepareResources");
+				logger.info("END: MicrosoftImporter.PrepareResources");
 				return null;
 			}
     	});
     	
     	job.addSwingRunnable(new JobRunnable("Import resources",1.0f){ //$NON-NLS-1$
 			public Object run() throws Exception{
-				log.info("BEGIN: Import resources");
+				logger.info("BEGIN: Import resources");
 				ResourceMappingForm form=getResourceMapping();
 				if (form!=null&&form.isLocal()) //if form==null we are in a case were have no server access. popup not needed
 					if (!job.okCancel(Messages.getString("Message.ServerUnreacheableReadOnlyProject"),true)){ //$NON-NLS-1$
@@ -320,7 +319,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 					}
 
 // claur - Moved to convertToProjectLibre1 after import Calendar because base calendar must be imported before resources
-//			log.info("import resources");		 //$NON-NLS-1$
+//			logger.info("import resources");		 //$NON-NLS-1$
 //				if(!importResources()){
 //					setProgress(1.0f);
 //					errorDescription = ABORT;
@@ -328,15 +327,15 @@ public class MicrosoftImporter extends ServerFileImporter{
 //					throw new Exception(ABORT);
 //				}
 				setProgress(1f);
-				log.info("END: Import resources");
+				logger.info("END: Import resources");
 				return null;
 	    	}
     	});
     	job.addRunnable(new JobRunnable("Finish import",1.0f){ //$NON-NLS-1$
 			public Object run() throws Exception{
-				log.info("BEGIN: Finish import");
+				logger.info("BEGIN: Finish import");
 				Object r=convertToProjectLibre1();
-				log.info("END: Finish import");
+				logger.info("END: Finish import");
 				return r;
     		}
     	});

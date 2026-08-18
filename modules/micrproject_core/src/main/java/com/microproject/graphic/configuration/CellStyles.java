@@ -33,16 +33,16 @@ import org.apache.commons.digester.Digester;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.NamedItem;
-import com.microproject.contrib.util.Log;
-import com.microproject.contrib.util.LogFactory;
 import com.microproject.field.InvalidFormulaException;
 import com.microproject.strings.Messages;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  *
  */
 public class CellStyles implements NamedItem {
-	static Log log = LogFactory.getLog(CellStyles.class);
+	private static final Logger logger = Logger.getLogger(CellStyles.class.getName());
 	public static final String category="CellStylesCategory";
 	public String getCategory() {
 		return category;
@@ -93,7 +93,7 @@ public class CellStyles implements NamedItem {
                     style=factory.getCellStyle();
                     styleMap.put(id,style);
                 } catch (InvalidFormulaException e) {
-        			log.error("Formula not set: invalid formula text: " +factory.getFormulaText());
+        			logger.severe("Formula not set: invalid formula text: " +factory.getFormulaText());
                 }
 	    }
 	    return style;
