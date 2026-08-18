@@ -721,6 +721,9 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	public boolean isWork() {
 		return globalResource.isWork();
 	}
+	public boolean isCost() {
+		return globalResource.isCost();
+	}
 	public long getParentId(int outlineNumber) {
 		NodeModel model= getResourcePool().getResourceOutline(outlineNumber);
 		if (model == null)

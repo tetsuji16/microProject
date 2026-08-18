@@ -961,6 +961,10 @@ public class EnterpriseResource implements Resource {
 		return getResourceType() == ResourceType.MATERIAL;
 	}
 
+	public boolean isCost() {
+		return getResourceType() == ResourceType.COST;
+	}
+
 	public boolean isMe() {
 		if (userAccount==null) return false;
 		return userAccount.equals(Environment.getLogin());
