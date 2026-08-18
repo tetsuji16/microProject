@@ -154,14 +154,14 @@ public class DecoratedField {
 
 		option = "METHOD";
 		if(name.indexOf(option) >= 0) {
-			String method = name.substring(name.indexOf(option) + new String(option).length());
+			String method = name.substring(name.indexOf(option) + option.length());
 			method = method.substring(0, method.indexOf('_'));
 			setMethod(method);
 		}
 		
 		option = "FIELD";
 		if(name.indexOf(option) >= 0) {
-			fieldName = name.substring(name.indexOf(option) + new String(option).length());
+			fieldName = name.substring(name.indexOf(option) + option.length());
 		}
 		else
 		{
@@ -172,7 +172,7 @@ public class DecoratedField {
 
 		option = "TIME";
 		if(name.indexOf(option) >= 0) {
-			String timeString = name.substring(name.indexOf(option) + new String(option).length());
+			String timeString = name.substring(name.indexOf(option) + option.length());
 			String startString = timeString.substring(0, timeString.indexOf('_'));
 			String endString = timeString.substring(timeString.indexOf('_') + 1);
 //			System.out.println("time based field start " + startString + ", end " + endString);
