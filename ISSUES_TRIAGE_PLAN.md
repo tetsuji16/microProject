@@ -93,11 +93,17 @@ implementation, (4) run the callers' module tests.
 
 | # | Title | Design note |
 |---|---|---|
-| #212 | Two Configuration/Dictionary engines coexist (`com.microproject.configuration` vs `com.microproject.core.configuration`) | Find which is live; the other is dead legacy. Merge config XML paths (`meta.properties`/`DictionaryFiles`) carefully — see pod-loading skill. |
+| #212 | Two Configuration/Dictionary engines coexist (`com.microproject.configuration` vs `com.microproject.core.configuration`) | **Investigated 2026-08-19:** these are NOT dead-duplicate — they are *different responsibilities sharing the name `Configuration`*. See finding below. |
+
+### #212 investigation finding (2026-08-19)
+- `com.microproject.configuration.Configuration` — dominant (134 refs, 41 imports). Digester-based config-file reader; owns `FieldDictionary`, `TimeScaleManager`, `GraphicConfiguration`, `ScriptConfiguration`. The app's primary configuration engine.
+- `com.microproject.core.configuration.Configuration` — only 3 external refs (`core/fields/Field.java`, `core/fields/FieldUtil.java`, `core/nodes/AbstractNode.java` — the last imports but does NOT call it). JAXB-based; owns `com.microproject.core.dictionary.Dictionary` and is reached via `Configuration.getInstance().getDictionary()` from `Field`/`FieldUtil`.
+- **Conclusion:** the two classes are not redundant — they back *different* Dictionary types (`com.microproject.configuration.FieldDictionary` vs `com.microproject.core.dictionary.Dictionary`). A blind "delete the unused one" would break `Field`/`FieldUtil` resolution.
+- **Real consolidation path (design PR):** decide which `Dictionary` is the canonical source of field metadata, then route `Field`/`FieldUtil` through the surviving engine and delete the other `Configuration` class + its adapters (`core/configuration/adapters/*`). Must verify no serialization/format depends on `core.dictionary.Dictionary`. Still a design task — no code change yet.
 | #244 | Replace custom Functors package (10 classes) with `java.util.function` / commons-collections4 | Confirm no serialization depends on the custom functor classes; prefer `java.util.function`. |
 | #245 | Replace int-constant enums with Java enums (62+ in `pm/`) | Highest-risk: enums are serialized and referenced by ordinal in many formats. Requires a compatibility shim for old `.pod` reads. Do per-enum with tests. |
 | #258 | Consolidate `core.hierarchy` vs `grouping.core.hierarchy` (11 classes) | Trace which hierarchy abstraction the model actually uses; delete the other. |
-| #259 | Consolidate Exchange packages (`com.microproject.exchange` vs `com.microproject.core.pm.exchange`, 26 classes) | Biggest package move; `SafeObjectInput` remap must follow renamed classes. |
+| #259 | Consolidate Exchange packages (`com.microproject.exchange` vs `com.microproject.core.pm.exchange`, 26 classes) | **Investigated 2026-08-19:** NOT redundant — different layers. `com.microproject.exchange` (12 classes: `LocalFileImporter`, `MicrosoftImporter`, `MpxjApi`, `ProjectLibreXlsxReader/Writer`, …) is the app-side import/export entry point. `com.microproject.core.pm.exchange` (31 classes: `Mpx*Converter`, `MspImporter`, `DateLongConverter`, …) is the MPXJ conversion logic. Do NOT merge; keep the entry-point / converter split. If consolidation is still wanted, only rename for namespace clarity — never collapse the two layers. `SafeObjectInput` remap must follow any rename. |
 | #260 | Consolidate `link_routing` packages (5 classes) | Small; safe after caller search. |
 | #261 | Consolidate event packages (`graph.event` vs `model.event` vs `selection.event`, 8 classes) | Confirm no duplicate listener contracts; merge to one. |
 | #262 | Consolidate functor packages (30 classes) | Overlaps #244; do together. |
