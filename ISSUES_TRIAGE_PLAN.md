@@ -66,7 +66,7 @@ stabilizes, with module-level test runs.
 | #229 | 13 FileInputStream + 11 FileOutputStream w/o try-with-resources | convert to try-with-resources | **some are fragile** (SerializeUtil ZIP path proved this) — per-site care |
 | #230 | 25 String.split() without limit | add `-1` limit | low, but 25 sites |
 | #231,#240 | Serializer creates Date objects per assignment/timestamp | reuse/cache | hot path, measure first |
-| #232 | Enum.values() called 21× in loops | cache the array | low |
+| #232 | Enum.values() called 21× in loops | cache the array | **Investigated 2026-08-19: not a real hotspot.** All `Enum.values()` sites are enhanced-for loops (`for (X x : values())`) or `Map.values()` (collection). Enhanced-for calls `values()` **once** per loop, not per iteration — no per-iteration allocation to cache. A cached `VALUES` field on every enum would be broad + low-value. **Skipped.** |
 | #233 | ResourceLevelingService 5 ArrayLists per call | hoist/scratch | profile first |
 | #234 | 24 large static collections should be immutable | `List.of`/`Map.of` | init-order pitfalls |
 | #235 | ScheduleEvent `new String()` for sentinels | drop redundant ctor | low |
@@ -76,7 +76,18 @@ stabilizes, with module-level test runs.
 | #250,#222 | `Messages.getString()` + string concat breaks word order | use `MessageFormat` | **i18n-correctness win**, but 45 sites; must keep key names |
 | #251 | Hardcoded English strings in UI (30+) | move to `Messages` | 30+ sites, UI strings |
 | #252 | Locale-sensitive ops without explicit Locale | pass `Locale` | correctness; affects formatting tests |
-| #253 | 680 unused keys in properties | prune | **verify no code references them first** (dynamic key build) |
+| #253 | 680 unused keys in properties | prune | **Investigated 2026-08-19: the "680 unused" premise is partly wrong — see finding.** |
+
+### #253 investigation finding (2026-08-19)
+Mechanical analysis of `client.properties` (1190 keys) against all `src/main` Java + resource XML/properties:
+- **Literal `getString("key")` refs:** 531 unique keys referenced from Java.
+- **Resource XML/properties refs:** 382 keys referenced from config files (`view.xml`, `meta.properties`, etc.) — e.g. `Bar.baseline1`–`Bar.baseline10` are referenced by `view.xml`, NOT dead.
+- **Dynamic-key prefixes** (`"Category." + x`, `"Date.Quarter" + n`, `"Field." + id`, …): 131 more keys are built at runtime.
+- **Remaining high-confidence unused candidates: 183 keys** (no Java literal, no resource ref, no dynamic prefix).
+
+**Conclusion:** the issue's "680 unused" number comes from a Java-only static scan and over-counts — many keys are live via XML config or dynamic construction. Auto-pruning is **unsafe**: a wrong deletion breaks UI/dialogs silently.
+
+**Safe path (if still wanted):** manually review the 183 high-confidence candidates one by one (confirm no reflection/`String.format`/enum-`name()` usage), delete only verified-dead keys in a small test-gated PR, then re-run `:micrproject_core:test` + `:micrproject_ui:test`. Candidate list saved at `docs/issue-253-unused-keys.txt` (generated, not committed by default). **No keys deleted this session** — risk of silent breakage is too high without per-key review.
 
 **Recommended execution order:** #253 (prune dead keys) → #252 (Locale) →
 #250/#222 (MessageFormat) → #251 (hardcoded strings) → perf items #228–#240 in
