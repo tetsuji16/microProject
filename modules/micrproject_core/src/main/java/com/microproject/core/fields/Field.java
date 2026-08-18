@@ -35,7 +35,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import com.microproject.core.configuration.Configuration;
 import com.microproject.core.dictionary.HasCategories;
 import com.microproject.core.dictionary.HasStringId;
-import com.microproject.core.strings.Strings;
+import com.microproject.strings.Messages;
 
 /**
  * @author Laurent Chretienneau
@@ -112,7 +112,7 @@ public class Field implements HasStringId, HasCategories{
 	}
 
 	public String getName(){
-		return Strings.getString(id);
+		return Messages.getString(id);
 	}
 	
 	

@@ -99,7 +99,6 @@ import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
 import com.microproject.menu.resource.MissingListenerException;
-import com.microproject.core.strings.Strings;
 import com.microproject.ui.shell.ProjectLibreShell;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
