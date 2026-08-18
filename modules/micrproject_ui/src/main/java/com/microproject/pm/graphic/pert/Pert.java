@@ -32,6 +32,10 @@ import com.microproject.pm.task.Project;
 /**
  *
  */
+/**
+ * PERT chart view component. This is distinct from
+ * {@link com.microproject.pm.scheduling.pert.Pert} which is the core calculation interface.
+ */
 public class Pert extends Network {
 
 	/**

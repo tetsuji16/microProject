@@ -28,6 +28,11 @@ package com.microproject.core.nodes;
  * @author Laurent Chretienneau
  *
  */
+/**
+ * Graph node key interface. Provides unique ID for nodes in the grouping/outline
+ * graph structure. This is distinct from {@link com.microproject.pm.key.HasId}
+ * which is the project model key for tasks and resources.
+ */
 public interface HasId {
 
 	NodeId getId();

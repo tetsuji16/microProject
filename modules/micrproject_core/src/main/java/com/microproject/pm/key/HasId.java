@@ -27,6 +27,11 @@ package com.microproject.pm.key;
 /**
  *
  */
+/**
+ * Project model key interface. Provides unique ID, name, and creation date
+ * for tasks, resources, and other project entities. This is distinct from
+ * {@link com.microproject.core.nodes.HasId} which is the graph node key.
+ */
 public interface HasId {
 	public long getId();
 	public void setId(long id);
