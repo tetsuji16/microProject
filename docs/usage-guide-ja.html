@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>microProject ユーザーズガイド</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+            --accent: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+            padding: 0;
+        }
+        .hero {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            padding: 60px 20px 40px;
+            text-align: center;
+        }
+        .hero h1 { font-size: 2.2em; margin-bottom: 10px; }
+        .hero p { font-size: 1.1em; opacity: 0.9; max-width: 600px; margin: 0 auto; }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        .toc {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 30px;
+            margin-bottom: 36px;
+        }
+        .toc h2 { font-size: 1.3em; margin-bottom: 12px; color: var(--primary); }
+        .toc ul { list-style: none; columns: 2; column-gap: 30px; }
+        .toc li { margin: 4px 0; }
+        .toc a { color: var(--primary); text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+        section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px 30px;
+            margin-bottom: 24px;
+        }
+        section h2 {
+            font-size: 1.4em;
+            color: var(--primary-dark);
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        section h3 {
+            font-size: 1.15em;
+            color: var(--text);
+            margin: 18px 0 8px;
+        }
+        p { margin: 8px 0; }
+        ul, ol { margin: 8px 0 8px 24px; }
+        li { margin: 4px 0; }
+        code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.92em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 0.95em;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background: var(--code-bg);
+            font-weight: 600;
+        }
+        .tip {
+            background: #eff6ff;
+            border-left: 4px solid var(--primary);
+            padding: 12px 16px;
+            margin: 12px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .tip::before {
+            content: "💡 ";
+            font-weight: bold;
+        }
+        .warn {
+            background: #fef3c7;
+            border-left: 4px solid var(--accent);
+            padding: 12px 16px;
+            margin: 12px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .warn::before {
+            content: "⚠️ ";
+            font-weight: bold;
+        }
+        kbd {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+        }
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-size: 0.9em;
+        }
+        @media (max-width: 640px) {
+            .toc ul { columns: 1; }
+            .hero h1 { font-size: 1.6em; }
+            section { padding: 20px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <h1>microProject ユーザーズガイド</h1>
+    <p>プロジェクト管理をもっとスマートに。MS Project互換のスケジューリングツール</p>
+</div>
+
+<div class="container">
+
+<div class="toc">
+    <h2>目次</h2>
+    <ul>
+        <li><a href="#overview">1. 概要</a></li>
+        <li><a href="#getting-started">2. はじめに</a></li>
+        <li><a href="#task-management">3. タスク管理</a></li>
+        <li><a href="#resource-management">4. リソース管理</a></li>
+        <li><a href="#scheduling">5. スケジューリング</a></li>
+        <li><a href="#gantt">6. ガントチャート</a></li>
+        <li><a href="#views">7. ビュー切替</a></li>
+        <li><a href="#tracking">8. トラッキング（進捗管理）</a></li>
+        <li><a href="#cost">9. コスト管理</a></li>
+        <li><a href="#report">10. レポート</a></li>
+        <li><a href="#import-export">11. インポート/エクスポート</a></li>
+        <li><a href="#undo-redo">12. 元に戻す・やり直し</a></li>
+        <li><a href="#shortcuts">13. キーボードショートカット</a></li>
+        <li><a href="#tips">14. 便利なヒント</a></li>
+        <li><a href="#troubleshooting">15. トラブルシューティング</a></li>
+    </ul>
+</div>
+
+<!-- ============================================================ -->
+<section id="overview">
+    <h2>1. 概要</h2>
+    <p>
+        <strong>microProject</strong> は、Microsoft Project と互換性のあるデスクトップ型プロジェクト管理アプリケーションです。
+        WBS（ワーク・ブレークダウン・ストラクチャ）の作成、ガントチャートによるスケジュール管理、
+        リソースの割り当てと平準化、コスト管理、挣得値分析（EVM）など、
+        プロジェクトマネージャーに必要な主要機能を網羅しています。
+    </p>
+
+    <h3>対応ファイル形式</h3>
+    <table>
+        <tr><th>形式</th><th>拡張子</th><th>説明</th></tr>
+        <tr><td>MS Project</td><td><code>.mpp</code></td><td>Microsoft Project ファイル（MPXJ経由）</td></tr>
+        <tr><td>MS Project XML</td><td><code>.xml</code></td><td>Microsoft Project XML形式</td></tr>
+        <tr><td>Planner</td><td><code>.planner</code></td><td>GNU Planner形式</td></tr>
+        <tr><td>Excel</td><td><code>.xlsx</code></td><td>Microsoft Excel形式</td></tr>
+        <tr><td>PDF</td><td><code>.pdf</code></td><td>PDF出力（印刷プレビューから）</td></tr>
+        <tr><td>CSV</td><td><code>.csv</code></td><td>カンマ区切りテキスト</td></tr>
+    </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="getting-started">
+    <h2>2. はじめに</h2>
+
+    <h3>アプリケーションの起動</h3>
+    <p>
+        Windowsインストーラー（MSI）からインストールした場合、スタートメニューに「microProject」が追加されます。
+        ポータブル版の場合は、解凍したフォルダ内の<code>microProject.exe</code>をダブルクリックしてください。
+    </p>
+
+    <h3>プロジェクトの新規作成</h3>
+    <ol>
+        <li><strong>ファイル</strong> → <strong>新規</strong>（または <kbd>Ctrl</kbd>+<kbd>N</kbd>）をクリックします。</li>
+        <li>プロジェクト名、開始日、カレンダーを選択します。</li>
+        <li>「OK」をクリックしてプロジェクトを作成します。</li>
+    </ol>
+
+    <h3>既存ファイルを開く</h3>
+    <ol>
+        <li><strong>ファイル</strong> → <strong>開く</strong>（または <kbd>Ctrl</kbd>+<kbd>O</kbd>）をクリックします。</li>
+        <li>対応形式のファイル（.mpp、.xml、.xlsx、.planner）を選択します。</li>
+    </ol>
+
+    <h3>テンプレートから作成</h3>
+    <p>
+        テンプレート機能を使用すると、よく使うプロジェクト構造を素早く作成できます。
+        <strong>ファイル</strong> → <strong>新規</strong> → <strong>テンプレートから</strong> で選択してください。
+    </p>
+
+    <div class="tip">
+        microProjectはMS Projectファイル(.mpp)を直接読み書きできます。既存のMS Projectファイルを簡単に移行できます。
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="task-management">
+    <h2>3. タスク管理</h2>
+
+    <h3>タスクの追加</h3>
+    <ul>
+        <li>タスクリストの新しい行に直接名前を入力します。</li>
+        <li>または、<kbd>Insert</kbd>キーを押して新しいタスクを挿入します。</li>
+        <li>リボンの <strong>タスク</strong> タブ → <strong>タスク挿入</strong> をクリックします。</li>
+    </ul>
+
+    <h3>タスクのインデント／アウトデント（WBS階層）</h3>
+    <p>タスクを親子関係で整理します。</p>
+    <table>
+        <tr><th>操作</th><th>キーボード</th><th>リボン</th></tr>
+        <tr><td>インデント（子にする）</td><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>→</kbd></td><td>タスク → インデント</td></tr>
+        <tr><td>アウトデント（親にする）</td><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>←</kbd></td><td>タスク → アウトデント</td></tr>
+    </table>
+    <div class="tip">
+        インデントされたタスクはサマリタスク（太字）になり、子タスクの進捗を集計します。
+    </div>
+
+    <h3>タスクの移動</h3>
+    <table>
+        <tr><th>操作</th><th>キーボード</th></tr>
+        <tr><td>上に移動</td><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd></td></tr>
+        <tr><td>下に移動</td><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↓</kbd></td></tr>
+    </table>
+
+    <h3>タスクの依存関係</h3>
+    <p>タスク間の前後関係を定義します。</p>
+    <ul>
+        <li><strong>FS（Finish-to-Start）</strong>：前置タスクが完了してから開始（最も一般的）</li>
+        <li><strong>SS（Start-to-Start）</strong>：2つのタスクが同時に開始</li>
+        <li><strong>FF（Finish-to-Finish）</strong>：2つのタスクが同時に完了</li>
+        <li><strong>SF（Start-to-Finish）</strong>：前置タスクが開始してから後続が完了</li>
+    </ul>
+
+    <h4>依存関係の作成</h4>
+    <ol>
+        <li>ガントチャート上で前置タスクのバーをドラッグし、後続タスクのバーにドロップします。</li>
+        <li>または、前置タスク列に前置IDと依存関係タイプを入力します（例: <code>3FS</code>）。</li>
+        <li><kbd>Ctrl</kbd>+<kbd>F2</kbd> で選択したタスクをリンクします。</li>
+    </ol>
+
+    <h4>リード／ラグ</h4>
+    <p>
+        依存関係に遅れ（ラグ）や先行（リード）を設定できます。
+        例: <code>3FS+2d</code>（3番目のタスクが完了してから2日後に開始）
+    </p>
+
+    <h3>マイルストーン</h3>
+    <p>
+        期間がゼロのタスクは自動的にマイルストーン（ダイヤマーク）として表示されます。
+        タスクの期間を <code>0d</code> に設定するか、マイルストーン属性を有効にしてください。
+    </p>
+
+    <h3>タスクの制約</h3>
+    <table>
+        <tr><th>制約</th><th>説明</th></tr>
+        <tr><td>できるだけ早く（ASAP）</td><td>デフォルト。スケジューラーが最適な開始日を決定</td></tr>
+        <tr><td>できるだけ遅く（ALAP）</td><td>最新の開始日でスケジューリング</td></tr>
+        <tr><td>開始日以前に開始しない（SNET）</td><td>指定日以前に開始しない</td></tr>
+        <tr><td>開始日以前に終了しない（SNLT）</td><td>指定日以前に終了しない</td></tr>
+        <tr><td>終了日以前に開始しない（FNET）</td><td>指定日以前に開始しない</td></tr>
+        <tr><td>終了日以前に終了しない（FNLT）</td><td>指定日以前に終了しない</td></tr>
+        <tr><td>開始日以降に開始しない（MSO）</td><td>マイルストーンの開始制約</td></tr>
+        <tr><td>終了日以降に終了しない（MFO）</td><td>マイルストーンの終了制約</td></tr>
+    </table>
+
+    <h3>期限（Deadline）</h3>
+    <p>
+        タスクに期限を設定すると、ガントチャート上に矢印で表示されます。
+        期限を超過してもスケジュールには影響しませんが、進捗状況の可視化に役立ちます。
+    </p>
+
+    <h3>繰り返しタスク</h3>
+    <p>
+        定期的に発生するタスク（週次レビュー、月次報告など）を作成できます。
+        <strong>タスク</strong> → <strong>繰り返しタスク</strong> で、周期（毎日/毎週/毎月/毎年）と範囲を設定します。
+    </p>
+
+    <h3>タスク分割</h3>
+    <p>
+        一度開始したタスクを一時停止し、後に再開できます。
+        ガントチャート上でタスクバーを分割位置までドラッグすると、タスクが分割されます。
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="resource-management">
+    <h2>4. リソース管理</h2>
+
+    <h3>リソースシート</h3>
+    <p>
+        <strong>表示</strong> → <strong>リソースシート</strong> でリソースの一覧を表示します。
+        ここではリソースの名前、グループ、タイプ、標準レート、残業レートなどを管理します。
+    </p>
+
+    <h3>リソースタイプ</h3>
+    <table>
+        <tr><th>タイプ</th><th>説明</th></tr>
+        <tr><td>作業（Work）</td><td>人的リソース。時間ベースでコストが計算されます</td></tr>
+        <tr><td>材料（Material）</td><td>消耗品。数量ベースでコストが計算されます</td></tr>
+        <tr><td>コスト（Cost）</td><td>固定コスト追跡用。スケジュールに影響しません</td></tr>
+        <tr><td>場所（Location）</td><td>場所ベースのリソース</td></tr>
+        <tr><td>機械（Machine）</td><td>機材・設備リソース</td></tr>
+        <tr><td>その他（Other）</td><td>その他のリソース</td></tr>
+    </table>
+
+    <h3>リソースの割り当て</h3>
+    <ol>
+        <li>ガントチャートのタスク行で「リソース名」列にリソース名を入力します。</li>
+        <li>または、タスクを右クリック → <strong>リソースの割り当て</strong> でダイアログから選択します。</li>
+        <li>割り当てたリソースの割合（ユニット）を変更できます。例: <code>50%</code>で半日作業</li>
+    </ol>
+
+    <h3>コストレートテーブル</h3>
+    <p>
+        各リソースには5つのコストレートテーブル（A〜E）を設定できます。
+        標準レート、残業レート、コスト/使用、有効日を管理します。
+    </p>
+
+    <h3>リソース平準化</h3>
+    <p>
+        リソースの過剰割り当て（オーバーアロケーション）を自動的に解消します。
+        <strong>リソース</strong> → <strong>リソース平準化</strong> で平準化設定を行います。
+    </p>
+    <div class="warn">
+        リソース平準化はスケジュールに影響を与える場合があります。平準化前にベースラインを保存することをお勧めします。
+    </div>
+
+    <h3>稼働時間カレンダー</h3>
+    <p>
+        <strong>プロジェクト</strong> → <strong>稼働時間の変更</strong> で、プロジェクト・リソースごとのカレンダーを設定できます。
+        祝日、休日、例外日を定義して、正確なスケジューリングを行います。
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="scheduling">
+    <h2>5. スケジューリング</h2>
+
+    <h3>スケジュールの再計算</h3>
+    <p>
+        タスクや依存関係を変更した後、<kbd>Ctrl</kbd>+<kbd>R</kbd> でスケジュールを再計算します。
+        通常は自動的に再計算されますが、手動で再計算が必要な場合があります。
+    </p>
+
+    <h3>手動スケジューリング</h3>
+    <p>
+        タスクを「手動スケジューリング」に設定すると、スケジューラーによる自動変更を受けません。
+        未确定の計画や仮のスケジュールを保持するのに便利です。
+    </p>
+
+    <h3>クリティカルパス</h3>
+    <p>
+        プロジェクトの最短完了パス（クリティカルパス）が赤色で表示されます。
+        クリティカルパス上のタスクが遅延すると、プロジェクト全体の完了日が遅延します。
+    </p>
+
+    <h3>スラック時間</h3>
+    <ul>
+        <li><strong>フリースラック</strong>：タスクを遅延させてもプロジェクトの完了日に影響しない最大時間</li>
+        <li><strong>トータルスラック</strong>：タスクを遅延させてもプロジェクトの完了日に影響しない最大時間（サマリタスク含む）</li>
+    </ul>
+
+    <h3>タスクタイプ</h3>
+    <table>
+        <tr><th>タイプ</th><th>説明</th></tr>
+        <tr><td>固定ユニット</td><td>リソースの割り当て率を維持し、期間や工数を調整</td></tr>
+        <tr><td>固定期間</td><td>期間を固定し、リソースの割り当て率や工数を調整</td></tr>
+        <tr><td>固定工数</td><td>工数を固定し、期間やリソースの割り当て率を調整</td></tr>
+    </table>
+
+    <h3>工数駆動（Effort-driven）</h3>
+    <p>
+        有効にすると、リソースの追加・削除時に工数が一定のまま、期間や割り当て率が自動調整されます。
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="gantt">
+    <h2>6. ガントチャート</h2>
+
+    <h3>ガントチャートの表示</h3>
+    <p>
+        デフォルトのビューです。左側にタスクリスト（スプレッドシート）、右側にタイムバーが表示されます。
+    </p>
+
+    <h3>タイムスケールの変更</h3>
+    <p>
+        ガントチャートの上部を右クリックしてタイムスケールを変更できます。
+        3段階（上位・中位・下位）の粒度を個別に設定できます。
+    </p>
+
+    <h3>ズーム</h3>
+    <table>
+        <tr><th>操作</th><th>キーボード/マウス</th></tr>
+        <tr><td>ズームイン</td><td><kbd>Ctrl</kbd>+マウスホイールアップ / リボンのズームイン</td></tr>
+        <tr><td>ズームアウト</td><td><kbd>Ctrl</kbd>+マウスホイールダウン / リボンのズームアウト</td></tr>
+        <tr><td>タスクにスクロール</td><td><strong>表示</strong> → <strong>タスクにスクロール</strong></td></tr>
+    </table>
+
+    <h3>バーのカスタマイズ</h3>
+    <ul>
+        <li><strong>バーのスタイル</strong>：タスクバーの色、形、テキスト表示を変更</li>
+        <li><strong>テキストスタイル</strong>：バーの前後にあるテキストのフォントを変更</li>
+        <li><strong>グリッド線</strong>：グリッド線の表示/非表示を切り替え</li>
+        <li><strong>レイアウト</strong>：リンク線の表示方法（.FALSE、.TRUE、折れ線）を変更</li>
+    </ul>
+
+    <h3>進捗バー</h3>
+    <p>
+        タスクバー内部に進捗率が黒いバーで表示されます。
+        タスクの「%完了」フィールドを編集すると自動的に更新されます。
+    </p>
+
+    <h3>進捗ライン</h3>
+    <p>
+        <strong>表示</strong> → <strong>進捗ラインの切り替え</strong> で、今日の日付に進捗状況を表示する垂直線を切り替えます。
+        プロジェクトの進捗と計画の差を一目で確認できます。
+    </p>
+
+    <h3>非稼働時間の表示</h3>
+    <p>
+        カレンダーで定義された非稼働時間（休日、夜間など）がグレーで表示されます。
+    </p>
+
+    <h3>バーのスタイルのプレビュー</h3>
+    <p>
+        ガントチャート上でタスクバーを右クリックすると、コンテキストメニューから
+        バースタイルや色を変更できます。
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="views">
+    <h2>7. ビュー切替</h2>
+    <p>リボンの <strong>表示</strong> タブから various ビューに切り替えられます。</p>
+
+    <table>
+        <tr><th>ビュー</th><th>説明</th></tr>
+        <tr><td>ガントチャート</td><td>タスクリストとタイムバーの標準ビュー</td></tr>
+        <tr><td>トラッキングガント</td><td>ベースラインと実績を比較表示</td></tr>
+        <tr><td>タスク使用状況</td><td>タスクごとのリソース使用量を時間単位で表示</td></tr>
+        <tr><td>リソース使用状況</td><td>リソースごとのタスク使用量を時間単位で表示</td></tr>
+        <tr><td>ネットワーク図</td><td>タスクの依存関係をネットワーク図で表示</td></tr>
+        <tr><td>WBS</td><td>ワーク・ブレークダウン・ストラクチャを階層表示</td></tr>
+        <tr><td>RBS</td><td>リソース・ブレークダウン・ストラクチャを階層表示</td></tr>
+        <tr><td>リソースシート</td><td>リソースの一覧を管理</td></tr>
+        <tr><td>カレンダー</td><td>カレンダーベビューでタスクを表示</td></tr>
+        <tr><td>カスタムレポート</td><td>カスタムレポートを作成・表示</td></tr>
+    </table>
+
+    <h3>スプリットビュー（上下分割）</h3>
+    <p>
+        画面を上下に分割して、異なるビューを同時に表示できます。
+        例: 上部にガントチャート、下部にタスク使用状況を表示。
+    </p>
+
+    <h3>グループ化・フィルター・並べ替え</h3>
+    <ul>
+        <li><strong>グループ化</strong>：タスクやリソースを条件でグループ化表示</li>
+        <li><strong>フィルター</strong>：条件に合致するタスク/リソースのみ表示（AutoFilter対応）</li>
+        <li><strong>並べ替え</strong>：任意の列で昇順/降順にソート</li>
+    </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="tracking">
+    <h2>8. トラッキング（進捗管理）</h2>
+
+    <h3>ベースラインの保存</h3>
+    <p>
+        プロジェクト計画を確定したら、ベースライン（計画スナップショット）を保存します。
+        <strong>プロジェクト</strong> → <strong>ベースライン</strong> → <strong>ベースラインの設定</strong>
+    </p>
+    <div class="tip">
+        microProjectは最大11個のベースライン（Baseline〜Baseline10）をサポートしています。
+        進捗報告ごとにベースラインを保存して、計画変更を追跡できます。
+    </div>
+
+    <h3>実績の入力</h3>
+    <p>
+        <strong>プロジェクト</strong> → <strong>タスクの更新</strong> で、タスクの実績情報を一括入力します。
+        実績開始日、実績完了日、%完了、実績工数などを入力できます。
+    </p>
+
+    <h3>ステータス日</h3>
+    <p>
+        ステータス日を設定すると、その日までの実績が反映されます。
+        <strong>プロジェクト</strong> → <strong>ステータス日</strong> で設定します。
+    </p>
+
+    <h3>トラッキングガント</h3>
+    <p>
+        <strong>表示</strong> → <strong>トラッキングガント</strong> で、ベースラインバーと実績バーを比較表示します。
+        計画通りに進んでいるか、遅れているかが一目でわかります。
+    </p>
+
+    <h3>バリアンス</h3>
+    <ul>
+        <li><strong>スケジュールバリアンス</strong>：計画と実績の日付差分</li>
+        <li><strong>コストバリアンス</strong>：計画コストと実績コストの差分</li>
+    </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="cost">
+    <h2>9. コスト管理</h2>
+
+    <h3>コストフィールド</h3>
+    <table>
+        <tr><th>フィールド</th><th>説明</th></tr>
+        <tr><td>コスト</td><td>総コスト（工数 × レート）</td></tr>
+        <tr><td>実績コスト</td><td>完了済み作業のコスト</td></tr>
+        <tr><td>残コスト</td><td>未完了作業のコスト</td></tr>
+        <tr><td>ベースラインコスト</td><td>ベースライン保存時のコスト</td></tr>
+        <tr><td>固定コスト</td><td>リソースに依存しない固定コスト</td></tr>
+    </table>
+
+    <h3>挣得値分析（EVM）</h3>
+    <p>プロジェクトのコスト・スケジュール効率を定量的に評価します。</p>
+    <table>
+        <tr><th>指標</th><th>説明</th></tr>
+        <tr><td>BCWS（PV）</td><td>計画工数のコスト</td></tr>
+        <tr><td>BCWP（EV）</td><td>実績工数のコスト</td></tr>
+        <tr><td>ACWP（AC）</td><td>実績コスト</td></tr>
+        <tr><td>CPI</td><td>コスト効率指数（EV/AC）。1.0以上が良好</td></tr>
+        <tr><td>SPI</td><td>スケジュール効率指数（EV/PV）。1.0以上が良好</td></tr>
+        <tr><td>EAC</td><td>完成時予想コスト</td></tr>
+        <tr><td>VAC</td><td>コストバリアンス予測</td></tr>
+        <tr><td>TCPI</td><td>残コスト効率指数</td></tr>
+    </table>
+    <div class="tip">
+        ガントチャートのリボンでトラフィックライト（赤/黄/绿）でCPI・SPIの状態を確認できます。
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="report">
+    <h2>10. レポート</h2>
+
+    <h3>カスタムレポート</h3>
+    <p>
+        <strong>表示</strong> → <strong>カスタムレポート</strong> で、表示するフィールドや条件を自由に定義したレポートを作成できます。
+    </p>
+
+    <h3>チャート</h3>
+    <p>JFreeChartベースの各種チャートを表示できます。</p>
+    <ul>
+        <li><strong>ヒストグラム</strong>：リソースの使用量をグラフで表示</li>
+        <li><strong>カスタムチャート</strong>：任意のフィールドのグラフを作成</li>
+    </ul>
+
+    <h3>印刷・PDF出力</h3>
+    <ul>
+        <li><kbd>Ctrl</kbd>+<kbd>P</kbd>：印刷ダイアログを表示</li>
+        <li>印刷プレビューからPDFにエクスポート可能</li>
+        <li>ページ設定で余紙、ヘッダー/フッター、縮尺を調整</li>
+    </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="import-export">
+    <h2>11. インポート/エクスポート</h2>
+
+    <h3>対応フォーマット</h3>
+    <table>
+        <tr><th>操作</th><th>フォーマット</th><th>メニュー</th></tr>
+        <tr><td>インポート</td><td>MS Project (.mpp)</td><td>ファイル → 開く</td></tr>
+        <tr><td>インポート</td><td>MS Project XML (.xml)</td><td>ファイル → 開く</td></tr>
+        <tr><td>インポート</td><td>Excel (.xlsx)</td><td>ファイル → 開く</td></tr>
+        <tr><td>インポート</td><td>Planner (.planner)</td><td>ファイル → 開く</td></tr>
+        <tr><td>エクスポート</td><td>MS Project (.mpp)</td><td>ファイル → 名前を付けて保存</td></tr>
+        <tr><td>エクスポート</td><td>MS Project XML (.xml)</td><td>ファイル → 名前を付けて保存</td></tr>
+        <tr><td>エクスポート</td><td>Excel (.xlsx)</td><td>ファイル → 名前を付けて保存</td></tr>
+        <tr><td>エクスポート</td><td>PDF (.pdf)</td><td>ファイル → 名前を付けて保存 / 印刷プレビューからPDF</td></tr>
+        <tr><td>エクスポート</td><td>CSV (.csv)</td><td>ファイル → 名前を付けて保存</td></tr>
+    </table>
+
+    <div class="tip">
+        MS Projectファイル(.mpp)との相互互換性が最も高いです。リソース、依存関係、カレンダー、
+        ベースラインなど、ほぼ全データが保持されます。
+    </div>
+
+    <h3>CSVエクスポート</h3>
+    <p>
+        Apache Commons CSV を使用した高品質なCSV出力に対応しています。
+        カスタムレポートやタスクリストをCSVにエクスポートできます。
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="undo-redo">
+    <h2>12. 元に戻す・やり直し</h2>
+    <table>
+        <tr><th>操作</th><th>キーボード</th><th>リボン</th></tr>
+        <tr><td>元に戻す</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>ホーム → 元に戻す</td></tr>
+        <tr><td>やり直し</td><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>ホーム → やり直し</td></tr>
+    </table>
+    <p>
+        microProjectは操作履歴を保持し、多くの操作を元に戻すことができます。
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="shortcuts">
+    <h2>13. キーボードショートカット</h2>
+    <p>MS Project互換のキーボードショートカットをサポートしています。</p>
+
+    <h3>ファイル操作</h3>
+    <table>
+        <tr><th>ショートカット</th><th>操作</th></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>新規プロジェクト</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>ファイルを開く</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>上書き保存</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>印刷</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>元に戻す</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>やり直し</td></tr>
+    </table>
+
+    <h3>編集操作</h3>
+    <table>
+        <tr><th>ショートカット</th><th>操作</th></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>切り取り</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>コピー</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>貼り付け</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>下にコピー（Fill Down）</td></tr>
+        <tr><td><kbd>Delete</kbd></td><td>削除</td></tr>
+        <tr><td><kbd>Insert</kbd></td><td>新しいタスクを挿入</td></tr>
+        <tr><td><kbd>F2</kbd></td><td>セルを編集</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>検索</td></tr>
+        <tr><td><kbd>F5</kbd></td><td>移動（Go To）</td></tr>
+    </table>
+
+    <h3>アウトライン操作</h3>
+    <table>
+        <tr><th>ショートカット</th><th>操作</th></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>→</kbd></td><td>インデント（子にする）</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>←</kbd></td><td>アウトデント（親にする）</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd></td><td>タスクを上に移動</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↓</kbd></td><td>タスクを下に移動</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>-</kbd></td><td>サブタスクを隠す</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+=</td><td>サブタスクを表示</td></tr>
+    </table>
+
+    <h3>選択操作</h3>
+    <table>
+        <tr><th>ショートカット</th><th>操作</th></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>行を選択</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>Space</kbd></td><td>列を選択</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd></td><td>シート全体を選択</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>選択行を削除</td></tr>
+    </table>
+
+    <h3>リンク操作</h3>
+    <table>
+        <tr><th>ショートカット</th><th>操作</th></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>F2</kbd></td><td>タスクをリンク</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F2</kbd></td><td>タスクのリンク解除</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>F2</kbd></td><td>タスク/リソース情報</td></tr>
+    </table>
+
+    <h3>ガントチャート</h3>
+    <table>
+        <tr><th>ショートカット</th><th>操作</th></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>←</kbd>/<kbd>→</kbd></td><td>ガントチャートをズーム</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>ホイール</kbd></td><td>ガントチャートをズーム（カーソル位置基準）</td></tr>
+    </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="tips">
+    <h2>14. 便利なヒント</h2>
+
+    <h3>ステータスバー</h3>
+    <p>
+        画面下部のステータスバーには、現在のスケジュールモード（自動/手動）、
+        選択中のセル情報、計算状態などが表示されます。
+    </p>
+
+    <h3>カラムのカスタマイズ</h3>
+    <ul>
+        <li>任意の列を右クリック → <strong>列の挿入</strong> で追加フィールドを表示</li>
+        <li>列ヘッダーをドラッグして列の順序を変更</li>
+        <li>列ヘッダーを右クリック → <strong>列の非表示</strong> で非表示に</li>
+    </ul>
+
+    <h3>フィルターとオートフィルター</h3>
+    <p>
+        列ヘッダーのオートフィルター機能を使用して、すばやくデータを絞り込みできます。
+        ドロップダウンから条件を選択するだけでフィルタリングできます。
+    </p>
+
+    <h3>検索と置換</h3>
+    <ul>
+        <li><kbd>Ctrl</kbd>+<kbd>F</kbd>：検索ダイアログを表示</li>
+        <li><kbd>Shift</kbd>+<kbd>F5</kbd> / <kbd>F3</kbd>：次を検索</li>
+        <li>大文字/小文字の区別、部分一致に対応</li>
+    </ul>
+
+    <h3>タスク情報ダイアログ</h3>
+    <p>
+        タスクをダブルクリックすると、詳細なタスク情報を編集できるダイアログが表示されます。
+        通常、割り当て、リソース、 predecessors、制約、コストなどを一箇所で管理できます。
+    </p>
+
+    <h3>テンプレート</h3>
+    <p>
+        よく使うプロジェクト構造をテンプレートとして保存・再利用できます。
+        プロジェクトの大部分を定型化することで、新規作成時の作業を効率化します。
+    </p>
+
+    <h3>ローカルコラボレーション</h3>
+    <p>
+        microProjectはローカルネットワーク上のプロジェクトファイル共有に対応しています。
+        複数のチームメンバーが同じプロジェクトファイルを同時に開いて作業できます。
+    </p>
+
+    <h3>テーマと外観</h3>
+    <p>
+        <strong>表示</strong> → <strong>テーマ</strong> で、アプリケーションの外観（Look and Feel）を変更できます。
+        FlatLaf テーマにより、モダンなUI体験が可能です。
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="troubleshooting">
+    <h2>15. トラブルシューティング</h2>
+
+    <h3>ファイルが開けない</h3>
+    <ul>
+        <li>MS Projectファイル(.mpp)の場合、バージョンによっては互換性がない場合があります。XML形式でのやり取りを試してください。</li>
+        <li>ファイルが破損している可能性があります。バックアップから復元してください。</li>
+    </ul>
+
+    <h3>スケジュールが正しく計算されない</h3>
+    <ul>
+        <li><kbd>Ctrl</kbd>+<kbd>R</kbd> でスケジュールを再計算してください。</li>
+        <li>制約や依存関係に矛盾がないか確認してください。</li>
+        <li>カレンダーの稼働時間設定を確認してください。</li>
+    </ul>
+
+    <h3>パフォーマンスが遅い</h3>
+    <ul>
+        <li>非常に大きなプロジェクト（数千タスク以上）では、表示をフィルタリングして表示负荷を軽減してください。</li>
+        <li>不要なベースラインは削除を検討してください。</li>
+    </ul>
+
+    <h3>印刷が正しく出力されない</h3>
+    <ul>
+        <li>印刷プレビューで事前に確認してください。</li>
+        <li>ページ設定で縮尺や余紙を調整してください。</li>
+        <li>PDF出力を試してください。</li>
+    </ul>
+
+    <h3>メモリ不足エラー</h3>
+    <div class="warn">
+        非常に大きなプロジェクトを開く場合、JVMのメモリが不足する可能性があります。
+        起動オプションでメモリを増やすことができます: <code>-Xmx2g</code>
+    </div>
+</section>
+
+</div>
+
+<footer>
+    <p>microProject ユーザーズガイド | バージョン 0.0.23</p>
+    <p>© 2012-2026 ProjectLibre, Inc. / 2026 microProject | MIT License</p>
+    <p><a href="https://tetsuji16.github.io/ProjectLibre/">GitHub</a> | <a href="https://github.com/tetsuji16/ProjectLibre/issues">お問い合わせ</a></p>
+</footer>
+
+</body>
+</html>
