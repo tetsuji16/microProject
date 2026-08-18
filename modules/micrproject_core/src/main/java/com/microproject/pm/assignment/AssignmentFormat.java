@@ -122,7 +122,7 @@ public class AssignmentFormat extends AssociationFormat {
 //			if (percentNumber == null)
 //				throw new ParseException(getErrorMessage(string), pos.getIndex());
 //			percent = percentNumber.doubleValue();
-		} else if (resource.isMaterial()) {
+		} else if (resource.isMaterial() || resource.isCost()) {
 			rate = new Rate(1,TimeUnit.NON_TEMPORAL);
 		}
 		Assignment ass = Assignment.getInstance((Task) (parameters.isLeftAssociation() ? parameters.getThisObject() : found),

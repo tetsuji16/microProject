@@ -37,6 +37,7 @@ public class ResourceType {
 	public static final int LOCATION = 2;
 	public static final int MACHINE = 3;
 	public static final int OTHER = 4;
+	public static final int COST = 5;
 
 	private static BidiMap RESOURCE_TYPE_MAP = new DualHashBidiMap();
 	static {
@@ -44,6 +45,7 @@ public class ResourceType {
 		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Material"), Integer.valueOf(MATERIAL));
 		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Location"),  Integer.valueOf(LOCATION));
 		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Machine"),  Integer.valueOf(MACHINE));
+		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Cost"), Integer.valueOf(COST));
 		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Other"), Integer.valueOf(OTHER));
 	}
 	

@@ -52,6 +52,7 @@ public interface ResourceSpecificFields  {
 	void setInactive(boolean inactive);
 	boolean isWork();
 	boolean isMaterial();
+	boolean isCost();
 	boolean isMe();
 	long getExternalId();
 	void setExternalId(long externalId);
