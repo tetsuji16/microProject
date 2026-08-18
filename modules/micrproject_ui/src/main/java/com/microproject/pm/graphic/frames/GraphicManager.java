@@ -110,7 +110,7 @@ import com.microproject.application.RecentProjectStore;
 import com.microproject.collaboration.CollaborationMetadataStore;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.ProjectMergeService;
-import com.microproject.contrib.ClassLoaderUtils;
+import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.BaselineDialog;

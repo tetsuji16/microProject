@@ -1686,7 +1686,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 	// day-of-week labels when getLabel() runs concurrently (EDT vs import/export
 	// threads). Use a per-thread instance instead (issue #158).
 	private static final ThreadLocal<SimpleDateFormat> dayOfWeekFormat = ThreadLocal.withInitial(
-			() -> new SimpleDateFormat("E"));
+			() -> new SimpleDateFormat("E", java.util.Locale.getDefault()));
 	public String getLabel() {
 		if (specialFieldContext == null)
 			return getName();

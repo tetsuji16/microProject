@@ -30,6 +30,7 @@ package com.microproject.pm.graphic.chart;
 
 import java.awt.Color;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.NumberAxis;
@@ -131,52 +132,60 @@ public class ChartHelper implements TimeDistributedConstants {
 		plot.setInsets(new RectangleInsets(0, 0, BOTTOM_INSET, 0));
 	}
 
-	private static HashMap map = null;
+	private static volatile Map<Object, Color> map;
 
-	private static HashMap getMap() {
-		if (map == null) {
-			map = new HashMap();
-			map.put(PERCENT_ALLOC, Colors.RED);
-			map.put(OVERALLOCATED, Colors.RED);
-			if (!Environment.getStandAlone()) map.put(OTHER_PROJECTS, Colors.GRAY);
-			map.put(AVAILABILITY, Colors.BLACK);
-			map.put(SELECTED, Colors.BLUE);
-			map.put(THIS_PROJECT, Colors.GREEN);
-			map.put(WORK, Colors.RED);
-			map.put(ACTUAL_WORK, Colors.BROWN);
-			map.put(REMAINING_WORK, Colors.PURPLE);
-			map.put(BASELINE_WORK, Colors.DARK_SLATE_GRAY);
-			map.put(COST, Colors.RED);
-			map.put(ACTUAL_COST, Colors.BROWN);
-			map.put(FIXED_COST, Colors.CORAL);
-			map.put(ACTUAL_FIXED_COST, Colors.BURLY_WOOD);
-			map.put(REMAINING_COST, Colors.PURPLE);
-			map.put(BASELINE_COST, Colors.DARK_SLATE_GRAY);
-			map.put(ACWP, Colors.RED);
-			map.put(BCWP, Colors.OLIVE_DRAB);
-			map.put(BCWS, Colors.GOLD);
-			map.put(BASELINE1_WORK, Colors.MAGENTA);
-			map.put(BASELINE2_WORK, Colors.KHAKI);
-			map.put(BASELINE3_WORK, Colors.TAN);
-			map.put(BASELINE4_WORK, Colors.NAVY);
-			map.put(BASELINE5_WORK, Colors.TURQUOISE);
-			map.put(BASELINE6_WORK, Colors.VIOLET);
-			map.put(BASELINE7_WORK, Colors.MAROON);
-			map.put(BASELINE8_WORK, Colors.SALMON);
-			map.put(BASELINE9_WORK, Colors.ORANGE);
-			map.put(BASELINE10_WORK, Colors.CYAN);
-			map.put(BASELINE1_COST, Colors.MAGENTA);
-			map.put(BASELINE2_COST, Colors.KHAKI);
-			map.put(BASELINE3_COST, Colors.TAN);
-			map.put(BASELINE4_COST, Colors.NAVY);
-			map.put(BASELINE5_COST, Colors.TURQUOISE);
-			map.put(BASELINE6_COST, Colors.VIOLET);
-			map.put(BASELINE7_COST, Colors.MAROON);
-			map.put(BASELINE8_COST, Colors.SALMON);
-			map.put(BASELINE9_COST, Colors.ORANGE);
-			map.put(BASELINE10_COST, Colors.CYAN);
+	private static Map<Object, Color> getMap() {
+		Map<Object, Color> result = map;
+		if (result == null) {
+			synchronized (ChartHelper.class) {
+				result = map;
+				if (result == null) {
+					Map<Object, Color> m = new HashMap<>();
+					m.put(PERCENT_ALLOC, Colors.RED);
+					m.put(OVERALLOCATED, Colors.RED);
+					if (!Environment.getStandAlone()) m.put(OTHER_PROJECTS, Colors.GRAY);
+					m.put(AVAILABILITY, Colors.BLACK);
+					m.put(SELECTED, Colors.BLUE);
+					m.put(THIS_PROJECT, Colors.GREEN);
+					m.put(WORK, Colors.RED);
+					m.put(ACTUAL_WORK, Colors.BROWN);
+					m.put(REMAINING_WORK, Colors.PURPLE);
+					m.put(BASELINE_WORK, Colors.DARK_SLATE_GRAY);
+					m.put(COST, Colors.RED);
+					m.put(ACTUAL_COST, Colors.BROWN);
+					m.put(FIXED_COST, Colors.CORAL);
+					m.put(ACTUAL_FIXED_COST, Colors.BURLY_WOOD);
+					m.put(REMAINING_COST, Colors.PURPLE);
+					m.put(BASELINE_COST, Colors.DARK_SLATE_GRAY);
+					m.put(ACWP, Colors.RED);
+					m.put(BCWP, Colors.OLIVE_DRAB);
+					m.put(BCWS, Colors.GOLD);
+					m.put(BASELINE1_WORK, Colors.MAGENTA);
+					m.put(BASELINE2_WORK, Colors.KHAKI);
+					m.put(BASELINE3_WORK, Colors.TAN);
+					m.put(BASELINE4_WORK, Colors.NAVY);
+					m.put(BASELINE5_WORK, Colors.TURQUOISE);
+					m.put(BASELINE6_WORK, Colors.VIOLET);
+					m.put(BASELINE7_WORK, Colors.MAROON);
+					m.put(BASELINE8_WORK, Colors.SALMON);
+					m.put(BASELINE9_WORK, Colors.ORANGE);
+					m.put(BASELINE10_WORK, Colors.CYAN);
+					m.put(BASELINE1_COST, Colors.MAGENTA);
+					m.put(BASELINE2_COST, Colors.KHAKI);
+					m.put(BASELINE3_COST, Colors.TAN);
+					m.put(BASELINE4_COST, Colors.NAVY);
+					m.put(BASELINE5_COST, Colors.TURQUOISE);
+					m.put(BASELINE6_COST, Colors.VIOLET);
+					m.put(BASELINE7_COST, Colors.MAROON);
+					m.put(BASELINE8_COST, Colors.SALMON);
+					m.put(BASELINE9_COST, Colors.ORANGE);
+					m.put(BASELINE10_COST, Colors.CYAN);
+					result = Map.copyOf(m);
+					map = result;
+				}
+			}
 		}
-		return map;
+		return result;
 	}
 
 	public static Color getColorForField(Object field) {

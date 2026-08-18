@@ -62,7 +62,7 @@ import javax.swing.WindowConstants;
 
 import com.microproject.menu.resource.MissingListenerException;
 
-import com.microproject.contrib.ClassLoaderUtils;
+import com.microproject.util.ClassLoaderUtils;
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuActionsMap;

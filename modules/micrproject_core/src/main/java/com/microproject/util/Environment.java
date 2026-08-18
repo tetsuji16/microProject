@@ -25,6 +25,7 @@
 package com.microproject.util;
 
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Locale;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
@@ -33,7 +34,7 @@ import java.util.logging.Logger;
 import javax.swing.UIManager;
 
 import com.microproject.company.ApplicationUser;
-import com.microproject.contrib.ClassLoaderUtils;
+import com.microproject.util.ClassLoaderUtils;
 import com.microproject.session.SessionFactory;
 
 public class Environment {
@@ -172,7 +173,7 @@ public class Environment {
 	public static final int GANTT_ANNOTATIONS_FONT=1;
 	public static final int NETWORK_FONT=2;
 
-	private static HashMap<Integer, String> fonts=new HashMap<Integer, String>();
+	private static final ConcurrentHashMap<Integer, String> fonts=new ConcurrentHashMap<>();
 	static{
 		fonts.put(DEFAULT_FONT, "Dialog PLAIN 12");
 		fonts.put(GANTT_ANNOTATIONS_FONT,"Dialog BOLD 11");

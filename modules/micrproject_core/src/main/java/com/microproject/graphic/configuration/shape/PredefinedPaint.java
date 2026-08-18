@@ -30,6 +30,7 @@ import java.awt.Rectangle;
 import java.awt.TexturePaint;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -117,17 +118,25 @@ public class PredefinedPaint extends TexturePaint {
 	  {"DOT_LINE2",DOT_LINE2},
 	  {"DOT_LINE",DOT_LINE}
 	};
-	private static HashMap shapePaintMap = null;
+	private static volatile Map<String, PredefinedPaint> shapePaintMap;
 	
-	public static HashMap getShapePaints() {
-		if (shapePaintMap == null) {
-			shapePaintMap = new HashMap();
-			for (int i = 0; i < data.length; i++) {
-				Object row[] = data[i];
-				shapePaintMap.put(row[0], row[1]);
+	public static Map<String, PredefinedPaint> getShapePaints() {
+		Map<String, PredefinedPaint> result = shapePaintMap;
+		if (result == null) {
+			synchronized (PredefinedPaint.class) {
+				result = shapePaintMap;
+				if (result == null) {
+					Map<String, PredefinedPaint> m = new HashMap<>();
+					for (int i = 0; i < data.length; i++) {
+						Object row[] = data[i];
+						m.put((String) row[0], (PredefinedPaint) row[1]);
+					}
+					result = Map.copyOf(m);
+					shapePaintMap = result;
+				}
 			}
 		}
-		return shapePaintMap;
+		return result;
 	}
 
 	public static PredefinedPaint find(String key) {

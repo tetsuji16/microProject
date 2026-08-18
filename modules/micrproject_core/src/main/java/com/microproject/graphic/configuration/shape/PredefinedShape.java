@@ -26,6 +26,7 @@ package com.microproject.graphic.configuration.shape;
 
 import java.awt.geom.GeneralPath;
 import java.util.HashMap;
+import java.util.Map;
 
 import com.microproject.util.ArrayUtils;
 
@@ -102,8 +103,8 @@ public class PredefinedShape {
 		return (int) Math.round(d);
 	}
 
-	private static void add(PredefinedShape predefinedShape) {
-		predefinedShapeMap.put(predefinedShape.name, predefinedShape);
+	private static void add(Map<String, PredefinedShape> map, PredefinedShape predefinedShape) {
+		map.put(predefinedShape.name, predefinedShape);
 	}
 
 	private static final double rectPoints[][] = new double[][] { { 1, .5 }, { 0, .5 }, { 0, -.5 }, { 1, -.5 }};
@@ -161,44 +162,51 @@ public class PredefinedShape {
 	public static final PredefinedShape[] END_LIST = { SQUARE, DIAMOND, PENTAGON_UP, PENTAGON_DOWN, TRIANGLE_UP, TRIANGLE_DOWN, TRIANGLE_RIGHT,
 			TRIANGLE_LEFT, ARROW_UP, ARROW_DOWN, LINK_ARROW1 };
 
-	public static final PredefinedShape[] NETWORK_LIST = { FULL_HEIGHT, HEXAGON, PARALLELOGRAM };
+	public static final PredefinedShape[] NETWORK_LIST = { FULL_HEIGHT, HEXAGON, PARALLELOGRAM };	private static Map<String, PredefinedShape> initialize() {
+		Map<String, PredefinedShape> m = new HashMap<>();
 
-	private static void initialize() {
+		add(m, FULL_HEIGHT);
+		add(m, HALF_HEIGHT_TOP);
+		add(m, HALF_HEIGHT_BOTTOM);
+		add(m, HALF_HEIGHT_CENTER);
+		add(m, QUARTER_HEIGHT_CENTER);
 
-		add(FULL_HEIGHT);
-		add(HALF_HEIGHT_TOP);
-		add(HALF_HEIGHT_BOTTOM);
-		add(HALF_HEIGHT_CENTER);
-		add(QUARTER_HEIGHT_CENTER);
-
-		add(SQUARE);
-		add(DIAMOND);
-		add(PENTAGON_UP);
-		add(PENTAGON_DOWN);
-		add(TRIANGLE_UP);
-		add(TRIANGLE_DOWN);
-		add(TRIANGLE_RIGHT);
-		add(TRIANGLE_LEFT);
-		add(ARROW_UP);
-		add(ARROW_DOWN);
+		add(m, SQUARE);
+		add(m, DIAMOND);
+		add(m, PENTAGON_UP);
+		add(m, PENTAGON_DOWN);
+		add(m, TRIANGLE_UP);
+		add(m, TRIANGLE_DOWN);
+		add(m, TRIANGLE_RIGHT);
+		add(m, TRIANGLE_LEFT);
+		add(m, ARROW_UP);
+		add(m, ARROW_DOWN);
 
 		// pert shapes
-		add(HEXAGON);
-		add(PARALLELOGRAM);
+		add(m, HEXAGON);
+		add(m, PARALLELOGRAM);
 
 		// links
-		add(LINK_ARROW1);
+		add(m, LINK_ARROW1);
 
+		return m;
 	}
 
-	private static HashMap predefinedShapeMap = null;
+	private static volatile Map<String, PredefinedShape> predefinedShapeMap;
 
-	private static HashMap getPredefinedShapeMap() {
-		if (predefinedShapeMap == null) {
-			predefinedShapeMap = new HashMap();
-			initialize();
+
+	private static Map<String, PredefinedShape> getPredefinedShapeMap() {
+		Map<String, PredefinedShape> result = predefinedShapeMap;
+		if (result == null) {
+			synchronized (PredefinedShape.class) {
+				result = predefinedShapeMap;
+				if (result == null) {
+					result = Map.copyOf(initialize());
+					predefinedShapeMap = result;
+				}
+			}
 		}
-		return predefinedShapeMap;
+		return result;
 	}
 
 	public static PredefinedShape find(String key) {

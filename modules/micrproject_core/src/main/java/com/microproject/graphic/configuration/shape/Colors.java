@@ -27,6 +27,7 @@ package com.microproject.graphic.configuration.shape;
 
 import java.awt.Color;
 import java.util.HashMap;
+import java.util.Map;
 
 
 /**
@@ -343,17 +344,25 @@ public class Colors {
 	  {"MONDAY_GROUP_B_BG",MONDAY_GROUP_B_BG}
  };
 
-	private static HashMap colorMap = null;
+	private static volatile Map<String, Color> colorMap;
 
-	public static HashMap getColors() {
-		if (colorMap == null) {
-			colorMap = new HashMap();
-			for (int i = 0; i < data.length; i++) {
-				Object row[] = data[i];
-				colorMap.put(row[0], row[1]);
+	public static Map<String, Color> getColors() {
+		Map<String, Color> result = colorMap;
+		if (result == null) {
+			synchronized (Colors.class) {
+				result = colorMap;
+				if (result == null) {
+					Map<String, Color> m = new HashMap<>();
+					for (int i = 0; i < data.length; i++) {
+						Object row[] = data[i];
+						m.put((String) row[0], (Color) row[1]);
+					}
+					result = Map.copyOf(m);
+					colorMap = result;
+				}
 			}
 		}
-		return colorMap;
+		return result;
 	}
 
 	public static Color findColor(String key) {

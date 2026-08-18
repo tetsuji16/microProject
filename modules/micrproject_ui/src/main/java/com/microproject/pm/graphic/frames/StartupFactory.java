@@ -44,7 +44,7 @@ import com.microproject.configuration.Configuration;
 import com.microproject.configuration.ConfigurationReader;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.Settings;
-import com.microproject.contrib.ClassLoaderUtils;
+import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.LoginDialog;
 import com.microproject.dialog.LoginForm;
 import com.microproject.pm.graphic.laf.LafManagerImpl;

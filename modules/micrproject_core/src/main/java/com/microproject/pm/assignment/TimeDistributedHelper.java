@@ -25,6 +25,7 @@
 package com.microproject.pm.assignment;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import com.microproject.configuration.Configuration;
@@ -33,38 +34,40 @@ import com.microproject.pm.snapshot.Snapshottable;
 
 public class TimeDistributedHelper {
 	private static final Logger logger = Logger.getLogger(TimeDistributedHelper.class.getName());
-	private static HashMap baselineMapper = new HashMap();
+	private static final Map<Object, Object> baselineMapper;
 	static {
-		baselineMapper.put(HasTimeDistributedData.WORK, Snapshottable.CURRENT);
-		baselineMapper.put(HasTimeDistributedData.ACTUAL_WORK, Snapshottable.CURRENT);
-		baselineMapper.put(HasTimeDistributedData.REMAINING_WORK, Snapshottable.CURRENT);
-		baselineMapper.put(HasTimeDistributedData.BASELINE_WORK, Snapshottable.BASELINE);
-		baselineMapper.put(HasTimeDistributedData.BASELINE1_WORK, Snapshottable.BASELINE_1);
-		baselineMapper.put(HasTimeDistributedData.BASELINE2_WORK, Snapshottable.BASELINE_2);
-		baselineMapper.put(HasTimeDistributedData.BASELINE3_WORK, Snapshottable.BASELINE_3);
-		baselineMapper.put(HasTimeDistributedData.BASELINE4_WORK, Snapshottable.BASELINE_4);
-		baselineMapper.put(HasTimeDistributedData.BASELINE5_WORK, Snapshottable.BASELINE_5);
-		baselineMapper.put(HasTimeDistributedData.BASELINE6_WORK, Snapshottable.BASELINE_6);
-		baselineMapper.put(HasTimeDistributedData.BASELINE7_WORK, Snapshottable.BASELINE_7);
-		baselineMapper.put(HasTimeDistributedData.BASELINE8_WORK, Snapshottable.BASELINE_8);
-		baselineMapper.put(HasTimeDistributedData.BASELINE9_WORK, Snapshottable.BASELINE_9);
-		baselineMapper.put(HasTimeDistributedData.BASELINE10_WORK, Snapshottable.BASELINE_10);
+		Map<Object, Object> m = new HashMap<>();
+		m.put(HasTimeDistributedData.WORK, Snapshottable.CURRENT);
+		m.put(HasTimeDistributedData.ACTUAL_WORK, Snapshottable.CURRENT);
+		m.put(HasTimeDistributedData.REMAINING_WORK, Snapshottable.CURRENT);
+		m.put(HasTimeDistributedData.BASELINE_WORK, Snapshottable.BASELINE);
+		m.put(HasTimeDistributedData.BASELINE1_WORK, Snapshottable.BASELINE_1);
+		m.put(HasTimeDistributedData.BASELINE2_WORK, Snapshottable.BASELINE_2);
+		m.put(HasTimeDistributedData.BASELINE3_WORK, Snapshottable.BASELINE_3);
+		m.put(HasTimeDistributedData.BASELINE4_WORK, Snapshottable.BASELINE_4);
+		m.put(HasTimeDistributedData.BASELINE5_WORK, Snapshottable.BASELINE_5);
+		m.put(HasTimeDistributedData.BASELINE6_WORK, Snapshottable.BASELINE_6);
+		m.put(HasTimeDistributedData.BASELINE7_WORK, Snapshottable.BASELINE_7);
+		m.put(HasTimeDistributedData.BASELINE8_WORK, Snapshottable.BASELINE_8);
+		m.put(HasTimeDistributedData.BASELINE9_WORK, Snapshottable.BASELINE_9);
+		m.put(HasTimeDistributedData.BASELINE10_WORK, Snapshottable.BASELINE_10);
 
-		baselineMapper.put(HasTimeDistributedData.COST, Snapshottable.CURRENT);
-		baselineMapper.put(HasTimeDistributedData.ACTUAL_COST, Snapshottable.CURRENT);
-		baselineMapper.put(HasTimeDistributedData.REMAINING_COST, Snapshottable.CURRENT);
-		baselineMapper.put(HasTimeDistributedData.BASELINE_COST, Snapshottable.BASELINE);
-		baselineMapper.put(HasTimeDistributedData.BASELINE1_COST, Snapshottable.BASELINE_1);
-		baselineMapper.put(HasTimeDistributedData.BASELINE2_COST, Snapshottable.BASELINE_2);
-		baselineMapper.put(HasTimeDistributedData.BASELINE3_COST, Snapshottable.BASELINE_3);
-		baselineMapper.put(HasTimeDistributedData.BASELINE4_COST, Snapshottable.BASELINE_4);
-		baselineMapper.put(HasTimeDistributedData.BASELINE5_COST, Snapshottable.BASELINE_5);
-		baselineMapper.put(HasTimeDistributedData.BASELINE6_COST, Snapshottable.BASELINE_6);
-		baselineMapper.put(HasTimeDistributedData.BASELINE7_COST, Snapshottable.BASELINE_7);
-		baselineMapper.put(HasTimeDistributedData.BASELINE8_COST, Snapshottable.BASELINE_8);
-		baselineMapper.put(HasTimeDistributedData.BASELINE9_COST, Snapshottable.BASELINE_9);
-		baselineMapper.put(HasTimeDistributedData.BASELINE10_COST, Snapshottable.BASELINE_10);
+		m.put(HasTimeDistributedData.COST, Snapshottable.CURRENT);
+		m.put(HasTimeDistributedData.ACTUAL_COST, Snapshottable.CURRENT);
+		m.put(HasTimeDistributedData.REMAINING_COST, Snapshottable.CURRENT);
+		m.put(HasTimeDistributedData.BASELINE_COST, Snapshottable.BASELINE);
+		m.put(HasTimeDistributedData.BASELINE1_COST, Snapshottable.BASELINE_1);
+		m.put(HasTimeDistributedData.BASELINE2_COST, Snapshottable.BASELINE_2);
+		m.put(HasTimeDistributedData.BASELINE3_COST, Snapshottable.BASELINE_3);
+		m.put(HasTimeDistributedData.BASELINE4_COST, Snapshottable.BASELINE_4);
+		m.put(HasTimeDistributedData.BASELINE5_COST, Snapshottable.BASELINE_5);
+		m.put(HasTimeDistributedData.BASELINE6_COST, Snapshottable.BASELINE_6);
+		m.put(HasTimeDistributedData.BASELINE7_COST, Snapshottable.BASELINE_7);
+		m.put(HasTimeDistributedData.BASELINE8_COST, Snapshottable.BASELINE_8);
+		m.put(HasTimeDistributedData.BASELINE9_COST, Snapshottable.BASELINE_9);
+		m.put(HasTimeDistributedData.BASELINE10_COST, Snapshottable.BASELINE_10);
 
+		baselineMapper = Map.copyOf(m);
 	}
 	public static Object baselineForData(Object data) {
 		return baselineMapper.get(data);
