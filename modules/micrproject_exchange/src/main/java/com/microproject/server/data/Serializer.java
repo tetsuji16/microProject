@@ -723,6 +723,13 @@ public class Serializer {
     public Project deserializeProject(ProjectData projectData, final boolean subproject, final Session reindex, Map<Long, EnterpriseResourceData> enterpriseResources,Consumer<Object> loadResources,boolean updateDistribution) throws IOException, ClassNotFoundException {
     	DataFactoryUndoController undoController=new DataFactoryUndoController();
     	Project project=(Project)deserialize(projectData,reindex);
+    	// Issue #227: for a local document the project's uniqueId is part of its persistent
+    	// identity and is re-persisted into fieldValues["Field.uniqueId"]. Deserialize mints a
+    	// fresh LocalSession id (localSeed++) above, so reloading would change the id every time
+    	// and permanently grow the .pod. Restore the id stored in the file instead.
+    	if (projectData.isLocal() && projectData.getUniqueId() > 0) {
+    		project.setUniqueId(projectData.getUniqueId());
+    	}
     	project.setUndoController(undoController);
     	project.setMaster(projectData.isMaster()); //not necessary
     	project.setLocal(projectData.isLocal());
@@ -1177,6 +1184,19 @@ public class Serializer {
     		project.setForceNonIncrementalDistributions(true);
     	}
     	project.setVersion(Project.CURRENT_VERSION);
+
+    	// Issue #227 (root cause): the .pod persists `created` (and other identity
+    	// fields) into projectData.fieldValues["Field.created"], but the round-trip
+    	// never read it back. On load, every object's `created` was therefore
+    	// regenerated with `new Date()`, which changed the compressed bytes on every
+    	// save and permanently drifted (and grew) the file. Re-apply the persisted
+    	// fieldValues so `created` survives a load/save round-trip. Backward
+    	// compatible: files that lack "Field.created" simply keep the existing
+    	// (regenerated) value.
+    	Map<String, Object> pv = projectData.getFieldValues();
+    	if (pv != null) {
+    		FieldValues.setValuesFromFieldIds(pv, project);
+    	}
 
     	return project;
     }

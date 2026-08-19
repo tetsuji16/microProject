@@ -119,6 +119,11 @@ public class EnterpriseResource implements Resource {
 
 	transient HasAssignments hasAssignments = new HasAssignmentsImpl();
 	private transient HasKeyImpl hasKey;
+	/**
+	 * Issue #227: created timestamp persisted on the object (not the transient
+	 * hasKey) so it survives load/save round-trips. See com.microproject.pm.task.Task#created.
+	 */
+	protected Date created = new Date();
 	protected transient ResourcePool resourcePool;
 
 	protected String notes = "";
@@ -389,7 +394,7 @@ public class EnterpriseResource implements Resource {
 		return -1;
 	}
 	public Date getCreated() {
-		return hasKey.getCreated();
+		return created;
 	}
 	public long getId() {
 		return hasKey.getId();
@@ -407,7 +412,8 @@ public class EnterpriseResource implements Resource {
 	 * @param created
 	 */
 	public void setCreated(Date created) {
-		hasKey.setCreated(created);
+		this.created = created;
+		if (hasKey != null) hasKey.setCreated(created);
 	}
 	/**
 	 * @param id
@@ -827,6 +833,10 @@ public class EnterpriseResource implements Resource {
 		    availabilityTable=AvailabilityTable.deserialize(s);
 	    }else availabilityTable=new AvailabilityTable(null);
 	    version=DEFAULT_VERSION;
+	    // Issue #227: old .pod files deserialize `created` as null; keep the
+	    // previous regenerated behavior so they still load.
+	    if (created == null) created = new Date();
+	    if (hasKey != null) hasKey.setCreated(created);
 	}
 
 	public Object clone(){

@@ -252,6 +252,7 @@ public class DependencyService {
 		HasDependencies pred;
 		HasDependencies succ;
 		Object temp;
+		// Remove dependencies between any two selected tasks (pairwise).
 		for (int i = 0; i < tasks.size()-1; i++) {
 			temp = tasks.get(i);
 			if (!(temp instanceof HasDependencies))
@@ -268,6 +269,25 @@ public class DependencyService {
 				succ = (HasDependencies)temp;
 				removeAnyDependencies(pred,succ,eventSource);
 			}
+		}
+		// Issue #266: also remove every dependency incident to a selected task, even when
+		// the other endpoint is not selected. Without this, selecting a single task (or a
+		// task whose only links point to unselected tasks) removed nothing, so "Unlink" did
+		// nothing. Snapshot the incident dependencies first because remove() mutates the lists.
+		for (int i = 0; i < tasks.size(); i++) {
+			temp = tasks.get(i);
+			if (!(temp instanceof HasDependencies))
+				continue;
+			if (ClassUtils.isObjectReadOnly(temp))
+				continue;
+			HasDependencies task = (HasDependencies) temp;
+			java.util.List<Dependency> incident = new java.util.ArrayList<Dependency>();
+			for (java.util.Iterator<?> it = task.getPredecessorList().iterator(); it.hasNext(); )
+				incident.add((Dependency) it.next());
+			for (java.util.Iterator<?> it = task.getSuccessorList().iterator(); it.hasNext(); )
+				incident.add((Dependency) it.next());
+			for (Dependency d : incident)
+				remove(d, eventSource, true);
 		}
 	}
 	public void removeAnyDependencies(HasDependencies first, HasDependencies second, Object eventSource) {

@@ -128,6 +128,18 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected boolean markTaskAsMilestone = false;
 	protected transient CustomFieldsImpl customFields = new CustomFieldsImpl();
 	protected transient HasKeyImpl hasKey;
+	/**
+	 * Issue #227 root cause: created (and modified) timestamps were held only on the
+	 * transient {@code hasKey} and therefore regenerated with {@code new Date()} on
+	 * every load, permanently drifting (and inflating) saved .pod files. This field
+	 * is a real, non-transient part of the object so Java's default serialization
+	 * round-trips it. {@code hasKey} keeps a mirror copy for code that reads it via
+	 * the key; both stay in sync through {@link #setCreated(Date)}.
+	 * Backward compatible: files serialized before this field existed deserialize it
+	 * as null, and {@code readObject} falls back to {@code new Date()} (the old
+	 * behavior) so existing .pod files still load.
+	 */
+	protected Date created = new Date();
 	protected transient boolean external = false;
 	protected transient long projectId = 0;
 	double physicalPercentComplete = 0.0;
@@ -785,7 +797,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @return
 	 */
 	public Date getCreated() {
-		return hasKey.getCreated();
+		return created;
 	}
 	/**
 	 * @return
@@ -803,7 +815,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @param created
 	 */
 	public void setCreated(Date created) {
-		hasKey.setCreated(created);
+		this.created = created;
+		if (hasKey != null) hasKey.setCreated(created);
 	}
 
 	public String getPredecessors() {

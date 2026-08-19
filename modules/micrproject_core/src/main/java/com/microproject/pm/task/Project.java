@@ -203,6 +203,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient List<Task> repaired = null;
 	private transient Date creationDate,lastModificationDate;
 	private transient IdentityFacade identityFacade = new IdentityFacade();
+	/**
+	 * Issue #227: created timestamp persisted on the object (not the transient
+	 * identityFacade) so it survives load/save round-trips. See com.microproject.pm.task.Task#created.
+	 */
+	protected Date created = new Date();
 	private transient BaselineFacade baselineFacade = new BaselineFacade();
 	private transient SubprojectFacade subprojectFacade = new SubprojectFacade();
 	private transient ScheduleFacade scheduleFacade = new ScheduleFacade();
@@ -683,7 +688,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * @return
 	 */
 	public Date getCreated() {
-		return identityFacade.getCreated();
+		return created;
 	}
 	/**
 	 * @return
@@ -707,6 +712,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * @param created
 	 */
 	public void setCreated(Date created) {
+		this.created = created;
 		identityFacade.setCreated(created);
 	}
 	/**
@@ -1317,6 +1323,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	    taskOutlines=new OutlineCollectionImpl(Settings.numHierarchies(),this);
 	    barClosureInstance = new BarClosure();
 
+	    // Issue #227: old .pod files deserialize `created` as null; keep the
+	    // previous regenerated behavior so they still load.
+	    if (created == null) created = new Date();
+	    identityFacade.setCreated(created);
 
 	}
 	private void initializeFacades() {
