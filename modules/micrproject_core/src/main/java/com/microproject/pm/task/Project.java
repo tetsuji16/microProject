@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.EventListener;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -1892,7 +1893,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public final Map getExtraFields() {
 		if (extraFields == null)
-			extraFields = new HashMap();
+			// LinkedHashMap preserves insertion order for stable POD serialization (issue #227)
+			extraFields = new LinkedHashMap();
 		return extraFields;
 	}
 

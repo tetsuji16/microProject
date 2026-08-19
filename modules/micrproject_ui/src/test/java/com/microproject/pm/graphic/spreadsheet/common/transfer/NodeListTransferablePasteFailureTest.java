@@ -41,7 +41,12 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.io.StringReader;
+import javax.swing.JComponent;
+import javax.swing.InputMap;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
 
@@ -759,6 +764,32 @@ class NodeListTransferablePasteFailureTest {
 
 		public void setSchedulesFromSubprojectFieldValues() {
 		}
+	}
+
+	/**
+	 * Regression for issue #47: the SpreadSheet must NOT bind ctrl C/X/V on its own
+	 * WHEN_FOCUSED input map. Those keys are wired globally to ACTION_COPY/CUT/PASTE
+	 * on the document root-pane (WHEN_IN_FOCUSED_WINDOW) by GraphicManager.applyMicrosoftShortcuts.
+	 * If both layers answer ctrl+V the paste shortcut becomes non-deterministic
+	 * ("paste doesn't work well"). The real paste logic (NodeListTransferHandler.importData)
+	 * stays reachable through ACTION_PASTE, so only the duplicate keyboard bindings are removed.
+	 */
+	@Test
+	void spreadSheetDoesNotDoubleBindClipboardShortcuts() throws Exception {
+		Project project = createProject();
+		final SpreadSheet[] sheetRef = new SpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> sheetRef[0] = createSheet(project, "double-wire-regression"));
+		SpreadSheet sheet = sheetRef[0];
+		InputMap focused = sheet.getInputMap(JComponent.WHEN_FOCUSED);
+		assertNull(focused.get(KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK)),
+				"ctrl+V must not be bound on WHEN_FOCUSED (root-pane ACTION_PASTE owns it)");
+		assertNull(focused.get(KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK)),
+				"ctrl+C must not be bound on WHEN_FOCUSED (root-pane ACTION_COPY owns it)");
+		assertNull(focused.get(KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.CTRL_DOWN_MASK)),
+				"ctrl+X must not be bound on WHEN_FOCUSED (root-pane ACTION_CUT owns it)");
+		// The real paste logic (NodeListTransferHandler.importData) is still reachable via
+		// ACTION_PASTE on the root pane (wired by GraphicManager.applyMicrosoftShortcuts),
+		// so removing these duplicate bindings does not disable paste.
 	}
 
 	private static final class RejectingCollaborationSession extends CollaborationSession {

@@ -144,9 +144,24 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public SpreadSheet() {
 		super();
 		NodeListTransferHandler.registerWith(this);
+		// Issue #47: prevent the TransferHandler from also binding ctrl C/X/V on the
+		// component's WHEN_FOCUSED input map. Those keys are wired globally to
+		// ACTION_COPY/CUT/PASTE on the root-pane WHEN_IN_FOCUSED_WINDOW by
+		// GraphicManager.applyMicrosoftShortcuts. Leaving both layers bound makes
+		// ctrl+V non-deterministic ("paste doesn't work well"). The real paste logic
+		// (NodeListTransferHandler.importData) stays reachable via ACTION_PASTE, so we
+		// only remove the duplicate keyboard bindings here.
+		removeDuplicateClipboardKeyBindings(this);
 		installClipboardPasteBindings();
 		installTaskMoveBindings(this);
 
+	}
+
+	private static void removeDuplicateClipboardKeyBindings(JComponent c) {
+		InputMap focused = c.getInputMap(JComponent.WHEN_FOCUSED);
+		focused.remove(KeyStroke.getKeyStroke("ctrl V"));
+		focused.remove(KeyStroke.getKeyStroke("ctrl C"));
+		focused.remove(KeyStroke.getKeyStroke("ctrl X"));
 	}
 
 	public void installTaskMoveBindings(JComponent component) {
