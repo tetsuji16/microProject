@@ -232,6 +232,52 @@ public class PodRoundTripTest {
 		assertTrue("POD size is not stable on a no-op round-trip: round-1 size=" + bytesOne.length
 				+ ", round-2 size=" + bytesTwo.length,
 				bytesOne.length == bytesTwo.length);
+
+		// Issue #227 root cause assertions: the persistent identity of the project and
+		// its tasks must survive the round-trip. If `created` regenerated with a new
+		// Date() on load, or uniqueId re-minted, these would diverge.
+		assertEquals("project created must survive round-trip",
+				first.getCreated().getTime(), reloaded.getCreated().getTime());
+		assertEquals("project uniqueId must survive round-trip",
+				first.getUniqueId(), reloaded.getUniqueId());
+		Task firstTask = firstTask(first);
+		Task reloadedTask = firstTask(reloaded);
+		assertEquals("task created must survive round-trip",
+				firstTask.getCreated().getTime(), reloadedTask.getCreated().getTime());
+		assertEquals("task uniqueId must survive round-trip",
+				firstTask.getUniqueId(), reloadedTask.getUniqueId());
+	}
+
+	@Test
+	public void createdAndUniqueIdStableAcrossTwoRoundTrips() throws Exception {
+		// Double round-trip: load -> save -> load -> save -> load, asserting identities
+		// are identical at every step (no progressive drift).
+		File source = findSample("June_1_sample.pod");
+		Project p0 = load(source);
+		long p0Created = p0.getCreated().getTime();
+		long p0Uid = p0.getUniqueId();
+
+		File f1 = File.createTempFile("rt1", ".pod");
+		f1.deleteOnExit();
+		LocalFileImporter e1 = new LocalFileImporter();
+		e1.setFileName(f1.getAbsolutePath());
+		e1.setProject(p0);
+		e1.exportFile();
+
+		Project p1 = load(f1);
+		assertEquals("round-1 created", p0Created, p1.getCreated().getTime());
+		assertEquals("round-1 uid", p0Uid, p1.getUniqueId());
+
+		File f2 = File.createTempFile("rt2", ".pod");
+		f2.deleteOnExit();
+		LocalFileImporter e2 = new LocalFileImporter();
+		e2.setFileName(f2.getAbsolutePath());
+		e2.setProject(p1);
+		e2.exportFile();
+
+		Project p2 = load(f2);
+		assertEquals("round-2 created", p0Created, p2.getCreated().getTime());
+		assertEquals("round-2 uid", p0Uid, p2.getUniqueId());
 	}
 
 	private static byte[] readAll(File file) throws Exception {

@@ -1185,21 +1185,8 @@ public class Serializer {
     	}
     	project.setVersion(Project.CURRENT_VERSION);
 
-    	// Issue #227 (root cause): the .pod persists `created` (and other identity
-    	// fields) into projectData.fieldValues["Field.created"], but the round-trip
-    	// never read it back. On load, every object's `created` was therefore
-    	// regenerated with `new Date()`, which changed the compressed bytes on every
-    	// save and permanently drifted (and grew) the file. Re-apply the persisted
-    	// fieldValues so `created` survives a load/save round-trip. Backward
-    	// compatible: files that lack "Field.created" simply keep the existing
-    	// (regenerated) value.
-    	Map<String, Object> pv = projectData.getFieldValues();
-    	if (pv != null) {
-    		FieldValues.setValuesFromFieldIds(pv, project);
-    	}
-
     	return project;
-    }
+    	}
 
 
     public static void connectDependency(Dependency dependency,Task predecessor,Task successor){
