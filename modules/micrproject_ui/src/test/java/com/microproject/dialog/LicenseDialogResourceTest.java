@@ -73,7 +73,7 @@ class LicenseDialogResourceTest {
 
 	private void assertInstallerLicenseCopyIsReadable() throws Exception {
 		String license = readResource("license/license.txt");
-		assertTrue(license.startsWith("PROJECTLIBRE LICENSE"));
+		assertTrue(license.startsWith("MICROPROJECT LICENSE"));
 		assertTrue(license.contains("Common Public Attribution License"));
 		assertFalse(license.contains("Attibution"));
 
