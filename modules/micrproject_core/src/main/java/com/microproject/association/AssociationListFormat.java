@@ -53,7 +53,7 @@ public class AssociationListFormat extends java.text.Format {
 		string = string.replace(",", Settings.LIST_SEPARATOR); // allow commas too
 		string = string.replace(";", Settings.LIST_SEPARATOR); // allow semicolons too
 		if (string.length() != 0) { // if list not empty
-			String elements[] = string.split(Settings.LIST_SEPARATOR);
+		String elements[] = string.split(Settings.LIST_SEPARATOR, -1);
 			
 			Association association;
 			for (int i =0; i < elements.length; i++) {

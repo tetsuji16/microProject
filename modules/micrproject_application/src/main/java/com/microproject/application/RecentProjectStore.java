@@ -80,7 +80,7 @@ public final class RecentProjectStore {
 
 	public List<Path> session() {
 		List<Path> result = new ArrayList<>(); String raw = root.get("session", ""); if (raw.isBlank()) return result;
-		for (String encoded : raw.split(",")) try { Path path = Path.of(new String(Base64.getUrlDecoder().decode(encoded), StandardCharsets.UTF_8)); if (Files.isRegularFile(path)) result.add(path); } catch (RuntimeException ignored) { }
+		for (String encoded : raw.split(",", -1)) try { Path path = Path.of(new String(Base64.getUrlDecoder().decode(encoded), StandardCharsets.UTF_8)); if (Files.isRegularFile(path)) result.add(path); } catch (RuntimeException ignored) { }
 		return List.copyOf(result);
 	}
 

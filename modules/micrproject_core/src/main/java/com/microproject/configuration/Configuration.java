@@ -61,7 +61,7 @@ public class Configuration implements ProvidesDigesterEvents {
 		Configuration temp = new Configuration();
 		buildingInstance.set(temp); // publish before parsing so re-entrant callers see it
 		temp.fieldDictionary = new FieldDictionary(); // initialize early so re-entrant callers (e.g. classes loaded during read()) never see a null dictionary
-		String [] files = Messages.getMetaString("ConfigurationFiles").split(";");
+		String [] files = Messages.getMetaString("ConfigurationFiles").split(";", -1);
 		for (String file : files) 
 			ConfigurationReader.read(file, temp) ;
 		temp.setDonePopulating(); // makes its hash table fast if using a FastHashMap

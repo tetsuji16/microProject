@@ -269,7 +269,7 @@ public class FieldDictionary {
 	}
 	private static void tabbedStringToHtmlRow(StringBuilder result,String colString, boolean header) {
 		result.append("<tr>");
-		String [] cols= colString.split("\t");
+		String [] cols= colString.split("\t", -1);
 		for (String col : cols)
 			result.append(header ? "<th>" : "<td>").append(col).append(header ? "</th>" : "</td>");
 		result.append("</tr>");
