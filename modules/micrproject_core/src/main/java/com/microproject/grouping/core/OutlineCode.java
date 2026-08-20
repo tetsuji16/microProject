@@ -32,10 +32,12 @@ import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
 import java.text.Format;
 import java.text.ParseException;
 import java.text.ParsePosition;
+import java.util.Locale;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -180,7 +182,7 @@ public class OutlineCode extends Format {
 					int value = Integer.parseInt(current) + 1;
 					if (length == ANY_LENGTH)
 						return Integer.toString(value);
-					return new DecimalFormat(StringUtils.repeat("0",length)).format(value);
+					return new DecimalFormat(StringUtils.repeat("0",length), DecimalFormatSymbols.getInstance(Locale.ROOT)).format(value);
 				default:
 					return current;
 			}
