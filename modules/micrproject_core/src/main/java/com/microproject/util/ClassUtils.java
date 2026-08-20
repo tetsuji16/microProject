@@ -25,10 +25,12 @@
 package com.microproject.util;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,6 +50,8 @@ import com.microproject.field.Field;
  */
 public class ClassUtils {
 	private static final Logger logger = Logger.getLogger(ClassUtils.class.getName());
+	private static final Map<String, java.lang.reflect.Field> STATIC_FIELDS = new ConcurrentHashMap<>();
+	private static final Map<String, Method> STATIC_METHODS = new ConcurrentHashMap<>();
 
 	public static final Long defaultLong = Long.valueOf(0L);
 	public static final Double defaultDouble = Double.valueOf(0.0);
@@ -215,11 +219,16 @@ public class ClassUtils {
 	}
  
 	public static java.lang.reflect.Field staticFieldFromFullName(String nameAndField) {
+		java.lang.reflect.Field cached = STATIC_FIELDS.get(nameAndField);
+		if (cached != null)
+			return cached;
 		int lastDot = nameAndField.lastIndexOf(".");
 		String className = nameAndField.substring(0,lastDot);
 		String fieldName = nameAndField.substring(lastDot+1);
 		try {
-			return ClassUtils.forName(className).getDeclaredField(fieldName);
+			java.lang.reflect.Field field = ClassUtils.forName(className).getDeclaredField(fieldName);
+			STATIC_FIELDS.putIfAbsent(nameAndField, field);
+			return field;
 		} catch (SecurityException e) {
 			logger.log(Level.WARNING, "Failed to resolve static field " + nameAndField, e);
 		} catch (NoSuchFieldException e) {
@@ -235,11 +244,17 @@ public class ClassUtils {
 	}
 	
 	public static Method staticMethodFromFullName(String nameAndField, Class[] args) {
+		String cacheKey = nameAndField + Arrays.toString(args == null ? new Class<?>[0] : args);
+		Method cached = STATIC_METHODS.get(cacheKey);
+		if (cached != null)
+			return cached;
 		int lastDot = nameAndField.lastIndexOf(".");
 		String className = nameAndField.substring(0,lastDot);
 		String methodName = nameAndField.substring(lastDot+1);
 		try {
-			return ClassUtils.forName(className).getDeclaredMethod(methodName, args);
+			Method method = ClassUtils.forName(className).getDeclaredMethod(methodName, args);
+			STATIC_METHODS.putIfAbsent(cacheKey, method);
+			return method;
 		} catch (SecurityException e) {
 			logger.log(Level.WARNING, "Failed to resolve static method " + nameAndField, e);
 		} catch (ClassNotFoundException e) {
