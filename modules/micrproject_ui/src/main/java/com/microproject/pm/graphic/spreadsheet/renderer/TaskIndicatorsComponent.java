@@ -39,6 +39,9 @@ import com.microproject.strings.Messages;
  */
 public class TaskIndicatorsComponent extends IndicatorsComponent{
 	private static final long serialVersionUID = 192992920101L;
+	private static void appendMessage(StringBuilder text, String pattern, Object... values) {
+		text.append(java.text.MessageFormat.format(pattern, values));
+	}
 	protected JLabel calendar;
 	protected  JLabel constraint;
 	protected JLabel invalidCalendar;
@@ -98,13 +101,13 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 		if (indicators.getWorkCalendar() != null) {
 			setLook(calendar,isSelected,hasFocus);
 			label.add(calendar);
-			text.append(Messages.getString("TaskIndicatorsComponent.TheCalendar") + indicators.getWorkCalendar().getName() + Messages.getString("TaskIndicatorsComponent.isAssignedToTheTask")); //$NON-NLS-1$ //$NON-NLS-2$
+			appendMessage(text, Messages.getString("TaskIndicatorsComponent.TheCalendar") + "{0}" + Messages.getString("TaskIndicatorsComponent.isAssignedToTheTask"), indicators.getWorkCalendar().getName()); //$NON-NLS-1$
 		}
 		long constraintDate = indicators.getConstraintDate();
 		if (constraintDate != 0) {
 			setLook(constraint,isSelected,hasFocus);
 			label.add(constraint);
-			text.append(Messages.getString("TaskIndicatorsComponent.ThisTaskHasA") + constraintTypeField.getText(indicators,null) + Messages.getString("TaskIndicatorsComponent.constraintOn") + constraintDateField.getText(indicators,null)+"<br>"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+			appendMessage(text, Messages.getString("TaskIndicatorsComponent.ThisTaskHasA") + "{0}" + Messages.getString("TaskIndicatorsComponent.constraintOn") + "{1}<br>", constraintTypeField.getText(indicators,null), constraintDateField.getText(indicators,null)); //$NON-NLS-1$
 		}
 		if (indicators.isInvalidIntersectionCalendar()) {
 			setLook(invalidCalendar,isSelected,hasFocus);
@@ -115,18 +118,18 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 		if (note != null && note.length() > 0) {
 			setLook(notes,isSelected,hasFocus);
 			label.add(notes);
-			text.append(Messages.getString("TaskIndicatorsComponent.Notes") + note + "'<br>"); //$NON-NLS-1$ //$NON-NLS-2$
+			appendMessage(text, Messages.getString("TaskIndicatorsComponent.Notes") + "{0}'<br>", note); //$NON-NLS-1$
 		}
 		if (indicators.isComplete()) {
 			setLook(completed,isSelected,hasFocus);
 			label.add(completed);
-			text.append(Messages.getString("TaskIndicatorsComponent.TheTaskWasCompletedOn") + finish.getText(indicators,null)+"<br>"); //$NON-NLS-1$ //$NON-NLS-2$
+			appendMessage(text, Messages.getString("TaskIndicatorsComponent.TheTaskWasCompletedOn") + "{0}<br>", finish.getText(indicators,null)); //$NON-NLS-1$
 		}
 		
 		if (indicators.isParentWithAssignments()) {
 			setLook(parentAssignment,isSelected,hasFocus);
 			label.add(parentAssignment);
-			text.append(Messages.getString("TaskIndicatorsComponent.ThisParentTaskHasResources") + ((NormalTask)indicators).getResourceNames()+"<br>"); //$NON-NLS-1$ //$NON-NLS-2$
+			appendMessage(text, Messages.getString("TaskIndicatorsComponent.ThisParentTaskHasResources") + "{0}<br>", ((NormalTask)indicators).getResourceNames()); //$NON-NLS-1$
 		}
 		
 		if (indicators instanceof Task) {
@@ -136,7 +139,8 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 				if (s.isValid()) {
 					setLook(subproject,isSelected,hasFocus);
 					label.add(subproject);
-					text.append(Messages.getString("TaskIndicatorsComponent.ThisTasksRepresentsThe") + (s.isSubprojectOpen() ? Messages.getString("TaskIndicatorsComponent.opened") : Messages.getString("TaskIndicatorsComponent.unopened")) + Messages.getString("TaskIndicatorsComponent.subproject") + ((Task)s).getName()); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
+					appendMessage(text, Messages.getString("TaskIndicatorsComponent.ThisTasksRepresentsThe") + "{0}" + Messages.getString("TaskIndicatorsComponent.subproject") + "{1}",
+							(s.isSubprojectOpen() ? Messages.getString("TaskIndicatorsComponent.opened") : Messages.getString("TaskIndicatorsComponent.unopened")), ((Task)s).getName()); //$NON-NLS-1$
 				} else {
 					setLook(invalidProject,isSelected,hasFocus);
 					label.add(invalidProject);
@@ -148,8 +152,8 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 			if (t.isMissedDeadline()) {
 				setLook(missedDeadline,isSelected,hasFocus);
 				label.add(missedDeadline);
-				text.append(Messages.getString("TaskIndicatorsComponent.ThisTaskFinishesOn") + finish.getText(indicators,null) +  //$NON-NLS-1$
-						Messages.getString("TaskIndicatorsComponent.whichIsAfterItsDeadline") + deadlineField.getText(indicators,null)); //$NON-NLS-1$
+				appendMessage(text, Messages.getString("TaskIndicatorsComponent.ThisTaskFinishesOn") + "{0}" + Messages.getString("TaskIndicatorsComponent.whichIsAfterItsDeadline") + "{1}",
+						finish.getText(indicators,null), deadlineField.getText(indicators,null)); //$NON-NLS-1$
 			}
 			if (t.getDelegatedTo() != null) {
 				if (t.isDelegatedToUser()) {
@@ -160,7 +164,7 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 				} else {
 					setLook(delegated,isSelected,hasFocus);
 					label.add(delegated);
-					text.append(Messages.getString("TaskIndicatorsComponent.ThisTaskHasBeenDelegatedTo") + t.getDelegatedTo().getName()); //$NON-NLS-1$
+					appendMessage(text, Messages.getString("TaskIndicatorsComponent.ThisTaskHasBeenDelegatedTo") + "{0}", t.getDelegatedTo().getName()); //$NON-NLS-1$
 				}
 			}
 		}
@@ -168,4 +172,3 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 	
 	
 }
-
