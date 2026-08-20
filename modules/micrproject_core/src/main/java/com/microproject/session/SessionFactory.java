@@ -25,9 +25,13 @@
 package com.microproject.session;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -41,6 +45,8 @@ import com.microproject.util.ClassUtils;
  */
 public class SessionFactory {
     private static final Logger logger = Logger.getLogger(SessionFactory.class.getName());
+    private static final Map<MethodKey, Method> METHOD_CACHE = new ConcurrentHashMap<>();
+    private record MethodKey(Class<?> type, String name, List<Class<?>> argumentTypes) { }
     protected static SessionFactory instance=null;
     protected SessionFactory() {
     }
@@ -93,7 +99,7 @@ public class SessionFactory {
     public static Object call(Object object,String method,Class<?>[] argsDesc, Object[] args) throws Exception{
 	    	try {
 	    		//System.out.println("call, "+method+"..."+object.getClass());
-			return object.getClass().getMethod(method, argsDesc).invoke(object, args);
+			return resolveMethod(object, method, argsDesc).invoke(object, args);
 		} catch (IllegalArgumentException e) {
 			logger.log(Level.WARNING, "Error", e);
 		} catch (SecurityException e) {
@@ -110,7 +116,7 @@ public class SessionFactory {
     public static Object callNoEx(Object object,String method,Class<?>[] argsDesc, Object[] args){
 	    	try {
 	    		//System.out.println("callNoEx, "+method+"...");
-			return object.getClass().getMethod(method, argsDesc).invoke(object, args);
+			return resolveMethod(object, method, argsDesc).invoke(object, args);
 		} catch (IllegalArgumentException e) {
 			logger.log(Level.WARNING, "Error", e);
 		} catch (SecurityException e) {
@@ -125,6 +131,19 @@ public class SessionFactory {
 		return null;
     }
     
+    private static Method resolveMethod(Object object, String name, Class<?>[] argumentTypes)
+            throws NoSuchMethodException {
+        Class<?>[] types = argumentTypes == null ? new Class<?>[0] : argumentTypes;
+        MethodKey key = new MethodKey(object.getClass(), name,
+                List.copyOf(Arrays.asList(types)));
+        Method cached = METHOD_CACHE.get(key);
+        if (cached != null)
+            return cached;
+        Method resolved = object.getClass().getMethod(name, types);
+        Method previous = METHOD_CACHE.putIfAbsent(key, resolved);
+        return previous == null ? resolved : previous;
+    }
+
     public void clearSessions() {
     	sessionImpls = null;
     }
