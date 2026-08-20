@@ -169,11 +169,11 @@ public final class BarColorField extends JPanel {
 	}
 
 	private String colorChooserDescription() {
-		return Messages.getString("Gantt.FormatBar.chooseColor") + ": " + colorRole; //$NON-NLS-1$ //$NON-NLS-2$
+		return java.text.MessageFormat.format("{0}: {1}", Messages.getString("Gantt.FormatBar.chooseColor"), colorRole); //$NON-NLS-1$
 	}
 
 	private String automaticDescription() {
-		return colorRole + ": " + Messages.getString("Gantt.FormatBar.automatic"); //$NON-NLS-1$ //$NON-NLS-2$
+		return java.text.MessageFormat.format("{0}: {1}", colorRole, Messages.getString("Gantt.FormatBar.automatic")); //$NON-NLS-1$
 	}
 
 	static Color chooseColor(Component parent, Integer currentRgb) {
