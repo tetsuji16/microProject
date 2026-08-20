@@ -37,6 +37,7 @@ import com.microproject.pm.graphic.gantt.BarColorEditorPanel;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,6 +57,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * createContentPanel() constructs real Swing components.
  */
 class TaskInformationDialogGeneralPanelTest {
+	@Test
+	void generalTabFieldLabelsResolve() {
+		assertFalse(Messages.getString("Field.manuallyScheduled").startsWith("!"));
+		assertFalse(Messages.getString("Field.inactiveTask").startsWith("!"));
+	}
 
 	@Test
 	void reusedDialogRefreshesBarColorsAndReadOnlyState() throws Exception {
