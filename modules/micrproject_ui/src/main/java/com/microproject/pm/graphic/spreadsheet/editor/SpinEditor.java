@@ -27,6 +27,7 @@ package com.microproject.pm.graphic.spreadsheet.editor;
 import java.awt.Component;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.util.Locale;
 
 import javax.swing.JSpinner;
 import javax.swing.JTable;
@@ -113,7 +114,7 @@ public class SpinEditor extends SimpleEditor {
 				value = Double.valueOf(MathUtils.roundToDecentPrecision(((Number) value).doubleValue()));
 			}
 			else
-				value = NumberFormat.getInstance().parseObject(editor.getTextField().getText());
+				value = NumberFormat.getInstance(Locale.getDefault()).parseObject(editor.getTextField().getText());
 		} catch (ParseException e) {
 			return null;
 		}
@@ -150,4 +151,3 @@ public class SpinEditor extends SimpleEditor {
 	
 	
 }
-

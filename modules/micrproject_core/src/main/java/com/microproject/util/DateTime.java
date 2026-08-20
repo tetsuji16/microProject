@@ -29,6 +29,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.Locale;
 
 import org.apache.commons.lang.time.DateUtils;
 
@@ -60,18 +61,18 @@ public class DateTime {
 	}
 
 	public static SimpleDateFormat dateFormatInstance() {
-		return (SimpleDateFormat) SimpleDateFormat.getInstance();
+		return (SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, Locale.getDefault());
 //		SimpleDateFormat f = new SimpleDateFormat();
 //		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
 //		return f;
 	}
 	public static SimpleDateFormat utcDateFormatInstance() {
-		SimpleDateFormat f = new SimpleDateFormat();
+		SimpleDateFormat f = (SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, Locale.getDefault());
 		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
 		return f;
 	}
 	public static ExtendedDateFormat extendedUtcDateFormatInstance() {
-		ExtendedDateFormat f = new ExtendedDateFormat();
+		ExtendedDateFormat f = new ExtendedDateFormat(((SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, Locale.getDefault())).toPattern(), Locale.getDefault());
 		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
 		return f;
 	}
@@ -82,7 +83,7 @@ public class DateTime {
 		return f;
 	}
 	public static SimpleDateFormat dateFormatInstance(String pattern) {
-		SimpleDateFormat f = new SimpleDateFormat(pattern);
+		SimpleDateFormat f = new SimpleDateFormat(pattern, Locale.getDefault());
 //		SimpleDateFormat f = new SimpleDateFormat();
 		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
 		return f;

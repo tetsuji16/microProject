@@ -1922,14 +1922,14 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		} else if (isDate()) {
 			return EditOption.getInstance().getDateFormat();
 		} else if (displayType == Double.class || displayType == Float.class || displayType == Integer.class) {
-			return NumberFormat.getInstance();
+			return NumberFormat.getInstance(Locale.getDefault());
 		}
 		return null;
 	}
 
 	private Format getSecondaryFormat(Object object) {
 		if (isMoney())
-			return NumberFormat.getInstance();
+			return NumberFormat.getInstance(Locale.getDefault());
 		return null;
 
 	}

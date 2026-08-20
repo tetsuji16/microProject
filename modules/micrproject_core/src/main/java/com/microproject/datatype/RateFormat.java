@@ -28,6 +28,7 @@ import java.text.FieldPosition;
 import java.text.Format;
 import java.text.NumberFormat;
 import java.text.ParsePosition;
+import java.util.Locale;
 
 import com.microproject.configuration.Settings;
 import com.microproject.options.ScheduleOption;
@@ -43,7 +44,7 @@ public class RateFormat extends Format implements TimeUnit {
 		return Money.getMoneyFormatInstance(); // creates a new instance per call
 	}
 	private static NumberFormat numberFormat() {
-		return NumberFormat.getNumberInstance();
+		return NumberFormat.getNumberInstance(Locale.getDefault());
 	}
 	private static NumberFormat percentFormat() {
 		return NumberFormat.getPercentInstance();
@@ -168,7 +169,7 @@ public class RateFormat extends Format implements TimeUnit {
 			if (money) {
 				moneyFormat().format(Double.valueOf(rateValue),toAppendTo,pos);
 			} else {
-				NumberFormat.getInstance().format(Double.valueOf(rateValue),toAppendTo,pos);
+				numberFormat().format(Double.valueOf(rateValue),toAppendTo,pos);
 				if (timeUnitLabel != null && !timeUnitLabel.equals(""))
 					toAppendTo.append(" " + timeUnitLabel);
 			}
