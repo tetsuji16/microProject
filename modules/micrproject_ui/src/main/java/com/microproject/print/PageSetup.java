@@ -35,6 +35,7 @@ import java.awt.print.PrinterJob;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.text.DecimalFormat;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 
 import javax.print.PrintService;
@@ -1147,7 +1148,9 @@ public class PageSetup{
 		builder.add(scaleToWidth,cc.xy(4, 1));
 		builder.add(scaleToWidthLabel,cc.xy(6, 1));
 		builder.add(constrainProportions,cc.xy(8, 1));
-		JLabel l=new JLabel(Messages.getString("PageSetupDialog.Scaling.FitToProportions")+" "+Messages.getString("PageSetupDialog.Scaling.FitToProportions2"));
+		JLabel l=new JLabel(MessageFormat.format("{0} {1}",
+				Messages.getString("PageSetupDialog.Scaling.FitToProportions"),
+				Messages.getString("PageSetupDialog.Scaling.FitToProportions2")));
 		initFont(l);
 		builder.add(scaleToProportions,cc.xy(9,1));
 		builder.add(scaleToProportions2,cc.xy(10,1));
