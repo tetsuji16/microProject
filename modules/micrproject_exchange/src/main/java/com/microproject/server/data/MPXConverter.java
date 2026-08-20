@@ -95,13 +95,13 @@ public class MPXConverter {
 		EXPORT_IDS.remove();
 	}
 
-	private static int exportId(long sourceId) {
+	private static int exportId(IdNamespace namespace, long sourceId) {
 		ExportIdAllocator allocator = EXPORT_IDS.get();
 		if (allocator == null) {
 			allocator = new ExportIdAllocator();
 			EXPORT_IDS.set(allocator);
 		}
-		return allocator.get(sourceId);
+		return allocator.get(namespace, sourceId);
 	}
 
 
@@ -135,7 +135,7 @@ public class MPXConverter {
 
 	public static void toMpxCalendar(WorkingCalendar workCalendar,ProjectCalendar mpx) {
 		mpx.setName(workCalendar.getName());
-		mpx.setUniqueID(Integer.valueOf(exportId(workCalendar.getUniqueId())));
+		mpx.setUniqueID(Integer.valueOf(exportId(IdNamespace.CALENDAR, workCalendar.getUniqueId())));
 
 		for (int i = 0; i < 7; i++) {// MPX days go from SUNDAY=1 to SATURDAY=7
 			WorkDay day= workCalendar.getDerivedWeekDay(i);
@@ -219,14 +219,14 @@ public class MPXConverter {
 		mpxResource.setGeneric(projectlibreResource.isGeneric()); // fix for 2024492
 
 		mpxResource.setInitials(projectlibreResource.getInitials());
-		int resourceId = exportId(projectlibreResource.getId());
+		int resourceId = exportId(IdNamespace.RESOURCE, projectlibreResource.getId());
 		mpxResource.setID(resourceId);
 		long uid = projectlibreResource.getExternalId(); // try using external id of one set
 		if (uid <= 0)
 			uid = projectlibreResource.getUniqueId();
 		if (uid <= 0)
 			uid = projectlibreResource.getId();
-		mpxResource.setUniqueID(exportId(uid));
+		mpxResource.setUniqueID(exportId(IdNamespace.RESOURCE, uid));
 		mpxResource.setMaxUnits(projectlibreResource.getMaximumUnits()*100);
 
 		WorkingCalendar projectlibreCalendar = (WorkingCalendar)projectlibreResource.getWorkCalendar();
@@ -355,9 +355,9 @@ private static int autoId = 0;
 		if (projectlibreTask.getWbs() != null)
 			mpxTask.setWBS(removeInvalidChars(projectlibreTask.getWbs()));
 		mpxTask.setNotes(removeInvalidChars(projectlibreTask.getNotes()));
-		int taskId = exportId(projectlibreTask.getId());
+		int taskId = exportId(IdNamespace.TASK, projectlibreTask.getId());
 		mpxTask.setID(taskId);
-		mpxTask.setUniqueID(exportId(projectlibreTask.getUniqueId()));
+		mpxTask.setUniqueID(exportId(IdNamespace.TASK, projectlibreTask.getUniqueId()));
 		mpxTask.setCreateDate(projectlibreTask.getCreated());
 		mpxTask.setDuration(toMPXDuration(projectlibreTask.getDuration())); // set duration without controls
 		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork()));
@@ -417,7 +417,7 @@ private static int autoId = 0;
 	}
 
 	public static void toMPXVoid(VoidNodeImpl projectlibreVoid, Task mpxTask) {
-		int taskId = exportId(projectlibreVoid.getId());
+		int taskId = exportId(IdNamespace.TASK, projectlibreVoid.getId());
 		mpxTask.setID(taskId);
 		mpxTask.setUniqueID(taskId);
 		mpxTask.setNull(true);
@@ -507,10 +507,16 @@ private static int autoId = 0;
 	}
 
 	private static final class ExportIdAllocator {
-		private final Map<Long, Integer> ids = new HashMap<Long, Integer>();
-		private int nextId = 1;
+		private final Map<IdNamespace, Map<Long, Integer>> idsByNamespace = new HashMap<IdNamespace, Map<Long, Integer>>();
+		private final Map<IdNamespace, Integer> nextIds = new HashMap<IdNamespace, Integer>();
 
-		int get(long sourceId) {
+		int get(IdNamespace namespace, long sourceId) {
+			Map<Long, Integer> ids = idsByNamespace.get(namespace);
+			if (ids == null) {
+				ids = new HashMap<Long, Integer>();
+				idsByNamespace.put(namespace, ids);
+			}
+			int nextId = nextIds.getOrDefault(namespace, Integer.valueOf(1)).intValue();
 			Long key = Long.valueOf(sourceId);
 			Integer existing = ids.get(key);
 			if (existing != null) {
@@ -525,9 +531,16 @@ private static int autoId = 0;
 				}
 				value = nextId++;
 			}
+			nextIds.put(namespace, Integer.valueOf(nextId));
 			ids.put(key, Integer.valueOf(value));
 			return value;
 		}
+	}
+
+	private enum IdNamespace {
+		CALENDAR,
+		RESOURCE,
+		TASK
 	}
 
 
