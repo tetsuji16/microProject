@@ -26,6 +26,7 @@ package com.microproject.util;
 
 import java.awt.Component;
 import java.io.File;
+import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.prefs.Preferences;
 
@@ -125,19 +126,19 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 
 	void configureFileChooser(SystemFileChooser chooser, final boolean save) {
 		projectlibreFilter = new FileNameExtensionFilter(
-			Messages.getString("File.projectlibre") + " (*." + DEFAULT_FILE_EXTENSION + ")",
+			formatFilterLabel(Messages.getString("File.projectlibre"), "*." + DEFAULT_FILE_EXTENSION),
 			DEFAULT_FILE_EXTENSION);
 		microsoftFilter = new FileNameExtensionFilter(
-			Messages.getString("File.microsoft") + " (*.mpp, *.mpx)",
+			formatFilterLabel(Messages.getString("File.microsoft"), "*.mpp, *.mpx"),
 			"mpp", "mpx");
 		microsoftXMLFilter = new FileNameExtensionFilter(
-			Messages.getString("File.microsoftXML") + " (*.xml)",
+			formatFilterLabel(Messages.getString("File.microsoftXML"), "*.xml"),
 			"xml");
 		microsoftXlsxFilter = new FileNameExtensionFilter(
 			"Excel Workbook (*.xlsx)",
 			"xlsx");
 		plannerFilter = new FileNameExtensionFilter(
-			Messages.getString("File.planner") + " (*.planner)",
+			formatFilterLabel(Messages.getString("File.planner"), "*.planner"),
 			"planner");
 		projectFilter = new FileNameExtensionFilter(
 			Messages.getString("File.projects"),
@@ -161,6 +162,10 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			chooser.addChoosableFileFilter(plannerFilter);
 			chooser.addChoosableFileFilter(projectFilter);
 		}
+	}
+
+	static String formatFilterLabel(String label, String extensionPattern) {
+		return MessageFormat.format("{0} ({1})", label, extensionPattern);
 	}
 
 	void selectOpenFileFilter(SystemFileChooser chooser) {
@@ -261,4 +266,3 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		return fileName.substring(0, i) + "." + extension;
 	}
 }
-
