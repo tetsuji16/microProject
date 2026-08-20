@@ -26,6 +26,7 @@ package com.microproject.server.data;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -38,10 +39,14 @@ public class DataUtil {
 	private static final Logger logger = Logger.getLogger(DataUtil.class.getName());
 	protected Object obj;
 	protected Class<?> clazz;
+	private Method serializeDocumentMethod;
+	private Method deserializeLocalDocumentMethod;
 	public DataUtil(){
 		try {
 			clazz = Class.forName("com.microproject.server.data.Serializer");
 			obj = clazz.getDeclaredConstructor().newInstance();
+			serializeDocumentMethod = clazz.getMethod("serializeDocument", Project.class);
+			deserializeLocalDocumentMethod = clazz.getMethod("deserializeLocalDocument", DocumentData.class);
 		} catch (ClassNotFoundException e) {
 			logger.log(Level.SEVERE, "Serializer class not found", e);
 		} catch (NoSuchMethodException e) {
@@ -57,7 +62,7 @@ public class DataUtil {
 	
     public DocumentData serializeDocument(Project project) throws Exception{
 		try {
-			return (DocumentData) clazz.getMethod("serializeDocument", Project.class).invoke(obj, project);
+			return (DocumentData) serializeDocumentMethod.invoke(obj, project);
 		} catch (IllegalArgumentException e) {
 			logger.log(Level.WARNING, "Failed to serialize document", e);
 		} catch (SecurityException e) {
@@ -65,8 +70,6 @@ public class DataUtil {
 		} catch (IllegalAccessException e) {
 			logger.log(Level.WARNING, "Failed to serialize document", e);
 		} catch (InvocationTargetException e) {
-			logger.log(Level.WARNING, "Failed to serialize document", e);
-		} catch (NoSuchMethodException e) {
 			logger.log(Level.WARNING, "Failed to serialize document", e);
 		}
 		return null;
@@ -74,7 +77,7 @@ public class DataUtil {
     }
     public Project deserializeLocalDocument(DocumentData documentData) throws IOException, ClassNotFoundException {
 		try {
-			return (Project) clazz.getMethod("deserializeLocalDocument", DocumentData.class).invoke(obj, documentData);
+			return (Project) deserializeLocalDocumentMethod.invoke(obj, documentData);
 		} catch (IllegalArgumentException e) {
 			logger.log(Level.WARNING, "Failed to deserialize local document", e);
 		} catch (SecurityException e) {
@@ -82,8 +85,6 @@ public class DataUtil {
 		} catch (IllegalAccessException e) {
 			logger.log(Level.WARNING, "Failed to deserialize local document", e);
 		} catch (InvocationTargetException e) {
-			logger.log(Level.WARNING, "Failed to deserialize local document", e);
-		} catch (NoSuchMethodException e) {
 			logger.log(Level.WARNING, "Failed to deserialize local document", e);
 		}
 		return null;
