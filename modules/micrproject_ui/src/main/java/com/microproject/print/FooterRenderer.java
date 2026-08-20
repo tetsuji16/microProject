@@ -54,7 +54,10 @@ public class FooterRenderer extends Renderer {
 				footerLabel=new JLabel();
 			}
 			if (lastPage!=page||lastBounds!=bounds){
-				footerLabel.setText(name+(pageCount>1?(Messages.getString("FooterRenderer.page")+(page+1)):"")); //$NON-NLS-1$
+				String pageLabel = pageCount > 1
+						? java.text.MessageFormat.format("{0}{1}", Messages.getString("FooterRenderer.page"), page + 1)
+						: "";
+				footerLabel.setText(java.text.MessageFormat.format("{0}{1}", name, pageLabel)); //$NON-NLS-1$
 				footerLabel.setHorizontalTextPosition(JLabel.CENTER);
 				footerLabel.setHorizontalAlignment(JLabel.CENTER);
 				footerLabel.setDoubleBuffered(false);
@@ -69,4 +72,3 @@ public class FooterRenderer extends Renderer {
 	}
 
 }
-

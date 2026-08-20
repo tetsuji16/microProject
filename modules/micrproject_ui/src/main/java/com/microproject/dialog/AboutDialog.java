@@ -53,7 +53,8 @@ public final class AboutDialog extends AbstractDialog {
 	}
 
 	private AboutDialog(Frame owner) {
-		super(owner, Messages.getString("AboutDialog.About") + " " + Messages.getContextString("Text.ApplicationTitle"), true); //$NON-NLS-1$ //$NON-NLS-2$
+		super(owner, java.text.MessageFormat.format("{0} {1}",
+				Messages.getString("AboutDialog.About"), Messages.getContextString("Text.ApplicationTitle")), true); //$NON-NLS-1$
 	}
 
 
@@ -107,4 +108,3 @@ public final class AboutDialog extends AbstractDialog {
 	}
 
 }
-
