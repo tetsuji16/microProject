@@ -115,6 +115,39 @@
             content: "⚠️ ";
             font-weight: bold;
         }
+        figure.app-example {
+            margin: 18px 0;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        figure.app-example img {
+            display: block;
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: white;
+        }
+        figure.app-example figcaption {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.9em;
+            line-height: 1.55;
+        }
+        .app-example-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin: 18px 0;
+        }
+        .app-example-grid figure { margin: 0; }
+        .app-example-grid .crop {
+            height: 220px;
+            object-fit: cover;
+        }
+        .app-example-grid .crop-table { object-position: left top; }
+        .app-example-grid .crop-chart { object-position: right top; }
         kbd {
             background: var(--code-bg);
             border: 1px solid var(--border);
@@ -134,6 +167,7 @@
             .toc ul { columns: 1; }
             .hero h1 { font-size: 1.6em; }
             section { padding: 20px 16px; }
+            .app-example-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -142,6 +176,7 @@
 <div class="hero">
     <h1>microProject ユーザーズガイド</h1>
     <p>プロジェクト管理をもっとスマートに。MS Project互換のスケジューリングツール</p>
+    <p><a href="index.html" style="color: inherit; text-decoration: underline;">ダウンロードと製品情報に戻る</a></p>
 </div>
 
 <div class="container">
@@ -155,6 +190,7 @@
         <li><a href="#resource-management">4. リソース管理</a></li>
         <li><a href="#scheduling">5. スケジューリング</a></li>
         <li><a href="#gantt">6. ガントチャート</a></li>
+        <li><a href="#gantt-legend">6.1 画面のアイコン・バー・線の見方</a></li>
         <li><a href="#views">7. ビュー切替</a></li>
         <li><a href="#tracking">8. トラッキング（進捗管理）</a></li>
         <li><a href="#cost">9. コスト管理</a></li>
@@ -180,7 +216,9 @@
     <h3>対応ファイル形式</h3>
     <table>
         <tr><th>形式</th><th>拡張子</th><th>説明</th></tr>
-        <tr><td>MS Project</td><td><code>.mpp</code></td><td>Microsoft Project ファイル（MPXJ経由）</td></tr>
+        <tr><td>microProject</td><td><code>.pod</code></td><td>標準のローカル保存形式</td></tr>
+        <tr><td>microProject 共同編集</td><td><code>.podx</code></td><td>共有フォルダーでの共同編集に対応するオープンコンテナー形式</td></tr>
+        <tr><td>MS Project</td><td><code>.mpp</code></td><td>Microsoft Project ファイル（読み込み）</td></tr>
         <tr><td>MS Project XML</td><td><code>.xml</code></td><td>Microsoft Project XML形式</td></tr>
         <tr><td>Planner</td><td><code>.planner</code></td><td>GNU Planner形式</td></tr>
         <tr><td>Excel</td><td><code>.xlsx</code></td><td>Microsoft Excel形式</td></tr>
@@ -219,7 +257,7 @@
     </p>
 
     <div class="tip">
-        microProjectはMS Projectファイル(.mpp)を直接読み書きできます。既存のMS Projectファイルを簡単に移行できます。
+        .mpp は読み込み用です。編集後は、互換性のために <code>.xml</code> または <code>.xlsx</code>、通常の作業には <code>.pod</code>、共有編集には <code>.podx</code> として保存してください。
     </div>
 </section>
 
@@ -412,6 +450,10 @@
     <p>
         デフォルトのビューです。左側にタスクリスト（スプレッドシート）、右側にタイムバーが表示されます。
     </p>
+    <figure class="app-example">
+        <img src="images/demo_gannt.png" alt="microProject のガントチャート。左にタスク表、右にタイムスケールとガントバー、上部にリボンが表示されている。">
+        <figcaption>実際の microProject 画面。左の表でタスクを編集し、右のガント領域で期間・進捗・依存関係を確認します。</figcaption>
+    </figure>
 
     <h3>タイムスケールの変更</h3>
     <p>
@@ -460,9 +502,94 @@
 </section>
 
 <!-- ============================================================ -->
+<section id="gantt-legend">
+    <h2>6.1 画面のアイコン・バー・線の見方</h2>
+    <p>
+        タスク表の「指標」列とガント領域は、タスクの状態、期間、関連を短時間で確認するための表示です。
+        表示色は進捗状況を表し、個別にバーの色を変更している場合はその設定が優先されます。
+    </p>
+    <div class="app-example-grid">
+        <figure class="app-example">
+            <img class="crop crop-table" src="images/demo_gannt.png" alt="指標列の完了チェックとメモのアイコンを含む microProject のタスク表。">
+            <figcaption>タスク表の拡大例。緑のチェックと黄色のメモは、各行の状態・補足の有無を示します。</figcaption>
+        </figure>
+        <figure class="app-example">
+            <img class="crop crop-chart" src="images/demo_gannt.png" alt="緑、オレンジ、灰色、赤のガントバーと依存関係線を含む microProject のガント領域。">
+            <figcaption>ガント領域の拡大例。色、バーの形、矢印を組み合わせて進捗と実行順序を読み取ります。</figcaption>
+        </figure>
+    </div>
+
+    <h3>タスク表のアイコン</h3>
+    <table>
+        <tr><th>表示</th><th>意味</th></tr>
+        <tr><td>緑のチェック</td><td>タスクが完了（達成率 100%）です。添付画面では 3、11〜13 行目に表示されています。</td></tr>
+        <tr><td>黄色のメモ</td><td>タスクにメモが登録されています。アイコンにマウスを重ねると内容を確認できます。</td></tr>
+        <tr><td>カレンダー</td><td>タスク固有の稼働カレンダーが割り当てられています。</td></tr>
+        <tr><td>制約アイコン</td><td>開始日または終了日に制約が設定されています。</td></tr>
+        <tr><td>警告</td><td>期限超過、利用できないカレンダー、または無効なサブプロジェクトなど、確認が必要な状態です。</td></tr>
+    </table>
+    <div class="tip">
+        列見出しの青い <strong>i</strong> は「指標」列を示す案内アイコンです。各行の状態そのものではありません。
+    </div>
+
+    <h3>ガントバーの色と形</h3>
+    <table>
+        <tr><th>表示</th><th>意味</th></tr>
+        <tr><td>緑のバー</td><td>完了したタスクです。バーの長さは予定期間、左右端は予定開始日と予定終了日を示します。</td></tr>
+        <tr><td>オレンジのバー</td><td>作業中のタスクです。進捗があるものの、まだ完了していません。</td></tr>
+        <tr><td>灰色のバー</td><td>未着手のタスクです。</td></tr>
+        <tr><td>赤／ピンクのバー</td><td>クリティカルパス上のタスクです。遅れるとプロジェクト全体の完了日が遅れる可能性があります。</td></tr>
+        <tr><td>両端が下向きの記号になった太いバー</td><td>要約タスクです。子タスク全体の開始日から終了日までを表し、色は要約タスクの進捗を示します。</td></tr>
+        <tr><td>ひし形</td><td>マイルストーンです。期間ゼロの重要な日付を示します。</td></tr>
+        <tr><td>バー内の濃い帯</td><td>タスクの達成率です。帯が右へ伸びるほど進捗が高いことを示します。</td></tr>
+    </table>
+
+    <h3>ガント領域の線</h3>
+    <table>
+        <tr><th>表示</th><th>意味</th></tr>
+        <tr><td>タスク間を結ぶ濃い折れ線と矢印</td><td>依存関係です。矢印の向きが後続タスクを示します。線をたどると、どのタスクの完了・開始が次のタスクに影響するか確認できます。</td></tr>
+        <tr><td>青い縦の破線</td><td>プロジェクト開始日です。添付画面では 2000 年 1 月 2 日の位置に表示されています。</td></tr>
+        <tr><td>紫の縦の点線</td><td>ステータス日です。設定されている場合のみ表示され、進捗を評価する基準日になります。</td></tr>
+        <tr><td>細い格子線</td><td>タイムスケールと行の区切りです。タスク間の関係を示す線ではありません。</td></tr>
+    </table>
+
+    <h3>添付サンプルを読む例</h3>
+    <ol>
+        <li><strong>3、11〜13 行目の緑チェックと緑バー</strong>は、タスクが完了していることを示します。たとえば 11 行目は 2000 年 1 月 7 日開始の完了済みタスクです。</li>
+        <li><strong>9 行目の黄色いメモ</strong>は、<em>Submit monthly request...</em> にメモがあることを示します。予定や判断の補足が必要なタスクを見つける入口になります。</li>
+        <li><strong>Long Lead Procurement のオレンジの太いバー</strong>は要約タスクです。端の下向き記号が子タスク全体の開始・終了を示し、下の個別タスクの状態を集約して確認できます。</li>
+        <li><strong>Steel Erection Contractor... の赤／ピンクの長いバー</strong>はクリティカルタスクです。このタスクが後ろへずれると、つながる後続タスクとプロジェクトの完了日も遅れるおそれがあります。</li>
+        <li><strong>灰色のバー群とそれらを結ぶ矢印</strong>は、未着手タスクとその実行順序です。矢印を後続方向にたどると、作業を開始するために完了させるべき前提タスクが分かります。</li>
+    </ol>
+
+    <h3>クリティカルパスの考え方</h3>
+    <p>
+        クリティカルパスは、プロジェクトの開始から完了までを結ぶ依存関係のうち、遅れを吸収する余裕（<strong>総余裕時間／トータルスラック</strong>）がない、または非常に小さいタスクの連なりです。
+        この経路上のタスクが 1 日遅れると、ほかの条件が変わらない限りプロジェクト完了日も 1 日遅れます。
+    </p>
+    <table>
+        <tr><th>確認すること</th><th>読み方・対応</th></tr>
+        <tr><td>赤／ピンクのバー</td><td>クリティカルパス上の候補です。まずこの色のタスクを確認し、前後の依存線をたどります。</td></tr>
+        <tr><td>総余裕時間が 0</td><td>完了日を遅らせずに動かせる余地がありません。開始遅れ、見積もり、リソース不足を優先的に確認します。</td></tr>
+        <tr><td>依存関係の矢印</td><td>前提タスクを早めても、後続タスクの制約・カレンダー・リソースが原因で完了日が変わらないことがあります。経路全体を確認します。</td></tr>
+        <tr><td>進捗とステータス日</td><td>計画上クリティカルでなくても、実績遅れによって新たにクリティカルになる場合があります。実績を更新してから再計算します。</td></tr>
+    </table>
+    <div class="warn">
+        赤／ピンクは「担当者の優先度」ではなく、現在の計画・依存関係・カレンダーから計算された完了日への影響を示します。タスクの期間、依存関係、制約、リソース平準化を変更すると、クリティカルパスは変わることがあります。
+    </div>
+    <div class="tip">
+        対応を検討するときは、クリティカルタスクを単に短縮する前に、前提タスクとのリンク、作業カレンダー、リソースの過剰割り当てを確認してください。必要なら担当を増やす、依存関係を見直す、または後続作業を並行化して、完了日への影響を再計算します。
+    </div>
+</section>
+
+<!-- ============================================================ -->
 <section id="views">
     <h2>7. ビュー切替</h2>
     <p>リボンの <strong>表示</strong> タブから various ビューに切り替えられます。</p>
+    <figure class="app-example">
+        <img src="images/demo_gannt.png" alt="リボンとガントチャートを表示している microProject。ビューの切り替え前の標準ガントビュー。">
+        <figcaption>標準のガントビュー。ビューを切り替えても、同じプロジェクトのタスク・リソース・依存関係を、目的に応じた配置で確認できます。</figcaption>
+    </figure>
 
     <table>
         <tr><th>ビュー</th><th>説明</th></tr>
@@ -594,20 +721,17 @@
     <h3>対応フォーマット</h3>
     <table>
         <tr><th>操作</th><th>フォーマット</th><th>メニュー</th></tr>
-        <tr><td>インポート</td><td>MS Project (.mpp)</td><td>ファイル → 開く</td></tr>
+        <tr><td>インポート</td><td>MS Project (.mpp / .mpx)</td><td>ファイル → 開く</td></tr>
         <tr><td>インポート</td><td>MS Project XML (.xml)</td><td>ファイル → 開く</td></tr>
         <tr><td>インポート</td><td>Excel (.xlsx)</td><td>ファイル → 開く</td></tr>
         <tr><td>インポート</td><td>Planner (.planner)</td><td>ファイル → 開く</td></tr>
-        <tr><td>エクスポート</td><td>MS Project (.mpp)</td><td>ファイル → 名前を付けて保存</td></tr>
+        <tr><td>保存</td><td>microProject (.pod / .podx)</td><td>ファイル → 保存／名前を付けて保存</td></tr>
         <tr><td>エクスポート</td><td>MS Project XML (.xml)</td><td>ファイル → 名前を付けて保存</td></tr>
         <tr><td>エクスポート</td><td>Excel (.xlsx)</td><td>ファイル → 名前を付けて保存</td></tr>
-        <tr><td>エクスポート</td><td>PDF (.pdf)</td><td>ファイル → 名前を付けて保存 / 印刷プレビューからPDF</td></tr>
-        <tr><td>エクスポート</td><td>CSV (.csv)</td><td>ファイル → 名前を付けて保存</td></tr>
     </table>
 
     <div class="tip">
-        MS Projectファイル(.mpp)との相互互換性が最も高いです。リソース、依存関係、カレンダー、
-        ベースラインなど、ほぼ全データが保持されます。
+        .mpp は読み込み専用です。Microsoft Project とファイルをやり取りするときは、MS Project XML を使用してください。
     </div>
 
     <h3>CSVエクスポート</h3>
@@ -792,9 +916,29 @@
 
 <footer>
     <p>microProject ユーザーズガイド | バージョン 0.0.23</p>
-    <p>© 2012-2026 ProjectLibre, Inc. / 2026 microProject | MIT License</p>
+    <p>© 2026 microProject | MIT License</p>
     <p><a href="https://tetsuji16.github.io/ProjectLibre/">GitHub</a> | <a href="https://github.com/tetsuji16/ProjectLibre/issues">お問い合わせ</a></p>
 </footer>
+
+<script>
+    (() => {
+        const topicTargets = {
+            "creating_a_project": "getting-started", "gantt_chart": "gantt",
+            "tracking_gantt_chart": "tracking", "resource_leveling": "resource-management",
+            "assign_resources": "resource-management", "project_team": "resource-management",
+            "linking": "task-management", "task_usage": "views", "task_usage_detail": "views",
+            "resource_usage": "views", "resource_usage_detail": "views", "report_view": "report",
+            "custom_reports": "report", "print_preview": "report", "calendar_view": "scheduling",
+            "timeline": "gantt", "network_diagram": "views", "wbs_chart": "task-management",
+            "rbs_chart": "resource-management", "filters": "views", "sorts": "views", "grouping": "views"
+        };
+        const topic = new URLSearchParams(window.location.search).get("topic");
+        const target = topicTargets[(topic || "").toLowerCase()];
+        if (target) window.addEventListener("DOMContentLoaded", () => {
+            document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+    })();
+</script>
 
 </body>
 </html>
