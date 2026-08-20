@@ -44,7 +44,7 @@ public enum WorkContour {
 	CONTOURED(8);
 
 	protected int id;
-	protected static Map<Integer,WorkContour> reverseMap;
+	private static final Map<Integer, WorkContour> REVERSE_MAP = createReverseMap();
 
 	private WorkContour(int id){
 		this.id=id;
@@ -53,12 +53,13 @@ public enum WorkContour {
 		return id;
 	}
 	public static WorkContour getInstance(int id){
-		if (reverseMap==null){
-			reverseMap=new HashMap<Integer, WorkContour>();
-			for (WorkContour ct : values())
-				reverseMap.put(ct.getId(),ct);
-		}
-		return reverseMap.get(id);
+		return REVERSE_MAP.get(id);
+	}
+
+	private static Map<Integer, WorkContour> createReverseMap() {
+		Map<Integer, WorkContour> result = new HashMap<>(values().length);
+		for (WorkContour contour : values()) result.put(contour.getId(), contour);
+		return Map.copyOf(result);
 	}
 
 }
