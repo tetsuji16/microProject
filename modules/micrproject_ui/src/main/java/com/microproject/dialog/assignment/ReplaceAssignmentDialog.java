@@ -65,7 +65,8 @@ public final class ReplaceAssignmentDialog extends AbstractDialog implements Com
         spreadSheetPane = new AssignmentEntryPane(this ,documentFrame.getProject(),null,true,null);
 		spreadSheetPane.setProject(documentFrame.getProject());
 		spreadSheetPane.updateTable();
-        resourceName = new JLabel(Messages.getString("Text.Replace") + " " + resource.getName());
+        resourceName = new JLabel(java.text.MessageFormat.format("{0} {1}",
+				Messages.getString("Text.Replace"), resource.getName()));
 	}
 
 	
@@ -113,4 +114,3 @@ public final class ReplaceAssignmentDialog extends AbstractDialog implements Com
  	}
 
 }
-

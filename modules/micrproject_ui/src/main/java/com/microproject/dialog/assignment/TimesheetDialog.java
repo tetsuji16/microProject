@@ -99,7 +99,8 @@ public class TimesheetDialog extends AbstractDialog implements CommonAssignmentD
 
 	private void updateSelectionLabel() {
 		if (selectedResources == null || selectedResources.isEmpty()) {
-			resourceNames.setText(Messages.getString("Text.Resources") + ": " + Messages.getString("Text.EntireProject"));
+			resourceNames.setText(java.text.MessageFormat.format("{0}: {1}",
+					Messages.getString("Text.Resources"), Messages.getString("Text.EntireProject")));
 			return;
 		}
 		StringBuilder names = new StringBuilder();
@@ -117,7 +118,8 @@ public class TimesheetDialog extends AbstractDialog implements CommonAssignmentD
 		if (selectedResources.size() > 5) {
 			names.append("...");
 		}
-		resourceNames.setText(Messages.getString("Text.Resources") + ": " + names.toString());
+		resourceNames.setText(java.text.MessageFormat.format("{0}: {1}",
+				Messages.getString("Text.Resources"), names));
 	}
 
 	public void setEditorButtonsVisible(boolean visible) {
