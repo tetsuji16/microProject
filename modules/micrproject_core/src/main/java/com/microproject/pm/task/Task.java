@@ -158,6 +158,13 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected boolean inactiveTask = false;
 	/** Excludes the task from task views without changing its schedule or assignments. */
 	protected boolean hiddenTask = false;
+	/** Optional per-task text styling used by Gantt annotations and task sheets. */
+	protected String fontFamily;
+	protected int fontSize;
+	protected Integer fontColor;
+	protected boolean fontBold;
+	protected boolean fontItalic;
+	protected boolean fontStrikethrough;
 	protected Double inactivePercentComplete;
 	/** Explicit user choice for the concise project timeline. */
 	protected boolean displayOnTimeline = false;
@@ -1238,6 +1245,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		task.debugDependencyOrder=debugDependencyOrder;
 		task.markTaskAsMilestone = markTaskAsMilestone;
 		task.hiddenTask = hiddenTask;
+		task.fontFamily = fontFamily;
+		task.fontSize = fontSize;
+		task.fontColor = fontColor;
+		task.fontBold = fontBold;
+		task.fontItalic = fontItalic;
+		task.fontStrikethrough = fontStrikethrough;
 		task.external = external;
 		task.projectId = projectId;
 		task.physicalPercentComplete = physicalPercentComplete;
@@ -1944,6 +1957,65 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		if (this.hiddenTask == hiddenTask)
 			return;
 		this.hiddenTask = hiddenTask;
+		setDirty(true);
+	}
+	public final String getFontFamily() {
+		return fontFamily;
+	}
+	public final void setFontFamily(String fontFamily) {
+		String normalized = fontFamily == null ? null : fontFamily.trim();
+		if (normalized != null && normalized.isEmpty())
+			normalized = null;
+		if (java.util.Objects.equals(this.fontFamily, normalized))
+			return;
+		this.fontFamily = normalized;
+		setDirty(true);
+	}
+	public final int getFontSize() {
+		return fontSize;
+	}
+	public final void setFontSize(int fontSize) {
+		int normalized = Math.max(0, Math.min(72, fontSize));
+		if (this.fontSize == normalized)
+			return;
+		this.fontSize = normalized;
+		setDirty(true);
+	}
+	public final Integer getFontColor() {
+		return fontColor;
+	}
+	public final void setFontColor(Integer fontColor) {
+		Integer normalized = fontColor == null ? null : Integer.valueOf(fontColor.intValue() & 0x00FFFFFF);
+		if (java.util.Objects.equals(this.fontColor, normalized))
+			return;
+		this.fontColor = normalized;
+		setDirty(true);
+	}
+	public final boolean isFontBold() {
+		return fontBold;
+	}
+	public final void setFontBold(boolean fontBold) {
+		if (this.fontBold == fontBold)
+			return;
+		this.fontBold = fontBold;
+		setDirty(true);
+	}
+	public final boolean isFontItalic() {
+		return fontItalic;
+	}
+	public final void setFontItalic(boolean fontItalic) {
+		if (this.fontItalic == fontItalic)
+			return;
+		this.fontItalic = fontItalic;
+		setDirty(true);
+	}
+	public final boolean isFontStrikethrough() {
+		return fontStrikethrough;
+	}
+	public final void setFontStrikethrough(boolean fontStrikethrough) {
+		if (this.fontStrikethrough == fontStrikethrough)
+			return;
+		this.fontStrikethrough = fontStrikethrough;
 		setDirty(true);
 	}
 	protected final void updateInactivePercentComplete(double percentComplete) {

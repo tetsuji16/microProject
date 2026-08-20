@@ -624,6 +624,11 @@
 			<field property="manuallyScheduled" id="Field.manuallyScheduled" />
 			<field property="inactiveTask" id="Field.inactiveTask" />
 			<field property="hiddenTask" id="Field.hiddenTask" />
+			<field property="fontFamily" id="Field.fontFamily" />
+			<field property="fontSize" id="Field.fontSize" />
+			<field property="fontBold" id="Field.fontBold" />
+			<field property="fontItalic" id="Field.fontItalic" />
+			<field property="fontStrikethrough" id="Field.fontStrikethrough" />
 			<field property="displayOnTimeline" id="Field.displayOnTimeline" />
 			<field property="wbs" id="Field.wbs" />
 			<field property="predecessors" id="Field.predecessors" help="Linking#Linking_on_the_Spreadsheet"/>

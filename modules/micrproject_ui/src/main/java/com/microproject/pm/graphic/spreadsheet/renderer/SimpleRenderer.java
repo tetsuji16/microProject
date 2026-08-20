@@ -33,6 +33,7 @@ import javax.swing.SwingConstants;
 import javax.swing.table.DefaultTableCellRenderer;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.TaskFontStyle;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.field.Field;
@@ -69,6 +70,8 @@ public class SimpleRenderer extends DefaultTableCellRenderer/*ContextSensitiveCe
 			component=(JLabel)super.getTableCellRendererComponent(table, value, isSelected,hasFocus, row, column);
 			CommonSpreadSheetModel model=(CommonSpreadSheetModel)table.getModel();
 		    FontManager.setComponentFont(model.getCellProperties(model.getNode(row)),component);
+		    GraphicNode node = model.getNode(row);
+		    TaskFontStyle.apply(component, node == null || node.getNode() == null ? null : node.getNode().getImpl(), isSelected);
 		}
 				
 		
@@ -93,4 +96,3 @@ public class SimpleRenderer extends DefaultTableCellRenderer/*ContextSensitiveCe
 
 
 }
-

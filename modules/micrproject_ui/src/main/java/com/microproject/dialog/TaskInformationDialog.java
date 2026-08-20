@@ -96,6 +96,7 @@ public class TaskInformationDialog extends InformationDialog {
 	private BarColorField barMiddleColor;
 	private BarColorField barEndColor;
 	private BarColorEditorPanel barColorEditor;
+	private BarColorField fontColorField;
 
 	private Gantt getGantt() {
 		try {
@@ -162,6 +163,7 @@ public class TaskInformationDialog extends InformationDialog {
 		taskTabbedPane= new JTabbedPane();
 		FlatUiSupport.styleTabbedPane(taskTabbedPane);
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.General"),createGeneralPanel()); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.TextStyle"),createTextStylePanel()); //$NON-NLS-1$
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Predecessors"),createPredecessorsPanel()); //$NON-NLS-1$
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Successors"),createSuccessorsPanel()); //$NON-NLS-1$
 		String resources = Messages.getString("TaskInformationDialog.Resources"); //$NON-NLS-1$
@@ -177,6 +179,29 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.add(taskTabbedPane);
 		mainComponent = taskTabbedPane;
 
+		return builder.getPanel();
+	}
+
+	private JComponent createTextStylePanel() {
+		FieldComponentMap map = createMap();
+		FormLayout layout = new FormLayout("p,3dlu,130dlu,12dlu,p,3dlu,80dlu", "p,3dlu,p,3dlu,p,3dlu,p,3dlu,p");
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.setDefaultDialogBorder();
+		builder.addSeparator(Messages.getString("TaskInformationDialog.TextStyle"));
+		builder.nextLine(2);
+		map.append(builder, "Field.fontFamily");
+		map.append(builder, "Field.fontSize");
+		builder.nextLine(2);
+		map.append(builder, "Field.fontBold");
+		map.append(builder, "Field.fontItalic");
+		builder.nextLine(2);
+		map.append(builder, "Field.fontStrikethrough");
+		builder.nextLine(2);
+		Task task = (Task)getObject();
+		fontColorField = new BarColorField(this, task == null ? null : task.getFontColor(), 0x000000,
+				"TaskInformationDialog.FontColor", null);
+		fontColorField.setEnabled(task != null && !task.isReadOnly());
+		builder.append(Messages.getString("TaskInformationDialog.FontColor"), fontColorField);
 		return builder.getPanel();
 	}
 
@@ -505,6 +530,7 @@ public class TaskInformationDialog extends InformationDialog {
 		// controls in sync just like the FieldComponentMap-backed controls; this
 		// also discards unconfirmed edits when Cancel refreshes the dialog.
 		refreshBarColorFields();
+		refreshTextStyleFields();
 		if (predecessorsSpreadSheet != null)
 			updatePredecessorsSpreadsheet();
 		if (successorsSpreadSheet != null)
@@ -522,11 +548,32 @@ public class TaskInformationDialog extends InformationDialog {
 			return true;
 		if (get) {
 			refreshBarColorFields();
+			refreshTextStyleFields();
 		} else {
 			// Commit bar color changes when the user confirms the dialog.
 			applyBarFormatFromFields();
+			applyFontColorFromField();
 		}
 		return true;
+	}
+
+	private void refreshTextStyleFields() {
+		Task task = (Task)getObject();
+		if (fontColorField == null)
+			return;
+		fontColorField.setEnabled(task != null && !task.isReadOnly());
+		fontColorField.setRgb(task == null ? null : task.getFontColor());
+	}
+
+	private void applyFontColorFromField() {
+		Task task = (Task)getObject();
+		if (task == null || task.isReadOnly() || fontColorField == null)
+			return;
+		Integer color = fontColorField.getRgb();
+		if (java.util.Objects.equals(task.getFontColor(), color))
+			return;
+		task.setFontColor(color);
+		task.getProject().fireUpdateEvent(this, task);
 	}
 
 	public void documentSelected(DocumentSelectedEvent evt) {
