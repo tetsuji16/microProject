@@ -328,7 +328,7 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
 				.getRow(), 1));
 		builder.nextLine(2);
-		builder.append(java.text.MessageFormat.format("{0}:", Messages.getString("Spreadsheet.Dependency.predecessors"))); //$NON-NLS-1$
+		builder.append(Messages.format("Format.label", Messages.getString("Spreadsheet.Dependency.predecessors"))); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.add(createPredecessorsSpreadsheet());
 		JComponent pred = builder.getPanel();
@@ -414,7 +414,7 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
 				.getRow(), 1));
 		builder.nextLine(2);
-		builder.append(java.text.MessageFormat.format("{0}:", Messages.getString("Spreadsheet.Dependency.successors"))); //$NON-NLS-1$
+		builder.append(Messages.format("Format.label", Messages.getString("Spreadsheet.Dependency.successors"))); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.add(createSuccessorsSpreadsheet());
 		JComponent succ = builder.getPanel();
@@ -465,7 +465,7 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
 				.getRow(), 3));
 		builder.nextLine(2);
-		builder.append(java.text.MessageFormat.format("{0}:", Messages.getString("TaskInformationDialog.Resources")), getAssignResourceButton()); //$NON-NLS-1$
+		builder.append(Messages.format("Format.label", Messages.getString("TaskInformationDialog.Resources")), getAssignResourceButton()); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.add(createAssignmentSpreadsheet(),cc.xyw(builder.getColumn(), builder
 				.getRow(), 3));

@@ -189,6 +189,14 @@ public class Messages {
 		return MessageFormat.format(getString(key),params);
 	}
 
+	/**
+	 * Formats a localized message template.  Keep the template in the resource
+	 * bundle so translations can choose their own word order.
+	 */
+	public static String format(String key, Object... params) {
+		return MessageFormat.format(getString(key), params);
+	}
+
 
 	public static String toAppletVersion(String v){
 		StringBuilder sb = new StringBuilder();

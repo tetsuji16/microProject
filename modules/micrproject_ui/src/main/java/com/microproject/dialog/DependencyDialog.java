@@ -143,18 +143,18 @@ public class DependencyDialog extends AbstractDialog {
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
-		builder.append(java.text.MessageFormat.format("{0}:", Messages.getString("Text.From")));
+		builder.append(Messages.format("Format.label", Messages.getString("Text.From")));
 		builder.add(preLabel,cc.xyw(builder.getColumn(), builder
 				.getRow(), 5)); 
 		builder.nextLine(2);
-		builder.append(java.text.MessageFormat.format("{0}:", Messages.getString("Text.To")));
+		builder.append(Messages.format("Format.label", Messages.getString("Text.To")));
 		builder.add(sucLabel,cc.xyw(builder.getColumn(), builder
 				.getRow(), 5)); 
 		
 		builder.nextLine(2);
-		builder.append(java.text.MessageFormat.format("{0}:", Messages.getString("Text.Type")), typeCombo);
+		builder.append(Messages.format("Format.label", Messages.getString("Text.Type")), typeCombo);
 
-		builder.addLabel(java.text.MessageFormat.format("{0}:", Messages.getString("Text.Lag")));
+		builder.addLabel(Messages.format("Format.label", Messages.getString("Text.Lag")));
 		builder.nextColumn(2);
 		builder.add(lagTextField);
 

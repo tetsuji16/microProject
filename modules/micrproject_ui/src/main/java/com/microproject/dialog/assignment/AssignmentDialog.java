@@ -120,7 +120,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
     	};
         removeButton = new JButton(removeAction);
         
-        AbstractAction replaceAction  = new AbstractAction(Messages.getString("Text.Replace") + Settings.ELLIPSIS) { //$NON-NLS-1$
+        AbstractAction replaceAction  = new AbstractAction(Messages.format("Format.ellipsis", Messages.getString("Text.Replace"))) { //$NON-NLS-1$
     		private static final long serialVersionUID = 1L;
  			public void actionPerformed(ActionEvent e) {
     			AssignmentDialog.this.replace();
@@ -376,7 +376,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		else
 			names = DataUtils.stringListWithMaxAndMessage(selectedTasks,Settings.STRING_LIST_LIMIT,Messages.getString("Message.tooManyTasksSelectedToList")); //$NON-NLS-1$
 
-		taskNames.setText(java.text.MessageFormat.format("{0}: {1}", Messages.getString("Text.Tasks"), names)); //$NON-NLS-1$
+		taskNames.setText(Messages.format("Format.labelValue", Messages.getString("Text.Tasks"), names)); //$NON-NLS-1$
 		spreadSheetPane.setSelectedTasks(selectedTasks);
 //		setEnabled(!selectedTasks.isEmpty());
 	}

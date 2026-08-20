@@ -191,7 +191,7 @@ public final class LookupDialog extends AbstractDialog {
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
 		builder.append(Messages.getString("LookupDialog.Type"),types); //$NON-NLS-1$
-		builder.append(Messages.getString("LookupDialog.Find") + ":",match); //$NON-NLS-1$
+		builder.append(Messages.format("Format.label", Messages.getString("LookupDialog.Find")),match); //$NON-NLS-1$
 		builder.append(find);
 		builder.nextLine(2);
 		builder.append(Messages.getString("LookupDialog.Results")); //$NON-NLS-1$

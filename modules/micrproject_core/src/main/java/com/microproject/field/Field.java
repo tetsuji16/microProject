@@ -1194,7 +1194,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 	}
 
 	private static String invalidChoiceMessage(String value) {
-		return java.text.MessageFormat.format("{0}: {1}", Messages.getString("Message.invalidChoice"), value);
+		return Messages.format("Format.labelValue", Messages.getString("Message.invalidChoice"), value);
 	}
 
 	public boolean isValidChoice(String textValue) {

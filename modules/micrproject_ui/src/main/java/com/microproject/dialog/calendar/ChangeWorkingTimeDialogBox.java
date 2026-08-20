@@ -495,7 +495,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	    if (wc.isBaseCalendar()) {
 	    	basedOnText.setText(" "); // a space.  need a space for vertical spacing //$NON-NLS-1$
 	    } else {
-		basedOnText.setText(java.text.MessageFormat.format("{0}{1}",
+		basedOnText.setText(Messages.format("Format.join",
 				Messages.getString("ChangeWorkingTimeDialogBox.BasedOn"), wc.getBaseCalendar().getName())); //$NON-NLS-1$
 	    }
 

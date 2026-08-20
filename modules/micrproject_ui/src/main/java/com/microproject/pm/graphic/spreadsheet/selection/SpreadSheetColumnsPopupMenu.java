@@ -54,7 +54,7 @@ public class SpreadSheetColumnsPopupMenu extends JPopupMenu {
     	MenuAction(String text, CommonSpreadSheet spreadSheet, ArrayList fields, boolean selected) {
     		super(text);
     		if (selected)
-				setText(java.text.MessageFormat.format("<html><span color=\"blue\"><u><b>{0} {1}</b></u></span></html>",
+				setText(Messages.format("Format.htmlEmphasizedWords",
 						text, Messages.getString("Text.clickToRename")));
     		this.fields = fields;
     		this.spreadSheet = spreadSheet;

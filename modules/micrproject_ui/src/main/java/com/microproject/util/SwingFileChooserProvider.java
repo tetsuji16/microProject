@@ -165,7 +165,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	}
 
 	static String formatFilterLabel(String label, String extensionPattern) {
-		return MessageFormat.format("{0} ({1})", label, extensionPattern);
+		return Messages.format("Format.fileFilter", label, extensionPattern);
 	}
 
 	void selectOpenFileFilter(SystemFileChooser chooser) {

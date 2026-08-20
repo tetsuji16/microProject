@@ -99,7 +99,7 @@ public class TimesheetDialog extends AbstractDialog implements CommonAssignmentD
 
 	private void updateSelectionLabel() {
 		if (selectedResources == null || selectedResources.isEmpty()) {
-			resourceNames.setText(java.text.MessageFormat.format("{0}: {1}",
+			resourceNames.setText(Messages.format("Format.labelValue",
 					Messages.getString("Text.Resources"), Messages.getString("Text.EntireProject")));
 			return;
 		}
@@ -118,7 +118,7 @@ public class TimesheetDialog extends AbstractDialog implements CommonAssignmentD
 		if (selectedResources.size() > 5) {
 			names.append("...");
 		}
-		resourceNames.setText(java.text.MessageFormat.format("{0}: {1}",
+		resourceNames.setText(Messages.format("Format.labelValue",
 				Messages.getString("Text.Resources"), names));
 	}
 
