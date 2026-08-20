@@ -1108,8 +1108,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 					int col = columnAtPoint(e.getPoint());
 					Field f = ((SpreadSheetModel) getModel()).getFieldInViewColumn(col);
 					if (f != null)
-						return "<html>" + f.getName() + 
-							"<br>" + Messages.getString("Text.rightClickToInsertRemoveColumns") + "</html>";
+						return java.text.MessageFormat.format("<html>{0}<br>{1}</html>", f.getName(),
+								Messages.getString("Text.rightClickToInsertRemoveColumns"));
 				}
 				return super.getToolTipText(e);
 			}
