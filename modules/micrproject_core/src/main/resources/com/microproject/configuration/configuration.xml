@@ -623,6 +623,7 @@
 		<class name="com.microproject.pm.task.Task">
 			<field property="manuallyScheduled" id="Field.manuallyScheduled" />
 			<field property="inactiveTask" id="Field.inactiveTask" />
+			<field property="hiddenTask" id="Field.hiddenTask" />
 			<field property="displayOnTimeline" id="Field.displayOnTimeline" />
 			<field property="wbs" id="Field.wbs" />
 			<field property="predecessors" id="Field.predecessors" help="Linking#Linking_on_the_Spreadsheet"/>

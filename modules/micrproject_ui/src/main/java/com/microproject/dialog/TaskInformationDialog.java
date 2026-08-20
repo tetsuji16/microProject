@@ -248,6 +248,8 @@ public class TaskInformationDialog extends InformationDialog {
 		builder.nextLine(2);
 		map.append(builder,"Field.manuallyScheduled"); //$NON-NLS-1$
 		map.append(builder,"Field.inactiveTask"); //$NON-NLS-1$
+		builder.nextLine(2);
+		map.append(builder,"Field.hiddenTask"); //$NON-NLS-1$
 
 		builder.nextLine(2);
 		map.append(builder,"Field.cost"); //$NON-NLS-1$
