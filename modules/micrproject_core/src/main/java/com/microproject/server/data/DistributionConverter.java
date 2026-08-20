@@ -25,6 +25,7 @@
 package com.microproject.server.data;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
@@ -41,6 +42,8 @@ public class DistributionConverter {
 	private static final Logger logger = Logger.getLogger(DistributionConverter.class.getName());
 	protected Object delegate;
 	protected Class delegateClass;
+	private Method createDistributionDataMethod;
+	private Method subtractDistributionMethod;
 	public DistributionConverter(){
 		if (!Environment.getStandAlone()){
 			String className=null;
@@ -52,6 +55,8 @@ public class DistributionConverter {
 				try {
 					delegateClass = Class.forName(className);
 					delegate = delegateClass.getDeclaredConstructor().newInstance();
+					createDistributionDataMethod = delegateClass.getMethod("createDistributionData", Project.class, boolean.class);
+					subtractDistributionMethod = delegateClass.getMethod("substractDistributionFromProject", Project.class);
 				} catch (ReflectiveOperationException e) {
 					logger.log(Level.WARNING, "Failed to create distribution converter delegate", e);
 				}
@@ -63,8 +68,8 @@ public class DistributionConverter {
 			return Collections.emptyList();
 		if (delegate!=null){
 			try {
-				return (List)delegateClass.getMethod("createDistributionData", new Class[]{Project.class,boolean.class}).invoke(delegate,new Object[]{project,incremental});
-			} catch (IllegalArgumentException | SecurityException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+				return (List)createDistributionDataMethod.invoke(delegate, project, incremental);
+			} catch (IllegalArgumentException | SecurityException | IllegalAccessException | InvocationTargetException e) {
 				throw new IllegalStateException("Failed to create distribution data", e);
 			}
 		}
@@ -73,7 +78,7 @@ public class DistributionConverter {
 	public void substractDistributionFromProject(Project project){
 		if (delegate!=null){
 			try {
-				delegateClass.getMethod("substractDistributionFromProject", new Class[]{Project.class}).invoke(delegate,new Object[]{project});
+				subtractDistributionMethod.invoke(delegate, project);
 			} catch (IllegalArgumentException e) {
 				logger.log(Level.WARNING, "Failed to subtract distribution from project", e);
 			} catch (SecurityException e) {
@@ -81,8 +86,6 @@ public class DistributionConverter {
 			} catch (IllegalAccessException e) {
 				logger.log(Level.WARNING, "Failed to subtract distribution from project", e);
 			} catch (InvocationTargetException e) {
-				logger.log(Level.WARNING, "Failed to subtract distribution from project", e);
-			} catch (NoSuchMethodException e) {
 				logger.log(Level.WARNING, "Failed to subtract distribution from project", e);
 			}
 		}
