@@ -32,6 +32,7 @@ import java.awt.event.InputMethodEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.im.InputContext;
+import java.lang.reflect.Method;
 import java.text.AttributedCharacterIterator;
 import java.util.ArrayList;
 import java.util.EventListener;
@@ -39,8 +40,11 @@ import java.util.EventObject;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.swing.CellEditor;
 import javax.swing.AbstractAction;
@@ -104,6 +108,7 @@ import com.microproject.util.FlatUiSupport;
  */
 @SuppressWarnings("unchecked")
 public class CommonSpreadSheet extends CommonTable implements CacheListener, SavableToWorkspace, Searchable {
+	private static final Map<Class<?>, Optional<Method>> TEXT_FIELD_METHODS = new ConcurrentHashMap<>();
 	private static final Logger logger = Logger.getLogger(CommonSpreadSheet.class.getName());
 	/**
 	 *
@@ -554,9 +559,17 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		if (component instanceof JTextComponent textComponent) {
 			return textComponent;
 		}
+		Optional<Method> method = TEXT_FIELD_METHODS.computeIfAbsent(component.getClass(), type -> {
+			try {
+				return Optional.of(type.getMethod("getTextField"));
+			} catch (NoSuchMethodException ignored) {
+				return Optional.empty();
+			}
+		});
 		try {
-			var method = component.getClass().getMethod("getTextField");
-			var textField = method.invoke(component);
+			if (method.isEmpty())
+				return null;
+			var textField = method.get().invoke(component);
 			if (textField instanceof JTextComponent text) {
 				return text;
 			}
@@ -1614,4 +1627,3 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 
 }
-
