@@ -62,6 +62,13 @@ public class ResourceView extends JScrollPane implements BaseView {
 	 * 
 	 */
 	private static final long serialVersionUID = 591334548533168582L;
+	private static String resourceWarning(String suffixKey, Resource resource, boolean includeMoveHint) {
+		String pattern = Messages.getString("ResourceView.YouCannotDeleteTheResource") + "{0}"
+				+ Messages.getString(suffixKey);
+		if (includeMoveHint)
+			pattern += "\n" + Messages.getString("ResourceView.ToMoveAProtectedResource");
+		return java.text.MessageFormat.format(pattern, resource.getName());
+	}
 	public static final String spreadsheetCategory=resourceSpreadsheetCategory;
 	protected SpreadSheet spreadSheet;
 	protected NodeModel model;
@@ -144,11 +151,11 @@ public class ResourceView extends JScrollPane implements BaseView {
     	    	if (node != null && node.getImpl() instanceof Resource) {
     	    		Resource r = (Resource)node.getImpl();
     	    		if (r.isUser()) {
-    	    			Alert.warn(Messages.getString("ResourceView.YouCannotDeleteTheResource") + r.getName() + Messages.getString("ResourceView.UsersCanOnlyBeRemoved")); //$NON-NLS-1$ //$NON-NLS-2$
+						Alert.warn(resourceWarning("ResourceView.UsersCanOnlyBeRemoved", r, false)); //$NON-NLS-1$
     	    			return false;
     	    		}
     	    		if (r.isAssignedToSomeProject()) {
-    	    			Alert.warn(Messages.getString("ResourceView.YouCannotDeleteTheResource") + r.getName() + Messages.getString("ResourceView.ThisResourceCurrentlyHasAssignments")); //$NON-NLS-1$ //$NON-NLS-2$
+						Alert.warn(resourceWarning("ResourceView.ThisResourceCurrentlyHasAssignments", r, false)); //$NON-NLS-1$
     	    			return false;
     	    		}
 	    		List<Node> children=node.getChildren();
@@ -164,11 +171,11 @@ public class ResourceView extends JScrollPane implements BaseView {
     	    	if (node != null && node.getImpl() instanceof Resource) {
     	    		Resource r = (Resource)node.getImpl();
     	    		if (r.isUser()) {
-    	    			Alert.warn(Messages.getString("ResourceView.YouCannotDeleteTheResource") + r.getName() + Messages.getString("ResourceView.UsersCanOnlyBeRemoved")+ "\n" + Messages.getString("ResourceView.ToMoveAProtectedResource")); //$NON-NLS-1$ //$NON-NLS-2$
+						Alert.warn(resourceWarning("ResourceView.UsersCanOnlyBeRemoved", r, true)); //$NON-NLS-1$
     	    			return false;
     	    		}
     	    		if (r.isAssignedToSomeProject()) {
-    	    			Alert.warn(Messages.getString("ResourceView.YouCannotDeleteTheResource") + r.getName() + Messages.getString("ResourceView.ThisResourceCurrentlyHasAssignments")+ "\n" + Messages.getString("ResourceView.ToMoveAProtectedResource")); //$NON-NLS-1$ //$NON-NLS-2$
+						Alert.warn(resourceWarning("ResourceView.ThisResourceCurrentlyHasAssignments", r, true)); //$NON-NLS-1$
     	    			return false;
     	    		}
 	    		List<Node> children=node.getChildren();
@@ -273,4 +280,3 @@ public class ResourceView extends JScrollPane implements BaseView {
 	
 	
 }
-
