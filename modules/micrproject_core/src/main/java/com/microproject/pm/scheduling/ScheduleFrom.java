@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.pm.scheduling;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -37,7 +36,9 @@ public enum ScheduleFrom {
 	   FINISH(1);
 
 	protected int id;
-	protected static Map<Integer,ScheduleFrom> reverseMap;
+	private static final Map<Integer, ScheduleFrom> REVERSE_MAP = Map.of(
+			START.id, START,
+			FINISH.id, FINISH);
 
 	private ScheduleFrom(int id){
 		this.id=id;
@@ -46,12 +47,7 @@ public enum ScheduleFrom {
 		return id;
 	}
 	public static ScheduleFrom getInstance(int id){
-		if (reverseMap==null){
-			reverseMap=new HashMap<Integer, ScheduleFrom>();
-			for (ScheduleFrom ct : values())
-				reverseMap.put(ct.getId(),ct);
-		}
-		return reverseMap.get(id);
+		return REVERSE_MAP.get(id);
 	}
 
 }
