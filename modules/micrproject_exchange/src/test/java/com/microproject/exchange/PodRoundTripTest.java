@@ -416,6 +416,8 @@ public class PodRoundTripTest {
 		// created timestamp must survive the round-trip unchanged (issue #227)
 		assertEquals("created timestamp must survive round-trip (issue #227)",
 				p0.getCreated().getTime(), p2.getCreated().getTime());
+		assertEquals("work calendar uniqueId must survive round-trip (issue #268)",
+				p0.getWorkCalendar().getUniqueId(), p2.getWorkCalendar().getUniqueId());
 	}
 
 	private static byte[] serializeProjectData(Serializer serializer, Project project) throws Exception {
