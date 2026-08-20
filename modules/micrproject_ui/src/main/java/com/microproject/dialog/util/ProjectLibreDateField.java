@@ -45,6 +45,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.text.DateFormatter;
 
 import com.microproject.options.EditOption;
+import com.microproject.strings.Messages;
 import com.microproject.util.DateFieldSupport;
 
 /**
@@ -111,7 +112,7 @@ public class ProjectLibreDateField extends JPanel {
 		} else {
 			spinner.setEditor(new JSpinner.DateEditor(spinner, "yyyy/MM/dd"));
 		}
-		JButton accept = new JButton("OK");
+		JButton accept = new JButton(Messages.getString("ButtonText.OK"));
 		accept.addActionListener(e -> {
 			setValue(spinner.getValue());
 			popup.setVisible(false);
