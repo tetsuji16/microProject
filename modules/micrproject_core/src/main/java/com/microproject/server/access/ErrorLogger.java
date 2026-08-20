@@ -24,7 +24,8 @@
  *******************************************************************************/
 package com.microproject.server.access;
 
-import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,7 +37,7 @@ import com.microproject.util.Environment;
 public class ErrorLogger {
 	public static boolean disabled = Environment.getStandAlone();
 	private static final Logger logger = Logger.getLogger(ErrorLogger.class.getName());
-	private static HashSet<String> loggedErrors = new HashSet<String>();
+	private static final Set<String> loggedErrors = ConcurrentHashMap.newKeySet();
 
 	public static void log(final Exception e) {
 		if (disabled)
