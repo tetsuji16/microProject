@@ -63,11 +63,11 @@ public class ResourceView extends JScrollPane implements BaseView {
 	 */
 	private static final long serialVersionUID = 591334548533168582L;
 	private static String resourceWarning(String suffixKey, Resource resource, boolean includeMoveHint) {
-		String pattern = Messages.getString("ResourceView.YouCannotDeleteTheResource") + "{0}"
-				+ Messages.getString(suffixKey);
+		String message = Messages.format("Format.threeParts", Messages.getString("ResourceView.YouCannotDeleteTheResource"),
+				resource.getName(), Messages.getString(suffixKey));
 		if (includeMoveHint)
-			pattern += "\n" + Messages.getString("ResourceView.ToMoveAProtectedResource");
-		return java.text.MessageFormat.format(pattern, resource.getName());
+			message += "\n" + Messages.getString("ResourceView.ToMoveAProtectedResource");
+		return message;
 	}
 	public static final String spreadsheetCategory=resourceSpreadsheetCategory;
 	protected SpreadSheet spreadSheet;

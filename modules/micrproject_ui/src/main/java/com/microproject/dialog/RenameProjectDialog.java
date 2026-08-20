@@ -146,12 +146,10 @@ public final class RenameProjectDialog extends AbstractDialog {
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
-		if (form.isSaveAs()) builder.append(java.text.MessageFormat.format(
-				Messages.getString("Message.saveProjectAs1") + "{0}" + Messages.getString("Message.saveProjectAs2"),
-				form.getName())); //$NON-NLS-1$
-		else builder.append(java.text.MessageFormat.format(
-				Messages.getString("Message.renameProject1") + "{0}" + Messages.getString("Message.renameProject2"),
-				form.getName())); //$NON-NLS-1$
+		if (form.isSaveAs()) builder.append(Messages.format("Format.threeParts",
+				Messages.getString("Message.saveProjectAs1"), form.getName(), Messages.getString("Message.saveProjectAs2"))); //$NON-NLS-1$
+		else builder.append(Messages.format("Format.threeParts",
+				Messages.getString("Message.renameProject1"), form.getName(), Messages.getString("Message.renameProject2"))); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.append(createFieldPanel());
 		return builder.getPanel();

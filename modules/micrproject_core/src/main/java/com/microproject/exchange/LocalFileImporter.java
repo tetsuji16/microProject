@@ -368,7 +368,7 @@ public class LocalFileImporter extends FileImporter {
 		if (error){
 			if (file.equals(tmpFile))
 				Alert.error(Messages.getString("Message.saveError"));
-				else Alert.error(java.text.MessageFormat.format("{0}{1}", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
+				else Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
 		}else if (!file.equals(tmpFile)){
 			file.delete();
 			tmpFile.renameTo(file);

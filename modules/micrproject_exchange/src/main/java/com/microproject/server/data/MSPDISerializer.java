@@ -354,7 +354,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		}
 		if (file.equals(tmpFile))
 			Alert.error(Messages.getString("Message.saveError"));
-		else Alert.error(java.text.MessageFormat.format("{0}{1}", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
+		else Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
 		return false;
 	}
 

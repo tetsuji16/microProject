@@ -101,7 +101,7 @@ public class ProjectFactory {
 	public Project createProject() {
 		CreateOptions opt=new CreateOptions();
 		opt.setLocal(Environment.getStandAlone());
-		opt.setName(Messages.getString("Text.Untitled") + " " + ++untitledCount);
+		opt.setName(Messages.format("Format.words", Messages.getString("Text.Untitled"), ++untitledCount));
 		return createProject(opt);
 	}
 //	public Project createProject(boolean addResources,boolean local) {
@@ -491,10 +491,9 @@ public class ProjectFactory {
 	}
 
 	public int promptForSave(Project project, boolean allowCancel) {
-		String text = java.text.MessageFormat.format(
-				Messages.getString("Message.saveProjectBeforeClosing1") + " {0} "
-						+ Messages.getString("Message.saveProjectBeforeClosing2"),
-				getDisplayNameForSavePrompt(project));
+		String text = Messages.format("Format.threeParts",
+				Messages.getString("Message.saveProjectBeforeClosing1"), getDisplayNameForSavePrompt(project),
+				Messages.getString("Message.saveProjectBeforeClosing2"));
 		if (allowCancel)
 			return Alert.confirm(text);
 		else

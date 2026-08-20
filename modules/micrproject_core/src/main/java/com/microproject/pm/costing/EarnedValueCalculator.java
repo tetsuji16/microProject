@@ -211,7 +211,7 @@ public class EarnedValueCalculator {
 	}
 	private static final String NO_BASELINE = "There is no Earned Value data"; //$NON-NLS-1$
 	private static String metricLabel(String key, double value) {
-		return java.text.MessageFormat.format("{0}={1}", Messages.getString(key), value);
+		return Messages.format("Format.equals", Messages.getString(key), value);
 	}
 	public ImageLink getScheduleStatusIndicator(double spi) {
 		

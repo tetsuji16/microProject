@@ -1148,7 +1148,7 @@ public class PageSetup{
 		builder.add(scaleToWidth,cc.xy(4, 1));
 		builder.add(scaleToWidthLabel,cc.xy(6, 1));
 		builder.add(constrainProportions,cc.xy(8, 1));
-		JLabel l=new JLabel(MessageFormat.format("{0} {1}",
+		JLabel l=new JLabel(Messages.format("Format.words",
 				Messages.getString("PageSetupDialog.Scaling.FitToProportions"),
 				Messages.getString("PageSetupDialog.Scaling.FitToProportions2")));
 		initFont(l);

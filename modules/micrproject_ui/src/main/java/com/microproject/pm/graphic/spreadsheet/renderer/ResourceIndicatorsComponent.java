@@ -88,10 +88,11 @@ public class ResourceIndicatorsComponent extends IndicatorsComponent{
 			if (l!=null){
 				label.add(l);
 				setLook(l,isSelected,hasFocus);
-			text.append(java.text.MessageFormat.format(Messages.getString("ResourceIndicatorsComponent.UserLicense")
-					+ "{0}{1}{2}<br>", UserUtil.licenseToLabel(license),
+			text.append(Messages.format("Format.threeParts", Messages.getString("ResourceIndicatorsComponent.UserLicense"),
+					UserUtil.licenseToLabel(license),
+					Messages.format("Format.join",
 					indicators.isAdministrator() ? Messages.getString("ResourceIndicatorsComponent.Administrator") : "",
-					indicators.isExternal() ? Messages.getString("ResourceIndicatorsComponent.PartnerCustomer") : "")); //$NON-NLS-1$
+					indicators.isExternal() ? Messages.getString("ResourceIndicatorsComponent.PartnerCustomer") : "") + "<br>")); //$NON-NLS-1$
 			}
 		}
 	}
