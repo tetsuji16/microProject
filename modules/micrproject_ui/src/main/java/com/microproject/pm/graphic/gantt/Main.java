@@ -50,7 +50,7 @@ public class Main {
 		System.setProperty("apple.laf.useScreenMenuBar","true");
 		Locale.setDefault(ConfigurationFile.getLocale());
 		HashMap<String, Object> opts = ApplicationStartupFactory.extractOpts(args);
-		String osName=System.getProperty("os.name").toLowerCase();
+		String osName=System.getProperty("os.name").toLowerCase(Locale.ROOT);
 		if (osName.startsWith("linux")){
 			String javaExec=ConfigurationFile.getRunProperty("JAVA_EXE");
 			//check jvm
@@ -87,4 +87,3 @@ public class Main {
 		startupFactory.instanceFromNewSession(frame,doWelcome);
 	}
 }
-
