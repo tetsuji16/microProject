@@ -160,11 +160,14 @@ public final class ResourceLevelingService {
 	}
 
 	private static final class LevelingScratch {
-		private final List<Assignment> assignments = new ArrayList<>();
-		private final List<Scheduled> accepted = new ArrayList<>();
-		private final List<Long> boundaries = new ArrayList<>();
+		private final ArrayList<Assignment> assignments = new ArrayList<>();
+		private final ArrayList<Scheduled> accepted = new ArrayList<>();
+		private final ArrayList<Long> boundaries = new ArrayList<>();
 
-		private void reset() {
+		private void reset(int assignmentCount) {
+			assignments.ensureCapacity(assignmentCount);
+			accepted.ensureCapacity(assignmentCount * 2);
+			boundaries.ensureCapacity(assignmentCount + 1);
 			assignments.clear();
 			accepted.clear();
 			boundaries.clear();
@@ -234,7 +237,7 @@ public final class ResourceLevelingService {
 		if (resource == null || !resource.isLabor() || resource.getMaximumUnits() <= 0D) {
 			return false;
 		}
-		scratch.reset();
+		scratch.reset(resource.getAssignments().size());
 		List<Assignment> assignments = scratch.assignments;
 		for (Object value : resource.getAssignments()) {
 			Assignment assignment = (Assignment) value;
