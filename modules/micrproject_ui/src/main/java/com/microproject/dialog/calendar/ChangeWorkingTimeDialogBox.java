@@ -495,7 +495,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	    if (wc.isBaseCalendar()) {
 	    	basedOnText.setText(" "); // a space.  need a space for vertical spacing //$NON-NLS-1$
 	    } else {
-	    	basedOnText.setText(Messages.getString("ChangeWorkingTimeDialogBox.BasedOn") + wc.getBaseCalendar().getName()); //$NON-NLS-1$
+		basedOnText.setText(java.text.MessageFormat.format("{0}{1}",
+				Messages.getString("ChangeWorkingTimeDialogBox.BasedOn"), wc.getBaseCalendar().getName())); //$NON-NLS-1$
 	    }
 
 	    long first=sdCalendar.getFirstDisplayedDate();
@@ -738,4 +739,3 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		super.onOk();
 	}
 }
-
