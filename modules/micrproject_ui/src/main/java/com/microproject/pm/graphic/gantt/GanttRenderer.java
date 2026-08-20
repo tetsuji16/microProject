@@ -57,6 +57,7 @@ import javax.swing.JComponent;
 
 import com.microproject.pm.graphic.gantt.link_routing.GanttLinkRouting;
 import com.microproject.pm.graphic.graph.GraphParams;
+import com.microproject.pm.graphic.TaskFontStyle;
 import com.microproject.pm.graphic.graph.GraphRenderer;
 import com.microproject.pm.graphic.graph.LinkRouting;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
@@ -711,7 +712,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
 			config=((GanttParams)graphInfo).getConfiguration();
 			yrow=node.getRow()*rowHeight;
-			annotationFont = FlatUiSupport.uiFont().deriveFont(Font.PLAIN);
+			annotationFont = TaskFontStyle.resolveFont(getNodeImpl(node), FlatUiSupport.uiFont().deriveFont(Font.PLAIN));
 			fontMetrics = g2.getFontMetrics(annotationFont);
 			renderedAnnotationKeys = new HashSet<String>();
 			annotationRenderedForNode = false;
@@ -768,7 +769,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			Font oldFont = g2.getFont();
 			Color oldColor = g2.getColor();
 			g2.setFont(annotationFont);
-			g2.setColor(GanttRendererSupport.resolveAnnotationColor());
+			g2.setColor(TaskFontStyle.resolveColor(getNodeImpl(node), GanttRendererSupport.resolveAnnotationColor()));
 			g2.clipRect(x, textTop, availableWidth, clipHeight);
 			g2.drawString(clipped, x, textBaseline);
 			if (originalClip != null)
