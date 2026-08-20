@@ -1413,6 +1413,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_MOVE_TASK_DOWN, new MoveTaskDownAction());
 		actionsMap.addHandler(ACTION_COLLAPSE, new CollapseAction());
 		actionsMap.addHandler(ACTION_EXPAND, new ExpandAction());
+		actionsMap.addHandler(ACTION_HIDE_SELECTED_TASKS, new HideSelectedTasksAction());
+		actionsMap.addHandler(ACTION_SHOW_ALL_TASKS, new ShowAllTasksAction());
 
 
 		actionsMap.addHandler(ACTION_CUT, new CutAction());
@@ -2222,6 +2224,43 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
 			return isDocumentWritable();
+		}
+	}
+	public class HideSelectedTasksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive())
+				return;
+			for (Node node : getCurrentFrame().getSelectedTaskNodes(true, true)) {
+				Task task = (Task) node.getImpl();
+				if (!task.isHiddenTask()) {
+					task.setHiddenTask(true);
+					getCurrentFrame().getProject().fireUpdateEvent(this, task);
+				}
+			}
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+	public class ShowAllTasksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive())
+				return;
+			Project project = getCurrentFrame().getProject();
+			for (Iterator<Task> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+				Task task = iterator.next();
+				if (task.isHiddenTask()) {
+					task.setHiddenTask(false);
+					project.fireUpdateEvent(this, task);
+				}
+			}
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
 		}
 	}
 
