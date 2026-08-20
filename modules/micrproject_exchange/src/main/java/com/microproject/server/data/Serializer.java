@@ -318,8 +318,8 @@ public class Serializer {
     	ArrayList<Long> unchangedTasks = null;
     	ArrayList<Long> unchangedLinks = null;
     	if (incremental){
-    		unchangedTasks=new ArrayList<Long>();
-    		unchangedLinks=new ArrayList<Long>();
+		unchangedTasks=new ArrayList<Long>(project.getTaskList().size());
+		unchangedLinks=new ArrayList<Long>(project.getTaskList().size());
     		//taskLinker.setUnchanged(unchangedTasks);
     	}
     	this.markAncestorsOfDirtyTasksDirty(project);
@@ -347,7 +347,7 @@ public class Serializer {
 
             Iterator<?> j=task.getPredecessorList().iterator();
 	        if (j.hasNext()){
-	            List<LinkData> predecessors=new ArrayList<>();
+	            List<LinkData> predecessors=new ArrayList<>(task.getPredecessorList().size());
 	            while (j.hasNext()){
 	                Dependency dependency=(Dependency)j.next();
 	                LinkData linkData;
@@ -1299,7 +1299,7 @@ public class Serializer {
         if (authRoles!=null){
         	EnterpriseResource globalResource=resource.getGlobalResource();
         	globalResource.setDefaultRole(authRoles.length>0?authRoles[0]:ApplicationUser.INACTIVE);
-        	Set<Integer> roles=new HashSet<Integer>();
+        	Set<Integer> roles=new HashSet<Integer>(authRoles.length * 4 / 3 + 1);
         	for (int i=0;i<authRoles.length;i++) {
 				roles.add(UserUtil.toExtendedRole(authRoles[i],resource.isUser()));
 			}
