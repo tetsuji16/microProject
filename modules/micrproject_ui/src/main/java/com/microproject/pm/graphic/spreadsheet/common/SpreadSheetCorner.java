@@ -93,8 +93,9 @@ public class SpreadSheetCorner extends GradientCorner implements ListSelectionLi
 
 
 	public String getToolTipText(MouseEvent e) {
-		return "<html>" + Dictionary.getCategoryText(spreadSheet.getSpreadSheetCategory()) + ": " + spreadSheet.getFieldArray() +
-		"<br>" + Messages.getString("Text.rightClickSelectToSpreadsheet") + "<html>";
+		return java.text.MessageFormat.format("<html>{0}: {1}<br>{2}<html>",
+				Dictionary.getCategoryText(spreadSheet.getSpreadSheetCategory()), spreadSheet.getFieldArray(),
+				Messages.getString("Text.rightClickSelectToSpreadsheet"));
 	}
 
 
@@ -114,4 +115,3 @@ public class SpreadSheetCorner extends GradientCorner implements ListSelectionLi
 
 
 }
-
