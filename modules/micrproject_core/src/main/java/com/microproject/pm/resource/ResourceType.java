@@ -25,6 +25,7 @@
 package com.microproject.pm.resource;
 import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
+import org.apache.commons.collections4.bidimap.UnmodifiableBidiMap;
 
 import com.microproject.strings.*;
 
@@ -39,14 +40,16 @@ public class ResourceType {
 	public static final int OTHER = 4;
 	public static final int COST = 5;
 
-	private static BidiMap RESOURCE_TYPE_MAP = new DualHashBidiMap();
+	private static final BidiMap RESOURCE_TYPE_MAP;
 	static {
-		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Labor"), Integer.valueOf(WORK));
-		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Material"), Integer.valueOf(MATERIAL));
-		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Location"),  Integer.valueOf(LOCATION));
-		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Machine"),  Integer.valueOf(MACHINE));
-		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Cost"), Integer.valueOf(COST));
-		RESOURCE_TYPE_MAP.put(Messages.getString("ResourceType.Other"), Integer.valueOf(OTHER));
+		BidiMap map = new DualHashBidiMap();
+		map.put(Messages.getString("ResourceType.Labor"), Integer.valueOf(WORK));
+		map.put(Messages.getString("ResourceType.Material"), Integer.valueOf(MATERIAL));
+		map.put(Messages.getString("ResourceType.Location"), Integer.valueOf(LOCATION));
+		map.put(Messages.getString("ResourceType.Machine"), Integer.valueOf(MACHINE));
+		map.put(Messages.getString("ResourceType.Cost"), Integer.valueOf(COST));
+		map.put(Messages.getString("ResourceType.Other"), Integer.valueOf(OTHER));
+		RESOURCE_TYPE_MAP = UnmodifiableBidiMap.unmodifiableBidiMap(map);
 	}
 	
 	
