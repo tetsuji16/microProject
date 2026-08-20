@@ -65,7 +65,7 @@ public final class DelegateTaskDialog extends FieldDialog {
 	public JComponent createContentPanel() {
 		taskNames = new JLabel();
 		String names = DataUtils.stringListWithMaxAndMessage(getCollection(),Settings.STRING_LIST_LIMIT,Messages.getString("Message.tooManyTasksSelectedToList.mf")); //$NON-NLS-1$
-		taskNames.setText(Messages.getString("Text.Tasks") + ": " + names); //$NON-NLS-1$ //$NON-NLS-2$
+		taskNames.setText(java.text.MessageFormat.format("{0}: {1}", Messages.getString("Text.Tasks"), names)); //$NON-NLS-1$
 
 		
 		FieldComponentMap map = createMap();
@@ -87,4 +87,3 @@ public final class DelegateTaskDialog extends FieldDialog {
 	
 	
 }
-

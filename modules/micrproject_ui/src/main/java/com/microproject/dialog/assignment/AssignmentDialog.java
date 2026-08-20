@@ -376,7 +376,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		else
 			names = DataUtils.stringListWithMaxAndMessage(selectedTasks,Settings.STRING_LIST_LIMIT,Messages.getString("Message.tooManyTasksSelectedToList")); //$NON-NLS-1$
 
-		taskNames.setText(Messages.getString("Text.Tasks") + ": " + names); //$NON-NLS-1$ //$NON-NLS-2$
+		taskNames.setText(java.text.MessageFormat.format("{0}: {1}", Messages.getString("Text.Tasks"), names)); //$NON-NLS-1$
 		spreadSheetPane.setSelectedTasks(selectedTasks);
 //		setEnabled(!selectedTasks.isEmpty());
 	}
@@ -410,4 +410,3 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 			
 	}
 }
-
