@@ -56,7 +56,7 @@ public class DependencyType {
 	public static Integer mapStringToValue(String textValue) {
 		Integer i = (Integer) getDependencyField().mapStringToValue(textValue);
 		if (i == null)
-			i = (Integer) getDependencyField().mapStringToValue(textValue.toUpperCase());
+			i = (Integer) getDependencyField().mapStringToValue(textValue.toUpperCase(Locale.ROOT));
 		return i;
 	}
 

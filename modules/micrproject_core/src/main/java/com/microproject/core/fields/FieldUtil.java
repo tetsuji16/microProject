@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -218,11 +219,11 @@ public class FieldUtil {
 	}
 	
 	protected static String toGetterMethodName(String s){
-		return "get" + s.substring(0, 1).toUpperCase() + s.substring(1);
+		return "get" + s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
 	}
 
 	protected static String toSetterMethodName(String s){
-		return "set" + s.substring(0, 1).toUpperCase() + s.substring(1);
+		return "set" + s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
 	}
 	
 	protected static Field[] getDeclaredFields(Class<?> classe){

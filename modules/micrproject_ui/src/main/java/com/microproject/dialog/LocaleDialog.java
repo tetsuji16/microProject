@@ -754,7 +754,7 @@ public final class LocaleDialog extends AbstractDialog {
 	            result.append(character);
 	        } else {
 	            result.append("\\u");
-	            result.append(Integer.toHexString(0x10000 | character).substring(1).toUpperCase());
+	            result.append(Integer.toHexString(0x10000 | character).substring(1).toUpperCase(Locale.ROOT));
 	        }
 	    }
 	    return result.toString();

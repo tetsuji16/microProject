@@ -24,6 +24,8 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.views;
 
+import java.util.Locale;
+
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 
@@ -39,7 +41,7 @@ public abstract class SearchContext {
 		if (val == null)
 			return false;;
 		if (!caseSensitive) {
-			if (val.toUpperCase().contains(searchValue.toUpperCase()))
+			if (val.toUpperCase(Locale.ROOT).contains(searchValue.toUpperCase(Locale.ROOT)))
 				return true;
 		} else {
 			if (val.contains(searchValue)) {
@@ -75,4 +77,3 @@ public abstract class SearchContext {
 	}
 
 }
-

@@ -28,6 +28,7 @@ import java.awt.Dimension;
 import java.awt.print.PageFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 import javax.print.DocFlavor;
@@ -101,9 +102,9 @@ public class PageSizes extends MediaSizeName{
 			String name=oname;
 			if (name.startsWith("iso-")) name=name.substring(4);
 			else if (name.startsWith("na-")) name=name.substring(3);
-			else if (name.startsWith("jis-")&&name.length()>5) name=name.substring(0,5).toUpperCase()+name.substring(5);
+			else if (name.startsWith("jis-")&&name.length()>5) name=name.substring(0,5).toUpperCase(Locale.ROOT)+name.substring(5);
 			if (name.length()==0) continue;
-			name=name.substring(0,1).toUpperCase()+name.substring(1);
+			name=name.substring(0,1).toUpperCase(Locale.ROOT)+name.substring(1);
 			s.add(new Format(name,size));
 			so.add(new Format(oname,size));
 		}
@@ -272,4 +273,3 @@ public class PageSizes extends MediaSizeName{
 //		new Format("ANSI-E",34,44,INCH)
 //	};
 }
-
