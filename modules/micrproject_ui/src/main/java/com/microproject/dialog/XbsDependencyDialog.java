@@ -111,11 +111,11 @@ public class XbsDependencyDialog extends AbstractDialog {
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
-		builder.append(Messages.getString("Text.From") + ":");
+		builder.append(java.text.MessageFormat.format("{0}:", Messages.getString("Text.From")));
 		builder.add(preLabel,cc.xyw(builder.getColumn(), builder
 				.getRow(), 5)); 
 		builder.nextLine(2);
-		builder.append(Messages.getString("Text.To") + ":");
+		builder.append(java.text.MessageFormat.format("{0}:", Messages.getString("Text.To")));
 		builder.add(sucLabel,cc.xyw(builder.getColumn(), builder
 				.getRow(), 5)); 
 		
@@ -147,4 +147,3 @@ public class XbsDependencyDialog extends AbstractDialog {
 		return remove;
 	}
 }
-
