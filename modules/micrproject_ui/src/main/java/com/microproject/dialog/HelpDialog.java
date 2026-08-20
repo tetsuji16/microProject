@@ -57,7 +57,8 @@ public final class HelpDialog extends AbstractDialog {
 	}
 
 	private HelpDialog(Frame owner) {
-		super(owner, Messages.getString("HelpDialog.About") + " " +Messages.getContextString("Text.ApplicationTitle"), true); //$NON-NLS-1$ //$NON-NLS-2$
+		super(owner, java.text.MessageFormat.format("{0} {1}",
+				Messages.getString("HelpDialog.About"), Messages.getContextString("Text.ApplicationTitle")), true); //$NON-NLS-1$
 	}
 
 	protected void initComponents() {
