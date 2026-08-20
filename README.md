@@ -1,6 +1,6 @@
 # microProject
 
-microProject is an independent desktop planning application based on the OpenProj and ProjectLibre code history. It extends that foundation with practical improvements for day-to-day scheduling, collaboration, import/export, and Gantt usability.
+microProject is an independent Windows desktop planning application based on the OpenProj and ProjectLibre code history. It lets teams plan a project in a hierarchical task table beside its Gantt chart, so task dates, dependencies, progress, and the overall schedule remain visible together.
 
 Current release in this fork:
 
@@ -10,12 +10,14 @@ Quick links:
 
 - [microProject documentation](https://tetsuji16.github.io/ProjectLibre/docs/)
 
-![microProject Gantt view](docs/images/demo_gannt.png)
+![microProject commercial construction project plan in the Gantt view](docs/images/demo_gannt.png)
+
+The screenshot shows a commercial construction plan. The left pane organizes work as a WBS-style task hierarchy, while the Gantt pane shows the schedule, linked tasks, milestones, and parallel work streams on a shared timeline. Use the File menu to create, open, and save plans; the application also provides import, export, print, and PDF workflows from its desktop interface.
 
 ## What This Fork Is For
 
 - Keep microProject usable on a modern JDK and packaging toolchain
-- Improve real-world planning workflows instead of only preserving legacy behavior
+- Improve real-world planning workflows: task hierarchies, schedules, dependencies, resources, and progress in one desktop workspace
 - Add collaboration-oriented features for teams sharing project files locally
 - Make the Gantt and spreadsheet views smoother to use for large schedules
 

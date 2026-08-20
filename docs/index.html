@@ -405,7 +405,7 @@
         <div class="brand-badge" aria-hidden="true"></div>
         <div class="brand-copy">
           <div class="brand-title">microProject</div>
-          <div class="brand-subtitle">Modernized desktop planning for Windows teams</div>
+          <div class="brand-subtitle">タスク表と Gantt を一画面で扱う Windows 向け計画ツール</div>
         </div>
       </div>
       <div class="top-actions">
@@ -417,20 +417,20 @@
 
     <section class="hero">
       <div class="hero-copy">
-        <div class="eyebrow">Office Ready Desktop Planning</div>
+        <div class="eyebrow">Desktop Project Planning</div>
         <div class="stack-text">
-          <h1>静かに使えて、ちゃんと速い microProject。</h1>
+          <h1>タスク表と Gantt を、ひとつの計画画面に。</h1>
           <p>
-            Gantt、タスク表、依存関係、進捗管理を扱うデスクトップ型の計画ツールを、
-            現代 JDK と Windows 配布フローに合わせて整えた実用重視の fork です。
+            microProject は、階層化したタスク表と Gantt チャートを並べて扱う Windows 向けのデスクトップ計画ツールです。
+            工程の開始日・終了日、依存関係、進捗、担当作業を、同じタイムラインで確認できます。
           </p>
           <p>
-            派手な演出よりも、読みやすさ、操作の安定性、配布のしやすさを優先して、
-            日常業務で使いやすい最小構成へ寄せています。
+            表のアウトラインで WBS を整理しながら、右側の Gantt でマイルストーン、並行作業、後続タスクへのつながりを確認できます。
+            建設・開発・イベントなど、複数の工程を持つ計画を見通しよく管理できます。
           </p>
           <p>
-            現在のビルドと配布は Gradle を単一の入口として運用しており、
-            サポート対象の実行基準は Java 25+ に揃えています。
+            作成・保存に加え、インポート、エクスポート、印刷、PDF 出力をデスクトップ画面から利用できます。
+            Windows 向けの配布は、自己完結型の MSI と Portable ZIP を用意しています。
           </p>
         </div>
         <div class="hero-actions">
@@ -441,10 +441,10 @@
 
       <div class="shot-card" aria-label="microProject screenshot">
         <div class="shot-meta">
-          <span class="shot-title">Latest Gantt Workspace</span>
-          <span>Single source of truth</span>
+          <span class="shot-title">商業建設プロジェクトの計画画面</span>
+          <span>タスク表・依存関係・Gantt</span>
         </div>
-        <img src="images/demo_gannt.png" alt="microProject のデモ Gantt スクリーンショット">
+        <img src="images/demo_gannt.png" alt="microProject の商業建設プロジェクトを示す Gantt スクリーンショット">
       </div>
     </section>
 
@@ -513,21 +513,21 @@
         <div class="section-head">
           <div>
             <div class="section-kicker">Why This Fork</div>
-            <h2>実務のための改善を、UI と配布の両方に。</h2>
+            <h2>工程の全体像と、日々の更新をつなげる。</h2>
           </div>
         </div>
         <div class="feature-list">
           <section class="feature-item">
-            <h3>UI stability first</h3>
-            <p>タスク表と Gantt の同期、ズーム後の見え方、貼り付けや編集まわりの落ちやすい箇所を重点的に整理しています。</p>
+            <h3>タスク表と Gantt を同期</h3>
+            <p>WBS 形式のタスク階層を編集すると、対応する工程を Gantt 上で確認できます。表とタイムラインを行き来せずに、計画の構造と日程を見比べられます。</p>
           </section>
           <section class="feature-item">
-            <h3>Lean packaging</h3>
-            <p>不要なモジュール混入を抑え、標準機能を残したまま配布サイズの膨張を避ける構成へ寄せています。</p>
+            <h3>依存関係と進捗を見える化</h3>
+            <p>後続タスクへのつながり、マイルストーン、並行する作業をタイムラインに表示し、工程の順序と進み具合を把握しやすくします。</p>
           </section>
           <section class="feature-item">
-            <h3>Modern Windows delivery</h3>
-            <p>Gradle、JDK 25+、jpackage ベースの Windows 配布を軸にして、継続的にリリースしやすい状態を維持しています。</p>
+            <h3>ファイルをやりとりしやすく</h3>
+            <p>デスクトップ画面からプロジェクトを作成・保存し、インポート、エクスポート、印刷、PDF 出力へ進めます。Windows では MSI または Portable ZIP を選べます。</p>
           </section>
         </div>
         <div class="footnote">
