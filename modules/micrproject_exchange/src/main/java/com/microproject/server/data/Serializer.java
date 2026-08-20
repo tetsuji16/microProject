@@ -1089,7 +1089,7 @@ public class Serializer {
     		Node summaryNode=null;
 
 
-    		Map<Long, Node> subprojectsMap=new HashMap<Long, Node>();
+			Map<Long, Node> subprojectsMap=new HashMap<Long, Node>(tasks.size() * 4 / 3 + 1);
     		for (TaskData taskData:tasks){
     			TaskData parentData=taskData.getParentTask();
 //  			if (taskData.isTimesheetCreated())
