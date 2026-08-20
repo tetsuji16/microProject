@@ -210,15 +210,18 @@ public class EarnedValueCalculator {
 		
 	}
 	private static final String NO_BASELINE = "There is no Earned Value data"; //$NON-NLS-1$
+	private static String metricLabel(String key, double value) {
+		return java.text.MessageFormat.format("{0}={1}", Messages.getString(key), value);
+	}
 	public ImageLink getScheduleStatusIndicator(double spi) {
 		
-		return ImageLink.trafficLight(spi == 0.0D ? NO_BASELINE : Messages.getString("EarnedValueCalculator.SPI") + "="+spi,spi, 1.0D, 0.9D); //$NON-NLS-1$ //$NON-NLS-2$
+		return ImageLink.trafficLight(spi == 0.0D ? NO_BASELINE : metricLabel("EarnedValueCalculator.SPI", spi),spi, 1.0D, 0.9D); //$NON-NLS-1$
 	}
 	public ImageLink getBudgetStatusIndicator(double cpi) {
-		return ImageLink.trafficLight(cpi == 0.0D ? NO_BASELINE : Messages.getString("EarnedValueCalculator.CPI") + "="+cpi,cpi, 1.0D, 0.9D); //$NON-NLS-1$ //$NON-NLS-2$
+		return ImageLink.trafficLight(cpi == 0.0D ? NO_BASELINE : metricLabel("EarnedValueCalculator.CPI", cpi),cpi, 1.0D, 0.9D); //$NON-NLS-1$
 	}
 	public ImageLink getStatusIndicator(double csi) {
-		return ImageLink.trafficLight(csi == 0.0D ? NO_BASELINE : Messages.getString("EarnedValueCalculator.CSI") + "="+csi,csi, 1.0D, 0.81D); //$NON-NLS-1$ //$NON-NLS-2$
+		return ImageLink.trafficLight(csi == 0.0D ? NO_BASELINE : metricLabel("EarnedValueCalculator.CSI", csi),csi, 1.0D, 0.81D); //$NON-NLS-1$
 	}
 	
 }

@@ -1181,16 +1181,20 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 			try {
 				value = select.getValue(textValue);
 			} catch (InvalidChoiceException e) {
-				throw new FieldParseException(Messages.getString("Message.invalidChoice") + ": " + textValue);
+				throw new FieldParseException(invalidChoiceMessage(textValue));
 			}
 			if (value == null && (!select.isAllowNull() || textValue != Select.EMPTY))
-				throw new FieldParseException(Messages.getString("Message.invalidChoice") + ": " + textValue);
+				throw new FieldParseException(invalidChoiceMessage(textValue));
 		} else if (this.isBoolean()) {
 			value = Boolean.valueOf(textValue);
 		} else {
 			value = textValue;
 		}
 		return value;
+	}
+
+	private static String invalidChoiceMessage(String value) {
+		return java.text.MessageFormat.format("{0}: {1}", Messages.getString("Message.invalidChoice"), value);
 	}
 
 	public boolean isValidChoice(String textValue) {
