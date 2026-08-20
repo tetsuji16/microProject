@@ -58,7 +58,7 @@ public class FieldUtil {
 //		if (fieldName2.startsWith("customCost")){
 //			log.info("convertFieldSeries("+hasFields+", "+fieldName1+", "+startIndex1+", "+endIndex1+", "+fieldName2+", "+startIndex2+", "+endIndex2+", "+index+")");
 //		}
-		String[] elements1=fieldName1.split(":");
+		String[] elements1=fieldName1.split(":", -1);
 		if (elements1.length==3){
 			fieldName1=elements1[0];
 			startIndex1=Integer.parseInt(elements1[1]);
@@ -70,7 +70,7 @@ public class FieldUtil {
 			}else convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, index, converterName, from);
 			return;
 		}
-		String[] elements2=fieldName2.split(":");
+		String[] elements2=fieldName2.split(":", -1);
 		if (elements2.length==3){
 			fieldName2=elements2[0];
 			startIndex2=Integer.parseInt(elements2[1]);
@@ -83,7 +83,7 @@ public class FieldUtil {
 			return;
 		}
 
-		elements1=fieldName1.split(",");
+		elements1=fieldName1.split(",", -1);
 		if (elements1.length==3){
 			fieldName1=elements1[0];
 			startIndex1=Integer.parseInt(elements1[1]);
@@ -95,7 +95,7 @@ public class FieldUtil {
 			}else convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, index, converterName, from);
 			return;
 		}
-		elements2=fieldName2.split(",");
+		elements2=fieldName2.split(",", -1);
 		if (elements2.length==3){
 			fieldName2=elements2[0];
 			startIndex2=Integer.parseInt(elements2[1]);

@@ -54,7 +54,7 @@ public class Dictionary implements ProvidesDigesterEvents {
 	public static synchronized Dictionary getInstance() {
 		if (instance == null) {
 			instance = new Dictionary();
-			String [] files = Messages.getMetaString("DictionaryFiles").split(";");
+		String [] files = Messages.getMetaString("DictionaryFiles").split(";", -1);
 			for (String file : files)
 				ConfigurationReader.read(file, instance) ;
 			if (Environment.isClientSide()) // this screws up on server and is not needed anyway
@@ -74,7 +74,7 @@ public class Dictionary implements ProvidesDigesterEvents {
 		add(namedItem,false);
 	}
 	public static void add(NamedItem namedItem, boolean replace) {
-		String categories[] = namedItem.getCategory().split(";"); // can belong to more than one if separated by ;
+		String categories[] = namedItem.getCategory().split(";", -1); // can belong to more than one if separated by ;
 
 		for (int i = 0; i < categories.length; i++) {
 			String category = categories[i];
@@ -95,7 +95,7 @@ public class Dictionary implements ProvidesDigesterEvents {
 	}
 
 	public static void remove(NamedItem namedItem) {
-		String categories[] = namedItem.getCategory().split(";"); // can belong to more than one if separated by ;
+		String categories[] = namedItem.getCategory().split(";", -1); // can belong to more than one if separated by ;
 
 		for (int i = 0; i < categories.length; i++) {
 			String category = categories[i];
