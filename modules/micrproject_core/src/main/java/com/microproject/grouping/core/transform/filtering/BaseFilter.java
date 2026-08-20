@@ -26,6 +26,7 @@ package com.microproject.grouping.core.transform.filtering;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.task.Task;
 
 /**
  * For internal use only
@@ -41,7 +42,10 @@ public class BaseFilter extends NodeFilter {
 
 	public boolean evaluate(Object obj) {
 		Node node=(Node)obj;
-		return showAssignments||!(node.getImpl() instanceof Assignment);
+		Object impl = node.getImpl();
+		if (impl instanceof Task task && task.isHiddenTask())
+			return false;
+		return showAssignments||!(impl instanceof Assignment);
 	}
 
     public boolean isShowAssignments() {
