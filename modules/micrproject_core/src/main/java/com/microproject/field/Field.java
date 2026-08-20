@@ -29,12 +29,15 @@ import java.lang.reflect.Method;
 import java.text.Format;
 import java.text.NumberFormat;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 
 import javax.swing.JTextField;
@@ -1682,16 +1685,14 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		return field;
 	}
 
-	// SimpleDateFormat is not thread-safe; a shared static instance would corrupt
-	// day-of-week labels when getLabel() runs concurrently (EDT vs import/export
-	// threads). Use a per-thread instance instead (issue #158).
-	private static final ThreadLocal<SimpleDateFormat> dayOfWeekFormat = ThreadLocal.withInitial(
-			() -> new SimpleDateFormat("E", java.util.Locale.getDefault()));
+	// DateTimeFormatter is immutable and safe to share across EDT/import threads.
+	private static final DateTimeFormatter DAY_OF_WEEK_FORMAT = DateTimeFormatter.ofPattern("E", Locale.getDefault())
+			.withZone(ZoneId.systemDefault());
 	public String getLabel() {
 		if (specialFieldContext == null)
 			return getName();
 		long start = specialFieldContext.getInterval().getStart();
-		return dayOfWeekFormat.get().format(new Date(start));
+		return DAY_OF_WEEK_FORMAT.format(Instant.ofEpochMilli(start));
 	}
 
 
