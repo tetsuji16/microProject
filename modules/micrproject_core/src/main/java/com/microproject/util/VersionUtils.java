@@ -64,7 +64,7 @@ public class VersionUtils {
 
 	public static String toAppletVersion(String v){
 		StringBuilder sb = new StringBuilder();
-		String vNumbers[]=v.split("\\.");
+		String vNumbers[]=v.split("\\.", -1);
 		for (int i=0;i<4;i++){
 			int vn=(i>=vNumbers.length)?0:parseVersionSegment(vNumbers[i]);
 			if (i>0) sb.append('.');

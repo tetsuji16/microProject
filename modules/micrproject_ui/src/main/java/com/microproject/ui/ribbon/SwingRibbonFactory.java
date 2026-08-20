@@ -199,7 +199,7 @@ public final class SwingRibbonFactory {
 		if (value == null || value.isBlank()) {
 			return List.of();
 		}
-		String[] tokens = value.trim().split("\\s+");
+		String[] tokens = value.trim().split("\\s+", -1);
 		List<String> result = new ArrayList<>(tokens.length);
 		for (String token : tokens) {
 			if (!token.isBlank()) {

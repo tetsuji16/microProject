@@ -201,7 +201,7 @@ public final class LocaleDialog extends AbstractDialog {
 	}
 	
 	
-	String[] slocales=Settings.LANGUAGES.split(";");
+	String[] slocales=Settings.LANGUAGES.split(";", -1);
 	Set<String> allLocales=new TreeSet();
 	Map<String, String> transOri=new HashMap<String, String>();
 	Map<String, String> oriTrans=new HashMap<String, String>();
@@ -851,4 +851,3 @@ public final class LocaleDialog extends AbstractDialog {
 		return builder.getPanel();
 	}
 }
-

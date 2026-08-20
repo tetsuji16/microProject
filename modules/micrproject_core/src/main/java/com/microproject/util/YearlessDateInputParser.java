@@ -100,7 +100,7 @@ public final class YearlessDateInputParser {
 	}
 
 	private static ZonedDateTime applyTime(ZonedDateTime dateTime, String remainder) {
-		String[] parts = remainder.trim().split(":");
+		String[] parts = remainder.trim().split(":", -1);
 		if (parts.length < 2) {
 			return dateTime;
 		}

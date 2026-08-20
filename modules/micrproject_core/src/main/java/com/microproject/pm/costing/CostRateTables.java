@@ -45,7 +45,7 @@ public class CostRateTables implements Cost, Serializable, Cloneable {
 	
 	String getName(int index) {
 		if (names == null) {
-			names = Settings.COST_RATE_NAMES.split(";");
+			names = Settings.COST_RATE_NAMES.split(";", -1);
 		}
 		return names[index];
 	}

@@ -105,7 +105,7 @@ public class DurationFormat extends Format {
 						+ types[i] + multiple[j]));
 				if (j==SINGULAR) singularNames=names;
 				if (j==PLURAL) pluralNames=names;
-				String[] units = names.split("\\|"); // index into the names list, getting string
+				String[] units = names.split("\\|", -1); // index into the names list, getting string
 				//split has a big memory cost so names are pre-splited 
 				for (int k = 0; k < NAME_COUNT; k++) typesArray[k][j][i]=units[k];
 			}
