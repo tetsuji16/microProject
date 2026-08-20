@@ -120,7 +120,7 @@ public enum TimeUnit{
 
 	protected int id;
 	protected String symbol;
-	protected static Map<Integer,TimeUnit> reverseMap;
+	private static final Map<Integer, TimeUnit> REVERSE_MAP = createReverseMap();
 	
 	private TimeUnit(int id, String symbol) {
 		this.id=id;
@@ -140,13 +140,14 @@ public enum TimeUnit{
 	}
 	public static TimeUnit getInstance(int id){
 		//not using values()[id] because type can be negative
-		if (reverseMap==null){
-			reverseMap=new HashMap<Integer, TimeUnit>();
-			for (TimeUnit unit : values())
-				reverseMap.put(unit.getId(),unit);
-		}
-		return reverseMap.get(id);
+		return REVERSE_MAP.get(id);
 	}	
+
+	private static Map<Integer, TimeUnit> createReverseMap() {
+		Map<Integer, TimeUnit> result = new HashMap<>(values().length);
+		for (TimeUnit unit : values()) result.put(unit.getId(), unit);
+		return Map.copyOf(result);
+	}
 	
 
 }

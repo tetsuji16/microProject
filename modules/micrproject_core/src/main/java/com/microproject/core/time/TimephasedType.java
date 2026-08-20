@@ -143,7 +143,7 @@ public enum TimephasedType {
 
 	protected int id;
 	protected int snapshotId;
-	protected static Map<Integer,TimephasedType> reverseMap;
+	private static final Map<Integer, TimephasedType> REVERSE_MAP = createReverseMap();
 
 	private TimephasedType(int id, int snapshotId){
 		this.id=id;
@@ -156,12 +156,13 @@ public enum TimephasedType {
 		return snapshotId;
 	}
 	public static TimephasedType getInstance(int id){
-		if (reverseMap==null){
-			reverseMap=new HashMap<Integer, TimephasedType>();
-			for (TimephasedType ct : values())
-				reverseMap.put(ct.getId(),ct);
-		}
-		return reverseMap.get(id);
+		return REVERSE_MAP.get(id);
+	}
+
+	private static Map<Integer, TimephasedType> createReverseMap() {
+		Map<Integer, TimephasedType> result = new HashMap<>(values().length);
+		for (TimephasedType type : values()) result.put(type.getId(), type);
+		return Map.copyOf(result);
 	}
 	
 	public boolean isWork(){
