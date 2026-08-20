@@ -86,12 +86,12 @@ public final class TeamPlannerDialogBox extends JDialog {
 	private void buildUi() {
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-		toolbar.add(new JLabel("Zoom:"));
+		toolbar.add(new JLabel(UsabilityStrings.text("team.zoom")));
 		JSlider zoom = new JSlider(8, 48, canvas.getPixelsPerDay());
 		zoom.setPreferredSize(new Dimension(180, 32));
 		zoom.addChangeListener(event -> canvas.setPixelsPerDay(zoom.getValue()));
 		toolbar.add(zoom);
-		JButton today = new JButton("Today");
+		JButton today = new JButton(UsabilityStrings.text("team.today"));
 		JScrollPane scrollPane = new JScrollPane(canvas);
 		today.addActionListener(event -> canvas.scrollDateToVisible(System.currentTimeMillis()));
 		toolbar.add(today);
@@ -99,7 +99,7 @@ public final class TeamPlannerDialogBox extends JDialog {
 		level.addActionListener(event -> ResourceLevelingDialogBox.getInstance(
 			(java.awt.Frame) getOwner(), project).setVisible(true));
 		toolbar.add(level);
-		JButton close = new JButton("Close");
+		JButton close = new JButton(UsabilityStrings.text("common.close"));
 		close.addActionListener(event -> dispose());
 		JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		footer.add(new JLabel(UsabilityStrings.text("team.hint") + " "));

@@ -722,11 +722,29 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		Project project = projectFactory.createProject();
 		if (project == null) return;
 		String[][] definitions = switch (templateId) {
-			case "software" -> new String[][] { {"Plan backlog", "2"}, {"Architecture", "3"}, {"Implementation", "10"}, {"Test", "5"}, {"Release", "0"} };
-			case "construction" -> new String[][] { {"Site preparation", "5"}, {"Foundation", "8"}, {"Structure", "15"}, {"Utilities", "8"}, {"Inspection", "0"} };
-			default -> new String[][] { {"Planning", "2"}, {"Execution", "5"}, {"Review", "2"}, {"Complete", "0"} };
+			case "software" -> new String[][] {
+				{UsabilityStrings.text("template.software.backlog"), "2"},
+				{UsabilityStrings.text("template.software.architecture"), "3"},
+				{UsabilityStrings.text("template.software.implementation"), "10"},
+				{UsabilityStrings.text("template.software.test"), "5"},
+				{UsabilityStrings.text("template.software.release"), "0"} };
+			case "construction" -> new String[][] {
+				{UsabilityStrings.text("template.construction.site"), "5"},
+				{UsabilityStrings.text("template.construction.foundation"), "8"},
+				{UsabilityStrings.text("template.construction.structure"), "15"},
+				{UsabilityStrings.text("template.construction.utilities"), "8"},
+				{UsabilityStrings.text("template.construction.inspection"), "0"} };
+			default -> new String[][] {
+				{UsabilityStrings.text("template.basic.planning"), "2"},
+				{UsabilityStrings.text("template.basic.execution"), "5"},
+				{UsabilityStrings.text("template.basic.review"), "2"},
+				{UsabilityStrings.text("template.basic.complete"), "0"} };
 		};
-		project.setName(switch (templateId) { case "software" -> "Software Delivery"; case "construction" -> "Construction Project"; default -> "New Project"; });
+		project.setName(switch (templateId) {
+			case "software" -> UsabilityStrings.text("template.name.software");
+			case "construction" -> UsabilityStrings.text("template.name.construction");
+			default -> UsabilityStrings.text("template.name.basic");
+		});
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		NormalTask previous = null;
 		for (String[] definition : definitions) {

@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.Date;
 import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -792,6 +793,24 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			double percentComplete =((double)actualDuration) / getDurationMillis();
 			currentSchedule.setPercentComplete(percentComplete);
 			markTaskAsNeedingRecalculation(); // so it redraws
+		}
+
+		// Issue #267: a summary (grouped) task's scheduled start/finish must follow the
+		// rollup of its children. Task.getStart()/getEnd() return this task's own
+		// currentSchedule, which is never updated from the rollup here (only actual dates
+		// were), so the grouped task stayed frozen after a child edit. Recompute the
+		// scheduled span from the children and write it back, honoring any manual
+		// override stored in the SummaryEnvelope (same contract as getTaskDisplayValue).
+		if (isWbsParent()) {
+			RollupSpan span = calculateRollupSpan();
+			if (span.getStart() != 0L || span.getFinish() != 0L) {
+				SummaryEnvelope envelope = getSummaryEnvelope();
+				if (!envelope.hasManualStart())
+					setCurrentScheduleStart(span.getStart());
+				if (!envelope.hasManualFinish())
+					setCurrentScheduleFinish(span.getFinish());
+				markTaskAsNeedingRecalculation(); // so it redraws
+			}
 		}
 	}
 
@@ -1989,6 +2008,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 //	    barClosureInstance = new BarClosure();
 //	    This shouldn't be called -hk 4/feb/05
 //	    initializeDates();
+
+	    // Issue #227: old .pod files predate the non-transient `created` field and
+	    // deserialize it as null. Fall back to the previous (regenerated) behavior
+	    // so those files still load; new files carry a real timestamp.
+	    if (created == null) created = new Date();
+	    if (hasKey != null) hasKey.setCreated(created);
 
 	    version=DEFAULT_VERSION;
 	}

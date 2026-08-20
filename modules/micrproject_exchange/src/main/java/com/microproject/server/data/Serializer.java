@@ -86,6 +86,7 @@ import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.server.access.ErrorLogger;
+import com.microproject.session.LocalSession;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
@@ -698,7 +699,9 @@ public class Serializer {
     //deserialization
 
     public Project deserializeLocalDocument(DocumentData documentData) throws IOException, ClassNotFoundException {
-    	return deserializeProject((ProjectData)documentData,false,SessionFactory.getInstance().getLocalSession(),null,null);
+    	Session local = SessionFactory.getInstance().getLocalSession();
+    	if (local instanceof LocalSession) ((LocalSession) local).resetLocalSeed(); // issue #227/#268: deterministic local ids
+    	return deserializeProject((ProjectData)documentData,false,local,null,null);
     }
 
     /**
@@ -723,6 +726,13 @@ public class Serializer {
     public Project deserializeProject(ProjectData projectData, final boolean subproject, final Session reindex, Map<Long, EnterpriseResourceData> enterpriseResources,Consumer<Object> loadResources,boolean updateDistribution) throws IOException, ClassNotFoundException {
     	DataFactoryUndoController undoController=new DataFactoryUndoController();
     	Project project=(Project)deserialize(projectData,reindex);
+    	// Issue #227: for a local document the project's uniqueId is part of its persistent
+    	// identity and is re-persisted into fieldValues["Field.uniqueId"]. Deserialize mints a
+    	// fresh LocalSession id (localSeed++) above, so reloading would change the id every time
+    	// and permanently grow the .pod. Restore the id stored in the file instead.
+    	if (projectData.isLocal() && projectData.getUniqueId() > 0) {
+    		project.setUniqueId(projectData.getUniqueId());
+    	}
     	project.setUndoController(undoController);
     	project.setMaster(projectData.isMaster()); //not necessary
     	project.setLocal(projectData.isLocal());
@@ -1179,7 +1189,7 @@ public class Serializer {
     	project.setVersion(Project.CURRENT_VERSION);
 
     	return project;
-    }
+    	}
 
 
     public static void connectDependency(Dependency dependency,Task predecessor,Task successor){
@@ -1589,6 +1599,7 @@ public class Serializer {
     }
 
     public void printTaskDataHierarchy(Collection<TaskData> tasks){
+		if (!logger.isLoggable(Level.INFO)) return;
 		StringBuilder b=new StringBuilder();
 		printTaskDataHierarchy(tasks,b);
     	logger.info(b.toString());

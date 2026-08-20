@@ -69,7 +69,7 @@ public final class HelpDialog extends AbstractDialog {
 				BrowserControl.displayURL(helpUrl);
 			}
 		});
-		donate = new JButton("Support microProject");
+		donate = new JButton(UsabilityStrings.text("help.support"));
 		donate.setToolTipText(UiLinkTargets.DONATE_HOME);
 		donate.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -148,4 +148,3 @@ public final class HelpDialog extends AbstractDialog {
 	}
 
 }
-

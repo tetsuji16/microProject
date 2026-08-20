@@ -30,9 +30,9 @@ import java.util.EventObject;
  *
  */
 public class ScheduleEvent extends EventObject {
-	public static String ACTUAL = new String();
-	public static String BASELINE = new String();
-	public static String SCHEDULE = new String();
+	public static final String ACTUAL = "ACTUAL";
+	public static final String BASELINE = "BASELINE";
+	public static final String SCHEDULE = "SCHEDULE";
 	
 	private String type;
 	private Object object;

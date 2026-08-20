@@ -64,7 +64,15 @@ public class VoidNodeImpl implements HasId, DataObject  {
 
 
 	protected String name="";
-	protected long uniqueId=SessionFactory.getInstance().getLocalSession().getId();
+	// Issue #268 / #227: VoidNodeImpl is a placeholder/scaffolding node. Its uniqueId
+	// used to be minted from LocalSession.localSeed at construction time. Because
+	// localSeed is a persistent per-JVM counter and VoidNodeImpl.setUniqueId() is a
+	// no-op, the minted value was serialized into the .pod and changed on every
+	// load, causing non-deterministic (drifting) round-trip output. The placeholder
+	// never uses its uniqueId as a real identity key (callers only check
+	// `instanceof VoidNodeImpl`), so a fixed sentinel keeps the file deterministic.
+	protected static final long VOID_NODE_UNIQUE_ID = -1L;
+	protected long uniqueId = VOID_NODE_UNIQUE_ID;
 	public String getName() {
 		return name;
 	}

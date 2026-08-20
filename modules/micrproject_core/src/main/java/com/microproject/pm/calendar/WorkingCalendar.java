@@ -310,6 +310,15 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	private static WorkingCalendar standardInstance = null;
 	private static WorkingCalendar defaultInstance = null;
 
+	// Issue #227/#268: the standard calendar singletons (base/default/24h/nightshift) are
+	// created via HasCommonKeyImpl(local, this), which mints from LocalSession.localSeed
+	// (a persistent per-JVM counter). That minted id was serialized into the .pod and
+	// changed on every load, causing non-deterministic (drifting) round-trip output.
+	// These singletons already carry a fixedId (0..3); assign a deterministic negative
+	// uniqueId range so their identity never drifts and never collides with real
+	// (positive) object ids.
+	private static final long STANDARD_CALENDAR_UNIQUE_ID_BASE = -1_000_000L;
+
 	static WorkingCalendar getStandardInstance() {
 		if (standardInstance != null)
 			return standardInstance;
@@ -333,6 +342,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		standardInstance.setWeekDays(working); // 8 hours
 
 		standardInstance.setName("default base");
+		standardInstance.setUniqueId(STANDARD_CALENDAR_UNIQUE_ID_BASE); // deterministic identity (issue #227/#268)
 		return standardInstance;
 
 	}
@@ -344,6 +354,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		defaultInstance = getStandardBasedInstance();
 		defaultInstance.setName(Messages.getString("Calendar.Standard"));
 		defaultInstance.setFixedId(1);
+		defaultInstance.setUniqueId(STANDARD_CALENDAR_UNIQUE_ID_BASE - 1); // deterministic identity (issue #227/#268)
 		CalendarService.getInstance().add(defaultInstance);
 
 		get24HoursInstance();
@@ -370,6 +381,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 		_24HoursInstance.setName(Messages.getString("Calendar.24Hours"));
 		_24HoursInstance.setFixedId(2);
+		_24HoursInstance.setUniqueId(STANDARD_CALENDAR_UNIQUE_ID_BASE - 2); // deterministic identity (issue #227/#268)
 		CalendarService.getInstance().add(_24HoursInstance); // put standard calendar in list
 		return _24HoursInstance;
 	}
@@ -418,6 +430,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 		nightShiftInstance.setName(Messages.getString("Calendar.NightShift"));
 		nightShiftInstance.setFixedId(3);
+		nightShiftInstance.setUniqueId(STANDARD_CALENDAR_UNIQUE_ID_BASE - 3); // deterministic identity (issue #227/#268)
 
 		CalendarService.getInstance().add(nightShiftInstance); // put night shift calendar in list
 		return nightShiftInstance;

@@ -159,7 +159,11 @@ public final class WelcomeDialog extends AbstractDialog {
 				}
 			}
 		});
-		templateChoice = new JComboBox<>(new String[] { "Basic project", "Software delivery", "Construction" });
+		templateChoice = new JComboBox<>(new String[] {
+			UsabilityStrings.text("welcome.template.basic"),
+			UsabilityStrings.text("welcome.template.software"),
+			UsabilityStrings.text("welcome.template.construction")
+		});
 		restoreSession = new JCheckBox(UsabilityStrings.text("welcome.restore"), recentStore.isRestoreSessionEnabled());
 		restoreSession.addActionListener(event -> recentStore.setRestoreSessionEnabled(restoreSession.isSelected()));
 		
@@ -250,4 +254,3 @@ public final class WelcomeDialog extends AbstractDialog {
 		return false;
 	}
 }
-

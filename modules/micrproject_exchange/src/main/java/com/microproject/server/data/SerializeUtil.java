@@ -92,7 +92,9 @@ public class SerializeUtil {
             in=SafeObjectInput.create(zin);
 		} else in=SafeObjectInput.create(bin);
         DataObject data=(DataObject)in.readObject();
-        data.setUniqueId(session==null?sdata.getUniqueId():session.getId());
+    	long stored = sdata.getUniqueId();
+    	long newId = (stored == 0 && session != null) ? session.getId() : stored;
+    	data.setUniqueId(newId);
 		if (sdata.getName() != null)
 			data.setName(sdata.getName());
         return data;

@@ -71,6 +71,21 @@ public class LocalSession extends AbstractSession{
 	public synchronized long getId(){
 		return localSeed++;
 	}
+    /**
+     * Issue #227/#268: reset the local id counter to a fixed deterministic base.
+     * Internal/scaffolding objects (standard calendars, the scheduling algorithm's
+     * task, the unassigned resource, default assignments, void nodes) mint their
+     * identity from this counter during document load. Because the counter is
+     * persistent across loads, those minted ids used to drift into the saved .pod,
+     * making round-trips non-deterministic. Resetting to a constant base at the
+     * start of each local document load makes every load produce identical ids
+     * (the load creates the same internal objects in the same order), so the
+     * serialized output is stable. Real (file-stored) object ids are taken from the
+     * file and are unaffected.
+     */
+    public synchronized void resetLocalSeed() {
+        localSeed = -1_000_000_000L;
+    }
     public Job getCloseProjectsJob(final Collection projects){
     	Job job=new Job(jobQueue,"closeProjects","Closing...",false);
     	job.addRunnable(new JobRunnable("LocalAccess: closeProjects",0.1f){

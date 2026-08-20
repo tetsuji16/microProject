@@ -385,7 +385,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 		if (extensionPosition == -1 || extensionPosition == name.length() - 1) {
 			return "xml"; //$NON-NLS-1$
 		}
-		return name.substring(extensionPosition + 1).toLowerCase();
+		return name.substring(extensionPosition + 1).toLowerCase(java.util.Locale.ROOT);
 	}
 
 

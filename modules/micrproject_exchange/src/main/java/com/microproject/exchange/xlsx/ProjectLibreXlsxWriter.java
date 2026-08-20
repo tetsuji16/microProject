@@ -74,6 +74,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 	private static final String CALENDARS_SHEET = "Calendars";
 	private static final String TIMEPHASED_SHEET = "Timephased";
 	private static final int PAYLOAD_CHUNK_SIZE = 30000;
+	private static final Day[] DAYS = Day.values();
 
 	public void write(ProjectFile projectFile, String fileName) throws IOException {
 		write(projectFile, new File(fileName));
@@ -448,7 +449,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 
 	private String describeCalendar(net.sf.mpxj.ProjectCalendar calendar) {
 		StringBuilder result = new StringBuilder();
-		for (Day day : Day.values()) {
+		for (Day day : DAYS) {
 			if (result.length() > 0) {
 				result.append('|');
 			}

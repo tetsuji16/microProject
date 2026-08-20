@@ -53,7 +53,8 @@ public class PDFExport {
 		job.addRunnable(new JobRunnable("PDF Export",1.0f){
 			public Object run() throws Exception{
 				Document document = new Document();
-				PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(file));
+				try (FileOutputStream output = new FileOutputStream(file)) {
+				PdfWriter writer = PdfWriter.getInstance(document, output);
 				pageable.update();
 				int pageCount = pageable.getNumberOfPages();
 				if (pageCount>0){
@@ -75,6 +76,7 @@ public class PDFExport {
 						g.dispose();
 					}
 					document.close();
+				}
 				}
 				setProgress(1.0f);
 				return null;
@@ -103,4 +105,3 @@ public class PDFExport {
     }
 
 }
-

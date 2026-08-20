@@ -317,8 +317,9 @@ public class LocalFileImporter extends FileImporter {
 
 		boolean error=false;
 		
-		try {
-			FileOutputStream fout=new FileOutputStream(tmpFile);
+		try (FileOutputStream fout = new FileOutputStream(tmpFile);
+			 BufferedOutputStream bout = new BufferedOutputStream(fout);
+			 ObjectOutputStream out = new ObjectOutputStream(bout)) {
 			try {
 				DataUtil serializer=new DataUtil();
 				logger.info("Serialization..."); //$NON-NLS-1$
@@ -330,7 +331,6 @@ public class LocalFileImporter extends FileImporter {
 				logger.info("Serialization...Done in " + (t2 - t1) + " ms"); //$NON-NLS-1$ //$NON-NLS-2$
 				logger.info("Saving " + file + "..."); //$NON-NLS-1$ //$NON-NLS-2$
 				t1=System.currentTimeMillis();
-				ObjectOutputStream out=new ObjectOutputStream(fout);
 				out.writeObject(VERSION);
 				out.writeObject(projectData);
 				out.flush();
@@ -342,7 +342,6 @@ public class LocalFileImporter extends FileImporter {
 				logger.log(Level.WARNING, "Error during file import", e);
 			}
 			try{
-				BufferedOutputStream bout=new BufferedOutputStream(fout);
 				bout.write(PROJECT_LIBRE_FILE_SEPARATOR.getBytes());
 				bout.flush();
 				FileImporter importer=LocalSession.getImporter("com.microproject.exchange.MicrosoftImporter");
@@ -360,7 +359,6 @@ public class LocalFileImporter extends FileImporter {
 				error=true;
 				logger.log(Level.WARNING, "Error during file import", e);
 			}
-			fout.close();
 		} catch (Exception e) {
 			error=true;
 			logger.log(Level.WARNING, "Error during file import", e);

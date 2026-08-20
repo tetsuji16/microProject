@@ -128,6 +128,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	static final long serialVersionUID = 56779404923241L;
 	AssignmentDetail detail = null;
 	private transient HasKeyImpl hasKey = new HasKeyImpl(true,this); //local ids only for assignments
+	/**
+	 * Issue #227: created timestamp persisted on the object (not the transient
+	 * hasKey) so it survives load/save round-trips. See com.microproject.pm.task.Task#created.
+	 */
+	protected Date created = new Date();
 
 	private static Field unitsFieldInstance = null;
 
@@ -1401,7 +1406,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 * @return
 	 */
 	public Date getCreated() {
-		return hasKey.getCreated();
+		return created;
 	}
 	/**
 	 * @return
@@ -1439,7 +1444,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 * @param created
 	 */
 	public void setCreated(Date created) {
-		hasKey.setCreated(created);
+		this.created = created;
+		if (hasKey != null) hasKey.setCreated(created);
 	}
 	/**
 	 * @param id
@@ -1680,6 +1686,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	    s.defaultReadObject();
 	    hasKey=HasKeyImpl.deserialize(s,this);
 	    initializeFacades();
+	    // Issue #227: old .pod files deserialize `created` as null; keep the
+	    // previous regenerated behavior so they still load.
+	    if (created == null) created = new Date();
+	    if (hasKey != null) hasKey.setCreated(created);
 //	    barClosureInstance = new BarClosure();
 	}
 	private void initializeFacades() {

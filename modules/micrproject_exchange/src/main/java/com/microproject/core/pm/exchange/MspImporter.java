@@ -202,8 +202,10 @@ public class MspImporter {
 	protected void parseProject(String fileName) throws Exception {
 		fileName=fileName.trim();
 		int extensionPosition=fileName.lastIndexOf("."); 
-		String extension = extensionPosition==-1 ? "xml" : fileName.substring(extensionPosition+1).toLowerCase();
-		parseProject(new FileInputStream(fileName), extension);
+		String extension = extensionPosition==-1 ? "xml" : fileName.substring(extensionPosition+1).toLowerCase(java.util.Locale.ROOT);
+		try (FileInputStream input = new FileInputStream(fileName)) {
+			parseProject(input, extension);
+		}
 	}
 	
 	
