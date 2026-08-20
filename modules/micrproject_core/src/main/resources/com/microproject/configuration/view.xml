@@ -1220,13 +1220,7 @@
 			<filter id="Filter.Gantt" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" arguments="true" showAssignments="false"/>
 			<filter id="Filter.OfflineCommon" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" showEndEmptyLines="false" showAssignments="false"/>
 			<filter id="Filter.OfflineGantt" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" arguments="true" showEndEmptyLines="false" showAssignments="false"/>
-			<filter id="Filter.Graph" type="obj" showEmptyLines="false" showAssignments="false">
-				<formulaText>
-					<![CDATA[
-						return true;
-					]]>
-				</formulaText>
-			</filter>
+			<filter id="Filter.Graph" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" showEmptyLines="false" showAssignments="false"/>
 			<filter id="Filter.ResourceUsageDetail" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter"/>
 			<filter id="Filter.RBS" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false"/>
 			<filter id="Filter.Charts" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false" preserveHierarchy="true"/>
