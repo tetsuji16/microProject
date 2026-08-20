@@ -159,6 +159,18 @@ public final class ResourceLevelingService {
 	private record Scheduled(Assignment assignment, Task task, long start, long end, double units) {
 	}
 
+	private static final class LevelingScratch {
+		private final List<Assignment> assignments = new ArrayList<>();
+		private final List<Scheduled> accepted = new ArrayList<>();
+		private final List<Long> boundaries = new ArrayList<>();
+
+		private void reset() {
+			assignments.clear();
+			accepted.clear();
+			boundaries.clear();
+		}
+	}
+
 	public Plan preview(Project project, Collection<? extends Resource> selectedResources, Options options) {
 		Objects.requireNonNull(project, "project");
 		Collection<? extends Resource> resources = selectedResources == null
@@ -173,13 +185,14 @@ public final class ResourceLevelingService {
 		Map<Task, String> limitingResource = new IdentityHashMap<>();
 		Map<Task, Split> splits = new IdentityHashMap<>();
 		List<Conflict> unresolved = new ArrayList<>();
+		LevelingScratch scratch = new LevelingScratch();
 
 		boolean changed;
 		int pass = 0;
 		do {
 			changed = false;
 			for (Resource resource : resources) {
-				changed |= levelResource(resource, options, addedDelay, limitingResource, splits, unresolved);
+				changed |= levelResource(resource, options, addedDelay, limitingResource, splits, unresolved, scratch);
 			}
 		} while (changed && ++pass < Math.max(8, resources.size() * 4));
 
@@ -216,11 +229,13 @@ public final class ResourceLevelingService {
 	}
 
 	private boolean levelResource(Resource resource, Options options, Map<Task, Long> addedDelay,
-		Map<Task, String> limitingResource, Map<Task, Split> splits, List<Conflict> unresolved) {
+		Map<Task, String> limitingResource, Map<Task, Split> splits, List<Conflict> unresolved,
+		LevelingScratch scratch) {
 		if (resource == null || !resource.isLabor() || resource.getMaximumUnits() <= 0D) {
 			return false;
 		}
-		List<Assignment> assignments = new ArrayList<>();
+		scratch.reset();
+		List<Assignment> assignments = scratch.assignments;
 		for (Object value : resource.getAssignments()) {
 			Assignment assignment = (Assignment) value;
 			Task task = assignment.getTask();
@@ -229,7 +244,7 @@ public final class ResourceLevelingService {
 			}
 		}
 		assignments.sort(assignmentComparator(options.order()));
-		List<Scheduled> accepted = new ArrayList<>();
+		List<Scheduled> accepted = scratch.accepted;
 		boolean changed = false;
 		for (Assignment assignment : assignments) {
 			Task task = assignment.getTask();
@@ -239,7 +254,7 @@ public final class ResourceLevelingService {
 			long end = start + duration;
 			Split proposedSplit = null;
 			int attempts = 0;
-			while (isOverallocated(start, end, assignment.getUnits(), accepted, resource.getMaximumUnits())
+			while (isOverallocated(start, end, assignment.getUnits(), accepted, resource.getMaximumUnits(), scratch.boundaries)
 				&& attempts++ < assignments.size() + 2) {
 				Scheduled blocker = firstBlockingInterval(start, end, assignment.getUnits(), accepted, resource.getMaximumUnits());
 				if (options.allowTaskSplits() && blocker != null && blocker.start() > start && blocker.end() < end
@@ -280,7 +295,7 @@ public final class ResourceLevelingService {
 				limitingResource.put(task, resource.getName());
 				changed = true;
 			}
-			if (proposedSplit == null && isOverallocated(start, end, assignment.getUnits(), accepted, resource.getMaximumUnits())) {
+			if (proposedSplit == null && isOverallocated(start, end, assignment.getUnits(), accepted, resource.getMaximumUnits(), scratch.boundaries)) {
 				unresolved.add(new Conflict(resource, task, "Resource remains overallocated"));
 			}
 			if (proposedSplit == null) {
@@ -335,11 +350,11 @@ public final class ResourceLevelingService {
 	}
 
 	private static boolean isOverallocated(long start, long end, double units,
-		List<Scheduled> accepted, double capacity) {
+		List<Scheduled> accepted, double capacity, List<Long> boundaries) {
 		if (units > capacity + 0.000001D) {
 			return true;
 		}
-		List<Long> boundaries = new ArrayList<>();
+		boundaries.clear();
 		boundaries.add(start);
 		for (Scheduled scheduled : accepted) {
 			if (overlaps(start, end, scheduled.start(), scheduled.end())) {
