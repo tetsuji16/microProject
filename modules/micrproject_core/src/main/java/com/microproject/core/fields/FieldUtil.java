@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import com.microproject.core.configuration.Configuration;
@@ -49,6 +50,10 @@ import com.microproject.pm.task.Task;
  */
 public class FieldUtil {
 	protected static Logger log = Logger.getLogger("FieldUtil");
+	private static final Map<MethodKey, Method> METHODS = new ConcurrentHashMap<>();
+
+	private record MethodKey(Class<?> type, String name, boolean indexed, Class<?> valueType) {
+	}
 	public static void convertFields(HasFields hasFields, Class<?> inClass, Object inObject, String[] fieldNames, boolean from){
 		for (int i=0;i<fieldNames.length;){
 			convertFieldSeries(hasFields, inClass, inObject, fieldNames[i++], -1, -1, fieldNames[i++], -1, -1, -1, fieldNames[i++], from);
@@ -125,10 +130,10 @@ public class FieldUtil {
 				//get value
 				Object value;
 				if (index2==-1){
-					Method m=inClass.getMethod(toGetterMethodName(fieldName2), (Class<?>[])null);
+					Method m=findGetter(inClass, toGetterMethodName(fieldName2), false);
 					value=m.invoke(inObject, (Object[])null);
 				}else{
-					Method m=inClass.getMethod(toGetterMethodName(fieldName2), new Class<?>[]{int.class});
+					Method m=findGetter(inClass, toGetterMethodName(fieldName2), true);
 					value=m.invoke(inObject, new Object[]{index2});
 				}
 				
@@ -185,6 +190,10 @@ public class FieldUtil {
 	}
 
 	private static Method findCompatibleSetter(Class<?> type, String methodName, boolean indexed, Class<?> valueType) {
+		MethodKey key = new MethodKey(type, methodName, indexed, valueType);
+		Method cached = METHODS.get(key);
+		if (cached != null)
+			return cached;
 		Method compatible = null;
 		for (Method method : type.getMethods()) {
 			if (!method.getName().equals(methodName))
@@ -197,11 +206,25 @@ public class FieldUtil {
 			if (!parameterType.isAssignableFrom(valueType))
 				continue;
 			if (parameterType == valueType)
-				return method;
+				return cacheMethod(key, method);
 			if (compatible == null || boxedType(compatible.getParameterTypes()[valueParameter]).isAssignableFrom(parameterType))
 				compatible = method;
 		}
-		return compatible;
+		return compatible == null ? null : cacheMethod(key, compatible);
+	}
+
+	private static Method findGetter(Class<?> type, String methodName, boolean indexed) throws NoSuchMethodException {
+		MethodKey key = new MethodKey(type, methodName, indexed, null);
+		Method cached = METHODS.get(key);
+		if (cached != null)
+			return cached;
+		Method method = type.getMethod(methodName, indexed ? new Class<?>[]{int.class} : new Class<?>[0]);
+		return cacheMethod(key, method);
+	}
+
+	private static Method cacheMethod(MethodKey key, Method method) {
+		Method previous = METHODS.putIfAbsent(key, method);
+		return previous == null ? method : previous;
 	}
 
 	private static Class<?> boxedType(Class<?> type) {
