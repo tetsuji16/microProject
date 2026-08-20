@@ -491,7 +491,10 @@ public class ProjectFactory {
 	}
 
 	public int promptForSave(Project project, boolean allowCancel) {
-		String text = Messages.getString("Message.saveProjectBeforeClosing1")+" "+getDisplayNameForSavePrompt(project)+" "+Messages.getString("Message.saveProjectBeforeClosing2");
+		String text = java.text.MessageFormat.format(
+				Messages.getString("Message.saveProjectBeforeClosing1") + " {0} "
+						+ Messages.getString("Message.saveProjectBeforeClosing2"),
+				getDisplayNameForSavePrompt(project));
 		if (allowCancel)
 			return Alert.confirm(text);
 		else
