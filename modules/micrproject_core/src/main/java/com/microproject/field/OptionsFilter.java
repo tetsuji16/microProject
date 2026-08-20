@@ -28,18 +28,24 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public  class OptionsFilter {
 	private static final Logger logger = Logger.getLogger(OptionsFilter.class.getName());
+	private static final Map<MethodKey, Method> METHODS = new ConcurrentHashMap<>();
+
+	private record MethodKey(Class<?> type, String name) {
+	}
 	private String method;
 
 	public Object[] getOptionValues(Object obj, String method, String[] optionKeys, Object[] optionValues) {
 		List keys=new ArrayList(optionKeys.length);
 		keys.addAll(Arrays.asList(optionKeys));
 		try {
-			Method m=obj.getClass().getMethod(method, new Class[]{List.class,List.class});
+			Method m=findMethod(obj, method);
 			m.invoke(obj, new Object[]{keys,optionValues});
 		} catch (Exception e) {
 			logger.log(Level.FINE, "Failed to invoke method {0} on {1}", new Object[]{method, obj.getClass().getName()});
@@ -56,11 +62,21 @@ public  class OptionsFilter {
 		List keys=new ArrayList(optionKeys.length);
 		keys.addAll(Arrays.asList(optionKeys));
 		try {
-			Method m=obj.getClass().getMethod(method, new Class[]{List.class,List.class});
+			Method m=findMethod(obj, method);
 			m.invoke(obj, new Object[]{keys,optionValues});
 		} catch (Exception e) {
 			logger.log(Level.FINE, "Failed to invoke method {0} on {1}", new Object[]{method, obj.getClass().getName()});
 		}
 		return keys.toArray();
+	}
+
+	private static Method findMethod(Object object, String name) throws NoSuchMethodException {
+		MethodKey key = new MethodKey(object.getClass(), name);
+		Method cached = METHODS.get(key);
+		if (cached != null)
+			return cached;
+		Method resolved = object.getClass().getMethod(name, List.class, List.class);
+		Method previous = METHODS.putIfAbsent(key, resolved);
+		return previous == null ? resolved : previous;
 	}
 }
