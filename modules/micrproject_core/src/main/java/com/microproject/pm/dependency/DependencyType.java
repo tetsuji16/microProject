@@ -28,6 +28,7 @@ import java.text.FieldPosition;
 import java.text.ParsePosition;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Locale;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
@@ -95,10 +96,10 @@ public class DependencyType {
 				 + "|" + Messages.getString("DependencyType.SF")
 				 + "|" + Messages.getString("DependencyType.FS")
 				 + "|" + Messages.getString("DependencyType.FF")
-				+  "|" + Messages.getString("DependencyType.SS").toLowerCase() 
-				 + "|" + Messages.getString("DependencyType.SF").toLowerCase()
-				 + "|" + Messages.getString("DependencyType.FS").toLowerCase()
-				 + "|" + Messages.getString("DependencyType.FF").toLowerCase()
+				+  "|" + Messages.getString("DependencyType.SS").toLowerCase(Locale.ROOT)
+				 + "|" + Messages.getString("DependencyType.SF").toLowerCase(Locale.ROOT)
+				 + "|" + Messages.getString("DependencyType.FS").toLowerCase(Locale.ROOT)
+				 + "|" + Messages.getString("DependencyType.FF").toLowerCase(Locale.ROOT)
   		    + ")?"  // End group 2: SS,SF,FS,FF or nothing
 			+ "\\s*" // optional white space
 		 + ")" // end group 1

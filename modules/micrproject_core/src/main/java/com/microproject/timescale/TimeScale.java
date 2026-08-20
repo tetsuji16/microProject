@@ -26,6 +26,7 @@ package com.microproject.timescale;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Locale;
 
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
@@ -164,7 +165,7 @@ public class TimeScale {
 			}
 			r=r.substring(0,trunc1);
 		}
-		if (upperCase1) r=r.toUpperCase();
+		if (upperCase1) r=r.toUpperCase(Locale.ROOT);
 		return r;
 	}
 	public String getText2(long t){
@@ -172,7 +173,7 @@ public class TimeScale {
 		recycledDateFormat.applyPattern(pattern2);
 		String r=recycledDateFormat.format(tmp.getTime());
 		if (trunc2>=0) r=r.substring(0,trunc2);
-		if (upperCase2) r=r.toUpperCase();
+		if (upperCase2) r=r.toUpperCase(Locale.ROOT);
 		return r;
 	}
 	

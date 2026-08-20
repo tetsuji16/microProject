@@ -36,6 +36,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.prefs.Preferences;
 import java.util.logging.Level;
@@ -192,7 +193,7 @@ public class LocalSession extends AbstractSession{
     	for (File child : children) {
     		if (child.isDirectory()) {
     			collectProjectFiles(child, seenPaths, descriptors, depth + 1);
-    		} else if (child.getName().toLowerCase().endsWith(".pod")) {
+		} else if (child.getName().toLowerCase(Locale.ROOT).endsWith(".pod")) {
     			addDescriptor(child, seenPaths, descriptors);
     		}
     	}
