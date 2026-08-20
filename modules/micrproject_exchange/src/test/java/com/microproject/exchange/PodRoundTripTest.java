@@ -56,18 +56,18 @@ import com.microproject.server.data.Serializer;
 
 public class PodRoundTripTest {
 	@Test
-	public void podRoundTripPreservesManualInactiveAndTimelineFlags() throws Exception {
+	public void podRoundTripPreservesManualInactiveTimelineAndHiddenFlags() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("roundtrip-flags", undo), undo);
 		project.initialize(false, false);
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl(); task.setName("Scenario");
 		task.getCurrentSchedule().setStart(project.getStart()); task.setDuration(8L * 60L * 60L * 1000L);
-		task.setManualDates(task.getStart(), task.getEnd()); task.setInactiveTask(true); task.setDisplayOnTimeline(true);
+		task.setManualDates(task.getStart(), task.getEnd()); task.setInactiveTask(true); task.setDisplayOnTimeline(true); task.setHiddenTask(true);
 		File saved = File.createTempFile("projectlibre-task-flags", ".pod"); saved.deleteOnExit();
 		LocalFileImporter exporter = new LocalFileImporter(); exporter.setFileName(saved.getAbsolutePath()); exporter.setProject(project); exporter.exportFile();
 
 		Task restored = firstTask(load(saved));
-		assertTrue(restored.isManuallyScheduled()); assertTrue(restored.isInactiveTask()); assertTrue(restored.isDisplayOnTimeline());
+		assertTrue(restored.isManuallyScheduled()); assertTrue(restored.isInactiveTask()); assertTrue(restored.isDisplayOnTimeline()); assertTrue(restored.isHiddenTask());
 	}
 
 	@Test
