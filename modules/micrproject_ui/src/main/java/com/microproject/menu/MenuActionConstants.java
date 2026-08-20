@@ -145,6 +145,8 @@ public interface MenuActionConstants {
 	public static final String ACTION_COLLAPSE                = "Collapse";
 	public static final String ACTION_HIDE_ASSIGNMENTS        = "HideAssignments";
 	public static final String ACTION_HIDE_OUTLINE_SYMBOLS    = "HideOutlineSymbols";
+	public static final String ACTION_HIDE_SELECTED_TASKS     = "HideSelectedTasks";
+	public static final String ACTION_SHOW_ALL_TASKS          = "ShowAllTasks";
 
 	public static final String ACTION_ALL_CHILDREN            = "AllChildren";
 	public static final String ACTION_LEVEL1                  = "Level1";

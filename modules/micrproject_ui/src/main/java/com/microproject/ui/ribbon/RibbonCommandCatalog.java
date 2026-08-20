@@ -130,7 +130,7 @@ final class RibbonCommandCatalog {
 			"RibbonMoveTaskUp", "RibbonMoveTaskDown",
 			"RibbonExpand", "RibbonCollapse", "RibbonLink", "RibbonUnlink", "RibbonAssignResources",
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonNotes", "RibbonUpdateTasks", "RibbonDelete",
-			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask");
+			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter", "RibbonLevelResources");
 		register(result, CommandScope.REPORT, REPORT,
