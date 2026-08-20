@@ -351,7 +351,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		project.getResourcePool().addObjectListener(this);
 	}
 	
-	private static final List<Object> emptyList = new ArrayList<>();
+	private static final List<Object> emptyList = List.of();
 	public void documentSelected(DocumentSelectedEvent evt) {
 		setDocumentFrame(evt.getCurrent());
 		if (getDocumentFrame() != null) {
