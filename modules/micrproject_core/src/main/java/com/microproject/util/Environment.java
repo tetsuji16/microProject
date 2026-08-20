@@ -158,7 +158,7 @@ public class Environment {
 	}
 	public static int getOs() {
 		if (os==-1){
-			String osName=System.getProperty("os.name").toLowerCase();
+			String osName=System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT);
 			if (osName.startsWith("linux")) os=LINUX;
 			else if (osName.startsWith("mac os x")) os=MAC;
 			else os=0;

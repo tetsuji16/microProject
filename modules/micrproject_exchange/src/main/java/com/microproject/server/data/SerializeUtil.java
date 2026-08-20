@@ -92,13 +92,9 @@ public class SerializeUtil {
             in=SafeObjectInput.create(zin);
 		} else in=SafeObjectInput.create(bin);
         DataObject data=(DataObject)in.readObject();
-    	// Issue #227 root cause: loading a document must preserve the uniqueId stored in the
-    	// file. The previous code re-minted a fresh LocalSession id (localSeed++) for every
-    	// task/resource/assignment/calendar on each load, so a .pod grew and changed on every
-    	// save/load round trip. The stored id IS the object's identity: keep it, and only mint
-    	// a new id when none is stored (a genuinely new object, uniqueId == 0). This is
-    	// backward-compatible: old files stored their (local or global) ids and will keep them.
-    	data.setUniqueId(sdata.getUniqueId() == 0 && session != null ? session.getId() : sdata.getUniqueId());
+    	long stored = sdata.getUniqueId();
+    	long newId = (stored == 0 && session != null) ? session.getId() : stored;
+    	data.setUniqueId(newId);
 		if (sdata.getName() != null)
 			data.setName(sdata.getName());
         return data;

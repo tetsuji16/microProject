@@ -30,8 +30,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.Test;
 
@@ -48,6 +51,8 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.server.data.ProjectData;
+import com.microproject.server.data.Serializer;
 
 public class PodRoundTripTest {
 	@Test
@@ -361,6 +366,67 @@ public class PodRoundTripTest {
 		return result;
 	}
 
+	/**
+	 * Issue #227/#268 regression: a .pod file's payload (the serialized
+	 * {@link com.microproject.server.data.ProjectData}) must be deterministic across
+	 * consecutive load/save round-trips. Previously the local id counter
+	 * (LocalSession.localSeed) advanced on every load and its minted values leaked
+	 * into the saved file, so the output drifted by a handful of bytes each
+	 * round-trip and the file kept growing. After the fix the counter is reset to a
+	 * fixed base at the start of each local document load, making every load produce
+	 * identical internal ids.
+	 *
+	 * The test exercises serialize -> deserialize -> serialize idempotency on the
+	 * *payload* (what actually round-trips through load), not the whole .pod file:
+	 * the on-disk format also embeds a live-generated MSPDI XML trailer (produced by
+	 * the external mpxj library) which legitimately carries a current timestamp and
+	 * is therefore expected to differ between saves. Comparing the ProjectData
+	 * payload isolates the real determinism guarantee.
+	 */
+	@Test
+	public void podSaveIsByteStableAcrossConsecutiveRoundTrips() throws Exception {
+		File source = findSample("June_1_sample.pod");
+		Project p0 = load(source);
+
+		File f1 = File.createTempFile("cal-rt1", ".pod");
+		f1.deleteOnExit();
+		LocalFileImporter e1 = new LocalFileImporter();
+		e1.setFileName(f1.getAbsolutePath());
+		e1.setProject(p0);
+		e1.exportFile();
+
+		Project p1 = load(f1);
+		File f2 = File.createTempFile("cal-rt2", ".pod");
+		f2.deleteOnExit();
+		LocalFileImporter e2 = new LocalFileImporter();
+		e2.setFileName(f2.getAbsolutePath());
+		e2.setProject(p1);
+		e2.exportFile();
+
+		Project p2 = load(f2);
+
+		// The real round-trip determinism guarantee: serializing the two loaded
+		// projects back to their ProjectData payloads must be bit-for-bit identical.
+		Serializer serializer = new Serializer();
+		byte[] payload1 = serializeProjectData(serializer, p1);
+		byte[] payload2 = serializeProjectData(serializer, p2);
+		assertEquals("consecutive .pod payloads must be byte-identical (issue #227/#268)",
+				java.util.Arrays.toString(payload1), java.util.Arrays.toString(payload2));
+
+		// created timestamp must survive the round-trip unchanged (issue #227)
+		assertEquals("created timestamp must survive round-trip (issue #227)",
+				p0.getCreated().getTime(), p2.getCreated().getTime());
+	}
+
+	private static byte[] serializeProjectData(Serializer serializer, Project project) throws Exception {
+		ProjectData data = serializer.serializeProject(project);
+		java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+		try (java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(baos)) {
+			oos.writeObject(data);
+		}
+		return baos.toByteArray();
+	}
+
 	private static final class TaskState {
 		private final String name;
 		private final String parentName;
@@ -417,5 +483,5 @@ public class PodRoundTripTest {
 			return name + "[parent=" + parentName + "," + start + "," + end + "," + duration + ","
 					+ percentComplete + "," + priority + "," + predecessors + "," + assignments + "]";
 		}
-	}
+		}
 }

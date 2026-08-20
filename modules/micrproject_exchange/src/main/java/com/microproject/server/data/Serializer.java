@@ -86,6 +86,7 @@ import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.server.access.ErrorLogger;
+import com.microproject.session.LocalSession;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
@@ -698,7 +699,9 @@ public class Serializer {
     //deserialization
 
     public Project deserializeLocalDocument(DocumentData documentData) throws IOException, ClassNotFoundException {
-    	return deserializeProject((ProjectData)documentData,false,SessionFactory.getInstance().getLocalSession(),null,null);
+    	Session local = SessionFactory.getInstance().getLocalSession();
+    	if (local instanceof LocalSession) ((LocalSession) local).resetLocalSeed(); // issue #227/#268: deterministic local ids
+    	return deserializeProject((ProjectData)documentData,false,local,null,null);
     }
 
     /**
@@ -1596,6 +1599,7 @@ public class Serializer {
     }
 
     public void printTaskDataHierarchy(Collection<TaskData> tasks){
+		if (!logger.isLoggable(Level.INFO)) return;
 		StringBuilder b=new StringBuilder();
 		printTaskDataHierarchy(tasks,b);
     	logger.info(b.toString());

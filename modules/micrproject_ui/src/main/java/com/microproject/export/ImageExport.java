@@ -99,7 +99,9 @@ public class ImageExport {
 							g2.setBackground(Color.WHITE);
 							printable.print(g2, p);
 				            g2.dispose();
-				            ImageIO.write(bi, "png", new FileOutputStream(file));
+			            try (FileOutputStream output = new FileOutputStream(file)) {
+			             ImageIO.write(bi, "png", output);
+			            }
 				            break;
 						}
 					}
@@ -136,4 +138,3 @@ public class ImageExport {
     }
 
 }
-

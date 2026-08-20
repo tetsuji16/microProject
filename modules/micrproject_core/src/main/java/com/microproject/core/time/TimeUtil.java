@@ -52,7 +52,7 @@ public class TimeUtil { //thread safe: no shared mutable state (issue #184)
 	}
 	
 	public static String toUTCString(long t){
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.ROOT);
 		format.setTimeZone(TimeZone.getTimeZone("UTC"));
 		return format.format(new Date(t));
 	}
@@ -68,4 +68,3 @@ public class TimeUtil { //thread safe: no shared mutable state (issue #184)
 	}
 	
 }
-
