@@ -775,12 +775,12 @@ public class Serializer {
 
 
     	//resources
-    	final Map<Object, Node> resourceNodeMap=new HashMap<>();
-    	ResourcePool resourcePool = ResourcePoolFactory.getInstance().createResourcePool(project.getName(),undoController);
+	    ResourcePool resourcePool = ResourcePoolFactory.getInstance().createResourcePool(project.getName(),undoController);
     	resourcePool.setMaster(project.isMaster());
     	resourcePool.setLocal(project.isLocal());
     	resourcePool.updateOutlineTypes();
-    	Collection<ResourceData> resources=(Collection<ResourceData>)(Collection<?>)projectData.getResources();
+	    Collection<ResourceData> resources=(Collection<ResourceData>)(Collection<?>)projectData.getResources();
+    final Map<Object, Node> resourceNodeMap = resources == null ? new HashMap<>() : new HashMap<>(resources.size() * 4 / 3 + 1);
     	if (resources!=null)
     		for (ResourceData resourceData:sortResourcesByChildPosition(resources)){
     			ResourceImpl resource=deserializeResourceAndAddToPool(resourceData,resourcePool,reindex,enterpriseResources);
@@ -847,7 +847,7 @@ public class Serializer {
 
     	//tasks
     	Collection<TaskData> tasks=getTaskDataCollection(projectData);
-    	Map<TaskData, Node> taskNodeMap=new HashMap<>();
+    Map<TaskData, Node> taskNodeMap = tasks == null ? new HashMap<>() : new HashMap<>(tasks.size() * 4 / 3 + 1);
     	long projectId = project.getUniqueId();
     	NormalTask task;
 
@@ -929,7 +929,8 @@ public class Serializer {
 
 
     			//assignments
-    			List<AssignmentData> assignments=new ArrayList<>();
+				List<AssignmentData> assignments = new ArrayList<>(
+						taskData.getAssignments() == null ? 0 : taskData.getAssignments().size());
 //    			if (Environment.isNoPodServer()&&task.getPersistedAssignments()!=null){ //claur
 //    				assignments.addAll(task.getPersistedAssignments());
 //    			}
@@ -1344,7 +1345,7 @@ public class Serializer {
 //    }
     public static void setEnterpriseResources(Collection<EnterpriseResourceData> resources,ResourcePool resourcePool,Session reindex) throws IOException, ClassNotFoundException{
         if (resources!=null){
-        	Map<EnterpriseResourceData, Node> resourceNodeMap=new HashMap<>();
+        Map<EnterpriseResourceData, Node> resourceNodeMap = new HashMap<>(resources.size() * 4 / 3 + 1);
             for (EnterpriseResourceData resourceData : resources){
                 ResourceImpl resource=deserializeResourceAndAddToPool(resourceData,resourcePool,reindex);
                 resourceNodeMap.put(resourceData,NodeFactory.getInstance().createNode(resource));
@@ -1587,8 +1588,8 @@ public class Serializer {
     }
 
 
-    public static Map<Long, DataObject> createIdMap(Collection<? extends DataObject> c){
-    	Map<Long, DataObject> map=new HashMap<>();
+	    public static Map<Long, DataObject> createIdMap(Collection<? extends DataObject> c){
+    Map<Long, DataObject> map = c == null ? new HashMap<>() : new HashMap<>(c.size() * 4 / 3 + 1);
         if (c!=null){
 	        for (DataObject d : c){
 			map.put(Long.valueOf(d.getUniqueId()),d);
@@ -1610,7 +1611,7 @@ public class Serializer {
 		b.append(builder.toString());
     }
     private void printTaskDataHierarchy(Collection<TaskData> tasks,final StringBuilder b){
-    	Map<Long, Set<TaskData>> taskMap=new HashMap<>();
+    Map<Long, Set<TaskData>> taskMap = new HashMap<>(tasks.size() * 4 / 3 + 1);
     	for (TaskData taskData:tasks){
     		if (taskData == null) continue;
 			Long key=Long.valueOf(taskData.getParentTaskId());
