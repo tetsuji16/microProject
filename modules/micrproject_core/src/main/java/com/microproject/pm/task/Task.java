@@ -156,6 +156,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected boolean manuallyScheduled = false;
 	/** Keeps a scenario task in the plan without affecting dates, dependencies, or resource load. */
 	protected boolean inactiveTask = false;
+	/** Excludes the task from task views without changing its schedule or assignments. */
+	protected boolean hiddenTask = false;
 	protected Double inactivePercentComplete;
 	/** Explicit user choice for the concise project timeline. */
 	protected boolean displayOnTimeline = false;
@@ -1235,6 +1237,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 		task.debugDependencyOrder=debugDependencyOrder;
 		task.markTaskAsMilestone = markTaskAsMilestone;
+		task.hiddenTask = hiddenTask;
 		task.external = external;
 		task.projectId = projectId;
 		task.physicalPercentComplete = physicalPercentComplete;
@@ -1933,6 +1936,15 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		setDirty(true);
 		if (project != null)
 			project.recalculate();
+	}
+	public final boolean isHiddenTask() {
+		return hiddenTask;
+	}
+	public final void setHiddenTask(boolean hiddenTask) {
+		if (this.hiddenTask == hiddenTask)
+			return;
+		this.hiddenTask = hiddenTask;
+		setDirty(true);
 	}
 	protected final void updateInactivePercentComplete(double percentComplete) {
 		if (inactiveTask)
