@@ -30,6 +30,7 @@ import java.util.Map;
 
 import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
+import org.apache.commons.collections4.bidimap.UnmodifiableBidiMap;
 
 import com.microproject.datatype.DurationFormat;
 import com.microproject.strings.Messages;
@@ -103,49 +104,33 @@ public class SummaryVisitorFactory implements SummaryNames {
 	}
 
 
-	private static BidiMap COST_SUMMARY_MAP = new DualHashBidiMap();
-	static {
-		COST_SUMMARY_MAP.put(Messages.getString("Summary.None"), Integer.valueOf(NONE));
-		COST_SUMMARY_MAP.put(Messages.getString("Summary.Average"), Integer.valueOf(AVERAGE));
-		COST_SUMMARY_MAP.put(Messages.getString("Summary.AverageFirstSublevel"), Integer.valueOf(AVERAGE_FIRST_SUBLEVEL));
-		COST_SUMMARY_MAP.put(Messages.getString("Summary.Maximum"), Integer.valueOf(MAXIMUM));
-		COST_SUMMARY_MAP.put(Messages.getString("Summary.Minimum"), Integer.valueOf(MINIMUM));
-		COST_SUMMARY_MAP.put(Messages.getString("Summary.Sum"), Integer.valueOf(SUM));
+	private static final BidiMap COST_SUMMARY_MAP = immutableMap(
+			entry("Summary.None", NONE), entry("Summary.Average", AVERAGE),
+			entry("Summary.AverageFirstSublevel", AVERAGE_FIRST_SUBLEVEL), entry("Summary.Maximum", MAXIMUM),
+			entry("Summary.Minimum", MINIMUM), entry("Summary.Sum", SUM));
+	private static final BidiMap DATE_SUMMARY_MAP = immutableMap(
+			entry("Summary.None", NONE), entry("Summary.Maximum", MAXIMUM), entry("Summary.Minimum", MINIMUM));
+	private static final BidiMap DURATION_SUMMARY_MAP = COST_SUMMARY_MAP;
+	private static final BidiMap FLAG_SUMMARY_MAP = immutableMap(
+			entry("Summary.None", NONE), entry("Summary.OR", OR), entry("Summary.AND", AND));
+	private static final BidiMap NUMBER_SUMMARY_MAP = immutableMap(
+			entry("Summary.None", NONE), entry("Summary.Average", AVERAGE),
+			entry("Summary.AverageFirstSublevel", AVERAGE_FIRST_SUBLEVEL), entry("Summary.CountAll", COUNT_ALL),
+			entry("Summary.CountFirstSublevel", COUNT_FIRST_SUBLEVEL),
+			entry("Summary.CountNonsummaries", COUNT_NONSUMMARIES), entry("Summary.Maximum", MAXIMUM),
+			entry("Summary.Minimum", MINIMUM), entry("Summary.Sum", SUM));
+	private static final BidiMap TEXT_SUMMARY_MAP = immutableMap(
+			entry("Summary.None", NONE), entry("Summary.List", LIST));
+
+	private static Object[] entry(String key, int value) {
+		return new Object[] { Messages.getString(key), Integer.valueOf(value) };
 	}
 
-	private static BidiMap DATE_SUMMARY_MAP = new DualHashBidiMap();
-	static {
-		DATE_SUMMARY_MAP.put(Messages.getString("Summary.None"), Integer.valueOf(NONE));
-		DATE_SUMMARY_MAP.put(Messages.getString("Summary.Maximum"), Integer.valueOf(MAXIMUM));
-		DATE_SUMMARY_MAP.put(Messages.getString("Summary.Minimum"), Integer.valueOf(MINIMUM));
-	}
-
-	private static BidiMap DURATION_SUMMARY_MAP = COST_SUMMARY_MAP;
-	
-	private static BidiMap FLAG_SUMMARY_MAP = new DualHashBidiMap();
-	static {
-		FLAG_SUMMARY_MAP.put(Messages.getString("Summary.None"), Integer.valueOf(NONE));
-		FLAG_SUMMARY_MAP.put(Messages.getString("Summary.OR"), Integer.valueOf(OR));
-		FLAG_SUMMARY_MAP.put(Messages.getString("Summary.AND"), Integer.valueOf(AND));
-	}
-
-	private static BidiMap NUMBER_SUMMARY_MAP = new DualHashBidiMap();
-	static {
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.None"), Integer.valueOf(NONE));
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.Average"), Integer.valueOf(AVERAGE));
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.AverageFirstSublevel"), Integer.valueOf(AVERAGE_FIRST_SUBLEVEL));
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.CountAll"), Integer.valueOf(COUNT_ALL));
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.CountFirstSublevel"), Integer.valueOf(COUNT_FIRST_SUBLEVEL));
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.CountNonsummaries"), Integer.valueOf(COUNT_NONSUMMARIES));
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.Maximum"), Integer.valueOf(MAXIMUM));
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.Minimum"), Integer.valueOf(MINIMUM));
-		NUMBER_SUMMARY_MAP.put(Messages.getString("Summary.Sum"), Integer.valueOf(SUM));
-	}
-	
-	private static BidiMap TEXT_SUMMARY_MAP = new DualHashBidiMap();
-	static {
-		TEXT_SUMMARY_MAP.put(Messages.getString("Summary.None"), Integer.valueOf(NONE));
-		TEXT_SUMMARY_MAP.put(Messages.getString("Summary.List"), Integer.valueOf(LIST));
+	private static BidiMap immutableMap(Object[]... entries) {
+		BidiMap map = new DualHashBidiMap();
+		for (Object[] entry : entries)
+			map.put(entry[0], entry[1]);
+		return UnmodifiableBidiMap.unmodifiableBidiMap(map);
 	}
 	
 	private static final Map<String, Integer> ALL_SUMMARY_MAP;
