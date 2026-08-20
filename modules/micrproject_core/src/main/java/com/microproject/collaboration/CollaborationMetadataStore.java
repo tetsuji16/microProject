@@ -33,6 +33,7 @@ import java.nio.channels.FileLock;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -56,7 +57,7 @@ public class CollaborationMetadataStore {
 		if (fileName == null) {
 			return false;
 		}
-		String lower = fileName.toLowerCase();
+		String lower = fileName.toLowerCase(Locale.ROOT);
 		return lower.endsWith(".pod") || lower.endsWith(".xml") || lower.endsWith(".xlsx");
 	}
 

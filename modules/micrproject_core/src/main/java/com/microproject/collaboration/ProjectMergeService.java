@@ -35,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -157,7 +158,7 @@ public class ProjectMergeService {
 			return null;
 		}
 		try {
-			if (fileName.toLowerCase().endsWith(".pod")) {
+			if (fileName.toLowerCase(Locale.ROOT).endsWith(".pod")) {
 				return loadPodProject(fileName);
 			}
 			try (InputStream in = new FileInputStream(fileName)) {
