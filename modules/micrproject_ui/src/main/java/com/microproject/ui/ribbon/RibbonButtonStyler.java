@@ -160,7 +160,7 @@ final class RibbonButtonStyler {
 			return List.of("");
 		}
 		String normalized = text.trim();
-		String[] words = normalized.split("\\s+");
+		String[] words = normalized.split("\\s+", -1);
 		FontMetrics metrics = new JLabel().getFontMetrics(FlatUiSupport.ribbonButtonFont());
 		int maxLineWidth = LARGE_TEXT_WIDTH;
 		if (words.length <= 1) {

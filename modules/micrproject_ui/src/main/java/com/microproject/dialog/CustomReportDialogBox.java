@@ -223,7 +223,7 @@ public final class CustomReportDialogBox extends JDialog {
 	}
 	private void loadPreset() {
 		String name = (String) presets.getSelectedItem(); if (name == null) return; Preferences node = presetByDisplayName(name); if (node == null) return;
-		List<String> ids = Arrays.asList(node.get("columns", "").split(",")); columns.setSelectedIndices(java.util.stream.IntStream.range(0, fields.size()).filter(i -> ids.contains(fields.get(i).getId())).toArray());
+		List<String> ids = Arrays.asList(node.get("columns", "").split(",", -1)); columns.setSelectedIndices(java.util.stream.IntStream.range(0, fields.size()).filter(i -> ids.contains(fields.get(i).getId())).toArray());
 		filter.setSelectedItem(node.get("filter", FILTERS[0])); group.setSelectedItem(node.get("group", GROUPS[0])); includeSummary.setSelected(node.getBoolean("summary", false));
 		String sortId = node.get("sort", ""); fields.stream().filter(field -> field.getId().equals(sortId)).findFirst().ifPresent(sort::setSelectedItem); generate();
 	}

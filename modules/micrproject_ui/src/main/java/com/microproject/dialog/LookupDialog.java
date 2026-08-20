@@ -126,7 +126,7 @@ public final class LookupDialog extends AbstractDialog {
 	 * may further bind the components to underlying models.
 	 */
 	protected void initControls() {
-		types = new JComboBox(field.getLookupTypes().split(";")); //$NON-NLS-1$
+		types = new JComboBox(field.getLookupTypes().split(";", -1)); //$NON-NLS-1$
 		results = new JList();
 		results.setSelectionMode(DefaultListSelectionModel.SINGLE_SELECTION);
 //		results.setVisibleRowCount(15);
@@ -202,4 +202,3 @@ public final class LookupDialog extends AbstractDialog {
 
 
 }
-

@@ -116,7 +116,7 @@ public final class CustomFieldsDialogBox extends JDialog {
 	}
 	private boolean permitted(String value) {
 		if (!restrictValues.isSelected() || value == null || value.isBlank()) return true;
-		for (String allowed : lookupValues.getText().split("[,;\\n]")) if (allowed.trim().equalsIgnoreCase(value.trim())) return true;
+		for (String allowed : lookupValues.getText().split("[,;\\n]", -1)) if (allowed.trim().equalsIgnoreCase(value.trim())) return true;
 		return false;
 	}
 

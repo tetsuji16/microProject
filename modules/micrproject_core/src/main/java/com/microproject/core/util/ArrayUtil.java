@@ -34,7 +34,7 @@ public class ArrayUtil {
 	public static double[][] stringToPath(String s)  throws ArrayFormatException {
 		s=s.replaceAll("^\\s*,?\\s*[\\(\\{\\[]",""); //trim start
 		s=s.replaceAll("[\\)\\}\\]]\\s*,?\\s*$",""); //trim end
-		String[] coords=s.split("[\\)\\}\\]]\\s*,?\\s*[\\(\\{\\[]");
+		String[] coords=s.split("[\\)\\}\\]]\\s*,?\\s*[\\(\\{\\[]", -1);
 		double[][] p=new double[coords.length][2];
 		for (int i=0; i<coords.length; i++){
 			double[] c=stringToCoordinates(coords[i]);

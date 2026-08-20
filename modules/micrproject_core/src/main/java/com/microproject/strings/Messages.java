@@ -78,8 +78,8 @@ public class Messages {
 			lock.lock(); //use lock to avoid useless synchronized when it's already initialized
 			try {
 				if (bundles==null){ //if it hasn't been initialized by an other thread
-					String bundleNames[] = getMetaString("ResourceBundles").split(";");
-					String directoryBundleNames[] = getMetaString("DirectoryResourceBundles").split(";");
+					String bundleNames[] = getMetaString("ResourceBundles").split(";", -1);
+					String directoryBundleNames[] = getMetaString("DirectoryResourceBundles").split(";", -1);
 
 					for (int i =0; i < directoryBundleNames.length;i++) {
 						try {
@@ -192,7 +192,7 @@ public class Messages {
 
 	public static String toAppletVersion(String v){
 		StringBuilder sb = new StringBuilder();
-		String vNumbers[]=v.split("\\.");
+		String vNumbers[]=v.split("\\.", -1);
 		for (int i=0;i<4;i++){
 			int vn=(i>=vNumbers.length)?0:parseVersionSegment(vNumbers[i]);
 			if (i>0) sb.append('.');

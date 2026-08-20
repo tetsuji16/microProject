@@ -84,6 +84,6 @@ public class ClassLoaderUtils {
 		if (normalized.startsWith("1.")) {
 			normalized = normalized.substring(2);
 		}
-		return normalized.split("\\.");
+		return normalized.split("\\.", -1);
 	}
 }
