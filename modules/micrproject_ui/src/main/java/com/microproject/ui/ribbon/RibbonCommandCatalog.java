@@ -134,17 +134,18 @@ final class RibbonCommandCatalog {
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter", "RibbonLevelResources");
 		register(result, CommandScope.REPORT, REPORT,
-			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage");
+			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");
 		register(result, CommandScope.PROJECT, PROJECT,
 			"RibbonProjectInformation", "RibbonProjectsDialog", "RibbonChangeWorkingTime",
-			"RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate", "RibbonSaveBaseline", "RibbonClearBaseline");
+			"RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate", "RibbonSaveBaseline", "RibbonClearBaseline",
+			"RibbonCCPMSettings", "RibbonCCPMClear");
 		register(result, CommandScope.VIEW, VIEW,
 			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
 			"RibbonTimeline", "RibbonCalendarView", "RibbonProjects", "RibbonTaskUsageDetail", "RibbonResourceUsageDetail", "RibbonNoTextNoSubWindow",
-			"RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut");
+			"RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonCCPMNetwork");
 		register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
-			"RibbonTimescale", "RibbonBar", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
+			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBar", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
 		register(result, CommandScope.DOCUMENT, TASK, Set.of(TASK, RESOURCE), "RibbonPaste", "RibbonCopy", "RibbonCut");
 		register(result, CommandScope.DOCUMENT, QUICK_ACCESS,
 			"RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo");

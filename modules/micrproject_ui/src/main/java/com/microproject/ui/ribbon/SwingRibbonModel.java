@@ -206,11 +206,17 @@ public final class SwingRibbonModel {
 		private final String id;
 		private final String title;
 		private final List<RibbonBand> bands;
+		private final boolean contextual;
 
 		public RibbonTab(String id, String title, List<RibbonBand> bands) {
+			this(id, title, bands, false);
+		}
+
+		public RibbonTab(String id, String title, List<RibbonBand> bands, boolean contextual) {
 			this.id = Objects.requireNonNull(id);
 			this.title = Objects.requireNonNull(title);
 			this.bands = List.copyOf(bands);
+			this.contextual = contextual;
 		}
 
 		public String getId() {
@@ -223,6 +229,11 @@ public final class SwingRibbonModel {
 
 		public List<RibbonBand> getBands() {
 			return bands;
+		}
+
+		/** A view-specific tab, such as Gantt Chart Tools > Format. */
+		public boolean isContextual() {
+			return contextual;
 		}
 	}
 

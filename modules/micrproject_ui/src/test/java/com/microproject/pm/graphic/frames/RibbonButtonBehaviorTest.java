@@ -481,7 +481,9 @@ class RibbonButtonBehaviorTest {
 			"RibbonUpdateTasks",
 			"RibbonUpdateProject",
 			"RibbonSaveBaseline",
-			"RibbonClearBaseline");
+			"RibbonClearBaseline",
+			"RibbonCCPMBufferStatus",
+			"RibbonCCPMNetwork");
 		add(map, Strategy.ROUTE_VIEW,
 			"RibbonTimeline",
 			"RibbonCalendarView",
@@ -515,7 +517,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonToggleProgressLine",
 			"RibbonLabelResourceNames",
 			"RibbonLabelTaskName",
-			"RibbonGridlines");
+			"RibbonGridlines",
+			"RibbonToggleCriticalChain");
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonTopBarUndo",
 			"RibbonTopBarRedo",
@@ -527,6 +530,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertResource",
 			"RibbonInsertRecurring",
 			"RibbonLevelResources",
+			"RibbonCCPMSettings",
+			"RibbonCCPMClear",
 			"RibbonScrollToTask",
 			"RibbonHideSelectedTasks",
 			"RibbonShowAllTasks",

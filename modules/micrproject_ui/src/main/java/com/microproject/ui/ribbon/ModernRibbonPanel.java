@@ -37,7 +37,9 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ItemEvent;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.MissingResourceException;
@@ -61,7 +63,9 @@ import javax.swing.border.Border;
 import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.util.FlatUiSupport;
 
-final class ModernRibbonPanel extends JPanel {
+public final class ModernRibbonPanel extends JPanel {
+	/** Client-property key on the ribbon host for view-context coordination. */
+	public static final String CONTEXTUAL_TABS_PROPERTY = "microproject.ribbon.contextualTabs";
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
 	static final String COLLAPSED_POPUP_PROPERTY = "ProjectLibre.ribbonCollapsedPopup";
@@ -83,6 +87,7 @@ final class ModernRibbonPanel extends JPanel {
 	private final Map<String, JToggleButton> tabButtons;
 	private final RibbonButtonStyler buttonStyler;
 	private final List<Integer> bandHeights;
+	private final java.util.Set<String> visibleContextualTabs = new LinkedHashSet<>();
 	private RibbonDensity density = RibbonDensity.FULL;
 	private String activeTabId;
 	private boolean rebuildingDensity;
@@ -124,6 +129,28 @@ final class ModernRibbonPanel extends JPanel {
 			}
 		});
 		updateResponsiveMode();
+	}
+
+	/**
+	 * Shows only the supplied contextual tabs. Normal tabs are unaffected.
+	 * Hiding a tab never unregisters commands: menu, shortcut and ribbon keep
+	 * resolving to the same Action instance.
+	 */
+	public void setVisibleContextualTabs(Collection<String> tabIds) {
+		visibleContextualTabs.clear();
+		if (tabIds != null) visibleContextualTabs.addAll(tabIds);
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			if (!tab.isContextual()) continue;
+			JToggleButton button = tabButtons.get(tab.getId());
+			if (button != null) button.setVisible(visibleContextualTabs.contains(tab.getId()));
+		}
+		if (activeTabId != null && !isTabVisible(activeTabId)) firstVisibleTabId().ifPresent(this::showTab);
+		revalidate();
+		repaint();
+	}
+
+	public boolean isContextualTabVisible(String tabId) {
+		return visibleContextualTabs.contains(tabId);
 	}
 
 	@Override
@@ -237,6 +264,7 @@ final class ModernRibbonPanel extends JPanel {
 		button.addItemListener(event -> updateTabButtonAppearance(button, event.getStateChange() == ItemEvent.SELECTED));
 		button.getModel().addChangeListener(event -> updateTabButtonAppearance(button, button.isSelected()));
 		button.addActionListener(e -> showTab(tab.getId()));
+		button.setVisible(!tab.isContextual() || visibleContextualTabs.contains(tab.getId()));
 		if (tabBodies.isEmpty()) {
 			button.setSelected(true);
 		}
@@ -252,6 +280,7 @@ final class ModernRibbonPanel extends JPanel {
 	}
 
 	private void showTab(String tabId) {
+		if (!isTabVisible(tabId)) return;
 		activeTabId = tabId;
 		JPanel tabBody = tabBodies.get(tabId);
 		if (tabBody == null) {
@@ -267,6 +296,19 @@ final class ModernRibbonPanel extends JPanel {
 		cards.revalidate();
 		cards.repaint();
 		updatePreferredHeight();
+	}
+
+	private boolean isTabVisible(String tabId) {
+		return model.getTabs().stream()
+			.filter(tab -> tab.getId().equals(tabId))
+			.findFirst()
+			.map(tab -> !tab.isContextual() || visibleContextualTabs.contains(tabId))
+			.orElse(false);
+	}
+
+	private java.util.Optional<String> firstVisibleTabId() {
+		return model.getTabs().stream().map(SwingRibbonModel.RibbonTab::getId)
+			.filter(this::isTabVisible).findFirst();
 	}
 
 	private void updateResponsiveMode() {

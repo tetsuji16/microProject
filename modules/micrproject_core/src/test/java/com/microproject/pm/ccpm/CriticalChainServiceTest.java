@@ -6,6 +6,8 @@
 package com.microproject.pm.ccpm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -83,6 +85,37 @@ class CriticalChainServiceTest {
 			baseline.bufferFraction(), baseline.criticalTaskIds(), baseline.feedingTaskStartMillis(), baseline.feedingBufferMillis()));
 		CriticalChainService.Analysis refreshed = service.preview(fixture.project, List.of(fixture.resource));
 		assertTrue(refreshed.projectBuffer().consumedMillis() > 0L, "The current schedule must be measured against the saved CCPM baseline");
+	}
+
+	@Test
+	void clearUndoRedoRestoresScheduleAndCcpMStateTogether() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First");
+		NormalTask second = task(fixture.project, "Second");
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		CriticalChainService service = new CriticalChainService();
+		service.settings(fixture.project).setEnabled(true);
+
+		CriticalChainService.Analysis applied = service.apply(fixture.project, List.of(fixture.resource));
+		assertSame(applied, service.analysis(fixture.project));
+		assertTrue(second.getLevelingDelay() > 0L);
+
+		service.clear(fixture.project);
+		assertNull(service.findSettings(fixture.project));
+		assertNull(service.findBaseline(fixture.project));
+		assertEquals(0L, second.getLevelingDelay());
+
+		fixture.project.getUndoController().undo();
+		assertTrue(service.findSettings(fixture.project).isEnabled());
+		assertTrue(service.findBaseline(fixture.project) != null);
+		assertSame(applied, service.findAnalysis(fixture.project));
+		assertTrue(second.getLevelingDelay() > 0L);
+
+		fixture.project.getUndoController().redo();
+		assertNull(service.findSettings(fixture.project));
+		assertNull(service.findBaseline(fixture.project));
+		assertEquals(0L, second.getLevelingDelay());
 	}
 
 	@Test

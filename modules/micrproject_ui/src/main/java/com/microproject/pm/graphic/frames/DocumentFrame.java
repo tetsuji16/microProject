@@ -391,6 +391,13 @@ public class DocumentFrame extends NamedFrame implements
 		ResourceLevelingDialogBox.getInstance(getGraphicManager().getFrame(), project).setVisible(true);
 	}
 
+	void doCriticalChainDialog() {
+		finishAnyOperations();
+		if (java.awt.GraphicsEnvironment.isHeadless())
+			return;
+		ResourceLevelingDialogBox.getCriticalChainInstance(getGraphicManager().getFrame(), project).setVisible(true);
+	}
+
 
 	void doDelegateTasksDialog() {
 		finishAnyOperations();
@@ -955,6 +962,7 @@ public class DocumentFrame extends NamedFrame implements
 		getGraphicManager().setTaskInformation(view.showsTasks(),view.showsResources());
 		refreshUndoButtons();
 		getGraphicManager().setEnabledDocumentMenuActions(true);
+		getGraphicManager().updateRibbonContext(viewName);
 		showWaitCursor(false);
 //this doesn't have any effect		setFrameIcon(menuManager.getToolButtonFromId(viewName).getIcon());
 

@@ -68,7 +68,6 @@ import com.microproject.util.PopupDialogSupport;
 public final class ResourceLevelingDialogBox extends JDialog {
 	private static final long serialVersionUID = 1L;
 	private final Project project;
-	private final ResourceLevelingService service = new ResourceLevelingService();
 	private final CriticalChainService criticalChainService = new CriticalChainService();
 	private final CriticalChainService.Settings workingSettings;
 	private final JComboBox<ResourceLevelingService.Order> order = new JComboBox<>(ResourceLevelingService.Order.values());
@@ -86,11 +85,16 @@ public final class ResourceLevelingDialogBox extends JDialog {
 	private ResourceLevelingService.Plan currentPlan;
 
 	public static ResourceLevelingDialogBox getInstance(Frame owner, Project project) {
-		return new ResourceLevelingDialogBox(owner, project);
+		return new ResourceLevelingDialogBox(owner, project, false);
 	}
 
-	private ResourceLevelingDialogBox(Frame owner, Project project) {
-		super(owner, UsabilityStrings.text("leveling.title"), true);
+	/** Project > CCPM entry point; it shares the preview/apply controller with leveling. */
+	public static ResourceLevelingDialogBox getCriticalChainInstance(Frame owner, Project project) {
+		return new ResourceLevelingDialogBox(owner, project, true);
+	}
+
+	private ResourceLevelingDialogBox(Frame owner, Project project, boolean startInCriticalChainMode) {
+		super(owner, UsabilityStrings.text(startInCriticalChainMode ? "ccpm.settingsTitle" : "leveling.title"), true);
 		HelpUtil.addDocHelp(getRootPane(), "Resource_Leveling");
 		getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("leveling.slackOnly"));
 		PopupDialogSupport.bindEscapeToDispose(this);
@@ -99,7 +103,7 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		criticalChainBufferChart = new CriticalChainBufferChartPanel(project);
 		CriticalChainService.Settings settings = criticalChainService.findSettings(project);
 		workingSettings = settings == null ? new CriticalChainService.Settings() : settings.copy();
-		ccpm.setSelected(workingSettings.isEnabled());
+		ccpm.setSelected(startInCriticalChainMode || workingSettings.isEnabled());
 		bufferPercent.setValue(Integer.valueOf((int) Math.round(workingSettings.getBufferFraction() * 100D)));
 		order.setSelectedItem(workingSettings.getLevelingOrder());
 		slackOnly.setSelected(workingSettings.isOnlyWithinAvailableSlack());
@@ -224,15 +228,20 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		if (ccpm.isSelected()) {
 			criticalChainService.apply(project, resources.getSelectedValuesList(), workingSettings);
 		} else {
-			criticalChainService.forget(project);
-			currentPlan.apply(project.getUndoController().getEditSupport());
+			javax.swing.undo.UndoableEditSupport edits = project.getUndoController().getEditSupport();
+			if (edits != null) edits.beginUpdate();
+			try {
+				criticalChainService.forget(project, edits);
+				currentPlan.apply(edits);
+			} finally {
+				if (edits != null) edits.endUpdate();
+			}
 		}
 		preview();
 	}
 
 	private void clear() {
-		service.clear(project, project.getUndoController().getEditSupport());
-		criticalChainService.forget(project);
+		criticalChainService.clear(project);
 		ccpm.setSelected(false);
 		workingSettings.setEnabled(false);
 		preview();

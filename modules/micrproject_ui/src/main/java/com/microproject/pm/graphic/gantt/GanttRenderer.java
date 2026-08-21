@@ -121,6 +121,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private transient CriticalChainService ccpmService;
 	private transient Project ccpmProject;
 	private transient CriticalChainService.Baseline ccpmBaseline;
+	private transient CriticalChainService.Analysis ccpmAnalysis;
 	private transient Set<Long> ccpmTaskIds = Set.of();
 
     protected GraphicConfiguration config;
@@ -233,19 +234,21 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		if (!(impl instanceof Task task)) return false;
 		if (task.isCritical()) return true;
 		// Resource-constrained CCPM edges are not part of the legacy
-		// critical-path flag.  Once a CCPM baseline is applied, use its stable
-		// task IDs so the Gantt/graph renderer shows the same chain that the
-		// analysis and buffer status report expose.
+		// critical-path flag.  Prefer the document's shared CCPM analysis
+		// snapshot, so Gantt, network and buffer status expose one chain.
 		Project project = task.getProject();
 		if (ccpmService == null) ccpmService = new CriticalChainService();
 		CriticalChainService.Settings settings = ccpmService.findSettings(project);
 		CriticalChainService.Baseline baseline = ccpmService.findBaseline(project);
-		if (project != ccpmProject || baseline != ccpmBaseline) {
+		CriticalChainService.Analysis analysis = ccpmService.findAnalysis(project);
+		if (project != ccpmProject || baseline != ccpmBaseline || analysis != ccpmAnalysis) {
 			ccpmProject = project;
 			ccpmBaseline = baseline;
-			ccpmTaskIds = baseline == null ? Collections.emptySet() : Set.copyOf(baseline.criticalTaskIds());
+			ccpmAnalysis = analysis;
+			ccpmTaskIds = analysis != null ? Set.copyOf(analysis.criticalTaskIds())
+				: baseline == null ? Collections.emptySet() : Set.copyOf(baseline.criticalTaskIds());
 		}
-		return settings != null && settings.isEnabled() && baseline != null
+		return CriticalChainDisplayState.isVisible(project) && settings != null && settings.isEnabled() && baseline != null
 			&& ccpmTaskIds.contains(Long.valueOf(task.getUniqueId()));
 	}
 

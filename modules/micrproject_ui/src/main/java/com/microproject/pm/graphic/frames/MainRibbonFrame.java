@@ -36,6 +36,7 @@ import javax.swing.WindowConstants;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.util.Environment;
 
 public class MainRibbonFrame extends JFrame implements FrameHolder{
@@ -84,6 +85,14 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 		}
 		getContentPane().revalidate();
 		getContentPane().repaint();
+		if (graphicManager != null) graphicManager.updateRibbonContext(graphicManager.getTopViewId());
+	}
+
+	/** Updates view-specific tabs without rebuilding or re-registering commands. */
+	public void setVisibleContextualRibbonTabs(java.util.Collection<String> tabIds) {
+		if (ribbonPanel == null) return;
+		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		if (value instanceof ModernRibbonPanel panel) panel.setVisibleContextualTabs(tabIds);
 	}
 
 	public FrameManager getFrameManager() {
@@ -97,4 +106,3 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 
 
 }
-

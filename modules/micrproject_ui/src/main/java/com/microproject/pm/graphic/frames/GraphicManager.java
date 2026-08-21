@@ -454,6 +454,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setTitle(false);
 			if (currentFrame != null)
 				currentFrame.refreshViewButtons(true);
+			updateRibbonContext(currentFrame == null ? null : currentFrame.getTopViewId());
 
 			getFrameManager().activateFrame(currentFrame); // need to force activation in case being activated by closing another
 			if(!Environment.isPlugin()){
@@ -1380,6 +1381,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //		actionsMap.addHandler(ACTION_ENTERPRISE_RESOURCES, new EnterpriseResourcesAction());
 		actionsMap.addHandler(ACTION_CHANGE_WORKING_TIME, new ChangeWorkingTimeAction());
 		actionsMap.addHandler(ACTION_LEVEL_RESOURCES, new LevelResourcesAction());
+		actionsMap.addHandler(ACTION_CCPM_SETTINGS, new CCPMSettingsAction());
+		actionsMap.addHandler(ACTION_CCPM_CLEAR, new CCPMClearAction());
+		actionsMap.addHandler(ACTION_CCPM_BUFFER_STATUS, new CCPMBufferStatusAction());
+		actionsMap.addHandler(ACTION_CCPM_NETWORK, new CCPMNetworkAction());
+		actionsMap.addHandler(ACTION_TOGGLE_CRITICAL_CHAIN, new ToggleCriticalChainAction());
 		actionsMap.addHandler(ACTION_DELEGATE_TASKS, new DelegateTasksAction());
 		actionsMap.addHandler(ACTION_TIMELINE, new TimelineAction());
 		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new CalendarViewAction());
@@ -1956,6 +1962,72 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (isDocumentActive())
 				getCurrentFrame().doLevelResourcesDialog();
+		}
+	}
+
+	/** Keeps the Format tab contextual, matching the active Project view. */
+	void updateRibbonContext(String topViewId) {
+		if (!(container instanceof MainRibbonFrame ribbonFrame)) return;
+		boolean gantt = ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId);
+		ribbonFrame.setVisibleContextualRibbonTabs(gantt ? List.of("FormatRibbonTask") : List.of());
+	}
+
+	/** Project-level entry point; the dialog owns preview, apply, and cancel semantics. */
+	public class CCPMSettingsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().doCriticalChainDialog();
+		}
+	}
+
+	public class CCPMClearAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || !isDocumentWritable()) return;
+			finishAnyOperations();
+			if (!GraphicsEnvironment.isHeadless() && PopupDialogSupport.showConfirmDialog(getFrame(),
+				com.microproject.dialog.UsabilityStrings.text("ccpm.clearPrompt"),
+				com.microproject.dialog.UsabilityStrings.text("ccpm.clearTitle"),
+				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) return;
+			Project project = getCurrentFrame().getProject();
+			new com.microproject.pm.ccpm.CriticalChainService().clear(project);
+			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, false);
+			getCurrentFrame().repaint();
+			setButtonState(null, project);
+		}
+	}
+
+	public class CCPMBufferStatusAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) com.microproject.dialog.CriticalChainStatusDialogBox.show(
+				getFrame(), getCurrentFrame().getProject(), com.microproject.dialog.CriticalChainStatusDialogBox.Surface.BUFFER_STATUS);
+		}
+	}
+
+	public class CCPMNetworkAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) com.microproject.dialog.CriticalChainStatusDialogBox.show(
+				getFrame(), getCurrentFrame().getProject(), com.microproject.dialog.CriticalChainStatusDialogBox.Surface.NETWORK);
+		}
+	}
+
+	public class ToggleCriticalChainAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			Project project = getCurrentFrame().getProject();
+			com.microproject.pm.ccpm.CriticalChainService service = new com.microproject.pm.ccpm.CriticalChainService();
+			if (service.findSettings(project) == null || service.findBaseline(project) == null) return;
+			boolean visible = com.microproject.pm.graphic.gantt.CriticalChainDisplayState.toggle(project);
+			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, visible);
+			getCurrentFrame().repaint();
 		}
 	}
 	public class DelegateTasksAction extends MenuActionsMap.DocumentMenuAction {
@@ -3102,6 +3174,14 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES,isTask && writable);
 		getMenuManager().setActionEnabled(ACTION_TIMESHEET,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
+		boolean hasCcpmPlan = project != null && new com.microproject.pm.ccpm.CriticalChainService().findBaseline(project) != null;
+		getMenuManager().setActionEnabled(ACTION_CCPM_SETTINGS,!readOnly && project != null);
+		getMenuManager().setActionEnabled(ACTION_CCPM_CLEAR,!readOnly && hasCcpmPlan);
+		getMenuManager().setActionEnabled(ACTION_CCPM_BUFFER_STATUS,project != null);
+		getMenuManager().setActionEnabled(ACTION_CCPM_NETWORK,project != null);
+		getMenuManager().setActionEnabled(ACTION_TOGGLE_CRITICAL_CHAIN,hasCcpmPlan && isActiveGanttView());
+		getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN,
+			hasCcpmPlan && com.microproject.pm.graphic.gantt.CriticalChainDisplayState.isVisible(project));
 		getMenuManager().setActionEnabled(ACTION_DELEGATE_TASKS,isTask && writable);
 		getMenuManager().setActionEnabled(ACTION_UPDATE_TASKS,!readOnly && isTask);
 		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,currentFrame != null);

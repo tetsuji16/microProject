@@ -43,6 +43,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
 
 import com.microproject.menu.MenuManager;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.pm.graphic.TabbedNavigation;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.graphic.frames.workspace.DefaultFrameManager;
@@ -98,6 +99,10 @@ public final class ProjectLibreShell {
 			ribbonPanel = new JPanel(new BorderLayout());
 		}
 		JPanel shell = new OfficeChromePanel(frame, menuManager, ribbonPanel, helpAction, autoSaveControl);
+		// MainRibbonFrame owns the outer Office chrome. Preserve the contextual-tab
+		// controller on that host instead of forcing the frame to know its child layout.
+		shell.putClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY,
+			ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY));
 		frame.setRibbonPanel(shell);
 		return new ShellHandles(null, null, null);
 	}

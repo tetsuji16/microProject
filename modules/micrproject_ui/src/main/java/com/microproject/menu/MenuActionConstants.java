@@ -114,6 +114,11 @@ public interface MenuActionConstants {
 	public static final String ACTION_ASSIGN_RESOURCES        = "AssignResources";
 	public static final String ACTION_TIMESHEET               = "Timesheet";
 	public static final String ACTION_LEVEL_RESOURCES         = "LevelResources";
+	public static final String ACTION_CCPM_SETTINGS           = "CCPMSettings";
+	public static final String ACTION_CCPM_CLEAR              = "CCPMClear";
+	public static final String ACTION_CCPM_BUFFER_STATUS      = "CCPMBufferStatus";
+	public static final String ACTION_CCPM_NETWORK            = "CCPMNetwork";
+	public static final String ACTION_TOGGLE_CRITICAL_CHAIN   = "ToggleCriticalChain";
 	public static final String ACTION_TRACKING                = "Tracking";
 	public static final String ACTION_OPTIONS                 = "Options";
 

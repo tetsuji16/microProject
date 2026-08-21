@@ -82,6 +82,7 @@ public final class SwingRibbonFactory {
 		host.setOpaque(true);
 		host.setBackground(FlatUiSupport.ribbonChromeBackground());
 		host.add(panel, BorderLayout.CENTER);
+		host.putClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY, panel);
 		return host;
 	}
 
@@ -98,7 +99,8 @@ public final class SwingRibbonFactory {
 		for (String bandId : resolveList(tabId)) {
 			bands.add(createBand(bandId, customBandsGenerator));
 		}
-		return new SwingRibbonModel.RibbonTab(tabId, resolveString(tabId + ".title"), bands);
+		return new SwingRibbonModel.RibbonTab(tabId, resolveString(tabId + ".title"), bands,
+			Boolean.parseBoolean(resolveStringOrNull(tabId + ".contextual")));
 	}
 
 	private SwingRibbonModel.RibbonBand createBand(String bandId, CustomRibbonBandGenerator customBandsGenerator) {

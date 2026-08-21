@@ -73,6 +73,7 @@ import com.microproject.util.FlatUiSupport;
 import com.microproject.ui.ribbon.CustomRibbonBandGenerator;
 import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.ui.ribbon.SwingRibbonModel;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
 
 class RibbonAndToolbarButtonTest {
 	@Test
@@ -100,8 +101,12 @@ class RibbonAndToolbarButtonTest {
 	@Test
 	void standardRibbonCreatesAttachedVisibleButtons() throws Exception {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
-		SwingUtilities.invokeAndWait(() ->
-			assertAttachedButtonsAreVisible(manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null), MenuManager.STANDARD_RIBBON));
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			((ModernRibbonPanel) ribbon.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
+				.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+			assertAttachedButtonsAreVisible(ribbon, MenuManager.STANDARD_RIBBON);
+		});
 	}
 
 	@Test
@@ -146,6 +151,8 @@ class RibbonAndToolbarButtonTest {
 			assertNotNull(layoutBand.getCustomBandProvider());
 
 			JPanel panel = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, generator, null);
+			((ModernRibbonPanel) panel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
+				.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 			String formatTitle = com.microproject.menu.testsupport.MenuDefinitionSupport
 				.menuBundle(Locale.getDefault())
 				.getString("FormatRibbonTask.title");
@@ -456,7 +463,7 @@ class RibbonAndToolbarButtonTest {
 		assertTrue(ribbonBandIds("FormatRibbonTask").contains("FormatBarRibbonBand"));
 		assertTrue(ribbonBandIds("FormatRibbonTask").contains("FormatLayoutRibbonBand"));
 		assertEquals(
-			List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines"),
+			List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines", "RibbonToggleCriticalChain"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatDisplayRibbonBand"));
 		assertEquals(
 			List.of("RibbonTimescale", "RibbonBar", "RibbonBarStyles", "RibbonTextStyles"),
@@ -473,6 +480,11 @@ class RibbonAndToolbarButtonTest {
 			"LabelTaskName",
 			"InsertRecurring",
 			"LevelResources",
+			"CCPMSettings",
+			"CCPMClear",
+			"CCPMBufferStatus",
+			"CCPMNetwork",
+			"ToggleCriticalChain",
 			"CalendarOptions",
 			"Expand",
 			"Collapse",

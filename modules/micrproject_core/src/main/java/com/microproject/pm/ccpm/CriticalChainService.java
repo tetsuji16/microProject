@@ -14,6 +14,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
 
+import javax.swing.undo.AbstractUndoableEdit;
+import javax.swing.undo.UndoableEditSupport;
+
 import com.microproject.datatype.Duration;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.assignment.Assignment;
@@ -106,6 +109,18 @@ public final class CriticalChainService {
 		}
 	}
 
+	/**
+	 * The one analysis version displayed by Gantt, network and buffer surfaces.
+	 * It is document-scoped but intentionally not serialized: a reopened project
+	 * creates a fresh, internally consistent analysis from its persisted baseline.
+	 */
+	private static final class AnalysisSnapshot {
+		private final Analysis analysis;
+		private AnalysisSnapshot(Analysis analysis) { this.analysis = analysis; }
+	}
+
+	private record State(Settings settings, Baseline baseline, Analysis analysis) { }
+
 	public Settings settings(Project project) {
 		Objects.requireNonNull(project, "project");
 		return project.getOrCreateTransientDocumentState(Settings.class, Settings::new);
@@ -126,17 +141,47 @@ public final class CriticalChainService {
 		if (project != null) {
 			project.removeTransientDocumentState(Settings.class);
 			project.removeTransientDocumentState(Baseline.class);
+			project.removeTransientDocumentState(AnalysisSnapshot.class);
 		}
+	}
+
+	/** Removes CCPM state while participating in a caller-owned undo transaction. */
+	public void forget(Project project, UndoableEditSupport editSupport) {
+		if (project == null) return;
+		State before = captureState(project);
+		forget(project);
+		postStateEdit(project, editSupport, before, captureState(project));
 	}
 
 	public Baseline findBaseline(Project project) {
 		return project == null ? null : project.findTransientDocumentState(Baseline.class);
 	}
 
+	/** Returns the display snapshot when a CCPM plan has already been analyzed. */
+	public Analysis findAnalysis(Project project) {
+		AnalysisSnapshot snapshot = project == null ? null : project.findTransientDocumentState(AnalysisSnapshot.class);
+		return snapshot == null ? null : snapshot.analysis;
+	}
+
+	/**
+	 * Gets the analysis used by every read-only CCPM surface.  The first caller
+	 * after reload creates it; later callers reuse precisely the same snapshot.
+	 */
+	public Analysis analysis(Project project) {
+		Analysis existing = findAnalysis(project);
+		if (existing != null) return existing;
+		Settings settings = findSettings(project);
+		if (settings == null || !settings.isEnabled() || findBaseline(project) == null) return null;
+		Analysis analysis = preview(project, null, settings);
+		rememberAnalysis(project, analysis);
+		return analysis;
+	}
+
 	/** Restores the podx-only reference used to measure later schedule slippage. */
 	public void restoreBaseline(Project project, Baseline baseline) {
 		Objects.requireNonNull(project, "project");
 		project.removeTransientDocumentState(Baseline.class);
+		project.removeTransientDocumentState(AnalysisSnapshot.class);
 		if (baseline != null) project.getOrCreateTransientDocumentState(Baseline.class, () -> baseline);
 	}
 
@@ -164,25 +209,83 @@ public final class CriticalChainService {
 	}
 
 	public Analysis apply(Project project, Collection<? extends Resource> resources, Settings requestedSettings) {
-		Settings settings = settings(project);
-		settings.setEnabled(requestedSettings.isEnabled());
-		settings.setBufferFraction(requestedSettings.getBufferFraction());
-		settings.setLevelingOrder(requestedSettings.getLevelingOrder());
-		settings.setOnlyWithinAvailableSlack(requestedSettings.isOnlyWithinAvailableSlack());
-		settings.setAllowTaskSplits(requestedSettings.isAllowTaskSplits());
-		if (!settings.isEnabled()) {
-			throw new IllegalStateException("Enable CCPM before applying a critical chain");
+		UndoableEditSupport editSupport = project.getUndoController().getEditSupport();
+		State before = captureState(project);
+		if (editSupport != null) editSupport.beginUpdate();
+		try {
+			Settings settings = settings(project);
+			settings.setEnabled(requestedSettings.isEnabled());
+			settings.setBufferFraction(requestedSettings.getBufferFraction());
+			settings.setLevelingOrder(requestedSettings.getLevelingOrder());
+			settings.setOnlyWithinAvailableSlack(requestedSettings.isOnlyWithinAvailableSlack());
+			settings.setAllowTaskSplits(requestedSettings.isAllowTaskSplits());
+			if (!settings.isEnabled()) {
+				throw new IllegalStateException("Enable CCPM before applying a critical chain");
+			}
+			ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
+				settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE);
+			ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
+			plan.apply(editSupport);
+			Analysis analysis = analyze(project, plan, settings, resources);
+			Baseline baseline = new Baseline(project.getEnd(), analysis.projectBufferMillis(), settings.getBufferFraction(),
+				analysis.criticalTaskIds(), taskStarts(project, analysis.feedingBufferMillis().keySet()), analysis.feedingBufferMillis());
+			project.removeTransientDocumentState(Baseline.class);
+			project.getOrCreateTransientDocumentState(Baseline.class, () -> baseline);
+			Analysis result = analyze(project, plan, settings, resources);
+			rememberAnalysis(project, result);
+			postStateEdit(project, editSupport, before, captureState(project));
+			return result;
+		} finally {
+			if (editSupport != null) editSupport.endUpdate();
 		}
-		ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
-			settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE);
-		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
-		plan.apply(project.getUndoController().getEditSupport());
-		Analysis analysis = analyze(project, plan, settings, resources);
-		Baseline baseline = new Baseline(project.getEnd(), analysis.projectBufferMillis(), settings.getBufferFraction(),
-			analysis.criticalTaskIds(), taskStarts(project, analysis.feedingBufferMillis().keySet()), analysis.feedingBufferMillis());
+	}
+
+	/** Clears leveling and CCPM state as one undoable operation. */
+	public void clear(Project project) {
+		if (project == null) return;
+		UndoableEditSupport editSupport = project.getUndoController().getEditSupport();
+		State before = captureState(project);
+		if (editSupport != null) editSupport.beginUpdate();
+		try {
+			new ResourceLevelingService().clear(project, editSupport);
+			forget(project);
+			postStateEdit(project, editSupport, before, captureState(project));
+		} finally {
+			if (editSupport != null) editSupport.endUpdate();
+		}
+	}
+
+	private static State captureState(Project project) {
+		Settings settings = project.findTransientDocumentState(Settings.class);
+		AnalysisSnapshot snapshot = project.findTransientDocumentState(AnalysisSnapshot.class);
+		Analysis analysis = snapshot == null ? null : snapshot.analysis;
+		return new State(settings == null ? null : settings.copy(),
+			project.findTransientDocumentState(Baseline.class), analysis);
+	}
+
+	private static void restoreState(Project project, State state) {
+		project.removeTransientDocumentState(Settings.class);
 		project.removeTransientDocumentState(Baseline.class);
-		project.getOrCreateTransientDocumentState(Baseline.class, () -> baseline);
-		return analyze(project, plan, settings, resources);
+		project.removeTransientDocumentState(AnalysisSnapshot.class);
+		if (state.settings != null) project.getOrCreateTransientDocumentState(Settings.class, state.settings::copy);
+		if (state.baseline != null) project.getOrCreateTransientDocumentState(Baseline.class, () -> state.baseline);
+		if (state.analysis != null) project.getOrCreateTransientDocumentState(AnalysisSnapshot.class,
+			() -> new AnalysisSnapshot(state.analysis));
+	}
+
+	private static void rememberAnalysis(Project project, Analysis analysis) {
+		project.removeTransientDocumentState(AnalysisSnapshot.class);
+		project.getOrCreateTransientDocumentState(AnalysisSnapshot.class, () -> new AnalysisSnapshot(analysis));
+	}
+
+	private static void postStateEdit(Project project, UndoableEditSupport editSupport, State before, State after) {
+		if (editSupport == null) return;
+		editSupport.postEdit(new AbstractUndoableEdit() {
+			private static final long serialVersionUID = 1L;
+			@Override public String getPresentationName() { return "Critical Chain"; }
+			@Override public void undo() { super.undo(); restoreState(project, before); }
+			@Override public void redo() { super.redo(); restoreState(project, after); }
+		});
 	}
 
 	private Analysis analyze(Project project, ResourceLevelingService.Plan plan, Settings settings, Collection<? extends Resource> selectedResources) {
