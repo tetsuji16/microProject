@@ -166,6 +166,7 @@ public class SpreadSheetRowHeader extends JTable {
 				}
 			}
 			public void mouseDragged(MouseEvent e) {
+				if (!spreadSheet.isTaskRowDragAndDropEnabled()) return;
 				if (pressPoint==null||(e.getModifiersEx()&MouseEvent.BUTTON1_DOWN_MASK)==0) return;
 				if (!dragging&&pressPoint.distance(e.getPoint())<4.0d) return;
 				dragging=true;
@@ -279,4 +280,3 @@ public class SpreadSheetRowHeader extends JTable {
 		setRowMargin(0);
 	}
 }
-

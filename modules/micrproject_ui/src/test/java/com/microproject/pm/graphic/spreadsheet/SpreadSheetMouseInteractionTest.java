@@ -48,6 +48,7 @@ import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -197,7 +198,36 @@ class SpreadSheetMouseInteractionTest {
 			assertTrue(sheet.isRowFullySelected(findRow(sheet, fixture.firstTask())));
 			assertTrue(findRow(sheet,fixture.secondTask()) < findRow(sheet,fixture.firstTask()));
 			assertTrue(tableUpdates.get()>0,"A task move must notify the visible table model");
+
+			sheet.getCache().getModel().getUndoController().undo();
+			sheet.getCache().update();
+			assertTrue(findRow(sheet,fixture.firstTask()) < findRow(sheet,fixture.secondTask()),
+				"Ctrl+Z must restore a task-row drag to its original position");
 		});
+	}
+
+	@Test
+	void disablingTaskRowDragAndDropPreventsMouseReorderingButKeepsTheSelection() throws Exception {
+		GlobalPreferences preferences = new GlobalPreferences();
+		boolean original = preferences.isTaskRowDragAndDropEnabled();
+		try {
+			preferences.setTaskRowDragAndDropEnabled(false);
+			SwingUtilities.invokeAndWait(() -> {
+				Fixture fixture = createFixture();
+				RecordingSpreadSheet sheet = fixture.sheet();
+				SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
+				int firstRow = findRow(sheet, fixture.firstTask());
+				int secondRow = findRow(sheet, fixture.secondTask());
+
+				dispatchProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, true, true);
+
+				assertFalse(rowHeader.isTaskMoveDropValid());
+				assertTrue(sheet.isRowFullySelected(firstRow));
+				assertTrue(findRow(sheet, fixture.firstTask()) < findRow(sheet, fixture.secondTask()));
+			});
+		} finally {
+			preferences.setTaskRowDragAndDropEnabled(original);
+		}
 	}
 
 	@Test

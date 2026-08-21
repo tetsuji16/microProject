@@ -105,6 +105,7 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.job.Job;
 import com.microproject.job.JobRunnable;
 import com.microproject.options.GeneralOption;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
@@ -188,6 +189,11 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		// click a cell" sequence, which collapses the selection to a single cell and
 		// silently rejected the move. See issue #45.
 		return moveSelectedTaskRows(direction, false);
+	}
+
+	/** Mouse drag is optional; the Microsoft Project-style keyboard commands remain enabled. */
+	public boolean isTaskRowDragAndDropEnabled() {
+		return new GlobalPreferences().isTaskRowDragAndDropEnabled();
 	}
 
 	public boolean moveSelectedTaskRowsFromCommand(int direction) {

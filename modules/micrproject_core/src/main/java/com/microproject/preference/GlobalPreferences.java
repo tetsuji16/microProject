@@ -34,6 +34,7 @@ public class GlobalPreferences {
 	protected transient boolean showAllResources = true;
 	private String userName = STORE.get("userName", System.getProperty("user.name", ""));
 	private boolean showRowLines = STORE.getBoolean("showRowLines", true);
+	private boolean taskRowDragAndDropEnabled = STORE.getBoolean("taskRowDragAndDropEnabled", true);
 	private String fontFamily = STORE.get("fontFamily", "");
 	private int fontSize = clampFontSize(STORE.getInt("fontSize", 0));
 
@@ -83,6 +84,15 @@ public class GlobalPreferences {
 		if (showRowLines == value) return;
 		showRowLines = value;
 		STORE.putBoolean("showRowLines", value);
+		fireUpdateEvent(this, this);
+	}
+
+	/** Controls task-row reordering by mouse drag; keyboard reordering is unaffected. */
+	public boolean isTaskRowDragAndDropEnabled() { return taskRowDragAndDropEnabled; }
+	public void setTaskRowDragAndDropEnabled(boolean value) {
+		if (taskRowDragAndDropEnabled == value) return;
+		taskRowDragAndDropEnabled = value;
+		STORE.putBoolean("taskRowDragAndDropEnabled", value);
 		fireUpdateEvent(this, this);
 	}
 

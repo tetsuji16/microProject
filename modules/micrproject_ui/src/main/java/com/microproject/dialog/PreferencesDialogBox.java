@@ -39,6 +39,7 @@ public final class PreferencesDialogBox extends JDialog {
 		PopupDialogSupport.bindEscapeToDispose(this);
 		JTextField userName = new JTextField(preferences.getUserName(), 24);
 		JCheckBox rowLines = new JCheckBox(UsabilityStrings.text("preferences.rowLines"), preferences.isShowRowLines());
+		JCheckBox taskRowDragAndDrop = new JCheckBox(UsabilityStrings.text("preferences.taskRowDragAndDrop"), preferences.isTaskRowDragAndDropEnabled());
 		String[] fonts = java.awt.GraphicsEnvironment.isHeadless()
 			? new String[] { "" }
 			: java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
@@ -52,11 +53,13 @@ public final class PreferencesDialogBox extends JDialog {
 		form.add(new JLabel(UsabilityStrings.text("preferences.font"))); form.add(font);
 		form.add(new JLabel(UsabilityStrings.text("preferences.fontSize"))); form.add(size);
 		form.add(new JLabel()); form.add(rowLines);
+		form.add(new JLabel()); form.add(taskRowDragAndDrop);
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {
 			preferences.setUserName(userName.getText());
 			preferences.setShowRowLines(rowLines.isSelected());
+			preferences.setTaskRowDragAndDropEnabled(taskRowDragAndDrop.isSelected());
 			Object selectedFont = font.getSelectedItem();
 			preferences.setFontFamily(selectedFont == null ? "" : selectedFont.toString());
 			preferences.setFontSize(((Number) size.getValue()).intValue());

@@ -16,15 +16,18 @@ class GlobalPreferencesTest {
 		GlobalPreferences preferences = new GlobalPreferences();
 		String originalName = preferences.getUserName();
 		boolean originalRows = preferences.isShowRowLines();
+		boolean originalTaskRowDragAndDrop = preferences.isTaskRowDragAndDropEnabled();
 		String originalFamily = preferences.getFontFamily();
 		int originalSize = preferences.getFontSize();
 		try {
 			preferences.setUserName("  editor  ");
 			preferences.setShowRowLines(false);
+			preferences.setTaskRowDragAndDropEnabled(false);
 			preferences.setFontFamily("  SansSerif ");
 			preferences.setFontSize(100);
 			assertEquals("editor", preferences.getUserName());
 			assertFalse(preferences.isShowRowLines());
+			assertFalse(preferences.isTaskRowDragAndDropEnabled());
 			assertEquals("SansSerif", preferences.getFontFamily());
 			assertEquals(32, preferences.getFontSize());
 			preferences.setFontSize(1);
@@ -34,6 +37,7 @@ class GlobalPreferencesTest {
 		} finally {
 			preferences.setUserName(originalName);
 			preferences.setShowRowLines(originalRows);
+			preferences.setTaskRowDragAndDropEnabled(originalTaskRowDragAndDrop);
 			preferences.setFontFamily(originalFamily);
 			preferences.setFontSize(originalSize);
 		}
