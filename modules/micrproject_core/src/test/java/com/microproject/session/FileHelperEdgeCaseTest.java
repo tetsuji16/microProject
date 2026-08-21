@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
+
 class FileHelperEdgeCaseTest {
 	@Test
 	void missingFileNameHasNoExtension() {
@@ -43,9 +44,11 @@ class FileHelperEdgeCaseTest {
 
 	@Test
 	void podxIsAnAllowedNativeFormat() {
+		assertEquals("podx", FileHelper.DEFAULT_FILE_EXTENSION);
 		assertTrue(FileHelper.isPodxFile("plan.PODX"));
 		assertTrue(FileHelper.isFileNameAllowed("plan.podx", true));
 		assertEquals(FileHelper.PODX_FILE_TYPE, FileHelper.getFileType("plan.podx"));
 		assertEquals("podx", FileHelper.getFileExtension(FileHelper.PODX_FILE_TYPE));
 	}
+
 }

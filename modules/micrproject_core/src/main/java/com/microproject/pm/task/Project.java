@@ -2246,7 +2246,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return name + " - " + fileName;
 	}
 
-	protected transient int fileType=FileHelper.PROJECTLIBRE_FILE_TYPE;
+	protected transient int fileType=FileHelper.PODX_FILE_TYPE;
 
 	public int getFileType() {
 		return fileType;

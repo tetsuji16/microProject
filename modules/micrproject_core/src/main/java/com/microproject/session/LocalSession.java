@@ -371,7 +371,7 @@ public class LocalSession extends AbstractSession{
 			//if projs.size()>1 opt.getFileName() must be null
 			String fileN=(opt.getFileName()==null)?project.getGuessedFileName():opt.getFileName();//+(count>1?("("+i+")"):""));
 			if (!FileHelper.isFileNameAllowed(fileN, true)){
-				fileN=SessionFactory.getInstance().getLocalSession().chooseFileName(true,FileHelper.changeFileExtension(fileN, /*project.getFileType()*/FileHelper.PROJECTLIBRE_FILE_TYPE));
+				fileN=SessionFactory.getInstance().getLocalSession().chooseFileName(true,FileHelper.changeFileExtension(fileN, FileHelper.PODX_FILE_TYPE));
 			}
 			// POD remains byte-compatible with the legacy format and therefore
 			// intentionally has no CCPM payload. Keep CCPM projects lossless by
