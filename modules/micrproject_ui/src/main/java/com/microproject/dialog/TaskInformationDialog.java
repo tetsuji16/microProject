@@ -639,8 +639,6 @@ public class TaskInformationDialog extends InformationDialog {
 									//, 0
 									,new String[]{MenuActionConstants.ACTION_DELETE}
 									/*, new int[] {SpreadSheet.DELETE}*/);
-        assignmentSpreadSheet.setActions(new String[]{MenuActionConstants.ACTION_DELETE});
-
 		updateAssignmentSpreadsheet();
 	    return SpreadSheetUtils.makeSpreadsheetScrollPane(assignmentSpreadSheet);
 

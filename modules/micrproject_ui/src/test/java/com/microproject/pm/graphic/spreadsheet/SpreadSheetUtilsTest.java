@@ -24,12 +24,14 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Iterator;
 
+import javax.swing.SwingUtilities;
 import javax.swing.table.TableColumn;
 
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,12 @@ import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
+import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
 
 class SpreadSheetUtilsTest {
 	@Test
@@ -50,6 +58,27 @@ class SpreadSheetUtilsTest {
 			SpreadSheetUtils.getFieldsForCategory(SpreadSheetCategories.resourceAssignmentSpreadsheetCategory));
 		assertSame(dictionary.getAssignmentFields(),
 			SpreadSheetUtils.getFieldsForCategory(SpreadSheetCategories.timesheetSpreadsheetCategory));
+	}
+
+	@Test
+	void filteredAssignmentSpreadsheetKeepsTheRequestedColumnCategory() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			Project project = Project.createProject(
+				ResourcePool.createRourcePool("filtered-category", undoController), undoController);
+			ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+				reference, "View.ResourceInformation.Assignments", null);
+
+			SpreadSheet sheet = SpreadSheetUtils.createFilteredSpreadsheet(cache,
+				SpreadSheetCategories.taskAssignmentSpreadsheetCategory,
+				"Spreadsheet.Assignment.taskUsage", false, new String[] { "Delete" });
+
+			assertEquals(SpreadSheetCategories.taskAssignmentSpreadsheetCategory, sheet.getSpreadSheetCategory());
+			assertSame(FieldDictionary.getInstance().getTaskAndAssignmentFields(), sheet.getAvailableFields());
+			assertEquals("Delete", sheet.getActionList()[0]);
+			sheet.cleanUp();
+		});
 	}
 
 	@Test

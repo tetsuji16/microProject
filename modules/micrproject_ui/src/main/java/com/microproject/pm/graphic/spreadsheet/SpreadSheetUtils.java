@@ -39,7 +39,6 @@ import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
-import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
@@ -143,9 +142,16 @@ public class SpreadSheetUtils {
 			//,int nbVoidNodes
 			,String[] actionList) {
 		SpreadSheet ss = new SpreadSheet();
-		ss.setSpreadSheetCategory(leftAssociation?UsageDetailView.taskAssignmentSpreadsheetCategory:UsageDetailView.resourceAssignmentSpreadsheetCategory);
+		// The category owns the available columns, saved layout, and column popup.
+		// It must therefore match the field array requested by the caller.  The
+		// association direction only describes how assignment fields are resolved;
+		// it is not a substitute for the spreadsheet category.  In particular,
+		// the Resource Information "Tasks" pane has task-assignment columns while
+		// resolving assignments from a resource, and vice versa for Task Information.
+		ss.setSpreadSheetCategory(spreadSheetCategory);
 		//cache.getModel().getHierarchy().setNbEndVoidNodes(nbVoidNodes);
 		setFieldsAndContext(ss,cache,spreadSheetCategory,spreadSheetId,leftAssociation);
+		ss.setActions(actionList);
 		return ss;
     }
 
@@ -242,4 +248,3 @@ public class SpreadSheetUtils {
 
 
 }
-

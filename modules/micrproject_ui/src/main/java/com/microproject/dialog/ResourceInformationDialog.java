@@ -192,8 +192,6 @@ public class ResourceInformationDialog extends InformationDialog {
 									,new String[]{MenuActionConstants.ACTION_DELETE}/*,new int[] {SpreadSheet.DELETE}*/);
         assignmentSpreadSheet.setCanModifyColumns(true);
         assignmentSpreadSheet.setCanSelectFieldArray(true);
-        assignmentSpreadSheet.setActions(new String[]{MenuActionConstants.ACTION_DELETE});
-
         updateAssignmentSpreadsheet();
 		assignmentPane = SpreadSheetUtils.makeSpreadsheetScrollPane(assignmentSpreadSheet);
 		return assignmentPane;
@@ -404,4 +402,3 @@ public class ResourceInformationDialog extends InformationDialog {
 
 	
 }
-
