@@ -514,13 +514,34 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			AbstractButton toggle = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
-			assertNotNull(toggle);
-			assertTrue(toggle instanceof JToggleButton);
-			assertFalse(toggle.isSelected());
+			for (var entry : java.util.Map.of(
+				"RibbonToggleProgressLine", "ToggleProgressLine",
+				"RibbonLabelResourceNames", "LabelResourceNames",
+				"RibbonLabelTaskName", "LabelTaskName",
+				"RibbonGridlines", "Gridlines",
+				"RibbonToggleCriticalChain", "ToggleCriticalChain").entrySet()) {
+				AbstractButton toggle = firstButton(manager.getToolButtonsFromId(entry.getKey()));
+				assertTrue(toggle instanceof JToggleButton, entry.getKey() + " must expose persistent selection");
+				assertFalse(toggle.isSelected());
+				manager.setActionSelected(entry.getValue(), true);
+				assertTrue(toggle.isSelected());
+				assertEquals(javax.accessibility.AccessibleRole.TOGGLE_BUTTON,
+					toggle.getAccessibleContext().getAccessibleRole());
+			}
+		});
+	}
 
-			manager.setActionSelected("ToggleProgressLine", true);
-			assertTrue(toggle.isSelected());
+	@Test
+	void contextualFormatTabUsesTheActiveViewCaption() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			ModernRibbonPanel panel = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			panel.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+			panel.setContextualTabTitles(java.util.Map.of("FormatRibbonTask", "Gantt Chart Format"));
+			assertNotNull(findButtonByText(host, "Gantt Chart Format"));
+			panel.setContextualTabTitles(java.util.Map.of("FormatRibbonTask", "Tracking Gantt Format"));
+			assertNotNull(findButtonByText(host, "Tracking Gantt Format"));
 		});
 	}
 

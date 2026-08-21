@@ -1970,6 +1970,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (!(container instanceof MainRibbonFrame ribbonFrame)) return;
 		boolean gantt = ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId);
 		ribbonFrame.setVisibleContextualRibbonTabs(gantt ? List.of("FormatRibbonTask") : List.of());
+		String titleKey = ACTION_TRACKING_GANTT.equals(topViewId)
+			? "TrackingGanttFormat.contextualTitle" : "GanttChartFormat.contextualTitle";
+		ribbonFrame.setContextualRibbonTabTitles(gantt
+			? Map.of("FormatRibbonTask", getMenuManager().getString(titleKey)) : Map.of());
 	}
 
 	/** Project-level entry point; the dialog owns preview, apply, and cancel semantics. */

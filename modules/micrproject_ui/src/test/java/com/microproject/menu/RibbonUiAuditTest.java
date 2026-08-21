@@ -44,6 +44,7 @@ import com.microproject.menu.testsupport.RibbonDuplicationAuditSupport;
 import com.microproject.menu.testsupport.RibbonIconAuditSupport;
 import com.microproject.menu.testsupport.RibbonInventory;
 import com.microproject.menu.testsupport.RibbonLinkAuditSupport;
+import com.microproject.pm.graphic.IconManager;
 import com.microproject.util.UiLinkTargets;
 
 class RibbonUiAuditTest {
@@ -78,6 +79,19 @@ class RibbonUiAuditTest {
 				assertTrue(button.getIcon().getIconHeight() > 0, () -> spec.id() + " ribbon icon height was not positive");
 			}
 		});
+	}
+
+	@Test
+	void standardRibbonIconsRemainReadableAtAllRibbonSizes() {
+		for (RibbonInventory.ButtonSpec spec : inventory.buttons().values()) {
+			if (!spec.requiresIcon()) continue;
+			for (int size : java.util.List.of(16, 20, 32)) {
+				var icon = IconManager.getRibbonIcon(spec.iconKey(), size, size);
+				assertNotNull(icon, () -> spec.id() + " has no " + size + "px ribbon icon");
+				assertEquals(size, icon.getIconWidth(), () -> spec.id() + " icon width at " + size + "px");
+				assertEquals(size, icon.getIconHeight(), () -> spec.id() + " icon height at " + size + "px");
+			}
+		}
 	}
 
 	@Test

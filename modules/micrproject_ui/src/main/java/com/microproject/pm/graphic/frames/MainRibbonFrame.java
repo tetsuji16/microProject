@@ -95,6 +95,12 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 		if (value instanceof ModernRibbonPanel panel) panel.setVisibleContextualTabs(tabIds);
 	}
 
+	public void setContextualRibbonTabTitles(java.util.Map<String, String> titles) {
+		if (ribbonPanel == null) return;
+		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		if (value instanceof ModernRibbonPanel panel) panel.setContextualTabTitles(titles);
+	}
+
 	public FrameManager getFrameManager() {
 		return graphicManager.getFrameManager();
 	}

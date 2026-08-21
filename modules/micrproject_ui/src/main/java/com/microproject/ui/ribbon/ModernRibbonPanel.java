@@ -88,6 +88,7 @@ public final class ModernRibbonPanel extends JPanel {
 	private final RibbonButtonStyler buttonStyler;
 	private final List<Integer> bandHeights;
 	private final java.util.Set<String> visibleContextualTabs = new LinkedHashSet<>();
+	private final Map<String, String> contextualTabTitles = new LinkedHashMap<>();
 	private RibbonDensity density = RibbonDensity.FULL;
 	private String activeTabId;
 	private boolean rebuildingDensity;
@@ -151,6 +152,19 @@ public final class ModernRibbonPanel extends JPanel {
 
 	public boolean isContextualTabVisible(String tabId) {
 		return visibleContextualTabs.contains(tabId);
+	}
+
+	/** Labels contextual tabs with the active view, for example Gantt Chart Format. */
+	public void setContextualTabTitles(Map<String, String> titles) {
+		contextualTabTitles.clear();
+		if (titles != null) contextualTabTitles.putAll(titles);
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			if (!tab.isContextual()) continue;
+			JToggleButton button = tabButtons.get(tab.getId());
+			if (button != null) button.setText(tabTitle(tab));
+		}
+		revalidate();
+		repaint();
 	}
 
 	@Override
@@ -256,7 +270,7 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	private AbstractButton createTabButton(SwingRibbonModel.RibbonTab tab) {
-		JToggleButton button = new JToggleButton(tab.getTitle());
+		JToggleButton button = new JToggleButton(tabTitle(tab));
 		tabButtons.put(tab.getId(), button);
 		tabGroup.add(button);
 		FlatUiSupport.styleRibbonTabButton(button);
@@ -304,6 +318,10 @@ public final class ModernRibbonPanel extends JPanel {
 			.findFirst()
 			.map(tab -> !tab.isContextual() || visibleContextualTabs.contains(tabId))
 			.orElse(false);
+	}
+
+	private String tabTitle(SwingRibbonModel.RibbonTab tab) {
+		return contextualTabTitles.getOrDefault(tab.getId(), tab.getTitle());
 	}
 
 	private java.util.Optional<String> firstVisibleTabId() {
@@ -420,14 +438,14 @@ public final class ModernRibbonPanel extends JPanel {
 	private SwingRibbonModel.RibbonBand collapsedTabBand(SwingRibbonModel.RibbonTab tab) {
 		return new SwingRibbonModel.RibbonBand(
 			tab.getId() + ".Collapsed",
-			tab.getTitle(),
+			tabTitle(tab),
 			() -> buildCollapsedTabMenu(tab));
 	}
 
 	private JComponent buildCollapsedTabMenu(SwingRibbonModel.RibbonTab tab) {
-		JButton trigger = new JButton(tab.getTitle() + " …");
+		JButton trigger = new JButton(tabTitle(tab) + " …");
 		trigger.setFocusable(false);
-		trigger.setToolTipText(tab.getTitle());
+		trigger.setToolTipText(tabTitle(tab));
 		FlatUiSupport.styleRibbonSmallButton(trigger);
 		trigger.setHorizontalAlignment(SwingConstants.CENTER);
 		trigger.setPreferredSize(new Dimension(160, FlatUiSupport.ribbonInlineButtonHeight()));
