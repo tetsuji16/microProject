@@ -65,6 +65,38 @@ class DockableProjectToolViewTest {
 		});
 	}
 
+	@Test
+	void bufferConsumptionChartPaintsAndKeepsDistinctObservations() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("buffer-chart-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		CriticalChainService.Buffer buffer = new CriticalChainService.Buffer(100L, 50L, 50L, 0.5D,
+			CriticalChainService.BufferStatus.AMBER);
+		CriticalChainService.Analysis analysis = new CriticalChainService.Analysis(null, List.of(), 100L, java.util.Map.of(),
+			buffer, java.util.Map.of(), java.util.Map.of(), List.of());
+		CriticalChainBufferChartPanel panel = new CriticalChainBufferChartPanel(project);
+		panel.setSize(620, 420);
+		panel.setAnalysis(analysis, true);
+		panel.setAnalysis(analysis, true);
+		assertEquals(1, CriticalChainBufferChartPanel.observationCount(panel));
+		assertEquals(50D, CriticalChainBufferChartPanel.currentPoint(project, buffer).consumptionPercent());
+		assertEquals(CriticalChainBufferChartPanel.Zone.GREEN, CriticalChainBufferChartPanel.zoneFor(
+			CriticalChainBufferChartPanel.currentPoint(project, new CriticalChainService.Buffer(100L, 5L, 95L, 0.05D,
+				CriticalChainService.BufferStatus.GREEN))));
+		assertEquals(CriticalChainBufferChartPanel.Zone.AMBER, CriticalChainBufferChartPanel.zoneFor(
+			CriticalChainBufferChartPanel.currentPoint(project, new CriticalChainService.Buffer(100L, 20L, 80L, 0.2D,
+				CriticalChainService.BufferStatus.AMBER))));
+		assertEquals(CriticalChainBufferChartPanel.Zone.RED, CriticalChainBufferChartPanel.zoneFor(
+			CriticalChainBufferChartPanel.currentPoint(project, new CriticalChainService.Buffer(100L, 60L, 40L, 0.6D,
+				CriticalChainService.BufferStatus.RED))));
+		BufferedImage image = new BufferedImage(620, 420, BufferedImage.TYPE_INT_ARGB);
+		assertDoesNotThrow(() -> {
+			Graphics2D graphics = image.createGraphics();
+			try { panel.paint(graphics); } finally { graphics.dispose(); }
+		});
+	}
+
 	private static NormalTask task(Project project, String name) {
 		NormalTask task = new NormalTask(project);
 		task.setName(name);
