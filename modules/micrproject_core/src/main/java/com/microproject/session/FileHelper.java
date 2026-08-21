@@ -27,7 +27,9 @@ package com.microproject.session;
 import java.util.Locale;
 
 public class FileHelper {
-	public static final String DEFAULT_FILE_EXTENSION ="pod";
+	public static final String POD_FILE_EXTENSION = "pod";
+	public static final String PODX_FILE_EXTENSION = "podx";
+	public static final String DEFAULT_FILE_EXTENSION = PODX_FILE_EXTENSION;
 	public static final int PROJECTLIBRE_FILE_TYPE=1;
 	public static final int PODX_FILE_TYPE=2;
 	public static final int MSP_FILE_TYPE=101;
@@ -42,14 +44,14 @@ public class FileHelper {
 	}
 
 	public static boolean isProjectLibreFile(String fileName) {
-		return hasExtension(fileName, DEFAULT_FILE_EXTENSION);
+		return hasExtension(fileName, POD_FILE_EXTENSION);
 	}
 
 	/**
 	 * Returns whether the name identifies the open podx container format.
 	 */
 	public static boolean isPodxFile(String fileName) {
-		return hasExtension(fileName, "podx");
+		return hasExtension(fileName, PODX_FILE_EXTENSION);
 	}
 
 	public static boolean isNativeFile(String fileName) {
@@ -90,8 +92,8 @@ public class FileHelper {
     public static String getFileExtension(int fileType){
     	switch (fileType) {
 		//case FileHelper.SERVER_FILE_TYPE: return null;
-		case FileHelper.PROJECTLIBRE_FILE_TYPE: return DEFAULT_FILE_EXTENSION;
-		case FileHelper.PODX_FILE_TYPE: return "podx";
+		case FileHelper.PROJECTLIBRE_FILE_TYPE: return POD_FILE_EXTENSION;
+		case FileHelper.PODX_FILE_TYPE: return PODX_FILE_EXTENSION;
 		case FileHelper.MSP_FILE_TYPE: return "xml";
 		default:
 			return DEFAULT_FILE_EXTENSION;

@@ -28,6 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.undo.DataFactoryUndoController;
+
 class ProjectTitleFormattingTest {
 	@Test
 	void fileNameDoesNotStartWithSeparatorWhenProjectNameIsMissing() {
@@ -40,5 +43,14 @@ class ProjectTitleFormattingTest {
 		assertEquals("Launch - C:\\projects\\plan.pod",
 			Project.formatTitle("Launch", "C:\\projects\\plan.pod"));
 		assertEquals("Launch", Project.formatTitle("Launch", null));
+	}
+
+	@Test
+	void newProjectGuessesThePodxFileName() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("default-format", undo), undo);
+		project.setName("plan");
+
+		assertEquals("plan.podx", project.getGuessedFileName());
 	}
 }

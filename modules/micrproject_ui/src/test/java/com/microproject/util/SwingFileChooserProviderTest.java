@@ -60,22 +60,22 @@ class SwingFileChooserProviderTest {
 			provider.configureFileChooser(chooser, false);
 			provider.selectOpenFileFilter(chooser);
 
-			assertEquals("ProjectLibre (*.pod)", chooser.getFileFilter().getDescription());
-			assertArrayEquals(new String[] { "pod" },
+			assertEquals("ProjectLibre (*.podx)", chooser.getFileFilter().getDescription());
+			assertArrayEquals(new String[] { "podx" },
 				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
 			assertTrue(chooser.isAcceptAllFileFilterUsed());
-			assertEquals(7, chooser.getChoosableFileFilters().length);
+			assertEquals(8, chooser.getChoosableFileFilters().length);
 
 			chooser.setFileFilter(chooser.getAcceptAllFileFilter());
 			provider.selectOpenFileFilter(chooser);
-			assertEquals("ProjectLibre (*.pod)", chooser.getFileFilter().getDescription());
+			assertEquals("ProjectLibre (*.podx)", chooser.getFileFilter().getDescription());
 		} finally {
 			Environment.setStandAlone(previousStandalone);
 		}
 	}
 
 	@Test
-	void openKeepsTheSelectedFileNameWhileSaveAsUsesTheDefaultPodFormat() {
+	void openKeepsTheSelectedFileNameWhileSaveAsUsesTheDefaultPodxFormat() {
 		boolean previousStandalone = Environment.getStandAlone();
 		try {
 			Environment.setStandAlone(true);
@@ -83,11 +83,11 @@ class SwingFileChooserProviderTest {
 
 			SystemFileChooser openChooser = provider.prepareFileChooser(false, "C:\\projects\\imported.mpp");
 			assertEquals(new File("C:\\projects\\imported.mpp"), openChooser.getSelectedFile());
-			assertEquals("ProjectLibre (*.pod)", openChooser.getFileFilter().getDescription());
+			assertEquals("ProjectLibre (*.podx)", openChooser.getFileFilter().getDescription());
 
 			SystemFileChooser saveChooser = provider.prepareFileChooser(true, "C:\\projects\\imported.mpp");
-			assertEquals(new File("C:\\projects\\imported.pod"), saveChooser.getSelectedFile());
-			assertEquals("ProjectLibre (*.pod)", saveChooser.getFileFilter().getDescription());
+			assertEquals(new File("C:\\projects\\imported.podx"), saveChooser.getSelectedFile());
+			assertEquals("ProjectLibre (*.podx)", saveChooser.getFileFilter().getDescription());
 		} finally {
 			Environment.setStandAlone(previousStandalone);
 		}
@@ -104,7 +104,7 @@ class SwingFileChooserProviderTest {
 			provider.selectOpenFileFilter(chooser);
 
 			assertEquals("Projects", chooser.getFileFilter().getDescription());
-			assertArrayEquals(new String[] { "pod", "xml", "xlsx", "planner", "mpp", "mpx" },
+			assertArrayEquals(new String[] { "podx", "pod", "xml", "xlsx", "planner", "mpp", "mpx" },
 				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
 		} finally {
 			Environment.setStandAlone(previousStandalone);
@@ -120,7 +120,8 @@ class SwingFileChooserProviderTest {
 
 	@Test
 	void saveAsFallsBackToAnEditableFormat() {
-		assertEquals("pod", SwingFileChooserProvider.preferredSaveExtension("imported.mpp", true));
+		assertEquals("podx", SwingFileChooserProvider.preferredSaveExtension("imported.mpp", true));
+		assertEquals("podx", SwingFileChooserProvider.preferredSaveExtension("project.podx", false));
 		assertEquals("xml", SwingFileChooserProvider.preferredSaveExtension("project.pod", false));
 	}
 }

@@ -38,7 +38,8 @@ import com.microproject.preference.ConfigurationFile;
 import com.microproject.strings.Messages;
 
 public final class SwingFileChooserProvider implements UiServices.FileChooserProvider {
-	private static final String DEFAULT_FILE_EXTENSION = "pod";
+	private static final String DEFAULT_FILE_EXTENSION = FileHelper.DEFAULT_FILE_EXTENSION;
+	private static final String LEGACY_POD_FILE_EXTENSION = FileHelper.POD_FILE_EXTENSION;
 	/**
 	 * Native Windows file dialogs do not provide a reliable application-level
 	 * Escape cancellation path. Use the Swing fallback so that Escape always
@@ -54,6 +55,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	private String chooserConfigurationSignature;
 	private Boolean chooserConfigurationSaveMode;
 	private FileFilter projectlibreFilter;
+	private FileFilter legacyPodFilter;
 	private FileFilter microsoftFilter;
 	private FileFilter microsoftXMLFilter;
 	private FileFilter microsoftXlsxFilter;
@@ -63,7 +65,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	@Override
 	public synchronized String chooseFileName(boolean save, String selectedFileName, Object parent) {
 		Component fileChooserParent = parent instanceof Component ? (Component) parent : null;
-		if (!Environment.getStandAlone() && save && selectedFileName != null && selectedFileName.endsWith("." + DEFAULT_FILE_EXTENSION)) {
+		if (!Environment.getStandAlone() && save && selectedFileName != null && selectedFileName.endsWith("." + LEGACY_POD_FILE_EXTENSION)) {
 			selectedFileName = changeFileExtension(selectedFileName, "xml");
 		}
 		SystemFileChooser chooser = prepareFileChooser(save, selectedFileName);
@@ -128,6 +130,9 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		projectlibreFilter = new FileNameExtensionFilter(
 			formatFilterLabel(Messages.getString("File.projectlibre"), "*." + DEFAULT_FILE_EXTENSION),
 			DEFAULT_FILE_EXTENSION);
+		legacyPodFilter = new FileNameExtensionFilter(
+			formatFilterLabel(Messages.getString("File.projectlibre"), "*." + LEGACY_POD_FILE_EXTENSION),
+			LEGACY_POD_FILE_EXTENSION);
 		microsoftFilter = new FileNameExtensionFilter(
 			formatFilterLabel(Messages.getString("File.microsoft"), "*.mpp, *.mpx"),
 			"mpp", "mpx");
@@ -142,19 +147,21 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			"planner");
 		projectFilter = new FileNameExtensionFilter(
 			Messages.getString("File.projects"),
-			DEFAULT_FILE_EXTENSION, "xml", "xlsx", "planner", "mpp", "mpx");
+			DEFAULT_FILE_EXTENSION, LEGACY_POD_FILE_EXTENSION, "xml", "xlsx", "planner", "mpp", "mpx");
 
 		chooser.resetChoosableFileFilters();
 		chooser.setAcceptAllFileFilterUsed(true);
 		if (save) {
 			if (Environment.getStandAlone()) {
 				chooser.addChoosableFileFilter(projectlibreFilter);
+				chooser.addChoosableFileFilter(legacyPodFilter);
 			}
 			chooser.addChoosableFileFilter(microsoftXMLFilter);
 			chooser.addChoosableFileFilter(microsoftXlsxFilter);
 		} else {
 			if (Environment.getStandAlone()) {
 				chooser.addChoosableFileFilter(projectlibreFilter);
+				chooser.addChoosableFileFilter(legacyPodFilter);
 			}
 			chooser.addChoosableFileFilter(microsoftFilter);
 			chooser.addChoosableFileFilter(microsoftXMLFilter);
@@ -176,6 +183,8 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		String extension = preferredSaveExtension(selectedFileName, Environment.getStandAlone());
 		if (DEFAULT_FILE_EXTENSION.equals(extension) && projectlibreFilter != null) {
 			chooser.setFileFilter(projectlibreFilter);
+		} else if (LEGACY_POD_FILE_EXTENSION.equals(extension)) {
+			chooser.setFileFilter(legacyPodFilter);
 		} else if ("xlsx".equals(extension)) {
 			chooser.setFileFilter(microsoftXlsxFilter);
 		} else {
@@ -191,8 +200,11 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		if ("xml".equals(extension)) {
 			return "xml";
 		}
-		if (standalone && DEFAULT_FILE_EXTENSION.equals(extension)) {
+		if (DEFAULT_FILE_EXTENSION.equals(extension)) {
 			return DEFAULT_FILE_EXTENSION;
+		}
+		if (standalone && LEGACY_POD_FILE_EXTENSION.equals(extension)) {
+			return extension;
 		}
 		return standalone ? DEFAULT_FILE_EXTENSION : "xml";
 	}
@@ -222,6 +234,9 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		if (filter == projectlibreFilter) {
 			return changeFileExtension(baseFileName, DEFAULT_FILE_EXTENSION);
 		}
+		if (filter == legacyPodFilter) {
+			return changeFileExtension(baseFileName, LEGACY_POD_FILE_EXTENSION);
+		}
 		return baseFileName;
 	}
 
@@ -246,6 +261,9 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 		if (filter == projectlibreFilter) {
 			return DEFAULT_FILE_EXTENSION;
+		}
+		if (filter == legacyPodFilter) {
+			return LEGACY_POD_FILE_EXTENSION;
 		}
 		return null;
 	}
