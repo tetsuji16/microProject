@@ -59,6 +59,7 @@ import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.help.HelpUtil;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
 import com.microproject.pm.graphic.views.CriticalChainGraphPanel;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.PopupDialogSupport;
@@ -81,6 +82,7 @@ public final class ResourceLevelingDialogBox extends JDialog {
 	private final JLabel status = new JLabel(" ");
 	private final JButton apply = new JButton(UsabilityStrings.text("leveling.apply"));
 	private final CriticalChainGraphPanel criticalChainGraph;
+	private final CriticalChainBufferChartPanel criticalChainBufferChart;
 	private ResourceLevelingService.Plan currentPlan;
 
 	public static ResourceLevelingDialogBox getInstance(Frame owner, Project project) {
@@ -94,6 +96,7 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		PopupDialogSupport.bindEscapeToDispose(this);
 		this.project = project;
 		criticalChainGraph = new CriticalChainGraphPanel(project);
+		criticalChainBufferChart = new CriticalChainBufferChartPanel(project);
 		CriticalChainService.Settings settings = criticalChainService.findSettings(project);
 		workingSettings = settings == null ? new CriticalChainService.Settings() : settings.copy();
 		ccpm.setSelected(workingSettings.isEnabled());
@@ -170,7 +173,8 @@ public final class ResourceLevelingDialogBox extends JDialog {
 
 		JTabbedPane tabs = new JTabbedPane();
 		tabs.addTab(UsabilityStrings.text("leveling.title"), split);
-		tabs.addTab("CCPM Network", new JScrollPane(criticalChainGraph));
+		tabs.addTab(UsabilityStrings.text("ccpm.networkTab"), new JScrollPane(criticalChainGraph));
+		tabs.addTab(UsabilityStrings.text("ccpm.bufferChartTab"), criticalChainBufferChart);
 		setLayout(new BorderLayout());
 		add(tabs, BorderLayout.CENTER);
 		add(buttons, BorderLayout.SOUTH);
@@ -188,6 +192,7 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		workingSettings.setAllowTaskSplits(allowSplits.isSelected());
 		CriticalChainService.Analysis analysis = criticalChainService.preview(project, selected.isEmpty() ? null : selected, workingSettings);
 		criticalChainGraph.setAnalysis(analysis);
+		criticalChainBufferChart.setAnalysis(analysis, ccpm.isSelected());
 		currentPlan = analysis.levelingPlan();
 		changes.setPlan(currentPlan);
 		// CCPM application also captures the critical-chain baseline.  It must
