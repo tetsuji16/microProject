@@ -126,7 +126,7 @@ public class PredefinedPaint extends TexturePaint {
 			synchronized (PredefinedPaint.class) {
 				result = shapePaintMap;
 				if (result == null) {
-					Map<String, PredefinedPaint> m = new HashMap<>();
+					Map<String, PredefinedPaint> m = new HashMap<>(data.length * 4 / 3 + 1);
 					for (int i = 0; i < data.length; i++) {
 						Object row[] = data[i];
 						m.put((String) row[0], (PredefinedPaint) row[1]);

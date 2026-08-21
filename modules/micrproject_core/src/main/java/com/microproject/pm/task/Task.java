@@ -41,7 +41,6 @@ import javax.swing.SwingUtilities;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
-import org.apache.commons.collections.functors.TruePredicate;
 
 import com.microproject.association.AssociationFormatParameters;
 import com.microproject.association.AssociationList;
@@ -57,8 +56,6 @@ import com.microproject.field.CustomFieldsImpl;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
-import com.microproject.functor.CollectionVisitor;
-import com.microproject.functor.ObjectVisitor;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeList;
@@ -310,31 +307,21 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 
 	public static Consumer<Object> forProject(Consumer<Object> visitor) {
-		return new ObjectVisitor(visitor) {
-			protected final Object getObject(Object caller) {
-				return ((Task)caller).getProject();
-			}
-		};
+		return value -> visitor.accept(((Task) value).getProject());
 	}
 		public static Consumer<Object> forParent(Consumer<Object> visitor) {
-		return new ObjectVisitor(visitor) {
-			protected final Object getObject(Object caller) {
-				return ((Task)caller).getProject().getTaskOutline().getHierarchy().getParent((Node)caller);
-			}
-		};
+		return value -> visitor.accept(((Task) value).getProject().getTaskOutline().getHierarchy().getParent((Node) value));
 	}
 
 
 	public static Consumer<Object> forAllChildren(Consumer<Object> visitor, Predicate filter) {
-		return new CollectionVisitor(visitor,filter) {
-			protected Collection getCollection(Object caller) {
-				return ((Task)caller).getProject().getTaskOutline().getHierarchy().getChildren((Node)caller);
-			}
-		};
+		return value -> ((Task) value).getProject().getTaskOutline().getHierarchy().getChildren((Node) value)
+				.stream().filter(filter::evaluate).forEach(visitor);
 	}
 
 	public static Consumer<Object> forAllChildren(Consumer<Object> visitor) {
-		return forAllChildren(visitor, TruePredicate.INSTANCE);
+		return value -> ((Task) value).getProject().getTaskOutline().getHierarchy().getChildren((Node) value)
+				.forEach(visitor);
 	}
 
 	/**

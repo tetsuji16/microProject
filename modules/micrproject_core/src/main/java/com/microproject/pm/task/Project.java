@@ -31,6 +31,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.Collection;
 import java.util.Date;
 import java.util.EventListener;
@@ -68,7 +69,7 @@ import com.microproject.document.ObjectSelectionEventManager;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.HasExtraFields;
-import com.microproject.functor.IntervalConsumer;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
@@ -213,6 +214,33 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient ScheduleFacade scheduleFacade = new ScheduleFacade();
 	private transient TaskAggregationFacade taskAggregationFacade = new TaskAggregationFacade();
 	private transient TaskLifecycleFacade taskLifecycleFacade = new TaskLifecycleFacade();
+	/*
+	 * Runtime extensions belong to a document instance, but must never become
+	 * part of the legacy POD object graph.  Feature-specific services use their
+	 * state type as the key, which prevents process-global registries and makes
+	 * disposal deterministic.
+	 */
+	private transient Map<Class<?>, Object> transientDocumentState;
+
+	public final synchronized <T> T findTransientDocumentState(Class<T> type) {
+		if (transientDocumentState == null) return null;
+		return type.cast(transientDocumentState.get(type));
+	}
+
+	public final synchronized <T> T getOrCreateTransientDocumentState(Class<T> type, Supplier<? extends T> factory) {
+		if (type == null || factory == null) throw new IllegalArgumentException("Transient document state type and factory are required");
+		Object current = transientDocumentState == null ? null : transientDocumentState.get(type);
+		if (current != null) return type.cast(current);
+		T created = type.cast(factory.get());
+		if (created == null) throw new IllegalArgumentException("Transient document state factory returned null");
+		if (transientDocumentState == null) transientDocumentState = new HashMap<Class<?>, Object>();
+		transientDocumentState.put(type, created);
+		return created;
+	}
+
+	public final synchronized void removeTransientDocumentState(Class<?> type) {
+		if (transientDocumentState != null) transientDocumentState.remove(type);
+	}
 
 	public NodeModel getTaskModel() {
 		if (taskModel == null)
@@ -264,6 +292,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public void dispose() {
 		logger.fine("disposing project " + this);
+		synchronized (this) {
+			transientDocumentState = null;
+		}
 	}
 	public static Project getDummy() {
 		if (dummy == null)
@@ -1452,6 +1483,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private void repairTasks() {
 		Iterator i = tasks.iterator();
 		NormalTask task;
+		int repairedAssignments = 0;
 		while (i.hasNext()) {
 			task = (NormalTask)i.next();
 			if (task.validateConstraints())
@@ -1460,11 +1492,19 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 				Assignment ass = task.addDefaultAssignment();
 				ass.setDirty(true);
 				task.setDirty(true);
-				ErrorLogger.logOnce("NoAssignment","Repaired task with no assignments",null);
+				// Missing assignments are a recoverable legacy/import condition: the
+				// default assignment restores a schedulable task.  Keep this visible
+				// as a warning rather than reporting a simulated exception at SEVERE,
+				// which made valid POD/PODX repair look like data loss.
+				repairedAssignments++;
 				logger.fine("added default ass for " + task);
 				addRepaired(task);
 			}
 		}
+		if (repairedAssignments > 0)
+			logger.log(java.util.logging.Level.WARNING,
+					"Repaired {0} task(s) with no assignments during project initialization",
+					repairedAssignments);
 	}
 	public void setAllTasksAsUnchangedFromPersisted(boolean justSaved) {
 		getTaskOutline().getHierarchy().visitAll(new Consumer<Object>(){

@@ -165,7 +165,7 @@ public class PredefinedShape {
 	public static final PredefinedShape[] NETWORK_LIST = { FULL_HEIGHT, HEXAGON, PARALLELOGRAM };
 
 	private static Map<String, PredefinedShape> initialize() {
-		Map<String, PredefinedShape> m = new HashMap<>();
+		Map<String, PredefinedShape> m = new HashMap<>(20);
 
 		add(m, FULL_HEIGHT);
 		add(m, HALF_HEIGHT_TOP);

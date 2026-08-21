@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
-import com.microproject.functor.IntervalConsumer;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ScheduleServiceSplitTest {

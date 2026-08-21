@@ -27,10 +27,33 @@ package com.microproject.pm.task;
  * @stereotype enumeration
  */
 public interface ProjectStatus {
+	enum Kind {
+		PLANNING(0), PENDING_APPROVAL(1), ACTIVE(2), COMPLETED(3), CANCELLED(4), ON_HOLD(5);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown project status: " + code);
+		}
+	}
+
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int PLANNING=0;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int PENDING_APPROVAL=1;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int ACTIVE=2;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int COMPLETED=3;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int CANCELLED=4;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int ON_HOLD=5;
 }

@@ -36,7 +36,7 @@ public class WorkWeek implements Cloneable,Serializable {
     WorkDay workDay[] = new WorkDay[DAYS_IN_WEEK];
     private static final Logger logger = Logger.getLogger(WorkWeek.class.getName());
 
-    private static String WEEKDAY_MASK = new String(Messages.getString("Calendar.WeekdayBitMaskFromSundayToSaturday"));
+    private static String WEEKDAY_MASK = Messages.getString("Calendar.WeekdayBitMaskFromSundayToSaturday");
 	public Object clone() {
 		WorkWeek newOne = new WorkWeek();
 		for (int i = 0; i < DAYS_IN_WEEK; i++) {

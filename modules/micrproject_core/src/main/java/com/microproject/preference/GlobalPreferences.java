@@ -24,18 +24,25 @@
  *******************************************************************************/
 package com.microproject.preference;
 
+import java.util.prefs.Preferences;
+
 import com.microproject.document.ObjectEvent;
 import com.microproject.document.ObjectEventManager;
 
 public class GlobalPreferences {
+	private static final Preferences STORE = Preferences.userNodeForPackage(GlobalPreferences.class).node("ui");
 	protected transient boolean showAllResources = true;
+	private String userName = STORE.get("userName", System.getProperty("user.name", ""));
+	private boolean showRowLines = STORE.getBoolean("showRowLines", true);
+	private String fontFamily = STORE.get("fontFamily", "");
+	private int fontSize = clampFontSize(STORE.getInt("fontSize", 0));
 
 	public boolean isShowProjectResourcesOnly() {
 		return !showAllResources;
 	}
 
 	public void setShowProjectResourcesOnly(boolean showProjectResourcesOnly) {
-		if (showProjectResourcesOnly!=showAllResources) return;
+		if (showProjectResourcesOnly == !showAllResources) return;
 		this.showAllResources = !showProjectResourcesOnly;
 		fireUpdateEvent(this, this);
 	}
@@ -61,5 +68,43 @@ public class GlobalPreferences {
 	public void fireUpdateEvent(Object source, Object object) {
 		objectEventManager.fireUpdateEvent(source,object);
 	}
+
+	public String getUserName() { return userName; }
+	public void setUserName(String value) {
+		String normalized = value == null ? "" : value.trim();
+		if (normalized.equals(userName)) return;
+		userName = normalized;
+		STORE.put("userName", normalized);
+		fireUpdateEvent(this, this);
+	}
+
+	public boolean isShowRowLines() { return showRowLines; }
+	public void setShowRowLines(boolean value) {
+		if (showRowLines == value) return;
+		showRowLines = value;
+		STORE.putBoolean("showRowLines", value);
+		fireUpdateEvent(this, this);
+	}
+
+	/** Empty family/zero size means use the platform theme default. */
+	public String getFontFamily() { return fontFamily; }
+	public void setFontFamily(String value) {
+		String normalized = value == null ? "" : value.trim();
+		if (normalized.equals(fontFamily)) return;
+		fontFamily = normalized;
+		STORE.put("fontFamily", normalized);
+		fireUpdateEvent(this, this);
+	}
+
+	public int getFontSize() { return fontSize; }
+	public void setFontSize(int value) {
+		int normalized = clampFontSize(value);
+		if (fontSize == normalized) return;
+		fontSize = normalized;
+		STORE.putInt("fontSize", normalized);
+		fireUpdateEvent(this, this);
+	}
+
+	private static int clampFontSize(int value) { return value <= 0 ? 0 : Math.max(8, Math.min(32, value)); }
 
 }

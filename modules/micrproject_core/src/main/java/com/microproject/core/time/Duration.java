@@ -28,6 +28,8 @@ package com.microproject.core.time;
  * @author Laurent Chretienneau
  *
  */
+/** @deprecated Use {@code com.microproject.datatype.Duration} in domain code. Kept for MPXJ compatibility. */
+@Deprecated(forRemoval = false)
 public class Duration {
 	protected double value;
 	protected TimeUnit unit;

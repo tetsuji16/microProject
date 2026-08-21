@@ -356,7 +356,10 @@ public class CriticalPath implements SchedulingAlgorithm {
 	 */
 	public void objectChanged(ObjectEvent objectEvent) {
 		if (!project.isInitialized() && !Environment.isImporting()) {
-			logger.warning("Error - Message received when Project is not init" + project);
+			// Importers can publish model events before the project initialization
+			// barrier.  The event cannot be recalculated safely yet; ignore it at
+			// fine level and let the normal post-import initialization rebuild CP.
+			logger.fine("Ignoring critical-path event before project initialization");
 			return;
 		}
 		if (objectEvent.getSource() == this)

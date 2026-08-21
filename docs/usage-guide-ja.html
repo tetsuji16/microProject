@@ -189,6 +189,7 @@
         <li><a href="#task-management">3. タスク管理</a></li>
         <li><a href="#resource-management">4. リソース管理</a></li>
         <li><a href="#scheduling">5. スケジューリング</a></li>
+        <li><a href="#ccpm">5.1 CCPM（クリティカルチェーン）</a></li>
         <li><a href="#gantt">6. ガントチャート</a></li>
         <li><a href="#gantt-legend">6.1 画面のアイコン・バー・線の見方</a></li>
         <li><a href="#views">7. ビュー切替</a></li>
@@ -440,6 +441,45 @@
     <p>
         有効にすると、リソースの追加・削除時に工数が一定のまま、期間や割り当て率が自動調整されます。
     </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ccpm">
+    <h2>5.1 CCPM（クリティカルチェーン・プロジェクト管理）</h2>
+    <p>
+        CCPMは、タスク間の依存関係だけでなく、限られたリソースの競合も考慮して、プロジェクトの実行順序とバッファを管理する方法です。
+        microProjectでは、リソース平準化ダイアログでCCPMを有効にすると、クリティカルチェーンとプロジェクトバッファをプレビューできます。
+    </p>
+
+    <figure class="app-example">
+        <img src="images/ccpm-workflow.svg" alt="CCPMの操作フロー。プロジェクト準備、リソース平準化ダイアログでのCCPM設定、プレビュー、適用とCCPM Network確認、PODX保存の5段階を矢印で示している。">
+        <figcaption>CCPMの基本フロー。プレビューで変更件数・未解決競合・バッファを確認してから適用します。</figcaption>
+    </figure>
+
+    <h3>操作手順</h3>
+    <ol>
+        <li>プロジェクトを開き、タスクの依存関係、担当リソース、稼働カレンダーを確認します。</li>
+        <li><strong>リソース</strong> → <strong>リソースの平準化</strong>を開きます。</li>
+        <li><strong>クリティカルチェーン・プロジェクト管理（CCPM）を使用する</strong>にチェックを入れ、プロジェクトバッファの割合を設定します。必要に応じて対象リソースを選択します。</li>
+        <li><strong>プレビュー</strong>を押し、変更件数、分割件数、未解決の競合、推奨プロジェクトバッファを確認します。競合が残る場合は、割り当てや平準化条件を見直して再度プレビューします。</li>
+        <li>内容が妥当なら<strong>平準化を適用</strong>を押します。<strong>CCPM Network</strong>タブで、クリティカルチェーン、プロジェクトバッファ、フィーディングバッファを確認します。</li>
+        <li>CCPMの設定と共同編集用の状態を保持する場合は、<strong>.podx</strong>で保存します。</li>
+    </ol>
+
+    <h3>グラフとバッファの読み方</h3>
+    <table>
+        <tr><th>表示</th><th>意味</th><th>確認ポイント</th></tr>
+        <tr><td>赤色のチェーン</td><td>リソース制約を含めたクリティカルチェーン</td><td>遅延がプロジェクト完了日に波及しやすいため、進捗と担当者を優先確認します。</td></tr>
+        <tr><td>プロジェクトバッファ</td><td>チェーン全体の遅延を吸収する共通の余裕</td><td>残り時間と計画時間を比較し、消費が大きい場合は回復策を検討します。</td></tr>
+        <tr><td>フィーディングバッファ</td><td>非クリティカルな経路からチェーンへ入る遅延を吸収する余裕</td><td>流入元のタスクの遅れとバッファ残量を合わせて見ます。</td></tr>
+    </table>
+
+    <div class="tip">
+        CCPMの分析は現在の依存関係、カレンダー、リソース割り当てを基に計算されます。タスク期間、担当者、平準化条件を変更した後は、必ず<strong>プレビュー</strong>を実行してグラフを更新してください。
+    </div>
+    <div class="warn">
+        <code>.pod</code>は従来のProjectLibre形式のまま保存され、CCPMの拡張状態は追加されません。CCPM設定を再読込後も保持したい場合や、OneDriveなどの共有フォルダーで同時編集する場合は<code>.podx</code>を使用してください。
+    </div>
 </section>
 
 <!-- ============================================================ -->
@@ -924,6 +964,7 @@
     (() => {
         const topicTargets = {
             "creating_a_project": "getting-started", "gantt_chart": "gantt",
+            "ccpm": "ccpm", "critical_chain": "ccpm",
             "tracking_gantt_chart": "tracking", "resource_leveling": "resource-management",
             "assign_resources": "resource-management", "project_team": "resource-management",
             "linking": "task-management", "task_usage": "views", "task_usage_detail": "views",

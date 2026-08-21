@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.options.CalculationOption;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.criticalpath.TaskSchedule;
+import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -61,6 +62,24 @@ class GanttCriticalTaskColorTest {
 
 		int critical = renderer.getPalette().getCriticalTaskColor().getRGB() & 0x00FFFFFF;
 		assertNotEquals(critical, colors.middleRgb(), "non-critical task must not use the critical color");
+	}
+
+	@Test
+	void appliedCcpMChainUsesCriticalColorEvenWithoutLegacySlackFlag() {
+		NormalTask chainTask = createTask();
+		setScheduleWindows(chainTask, CalendarOption.getInstance().getMillisPerDay(), CalendarOption.getInstance().getMillisPerDay());
+		assertFalse(chainTask.isCritical());
+		Project project = chainTask.getProject();
+		CriticalChainService service = new CriticalChainService();
+		service.settings(project).setEnabled(true);
+		service.restoreBaseline(project, new CriticalChainService.Baseline(project.getEnd(),
+			CalendarOption.getInstance().getMillisPerDay(), 0.5D,
+			java.util.List.of(Long.valueOf(chainTask.getUniqueId())), java.util.Map.of(), java.util.Map.of()));
+
+		GanttRenderer renderer = new GanttRenderer();
+		GanttRenderer.DisplayedBarColors colors = renderer.resolveDisplayedBarColors(chainTask);
+		int expected = renderer.getPalette().getCriticalTaskColor().getRGB() & 0x00FFFFFF;
+		assertEquals(expected, colors.middleRgb());
 	}
 
 	private static NormalTask createTask() {

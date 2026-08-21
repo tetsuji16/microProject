@@ -24,7 +24,7 @@
  *******************************************************************************/
 package com.microproject.pm.scheduling;
 
-import com.microproject.functor.IntervalConsumer;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.time.MutableHasStartAndEnd;

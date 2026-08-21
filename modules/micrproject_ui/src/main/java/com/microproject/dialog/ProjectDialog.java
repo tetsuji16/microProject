@@ -252,7 +252,7 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		manager = new JTextField();
 		name = new JTextField();
 		ArrayList<Object> choices = new ArrayList<>();
-		choices.add(new String());
+		choices.add("");
 		choices.addAll(ResourcePoolFactory.getInstance().getResourcePools());
 		resourcePool = new JComboBox(choices.toArray());
 		forward = new JCheckBox(Messages.getString("Field.forward")); //$NON-NLS-1$
@@ -419,4 +419,3 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 	}
 
 }
-

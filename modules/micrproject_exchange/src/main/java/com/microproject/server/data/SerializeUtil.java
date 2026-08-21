@@ -70,9 +70,13 @@ public class SerializeUtil {
         ByteArrayOutputStream bout=new ByteArrayOutputStream();
         ObjectOutputStream out;
         if (ZIP&&((data instanceof WorkCalendar)||(data instanceof EnterpriseResource)||(data instanceof ResourceImpl))){ //other are too small to be zipped
-        	ZipOutputStream zout=new ZipOutputStream(bout);
-        	zout.putNextEntry(new ZipEntry("Serialized"));
-        	out=new ObjectOutputStream(zout);
+	ZipOutputStream zout=new ZipOutputStream(bout);
+	// ZIP metadata is part of the POD byte stream. A wall-clock entry
+	// timestamp made every no-op save differ when the object was unchanged.
+	ZipEntry entry = new ZipEntry("Serialized");
+	entry.setTime(0L);
+	zout.putNextEntry(entry);
+	out=new ObjectOutputStream(zout);
         } else out=new ObjectOutputStream(bout);
         out.writeObject(data);
         out.close();

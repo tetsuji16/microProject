@@ -358,17 +358,17 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 		long t = 0;
 
 		boolean canStartAtDayEnd = !hasDuration; // to handle the milestone case
-		switch (dependencyType) {
-			case DependencyType.FS:
+		switch (DependencyType.Kind.fromCode(dependencyType)) {
+			case FS:
 				t = end;
 				break;
-			case DependencyType.SS:
+			case SS:
 				t = begin;
 				break;
-			case DependencyType.FF:
+			case FF:
 				t = ((ScheduleWindow)successor).calcOffsetFrom(end,end,false,false, canStartAtDayEnd);
 				break;
-			case DependencyType.SF:
+			case SF:
 				t = ((ScheduleWindow)successor).calcOffsetFrom(begin,begin,false,false, canStartAtDayEnd);
 			break;
 		}
@@ -386,17 +386,17 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 			return lateDate;
 		long t = 0;
 		boolean cannotFinishAtDayStart = !hasDuration; // to handle the milestone case
-		switch (getDependencyType()) {
-			case DependencyType.FS:
+		switch (DependencyType.Kind.fromCode(getDependencyType())) {
+			case FS:
 				t = end;
 				break;
-			case DependencyType.SS:
+			case SS:
 				t = ((ScheduleWindow)getPredecessor()).calcOffsetFrom(end,end,false,false, cannotFinishAtDayStart);
 				break;
-			case DependencyType.FF:
+			case FF:
 				t = begin;
 				break;
-			case DependencyType.SF:
+			case SF:
 				t = ((ScheduleWindow)getPredecessor()).calcOffsetFrom(begin,begin,false,false, cannotFinishAtDayStart);
 			break;
 		}

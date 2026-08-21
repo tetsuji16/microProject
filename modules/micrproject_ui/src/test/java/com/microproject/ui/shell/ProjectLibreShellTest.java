@@ -119,6 +119,26 @@ class ProjectLibreShellTest {
 		assertEquals(18, autoSave.getPreferredSize().height);
 	}
 
+	@Test
+	void officeChromeRightActionsStayAnchoredToTheWindowEdge() {
+		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
+		panel.setSize(292, 160);
+		layoutRecursively(panel);
+		JComponent right = findComponent(panel, OfficeChromePanel.RIGHT_ACTIONS_NAME);
+		assertTrue(right.getX() >= 0);
+		assertTrue(right.getX() + right.getWidth() <= panel.getWidth(),
+			"right=" + right.getX() + "+" + right.getWidth() + ", panel=" + panel.getWidth());
+		assertTrue(right.getX() >= panel.getWidth() / 3,
+			"right title-bar actions must not drift into the left/content cluster");
+	}
+
+	private static void layoutRecursively(java.awt.Component component) {
+		component.doLayout();
+		if (component instanceof java.awt.Container container) {
+			for (java.awt.Component child : container.getComponents()) layoutRecursively(child);
+		}
+	}
+
 	private static JComponent findComponent(JComponent root, String name) {
 		for (java.awt.Component component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
 			if (component instanceof JComponent jComponent && name.equals(jComponent.getName())) {

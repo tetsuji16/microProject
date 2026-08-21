@@ -169,6 +169,18 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void enteringActualFinishPopulatesActualStartWithoutAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long plannedStart = task.getStart();
+		long plannedFinish = task.getEnd();
+
+		task.setActualFinish(plannedFinish);
+
+		assertEquals(plannedStart, task.getActualStart());
+	}
+
+	@Test
 	void parentPercentWorkCompleteUsesWorkWeightedChildCompletion() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

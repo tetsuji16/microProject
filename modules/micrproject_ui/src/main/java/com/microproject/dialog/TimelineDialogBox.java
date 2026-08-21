@@ -101,6 +101,21 @@ public final class TimelineDialogBox extends JDialog {
 		setLocationRelativeTo(owner);
 	}
 
+	/** Creates the same timeline UI for embedding in a document view. */
+	public static JPanel createEmbeddedPanel(Frame owner, Project project) {
+		TimelineDialogBox dialog = new TimelineDialogBox(owner, project);
+		java.awt.Container content = dialog.getContentPane();
+		if (!(content instanceof JPanel panel)) {
+			dialog.dispose();
+			throw new IllegalStateException("Timeline content is not a Swing panel");
+		}
+		// Detach the content from the dialog before disposing it. The panel keeps
+		// all existing listeners and canvas state when adopted by a document view.
+		dialog.getRootPane().setContentPane(new JPanel(new BorderLayout()));
+		dialog.dispose();
+		return panel;
+	}
+
 	private final class TaskChoiceModel extends AbstractTableModel {
 		private static final long serialVersionUID = 1L;
 		@Override public int getRowCount() { return tasks.size(); }

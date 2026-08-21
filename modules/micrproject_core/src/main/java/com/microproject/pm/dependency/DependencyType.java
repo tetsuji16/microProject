@@ -40,10 +40,19 @@ import com.microproject.strings.Messages;
  * @stereotype enumeration 
  */
 public class DependencyType {
-    public static final int FF = 0;
-    public static final int FS = 1;
-    public static final int SF = 2;
-    public static final int SS = 3;
+    public enum Kind { FF(0), FS(1), SF(2), SS(3);
+        private final int code; Kind(int code) { this.code = code; }
+        public int code() { return code; }
+        public static Kind fromCode(int code) { for (Kind value : values()) if (value.code == code) return value; throw new IllegalArgumentException("Unknown dependency type: " + code); }
+    }
+    /** @deprecated use {@link Kind} at new API boundaries. */
+    @Deprecated public static final int FF = 0;
+    /** @deprecated use {@link Kind} at new API boundaries. */
+    @Deprecated public static final int FS = 1;
+    /** @deprecated use {@link Kind} at new API boundaries. */
+    @Deprecated public static final int SF = 2;
+    /** @deprecated use {@link Kind} at new API boundaries. */
+    @Deprecated public static final int SS = 3;
     
     public static final Integer defaultValue = Integer.valueOf(FS);
     private static Field dependencyFieldInstance = null;
@@ -70,7 +79,7 @@ public class DependencyType {
 	
 	//any better way?
 	public static String toLongString(int type){
-	    switch (type) {
+	    switch (Kind.fromCode(type)) {
         case FF:
             return Messages.getString("DependencyType.longFF");
         case SF:

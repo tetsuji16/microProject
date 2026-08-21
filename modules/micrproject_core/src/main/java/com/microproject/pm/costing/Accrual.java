@@ -27,9 +27,26 @@ package com.microproject.pm.costing;
  * @stereotype strategy 
  */
 public class Accrual {
+	public enum Kind {
+		START(1), END(2), PRORATED(3);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown accrual: " + code);
+		}
+	}
+
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int START = 1; 
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int END = 2;
-	public static final int PRORATED = 3;	
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
+	public static final int PRORATED = 3;
 
     
 //	private static BidiMap ACCRUAL_TYPE_MAP = new DualHashBidiMap();    

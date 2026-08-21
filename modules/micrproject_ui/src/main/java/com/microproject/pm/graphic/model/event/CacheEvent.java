@@ -24,16 +24,17 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.model.event;
 
-import java.util.EventObject;
 import java.util.function.Consumer;
 import java.util.List;
 import java.util.ListIterator;
+
+import com.microproject.pm.graphic.event.GraphicEvent;
 
 
 /**
  *
  */
-public class CacheEvent extends EventObject {
+public class CacheEvent extends GraphicEvent {
     public static final int NODES_CHANGED = 0;
     public static final int NODES_INSERTED = 1;
     public static final int NODES_REMOVED = 2;
@@ -100,4 +101,3 @@ public class CacheEvent extends EventObject {
     
     
 }
-

@@ -44,6 +44,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.ScheduleService;
+import com.microproject.strings.Messages;
 
 /**
  * Deterministic resource-leveling engine. It delays lower-ranked, unstarted
@@ -119,7 +120,7 @@ public final class ResourceLevelingService {
 			if (editSupport != null && !changes.isEmpty()) {
 				editSupport.postEdit(new AbstractUndoableEdit() {
 					private static final long serialVersionUID = 1L;
-					@Override public String getPresentationName() { return "Resource leveling"; }
+					@Override public String getPresentationName() { return Messages.getString("ResourceLevelingService.PresentationName"); }
 					@Override public void undo() { super.undo(); applyChanges(false); }
 					@Override public void redo() { super.redo(); applyChanges(true); }
 				});
@@ -127,7 +128,7 @@ public final class ResourceLevelingService {
 		}
 
 		private void applyChanges(boolean forward) {
-			Set<Project> projects = new LinkedHashSet<>();
+			Set<Project> projects = new LinkedHashSet<>(Math.max(4, splits.size()));
 			if (forward) {
 				for (Split split : splits) {
 					detailBackups.computeIfAbsent(split.task(), Task::backupDetail);
@@ -187,7 +188,7 @@ public final class ResourceLevelingService {
 		Map<Task, Long> addedDelay = new IdentityHashMap<>();
 		Map<Task, String> limitingResource = new IdentityHashMap<>();
 		Map<Task, Split> splits = new IdentityHashMap<>();
-		List<Conflict> unresolved = new ArrayList<>();
+		List<Conflict> unresolved = new ArrayList<>(Math.max(4, resources.size()));
 		LevelingScratch scratch = new LevelingScratch();
 
 		boolean changed;
@@ -199,7 +200,7 @@ public final class ResourceLevelingService {
 			}
 		} while (changed && ++pass < Math.max(8, resources.size() * 4));
 
-		Map<Task, Change> result = new LinkedHashMap<>();
+		Map<Task, Change> result = new LinkedHashMap<>(Math.max(4, resources.size() * 2));
 		for (Map.Entry<Task, Long> entry : addedDelay.entrySet()) {
 			Task task = entry.getKey();
 			long extra = entry.getValue();
@@ -399,7 +400,7 @@ public final class ResourceLevelingService {
 	}
 
 	private static List<Conflict> deduplicate(List<Conflict> values) {
-		Map<String, Conflict> unique = new LinkedHashMap<>();
+		Map<String, Conflict> unique = new LinkedHashMap<>(Math.max(4, values.size() * 4 / 3 + 1));
 		for (Conflict value : values) {
 			String key = value.resource().getUniqueId() + ":" + value.task().getUniqueId() + ":" + value.reason();
 			unique.put(key, value);

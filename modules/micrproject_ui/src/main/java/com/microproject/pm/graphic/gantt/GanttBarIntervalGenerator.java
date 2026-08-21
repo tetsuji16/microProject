@@ -25,8 +25,8 @@
 package com.microproject.pm.graphic.gantt;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
-import com.microproject.functor.IntervalConsumer;
-import com.microproject.functor.ScheduleIntervalGenerator;
+import com.microproject.pm.scheduling.IntervalConsumer;
+import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
 
 /**
  *
@@ -41,4 +41,3 @@ public class GanttBarIntervalGenerator implements ScheduleIntervalGenerator {
 	}
 
 }
-

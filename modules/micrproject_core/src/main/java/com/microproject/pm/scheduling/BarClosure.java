@@ -29,7 +29,7 @@ import java.util.function.Consumer;
 import java.io.Serializable;
 
 
-import com.microproject.functor.IntervalConsumer;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.pm.criticalpath.ScheduleWindow;
 import com.microproject.pm.time.HasStartAndEnd;
 

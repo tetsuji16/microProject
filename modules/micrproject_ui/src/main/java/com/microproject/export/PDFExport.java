@@ -44,12 +44,13 @@ import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
 import com.microproject.session.SessionFactory;
 import com.microproject.util.PdfExportUtil;
+import com.microproject.strings.Messages;
 
 public class PDFExport {
 	public static void export(final GraphPageable pageable,Component parentComponent) throws IOException{
 		final File file=chooseFile(pageable.getRenderer().getProject().getName(),parentComponent);
 		final JobQueue jobQueue=SessionFactory.getInstance().getJobQueue();
-		Job job=new Job(jobQueue,"PDF Export","Exporting PDF...",true,parentComponent);
+		Job job=new Job(jobQueue,"PDF Export",Messages.getString("LocalFileImporter.Exporting"),true,parentComponent);
 		job.addRunnable(new JobRunnable("PDF Export",1.0f){
 			public Object run() throws Exception{
 				Document document = new Document();

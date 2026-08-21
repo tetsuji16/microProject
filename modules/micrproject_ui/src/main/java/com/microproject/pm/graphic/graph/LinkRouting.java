@@ -78,6 +78,26 @@ public abstract class LinkRouting {
 	protected void curve(){
 		path.curveTo(lx2,ly2,lx1,ly1,lx0,ly0);
 	}
+
+	/**
+	 * Appends a two-segment orthogonal route shared by network-style renderers.
+	 * Gantt routing deliberately remains in its specialised strategies because
+	 * it also handles dependency direction, arrow floors and quadratic bends.
+	 */
+	protected final void routeOrthogonal(GeneralPath target, double x0, double y0,
+			double x1, double y1, double intermediate, boolean vertical) {
+		path = target;
+		resetLinkPoints();
+		addLinkPoint(x0, y0);
+		if (vertical) {
+			if (intermediate != y0) addLinkPoint(x0, intermediate);
+			if (intermediate != y1) addLinkPoint(x1, intermediate);
+		} else {
+			if (intermediate != x0) addLinkPoint(intermediate, y0);
+			if (intermediate != x1) addLinkPoint(intermediate, y1);
+		}
+		addLinkPoint(x1, y1);
+	}
 	
 	//public abstract void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double[] extraPoints, int type);
 	
@@ -103,4 +123,3 @@ public abstract class LinkRouting {
 		return Math.atan2(ly1-ly0,lx0-lx1);
 	}
 }
-

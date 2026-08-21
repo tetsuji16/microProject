@@ -37,7 +37,7 @@ import com.microproject.datatype.Duration;
 import com.microproject.datatype.Rate;
 import com.microproject.datatype.TimeUnit;
 import com.microproject.document.Document;
-import com.microproject.functor.IntervalConsumer;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.contour.AbstractContour;
 import com.microproject.pm.assignment.contour.AbstractContourBucket;

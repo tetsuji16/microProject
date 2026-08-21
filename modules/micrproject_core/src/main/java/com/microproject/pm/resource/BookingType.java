@@ -28,6 +28,21 @@ package com.microproject.pm.resource;
  *
  */
 public interface BookingType {
+	enum Kind {
+		PROPOSED(0), COMMITTED(1);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown booking type: " + code);
+		}
+	}
+
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int PROPOSED = 0;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int COMMITTED = 1;
 }

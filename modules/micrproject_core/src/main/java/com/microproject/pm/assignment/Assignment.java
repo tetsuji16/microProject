@@ -63,8 +63,7 @@ import com.microproject.datatype.TimeUnit;
 import com.microproject.document.Document;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
-import com.microproject.functor.IntervalConsumer;
-import com.microproject.functor.ObjectVisitor;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.options.AdvancedOption;
 import com.microproject.pm.assignment.contour.AbstractContour;
 import com.microproject.pm.assignment.contour.AbstractContourBucket;
@@ -476,19 +475,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 
 	public Consumer<Object> forResource(Consumer<Object> visitor) {
-		return new ObjectVisitor(visitor) {
-			protected final Object getObject(Object caller) {
-				return ((Assignment)caller).getResource();
-			}
-		};
+		return value -> visitor.accept(((Assignment) value).getResource());
 	}
 
 	public Consumer<Object> forTask(Consumer<Object> visitor) {
-		return new ObjectVisitor(visitor) {
-			protected final Object getObject(Object caller) {
-				return ((Assignment)caller).getTask();
-			}
-		};
+		return value -> visitor.accept(((Assignment) value).getTask());
 	}
 
 	/**

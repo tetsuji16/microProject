@@ -32,6 +32,7 @@ import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Locale;
 
 import javax.swing.AbstractAction;
 import javax.swing.ButtonGroup;
@@ -219,7 +220,7 @@ public class GanttPopupMenu extends GraphPopupMenu{
 		menu.add(automatic);
 		menu.addSeparator();
 		for (int rgb : STANDARD_COLORS) {
-			JMenuItem colorItem = new JMenuItem(String.format("#%06X", rgb), new ColorSwatchIcon(new Color(rgb)));
+			JMenuItem colorItem = new JMenuItem(String.format(Locale.ROOT, "#%06X", rgb), new ColorSwatchIcon(new Color(rgb)));
 			colorItem.addActionListener(event -> applyFillColor(gantt, task, rgb));
 			menu.add(colorItem);
 		}
@@ -291,4 +292,3 @@ public class GanttPopupMenu extends GraphPopupMenu{
 	}
 
 }
-

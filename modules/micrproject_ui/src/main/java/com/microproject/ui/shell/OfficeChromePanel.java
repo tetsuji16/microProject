@@ -53,6 +53,7 @@ import javax.swing.border.EmptyBorder;
 
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.IconManager;
+import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.FlatUiSupport;
 
 final class OfficeChromePanel extends JPanel {
@@ -122,7 +123,18 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private JComponent buildHeaderContent() {
-		JPanel content = new JPanel(new GridBagLayout());
+		JPanel content = new JPanel(new GridBagLayout()) {
+			@Override public void doLayout() {
+				// At narrow window widths the search field and document title must
+				// yield space to the native help/minimize/maximize/close controls.
+				// Leaving their preferred widths active pushes that cluster outside
+				// the window, making the right buttons unreachable.
+				boolean compact = getWidth() < 640;
+				if (getComponentCount() > 1) getComponent(1).setVisible(!compact);
+				documentTitleLabel.setVisible(!compact);
+				super.doLayout();
+			}
+		};
 		content.setOpaque(false);
 		content.setBorder(new EmptyBorder(
 			FlatUiSupport.ribbonChromeVerticalInset(),
@@ -164,7 +176,7 @@ final class OfficeChromePanel extends JPanel {
 		cluster.add(createApplicationIcon(), constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 4);
-		cluster.add(createLabel("AutoSave", TEXT_COLOR), constraints);
+		cluster.add(createLabel(UsabilityStrings.text("chrome.autoSave"), TEXT_COLOR), constraints);
 		constraints.gridx++;
 		cluster.add(new OfficeSwitchButton(autoSaveControl), constraints);
 		constraints.gridx++;
@@ -186,7 +198,7 @@ final class OfficeChromePanel extends JPanel {
 	private JComponent createApplicationIcon() {
 		JLabel icon = new JLabel(IconManager.getRibbonIcon("application.icon.small", 16, 16));
 		icon.setName(APPLICATION_ICON_NAME);
-		icon.setToolTipText("microProject");
+		icon.setToolTipText(UsabilityStrings.text("chrome.application"));
 		icon.setPreferredSize(new Dimension(16, 16));
 		icon.setMinimumSize(new Dimension(16, 16));
 		icon.setMaximumSize(new Dimension(16, 16));
@@ -265,14 +277,14 @@ final class OfficeChromePanel extends JPanel {
 
 		AbstractButton searchButton = createGlyphButton("Search", GlyphIcon.search(), false, SEARCH_BOX_NAME + "Button");
 		searchButton.addActionListener(event -> triggerFindAction());
-		searchButton.setToolTipText("Search");
+		searchButton.setToolTipText(UsabilityStrings.text("chrome.search"));
 		int searchButtonSize = Math.max(18, FlatUiSupport.ribbonSearchHeight() - 6);
 		searchButton.setPreferredSize(new Dimension(searchButtonSize, searchButtonSize));
 		searchButton.setMinimumSize(new Dimension(searchButtonSize, searchButtonSize));
 		searchButton.setMaximumSize(new Dimension(searchButtonSize, searchButtonSize));
 
 		searchField.setName(SEARCH_FIELD_NAME);
-		searchField.putClientProperty("JTextField.placeholderText", "Search");
+		searchField.putClientProperty("JTextField.placeholderText", UsabilityStrings.text("chrome.search"));
 		searchField.setBorder(BorderFactory.createEmptyBorder());
 		searchField.setOpaque(false);
 		searchField.setFont(FlatUiSupport.ribbonChromeLabelFont());
@@ -311,9 +323,10 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private AbstractButton createHelpButton() {
-		OfficeIconButton button = new OfficeIconButton(resolveActionIcon("RibbonProjectLibreDocumentation", QUICK_ACCESS_ICON_SIZE), "Help", false);
+		String help = UsabilityStrings.text("chrome.help");
+		OfficeIconButton button = new OfficeIconButton(resolveActionIcon("RibbonProjectLibreDocumentation", QUICK_ACCESS_ICON_SIZE), help, false);
 		button.setName(HELP_BUTTON_NAME);
-		button.setToolTipText("Help");
+		button.setToolTipText(help);
 		button.addActionListener(event -> {
 			if (helpAction != null) {
 				helpAction.run();
@@ -444,7 +457,7 @@ final class OfficeChromePanel extends JPanel {
 			setPreferredSize(AUTOSAVE_SIZE);
 			setMinimumSize(AUTOSAVE_SIZE);
 			setMaximumSize(AUTOSAVE_SIZE);
-			setToolTipText("AutoSave");
+			setToolTipText(UsabilityStrings.text("chrome.autoSave"));
 		}
 
 		@Override

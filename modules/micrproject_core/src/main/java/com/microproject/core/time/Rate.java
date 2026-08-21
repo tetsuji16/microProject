@@ -28,6 +28,8 @@ package com.microproject.core.time;
  * @author Laurent Chretienneau
  *
  */
+/** @deprecated Use {@code com.microproject.datatype.Rate} in domain code. Kept for MPXJ compatibility. */
+@Deprecated(forRemoval = false)
 public class Rate {
 	protected double value;
 	protected TimeUnit unit;

@@ -35,8 +35,6 @@ import java.util.List;
 import java.util.Map;
 
 
-import com.microproject.core.hierarchy.Hierarchy;
-import com.microproject.core.hierarchy.HierarchyNode;
 import com.microproject.core.pm.exchange.MspImporter;
 import com.microproject.pm.calendar.CalendarOptions;
 import com.microproject.pm.calendar.WorkCalendar;
@@ -390,7 +388,6 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 	protected void importCalendars() throws Exception{
-		// Obsolete two-model conversion removed; MspImporter produces the
 		// microproject Project directly (see issue #154).
 	}
 
@@ -402,19 +399,16 @@ public class MicrosoftImporter extends ServerFileImporter{
 	 *            MPX file
 	 */
 	protected void importLocalResources(){
-		// Obsolete two-model conversion removed; MspImporter produces the
 		// microproject Project directly (see issue #154).
 	}
 
 
 	protected boolean importResources() throws Exception{
-		// Obsolete two-model conversion removed (see issue #154).
 		return true;
 	}
 
 	@SuppressWarnings("unchecked")
 	protected boolean importResources(Map<Number, Object> resourceMap,Consumer<Object> importLocalResources) throws Exception{
-		// Obsolete two-model conversion removed (see issue #154).
 		return true;
 	}
 
@@ -426,11 +420,9 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 	protected void importOptions() throws Exception{
-		// Obsolete two-model conversion removed (see issue #154).
 	}
 
 	private void importProjectFields() {
-		// Obsolete two-model conversion removed (see issue #154).
 	}
 
 	/**
@@ -438,56 +430,6 @@ public class MicrosoftImporter extends ServerFileImporter{
 	 *
 	 */
 	private void importTasks() {
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
 	}
 	
 
@@ -498,15 +440,6 @@ public class MicrosoftImporter extends ServerFileImporter{
 	 * @throws Exception
 	 */
 	public void importDependencies() throws Exception {
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
 	}
 
 
@@ -515,54 +448,12 @@ public class MicrosoftImporter extends ServerFileImporter{
 	 *
 	 */
 	protected void importAssignments() {
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
 	}
 
 	private void applyImportedTrackingFields() {
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
 	}
 
 	void applyImportedTrackingFields(Task task, NormalTask opTask) {
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
-		// obsolete two-model conversion removed (issue #154)
 	}
 
 	private double clampProgress(double value) {
@@ -576,9 +467,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 
 
-	/**
-	 * Currently not implemented
-	 */
+	/** Creates the standard queued export job for the active importer. */
 	public Job getExportFileJob(){
     	Session session=SessionFactory.getInstance().getLocalSession();
 		Job job=new Job(session.getJobQueue(),"exportFile","Exporting...",true); //$NON-NLS-1$ //$NON-NLS-2$

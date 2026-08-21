@@ -48,6 +48,7 @@ import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
 import com.microproject.session.SessionFactory;
 import com.microproject.util.PdfExportUtil;
+import com.microproject.strings.Messages;
 
 public class ImageExport {
 	public static void export(final GraphPageable pageable,Component parentComponent) throws IOException{
@@ -56,19 +57,18 @@ public class ImageExport {
 			return;
 		}
 		final JobQueue jobQueue=SessionFactory.getInstance().getJobQueue();
-		Job job=new Job(jobQueue,"Image Export","Exporting Image...",true,parentComponent);
+		Job job=new Job(jobQueue,"Image Export",Messages.getString("LocalFileImporter.Exporting"),true,parentComponent);
 		job.addRunnable(new JobRunnable("Image Export",1.0f){
 			public Object run() throws Exception{
 				boolean pdf=true;
 				if (file.getName().endsWith(".png"))
 					pdf=false;
+				try (FileOutputStream output = pdf ? new FileOutputStream(file) : null) {
 				Document document = null;
 				PdfWriter writer = null;
 				if (pdf){
 					document = new Document();
-					writer = PdfWriter.getInstance(document, new FileOutputStream(file));
-				}else{
-					
+					writer = PdfWriter.getInstance(document, output);
 				}
 				pageable.update();
 				int pageCount = pageable.getNumberOfPages();
@@ -99,14 +99,15 @@ public class ImageExport {
 							g2.setBackground(Color.WHITE);
 							printable.print(g2, p);
 				            g2.dispose();
-			            try (FileOutputStream output = new FileOutputStream(file)) {
-			             ImageIO.write(bi, "png", output);
+		            try (FileOutputStream pngOutput = new FileOutputStream(file)) {
+		             ImageIO.write(bi, "png", pngOutput);
 			            }
 				            break;
 						}
 					}
 					if (pdf)
 						document.close();
+				}
 				}
 				setProgress(1.0f);
 				return null;

@@ -24,15 +24,15 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet.selection.event;
 
-import java.util.EventObject;
 import java.util.List;
 
 import com.microproject.grouping.core.Node;
+import com.microproject.pm.graphic.event.GraphicEvent;
 
 /**
  *
  */
-public class SelectionNodeEvent extends EventObject {
+public class SelectionNodeEvent extends GraphicEvent {
     public static final int SELECTION_CHANGED = 0;
     
     protected int type;
@@ -78,4 +78,3 @@ public class SelectionNodeEvent extends EventObject {
 		return category;
 	}
 }
-

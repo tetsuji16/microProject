@@ -58,7 +58,7 @@ public class ClassUtils {
 	public static final Integer defaultInteger = Integer.valueOf(0);
 	public static final Float defaultFloat = Float.valueOf(0.0f);
 	public static final Boolean defaultBoolean = Boolean.valueOf(false);
-	public static final String defaultString = new String();
+	public static final String defaultString = "";
 	public static final Rate defaultRate = new Rate(1.0D);
 	public static final Rate defaultUnitlessRate = new Rate(1, TimeUnit.NON_TEMPORAL);
 
@@ -110,7 +110,7 @@ public class ClassUtils {
 	public static final Integer INTEGER_MULTIPLE_VALUES = Integer.valueOf(0);
 	public static final Float FLOAT_MULTIPLE_VALUES = Float.valueOf(0.0f);
 	public static final Boolean BOOLEAN_MULTIPLE_VALUES = Boolean.valueOf(false);
-	public static final String STRING_MULTIPLE_VALUES = new String();
+	public static final String STRING_MULTIPLE_VALUES = "";
 	public static final Double PERCENT_MULTIPLE_VALUES = Double.valueOf(-9876543.21); // a never used value used as flag to indicate multiple values
 	public static final Rate RATE_MULTIPLE_VALUES = new Rate();
 	/**

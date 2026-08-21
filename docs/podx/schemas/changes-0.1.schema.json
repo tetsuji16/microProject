@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "podx operation log 0.1",
+  "type": "object",
+  "required": ["schemaVersion", "documentId", "operations", "conflicts"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "documentId": { "type": "string", "format": "uuid" },
+    "appliedOperationIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "format": "uuid" }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "actorId", "sequence", "parents", "kind", "entityId", "payload"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "actorId": { "type": "string", "format": "uuid" },
+          "sequence": { "type": "integer", "minimum": 1 },
+          "parents": { "type": "array", "items": { "type": "string", "format": "uuid" }, "uniqueItems": true },
+          "kind": { "enum": ["task.create", "task.update", "task.delete", "task.move", "dependency.add", "dependency.delete", "assignment.add", "assignment.delete"] },
+          "entityId": { "type": "string", "format": "uuid" },
+          "payload": { "type": "object" }
+        }
+      }
+    },
+    "conflicts": { "type": "array", "items": { "type": "object" } }
+  }
+}

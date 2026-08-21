@@ -33,7 +33,7 @@ import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.NamedItem;
 import com.microproject.field.Field;
-import com.microproject.functor.ScheduleIntervalGenerator;
+import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
 import com.microproject.strings.Messages;
 
 public class BarFormat implements NamedItem {
