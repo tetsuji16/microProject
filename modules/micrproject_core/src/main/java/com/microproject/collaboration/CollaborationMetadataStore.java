@@ -58,7 +58,7 @@ public class CollaborationMetadataStore {
 			return false;
 		}
 		String lower = fileName.toLowerCase(Locale.ROOT);
-		return lower.endsWith(".pod") || lower.endsWith(".xml") || lower.endsWith(".xlsx");
+		return lower.endsWith(".pod") || lower.endsWith(".podx") || lower.endsWith(".xml") || lower.endsWith(".xlsx");
 	}
 
 	public static File buildSidecarFile(File projectFile) {
@@ -107,8 +107,11 @@ public class CollaborationMetadataStore {
 			try {
 				metadata = originalBytes.length == 0 ? createDefaultMetadata() : parseMetadata(originalBytes);
 			} catch (Exception parseEx) {
-				logger.log(Level.WARNING, "Failed to parse collaboration metadata for " + projectFile + ", resetting to default", parseEx);
-				metadata = createDefaultMetadata();
+				// A cloud sync client can expose a partial sidecar transiently. Never
+				// replace it with an empty lock table: that would discard live leases
+				// and permit concurrent edits. The caller must retry after sync settles.
+				logger.log(Level.WARNING, "Failed to parse collaboration metadata for " + projectFile + "; leaving it unchanged", parseEx);
+				return callback.onError(parseEx);
 			}
 			normalize(metadata);
 			T result = callback.execute(metadata);

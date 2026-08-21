@@ -74,6 +74,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.views.ChartView;
+import com.microproject.pm.graphic.views.DockableProjectToolView;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.pm.graphic.views.MainView;
@@ -143,8 +144,12 @@ public class DocumentFrame extends NamedFrame implements
 	protected ProjectView projectView;
 	protected UsageDetailView taskUsageView;
 	protected UsageDetailView resourceUsageView;
+	protected DockableProjectToolView timelineView;
+	protected DockableProjectToolView teamPlannerView;
 	protected BaseView reportView;
-	private static ArrayList ganttColumns = null; // static is ok?
+	// Column selection belongs to this document frame.  Keeping it static leaks
+	// one document's tracking layout into every other open document.
+	private ArrayList ganttColumns;
 	private FindDialog findDialog = null;
 	protected CoordinatesConverter coord;
 	protected Project project;
@@ -389,7 +394,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	void doDelegateTasksDialog() {
 		finishAnyOperations();
-		TeamPlannerDialogBox.getInstance(getGraphicManager().getFrame(), project).setVisible(true);
+		activateTopView(getTeamPlannerView(), ACTION_DELEGATE_TASKS);
 
 	}
 
@@ -435,7 +440,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	void doTimelineDialog() {
 		finishAnyOperations();
-		new TimelineDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
+		activateTopView(getTimelineView(), ACTION_TIMELINE);
 	}
 
 	void doCalendarViewDialog() {
@@ -698,6 +703,7 @@ public class DocumentFrame extends NamedFrame implements
 		if (ganttView == null) {
 			ganttView = new GanttView(this, graphicManager.getMenuManager(),mainView.getSynchronizer());
 			ganttView.init(getTaskNodeModelCache(), getTaskModel(), coord);
+			ganttView.setSpreadsheetGridVisible(getGraphicManager().getPreferences().isShowRowLines());
 			Gantt gantt = ganttView.getGantt();
 			if (gantt != null)
 				gantt.getInteractor().setModeListener(statusBar::setMode);
@@ -812,6 +818,24 @@ public class DocumentFrame extends NamedFrame implements
 		return projectView;
 	}
 
+	public DockableProjectToolView getTimelineView() {
+		if (timelineView == null) {
+			timelineView = new DockableProjectToolView(project, ACTION_TIMELINE,
+				TimelineDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+			restoreWorkspaceFor(timelineView);
+		}
+		return timelineView;
+	}
+
+	public DockableProjectToolView getTeamPlannerView() {
+		if (teamPlannerView == null) {
+			teamPlannerView = new DockableProjectToolView(project, ACTION_DELEGATE_TASKS,
+				TeamPlannerDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+			restoreWorkspaceFor(teamPlannerView);
+		}
+		return teamPlannerView;
+	}
+
 	public UsageDetailView getTaskUsageView() {
 		if (taskUsageView == null) {
 			taskUsageView = new UsageDetailView(this, graphicManager
@@ -874,6 +898,10 @@ public class DocumentFrame extends NamedFrame implements
 			topView = getResourceView();
 		else if (viewName.equals(ACTION_PROJECTS))
 			topView = getProjectView();
+		else if (viewName.equals(ACTION_TIMELINE))
+			topView = getTimelineView();
+		else if (viewName.equals(ACTION_DELEGATE_TASKS))
+			topView = getTeamPlannerView();
 		else if (viewName.equals(ACTION_HISTOGRAM)) {
 //			if (activeBottomView != getHistogramView())
 				 bottomView = getHistogramView();
@@ -1262,6 +1290,7 @@ public class DocumentFrame extends NamedFrame implements
 
 		}
 		else if (objectEvent.getObject() instanceof GlobalPreferences && objectEvent.isUpdate()) {
+			getGraphicManager().applyPreferenceFont(getGraphicManager().getPreferences());
 			//if (objectEvent.getField() == Configuration.getFieldFromId("Field.showProjectResourcesOnly")) {
 				for (ResourceInTeamFilter filter : resourcesInTeamFilters) {
 					filter.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
@@ -1270,6 +1299,8 @@ public class DocumentFrame extends NamedFrame implements
 				if (filter!=null){
 					filter.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
 				}
+				if (ganttView != null)
+					ganttView.setSpreadsheetGridVisible(getGraphicManager().getPreferences().isShowRowLines());
 			//}
 
 		}
@@ -1363,6 +1394,8 @@ public class DocumentFrame extends NamedFrame implements
 		projectView = null;
 		taskUsageView = null;
 		resourceUsageView = null;
+		timelineView = null;
+		teamPlannerView = null;
 		reportView = null;
 		activeTopView = null;
 		activeBottomView = null;
@@ -1381,7 +1414,9 @@ public class DocumentFrame extends NamedFrame implements
 			projectView,
 			taskUsageView,
 			resourceUsageView,
-			reportView
+			reportView,
+			timelineView,
+			teamPlannerView
 		};
 		ArrayUtils.forAllDo(views,c);
 	}
@@ -1456,6 +1491,8 @@ public class DocumentFrame extends NamedFrame implements
 		ws.saveViewWorkspace(ACTION_TASK_USAGE,taskUsageView);
 		ws.saveViewWorkspace(ACTION_RESOURCE_USAGE,resourceUsageView);
 		ws.saveViewWorkspace(ACTION_REPORT,reportView);
+		ws.saveViewWorkspace(ACTION_TIMELINE,timelineView);
+		ws.saveViewWorkspace(ACTION_DELEGATE_TASKS,teamPlannerView);
 		return ws;
 	}
 
@@ -1570,4 +1607,3 @@ public class DocumentFrame extends NamedFrame implements
 		doScrollToTask();
 	}
 }
-

@@ -14,6 +14,14 @@ Quick links:
 
 The screenshot shows a commercial construction plan. The left pane organizes work as a WBS-style task hierarchy, while the Gantt pane shows the schedule, linked tasks, milestones, and parallel work streams on a shared timeline. Use the File menu to create, open, and save plans; the application also provides import, export, print, and PDF workflows from its desktop interface.
 
+## Related repositories
+
+The repositories with similar names are separate projects rather than runtime
+modules of this application. `ProjectLibre` is this Java/Swing desktop fork;
+`MicroProject` is the independent product direction and shared design space;
+`oneProject` and `RustyProject` are separate experiments (including the Rust
+implementation). They do not share project-file state or release artifacts.
+
 ## What This Fork Is For
 
 - Keep microProject usable on a modern JDK and packaging toolchain

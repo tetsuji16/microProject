@@ -50,6 +50,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.SafeObjectInput;
+import com.microproject.strings.Messages;
 import com.microproject.workspace.WorkspaceSetting;
 
 public class CollaborationSession {
@@ -70,7 +71,6 @@ public class CollaborationSession {
 	private final File projectFile;
 	private final CollaborationMetadataStore store;
 	private final TaskLockManager lockManager;
-	private final ProjectMergeService mergeService;
 	private final String userKey;
 	private final String displayName;
 	private final String clientInstanceId;
@@ -98,7 +98,6 @@ public class CollaborationSession {
 		this.clientInstanceId = UUID.randomUUID().toString();
 		this.store = new CollaborationMetadataStore(projectFile);
 		this.lockManager = new TaskLockManager(store, this.userKey, this.displayName, this.clientInstanceId);
-		this.mergeService = new ProjectMergeService();
 		refreshKnownFileStats();
 	}
 
@@ -133,6 +132,8 @@ public class CollaborationSession {
 
 	public void stop() {
 		if (timer == null) {
+			lockManager.releaseAll();
+			lockBaselineStates.clear();
 			return;
 		}
 		try {
@@ -336,6 +337,19 @@ public class CollaborationSession {
 	}
 
 	public boolean tryLockTask(Task task, Component parent, String actionLabel) {
+		if (tryAcquireTaskLock(task)) {
+			return true;
+		}
+		String owner = lockManager.describeOwner(task.getUniqueId());
+		if (owner == null || owner.length() == 0) {
+			owner = "another user";
+		}
+		Alert.warn("Cannot " + actionLabel + " task \"" + task.getName() + "\" because it is locked by " + owner + ".", parent);
+		return false;
+	}
+
+	/** Acquires a task lock without showing UI; suitable for background sync. */
+	public boolean tryAcquireTaskLock(Task task) {
 		if (task == null) {
 			return true;
 		}
@@ -343,14 +357,7 @@ public class CollaborationSession {
 		if (lockManager.isLockedByCurrentUser(taskId)) {
 			return true;
 		}
-		if (!lockManager.acquire(taskId)) {
-			String owner = lockManager.describeOwner(taskId);
-			if (owner == null || owner.length() == 0) {
-				owner = "another user";
-			}
-			Alert.warn("Cannot " + actionLabel + " task \"" + task.getName() + "\" because it is locked by " + owner + ".", parent);
-			return false;
-		}
+		if (!lockManager.acquire(taskId)) return false;
 		rememberLockBaseline(task);
 		return true;
 	}
@@ -368,42 +375,31 @@ public class CollaborationSession {
 	}
 
 	public int checkBeforeSave(Component parent) {
-		if (!hasSaveConflicts()) {
+		if (!externalChangePending) {
 			return SAVE_PROCEED;
 		}
-		ProjectMergeService.ConflictResult conflicts = mergeService.findTaskConflicts(projectFile.getAbsolutePath(), lockBaselineStates);
-		if (!conflicts.hasConflicts()) {
+		if (isPodxProject()) {
 			return SAVE_PROCEED;
 		}
 		Object[] options = new Object[] {
-			"Restore and Save",
-			"Discard My Changes",
-			"Save Copy"
+			Messages.getString("Collaboration.SaveCopy"),
+			Messages.getString("ButtonText.Cancel")
 		};
 		int result = PopupDialogSupport.showOptionDialog(parent,
-			"One or more tasks you are editing were changed or deleted externally.\nChoose how to resolve the conflict.",
-			"ProjectLibre",
+			Messages.getString("Collaboration.ExternalChangeMessage"),
+			Messages.getString("Collaboration.ExternalChangeTitle"),
 			JOptionPane.DEFAULT_OPTION,
 			JOptionPane.WARNING_MESSAGE,
 			null,
 			options,
 			options[0],
 			JOptionPane.CANCEL_OPTION);
-		if (result == 0) {
-			return SAVE_PROCEED;
-		}
-		if (result == 2) {
-			return SAVE_AS_COPY;
-		}
+		if (result == 0) return SAVE_AS_COPY;
 		return SAVE_CANCEL;
 	}
 
-	public boolean hasSaveConflicts() {
-		if (!externalChangePending) {
-			return false;
-		}
-		ProjectMergeService.ConflictResult conflicts = mergeService.findTaskConflicts(projectFile.getAbsolutePath(), lockBaselineStates);
-		return conflicts.hasConflicts();
+	private boolean isPodxProject() {
+		return projectFile != null && projectFile.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".podx");
 	}
 
 	public void afterSave() {

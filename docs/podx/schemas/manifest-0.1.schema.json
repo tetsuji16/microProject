@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "podx 0.1 manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["format", "version", "projectEntry", "projectSha256"],
+  "properties": {
+    "format": { "const": "podx" },
+    "version": { "const": "0.1" },
+    "projectEntry": { "const": "project.xml" },
+    "projectSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "documentId": { "type": "string", "format": "uuid" },
+    "projectUniqueId": { "type": "integer" }
+  }
+}

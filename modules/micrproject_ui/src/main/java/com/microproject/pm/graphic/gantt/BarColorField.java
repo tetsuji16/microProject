@@ -33,6 +33,7 @@ import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.util.Locale;
 import java.awt.RenderingHints;
 import java.util.function.Consumer;
 
@@ -184,7 +185,7 @@ public final class BarColorField extends JPanel {
 	static String colorLabel(Integer rgb) {
 		// When automatic (rgb == null) the label is redundant with the "Automatic"
 		// checkbox, so leave it blank. Only show the hex code for an explicit color.
-		return rgb == null ? "" : String.format("#%06X", rgb & 0x00FFFFFF);
+		return rgb == null ? "" : String.format(Locale.ROOT, "#%06X", rgb & 0x00FFFFFF);
 	}
 
 	/**

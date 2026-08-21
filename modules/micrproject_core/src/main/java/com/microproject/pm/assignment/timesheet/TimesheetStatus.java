@@ -25,11 +25,28 @@
 package com.microproject.pm.assignment.timesheet;
 
 public interface TimesheetStatus {
-	public static final int NO_DATA = 0;
-	public static final int ENTERED = 1; // the state where use has entered data, but it hasn't been validated
-	public static final int VALIDATED = 2; // The data is validated and ready to be integrated
-	public static final int INTEGRATED = 3; // The data has been integrated
-	public static final int REJECTED = 4; // The data has been rejected during validation
-	public static final int SAVED = 5; // The data has been saved but not submitted
-	public static final int MIXED = -1; // mix of the above states
+	public enum Kind {
+		MIXED(-1), NO_DATA(0), ENTERED(1), VALIDATED(2), INTEGRATED(3), REJECTED(4), SAVED(5);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown timesheet status code: " + code);
+		}
+	}
+	/** @deprecated use {@link Kind#NO_DATA}; retained for serialized compatibility. */
+	@Deprecated public static final int NO_DATA = 0;
+	/** @deprecated use {@link Kind#ENTERED}; retained for serialized compatibility. */
+	@Deprecated public static final int ENTERED = 1;
+	/** @deprecated use {@link Kind#VALIDATED}; retained for serialized compatibility. */
+	@Deprecated public static final int VALIDATED = 2;
+	/** @deprecated use {@link Kind#INTEGRATED}; retained for serialized compatibility. */
+	@Deprecated public static final int INTEGRATED = 3;
+	/** @deprecated use {@link Kind#REJECTED}; retained for serialized compatibility. */
+	@Deprecated public static final int REJECTED = 4;
+	/** @deprecated use {@link Kind#SAVED}; retained for serialized compatibility. */
+	@Deprecated public static final int SAVED = 5;
+	/** @deprecated use {@link Kind#MIXED}; retained for serialized compatibility. */
+	@Deprecated public static final int MIXED = -1;
 }

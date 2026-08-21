@@ -25,6 +25,7 @@
 package com.microproject.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
@@ -38,5 +39,13 @@ class FileHelperEdgeCaseTest {
 	@Test
 	void extensionMatchingIsLocaleIndependent() {
 		assertEquals(FileHelper.MSP_FILE_TYPE, FileHelper.getFileType("PLAN.XLSX"));
+	}
+
+	@Test
+	void podxIsAnAllowedNativeFormat() {
+		assertTrue(FileHelper.isPodxFile("plan.PODX"));
+		assertTrue(FileHelper.isFileNameAllowed("plan.podx", true));
+		assertEquals(FileHelper.PODX_FILE_TYPE, FileHelper.getFileType("plan.podx"));
+		assertEquals("podx", FileHelper.getFileExtension(FileHelper.PODX_FILE_TYPE));
 	}
 }

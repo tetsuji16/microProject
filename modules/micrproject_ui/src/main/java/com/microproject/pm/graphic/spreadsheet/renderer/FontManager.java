@@ -41,9 +41,9 @@ public class FontManager {
 	public static final Font SVG_DEFAULT_FONT=FlatUiSupport.uiFont();
 	public static final Font DEFAULT_FONT=FlatUiSupport.uiFont();
 
-	public static Map boldMapping=new HashMap();
-	public static Map italicMapping=new HashMap();
-	public static Map boldItalicMapping=new HashMap();
+	public static final Map<Font, Font> boldMapping=new HashMap<>(32);
+	public static final Map<Font, Font> italicMapping=new HashMap<>(32);
+	public static final Map<Font, Font> boldItalicMapping=new HashMap<>(32);
 	//fonts are mapped to avoid using deriveFont each time. deriveFont causes useless memory consumption 
 	
 	public static void setComponentFont(CellFormat props, Component component) {
@@ -95,4 +95,3 @@ public class FontManager {
 	}
 	
 }
-

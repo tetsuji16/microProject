@@ -59,7 +59,7 @@ public class Settings {
 	public static String PERCENT = Messages.getString("Symbol.percent"); //] for example
 	public static String SLASH = Messages.getString("Symbol.slash"); // / for example
 	public static String ELLIPSIS = Messages.getString("Symbol.ellipsis"); // / for example ...
-	public static int STRING_LIST_LIMIT = 20; // number of items to put in a string list.  If exceeded, will display a message saying all can't be displayed.  See class StringList
+	public static int STRING_LIST_LIMIT = 20; // maximum item names shown in multi-selection messages
     public static boolean SHOW_HELP_LINKS = true;
     public static String VERSION_TYPE_STANDALONE="standalone";
     public static String VERSION_TYPE_SERVER="server";

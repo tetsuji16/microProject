@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -67,8 +68,8 @@ import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
 import com.microproject.configuration.Configuration;
-import com.microproject.functor.IntervalConsumer;
-import com.microproject.functor.ScheduleIntervalGenerator;
+import com.microproject.pm.scheduling.IntervalConsumer;
+import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
 import com.microproject.graphic.configuration.BarFormat;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
@@ -88,6 +89,7 @@ import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.timescale.CalendarUtil;
 import com.microproject.timescale.TimeInterval;
 import com.microproject.timescale.TimeIterator;
@@ -116,6 +118,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	protected LinkRenderer linkRenderer = new LinkRenderer();
 	protected HorizontalLineRenderer horizontalLineRenderer = new HorizontalLineRenderer();
 	protected AnnotationRenderer annotationRenderer = new AnnotationRenderer();
+	private transient CriticalChainService ccpmService;
+	private transient Project ccpmProject;
+	private transient CriticalChainService.Baseline ccpmBaseline;
+	private transient Set<Long> ccpmTaskIds = Set.of();
 
     protected GraphicConfiguration config;
     protected JComponent container;
@@ -184,7 +190,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			return new DisplayedBarColors(BarColorField.DEFAULT_BAR_RGB, BarColorField.DEFAULT_BAR_RGB,
 					BarColorField.DEFAULT_BAR_RGB);
 		BarFormat format = resolveMainBarFormat(task);
-		Color middle = task.isCritical() ? palette.getCriticalTaskColor() : palette.getStatusColor(task, task);
+		Color middle = isCriticalTask(task) ? palette.getCriticalTaskColor() : palette.getStatusColor(task, task);
 		Color endpoint = format != null && GanttBarSupport.shouldUseUniformEndpointColor(format)
 				? middle
 				: palette.getAccentColor(format, middle, task);
@@ -224,7 +230,23 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
     }
 
 	private boolean isCriticalTask(Object impl) {
-		return impl instanceof Task task && task.isCritical();
+		if (!(impl instanceof Task task)) return false;
+		if (task.isCritical()) return true;
+		// Resource-constrained CCPM edges are not part of the legacy
+		// critical-path flag.  Once a CCPM baseline is applied, use its stable
+		// task IDs so the Gantt/graph renderer shows the same chain that the
+		// analysis and buffer status report expose.
+		Project project = task.getProject();
+		if (ccpmService == null) ccpmService = new CriticalChainService();
+		CriticalChainService.Settings settings = ccpmService.findSettings(project);
+		CriticalChainService.Baseline baseline = ccpmService.findBaseline(project);
+		if (project != ccpmProject || baseline != ccpmBaseline) {
+			ccpmProject = project;
+			ccpmBaseline = baseline;
+			ccpmTaskIds = baseline == null ? Collections.emptySet() : Set.copyOf(baseline.criticalTaskIds());
+		}
+		return settings != null && settings.isEnabled() && baseline != null
+			&& ccpmTaskIds.contains(Long.valueOf(task.getUniqueId()));
 	}
 
 	private Color resolveTaskFillColor(GraphicNode node, BarFormat format) {
@@ -769,8 +791,17 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			Font oldFont = g2.getFont();
 			Color oldColor = g2.getColor();
 			g2.setFont(annotationFont);
-			g2.setColor(TaskFontStyle.resolveColor(getNodeImpl(node), GanttRendererSupport.resolveAnnotationColor()));
 			g2.clipRect(x, textTop, availableWidth, clipHeight);
+			// Dependency connectors are painted before annotations.  Paint an
+			// opaque chart-background strip first so a connector cannot remain
+			// visible through the glyphs or obscure the task label (issue #322).
+			Color annotationBackground = palette.getChartBackground();
+			if (annotationBackground != null) {
+				g2.setColor(annotationBackground);
+				int backgroundWidth = Math.min(availableWidth, fontMetrics.stringWidth(clipped) + 4);
+				g2.fillRect(Math.max(x - 2, clipBounds.x), textTop, backgroundWidth + 2, clipHeight);
+			}
+			g2.setColor(TaskFontStyle.resolveColor(getNodeImpl(node), GanttRendererSupport.resolveAnnotationColor()));
 			g2.drawString(clipped, x, textBaseline);
 			if (originalClip != null)
 				g2.setClip(originalClip);
@@ -1292,7 +1323,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			node.setRow(row);
 			if (!node.isSchedule()) continue;
 			nodeList.add(node);
-			paintAnnotation(g2,node);
 			paintNode(g2,node,true);
 			paintHorizontalLine(g2,node);
 		}
@@ -1309,6 +1339,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		for (ListIterator<GraphicNode> nodeIterator=nodeList.listIterator();nodeIterator.hasNext();){
 			node=nodeIterator.next();
 			paintNode(g2,node,false);
+		}
+		// Keep bar labels in the topmost layer.  Dependency paths can cross the
+		// area beside a task bar, so painting annotations before links makes task
+		// names hard to read.
+		for (ListIterator<GraphicNode> nodeIterator=nodeList.listIterator();nodeIterator.hasNext();){
+			node=nodeIterator.next();
+			paintAnnotation(g2,node);
 		}
 		paintProgressLine(g2);
 

@@ -32,7 +32,7 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlID;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.microproject.core.configuration.Configuration;
+import com.microproject.core.configuration.LegacyConfiguration;
 import com.microproject.core.dictionary.HasCategories;
 import com.microproject.core.dictionary.HasStringId;
 import com.microproject.strings.Messages;
@@ -117,7 +117,7 @@ public class Field implements HasStringId, HasCategories{
 	
 	
 	public static Field getField(String fieldId){
-		return (Field)Configuration.getInstance().getDictionary().get(Field.class, fieldId);
+		return (Field)LegacyConfiguration.getInstance().getDictionary().get(Field.class, fieldId);
 	}
 
 

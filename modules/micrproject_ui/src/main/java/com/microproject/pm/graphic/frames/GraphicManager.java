@@ -119,6 +119,7 @@ import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.OpenProjectDialog;
 import com.microproject.dialog.ProjectDialog;
 import com.microproject.dialog.ProjectInformationDialog;
+import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.dialog.RenameProjectDialog;
 import com.microproject.dialog.ResourceInformationDialog;
 import com.microproject.dialog.ResourceMappingDialog;
@@ -1114,7 +1115,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		finishAnyOperations();
 	    List nodes=getCurrentFrame().getSelectedNodes(false);
-	    if (nodes == null)
+	    if (isEmptySelection(nodes))
 	    	return;
 		if (nodes.size() > 1) {
 			Alert.warn(Messages.getString("Message.onlySelectOneElement"),getContainer()); //$NON-NLS-1$
@@ -1396,6 +1397,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_SORT, new SortAction());
 		actionsMap.addHandler(ACTION_GROUP, new GroupAction());
 		actionsMap.addHandler(ACTION_CALENDAR_OPTIONS, new CalendarOptionsAction());
+		actionsMap.addHandler("GeneralOptions", new GeneralOptionsAction());
 		actionsMap.addHandler(ACTION_SAVE_BASELINE, new SaveBaselineAction());
 		actionsMap.addHandler(ACTION_CLEAR_BASELINE, new ClearBaselineAction());
 		actionsMap.addHandler(ACTION_LOCALE, new LocaleAction());
@@ -1629,6 +1631,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!beforeCalendarOptionsRoute()) return;
 			doCalendarOptionsDialog();
+		}
+	}
+
+	/** Selection routing must tolerate a cleared table selection. */
+	static boolean isEmptySelection(List<?> nodes) {
+		return nodes == null || nodes.isEmpty();
+	}
+
+	public class GeneralOptionsAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			PreferencesDialogBox.showDialog(getFrame(), getPreferences());
 		}
 	}
 
@@ -2590,10 +2605,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 				}
 
 				public int resolveSaveDecision(Project projectToSave, CollaborationSession session) {
-					if (!session.hasSaveConflicts()) {
-						return CollaborationSession.SAVE_PROCEED;
-					}
-					return promptForCollaborationSave();
+					return session.checkBeforeSave(getCurrentFrame());
 				}
 
 				public String chooseSaveAsCopyFileName(Project projectToSave) {
@@ -2668,10 +2680,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 				}
 
 				public int resolveSaveDecision(Project projectToSave, CollaborationSession session) {
-					if (!session.hasSaveConflicts()) {
-						return CollaborationSession.SAVE_PROCEED;
-					}
-					return promptForCollaborationSave();
+					return session.checkBeforeSave(getCurrentFrame());
 				}
 
 				public String chooseSaveAsCopyFileName(Project projectToSave) {
@@ -2703,30 +2712,6 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			project.setCollaborationSession(null);
 		}
 		projectFactory.removeProject(project,true,true,true);
-	}
-
-	private int promptForCollaborationSave() {
-		Object[] options = new Object[] {
-			"Restore and Save",
-			"Discard My Changes",
-			"Save Copy"
-		};
-		int result = PopupDialogSupport.showOptionDialog(getCurrentFrame(),
-			"One or more tasks you are editing were changed or deleted externally.\nChoose how to resolve the conflict.",
-			"ProjectLibre",
-			JOptionPane.DEFAULT_OPTION,
-			JOptionPane.WARNING_MESSAGE,
-			null,
-			options,
-			options[0],
-			JOptionPane.CANCEL_OPTION);
-		if (result == 0) {
-			return CollaborationSession.SAVE_PROCEED;
-		}
-		if (result == 2) {
-			return CollaborationSession.SAVE_AS_COPY;
-		}
-		return CollaborationSession.SAVE_CANCEL;
 	}
 
 	public void openLocalProject(){
@@ -3800,8 +3785,22 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			preferences=new GlobalPreferences();
 			if (Environment.isExternal())
 				preferences.setShowProjectResourcesOnly(true);
+			applyPreferenceFont(preferences);
 		}
 		return preferences;
+	}
+
+	/** Applies persisted typography to Swing defaults and refreshes the active window. */
+	public void applyPreferenceFont(GlobalPreferences value) {
+		if (value == null) return;
+		java.awt.Font base = UIManager.getFont("defaultFont");
+		if (base == null) base = new java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, 12);
+		String family = value.getFontFamily();
+		int size = value.getFontSize();
+		if (family != null && !family.isBlank()) base = new java.awt.Font(family, base.getStyle(), base.getSize());
+		if (size > 0) base = base.deriveFont((float) size);
+		UIManager.put("defaultFont", base);
+		if (getFrame() != null) SwingUtilities.updateComponentTreeUI(getFrame());
 	}
 
 

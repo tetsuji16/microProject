@@ -28,7 +28,24 @@ package com.microproject.pm.assignment;
  *
  */
 public interface RequestDemandType {
+	enum Kind {
+		NONE(0), REQUEST(1), DEMAND(2);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown request/demand type: " + code);
+		}
+	}
+
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int NONE = 0;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int REQUEST = 1;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int DEMAND  = 2;
 }

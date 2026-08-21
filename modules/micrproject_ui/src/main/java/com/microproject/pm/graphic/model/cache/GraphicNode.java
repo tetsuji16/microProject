@@ -34,7 +34,7 @@ import java.util.List;
 import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
 
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
-import com.microproject.functor.IntervalConsumer;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.grouping.core.GroupNodeImpl;
 import com.microproject.grouping.core.LazyParent;
@@ -476,4 +476,3 @@ public class GraphicNode implements HierarchicObject{
 	}
 
 }
-

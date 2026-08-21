@@ -29,8 +29,25 @@ package com.microproject.pm.scheduling;
  * Class to manage fixed units, duration or work enumerations
  */
 public class SchedulingType {
+	public enum Kind {
+		FIXED_UNITS(0), FIXED_DURATION(1), FIXED_WORK(2);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown scheduling type: " + code);
+		}
+	}
+
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int FIXED_UNITS = 0;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int FIXED_DURATION = 1;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int FIXED_WORK = 2;	
 	public static SchedulingRule getSchedulingRuleInstance(int schedulingType) {
 		switch (schedulingType) {

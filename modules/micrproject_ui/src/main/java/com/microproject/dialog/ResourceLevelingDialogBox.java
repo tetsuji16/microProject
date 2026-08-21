@@ -47,14 +47,19 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
+
+import javax.swing.JSpinner;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
 
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceLevelingService;
+import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.help.HelpUtil;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.graphic.views.CriticalChainGraphPanel;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.PopupDialogSupport;
 
@@ -63,14 +68,19 @@ public final class ResourceLevelingDialogBox extends JDialog {
 	private static final long serialVersionUID = 1L;
 	private final Project project;
 	private final ResourceLevelingService service = new ResourceLevelingService();
+	private final CriticalChainService criticalChainService = new CriticalChainService();
+	private final CriticalChainService.Settings workingSettings;
 	private final JComboBox<ResourceLevelingService.Order> order = new JComboBox<>(ResourceLevelingService.Order.values());
 	private final JCheckBox slackOnly = new JCheckBox(UsabilityStrings.text("leveling.slackOnly"));
 	private final JCheckBox allowSplits = new JCheckBox(UsabilityStrings.text("leveling.splits"), true);
+	private final JCheckBox ccpm = new JCheckBox(UsabilityStrings.text("ccpm.enabled"));
+	private final JSpinner bufferPercent = new JSpinner(new javax.swing.SpinnerNumberModel(50, 0, 100, 5));
 	private final JList<Resource> resources;
 	private final ChangeTableModel changes = new ChangeTableModel();
 	private final JTable table = new JTable(changes);
 	private final JLabel status = new JLabel(" ");
 	private final JButton apply = new JButton(UsabilityStrings.text("leveling.apply"));
+	private final CriticalChainGraphPanel criticalChainGraph;
 	private ResourceLevelingService.Plan currentPlan;
 
 	public static ResourceLevelingDialogBox getInstance(Frame owner, Project project) {
@@ -83,6 +93,14 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("leveling.slackOnly"));
 		PopupDialogSupport.bindEscapeToDispose(this);
 		this.project = project;
+		criticalChainGraph = new CriticalChainGraphPanel(project);
+		CriticalChainService.Settings settings = criticalChainService.findSettings(project);
+		workingSettings = settings == null ? new CriticalChainService.Settings() : settings.copy();
+		ccpm.setSelected(workingSettings.isEnabled());
+		bufferPercent.setValue(Integer.valueOf((int) Math.round(workingSettings.getBufferFraction() * 100D)));
+		order.setSelectedItem(workingSettings.getLevelingOrder());
+		slackOnly.setSelected(workingSettings.isOnlyWithinAvailableSlack());
+		allowSplits.setSelected(workingSettings.isAllowTaskSplits());
 		List<Resource> resourceList = project.getResourcePool().getResourceList().stream()
 			.filter(Resource::isLabor)
 			.filter(value -> !value.getAssignments().isEmpty())
@@ -117,6 +135,15 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		constraints.gridy++;
 		options.add(allowSplits, constraints);
 		constraints.gridy++;
+		options.add(ccpm, constraints);
+		constraints.gridy++;
+		constraints.gridwidth = 1;
+		options.add(new JLabel(UsabilityStrings.text("ccpm.buffer")), constraints);
+		constraints.gridx = 1;
+		options.add(bufferPercent, constraints);
+		constraints.gridx = 0;
+		constraints.gridy++;
+		constraints.gridwidth = 2;
 		constraints.weighty = 1;
 		constraints.fill = GridBagConstraints.BOTH;
 		options.add(new JScrollPane(resources), constraints);
@@ -141,8 +168,11 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		buttons.add(apply);
 		buttons.add(close);
 
+		JTabbedPane tabs = new JTabbedPane();
+		tabs.addTab(UsabilityStrings.text("leveling.title"), split);
+		tabs.addTab("CCPM Network", new JScrollPane(criticalChainGraph));
 		setLayout(new BorderLayout());
-		add(split, BorderLayout.CENTER);
+		add(tabs, BorderLayout.CENTER);
 		add(buttons, BorderLayout.SOUTH);
 		setPreferredSize(new Dimension(900, 520));
 		pack();
@@ -151,17 +181,31 @@ public final class ResourceLevelingDialogBox extends JDialog {
 
 	private void preview() {
 		List<Resource> selected = resources.getSelectedValuesList();
-		currentPlan = service.preview(project, selected.isEmpty() ? null : selected,
-			new ResourceLevelingService.Options((ResourceLevelingService.Order) order.getSelectedItem(),
-				slackOnly.isSelected(), allowSplits.isSelected(), Long.MIN_VALUE, Long.MAX_VALUE));
+		workingSettings.setEnabled(ccpm.isSelected());
+		workingSettings.setBufferFraction(((Number) bufferPercent.getValue()).doubleValue() / 100D);
+		workingSettings.setLevelingOrder((ResourceLevelingService.Order) order.getSelectedItem());
+		workingSettings.setOnlyWithinAvailableSlack(slackOnly.isSelected());
+		workingSettings.setAllowTaskSplits(allowSplits.isSelected());
+		CriticalChainService.Analysis analysis = criticalChainService.preview(project, selected.isEmpty() ? null : selected, workingSettings);
+		criticalChainGraph.setAnalysis(analysis);
+		currentPlan = analysis.levelingPlan();
 		changes.setPlan(currentPlan);
-		apply.setEnabled(!currentPlan.changes().isEmpty());
+		// CCPM application also captures the critical-chain baseline.  It must
+		// remain available when leveling finds no date changes; otherwise a
+		// conflict-free project can never produce the baseline used by the
+		// buffer graph/status view.
+		apply.setEnabled(ccpm.isSelected() || !currentPlan.changes().isEmpty());
 		status.setText(java.text.MessageFormat.format(UsabilityStrings.text("leveling.status"),
-			currentPlan.changes().size(), currentPlan.splits().size(), currentPlan.unresolved().size()));
+			currentPlan.changes().size(), currentPlan.splits().size(), currentPlan.unresolved().size())
+			+ (ccpm.isSelected() ? " " + java.text.MessageFormat.format(UsabilityStrings.text("ccpm.status"),
+				analysis.criticalTaskIds().size(), ChangeTableModel.humanDuration(analysis.projectBufferMillis()))
+				+ " " + java.text.MessageFormat.format(UsabilityStrings.text("ccpm.bufferStatus"),
+					ChangeTableModel.humanDuration(analysis.projectBuffer().remainingMillis()),
+					ChangeTableModel.humanDuration(analysis.projectBuffer().plannedMillis()), analysis.projectBuffer().status()) : ""));
 	}
 
 	private void apply() {
-		if (currentPlan == null || currentPlan.changes().isEmpty()) {
+		if (currentPlan == null || (currentPlan.changes().isEmpty() && !ccpm.isSelected())) {
 			return;
 		}
 		if (!currentPlan.isComplete()) {
@@ -172,12 +216,20 @@ public final class ResourceLevelingDialogBox extends JDialog {
 				return;
 			}
 		}
-		currentPlan.apply(project.getUndoController().getEditSupport());
+		if (ccpm.isSelected()) {
+			criticalChainService.apply(project, resources.getSelectedValuesList(), workingSettings);
+		} else {
+			criticalChainService.forget(project);
+			currentPlan.apply(project.getUndoController().getEditSupport());
+		}
 		preview();
 	}
 
 	private void clear() {
 		service.clear(project, project.getUndoController().getEditSupport());
+		criticalChainService.forget(project);
+		ccpm.setSelected(false);
+		workingSettings.setEnabled(false);
 		preview();
 	}
 
@@ -217,7 +269,7 @@ public final class ResourceLevelingDialogBox extends JDialog {
 			};
 		}
 
-		private static String humanDuration(long milliseconds) {
+		static String humanDuration(long milliseconds) {
 			long hours = milliseconds / (60L * 60L * 1000L);
 			return hours % 8L == 0L ? (hours / 8L) + "d" : hours + "h";
 		}

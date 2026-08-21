@@ -29,6 +29,7 @@ import java.util.Locale;
 public class FileHelper {
 	public static final String DEFAULT_FILE_EXTENSION ="pod";
 	public static final int PROJECTLIBRE_FILE_TYPE=1;
+	public static final int PODX_FILE_TYPE=2;
 	public static final int MSP_FILE_TYPE=101;
 
 	private static boolean hasExtension(String fileName, String extension) {
@@ -44,6 +45,17 @@ public class FileHelper {
 		return hasExtension(fileName, DEFAULT_FILE_EXTENSION);
 	}
 
+	/**
+	 * Returns whether the name identifies the open podx container format.
+	 */
+	public static boolean isPodxFile(String fileName) {
+		return hasExtension(fileName, "podx");
+	}
+
+	public static boolean isNativeFile(String fileName) {
+		return isProjectLibreFile(fileName) || isPodxFile(fileName);
+	}
+
 	public static boolean isMicrosoftProjectFile(String fileName) {
 		return hasExtension(fileName, "xml")
 			|| hasExtension(fileName, "xlsx")
@@ -54,9 +66,9 @@ public class FileHelper {
 
     public static boolean isFileNameAllowed(String fileName,boolean save) {
     	if (save) {
-    		return hasExtension(fileName, "xml") || hasExtension(fileName, "xlsx") || isProjectLibreFile(fileName);
-    	}
-		return isMicrosoftProjectFile(fileName) || isProjectLibreFile(fileName);
+			return hasExtension(fileName, "xml") || hasExtension(fileName, "xlsx") || isNativeFile(fileName);
+		}
+		return isMicrosoftProjectFile(fileName) || isNativeFile(fileName);
 	}
 
     public static String getFileExtension(String fileName) {
@@ -79,6 +91,7 @@ public class FileHelper {
     	switch (fileType) {
 		//case FileHelper.SERVER_FILE_TYPE: return null;
 		case FileHelper.PROJECTLIBRE_FILE_TYPE: return DEFAULT_FILE_EXTENSION;
+		case FileHelper.PODX_FILE_TYPE: return "podx";
 		case FileHelper.MSP_FILE_TYPE: return "xml";
 		default:
 			return DEFAULT_FILE_EXTENSION;
@@ -87,8 +100,10 @@ public class FileHelper {
 
     public static int getFileType(String fileName){
     	if (fileName==null) return 0;
-    	if (isProjectLibreFile(fileName))
-    		return PROJECTLIBRE_FILE_TYPE;
+		if (isProjectLibreFile(fileName))
+			return PROJECTLIBRE_FILE_TYPE;
+		if (isPodxFile(fileName))
+			return PODX_FILE_TYPE;
     	if (isMicrosoftProjectFile(fileName))
     			return MSP_FILE_TYPE;
     	return 0;

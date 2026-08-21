@@ -24,13 +24,14 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.graph.event;
 
-import java.util.EventObject;
 import java.util.List;
+
+import com.microproject.pm.graphic.event.GraphicEvent;
 
 /**
  *
  */
-public class GraphEvent extends EventObject {
+public class GraphEvent extends GraphicEvent {
 	private static final long serialVersionUID = -299188704449031480L;
 	protected List nodes;
 	/**
@@ -48,4 +49,3 @@ public class GraphEvent extends EventObject {
 	}
     
 }
-

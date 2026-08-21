@@ -114,6 +114,19 @@ public final class TeamPlannerDialogBox extends JDialog {
 		setLocationRelativeTo(getOwner());
 	}
 
+	/** Creates the Team Planner UI for embedding in a document view. */
+	public static JPanel createEmbeddedPanel(java.awt.Frame owner, Project project) {
+		TeamPlannerDialogBox dialog = new TeamPlannerDialogBox(owner, project);
+		java.awt.Container content = dialog.getContentPane();
+		if (!(content instanceof JPanel panel)) {
+			dialog.dispose();
+			throw new IllegalStateException("Team Planner content is not a Swing panel");
+		}
+		dialog.getRootPane().setContentPane(new JPanel(new BorderLayout()));
+		dialog.dispose();
+		return panel;
+	}
+
 	static final class TeamPlannerCanvas extends JPanel {
 		private static final long serialVersionUID = 1L;
 		private static final int HEADER_HEIGHT = 42;

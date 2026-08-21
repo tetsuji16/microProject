@@ -60,14 +60,18 @@ public class Configuration implements ProvidesDigesterEvents {
 			return inProgress;
 		Configuration temp = new Configuration();
 		buildingInstance.set(temp); // publish before parsing so re-entrant callers see it
-		temp.fieldDictionary = new FieldDictionary(); // initialize early so re-entrant callers (e.g. classes loaded during read()) never see a null dictionary
-		String [] files = Messages.getMetaString("ConfigurationFiles").split(";", -1);
-		for (String file : files) 
-			ConfigurationReader.read(file, temp) ;
-		temp.setDonePopulating(); // makes its hash table fast if using a FastHashMap
-		instance = temp; // publish only after fully built to avoid re-entrant use of a half-initialized instance
-		buildingInstance.remove();
-		return instance;
+		try {
+			temp.fieldDictionary = new FieldDictionary(); // initialize early so re-entrant callers (e.g. classes loaded during read()) never see a null dictionary
+			String [] files = Messages.getMetaString("ConfigurationFiles").split(";", -1);
+			for (String file : files)
+				ConfigurationReader.read(file, temp) ;
+			temp.setDonePopulating(); // makes its hash table fast if using a FastHashMap
+			instance = temp; // publish only after fully built to avoid re-entrant use of a half-initialized instance
+			return instance;
+		} finally {
+			// Do not retain a partially parsed configuration when initialization fails.
+			buildingInstance.remove();
+		}
 	}
 	public Configuration() {
 		if (fieldDictionary == null)

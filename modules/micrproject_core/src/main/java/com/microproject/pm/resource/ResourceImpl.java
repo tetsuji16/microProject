@@ -29,9 +29,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.function.Consumer;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -76,7 +76,6 @@ import com.microproject.util.Environment;
 public class ResourceImpl implements Resource, HasAvailability, HasResourceIndicators {
 	static final long serialVersionUID = 9485792329492L;
 	private static ResourceImpl UNASSIGNED = null;
-	static HashSet readOnlyUserFields = null;
 	private static final AssignmentStatusMatcher IN_PROGRESS_MATCHER = new AssignmentStatusMatcher() {
 		public boolean matches(Assignment assignment) {
 			return assignment.inProgress();
@@ -93,13 +92,14 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 		}
 	};
 
-	private HashSet getReadOnlyUserFields() {
-		if (readOnlyUserFields == null) {
-			readOnlyUserFields = new HashSet();
-			readOnlyUserFields.add(Configuration.getFieldFromId("Field.name"));
-	//		readOnlyUserFields.add(Configuration.getFieldFromId("Field.emailAddress"));
-		}
-		return readOnlyUserFields;
+	private Set<Field> getReadOnlyUserFields() {
+		return ReadOnlyUserFields.VALUE;
+	}
+
+	/** Lazily resolves configuration fields without exposing mutable process-global state. */
+	private static final class ReadOnlyUserFields {
+		private static final Set<Field> VALUE = Collections.singleton(
+				Configuration.getFieldFromId("Field.name"));
 	}
 	public long getEarliestAssignmentStart() {
 		return globalResource.getEarliestAssignmentStart();

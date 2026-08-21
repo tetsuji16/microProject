@@ -37,8 +37,8 @@ public class CriticalPathFields extends AlgorithmFieldUpdater {
 		super.run();
 		
 	}
-	protected static HashSet staticInputFields = null;
-	protected static HashSet staticOutputFields = null;
+	protected static volatile HashSet staticInputFields;
+	protected static volatile HashSet staticOutputFields;
 	
 	static CriticalPathFields getInstance(Object eventSource, Document document) {
 		return new CriticalPathFields(eventSource, document);
@@ -50,9 +50,15 @@ public class CriticalPathFields extends AlgorithmFieldUpdater {
 	private CriticalPathFields(Object eventSource, Document document) {
 		super(eventSource, document);
 		if (staticInputFields == null) {
-			init();
-			staticInputFields = inputFields;
-			staticOutputFields = outputFields;
+			synchronized (CriticalPathFields.class) {
+				if (staticInputFields == null) {
+					inputFields = new HashSet(32);
+					outputFields = new HashSet(8);
+					init();
+					staticInputFields = inputFields;
+					staticOutputFields = outputFields;
+				}
+			}
 		}
 		inputFields = staticInputFields;
 		outputFields = staticOutputFields;

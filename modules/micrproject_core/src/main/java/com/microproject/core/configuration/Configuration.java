@@ -48,9 +48,14 @@ import com.microproject.core.dictionary.HasStringId;
 import com.microproject.core.fields.FieldManager;
 
 /**
- * @author Laurent Chretienneau
+ * Legacy JAXB configuration engine used only by the {@code core.fields}/
+ * {@code core.nodes} compatibility subsystem. New application code must use
+ * {@link com.microproject.configuration.Configuration}; do not introduce new
+ * callers to this engine while the compatibility subsystem is being migrated.
  *
+ * @author Laurent Chretienneau
  */
+@Deprecated(forRemoval = false)
 public class Configuration {
 	private static final Logger logger = Logger.getLogger(Configuration.class.getName());
 	protected static Configuration instance;

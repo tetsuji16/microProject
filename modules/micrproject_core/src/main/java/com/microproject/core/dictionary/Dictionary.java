@@ -33,9 +33,13 @@ import java.util.Set;
 
 
 /**
- * @author Laurent Chretienneau
+ * Dictionary for the legacy JAXB configuration engine. New code should use
+ * {@link com.microproject.configuration.Dictionary}; this type remains only
+ * as a compatibility boundary for {@code core.fields}/ {@code core.nodes}.
  *
+ * @author Laurent Chretienneau
  */
+@Deprecated(forRemoval = false)
 public class Dictionary implements Iterable<HasStringId>{
 	protected Map<DictionaryCategory, Map<String,HasStringId>> dictionary=new HashMap<DictionaryCategory, Map<String,HasStringId>>();
 	protected Map<Class<?>, Set<String>> categories=new HashMap<Class<?>, Set<String>>();

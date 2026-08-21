@@ -27,6 +27,21 @@ package com.microproject.pm.costing;
  * @stereotype enumeration
  */
 public interface EarnedValueMethodType {
+	enum Kind {
+		PERCENT_COMPLETE(0), PHYSICAL_PERCENT_COMPLETE(1);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown earned-value method: " + code);
+		}
+	}
+
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int PERCENT_COMPLETE = 0;
+	/** @deprecated use {@link Kind} at new API boundaries. */
+	@Deprecated
 	public static final int PHYSICAL_PERCENT_COMPLETE = 1;
 }

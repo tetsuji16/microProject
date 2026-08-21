@@ -79,7 +79,6 @@ public class PodRoundTripTest {
 		assertRoundTrip("June_1_sample.pod");
 		assertRoundTrip("Commercial construction project plan.pod");
 	}
-
 	@Test
 	public void movedTaskOrderSurvivesPodRoundTrip() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -256,6 +255,7 @@ public class PodRoundTripTest {
 		assertEquals("task uniqueId must survive round-trip",
 				firstTask.getUniqueId(), reloadedTask.getUniqueId());
 	}
+
 
 	@Test
 	public void createdAndUniqueIdStableAcrossTwoRoundTrips() throws Exception {

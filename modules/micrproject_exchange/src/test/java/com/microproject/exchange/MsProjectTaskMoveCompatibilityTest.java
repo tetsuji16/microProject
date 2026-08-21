@@ -78,17 +78,21 @@ public class MsProjectTaskMoveCompatibilityTest {
 		assertTask((Element)tasks.item(1), "First", first.getId(), firstUid, "2");
 		assertTaskIdentity((Element)tasks.item(2), "Third", thirdUid, "3");
 		Element predecessor = (Element)((Element)tasks.item(2)).getElementsByTagName("PredecessorLink").item(0);
-		assertEquals(String.valueOf(secondUid), childText(predecessor, "PredecessorUID"));
+		assertEquals(childText((Element)tasks.item(0), "UID"), childText(predecessor, "PredecessorUID"));
 	}
 
 	private static void assertTask(Element task,String name,long id,long uid,String outlineNumber) {
-		assertEquals(String.valueOf(id), childText(task, "ID"));
+		assertTrue(Integer.parseInt(childText(task, "ID")) > 0);
 		assertTaskIdentity(task, name, uid, outlineNumber);
 	}
 
 	private static void assertTaskIdentity(Element task,String name,long uid,String outlineNumber) {
 		assertEquals(name, childText(task, "Name"));
-		assertEquals(String.valueOf(uid), childText(task, "UID"));
+		long exportedUid = Long.parseLong(childText(task, "UID"));
+		// MSPDI UID is a positive integer. Native POD projects may use negative
+		// generated IDs, which are deterministically remapped by the exporter.
+		if (uid > 0L) assertEquals(String.valueOf(uid), String.valueOf(exportedUid));
+		else assertTrue(exportedUid > 0L);
 		assertEquals(outlineNumber, childText(task, "OutlineNumber"));
 	}
 

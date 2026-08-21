@@ -32,7 +32,7 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 import com.microproject.datatype.Rate;
 import com.microproject.field.CanBeDirty;
 import com.microproject.field.FieldContext;
-import com.microproject.functor.IntervalConsumer;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.graphic.configuration.HasCssStyle;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentSpecificFields;

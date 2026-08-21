@@ -77,13 +77,8 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 	}
 
 	public ProjectFile read(File file) throws MPXJException {
-		try {
-			FileInputStream in = new FileInputStream(file);
-			try {
-				return read(in);
-			} finally {
-				in.close();
-			}
+		try (FileInputStream in = new FileInputStream(file)) {
+			return read(in);
 		} catch (Exception e) {
 			throw new MPXJException("Failed to read ProjectLibre XLSX file", e);
 		}

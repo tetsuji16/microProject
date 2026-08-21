@@ -256,6 +256,23 @@ class DependencyServiceTest {
 	}
 
 	@Test
+	void removeAnyDependenciesUnlinksIncidentLinkWhenOnlyOneEndpointIsSelected() throws InvalidAssociationException {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+
+		DependencyService.getInstance().removeAnyDependencies(Arrays.asList(successor), this);
+
+		assertFalse(predecessor.getSuccessorList().iterator().hasNext());
+		assertFalse(successor.getPredecessorList().iterator().hasNext());
+	}
+
+	@Test
 	void removeAnyDependenciesSkipsReadonlyItemsButStillUnlinksEditablePairs() throws InvalidAssociationException {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

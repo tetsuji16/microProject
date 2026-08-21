@@ -52,9 +52,7 @@ import com.microproject.document.Document;
 import com.microproject.field.CustomFieldsImpl;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
-import com.microproject.functor.IntervalConsumer;
-import com.microproject.functor.NumberClosure;
-import com.microproject.functor.ObjectVisitor;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.graphic.configuration.HasIndicators;
 import com.microproject.graphic.configuration.HasTaskIndicators;
 import com.microproject.grouping.core.Node;
@@ -650,12 +648,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor) {
-		return new ObjectVisitor(visitor) {
-			protected Object getObject(Object arg0) {
-				return ((TaskSnapshot) ((Task) arg0).getCurrentSnapshot())
-						.getHasAssignments();
-			}
-		};
+		return value -> visitor.accept(((TaskSnapshot) ((Task) value).getCurrentSnapshot())
+				.getHasAssignments());
 	}
 
 	public double getFixedCost() {
@@ -866,19 +860,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			return 0;
 		return snapshot.work(start, end);
 	}
-
-	//	public long getWork() {
-	//		DoubleSum sumFunctor = new DoubleSum() {
-	//
-	//			protected double getValueForElement(Object object) {
-	//				return ((Assignment)object).calcAll(Assignment.WORK);
-	//			}};
-	//
-	//		DataUtils.forAllDo(getAssignments().iterator(), sumFunctor);
-	//		return (long) sumFunctor.getValue();
-	//	}
-
-
 
 	public String getResourceInitials() {
 		return AssociationListFormat.getInstance(
@@ -1571,9 +1552,15 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			updateAssignmentPercentComplete(percentComplete);
 			long actualDuration = DateTime.closestDate(getDurationMillis() * percentComplete);
 			setActualDuration(actualDuration);
+			// MS Project records the planned start as the actual start as soon
+			// as work begins. Assignment-driven tasks get this through
+			// setStop(), but tasks without assignments otherwise remained with
+			// an empty Actual Start even after Actual Finish/100% was entered.
+			if (percentComplete > 0.0D && getActualStart() == 0L && !isWbsParent() && getStart() != 0L)
+				setActualStart(getStart());
 			long stop = getEffectiveWorkCalendar().add(getStart(), actualDuration, false);
 			DeepChildWalker.recursivelyTreatBranch(getProject().getTaskOutline(),
-					this, new NumberClosure(stop) {
+					this, new java.util.function.Consumer<Object>() {
 						public void accept(Object arg0) {
 							if (arg0 == null) {
 								return;
@@ -1581,7 +1568,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 							Object nodeObject = ((Node) arg0).getImpl();
 							if (nodeObject instanceof NormalTask) { // do not treat assignments
 								NormalTask task = ((NormalTask)nodeObject);
-								task.setStop(Math.min(longValue(),task.getEnd())); // do within range of task
+								task.setStop(Math.min(stop,task.getEnd())); // do within range of task
 							}
 						}
 					});

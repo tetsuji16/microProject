@@ -34,7 +34,6 @@ import java.util.logging.Logger;
 
 
 import com.microproject.association.AssociationList;
-import com.microproject.functor.CollectionVisitor;
 import com.microproject.pm.calendar.HasCalendar;
 
 /**
@@ -59,18 +58,10 @@ public class HasDependenciesImpl implements HasDependencies, Serializable {
 	private transient AssociationList successors = new AssociationList();
 
 	public Consumer<Object> forAllPredecessors(Consumer<Object> visitor) {
-		return new CollectionVisitor(visitor) {
-			protected final Collection getCollection(Object arg0) {
-				return ((HasDependencies)arg0).getPredecessorList().getList();
-			}
-		};
+		return value -> ((HasDependencies) value).getPredecessorList().getList().forEach(visitor);
 	}
 	public Consumer<Object> forAllSuccesssors(Consumer<Object> visitor) {
-		return new CollectionVisitor(visitor) {
-			protected final Collection getCollection(Object arg0) {
-				return ((HasDependencies)arg0).getSuccessorList().getList();
-			}
-		};
+		return value -> ((HasDependencies) value).getSuccessorList().getList().forEach(visitor);
 	}
 	
 	public HasCalendar getHasCalendar() {

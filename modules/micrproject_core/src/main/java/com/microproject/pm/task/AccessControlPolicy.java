@@ -27,6 +27,18 @@ package com.microproject.pm.task;
  * @stereotype enumeration
  */
 public interface AccessControlPolicy {
-	public static final int PUBLIC=0;
-	public static final int RESTRICTED=1;
+	public enum Kind {
+		PUBLIC(0), RESTRICTED(1);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown access-control policy code: " + code);
+		}
+	}
+	/** @deprecated use {@link Kind#PUBLIC}; retained for serialized compatibility. */
+	@Deprecated public static final int PUBLIC=0;
+	/** @deprecated use {@link Kind#RESTRICTED}; retained for serialized compatibility. */
+	@Deprecated public static final int RESTRICTED=1;
 }

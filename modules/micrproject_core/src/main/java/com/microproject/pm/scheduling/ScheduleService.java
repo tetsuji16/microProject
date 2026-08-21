@@ -29,7 +29,7 @@ import javax.swing.undo.UndoableEditSupport;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
-import com.microproject.functor.IntervalConsumer;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.TaskConstraintEdit;

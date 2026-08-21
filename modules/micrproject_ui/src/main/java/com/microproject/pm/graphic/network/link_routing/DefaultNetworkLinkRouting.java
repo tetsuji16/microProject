@@ -31,17 +31,6 @@ import java.awt.geom.GeneralPath;
  */
 public class DefaultNetworkLinkRouting extends NetworkLinkRouting{
 	public void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double xy2,int type){
-		this.path=path;
-		resetLinkPoints();
-		addLinkPoint(x0,y0);
-		if (vertical){
-			if (xy2!=y0) addLinkPoint(x0,xy2);
-			if (xy2!=y1) addLinkPoint(x1,xy2);
-		}else{
-			if (xy2!=x0) addLinkPoint(xy2,y0);
-			if (xy2!=x1) addLinkPoint(xy2,y1);
-		}
-		addLinkPoint(x1,y1);
+		routeOrthogonal(path, x0, y0, x1, y1, xy2, vertical);
 	}
 }
-

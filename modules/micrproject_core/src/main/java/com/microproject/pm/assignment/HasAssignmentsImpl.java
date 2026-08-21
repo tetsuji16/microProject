@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.ListIterator;
 
 import org.apache.commons.collections.Predicate;
-import org.apache.commons.collections.functors.TruePredicate;
 
 import com.microproject.algorithm.ReverseQuery;
 import com.microproject.algorithm.TimeIteratorGenerator;
@@ -46,7 +45,6 @@ import com.microproject.algorithm.buffer.NonGroupedCalculatedValues;
 import com.microproject.association.Association;
 import com.microproject.association.AssociationList;
 import com.microproject.field.FieldContext;
-import com.microproject.functor.CollectionVisitor;
 import com.microproject.options.ScheduleOption;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.criticalpath.TaskSchedule;
@@ -237,14 +235,11 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor, Predicate filter) {
-		return new CollectionVisitor(visitor,filter) {
-			protected final Collection getCollection(Object arg0) {
-				return ((HasAssignments)arg0).getAssignments();
-			}
-		};
+		return value -> ((HasAssignments) value).getAssignments().stream()
+			.filter(filter::evaluate).forEach(visitor);
 	}
 	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor) {
-		return forAllAssignments(visitor,TruePredicate.INSTANCE);
+		return value -> ((HasAssignments) value).getAssignments().forEach(visitor);
 	}
 
 

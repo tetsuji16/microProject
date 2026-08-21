@@ -35,6 +35,8 @@ import java.util.Map;
  * 
  * contants from mpxj with 2 additional ones from ProjectLibre
  */
+/** @deprecated Use {@code com.microproject.datatype.TimeUnit} in domain code. Kept for MPXJ compatibility. */
+@Deprecated(forRemoval = false)
 public enum TimeUnit{
 	
 	/**

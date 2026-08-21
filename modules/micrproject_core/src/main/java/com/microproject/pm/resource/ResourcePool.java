@@ -128,6 +128,14 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		resourceIdCounter = Math.max(resourceIdCounter, resource.getId());
 		idMap = null;
 	}
+
+	/** Registers an imported resource ID without allowing a later allocation to reuse it. */
+	public void setResourceUniqueId(Resource resource, long uniqueId) {
+		if (resource == null || uniqueId < 1L) throw new IllegalArgumentException("Invalid resource unique ID");
+		resource.setUniqueId(uniqueId);
+		resourceIdCounter = Math.max(resourceIdCounter, uniqueId);
+		idMap = null;
+	}
 	public void remove(Resource resource) {
 		resourceList.remove(resource);
 		idMap = null;
@@ -431,5 +439,4 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		return null;
 	}
 }
-
 

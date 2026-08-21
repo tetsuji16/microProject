@@ -51,8 +51,8 @@ import com.microproject.util.ClassLoaderUtils;
  */
 public class IconManager {
 	protected static ClassLoader classLoader=ClassLoaderUtils.getLocalClassLoader();
-	protected static HashMap icons = new HashMap();
-	protected static HashMap ribbonIcons = new HashMap();
+	protected static final HashMap<String, ImageIcon> icons = new HashMap<>(128);
+	protected static final HashMap<String, ResizableIcon> ribbonIcons = new HashMap<>(64);
 	private final static String[] iconPackages = new String[] {
 			"com/microproject/pm/graphic/images/"
 			,"com/microproject/pm/graphic/images/big/"

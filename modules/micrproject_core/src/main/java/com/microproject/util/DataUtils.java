@@ -28,9 +28,7 @@ import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.Iterator;
 
-import org.apache.commons.collections.Transformer;
 
-import com.microproject.functor.StringList;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.TypedNodeIterator;
 import com.microproject.pm.assignment.Assignment;
@@ -103,17 +101,14 @@ public class DataUtils {
 	}
 
 	public static String stringList(Collection<?> collection) {
-		return StringList.list(collection, new Transformer() {
-			public Object transform(Object arg0) {
-				return ""+ ((HasKey)arg0).getId();
-			}});		
+		return collection.stream().map(value -> "" + ((HasKey) value).getId())
+				.collect(java.util.stream.Collectors.joining(com.microproject.configuration.Settings.LIST_SEPARATOR));
 	}
 
 	public static String stringListWithMaxAndMessage(Collection<?> collection, int maxInList, String message) {
-		return StringList.listWithMaxAndMessage(collection, maxInList,message, new Transformer() {
-			public Object transform(Object arg0) {
-				return ""+ ((HasKey)arg0).getId();
-			}});		
+		if (collection.size() > maxInList)
+			return java.text.MessageFormat.format(message, Integer.valueOf(collection.size()));
+		return stringList(collection);
 	}
 
 }

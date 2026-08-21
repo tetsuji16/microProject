@@ -31,8 +31,8 @@ import java.util.logging.Logger;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.field.Field;
-import com.microproject.functor.IntervalConsumer;
-import com.microproject.functor.ScheduleIntervalGenerator;
+import com.microproject.pm.scheduling.IntervalConsumer;
+import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.scheduling.ScheduleInterval;
@@ -69,4 +69,3 @@ public class GanttBarSingleIntervalGenerator implements ScheduleIntervalGenerato
 	}
 
 }
-

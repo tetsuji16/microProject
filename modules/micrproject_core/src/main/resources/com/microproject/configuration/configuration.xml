@@ -592,6 +592,7 @@
 				<select name="resourceType">
 					<option key="ResourceType.Material" value="0" />
 					<option key="ResourceType.Work" value="1" />
+					<option key="ResourceType.Cost" value="5" />
 					<!--				<option key="ResourceType.Location"  value="2"/>
 						<option key="ResourceType.Machine"  value="3"/>
 						<option key="ResourceType.Other"  value="4"/>

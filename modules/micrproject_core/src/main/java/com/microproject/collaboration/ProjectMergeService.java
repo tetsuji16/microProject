@@ -161,11 +161,23 @@ public class ProjectMergeService {
 			if (fileName.toLowerCase(Locale.ROOT).endsWith(".pod")) {
 				return loadPodProject(fileName);
 			}
+			if (fileName.toLowerCase(Locale.ROOT).endsWith(".podx")) {
+				return loadPodxProject(fileName);
+			}
 			try (InputStream in = new FileInputStream(fileName)) {
 				return loadMicrosoftProject(fileName, in);
 			}
 		} catch (Exception e) {
 			return null;
+		}
+	}
+
+	private Project loadPodxProject(String fileName) throws Exception {
+		FileImporter importer = LocalSession.getImporter(LocalSession.PODX_PROJECT_IMPORTER);
+		importer.setFileName(fileName);
+		importer.setProjectFactory(ProjectFactory.getInstance());
+		try (InputStream in = new FileInputStream(fileName)) {
+			return importer.loadProject(in);
 		}
 	}
 
