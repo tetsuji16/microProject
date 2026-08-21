@@ -110,6 +110,8 @@ class CriticalChainServiceTest {
 		CriticalChainService.Analysis analysis = new CriticalChainService().preview(fixture.project, List.of(fixture.resource));
 		long elapsedMillis = (System.nanoTime() - started) / 1_000_000L;
 		assertEquals(1000, analysis.criticalTaskIds().size());
+		assertTrue(analysis.resourcePredecessors().values().stream().mapToInt(List::size).sum() <= 1000,
+			"resource constraint edges must remain linear for fully overlapping assignments");
 		assertTrue(elapsedMillis < 10_000L, "large shared-resource preview took " + elapsedMillis + " ms");
 	}
 
