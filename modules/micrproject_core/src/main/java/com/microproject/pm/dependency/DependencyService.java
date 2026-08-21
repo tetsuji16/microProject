@@ -209,7 +209,7 @@ public class DependencyService {
 	 * @throws InvalidAssociationException
 	 */
 	public void connect(List tasks, Object eventSource, Predicate canBeSuccessorCondition) throws InvalidAssociationException {
-		ArrayList newDependencies = new ArrayList();
+		ArrayList newDependencies = new ArrayList(Math.max(0, tasks.size() - 1));
 		ArrayList connectableTasks = new ArrayList(tasks.size());
 		for (Object task : tasks) {
 			if (task instanceof HasDependencies && !ClassUtils.isObjectReadOnly(task)) {
