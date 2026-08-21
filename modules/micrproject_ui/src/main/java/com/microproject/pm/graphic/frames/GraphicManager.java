@@ -2247,13 +2247,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive())
 				return;
-			for (Node node : getCurrentFrame().getSelectedTaskNodes(true, true)) {
-				Task task = (Task) node.getImpl();
-				if (!task.isHiddenTask()) {
-					task.setHiddenTask(true);
-					getCurrentFrame().getProject().fireUpdateEvent(this, task);
-				}
-			}
+			DocumentFrame frame = getCurrentFrame();
+			TaskVisibilityService.hideSelected(frame.getProject(), frame.getSelectedTaskNodes(true, true),
+					frame.getUndoController());
 		}
 		protected boolean allowed(boolean enable) {
 			return !enable || isDocumentWritable();
@@ -2265,14 +2261,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive())
 				return;
-			Project project = getCurrentFrame().getProject();
-			for (Iterator<Task> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-				Task task = iterator.next();
-				if (task.isHiddenTask()) {
-					task.setHiddenTask(false);
-					project.fireUpdateEvent(this, task);
-				}
-			}
+			DocumentFrame frame = getCurrentFrame();
+			TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
 		}
 		protected boolean allowed(boolean enable) {
 			return !enable || isDocumentWritable();

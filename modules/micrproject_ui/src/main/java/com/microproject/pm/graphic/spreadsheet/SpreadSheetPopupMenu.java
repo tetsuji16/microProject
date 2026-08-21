@@ -36,6 +36,7 @@ import javax.swing.JPopupMenu;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.pm.graphic.IconManager;
+import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.Environment;
 
@@ -66,6 +67,8 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 						spreadSheet.doDoubleClick(row, col);
 					}
 				}, Environment.isNewLook() ? "menu24.taskInformation" : "menu.taskInformation");
+				addGraphicManagerAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS, "menu.filter");
+				addGraphicManagerAction(MenuActionConstants.ACTION_SHOW_ALL_TASKS, "menu.filter");
 				if (actions != null && actions.length > 0) {
 					addSeparator();
 				}
@@ -83,7 +86,17 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 			}
 		}
 	    
-    private Map<String, String> menuActionMap = null;
+	private Map<String, String> menuActionMap = null;
+	private void addGraphicManagerAction(String actionId, String iconName) {
+		GraphicManager manager = GraphicManager.getInstance(spreadSheet);
+		if (manager == null)
+			return;
+		try {
+			add(manager.getAction(actionId), iconName);
+		} catch (com.microproject.menu.resource.MissingListenerException ignored) {
+			// A spreadsheet can be constructed outside a document frame in tests.
+		}
+	}
 	    protected String getMenuAction(String action){
 	    	if (menuActionMap==null){
                 menuActionMap = new HashMap<>();
@@ -153,4 +166,3 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 			return spreadSheet;
 		}
 }
-
