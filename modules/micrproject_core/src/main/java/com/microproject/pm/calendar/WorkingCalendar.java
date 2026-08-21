@@ -577,7 +577,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		this.fixedId = fixedId;
 	}
 	public static ArrayList extractCalendars(Collection collection) {
-		ArrayList list = new ArrayList();
+		ArrayList list = new ArrayList(collection.size());
 		Iterator i = collection.iterator();
 		WorkingCalendar cal;
 		while (i.hasNext()) {
