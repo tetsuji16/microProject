@@ -25,11 +25,17 @@
 package com.microproject.dialog;
 
 import java.awt.Component;
+import java.awt.FlowLayout;
 import java.awt.Frame;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
@@ -56,6 +62,7 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.association.AssociationList;
+import com.microproject.association.InvalidAssociationException;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
@@ -64,11 +71,14 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentEntry;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyNodeModelDataFactory;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.key.HasId;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.strings.Messages;
+import com.microproject.util.Alert;
 import com.microproject.util.FlatUiSupport;
 /**
  *
@@ -347,17 +357,18 @@ public class TaskInformationDialog extends InformationDialog {
 	
 	public JComponent createPredecessorsPanel() {
 		FieldComponentMap map = createMap();		
-		FormLayout layout = new FormLayout("p:grow","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		FormLayout layout = new FormLayout("p:grow,3dlu,right:p","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
 		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
-				.getRow(), 1));
+			.getRow(), 3));
 		builder.nextLine(2);
-		builder.append(Messages.format("Format.label", Messages.getString("Spreadsheet.Dependency.predecessors"))); //$NON-NLS-1$
+		builder.append(Messages.format("Format.label", Messages.getString("Spreadsheet.Dependency.predecessors")),
+				getDependencyButtons(true)); //$NON-NLS-1$
 		builder.nextLine(2);
-		builder.add(createPredecessorsSpreadsheet());
+		builder.add(createPredecessorsSpreadsheet(),cc.xyw(builder.getColumn(), builder.getRow(), 3));
 		JComponent pred = builder.getPanel();
 		HelpUtil.addDocHelp(pred,"Linking");
 		return pred;	
@@ -400,6 +411,8 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 	
 	protected SpreadSheet predecessorsSpreadSheet;
+	private JButton newPredecessorsButton;
+	private JButton removePredecessorsButton;
  	public static final String DEPENDENCY_SPREADSHEET=SpreadSheetCategories.dependencySpreadsheetCategory;
     protected JScrollPane createPredecessorsSpreadsheet() {
     	final TaskInformationDialog self = this;
@@ -419,7 +432,8 @@ public class TaskInformationDialog extends InformationDialog {
 				, 0
 //				,false
 //				,true
-				);
+			);
+		installRemoveDependencyButtonState(predecessorsSpreadSheet, true);
 	    return SpreadSheetUtils.makeSpreadsheetScrollPane(predecessorsSpreadSheet);
 
     }
@@ -433,23 +447,26 @@ public class TaskInformationDialog extends InformationDialog {
 
 	public JComponent createSuccessorsPanel() {
 		FieldComponentMap map = createMap();		
-		FormLayout layout = new FormLayout("p:grow","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		FormLayout layout = new FormLayout("p:grow,3dlu,right:p","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
 		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
-				.getRow(), 1));
+			.getRow(), 3));
 		builder.nextLine(2);
-		builder.append(Messages.format("Format.label", Messages.getString("Spreadsheet.Dependency.successors"))); //$NON-NLS-1$
+		builder.append(Messages.format("Format.label", Messages.getString("Spreadsheet.Dependency.successors")),
+				getDependencyButtons(false)); //$NON-NLS-1$
 		builder.nextLine(2);
-		builder.add(createSuccessorsSpreadsheet());
+		builder.add(createSuccessorsSpreadsheet(),cc.xyw(builder.getColumn(), builder.getRow(), 3));
 		JComponent succ = builder.getPanel();
 		HelpUtil.addDocHelp(succ,"Linking");
 		return succ;	
 	}
 	
 	protected SpreadSheet successorsSpreadSheet;
+	private JButton newSuccessorsButton;
+	private JButton removeSuccessorsButton;
     protected JScrollPane createSuccessorsSpreadsheet() {
         successorsSpreadSheet = new DependencySpreadSheet(this,false);
 		successorsSpreadSheet.setSpreadSheetCategory(DEPENDENCY_SPREADSHEET);
@@ -468,11 +485,121 @@ public class TaskInformationDialog extends InformationDialog {
 				, 0
 //				,false
 //				,true
-				);
+			);
+		installRemoveDependencyButtonState(successorsSpreadSheet, false);
 
 	    return SpreadSheetUtils.makeSpreadsheetScrollPane(successorsSpreadSheet);
 
     }
+
+	private JComponent getDependencyButtons(boolean predecessors) {
+		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 3, 0));
+		buttons.setOpaque(false);
+		buttons.add(getNewDependencyButton(predecessors));
+		buttons.add(getRemoveDependencyButton(predecessors));
+		return buttons;
+	}
+
+	private JButton getNewDependencyButton(boolean predecessors) {
+		JButton button = new JButton(Messages.getString("Spreadsheet.Action.new")); //$NON-NLS-1$
+		button.setName(predecessors ? "newPredecessorLink" : "newSuccessorLink"); //$NON-NLS-1$ //$NON-NLS-2$
+		button.addActionListener(event -> addDependency(predecessors));
+		if (predecessors)
+			newPredecessorsButton = button;
+		else
+			newSuccessorsButton = button;
+		return button;
+	}
+
+	private JButton getRemoveDependencyButton(boolean predecessors) {
+		JButton button = new JButton(Messages.getString("Text.Remove")); //$NON-NLS-1$
+		button.setName(predecessors ? "removePredecessorLink" : "removeSuccessorLink"); //$NON-NLS-1$ //$NON-NLS-2$
+		button.setEnabled(false);
+		button.addActionListener(event -> removeSelectedDependencies(predecessors));
+		if (predecessors)
+			removePredecessorsButton = button;
+		else
+			removeSuccessorsButton = button;
+		return button;
+	}
+
+	private void addDependency(boolean predecessors) {
+		Task task = (Task) getObject();
+		if (task == null || task.isReadOnly())
+			return;
+		List<Task> candidates = getLinkableTasks(task, predecessors);
+		if (candidates.isEmpty())
+			return;
+		Task selected = (Task) JOptionPane.showInputDialog(this,
+				Messages.getString(predecessors ? "TaskInformationDialog.Predecessors" : "TaskInformationDialog.Successors"), //$NON-NLS-1$ //$NON-NLS-2$
+				Messages.getString("Text.TaskDependency"), JOptionPane.PLAIN_MESSAGE, null,
+				candidates.toArray(), candidates.get(0)); //$NON-NLS-1$
+		if (selected == null)
+			return;
+		try {
+			createDependency(task, selected, predecessors, this);
+			updateAll();
+		} catch (InvalidAssociationException e) {
+			Alert.warn(e.getMessage(), this);
+		}
+	}
+
+	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors, Object eventSource)
+			throws InvalidAssociationException {
+		return DependencyService.getInstance().newDependency(
+				predecessors ? selectedTask : task,
+				predecessors ? task : selectedTask,
+				DependencyType.Kind.FS.code(), 0, eventSource);
+	}
+
+	private List<Task> getLinkableTasks(Task task, boolean predecessors) {
+		List<Task> candidates = new ArrayList<>();
+		for (Task candidate : task.getProject().getTaskList()) {
+			if (candidate != task && !candidate.isReadOnly() && !candidate.isExternal()
+					&& !isAlreadyLinked(task, candidate, predecessors))
+				candidates.add(candidate);
+		}
+		return candidates;
+	}
+
+	private boolean isAlreadyLinked(Task task, Task candidate, boolean predecessors) {
+		return predecessors
+				? task.getPredecessorList().findLeft(candidate) != null
+				: task.getSuccessorList().findRight(candidate) != null;
+	}
+
+	private void removeSelectedDependencies(boolean predecessors) {
+		SpreadSheet spreadsheet = predecessors ? predecessorsSpreadSheet : successorsSpreadSheet;
+		if (spreadsheet == null || spreadsheet.getSelectedRowCount() == 0)
+			return;
+		// Use the existing Delete action so multi-selection, confirmation,
+		// collaboration locks, and undo behave identically to the Delete key.
+		spreadsheet.executeAction(MenuActionConstants.ACTION_DELETE);
+		updateAll();
+	}
+
+	private void updateRemoveDependencyButton(boolean predecessors) {
+		SpreadSheet spreadsheet = predecessors ? predecessorsSpreadSheet : successorsSpreadSheet;
+		JButton button = predecessors ? removePredecessorsButton : removeSuccessorsButton;
+		Task task = (Task) getObject();
+		if (button != null)
+			button.setEnabled(spreadsheet != null && spreadsheet.getSelectedRowCount() > 0
+					&& task != null && !task.isReadOnly());
+	}
+
+	private void updateNewDependencyButton(boolean predecessors) {
+		JButton button = predecessors ? newPredecessorsButton : newSuccessorsButton;
+		Task task = (Task) getObject();
+		if (button != null)
+			button.setEnabled(task != null && !task.isReadOnly() && !getLinkableTasks(task, predecessors).isEmpty());
+	}
+
+	private void installRemoveDependencyButtonState(SpreadSheet spreadsheet, boolean predecessors) {
+		spreadsheet.getSelectionModel().addListSelectionListener(event -> {
+			if (!event.getValueIsAdjusting())
+				updateRemoveDependencyButton(predecessors);
+		});
+	}
     //cache reconstructed because the main cache holding edges isn't ordered
     protected void updateSuccessorsSpreadsheet() {
     	SpreadSheetUtils.updateCollectionSpreadSheet(successorsSpreadSheet
@@ -535,6 +662,10 @@ public class TaskInformationDialog extends InformationDialog {
 			updatePredecessorsSpreadsheet();
 		if (successorsSpreadSheet != null)
 			updateSuccessorsSpreadsheet();
+		updateRemoveDependencyButton(true);
+		updateRemoveDependencyButton(false);
+		updateNewDependencyButton(true);
+		updateNewDependencyButton(false);
 		if (assignmentSpreadSheet != null)
 			updateAssignmentSpreadsheet();
 	}
