@@ -35,6 +35,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JViewport;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -583,14 +584,18 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	 */
 	private void installSpreadsheetSelectionListener() {
 		if (spreadsheetSelectionListener == null && spreadSheet != null) {
-			spreadsheetSelectionListener = e -> {
-				if (e.getValueIsAdjusting()) {
-					return;
-				}
-				updateGanttHighlightedRows();
-			};
+			spreadsheetSelectionListener = createGanttSelectionListener(gantt, spreadSheet);
 			spreadSheet.getSelectionModel().addListSelectionListener(spreadsheetSelectionListener);
 		}
+	}
+
+	/**
+	 * Creates the task-table selection bridge for the Gantt. JTable sends
+	 * adjusting events while the user drags across rows; they must update the
+	 * Gantt immediately so both panes match Microsoft Project's live selection.
+	 */
+	static ListSelectionListener createGanttSelectionListener(Gantt gantt, JTable table) {
+		return event -> syncGanttHighlightedRows(gantt, table == null ? null : table.getSelectedRows());
 	}
 
 	private void removeSpreadsheetSelectionListener() {
@@ -602,10 +607,13 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 
 	private void updateGanttHighlightedRows() {
-		if (gantt == null || spreadSheet == null) {
+		syncGanttHighlightedRows(gantt, spreadSheet == null ? null : spreadSheet.getSelectedRows());
+	}
+
+	private static void syncGanttHighlightedRows(Gantt gantt, int[] rows) {
+		if (gantt == null) {
 			return;
 		}
-		int[] rows = spreadSheet.getSelectedRows();
 		if (rows == null || rows.length == 0) {
 			gantt.setHighlightedRows(Collections.emptySet());
 			return;

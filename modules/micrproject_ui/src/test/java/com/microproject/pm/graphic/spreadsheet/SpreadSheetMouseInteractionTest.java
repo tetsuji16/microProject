@@ -158,6 +158,25 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void ctrlClickingTaskIdsSelectsNonadjacentWholeRows() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int firstRow = findRow(sheet, fixture.firstTask());
+			int secondRow = findRow(sheet, fixture.secondTask());
+			SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
+
+			fireProjectLibreRowHeaderPress(rowHeader, firstRow, 1);
+			fireProjectLibreRowHeaderPress(rowHeader, secondRow, 1, true);
+
+			assertEquals(2, sheet.getSelectedRowCount());
+			assertEquals(sheet.getColumnCount(), sheet.getSelectedColumnCount());
+			assertTrue(sheet.getSelectionModel().isSelectedIndex(firstRow));
+			assertTrue(sheet.getSelectionModel().isSelectedIndex(secondRow));
+		});
+	}
+
+	@Test
 	void rowHeaderDoubleClickOpensInformationForThatTask() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
@@ -436,11 +455,15 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	private MouseEvent rowHeaderMousePress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
+		return rowHeaderMousePress(rowHeader, row, clickCount, false);
+	}
+
+	private MouseEvent rowHeaderMousePress(SpreadSheetRowHeader rowHeader, int row, int clickCount, boolean controlDown) {
 		Rectangle bounds = rowHeader.getCellRect(row, 0, true);
 		return new MouseEvent(rowHeader,
 			MouseEvent.MOUSE_PRESSED,
 			System.currentTimeMillis(),
-			MouseEvent.BUTTON1_DOWN_MASK,
+			MouseEvent.BUTTON1_DOWN_MASK | (controlDown ? MouseEvent.CTRL_DOWN_MASK : 0),
 			bounds.x + Math.max(1, bounds.width / 2),
 			bounds.y + Math.max(1, bounds.height / 2),
 			clickCount,
@@ -449,8 +472,12 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	private void fireProjectLibreRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
+		fireProjectLibreRowHeaderPress(rowHeader, row, clickCount, false);
+	}
+
+	private void fireProjectLibreRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount, boolean controlDown) {
 		rowHeader.setUI(null);
-		rowHeader.dispatchEvent(rowHeaderMousePress(rowHeader,row,clickCount));
+		rowHeader.dispatchEvent(rowHeaderMousePress(rowHeader,row,clickCount,controlDown));
 	}
 
 	private void fireProjectLibreRowHeaderDrag(SpreadSheetRowHeader rowHeader, int sourceRow, int targetRow, boolean after) {
