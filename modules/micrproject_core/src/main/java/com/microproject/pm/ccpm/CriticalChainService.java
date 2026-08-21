@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
-import java.util.LinkedHashSet;
 
 import com.microproject.datatype.Duration;
 import com.microproject.pm.dependency.Dependency;
@@ -265,15 +264,20 @@ public final class CriticalChainService {
 			List<Assignment> assignments = new ArrayList<>(resource.getAssignments().size());
 			for (Object value : resource.getAssignments()) { Assignment assignment = (Assignment) value; if (assignment.getTask() != null && !assignment.getTask().isSummary() && !assignment.isDefault()) assignments.add(assignment); }
 			assignments.sort(java.util.Comparator.<Assignment>comparingLong(value -> originalStart(value.getTask(), changes)).thenComparingLong(value -> value.getTask().getUniqueId()));
-			// Keep active assignments in insertion order for deterministic edge
-			// output, while an end-time heap removes expired intervals without
-			// rescanning the whole active set on every task.
-			LinkedHashSet<Assignment> active = new LinkedHashSet<>(Math.max(4, assignments.size() * 4 / 3 + 1));
+			// Sweep the intervals by start time.  The latest active assignment is
+			// the direct resource predecessor for the current task; retaining every
+			// overlapping interval would produce a quadratic edge set for a shared
+			// resource whose assignments all overlap.
+			java.util.Set<Assignment> active = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Assignment, Boolean>());
 			PriorityQueue<Assignment> byEnd = new PriorityQueue<>((left, right) -> {
 				long leftEnd = originalStart(left.getTask(), changes) + Math.max(0L, left.getEnd() - left.getStart());
 				long rightEnd = originalStart(right.getTask(), changes) + Math.max(0L, right.getEnd() - right.getStart());
 				int compared = Long.compare(leftEnd, rightEnd);
 				return compared != 0 ? compared : Long.compare(left.getTask().getUniqueId(), right.getTask().getUniqueId());
+			});
+			PriorityQueue<Assignment> byStartDescending = new PriorityQueue<>((left, right) -> {
+				int compared = Long.compare(originalStart(right.getTask(), changes), originalStart(left.getTask(), changes));
+				return compared != 0 ? compared : Long.compare(right.getTask().getUniqueId(), left.getTask().getUniqueId());
 			});
 			for (Assignment current : assignments) {
 				Task currentTask = current.getTask(); long currentStart = originalStart(currentTask, changes);
@@ -290,17 +294,20 @@ public final class CriticalChainService {
 					byEnd.poll();
 					active.remove(previous);
 				}
-				for (Assignment previous : active) {
+				while (!byStartDescending.isEmpty() && !active.contains(byStartDescending.peek())) byStartDescending.poll();
+				Assignment previous = byStartDescending.peek();
+				if (previous != null) {
 					Task previousTask = previous.getTask();
 					long previousStart = originalStart(previousTask, changes);
 					long previousEnd = previousStart + Math.max(0L, previous.getEnd() - previous.getStart());
 					if (previousTask != currentTask && previousStart < currentEnd && currentStart < previousEnd) {
-						result.computeIfAbsent(Long.valueOf(currentTask.getUniqueId()), ignored -> new ArrayList<>(2)).add(Long.valueOf(previousTask.getUniqueId()));
+						result.computeIfAbsent(Long.valueOf(currentTask.getUniqueId()), ignored -> new ArrayList<>(1)).add(Long.valueOf(previousTask.getUniqueId()));
 						criticalSet.add(currentTask); criticalSet.add(previousTask);
 					}
 				}
 				active.add(current);
 				byEnd.add(current);
+				byStartDescending.add(current);
 			}
 		}
 		for (Map.Entry<Long,List<Long>> entry : result.entrySet()) entry.setValue(List.copyOf(entry.getValue()));
