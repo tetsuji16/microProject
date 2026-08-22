@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -192,7 +193,7 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
-	void draggingSelectedTaskIdMovesTheTaskWithoutChangingItsUniqueId() throws Exception {
+	void rowHeaderDragSelectsARangeOfRowsAndDoesNotMoveTasks() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
@@ -200,47 +201,54 @@ class SpreadSheetMouseInteractionTest {
 			int firstRow = findRow(sheet, fixture.firstTask());
 			int secondRow = findRow(sheet, fixture.secondTask());
 			long uniqueId = fixture.firstTask().getUniqueId();
-			AtomicInteger tableUpdates=new AtomicInteger();
-			sheet.getModel().addTableModelListener(event -> tableUpdates.incrementAndGet());
 
-			dispatchProjectLibreRowHeaderDrag(rowHeader,firstRow,secondRow,true,false);
-			assertTrue(rowHeader.isTaskMoveDropValid());
-			assertEquals(secondRow,rowHeader.getTaskMoveDropRow());
-			dispatchRowHeaderRelease(rowHeader,secondRow,true);
+			// Press and drag through the row header (ID column) without releasing,
+			// exactly like a user selecting a range of rows.
+			dispatchProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, true, false);
 
-			Node firstNode = sheet.getCache().getModel().search(fixture.firstTask());
-			Node secondNode = sheet.getCache().getModel().search(fixture.secondTask());
-			Node parent = (Node)firstNode.getParent();
-			assertTrue(parent.getIndex(secondNode) < parent.getIndex(firstNode));
+			// The selection must already span the dragged range so the Gantt chart
+			// row highlight follows the drag live (issue #179).
+			int[] selected = sheet.getSelectedRows();
+			Arrays.sort(selected);
+			assertEquals(Arrays.toString(new int[] { firstRow, secondRow }),
+					Arrays.toString(selected),
+					"dragging the row header must select the full range immediately");
+			assertEquals(sheet.getColumnCount(), sheet.getSelectedColumnCount(),
+					"row-header drag selects whole rows");
+
+			dispatchRowHeaderRelease(rowHeader, secondRow, true);
+
+			// Selecting by dragging must never reorder tasks or change unique ids.
 			assertEquals(uniqueId, fixture.firstTask().getUniqueId());
-			assertTrue(sheet.isRowFullySelected(findRow(sheet, fixture.firstTask())));
-			assertTrue(findRow(sheet,fixture.secondTask()) < findRow(sheet,fixture.firstTask()));
-			assertTrue(tableUpdates.get()>0,"A task move must notify the visible table model");
+			assertEquals(firstRow, findRow(sheet, fixture.firstTask()));
+			assertEquals(secondRow, findRow(sheet, fixture.secondTask()));
 		});
 	}
 
 	@Test
-	void taskIdDragCannotChangeTheTaskOutlineLevel() throws Exception {
+	void rowHeaderDragDoesNotRelocateTasksOrChangeOutlineLevel() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
 			Node firstNode = sheet.getCache().getModel().search(fixture.firstTask());
 			Node secondNode = sheet.getCache().getModel().search(fixture.secondTask());
 			assertTrue(sheet.getCache().getModel().relocate(Collections.singletonList(secondNode), firstNode, 0,
-				com.microproject.grouping.core.model.NodeModel.NORMAL));
+					com.microproject.grouping.core.model.NodeModel.NORMAL));
 			sheet.getCache().update();
-			int firstRow=findRow(sheet,fixture.firstTask());
-			int secondRow=findRow(sheet,fixture.secondTask());
-			SpreadSheetRowHeader rowHeader=sheet.getRowHeader();
-			dispatchProjectLibreRowHeaderDrag(rowHeader,firstRow,secondRow,false,false);
-			assertFalse(rowHeader.isTaskMoveDropValid());
-			assertEquals(-1,rowHeader.getTaskMoveDropRow());
-			dispatchRowHeaderRelease(rowHeader,secondRow,false);
+			int firstRow = findRow(sheet, fixture.firstTask());
+			int secondRow = findRow(sheet, fixture.secondTask());
+			SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
 
-			assertFalse(sheet.getCache().relocateNodes(
-				Collections.singletonList(sheet.getCache().getGraphicNode(firstNode)), secondNode, false));
-			assertTrue(((Node)firstNode.getParent()).isRoot());
+			// Drag the row header across rows: this is a selection gesture, so it
+			// must not relocate tasks or change the outline level (issue #179).
+			// Previously the same gesture attempted a move and could change the
+			// outline level, and beeped on an invalid drop.
+			dispatchProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, false, false);
+			dispatchRowHeaderRelease(rowHeader, secondRow, false);
+
+			assertTrue(((Node) firstNode.getParent()).isRoot());
 			assertEquals(0, fixture.firstTask().getOutlineLevel());
+			assertEquals(2, sheet.getSelectedRowCount());
 		});
 	}
 
