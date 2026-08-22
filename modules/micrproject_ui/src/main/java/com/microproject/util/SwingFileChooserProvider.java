@@ -41,14 +41,30 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	private static final String DEFAULT_FILE_EXTENSION = FileHelper.DEFAULT_FILE_EXTENSION;
 	private static final String LEGACY_POD_FILE_EXTENSION = FileHelper.POD_FILE_EXTENSION;
 	/**
-	 * Native Windows file dialogs do not provide a reliable application-level
-	 * Escape cancellation path. Use the Swing fallback so that Escape always
-	 * invokes JFileChooser's cancel action for open and save dialogs.
+	 * Native (OS) file dialogs are enabled by default. Users can still force
+	 * the Swing fallback via -Dflatlaf.useSystemFileChooser=false, e.g. when
+	 * running on a platform without FlatLaf native library support.
 	 */
 	static final String USE_SYSTEM_FILE_CHOOSER_PROPERTY = "flatlaf.useSystemFileChooser";
 
 	static {
-		System.setProperty(USE_SYSTEM_FILE_CHOOSER_PROPERTY, Boolean.FALSE.toString());
+		SystemFileChooser.setStateStore(new SystemFileChooser.StateStore() {
+			private static final String KEY_PREFIX = "fileChooser.";
+			private final java.util.prefs.Preferences state = Preferences.userNodeForPackage(SwingFileChooserProvider.class);
+
+			@Override
+			public String get(String key, String def) {
+				return state.get(KEY_PREFIX + key, def);
+			}
+
+			@Override
+			public void put(String key, String value) {
+				if (value != null)
+					state.put(KEY_PREFIX + key, value);
+				else
+					state.remove(KEY_PREFIX + key);
+			}
+		});
 	}
 
 	private SystemFileChooser fileChooser;

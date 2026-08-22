@@ -1588,7 +1588,7 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	boolean isEditingResourcePool() {
-		return (project.isMaster()&&!project.isLocal());
+		return project != null && project.isMaster()&&!project.isLocal();
 
 	}
 	public void doFind(Searchable searchable, Field field) {

@@ -38,9 +38,11 @@ import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
 
 class SwingFileChooserProviderTest {
 	@Test
-	void fileDialogsUseTheSwingFallbackSoEscapeCancelsThem() {
+	void fileDialogsDefaultToNativeSystemDialogsUnlessDisabled() {
 		new SwingFileChooserProvider();
-		assertEquals("false", System.getProperty(SwingFileChooserProvider.USE_SYSTEM_FILE_CHOOSER_PROPERTY));
+		String override = System.getProperty(SwingFileChooserProvider.USE_SYSTEM_FILE_CHOOSER_PROPERTY);
+		assertTrue(override == null || Boolean.parseBoolean(override),
+				"the provider must not force the Swing fallback; native dialogs are the default");
 	}
 
 	@Test
