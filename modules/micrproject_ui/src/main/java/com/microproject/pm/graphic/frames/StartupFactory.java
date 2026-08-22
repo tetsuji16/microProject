@@ -47,6 +47,7 @@ import com.microproject.configuration.Settings;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.LoginDialog;
 import com.microproject.dialog.LoginForm;
+import com.microproject.dialog.UpdateChecker;
 import com.microproject.pm.graphic.laf.LafManagerImpl;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
@@ -200,6 +201,7 @@ public abstract class StartupFactory {
 			doStartupAction(gm,projectId,(projectUrls==null&&gm.getLastFileName()!=null)?new String[]{gm.getLastFileName()}:projectUrls,doWelcome,false);
 
 			doPostInitView(gm.getContainer());
+			UpdateChecker.checkInBackground(gm.getPreferences());
 			
 			
 			

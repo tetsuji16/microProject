@@ -107,4 +107,12 @@ public class GlobalPreferences {
 
 	private static int clampFontSize(int value) { return value <= 0 ? 0 : Math.max(8, Math.min(32, value)); }
 
+	/** Check GitHub Releases at startup for a newer version (#338 plan D). */
+	public boolean isCheckForUpdates() { return STORE.getBoolean("checkForUpdates", true); }
+	public void setCheckForUpdates(boolean value) {
+		if (isCheckForUpdates() == value) return;
+		STORE.putBoolean("checkForUpdates", value);
+		fireUpdateEvent(this, this);
+	}
+
 }

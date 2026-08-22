@@ -49,7 +49,6 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
@@ -233,9 +232,19 @@ public final class CustomReportDialogBox extends JDialog {
 	private static String safeNode(String name) { return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(name.trim().getBytes(StandardCharsets.UTF_8)); }
 
 	private void exportCsv() {
-		generate(); JFileChooser chooser = new JFileChooser(); chooser.setSelectedFile(new java.io.File("project-report.csv")); if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-		try (OutputStream out = Files.newOutputStream(chooser.getSelectedFile().toPath())) { writeReportCsv(previewModel, out); }
+		generate();
+		com.formdev.flatlaf.util.SystemFileChooser chooser = new com.formdev.flatlaf.util.SystemFileChooser();
+		chooser.setSelectedFile(new java.io.File("project-report.csv"));
+		chooser.setFileFilter(new com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter("CSV (*.csv)", "csv"));
+		if (chooser.showSaveDialog(this) != com.formdev.flatlaf.util.SystemFileChooser.APPROVE_OPTION) return;
+		java.io.File selected = ensureCsvExtension(chooser.getSelectedFile());
+		try (OutputStream out = Files.newOutputStream(selected.toPath())) { writeReportCsv(previewModel, out); }
 		catch (Exception error) { Alert.error(t("report.exportError") + " " + error.getMessage()); }
+	}
+
+	static java.io.File ensureCsvExtension(java.io.File file) {
+		String name = file.getName().toLowerCase(Locale.ROOT);
+		return name.endsWith(".csv") ? file : new java.io.File(file.getParentFile(), file.getName() + ".csv");
 	}
 
 	/**
