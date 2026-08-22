@@ -44,6 +44,9 @@ isolated-build/
 # Sisyphus session files
 .sisyphus/
 
+# Hermes autonomous-agent lock file (never commit)
+.hermes/
+
 # Agent scratch / temporary analysis files
 .freebuff/
 scripts/_tmpcheck/

@@ -103,7 +103,7 @@ subprojects {
         enabled = false
     }
 
-    if (name != "micrproject_contrib") {
+    if (name != "micrproject_contrib" && name != "micrproject_bootstrap") {
         projectLibreMavenDependencyAliases.forEach { alias ->
             dependencies.add("implementation", versionCatalog.findLibrary(alias).get())
         }
