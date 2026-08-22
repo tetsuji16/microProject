@@ -30,6 +30,7 @@ slf4j = "2.0.17"
 slf4j-simple = "2.0.17"
 logback = "1.5.18"
 log4j = "2.24.3"
+update4j = "1.5.9"
 
 [libraries]
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
@@ -68,6 +69,7 @@ poi = { module = "org.apache.poi:poi", version.ref = "poi" }
 poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "poi" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j-simple" }
+update4j = { module = "org.update4j:update4j", version.ref = "update4j" }
 
 [bundles]
 commons-legacy = [
