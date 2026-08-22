@@ -38,7 +38,6 @@ import com.microproject.core.fields.HasFields;
 public class AbstractNode implements Node, HasFields{
 	protected NodeId id;
 	protected Map<String, Object> fieldValues=new HashMap<String, Object>();
-	protected NodeContainer container;
 	
 	@Override
 	public NodeId getId() {
@@ -49,14 +48,6 @@ public class AbstractNode implements Node, HasFields{
 		this.id = id;
 	}
 	
-	@Override
-	public NodeContainer getContainer() {
-		return container;
-	}
-	@Override
-	public void setContainer(NodeContainer container) {
-		this.container = container;
-	}
 	@Override
 	public Object getPropertyValue(String property) {
 		return fieldValues.get("Field."+property);

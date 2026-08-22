@@ -41,11 +41,4 @@ public class DefaultNode implements Node{
 		this.id=id;
 	}
 
-	public void setContainer(NodeContainer container) {
-	}
-
-	public NodeContainer getContainer() {
-		return null;
-	}
-
 }

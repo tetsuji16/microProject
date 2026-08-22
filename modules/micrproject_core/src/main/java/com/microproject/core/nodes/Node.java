@@ -30,8 +30,4 @@ package com.microproject.core.nodes;
  */
 public interface Node extends HasId{
 
-	public abstract void setContainer(NodeContainer container);
-
-	public abstract NodeContainer getContainer();
-
 }
