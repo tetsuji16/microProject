@@ -2,7 +2,7 @@
  * MIT License
  * Copyright (c) 2026 microProject
  *******************************************************************************/
-package com.microproject.pm.graphic.network.link_routing;
+package com.microproject.pm.graphic.link_routing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

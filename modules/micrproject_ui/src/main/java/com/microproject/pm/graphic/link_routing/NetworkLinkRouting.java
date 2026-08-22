@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.pm.graphic.network.link_routing;
+package com.microproject.pm.graphic.link_routing;
 
 import java.awt.geom.GeneralPath;
 

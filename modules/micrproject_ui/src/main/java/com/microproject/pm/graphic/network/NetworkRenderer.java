@@ -46,7 +46,7 @@ import com.microproject.pm.graphic.graph.GraphRenderer;
 import com.microproject.pm.graphic.graph.LinkRouting;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
-import com.microproject.pm.graphic.network.link_routing.NetworkLinkRouting;
+import com.microproject.pm.graphic.link_routing.NetworkLinkRouting;
 import com.microproject.pm.graphic.network.rendering.NetworkCellEditor;
 import com.microproject.pm.graphic.network.rendering.NetworkCellRenderer;
 import com.microproject.graphic.configuration.BarFormat;

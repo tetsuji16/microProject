@@ -48,7 +48,7 @@ import javax.swing.undo.AbstractUndoableEdit;
 
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
-import com.microproject.pm.graphic.gantt.link_routing.DefaultGanttLinkRouting;
+import com.microproject.pm.graphic.link_routing.DefaultGanttLinkRouting;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.graph.Graph;

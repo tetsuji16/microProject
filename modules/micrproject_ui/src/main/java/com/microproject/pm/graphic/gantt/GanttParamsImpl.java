@@ -29,7 +29,7 @@ import java.awt.Font;
 import java.awt.Rectangle;
 import java.io.Serializable;
 
-import com.microproject.pm.graphic.gantt.link_routing.DefaultGanttLinkRouting;
+import com.microproject.pm.graphic.link_routing.DefaultGanttLinkRouting;
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.graph.LinkRouting;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;

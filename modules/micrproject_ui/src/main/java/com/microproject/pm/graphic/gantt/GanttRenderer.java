@@ -56,7 +56,7 @@ import java.util.logging.Logger;
 import javax.swing.JComponent;
 
 
-import com.microproject.pm.graphic.gantt.link_routing.GanttLinkRouting;
+import com.microproject.pm.graphic.link_routing.GanttLinkRouting;
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.TaskFontStyle;
 import com.microproject.pm.graphic.graph.GraphRenderer;

@@ -34,7 +34,7 @@ import com.microproject.pm.graphic.graph.LinkRouting;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.network.layout.NetworkLayout;
 import com.microproject.pm.graphic.network.layout.NetworkLayoutEvent;
-import com.microproject.pm.graphic.network.link_routing.DefaultNetworkLinkRouting;
+import com.microproject.pm.graphic.link_routing.DefaultNetworkLinkRouting;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 
