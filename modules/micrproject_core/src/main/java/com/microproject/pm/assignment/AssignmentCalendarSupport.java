@@ -24,6 +24,12 @@
  *******************************************************************************/
 package com.microproject.pm.assignment;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+
+import javax.swing.SwingUtilities;
+
 import com.microproject.pm.calendar.InvalidCalendarIntersectionException;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
@@ -59,10 +65,52 @@ final class AssignmentCalendarSupport {
 						.intersectWith((WorkingCalendar) resource.getEffectiveWorkCalendar()));
 			} catch (InvalidCalendarIntersectionException e) {
 				detail.setIntersectionCalendar(WorkingCalendar.INVALID_INTERSECTION_CALENDAR);
-				Alert.error(Messages.getString("Message.invalidIntersection"));
+				notifyInvalidIntersection(task);
 				return task.getEffectiveWorkCalendar();
 			}
 		}
 		return detail.getIntersectionCalendar();
+	}
+
+	/**
+	 * Per-session one-shot guard: a task is warned about an invalid calendar
+	 * intersection at most once. The alert used to be raised directly inside this
+	 * scheduling/render path; because the task keeps re-resolving on every recompute
+	 * ({@code invalidateAssignmentCalendar()} resets the intersection calendar to
+	 * null) and the modal dialog re-entered the same code on dismiss, the warning
+	 * re-appeared in an endless OK-loop that froze the UI (issue #346). The guard
+	 * breaks that loop, and the default notifier defers the modal to the EDT so it
+	 * never blocks or re-enters the scheduling pass that called {@link #resolve}.
+	 */
+	private static final Set<Task> warnedTasks = ConcurrentHashMap.newKeySet();
+
+	/**
+	 * Override seam for the actual notification. Production default raises a modal
+	 * alert on the EDT; tests replace it to observe/avoid the UI. Package-private
+	 * on purpose so the regression test in this package can drive it.
+	 */
+	static Consumer<Task> notifier = AssignmentCalendarSupport::showInvalidIntersectionAlert;
+
+	/** Clears the one-shot warning history. Package-private: used by tests. */
+	static void resetWarningHistory() {
+		warnedTasks.clear();
+	}
+
+	/** Restores the default notification behavior. Package-private: used by tests. */
+	static void resetNotifier() {
+		notifier = AssignmentCalendarSupport::showInvalidIntersectionAlert;
+	}
+
+	private static void notifyInvalidIntersection(Task task) {
+		if (warnedTasks.add(task)) {
+			notifier.accept(task);
+		}
+	}
+
+	private static void showInvalidIntersectionAlert(Task task) {
+		// Defer to the EDT so the modal dialog never blocks or re-enters the
+		// scheduling/render call stack that invoked resolve().
+		SwingUtilities.invokeLater(() ->
+			Alert.error(Messages.getString("Message.invalidIntersection")));
 	}
 }
