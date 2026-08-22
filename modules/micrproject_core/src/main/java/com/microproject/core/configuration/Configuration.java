@@ -45,7 +45,6 @@ import com.microproject.core.dictionary.Dictionary;
 import com.microproject.core.dictionary.DictionaryCategory;
 import com.microproject.core.dictionary.HasStringId;
 
-import com.microproject.core.fields.FieldManager;
 
 /**
  * Legacy JAXB configuration engine used only by the {@code core.fields}/
@@ -179,11 +178,6 @@ public class Configuration {
 
 	}
 	
-	protected FieldManager fieldManager=new FieldManager();
-
-	public FieldManager getFieldManager() {
-		return fieldManager;
-	}
 
 
 
