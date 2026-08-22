@@ -28,7 +28,6 @@ import java.awt.Cursor;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 
@@ -38,7 +37,6 @@ import javax.swing.JTable;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.table.DefaultTableColumnModel;
 
@@ -49,22 +47,25 @@ import java.awt.Dimension;
 import com.microproject.util.FlatUiSupport;
 
 /**
+ * Row header (ID column) of the task spreadsheet.
  *
+ * <p>Dragging through the row header selects a range of rows and keeps the
+ * Gantt chart's row highlight in sync live, matching Microsoft Project's
+ * behaviour (issue #179). Reordering tasks is performed from the Move Up/Down
+ * ribbon buttons and the keyboard shortcuts, not by dragging here, so a plain
+ * selection drag never triggers an accidental move or a system beep.
  */
 public class SpreadSheetRowHeader extends JTable {
 	protected CommonSpreadSheet table;
-	private int dropRow=-1;
-	private boolean dropAfter;
-	private boolean dropValid;
 	private boolean mouseHandlersInstalled;
-	//protected SpreadSheetPopupMenu popup=null;
+	//	protected SpreadSheetPopupMenu popup=null;
 	public SpreadSheetRowHeader(CommonSpreadSheet table) {
 		super();
 		setGridColor(FlatUiSupport.tableGridColor());
 		this.table=table;
 		if (table instanceof SpreadSheet){
 			final SpreadSheet spreadSheet=(SpreadSheet)table;
-			
+
 			getActionMap().put("cut",new AbstractAction(){
 				public void actionPerformed(java.awt.event.ActionEvent e) {
 					spreadSheet.setRowHeaderSelectionActive(true);
@@ -95,7 +96,7 @@ public class SpreadSheetRowHeader extends JTable {
 			inputMap.put(KeyStroke.getKeyStroke("ctrl V"), "paste");
 			inputMap.put(KeyStroke.getKeyStroke("shift ctrl V"), "insertClipboard");
 			spreadSheet.installTaskMoveBindings(this);
-			
+
 		}
 		setFont(FlatUiSupport.headerFont());
 		setForeground(FlatUiSupport.headerForeground());
@@ -105,10 +106,10 @@ public class SpreadSheetRowHeader extends JTable {
 		setShowVerticalLines(false);
 		setIntercellSpacing(new Dimension(0, 0));
 		setRowMargin(0);
-		
+
 	}
-	
-	protected SpreadSheetPopupMenu getPopup(){
+
+	public SpreadSheetPopupMenu getPopup(){
 //		if (popup==null){
 //			SpreadSheet spreadSheet=(SpreadSheet)table;
 //			popup = spreadSheet.hasRowPopup() ? new SpreadSheetPopupMenu(spreadSheet) : null;
@@ -119,122 +120,83 @@ public class SpreadSheetRowHeader extends JTable {
 //	public void clearPopup(){
 //		popup=null;
 //	}
-	
+
 	public void setModel(CommonSpreadSheetModel spreadSheetModel, DefaultTableColumnModel spreadSheetColumnModel) {
 	    setModel(spreadSheetModel);
 	    setColumnModel(spreadSheetColumnModel);
 	    if (table.getSelection() != null) {
 	    	setSelectionModel(table.getSelection().getRowSelection());
 	    }
-	    
+
 		setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		
+
 		if (table instanceof SpreadSheet){
 			final SpreadSheet spreadSheet=(SpreadSheet)table;
 			if (!mouseHandlersInstalled){
-			mouseHandlersInstalled=true;
-			MouseInputAdapter handler=new MouseInputAdapter() {
-				private Point pressPoint;
-				private boolean dragging;
-				private int autoScrollDirection;
-				private final Timer autoScrollTimer=new Timer(80,event -> autoScroll());
-			public void mousePressed(MouseEvent e) {
-				SpreadSheetPopupMenu popup=getPopup();
-				if (SwingUtilities.isLeftMouseButton(e)){
-					int row = rowAtPoint(e.getPoint());
-					if (row < 0) {
-						return;
-					}
-					boolean keepExisting=isRowSelected(row)&&getSelectedRowCount()>1&&!e.isControlDown()&&!e.isShiftDown();
-					selectRowForMove(row,e.isShiftDown(),e.isControlDown(),keepExisting);
-					pressPoint=e.getPoint();
-					dragging=false;
-					if (e.getClickCount()==2){
-						spreadSheet.doDoubleClick(row,0);
-//						Component comp=SpreadSheetRowHeader.this;
-//						while(!((comp=comp.getParent()) instanceof MainFrame));
-//						MainFrame mainFrame=(MainFrame)comp;
-//						mainFrame.doInformationDialog(false);
+				mouseHandlersInstalled=true;
+				MouseInputAdapter handler=new MouseInputAdapter() {
+					private Point pressPoint;
+					private int pressRow = -1;
+					private boolean dragging;
+					public void mousePressed(MouseEvent e) {
+						SpreadSheetPopupMenu popup=getPopup();
+						if (SwingUtilities.isLeftMouseButton(e)){
+							int row = rowAtPoint(e.getPoint());
+							if (row < 0) {
+								return;
+							}
+							boolean keepExisting=isRowSelected(row)&&getSelectedRowCount()>1&&!e.isControlDown()&&!e.isShiftDown();
+							selectRowForMove(row,e.isShiftDown(),e.isControlDown(),keepExisting);
+							pressRow=row;
+							pressPoint=e.getPoint();
+							dragging=false;
+							if (e.getClickCount()==2){
+								spreadSheet.doDoubleClick(row,0);
+//								Component comp=SpreadSheetRowHeader.this;
+//								while(!((comp=comp.getParent()) instanceof MainFrame));
+//								MainFrame mainFrame=(MainFrame)comp;
+//								mainFrame.doInformationDialog(false);
 //
+							}
+						}else if (popup!=null&&SwingUtilities.isRightMouseButton(e)){ //e.isPopupTrigger() can be used too
+							int row = rowAtPoint(e.getPoint());
+							table.selectRowAndAllColumns(row);
+							popup.setRow(row);
+							popup.setCol(0);
+							popup.show(SpreadSheetRowHeader.this,e.getX(),e.getY());
+						}
 					}
-				}else if (popup!=null&&SwingUtilities.isRightMouseButton(e)){ //e.isPopupTrigger() can be used too
-					int row = rowAtPoint(e.getPoint());
-					table.selectRowAndAllColumns(row);
-					popup.setRow(row);
-					popup.setCol(0);
-					popup.show(SpreadSheetRowHeader.this,e.getX(),e.getY());
-				}
-			}
-			public void mouseDragged(MouseEvent e) {
-				if (pressPoint==null||(e.getModifiersEx()&MouseEvent.BUTTON1_DOWN_MASK)==0) return;
-				if (!dragging&&pressPoint.distance(e.getPoint())<4.0d) return;
-				dragging=true;
-				updateAutoScroll(e.getPoint());
-				updateDropLocation(e.getPoint());
-			}
-			public void mouseReleased(MouseEvent e) {
-				if (dragging&&dropValid) spreadSheet.moveSelectedTaskRowsTo(dropRow,dropAfter);
-				else if (dragging) Toolkit.getDefaultToolkit().beep();
-				pressPoint=null;
-				dragging=false;
-				autoScrollDirection=0;
-				autoScrollTimer.stop();
-				dropRow=-1;
-				dropValid=false;
-				setCursor(Cursor.getDefaultCursor());
-				repaint();
-			}
-			private void updateDropLocation(Point point){
-				int row=rowAtPoint(point);
-				if (row<0){
-					if (getRowCount()==0) return;
-					row=point.y<0?0:getRowCount()-1;
-					dropAfter=point.y>=0;
-				}else{
-					java.awt.Rectangle bounds=getCellRect(row,0,true);
-					dropAfter=point.y>=bounds.y+bounds.height/2;
-				}
-				dropValid=spreadSheet.canMoveSelectedTaskRowsTo(row,dropAfter);
-				dropRow=dropValid?row:-1;
-				setCursor(dropValid?Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR):Cursor.getDefaultCursor());
-				repaint();
-			}
-			private void updateAutoScroll(Point point){
-				Rectangle visible=getVisibleRect();
-				int margin=Math.max(8,getRowHeight());
-				autoScrollDirection=point.y<visible.y+margin?-1:point.y>=visible.y+visible.height-margin?1:0;
-				if (autoScrollDirection==0) autoScrollTimer.stop();
-				else if (!autoScrollTimer.isRunning()) autoScrollTimer.start();
-			}
-			private void autoScroll(){
-				if (!dragging||autoScrollDirection==0||getRowCount()==0){
-					autoScrollTimer.stop();
-					return;
-				}
-				Rectangle visible=getVisibleRect();
-				int edgeY=autoScrollDirection<0?visible.y:visible.y+visible.height-1;
-				int edgeRow=rowAtPoint(new Point(0,edgeY));
-				if (edgeRow<0) edgeRow=autoScrollDirection<0?0:getRowCount()-1;
-				int nextRow=Math.max(0,Math.min(getRowCount()-1,edgeRow+autoScrollDirection));
-				scrollRectToVisible(getCellRect(nextRow,0,true));
-				visible=getVisibleRect();
-				int targetY=autoScrollDirection<0?visible.y+1:visible.y+visible.height-1;
-				updateDropLocation(new Point(0,targetY));
-			}
-			};
-			addMouseListener(handler);
-			addMouseMotionListener(handler);
+					public void mouseDragged(MouseEvent e) {
+						if (pressPoint==null||(e.getModifiersEx()&MouseEvent.BUTTON1_DOWN_MASK)==0) return;
+						if (!dragging&&pressPoint.distance(e.getPoint())<4.0d) return;
+						dragging=true;
+						// Microsoft Project selects a range of rows when the user
+						// drags through the row header (ID column). Extend the
+						// selection live so the Gantt chart's row highlight follows
+						// the drag immediately (issue #179). Task reordering is done
+						// from the Move Up/Down buttons and keyboard shortcuts, so a
+						// selection drag must never relocate tasks or beep.
+						int currentRow=rowAtPoint(e.getPoint());
+						if (currentRow>=0&&pressRow>=0){
+							int first=Math.min(pressRow,currentRow);
+							int last=Math.max(pressRow,currentRow);
+							getSelectionModel().setSelectionInterval(first,last);
+							if (getColumnCount()>0)
+								getColumnModel().getSelectionModel().setSelectionInterval(0,getColumnCount()-1);
+						}
+					}
+					public void mouseReleased(MouseEvent e) {
+						pressPoint=null;
+						pressRow=-1;
+						dragging=false;
+						repaint();
+					}
+				};
+				addMouseListener(handler);
+				addMouseMotionListener(handler);
 			}
 		}
 
-	}
-
-	public boolean isTaskMoveDropValid(){
-		return dropValid;
-	}
-
-	public int getTaskMoveDropRow(){
-		return dropRow;
 	}
 
 	private void selectRowForMove(int row,boolean extend,boolean toggle,boolean keepExisting){
@@ -253,16 +215,6 @@ public class SpreadSheetRowHeader extends JTable {
 			table.getColumnModel().getSelectionModel().setSelectionInterval(0,table.getColumnCount()-1);
 	}
 
-	@Override
-	protected void paintComponent(Graphics graphics){
-		super.paintComponent(graphics);
-		if (dropRow<0||dropRow>=getRowCount()) return;
-		java.awt.Rectangle bounds=getCellRect(dropRow,0,true);
-		int y=dropAfter?bounds.y+bounds.height-1:bounds.y;
-		graphics.setColor(getSelectionBackground().darker());
-		graphics.fillRect(0,y,getWidth(),2);
-	}
-	
 	public CommonSpreadSheet getSpreadSheet(){
 		return table;
 	}
@@ -279,4 +231,3 @@ public class SpreadSheetRowHeader extends JTable {
 		setRowMargin(0);
 	}
 }
-
