@@ -61,8 +61,16 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.version.outputs.release_version }}'
           New-Item -ItemType Directory -Path release-assets | Out-Null
-          Copy-Item "build/releases/v$version/msi/microProject-$version.msi" "release-assets/microProject-$version.msi"
-          Copy-Item "docs/downloads/microProject-$version-app-image.zip" "release-assets/microProject-$version-app-image.zip"
+          # Windows Installer normalizes the MSI version to its supported format,
+          # so its output filename may not retain the CI run-number suffix.
+          # Locate the package produced by this clean build, then publish it
+          # under the GitHub release version calculated above.
+          $msi = Get-ChildItem -Path build/releases -Recurse -File -Filter 'microProject-*.msi' | Select-Object -First 1
+          $zip = Get-ChildItem -Path docs/downloads -File -Filter 'microProject-*-app-image.zip' | Select-Object -First 1
+          if ($null -eq $msi) { throw 'The Windows MSI package was not produced.' }
+          if ($null -eq $zip) { throw 'The Windows app-image ZIP was not produced.' }
+          Copy-Item $msi.FullName "release-assets/microProject-$version.msi"
+          Copy-Item $zip.FullName "release-assets/microProject-$version-app-image.zip"
           Copy-Item "release-assets/microProject-$version.msi" "release-assets/microProject-latest.msi"
           Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
 
