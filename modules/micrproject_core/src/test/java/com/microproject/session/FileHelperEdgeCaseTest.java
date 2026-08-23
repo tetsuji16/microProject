@@ -25,11 +25,15 @@
 package com.microproject.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.Locale;
+
 import org.junit.jupiter.api.Test;
 
+import com.microproject.strings.Messages;
 
 class FileHelperEdgeCaseTest {
 	@Test
@@ -49,6 +53,13 @@ class FileHelperEdgeCaseTest {
 		assertTrue(FileHelper.isFileNameAllowed("plan.mpo", true));
 		assertEquals(FileHelper.MPO_FILE_TYPE, FileHelper.getFileType("plan.mpo"));
 		assertEquals("mpo", FileHelper.getFileExtension(FileHelper.MPO_FILE_TYPE));
+	}
+
+	@Test
+	void deprecatedFormatRecoveryGuidanceUsesMpoInsteadOfPod() {
+		String message = Messages.getString("Message.ImportOldFormatError").toLowerCase(Locale.ROOT);
+		assertTrue(message.contains("mpo"));
+		assertFalse(message.contains("pod format"));
 	}
 
 }

@@ -30,6 +30,32 @@ bug is still reproducible.
 | [#63](https://github.com/tetsuji16/ProjectLibre/issues/63) | Implementation reported; manual confirmation pending | Task font customization is present in the current preference/UI work according to the issue history. A focused persistence/rendering test and installed-app check are still required before calling it complete. |
 | [#45](https://github.com/tetsuji16/ProjectLibre/issues/45) | Implemented; manual confirmation pending | Keyboard/drag task movement, live insertion feedback, undo, and the drag-and-drop preference are covered by UI/core tests. |
 | [#36](https://github.com/tetsuji16/ProjectLibre/issues/36) | Partial | Resource assignment spreadsheet and ribbon command routing were fixed. Remaining audit items are resource-sheet bindings, usage-view time-phasing, resource information layout, and assignment-pane usability. |
+| New: legacy `.pod` conversion guidance conflicts with MPO default | Implemented locally | Deprecated-format recovery now recommends `xml or mpo`. Legacy `.pod` opening and explicit `.pod` Save As compatibility remain available. |
+
+## New issue: remove `.pod` as a recommended conversion target
+
+The application has `.mpo` as its default native file format, but legacy `.pod`
+paths remain user-visible:
+
+- `LocalFileImporter` displays `Message.ImportOldFormatError`, whose text tells
+  users to convert deprecated files to XML or POD.
+- The standalone open/save chooser exposes `ProjectLibre Open Project (*.pod)`.
+- Save As for an existing `.pod` keeps the `.pod` extension.
+
+The `.pod` reader should remain available for backward compatibility, but no
+new user-facing recovery or conversion guidance should recommend `.pod`.
+The deprecated-format message now recommends `.mpo` (and XML where
+appropriate). The explicit legacy `.pod` chooser filter and `.pod`-preserving
+Save As behavior remain as opt-in legacy compatibility.
+
+Acceptance criteria:
+
+1. Deprecated-format recovery guidance no longer recommends saving to `.pod`.
+2. New/unspecified native saves continue to default to `.mpo`.
+3. Existing `.pod` files remain openable and can still be explicitly preserved
+   or migrated according to the final compatibility policy.
+4. Tests cover the message/policy and the Save As behavior for both new `.mpo`
+   and existing `.pod` projects.
 
 ## Verification performed
 

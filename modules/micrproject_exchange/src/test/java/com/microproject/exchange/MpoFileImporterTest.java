@@ -547,6 +547,23 @@ class MpoFileImporterTest {
 		return reader.getProject();
 	}
 
+	@Test
+	void checkedInEnglishAndJapaneseCcpmSamplesLoadForVisualization() throws Exception {
+		CriticalChainService service = new CriticalChainService();
+		for (String name : new String[] { "CCPM sample English.mpo", "CCPM sample 日本語.mpo" }) {
+			Project loaded = load(findSample(name));
+			CriticalChainService.Settings settings = service.findSettings(loaded);
+			org.junit.jupiter.api.Assertions.assertNotNull(settings, name);
+			org.junit.jupiter.api.Assertions.assertTrue(settings.isEnabled(), name);
+			org.junit.jupiter.api.Assertions.assertNotNull(service.findBaseline(loaded), name);
+			List<Resource> resources = new ArrayList<>(loaded.getResourcePool().getResourceList());
+			CriticalChainService.Analysis analysis = service.preview(loaded, resources, settings);
+			org.junit.jupiter.api.Assertions.assertFalse(analysis.criticalTaskIds().isEmpty(), name);
+			org.junit.jupiter.api.Assertions.assertFalse(analysis.graphEdges().isEmpty(), name);
+			org.junit.jupiter.api.Assertions.assertTrue(loaded.getPercentComplete() > 0D && loaded.getPercentComplete() < 1D, name);
+		}
+	}
+
 	private static Project loadFromBytes(byte[] mpo) throws Exception {
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());

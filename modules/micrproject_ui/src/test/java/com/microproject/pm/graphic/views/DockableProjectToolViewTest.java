@@ -97,6 +97,24 @@ class DockableProjectToolViewTest {
 		});
 	}
 
+	@Test
+	void criticalChainGraphExpandsScrollableCanvasForLongChains() {
+		List<Long> ids = java.util.stream.LongStream.rangeClosed(1L, 8L).boxed().toList();
+		List<CriticalChainService.ChainEdge> edges = new java.util.ArrayList<>();
+		for (long id = 1L; id < 8L; id++) {
+			edges.add(new CriticalChainService.ChainEdge(id, id + 1L,
+				CriticalChainService.ChainEdge.Kind.DEPENDENCY));
+		}
+		CriticalChainService.Analysis analysis = new CriticalChainService.Analysis(null, ids, 100L,
+			java.util.Map.of(), new CriticalChainService.Buffer(100L, 0L, 100L, 0D,
+				CriticalChainService.BufferStatus.GREEN), java.util.Map.of(), java.util.Map.of(), edges);
+		CriticalChainGraphPanel panel = new CriticalChainGraphPanel(null);
+		panel.setAnalysis(analysis);
+
+		assertEquals(9 * (170 + 70) + 40, panel.getPreferredSize().width);
+		assertEquals(420, panel.getPreferredSize().height);
+	}
+
 	private static NormalTask task(Project project, String name) {
 		NormalTask task = new NormalTask(project);
 		task.setName(name);

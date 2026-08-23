@@ -46,8 +46,27 @@ public final class CriticalChainGraphPanel extends JPanel {
 
 	public void setAnalysis(CriticalChainService.Analysis analysis) {
 		this.analysis = analysis;
+		setPreferredSize(preferredSizeFor(analysis));
 		revalidate();
 		repaint();
+	}
+
+	/**
+	 * Computes the scrollable canvas required by the current network.  The
+	 * graph is embedded in a JScrollPane, so leaving the original fixed size
+	 * here silently clips chains with more than three columns or several
+	 * feeding buffers.
+	 */
+	static Dimension preferredSizeFor(CriticalChainService.Analysis analysis) {
+		if (analysis == null || analysis.criticalTaskIds().isEmpty()) return new Dimension(760, 420);
+		Map<Long, Integer> columns = columns(analysis.criticalTaskIds(), analysis.graphEdges());
+		int maxColumn = columns.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+		Map<Integer, Integer> rowsByColumn = new LinkedHashMap<>();
+		for (Long id : analysis.criticalTaskIds()) rowsByColumn.merge(columns.getOrDefault(id, 0), 1, Integer::sum);
+		int maxRows = rowsByColumn.values().stream().mapToInt(Integer::intValue).max().orElse(1);
+		return new Dimension(
+			Math.max(760, 40 + (maxColumn + 2) * (NODE_WIDTH + HORIZONTAL_GAP)),
+			Math.max(420, 40 + Math.max(maxRows, analysis.feedingBuffers().size() + 1) * (NODE_HEIGHT + VERTICAL_GAP)));
 	}
 
 	@Override protected void paintComponent(Graphics graphics) {
