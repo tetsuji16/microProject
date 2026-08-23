@@ -63,6 +63,9 @@ public final class MpoFileImporter extends FileImporter {
 	static final String FORMAT_VERSION = "1.0";
 	private static final String MIME_TYPE = "application/vnd.microproject.openproject";
 	static final String OPERATIONS_ENTRY = "operations/log.jsonl";
+	/** Read-only aliases for MPOF drafts written before the XML/JSONL layout was settled. */
+	private static final String DRAFT_CCPM_ENTRY = "ccpm.json";
+	private static final String DRAFT_OPERATIONS_ENTRY = "changes/operations.json";
 	static final String TASK_IDENTITIES_ENTRY = "changes/task-identities.json";
 	private static final int MAX_ENTRY_BYTES = 64 * 1024 * 1024;
 	private static final int MAX_TOTAL_BYTES = 128 * 1024 * 1024;
@@ -83,7 +86,9 @@ public final class MpoFileImporter extends FileImporter {
 		byte[] projectXml = null;
 		byte[] meta = null;
 		byte[] settings = null;
+		byte[] draftCcpm = null;
 		byte[] operations = null;
+		byte[] draftOperations = null;
 		byte[] taskIdentities = null;
 		MpoExtensions extensions = new MpoExtensions();
 		int[] totalBytes = new int[] { 0 };
@@ -112,9 +117,15 @@ public final class MpoFileImporter extends FileImporter {
 				} else if (SETTINGS_ENTRY.equals(entry.getName())) {
 					if (settings != null) throw new IOException("Duplicate mpo entry: " + SETTINGS_ENTRY);
 					settings = readEntry(zip, totalBytes);
+				} else if (DRAFT_CCPM_ENTRY.equals(entry.getName())) {
+					if (draftCcpm != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_CCPM_ENTRY);
+					draftCcpm = readEntry(zip, totalBytes);
 				} else if (OPERATIONS_ENTRY.equals(entry.getName())) {
 					if (operations != null) throw new IOException("Duplicate mpo entry: " + OPERATIONS_ENTRY);
 					operations = readEntry(zip, totalBytes);
+				} else if (DRAFT_OPERATIONS_ENTRY.equals(entry.getName())) {
+					if (draftOperations != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_OPERATIONS_ENTRY);
+					draftOperations = readEntry(zip, totalBytes);
 				} else if (TASK_IDENTITIES_ENTRY.equals(entry.getName())) {
 					if (taskIdentities != null) throw new IOException("Duplicate mpo entry: " + TASK_IDENTITIES_ENTRY);
 					taskIdentities = readEntry(zip, totalBytes);
@@ -126,10 +137,10 @@ public final class MpoFileImporter extends FileImporter {
 				zip.closeEntry();
 			}
 		}
-		if (manifest == null || projectXml == null || meta == null || settings == null) {
-			throw new IOException("An MPOF file must contain " + MANIFEST_ENTRY + ", " + META_ENTRY + ", " + SETTINGS_ENTRY + " and " + PROJECT_ENTRY);
+		if (manifest == null || projectXml == null) {
+			throw new IOException("An MPOF file must contain " + MANIFEST_ENTRY + " and " + PROJECT_ENTRY);
 		}
-		validateMeta(meta);
+		if (meta != null) validateMeta(meta);
 		validateManifest(new String(manifest, StandardCharsets.UTF_8), projectXml);
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
@@ -137,9 +148,13 @@ public final class MpoFileImporter extends FileImporter {
 		project = delegate.loadProject(new ByteArrayInputStream(projectXml));
 		if (settings != null) {
 			restoreSettings(project, settings);
+		} else if (draftCcpm != null) {
+			restoreCcpm(project, new String(draftCcpm, StandardCharsets.UTF_8));
 		}
+		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
+		if (operations == null) operations = draftOperations;
 		if (operations != null) {
-			OperationLog.DocumentLog operationLog = new OperationLog().readJsonl(operations);
+			OperationLog.DocumentLog operationLog = draftOperations == operations ? new OperationLog().readDocument(operations) : new OperationLog().readJsonl(operations);
 			java.util.List<OperationLog.Operation> normalized = taskIdentities == null ? operationLog.operations()
 				: remapTaskOperations(operationLog.operations(), readTaskIdentities(taskIdentities));
 			new MpoTaskOperationService().apply(project, normalized);
@@ -331,13 +346,14 @@ public final class MpoFileImporter extends FileImporter {
 	}
 
 	private static ExternalMpo externalOperations(File target) throws IOException {
-		byte[] operations = null; byte[] manifest = null; byte[] projectXml = null; byte[] taskIdentities = null;
+		byte[] operations = null; byte[] draftOperations = null; byte[] manifest = null; byte[] projectXml = null; byte[] taskIdentities = null;
 		int[] totalBytes = new int[] { 0 }; int entryCount = 0; MpoExtensions extensions = new MpoExtensions(); boolean settingsSeen = false;
 		try (InputStream in = new FileInputStream(target); ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
 			ZipEntry entry;
 			while ((entry = zip.getNextEntry()) != null) {
 				if (++entryCount > MAX_ENTRIES) throw new IOException("mpo has too many entries");
 				if (!entry.isDirectory() && OPERATIONS_ENTRY.equals(entry.getName())) { if (operations != null) throw new IOException("Duplicate mpo entry: " + OPERATIONS_ENTRY); operations = readEntry(zip, totalBytes); }
+				else if (!entry.isDirectory() && DRAFT_OPERATIONS_ENTRY.equals(entry.getName())) { if (draftOperations != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_OPERATIONS_ENTRY); draftOperations = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && MIMETYPE_ENTRY.equals(entry.getName())) { readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && MANIFEST_ENTRY.equals(entry.getName())) { if (manifest != null) throw new IOException("Duplicate manifest entry"); manifest = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && PROJECT_ENTRY.equals(entry.getName())) { if (projectXml != null) throw new IOException("Duplicate project snapshot entry"); projectXml = readEntry(zip, totalBytes); }
@@ -349,8 +365,10 @@ public final class MpoFileImporter extends FileImporter {
 		}
 		if (manifest == null || projectXml == null) throw new IOException("Cannot merge MPOF without its manifest and project snapshot");
 		ManifestData manifestData = readManifest(manifest, projectXml);
+		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
+		if (operations == null) operations = draftOperations;
 		if (operations == null) throw new IOException("Cannot merge MPOF without an operation log");
-		OperationLog.DocumentLog document = new OperationLog().readJsonl(operations);
+		OperationLog.DocumentLog document = draftOperations == operations ? new OperationLog().readDocument(operations) : new OperationLog().readJsonl(operations);
 		String manifestDocumentId = manifestData.documentId();
 		Long manifestProjectId = manifestData.projectUniqueId();
 		return new ExternalMpo(document, extensions, manifestDocumentId, manifestProjectId, taskIdentities);
@@ -438,6 +456,8 @@ public final class MpoFileImporter extends FileImporter {
 	}
 
 	private static ManifestData readManifest(byte[] manifestBytes, byte[] projectXml) throws IOException {
+		String document = new String(manifestBytes, StandardCharsets.UTF_8).trim();
+		if (document.startsWith("{")) return readDraftJsonManifest(document, projectXml);
 		try {
 			javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
 			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -507,6 +527,16 @@ public final class MpoFileImporter extends FileImporter {
 		} catch (RuntimeException e) {
 			throw new IOException("Invalid ccpm.json", e);
 		}
+	}
+
+	private static ManifestData readDraftJsonManifest(String manifest, byte[] projectXml) throws IOException {
+		JsonNode root = object(manifest, MANIFEST_ENTRY);
+		String format = root.path("format").isTextual() ? root.path("format").textValue() : null;
+		if (!FORMAT_ID.equals(format) || !FORMAT_VERSION.equals(text(root, "formatVersion"))) throw new IOException("Unsupported or invalid draft MPOF manifest: format=" + format);
+		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its draft MPOF manifest");
+		String documentId = root.path("documentId").isTextual() ? root.path("documentId").textValue() : null;
+		Long projectUniqueId = root.path("projectUniqueId").canConvertToLong() ? Long.valueOf(root.path("projectUniqueId").longValue()) : null;
+		return new ManifestData(documentId, projectUniqueId);
 	}
 
 	private static String metaXml() {

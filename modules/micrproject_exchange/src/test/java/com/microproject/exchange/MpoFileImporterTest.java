@@ -308,6 +308,27 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoReadsEarlierDraftLayoutAndWritesCurrentLayout() throws Exception {
+		Project original = projectForRoundTrip();
+		ByteArrayOutputStream current = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, current);
+		Map<String, byte[]> entries = readEntries(current.toByteArray());
+		String xmlManifest = new String(entries.remove(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		String sha256 = xmlManifest.replaceFirst("(?s).*projectSha256=\"([^\"]+)\".*", "$1");
+		String documentId = xmlManifest.replaceFirst("(?s).*documentId=\"([0-9a-f-]{36})\".*", "$1");
+		entries.remove("meta.xml"); entries.remove("settings.xml");
+		byte[] jsonl = entries.remove("operations/log.jsonl");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, ("{\"format\":\"mpof\",\"formatVersion\":\"1.0\",\"projectEntry\":\"content.xml\",\"projectSha256\":\"" + sha256 + "\",\"documentId\":\"" + documentId + "\"}\n").getBytes(StandardCharsets.UTF_8));
+		entries.put("changes/operations.json", new OperationLog().write(documentId, new OperationLog().readJsonl(jsonl).operations()));
+		Project loaded = loadFromBytes(zip(entries).toByteArray());
+		org.junit.jupiter.api.Assertions.assertEquals(taskCount(original), taskCount(loaded));
+		ByteArrayOutputStream rewritten = new ByteArrayOutputStream(); new MpoFileImporter().saveProject(loaded, rewritten);
+		Map<String, byte[]> rewrittenEntries = readEntries(rewritten.toByteArray());
+		org.junit.jupiter.api.Assertions.assertTrue(rewrittenEntries.containsKey("meta.xml"));
+		org.junit.jupiter.api.Assertions.assertTrue(rewrittenEntries.containsKey("operations/log.jsonl"));
+	}
+
+	@Test
 	void mpoRoundTripLoadsItsMspdiSnapshot() throws Exception {
 		Project original = projectForRoundTrip();
 		CriticalChainService.Settings ccpm = new CriticalChainService().settings(original);
@@ -500,6 +521,12 @@ class MpoFileImporterTest {
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		reader.importFile();
 		return reader.getProject();
+	}
+
+	private static Project loadFromBytes(byte[] mpo) throws Exception {
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setProjectFactory(ProjectFactory.getInstance());
+		return reader.loadProject(new ByteArrayInputStream(mpo));
 	}
 
 	private static Project loadPod(File pod) throws Exception {

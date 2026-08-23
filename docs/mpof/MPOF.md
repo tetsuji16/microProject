@@ -16,6 +16,9 @@ MPOF is the open, ODF-style project container for microProject.
 This layout is a draft and is not a stability promise. Future revisions may change
 entry schemas or names; readers should reject unsupported `formatVersion` values,
 preserve unknown extra entries, and write only the version they explicitly support.
+The importer also reads the earlier MPOF draft that used a JSON manifest,
+`ccpm.json`, and `changes/operations.json`; saving such a file rewrites it to the
+current draft layout.
 
 ## Migration
 
