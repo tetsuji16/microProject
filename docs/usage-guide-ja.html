@@ -135,19 +135,73 @@
             font-size: 0.9em;
             line-height: 1.55;
         }
-        .app-example-grid {
+        .legend-diagrams {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px;
-            margin: 18px 0;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin: 18px 0 24px;
         }
-        .app-example-grid figure { margin: 0; }
-        .app-example-grid .crop {
-            height: 220px;
-            object-fit: cover;
+        .legend-diagram {
+            margin: 0;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #f8fafc;
         }
-        .app-example-grid .crop-table { object-position: left top; }
-        .app-example-grid .crop-chart { object-position: right top; }
+        .legend-diagram h4 { margin: 0 0 8px; color: var(--heading); }
+        .legend-diagram figcaption { margin-top: 8px; color: var(--text-muted); font-size: .88em; line-height: 1.45; }
+        .mock-table, .mock-chart { background: #fff; border: 1px solid #cbd5e1; border-radius: 5px; overflow: hidden; }
+        .mock-table .mock-head, .mock-table .mock-row { display: grid; grid-template-columns: 28px 34px minmax(0, 1fr); align-items: center; min-height: 27px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+        .mock-table .mock-head { background: #e0f2fe; font-weight: 700; color: #334155; }
+        .mock-table .mock-row:last-child { border-bottom: 0; }
+        .mock-table .mock-num { text-align: center; color: #64748b; }
+        .mock-table .mock-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #334155; }
+        .mock-i { color: #2563eb; font-weight: 800; font-size: 17px; text-align: center; }
+        .mock-check { width: 13px; height: 13px; border-radius: 50%; background: #22c55e; color: white; font-size: 10px; line-height: 13px; text-align: center; margin: auto; }
+        .mock-note { width: 13px; height: 15px; border-radius: 2px; background: #fbbf24; color: #7c2d12; font-size: 10px; line-height: 15px; text-align: center; margin: auto; }
+        .mock-calendar { width: 13px; height: 12px; border: 2px solid #64748b; border-radius: 2px; margin: auto; position: relative; }
+        .mock-calendar::before { content: ""; display: block; border-top: 2px solid #64748b; margin-top: 3px; }
+        .mock-warning { color: #dc2626; font-weight: 800; text-align: center; }
+        .mock-chart { padding: 8px 8px 10px; }
+        .mock-scale { display: grid; grid-template-columns: 64px repeat(5, 1fr); color: #64748b; font-size: 10px; margin-bottom: 5px; }
+        .mock-lane { display: grid; grid-template-columns: 64px 1fr; min-height: 27px; align-items: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #475569; }
+        .mock-track { height: 27px; position: relative; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(20% - 1px), #e2e8f0 calc(20% - 1px), #e2e8f0 20%); }
+        .mock-bar { position: absolute; top: 7px; height: 13px; border-radius: 7px; }
+        .mock-bar.complete { left: 5%; width: 28%; background: #22c55e; }
+        .mock-bar.in-progress { left: 25%; width: 48%; background: #f59e0b; }
+        .mock-bar.not-started { left: 15%; width: 37%; background: #a8b0ba; }
+        .mock-bar.critical { left: 42%; width: 45%; background: #ef8f9d; }
+        .mock-bar.summary { left: 8%; width: 68%; height: 17px; top: 5px; background: #f59e0b; border-radius: 2px 2px 8px 8px; }
+        .mock-bar.summary::before, .mock-bar.summary::after { content: ""; position: absolute; bottom: -3px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #b45309; }
+        .mock-bar.summary::before { left: 0; } .mock-bar.summary::after { right: 0; }
+        .mock-milestone { position: absolute; left: 66%; top: 7px; width: 13px; height: 13px; background: #64748b; transform: rotate(45deg); }
+        .mock-progress { position: absolute; left: 5%; top: 7px; width: 12%; height: 13px; border-radius: 7px 0 0 7px; background: #15803d; }
+        .mock-lines { position: relative; height: 134px; border: 1px solid #cbd5e1; border-radius: 5px; background: repeating-linear-gradient(90deg, #fff 0, #fff calc(25% - 1px), #e2e8f0 calc(25% - 1px), #e2e8f0 25%), repeating-linear-gradient(0deg, transparent 0, transparent 32px, #e2e8f0 32px, #e2e8f0 33px); }
+        .mock-lines .vline { position: absolute; top: 0; bottom: 0; border-left: 2px dashed; }
+        .mock-lines .project-start { left: 22%; border-color: #2563eb; }
+        .mock-lines .status-date { left: 62%; border-color: #9333ea; border-style: dotted; }
+        .mock-lines .task-line { position: absolute; height: 2px; background: #475569; transform-origin: left center; }
+        .mock-lines .task-line::after { content: ""; position: absolute; right: -1px; top: -4px; border-left: 7px solid #475569; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+        .mock-lines .l1 { left: 20%; top: 34px; width: 27%; transform: rotate(0deg); }
+        .mock-lines .l2 { left: 47%; top: 34px; width: 15%; transform: rotate(42deg); }
+        .mock-lines .l3 { left: 47%; top: 98px; width: 15%; transform: rotate(-42deg); }
+        .visual-sample { display: inline-flex; align-items: center; justify-content: center; min-width: 100px; min-height: 30px; }
+        .visual-sample .mock-bar { position: relative; left: auto; top: auto; display: inline-block; }
+        .visual-sample .mock-bar.complete { width: 78px; }
+        .visual-sample .mock-bar.in-progress { width: 78px; }
+        .visual-sample .mock-bar.not-started { width: 78px; }
+        .visual-sample .mock-bar.critical { width: 78px; }
+        .visual-sample .mock-bar.summary { width: 78px; }
+        .visual-sample .mock-milestone { position: relative; left: auto; top: auto; }
+        .visual-sample .mock-progress { position: absolute; left: calc(50% - 50px); top: 9px; width: 26px; }
+        .line-sample { width: 92px; height: 30px; position: relative; display: inline-block; }
+        .line-sample::before { content: ""; position: absolute; left: 8px; right: 8px; top: 14px; height: 2px; background: #475569; }
+        .line-sample::after { content: ""; position: absolute; right: 5px; top: 10px; border-left: 7px solid #475569; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+        .line-sample.project::before { left: 45px; top: 0; width: 2px; height: 30px; border-left: 2px dashed #2563eb; background: none; }
+        .line-sample.project::after { display: none; }
+        .line-sample.status::before { left: 45px; top: 0; width: 2px; height: 30px; border-left: 2px dotted #9333ea; background: none; }
+        .line-sample.status::after { display: none; }
+        @media (max-width: 900px) { .legend-diagrams { grid-template-columns: 1fr; } }
         kbd {
             background: var(--code-bg);
             border: 1px solid var(--border);
@@ -167,7 +221,6 @@
             .toc ul { columns: 1; }
             .hero h1 { font-size: 1.6em; }
             section { padding: 20px 16px; }
-            .app-example-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -548,19 +601,50 @@
         タスク表の「指標」列とガント領域は、タスクの状態、期間、関連を短時間で確認するための表示です。
         表示色は進捗状況を表し、個別にバーの色を変更している場合はその設定が優先されます。
     </p>
-    <figure class="app-example">
-        <img src="images/gantt-legend-ja.svg" alt="microProjectの実画面に1から8の番号付き注釈を重ね、指標列、完了・メモアイコン、要約・完了・クリティカルバー、依存関係、プロジェクト開始日を説明した図。">
-        <figcaption>まず画像上の番号を確認してください。①〜③はタスク表、④〜⑥はガントバー、⑦〜⑧はガント領域の線と基準日の見方です。</figcaption>
-    </figure>
+    <div class="legend-diagrams" aria-label="ガントチャートの構成を再現した図解">
+        <figure class="legend-diagram">
+            <h4>① タスク表の指標列</h4>
+            <div class="mock-table" aria-label="指標アイコン付きのタスク表の再現">
+                <div class="mock-head"><span></span><span class="mock-i">i</span><span>タスク名</span></div>
+                <div class="mock-row"><span class="mock-num">1</span><span></span><span class="mock-name">General Conditions</span></div>
+                <div class="mock-row"><span class="mock-num">2</span><span class="mock-check">✓</span><span class="mock-name">Receive notice to proceed</span></div>
+                <div class="mock-row"><span class="mock-num">3</span><span class="mock-note">▤</span><span class="mock-name">Submit monthly request</span></div>
+                <div class="mock-row"><span class="mock-num">4</span><span class="mock-calendar"></span><span class="mock-name">Prepare and submit</span></div>
+                <div class="mock-row"><span class="mock-num">5</span><span class="mock-warning">!</span><span class="mock-name">Check constraint</span></div>
+            </div>
+            <figcaption>列見出しの青い i と、各行に表示される状態アイコンを分けて読みます。</figcaption>
+        </figure>
+        <figure class="legend-diagram">
+            <h4>② ガントバーの読み方</h4>
+            <div class="mock-chart" aria-label="色と形の異なるガントバーの再現">
+                <div class="mock-scale"><span></span><span>1月</span><span>2月</span><span>3月</span><span>4月</span><span>5月</span></div>
+                <div class="mock-lane"><span>完了</span><span class="mock-track"><i class="mock-bar complete"></i><i class="mock-progress"></i></span></div>
+                <div class="mock-lane"><span>作業中</span><span class="mock-track"><i class="mock-bar in-progress"></i></span></div>
+                <div class="mock-lane"><span>未着手</span><span class="mock-track"><i class="mock-bar not-started"></i></span></div>
+                <div class="mock-lane"><span>要約</span><span class="mock-track"><i class="mock-bar summary"></i></span></div>
+                <div class="mock-lane"><span>マイルストーン</span><span class="mock-track"><i class="mock-milestone"></i></span></div>
+                <div class="mock-lane"><span>クリティカル</span><span class="mock-track"><i class="mock-bar critical"></i></span></div>
+            </div>
+            <figcaption>色は状態、長さは期間、濃い帯は進捗、形は要約・マイルストーンを示します。</figcaption>
+        </figure>
+        <figure class="legend-diagram">
+            <h4>③ 線と基準日の読み方</h4>
+            <div class="mock-lines" aria-label="依存関係線と縦の基準線の再現">
+                <i class="vline project-start"></i><i class="vline status-date"></i>
+                <i class="task-line l1"></i><i class="task-line l2"></i><i class="task-line l3"></i>
+            </div>
+            <figcaption>矢印は依存関係、青い破線はプロジェクト開始日、紫の点線はステータス日です。</figcaption>
+        </figure>
+    </div>
 
     <h3>タスク表のアイコン</h3>
     <table>
         <tr><th>表示</th><th>意味</th></tr>
-        <tr><td>緑のチェック</td><td>タスクが完了（達成率 100%）です。添付画面では 3、11〜13 行目に表示されています。</td></tr>
-        <tr><td>黄色のメモ</td><td>タスクにメモが登録されています。アイコンにマウスを重ねると内容を確認できます。</td></tr>
-        <tr><td>カレンダー</td><td>タスク固有の稼働カレンダーが割り当てられています。</td></tr>
-        <tr><td>制約アイコン</td><td>開始日または終了日に制約が設定されています。</td></tr>
-        <tr><td>警告</td><td>期限超過、利用できないカレンダー、または無効なサブプロジェクトなど、確認が必要な状態です。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-check">✓</span></span><br>緑のチェック</td><td>タスクが完了（達成率 100%）です。添付画面では 3、11〜13 行目に表示されています。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-note">▤</span></span><br>黄色のメモ</td><td>タスクにメモが登録されています。アイコンにマウスを重ねると内容を確認できます。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-calendar"></span></span><br>カレンダー</td><td>タスク固有の稼働カレンダーが割り当てられています。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-warning">!</span></span><br>制約アイコン</td><td>開始日または終了日に制約が設定されています。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-warning">!</span></span><br>警告</td><td>期限超過、利用できないカレンダー、または無効なサブプロジェクトなど、確認が必要な状態です。</td></tr>
     </table>
     <div class="tip">
         列見出しの青い <strong>i</strong> は「指標」列を示す案内アイコンです。各行の状態そのものではありません。
@@ -569,22 +653,22 @@
     <h3>ガントバーの色と形</h3>
     <table>
         <tr><th>表示</th><th>意味</th></tr>
-        <tr><td>緑のバー</td><td>完了したタスクです。バーの長さは予定期間、左右端は予定開始日と予定終了日を示します。</td></tr>
-        <tr><td>オレンジのバー</td><td>作業中のタスクです。進捗があるものの、まだ完了していません。</td></tr>
-        <tr><td>灰色のバー</td><td>未着手のタスクです。</td></tr>
-        <tr><td>赤／ピンクのバー</td><td>クリティカルパス上のタスクです。遅れるとプロジェクト全体の完了日が遅れる可能性があります。</td></tr>
-        <tr><td>両端が下向きの記号になった太いバー</td><td>要約タスクです。子タスク全体の開始日から終了日までを表し、色は要約タスクの進捗を示します。</td></tr>
-        <tr><td>ひし形</td><td>マイルストーンです。期間ゼロの重要な日付を示します。</td></tr>
-        <tr><td>バー内の濃い帯</td><td>タスクの達成率です。帯が右へ伸びるほど進捗が高いことを示します。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar complete"></span></span><br>緑のバー</td><td>完了したタスクです。バーの長さは予定期間、左右端は予定開始日と予定終了日を示します。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar in-progress"></span></span><br>オレンジのバー</td><td>作業中のタスクです。進捗があるものの、まだ完了していません。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar not-started"></span></span><br>灰色のバー</td><td>未着手のタスクです。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar critical"></span></span><br>赤／ピンクのバー</td><td>クリティカルパス上のタスクです。遅れるとプロジェクト全体の完了日が遅れる可能性があります。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar summary"></span></span><br>要約バー</td><td>要約タスクです。子タスク全体の開始日から終了日までを表し、色は要約タスクの進捗を示します。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-milestone"></span></span><br>ひし形</td><td>マイルストーンです。期間ゼロの重要な日付を示します。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar complete"><span class="mock-progress"></span></span></span><br>濃い帯</td><td>タスクの達成率です。帯が右へ伸びるほど進捗が高いことを示します。</td></tr>
     </table>
 
     <h3>ガント領域の線</h3>
     <table>
         <tr><th>表示</th><th>意味</th></tr>
-        <tr><td>タスク間を結ぶ濃い折れ線と矢印</td><td>依存関係です。矢印の向きが後続タスクを示します。線をたどると、どのタスクの完了・開始が次のタスクに影響するか確認できます。</td></tr>
-        <tr><td>青い縦の破線</td><td>プロジェクト開始日です。添付画面では 2000 年 1 月 2 日の位置に表示されています。</td></tr>
-        <tr><td>紫の縦の点線</td><td>ステータス日です。設定されている場合のみ表示され、進捗を評価する基準日になります。</td></tr>
-        <tr><td>細い格子線</td><td>タイムスケールと行の区切りです。タスク間の関係を示す線ではありません。</td></tr>
+        <tr><td><span class="line-sample"></span><br>依存関係線</td><td>タスク間を結ぶ濃い折れ線と矢印です。矢印の向きが後続タスクを示します。</td></tr>
+        <tr><td><span class="line-sample project"></span><br>青い縦の破線</td><td>プロジェクト開始日です。添付画面では 2000 年 1 月 2 日の位置に表示されています。</td></tr>
+        <tr><td><span class="line-sample status"></span><br>紫の縦の点線</td><td>ステータス日です。設定されている場合のみ表示され、進捗を評価する基準日になります。</td></tr>
+        <tr><td><span class="line-sample project" style="opacity:.35"></span><br>細い格子線</td><td>タイムスケールと行の区切りです。タスク間の関係を示す線ではありません。</td></tr>
     </table>
 
     <h3>添付サンプルを読む例</h3>
