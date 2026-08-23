@@ -304,36 +304,6 @@ class MpoFileImporterTest {
 	}
 
 	@Test
-	void legacyPodxFileStillLoadsDuringMigrationWindow() throws Exception {
-		// Build a podx 0.1 container by hand (manifest.json + project.xml, no mimetype).
-		Project original = projectForRoundTrip();
-		ByteArrayOutputStream snapshot = new ByteArrayOutputStream();
-		com.microproject.exchange.MicrosoftImporter delegate = new com.microproject.exchange.MicrosoftImporter();
-		delegate.setFileName(MpoFileImporter.LEGACY_PODX_PROJECT_ENTRY);
-		org.junit.jupiter.api.Assertions.assertTrue(delegate.saveProject(original, snapshot));
-		byte[] projectXml = snapshot.toByteArray();
-		String manifest = MpoFileImporter.manifestFor(projectXml)
-			.replace("\"format\":\"mpof\"", "\"format\":\"podx\"")
-			.replace("\"formatVersion\":\"1.0\"", "\"version\":\"0.1\"")
-			.replace("\"projectEntry\":\"content.xml\"", "\"projectEntry\":\"project.xml\"");
-		Map<String, byte[]> entries = new LinkedHashMap<String, byte[]>();
-		entries.put("manifest.json", manifest.getBytes(StandardCharsets.UTF_8));
-		entries.put("project.xml", projectXml);
-		File podx = File.createTempFile("legacy", ".podx"); podx.deleteOnExit();
-		java.nio.file.Files.write(podx.toPath(), zip(entries).toByteArray());
-
-		Project loaded = load(podx);
-		org.junit.jupiter.api.Assertions.assertNotNull(loaded);
-		org.junit.jupiter.api.Assertions.assertEquals(taskCount(original), taskCount(loaded));
-
-		// Saving the loaded project must auto-upgrade it to MPOF v1.0.
-		MpoFileImporter saver = new MpoFileImporter(); saver.setFileName(podx.getAbsolutePath()); saver.setProject(loaded); saver.exportFile();
-		Map<String, byte[]> upgraded = readEntries(java.nio.file.Files.readAllBytes(podx.toPath()));
-		org.junit.jupiter.api.Assertions.assertTrue(upgraded.containsKey("mimetype"));
-		org.junit.jupiter.api.Assertions.assertTrue(upgraded.containsKey("content.xml"));
-	}
-
-	@Test
 	void mpoRoundTripLoadsItsMspdiSnapshot() throws Exception {
 		Project original = projectForRoundTrip();
 		CriticalChainService.Settings ccpm = new CriticalChainService().settings(original);

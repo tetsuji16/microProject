@@ -18,14 +18,14 @@ remote issue state may still be open):
   guards the preview path. `DockableProjectToolViewTest` also paints the
   resulting graph with project and feeding buffer nodes, exercising the
   analysis-to-view path headlessly.
-- **podx collaboration/spec (#317, #321, #325, #326):** versioned container
+- **MPOF collaboration/spec (#317, #321, #325, #326):** versioned container
   layout, manifest checksum plus document-identity validation before external
   merge, unknown-extension preservation,
   append-only operation logs with idempotent merge/conflict detection, explicit
   `appliedOperationIds` snapshot generations, pending operation caps, atomic
   replacement, and OneDrive/shared-folder round-trip tests.
-- **CCPM podx round-trip:** `PodxFileImporterTest` now applies CCPM, saves a
-  `.podx`, reloads it, restores settings/baseline, and successfully re-analyzes
+- **CCPM MPOF round-trip:** `MpoFileImporterTest` now applies CCPM, saves an
+  `.mpo`, reloads it, restores settings/baseline, and successfully re-analyzes
   the chain. Legacy `.pod` serialization remains free of transient CCPM state.
 - **#267:** summary/grouped task scheduled dates now roll up after child date
   edits; `PodRoundTripTest.groupedTaskFollowsChildDateUpdate` covers the earlier
@@ -48,7 +48,7 @@ remote issue state may still be open):
 - **#235, #239:** redundant empty-string allocations were removed and
   configuration initialization now clears its ThreadLocal guard on failure.
   Core/UI regression suites pass after these changes.
-- **#252 (focused):** user-visible hexadecimal color formatting and podx
+- **#252 (focused):** user-visible hexadecimal color formatting and MPOF
   checksums now use `Locale.ROOT`, preventing Turkish/locale-specific output
   drift. UI and exchange tests pass.
 - **#251 (focused):** the Office-style chrome search/help/application/auto-save
@@ -127,10 +127,10 @@ remote issue state may still be open):
   candidates. The review
   procedure is documented in
   [`docs/translation-key-audit.md`](docs/translation-key-audit.md).
-- **#325 (hardening):** podx task-identity XML parsing disables DTD, external
+- **#325 (hardening):** MPOF task-identity XML parsing disables DTD, external
   entities, XInclude, and external schema access before reading `project.xml`.
-- **#321 (shared-folder hardening):** podx export now serializes the complete
-  read/merge/write transaction with a stable `<name>.podx.lock` sidecar using
+- **#321 (shared-folder hardening):** MPOF export now serializes the complete
+  read/merge/write transaction with a stable `<name>.mpo.lock` sidecar using
   an OS file lock, while retaining atomic replacement. This prevents two
   OneDrive-synced desktop writers from losing each other's operation log.
 - **#245 (incremental):** `ConstraintType.Kind` now provides a type-safe,
@@ -319,14 +319,14 @@ old floating-dialog or component-level shortcut paths.
 ---
 
 ## Recommended immediate follow-ups (this week)
-1. Keep the full test suite and the real-sample PODX/CCPM scenario in CI.
+1. Keep the full test suite and the real-sample MPOF/CCPM scenario in CI.
 2. Keep the architecture decision records updated if a future compatibility
    migration changes a boundary (#212, #257, #258, #259, #261).
 3. Keep #253's audit/pruner in regression checks when locale bundles change;
    do not re-enable unreviewed automatic pruning.
 
 ## Explicitly NOT done this session (and why)
-- PODX operation identity remapping for legacy POD projects: **fixed** with the `changes/task-identities.json` format-level map. Negative/generated POD IDs are translated to the MSPDI UIDs used by `project.xml` before local replay and external shared-folder merge.
+- MPOF operation identity remapping for legacy POD projects: **fixed** with the `changes/task-identities.json` format-level map. Negative/generated POD IDs are translated to the MSPDI UIDs used by `content.xml` before local replay and external shared-folder merge.
 - Byte-for-byte POD idempotency (#227 residual): needs full graph stabilization.
 - All Bucket-2 micro-fixes: broad mechanical edits forbidden by AGENTS.md without
   per-module PRs + tests.

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Project xmlns="http://schemas.microsoft.com/project">
-  <Name>podx minimal example</Name>
-  <Tasks>
-    <Task><UID>1</UID><ID>1</ID><Name>Example task</Name></Task>
-  </Tasks>
-</Project>

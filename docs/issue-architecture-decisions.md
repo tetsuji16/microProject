@@ -42,7 +42,7 @@ new code must import the hierarchy matching its layer.
 
 The domain choice classes in `pm/` now expose nested `Kind` enums with explicit
 persisted integer codes and strict `fromCode` validation. Their old integer
-fields remain deprecated aliases so `.pod`, MPX, and PODX readers continue to
+fields remain deprecated aliases so `.pod` and MPX readers continue to
 accept legacy values. Integer constants that are event flags, bitmasks, array
 indexes, or calculation sentinels are not enums and remain integer APIs.
 
@@ -68,6 +68,6 @@ responsibility and would make event dispatch less type-safe.
 ## Migration rule
 
 Any future consolidation must add a compatibility adapter, update every caller,
-add a save/reload regression test for `.pod` and `.podx`, and only then remove
+add a save/reload regression test for `.pod` and `.mpo`, and only then remove
 the deprecated implementation. Clean-room namespace work (#152) is excluded
 from this document.

@@ -47,7 +47,7 @@ import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 
 /**
- * Reads and writes mpo 0.x containers. A mpo file is a ZIP containing a
+ * Reads and writes MPOF v1.0 containers. An mpo file is a ZIP containing a
  * UTF-8 manifest and a standards-based MSPDI XML snapshot; it never embeds a
  * Java serialized object.
  */
@@ -60,14 +60,6 @@ public final class MpoFileImporter extends FileImporter {
 	static final String FORMAT_ID = "mpof";
 	static final String FORMAT_VERSION = "1.0";
 	private static final String MIME_TYPE = "application/vnd.microproject.openproject";
-	/** Retired podx 0.x entry names, accepted read-only during the migration window. */
-	static final String LEGACY_PODX_MANIFEST_ENTRY = "manifest.json";
-	static final String LEGACY_PODX_PROJECT_ENTRY = "project.xml";
-
-	private static boolean isManifestEntry(String name, java.util.Set<String> seen) {
-		boolean match = MANIFEST_ENTRY.equals(name) || LEGACY_PODX_MANIFEST_ENTRY.equals(name);
-		return match && !seen.contains(LEGACY_PODX_MANIFEST_ENTRY);
-	}
 	static final String CCPM_ENTRY = "ccpm.json";
 	static final String OPERATIONS_ENTRY = "changes/operations.json";
 	static final String TASK_IDENTITIES_ENTRY = "changes/task-identities.json";
@@ -91,7 +83,6 @@ public final class MpoFileImporter extends FileImporter {
 		byte[] ccpm = null;
 		byte[] operations = null;
 		byte[] taskIdentities = null;
-		String projectEntryName = PROJECT_ENTRY;
 		MpoExtensions extensions = new MpoExtensions();
 		int[] totalBytes = new int[] { 0 };
 		int entryCount = 0;
@@ -107,13 +98,12 @@ public final class MpoFileImporter extends FileImporter {
 				}
 				if (entry.isDirectory()) {
 					if (!entry.getName().endsWith("/")) throw new IOException("Invalid mpo directory entry");
-				} else if ((MANIFEST_ENTRY.equals(entry.getName()) || LEGACY_PODX_MANIFEST_ENTRY.equals(entry.getName()))) {
+				} else if (MANIFEST_ENTRY.equals(entry.getName())) {
 					if (manifest != null) throw new IOException("Duplicate manifest entry");
 					manifest = readEntry(zip, totalBytes);
-				} else if (PROJECT_ENTRY.equals(entry.getName()) || LEGACY_PODX_PROJECT_ENTRY.equals(entry.getName())) {
+				} else if (PROJECT_ENTRY.equals(entry.getName())) {
 					if (projectXml != null) throw new IOException("Duplicate project snapshot entry");
 					projectXml = readEntry(zip, totalBytes);
-					projectEntryName = entry.getName();
 				} else if (CCPM_ENTRY.equals(entry.getName())) {
 					if (ccpm != null) throw new IOException("Duplicate mpo entry: " + CCPM_ENTRY);
 					ccpm = readEntry(zip, totalBytes);
@@ -134,7 +124,7 @@ public final class MpoFileImporter extends FileImporter {
 		if (manifest == null || projectXml == null) {
 			throw new IOException("An MPOF file must contain " + MANIFEST_ENTRY + " and " + PROJECT_ENTRY);
 		}
-		validateManifest(new String(manifest, StandardCharsets.UTF_8), projectXml, projectEntryName);
+		validateManifest(new String(manifest, StandardCharsets.UTF_8), projectXml);
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
 		delegate.setProjectFactory(projectFactory);
@@ -216,7 +206,7 @@ public final class MpoFileImporter extends FileImporter {
 			writeEntry(zip, TASK_IDENTITIES_ENTRY, taskIdentitiesFor(project, projectXml).getBytes(StandardCharsets.UTF_8));
 			MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 			if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-				if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || LEGACY_PODX_MANIFEST_ENTRY.equals(extension.getKey())) continue;
+				if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey())) continue;
 				writeEntry(zip, extension.getKey(), extension.getValue());
 			}
 		}
@@ -303,18 +293,7 @@ public final class MpoFileImporter extends FileImporter {
 		return result;
 	}
 
-	private static boolean isLegacyPodxContainer(File target) throws IOException {
-		try (InputStream in = new FileInputStream(target); ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
-			ZipEntry entry;
-			while ((entry = zip.getNextEntry()) != null) {
-				if (LEGACY_PODX_MANIFEST_ENTRY.equals(entry.getName())) return true;
-			}
-		}
-		return false;
-	}
-
 	private static void mergeExternalOperations(File target, Project project, MpoOperationState local) throws IOException {
-		if (isLegacyPodxContainer(target)) return;
 		ExternalMpo external = externalOperations(target);
 		if (!local.documentId.equals(external.document.documentId())) throw new IOException("Cannot merge mpo files with different document IDs");
 		if (!local.documentId.equals(external.manifestDocumentId)) throw new IOException("Cannot merge mpo with mismatched manifest document ID");
@@ -345,8 +324,6 @@ public final class MpoFileImporter extends FileImporter {
 
 	private static ExternalMpo externalOperations(File target) throws IOException {
 		byte[] operations = null; byte[] manifest = null; byte[] projectXml = null; byte[] taskIdentities = null;
-		String projectEntryName = PROJECT_ENTRY;
-		String manifestEntryName = MANIFEST_ENTRY;
 		int[] totalBytes = new int[] { 0 }; int entryCount = 0; MpoExtensions extensions = new MpoExtensions(); boolean ccpmSeen = false;
 		try (InputStream in = new FileInputStream(target); ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
 			ZipEntry entry;
@@ -354,8 +331,8 @@ public final class MpoFileImporter extends FileImporter {
 				if (++entryCount > MAX_ENTRIES) throw new IOException("mpo has too many entries");
 				if (!entry.isDirectory() && OPERATIONS_ENTRY.equals(entry.getName())) { if (operations != null) throw new IOException("Duplicate mpo entry: " + OPERATIONS_ENTRY); operations = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && MIMETYPE_ENTRY.equals(entry.getName())) { readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && (MANIFEST_ENTRY.equals(entry.getName()) || LEGACY_PODX_MANIFEST_ENTRY.equals(entry.getName()))) { if (manifest != null) throw new IOException("Duplicate manifest entry"); manifestEntryName = entry.getName(); manifest = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && (PROJECT_ENTRY.equals(entry.getName()) || LEGACY_PODX_PROJECT_ENTRY.equals(entry.getName()))) { if (projectXml != null) throw new IOException("Duplicate project snapshot entry"); projectXml = readEntry(zip, totalBytes); projectEntryName = entry.getName(); }
+				else if (!entry.isDirectory() && MANIFEST_ENTRY.equals(entry.getName())) { if (manifest != null) throw new IOException("Duplicate manifest entry"); manifest = readEntry(zip, totalBytes); }
+				else if (!entry.isDirectory() && PROJECT_ENTRY.equals(entry.getName())) { if (projectXml != null) throw new IOException("Duplicate project snapshot entry"); projectXml = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && CCPM_ENTRY.equals(entry.getName())) { if (ccpmSeen) throw new IOException("Duplicate mpo entry: " + CCPM_ENTRY); ccpmSeen = true; readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && TASK_IDENTITIES_ENTRY.equals(entry.getName())) { if (taskIdentities != null) throw new IOException("Duplicate mpo entry: " + TASK_IDENTITIES_ENTRY); taskIdentities = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory()) { validateExtensionName(entry.getName()); if (extensions.entries.containsKey(entry.getName())) throw new IOException("Duplicate mpo extension: " + entry.getName()); extensions.entries.put(entry.getName(), readEntry(zip, totalBytes)); }
@@ -363,17 +340,10 @@ public final class MpoFileImporter extends FileImporter {
 			}
 		}
 		if (manifest == null || projectXml == null) throw new IOException("Cannot merge MPOF without its manifest and project snapshot");
-		// The on-disk target may still be a legacy podx container during the
-		// migration window; only its checksum is enforced here (the layout is
-		// upgraded to MPOF v1.0 by the save below).
 		JsonNode manifestNode = object(new String(manifest, StandardCharsets.UTF_8), MANIFEST_ENTRY);
 		if (!sha256(projectXml).equals(text(manifestNode, "projectSha256"))) throw new IOException("Project snapshot checksum does not match its manifest");
-		// A legacy podx target has no operation log yet: start from an empty log
-	// instead of failing the merge (the save below writes the MPOF layout).
-	if (operations == null && !LEGACY_PODX_MANIFEST_ENTRY.equals(manifestEntryName)) throw new IOException("Cannot merge MPOF without an operation log");
-		OperationLog.DocumentLog document = new OperationLog().readDocument(operations == null
-			? new OperationLog().write(java.util.UUID.randomUUID().toString(), java.util.List.of())
-			: operations);
+		if (operations == null) throw new IOException("Cannot merge MPOF without an operation log");
+		OperationLog.DocumentLog document = new OperationLog().readDocument(operations);
 		String manifestDocumentId = manifestNode.path("documentId").isTextual() ? manifestNode.path("documentId").textValue() : null;
 		Long manifestProjectId = manifestNode.path("projectUniqueId").canConvertToLong() ? Long.valueOf(manifestNode.path("projectUniqueId").longValue()) : null;
 		return new ExternalMpo(document, extensions, manifestDocumentId, manifestProjectId, taskIdentities);
@@ -459,22 +429,11 @@ public final class MpoFileImporter extends FileImporter {
 	}
 
 	static void validateManifest(String manifest, byte[] projectXml) throws IOException {
-		validateManifest(manifest, projectXml, PROJECT_ENTRY);
-	}
-
-	static void validateManifest(String manifest, byte[] projectXml, String projectEntryName) throws IOException {
 		JsonNode root = object(manifest, MANIFEST_ENTRY);
 		String format = root.path("format").isTextual() ? root.path("format").textValue() : null;
-		if (FORMAT_ID.equals(format)) {
-			if (!FORMAT_VERSION.equals(text(root, "formatVersion")) || !PROJECT_ENTRY.equals(projectEntryName))
-				throw new IOException("Unsupported or invalid MPOF manifest");
-			if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its MPOF manifest");
-			return;
-		}
-		// Migration window: legacy podx 0.1 manifest (manifest.json, format=podx)
-		if (!"podx".equals(format) || !"0.1".equals(text(root, "version")) || !LEGACY_PODX_PROJECT_ENTRY.equals(projectEntryName))
-			throw new IOException("Unsupported or invalid MPOF/podx manifest: format=" + format);
-		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("podx project.xml checksum does not match its manifest");
+		if (!FORMAT_ID.equals(format) || !FORMAT_VERSION.equals(text(root, "formatVersion")))
+			throw new IOException("Unsupported or invalid MPOF manifest: format=" + format);
+		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its MPOF manifest");
 	}
 
 
