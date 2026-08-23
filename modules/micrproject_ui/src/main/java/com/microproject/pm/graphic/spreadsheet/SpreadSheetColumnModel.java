@@ -24,13 +24,17 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet;
 
+import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.JTable;
 import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableColumn;
 
@@ -67,6 +71,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	private ArrayList<Field> fieldArray; //changes when columns are moved - needed to update the current definition
 	private ArrayList<Field> originalFieldArray; // will not change
 	private Map<String,Integer> colWidthMap;
+	private final Set<String> configuredWidthFields = new HashSet<>();
 
 	boolean svg;
 	/**
@@ -93,9 +98,46 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			while (a.hasNext()&&s.hasNext()){
 				String f=a.next().getId();
 				int size=s.next();
-				if (!colWidthMap.containsKey(f)) colWidthMap.put(f, size);
+				if (!colWidthMap.containsKey(f)) {
+					colWidthMap.put(f, size);
+					if (size > 0) configuredWidthFields.add(f);
+				}
 			}
 		}
+	}
+
+	/**
+	 * Sets the initial width of fields without a saved user width to the widest
+	 * rendered header or cell value.  This is intentionally a one-time layout
+	 * operation; editing a cell must not unexpectedly move the other columns.
+	 */
+	public void autoSizeColumnsToContent(JTable table) {
+		int totalWidth = 0;
+		for (int viewColumn = 0; viewColumn < getColumnCount(); viewColumn++) {
+			TableColumn column = getColumn(viewColumn);
+			Field field = (Field) column.getIdentifier();
+			if (field == null || configuredWidthFields.contains(field.getId())) {
+				totalWidth += column.getPreferredWidth();
+				continue;
+			}
+
+			int width = preferredWidth(column.getHeaderRenderer()
+					.getTableCellRendererComponent(table, field.getName(), false, false, -1, viewColumn));
+			for (int row = 0; row < table.getRowCount(); row++) {
+				Component component = table.prepareRenderer(table.getCellRenderer(row, viewColumn), row, viewColumn);
+				width = Math.max(width, component.getPreferredSize().width);
+			}
+
+			column.setPreferredWidth(Math.max(1, width));
+			colWidthMap.put(field.getId(), column.getPreferredWidth());
+			totalWidth += column.getPreferredWidth();
+		}
+		colWidth = totalWidth;
+	}
+
+	private static int preferredWidth(Component component) {
+		return component == null || component.getPreferredSize() == null
+				? 0 : component.getPreferredSize().width;
 	}
 
 	public void addColumn(TableColumn tc) {
@@ -275,4 +317,3 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 
 
 }
-

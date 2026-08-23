@@ -1151,6 +1151,11 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		installNameColumnTabActions();
 		initRowHeader(spreadSheetModel);
 		initModel();
+		if (SpreadSheetCategories.taskSpreadsheetCategory.equals(getSpreadSheetCategory())
+				&& spreadSheetColumnModel != null) {
+			spreadSheetColumnModel.autoSizeColumnsToContent(this);
+			resizeAndRepaintHeader();
+		}
 		initListeners();
 
 		var config = GraphicConfiguration.getInstance();
