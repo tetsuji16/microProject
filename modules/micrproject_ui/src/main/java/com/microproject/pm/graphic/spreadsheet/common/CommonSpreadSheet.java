@@ -128,6 +128,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	protected boolean canSelectFieldArray = true;
 	private PendingUndoSelection pendingUndoSelection;
 	private boolean inputMethodEditingSessionActive;
+	private final StringBuilder pendingReceivedText = new StringBuilder();
 	private boolean headerColumnSelectionActive;
 	private boolean rowHeaderSelectionActive;
 
@@ -325,10 +326,11 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		if (target == null)
 			return;
 		final boolean startNewEdit = !isEditing();
+		pendingReceivedText.append(text);
 		if (startNewEdit) {
 			inputMethodEditingSessionActive = false;
 			startEditingAtTarget(target, new StartEditEvent(this, false, null, false, false), editorText -> {
-				applyReceivedText(editorText, text, true);
+				flushReceivedText(editorText, true);
 			});
 			return;
 		}
@@ -337,7 +339,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			JTextComponent editorText = getEditorTextComponent();
 			if (editorText == null)
 				return;
-			applyReceivedText(editorText, text, false);
+			flushReceivedText(editorText, false);
 		});
 	}
 
@@ -707,6 +709,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		stabilizeDateEditorSelection(text);
 	}
 
+	/** Applies every received character that arrived before the editor was ready. */
+	private void flushReceivedText(JTextComponent text, boolean startNewEdit) {
+		if (text == null || pendingReceivedText.isEmpty())
+			return;
+		String receivedText = pendingReceivedText.toString();
+		pendingReceivedText.setLength(0);
+		applyReceivedText(text, receivedText, startNewEdit);
+	}
+
 	private void stabilizeDateEditorSelection(JTextComponent text) {
 		if (!(editorComp instanceof DateEditor.ExtDateField)) {
 			return;
@@ -852,6 +863,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			}
 		}
 		inputMethodEditingSessionActive = false;
+		pendingReceivedText.setLength(0);
 		//System.out.println("finishCurrentOperations()="+rows);
 		return rows;
 	}

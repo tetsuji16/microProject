@@ -82,6 +82,26 @@ class CommonSpreadSheetImeStartTest {
 	}
 
 	@Test
+	void receivedTextIsNotLostWhenTheNextCharacterArrivesBeforeTheEditorIsReady() throws Exception {
+		AtomicReference<RecordingSpreadSheet> sheetRef = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> sheetRef.set(new RecordingSpreadSheet()));
+		RecordingSpreadSheet sheet = sheetRef.get();
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.deferEditorAttachment();
+			sheet.processKeyEvent(new KeyEvent(sheet, KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, 'テ'));
+		});
+		SwingUtilities.invokeAndWait(() -> {});
+		SwingUtilities.invokeAndWait(() -> sheet.attachDeferredEditor());
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.processKeyEvent(new KeyEvent(sheet, KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, 'ス'));
+		});
+		SwingUtilities.invokeAndWait(() -> {});
+
+		assertEquals("テス", sheet.editorText());
+	}
+
+	@Test
 	void inputMethodStartDispatchesFullImeTextToEditor() throws Exception {
 		AtomicReference<RecordingSpreadSheet> sheetRef = new AtomicReference<>();
 		SwingUtilities.invokeAndWait(() -> {
@@ -112,6 +132,7 @@ class CommonSpreadSheetImeStartTest {
 		private java.util.EventObject recordedEditEvent;
 		private boolean editing;
 		private JTextField nextEditor;
+		private JTextField deferredEditor;
 		private String dispatchedImeText;
 
 		void primeEditor(String text) {
@@ -132,6 +153,15 @@ class CommonSpreadSheetImeStartTest {
 				}
 			});
 			nextEditor = field;
+		}
+
+		void deferEditorAttachment() {
+			deferredEditor = new JTextField();
+		}
+
+		void attachDeferredEditor() {
+			editorComp = deferredEditor;
+			deferredEditor = null;
 		}
 
 		String editorText() {
@@ -179,8 +209,8 @@ class CommonSpreadSheetImeStartTest {
 				editorComp = nextEditor;
 				nextEditor = null;
 			}
-			editing = editorComp != null;
-			return editorComp != null;
+			editing = editorComp != null || deferredEditor != null;
+			return editing;
 		}
 	}
 

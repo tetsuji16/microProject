@@ -45,6 +45,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.transaction.MultipleTransaction;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.Environment;
 
 /**
  * Regression test for issue #346: the "結果作業時間が無効です" (invalid calendar
@@ -119,6 +120,37 @@ class InvalidIntersectionFreezeTest {
 				"after the warning, the assignment must use the task calendar and remain schedulable");
 		assertEquals(1, alertCount.get(),
 				"the invalid-intersection alert must fire exactly once per task/session, not in a loop");
+	}
+
+	@Test
+	void invalidIntersectionDuringImportUsesTheFallbackWithoutAModalAlert() {
+		WorkingCalendar taskCal = WorkingCalendar.getStandardBasedInstance();
+		WorkingCalendar resourceCal = WorkingCalendar.getStandardBasedInstance();
+		taskCal.setWeekDay(Calendar.THURSDAY - 1, new WorkDay());
+		taskCal.setWeekDay(Calendar.FRIDAY - 1, new WorkDay());
+		resourceCal.setWeekDay(Calendar.MONDAY - 1, new WorkDay());
+		resourceCal.setWeekDay(Calendar.TUESDAY - 1, new WorkDay());
+		resourceCal.setWeekDay(Calendar.WEDNESDAY - 1, new WorkDay());
+
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		task.setWorkCalendar(taskCal);
+		resource.setWorkCalendar(resourceCal);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+		AtomicInteger alertCount = new AtomicInteger();
+		AssignmentCalendarSupport.notifier = ignored -> alertCount.incrementAndGet();
+
+		Environment.setImporting(true);
+		try {
+			assignment.getEffectiveWorkCalendar();
+		} finally {
+			Environment.setImporting(false);
+		}
+
+		assertTrue(task.isIgnoreResourceCalendar());
+		assertEquals(task.getEffectiveWorkCalendar(), assignment.getEffectiveWorkCalendar());
+		assertEquals(0, alertCount.get(), "startup/import repair must not show a modal error");
 	}
 
 	private Project createProject() {

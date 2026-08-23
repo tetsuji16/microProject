@@ -38,6 +38,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
+import com.microproject.util.Environment;
 
 /** Resolves the effective calendar used by an assignment. */
 final class AssignmentCalendarSupport {
@@ -70,7 +71,12 @@ final class AssignmentCalendarSupport {
 				// leaves the task in a broken state after the next recalculation.
 				((NormalTask) task).setIgnoreResourceCalendar(true);
 				detail.setIntersectionCalendar(WorkingCalendar.INVALID_INTERSECTION_CALENDAR);
-				notifyInvalidIntersection(task);
+				// Imported projects can contain historical task/resource calendar
+				// combinations with no shared working time. The fallback above keeps
+				// the task schedulable, so do not block startup/session restore with a
+				// modal error before the user can inspect or save the repaired project.
+				if (!Environment.isImporting())
+					notifyInvalidIntersection(task);
 				return task.getEffectiveWorkCalendar();
 			}
 		}

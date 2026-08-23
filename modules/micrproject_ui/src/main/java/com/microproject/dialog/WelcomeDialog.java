@@ -138,23 +138,7 @@ public final class WelcomeDialog extends AbstractDialog {
 		openProject = new JButton(Messages.getString("Text.openProject"),IconManager.getIcon("menu24.open"));
 		manageResources = new JButton(Messages.getString("Text.manageResources"),IconManager.getIcon("view.resources"));
 		recentProjects = new JList<>(recentStore.entries().toArray(RecentProjectStore.Entry[]::new));
-		recentProjects.setCellRenderer(new DefaultListCellRenderer() {
-			private static final long serialVersionUID = 1L;
-			@Override public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
-				RecentProjectStore.Entry entry = (RecentProjectStore.Entry) value;
-				// Microsoft Project style: bold file name on the first line, dimmed
-				// folder path beneath it. Missing files are greyed out entirely.
-				String pinMark = entry.pinned() ? "★ " : "";
-				String missing = entry.exists() ? "" : " (" + UsabilityStrings.text("welcome.missing") + ")";
-				String color = entry.exists() ? "" : " color='#808080'";
-				setText("<html><div style='line-height:1.2" + color + "'><b>"
-					+ escapeHtml(pinMark + entry.path().getFileName() + missing)
-					+ "</b></div><div style='color:#6e6e6e;font-size:0.85em'>"
-					+ escapeHtml(entry.path().getParent().toString())
-					+ "</div></html>");
-				return super.getListCellRendererComponent(list, "", index, selected, focus);
-				}
-				});
+		recentProjects.setCellRenderer(recentProjectRenderer());
 		recentProjects.addMouseListener(new MouseAdapter() {
 			@Override public void mouseClicked(MouseEvent event) {
 				if (event.getClickCount() == 2) openSelectedRecentProject();
@@ -253,6 +237,28 @@ public final class WelcomeDialog extends AbstractDialog {
 	/** Escapes text for the HTML two-line recent-project cell renderer. */
 	private static String escapeHtml(String text) {
 		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+	}
+
+	/** Renders the recent-project name and folder after the default renderer applies selection colors. */
+	static DefaultListCellRenderer recentProjectRenderer() {
+		return new DefaultListCellRenderer() {
+			private static final long serialVersionUID = 1L;
+			@Override public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
+				RecentProjectStore.Entry entry = (RecentProjectStore.Entry) value;
+				super.getListCellRendererComponent(list, "", index, selected, focus);
+				// Microsoft Project style: bold file name on the first line, dimmed
+				// folder path beneath it. Missing files are greyed out entirely.
+				String pinMark = entry.pinned() ? "★ " : "";
+				String missing = entry.exists() ? "" : " (" + UsabilityStrings.text("welcome.missing") + ")";
+				String color = entry.exists() ? "" : " color='#808080'";
+				setText("<html><div style='line-height:1.2" + color + "'><b>"
+					+ escapeHtml(pinMark + entry.path().getFileName() + missing)
+					+ "</b></div><div style='color:#6e6e6e;font-size:0.85em'>"
+					+ escapeHtml(entry.path().getParent().toString())
+					+ "</div></html>");
+				return this;
+			}
+		};
 	}
 
 	/** Keeps the same project selected after the list re-sorts (MSP pin behavior). */

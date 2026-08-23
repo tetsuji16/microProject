@@ -32,6 +32,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.im.InputContext;
 import java.util.EventObject;
+import java.util.function.IntFunction;
 import java.text.AttributedCharacterIterator;
 
 import javax.swing.AbstractAction;
@@ -154,14 +155,17 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	private static boolean isDurationField(JTable table, int column) {
 		if (!(table != null && table.getModel() instanceof SpreadSheetModel model))
 			return false;
-		for (int candidate : new int[] {column, column - 1, column + 1}) {
-			if (candidate < 0 || candidate >= model.getColumnCount())
-				continue;
-			com.microproject.field.Field field = model.getFieldInColumn(candidate);
-			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId())))
-				return true;
-		}
-		return false;
+		return isDurationField(column, model::getFieldInViewColumn, index -> null);
+	}
+
+	/** Resolves only the column being edited; adjacent duration columns must not affect percent parsing. */
+	static boolean isDurationField(int column, IntFunction<com.microproject.field.Field> viewField, IntFunction<com.microproject.field.Field> modelField) {
+		if (column < 0)
+			return false;
+		com.microproject.field.Field field = viewField.apply(column);
+		if (field == null)
+			field = modelField.apply(column);
+		return field != null && (field.isDuration() || "Field.duration".equals(field.getId()));
 	}
 
 	protected void installNameFieldTabActions(final SpreadSheet spreadSheet, final JComponent edit) {
@@ -288,10 +292,8 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 			}
 		}
 		if (lastTable != null && lastTable.getModel() instanceof SpreadSheetModel model) {
-			int column = lastTable.getEditingColumn();
-			com.microproject.field.Field field = column < 0 ? null : model.getFieldInViewColumn(column);
-			if (field == null && column >= 0)
-				field = model.getFieldInColumn(column);
+			int viewColumn = lastTable.getEditingColumn();
+			com.microproject.field.Field field = viewColumn < 0 ? null : model.getFieldInViewColumn(viewColumn);
 			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId()))
 					&& activeEditorComponent instanceof JTextComponent text) {
 				try {
