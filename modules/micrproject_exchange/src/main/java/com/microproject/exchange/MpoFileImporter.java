@@ -42,6 +42,9 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.field.Field;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.pm.assignment.TimeDistributedHelper;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
@@ -58,6 +61,7 @@ public final class MpoFileImporter extends FileImporter {
 	static final String PROJECT_ENTRY = "content.xml";
 	static final String META_ENTRY = "meta.xml";
 	static final String SETTINGS_ENTRY = "settings.xml";
+	static final String LAYOUT_ENTRY = "layout.json";
 	/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
 	static final String FORMAT_VERSION = "1.0";
@@ -86,6 +90,7 @@ public final class MpoFileImporter extends FileImporter {
 		byte[] projectXml = null;
 		byte[] meta = null;
 		byte[] settings = null;
+		byte[] layout = null;
 		byte[] draftCcpm = null;
 		byte[] operations = null;
 		byte[] draftOperations = null;
@@ -117,6 +122,9 @@ public final class MpoFileImporter extends FileImporter {
 				} else if (SETTINGS_ENTRY.equals(entry.getName())) {
 					if (settings != null) throw new IOException("Duplicate mpo entry: " + SETTINGS_ENTRY);
 					settings = readEntry(zip, totalBytes);
+				} else if (LAYOUT_ENTRY.equals(entry.getName())) {
+					if (layout != null) throw new IOException("Duplicate mpo entry: " + LAYOUT_ENTRY);
+					layout = readEntry(zip, totalBytes);
 				} else if (DRAFT_CCPM_ENTRY.equals(entry.getName())) {
 					if (draftCcpm != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_CCPM_ENTRY);
 					draftCcpm = readEntry(zip, totalBytes);
@@ -154,6 +162,7 @@ public final class MpoFileImporter extends FileImporter {
 		} else if (draftCcpm != null) {
 			restoreCcpm(project, new String(draftCcpm, StandardCharsets.UTF_8));
 		}
+		if (layout != null) restoreLayout(project, layout);
 		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
 		if (operations == null) operations = draftOperations;
 		if (operations != null) {
@@ -228,11 +237,13 @@ public final class MpoFileImporter extends FileImporter {
 				writeEntry(zip, SETTINGS_ENTRY, settingsXml(ccpm, new CriticalChainService().findBaseline(project)).getBytes(StandardCharsets.UTF_8));
 			}
 			if (ccpm == null) writeEntry(zip, SETTINGS_ENTRY, settingsXml(null, null).getBytes(StandardCharsets.UTF_8));
+			byte[] layout = layoutJson(project);
+			if (layout != null) writeEntry(zip, LAYOUT_ENTRY, layout);
 			writeEntry(zip, OPERATIONS_ENTRY, operationState.json);
 			writeEntry(zip, TASK_IDENTITIES_ENTRY, taskIdentitiesFor(project, projectXml).getBytes(StandardCharsets.UTF_8));
 			MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 			if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-				if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey())) continue;
+				if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey())) continue;
 				writeEntry(zip, extension.getKey(), extension.getValue());
 			}
 		}
@@ -246,6 +257,43 @@ public final class MpoFileImporter extends FileImporter {
 			operationState.documentId = java.util.UUID.randomUUID().toString(); operationState.json = new OperationLog().writeJsonl(operationState.documentId, java.util.List.of()); operationState.capture(project);
 		}
 		return operationState;
+	}
+
+	private static byte[] layoutJson(Project project) throws IOException {
+		SpreadSheetFieldArray fields = project.getFieldArray();
+		if (fields == null || fields.isEmpty()) return null;
+		ObjectNode root = JSON.createObjectNode();
+		var serializedFields = root.putArray("fields");
+		for (int index = 0; index < fields.size(); index++) {
+			Field field = fields.get(index);
+			ObjectNode serialized = serializedFields.addObject();
+			serialized.put("id", TimeDistributedHelper.getIdForObject(field));
+			serialized.put("width", fields.getWidth(index));
+		}
+		return JSON.writeValueAsBytes(root);
+	}
+
+	private static void restoreLayout(Project project, byte[] bytes) throws IOException {
+		JsonNode entries = JSON.readTree(bytes).path("fields");
+		if (!entries.isArray() || entries.size() == 0 || entries.size() > 512) {
+			throw new IOException("Invalid MPO layout field list");
+		}
+		SpreadSheetFieldArray fields = new SpreadSheetFieldArray();
+		var widths = new java.util.ArrayList<Integer>();
+		for (JsonNode entry : entries) {
+			String id = entry.path("id").asText(null);
+			if (id == null || id.isBlank()) throw new IOException("Invalid MPO layout field id");
+			Object field = TimeDistributedHelper.getObjectFromId(id);
+			if (!(field instanceof Field)) throw new IOException("Unknown MPO layout field: " + id);
+			int width = entry.path("width").asInt(-1);
+			if (width < -1 || width > 100000) throw new IOException("Invalid MPO layout width");
+			fields.add((Field) field);
+			widths.add(width);
+		}
+		fields.setWidths(widths);
+		fields.setCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
+		fields.setName(project.getName());
+		project.setFieldArray(fields);
 	}
 
 	private static byte[] mspdiSnapshot(Project project) throws IOException {

@@ -2706,17 +2706,13 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	}
 
 	private Consumer<Object> getSavingClosure() {
-		return null;
-//		return new Consumer<Object>() {
-//
-//			public void accept(Object arg0) {
-//				Project proj = (Project)arg0;
-//				SpreadSheetFieldArray fieldArray = (SpreadSheetFieldArray) getCurrentFrame().getGanttView().getSpreadSheet().getFieldArray();
-//				proj.getDocumentWorkspace().setSetting("fieldArray", fieldArray);
-//			}
-//
-//		};
-//
+		return arg0 -> {
+			if (!(arg0 instanceof Project project))
+				return;
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null && frame.getProject() == project)
+				project.setFieldArray(getCurrentFieldArray());
+		};
 	}
 
 	private Consumer<Object> getLoadClosure() {
