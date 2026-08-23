@@ -39,6 +39,9 @@ class MpoDependencySchedulingTest {
 					sample + ": " + predecessor.getName() + " must start without actual progress (actual start=" + predecessor.getActualStart()
 						+ ", actual duration=" + predecessor.getActualDuration() + ", remaining duration=" + predecessor.getRemainingDuration() + ")");
 				assertEquals(0L, predecessor.getActualStart(), sample + ": sample tasks must not have an actual start");
+				assertTrue(predecessor.getTotalSlack() >= 0L,
+					sample + ": an unconstrained automatic task must not have negative total slack ("
+						+ predecessor.getName() + "=" + predecessor.getTotalSlack() + ")");
 				for (Object value : predecessor.getSuccessorList()) {
 					Dependency dependency = (Dependency) value;
 					Task successor = (Task) dependency.getSuccessor();

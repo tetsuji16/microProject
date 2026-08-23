@@ -67,6 +67,7 @@ public class MpxExportTrackingTest extends TestCase {
 		task.setPercentWorkComplete(0.50d);
 		Iterator<?> assignments = task.getAssignments().iterator();
 		Assignment source = (Assignment) assignments.next();
+		source.setLevelingDelay(2L * 60L * 60L * 1000L);
 		ProjectFile file = new ProjectFile();
 		net.sf.mpxj.Task targetTask = file.addTask();
 		ResourceAssignment target = targetTask.addResourceAssignment(file.addResource());
@@ -75,6 +76,38 @@ public class MpxExportTrackingTest extends TestCase {
 
 		assertEquals(50.0d, target.getPercentageWorkComplete().doubleValue(), 0.00001d);
 		assertNotNull(target.getActualStart());
+		assertEquals(120.0d, target.getLevelingDelay().getDuration(), 0.00001d);
+		assertEquals(net.sf.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
+	}
+
+	public void testLevelingDelayRoundTripsInMspdiMinutes() throws Exception {
+		NormalTask source = createTask();
+		long delay = 3L * 60L * 60L * 1000L;
+		source.setLevelingDelay(delay);
+
+		net.sf.mpxj.Task target = new ProjectFile().addTask();
+		MPXConverter.toMPXTask(source, target);
+		assertEquals(180.0d, target.getLevelingDelay().getDuration(), 0.00001d);
+		assertEquals(net.sf.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
+
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("leveling-delay.xml");
+		assertTrue(exporter.saveProject(source.getProject(), output));
+		net.sf.mpxj.ProjectFile exported = new net.sf.mpxj.mspdi.MSPDIReader()
+				.read(new ByteArrayInputStream(output.toByteArray()));
+		net.sf.mpxj.Task exportedTask = exported.getTasks().stream()
+				.filter(task -> task.getID() != null && task.getID().longValue() == source.getId())
+				.findFirst().orElseThrow();
+		assertEquals(180.0d, exportedTask.getLevelingDelay().getDuration(), 0.00001d);
+
+		MicrosoftImporter importer = new MicrosoftImporter();
+		importer.setFileName("leveling-delay.xml");
+		importer.setProjectFactory(com.microproject.pm.task.ProjectFactory.getInstance());
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(output.toByteArray()));
+		NormalTask reloadedTask = (NormalTask) reloaded.getTasks().stream()
+				.filter(task -> task.getId() == source.getId()).findFirst().orElseThrow();
+		assertEquals(delay, reloadedTask.getLevelingDelay());
 	}
 
 	public void testMicrosoftXmlRoundTripPreservesTrackingAndTaskModes() throws Exception {

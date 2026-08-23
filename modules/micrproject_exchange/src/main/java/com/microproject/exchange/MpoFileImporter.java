@@ -26,6 +26,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -74,6 +76,12 @@ public final class MpoFileImporter extends FileImporter {
 	 */
 	static final int SUPPORTED_FORMAT_MAJOR = 1;
 	private static final String MIME_TYPE = "application/vnd.microproject.openproject";
+	/** Marker added once MPOF snapshots use the MSPDI minute-based delay unit. */
+	private static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
+	private static final String LEVELING_DELAY_UNIT_MINUTES = "minutes";
+	private static final String LEVELING_DELAY_FORMAT_MINUTES = "3";
+	private static final Pattern LEVELING_DELAY = Pattern.compile("<LevelingDelay>(-?\\d+)</LevelingDelay>");
+	private static final Pattern LEVELING_DELAY_FORMAT = Pattern.compile("<LevelingDelayFormat>\\d+</LevelingDelayFormat>");
 	static final String OPERATIONS_ENTRY = "operations/log.jsonl";
 	/** Read-only aliases for MPOF drafts written before the XML/JSONL layout was settled. */
 	private static final String DRAFT_CCPM_ENTRY = "ccpm.json";
@@ -159,8 +167,10 @@ public final class MpoFileImporter extends FileImporter {
 		if (settings != null && draftCcpm != null) {
 			throw new IOException("MPOF contains both current and draft CCPM settings");
 		}
+		boolean legacyMicroprojectLevelingDelay = meta != null && isLegacyMicroprojectLevelingDelay(meta);
 		if (meta != null) validateMeta(meta);
 		validateManifest(new String(manifest, StandardCharsets.UTF_8), projectXml);
+		if (legacyMicroprojectLevelingDelay) projectXml = migrateLegacyLevelingDelays(projectXml);
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
 		delegate.setProjectFactory(projectFactory);
@@ -624,16 +634,56 @@ public final class MpoFileImporter extends FileImporter {
 	private static String metaXml() {
 		String version = com.microproject.util.VersionUtils.getVersion();
 		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<meta formatVersion=\"1.0\" generator=\"microProject\"" +
+			" " + LEVELING_DELAY_UNIT_ATTRIBUTE + "=\"" + LEVELING_DELAY_UNIT_MINUTES + "\"" +
 			(version == null ? "" : " applicationVersion=\"" + xmlEscape(version) + "\"") + "/>\n";
+	}
+
+	/**
+	 * MPOF snapshots written before the unit marker stored the engine's raw
+	 * millisecond value in MSPDI's serialized delay field. Restrict conversion to these
+	 * microProject files: ordinary MSPDI imports remain standards-compliant.
+	 */
+	private static boolean isLegacyMicroprojectLevelingDelay(byte[] xmlBytes) throws IOException {
+		try {
+			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
+			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
+			return "microProject".equals(root.getAttribute("generator"))
+				&& !LEVELING_DELAY_UNIT_MINUTES.equals(root.getAttribute(LEVELING_DELAY_UNIT_ATTRIBUTE));
+		} catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
+	}
+
+	private static byte[] migrateLegacyLevelingDelays(byte[] xmlBytes) throws IOException {
+		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
+		Matcher matcher = LEVELING_DELAY.matcher(xml);
+		StringBuffer migrated = new StringBuffer(xml.length());
+		while (matcher.find()) {
+			try {
+				// MPXJ serializes a minute-format leveling delay in tenths of a
+				// minute. Normalize both the value and its format rather than relying
+				// on the stale format written by the legacy serializer.
+				long serializedMinutes = Long.parseLong(matcher.group(1)) / 6000L;
+				matcher.appendReplacement(migrated, Matcher.quoteReplacement("<LevelingDelay>" + serializedMinutes + "</LevelingDelay>"));
+			} catch (NumberFormatException exception) {
+				throw new IOException("Invalid legacy LevelingDelay", exception);
+			}
+		}
+		matcher.appendTail(migrated);
+		return LEVELING_DELAY_FORMAT.matcher(migrated).replaceAll("<LevelingDelayFormat>" + LEVELING_DELAY_FORMAT_MINUTES + "</LevelingDelayFormat>")
+			.getBytes(StandardCharsets.UTF_8);
+	}
+
+	private static javax.xml.parsers.DocumentBuilderFactory secureDocumentBuilderFactory() throws javax.xml.parsers.ParserConfigurationException {
+		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+		factory.setXIncludeAware(false); factory.setExpandEntityReferences(false);
+		return factory;
 	}
 
 	private static void validateMeta(byte[] xmlBytes) throws IOException {
 		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-			factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-			factory.setXIncludeAware(false); factory.setExpandEntityReferences(false);
+			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
 			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
 			if (!"meta".equals(root.getTagName()) || root.getAttribute("generator").isBlank()) throw new IOException("Invalid meta.xml");
 			requireReadableFormatVersion(root.getAttribute("formatVersion"));

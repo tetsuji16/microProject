@@ -65,6 +65,7 @@ public class MpxAssignmentConverter {
 		assignment.setActualFinish(toLong(mpxAssignment.getActualFinish()));
 		assignment.setActualWork(toLong(mpxAssignment.getActualWork()), null);
 		assignment.setRemainingWork(toLong(mpxAssignment.getRemainingWork()), null);
+		assignment.setLevelingDelay(toLong(mpxAssignment.getLevelingDelay()));
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
 		// work contour: default to flat (0) for import; contour details skipped (#154)

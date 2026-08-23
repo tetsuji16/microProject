@@ -318,15 +318,10 @@ public class MPXConverter {
             CalendarOption.setInstance(oldOptions);
     	}
 
-    	long levelingDelay = Duration.millis(assignment.getLevelingDelay());
-    	if (levelingDelay != 0) {
-    		// mpxj uses default options when dealing with assignment delay
-    		CalendarOption oldOptions = CalendarOption.getInstance();
-    		CalendarOption.setInstance(CalendarOption.getDefaultInstance());
-
-        	mpxAssignment.setDelay(MPXConverter.toMPXDuration(assignment.getLevelingDelay()));
-            CalendarOption.setInstance(oldOptions);
-    	}
+		long levelingDelay = Duration.millis(assignment.getLevelingDelay());
+		if (levelingDelay != 0) {
+			mpxAssignment.setLevelingDelay(MPXConverter.toMPXLevelingDelay(assignment.getLevelingDelay()));
+		}
 
 
 		mpxAssignment.setWorkContour(MpxjApi.workContour(assignment.getWorkContourType()));
@@ -376,7 +371,12 @@ private static int autoId = 0;
 		mpxTask.setFixedCostAccrual(AccrueType.getInstance(projectlibreTask.getFixedCostAccrual()));
 		mpxTask.setMilestone(projectlibreTask.isMarkTaskAsMilestone());
 		toMPXTaskTracking(projectlibreTask, mpxTask);
-		mpxTask.setLevelingDelay(toMPXDuration(projectlibreTask.getLevelingDelay()));
+		// MSPDI stores leveling delay as a count of minutes. Unlike task
+		// duration, the scheduling engine keeps this value as an unencoded
+		// millisecond offset. Routing it through toMPXDuration() can therefore
+		// serialize milliseconds as minutes and create months of artificial delay
+		// after an import/recalculation.
+		mpxTask.setLevelingDelay(toMPXLevelingDelay(projectlibreTask.getLevelingDelay()));
 		if (projectlibreTask.getDeadline() != 0)
 			mpxTask.setDeadline(DateTime.fromGmt(new Date(projectlibreTask.getDeadline())));
 		mpxTask.setEarnedValueMethod(EarnedValueMethod.getInstance(projectlibreTask.getEarnedValueMethod()));
@@ -449,6 +449,12 @@ private static int autoId = 0;
 		return net.sf.mpxj.Duration.getInstance(durationValue, timeUnit);
 
 
+	}
+
+	/** Converts the engine's millisecond leveling delay to MSPDI minutes. */
+	public static net.sf.mpxj.Duration toMPXLevelingDelay(long levelingDelay) {
+		return net.sf.mpxj.Duration.getInstance(
+			(double) Duration.millis(levelingDelay) / (60.0d * 1000.0d), TimeUnit.MINUTES);
 	}
 
 	/**

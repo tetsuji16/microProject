@@ -117,6 +117,34 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void legacyMicroprojectMpoMigratesMillisecondLevelingDelayBeforeScheduling() throws Exception {
+		Project project = projectForRoundTrip();
+		long delay = 3L * 60L * 60L * 1000L;
+		((NormalTask) firstTask(project)).setLevelingDelay(delay);
+		ByteArrayOutputStream generated = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, generated);
+		Map<String, byte[]> entries = readEntries(generated.toByteArray());
+		String currentXml = new String(entries.get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
+		org.junit.jupiter.api.Assertions.assertTrue(currentXml.contains("<LevelingDelay>"), currentXml);
+		String legacyXml = currentXml.replaceFirst("<LevelingDelay>\\d+</LevelingDelay>", "<LevelingDelay>10800000</LevelingDelay>");
+		entries.put(MpoFileImporter.PROJECT_ENTRY, legacyXml.getBytes(StandardCharsets.UTF_8));
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, MpoFileImporter.manifestFor(entries.get(MpoFileImporter.PROJECT_ENTRY)).getBytes(StandardCharsets.UTF_8));
+		String legacyMeta = new String(entries.get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8)
+				.replace(" levelingDelayUnit=\"minutes\"", "");
+		entries.put(MpoFileImporter.META_ENTRY, legacyMeta.getBytes(StandardCharsets.UTF_8));
+
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setProjectFactory(ProjectFactory.getInstance());
+		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
+		org.junit.jupiter.api.Assertions.assertEquals(delay, firstTask(loaded).getLevelingDelay());
+
+		ByteArrayOutputStream resaved = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(loaded, resaved);
+		String migratedMeta = new String(readEntries(resaved.toByteArray()).get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8);
+		org.junit.jupiter.api.Assertions.assertTrue(migratedMeta.contains("levelingDelayUnit=\"minutes\""), migratedMeta);
+	}
+
+	@Test
 	void manifestRejectsDuplicateRequiredFields() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
 		String duplicate = MpoFileImporter.manifestFor(projectXml).replace("format=\"mpof\"", "format=\"mpof\" format=\"mpof\"");
@@ -614,12 +642,14 @@ class MpoFileImporterTest {
 			CriticalChainService.Settings settings = service.findSettings(loaded);
 			org.junit.jupiter.api.Assertions.assertNotNull(settings, name);
 			org.junit.jupiter.api.Assertions.assertTrue(settings.isEnabled(), name);
-			org.junit.jupiter.api.Assertions.assertNotNull(service.findBaseline(loaded), name);
+			// The comparison samples are a clean pre-CCPM plan. Applying CCPM is
+			// part of the walkthrough, so no stale baseline may be embedded.
+			org.junit.jupiter.api.Assertions.assertNull(service.findBaseline(loaded), name);
 			List<Resource> resources = new ArrayList<>(loaded.getResourcePool().getResourceList());
 			CriticalChainService.Analysis analysis = service.preview(loaded, resources, settings);
 			org.junit.jupiter.api.Assertions.assertFalse(analysis.criticalTaskIds().isEmpty(), name);
 			org.junit.jupiter.api.Assertions.assertFalse(analysis.graphEdges().isEmpty(), name);
-			org.junit.jupiter.api.Assertions.assertTrue(loaded.getPercentComplete() > 0D && loaded.getPercentComplete() < 1D, name);
+			org.junit.jupiter.api.Assertions.assertEquals(0D, loaded.getPercentComplete(), 0.00001D, name);
 			org.junit.jupiter.api.Assertions.assertTrue(analysis.criticalTaskIds().size() < taskCount(loaded), name);
 		}
 	}
@@ -638,12 +668,12 @@ class MpoFileImporterTest {
 	}
 
 	@Test
-	void japaneseCcpmSamplePreservesImportedTaskCompletionAfterAssignments() throws Exception {
+	void japaneseCcpmSampleStartsWithoutImportedCompletion() throws Exception {
 		Project loaded = load(findSample("CCPM path comparison 日本語.mpo"));
 		com.microproject.pm.task.Task completedTask = findByName(loaded, "操作手順書");
 		org.junit.jupiter.api.Assertions.assertNotNull(completedTask);
-		org.junit.jupiter.api.Assertions.assertEquals(1.0D, completedTask.getPercentComplete(), 0.00001D);
-		org.junit.jupiter.api.Assertions.assertEquals(1.0D, ((NormalTask) completedTask).getPercentWorkComplete(), 0.00001D);
+		org.junit.jupiter.api.Assertions.assertEquals(0D, completedTask.getPercentComplete(), 0.00001D);
+		org.junit.jupiter.api.Assertions.assertEquals(0D, ((NormalTask) completedTask).getPercentWorkComplete(), 0.00001D);
 	}
 
 	private static Project loadFromBytes(byte[] mpo) throws Exception {
