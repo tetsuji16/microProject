@@ -21,4 +21,5 @@ EXIT /B 1
 
 :execute
 "%JAVA_EXE%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
-ENDLOCAL
+SET GRADLE_EXIT_CODE=%ERRORLEVEL%
+ENDLOCAL & EXIT /B %GRADLE_EXIT_CODE%

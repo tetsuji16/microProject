@@ -155,7 +155,8 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	private static boolean isDurationField(JTable table, int column) {
 		if (!(table != null && table.getModel() instanceof SpreadSheetModel model))
 			return false;
-		return isDurationField(column, model::getFieldInViewColumn, index -> null);
+		int modelColumn = table.convertColumnIndexToModel(column);
+		return isDurationField(modelColumn, model::getFieldInColumn, index -> null);
 	}
 
 	/** Resolves only the column being edited; adjacent duration columns must not affect percent parsing. */
@@ -293,7 +294,8 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		}
 		if (lastTable != null && lastTable.getModel() instanceof SpreadSheetModel model) {
 			int viewColumn = lastTable.getEditingColumn();
-			com.microproject.field.Field field = viewColumn < 0 ? null : model.getFieldInViewColumn(viewColumn);
+			int modelColumn = viewColumn < 0 ? -1 : lastTable.convertColumnIndexToModel(viewColumn);
+			com.microproject.field.Field field = modelColumn < 0 ? null : model.getFieldInColumn(modelColumn);
 			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId()))
 					&& activeEditorComponent instanceof JTextComponent text) {
 				try {
