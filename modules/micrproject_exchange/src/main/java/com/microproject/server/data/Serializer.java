@@ -538,6 +538,7 @@ public class Serializer {
         projectData.setProjectType(project.getProjectType());
         projectData.setProjectStatus(project.getProjectStatus());
         projectData.setExtraFields(project.getExtraFields());
+        projectData.setCustomReportPresets(project.getCustomReportPresets());
         projectData.setAccessControlPolicy(project.getAccessControlPolicy());
         projectData.setCreationDate(project.getCreationDate());
         projectData.setLastModificationDate(project.getLastModificationDate());
@@ -770,6 +771,9 @@ public class Serializer {
     	project.setProjectType(projectData.getProjectType());
     	project.setProjectStatus(projectData.getProjectStatus());
     	project.setAccessControlPolicy(projectData.getAccessControlPolicy());
+		project.getCustomReportPresets().clear();
+		if (projectData.getCustomReportPresets() != null)
+			project.getCustomReportPresets().putAll(projectData.getCustomReportPresets());
 
     	project.postDeserialization();
 

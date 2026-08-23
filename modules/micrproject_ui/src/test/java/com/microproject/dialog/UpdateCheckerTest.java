@@ -20,6 +20,13 @@ class UpdateCheckerTest {
 	}
 
 	@Test
+	void prefersTheStableLatestMsiAsset() {
+		String digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+		String json = "{\"assets\":[{\"browser_download_url\":\"https://x/microProject-0.0.24.msi\",\"digest\":\"sha256:" + digest + "\"},{\"browser_download_url\":\"https://x/microProject-latest.msi\",\"digest\":\"sha256:" + digest + "\"}]}";
+		assertEquals("https://x/microProject-latest.msi", UpdateChecker.extractMsiDownloadUrl(json));
+	}
+
+	@Test
 	void returnsNullWhenTagNameMissing() {
 		assertNull(UpdateChecker.extractTagName("{\"name\":\"release\"}"));
 	}

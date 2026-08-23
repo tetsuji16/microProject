@@ -64,6 +64,11 @@ final class AssignmentCalendarSupport {
 				detail.setIntersectionCalendar(((WorkingCalendar) task.getEffectiveWorkCalendar())
 						.intersectWith((WorkingCalendar) resource.getEffectiveWorkCalendar()));
 			} catch (InvalidCalendarIntersectionException e) {
+				// Match Microsoft Project: when the task and resource calendars
+				// have no common working time, continue by ignoring the resource
+				// calendar for this task.  Keeping only an invalid sentinel here
+				// leaves the task in a broken state after the next recalculation.
+				((NormalTask) task).setIgnoreResourceCalendar(true);
 				detail.setIntersectionCalendar(WorkingCalendar.INVALID_INTERSECTION_CALENDAR);
 				notifyInvalidIntersection(task);
 				return task.getEffectiveWorkCalendar();

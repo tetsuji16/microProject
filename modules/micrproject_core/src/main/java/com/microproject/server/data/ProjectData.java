@@ -70,6 +70,8 @@ public class ProjectData extends DocumentData implements HasName,DelegatesFields
     protected Collection<DistributionData> distributions;
     protected Map<String, Object> fieldValues;
     protected Map<String, Object> extraFields;
+    /** Project-scoped custom report presets persisted with native files. */
+    protected Map<String, String> customReportPresets;
     protected Collection<? extends DataObject> referringSubprojectTasks;
     protected long availableImages=GANTT_SVG|GANTT_PNG|NETWORK_SVG|NETWORK_PNG;
     protected String group;
@@ -199,6 +201,12 @@ public class ProjectData extends DocumentData implements HasName,DelegatesFields
 	}
 	public final void setExtraFields(Map<String, Object> extraFields) {
 		this.extraFields = extraFields;
+	}
+	public final Map<String, String> getCustomReportPresets() {
+		return customReportPresets;
+	}
+	public final void setCustomReportPresets(Map<String, String> customReportPresets) {
+		this.customReportPresets = customReportPresets;
 	}
     public final Collection<? extends DataObject> getReferringSubprojectTasks() {
         return referringSubprojectTasks;

@@ -155,7 +155,10 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		list.setCellRenderer( new ListRenderer());
 		setListFields(list,cost);
 		if (!simple) {
-			list.setSelectedIndex(0); // start off with first choice selected			
+			if (cost)
+				list.setSelectedIndex(0);
+			else
+				list.setSelectedIndices(new int[] { 0, 1, 2 }); // Work, Actual Work, Remaining Work
 			list.addListSelectionListener(new ListSelectionListener() {
 				public void valueChanged(ListSelectionEvent e) {
 					if (chartInfo.isRestoring()) // don't want to listen if updating from workspace
@@ -509,4 +512,3 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		}
 	}	
 }
-

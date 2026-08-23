@@ -25,6 +25,7 @@
 package com.microproject.pm.assignment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Calendar;
@@ -112,6 +113,10 @@ class InvalidIntersectionFreezeTest {
 			assignment.getEffectiveWorkCalendar();
 		}
 
+		assertTrue(task.isIgnoreResourceCalendar(),
+				"an invalid intersection must persist the MS Project-compatible ignore-resource-calendar choice");
+		assertEquals(task.getEffectiveWorkCalendar(), assignment.getEffectiveWorkCalendar(),
+				"after the warning, the assignment must use the task calendar and remain schedulable");
 		assertEquals(1, alertCount.get(),
 				"the invalid-intersection alert must fire exactly once per task/session, not in a loop");
 	}

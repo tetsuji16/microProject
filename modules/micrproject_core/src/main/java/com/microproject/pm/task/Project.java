@@ -180,6 +180,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	int priority = 500;
 	long currentDate = 0;
 	private Map extraFields = null;
+	/** Project-scoped report definitions persisted with native project files. */
+	private Map<String, String> customReportPresets = new LinkedHashMap<>();
 	private GanttBarFormatOverrides ganttBarFormatOverrides = new GanttBarFormatOverrides();
 	private double risk = 0.0D;
 	private double netPresentValue = 0.0D;
@@ -1950,6 +1952,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public final void setExtraFields(Map extraFields) {
 		this.extraFields = extraFields;
+	}
+
+	public final Map<String, String> getCustomReportPresets() {
+		if (customReportPresets == null)
+			customReportPresets = new LinkedHashMap<>();
+		return customReportPresets;
 	}
 
 	public GanttBarFormatOverrides getGanttBarFormatOverrides() {

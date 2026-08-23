@@ -42,8 +42,9 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.prefs.BackingStoreException;
-import java.util.prefs.Preferences;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -78,7 +79,6 @@ import com.microproject.util.PopupDialogSupport;
 /** User-configurable task report with reusable presets, preview, print, and CSV export. */
 public final class CustomReportDialogBox extends JDialog {
 	private static final long serialVersionUID = 1L;
-	private static final Preferences PRESETS = Preferences.userNodeForPackage(CustomReportDialogBox.class).node("customReports");
 	private static final String[] FILTERS = { t("report.all"), t("report.incomplete"), t("report.late"), t("report.milestones"), t("report.critical"), t("report.manual"), t("report.inactive") };
 	private static final String[] GROUPS = { t("report.none"), t("report.status"), t("common.resource") };
 	private final Project project;
@@ -214,22 +214,38 @@ public final class CustomReportDialogBox extends JDialog {
 	private void savePreset() {
 		String name = JOptionPane.showInputDialog(this, t("report.presetName"), t("report.savePreset"), JOptionPane.PLAIN_MESSAGE);
 		if (name == null || name.isBlank()) return;
-		Preferences node = PRESETS.node(safeNode(name)); node.put("displayName", name.trim());
-		node.put("columns", String.join(",", columns.getSelectedValuesList().stream().map(Field::getId).toList()));
-		node.put("filter", String.valueOf(filter.getSelectedItem())); node.put("group", String.valueOf(group.getSelectedItem()));
-		Field sortField = (Field) sort.getSelectedItem(); node.put("sort", sortField == null ? "" : sortField.getId());
-		node.putBoolean("summary", includeSummary.isSelected()); refreshPresetNames(); presets.setSelectedItem(name.trim());
+		String displayName = name.trim();
+		Map<String, String> values = new LinkedHashMap<>();
+		values.put("columns", String.join(",", columns.getSelectedValuesList().stream().map(Field::getId).toList()));
+		values.put("filter", String.valueOf(filter.getSelectedItem()));
+		values.put("group", String.valueOf(group.getSelectedItem()));
+		Field sortField = (Field) sort.getSelectedItem(); values.put("sort", sortField == null ? "" : sortField.getId());
+		values.put("summary", Boolean.toString(includeSummary.isSelected()));
+		project.getCustomReportPresets().put(displayName, encodePreset(values));
+		refreshPresetNames(); presets.setSelectedItem(displayName);
 	}
 	private void loadPreset() {
-		String name = (String) presets.getSelectedItem(); if (name == null) return; Preferences node = presetByDisplayName(name); if (node == null) return;
-		List<String> ids = Arrays.asList(node.get("columns", "").split(",", -1)); columns.setSelectedIndices(java.util.stream.IntStream.range(0, fields.size()).filter(i -> ids.contains(fields.get(i).getId())).toArray());
-		filter.setSelectedItem(node.get("filter", FILTERS[0])); group.setSelectedItem(node.get("group", GROUPS[0])); includeSummary.setSelected(node.getBoolean("summary", false));
-		String sortId = node.get("sort", ""); fields.stream().filter(field -> field.getId().equals(sortId)).findFirst().ifPresent(sort::setSelectedItem); generate();
+		String name = (String) presets.getSelectedItem(); if (name == null) return;
+		Map<String, String> values = decodePreset(project.getCustomReportPresets().get(name)); if (values == null) return;
+		List<String> ids = Arrays.asList(values.getOrDefault("columns", "").split(",", -1));
+		columns.setSelectedIndices(java.util.stream.IntStream.range(0, fields.size()).filter(i -> ids.contains(fields.get(i).getId())).toArray());
+		filter.setSelectedItem(values.getOrDefault("filter", FILTERS[0])); group.setSelectedItem(values.getOrDefault("group", GROUPS[0]));
+		includeSummary.setSelected(Boolean.parseBoolean(values.getOrDefault("summary", "false")));
+		String sortId = values.getOrDefault("sort", ""); fields.stream().filter(field -> field.getId().equals(sortId)).findFirst().ifPresent(sort::setSelectedItem); generate();
 	}
-	private void deletePreset() { String name = (String) presets.getSelectedItem(); Preferences node = name == null ? null : presetByDisplayName(name); if (node != null) try { node.removeNode(); refreshPresetNames(); } catch (BackingStoreException error) { Alert.error(error.getMessage()); } }
-	private Preferences presetByDisplayName(String name) { try { for (String child : PRESETS.childrenNames()) { Preferences node = PRESETS.node(child); if (name.equals(node.get("displayName", child))) return node; } } catch (BackingStoreException ignored) { } return null; }
-	private void refreshPresetNames() { presets.removeAllItems(); try { for (String child : PRESETS.childrenNames()) presets.addItem(PRESETS.node(child).get("displayName", child)); } catch (BackingStoreException ignored) { } }
-	private static String safeNode(String name) { return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(name.trim().getBytes(StandardCharsets.UTF_8)); }
+	private void deletePreset() { String name = (String) presets.getSelectedItem(); if (name != null) { project.getCustomReportPresets().remove(name); refreshPresetNames(); } }
+	private void refreshPresetNames() { presets.removeAllItems(); project.getCustomReportPresets().keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).forEach(presets::addItem); }
+	static String encodePreset(Map<String, String> values) {
+		return values.entrySet().stream().map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue())).collect(java.util.stream.Collectors.joining("\n"));
+	}
+	static Map<String, String> decodePreset(String encoded) {
+		if (encoded == null) return null;
+		Map<String, String> values = new LinkedHashMap<>();
+		try { for (String line : encoded.split("\\n")) { int separator = line.indexOf('='); if (separator <= 0) return null; values.put(decode(line.substring(0, separator)), decode(line.substring(separator + 1))); } return values.isEmpty() ? null : values; }
+		catch (IllegalArgumentException error) { return null; }
+	}
+	private static String encode(String value) { return Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }
+	private static String decode(String value) { return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8); }
 
 	private void exportCsv() {
 		generate();

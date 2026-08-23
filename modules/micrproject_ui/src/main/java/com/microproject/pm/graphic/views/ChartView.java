@@ -79,9 +79,6 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		chartInfo = new ChartInfo();
 		chartInfo.setProject(documentFrame.getProject());
 		chartInfo.setSimple(simple);
-		if (!simple) {
-			chartInfo.setCumulativeCostMode();
-		}
 		chartInfo.setChartView(this);
 		chartInfo.setCache(getCache());
 		setDeltaDivider(GraphicConfiguration.getInstance().getRowChartHeaderWidth());
@@ -292,4 +289,3 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 	}
 
 }
-

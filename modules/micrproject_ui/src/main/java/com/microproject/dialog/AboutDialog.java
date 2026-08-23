@@ -33,6 +33,7 @@ import java.util.ResourceBundle;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -45,6 +46,7 @@ import com.microproject.util.ClassLoaderUtils;
 import com.microproject.util.Environment;
 import com.microproject.util.UiLinkTargets;
 import com.microproject.util.VersionUtils;
+import com.microproject.util.Alert;
 
 public final class AboutDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
@@ -55,6 +57,23 @@ public final class AboutDialog extends AbstractDialog {
 	private AboutDialog(Frame owner) {
 		super(owner, Messages.format("Format.words",
 				Messages.getString("AboutDialog.About"), Messages.getContextString("Text.ApplicationTitle")), true); //$NON-NLS-1$
+	}
+
+	@Override
+	public void setVisible(boolean visible) {
+		if (visible) {
+			UpdateChecker.checkAndStageInBackground(this::handleUpdateResult);
+		}
+		super.setVisible(visible);
+	}
+
+	private void handleUpdateResult(UpdateChecker.UpdateResult result) {
+		if (!result.updateAvailable() || !isShowing()) return;
+		String message = UsabilityStrings.text("update.ready").replace("{0}", result.currentVersion())
+				.replace("{1}", result.latestVersion());
+		if (Alert.okCancel(message)) {
+			UpdateChecker.applyStagedUpdate();
+		}
 	}
 
 

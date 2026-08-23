@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  * this never deletes the original target before the move has actually
  * succeeded. A failed move therefore leaves the user's existing file intact
  * instead of silently discarding it and reporting success. This is the same
- * move idiom already used by {@code PodxFileImporter} / {@code MpoFileImporter}.
+ * move idiom already used by the MPOF file importer.
  *
  * <p>Root cause of issue #354: the old save paths deleted the original and then
  * ignored the boolean result of {@link File#renameTo(File)}. When the rename

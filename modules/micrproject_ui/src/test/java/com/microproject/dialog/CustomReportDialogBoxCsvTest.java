@@ -4,6 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import javax.swing.table.DefaultTableModel;
 
@@ -15,8 +17,21 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class CustomReportDialogBoxCsvTest {
+	@Test
+	void customReportPresetRoundTripsWithoutGlobalPreferences() {
+		Map<String, String> original = new LinkedHashMap<>();
+		original.put("columns", "Field.name,Field.start");
+		original.put("filter", "未完了");
+		original.put("group", "リソース");
+		original.put("sort", "Field.start");
+		original.put("summary", "true");
+
+		assertEquals(original, CustomReportDialogBox.decodePreset(CustomReportDialogBox.encodePreset(original)));
+		assertNull(CustomReportDialogBox.decodePreset("not-a-preset"));
+	}
 
 	private static String bodyWithoutBom(ByteArrayOutputStream out) {
 		byte[] bytes = out.toByteArray();
