@@ -70,7 +70,7 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
-		entries.put("changes/operations.json", "{\"schemaVersion\":1,\"documentId\":\"not-a-uuid\",\"operations\":[],\"conflicts\":[]}".getBytes(StandardCharsets.UTF_8));
+		entries.put("operations/log.jsonl", "{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"not-a-uuid\"}\n".getBytes(StandardCharsets.UTF_8));
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		assertThrows(IOException.class, () -> reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray())));
@@ -84,7 +84,7 @@ class MpoFileImporterTest {
 		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation update = new OperationLog.Operation("00000000-0000-0000-0000-000000000011", "00000000-0000-0000-0000-000000000012", 1, java.util.Set.of(), "task.update", "00000000-0000-0000-0000-000000000013", Map.of("legacyUniqueId", Long.valueOf(task.getUniqueId()), "name", "Merged task"));
-		entries.put("changes/operations.json", new OperationLog().write("00000000-0000-0000-0000-000000000014", java.util.List.of(update)));
+		entries.put("operations/log.jsonl", new OperationLog().writeJsonl("00000000-0000-0000-0000-000000000014", java.util.List.of(update)));
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
@@ -98,7 +98,7 @@ class MpoFileImporterTest {
 		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation create = new OperationLog.Operation("00000000-0000-0000-0000-000000000021", "00000000-0000-0000-0000-000000000022", 1, java.util.Set.of(), "task.create", "00000000-0000-0000-0000-000000000023", Map.of("legacyUniqueId", Long.valueOf(9001L), "name", "Created task"));
-		entries.put("changes/operations.json", new OperationLog().write("00000000-0000-0000-0000-000000000024", java.util.List.of(create, create)));
+		entries.put("operations/log.jsonl", new OperationLog().writeJsonl("00000000-0000-0000-0000-000000000024", java.util.List.of(create, create)));
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
@@ -114,7 +114,7 @@ class MpoFileImporterTest {
 		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation delete = new OperationLog.Operation("00000000-0000-0000-0000-000000000031", "00000000-0000-0000-0000-000000000032", 1, java.util.Set.of(), "task.delete", "00000000-0000-0000-0000-000000000033", Map.of("legacyUniqueId", Long.valueOf(taskId)));
-		entries.put("changes/operations.json", new OperationLog().write("00000000-0000-0000-0000-000000000034", java.util.List.of(delete, delete)));
+		entries.put("operations/log.jsonl", new OperationLog().writeJsonl("00000000-0000-0000-0000-000000000034", java.util.List.of(delete, delete)));
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
@@ -128,8 +128,8 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		((NormalTask) firstTask(project)).setName("Edited after save");
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
-		byte[] operations = readEntries(second.toByteArray()).get("changes/operations.json");
-		org.junit.jupiter.api.Assertions.assertEquals(1, new OperationLog().read(operations).size());
+		byte[] operations = readEntries(second.toByteArray()).get("operations/log.jsonl");
+		org.junit.jupiter.api.Assertions.assertEquals(1, new OperationLog().readJsonl(operations).operations().size());
 	}
 
 	@Test
@@ -139,8 +139,8 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		((NormalTask) project.createLocalTaskNode(null).getImpl()).setName("Added after save");
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
-		byte[] operations = readEntries(second.toByteArray()).get("changes/operations.json");
-		org.junit.jupiter.api.Assertions.assertEquals("task.create", new OperationLog().read(operations).get(0).kind());
+		byte[] operations = readEntries(second.toByteArray()).get("operations/log.jsonl");
+		org.junit.jupiter.api.Assertions.assertEquals("task.create", new OperationLog().readJsonl(operations).operations().get(0).kind());
 	}
 
 	@Test
@@ -152,7 +152,7 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream generated = new ByteArrayOutputStream(); new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation move = new OperationLog.Operation("00000000-0000-0000-0000-000000000041", "00000000-0000-0000-0000-000000000042", 1, java.util.Set.of(), "task.move", "00000000-0000-0000-0000-000000000043", Map.of("legacyUniqueId", Long.valueOf(child.getUniqueId()), "parentLegacyUniqueId", Long.valueOf(parent.getUniqueId())));
-		entries.put("changes/operations.json", new OperationLog().write("00000000-0000-0000-0000-000000000044", java.util.List.of(move)));
+		entries.put("operations/log.jsonl", new OperationLog().writeJsonl("00000000-0000-0000-0000-000000000044", java.util.List.of(move)));
 		MpoFileImporter reader = new MpoFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
 		org.junit.jupiter.api.Assertions.assertEquals(parent.getUniqueId(), loaded.findByUniqueId(child.getUniqueId()).getWbsParentTask().getUniqueId());
@@ -168,7 +168,7 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		project.setLocalParent(child, parent);
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
-		java.util.List<OperationLog.Operation> operations = new OperationLog().read(readEntries(second.toByteArray()).get("changes/operations.json"));
+		java.util.List<OperationLog.Operation> operations = new OperationLog().readJsonl(readEntries(second.toByteArray()).get("operations/log.jsonl")).operations();
 		org.junit.jupiter.api.Assertions.assertEquals("task.move", operations.get(0).kind());
 		org.junit.jupiter.api.Assertions.assertEquals(parent.getUniqueId(), ((Number) operations.get(0).payload().get("parentLegacyUniqueId")).longValue());
 	}
@@ -182,7 +182,7 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, null);
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
-		java.util.List<OperationLog.Operation> operations = new OperationLog().read(readEntries(second.toByteArray()).get("changes/operations.json"));
+		java.util.List<OperationLog.Operation> operations = new OperationLog().readJsonl(readEntries(second.toByteArray()).get("operations/log.jsonl")).operations();
 		org.junit.jupiter.api.Assertions.assertEquals("dependency.add", operations.get(0).kind());
 		MpoFileImporter reader = new MpoFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(second.toByteArray()));
@@ -199,7 +199,7 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, null, false);
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
-		java.util.List<OperationLog.Operation> operations = new OperationLog().read(readEntries(second.toByteArray()).get("changes/operations.json"));
+		java.util.List<OperationLog.Operation> operations = new OperationLog().readJsonl(readEntries(second.toByteArray()).get("operations/log.jsonl")).operations();
 		org.junit.jupiter.api.Assertions.assertEquals("assignment.add", operations.get(0).kind());
 		MpoFileImporter reader = new MpoFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(second.toByteArray()));
@@ -297,7 +297,11 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertEquals("application/vnd.microproject.openproject",
 			new String(entries.get("mimetype"), StandardCharsets.UTF_8).trim());
 		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("META-INF/manifest.xml"));
+		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("meta.xml"));
 		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("content.xml"));
+		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("settings.xml"));
+		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("operations/log.jsonl"));
+		org.junit.jupiter.api.Assertions.assertTrue(new String(entries.get("meta.xml"), StandardCharsets.UTF_8).contains("<meta "));
 		String manifest = new String(entries.get("META-INF/manifest.xml"), StandardCharsets.UTF_8);
 		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("\"format\":\"mpof\""));
 		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("\"formatVersion\":\"1.0\""));
@@ -317,7 +321,7 @@ class MpoFileImporterTest {
 		writer.setFileName(mpo.getAbsolutePath());
 		writer.setProject(original);
 		writer.exportFile();
-		org.junit.jupiter.api.Assertions.assertTrue(readEntries(java.nio.file.Files.readAllBytes(mpo.toPath())).containsKey("changes/operations.json"));
+		org.junit.jupiter.api.Assertions.assertTrue(readEntries(java.nio.file.Files.readAllBytes(mpo.toPath())).containsKey("operations/log.jsonl"));
 
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setFileName(mpo.getAbsolutePath());
@@ -330,10 +334,10 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isEnabled());
 		org.junit.jupiter.api.Assertions.assertEquals(0.4D, restored.getBufferFraction());
 		org.junit.jupiter.api.Assertions.assertEquals(2L, new CriticalChainService().findBaseline(reader.getProject()).projectBufferMillis());
-		byte[] operations = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath())).get("changes/operations.json");
+		byte[] operations = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath())).get("operations/log.jsonl");
 		ByteArrayOutputStream roundTrip = new ByteArrayOutputStream();
 		writer.saveProject(reader.getProject(), roundTrip);
-		org.junit.jupiter.api.Assertions.assertArrayEquals(operations, readEntries(roundTrip.toByteArray()).get("changes/operations.json"));
+		org.junit.jupiter.api.Assertions.assertArrayEquals(operations, readEntries(roundTrip.toByteArray()).get("operations/log.jsonl"));
 	}
 
 	@Test

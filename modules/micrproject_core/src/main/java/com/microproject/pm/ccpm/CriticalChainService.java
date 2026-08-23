@@ -59,7 +59,7 @@ public final class CriticalChainService {
 		}
 	}
 
-	/** CCPM options. They are persisted only by mpo's optional ccpm.json entry. */
+	/** CCPM options. They are persisted by MPOF's optional settings.xml entry. */
 	public static final class Settings implements Serializable {
 		private static final long serialVersionUID = 1L;
 		private boolean enabled;
