@@ -48,8 +48,8 @@ The comparison baseline in this fork is the ProjectLibre 1.9.8 modernization com
 
 The figures below describe cumulative change volume since that baseline commit.
 
-- Changed tracked file paths since `0530be22`: `2289 / 2386` (`95.9%` of the baseline tracked file count)
-- Changed tracked text lines since `0530be22`: `673624`
+- Changed tracked file paths since `0530be22`: `2382 / 2386` (`99.8%` of the baseline tracked file count)
+- Changed tracked text lines since `0530be22` (insertions + deletions): `1537899`
 
 ## What Has Been Added Or Improved Since `0530be22`
 
