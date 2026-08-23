@@ -64,7 +64,15 @@ public final class MpoFileImporter extends FileImporter {
 	static final String LAYOUT_ENTRY = "layout.json";
 	/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
+	/** Container version this build writes; every save rewrites the file at this version. */
 	static final String FORMAT_VERSION = "1.0";
+	/**
+	 * A container is readable when its major version matches. Minor revisions are additive
+	 * (unknown entries are carried through as extensions), so an older or newer minor
+	 * revision still opens and is upgraded to {@link #FORMAT_VERSION} on the next save
+	 * (issue #356). A different major version is rejected with an explicit message.
+	 */
+	static final int SUPPORTED_FORMAT_MAJOR = 1;
 	private static final String MIME_TYPE = "application/vnd.microproject.openproject";
 	static final String OPERATIONS_ENTRY = "operations/log.jsonl";
 	/** Read-only aliases for MPOF drafts written before the XML/JSONL layout was settled. */
@@ -269,6 +277,7 @@ public final class MpoFileImporter extends FileImporter {
 			ObjectNode serialized = serializedFields.addObject();
 			serialized.put("id", TimeDistributedHelper.getIdForObject(field));
 			serialized.put("width", fields.getWidth(index));
+			serialized.put("manual", fields.isManualWidth(index));
 		}
 		return JSON.writeValueAsBytes(root);
 	}
@@ -280,6 +289,7 @@ public final class MpoFileImporter extends FileImporter {
 		}
 		SpreadSheetFieldArray fields = new SpreadSheetFieldArray();
 		var widths = new java.util.ArrayList<Integer>();
+		var manualWidths = new java.util.ArrayList<Boolean>();
 		for (JsonNode entry : entries) {
 			String id = entry.path("id").asText(null);
 			if (id == null || id.isBlank()) throw new IOException("Invalid MPO layout field id");
@@ -289,8 +299,10 @@ public final class MpoFileImporter extends FileImporter {
 			if (width < -1 || width > 100000) throw new IOException("Invalid MPO layout width");
 			fields.add((Field) field);
 			widths.add(width);
+			manualWidths.add(entry.path("manual").asBoolean(false));
 		}
 		fields.setWidths(widths);
+		fields.setManualWidths(manualWidths);
 		fields.setCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
 		fields.setName(project.getName());
 		project.setFieldArray(fields);
@@ -502,6 +514,23 @@ public final class MpoFileImporter extends FileImporter {
 		return manifest.append("/>\n").toString();
 	}
 
+	/**
+	 * Accepts any MPOF container whose major version equals {@link #SUPPORTED_FORMAT_MAJOR}.
+	 * Files written by an older or newer minor revision load unchanged and are rewritten at
+	 * {@link #FORMAT_VERSION} the next time they are saved, so opening and saving upgrades a
+	 * file to the current layout (issue #356). A different major version cannot be read
+	 * safely and is reported as such instead of as a generic invalid-manifest error.
+	 */
+	static void requireReadableFormatVersion(String value) throws IOException {
+		if (value == null || value.isBlank()) throw new IOException("MPOF manifest is missing formatVersion");
+		if (!value.matches("[0-9]{1,4}\\.[0-9]{1,4}")) throw new IOException("Invalid MPOF formatVersion: " + value);
+		int major = Integer.parseInt(value.substring(0, value.indexOf('.')));
+		if (major != SUPPORTED_FORMAT_MAJOR) {
+			throw new IOException("Unsupported MPOF format version " + value + "; this build reads version "
+				+ SUPPORTED_FORMAT_MAJOR + ".x and writes " + FORMAT_VERSION);
+		}
+	}
+
 	static void validateManifest(String manifest, byte[] projectXml) throws IOException {
 		readManifest(manifest.getBytes(StandardCharsets.UTF_8), projectXml);
 	}
@@ -516,7 +545,8 @@ public final class MpoFileImporter extends FileImporter {
 			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
 			factory.setXIncludeAware(false); factory.setExpandEntityReferences(false);
 			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(manifestBytes)).getDocumentElement();
-			if (!"manifest".equals(root.getTagName()) || !FORMAT_ID.equals(root.getAttribute("format")) || !FORMAT_VERSION.equals(root.getAttribute("formatVersion")) || !PROJECT_ENTRY.equals(root.getAttribute("projectEntry"))) throw new IOException("Unsupported or invalid MPOF manifest");
+			if (!"manifest".equals(root.getTagName()) || !FORMAT_ID.equals(root.getAttribute("format")) || !PROJECT_ENTRY.equals(root.getAttribute("projectEntry"))) throw new IOException("Unsupported or invalid MPOF manifest");
+			requireReadableFormatVersion(root.getAttribute("formatVersion"));
 			if (!sha256(projectXml).equals(requiredAttribute(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its MPOF manifest");
 			String documentId = root.getAttribute("documentId");
 			Long projectUniqueId = root.hasAttribute("projectUniqueId") ? Long.valueOf(root.getAttribute("projectUniqueId")) : null;
@@ -583,7 +613,8 @@ public final class MpoFileImporter extends FileImporter {
 	private static ManifestData readDraftJsonManifest(String manifest, byte[] projectXml) throws IOException {
 		JsonNode root = object(manifest, MANIFEST_ENTRY);
 		String format = root.path("format").isTextual() ? root.path("format").textValue() : null;
-		if (!FORMAT_ID.equals(format) || !FORMAT_VERSION.equals(text(root, "formatVersion")) || !PROJECT_ENTRY.equals(text(root, "projectEntry"))) throw new IOException("Unsupported or invalid draft MPOF manifest: format=" + format);
+		if (!FORMAT_ID.equals(format) || !PROJECT_ENTRY.equals(text(root, "projectEntry"))) throw new IOException("Unsupported or invalid draft MPOF manifest: format=" + format);
+		requireReadableFormatVersion(text(root, "formatVersion"));
 		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its draft MPOF manifest");
 		String documentId = root.path("documentId").isTextual() ? root.path("documentId").textValue() : null;
 		Long projectUniqueId = root.path("projectUniqueId").canConvertToLong() ? Long.valueOf(root.path("projectUniqueId").longValue()) : null;
@@ -604,7 +635,8 @@ public final class MpoFileImporter extends FileImporter {
 			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
 			factory.setXIncludeAware(false); factory.setExpandEntityReferences(false);
 			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			if (!"meta".equals(root.getTagName()) || !"1.0".equals(root.getAttribute("formatVersion")) || root.getAttribute("generator").isBlank()) throw new IOException("Invalid meta.xml");
+			if (!"meta".equals(root.getTagName()) || root.getAttribute("generator").isBlank()) throw new IOException("Invalid meta.xml");
+			requireReadableFormatVersion(root.getAttribute("formatVersion"));
 		} catch (IOException exception) { throw exception; }
 		catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
 	}

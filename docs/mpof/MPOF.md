@@ -13,9 +13,27 @@ MPOF is the open, ODF-style project container for microProject.
 - `settings.xml` — CCPM settings and baseline (optional)
 - unknown extra entries are preserved verbatim on round-trip
 
+## Version compatibility
+
+`formatVersion` is `major.minor`:
+
+- **Same major version, any minor revision** — the file is read. Minor revisions are
+  additive only, and unknown entries are preserved verbatim, so a container written by
+  an older or a newer minor revision opens without data loss.
+- **Different major version** — the file is rejected with an explicit
+  `Unsupported MPOF format version <value>` message rather than a generic
+  invalid-manifest error, because a major bump may change existing entry semantics.
+- **Missing or malformed `formatVersion`** — rejected.
+
+Saving always rewrites the whole container at the version this build writes
+(`formatVersion="1.0"`), so opening an older file and saving it upgrades it to the
+current layout. One canonical check
+(`MpoFileImporter.requireReadableFormatVersion`) is applied by both the current XML
+manifest reader and the legacy JSON draft manifest reader.
+
 This layout is a draft and is not a stability promise. Future revisions may change
-entry schemas or names; readers should reject unsupported `formatVersion` values,
-preserve unknown extra entries, and write only the version they explicitly support.
+entry schemas or names; readers preserve unknown extra entries and write only the
+version they explicitly support.
 The importer also reads the earlier MPOF draft that used a JSON manifest,
 `ccpm.json`, and `changes/operations.json`; saving such a file rewrites it to the
 current draft layout.

@@ -58,6 +58,64 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void manifestReportsAnUnsupportedMajorVersionExplicitly() {
+		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
+		String newerMajor = MpoFileImporter.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"2.3\"");
+		IOException failure = assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(newerMajor, projectXml));
+		org.junit.jupiter.api.Assertions.assertTrue(failure.getMessage().contains("Unsupported MPOF format version 2.3"), failure.getMessage());
+	}
+
+	@Test
+	void manifestRejectsMissingOrMalformedFormatVersion() {
+		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
+		String missing = MpoFileImporter.manifestFor(projectXml).replace(" formatVersion=\"1.0\"", "");
+		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(missing, projectXml));
+		String malformed = MpoFileImporter.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"1\"");
+		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(malformed, projectXml));
+	}
+
+	/** Issue #356: an mpo written by a different minor revision of the same major still opens. */
+	@Test
+	void mpoOpensAnOtherMinorRevisionAndUpgradesItToTheCurrentVersionOnSave() throws Exception {
+		Project project = projectForRoundTrip();
+		ByteArrayOutputStream generated = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, generated);
+		Map<String, byte[]> entries = readEntries(generated.toByteArray());
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("formatVersion=\"1.0\""), manifest);
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.replace("formatVersion=\"1.0\"", "formatVersion=\"1.7\"").getBytes(StandardCharsets.UTF_8));
+
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setProjectFactory(ProjectFactory.getInstance());
+		Project reopened = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
+		org.junit.jupiter.api.Assertions.assertNotNull(reopened);
+
+		ByteArrayOutputStream resaved = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(reopened, resaved);
+		String upgraded = new String(readEntries(resaved.toByteArray()).get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		org.junit.jupiter.api.Assertions.assertTrue(upgraded.contains("formatVersion=\"1.0\""), upgraded);
+		org.junit.jupiter.api.Assertions.assertFalse(upgraded.contains("formatVersion=\"1.7\""), upgraded);
+	}
+
+	@Test
+	void mpoOpensAnOtherMinorMetaRevisionButRejectsAnotherMajor() throws Exception {
+		Project project = projectForRoundTrip();
+		ByteArrayOutputStream generated = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, generated);
+		Map<String, byte[]> entries = readEntries(generated.toByteArray());
+		String meta = new String(entries.get("meta.xml"), StandardCharsets.UTF_8);
+		entries.put("meta.xml", meta.replace("formatVersion=\"1.0\"", "formatVersion=\"1.4\"").getBytes(StandardCharsets.UTF_8));
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setProjectFactory(ProjectFactory.getInstance());
+		org.junit.jupiter.api.Assertions.assertNotNull(reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray())));
+
+		entries.put("meta.xml", meta.replace("formatVersion=\"1.0\"", "formatVersion=\"9.0\"").getBytes(StandardCharsets.UTF_8));
+		MpoFileImporter rejecting = new MpoFileImporter();
+		rejecting.setProjectFactory(ProjectFactory.getInstance());
+		assertThrows(IOException.class, () -> rejecting.loadProject(new ByteArrayInputStream(zip(entries).toByteArray())));
+	}
+
+	@Test
 	void manifestRejectsDuplicateRequiredFields() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
 		String duplicate = MpoFileImporter.manifestFor(projectXml).replace("format=\"mpof\"", "format=\"mpof\" format=\"mpof\"");
