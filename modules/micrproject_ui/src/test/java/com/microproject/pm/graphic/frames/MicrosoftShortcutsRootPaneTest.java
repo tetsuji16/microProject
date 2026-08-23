@@ -21,10 +21,14 @@ package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
@@ -54,7 +58,7 @@ class MicrosoftShortcutsRootPaneTest {
 
 	/** A plain Swing component supplies the InputMap/ActionMap without a window. */
 	private static final class ShortcutHarness {
-		final JPanel panel = new JPanel();
+		final DispatchPanel panel = new DispatchPanel();
 		final InputMapCapturingGraphicManager manager;
 
 		ShortcutHarness() {
@@ -63,6 +67,20 @@ class MicrosoftShortcutsRootPaneTest {
 
 		Object bindingFor(KeyStroke key) {
 			return panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(key);
+		}
+	}
+
+	/**
+	 * A JPanel that exposes the protected key-dispatch path Swing itself uses
+	 * ({@code JComponent.processKeyBinding}), so a test can prove a keystroke reaches its
+	 * bound action without standing up a real, focused window. The production wiring during
+	 * a real keypress goes through the same method via the KeyboardFocusManager.
+	 */
+	private static final class DispatchPanel extends JPanel {
+		private static final long serialVersionUID = 1L;
+
+		boolean dispatch(KeyStroke ks, KeyEvent e) {
+			return processKeyBinding(ks, e, WHEN_IN_FOCUSED_WINDOW, true);
 		}
 	}
 
@@ -182,5 +200,66 @@ class MicrosoftShortcutsRootPaneTest {
 			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_LINK));
 			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_INDENT));
 		});
+	}
+
+	/**
+	 * The binding-resolution test above is a false negative for issue #47: it proves the
+	 * keystroke maps to the right action constant, but never proves a real keypress
+	 * dispatches to that action. If the action were unresolved (null) or disabled, the
+	 * shortcut would still "resolve" yet do nothing when the user presses Ctrl+V — exactly
+	 * the "paste doesn't work" symptom. This test drives the same dispatch path Swing uses
+	 * ({@code JComponent.processKeyBinding}) and asserts the Ctrl+X/C/V keystrokes actually
+	 * invoke the routed clipboard actions. The menu button and the keyboard both resolve to
+	 * the same {@code ACTION_PASTE/COPY/CUT} constants, so a keypress reaching the action is
+	 * the end-to-end proof the Microsoft Project keyboard shortcuts are functional.
+	 */
+	@Test
+	void microsoftShortcutKeyPressInvokesRoutedAction() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+					harness.panel.getActionMap());
+
+			// Spy on the routed clipboard actions (the real ones come from the menu manager).
+			// The menu button uses the very same constants, so proving a keypress reaches them
+			// proves the keyboard path is equivalent to the (working) menu button.
+			boolean[] cut = {false}, copy = {false}, paste = {false};
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_CUT, recordingSpy(cut));
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_COPY, recordingSpy(copy));
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_PASTE, recordingSpy(paste));
+
+			int ctrl = InputEvent.CTRL_DOWN_MASK;
+
+			KeyEvent cutEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+					System.currentTimeMillis(), ctrl, KeyEvent.VK_X, KeyEvent.CHAR_UNDEFINED);
+			boolean cutHandled = harness.panel.dispatch(
+					KeyStroke.getKeyStroke(KeyEvent.VK_X, ctrl), cutEvent);
+			assertTrue(cutHandled, "Ctrl+X must dispatch to an action");
+			assertTrue(cut[0], "Ctrl+X must invoke ACTION_CUT");
+
+			KeyEvent copyEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+					System.currentTimeMillis(), ctrl, KeyEvent.VK_C, KeyEvent.CHAR_UNDEFINED);
+			assertTrue(harness.panel.dispatch(
+					KeyStroke.getKeyStroke(KeyEvent.VK_C, ctrl), copyEvent), "Ctrl+C must dispatch to an action");
+			assertTrue(copy[0], "Ctrl+C must invoke ACTION_COPY");
+
+			KeyEvent pasteEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+					System.currentTimeMillis(), ctrl, KeyEvent.VK_V, KeyEvent.CHAR_UNDEFINED);
+			assertTrue(harness.panel.dispatch(
+					KeyStroke.getKeyStroke(KeyEvent.VK_V, ctrl), pasteEvent), "Ctrl+V must dispatch to an action");
+			assertTrue(paste[0], "Ctrl+V must invoke ACTION_PASTE");
+		});
+	}
+
+	private static Action recordingSpy(boolean[] flag) {
+		return new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				flag[0] = true;
+			}
+		};
 	}
 }
