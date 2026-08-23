@@ -27,6 +27,7 @@ package com.microproject.pm.scheduling;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -92,6 +93,27 @@ class ScheduleServiceSplitTest {
 		assertFalse(changed);
 		assertEquals(originalCompleted, task.getCompletedThrough());
 		assertFalse(undoController.canUndo());
+	}
+
+	@Test
+	void setCompletedClampsProgressDragToTheTaskInterval() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(2L * 8L * 60L * 60L * 1000L);
+
+		assertTrue(ScheduleService.getInstance().setCompleted(this, task, task.getEnd() + 60L * 60L * 1000L,
+			undoController.getEditSupport()));
+		assertTrue(task.getCompletedThrough() >= task.getStart());
+		assertTrue(task.getCompletedThrough() <= task.getEnd());
+
+		assertTrue(ScheduleService.getInstance().setCompleted(this, task, task.getStart() - 60L * 60L * 1000L,
+			undoController.getEditSupport()));
+		assertTrue(task.getCompletedThrough() >= task.getStart());
+		assertTrue(task.getCompletedThrough() <= task.getEnd());
 	}
 
 	@Test

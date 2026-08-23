@@ -60,6 +60,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.undo.TaskConstraintEdit;
 import com.microproject.util.Alert;
 import com.microproject.util.ClassUtils;
+import com.microproject.util.DateTime;
 
 /**
  *
@@ -407,6 +408,12 @@ public class GanttInteractor extends GraphInteractor{
 		default:
 			return false;
 		}
+		if (!changesIntervalAtHourPrecision(selectedInterval, start, end)) {
+			// Do not turn a sub-hour, visually ineffective drag into a constraint
+			// edit.  The old ordering changed SNET/FNLT before ScheduleService
+			// rejected the rounded no-op interval.
+			return false;
+		}
 		boolean updateConstraint = shouldUpdateTaskConstraint();
 		boolean preparedConstraint = false;
 		int targetConstraintType = updateConstraint ? getConstraintTypeForDrag() : ConstraintType.ASAP;
@@ -437,6 +444,12 @@ public class GanttInteractor extends GraphInteractor{
 		}
 		return refreshUndoState(scheduleChanged);
     }
+
+	static boolean changesIntervalAtHourPrecision(ScheduleInterval original, long start, long end) {
+		return original != null
+				&& (original.getStart() != DateTime.hourFloor(start)
+						|| original.getEnd() != DateTime.hourFloor(end));
+	}
 
 	private boolean applyProgressDrag(long completed, UndoableEditSupport undoSupport) {
 		boolean changed = ScheduleService.getInstance().setCompleted(this,getSourceSchedule(),completed,undoSupport);

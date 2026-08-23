@@ -79,6 +79,11 @@ public class ScheduleService {
 	public boolean setCompleted(Object eventSource, Schedule schedule, long completed,UndoableEditSupport undoableEditSupport) {
 		if (isReadOnly(schedule))
 			return false;
+		// The Gantt progress handle can be dragged beyond either end of the bar.
+		// A completion instant outside the planned interval produces negative or
+		// greater-than-100% progress before the renderer has a chance to clamp it.
+		// Keep the model valid at the service boundary used by every caller.
+		completed = Math.max(schedule.getStart(), Math.min(completed, schedule.getEnd()));
 		Field completedField=getCompletedField();
 		Object oldValue=completedField.getValue(schedule);
 		if (oldValue==null) oldValue=Long.valueOf(schedule.getActualStart());
