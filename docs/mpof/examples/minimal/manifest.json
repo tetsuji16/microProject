@@ -1,7 +1,0 @@
-{
-  "format": "podx",
-  "version": "0.1",
-  "projectEntry": "project.xml",
-  "projectSha256": "replace-with-lowercase-sha256-of-project.xml",
-  "documentId": "00000000-0000-0000-0000-000000000001"
-}
