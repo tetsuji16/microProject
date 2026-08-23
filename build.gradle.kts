@@ -198,7 +198,7 @@ tasks.register<Sync>("prepareWindowsReleaseInput") {
     doLast {
         val inputDir = windowsJpackageInput.get().asFile
         val iconPath = File(inputDir, "microproject.ico").absolutePath.replace('\\', '/')
-        listOf("mpp.properties", "pod.properties", "xml.properties").forEach { name ->
+        listOf("mpp.properties", "mpo.properties", "pod.properties", "xml.properties").forEach { name ->
             val associationFile = File(inputDir, name)
             val content = associationFile.readText(Charsets.UTF_8).replace("@ICON_PATH@", iconPath)
             associationFile.writeText(content, Charsets.UTF_8)
