@@ -77,10 +77,14 @@ class CalendarServiceTest {
 		WorkingCalendar derived = WorkingCalendar.getInstanceBasedOn(base);
 		derived.setName("Issue355-derived");
 		derived.setUniqueId(-9000002L);
-		service.add(derived);
+		WorkingCalendar indirectlyDerived = WorkingCalendar.getInstanceBasedOn(derived);
+		indirectlyDerived.setName("Issue355-indirect-derived");
+		indirectlyDerived.setUniqueId(-9000003L);
 
 		derived.getConcreteInstance();
+		indirectlyDerived.getConcreteInstance();
 		assertFalse(derived.isInvalid(), "derived concrete should be cached before the base edit");
+		assertFalse(indirectlyDerived.isInvalid(), "indirect derived concrete should be cached before the base edit");
 		assertTrue(!derived.getConcreteInstance().getWeekDay(Calendar.SATURDAY - 1).isWorking(),
 				"Saturday must be non-working before the base edit");
 
@@ -91,7 +95,10 @@ class CalendarServiceTest {
 		base.invalidate();
 
 		assertTrue(derived.isInvalid(), "base edit must invalidate the derived concrete cache");
+		assertTrue(indirectlyDerived.isInvalid(), "base edit must invalidate indirect derived caches");
 		assertTrue(derived.getConcreteInstance().getWeekDay(Calendar.SATURDAY - 1).isWorking(),
 				"derived calendar must reflect the base edit");
+		assertTrue(indirectlyDerived.getConcreteInstance().getWeekDay(Calendar.SATURDAY - 1).isWorking(),
+				"indirect derived calendar must reflect the base edit");
 	}
 }

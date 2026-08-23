@@ -241,6 +241,8 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 			throw new CircularDependencyException(Messages.getString("Calendar.ExceptionCircular"));
 		this.baseCalendar = baseCalendar;
 		invalidateConcreteInstance();
+		if (baseCalendar != null)
+			CalendarService.getInstance().registerDerivedCalendar(this);
 	}
 
 	public void changeBaseCalendar(WorkCalendar baseCalendar) throws CircularDependencyException {

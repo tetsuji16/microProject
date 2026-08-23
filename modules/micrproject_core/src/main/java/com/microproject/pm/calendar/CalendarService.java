@@ -479,6 +479,16 @@ public class CalendarService {
 				derivedCalendars.add(cal);
 		}
 	}
+
+	/**
+	 * Registers a calendar created from a base calendar. Resource calendars are
+	 * often created directly by the resource model and therefore do not pass
+	 * through the normal calendar-list loading path.
+	 */
+	void registerDerivedCalendar(WorkingCalendar cal) {
+		if (cal != null && cal.getBaseCalendar() != null && !derivedCalendars.contains(cal))
+			derivedCalendars.add(cal);
+	}
 //
 //
 //	public void invalidate(WorkingCalendar cal) {
