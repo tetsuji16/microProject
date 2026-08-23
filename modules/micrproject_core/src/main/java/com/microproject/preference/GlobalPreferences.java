@@ -33,7 +33,8 @@ public class GlobalPreferences {
 	private static final Preferences STORE = Preferences.userNodeForPackage(GlobalPreferences.class).node("ui");
 	protected transient boolean showAllResources = true;
 	private String userName = STORE.get("userName", System.getProperty("user.name", ""));
-	private boolean showRowLines = STORE.getBoolean("showRowLines", true);
+	/** MS Project-compatible default: Gantt gridlines are hidden until enabled. */
+	private boolean showRowLines = STORE.getBoolean("showRowLines", false);
 	private String fontFamily = STORE.get("fontFamily", "");
 	private int fontSize = clampFontSize(STORE.getInt("fontSize", 0));
 

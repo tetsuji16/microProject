@@ -34,9 +34,26 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.FlatUiSupport;
 
 class GanttViewGridStyleTest {
+	@Test
+	void newGanttHidesGridlinesByDefault() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("gantt-grid-default-test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		Gantt gantt = new Gantt(project, "Gantt");
+		try {
+			assertFalse(gantt.isGridLinesVisible());
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
 	@Test
 	void spreadsheetGridStyleTogglesBothGridDirectionsAndRowHeader() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
