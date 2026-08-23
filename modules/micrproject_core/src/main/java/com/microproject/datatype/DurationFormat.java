@@ -153,6 +153,8 @@ public class DurationFormat extends Format {
 					else
 						timeUnit = ScheduleOption.getInstance().getWorkUnit(); // use default work unit if work and nothing entered
 				}
+				if (timeUnit == TimeUnit.NONE)
+					timeUnit = ScheduleOption.getInstance().getDurationEnteredIn();
 				long longResult = Duration.getInstance(value,timeUnit);
 				if (Duration.millis(longResult) > Duration.MAX_DURATION) // check for too big
 					return null;

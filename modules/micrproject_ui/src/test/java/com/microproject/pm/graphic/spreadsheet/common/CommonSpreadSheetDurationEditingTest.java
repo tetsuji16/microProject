@@ -26,6 +26,7 @@ package com.microproject.pm.graphic.spreadsheet.common;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.MouseEvent;
@@ -56,11 +57,12 @@ class CommonSpreadSheetDurationEditingTest {
 			fixture.sheet.changeSelection(0, fixture.durationColumn, false, false);
 			assertTrue(fixture.sheet.editCellAt(0, fixture.durationColumn, doubleClick(fixture.sheet)));
 			JTextField editor = (JTextField) fixture.sheet.getEditorComponent();
-			editor.setText("3d");
+			editor.setText("3");
 			assertTrue(fixture.sheet.getCellEditor().stopCellEditing());
 		});
 
 		assertTrue(fixture.sheet.getLastException() == null);
+		assertEquals(3L * CalendarOption.getInstance().getMillisPerDay(), fixture.task.getRawDuration());
 	}
 
 	@Test

@@ -39,6 +39,7 @@ import org.netbeans.swing.outline.Outline;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.SimpleEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.SpreadSheetCellEditorAdapter;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.renderer.DateRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.OfflineCapableBooleanRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.SimpleRenderer;
@@ -53,6 +54,17 @@ import com.microproject.util.FlatUiSupport;
  *
  */
 public class CommonTable extends Outline {
+
+	@Override
+	public TableCellEditor getCellEditor(int row, int column) {
+		if (getModel() instanceof SpreadSheetModel model) {
+			com.microproject.field.Field field = model.getFieldInViewColumn(column);
+			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId()))) {
+				return getDefaultEditor(Duration.class);
+			}
+		}
+		return super.getCellEditor(row, column);
+	}
 
     /**
      * 
@@ -195,4 +207,3 @@ public class CommonTable extends Outline {
 				(editor==null)?getDefaultEditor(columnClass):editor));
 	}
 }
-

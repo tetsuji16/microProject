@@ -252,6 +252,42 @@ class NodeListTransferablePasteFailureTest {
 	}
 
 	@Test
+	void activeCellCopyDoesNotExpandToTheWholeHighlightedTaskRow() throws Exception {
+		Project sourceProject = createProject();
+		NormalTask sourceTask = createTask(sourceProject, "Copied cell");
+		sourceTask.setDuration(2L * 8L * 60L * 60L * 1000L);
+		Project targetProject = createProject();
+		NormalTask targetTask = createTask(targetProject, "Target");
+		targetTask.setDuration(7L * 8L * 60L * 60L * 1000L);
+		int targetTaskCount = targetProject.getTasks().size();
+		SpreadSheet[] sourceSheetRef = new SpreadSheet[1];
+		SpreadSheet[] targetSheetRef = new SpreadSheet[1];
+		NodeListTransferHandler[] sourceHandlerRef = new NodeListTransferHandler[1];
+		NodeListTransferHandler[] targetHandlerRef = new NodeListTransferHandler[1];
+		Clipboard clipboard = new Clipboard("active-cell-copy");
+
+		SwingUtilities.invokeAndWait(() -> {
+			sourceSheetRef[0] = createSheet(sourceProject, "active-cell-source");
+			// This is the state created by an ordinary click: the row is highlighted
+			// for navigation, but the Name cell is the semantic copy target.
+			sourceSheetRef[0].selectRowAndAllColumns(0);
+			sourceSheetRef[0].setRowHeaderSelectionActive(false);
+			sourceSheetRef[0].getSelection().setActiveCell(0, 1);
+			sourceHandlerRef[0] = new NodeListTransferHandler(sourceSheetRef[0]);
+			targetSheetRef[0] = createSheet(targetProject, "active-cell-target");
+			targetSheetRef[0].changeSelection(0, 1, false, false);
+			targetHandlerRef[0] = new NodeListTransferHandler(targetSheetRef[0]);
+			sourceHandlerRef[0].exportToClipboard(sourceSheetRef[0], clipboard, TransferHandler.COPY);
+			assertTrue(targetHandlerRef[0].importData(targetSheetRef[0], clipboard.getContents(null)));
+		});
+
+		assertEquals("Copied cell", targetTask.getName());
+		assertEquals(7L * 8L * 60L * 60L * 1000L, targetTask.getDuration(),
+			"pasting one active cell must not overwrite neighbouring task fields");
+		assertEquals(targetTaskCount, targetProject.getTasks().size(), "cell copy must not insert a task row");
+	}
+
+	@Test
 	void pasteAsValuesReadsPlainUnicodeReader() throws Exception {
 		Project project = createProject();
 		NormalTask task = createTask(project, "Original");
@@ -381,6 +417,32 @@ class NodeListTransferablePasteFailureTest {
 		SwingUtilities.invokeAndWait(() -> NodeListTransferable.pasteString(invalidDurationClipboard(sheetRef[0]), sheetRef[0]));
 
 		assertEquals("Original", task.getName());
+	}
+
+	@Test
+	void multiCellValuePasteIsUndoneAsOneOperation() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project, "Original");
+		long originalDuration = task.getRawDuration();
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = createSheet(project, "paste-undo");
+			sheet.changeSelection(0, columnForField(sheet, "Field.name"), false, false);
+			sheet.addColumnSelectionInterval(columnForField(sheet, "Field.duration"),
+				columnForField(sheet, "Field.duration"));
+			sheetRef[0] = sheet;
+		});
+		project.getUndoController().clear();
+
+		SwingUtilities.invokeAndWait(() -> assertTrue(NodeListTransferable.pasteString("Changed\t3", sheetRef[0])));
+		assertEquals("Changed", task.getName());
+		assertEquals(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), task.getRawDuration());
+
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().undo());
+		assertEquals("Original", task.getName());
+		assertEquals(com.microproject.datatype.Duration.millis(originalDuration),
+			com.microproject.datatype.Duration.millis(task.getRawDuration()));
 	}
 
 	@Test

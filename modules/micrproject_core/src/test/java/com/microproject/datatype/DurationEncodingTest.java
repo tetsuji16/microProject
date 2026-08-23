@@ -27,7 +27,11 @@ package com.microproject.datatype;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.text.ParsePosition;
+
 import org.junit.jupiter.api.Test;
+
+import com.microproject.field.FieldConverter;
 
 class DurationEncodingTest {
     @Test
@@ -43,11 +47,24 @@ class DurationEncodingTest {
     }
 
     @Test
-    void workMarkerDoesNotRewriteEncodedUnit() {
+	void workMarkerDoesNotRewriteEncodedUnit() {
         Duration duration = new Duration(Duration.getInstance(3D, TimeUnit.HOURS));
         long encoded = duration.getEncodedMillis();
         duration.setWork(true);
         assertTrue(duration.isWork());
         assertEquals(encoded, duration.getEncodedMillis());
-    }
+	}
+
+	@Test
+	void unitlessDurationUsesTheConfiguredDurationUnit() {
+		Duration duration = (Duration) DurationFormat.getInstance().parseObject("3", new ParsePosition(0));
+		assertEquals(TimeUnit.DAYS, Duration.getType(duration.getEncodedMillis()));
+		assertEquals(3D, Duration.getValue(duration.getEncodedMillis()));
+	}
+
+	@Test
+	void fieldConversionKeepsTheValueOfAUnitlessDuration() throws Exception {
+		Duration duration = (Duration) FieldConverter.convert("3", Duration.class, null);
+		assertEquals(3D, Duration.getValue(duration.getEncodedMillis()));
+	}
 }

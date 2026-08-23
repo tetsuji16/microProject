@@ -95,7 +95,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	private boolean tracking = false;
 	private boolean standardProgressLineEnabled = false;
 	private boolean trackingProgressLineEnabled = true;
-	private boolean spreadsheetGridVisible = true;
+	private boolean spreadsheetGridVisible = Gantt.DEFAULT_GRID_LINES_VISIBLE;
 	private String currentAnnotationFieldId = ANNOTATION_FIELD_RESOURCE_NAMES;
 	private ChangeListener spreadsheetViewportListener;
 	private ListSelectionListener spreadsheetSelectionListener;
@@ -435,6 +435,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;
 		spreadSheet.restoreWorkspace(ws.spreadSheet, context);
+		setSpreadsheetGridVisible(gridLinesVisibleFromWorkspace(ws));
 		setCurrentAnnotationFieldId(ws.annotationFieldId);
 		gantt.setProgressLineEnabled(ws.progressLineEnabled);
 		if (tracking)
@@ -449,9 +450,17 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		ws.spreadSheet = spreadSheet.createWorkspace(context);
 		ws.scrollPane = ganttScrollPane.createWorkspace(context);
 		ws.progressLineEnabled = gantt.isProgressLineEnabled();
+		ws.gridLinesVisible = spreadsheetGridVisible;
 		ws.annotationFieldId = currentAnnotationFieldId;
 		ws.dividerLocation = getDividerLocation();
 		return ws;
+	}
+
+	static boolean gridLinesVisibleFromWorkspace(Workspace workspace) {
+		// Older serialized workspaces have no field and deserialize it as null.
+		return workspace == null || workspace.gridLinesVisible == null
+				? Gantt.DEFAULT_GRID_LINES_VISIBLE
+				: workspace.gridLinesVisible.booleanValue();
 	}
 
 	public static class Workspace implements WorkspaceSetting {
@@ -459,6 +468,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		WorkspaceSetting spreadSheet;
 		WorkspaceSetting scrollPane;
 		boolean progressLineEnabled;
+		Boolean gridLinesVisible;
 		String annotationFieldId = ANNOTATION_FIELD_RESOURCE_NAMES;
 		int dividerLocation;
 		public WorkspaceSetting getSpreadSheet() {
@@ -478,6 +488,12 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		}
 		public void setProgressLineEnabled(boolean progressLineEnabled) {
 			this.progressLineEnabled = progressLineEnabled;
+		}
+		public Boolean getGridLinesVisible() {
+			return gridLinesVisible;
+		}
+		public void setGridLinesVisible(Boolean gridLinesVisible) {
+			this.gridLinesVisible = gridLinesVisible;
 		}
 		public String getAnnotationFieldId() {
 			return annotationFieldId;

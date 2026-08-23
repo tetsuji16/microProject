@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.views;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.gantt.GanttParamsImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
@@ -42,16 +44,28 @@ import com.microproject.util.FlatUiSupport;
 
 class GanttViewGridStyleTest {
 	@Test
-	void newGanttHidesGridlinesByDefault() {
+	void ganttImplementationsShowGridlinesByDefault() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("gantt-grid-default-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
 		Gantt gantt = new Gantt(project, "Gantt");
 		try {
-			assertFalse(gantt.isGridLinesVisible());
+			assertTrue(gantt.isGridLinesVisible());
+			assertTrue(new GanttParamsImpl().isGridLinesVisible());
 		} finally {
 			gantt.cleanUp();
 		}
+	}
+
+	@Test
+	void workspaceGridlineSettingPreservesExplicitChoiceAndSupportsLegacyWorkspaces() {
+		GanttView.Workspace workspace = new GanttView.Workspace();
+		assertTrue(GanttView.gridLinesVisibleFromWorkspace(workspace),
+			"workspaces saved before this setting must use the shared visible default");
+
+		workspace.setGridLinesVisible(Boolean.FALSE);
+		assertFalse(GanttView.gridLinesVisibleFromWorkspace(workspace));
+		assertEquals(Boolean.FALSE, workspace.getGridLinesVisible());
 	}
 
 	@Test

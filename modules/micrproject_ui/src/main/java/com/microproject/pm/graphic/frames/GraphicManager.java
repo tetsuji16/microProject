@@ -3495,7 +3495,10 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		int ctrl = menuShortcutMask();
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_X, ACTION_CUT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_COPY, 0, null);
-		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_V, ACTION_PASTE, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_V, ACTION_PASTE, 0, new SpreadSheetDispatchAction("Paste") {
+			private static final long serialVersionUID = 1L;
+			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.pasteClipboardContents(); }
+		});
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_D, ACTION_FILL_DOWN, 0, new SpreadSheetDispatchAction("FillDown") {
 			private static final long serialVersionUID = 1L;
 			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.fillDownSelection(); }

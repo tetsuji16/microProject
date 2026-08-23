@@ -26,6 +26,7 @@ package com.microproject.pm.graphic.spreadsheet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
@@ -99,10 +100,8 @@ class SpreadSheetHierarchyNavigationTest {
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, KeyEvent.CTRL_DOWN_MASK)));
 			assertEquals(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY,
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, KeyEvent.CTRL_DOWN_MASK)));
-			assertEquals("spreadsheet.nameColumnUndo",
-				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK)));
-			assertEquals("spreadsheet.nameColumnRedo",
-				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK)));
+			assertNull(editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK)));
+			assertNull(editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK)));
 		});
 	}
 

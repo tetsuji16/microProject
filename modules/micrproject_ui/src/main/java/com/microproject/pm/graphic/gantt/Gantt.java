@@ -82,11 +82,12 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private static final int AUTO_SCROLL_START_THRESHOLD = 150;
 	private static final int AUTO_SCROLL_LEFT_PADDING = 50;
 	private static final int BOTTOM_SCROLL_BUFFER_ROWS = 5;
+	/** Default display policy shared by standalone and task-table Gantt views. */
+	public static final boolean DEFAULT_GRID_LINES_VISIBLE = true;
 	/** A view-local annotation field value that suppresses all task labels. */
 	public static final String ANNOTATION_FIELD_HIDDEN = "Gantt.Annotation.Hidden";
 	private boolean progressLineEnabled = false;
-	/** MS Project-compatible default: Gantt gridlines are hidden in a new view. */
-	private boolean gridLinesVisible = false;
+	private boolean gridLinesVisible = DEFAULT_GRID_LINES_VISIBLE;
 	private String annotationFieldId;
 	private String formatViewName = GanttBarFormatOverrides.STANDARD_VIEW;
 	/** Rows whose full calendar width is highlighted because they are selected in the task table. */

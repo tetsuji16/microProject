@@ -178,6 +178,23 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void taskTableMoveIsUndoneByTheProjectUndoController() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			fixture.project().getUndoController().clear();
+			sheet.selectRowAndAllColumns(findRow(sheet, fixture.secondTask()));
+
+			assertTrue(sheet.moveSelectedTaskRowsFromCommand(-1));
+			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()));
+
+			fixture.project().getUndoController().undo();
+			assertTrue(findRow(sheet, fixture.firstTask()) < findRow(sheet, fixture.secondTask()),
+				"undo must restore the task-table order before the move");
+		});
+	}
+
+	@Test
 	void rowHeaderSelectionReturnsKeyboardFocusToTheTaskTable() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
@@ -447,7 +464,7 @@ class SpreadSheetMouseInteractionTest {
 			"Spreadsheet.Task.entry",
 			true);
 		cache.update();
-		return new Fixture(sheet, firstTask, secondTask);
+		return new Fixture(project, sheet, firstTask, secondTask);
 	}
 
 	private NormalTask createTask(Project project, String name) {
@@ -551,7 +568,7 @@ class SpreadSheetMouseInteractionTest {
 		rowHeader.dispatchEvent(release);
 	}
 
-	private record Fixture(RecordingSpreadSheet sheet, NormalTask firstTask, NormalTask secondTask) {}
+	private record Fixture(Project project, RecordingSpreadSheet sheet, NormalTask firstTask, NormalTask secondTask) {}
 
 	private static final class RecordingSpreadSheet extends SpreadSheet {
 		private static final long serialVersionUID = 1L;

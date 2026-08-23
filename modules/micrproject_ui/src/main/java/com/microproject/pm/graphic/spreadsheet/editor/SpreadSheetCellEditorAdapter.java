@@ -42,6 +42,7 @@ import javax.swing.KeyStroke;
 import javax.swing.JTable;
 import javax.swing.event.CellEditorListener;
 import javax.swing.table.TableCellEditor;
+import javax.swing.text.JTextComponent;
 
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.ChangeAwareTextField;
@@ -65,6 +66,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	private static final String RECONVERT_ACTION = "spreadsheet.imeReconvert";
 	protected TableCellEditor editor;
 	private JComponent activeEditorComponent;
+	private boolean activeDurationField;
 	public SpreadSheetCellEditorAdapter(TableCellEditor editor) {
 		this.editor=editor;
 		
@@ -111,6 +113,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 			activeEditorComponent.putClientProperty(COMPOSITION_PROPERTY, Boolean.FALSE);
 		}
 		activeEditorComponent = null;
+		activeDurationField = false;
 	}
 	
 	
@@ -127,6 +130,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 			lastTable.clearSelection();
 		}
 		lastTable=table;
+		activeDurationField = isDurationField(table, column);
 		
 		JComponent component=(JComponent)editor.getTableCellEditorComponent(table,value,isSelected,row,column);
 		CellUtility.setAppearance(table,value,isSelected,true,row,column,component);
@@ -145,6 +149,19 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		}
 		
 		return component;
+	}
+
+	private static boolean isDurationField(JTable table, int column) {
+		if (!(table != null && table.getModel() instanceof SpreadSheetModel model))
+			return false;
+		for (int candidate : new int[] {column, column - 1, column + 1}) {
+			if (candidate < 0 || candidate >= model.getColumnCount())
+				continue;
+			com.microproject.field.Field field = model.getFieldInColumn(candidate);
+			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId())))
+				return true;
+		}
+		return false;
 	}
 
 	protected void installNameFieldTabActions(final SpreadSheet spreadSheet, final JComponent edit) {
@@ -189,26 +206,8 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 				spreadSheet.executeNameCellHierarchyJump(true);
 			}
 		});
-		inputMap.put(KeyStroke.getKeyStroke("ctrl Z"), NAME_UNDO_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke("ctrl Y"), NAME_REDO_ACTION);
 		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK), NAME_PREVIOUS_ACTION);
 		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK), NAME_NEXT_ACTION);
-		actionMap.put(NAME_UNDO_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				spreadSheet.finishCurrentOperations();
-				if (GraphicManager.getDocumentFrameInstance() != null)
-					GraphicManager.getDocumentFrameInstance().doUndoRedo(true);
-			}
-		});
-		actionMap.put(NAME_REDO_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				spreadSheet.finishCurrentOperations();
-				if (GraphicManager.getDocumentFrameInstance() != null)
-					GraphicManager.getDocumentFrameInstance().doUndoRedo(false);
-			}
-		});
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY, actionMap.get(NAME_COLLAPSE_ACTION));
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY, actionMap.get(NAME_EXPAND_ACTION));
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY, actionMap.get(NAME_PREVIOUS_ACTION));
@@ -221,8 +220,6 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		ActionMap actionMap = edit.getActionMap();
 		inputMap.remove(KeyStroke.getKeyStroke("TAB"));
 		inputMap.remove(KeyStroke.getKeyStroke("shift TAB"));
-		inputMap.remove(KeyStroke.getKeyStroke("ctrl Z"));
-		inputMap.remove(KeyStroke.getKeyStroke("ctrl Y"));
 		inputMap.remove(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK));
 		inputMap.remove(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK));
 		actionMap.remove(SpreadSheet.NAME_COLUMN_INDENT_ACTION);
@@ -231,8 +228,6 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		actionMap.remove(NAME_EXPAND_ACTION);
 		actionMap.remove(NAME_PREVIOUS_ACTION);
 		actionMap.remove(NAME_NEXT_ACTION);
-		actionMap.remove(NAME_UNDO_ACTION);
-		actionMap.remove(NAME_REDO_ACTION);
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY, null);
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY, null);
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY, null);
@@ -285,6 +280,27 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	 * @see javax.swing.CellEditor#getCellEditorValue()
 	 */
 	public Object getCellEditorValue() {
+		if (activeDurationField && activeEditorComponent instanceof JTextComponent text) {
+			try {
+				return com.microproject.datatype.DurationFormat.getInstance().parseObject(text.getText());
+			} catch (java.text.ParseException e) {
+				return null;
+			}
+		}
+		if (lastTable != null && lastTable.getModel() instanceof SpreadSheetModel model) {
+			int column = lastTable.getEditingColumn();
+			com.microproject.field.Field field = column < 0 ? null : model.getFieldInViewColumn(column);
+			if (field == null && column >= 0)
+				field = model.getFieldInColumn(column);
+			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId()))
+					&& activeEditorComponent instanceof JTextComponent text) {
+				try {
+					return com.microproject.datatype.DurationFormat.getInstance().parseObject(text.getText());
+				} catch (java.text.ParseException e) {
+					return null;
+				}
+			}
+		}
 		Object value=editor.getCellEditorValue();
 		return value;
 	}
@@ -325,8 +341,10 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	public boolean stopCellEditing() {
 		if (activeEditorComponent != null && isCompositionActive(activeEditorComponent))
 			return false;
-		clearActiveEditorComponent();
-		return editor.stopCellEditing();
+		boolean stopped = editor.stopCellEditing();
+		if (stopped)
+			clearActiveEditorComponent();
+		return stopped;
 	}
 	
 }

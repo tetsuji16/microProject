@@ -346,8 +346,9 @@ public class GanttInteractor extends GraphInteractor{
 			return applyIntervalDrag((long)getCoord().toDuration(x-x0),undoSupport);
 		case PROGRESS_BAR_MOVE:
 			return applyProgressDrag((long)getCoord().toTime(x),undoSupport);
-				case LINK_CREATION:
-					try {
+		case LINK_CREATION:
+			boolean linkCreated = false;
+			try {
 							if (sourceNode != null && !CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "link")) {
 								return false;
 							}
@@ -359,12 +360,16 @@ public class GanttInteractor extends GraphInteractor{
 								destinationNode.getNode().getImpl() instanceof HasDependencies){
 							// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
 							DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),(HasDependencies)destinationNode.getNode().getImpl(),DependencyType.FS,0,this);
+							linkCreated = true;
 						}
 					} catch (InvalidAssociationException e) {
 						Alert.error(e.getMessage());
 						return false;
 					}
-					return true;
+					// DependencyService posts a DependencyCreationEdit.  Keep this path
+					// consistent with bar, progress and split edits so Ctrl+Z becomes
+					// available without needing a focus or view change first.
+					return refreshUndoState(linkCreated);
 		case LINK_SELECTION:
 			showDependencyPropertiesDialog((GraphicDependency)selected);
 			return true;

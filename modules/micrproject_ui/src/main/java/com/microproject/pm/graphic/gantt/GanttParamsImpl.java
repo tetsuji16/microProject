@@ -52,7 +52,7 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	protected Rectangle printBounds;
 	protected boolean rightPartVisible=true,leftPartVisible=true;
 	protected int rowHeight;
-	protected boolean gridLinesVisible = true;
+	protected boolean gridLinesVisible = Gantt.DEFAULT_GRID_LINES_VISIBLE;
 	protected Color gridLineColor = FlatUiSupport.tableGridColor();
 
 	public GanttParamsImpl(){

@@ -54,6 +54,7 @@ import com.microproject.options.EditOption;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.undo.UndoController;
 
 
 
@@ -276,8 +277,16 @@ public class NodeListTransferable implements Transferable {
 				return PASTE_FAILED;
 			}
 			fieldContext.setParseOnly(false);
-			if (!applyClipboardValues(model, values, rows, cols)) {
-				return PASTE_FAILED;
+			UndoController undoController = model.getCache().getModel().getUndoController();
+			if (undoController != null)
+				undoController.beginUpdate();
+			try {
+				if (!applyClipboardValues(model, values, rows, cols)) {
+					return PASTE_FAILED;
+				}
+			} finally {
+				if (undoController != null)
+					undoController.endUpdate();
 			}
 			return PASTE_APPLIED;
 		} finally {
@@ -354,7 +363,15 @@ public class NodeListTransferable implements Transferable {
 				return false;
 			}
 			fieldContext.setParseOnly(false);
-			return applyClipboardValues(model, values, row0, col0);
+			UndoController undoController = model.getCache().getModel().getUndoController();
+			if (undoController != null)
+				undoController.beginUpdate();
+			try {
+				return applyClipboardValues(model, values, row0, col0);
+			} finally {
+				if (undoController != null)
+					undoController.endUpdate();
+			}
 		} finally {
 			fieldContext.setParseOnly(parseOnly);
 			fieldContext.setRound(round);
@@ -384,4 +401,3 @@ public class NodeListTransferable implements Transferable {
 //	}
 
 }
-

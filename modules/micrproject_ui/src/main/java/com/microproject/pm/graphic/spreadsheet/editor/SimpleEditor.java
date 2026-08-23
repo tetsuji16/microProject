@@ -89,12 +89,21 @@ public class SimpleEditor extends DefaultCellEditor   {
 		if (table.getModel() instanceof SpreadSheetModel) {
 			SpreadSheetModel model  = (SpreadSheetModel) table.getModel();
 			Field field = model.getFieldInViewColumn(column);
+			Field modelField = model.getFieldInColumn(column);
 			int width = field.getTextWidth(null,null);
 			((AbstractDocument)component.getDocument()).setDocumentFilter(null);
 			if (width != Integer.MAX_VALUE) {
 				((AbstractDocument)component.getDocument()).setDocumentFilter(new FixedSizeFilter(width));
 			}
 			component.setHorizontalAlignment(field.getHorizontalAlignment());
+			if (value instanceof com.microproject.datatype.Duration || field.isDuration() || "Field.duration".equals(field.getId())
+					|| (modelField != null && (modelField.isDuration() || "Field.duration".equals(modelField.getId())))) {
+				// A few legacy task-sheet columns expose their storage type (Double)
+				// rather than Duration to JTable. Parse by field semantics so a bare
+				// value such as "3" keeps the configured duration unit instead of
+				// becoming three milliseconds and rendering as zero.
+				useFormat = DurationFormat.getInstance();
+			}
 			if (field.isWork()) {
 				Object rowObject = model.getObjectInRow(row);
 				if (rowObject instanceof CanSupplyRateUnit && ((CanSupplyRateUnit)rowObject).isMaterial())
@@ -159,4 +168,3 @@ public class SimpleEditor extends DefaultCellEditor   {
 
 	
 }
-

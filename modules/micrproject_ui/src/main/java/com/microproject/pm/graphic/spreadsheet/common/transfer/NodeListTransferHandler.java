@@ -130,6 +130,23 @@ public class NodeListTransferHandler extends TransferHandler {
 		if (fields==null) fields=copyFields(spreadSheet.getSelectableFields());
 		int[] rows=spreadSheet.getSelectedRows();
 		int[] columns=spreadSheet.getSelectedColumns();
+		// A normal task-table click deliberately highlights the whole row while
+		// retaining the clicked cell as the active cell.  The row highlight is a
+		// navigation affordance, not a request to copy every field in that row.
+		// Exporting the raw JTable selection here turned a one-cell copy into a
+		// multi-column copy/paste.  A row-header selection remains the explicit
+		// way to copy complete task rows (and therefore keeps its node flavor).
+		if (!nodeSelection && isSingleActiveCellWithinWholeRowSelection(spreadSheet, rows, columns)) {
+			int activeRow = spreadSheet.getSelection().getActiveRow();
+			int activeColumn = spreadSheet.getSelection().getActiveColumn();
+			Field activeField = ((SpreadSheetModel)spreadSheet.getModel()).getFieldInViewColumn(activeColumn);
+			if (activeField != null) {
+				fields = new ArrayList<Field>();
+				fields.add(activeField);
+				rows = new int[] { activeRow };
+				columns = new int[] { activeColumn };
+			}
+		}
 		NodeListTransferable transferable = new NodeListTransferable(nodes,fields,spreadSheet,
 			rows,columns,nodeSelection);
 		pendingCutNodes=null;
@@ -157,6 +174,19 @@ public class NodeListTransferHandler extends TransferHandler {
 			pendingCellCut=true;
 		}
 		return transferable;
+	}
+
+	private boolean isSingleActiveCellWithinWholeRowSelection(SpreadSheet spreadSheet, int[] rows, int[] columns) {
+		if (spreadSheet.isRowHeaderSelectionActive()
+				|| rows.length != 1
+				|| columns.length != spreadSheet.getColumnCount()) {
+			return false;
+		}
+		int activeRow = spreadSheet.getSelection().getActiveRow();
+		int activeColumn = spreadSheet.getSelection().getActiveColumn();
+		return activeRow == rows[0]
+				&& activeColumn >= 0
+				&& activeColumn < spreadSheet.getColumnCount();
 	}
 
 	protected void exportDone(JComponent source, Transferable data, int action) {
@@ -305,4 +335,3 @@ public class NodeListTransferHandler extends TransferHandler {
 
 	    
 	}
-
