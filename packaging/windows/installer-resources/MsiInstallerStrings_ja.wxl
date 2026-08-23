@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="ja-jp" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="932">
+  <String Id="MainFeatureTitle">microProject</String>
+  <String Id="DowngradeErrorMessage">[ProductName]の新しいバージョンがすでにインストールされています。ダウングレードは無効です。セットアップを終了します。</String>
+  <String Id="DisallowUpgradeErrorMessage">[ProductName]の古いバージョンがすでにインストールされています。アップグレードは無効です。セットアップを終了します。</String>
+
+  <String Id="ShortcutPromptDlg_Title">[ProductName] セットアップ</String>
+  <String Id="ShortcutPromptDlgTitle">{\WixUI_Font_Title}ショートカット</String>
+  <String Id="ShortcutPromptDlgBannerBitmap">WixUI_Bmp_Banner</String>
+  <String Id="ShortcutPromptDlgDescription">作成するショートカットを選択してください。</String>
+  <String Id="ShortcutPromptDlgDesktopShortcutControlLabel">デスクトップ ショートカットを作成する</String>
+  <String Id="ShortcutPromptDlgStartMenuShortcutControlLabel">スタート メニュー ショートカットを作成する</String>
+
+  <String Id="InstallDirNotEmptyDlg_Title">[ProductName] セットアップ</String>
+  <String Id="InstallDirNotEmptyDlgInstallDirExistMessage">フォルダー [INSTALLDIR] はすでに存在します。このフォルダーにインストールしますか?</String>
+
+  <String Id="ContextMenuCommandLabel">[ProductName] で開く</String>
+  <String Id="OsConditionMessage">このバージョンの Windows では [ProductName] [ProductVersion] はサポートされていません。</String>
+</WixLocalization>

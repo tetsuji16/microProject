@@ -92,6 +92,7 @@ If `JAVA_HOME` is not set, the Gradle release tasks fall back to `C:\Program Fil
 - `Gradle` is the supported build and release entrypoint for this repository
 - `build.gradle.kts` drives module compilation, installable app layout generation, and Windows `jpackage` packaging
 - `packaging` is the source of active packaging assets, icons, and license notices consumed by the Gradle tasks
+- `packaging/windows/installer-resources` contains the English and Japanese WiX localization resources used by the Windows installers
 - Keep `micrproject_contrib` jars lean when updating dependencies so the packaged app size does not grow unnecessarily
 - CI is aligned to the Gradle flow and validates the installable desktop layout on JDK 25
 
@@ -143,6 +144,8 @@ Build the Windows release artifacts and stage them locally:
 ```powershell
 .\gradlew.bat packageWindowsMsi
 ```
+
+The Windows MSI and EXE installers include English (`en-US`) and Japanese (`ja-JP`) WiX localization resources. Windows Installer selects the matching language for the package UI where supported; the application language remains controlled by the application's own locale settings.
 
 The Gradle Windows release flow stages the packaging input under:
 

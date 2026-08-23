@@ -158,6 +158,7 @@ val windowsMsiDir = windowsReleaseRoot.map { it.dir("msi") }
 val windowsExeDir = windowsReleaseRoot.map { it.dir("exe") }
 val docsDownloadsDir = layout.projectDirectory.dir("docs/downloads")
 val windowsFileAssociationsDir = layout.projectDirectory.dir("packaging/windows/file-associations")
+val windowsInstallerResourcesDir = layout.projectDirectory.dir("packaging/windows/installer-resources")
 val jpackageJavaHomeProvider = providers.environmentVariable("JAVA_HOME")
     .orElse(providers.systemProperty("java.home"))
     .orElse("C:\\Program Files\\Java\\latest")
@@ -262,6 +263,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
+            "--resource-dir", windowsInstallerResourcesDir.asFile.absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--jlink-options", "--strip-native-commands --strip-debug --no-man-pages --no-header-files --compress zip-9",
             "--dest", windowsMsiDir.get().asFile.absolutePath,
@@ -303,6 +305,7 @@ tasks.register<Exec>("packageWindowsExe") {
             "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
+            "--resource-dir", windowsInstallerResourcesDir.asFile.absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--win-menu",
             "--win-shortcut",
