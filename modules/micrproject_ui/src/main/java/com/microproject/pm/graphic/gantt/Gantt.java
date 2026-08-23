@@ -79,11 +79,11 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private static final long serialVersionUID = -1806070019043393474L;
 	private static final String ZOOM_OUT_ACTION = "gantt.zoomOut";
 	private static final String ZOOM_IN_ACTION = "gantt.zoomIn";
-	private static final String UNDO_ACTION = "gantt.undo";
-	private static final String REDO_ACTION = "gantt.redo";
 	private static final int AUTO_SCROLL_START_THRESHOLD = 150;
 	private static final int AUTO_SCROLL_LEFT_PADDING = 50;
 	private static final int BOTTOM_SCROLL_BUFFER_ROWS = 5;
+	/** A view-local annotation field value that suppresses all task labels. */
+	public static final String ANNOTATION_FIELD_HIDDEN = "Gantt.Annotation.Hidden";
 	private boolean progressLineEnabled = false;
 	/** MS Project-compatible default: Gantt gridlines are hidden in a new view. */
 	private boolean gridLinesVisible = false;
@@ -137,6 +137,10 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 	public void setAnnotationFieldId(String annotationFieldId) {
 		this.annotationFieldId = annotationFieldId;
+	}
+
+	public boolean isAnnotationHidden() {
+		return ANNOTATION_FIELD_HIDDEN.equals(annotationFieldId);
 	}
 
 	/**
@@ -374,13 +378,9 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.CTRL_DOWN_MASK), ZOOM_OUT_ACTION);
 		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.CTRL_DOWN_MASK), ZOOM_IN_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK), UNDO_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK), REDO_ACTION);
 
 		actionMap.put(ZOOM_OUT_ACTION, createZoomAction(() -> ScrollPaneSynchronizer.zoomOut(Gantt.this)));
 		actionMap.put(ZOOM_IN_ACTION, createZoomAction(() -> ScrollPaneSynchronizer.zoomIn(Gantt.this)));
-		actionMap.put(UNDO_ACTION, createUndoRedoAction(true));
-		actionMap.put(REDO_ACTION, createUndoRedoAction(false));
 	}
 
 	private static AbstractAction createZoomAction(Runnable zoomOperation) {
@@ -390,20 +390,6 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				zoomOperation.run();
-			}
-		};
-	}
-
-	private AbstractAction createUndoRedoAction(boolean undo) {
-		return new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				GraphicManager graphicManager = GraphicManager.getInstance(Gantt.this);
-				if (graphicManager != null) {
-					graphicManager.doUndoRedo(undo);
-				}
 			}
 		};
 	}

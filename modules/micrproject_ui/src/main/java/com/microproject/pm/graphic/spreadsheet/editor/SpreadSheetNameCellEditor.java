@@ -89,7 +89,6 @@ public class SpreadSheetNameCellEditor extends SpreadSheetCellEditorAdapter{
 		}
 		if (table instanceof SpreadSheet) {
 			SpreadSheet spreadSheet = (SpreadSheet)table;
-			installClipboardActions(spreadSheet, textComponent);
 			installNameFieldTabActions(spreadSheet, textComponent);
 		}
 		return component;
@@ -103,4 +102,3 @@ public class SpreadSheetNameCellEditor extends SpreadSheetCellEditorAdapter{
 		return editor.getCellEditorValue();
 	}
 }
-

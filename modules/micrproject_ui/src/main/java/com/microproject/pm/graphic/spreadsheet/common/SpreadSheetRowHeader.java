@@ -66,35 +66,6 @@ public class SpreadSheetRowHeader extends JTable {
 		if (table instanceof SpreadSheet){
 			final SpreadSheet spreadSheet=(SpreadSheet)table;
 
-			getActionMap().put("cut",new AbstractAction(){
-				public void actionPerformed(java.awt.event.ActionEvent e) {
-					spreadSheet.setRowHeaderSelectionActive(true);
-					spreadSheet.prepareAction(MenuActionConstants.ACTION_CUT).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
-				}
-			});
-			getActionMap().put("copy",new AbstractAction(){
-				public void actionPerformed(java.awt.event.ActionEvent e) {
-					spreadSheet.setRowHeaderSelectionActive(true);
-					spreadSheet.prepareAction(MenuActionConstants.ACTION_COPY).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
-				}
-			});
-			getActionMap().put("paste",new AbstractAction(){
-				public void actionPerformed(java.awt.event.ActionEvent e) {
-					spreadSheet.setRowHeaderSelectionActive(true);
-					spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
-				}
-			});
-			getActionMap().put("insertClipboard",new AbstractAction(){
-				public void actionPerformed(java.awt.event.ActionEvent e) {
-					spreadSheet.setRowHeaderSelectionActive(true);
-					spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
-				}
-			});
-			InputMap inputMap = getInputMap(JComponent.WHEN_FOCUSED);
-			inputMap.put(KeyStroke.getKeyStroke("ctrl X"), "cut");
-			inputMap.put(KeyStroke.getKeyStroke("ctrl C"), "copy");
-			inputMap.put(KeyStroke.getKeyStroke("ctrl V"), "paste");
-			inputMap.put(KeyStroke.getKeyStroke("shift ctrl V"), "insertClipboard");
 			spreadSheet.installTaskMoveBindings(this);
 
 		}
@@ -147,6 +118,10 @@ public class SpreadSheetRowHeader extends JTable {
 							}
 							boolean keepExisting=isRowSelected(row)&&getSelectedRowCount()>1&&!e.isControlDown()&&!e.isShiftDown();
 							selectRowForMove(row,e.isShiftDown(),e.isControlDown(),keepExisting);
+							// The row header is only a selection affordance.  Keep keyboard
+							// input on the task table so Ctrl+C/V and typed edits continue
+							// through the document's single root-pane shortcut routing.
+							spreadSheet.requestFocusInWindow();
 							pressRow=row;
 							pressPoint=e.getPoint();
 							dragging=false;
@@ -161,6 +136,7 @@ public class SpreadSheetRowHeader extends JTable {
 						}else if (popup!=null&&SwingUtilities.isRightMouseButton(e)){ //e.isPopupTrigger() can be used too
 							int row = rowAtPoint(e.getPoint());
 							table.selectRowAndAllColumns(row);
+							spreadSheet.requestFocusInWindow();
 							popup.setRow(row);
 							popup.setCol(0);
 							popup.show(SpreadSheetRowHeader.this,e.getX(),e.getY());

@@ -1,14 +1,17 @@
 package com.microproject.pm.graphic.gantt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.KeyStroke;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +27,18 @@ import com.microproject.undo.DataFactoryUndoController;
  * (matching MS Project) instead of being swallowed by the graph interactor.
  */
 class GanttWheelZoomTest {
+
+	@Test
+	void undoRedoShortcutsAreLeftToTheDocumentRootPane() {
+		Gantt gantt = newGantt();
+		try {
+			var inputMap = gantt.getInputMap(Gantt.WHEN_IN_FOCUSED_WINDOW);
+			assertFalse(hasLocalBinding(inputMap, KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)));
+			assertFalse(hasLocalBinding(inputMap, KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK)));
+		} finally {
+			gantt.cleanUp();
+		}
+	}
 
 	@Test
 	void ctrlWheelDownZoomsOutTheTimescale() {
@@ -114,5 +129,16 @@ class GanttWheelZoomTest {
 				System.currentTimeMillis(), InputEvent.CTRL_DOWN_MASK, x, 10, 0, false,
 				MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, rotation);
 		gantt.dispatchEvent(wheel);
+	}
+
+	private static boolean hasLocalBinding(javax.swing.InputMap inputMap, KeyStroke keyStroke) {
+		KeyStroke[] keys = inputMap.keys();
+		if (keys == null)
+			return false;
+		for (KeyStroke key : keys) {
+			if (keyStroke.equals(key))
+				return true;
+		}
+		return false;
 	}
 }

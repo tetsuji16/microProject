@@ -162,6 +162,59 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void f2EditsTheClickedCellAfterWholeRowSelection() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int row = findRow(sheet, fixture.secondTask());
+			int column = findNameColumn(sheet);
+
+			sheet.handleTableMousePressed(mousePress(sheet, row, column, MouseEvent.BUTTON1, 1));
+
+			assertTrue(sheet.editActiveCell());
+			assertEquals(row, sheet.getEditingRow());
+			assertEquals(column, sheet.getEditingColumn());
+		});
+	}
+
+	@Test
+	void rowHeaderSelectionReturnsKeyboardFocusToTheTaskTable() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int row = findRow(sheet, fixture.firstTask());
+
+			fireProjectLibreRowHeaderPress(sheet.getRowHeader(), row, 1);
+
+			assertEquals(1, sheet.focusRequestCount,
+					"selecting a row from its header must return keyboard input to the task table");
+		});
+	}
+
+	@Test
+	void draggingAcrossTaskCellsCreatesACellRangeForClipboardOperations() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int firstRow = findRow(sheet, fixture.firstTask());
+			int secondRow = findRow(sheet, fixture.secondTask());
+			int nameColumn = findNameColumn(sheet);
+			int nextColumn = Math.min(nameColumn + 1, sheet.getColumnCount() - 1);
+
+			MouseEvent press = mousePress(sheet, firstRow, nameColumn, MouseEvent.BUTTON1, 1);
+			sheet.beginCellRangeSelection(press);
+			sheet.handleTableMousePressed(press);
+			sheet.extendCellRangeSelection(mouseDrag(sheet, secondRow, nextColumn));
+
+			assertEquals(2, sheet.getSelectedRowCount());
+			assertEquals(nextColumn - nameColumn + 1, sheet.getSelectedColumnCount());
+			assertFalse(sheet.isRowHeaderSelectionActive(),
+					"a task-table drag must select cells rather than turn into a whole-row copy");
+			assertEquals(2, sheet.getSelectedFields().size());
+		});
+	}
+
+	@Test
 	void ctrlClickingTaskIdsSelectsNonadjacentWholeRows() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
@@ -436,6 +489,19 @@ class SpreadSheetMouseInteractionTest {
 			button);
 	}
 
+	private MouseEvent mouseDrag(SpreadSheet sheet, int row, int column) {
+		Rectangle bounds = sheet.getCellRect(row, column, true);
+		return new MouseEvent(sheet,
+			MouseEvent.MOUSE_DRAGGED,
+			System.currentTimeMillis(),
+			MouseEvent.BUTTON1_DOWN_MASK,
+			bounds.x + Math.max(1, bounds.width / 2),
+			bounds.y + Math.max(1, bounds.height / 2),
+			0,
+			false,
+			MouseEvent.NOBUTTON);
+	}
+
 	private MouseEvent rowHeaderMousePress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
 		return rowHeaderMousePress(rowHeader, row, clickCount, false);
 	}
@@ -494,6 +560,13 @@ class SpreadSheetMouseInteractionTest {
 		private int informationColumn = -1;
 		private boolean popupShown;
 		private SpreadSheetPopupMenu shownPopup;
+		private int focusRequestCount;
+
+		@Override
+		public boolean requestFocusInWindow() {
+			focusRequestCount++;
+			return true;
+		}
 
 		@Override
 		public void doDoubleClick(int row, int col) {

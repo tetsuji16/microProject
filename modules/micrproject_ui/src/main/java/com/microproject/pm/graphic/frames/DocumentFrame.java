@@ -681,28 +681,28 @@ public class DocumentFrame extends NamedFrame implements
 	public void doCut() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null)
-			ss.prepareAction(MenuActionConstants.ACTION_CUT).actionPerformed(new ActionEvent(ss,0,null));
+			ss.performAction(MenuActionConstants.ACTION_CUT, new ActionEvent(ss,0,null));
 			//NodeListTransferHandler.getCutAction(ss).actionPerformed(new ActionEvent(this,0,null));
 			//ss.executeAction(SpreadSheet.CUT);
 	}
 	public void doCopy() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null)
-			ss.prepareAction(MenuActionConstants.ACTION_COPY).actionPerformed(new ActionEvent(ss,0,null));
+			ss.performAction(MenuActionConstants.ACTION_COPY, new ActionEvent(ss,0,null));
 			//NodeListTransferHandler.getCopyAction(ss).actionPerformed(new ActionEvent(this,0,null));
 			//ss.executeAction(SpreadSheet.COPY);
 	}
 	public void doPaste() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null && canPasteIntoCurrentSelection())
-			ss.prepareAction(MenuActionConstants.ACTION_PASTE).actionPerformed(new ActionEvent(ss,0,null));
+			ss.performAction(MenuActionConstants.ACTION_PASTE, new ActionEvent(ss,0,null));
 			//NodeListTransferHandler.getPasteAction(ss).actionPerformed(new ActionEvent(this,0,null));
 			//ss.executeAction(SpreadSheet.PASTE);
 	}
 	public void doPasteInsert() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null && canPasteIntoCurrentSelection())
-			ss.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT).actionPerformed(new ActionEvent(ss,0,null));
+			ss.performAction(MenuActionConstants.ACTION_PASTE_INSERT, new ActionEvent(ss,0,null));
 	}
 
 

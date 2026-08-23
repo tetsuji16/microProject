@@ -1197,7 +1197,18 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 //			}
 
 			public void mousePressed(MouseEvent e) { // changed to mousePressed instead of mouseClicked() for snappier handling 17/5/04 hk
+				beginCellRangeSelection(e);
 				handleTableMousePressed(e);
+			}
+
+			@Override
+			public void mouseDragged(MouseEvent e) {
+				extendCellRangeSelection(e);
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				endCellRangeSelection();
 			}
 		});
 
@@ -1311,6 +1322,48 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		SpreadSheetFieldArray after = fields.removeField(fieldIndex);
 		applyColumnLayoutChange(before, after, viewColumn, Messages.getString("SpreadSheetColumnMenu.HideColumn"));
 		return true;
+	}
+
+	private int rangeAnchorRow = -1;
+	private int rangeAnchorColumn = -1;
+	private boolean selectingCellRange;
+
+	void beginCellRangeSelection(MouseEvent e) {
+		if (!SwingUtilities.isLeftMouseButton(e))
+			return;
+		Point point = e.getPoint();
+		rangeAnchorRow = rowAtPoint(point);
+		rangeAnchorColumn = columnAtPoint(point);
+		selectingCellRange = false;
+	}
+
+	void extendCellRangeSelection(MouseEvent e) {
+		if (rangeAnchorRow < 0 || rangeAnchorColumn < 0
+				|| (e.getModifiersEx() & MouseEvent.BUTTON1_DOWN_MASK) == 0) {
+			return;
+		}
+		Point point = e.getPoint();
+		int row = rowAtPoint(point);
+		int column = columnAtPoint(point);
+		if (row < 0 || column < 0
+				|| (row == rangeAnchorRow && column == rangeAnchorColumn)) {
+			return;
+		}
+		// A simple click keeps the Microsoft Project whole-row selection. Once
+		// the pointer moves, restore the original cell as the anchor so JTable
+		// can form a rectangular cell range for clipboard operations.
+		if (!selectingCellRange) {
+			changeSelection(rangeAnchorRow, rangeAnchorColumn, false, false);
+			selectingCellRange = true;
+		}
+		changeSelection(row, column, false, true);
+		scrollRectToVisible(getCellRect(row, column, true));
+	}
+
+	void endCellRangeSelection() {
+		rangeAnchorRow = -1;
+		rangeAnchorColumn = -1;
+		selectingCellRange = false;
 	}
 
 	/** Inserts an available field at a field-array index (which includes the hidden ID field). */
@@ -1431,6 +1484,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			// cell is clicked. The selection model retains the clicked cell so the
 			// active-cell border stays on the actual field rather than column zero.
 			selectRowAndAllColumns(row);
+			// A task-table click is not a row-header click.  Keeping this state
+			// separate prevents the ID column from being rendered as the selected
+			// target and preserves cell clipboard semantics.
+			setRowHeaderSelectionActive(false);
 			getSelection().setActiveCell(row, col);
 		} else {
 			changeSelection(row, col, toggle, extend);
@@ -1519,13 +1576,20 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	// gui actions
 	public void executeAction(String actionId) {
-		var action = getAction(actionId);
+		performAction(actionId, null);
+	}
+
+	/** Executes a configured spreadsheet action without exposing nullable lookup results to callers. */
+	public boolean performAction(String actionId, ActionEvent event) {
+		var action = prepareAction(actionId);
 		if (action == null) {
 			logger.log(Level.FINE, "No action for {0}", actionId);
-			return;
+			return false;
 		}
-		action.setSpreadSheet(this);
-		action.execute();
+		action.actionPerformed(event == null
+				? new ActionEvent(this, ActionEvent.ACTION_PERFORMED, actionId)
+				: event);
+		return true;
 	}
 
 	// init actions

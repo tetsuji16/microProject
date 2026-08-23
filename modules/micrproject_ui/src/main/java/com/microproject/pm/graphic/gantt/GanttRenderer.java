@@ -820,7 +820,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 		private Field resolveAnnotationField(BarFormat format) {
 			if (graphInfo instanceof Gantt) {
-				String fieldId = ((Gantt) graphInfo).getAnnotationFieldId();
+				Gantt gantt = (Gantt) graphInfo;
+				if (gantt.isAnnotationHidden()) {
+					return null;
+				}
+				String fieldId = gantt.getAnnotationFieldId();
 				if (fieldId != null) {
 					return Configuration.getFieldFromId(fieldId);
 				}

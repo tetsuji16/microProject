@@ -116,7 +116,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	private static final long serialVersionUID = 2541466281456673698L;
 	public static final String RESOURCE_CATEGORY="resourceSpreadsheet";
 	public static final String TASK_CATEGORY="taskSpreadsheet";
-	private static final String START_EDIT_ACTION = "spreadsheet.startEdit";
 	private static final String COMMIT_AND_MOVE_DOWN_ACTION = "spreadsheet.commitAndMoveDown";
 	private static final String COMPOSITION_PROPERTY = "projectlibre.input.composing";
 
@@ -145,8 +144,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		rowHeader.setRowHeight(getRowHeight());
 
 		setFocusCycleRoot(true);
-		installExcelEditingActions();
-
 	}
 	public void cleanUp() {
 		NodeModelCache currentCache = getCache();
@@ -274,18 +271,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 	public boolean isCellEditing(int row, int col) {
 		return (!(isEditing() && getEditingRow() == row && getEditingColumn() == col));
-	}
-
-	private void installExcelEditingActions() {
-		InputMap inputMap = getInputMap(JComponent.WHEN_FOCUSED);
-		ActionMap actionMap = getActionMap();
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), START_EDIT_ACTION);
-		actionMap.put(START_EDIT_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				startEditingCurrentCell(true);
-			}
-		});
 	}
 
 	// ---------------------------------------------------------------------
@@ -425,11 +410,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			}
 			if (e.getID() == KeyEvent.KEY_TYPED && shouldStartTypingEdit(e)) {
 				startEditingFromTypedKey(e);
-				e.consume();
-				return;
-			}
-			if (e.getID() == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_F2) {
-				startEditingCurrentCell(true);
 				e.consume();
 				return;
 			}
@@ -584,8 +564,12 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	private EditableCellTarget resolveEditableCellTarget() {
-		int row = getCurrentRow();
-		int column = getSelectedColumn();
+		int row = hasSelectionModel() ? getSelection().getActiveRow() : -1;
+		int column = hasSelectionModel() ? getSelection().getActiveColumn() : -1;
+		if (row < 0)
+			row = getCurrentRow();
+		if (column < 0)
+			column = getSelectedColumn();
 		if (row < 0 && getRowCount() > 0) {
 			row = 0;
 		}
@@ -985,12 +969,11 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
     // edit triggered by click
 	public boolean editCellAt(int row, int column, EventObject e){
-		if (e == null) {
-			return false;
-		}
 		if (row < 0 || column < 0 || row >= getRowCount() || column >= getColumnCount()) {
 			return false;
 		}
+		if (e == null)
+			e = new StartEditEvent(this, true, null, false, false);
 		if (e instanceof MouseEvent me && me.getClickCount() < 2) {
 			return false;
 		}
@@ -1187,6 +1170,13 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		super.changeSelection(rowIndex,columnIndex,toggle,extend);
 		if (hasSelectionModel())
 			getSelection().setActiveCell(rowIndex, columnIndex);
+	}
+
+	/** Starts editing the active task-table cell, preserving a cell click inside a whole-row selection. */
+	public boolean editActiveCell() {
+		EditableCellTarget target = resolveEditableCellTarget();
+		return target != null && editCellAt(target.row, target.column,
+				new StartEditEvent(this, true, null, false, false));
 	}
 
 

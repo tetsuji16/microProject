@@ -1129,9 +1129,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			boolean resourcesTab = impl instanceof Assignment;
 			if (!beforeTaskInformationRoute(task, notes, resourcesTab))
 				return;
-			if (!CollaborationHelper.tryLockObject(task.getProject(), task, getCurrentFrame(), "open task details"))
-				return;
-			showTaskInformationDialog(task, notes, resourcesTab);
+			openTaskInformation(task, notes, resourcesTab);
 		} else if (impl instanceof Resource||(impl instanceof Assignment&&resourceType)) {
 			Resource resource=(Resource)((impl instanceof Assignment)?(((Assignment)impl).getResource()):impl);;
 			if (!beforeResourceInformationRoute(resource, notes))
@@ -1157,14 +1155,29 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public void doInformationDialog(Task task, boolean notes) {
-		if (!isDocumentActive())
+		if (task == null)
 			return;
-		finishAnyOperations();
+		// A Gantt double-click already supplies the exact task that was hit. Its
+		// chart component can receive focus before the document frame activation
+		// event is processed, so do not discard that direct request merely because
+		// isDocumentActive() is transiently false.
+		setMeAsLastGraphicManager();
+		if (isDocumentActive())
+			finishAnyOperations();
 		if (!beforeTaskInformationRoute(task, notes, false))
 			return;
-		if (!CollaborationHelper.tryLockObject(task.getProject(), task, getCurrentFrame(), "open task details"))
-			return;
-		showTaskInformationDialog(task, notes, false);
+		openTaskInformation(task, notes, false);
+	}
+
+	/**
+	 * Opens task details without acquiring an edit lock.  Task Information is also
+	 * the inspection surface for read-only and collaboratively locked tasks; the
+	 * dialog's fields already enforce their individual read-only state.  Editing
+	 * commands acquire locks at the point where they change the model.
+	 */
+	private void openTaskInformation(Task task, boolean notes, boolean resourcesTab) {
+		if (task != null)
+			showTaskInformationDialog(task, notes, resourcesTab);
 	}
 
 	/**
@@ -1223,9 +1236,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		Task task = (Task) impl;
 		if (!beforeTaskInformationRoute(task, notes, false))
 			return;
-		if (!CollaborationHelper.tryLockObject(task.getProject(), task, getCurrentFrame(), "open task details"))
-			return;
-		showTaskInformationDialog(task, notes, false);
+		openTaskInformation(task, notes, false);
 	}
 
 	private void showResourceInformationForSelection(boolean notes) {
@@ -1767,8 +1778,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive())
-				getCurrentFrame().addNodeForImpl(null);
+			DocumentFrame frame = getCurrentFrame();
+			// Opening an MPOF document can leave the frame briefly deactivated while
+			// its view is already visible.  Do not drop an Insert command during that
+			// activation transition; the project writability check remains authoritative.
+			if (frame != null && !frame.getProject().isReadOnly()) {
+				finishAnyOperations();
+				frame.addNodeForImpl(null);
+			}
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3498,7 +3515,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		});
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "EditField", new SpreadSheetDispatchAction("EditField") {
 			private static final long serialVersionUID = 1L;
-			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.editCellAt(sheet.getSelectedRow(), sheet.getSelectedColumn()); }
+			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.editActiveCell(); }
 		});
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, InputEvent.SHIFT_DOWN_MASK), ACTION_INFORMATION, null);
 		// Microsoft Project outline keys: Alt+Shift+Right/Left indent/outdent, Alt+Shift++/= expand, Alt+Shift+- collapse.

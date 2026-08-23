@@ -135,7 +135,6 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 			final SpreadSheet spreadSheet=(SpreadSheet)table;
 			JComponent edit = (component instanceof DateEditor.ExtDateField) ? ((DateEditor.ExtDateField)component).getTextField() : component;
 			prepareEditorComponent(edit);
-			installClipboardActions(spreadSheet, edit);
 			if (table.getModel() instanceof SpreadSheetModel && spreadSheet.isNameFieldColumn(column)) {
 				installNameFieldTabActions(spreadSheet, edit);
 			} else {
@@ -146,31 +145,6 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		}
 		
 		return component;
-	}
-
-	protected void installClipboardActions(final SpreadSheet spreadSheet, JComponent edit) {
-		edit.getActionMap().put("cut",new AbstractAction(){
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				spreadSheet.prepareAction(MenuActionConstants.ACTION_CUT).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
-			}
-		});
-		edit.getActionMap().put("copy",new AbstractAction(){
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				spreadSheet.prepareAction(MenuActionConstants.ACTION_COPY).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
-			}
-		});
-		edit.getActionMap().put("paste",new AbstractAction(){
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
-			}
-		});
-		edit.getActionMap().put("pasteInsert", new AbstractAction() {
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT).actionPerformed(new ActionEvent(spreadSheet,e.getID(),e.getActionCommand()));
-			}
-		});
-		InputMap inputMap = edit.getInputMap(JComponent.WHEN_FOCUSED);
-		inputMap.put(KeyStroke.getKeyStroke("shift ctrl V"), "pasteInsert");
 	}
 
 	protected void installNameFieldTabActions(final SpreadSheet spreadSheet, final JComponent edit) {
@@ -356,4 +330,3 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	}
 	
 }
-

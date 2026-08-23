@@ -111,6 +111,14 @@ public class SpreadSheetSelectionModel implements Serializable {
 		activeColumn = -1;
 	}
 
+	public int getActiveRow() {
+		return activeRow;
+	}
+
+	public int getActiveColumn() {
+		return activeColumn;
+	}
+
 	public boolean isActiveCell(int row, int column) {
 		return activeRow == row && activeColumn == column;
 	}

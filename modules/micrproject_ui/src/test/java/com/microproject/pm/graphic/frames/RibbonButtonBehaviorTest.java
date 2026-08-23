@@ -207,6 +207,27 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void ganttTaskInformationRouteSurvivesTransientDocumentDeactivation() throws Exception {
+		Harness harness = newHarness();
+		harness.frame.setActive(false);
+
+		harness.manager.doInformationDialog(harness.task, false);
+
+		assertCall(harness, "taskInfo", harness.task, Boolean.FALSE, Boolean.FALSE);
+	}
+
+	@Test
+	void insertTaskRouteSurvivesTransientDocumentDeactivation() throws Exception {
+		Harness harness = newHarness();
+		harness.frame.setActive(false);
+
+		harness.manager.getAction(MenuActionConstants.ACTION_INSERT_TASK)
+			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert"));
+
+		assertEquals(1, harness.frame.insertTaskCallCount());
+	}
+
+	@Test
 	void baselineRibbonButtonIsEnabledAndWritesASnapshotWhenClicked() throws Exception {
 		Harness harness = newHarness();
 		harness.manager.getMenuManager().createRibbonPanel(MenuManager.STANDARD_RIBBON, () -> { });
@@ -889,6 +910,10 @@ class RibbonButtonBehaviorTest {
 			return structuralCalls.getOrDefault(buttonId, 0);
 		}
 
+		int insertTaskCallCount() {
+			return structuralCalls.getOrDefault("insertTask", 0);
+		}
+
 		private void recordStructuralCall(String buttonId) {
 			structuralCalls.merge(buttonId, 1, Integer::sum);
 		}
@@ -896,6 +921,15 @@ class RibbonButtonBehaviorTest {
 		@Override
 		public void doScrollToTask() {
 			recordStructuralCall("RibbonScrollToTask");
+		}
+
+		@Override
+		public Node addNodeForImpl(Object impl) {
+			if (impl == null) {
+				recordStructuralCall("insertTask");
+				return null;
+			}
+			return super.addNodeForImpl(impl);
 		}
 
 		@Override

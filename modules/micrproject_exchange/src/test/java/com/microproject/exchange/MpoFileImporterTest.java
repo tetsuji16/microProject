@@ -494,6 +494,8 @@ class MpoFileImporterTest {
 		reader.importFile();
 
 		org.junit.jupiter.api.Assertions.assertNotNull(reader.getProject());
+		org.junit.jupiter.api.Assertions.assertFalse(reader.getProject().isReadOnly(),
+				"a locally opened MPOF project must remain editable");
 		org.junit.jupiter.api.Assertions.assertEquals(taskCount(original), taskCount(reader.getProject()));
 		CriticalChainService.Settings restored = new CriticalChainService().settings(reader.getProject());
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isEnabled());

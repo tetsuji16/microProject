@@ -185,10 +185,13 @@ public class GanttPopupMenu extends GraphPopupMenu{
         final JMenu annotations=new JMenu(Messages.getString("Gantt.Popup.annotationStylesMenu"));
         final JMenu annotationText=new JMenu(Messages.getString("Gantt.Popup.annotationTextMenu"));
         final ButtonGroup annotationTextGroup = new ButtonGroup();
+		JRadioButtonMenuItem hiddenItem = new AnnotationTextMenuAction("Gantt.Popup.annotationHidden", Gantt.ANNOTATION_FIELD_HIDDEN);
         JRadioButtonMenuItem resourceNamesItem = new AnnotationTextMenuAction("Gantt.Popup.annotationResourceNames", ANNOTATION_FIELD_RESOURCE_NAMES);
         JRadioButtonMenuItem taskNamesItem = new AnnotationTextMenuAction("Gantt.Popup.annotationTaskNames", ANNOTATION_FIELD_TASK_NAME);
+		annotationTextGroup.add(hiddenItem);
         annotationTextGroup.add(resourceNamesItem);
         annotationTextGroup.add(taskNamesItem);
+		annotationText.add(hiddenItem);
         annotationText.add(resourceNamesItem);
         annotationText.add(taskNamesItem);
         annotations.add(annotationText);
