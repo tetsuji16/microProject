@@ -1181,6 +1181,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		headerColumnSelectionActive = false;
 		rowHeaderSelectionActive = false;
 		super.changeSelection(rowIndex,columnIndex,toggle,extend);
+		if (hasSelectionModel())
+			getSelection().setActiveCell(rowIndex, columnIndex);
 	}
 
 
@@ -1189,6 +1191,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		headerColumnSelectionActive = false;
 		rowHeaderSelectionActive = false;
 		super.clearSelection();
+		if (hasSelectionModel())
+			getSelection().clearActiveCell();
 	}
 
 	public void selectRowAndAllColumns(int row) {
@@ -1201,6 +1205,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		SpreadSheetSelectionModel selection = getSelection();
 		selectRows(selection, row, row);
 		selectColumns(selection, 0, getColumnCount() - 1);
+		selection.clearActiveCell();
 		rowHeaderSelectionActive = true;
 	}
 
@@ -1214,6 +1219,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		SpreadSheetSelectionModel selection = getSelection();
 		selectColumns(selection, column, column);
 		selectRows(selection, 0, getRowCount() - 1);
+		selection.clearActiveCell();
 		headerColumnSelectionActive = true;
 	}
 
@@ -1225,6 +1231,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		SpreadSheetSelectionModel selection = getSelection();
 		selectRows(selection, 0, getRowCount() - 1);
 		selectColumns(selection, 0, getColumnCount() - 1);
+		selection.clearActiveCell();
 	}
 
 	public boolean isRowFullySelected(int row) {
@@ -1247,6 +1254,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	public boolean isHeaderColumnSelectionActive() {
 		return headerColumnSelectionActive;
+	}
+
+	public boolean isRowHeaderSelectionActive() {
+		return rowHeaderSelectionActive;
 	}
 
 	public void setRowHeaderSelectionActive(boolean active) {

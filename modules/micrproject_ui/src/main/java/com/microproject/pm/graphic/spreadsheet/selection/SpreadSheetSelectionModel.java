@@ -36,6 +36,13 @@ public class SpreadSheetSelectionModel implements Serializable {
 	protected ListSelectionModel rowSelection;
 	protected ListSelectionModel columnSelection;
 	protected transient JTable table;
+	/*
+	 * A full-row selection necessarily selects every column, so JTable's lead
+	 * column becomes the first column. Keep the clicked cell separately for the
+	 * active-cell border used by the task spreadsheet.
+	 */
+	private transient int activeRow = -1;
+	private transient int activeColumn = -1;
 
 	public SpreadSheetSelectionModel(JTable table){
 		this.table=table;
@@ -94,5 +101,18 @@ public class SpreadSheetSelectionModel implements Serializable {
 		return table;
 	}
 
-}
+	public void setActiveCell(int row, int column) {
+		activeRow = row;
+		activeColumn = column;
+	}
 
+	public void clearActiveCell() {
+		activeRow = -1;
+		activeColumn = -1;
+	}
+
+	public boolean isActiveCell(int row, int column) {
+		return activeRow == row && activeColumn == column;
+	}
+
+}

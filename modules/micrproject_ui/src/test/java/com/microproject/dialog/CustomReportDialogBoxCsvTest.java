@@ -21,6 +21,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class CustomReportDialogBoxCsvTest {
 	@Test
+	void reportTemplatesExposeTheFourMicrosoftProjectStartingPoints() {
+		assertEquals(List.of(), CustomReportDialogBox.ReportTemplate.BLANK.fieldIds());
+		assertEquals(List.of("Field.name", "Field.work", "Field.actualWork", "Field.remainingWork"),
+			CustomReportDialogBox.ReportTemplate.CHART.fieldIds());
+		assertEquals(CustomReportDialogBox.ReportTemplate.TABLE,
+			CustomReportDialogBox.ReportTemplate.fromCode("unknown"));
+		assertEquals(CustomReportDialogBox.ReportTemplate.COMPARISON,
+			CustomReportDialogBox.ReportTemplate.fromCode("comparison"));
+	}
+
+	@Test
 	void customReportPresetRoundTripsWithoutGlobalPreferences() {
 		Map<String, String> original = new LinkedHashMap<>();
 		original.put("columns", "Field.name,Field.start");

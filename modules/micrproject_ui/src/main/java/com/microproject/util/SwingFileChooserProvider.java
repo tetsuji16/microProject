@@ -81,8 +81,8 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	@Override
 	public synchronized String chooseFileName(boolean save, String selectedFileName, Object parent) {
 		Component fileChooserParent = parent instanceof Component ? (Component) parent : null;
-		if (!Environment.getStandAlone() && save && selectedFileName != null && selectedFileName.endsWith("." + LEGACY_POD_FILE_EXTENSION)) {
-			selectedFileName = changeFileExtension(selectedFileName, "xml");
+		if (save) {
+			selectedFileName = normalizeHostedSelectedFileName(selectedFileName, Environment.getStandAlone());
 		}
 		SystemFileChooser chooser = prepareFileChooser(save, selectedFileName);
 		if (selectedFileName == null) {
@@ -104,6 +104,13 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", file.getParent());
 		return fileName;
+	}
+
+	static String normalizeHostedSelectedFileName(String selectedFileName, boolean standalone) {
+		if (!standalone && LEGACY_POD_FILE_EXTENSION.equals(FileHelper.getFileExtension(selectedFileName))) {
+			return FileHelper.changeFileExtension(selectedFileName, "xml");
+		}
+		return selectedFileName;
 	}
 
 	SystemFileChooser prepareFileChooser(boolean save, String selectedFileName) {
@@ -147,7 +154,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			formatFilterLabel(Messages.getString("File.projectlibre"), "*." + DEFAULT_FILE_EXTENSION),
 			DEFAULT_FILE_EXTENSION);
 		legacyPodFilter = new FileNameExtensionFilter(
-			formatFilterLabel(Messages.getString("File.projectlibre"), "*." + LEGACY_POD_FILE_EXTENSION),
+			formatFilterLabel(Messages.getString("File.projectlibrePod"), "*." + LEGACY_POD_FILE_EXTENSION),
 			LEGACY_POD_FILE_EXTENSION);
 		microsoftFilter = new FileNameExtensionFilter(
 			formatFilterLabel(Messages.getString("File.microsoft"), "*.mpp, *.mpx"),

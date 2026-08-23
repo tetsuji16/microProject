@@ -1396,7 +1396,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		requestFocusInWindow();
 		boolean extend = e != null && e.isShiftDown();
 		boolean toggle = e != null && (e.isControlDown() || e.isMetaDown());
-		changeSelection(row, col, toggle, extend);
+		if (!toggle && !extend) {
+			// Microsoft Project selects the complete task row when any task-table
+			// cell is clicked. The selection model retains the clicked cell so the
+			// active-cell border stays on the actual field rather than column zero.
+			selectRowAndAllColumns(row);
+			getSelection().setActiveCell(row, col);
+		} else {
+			changeSelection(row, col, toggle, extend);
+		}
 		scrollRectToVisible(getCellRect(row, col, true));
 	}
 	

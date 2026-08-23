@@ -356,8 +356,8 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 	}
 
 	public void setCache(NodeModelCache cache) {
-		if (this.cache == null)
-			cache.removeNodeModelListener(this);
+		if (this.cache != null)
+			this.cache.removeNodeModelListener(this);
 		this.cache = cache;
 		cache.update();
 		cache.addNodeModelListener(this);
@@ -463,4 +463,3 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 	}
 
 }
-

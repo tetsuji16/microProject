@@ -79,6 +79,31 @@ import com.microproject.util.PopupDialogSupport;
 /** User-configurable task report with reusable presets, preview, print, and CSV export. */
 public final class CustomReportDialogBox extends JDialog {
 	private static final long serialVersionUID = 1L;
+	enum ReportTemplate {
+		BLANK("blank", "report.template.blank", List.of()),
+		CHART("chart", "report.template.chart", List.of("Field.name", "Field.work", "Field.actualWork", "Field.remainingWork")),
+		TABLE("table", "report.template.table", List.of("Field.name", "Field.start", "Field.finish", "Field.duration", "Field.percentComplete", "Field.resourceNames")),
+		COMPARISON("comparison", "report.template.comparison", List.of("Field.name", "Field.start", "Field.finish", "Field.baselineStart", "Field.baselineFinish", "Field.percentComplete"));
+
+		private final String code;
+		private final String labelKey;
+		private final List<String> fieldIds;
+
+		ReportTemplate(String code, String labelKey, List<String> fieldIds) {
+			this.code = code;
+			this.labelKey = labelKey;
+			this.fieldIds = fieldIds;
+		}
+
+		String code() { return code; }
+		List<String> fieldIds() { return fieldIds; }
+		@Override public String toString() { return t(labelKey); }
+
+		static ReportTemplate fromCode(String code) {
+			for (ReportTemplate template : values()) if (template.code.equals(code)) return template;
+			return TABLE;
+		}
+	}
 	private static final String[] FILTERS = { t("report.all"), t("report.incomplete"), t("report.late"), t("report.milestones"), t("report.critical"), t("report.manual"), t("report.inactive") };
 	private static final String[] GROUPS = { t("report.none"), t("report.status"), t("common.resource") };
 	private final Project project;
@@ -99,6 +124,7 @@ public final class CustomReportDialogBox extends JDialog {
 	};
 	private final JTable preview = new JTable(previewModel);
 	private final JLabel summary = new JLabel(" ");
+	private ReportTemplate selectedTemplate = ReportTemplate.TABLE;
 
 	public CustomReportDialogBox(Frame owner, Project project) {
 		super(owner, t("report.title"), false);
@@ -127,10 +153,11 @@ public final class CustomReportDialogBox extends JDialog {
 	private JPanel buildSettings() {
 		JPanel result = new JPanel(new GridLayout(2, 1));
 		JPanel row1 = new JPanel(); row1.add(new JLabel(t("report.preset"))); row1.add(presets);
+		JButton create = new JButton(t("report.new")); create.addActionListener(event -> createTemplatePreset());
 		JButton load = new JButton(t("report.load")); load.addActionListener(event -> loadPreset());
 		JButton save = new JButton(t("report.saveAs")); save.addActionListener(event -> savePreset());
 		JButton delete = new JButton(t("report.delete")); delete.addActionListener(event -> deletePreset());
-		row1.add(load); row1.add(save); row1.add(delete); row1.add(new JLabel(t("report.filter"))); row1.add(filter);
+		row1.add(create); row1.add(load); row1.add(save); row1.add(delete); row1.add(new JLabel(t("report.filter"))); row1.add(filter);
 		row1.add(new JLabel(t("report.nameContains"))); row1.add(contains); row1.add(includeSummary);
 		JPanel row2 = new JPanel(); row2.add(new JLabel(t("report.group"))); row2.add(group); row2.add(new JLabel(t("report.sort"))); row2.add(sort);
 		row2.add(useDateRange); row2.add(new JLabel(t("report.from"))); row2.add(from); row2.add(new JLabel(t("report.to"))); row2.add(to);
@@ -165,7 +192,11 @@ public final class CustomReportDialogBox extends JDialog {
 
 	private void generate() {
 		List<Field> selected = columns.getSelectedValuesList();
-		if (selected.isEmpty()) { Alert.warn(t("report.selectColumn")); return; }
+		if (selected.isEmpty()) {
+			previewModel.setDataVector(new Object[0][0], new Object[0]);
+			summary.setText(t("report.blankPreview"));
+			return;
+		}
 		List<Task> tasks = filteredTasks(); Field sortField = (Field) sort.getSelectedItem();
 		if (sortField != null) tasks.sort(Comparator.comparing(task -> safeText(sortField, task), String.CASE_INSENSITIVE_ORDER));
 		boolean grouped = group.getSelectedIndex() > 0;
@@ -215,18 +246,44 @@ public final class CustomReportDialogBox extends JDialog {
 		String name = JOptionPane.showInputDialog(this, t("report.presetName"), t("report.savePreset"), JOptionPane.PLAIN_MESSAGE);
 		if (name == null || name.isBlank()) return;
 		String displayName = name.trim();
+		project.getCustomReportPresets().put(displayName, encodePreset(currentPresetValues()));
+		refreshPresetNames(); presets.setSelectedItem(displayName);
+	}
+	private void createTemplatePreset() {
+		ReportTemplate template = (ReportTemplate) JOptionPane.showInputDialog(this, t("report.templatePrompt"),
+			t("report.new"), JOptionPane.PLAIN_MESSAGE, null, ReportTemplate.values(), ReportTemplate.TABLE);
+		if (template == null) return;
+		String name = JOptionPane.showInputDialog(this, t("report.presetName"), t("report.new"), JOptionPane.PLAIN_MESSAGE);
+		if (name == null || name.isBlank()) return;
+		applyTemplate(template);
+		String displayName = name.trim();
+		project.getCustomReportPresets().put(displayName, encodePreset(currentPresetValues()));
+		refreshPresetNames(); presets.setSelectedItem(displayName); generate();
+	}
+
+	private Map<String, String> currentPresetValues() {
 		Map<String, String> values = new LinkedHashMap<>();
+		values.put("template", selectedTemplate.code());
 		values.put("columns", String.join(",", columns.getSelectedValuesList().stream().map(Field::getId).toList()));
 		values.put("filter", String.valueOf(filter.getSelectedItem()));
 		values.put("group", String.valueOf(group.getSelectedItem()));
 		Field sortField = (Field) sort.getSelectedItem(); values.put("sort", sortField == null ? "" : sortField.getId());
 		values.put("summary", Boolean.toString(includeSummary.isSelected()));
-		project.getCustomReportPresets().put(displayName, encodePreset(values));
-		refreshPresetNames(); presets.setSelectedItem(displayName);
+		return values;
+	}
+
+	private void applyTemplate(ReportTemplate template) {
+		selectedTemplate = template == null ? ReportTemplate.TABLE : template;
+		List<String> ids = selectedTemplate.fieldIds();
+		columns.setSelectedIndices(java.util.stream.IntStream.range(0, fields.size())
+			.filter(index -> ids.contains(fields.get(index).getId())).toArray());
+		includeSummary.setSelected(selectedTemplate == ReportTemplate.COMPARISON);
+		group.setSelectedItem(GROUPS[0]); filter.setSelectedItem(FILTERS[0]); contains.setText("");
 	}
 	private void loadPreset() {
 		String name = (String) presets.getSelectedItem(); if (name == null) return;
 		Map<String, String> values = decodePreset(project.getCustomReportPresets().get(name)); if (values == null) return;
+		selectedTemplate = ReportTemplate.fromCode(values.get("template"));
 		List<String> ids = Arrays.asList(values.getOrDefault("columns", "").split(",", -1));
 		columns.setSelectedIndices(java.util.stream.IntStream.range(0, fields.size()).filter(i -> ids.contains(fields.get(i).getId())).toArray());
 		filter.setSelectedItem(values.getOrDefault("filter", FILTERS[0])); group.setSelectedItem(values.getOrDefault("group", GROUPS[0]));

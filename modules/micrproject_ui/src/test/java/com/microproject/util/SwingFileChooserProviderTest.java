@@ -67,6 +67,8 @@ class SwingFileChooserProviderTest {
 				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
 			assertTrue(chooser.isAcceptAllFileFilterUsed());
 			assertEquals(8, chooser.getChoosableFileFilters().length);
+			assertEquals("ProjectLibre Open Project (*.pod)",
+				findFilter(chooser, "pod").getDescription());
 
 			chooser.setFileFilter(chooser.getAcceptAllFileFilter());
 			provider.selectOpenFileFilter(chooser);
@@ -74,6 +76,15 @@ class SwingFileChooserProviderTest {
 		} finally {
 			Environment.setStandAlone(previousStandalone);
 		}
+	}
+
+	private static FileNameExtensionFilter findFilter(SystemFileChooser chooser, String extension) {
+		return java.util.Arrays.stream(chooser.getChoosableFileFilters())
+			.filter(FileNameExtensionFilter.class::isInstance)
+			.map(FileNameExtensionFilter.class::cast)
+			.filter(filter -> java.util.Arrays.asList(filter.getExtensions()).contains(extension))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("Missing filter for *." + extension));
 	}
 
 	@Test
@@ -116,8 +127,18 @@ class SwingFileChooserProviderTest {
 	@Test
 	void saveAsKeepsTheSourceProjectsSupportedFormat() {
 		assertEquals("pod", SwingFileChooserProvider.preferredSaveExtension("original.pod", true));
+		assertEquals("pod", SwingFileChooserProvider.preferredSaveExtension("original.POD", true));
 		assertEquals("xml", SwingFileChooserProvider.preferredSaveExtension("original.xml", true));
 		assertEquals("xlsx", SwingFileChooserProvider.preferredSaveExtension("original.xlsx", true));
+	}
+
+	@Test
+	void hostedSaveConvertsLegacyPodToXmlRegardlessOfExtensionCase() {
+		assertEquals("C:\\projects\\original.xml",
+			SwingFileChooserProvider.normalizeHostedSelectedFileName("C:\\projects\\original.POD", false));
+		assertEquals("C:\\projects\\original.POD",
+			SwingFileChooserProvider.normalizeHostedSelectedFileName("C:\\projects\\original.POD", true));
+		assertNull(SwingFileChooserProvider.normalizeHostedSelectedFileName(null, false));
 	}
 
 	@Test

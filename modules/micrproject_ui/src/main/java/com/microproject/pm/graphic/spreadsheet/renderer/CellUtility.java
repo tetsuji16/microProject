@@ -146,6 +146,12 @@ public class CellUtility {
 				? spreadSheet.isHeaderColumnSelectionActive()
 				: table.getSelectedColumnCount() == 1 && table.getSelectedRowCount() == table.getRowCount())
 			return false;
+		if (table instanceof CommonSpreadSheet spreadSheet) {
+			if (spreadSheet.isRowHeaderSelectionActive())
+				return false;
+			if (spreadSheet.getSelection() != null)
+				return spreadSheet.getSelection().isActiveCell(row, column);
+		}
 		/*
 		 * Renderer coordinates are view coordinates.  The selection models may
 		 * retain a lead index from before a row/column was moved or filtered,

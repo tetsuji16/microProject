@@ -72,7 +72,7 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
-	void singleClickSelectsTheClickedCellWithoutStartingAnEdit() throws Exception {
+	void singleClickSelectsTheClickedTaskRowWithoutStartingAnEdit() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
@@ -82,7 +82,9 @@ class SpreadSheetMouseInteractionTest {
 			sheet.handleTableMousePressed(mousePress(sheet, row, column, MouseEvent.BUTTON1, 1));
 
 			assertEquals(row, sheet.getSelectedRow());
-			assertEquals(column, sheet.getSelectedColumn());
+			assertEquals(sheet.getColumnCount(), sheet.getSelectedColumnCount(),
+				"a task-cell click must select the complete task row");
+			assertTrue(sheet.isRowFullySelected(row));
 			assertFalse(sheet.isEditing());
 			assertEquals(0, sheet.informationOpenCount);
 		});
@@ -99,7 +101,8 @@ class SpreadSheetMouseInteractionTest {
 			sheet.handleTableMousePressed(mousePress(sheet, row, column, MouseEvent.BUTTON1, 2));
 
 			assertEquals(row, sheet.getSelectedRow());
-			assertEquals(column, sheet.getSelectedColumn());
+			assertTrue(sheet.getSelection().isActiveCell(row, column));
+			assertTrue(sheet.isRowFullySelected(row));
 			assertFalse(sheet.isEditing());
 			assertEquals(1, sheet.informationOpenCount);
 			assertEquals(row, sheet.informationRow);
@@ -120,7 +123,8 @@ class SpreadSheetMouseInteractionTest {
 			sheet.handleTableMousePressed(mousePress(sheet, secondRow, column, MouseEvent.BUTTON3, 1));
 
 			assertEquals(secondRow, sheet.getSelectedRow());
-			assertEquals(column, sheet.getSelectedColumn());
+			assertTrue(sheet.getSelection().isActiveCell(secondRow, column));
+			assertTrue(sheet.isRowFullySelected(secondRow));
 			assertTrue(sheet.popupShown);
 			assertEquals(secondRow, sheet.shownPopup.getRow());
 			assertEquals(column, sheet.shownPopup.getCol());

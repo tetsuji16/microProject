@@ -222,7 +222,7 @@ public final class ResourceLevelingService {
 	}
 
 	public void clear(Project project, UndoableEditSupport editSupport) {
-		List<Change> changes = new ArrayList<>();
+		List<Change> changes = new ArrayList<>(project.getTaskList().size());
 		// The outline iterator omits detached/unparented tasks while a project is
 		// being edited.  Leveling applies to every schedulable task, so clear must
 		// use the task list as well or leave invisible leveling delays behind.
