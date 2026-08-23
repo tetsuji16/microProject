@@ -259,7 +259,7 @@ public class NameCellComponent extends JPanel {
 		component.setOffline(false);
 		CellUtility.setAppearance(table, value, isSelected, hasFocus, row,
 				column, component);
-		component.setBorder(CellUtility.withRowGridOverlay(table, component.getBorder()));
+		// row-grid overlay is applied centrally in CellUtility.setAppearance (issue #349)
 		CommonSpreadSheetModel model = (CommonSpreadSheetModel) table.getModel();
 		GraphicNode node = model.getNode(row);
 		component.setText(value == null ? "" : value.toString());

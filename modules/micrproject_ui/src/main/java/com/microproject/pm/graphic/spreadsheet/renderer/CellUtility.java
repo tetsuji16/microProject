@@ -72,7 +72,20 @@ public class CellUtility {
 				component.setForeground(FlatUiSupport.spreadsheetReadOnlyForeground());
 			}
 		}
-		component.setBorder(baseBorder);
+		// Issue #349: the row grid must survive opaque special renderers (icons,
+		// name cells), whose own surface hides the table's native grid line.
+		// Applying the overlay here — after any renderer-internal border — is the
+		// single canonical place; do not re-wrap in individual renderers.
+		setBorderWithRowGrid(table, component, baseBorder);
+	}
+
+	/**
+	 * Applies the resolved cell border wrapped in the row-grid overlay so opaque
+	 * special-renderer surfaces (icon/name cells) still show the horizontal row
+	 * grid that the native table painting cannot draw beneath them (#349).
+	 */
+	static void setBorderWithRowGrid(JTable table, JComponent component, Border baseBorder) {
+		component.setBorder(withRowGridOverlay(table, baseBorder));
 	}
 
 	public static void setAppearance(CellFormat format, JComponent component){

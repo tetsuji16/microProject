@@ -195,6 +195,39 @@ class SpreadsheetGridBorderTest {
 		});
 	}
 
+	@Test
+	void opaqueIndicatorPanelKeepsRowGridAfterSetAppearance() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(2, 1));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			Color gridColor = new Color(0xCC, 0x22, 0x99);
+			table.setGridColor(gridColor);
+			table.setRowHeight(20);
+			table.getColumnModel().getColumn(0).setPreferredWidth(120);
+
+			// Simulates the icon (Indicators) cell path: an OPAQUE custom panel whose
+			// surface hides the table's native grid line unless the border carries
+			// the row-grid overlay applied centrally by CellUtility.setAppearance.
+			javax.swing.JPanel opaqueCell = new javax.swing.JPanel();
+			opaqueCell.setOpaque(true);
+			opaqueCell.setBackground(table.getBackground());
+			CellUtility.setBorderWithRowGrid(table, opaqueCell,
+				CellUtility.resolveCellBorder(false, false, false));
+			opaqueCell.setSize(40, 20);
+
+			BufferedImage image = new BufferedImage(40, 20, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				opaqueCell.paint(graphics);
+			} finally {
+				graphics.dispose();
+			}
+			assertEquals(gridColor.getRGB(), image.getRGB(20, 19),
+				"bottom row grid line must be painted below an opaque icon cell (issue #349)");
+		});
+	}
+
 	private static boolean hasBottomSeparator(Border border, Color expectedColor) {
 		if (border instanceof MatteBorder matteBorder) {
 			return matteBorder.getBorderInsets().bottom > 0 && expectedColor.equals(matteBorder.getMatteColor());
