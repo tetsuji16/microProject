@@ -34,7 +34,29 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.undo.DataFactoryUndoController;
+
 class ProjectFactoryClosingTest {
+	@Test
+	void savePromptUsesTheExistingFileNameBeforeTheProjectInternalName() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("default-format", undo), undo);
+		project.setName("CCPM Visualization Sample");
+		project.setFileName("C:\\projects\\CCPM sample English.mpo");
+
+		assertEquals("CCPM sample English.mpo", ProjectFactory.getDisplayNameForSavePrompt(project));
+	}
+
+	@Test
+	void savePromptUsesTheProjectNameForAnUnsavedProject() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("default-format", undo), undo);
+		project.setName("New project");
+
+		assertEquals("New project", ProjectFactory.getDisplayNameForSavePrompt(project));
+	}
+
 	@Test
 	void closeCallbacksRunOnlyAfterTheProjectLeavesTheClosingState() {
 		ProjectFactory factory = ProjectFactory.createInstance();

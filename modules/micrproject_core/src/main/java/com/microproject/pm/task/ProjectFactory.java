@@ -500,15 +500,15 @@ public class ProjectFactory {
 			return Alert.confirmYesNo(text);
 	}
 
-	private String getDisplayNameForSavePrompt(Project project) {
+	static String getDisplayNameForSavePrompt(Project project) {
 		if (project == null)
 			return Messages.getString("Text.Untitled");
-		String projectName = project.getName();
-		if (projectName != null && projectName.trim().length() > 0)
-			return projectName;
 		String fileName = project.getFileName();
 		if (fileName != null && fileName.trim().length() > 0)
 			return new File(fileName).getName();
+		String projectName = project.getName();
+		if (projectName != null && projectName.trim().length() > 0)
+			return projectName;
 		return Messages.getString("Text.Untitled");
 	}
 
