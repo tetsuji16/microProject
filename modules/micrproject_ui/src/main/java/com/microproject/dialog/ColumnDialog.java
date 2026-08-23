@@ -28,10 +28,14 @@ import java.awt.Component;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
@@ -41,7 +45,8 @@ import com.microproject.strings.Messages;
 
 public final class ColumnDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
-	JComboBox combo = null;
+	private JComboBox<Field> combo = null;
+	private JTextField filter = null;
 	List<Field> fieldList;
 	List<Field> currentFields;
 	Field field;
@@ -72,13 +77,46 @@ public final class ColumnDialog extends AbstractDialog {
 
 	protected boolean bind(boolean get) {
 		if (get) {
-			ArrayList<Field> l = new ArrayList<>(fieldList);
-			Collections.sort(l);
-			combo = new JComboBox(new DefaultComboBoxModel(l.toArray()));
+			combo = new JComboBox<>();
+			filter = new JTextField();
+			filter.setToolTipText(Messages.getString("ColumnDialog.Filter.ToolTip")); //$NON-NLS-1$
+			filter.getDocument().addDocumentListener(new DocumentListener() {
+				@Override public void insertUpdate(DocumentEvent event) { updateFilteredFields(); }
+				@Override public void removeUpdate(DocumentEvent event) { updateFilteredFields(); }
+				@Override public void changedUpdate(DocumentEvent event) { updateFilteredFields(); }
+			});
+			updateFilteredFields();
 		} else {
-			field = (Field)combo.getSelectedItem();
+			field = combo.getItemCount() == 0 ? null : (Field) combo.getSelectedItem();
 		}
-		return true;
+		return get || field != null;
+	}
+
+	private void updateFilteredFields() {
+		String query = filter == null ? "" : filter.getText(); //$NON-NLS-1$
+		List<Field> filtered = filterFields(fieldList, currentFields, query);
+		combo.setModel(new DefaultComboBoxModel<>(filtered.toArray(new Field[0])));
+		if (!filtered.isEmpty()) combo.setSelectedIndex(0);
+	}
+
+	static List<Field> filterFields(List<Field> fields, List<Field> currentFields, String query) {
+		String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT); //$NON-NLS-1$
+		List<Field> result = new ArrayList<>();
+		for (Field candidate : fields) {
+			if (candidate == null || isCurrentField(candidate, currentFields)) continue;
+			String searchable = (candidate.getName() + " " + candidate.getId()).toLowerCase(Locale.ROOT); //$NON-NLS-1$
+			if (normalizedQuery.isEmpty() || searchable.contains(normalizedQuery)) result.add(candidate);
+		}
+		Collections.sort(result);
+		return result;
+	}
+
+	private static boolean isCurrentField(Field candidate, List<Field> currentFields) {
+		if (currentFields == null) return false;
+		for (Field current : currentFields) {
+			if (current == candidate || (current != null && current.getId().equals(candidate.getId()))) return true;
+		}
+		return false;
 	}
 
 	// Building *************************************************************
@@ -96,12 +134,13 @@ public final class ColumnDialog extends AbstractDialog {
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("default, 3dlu, 120dlu:grow", // cols //$NON-NLS-1$
-				"p"); // rows //$NON-NLS-1$
+				"p, 3dlu, p"); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
+		builder.append(Messages.getString("ColumnDialog.Filter"), filter); //$NON-NLS-1$
 		builder.append(Messages.getString("Text.Field"), combo); //$NON-NLS-1$
 		return builder.getPanel();
 	}
@@ -110,4 +149,3 @@ public final class ColumnDialog extends AbstractDialog {
 	}
 
 }
-
