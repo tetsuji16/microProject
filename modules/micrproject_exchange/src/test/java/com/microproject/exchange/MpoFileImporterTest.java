@@ -53,14 +53,14 @@ class MpoFileImporterTest {
 	@Test
 	void manifestRejectsUnsupportedVersion() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		String unsupported = MpoFileImporter.manifestFor(projectXml).replace("\"1.0\"", "\"2.0\"");
+		String unsupported = MpoFileImporter.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"2.0\"");
 		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(unsupported, projectXml));
 	}
 
 	@Test
 	void manifestRejectsDuplicateRequiredFields() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		String duplicate = MpoFileImporter.manifestFor(projectXml).replace("\"format\":\"mpof\"", "\"format\":\"mpof\",\"format\":\"mpof\"");
+		String duplicate = MpoFileImporter.manifestFor(projectXml).replace("format=\"mpof\"", "format=\"mpof\" format=\"mpof\"");
 		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(duplicate, projectXml));
 	}
 
@@ -280,7 +280,7 @@ class MpoFileImporterTest {
 		Project editor = load(shared);
 		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(shared.toPath()));
 		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8)
-			.replaceFirst("\\\"documentId\\\":\\\"[^\\\"]+\\\"", "\\\"documentId\\\":\\\"00000000-0000-0000-0000-000000000099\\\"");
+			.replaceFirst("documentId=\\\"[^\\\"]+\\\"", "documentId=\\\"00000000-0000-0000-0000-000000000099\\\"");
 		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
 		java.nio.file.Files.write(shared.toPath(), zip(entries).toByteArray());
 		firstTask(editor).setName("edited");
@@ -303,8 +303,8 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("operations/log.jsonl"));
 		org.junit.jupiter.api.Assertions.assertTrue(new String(entries.get("meta.xml"), StandardCharsets.UTF_8).contains("<meta "));
 		String manifest = new String(entries.get("META-INF/manifest.xml"), StandardCharsets.UTF_8);
-		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("\"format\":\"mpof\""));
-		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("\"formatVersion\":\"1.0\""));
+		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("format=\"mpof\""));
+		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("formatVersion=\"1.0\""));
 	}
 
 	@Test

@@ -348,15 +348,15 @@ public final class MpoFileImporter extends FileImporter {
 			}
 		}
 		if (manifest == null || projectXml == null) throw new IOException("Cannot merge MPOF without its manifest and project snapshot");
-		JsonNode manifestNode = object(new String(manifest, StandardCharsets.UTF_8), MANIFEST_ENTRY);
-		if (!sha256(projectXml).equals(text(manifestNode, "projectSha256"))) throw new IOException("Project snapshot checksum does not match its manifest");
+		ManifestData manifestData = readManifest(manifest, projectXml);
 		if (operations == null) throw new IOException("Cannot merge MPOF without an operation log");
 		OperationLog.DocumentLog document = new OperationLog().readJsonl(operations);
-		String manifestDocumentId = manifestNode.path("documentId").isTextual() ? manifestNode.path("documentId").textValue() : null;
-		Long manifestProjectId = manifestNode.path("projectUniqueId").canConvertToLong() ? Long.valueOf(manifestNode.path("projectUniqueId").longValue()) : null;
+		String manifestDocumentId = manifestData.documentId();
+		Long manifestProjectId = manifestData.projectUniqueId();
 		return new ExternalMpo(document, extensions, manifestDocumentId, manifestProjectId, taskIdentities);
 	}
 
+	private record ManifestData(String documentId, Long projectUniqueId) { }
 	private record ExternalMpo(OperationLog.DocumentLog document, MpoExtensions extensions, String manifestDocumentId, Long manifestProjectId, byte[] taskIdentities) { }
 
 	@Override
@@ -426,22 +426,32 @@ public final class MpoFileImporter extends FileImporter {
 	}
 
 	static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId) {
-		ObjectNode manifest = JSON.createObjectNode();
-		manifest.put("format", FORMAT_ID);
-		manifest.put("formatVersion", FORMAT_VERSION);
-		manifest.put("projectEntry", PROJECT_ENTRY);
-		manifest.put("projectSha256", sha256(projectXml));
-		if (documentId != null) manifest.put("documentId", documentId);
-		if (documentId != null && projectUniqueId != null) manifest.put("projectUniqueId", projectUniqueId.longValue());
-		return json(manifest);
+		StringBuilder manifest = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<manifest format=\"mpof\" formatVersion=\"")
+			.append(FORMAT_VERSION).append("\" projectEntry=\"").append(PROJECT_ENTRY).append("\" projectSha256=\"").append(sha256(projectXml)).append("\"");
+		if (documentId != null) manifest.append(" documentId=\"").append(xmlEscape(documentId)).append("\"");
+		if (documentId != null && projectUniqueId != null) manifest.append(" projectUniqueId=\"").append(projectUniqueId.longValue()).append("\"");
+		return manifest.append("/>\n").toString();
 	}
 
 	static void validateManifest(String manifest, byte[] projectXml) throws IOException {
-		JsonNode root = object(manifest, MANIFEST_ENTRY);
-		String format = root.path("format").isTextual() ? root.path("format").textValue() : null;
-		if (!FORMAT_ID.equals(format) || !FORMAT_VERSION.equals(text(root, "formatVersion")))
-			throw new IOException("Unsupported or invalid MPOF manifest: format=" + format);
-		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its MPOF manifest");
+		readManifest(manifest.getBytes(StandardCharsets.UTF_8), projectXml);
+	}
+
+	private static ManifestData readManifest(byte[] manifestBytes, byte[] projectXml) throws IOException {
+		try {
+			javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+			factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+			factory.setXIncludeAware(false); factory.setExpandEntityReferences(false);
+			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(manifestBytes)).getDocumentElement();
+			if (!"manifest".equals(root.getTagName()) || !FORMAT_ID.equals(root.getAttribute("format")) || !FORMAT_VERSION.equals(root.getAttribute("formatVersion")) || !PROJECT_ENTRY.equals(root.getAttribute("projectEntry"))) throw new IOException("Unsupported or invalid MPOF manifest");
+			if (!sha256(projectXml).equals(requiredAttribute(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its MPOF manifest");
+			String documentId = root.getAttribute("documentId");
+			Long projectUniqueId = root.hasAttribute("projectUniqueId") ? Long.valueOf(root.getAttribute("projectUniqueId")) : null;
+			return new ManifestData(documentId.isBlank() ? null : documentId, projectUniqueId);
+		} catch (IOException exception) { throw exception; }
+		catch (Exception exception) { throw new IOException("Invalid MPOF manifest", exception); }
 	}
 
 
