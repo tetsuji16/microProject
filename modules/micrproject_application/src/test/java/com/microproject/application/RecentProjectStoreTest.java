@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import java.util.prefs.Preferences;
@@ -43,6 +44,31 @@ class RecentProjectStoreTest {
 			RecentProjectStore store = new RecentProjectStore(prefs); var file = Files.createFile(temp.resolve("plan.pod"));
 			store.recordOpened(file.toString()); store.setPinned(file, true); store.saveSession(List.of(file.toString(), temp.resolve("missing.pod").toString()));
 			assertTrue(store.entries().getFirst().pinned()); assertEquals(List.of(file.toAbsolutePath()), store.session());
+		} finally { prefs.removeNode(); }
+	}
+
+	/** MS Project conformance: pinned items sort above unpinned ones regardless of
+	 *  recency, keep their pin across re-open, and are never evicted by trimming. */
+	@Test void pinnedEntriesSortFirstSurviveTrimAndKeepPinOnReopen() throws Exception {
+		Preferences prefs = Preferences.userRoot().node("projectlibre-test-" + UUID.randomUUID());
+		try {
+			RecentProjectStore store = new RecentProjectStore(prefs);
+			var old = Files.createFile(temp.resolve("old.pod"));
+			var newer = Files.createFile(temp.resolve("newer.pod"));
+			store.recordOpened(old.toString());
+			store.setPinned(old, true);
+			store.recordOpened(newer.toString()); // more recent but NOT pinned
+			List<RecentProjectStore.Entry> entries = store.entries();
+			assertEquals(old.toAbsolutePath(), entries.getFirst().path(), "pinned item must sort above the more recent unpinned one");
+			assertTrue(entries.getFirst().pinned());
+			// re-opening a pinned file keeps the pin (MSP never unpins on open)
+			store.recordOpened(old.toString());
+			assertTrue(store.entries().stream().filter(e -> e.path().equals(old)).findFirst().orElseThrow().pinned());
+			// trimming keeps pinned entries even when they would fall off the tail
+			for (int i = 0; i < 25; i++) store.recordOpened(temp.resolve("filler" + i + ".pod").toString());
+			final Path oldPath = old;
+			assertTrue(store.entries().stream().anyMatch(e -> e.path().equals(oldPath)), "pinned entry must survive trim");
+			assertEquals(1, store.entries().stream().filter(RecentProjectStore.Entry::pinned).count());
 		} finally { prefs.removeNode(); }
 	}
 }
