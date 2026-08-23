@@ -331,7 +331,7 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     public boolean executeAction(double x,double y){
-    	if (x==x0||selected==null) return false;
+		if (selected==null || !hasMeaningfulDrag(state == LINK_CREATION, x0, x)) return false;
     	if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
     		if (!(selected instanceof GraphicNode)) return false;
     		sourceNode=(GraphicNode)selected;
@@ -340,48 +340,59 @@ public class GanttInteractor extends GraphInteractor{
     		}
     	}
     	UndoableEditSupport undoSupport = getUndoableEditSupport();
-    	switch (state) {
+		boolean actionPerformed;
+		switch (state) {
 		case BAR_MOVE:
 		case BAR_MOVE_START:
 		case BAR_MOVE_END:
-			return applyIntervalDrag((long)getCoord().toDuration(x-x0),undoSupport);
+			actionPerformed = applyIntervalDrag((long)getCoord().toDuration(x-x0),undoSupport);
+			break;
 		case PROGRESS_BAR_MOVE:
-			return applyProgressDrag((long)getCoord().toTime(x),undoSupport);
+			actionPerformed = applyProgressDrag((long)getCoord().toTime(x),undoSupport);
+			break;
 		case LINK_CREATION:
-			boolean linkCreated = false;
-			try {
-							if (sourceNode != null && !CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "link")) {
-								return false;
-							}
-							if (destinationNode != null && !CollaborationHelper.tryLockObject(null, destinationNode.getNode(), getGraph(), "link")) {
-								return false;
-							}
-							if (sourceNode!=null&&destinationNode!=null&&
-								sourceNode.getNode().getImpl() instanceof HasDependencies &&
-								destinationNode.getNode().getImpl() instanceof HasDependencies){
-							// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
-							DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),(HasDependencies)destinationNode.getNode().getImpl(),DependencyType.FS,0,this);
-							linkCreated = true;
-						}
-					} catch (InvalidAssociationException e) {
-						Alert.error(e.getMessage());
-						return false;
-					}
-					// DependencyService posts a DependencyCreationEdit.  Keep this path
-					// consistent with bar, progress and split edits so Ctrl+Z becomes
-					// available without needing a focus or view change first.
-					return refreshUndoState(linkCreated);
+			actionPerformed = createDependencyLink();
+			break;
 		case LINK_SELECTION:
 			showDependencyPropertiesDialog((GraphicDependency)selected);
 			return true;
 		case SPLIT:
 			long t=(long)getCoord().toTime(x);
 			Schedule schedule = getSourceSchedule();
-			boolean changed = ScheduleService.getInstance().split(this,schedule,t,t,undoSupport);
-			return refreshUndoState(changed);
+			actionPerformed = ScheduleService.getInstance().split(this,schedule,t,t,undoSupport);
+			break;
+		default:
+			return false;
 		}
-    	return false;
+		// Every mutating Gantt gesture goes through this one gate.  This prevents
+		// new gesture types from silently omitting the root-pane Ctrl+Z refresh.
+		return refreshUndoState(actionPerformed);
     }
+
+	static boolean hasMeaningfulDrag(boolean linkCreation, double startX, double endX) {
+		// Link creation can be a vertical drag between bars on the same date.
+		return linkCreation || endX != startX;
+	}
+
+	private boolean createDependencyLink() {
+		try {
+			if (sourceNode != null && !CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "link"))
+				return false;
+			if (destinationNode != null && !CollaborationHelper.tryLockObject(null, destinationNode.getNode(), getGraph(), "link"))
+				return false;
+			if (sourceNode == null || destinationNode == null
+					|| !(sourceNode.getNode().getImpl() instanceof HasDependencies)
+					|| !(destinationNode.getNode().getImpl() instanceof HasDependencies))
+				return false;
+			// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
+			DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),
+					(HasDependencies)destinationNode.getNode().getImpl(), DependencyType.FS, 0, this);
+			return true;
+		} catch (InvalidAssociationException e) {
+			Alert.error(e.getMessage());
+			return false;
+		}
+	}
 
     private boolean applyIntervalDrag(long dt, UndoableEditSupport undoSupport) {
     	long start=selectedInterval.getStart();
@@ -442,7 +453,7 @@ public class GanttInteractor extends GraphInteractor{
 				undoSupport.endUpdate();
 			}
 		}
-		return refreshUndoState(scheduleChanged);
+		return scheduleChanged;
     }
 
 	static boolean changesIntervalAtHourPrecision(ScheduleInterval original, long start, long end) {
@@ -452,8 +463,7 @@ public class GanttInteractor extends GraphInteractor{
 	}
 
 	private boolean applyProgressDrag(long completed, UndoableEditSupport undoSupport) {
-		boolean changed = ScheduleService.getInstance().setCompleted(this,getSourceSchedule(),completed,undoSupport);
-		return refreshUndoState(changed);
+		return ScheduleService.getInstance().setCompleted(this,getSourceSchedule(),completed,undoSupport);
 	}
 
     private Schedule getSourceSchedule() {

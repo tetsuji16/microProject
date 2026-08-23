@@ -25,4 +25,10 @@ class GanttInteractorDragTest {
 				11L * 60L * 60L * 1000L,
 				19L * 60L * 60L * 1000L));
 	}
+
+	@Test
+	void verticalDependencyDragIsMeaningfulEvenWhenItsHorizontalPositionDoesNotChange() {
+		assertTrue(GanttInteractor.hasMeaningfulDrag(true, 120.0d, 120.0d));
+		assertFalse(GanttInteractor.hasMeaningfulDrag(false, 120.0d, 120.0d));
+	}
 }
