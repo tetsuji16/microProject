@@ -161,6 +161,15 @@ public class MSPDISerializer implements ProjectSerializer {
     	resourceLinker.init();
     	resourceLinker.addTransformedObjects(ResourceImpl.getUnassignedInstance());
     	resourceLinker.addTransformedObjects();
+		// New resources can be assigned before the UI has inserted them into a
+		// resource outline. They are still valid pool members and must be
+		// serialized; otherwise their assignments are exported as unassigned.
+		for (com.microproject.pm.resource.Resource resource : project.getResourcePool().getResourceList()) {
+			ResourceImpl resourceImpl = (ResourceImpl) resource;
+			if (!resourceLinker.getTransformationMap().containsKey(resourceImpl)) {
+				resourceLinker.addTransformedObjects(resourceImpl);
+			}
+		}
     	resourceLinker.addOutline(null);
 //    	resourceLinker.getTransformationMap().put(new Long(ResourceImpl.getUnassignedInstance().getUniqueId()),ResourceImpl.getUnassignedInstance());
         return (Map<ResourceImpl, net.sf.mpxj.Resource>) resourceLinker.getTransformationMap();

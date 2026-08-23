@@ -28,6 +28,7 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -85,6 +86,9 @@ public class MspImporter {
 	protected AbstractProjectReader reader;
 	protected long earliestTaskStart=-1L;
 	protected net.sf.mpxj.Task mpxRootTask=null;
+	private final List<ImportedAssignmentLevelingDelay> importedAssignmentLevelingDelays = new ArrayList<>();
+
+	private record ImportedAssignmentLevelingDelay(ResourceAssignment source, Assignment target) {}
 	
 	public Project importProject(String name, ProgressClosure progress) throws Exception{
 		progress.updateProgress(0.0f, "Start");
@@ -101,6 +105,7 @@ public class MspImporter {
 	private Project importProject_(ProgressClosure progress) throws Exception{
 		progress.updateProgress(0.2f, "File parsed");
 		initializeTimephasedState();
+		importedAssignmentLevelingDelays.clear();
 
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("imported", undo);
@@ -124,9 +129,17 @@ public class MspImporter {
 		// before exposing this imported project to a Gantt view.
 		project.initialize(false, false);
 		project.recalculate();
+		restoreImportedAssignmentLevelingDelays();
 
 		progress.updateProgress(1f, "Completed");
 		return project;
+	}
+
+	private void restoreImportedAssignmentLevelingDelays() {
+		MpxAssignmentConverter converter = new MpxAssignmentConverter();
+		for (ImportedAssignmentLevelingDelay imported : importedAssignmentLevelingDelays) {
+			converter.restoreLevelingDelay(imported.source(), imported.target());
+		}
 	}
 	
 	private void initializeTimephasedState() {
@@ -395,6 +408,10 @@ public class MspImporter {
 			Assignment assignment = Assignment.getInstance(task, ResourceImpl.getUnassignedInstance(), 0, 0);
 			converter.from(mpxAssignment, assignment, state, task, 0);
 			((NormalTask) task).addAssignment(assignment);
+			// Attaching a non-default assignment can copy the default assignment's
+			// detail object and erase this imported value.
+			converter.restoreLevelingDelay(mpxAssignment, assignment);
+			importedAssignmentLevelingDelays.add(new ImportedAssignmentLevelingDelay(mpxAssignment, assignment));
 		}
 	}
 

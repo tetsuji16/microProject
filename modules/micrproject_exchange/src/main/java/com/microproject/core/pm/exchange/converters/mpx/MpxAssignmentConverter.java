@@ -65,11 +65,21 @@ public class MpxAssignmentConverter {
 		assignment.setActualFinish(toLong(mpxAssignment.getActualFinish()));
 		assignment.setActualWork(toLong(mpxAssignment.getActualWork()), null);
 		assignment.setRemainingWork(toLong(mpxAssignment.getRemainingWork()), null);
-		assignment.setLevelingDelay(toLong(mpxAssignment.getLevelingDelay()));
+		restoreLevelingDelay(mpxAssignment, assignment);
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
 		// work contour: default to flat (0) for import; contour details skipped (#154)
 		assignment.setWorkContourType(0);
+	}
+
+	/**
+	 * Restores the leveler-imposed offset after an assignment is attached to its
+	 * task. {@link com.microproject.pm.task.NormalTask#addAssignment(Assignment)}
+	 * may copy the default assignment's properties while attaching it, so callers
+	 * must invoke this again after that operation.
+	 */
+	public void restoreLevelingDelay(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment) {
+		assignment.setLevelingDelay(toLong(mpxAssignment.getLevelingDelay()));
 	}
 
 	private static Resource resolveResource(net.sf.mpxj.ResourceAssignment mpxAssignment, MpxImportState state) {

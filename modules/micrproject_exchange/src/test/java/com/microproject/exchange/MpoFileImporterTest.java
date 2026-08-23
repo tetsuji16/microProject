@@ -145,6 +145,39 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void legacyMicroprojectMpoMigratesAssignmentLevelingDelay() throws Exception {
+		Project project = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(project);
+		Resource resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Legacy assignment resource");
+		com.microproject.pm.assignment.Assignment assignment =
+			AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, null, false);
+		long delay = 2L * 60L * 60L * 1000L;
+		assignment.setLevelingDelay(delay);
+
+		ByteArrayOutputStream generated = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, generated);
+		Map<String, byte[]> entries = readEntries(generated.toByteArray());
+		String currentXml = new String(entries.get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
+		org.junit.jupiter.api.Assertions.assertTrue(currentXml.contains("<LevelingDelay>1200</LevelingDelay>"), currentXml);
+		String legacyXml = currentXml.replace("<LevelingDelay>1200</LevelingDelay>", "<LevelingDelay>7200000</LevelingDelay>");
+		entries.put(MpoFileImporter.PROJECT_ENTRY, legacyXml.getBytes(StandardCharsets.UTF_8));
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, MpoFileImporter.manifestFor(entries.get(MpoFileImporter.PROJECT_ENTRY)).getBytes(StandardCharsets.UTF_8));
+		String legacyMeta = new String(entries.get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8)
+			.replace(" levelingDelayUnit=\"minutes\"", "");
+		entries.put(MpoFileImporter.META_ENTRY, legacyMeta.getBytes(StandardCharsets.UTF_8));
+
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setProjectFactory(ProjectFactory.getInstance());
+		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
+		NormalTask loadedTask = (NormalTask) firstTask(loaded);
+		com.microproject.pm.assignment.Assignment loadedAssignment =
+			(com.microproject.pm.assignment.Assignment) loadedTask.getAssignments().iterator().next();
+		org.junit.jupiter.api.Assertions.assertEquals("Legacy assignment resource", loadedAssignment.getResource().getName());
+		org.junit.jupiter.api.Assertions.assertEquals(delay, loadedAssignment.getLevelingDelay());
+	}
+
+	@Test
 	void manifestRejectsDuplicateRequiredFields() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
 		String duplicate = MpoFileImporter.manifestFor(projectXml).replace("format=\"mpof\"", "format=\"mpof\" format=\"mpof\"");
