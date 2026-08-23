@@ -123,4 +123,14 @@ public interface GanttColorPalette {
      * Color for status date markers.
      */
     Color getStatusDateLineColor();
+
+    /**
+     * Background color for a summary-task bar, derived from its status color.
+     */
+    Color getSummaryBackgroundColor(Color statusColor);
+
+    /**
+     * Foreground color for the completed portion of a summary-task bar.
+     */
+    Color getSummaryProgressColor(Color statusColor);
 }

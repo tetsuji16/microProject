@@ -26,6 +26,7 @@ package com.microproject.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
@@ -63,6 +64,15 @@ class ClassicMSProjectPaletteTest {
 		assertTrue(fillGradient.getColor1().getRed() >= fillGradient.getColor2().getRed() - 40);
 		assertTrue(backgroundGradient.getColor1().getAlpha() < 255);
 		assertTrue(backgroundGradient.getColor2().getAlpha() < 255);
+	}
+
+	@Test
+	void summaryColorsAreDerivedFromTheSelectedPalette() {
+		ClassicMSProjectPalette palette = new ClassicMSProjectPalette();
+		Color taskColor = new Color(0x5B, 0x9B, 0xD5);
+
+		assertEquals(taskColor, palette.getSummaryProgressColor(taskColor));
+		assertNotEquals(taskColor, palette.getSummaryBackgroundColor(taskColor));
 	}
 
 	private static Schedule schedule(final double percentComplete) {

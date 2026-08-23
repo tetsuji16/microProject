@@ -331,6 +331,12 @@ public class MspImporter {
 		state.mapTask(mpxTask, task);
 		importTaskSnapshots(mpxTask, task);
 		importAssignments(mpxTask, task);
+		// MS Project stores task % complete separately from assignment % work
+		// complete. Restore it after assignments have been imported.
+		if (task instanceof NormalTask && mpxTask.getPercentageComplete() != null)
+			((NormalTask) task).setImportedPercentComplete(mpxTask.getPercentageComplete().doubleValue() / 100.0D);
+		if (task instanceof NormalTask && mpxTask.getPercentageWorkComplete() != null)
+			((NormalTask) task).setImportedPercentWorkComplete(mpxTask.getPercentageWorkComplete().doubleValue() / 100.0D);
 		return task;
 	}
 

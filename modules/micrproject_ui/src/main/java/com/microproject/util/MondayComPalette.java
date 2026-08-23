@@ -120,4 +120,15 @@ public class MondayComPalette implements GanttColorPalette {
     public Color getStatusDateLineColor() {
         return MondayGanttTheme.statusDateLine();
     }
+
+    @Override
+    public Color getSummaryBackgroundColor(Color statusColor) {
+        Color base = statusColor == null ? MondayGanttTheme.GROUP_A : statusColor;
+        return MondayGanttTheme.soften(base, 0.82f);
+    }
+
+    @Override
+    public Color getSummaryProgressColor(Color statusColor) {
+        return statusColor == null ? MondayGanttTheme.GROUP_A : statusColor;
+    }
 }

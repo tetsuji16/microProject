@@ -387,9 +387,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			Color oldColor = g2.getColor();
 			try {
 				Color baseColor = barColor == null ? palette.getProjectLineColor() : barColor;
-				Color progressBaseColor = progressColor == null ? baseColor : progressColor;
-				Color summaryFill = MondayGanttTheme.soften(baseColor, 0.82f);
-				Color summaryStroke = accentColor == null ? MondayGanttTheme.shade(summaryFill, 0.18f) : accentColor;
+				Color progressBaseColor = palette.getSummaryProgressColor(progressColor == null ? baseColor : progressColor);
+				Color summaryFill = palette.getSummaryBackgroundColor(baseColor);
+				Color summaryStroke = accentColor == null ? baseColor : accentColor;
 			Rectangle2D backgroundBand = new Rectangle2D.Double(
 					bounds.getX(),
 					bounds.getY(),

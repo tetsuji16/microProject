@@ -94,6 +94,15 @@ class MondayGanttThemeTest {
 		assertEquals(MondayGanttTheme.GROUP_A, MondayGanttTheme.statusColor(null, null));
 	}
 
+	@Test
+	void summaryColorsRemainMondayThemeScoped() {
+		MondayComPalette palette = new MondayComPalette();
+
+		assertEquals(MondayGanttTheme.WORKING_ON_IT, palette.getSummaryProgressColor(MondayGanttTheme.WORKING_ON_IT));
+		assertEquals(MondayGanttTheme.soften(MondayGanttTheme.WORKING_ON_IT, 0.82f),
+				palette.getSummaryBackgroundColor(MondayGanttTheme.WORKING_ON_IT));
+	}
+
 	private static Schedule schedule(final double percentComplete) {
 		return taskSpecificSchedule(percentComplete, 0.0d, false);
 	}

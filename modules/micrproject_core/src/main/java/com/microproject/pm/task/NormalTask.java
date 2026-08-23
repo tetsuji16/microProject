@@ -160,6 +160,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	private static NormalTask UNASSIGNED = null;
+	/** Task-level completion imported separately from assignment work completion. */
+	private Double importedPercentComplete;
+	/** Imported task work completion, distinct from assignment work completion. */
+	private Double importedPercentWorkComplete;
 
 	public static NormalTask getUnassignedInstance() {
 		if (UNASSIGNED == null) {
@@ -199,6 +203,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return Duration.millis(getRawDuration()) == 0 || isMarkTaskAsMilestone();
 	}
 	public double getPercentComplete() {
+		if (importedPercentComplete != null && !isZeroDuration())
+			return importedPercentComplete.doubleValue();
 		if (isZeroDuration()) { // special case for completion on milestones
 			int count = 0;
 			double pc = 0;
@@ -1097,6 +1103,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	//Used when an assignment advancement changes
 	public void adjustActualStartFromAssignments() {
+		importedPercentComplete = null;
+		importedPercentWorkComplete = null;
 		Assignment assignment;
 		Iterator i = getAssignments().iterator();
 		long start = 0L;
@@ -1545,6 +1553,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			logger.warning("percent complete less than 0%");
 			percentComplete = 0.0;
 		}
+		importedPercentComplete = null;
+		importedPercentWorkComplete = null;
 		updateInactivePercentComplete(percentComplete);
 		if (isZeroDuration()) { // special case for completion on milestones
 			updateAssignmentPercentComplete(percentComplete);
@@ -1575,6 +1585,17 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		}
 	}
 
+	/**
+	 * Restores an external task-level percentage without overwriting the
+	 * independently imported assignment percentages.
+	 */
+	public void setImportedPercentComplete(double percentComplete) {
+		if (Double.isNaN(percentComplete) || Double.isInfinite(percentComplete))
+			throw new IllegalArgumentException("Percent complete must be finite");
+		importedPercentComplete = Math.max(0.0D, Math.min(1.0D, percentComplete));
+		getCurrentSchedule().setPercentComplete(importedPercentComplete.doubleValue());
+	}
+
 	private void updateAssignmentPercentComplete(double percentComplete) {
 		final double pc = percentComplete;
 		Iterator i = getAssignments().iterator();
@@ -1586,6 +1607,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public double getPercentWorkComplete() {
 		if (isWbsParent())
 			return PercentWorkCompleteService.aggregate(this);
+		if (importedPercentWorkComplete != null)
+			return importedPercentWorkComplete.doubleValue();
 		long work = Duration.millis(getWork(null));
 		if (work == 0)
 			return Double.isNaN(percentWorkCompleteOverride) ? 0.0d : percentWorkCompleteOverride;
@@ -1602,6 +1625,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			PercentWorkCompleteService.distribute(this, percentWorkComplete);
 			return;
 		}
+		importedPercentWorkComplete = null;
 		long work = Duration.millis(getWork(null));
 		if (work == 0L) {
 			percentWorkCompleteOverride = percentWorkComplete;
@@ -1610,6 +1634,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		percentWorkCompleteOverride = Double.NaN;
 		setPercentComplete(percentWorkComplete);
 
+	}
+
+	/** Restores external task work completion without rewriting assignments. */
+	public void setImportedPercentWorkComplete(double percentWorkComplete) {
+		if (Double.isNaN(percentWorkComplete) || Double.isInfinite(percentWorkComplete))
+			throw new IllegalArgumentException("Percent work complete must be finite");
+		importedPercentWorkComplete = Math.max(0.0D, Math.min(1.0D, percentWorkComplete));
 	}
 
 	void applyPercentWorkCompleteOverride(double percentWorkComplete) {
@@ -2020,6 +2051,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			n.version=version;
 			n.workCalendar = workCalendar;
 			n.percentWorkCompleteOverride = percentWorkCompleteOverride;
+			n.importedPercentComplete = importedPercentComplete;
+			n.importedPercentWorkComplete = importedPercentWorkComplete;
 		}
 
 		super.cloneTo(task);

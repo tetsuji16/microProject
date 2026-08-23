@@ -153,6 +153,16 @@ public class ClassicMSProjectPalette implements GanttColorPalette {
         return new Color(0x00, 0x78, 0xD4);
     }
 
+    @Override
+    public Color getSummaryBackgroundColor(Color statusColor) {
+        return lighten(statusColor == null ? TASK_BLUE : statusColor, 0.82f);
+    }
+
+    @Override
+    public Color getSummaryProgressColor(Color statusColor) {
+        return statusColor == null ? TASK_BLUE : statusColor;
+    }
+
     private static Color lighten(Color color, float ratio) {
         return mix(color, Color.WHITE, ratio);
     }

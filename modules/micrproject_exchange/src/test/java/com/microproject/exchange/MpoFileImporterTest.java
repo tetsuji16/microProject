@@ -550,7 +550,7 @@ class MpoFileImporterTest {
 	@Test
 	void checkedInEnglishAndJapaneseCcpmSamplesLoadForVisualization() throws Exception {
 		CriticalChainService service = new CriticalChainService();
-		for (String name : new String[] { "CCPM sample English.mpo", "CCPM sample 日本語.mpo" }) {
+		for (String name : new String[] { "CCPM path comparison English.mpo", "CCPM path comparison 日本語.mpo" }) {
 			Project loaded = load(findSample(name));
 			CriticalChainService.Settings settings = service.findSettings(loaded);
 			org.junit.jupiter.api.Assertions.assertNotNull(settings, name);
@@ -561,7 +561,17 @@ class MpoFileImporterTest {
 			org.junit.jupiter.api.Assertions.assertFalse(analysis.criticalTaskIds().isEmpty(), name);
 			org.junit.jupiter.api.Assertions.assertFalse(analysis.graphEdges().isEmpty(), name);
 			org.junit.jupiter.api.Assertions.assertTrue(loaded.getPercentComplete() > 0D && loaded.getPercentComplete() < 1D, name);
+			org.junit.jupiter.api.Assertions.assertTrue(analysis.criticalTaskIds().size() < taskCount(loaded), name);
 		}
+	}
+
+	@Test
+	void japaneseCcpmSamplePreservesImportedTaskCompletionAfterAssignments() throws Exception {
+		Project loaded = load(findSample("CCPM sample 日本語.mpo"));
+		com.microproject.pm.task.Task phaseFive = findByName(loaded, "工程 5：設計と検証");
+		org.junit.jupiter.api.Assertions.assertNotNull(phaseFive);
+		org.junit.jupiter.api.Assertions.assertEquals(1.0D, phaseFive.getPercentComplete(), 0.00001D);
+		org.junit.jupiter.api.Assertions.assertEquals(1.0D, ((NormalTask) phaseFive).getPercentWorkComplete(), 0.00001D);
 	}
 
 	private static Project loadFromBytes(byte[] mpo) throws Exception {
