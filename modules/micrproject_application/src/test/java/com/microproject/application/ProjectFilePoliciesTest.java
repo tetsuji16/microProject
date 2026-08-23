@@ -38,7 +38,7 @@ class ProjectFilePoliciesTest {
 	@Test
 	void resolvesImporterForProjectLibreLoadWhenLocalOnly() {
 		assertEquals(LocalSession.LOCAL_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.pod", true));
-		assertEquals(LocalSession.PODX_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.podx", true));
+		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.mpo", true));
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.xml", true));
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.xlsx", true));
 	}
@@ -46,7 +46,7 @@ class ProjectFilePoliciesTest {
 	@Test
 	void resolvesImporterForProjectLibreLoadWhenServerBacked() {
 		assertEquals(LocalSession.SERVER_LOCAL_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.pod", false));
-		assertEquals(LocalSession.PODX_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.podx", false));
+		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.mpo", false));
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.xml", false));
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.xlsx", false));
 	}
@@ -57,7 +57,7 @@ class ProjectFilePoliciesTest {
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.mpp", false));
 		assertFalse(ProjectFilePolicies.isProjectLibreFile("plan.mpp"));
 		assertTrue(ProjectFilePolicies.isProjectLibreFile("plan.pod"));
-		assertEquals(LocalSession.PODX_PROJECT_IMPORTER, ProjectFilePolicies.resolveSaveImporter("plan.podx"));
+		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, ProjectFilePolicies.resolveSaveImporter("plan.mpo"));
 	}
 
 	@Test

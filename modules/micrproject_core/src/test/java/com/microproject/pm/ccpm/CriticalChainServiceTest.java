@@ -58,7 +58,7 @@ class CriticalChainServiceTest {
 		assertEquals(settings, service.settings(fixture.project));
 		assertTrue(fixture.project.getExtraFields().isEmpty(), "CCPM must not alter the legacy POD object graph");
 		assertTrue(settings.isEnabled());
-		assertTrue(service.requiresPodx(fixture.project));
+		assertTrue(service.requiresMpo(fixture.project));
 	}
 
 	@Test

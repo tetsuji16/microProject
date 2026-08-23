@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class CollaborationMetadataStoreTest {
 	@Test
 	void malformedSidecarIsNeverReplacedDuringCloudSync() throws Exception {
-		Path project = Files.createTempFile("podx-collaboration", ".podx");
+		Path project = Files.createTempFile("mpo-collaboration", ".mpo");
 		Path sidecar = CollaborationMetadataStore.buildSidecarFile(project.toFile()).toPath();
 		byte[] partial = "{\"schemaVersion\":".getBytes(StandardCharsets.UTF_8);
 		Files.write(sidecar, partial);

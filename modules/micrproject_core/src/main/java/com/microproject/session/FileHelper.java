@@ -28,10 +28,10 @@ import java.util.Locale;
 
 public class FileHelper {
 	public static final String POD_FILE_EXTENSION = "pod";
-	public static final String PODX_FILE_EXTENSION = "podx";
-	public static final String DEFAULT_FILE_EXTENSION = PODX_FILE_EXTENSION;
+	public static final String MPO_FILE_EXTENSION = "mpo";
+	public static final String DEFAULT_FILE_EXTENSION = MPO_FILE_EXTENSION;
 	public static final int PROJECTLIBRE_FILE_TYPE=1;
-	public static final int PODX_FILE_TYPE=2;
+	public static final int MPO_FILE_TYPE=2;
 	public static final int MSP_FILE_TYPE=101;
 
 	private static boolean hasExtension(String fileName, String extension) {
@@ -48,14 +48,14 @@ public class FileHelper {
 	}
 
 	/**
-	 * Returns whether the name identifies the open podx container format.
+	 * Returns whether the name identifies the open mpo container format.
 	 */
-	public static boolean isPodxFile(String fileName) {
-		return hasExtension(fileName, PODX_FILE_EXTENSION);
+	public static boolean isMpoFile(String fileName) {
+		return hasExtension(fileName, MPO_FILE_EXTENSION);
 	}
 
 	public static boolean isNativeFile(String fileName) {
-		return isProjectLibreFile(fileName) || isPodxFile(fileName);
+		return isProjectLibreFile(fileName) || isMpoFile(fileName);
 	}
 
 	public static boolean isMicrosoftProjectFile(String fileName) {
@@ -93,7 +93,7 @@ public class FileHelper {
     	switch (fileType) {
 		//case FileHelper.SERVER_FILE_TYPE: return null;
 		case FileHelper.PROJECTLIBRE_FILE_TYPE: return POD_FILE_EXTENSION;
-		case FileHelper.PODX_FILE_TYPE: return PODX_FILE_EXTENSION;
+		case FileHelper.MPO_FILE_TYPE: return MPO_FILE_EXTENSION;
 		case FileHelper.MSP_FILE_TYPE: return "xml";
 		default:
 			return DEFAULT_FILE_EXTENSION;
@@ -104,8 +104,8 @@ public class FileHelper {
     	if (fileName==null) return 0;
 		if (isProjectLibreFile(fileName))
 			return PROJECTLIBRE_FILE_TYPE;
-		if (isPodxFile(fileName))
-			return PODX_FILE_TYPE;
+		if (isMpoFile(fileName))
+			return MPO_FILE_TYPE;
     	if (isMicrosoftProjectFile(fileName))
     			return MSP_FILE_TYPE;
     	return 0;

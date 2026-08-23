@@ -62,7 +62,7 @@ import com.microproject.util.Environment;
 public class LocalSession extends AbstractSession{
 	private static final Logger logger = Logger.getLogger(LocalSession.class.getName());
 	public static final String LOCAL_PROJECT_IMPORTER = "com.microproject.exchange.LocalFileImporter";
-	public static final String PODX_PROJECT_IMPORTER = "com.microproject.exchange.PodxFileImporter";
+	public static final String MPO_PROJECT_IMPORTER = "com.microproject.exchange.MpoFileImporter";
 	public static final String SERVER_LOCAL_PROJECT_IMPORTER = "com.microproject.exchange.ServerLocalFileImporter";
 	public static final String MICROSOFT_PROJECT_IMPORTER = "com.microproject.exchange.MicrosoftImporter";
 	private static final String DESCRIPTOR_FILE_NAME = "projectlibre.fileName";
@@ -277,8 +277,8 @@ public class LocalSession extends AbstractSession{
     	if (opt.getImporter() == null) {
 			if (FileHelper.isProjectLibreFile(resolvedFileName)) {
 				opt.setImporter(LOCAL_PROJECT_IMPORTER);
-			} else if (FileHelper.isPodxFile(resolvedFileName)) {
-				opt.setImporter(PODX_PROJECT_IMPORTER);
+			} else if (FileHelper.isMpoFile(resolvedFileName)) {
+				opt.setImporter(MPO_PROJECT_IMPORTER);
     		} else {
     			opt.setImporter(MICROSOFT_PROJECT_IMPORTER);
     		}
@@ -371,13 +371,13 @@ public class LocalSession extends AbstractSession{
 			//if projs.size()>1 opt.getFileName() must be null
 			String fileN=(opt.getFileName()==null)?project.getGuessedFileName():opt.getFileName();//+(count>1?("("+i+")"):""));
 			if (!FileHelper.isFileNameAllowed(fileN, true)){
-				fileN=SessionFactory.getInstance().getLocalSession().chooseFileName(true,FileHelper.changeFileExtension(fileN, FileHelper.PODX_FILE_TYPE));
+				fileN=SessionFactory.getInstance().getLocalSession().chooseFileName(true,FileHelper.changeFileExtension(fileN, FileHelper.MPO_FILE_TYPE));
 			}
 			// POD remains byte-compatible with the legacy format and therefore
 			// intentionally has no CCPM payload. Keep CCPM projects lossless by
-			// choosing the open podx container instead.
-			if (FileHelper.isProjectLibreFile(fileN) && new CriticalChainService().requiresPodx(project)) {
-				fileN = FileHelper.changeFileExtension(fileN, FileHelper.PODX_FILE_TYPE);
+			// choosing the open mpo container instead.
+			if (FileHelper.isProjectLibreFile(fileN) && new CriticalChainService().requiresMpo(project)) {
+				fileN = FileHelper.changeFileExtension(fileN, FileHelper.MPO_FILE_TYPE);
 			}
 			final String fileName=fileN;
 			if (fileName==null) continue;
@@ -387,9 +387,9 @@ public class LocalSession extends AbstractSession{
 				opt.setFileName(fileName);
 				opt.setImporter(LocalSession.LOCAL_PROJECT_IMPORTER);
 			}
-			else if (FileHelper.isPodxFile(fileName)) {
+			else if (FileHelper.isMpoFile(fileName)) {
 				opt.setFileName(fileName);
-				opt.setImporter(LocalSession.PODX_PROJECT_IMPORTER);
+				opt.setImporter(LocalSession.MPO_PROJECT_IMPORTER);
 			}
 			else{
 				opt.setFileName(fileName/*+((fileName.endsWith(".xml"))?"":".xml")*/);
@@ -439,7 +439,7 @@ public class LocalSession extends AbstractSession{
     public static String getImporter(int fileType){
     	switch (fileType) {
 		case FileHelper.PROJECTLIBRE_FILE_TYPE: return LOCAL_PROJECT_IMPORTER;
-		case FileHelper.PODX_FILE_TYPE: return PODX_PROJECT_IMPORTER;
+		case FileHelper.MPO_FILE_TYPE: return MPO_PROJECT_IMPORTER;
 		case FileHelper.MSP_FILE_TYPE: return MICROSOFT_PROJECT_IMPORTER;
 		default:
 			return null;

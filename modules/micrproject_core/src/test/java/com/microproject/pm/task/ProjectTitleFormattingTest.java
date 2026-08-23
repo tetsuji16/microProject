@@ -46,11 +46,11 @@ class ProjectTitleFormattingTest {
 	}
 
 	@Test
-	void newProjectGuessesThePodxFileName() {
+	void newProjectGuessesTheMpoFileName() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("default-format", undo), undo);
 		project.setName("plan");
 
-		assertEquals("plan.podx", project.getGuessedFileName());
+		assertEquals("plan.mpo", project.getGuessedFileName());
 	}
 }

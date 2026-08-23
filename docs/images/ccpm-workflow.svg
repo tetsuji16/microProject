@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
   <title id="title">CCPMの操作フロー</title>
-  <desc id="desc">プロジェクトを開いて平準化ダイアログでCCPMを設定し、プレビュー、適用、グラフ確認、PODX保存を行う5段階の流れ。</desc>
+  <desc id="desc">プロジェクトを開いて平準化ダイアログでCCPMを設定し、プレビュー、適用、グラフ確認、MPOF保存を行う5段階の流れ。</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#eff6ff"/>
@@ -59,7 +59,7 @@
       <circle cx="1011" cy="195" r="24" fill="#ea580c"/><text x="1011" y="203" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">5</text>
       <text x="1050" y="202" fill="#9a3412" font-size="20" font-weight="700">保存</text>
       <text x="992" y="253" fill="#334155" font-size="16">名前を付けて保存</text>
-      <text x="992" y="282" fill="#334155" font-size="16">推奨: .podx</text>
+      <text x="992" y="282" fill="#334155" font-size="16">推奨: .mpo</text>
       <text x="992" y="338" fill="#64748b" font-size="14">CCPM設定を保持し、</text>
       <text x="992" y="361" fill="#64748b" font-size="14">共有フォルダーで編集できます。</text>
     </g>
@@ -70,5 +70,5 @@
   </g>
   <rect x="55" y="475" width="1090" height="90" rx="16" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
   <text x="80" y="511" fill="#9a3412" font-family="Segoe UI, Meiryo, sans-serif" font-size="17" font-weight="700">保存形式の注意</text>
-  <text x="80" y="540" fill="#7c2d12" font-family="Segoe UI, Meiryo, sans-serif" font-size="15">従来の .pod は元の形式のまま読み書きします。CCPM設定や共同編集の状態を保持する場合は .podx を使用してください。</text>
+  <text x="80" y="540" fill="#7c2d12" font-family="Segoe UI, Meiryo, sans-serif" font-size="15">従来の .pod は元の形式のまま読み書きします。CCPM設定や共同編集の状態を保持する場合は .mpo を使用してください。</text>
 </svg>

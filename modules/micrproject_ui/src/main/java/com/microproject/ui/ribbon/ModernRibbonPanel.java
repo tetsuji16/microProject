@@ -230,12 +230,30 @@ public final class ModernRibbonPanel extends JPanel {
 				buttonId,
 				SwingRibbonModel.ButtonPriority.LOW);
 			AbstractButton button = createButton(specification, true);
-			buttonStyler.styleActionButton(button, "small");
+			styleQuickAccessButton(button);
 			button.setText("");
 			quickAccess.add(button, constraints);
 			constraints.gridx++;
 		}
 		return quickAccess;
+	}
+
+	/**
+	 * Quick Access buttons are icon-only commands in the tab row. They follow
+	 * the Microsoft Project QAT convention: a compact square hit area around
+	 * the icon (24px), not the 84px minimum width of ribbon inline buttons —
+	 * that width is meant for labelled commands and left huge empty clickable
+	 * gaps between the icons (#346 layout report).
+	 */
+	private void styleQuickAccessButton(AbstractButton button) {
+		FlatUiSupport.styleRibbonSmallButton(button);
+		buttonStyler.applyRibbonIcon(button, FlatUiSupport.ribbonQuickAccessIconSize());
+		Dimension size = new Dimension(
+			FlatUiSupport.ribbonQuickAccessButtonSize(),
+			FlatUiSupport.ribbonQuickAccessButtonSize());
+		button.setMinimumSize(size);
+		button.setPreferredSize(size);
+		button.setMaximumSize(size);
 	}
 
 	private JPanel buildTabsStrip() {

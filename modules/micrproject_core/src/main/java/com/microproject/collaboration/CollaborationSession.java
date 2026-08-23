@@ -378,7 +378,7 @@ public class CollaborationSession {
 		if (!externalChangePending) {
 			return SAVE_PROCEED;
 		}
-		if (isPodxProject()) {
+		if (isMpoProject()) {
 			return SAVE_PROCEED;
 		}
 		Object[] options = new Object[] {
@@ -398,8 +398,8 @@ public class CollaborationSession {
 		return SAVE_CANCEL;
 	}
 
-	private boolean isPodxProject() {
-		return projectFile != null && projectFile.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".podx");
+	private boolean isMpoProject() {
+		return projectFile != null && projectFile.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".mpo");
 	}
 
 	public void afterSave() {

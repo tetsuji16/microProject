@@ -47,7 +47,7 @@ public final class CriticalChainService {
 		}
 	}
 
-	/** Immutable reference captured when a CCPM plan is applied, and persisted only in podx. */
+	/** Immutable reference captured when a CCPM plan is applied, and persisted only in mpo. */
 	public record Baseline(long projectFinishMillis, long projectBufferMillis, double bufferFraction,
 		List<Long> criticalTaskIds, Map<Long, Long> feedingTaskStartMillis, Map<Long, Long> feedingBufferMillis) {
 		public Baseline {
@@ -59,7 +59,7 @@ public final class CriticalChainService {
 		}
 	}
 
-	/** CCPM options. They are persisted only by podx's optional ccpm.json entry. */
+	/** CCPM options. They are persisted only by mpo's optional ccpm.json entry. */
 	public static final class Settings implements Serializable {
 		private static final long serialVersionUID = 1L;
 		private boolean enabled;
@@ -131,8 +131,8 @@ public final class CriticalChainService {
 		return project == null ? null : project.findTransientDocumentState(Settings.class);
 	}
 
-	/** CCPM state needs podx; legacy POD deliberately has no CCPM extension. */
-	public boolean requiresPodx(Project project) {
+	/** CCPM state needs mpo; legacy POD deliberately has no CCPM extension. */
+	public boolean requiresMpo(Project project) {
 		Settings settings = findSettings(project);
 		return settings != null && settings.isEnabled();
 	}
@@ -177,7 +177,7 @@ public final class CriticalChainService {
 		return analysis;
 	}
 
-	/** Restores the podx-only reference used to measure later schedule slippage. */
+	/** Restores the mpo-only reference used to measure later schedule slippage. */
 	public void restoreBaseline(Project project, Baseline baseline) {
 		Objects.requireNonNull(project, "project");
 		project.removeTransientDocumentState(Baseline.class);

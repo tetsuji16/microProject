@@ -218,7 +218,7 @@
     <table>
         <tr><th>形式</th><th>拡張子</th><th>説明</th></tr>
         <tr><td>microProject</td><td><code>.pod</code></td><td>標準のローカル保存形式</td></tr>
-        <tr><td>microProject 共同編集</td><td><code>.podx</code></td><td>共有フォルダーでの共同編集に対応するオープンコンテナー形式</td></tr>
+        <tr><td>microProject Open Format (MPOF)</td><td><code>.mpo</code></td><td>共有フォルダーでの共同編集に対応するオープンコンテナー形式</td></tr>
         <tr><td>MS Project</td><td><code>.mpp</code></td><td>Microsoft Project ファイル（読み込み）</td></tr>
         <tr><td>MS Project XML</td><td><code>.xml</code></td><td>Microsoft Project XML形式</td></tr>
         <tr><td>Planner</td><td><code>.planner</code></td><td>GNU Planner形式</td></tr>
@@ -258,7 +258,7 @@
     </p>
 
     <div class="tip">
-        .mpp は読み込み用です。編集後は、互換性のために <code>.xml</code> または <code>.xlsx</code>、通常の作業には <code>.pod</code>、共有編集には <code>.podx</code> として保存してください。
+        .mpp は読み込み用です。編集後は、互換性のために <code>.xml</code> または <code>.xlsx</code>、通常の作業には <code>.pod</code>、共有編集には <code>.mpo</code> (MPOF) として保存してください。
     </div>
 </section>
 
@@ -452,7 +452,7 @@
     </p>
 
     <figure class="app-example">
-        <img src="images/ccpm-workflow.svg" alt="CCPMの操作フロー。プロジェクト準備、リソース平準化ダイアログでのCCPM設定、プレビュー、適用とCCPM Network確認、PODX保存の5段階を矢印で示している。">
+        <img src="images/ccpm-workflow.svg" alt="CCPMの操作フロー。プロジェクト準備、リソース平準化ダイアログでのCCPM設定、プレビュー、適用とCCPM Network確認、MPOF保存の5段階を矢印で示している。">
         <figcaption>CCPMの基本フロー。プレビューで変更件数・未解決競合・バッファを確認してから適用します。</figcaption>
     </figure>
 
@@ -463,7 +463,7 @@
         <li><strong>クリティカルチェーン・プロジェクト管理（CCPM）を使用する</strong>にチェックを入れ、プロジェクトバッファの割合を設定します。必要に応じて対象リソースを選択します。</li>
         <li><strong>プレビュー</strong>を押し、変更件数、分割件数、未解決の競合、推奨プロジェクトバッファを確認します。競合が残る場合は、割り当てや平準化条件を見直して再度プレビューします。</li>
         <li>内容が妥当なら<strong>平準化を適用</strong>を押します。<strong>CCPM Network</strong>タブで、クリティカルチェーン、プロジェクトバッファ、フィーディングバッファを確認します。</li>
-        <li>CCPMの設定と共同編集用の状態を保持する場合は、<strong>.podx</strong>で保存します。</li>
+        <li>CCPMの設定と共同編集用の状態を保持する場合は、<strong>.mpo</strong>(MPOF)で保存します。</li>
     </ol>
 
     <h3>グラフとバッファの読み方</h3>
@@ -478,7 +478,7 @@
         CCPMの分析は現在の依存関係、カレンダー、リソース割り当てを基に計算されます。タスク期間、担当者、平準化条件を変更した後は、必ず<strong>プレビュー</strong>を実行してグラフを更新してください。
     </div>
     <div class="warn">
-        <code>.pod</code>は従来のProjectLibre形式のまま保存され、CCPMの拡張状態は追加されません。CCPM設定を再読込後も保持したい場合や、OneDriveなどの共有フォルダーで同時編集する場合は<code>.podx</code>を使用してください。
+        <code>.pod</code>は従来のProjectLibre形式のまま保存され、CCPMの拡張状態は追加されません。CCPM設定を再読込後も保持したい場合や、OneDriveなどの共有フォルダーで同時編集する場合は<code>.mpo</code>(MPOF)を使用してください。
     </div>
 </section>
 
@@ -765,7 +765,7 @@
         <tr><td>インポート</td><td>MS Project XML (.xml)</td><td>ファイル → 開く</td></tr>
         <tr><td>インポート</td><td>Excel (.xlsx)</td><td>ファイル → 開く</td></tr>
         <tr><td>インポート</td><td>Planner (.planner)</td><td>ファイル → 開く</td></tr>
-        <tr><td>保存</td><td>microProject (.pod / .podx)</td><td>ファイル → 保存／名前を付けて保存</td></tr>
+        <tr><td>保存</td><td>microProject (.pod / .mpo)</td><td>ファイル → 保存／名前を付けて保存</td></tr>
         <tr><td>エクスポート</td><td>MS Project XML (.xml)</td><td>ファイル → 名前を付けて保存</td></tr>
         <tr><td>エクスポート</td><td>Excel (.xlsx)</td><td>ファイル → 名前を付けて保存</td></tr>
     </table>

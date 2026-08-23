@@ -108,7 +108,7 @@ final class RibbonButtonStyler {
 		button.setPreferredSize(sizeValue);
 	}
 
-	private void applyRibbonIcon(AbstractButton button, int iconSize) {
+	void applyRibbonIcon(AbstractButton button, int iconSize) {
 		if (button == null) {
 			return;
 		}

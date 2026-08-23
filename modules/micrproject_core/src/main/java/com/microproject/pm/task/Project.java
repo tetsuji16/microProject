@@ -1495,7 +1495,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 				// Missing assignments are a recoverable legacy/import condition: the
 				// default assignment restores a schedulable task.  Keep this visible
 				// as a warning rather than reporting a simulated exception at SEVERE,
-				// which made valid POD/PODX repair look like data loss.
+				// which made valid POD/MPO repair look like data loss.
 				repairedAssignments++;
 				logger.fine("added default ass for " + task);
 				addRepaired(task);
@@ -2246,7 +2246,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return name + " - " + fileName;
 	}
 
-	protected transient int fileType=FileHelper.PODX_FILE_TYPE;
+	protected transient int fileType=FileHelper.MPO_FILE_TYPE;
 
 	public int getFileType() {
 		return fileType;

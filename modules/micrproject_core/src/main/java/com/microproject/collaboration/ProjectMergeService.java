@@ -161,8 +161,8 @@ public class ProjectMergeService {
 			if (fileName.toLowerCase(Locale.ROOT).endsWith(".pod")) {
 				return loadPodProject(fileName);
 			}
-			if (fileName.toLowerCase(Locale.ROOT).endsWith(".podx")) {
-				return loadPodxProject(fileName);
+			if (fileName.toLowerCase(Locale.ROOT).endsWith(".mpo")) {
+				return loadMpoProject(fileName);
 			}
 			try (InputStream in = new FileInputStream(fileName)) {
 				return loadMicrosoftProject(fileName, in);
@@ -172,8 +172,8 @@ public class ProjectMergeService {
 		}
 	}
 
-	private Project loadPodxProject(String fileName) throws Exception {
-		FileImporter importer = LocalSession.getImporter(LocalSession.PODX_PROJECT_IMPORTER);
+	private Project loadMpoProject(String fileName) throws Exception {
+		FileImporter importer = LocalSession.getImporter(LocalSession.MPO_PROJECT_IMPORTER);
 		importer.setFileName(fileName);
 		importer.setProjectFactory(ProjectFactory.getInstance());
 		try (InputStream in = new FileInputStream(fileName)) {

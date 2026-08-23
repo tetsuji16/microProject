@@ -18,10 +18,10 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.Resource;
 
-/** Applies validated podx task-update operations deterministically to a snapshot. */
-public final class PodxTaskOperationService {
+/** Applies validated mpo task-update operations deterministically to a snapshot. */
+public final class MpoTaskOperationService {
 	public void apply(Project project, Collection<OperationLog.Operation> operations) throws IOException {
-		if (project == null) throw new IOException("Missing project for podx operations");
+		if (project == null) throw new IOException("Missing project for mpo operations");
 		for (OperationLog.Operation operation : new OperationLog().merge(operations).ready()) {
 			switch (operation.kind()) {
 				case "task.create" -> applyCreate(project, operation.payload());
@@ -32,7 +32,7 @@ public final class PodxTaskOperationService {
 				case "dependency.delete" -> applyDependencyDelete(project, operation.payload());
 				case "assignment.add" -> applyAssignmentAdd(project, operation.payload());
 				case "assignment.delete" -> applyAssignmentDelete(project, operation.payload());
-				default -> throw new IOException("Unsupported podx operation: " + operation.kind());
+				default -> throw new IOException("Unsupported mpo operation: " + operation.kind());
 			}
 		}
 	}
@@ -60,10 +60,18 @@ public final class PodxTaskOperationService {
 	private static void applyAssignmentAdd(Project project, Map<String, Object> payload) throws IOException {
 		Task rawTask = project.findByUniqueId(number(payload.get("taskLegacyUniqueId"), "taskLegacyUniqueId"));
 		if (!(rawTask instanceof NormalTask)) throw new IOException("assignment.add references a non-normal task");
-		Resource resource = findResource(project, number(payload.get("resourceUniqueId"), "resourceUniqueId"));
+		long wantedId = number(payload.get("resourceUniqueId"), "resourceUniqueId");
+		Resource resource = findResource(project, wantedId);
 		if (resource == null && project.getResourcePool() != null) {
 			resource = project.getResourcePool().newResourceInstance();
-			project.getResourcePool().setResourceUniqueId(resource, number(payload.get("resourceUniqueId"), "resourceUniqueId"));
+			if (wantedId >= 1L) {
+				try {
+					project.getResourcePool().setResourceUniqueId(resource, wantedId);
+				} catch (IllegalArgumentException taken) {
+					// The id is already used by another resource in this pool: keep
+					// the freshly created resource's own id instead of failing.
+				}
+			}
 			Object name = payload.get("resourceName");
 			if (name instanceof String) resource.setName((String) name);
 		}

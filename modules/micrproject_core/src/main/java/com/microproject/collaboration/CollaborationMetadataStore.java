@@ -58,7 +58,7 @@ public class CollaborationMetadataStore {
 			return false;
 		}
 		String lower = fileName.toLowerCase(Locale.ROOT);
-		return lower.endsWith(".pod") || lower.endsWith(".podx") || lower.endsWith(".xml") || lower.endsWith(".xlsx");
+		return lower.endsWith(".pod") || lower.endsWith(".mpo") || lower.endsWith(".xml") || lower.endsWith(".xlsx");
 	}
 
 	public static File buildSidecarFile(File projectFile) {

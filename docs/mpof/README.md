@@ -1,4 +1,4 @@
-# podx reference artifacts
+# MPOF (`.mpo`) reference artifacts
 
 This directory is the public, implementation-independent podx 0.1 reference
 package. The specification is [`v0.1.md`](v0.1.md), the collaboration contract

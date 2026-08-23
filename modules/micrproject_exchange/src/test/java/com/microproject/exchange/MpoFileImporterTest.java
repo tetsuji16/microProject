@@ -36,70 +36,70 @@ import com.microproject.undo.DataFactoryUndoController;
 
 import org.junit.jupiter.api.Test;
 
-class PodxFileImporterTest {
+class MpoFileImporterTest {
 	@Test
 	void manifestValidatesTheExactProjectPayload() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		assertDoesNotThrow(() -> PodxFileImporter.validateManifest(PodxFileImporter.manifestFor(projectXml), projectXml));
+		assertDoesNotThrow(() -> MpoFileImporter.validateManifest(MpoFileImporter.manifestFor(projectXml), projectXml));
 	}
 
 	@Test
 	void manifestRejectsChangedProjectPayload() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
 		byte[] changedXml = "<Project><Name>changed</Name></Project>".getBytes(StandardCharsets.UTF_8);
-		assertThrows(IOException.class, () -> PodxFileImporter.validateManifest(PodxFileImporter.manifestFor(projectXml), changedXml));
+		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(MpoFileImporter.manifestFor(projectXml), changedXml));
 	}
 
 	@Test
 	void manifestRejectsUnsupportedVersion() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		String unsupported = PodxFileImporter.manifestFor(projectXml).replace("\"0.1\"", "\"2.0\"");
-		assertThrows(IOException.class, () -> PodxFileImporter.validateManifest(unsupported, projectXml));
+		String unsupported = MpoFileImporter.manifestFor(projectXml).replace("\"1.0\"", "\"2.0\"");
+		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(unsupported, projectXml));
 	}
 
 	@Test
 	void manifestRejectsDuplicateRequiredFields() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		String duplicate = PodxFileImporter.manifestFor(projectXml).replace("\"format\":\"podx\"", "\"format\":\"podx\",\"format\":\"podx\"");
-		assertThrows(IOException.class, () -> PodxFileImporter.validateManifest(duplicate, projectXml));
+		String duplicate = MpoFileImporter.manifestFor(projectXml).replace("\"format\":\"mpof\"", "\"format\":\"mpof\",\"format\":\"mpof\"");
+		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(duplicate, projectXml));
 	}
 
 	@Test
-	void podxRejectsMalformedOperationLogsBeforeLoadingTheSnapshot() throws Exception {
+	void mpoRejectsMalformedOperationLogsBeforeLoadingTheSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
-		new PodxFileImporter().saveProject(project, generated);
+		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		entries.put("changes/operations.json", "{\"schemaVersion\":1,\"documentId\":\"not-a-uuid\",\"operations\":[],\"conflicts\":[]}".getBytes(StandardCharsets.UTF_8));
-		PodxFileImporter reader = new PodxFileImporter();
+		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		assertThrows(IOException.class, () -> reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray())));
 	}
 
 	@Test
-	void podxAppliesValidatedTaskUpdateOperationsToItsSnapshot() throws Exception {
+	void mpoAppliesValidatedTaskUpdateOperationsToItsSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(project);
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
-		new PodxFileImporter().saveProject(project, generated);
+		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation update = new OperationLog.Operation("00000000-0000-0000-0000-000000000011", "00000000-0000-0000-0000-000000000012", 1, java.util.Set.of(), "task.update", "00000000-0000-0000-0000-000000000013", Map.of("legacyUniqueId", Long.valueOf(task.getUniqueId()), "name", "Merged task"));
 		entries.put("changes/operations.json", new OperationLog().write("00000000-0000-0000-0000-000000000014", java.util.List.of(update)));
-		PodxFileImporter reader = new PodxFileImporter();
+		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
 		org.junit.jupiter.api.Assertions.assertEquals("Merged task", findByName(loaded, "Merged task").getName());
 	}
 
 	@Test
-	void podxAppliesTaskCreateOperationsIdempotently() throws Exception {
+	void mpoAppliesTaskCreateOperationsIdempotently() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
-		new PodxFileImporter().saveProject(project, generated);
+		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation create = new OperationLog.Operation("00000000-0000-0000-0000-000000000021", "00000000-0000-0000-0000-000000000022", 1, java.util.Set.of(), "task.create", "00000000-0000-0000-0000-000000000023", Map.of("legacyUniqueId", Long.valueOf(9001L), "name", "Created task"));
 		entries.put("changes/operations.json", new OperationLog().write("00000000-0000-0000-0000-000000000024", java.util.List.of(create, create)));
-		PodxFileImporter reader = new PodxFileImporter();
+		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
 		org.junit.jupiter.api.Assertions.assertEquals("Created task", loaded.findByUniqueId(9001L).getName());
@@ -107,24 +107,24 @@ class PodxFileImporterTest {
 	}
 
 	@Test
-	void podxAppliesTaskDeleteOperationsIdempotently() throws Exception {
+	void mpoAppliesTaskDeleteOperationsIdempotently() throws Exception {
 		Project project = projectForRoundTrip();
 		long taskId = firstTask(project).getUniqueId();
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
-		new PodxFileImporter().saveProject(project, generated);
+		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation delete = new OperationLog.Operation("00000000-0000-0000-0000-000000000031", "00000000-0000-0000-0000-000000000032", 1, java.util.Set.of(), "task.delete", "00000000-0000-0000-0000-000000000033", Map.of("legacyUniqueId", Long.valueOf(taskId)));
 		entries.put("changes/operations.json", new OperationLog().write("00000000-0000-0000-0000-000000000034", java.util.List.of(delete, delete)));
-		PodxFileImporter reader = new PodxFileImporter();
+		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
 		org.junit.jupiter.api.Assertions.assertNull(loaded.findByUniqueId(taskId));
 	}
 
 	@Test
-	void podxSaveAppendsTaskUpdatesAfterTheInitialSnapshot() throws Exception {
+	void mpoSaveAppendsTaskUpdatesAfterTheInitialSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
-		PodxFileImporter writer = new PodxFileImporter();
+		MpoFileImporter writer = new MpoFileImporter();
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		((NormalTask) firstTask(project)).setName("Edited after save");
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
@@ -133,9 +133,9 @@ class PodxFileImporterTest {
 	}
 
 	@Test
-	void podxSaveAppendsTaskCreatesAfterTheInitialSnapshot() throws Exception {
+	void mpoSaveAppendsTaskCreatesAfterTheInitialSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
-		PodxFileImporter writer = new PodxFileImporter();
+		MpoFileImporter writer = new MpoFileImporter();
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		((NormalTask) project.createLocalTaskNode(null).getImpl()).setName("Added after save");
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
@@ -144,25 +144,27 @@ class PodxFileImporterTest {
 	}
 
 	@Test
-	void podxAppliesTaskMoveOperations() throws Exception {
+	void mpoAppliesTaskMoveOperations() throws Exception {
 		Project project = projectForRoundTrip();
 		NormalTask child = (NormalTask) firstTask(project);
 		NormalTask parent = (NormalTask) project.createLocalTaskNode(null).getImpl(); parent.setName("Parent");
-		ByteArrayOutputStream generated = new ByteArrayOutputStream(); new PodxFileImporter().saveProject(project, generated);
+		assignPositiveUniqueIds(project);
+		ByteArrayOutputStream generated = new ByteArrayOutputStream(); new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation move = new OperationLog.Operation("00000000-0000-0000-0000-000000000041", "00000000-0000-0000-0000-000000000042", 1, java.util.Set.of(), "task.move", "00000000-0000-0000-0000-000000000043", Map.of("legacyUniqueId", Long.valueOf(child.getUniqueId()), "parentLegacyUniqueId", Long.valueOf(parent.getUniqueId())));
 		entries.put("changes/operations.json", new OperationLog().write("00000000-0000-0000-0000-000000000044", java.util.List.of(move)));
-		PodxFileImporter reader = new PodxFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
+		MpoFileImporter reader = new MpoFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
 		org.junit.jupiter.api.Assertions.assertEquals(parent.getUniqueId(), loaded.findByUniqueId(child.getUniqueId()).getWbsParentTask().getUniqueId());
 	}
 
 	@Test
-	void podxSaveAppendsTaskMovesAfterTheInitialSnapshot() throws Exception {
+	void mpoSaveAppendsTaskMovesAfterTheInitialSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
 		NormalTask child = (NormalTask) firstTask(project);
 		NormalTask parent = (NormalTask) project.createLocalTaskNode(null).getImpl(); parent.setName("Parent");
-		PodxFileImporter writer = new PodxFileImporter();
+		assignPositiveUniqueIds(project);
+		MpoFileImporter writer = new MpoFileImporter();
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		project.setLocalParent(child, parent);
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
@@ -172,60 +174,63 @@ class PodxFileImporterTest {
 	}
 
 	@Test
-	void podxSavesAndReplaysDependencyOperations() throws Exception {
+	void mpoSavesAndReplaysDependencyOperations() throws Exception {
 		Project project = projectForRoundTrip();
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl(); successor.setName("Successor");
-		PodxFileImporter writer = new PodxFileImporter();
+		MpoFileImporter writer = new MpoFileImporter();
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, null);
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
 		java.util.List<OperationLog.Operation> operations = new OperationLog().read(readEntries(second.toByteArray()).get("changes/operations.json"));
 		org.junit.jupiter.api.Assertions.assertEquals("dependency.add", operations.get(0).kind());
-		PodxFileImporter reader = new PodxFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
+		MpoFileImporter reader = new MpoFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(second.toByteArray()));
 		org.junit.jupiter.api.Assertions.assertTrue(findByName(loaded, predecessor.getName()).getSuccessorList().iterator().hasNext());
 	}
 
 	@Test
-	void podxSavesAndReplaysAssignmentOperations() throws Exception {
+	void mpoSavesAndReplaysAssignmentOperations() throws Exception {
 		Project project = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(project);
 		Resource resource = project.getResourcePool().newResourceInstance(); resource.setName("Engineer");
-		PodxFileImporter writer = new PodxFileImporter();
+		assignPositiveUniqueIds(project);
+		MpoFileImporter writer = new MpoFileImporter();
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
 		AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, null, false);
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
 		java.util.List<OperationLog.Operation> operations = new OperationLog().read(readEntries(second.toByteArray()).get("changes/operations.json"));
 		org.junit.jupiter.api.Assertions.assertEquals("assignment.add", operations.get(0).kind());
-		PodxFileImporter reader = new PodxFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
+		MpoFileImporter reader = new MpoFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(second.toByteArray()));
 		org.junit.jupiter.api.Assertions.assertTrue(((NormalTask) loaded.findByUniqueId(task.getUniqueId())).getAssignments().iterator().hasNext());
 	}
 
 	@Test
-	void podxSequentialSharedFolderSavesMergeIndependentTaskEdits() throws Exception {
+	void mpoSequentialSharedFolderSavesMergeIndependentTaskEdits() throws Exception {
 		Project initial = projectForRoundTrip();
 		NormalTask second = (NormalTask) initial.createLocalTaskNode(null).getImpl(); second.setName("Second");
-		File shared = File.createTempFile("podx-shared", ".podx"); shared.deleteOnExit();
-		PodxFileImporter initialWriter = new PodxFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
+		assignPositiveUniqueIds(initial);
+		File shared = File.createTempFile("mpo-shared", ".mpo"); shared.deleteOnExit();
+		MpoFileImporter initialWriter = new MpoFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
 		org.junit.jupiter.api.Assertions.assertTrue(new File(shared.getAbsolutePath() + ".lock").isFile(), "shared saves use a stable transaction lock");
 		Project firstEditor = load(shared); Project secondEditor = load(shared);
 		firstTask(firstEditor).setName("First editor");
 		secondEditor.findByUniqueId(second.getUniqueId()).setName("Second editor");
-		PodxFileImporter firstWriter = new PodxFileImporter(); firstWriter.setFileName(shared.getAbsolutePath()); firstWriter.setProject(firstEditor); firstWriter.exportFile();
-		PodxFileImporter secondWriter = new PodxFileImporter(); secondWriter.setFileName(shared.getAbsolutePath()); secondWriter.setProject(secondEditor); secondWriter.exportFile();
+		MpoFileImporter firstWriter = new MpoFileImporter(); firstWriter.setFileName(shared.getAbsolutePath()); firstWriter.setProject(firstEditor); firstWriter.exportFile();
+		MpoFileImporter secondWriter = new MpoFileImporter(); secondWriter.setFileName(shared.getAbsolutePath()); secondWriter.setProject(secondEditor); secondWriter.exportFile();
 		Project merged = load(shared);
 		org.junit.jupiter.api.Assertions.assertEquals("First editor", firstTask(merged).getName());
 		org.junit.jupiter.api.Assertions.assertEquals("Second editor", merged.findByUniqueId(second.getUniqueId()).getName());
 	}
 
 	@Test
-	void podxConcurrentSharedFolderSavesSerializeAndMergeBothEditors() throws Exception {
+	void mpoConcurrentSharedFolderSavesSerializeAndMergeBothEditors() throws Exception {
 		Project initial = projectForRoundTrip();
 		NormalTask second = (NormalTask) initial.createLocalTaskNode(null).getImpl(); second.setName("Second");
-		File shared = File.createTempFile("podx-concurrent", ".podx"); shared.deleteOnExit();
-		PodxFileImporter initialWriter = new PodxFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
+		assignPositiveUniqueIds(initial);
+		File shared = File.createTempFile("mpo-concurrent", ".mpo"); shared.deleteOnExit();
+		MpoFileImporter initialWriter = new MpoFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
 		Project firstEditor = load(shared); Project secondEditor = load(shared);
 		firstTask(firstEditor).setName("Concurrent first");
 		secondEditor.findByUniqueId(second.getUniqueId()).setName("Concurrent second");
@@ -247,60 +252,105 @@ class PodxFileImporterTest {
 	private static void saveAfter(java.util.concurrent.CountDownLatch start, File shared, Project editor) {
 		try {
 			start.await();
-			PodxFileImporter writer = new PodxFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor); writer.exportFile();
+			MpoFileImporter writer = new MpoFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor); writer.exportFile();
 		} catch (Exception error) {
 			throw new RuntimeException(error);
 		}
 	}
 
 	@Test
-	void podxSharedFolderSavePreservesExtensionAddedAfterEditorOpened() throws Exception {
+	void mpoSharedFolderSavePreservesExtensionAddedAfterEditorOpened() throws Exception {
 		Project initial = projectForRoundTrip();
-		File shared = File.createTempFile("podx-extension-merge", ".podx"); shared.deleteOnExit();
-		PodxFileImporter initialWriter = new PodxFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
+		File shared = File.createTempFile("mpo-extension-merge", ".mpo"); shared.deleteOnExit();
+		MpoFileImporter initialWriter = new MpoFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
 		Project editor = load(shared);
 		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(shared.toPath()));
 		entries.put("vendor/remote.bin", new byte[] { 7, 8, 9 });
 		java.nio.file.Files.write(shared.toPath(), zip(entries).toByteArray());
 		firstTask(editor).setName("Edited locally");
-		PodxFileImporter writer = new PodxFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor); writer.exportFile();
+		MpoFileImporter writer = new MpoFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor); writer.exportFile();
 		org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[] { 7, 8, 9 }, readEntries(java.nio.file.Files.readAllBytes(shared.toPath())).get("vendor/remote.bin"));
 	}
 
 	@Test
-	void podxSharedFolderRejectsManifestDocumentMismatchBeforeMerge() throws Exception {
+	void mpoSharedFolderRejectsManifestDocumentMismatchBeforeMerge() throws Exception {
 		Project initial = projectForRoundTrip();
-		File shared = File.createTempFile("podx-manifest-mismatch", ".podx"); shared.deleteOnExit();
-		PodxFileImporter initialWriter = new PodxFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
+		File shared = File.createTempFile("mpo-manifest-mismatch", ".mpo"); shared.deleteOnExit();
+		MpoFileImporter initialWriter = new MpoFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
 		Project editor = load(shared);
 		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(shared.toPath()));
-		String manifest = new String(entries.get("manifest.json"), StandardCharsets.UTF_8)
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8)
 			.replaceFirst("\\\"documentId\\\":\\\"[^\\\"]+\\\"", "\\\"documentId\\\":\\\"00000000-0000-0000-0000-000000000099\\\"");
-		entries.put("manifest.json", manifest.getBytes(StandardCharsets.UTF_8));
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
 		java.nio.file.Files.write(shared.toPath(), zip(entries).toByteArray());
 		firstTask(editor).setName("edited");
-		PodxFileImporter writer = new PodxFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor);
+		MpoFileImporter writer = new MpoFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor);
 		assertThrows(IOException.class, writer::exportFile);
 	}
 
 	@Test
-	void podxRoundTripLoadsItsMspdiSnapshot() throws Exception {
+	void mpoContainerUsesOdfStyleLayout() throws Exception {
+		Project original = projectForRoundTrip();
+		File mpo = File.createTempFile("mpo-layout", ".mpo"); mpo.deleteOnExit();
+		MpoFileImporter writer = new MpoFileImporter(); writer.setFileName(mpo.getAbsolutePath()); writer.setProject(original); writer.exportFile();
+		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath()));
+		org.junit.jupiter.api.Assertions.assertEquals("application/vnd.microproject.openproject",
+			new String(entries.get("mimetype"), StandardCharsets.UTF_8).trim());
+		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("META-INF/manifest.xml"));
+		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("content.xml"));
+		String manifest = new String(entries.get("META-INF/manifest.xml"), StandardCharsets.UTF_8);
+		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("\"format\":\"mpof\""));
+		org.junit.jupiter.api.Assertions.assertTrue(manifest.contains("\"formatVersion\":\"1.0\""));
+	}
+
+	@Test
+	void legacyPodxFileStillLoadsDuringMigrationWindow() throws Exception {
+		// Build a podx 0.1 container by hand (manifest.json + project.xml, no mimetype).
+		Project original = projectForRoundTrip();
+		ByteArrayOutputStream snapshot = new ByteArrayOutputStream();
+		com.microproject.exchange.MicrosoftImporter delegate = new com.microproject.exchange.MicrosoftImporter();
+		delegate.setFileName(MpoFileImporter.LEGACY_PODX_PROJECT_ENTRY);
+		org.junit.jupiter.api.Assertions.assertTrue(delegate.saveProject(original, snapshot));
+		byte[] projectXml = snapshot.toByteArray();
+		String manifest = MpoFileImporter.manifestFor(projectXml)
+			.replace("\"format\":\"mpof\"", "\"format\":\"podx\"")
+			.replace("\"formatVersion\":\"1.0\"", "\"version\":\"0.1\"")
+			.replace("\"projectEntry\":\"content.xml\"", "\"projectEntry\":\"project.xml\"");
+		Map<String, byte[]> entries = new LinkedHashMap<String, byte[]>();
+		entries.put("manifest.json", manifest.getBytes(StandardCharsets.UTF_8));
+		entries.put("project.xml", projectXml);
+		File podx = File.createTempFile("legacy", ".podx"); podx.deleteOnExit();
+		java.nio.file.Files.write(podx.toPath(), zip(entries).toByteArray());
+
+		Project loaded = load(podx);
+		org.junit.jupiter.api.Assertions.assertNotNull(loaded);
+		org.junit.jupiter.api.Assertions.assertEquals(taskCount(original), taskCount(loaded));
+
+		// Saving the loaded project must auto-upgrade it to MPOF v1.0.
+		MpoFileImporter saver = new MpoFileImporter(); saver.setFileName(podx.getAbsolutePath()); saver.setProject(loaded); saver.exportFile();
+		Map<String, byte[]> upgraded = readEntries(java.nio.file.Files.readAllBytes(podx.toPath()));
+		org.junit.jupiter.api.Assertions.assertTrue(upgraded.containsKey("mimetype"));
+		org.junit.jupiter.api.Assertions.assertTrue(upgraded.containsKey("content.xml"));
+	}
+
+	@Test
+	void mpoRoundTripLoadsItsMspdiSnapshot() throws Exception {
 		Project original = projectForRoundTrip();
 		CriticalChainService.Settings ccpm = new CriticalChainService().settings(original);
 		ccpm.setEnabled(true);
 		ccpm.setBufferFraction(0.4D);
 		new CriticalChainService().restoreBaseline(original, new CriticalChainService.Baseline(1L, 2L, 0.4D,
 			java.util.List.of(), java.util.Map.of(), java.util.Map.of()));
-		File podx = File.createTempFile("podx-roundtrip", ".podx");
-		podx.deleteOnExit();
-		PodxFileImporter writer = new PodxFileImporter();
-		writer.setFileName(podx.getAbsolutePath());
+		File mpo = File.createTempFile("mpo-roundtrip", ".mpo");
+		mpo.deleteOnExit();
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(mpo.getAbsolutePath());
 		writer.setProject(original);
 		writer.exportFile();
-		org.junit.jupiter.api.Assertions.assertTrue(readEntries(java.nio.file.Files.readAllBytes(podx.toPath())).containsKey("changes/operations.json"));
+		org.junit.jupiter.api.Assertions.assertTrue(readEntries(java.nio.file.Files.readAllBytes(mpo.toPath())).containsKey("changes/operations.json"));
 
-		PodxFileImporter reader = new PodxFileImporter();
-		reader.setFileName(podx.getAbsolutePath());
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setFileName(mpo.getAbsolutePath());
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		reader.importFile();
 
@@ -310,24 +360,25 @@ class PodxFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isEnabled());
 		org.junit.jupiter.api.Assertions.assertEquals(0.4D, restored.getBufferFraction());
 		org.junit.jupiter.api.Assertions.assertEquals(2L, new CriticalChainService().findBaseline(reader.getProject()).projectBufferMillis());
-		byte[] operations = readEntries(java.nio.file.Files.readAllBytes(podx.toPath())).get("changes/operations.json");
+		byte[] operations = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath())).get("changes/operations.json");
 		ByteArrayOutputStream roundTrip = new ByteArrayOutputStream();
 		writer.saveProject(reader.getProject(), roundTrip);
 		org.junit.jupiter.api.Assertions.assertArrayEquals(operations, readEntries(roundTrip.toByteArray()).get("changes/operations.json"));
 	}
 
 	@Test
-	void podxRoundTripPreservesAppliedCcpmAndCanReanalyzeTheChain() throws Exception {
+	void mpoRoundTripPreservesAppliedCcpmAndCanReanalyzeTheChain() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask first = (NormalTask) firstTask(original);
 		NormalTask second = (NormalTask) original.createLocalTaskNode(null).getImpl();
-		second.setName("Second podx task");
+		second.setName("Second mpo task");
+		assignPositiveUniqueIds(original);
 		Resource resource = original.getResourcePool().newResourceInstance();
 		resource.setName("Shared engineer");
-		PodxFileImporter writer = new PodxFileImporter();
-		File podx = File.createTempFile("podx-ccpm-applied", ".podx");
-		podx.deleteOnExit();
-		writer.setFileName(podx.getAbsolutePath());
+		MpoFileImporter writer = new MpoFileImporter();
+		File mpo = File.createTempFile("mpo-ccpm-applied", ".mpo");
+		mpo.deleteOnExit();
+		writer.setFileName(mpo.getAbsolutePath());
 		writer.setProject(original);
 		writer.exportFile();
 		AssignmentService.getInstance().newAssignment(first, resource, 1D, 0L, null, false);
@@ -342,7 +393,7 @@ class PodxFileImporterTest {
 
 		writer.exportFile();
 
-		Project loaded = load(podx);
+		Project loaded = load(mpo);
 		CriticalChainService loadedService = new CriticalChainService();
 		CriticalChainService.Settings restored = loadedService.findSettings(loaded);
 		org.junit.jupiter.api.Assertions.assertNotNull(restored);
@@ -358,12 +409,12 @@ class PodxFileImporterTest {
 
 	/**
 	 * Exercises the complete user-facing path on a real legacy ProjectLibre sample:
-	 * load POD, apply CCPM, save as PODX, reload, and preview the restored chain.
+	 * load POD, apply CCPM, save as MPO, reload, and preview the restored chain.
 	 * This guards against the synthetic fixture hiding importer/exporter differences
 	 * in task hierarchies, calendars, and resource assignments.
 	 */
 	@Test
-	void realPodSampleCanBeConvertedToPodxAndReanalyzedWithCcpm() throws Exception {
+	void realPodSampleCanBeConvertedToMpoAndReanalyzedWithCcpm() throws Exception {
 		File source = findSample("June_1_sample.pod");
 		Project original = loadPod(source);
 		List<Resource> selected = new ArrayList<>();
@@ -377,14 +428,14 @@ class PodxFileImporterTest {
 		CriticalChainService.Analysis applied = service.apply(original, selected, settings);
 		org.junit.jupiter.api.Assertions.assertFalse(applied.criticalTaskIds().isEmpty(), "sample CCPM chain must not be empty");
 
-		File podx = File.createTempFile("sample-ccpm", ".podx");
-		podx.deleteOnExit();
-		PodxFileImporter writer = new PodxFileImporter();
-		writer.setFileName(podx.getAbsolutePath());
+		File mpo = File.createTempFile("sample-ccpm", ".mpo");
+		mpo.deleteOnExit();
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(mpo.getAbsolutePath());
 		writer.setProject(original);
 		writer.exportFile();
 
-		Project restored = load(podx);
+		Project restored = load(mpo);
 		CriticalChainService.Settings restoredSettings = service.findSettings(restored);
 		org.junit.jupiter.api.Assertions.assertNotNull(restoredSettings);
 		org.junit.jupiter.api.Assertions.assertTrue(restoredSettings.isEnabled());
@@ -396,17 +447,17 @@ class PodxFileImporterTest {
 	}
 
 	@Test
-	void podxPreservesUnknownExtensionsOnRoundTrip() throws Exception {
+	void mpoPreservesUnknownExtensionsOnRoundTrip() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
-		PodxFileImporter writer = new PodxFileImporter();
+		MpoFileImporter writer = new MpoFileImporter();
 		writer.saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		byte[] extension = "opaque extension".getBytes(StandardCharsets.UTF_8);
 		entries.put("vendor/example.json", extension);
 		ByteArrayOutputStream input = zip(entries);
 
-		PodxFileImporter reader = new PodxFileImporter();
+		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(input.toByteArray()));
 		ByteArrayOutputStream roundTrip = new ByteArrayOutputStream();
@@ -416,18 +467,18 @@ class PodxFileImporterTest {
 	}
 
 	@Test
-	void podxSessionsCoordinateTaskLocksThroughTheSharedSidecar() throws Exception {
+	void mpoSessionsCoordinateTaskLocksThroughTheSharedSidecar() throws Exception {
 		Project original = projectForRoundTrip();
-		File podx = File.createTempFile("podx-collaboration", ".podx");
-		podx.deleteOnExit();
-		PodxFileImporter writer = new PodxFileImporter();
-		writer.setFileName(podx.getAbsolutePath());
+		File mpo = File.createTempFile("mpo-collaboration", ".mpo");
+		mpo.deleteOnExit();
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(mpo.getAbsolutePath());
 		writer.setProject(original);
 		writer.exportFile();
-		Project first = load(podx);
-		Project second = load(podx);
-		CollaborationSession alice = CollaborationSession.create(first, podx.getAbsolutePath(), "alice");
-		CollaborationSession bob = CollaborationSession.create(second, podx.getAbsolutePath(), "bob");
+		Project first = load(mpo);
+		Project second = load(mpo);
+		CollaborationSession alice = CollaborationSession.create(first, mpo.getAbsolutePath(), "alice");
+		CollaborationSession bob = CollaborationSession.create(second, mpo.getAbsolutePath(), "bob");
 		org.junit.jupiter.api.Assertions.assertNotNull(alice);
 		org.junit.jupiter.api.Assertions.assertNotNull(bob);
 		alice.start();
@@ -445,11 +496,19 @@ class PodxFileImporterTest {
 
 	private static Project projectForRoundTrip() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
-		Project project = Project.createProject(ResourcePool.createRourcePool("podx-test", undo), undo);
+		Project project = Project.createProject(ResourcePool.createRourcePool("mpo-test", undo), undo);
 		project.initialize(false, false);
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
-		task.setName("Podx task");
+		task.setName("Mpo task");
 		return project;
+	}
+
+	/** MSPDI export preserves unique ids only when they are positive (see MPXConverter.exportId). */
+	private static void assignPositiveUniqueIds(Project project) {
+		long next = 1L;
+		for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext(); next++) {
+			((com.microproject.pm.task.Task) tasks.next()).setUniqueId(next);
+		}
 	}
 
 	private static int taskCount(Project project) {
@@ -461,9 +520,9 @@ class PodxFileImporterTest {
 		return count;
 	}
 
-	private static Project load(File podx) throws Exception {
-		PodxFileImporter reader = new PodxFileImporter();
-		reader.setFileName(podx.getAbsolutePath());
+	private static Project load(File mpo) throws Exception {
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setFileName(mpo.getAbsolutePath());
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		reader.importFile();
 		return reader.getProject();

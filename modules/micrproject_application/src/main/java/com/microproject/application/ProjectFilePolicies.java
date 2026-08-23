@@ -38,8 +38,8 @@ public final class ProjectFilePolicies {
 	}
 
 	public static String resolveLoadImporter(String fileName, boolean localOnlySession) {
-		if (FileHelper.isPodxFile(fileName)) {
-			return LocalSession.PODX_PROJECT_IMPORTER;
+		if (FileHelper.isMpoFile(fileName)) {
+			return LocalSession.MPO_PROJECT_IMPORTER;
 		}
 		if (isProjectLibreFile(fileName)) {
 			return localOnlySession ? LocalSession.LOCAL_PROJECT_IMPORTER : LocalSession.SERVER_LOCAL_PROJECT_IMPORTER;
@@ -48,8 +48,8 @@ public final class ProjectFilePolicies {
 	}
 
 	public static String resolveSaveImporter(String fileName) {
-		if (FileHelper.isPodxFile(fileName)) {
-			return LocalSession.PODX_PROJECT_IMPORTER;
+		if (FileHelper.isMpoFile(fileName)) {
+			return LocalSession.MPO_PROJECT_IMPORTER;
 		}
 		return isProjectLibreFile(fileName) ? LocalSession.LOCAL_PROJECT_IMPORTER : LocalSession.MICROSOFT_PROJECT_IMPORTER;
 	}

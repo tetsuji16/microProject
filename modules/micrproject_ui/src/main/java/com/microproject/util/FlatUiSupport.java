@@ -567,6 +567,11 @@ public final class FlatUiSupport {
 		return intValue(RIBBON_QUICK_ACCESS_BUTTON_SIZE_KEY, 24);
 	}
 
+	/** Icon size inside a quick-access button (MS Project QAT uses ~16px icons). */
+	public static int ribbonQuickAccessIconSize() {
+		return 16;
+	}
+
 	public static int ribbonLargeButtonHeight() {
 		return intValue(RIBBON_LARGE_BUTTON_HEIGHT_KEY, 90);
 	}

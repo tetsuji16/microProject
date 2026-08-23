@@ -241,7 +241,7 @@ public final class ProjectLibreThemeTokens {
 			340,
 			8,
 			6,
-			22,
+			24,
 			78,
 			60,
 			22,

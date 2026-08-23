@@ -1,4 +1,9 @@
-# podx operation log 0.1
+> **Note (issue #344):** `podx` was renamed to **MicroProject Open Format (MPOF, `.mpo`)**
+> with an ODF-style container (`mimetype`, `content.xml`, `META-INF/manifest.xml` with
+> `formatVersion` 1.0). This document describes the retired podx 0.1 layout and is kept
+> for the migration window; MPOF readers accept podx 0.1 containers read-only.
+
+# MPOF operation log
 
 `changes/operations.json` is the collaboration extension carried by podx. It
 uses the schema in `schemas/changes-0.1.schema.json`. Each operation has a

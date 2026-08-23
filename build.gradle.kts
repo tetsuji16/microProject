@@ -266,6 +266,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--jlink-options", "--strip-native-commands --strip-debug --no-man-pages --no-header-files --compress zip-9",
             "--dest", windowsMsiDir.get().asFile.absolutePath,
             "--file-associations", File(inputDir, "mpp.properties").absolutePath,
+            "--file-associations", File(inputDir, "mpo.properties").absolutePath,
             "--file-associations", File(inputDir, "pod.properties").absolutePath,
             "--file-associations", File(inputDir, "xml.properties").absolutePath,
             "--win-menu",

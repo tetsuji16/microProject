@@ -43,12 +43,12 @@ class FileHelperEdgeCaseTest {
 	}
 
 	@Test
-	void podxIsAnAllowedNativeFormat() {
-		assertEquals("podx", FileHelper.DEFAULT_FILE_EXTENSION);
-		assertTrue(FileHelper.isPodxFile("plan.PODX"));
-		assertTrue(FileHelper.isFileNameAllowed("plan.podx", true));
-		assertEquals(FileHelper.PODX_FILE_TYPE, FileHelper.getFileType("plan.podx"));
-		assertEquals("podx", FileHelper.getFileExtension(FileHelper.PODX_FILE_TYPE));
+	void mpoIsAnAllowedNativeFormat() {
+		assertEquals("mpo", FileHelper.DEFAULT_FILE_EXTENSION);
+		assertTrue(FileHelper.isMpoFile("plan.MPO"));
+		assertTrue(FileHelper.isFileNameAllowed("plan.mpo", true));
+		assertEquals(FileHelper.MPO_FILE_TYPE, FileHelper.getFileType("plan.mpo"));
+		assertEquals("mpo", FileHelper.getFileExtension(FileHelper.MPO_FILE_TYPE));
 	}
 
 }

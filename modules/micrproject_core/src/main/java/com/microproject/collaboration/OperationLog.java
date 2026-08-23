@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-/** Deterministic, idempotent merge of podx collaboration operations. */
+/** Deterministic, idempotent merge of mpo collaboration operations. */
 public final class OperationLog {
 	private static final ObjectMapper JSON = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 	public record Operation(String id, String actorId, long sequence, Set<String> parents,
@@ -79,7 +79,7 @@ public final class OperationLog {
 		} while (advanced);
 		List<Operation> pending = new ArrayList<>();
 		for (Operation operation : ordered) if (!applied.contains(operation.id())) pending.add(operation);
-		if (pending.size() > MAX_PENDING) throw new IllegalArgumentException("Too many pending podx operations");
+		if (pending.size() > MAX_PENDING) throw new IllegalArgumentException("Too many pending mpo operations");
 		List<Conflict> conflicts = detectConflicts(ordered);
 		return new MergeResult(List.copyOf(ready), List.copyOf(pending), conflicts);
 	}
