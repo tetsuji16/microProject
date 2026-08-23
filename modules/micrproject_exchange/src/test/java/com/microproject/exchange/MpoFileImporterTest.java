@@ -329,6 +329,30 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void draftManifestMustIdentifyTheProjectSnapshotEntry() throws Exception {
+		Project original = projectForRoundTrip();
+		ByteArrayOutputStream current = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, current);
+		Map<String, byte[]> entries = readEntries(current.toByteArray());
+		String xmlManifest = new String(entries.remove(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		String sha256 = xmlManifest.replaceFirst("(?s).*projectSha256=\\\"([^\\\"]+)\\\".*", "$1");
+		String documentId = xmlManifest.replaceFirst("(?s).*documentId=\\\"([0-9a-f-]{36})\\\".*", "$1");
+		entries.remove("meta.xml"); entries.remove("settings.xml"); entries.remove("operations/log.jsonl");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, ("{\"format\":\"mpof\",\"formatVersion\":\"1.0\",\"projectEntry\":\"wrong.xml\",\"projectSha256\":\"" + sha256 + "\",\"documentId\":\"" + documentId + "\"}\n").getBytes(StandardCharsets.UTF_8));
+		org.junit.jupiter.api.Assertions.assertThrows(IOException.class, () -> loadFromBytes(zip(entries).toByteArray()));
+	}
+
+	@Test
+	void currentAndDraftCcpmSettingsCannotBeMixed() throws Exception {
+		Project original = projectForRoundTrip();
+		ByteArrayOutputStream current = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, current);
+		Map<String, byte[]> entries = readEntries(current.toByteArray());
+		entries.put("ccpm.json", "{\"schemaVersion\":1,\"enabled\":false,\"bufferFraction\":0.2,\"levelingOrder\":\"MIN_SLACK\",\"onlyWithinAvailableSlack\":false,\"allowTaskSplits\":false}\n".getBytes(StandardCharsets.UTF_8));
+		org.junit.jupiter.api.Assertions.assertThrows(IOException.class, () -> loadFromBytes(zip(entries).toByteArray()));
+	}
+
+	@Test
 	void mpoRoundTripLoadsItsMspdiSnapshot() throws Exception {
 		Project original = projectForRoundTrip();
 		CriticalChainService.Settings ccpm = new CriticalChainService().settings(original);

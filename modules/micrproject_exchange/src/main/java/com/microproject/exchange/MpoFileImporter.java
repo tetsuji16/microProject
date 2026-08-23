@@ -140,6 +140,9 @@ public final class MpoFileImporter extends FileImporter {
 		if (manifest == null || projectXml == null) {
 			throw new IOException("An MPOF file must contain " + MANIFEST_ENTRY + " and " + PROJECT_ENTRY);
 		}
+		if (settings != null && draftCcpm != null) {
+			throw new IOException("MPOF contains both current and draft CCPM settings");
+		}
 		if (meta != null) validateMeta(meta);
 		validateManifest(new String(manifest, StandardCharsets.UTF_8), projectXml);
 		MicrosoftImporter delegate = new MicrosoftImporter();
@@ -532,7 +535,7 @@ public final class MpoFileImporter extends FileImporter {
 	private static ManifestData readDraftJsonManifest(String manifest, byte[] projectXml) throws IOException {
 		JsonNode root = object(manifest, MANIFEST_ENTRY);
 		String format = root.path("format").isTextual() ? root.path("format").textValue() : null;
-		if (!FORMAT_ID.equals(format) || !FORMAT_VERSION.equals(text(root, "formatVersion"))) throw new IOException("Unsupported or invalid draft MPOF manifest: format=" + format);
+		if (!FORMAT_ID.equals(format) || !FORMAT_VERSION.equals(text(root, "formatVersion")) || !PROJECT_ENTRY.equals(text(root, "projectEntry"))) throw new IOException("Unsupported or invalid draft MPOF manifest: format=" + format);
 		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its draft MPOF manifest");
 		String documentId = root.path("documentId").isTextual() ? root.path("documentId").textValue() : null;
 		Long projectUniqueId = root.path("projectUniqueId").canConvertToLong() ? Long.valueOf(root.path("projectUniqueId").longValue()) : null;
