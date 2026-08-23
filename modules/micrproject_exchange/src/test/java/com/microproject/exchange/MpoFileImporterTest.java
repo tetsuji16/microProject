@@ -27,6 +27,7 @@ import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.OperationLog;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -624,12 +625,25 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void checkedInCcpmPathSamplesAreAutomaticallyScheduledAndHonorPredecessors() throws Exception {
+		for (String name : new String[] { "CCPM path comparison English.mpo", "CCPM path comparison 日本語.mpo" }) {
+			Project loaded = load(findSample(name));
+			for (java.util.Iterator<?> tasks = loaded.getTaskOutlineIterator(); tasks.hasNext();) {
+				com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) tasks.next();
+				org.junit.jupiter.api.Assertions.assertFalse(task.isManuallyScheduled(), name + ": " + task.getName());
+				org.junit.jupiter.api.Assertions.assertFalse(ScheduleDiagnosticsService.hasDependencyConflict(task),
+					name + ": " + task.getName());
+			}
+		}
+	}
+
+	@Test
 	void japaneseCcpmSamplePreservesImportedTaskCompletionAfterAssignments() throws Exception {
-		Project loaded = load(findSample("CCPM sample 日本語.mpo"));
-		com.microproject.pm.task.Task phaseFive = findByName(loaded, "工程 5：設計と検証");
-		org.junit.jupiter.api.Assertions.assertNotNull(phaseFive);
-		org.junit.jupiter.api.Assertions.assertEquals(1.0D, phaseFive.getPercentComplete(), 0.00001D);
-		org.junit.jupiter.api.Assertions.assertEquals(1.0D, ((NormalTask) phaseFive).getPercentWorkComplete(), 0.00001D);
+		Project loaded = load(findSample("CCPM path comparison 日本語.mpo"));
+		com.microproject.pm.task.Task completedTask = findByName(loaded, "操作手順書");
+		org.junit.jupiter.api.Assertions.assertNotNull(completedTask);
+		org.junit.jupiter.api.Assertions.assertEquals(1.0D, completedTask.getPercentComplete(), 0.00001D);
+		org.junit.jupiter.api.Assertions.assertEquals(1.0D, ((NormalTask) completedTask).getPercentWorkComplete(), 0.00001D);
 	}
 
 	private static Project loadFromBytes(byte[] mpo) throws Exception {

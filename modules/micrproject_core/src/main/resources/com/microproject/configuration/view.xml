@@ -502,6 +502,7 @@
 			<column>Field.id</column>
 			<column>Field.indicators</column>
 			<column>Field.name</column>
+			<column>Field.manuallyScheduled</column>
 			<column>Field.duration</column>
 			<column>Field.percentWorkComplete</column>
 			<column>Field.start</column>

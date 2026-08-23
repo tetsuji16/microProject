@@ -1906,6 +1906,10 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final boolean isManuallyScheduled() {
 		return manuallyScheduled;
 	}
+	final void initializeManualScheduling() {
+		manuallyScheduled = true;
+		captureManualDates();
+	}
 	public final void setManuallyScheduled(boolean manuallyScheduled) {
 		if (this.manuallyScheduled == manuallyScheduled)
 			return;

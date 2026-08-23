@@ -79,7 +79,7 @@ public class MpxTaskConverter {
 		task.setActualFinish(toLong(mpxTask.getActualFinish()));
 		task.setActualDuration(toLong(mpxTask.getActualDuration()));
 		task.setRemainingDuration(toLong(mpxTask.getRemainingDuration()));
-		task.setDuration(toLong(mpxTask.getDuration()));
+		task.setDuration(MpxUtils.toProjectDuration(mpxTask.getDuration()));
 		task.setPercentComplete(toRatio(mpxTask.getPercentageComplete()));
 		if (mpxTask.getPhysicalPercentComplete() != null)
 			task.setPhysicalPercentComplete(toRatio(mpxTask.getPhysicalPercentComplete()));

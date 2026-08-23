@@ -28,13 +28,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.datatype.Duration;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.scheduling.ConstraintType;
 
 /** Explains scheduling state in user-oriented terms without changing the schedule. */
 public final class ScheduleDiagnosticsService {
 	public enum Severity { INFO, WARNING, ERROR }
 	public enum Type {
-		INACTIVE, MANUAL, MISSED_DEADLINE, NEGATIVE_SLACK, HARD_CONSTRAINT,
+		INACTIVE, MANUAL, DEPENDENCY_CONFLICT, MISSED_DEADLINE, NEGATIVE_SLACK, HARD_CONSTRAINT,
 		LATE_INCOMPLETE_WORK, OVERALLOCATED_RESOURCE, NO_ISSUES
 	}
 	public record Issue(Type type, Severity severity, String summary, String cause, String recommendation) { }
@@ -51,6 +55,11 @@ public final class ScheduleDiagnosticsService {
 			result.add(new Issue(Type.MANUAL, Severity.INFO, "Dates are manually scheduled",
 				"Automatic dependency and calendar calculations cannot move this task.",
 				"Switch to automatic scheduling if links should determine its dates."));
+		}
+		if (hasDependencyConflict(task)) {
+			result.add(new Issue(Type.DEPENDENCY_CONFLICT, Severity.ERROR, "Dates conflict with a predecessor",
+				"The task starts or finishes before an enabled predecessor link permits.",
+				"Switch the task to automatic scheduling, or revise its dates, link, or lag."));
 		}
 		if (task.getDeadline() > 0L && task.getEnd() > task.getDeadline() && !task.isInactiveTask()) {
 			result.add(new Issue(Type.MISSED_DEADLINE, Severity.ERROR, "Finish is after the deadline",
@@ -89,6 +98,59 @@ public final class ScheduleDiagnosticsService {
 				"No action is required."));
 		}
 		return List.copyOf(result);
+	}
+
+	/** Returns whether any enabled incoming link is contradicted by the task's current dates. */
+	public static boolean hasDependencyConflict(Task task) {
+		Objects.requireNonNull(task, "task");
+		for (var value : task.getPredecessorList()) {
+			Dependency dependency = (Dependency) value;
+			if (violates(dependency))
+				return true;
+		}
+		return false;
+	}
+
+	private static boolean violates(Dependency dependency) {
+		if (dependency.isDisabled())
+			return false;
+		Task predecessor = (Task) dependency.getPredecessor();
+		Task successor = (Task) dependency.getSuccessor();
+		// Auto-scheduled tasks are resolved by the scheduling engine; a user-facing
+		// conflict is meaningful only when manually entered dates override that result.
+		if (!successor.isManuallyScheduled())
+			return false;
+		if (predecessor.isInactiveTask() || successor.isInactiveTask())
+			return false;
+
+		WorkCalendar calendar = dependency.getEffectiveWorkCalendar();
+		long requiredDate;
+		long scheduledDate;
+		switch (DependencyType.Kind.fromCode(dependency.getDependencyType())) {
+			case FS -> {
+				requiredDate = requiredDate(calendar, predecessor.getEnd(), dependency, successor);
+				scheduledDate = successor.getStart();
+			}
+			case SS -> {
+				requiredDate = requiredDate(calendar, predecessor.getStart(), dependency, successor);
+				scheduledDate = successor.getStart();
+			}
+			case FF -> {
+				requiredDate = requiredDate(calendar, predecessor.getEnd(), dependency, successor);
+				scheduledDate = successor.getEnd();
+			}
+			case SF -> {
+				requiredDate = requiredDate(calendar, predecessor.getStart(), dependency, successor);
+				scheduledDate = successor.getEnd();
+			}
+			default -> throw new IllegalStateException("Unsupported dependency type");
+		}
+		return scheduledDate < requiredDate;
+	}
+
+	private static long requiredDate(WorkCalendar calendar, long predecessorDate, Dependency dependency, Task successor) {
+		long lag = dependency.getLeadValue();
+		return Duration.millis(lag) == 0L ? predecessorDate : calendar.add(predecessorDate, lag, successor.isMilestone());
 	}
 
 	private static boolean isHardConstraint(int type) {

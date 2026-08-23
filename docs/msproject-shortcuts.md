@@ -64,6 +64,31 @@ were removed so each key resolves to exactly one action.
 | `F2` | Activate entry bar / edit field | edit selected cell on active spreadsheet | New global route (was only on spreadsheet). |
 | `Shift+F2` | Display task/resource/assignment information | `ACTION_INFORMATION` | New. |
 
+## Spreadsheet edit-entry and shortcut precedence
+
+The task spreadsheet adopts Excel-style direct cell entry.  microProject does not
+have a separate Entry Bar, so an editable selected cell is edited in place.
+
+1. A shortcut always wins over text entry.  `Tab`, `Shift+Tab`, `Ctrl+Arrow`,
+   `Ctrl+Z`, `Ctrl+Y`, and every key with Ctrl, Alt, or Meta are dispatched through
+   their shortcut binding; they must never open an editor or insert a character.
+2. When the name field has focus, this rule also applies *while editing*: `Tab` and
+   `Shift+Tab` indent/outdent; `Ctrl+Left`/`Ctrl+Right` collapse/expand; and
+   `Ctrl+Up`/`Ctrl+Down` move to the previous/next visible task at the same outline
+   level.  The active edit is finished before a hierarchy operation is performed.
+3. In a non-editing editable cell, a printable character starts in-place editing and
+   replaces the existing value with that character.  The first IME composition starts
+   the same in-place edit and replaces the existing value with the composed text.
+   This is intentionally Excel-style direct entry, not an emulation of Project's
+   Entry Bar.
+4. `F2` starts in-place editing with the caret at the end of the existing value.
+   `Enter` commits a valid value and moves selection one row down.  Invalid input or
+   active IME composition prevents that commit/move.
+
+The editor owns the keys in item 2 through its `WHEN_FOCUSED` input map.  This keeps
+the shortcut resolution deterministic even though the text editor, rather than the
+table, owns focus during cell editing.
+
 ### Not yet wired (no equivalent action in microProject)
 
 These MS Project shortcuts have no corresponding handler/action in microProject yet, so

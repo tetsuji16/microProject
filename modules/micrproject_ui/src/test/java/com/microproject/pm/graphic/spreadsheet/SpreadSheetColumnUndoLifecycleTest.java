@@ -44,7 +44,7 @@ import com.microproject.pm.task.Project;
 class SpreadSheetColumnUndoLifecycleTest {
 	@Test
 	void columnUndoEditDoesNotRetainTheSwingSpreadsheet() throws Exception {
-		Class<?> editType = Class.forName(SpreadSheet.class.getName() + "$ColumnRemovalEdit");
+		Class<?> editType = Class.forName(SpreadSheet.class.getName() + "$ColumnLayoutEdit");
 
 		assertTrue(Modifier.isStatic(editType.getModifiers()));
 		assertFalse(Arrays.stream(editType.getDeclaredFields())

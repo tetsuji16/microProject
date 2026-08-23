@@ -99,6 +99,7 @@ public class LocalSession extends AbstractSession{
     	});
     	job.addExceptionRunnable(new JobRunnable("Local: exception"){
     		public Object run() throws Exception{
+			logJobFailure("Failed to close local projects", job.getFailureException());
     			Alert.error(Messages.getString("Message.serverError"));
     			return null;
     		}
@@ -422,14 +423,33 @@ public class LocalSession extends AbstractSession{
 
         	//setProgress(((float)++i)/((float)count));
 		}
-     	job.addExceptionRunnable(new JobRunnable("Local: exception"){
-    		public Object run() throws Exception{
-    			Alert.error(Messages.getString("Message.serverError"));
-    			return null;
-    		}
-    	});
+		job.addExceptionRunnable(new JobRunnable("Local: exception"){
+			public Object run() throws Exception{
+				Exception failure = job.getFailureException();
+				logSaveFailure(opt.getFileName(), opt.isRecoverySnapshot(), failure);
+				// Recovery snapshots run in the background. Their failure must not
+				// interrupt the user with a dialog.
+				if (!opt.isRecoverySnapshot()) {
+					Alert.error(Messages.getString("Message.saveError"));
+				}
+				return null;
+			}
+		});
     	return job;
      }
+
+	private void logSaveFailure(String fileName, boolean recoverySnapshot, Exception failure) {
+		String operation = recoverySnapshot ? "Automatic recovery snapshot save failed" : "Project save failed";
+		logJobFailure(operation + "; file=" + fileName, failure);
+	}
+
+	private void logJobFailure(String operation, Exception failure) {
+		if (failure == null) {
+			logger.warning(operation + "; the job did not expose an exception");
+		} else {
+			logger.log(Level.WARNING, operation, failure);
+		}
+	}
     
     
     public String chooseFileName(final boolean save,String selectedFileName){

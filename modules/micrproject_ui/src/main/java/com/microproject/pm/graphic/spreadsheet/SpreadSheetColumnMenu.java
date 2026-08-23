@@ -68,11 +68,12 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 			public void actionPerformed(ActionEvent arg0) {
 				Field field = ColumnDialog.getFieldFromDialog(sp,sp.getAvailableFields(),fields);
 				if (field != null) {
-					int c = col;
-					if (c == 0) // takes care of when adding off to right. projectlibre bug 1815404 
-						c = fields.size();
-					sp.setFieldArray(fields.insertField(c, field));
-
+					int c = col <= 0 ? fields.size() : Math.min(col, fields.size());
+					if (sp instanceof SpreadSheet sheet) {
+						sheet.insertColumn(c, field);
+					} else {
+						sp.setFieldArray(fields.insertField(c, field));
+					}
 				}
 			}
 		});
@@ -124,4 +125,3 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 		add(autoFilter);
 	}
 }
-

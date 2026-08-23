@@ -88,7 +88,7 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
-	void settingPercentWorkCompleteSynchronizesDefaultTrackingWithoutChangingPlannedBarBounds() {
+	void settingPercentWorkCompleteDoesNotChangeDurationBasedPercentComplete() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
@@ -103,7 +103,7 @@ class NormalTaskPercentCompleteTest {
 		task.setPercentWorkComplete(0.2d);
 		task.setPercentWorkComplete(0.4d);
 
-		assertEquals(0.4d, task.getPercentComplete(), 0.00001d);
+		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
 		assertEquals(originalStart, task.getStart());
 		assertEquals(originalEnd, task.getEnd());
 		assertEquals(originalDuration, task.getDuration());
@@ -136,13 +136,26 @@ class NormalTaskPercentCompleteTest {
 		assertEquals(plannedWork - Math.round(plannedWork * 0.25d), task.getRemainingWork(null));
 		assertEquals(Math.round(assignment.getWork(null) * 0.25d), assignment.getActualWork(null));
 		assertEquals(0.25d, task.getPercentWorkComplete(), 0.00001d);
-		assertEquals(0.25d, task.getPercentComplete(), 0.00001d);
+		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
 		assertEquals(originalStart, task.getStart());
 		assertEquals(originalEnd, task.getEnd());
 	}
 
 	@Test
-	void settingActualWorkUpdatesBothTrackingPercentages() {
+	void settingPercentWorkCompletePreservesExistingDurationBasedProgress() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assignWork(project, task, 8L * 60L * 60L * 1000L);
+		task.setPercentComplete(0.60d);
+
+		task.setPercentWorkComplete(0.25d);
+
+		assertEquals(0.25d, task.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.60d, task.getPercentComplete(), 0.00001d);
+	}
+
+	@Test
+	void settingActualWorkUpdatesWorkProgressWithoutChangingDurationProgress() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
 		assignWork(project, task, 8L * 60L * 60L * 1000L);
@@ -150,13 +163,13 @@ class NormalTaskPercentCompleteTest {
 		task.setActualWork(2L * 60L * 60L * 1000L, null);
 
 		assertEquals(0.25d, task.getPercentWorkComplete(), 0.00001d);
-		assertEquals(0.25d, task.getPercentComplete(), 0.00001d);
+		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
 		assertEquals(2L * 60L * 60L * 1000L, task.getActualWork(null));
 		assertEquals(6L * 60L * 60L * 1000L, task.getRemainingWork(null));
 	}
 
 	@Test
-	void percentWorkCompleteSetsActualStartAndFinishAtMsProjectBoundaries() {
+	void percentWorkCompleteDoesNotCompleteTaskDurationProgress() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
 		assignWork(project, task, 8L * 60L * 60L * 1000L);
@@ -165,7 +178,8 @@ class NormalTaskPercentCompleteTest {
 		assertEquals(task.getStart(), task.getActualStart());
 
 		task.setPercentWorkComplete(1.0d);
-		assertEquals(task.getEnd(), task.getActualFinish());
+		assertEquals(1.0d, task.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
 	}
 
 	@Test

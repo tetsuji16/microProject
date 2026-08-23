@@ -31,6 +31,7 @@ import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.HasTaskIndicators;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
@@ -52,6 +53,7 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 	protected JLabel parentAssignment;
 	protected JLabel subproject;
 	protected JLabel invalidProject;
+	protected JLabel dependencyConflict;
 	protected JLabel delegated;
 	protected JLabel delegatedMe;
 	Field constraintTypeField = Configuration.getFieldFromId("Field.constraintType"); //$NON-NLS-1$
@@ -87,6 +89,8 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 		subproject.setOpaque(false);
 		invalidProject = new JLabel(" ",IconManager.getIcon("indicator.invalidProject"),  JLabel.RIGHT); //$NON-NLS-1$ //$NON-NLS-2$
 		invalidProject.setOpaque(false);
+		dependencyConflict = new JLabel(" ",IconManager.getIcon("indicator.invalidProject"), JLabel.RIGHT); //$NON-NLS-1$ //$NON-NLS-2$
+		dependencyConflict.setOpaque(false);
 		delegated = new JLabel(" ",IconManager.getIcon("indicator.delegated"),  JLabel.RIGHT); //$NON-NLS-1$ //$NON-NLS-2$
 		delegated.setOpaque(false);
 		delegatedMe = new JLabel(" ",IconManager.getIcon("indicator.delegatedMe"),  JLabel.RIGHT); //$NON-NLS-1$ //$NON-NLS-2$
@@ -134,6 +138,11 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 		
 		if (indicators instanceof Task) {
 			Task t = (Task)indicators;
+			if (ScheduleDiagnosticsService.hasDependencyConflict(t)) {
+				setLook(dependencyConflict,isSelected,hasFocus);
+				label.add(dependencyConflict);
+				text.append(Messages.getString("TaskIndicatorsComponent.DependencyConflict")); //$NON-NLS-1$
+			}
 			if (t.isSubproject()) {
 				SubProj s = (SubProj)t;
 				if (s.isValid()) {

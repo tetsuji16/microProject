@@ -1632,7 +1632,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			return;
 		}
 		percentWorkCompleteOverride = Double.NaN;
-		setPercentComplete(percentWorkComplete);
+		double durationPercentComplete = getPercentComplete();
+		// % Work Complete tracks actual work, while % Complete tracks elapsed
+		// duration. Keep the latter unchanged so the standard Gantt progress bar
+		// continues to represent % Complete, matching Microsoft Project.
+		updateAssignmentPercentComplete(percentWorkComplete);
+		setImportedPercentComplete(durationPercentComplete);
 
 	}
 
@@ -2069,6 +2074,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public void setActualWork(long actualWork, FieldContext context) {
+		double durationPercentComplete = getPercentComplete();
 
 		if (FieldContext.hasInterval(context)) {
 			Iterator i = getAssignments().iterator();
@@ -2079,15 +2085,15 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		} else {
 			long workValue = Duration.millis(actualWork);
 			long totalWork = Duration.millis(getWork(null));
-			if (workValue == 0L) {
-				setPercentComplete(0);
-			} else if (workValue <= totalWork) {
-				setPercentComplete(((double) workValue) / totalWork);
+			if (workValue <= totalWork) {
+				double percentWorkComplete = totalWork == 0L ? 0.0D : ((double) workValue) / totalWork;
+				updateAssignmentPercentComplete(percentWorkComplete);
 			} else {
 				long  date = ReverseQuery.getDateAtValue(WORK, this, workValue, false);
 				setStop(date);
 			}
 		}
+		setImportedPercentComplete(durationPercentComplete);
 	}
 
 	public boolean isReadOnlyActualWork(FieldContext fieldContext) {

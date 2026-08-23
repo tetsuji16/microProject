@@ -68,6 +68,7 @@ public class Job extends Thread {
 	protected boolean queued=true;
 	protected boolean customCriticalSection;
 	protected Component monitorComponent;
+	private volatile Exception failureException;
 
 	public Job(JobQueue jobQueue, String name,String title,boolean showProgress) {
 		this(jobQueue,name,title,showProgress,null);
@@ -514,6 +515,15 @@ public class Job extends Thread {
 //		return ((InternalRunnable)runnables.get(index)).getException();
 //	}
 
+	/**
+	 * Returns the exception that caused execution to enter an exception handler.
+	 * This is available while an exception handler is running, so callers can
+	 * record operation-specific context without losing the original cause.
+	 */
+	public Exception getFailureException() {
+		return failureException;
+	}
+
 	public Object waitResult() throws Exception{
 		globalMutex.waitUntilUnlocked();
 		if (previousRunnable==null) return null;
@@ -561,6 +571,7 @@ public class Job extends Thread {
 
 	public void addExceptionRunnable(JobRunnable runnable){
 		runnables.add(new InternalRunnable(runnable,false,false,true,true));
+		runnable.setJob(this);
 		weight+=runnable.getWeight();
 	}
 
@@ -673,6 +684,7 @@ public class Job extends Thread {
 			} catch (Exception e) {
 				//System.out.println("Exception: "+getName());
 				exception=e;
+				failureException=e;
 				if (!(e instanceof JobCanceledException)){
 					ErrorLogger.log("Job Exception: " + getName(),e);
 				}

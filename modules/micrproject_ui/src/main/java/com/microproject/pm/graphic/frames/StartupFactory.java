@@ -127,8 +127,6 @@ public abstract class StartupFactory {
 
 
 	public GraphicManager instanceFromNewSession(Container container,  final boolean doWelcome) {
-		VersionUtils.versionCheck(true);
-		if (!VersionUtils.isJnlpUpToDate()) logger.info("Jnlp isn't up to date, current version is: " + VersionUtils.getJnlpVersion());
 		long t=System.currentTimeMillis();
 //		System.out.println("---------- StartupFactory instanceFromNewSession#1 main");
 		Environment.setClientSide(true);

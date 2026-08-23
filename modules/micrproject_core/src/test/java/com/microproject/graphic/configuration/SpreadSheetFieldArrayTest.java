@@ -25,6 +25,7 @@
 package com.microproject.graphic.configuration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 
@@ -68,5 +69,31 @@ class SpreadSheetFieldArrayTest {
         Field field = new Field();
         fields.add(field);
         assertEquals(field, fields.getFirst());
+    }
+
+    @Test
+    void columnLayoutChangesKeepSavedWidthsAlignedWithFields() {
+        SpreadSheetFieldArray fields = new SpreadSheetFieldArray();
+        Field id = new Field();
+        Field name = new Field();
+        Field duration = new Field();
+        Field start = new Field();
+        fields.add(id);
+        fields.add(name);
+        fields.add(duration);
+        fields.setWidths(new ArrayList<>(java.util.List.of(-1, 160, 80)));
+        fields.setManualWidths(new ArrayList<>(java.util.List.of(false, true, false)));
+
+        fields.insertField(2, start);
+        assertIterableEquals(java.util.List.of(-1, 160, -1, 80), fields.getWidths());
+        assertIterableEquals(java.util.List.of(false, true, false, false), fields.getManualWidths());
+
+        fields.removeField(1);
+        assertIterableEquals(java.util.List.of(-1, -1, 80), fields.getWidths());
+        assertIterableEquals(java.util.List.of(false, false, false), fields.getManualWidths());
+
+        fields.move(2, 1);
+        assertIterableEquals(java.util.List.of(-1, 80, -1), fields.getWidths());
+        assertIterableEquals(java.util.List.of(false, false, false), fields.getManualWidths());
     }
 }

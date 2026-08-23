@@ -983,6 +983,13 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 			range.validate(value, this);
 		}
 
+		// A clipboard paste validates every cell with a parse-only context before it
+		// applies any change.  Task-sheet fields must honour that contract too:
+		// applying the scheduling workflow here mutates a task during validation and
+		// leaves a partial paste behind when a later cell is invalid.
+		if (FieldContext.isParseOnly(context))
+			return false;
+
 		Long taskSheetScheduleValue = toTaskSheetScheduleValue(value);
 		if (FieldContext.isTaskSheetUpdate(context) && TaskSheetScheduleWorkflow.isScheduleField(id) && taskSheetScheduleValue != null) {
 			if (TaskSheetScheduleWorkflow.apply(object, id, taskSheetScheduleValue.longValue())) {
@@ -995,8 +1002,6 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		}
 
 		if (methodSet == null)
-			return false;
-		if (FieldContext.isParseOnly(context)) // if just parsing, do not set
 			return false;
 		try {
 			if (isMap()) {

@@ -39,6 +39,7 @@ class JobExceptionHandlerTest {
 		JobQueue queue = new JobQueue("exception-handler-test", false);
 		Job job = new Job(queue, "failing-job", "Failing job", false);
 		CountDownLatch handled = new CountDownLatch(1);
+		java.util.concurrent.atomic.AtomicReference<Exception> observedFailure = new java.util.concurrent.atomic.AtomicReference<>();
 		job.addRunnable(new JobRunnable("fail") {
 			public Object run() throws Exception {
 				throw new Exception("expected");
@@ -46,6 +47,7 @@ class JobExceptionHandlerTest {
 		});
 		job.addExceptionRunnable(new JobRunnable("handle") {
 			public Object run() {
+				observedFailure.set(job.getFailureException());
 				handled.countDown();
 				return null;
 			}
@@ -54,6 +56,7 @@ class JobExceptionHandlerTest {
 		queue.schedule(job);
 
 		assertTrue(handled.await(5, TimeUnit.SECONDS));
+		assertEquals("expected", observedFailure.get().getMessage());
 	}
 
 	@Test

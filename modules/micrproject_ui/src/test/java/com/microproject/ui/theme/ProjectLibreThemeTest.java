@@ -60,6 +60,17 @@ class ProjectLibreThemeTest {
 	}
 
 	@Test
+	void taskTableUsesTheMicrosoftProjectPalette() {
+		ProjectLibreThemeTokens tokens = ProjectLibreThemeTokens.light();
+
+		assertEquals(new Color(0xF2F2F2), tokens.spreadsheetHeaderBackground());
+		assertEquals(new Color(0xD9EAF7), tokens.spreadsheetHeaderSelectedBackground());
+		assertEquals(new Color(0xCCE4F7), tokens.spreadsheetRangeSelectionBackground());
+		assertEquals(new Color(0x0078D7), tokens.spreadsheetActiveCellBorder());
+		assertEquals(new Color(0xD9D9D9), tokens.spreadsheetGridColor());
+	}
+
+	@Test
 	void ribbonChromeMatchesTheWindowsTitleBarGray() {
 		assertEquals(new Color(0xF2F2F2), ProjectLibreThemeTokens.light().ribbonChromeBackground());
 	}

@@ -1309,19 +1309,42 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 		SpreadSheetFieldArray before = (SpreadSheetFieldArray) fields.clone();
 		SpreadSheetFieldArray after = fields.removeField(fieldIndex);
+		applyColumnLayoutChange(before, after, viewColumn, Messages.getString("SpreadSheetColumnMenu.HideColumn"));
+		return true;
+	}
+
+	/** Inserts an available field at a field-array index (which includes the hidden ID field). */
+	boolean insertColumn(int fieldIndex, Field field) {
+		if (!isCanModifyColumns() || field == null || !(getFieldArray() instanceof SpreadSheetFieldArray fields)) {
+			return false;
+		}
+		for (Field current : fields) {
+			if (field.getId().equals(current.getId())) {
+				return false;
+			}
+		}
+		int insertionIndex = Math.max(1, Math.min(fieldIndex, fields.size()));
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) fields.clone();
+		SpreadSheetFieldArray after = fields.insertField(insertionIndex, field);
+		applyColumnLayoutChange(before, after, insertionIndex - 1,
+				Messages.getString("SpreadSheetColumnMenu.InsertColumn"));
+		return true;
+	}
+
+	private void applyColumnLayoutChange(SpreadSheetFieldArray before, SpreadSheetFieldArray after,
+			int preferredColumn, String presentationName) {
 		Project project = getLayoutProject();
 		if (project != null)
 			project.setFieldArray(after);
 		setFieldArray(after);
-		selectColumnAfterColumnChange(Math.min(viewColumn, getColumnCount() - 1));
+		selectColumnAfterColumnChange(Math.min(preferredColumn, getColumnCount() - 1));
 
 		var cache = getCache();
 		var undoController = cache == null || cache.getModel() == null ? null : cache.getModel().getUndoController();
 		if (undoController != null) {
-			undoController.getEditSupport().postEdit(new ColumnRemovalEdit(
-					cache.getModel(), this, getSpreadSheetCategory(), project, before, after, viewColumn));
+			undoController.getEditSupport().postEdit(new ColumnLayoutEdit(
+					cache.getModel(), this, getSpreadSheetCategory(), project, before, after, preferredColumn, presentationName));
 		}
-		return true;
 	}
 
 	private void selectColumnAfterColumnChange(int column) {
@@ -1343,7 +1366,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return project;
 	}
 
-	private static final class ColumnRemovalEdit extends AbstractUndoableEdit {
+	private static final class ColumnLayoutEdit extends AbstractUndoableEdit {
 		private static final long serialVersionUID = 1L;
 		private final WeakReference<NodeModel> model;
 		private final WeakReference<SpreadSheet> source;
@@ -1352,9 +1375,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		private final SpreadSheetFieldArray before;
 		private final SpreadSheetFieldArray after;
 		private final int selectedColumn;
+		private final String presentationName;
 
-		private ColumnRemovalEdit(NodeModel model, SpreadSheet source, String category, Project project,
-				SpreadSheetFieldArray before, SpreadSheetFieldArray after, int selectedColumn) {
+		private ColumnLayoutEdit(NodeModel model, SpreadSheet source, String category, Project project,
+				SpreadSheetFieldArray before, SpreadSheetFieldArray after, int selectedColumn, String presentationName) {
 			this.model = new WeakReference<>(model);
 			this.source = new WeakReference<>(source);
 			this.category = category;
@@ -1362,6 +1386,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			this.before = (SpreadSheetFieldArray) before.clone();
 			this.after = (SpreadSheetFieldArray) after.clone();
 			this.selectedColumn = selectedColumn;
+			this.presentationName = presentationName;
 		}
 
 		@Override
@@ -1390,7 +1415,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 		@Override
 		public String getPresentationName() {
-			return Messages.getString("SpreadSheetColumnMenu.HideColumn");
+			return presentationName;
 		}
 	}
 

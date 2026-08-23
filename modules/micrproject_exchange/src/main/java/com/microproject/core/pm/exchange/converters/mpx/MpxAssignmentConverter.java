@@ -51,7 +51,12 @@ public class MpxAssignmentConverter {
 		assignment.setTaskAndResource(task, resource);
 
 		// main snapshot only (snapshotId handling for baselines is skipped, see #154)
-		assignment.setStart(toLong(mpxAssignment.getStart()));
+		long assignmentStart = toLong(mpxAssignment.getStart());
+		// AssignmentDetail stores a start as a delay relative to the task. During
+		// import the task's schedule can still be uninitialised, so feeding the
+		// identical task date through setStart turns it into an epoch-sized delay.
+		if (assignmentStart != 0L && assignmentStart != task.getStart())
+			assignment.setStart(assignmentStart);
 		assignment.setEnd(toLong(mpxAssignment.getFinish()));
 		assignment.setWork(toLong(mpxAssignment.getWork()), null);
 		assignment.setPercentComplete(mpxAssignment.getPercentageWorkComplete() == null

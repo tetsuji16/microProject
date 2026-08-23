@@ -99,8 +99,7 @@ import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttColorPalette;
 import com.microproject.util.GanttProgress;
 import com.microproject.util.DateFieldSupport;
-import com.microproject.util.MondayComPalette;
-import com.microproject.util.MondayGanttTheme;
+import com.microproject.util.MicrosoftProjectGanttPalette;
 
 public class GanttRenderer extends GraphRenderer implements Serializable {
 	/**
@@ -126,7 +125,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
     protected GraphicConfiguration config;
     protected JComponent container;
-	protected GanttColorPalette palette = new MondayComPalette();
+	protected GanttColorPalette palette = new MicrosoftProjectGanttPalette();
 
 	/** Colors resolved exactly as an automatically formatted task bar is painted. */
 	public record DisplayedBarColors(Integer startRgb, Integer middleRgb, Integer endRgb) {
@@ -259,7 +258,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 	private Color resolveProgressFillColor(GraphicNode node) {
 		Object impl = getNodeImpl(node);
-		return palette.getStatusColor(getSchedule(impl), impl);
+		return palette.getProgressFillColor(palette.getStatusColor(getSchedule(impl), impl));
 	}
 
 	private Color resolveAccentColor(GraphicNode node, BarFormat format, Color statusColor) {
@@ -685,7 +684,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 					double progressRatio = intervalProgressRatio;
 					Color progressFillColor = resolveProgressFillColor(node);
 					Color progressTrackColor = (GanttBarSupport.shouldUseModernCapsuleBar(format) && progressRatio < 1.0d)
-							? MondayGanttTheme.soften(statusColor, 0.46f)
+							? palette.getProgressTrackColor(statusColor)
 							: statusColor;
 					if (format != null && "Bar.summary".equals(format.getId()))
 						paintSummaryBar(g2, summaryBounds, statusColor, progressFillColor, accentColor, progressRatio);

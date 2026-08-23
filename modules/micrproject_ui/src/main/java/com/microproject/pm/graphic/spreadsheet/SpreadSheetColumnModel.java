@@ -72,6 +72,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	private ArrayList<Field> originalFieldArray; // will not change
 	private Map<String,Integer> colWidthMap;
 	private final Set<String> configuredWidthFields = new HashSet<>();
+	private final Set<String> manuallyAdjustedWidthFields = new HashSet<>();
 
 	boolean svg;
 	/**
@@ -95,13 +96,15 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			if (colWidthList==null) return;
 			Iterator<Field> a = sa.iterator();
 			Iterator<Integer> s=colWidthList.iterator();
+			int column = 0;
 			while (a.hasNext()&&s.hasNext()){
 				String f=a.next().getId();
 				int size=s.next();
 				if (!colWidthMap.containsKey(f)) {
 					colWidthMap.put(f, size);
-					if (size > 0) configuredWidthFields.add(f);
+					if (size > 0 && sa.isManualWidth(column)) configuredWidthFields.add(f);
 				}
+				column++;
 			}
 		}
 	}
@@ -206,6 +209,12 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			if (size==null||size<=0) colWidthMap.put(field.getId(),tc.getPreferredWidth());
 			else tc.setPreferredWidth(size);
 			colWidth += tc.getPreferredWidth();
+			tc.addPropertyChangeListener(event -> {
+				if ("width".equals(event.getPropertyName()) && event.getNewValue() instanceof Number number
+						&& number.intValue() > 0) {
+					manuallyAdjustedWidthFields.add(field.getId());
+				}
+			});
 		}
 		columnIndex++;
 	}
@@ -241,6 +250,10 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 
 	public int getColWidth() {
 		return colWidth;
+	}
+
+	public boolean isWidthManuallyAdjusted(String fieldId) {
+		return manuallyAdjustedWidthFields.contains(fieldId);
 	}
 
 	public boolean isSvg() {

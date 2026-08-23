@@ -53,7 +53,7 @@ public class MpxExportTrackingTest extends TestCase {
 		net.sf.mpxj.Task target = new ProjectFile().addTask();
 		MPXConverter.toMPXTask(source, target);
 
-		assertEquals(40.0d, target.getPercentageComplete().doubleValue(), 0.00001d);
+		assertEquals(0.0d, target.getPercentageComplete().doubleValue(), 0.00001d);
 		assertEquals(40.0d, target.getPercentageWorkComplete().doubleValue(), 0.00001d);
 		assertEquals(30.0d, target.getPhysicalPercentComplete().doubleValue(), 0.00001d);
 		assertNotNull(target.getActualStart());
@@ -95,7 +95,8 @@ public class MpxExportTrackingTest extends TestCase {
 		net.sf.mpxj.Task exportedTask = exported.getTasks().stream()
 				.filter(task -> "Tracking task".equals(task.getName()))
 				.findFirst().orElseThrow();
-		assertEquals(40.0d, exportedTask.getPercentageComplete().doubleValue(), 0.00001d);
+		assertEquals(0.0d, exportedTask.getPercentageComplete().doubleValue(), 0.00001d);
+		assertEquals(40.0d, exportedTask.getPercentageWorkComplete().doubleValue(), 0.00001d);
 
 		MicrosoftImporter importer = new MicrosoftImporter();
 		importer.setFileName("tracking.xml");
@@ -112,7 +113,8 @@ public class MpxExportTrackingTest extends TestCase {
 		}
 		assertNotNull(reloadedTask);
 
-		assertEquals(0.40d, reloadedTask.getPercentComplete(), 0.00001d);
+		assertEquals(0.0d, reloadedTask.getPercentComplete(), 0.00001d);
+		assertEquals(0.40d, reloadedTask.getPercentWorkComplete(), 0.00001d);
 		assertEquals(0.30d, reloadedTask.getPhysicalPercentComplete(), 0.00001d);
 		assertTrue(reloadedTask.isManuallyScheduled());
 		assertTrue(reloadedTask.isInactiveTask());

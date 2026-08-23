@@ -205,11 +205,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		// the widths don't work now anyway, and someone had a crash due to code below
 		var cols = (SpreadSheetColumnModel) getColumnModel();
 		var colWidths = new ArrayList<Integer>(cols.getColumnCount());
+		var manualWidths = new ArrayList<Boolean>(cols.getColumnCount() + 1);
 		colWidths.add(-1); //id column ignored
+		manualWidths.add(false);
 		for (int i = 0; i < cols.getColumnCount(); i++) {
 			colWidths.add(cols.getColumn(i).getWidth());
+			manualWidths.add(cols.isWidthManuallyAdjusted(((Field) cols.getColumn(i).getIdentifier()).getId()));
 		}
 		((SpreadSheetFieldArray)fieldArray).setWidths(colWidths);
+		((SpreadSheetFieldArray)fieldArray).setManualWidths(manualWidths);
 		return (SpreadSheetFieldArray) fieldArray;
 	}
 

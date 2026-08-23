@@ -40,6 +40,7 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.menu.MenuActionConstants;
@@ -76,6 +77,59 @@ class SpreadSheetHierarchyNavigationTest {
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK)));
 			assertNotNull(editor.getClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY));
 			assertNotNull(editor.getClientProperty(ChangeAwareTextField.NAME_HIERARCHY_NEXT_ACTION_PROPERTY));
+		});
+	}
+
+	@Test
+	void nameEditorGivesTaskShortcutsPriorityOverTextEntry() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			SpreadSheetCellEditorAdapter adapter = new SpreadSheetCellEditorAdapter(new SimpleEditor(String.class));
+			int nameColumn = findNameColumn(sheet);
+			int row = findRow(sheet, fixture.firstChild());
+			JComponent editor = (JComponent) adapter.getTableCellEditorComponent(sheet, "Task", true, row, nameColumn);
+			InputMap editorInputMap = editor.getInputMap(JComponent.WHEN_FOCUSED);
+
+			assertEquals(SpreadSheet.NAME_COLUMN_INDENT_ACTION,
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0)));
+			assertEquals(SpreadSheet.NAME_COLUMN_OUTDENT_ACTION,
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK)));
+			assertEquals(ChangeAwareTextField.NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY,
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, KeyEvent.CTRL_DOWN_MASK)));
+			assertEquals(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY,
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, KeyEvent.CTRL_DOWN_MASK)));
+			assertEquals("spreadsheet.nameColumnUndo",
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK)));
+			assertEquals("spreadsheet.nameColumnRedo",
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK)));
+		});
+	}
+
+	@Test
+	void insertingAColumnUpdatesTheTaskLayoutAndSelectsTheInsertedField() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			Field field = sheet.getAvailableFields().stream()
+				.filter(candidate -> !sheet.getFieldArray().contains(candidate))
+				.findFirst()
+				.orElseThrow();
+			int fieldCount = sheet.getFieldArray().size();
+			int columnCount = sheet.getColumnCount();
+
+			assertTrue(sheet.insertColumn(2, field));
+			assertEquals(fieldCount + 1, sheet.getFieldArray().size());
+			assertEquals(columnCount + 1, sheet.getColumnCount());
+			assertEquals(field, sheet.getFieldArray().get(2));
+			assertEquals(1, sheet.getSelectedColumn());
+
+			fixture.project().getUndoController().undo();
+			assertEquals(fieldCount, sheet.getFieldArray().size());
+			assertEquals(columnCount, sheet.getColumnCount());
+			fixture.project().getUndoController().redo();
+			assertEquals(fieldCount + 1, sheet.getFieldArray().size());
+			assertEquals(field, sheet.getFieldArray().get(2));
 		});
 	}
 
@@ -214,7 +268,7 @@ class SpreadSheetHierarchyNavigationTest {
 		}
 		cache.update();
 
-		return new Fixture(sheet, firstChild, secondChild);
+		return new Fixture(sheet, project, firstChild, secondChild);
 	}
 
 	private NormalTask createTask(Project project, String name) {
@@ -242,7 +296,7 @@ class SpreadSheetHierarchyNavigationTest {
 		return model.findGraphicNodeRow(sheet.getCache().getGraphicNode(node));
 	}
 
-	private record Fixture(SpreadSheet sheet, NormalTask firstChild, NormalTask secondChild) {}
+	private record Fixture(SpreadSheet sheet, Project project, NormalTask firstChild, NormalTask secondChild) {}
 
 	private static final class RecordingSpreadSheet extends SpreadSheet {
 		private static final long serialVersionUID = 1L;

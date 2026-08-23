@@ -52,11 +52,13 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	transient Map<String, String> map = new LinkedHashMap<>();
 	transient boolean userCreated = false;
 	ArrayList<Integer> widths = null;//new ArrayList<Integer>();
+	ArrayList<Boolean> manualWidths = null;
 	@Override
 	public SpreadSheetFieldArray clone() {
 		SpreadSheetFieldArray copy = (SpreadSheetFieldArray) super.clone();
 		copy.map = new LinkedHashMap<>(map);
 		copy.widths = widths == null ? null : new ArrayList<>(widths);
+		copy.manualWidths = manualWidths == null ? null : new ArrayList<>(manualWidths);
 		return copy;
 	}
 
@@ -86,26 +88,69 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	}
 	public SpreadSheetFieldArray insertField(int position,Field field) {
 		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
 		f.add(position,field);
-		//f.widths.add(field.getColumnWidth());
+		f.insertColumnMetadata(position);
 		return f;
 	}
 
 	public SpreadSheetFieldArray removeField(int position) {
 		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
 		f.remove(position);
-		//f.widths.remove(position);
+		f.removeColumnMetadata(position);
 		return f;
 	}
 	public SpreadSheetFieldArray move(int oldPosition, int newPosition) {
 		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
 		Field field = f.remove(oldPosition);
-		//Integer w = f.widths.remove(oldPosition);
-		SpreadSheetFieldArray result = f.insertField(newPosition,field);
-		//result.widths.set(newPosition,w);
-		return result;
+		f.add(newPosition,field);
+		f.moveColumnMetadata(oldPosition, newPosition);
+		return f;
 
 
+	}
+
+	/** Keeps persisted column metadata aligned with its field before changing layout. */
+	private void alignColumnMetadata() {
+		alignMetadata(widths, -1);
+		alignMetadata(manualWidths, false);
+	}
+
+	private <T> void alignMetadata(ArrayList<T> metadata, T defaultValue) {
+		if (metadata == null)
+			return;
+		while (metadata.size() < size())
+			metadata.add(defaultValue);
+		while (metadata.size() > size())
+			metadata.remove(metadata.size() - 1);
+	}
+
+	private void insertColumnMetadata(int position) {
+		if (widths != null)
+			widths.add(position, -1);
+		if (manualWidths != null)
+			manualWidths.add(position, false);
+	}
+
+	private void removeColumnMetadata(int position) {
+		if (widths != null)
+			widths.remove(position);
+		if (manualWidths != null)
+			manualWidths.remove(position);
+	}
+
+	private void moveColumnMetadata(int oldPosition, int newPosition) {
+		moveMetadata(widths, oldPosition, newPosition);
+		moveMetadata(manualWidths, oldPosition, newPosition);
+	}
+
+	private <T> void moveMetadata(ArrayList<T> metadata, int oldPosition, int newPosition) {
+		if (metadata == null)
+			return;
+		T value = metadata.remove(oldPosition);
+		metadata.add(newPosition, value);
 	}
 
 //	public void setWidth(int column, int width) {
@@ -338,6 +383,11 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 		return (widths!=null&&column>=0&&column<widths.size())?widths.get(column):-1;
 	}
 
+	public boolean isManualWidth(int column) {
+		return manualWidths != null && column >= 0 && column < manualWidths.size()
+				&& Boolean.TRUE.equals(manualWidths.get(column));
+	}
+
 
 
 
@@ -345,6 +395,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 		Workspace ws = new Workspace();
 		ws.fields.addAll(toIdArray(this));
 		if (widths!=null) ws.widths.addAll(widths);
+		if (manualWidths!=null) ws.manualWidths.addAll(manualWidths);
 		return ws;
 	}
 
@@ -355,12 +406,17 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 			widths=new ArrayList<Integer>(ws.widths.size());
 			widths.addAll(ws.widths);
 		}
+		if (ws.version>1.0f&&ws.manualWidths!=null&&ws.manualWidths.size()>0) {
+			manualWidths = new ArrayList<Boolean>(ws.manualWidths.size());
+			manualWidths.addAll(ws.manualWidths);
+		}
 	}
 	public static class Workspace implements WorkspaceSetting {
 		private static final long serialVersionUID = -4517935309304612237L;
 		ArrayList<Integer> widths = new ArrayList<Integer>();
+		ArrayList<Boolean> manualWidths = new ArrayList<Boolean>();
 		ArrayList<String> fields = new ArrayList<>();
-		float version=1.0f;
+		float version=2.0f;
 	}
 
 	public ArrayList<Integer> getWidths() {
@@ -369,6 +425,14 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 
 	public void setWidths(ArrayList<Integer> widths) {
 		this.widths = widths;
+	}
+
+	public ArrayList<Boolean> getManualWidths() {
+		return manualWidths;
+	}
+
+	public void setManualWidths(ArrayList<Boolean> manualWidths) {
+		this.manualWidths = manualWidths;
 	}
 
 	public static SpreadSheetFieldArray restore(WorkspaceSetting spreadsheetWorkspace,String name,int context){

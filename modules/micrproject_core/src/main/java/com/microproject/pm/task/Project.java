@@ -456,7 +456,13 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public Node createLocalTaskNode(Node parentNode) {
+		return createLocalTaskNode(parentNode, true);
+	}
+
+	public Node createLocalTaskNode(Node parentNode, boolean userCreated) {
 		NormalTask task=new NormalTask(this);
+		if (userCreated)
+			task.initializeManualScheduling();
 		Node childNode = NodeFactory.getInstance().createNode(task); // get a node for this task
 		connectTask(task);
 		addToDefaultOutline(parentNode,childNode);
@@ -2830,6 +2836,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 		NormalTask newNormalTaskInstance(boolean userCreated) {
 			NormalTask newOne = new NormalTask(Project.this);
+			if (userCreated)
+				newOne.initializeManualScheduling();
 			add(newOne);
 			initializeId(newOne);
 			if (userCreated)
@@ -2839,6 +2847,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 		NormalTask newStandaloneNormalTaskInstance() {
 			NormalTask newOne = new NormalTask(Project.this);
+			newOne.initializeManualScheduling();
 			newOne.getCurrentSchedule().setStart(getWorkCalendar().adjustInsideCalendar(newOne.getCurrentSchedule().getStart(), false));
 			initializeId(newOne);
 			return newOne;

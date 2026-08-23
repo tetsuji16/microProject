@@ -34,8 +34,8 @@ import com.microproject.pm.scheduling.Schedule;
 /**
  * Color palette interface for Gantt chart theming.
  *
- * <p>Provides a consistent way to apply different color schemes (Monday.com, MS Project,
- * etc.) to Gantt charts while maintaining proper contrast, accessibility, and recognizing
+ * <p>Provides a consistent way to apply color schemes to Gantt charts while maintaining
+ * proper contrast, accessibility, and recognizing
  * different task types, statuses, and relationships.</p>
  */
 public interface GanttColorPalette {
@@ -58,7 +58,7 @@ public interface GanttColorPalette {
      * Primary color for task bars, considering task status.
      * Implementations should apply proper contrast/brightness rules.
      *
-     * @param statusColor Base color hint (e.g., MondayGanttTheme status colors)
+     * @param statusColor Base color hint supplied by the active palette
      */
     Color getTaskBar(Color statusColor);
     
@@ -92,6 +92,20 @@ public interface GanttColorPalette {
      * Paint for a foreground or background bar layer.
      */
     Paint createBarPaint(Color fillColor, Rectangle2D bounds, boolean backgroundLayer, boolean textured);
+
+    /**
+     * Color behind a partially completed task's progress overlay.
+     */
+    default Color getProgressTrackColor(Color statusColor) {
+        return statusColor;
+    }
+
+    /**
+     * Fill color for the completed part of a task bar.
+     */
+    default Color getProgressFillColor(Color statusColor) {
+        return statusColor;
+    }
 
     /**
      * Color for baseline snapshot bars.

@@ -64,6 +64,7 @@ import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.EnterpriseResource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.assignment.Assignment;
@@ -117,6 +118,12 @@ public class MspImporter {
 		progress.updateProgress(0.8f, "Dependencies converted");
 		importProjectHeader(project); //must be done after tasks to correct project start
 		progress.updateProgress(0.9f, "Project headers converted");
+		// Tasks and links are created while importing is active, so their normal
+		// incremental scheduling callbacks are intentionally suppressed.  Restore
+		// the same initialized, calculated state as a persisted native project
+		// before exposing this imported project to a Gantt view.
+		project.initialize(false, false);
+		project.recalculate();
 
 		progress.updateProgress(1f, "Completed");
 		return project;
@@ -343,7 +350,7 @@ public class MspImporter {
 	private Task createTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {
 		MpxTaskConverter converter=new MpxTaskConverter();
 		Node parentNode = parentTask == null ? null : project.getTaskModel().search(parentTask);
-		Task task = (Task) project.createLocalTaskNode(parentNode).getImpl();
+		Task task = (Task) project.createLocalTaskNode(parentNode, false).getImpl();
 		converter.from(mpxTask, task, state);
 		return task;
 	}
@@ -382,11 +389,18 @@ public class MspImporter {
 	
 	protected void importAssignments(net.sf.mpxj.Task mpxTask, Task task) {
 		for (net.sf.mpxj.ResourceAssignment mpxAssignment : mpxTask.getResourceAssignments()) {
+			if (isUnassignedAssignment(mpxAssignment))
+				continue;
 			MpxAssignmentConverter converter = new MpxAssignmentConverter();
 			Assignment assignment = Assignment.getInstance(task, ResourceImpl.getUnassignedInstance(), 0, 0);
 			converter.from(mpxAssignment, assignment, state, task, 0);
 			((NormalTask) task).addAssignment(assignment);
 		}
+	}
+
+	private boolean isUnassignedAssignment(net.sf.mpxj.ResourceAssignment assignment) {
+		Integer resourceUniqueId = assignment.getResourceUniqueID();
+		return resourceUniqueId == null || resourceUniqueId.intValue() == EnterpriseResource.UNASSIGNED_ID;
 	}
 
 	private Date getAssignmentBaselineStart(net.sf.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {

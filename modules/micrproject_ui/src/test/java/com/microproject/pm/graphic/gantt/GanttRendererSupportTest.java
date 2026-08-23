@@ -37,7 +37,7 @@ import java.awt.image.BufferedImage;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.BarFormat;
-import com.microproject.util.MondayComPalette;
+import com.microproject.util.MicrosoftProjectGanttPalette;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GanttRendererSupportTest {
@@ -97,9 +97,9 @@ class GanttRendererSupportTest {
 	}
 
 	@Test
-	void ganttRendererDefaultsToMondayComPalette() {
+	void ganttRendererDefaultsToMicrosoftProjectPalette() {
 		GanttRenderer renderer = new GanttRenderer();
-		assertTrue(renderer.getPalette() instanceof MondayComPalette);
+		assertTrue(renderer.getPalette() instanceof MicrosoftProjectGanttPalette);
 	}
 
 	private static FontMetrics createMetrics() {

@@ -27,6 +27,7 @@ package com.microproject.core.pm.exchange.converters.mpx;
 import java.math.BigInteger;
 
 import com.microproject.core.time.TimephasedType;
+import com.microproject.datatype.TimeUnit;
 import net.sf.mpxj.Duration;
 
 /**
@@ -148,5 +149,38 @@ public class MpxUtils {
         if (d == null)
             return 0L;
         return (long) (d.getDuration() * minutesPerUnit(d.getUnits().getValue()) * 60000.0);
+    }
+
+    /**
+     * Converts an MPXJ duration to the encoded duration representation required by
+     * task schedules. Raw millisecond values can overlap the internal unit bits and
+     * are therefore not safe to pass to {@code Task.setDuration} directly.
+     */
+    public static long toProjectDuration(net.sf.mpxj.Duration duration) {
+        if (duration == null)
+            return 0L;
+        return com.microproject.datatype.Duration.getInstance(duration.getDuration(), toProjectTimeUnit(duration.getUnits()));
+    }
+
+    private static int toProjectTimeUnit(net.sf.mpxj.TimeUnit unit) {
+        if (unit == null)
+            return TimeUnit.MINUTES;
+        return switch (unit) {
+            case MINUTES -> TimeUnit.MINUTES;
+            case HOURS -> TimeUnit.HOURS;
+            case DAYS -> TimeUnit.DAYS;
+            case WEEKS -> TimeUnit.WEEKS;
+            case MONTHS -> TimeUnit.MONTHS;
+            case YEARS -> TimeUnit.YEARS;
+            case PERCENT -> TimeUnit.PERCENT;
+            case ELAPSED_MINUTES -> TimeUnit.ELAPSED_MINUTES;
+            case ELAPSED_HOURS -> TimeUnit.ELAPSED_HOURS;
+            case ELAPSED_DAYS -> TimeUnit.ELAPSED_DAYS;
+            case ELAPSED_WEEKS -> TimeUnit.ELAPSED_WEEKS;
+            case ELAPSED_MONTHS -> TimeUnit.ELAPSED_MONTHS;
+            case ELAPSED_YEARS -> TimeUnit.ELAPSED_YEARS;
+            case ELAPSED_PERCENT -> TimeUnit.ELAPSED_PERCENT;
+            default -> TimeUnit.MINUTES;
+        };
     }
 }

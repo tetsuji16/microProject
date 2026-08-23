@@ -53,6 +53,7 @@ import javax.swing.TransferHandler;
 import org.junit.jupiter.api.Test;
 import org.apache.commons.collections.Predicate;
 
+import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.menu.MenuActionConstants;
@@ -373,11 +374,11 @@ class NodeListTransferablePasteFailureTest {
 				"Spreadsheet.Task.entry",
 				true);
 			sheet.setRowSelectionInterval(0, 0);
-			sheet.setColumnSelectionInterval(1, 2);
+			selectNameThroughDuration(sheet);
 			sheetRef[0] = sheet;
 		});
 
-		SwingUtilities.invokeAndWait(() -> NodeListTransferable.pasteString("New name\tnot-a-duration", sheetRef[0]));
+		SwingUtilities.invokeAndWait(() -> NodeListTransferable.pasteString(invalidDurationClipboard(sheetRef[0]), sheetRef[0]));
 
 		assertEquals("Original", task.getName());
 	}
@@ -493,12 +494,12 @@ class NodeListTransferablePasteFailureTest {
 				"Spreadsheet.Task.entry",
 				true);
 			sheet.setRowSelectionInterval(0, 0);
-			sheet.setColumnSelectionInterval(1, 2);
+			selectNameThroughDuration(sheet);
 			sheetRef[0] = sheet;
 			handlerRef[0] = new NodeListTransferHandler(sheet);
 		});
 
-		SwingUtilities.invokeAndWait(() -> importedRef[0] = handlerRef[0].importData(sheetRef[0], new StringSelection("New name\tnot-a-duration")));
+		SwingUtilities.invokeAndWait(() -> importedRef[0] = handlerRef[0].importData(sheetRef[0], new StringSelection(invalidDurationClipboard(sheetRef[0]))));
 
 		assertFalse(importedRef[0]);
 		assertEquals("Original", task.getName());
@@ -655,6 +656,35 @@ class NodeListTransferablePasteFailureTest {
 		project.connectTask(task);
 		project.getTaskOutlines().addToAll(task, null);
 		return task;
+	}
+
+	private static void selectNameThroughDuration(SpreadSheet sheet) {
+		sheet.setColumnSelectionInterval(columnForField(sheet, "Field.name"), columnForField(sheet, "Field.duration"));
+	}
+
+	private static String invalidDurationClipboard(SpreadSheet sheet) {
+		int nameColumn = columnForField(sheet, "Field.name");
+		int durationColumn = columnForField(sheet, "Field.duration");
+		StringBuilder clipboard = new StringBuilder();
+		for (int column = nameColumn; column <= durationColumn; column++) {
+			if (column > nameColumn)
+				clipboard.append('\t');
+			Field field = (Field) sheet.getColumnModel().getColumn(column).getIdentifier();
+			if ("Field.name".equals(field.getId()))
+				clipboard.append("New name");
+			else if ("Field.duration".equals(field.getId()))
+				clipboard.append("not-a-duration");
+		}
+		return clipboard.toString();
+	}
+
+	private static int columnForField(SpreadSheet sheet, String fieldId) {
+		for (int column = 0; column < sheet.getColumnCount(); column++) {
+			Field field = (Field) sheet.getColumnModel().getColumn(column).getIdentifier();
+			if (fieldId.equals(field.getId()))
+				return column;
+		}
+		throw new AssertionError("Missing column for " + fieldId);
 	}
 
 	private ReferenceNodeModelCache createTaskNodeModelCache(Project project) {
