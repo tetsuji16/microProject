@@ -407,6 +407,31 @@ public class CalendarService {
 		}
 	}
 
+	/**
+	 * Clears the merged {@code concrete} cache of every derived / assignment
+	 * calendar that transitively depends on {@code base}. Editing a base
+	 * calendar's content (as opposed to reassigning its base) must be reflected
+	 * by the calendars built on top of it; otherwise they keep serving a stale
+	 * merged {@link CalendarDefinition} (upstream SF ticket #112, issue #355).
+	 *
+	 * @param base the calendar that was just invalidated
+	 */
+	public void invalidateDerivedConcrete(WorkingCalendar base) {
+		if (base == null)
+			return;
+		invalidateDerivedInList(derivedCalendars, base);
+		invalidateDerivedInList(assignmentCalendars, base);
+	}
+
+	private void invalidateDerivedInList(ArrayList list, WorkingCalendar base) {
+		Iterator i = list.iterator();
+		while (i.hasNext()) {
+			WorkingCalendar c = (WorkingCalendar) i.next();
+			if (c != null && c != base && c.dependsOn(base))
+				c.invalidateConcreteInstance();
+		}
+	}
+
 
 //	HashMap importedCalendarMap = new Hashtable();
 //	public void addImportedCalendar(WorkingCalendar cal, MPXCalendar mpxCal) {

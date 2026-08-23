@@ -71,7 +71,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		getObjectsUsing().remove(cal);
 	}
 
-	private void invalidateConcreteInstance() {
+	void invalidateConcreteInstance() {
 		concrete = null;
 	}
 
@@ -210,6 +210,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 	public void invalidate() {
 		invalidateConcreteInstance();
+		CalendarService.getInstance().invalidateDerivedConcrete(this);
 		CalendarService.getInstance().invalidate(this);
 	}
 
