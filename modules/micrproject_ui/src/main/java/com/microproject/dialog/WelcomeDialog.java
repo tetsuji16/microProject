@@ -28,6 +28,7 @@ import java.awt.Frame;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.nio.file.Path;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
@@ -141,11 +142,19 @@ public final class WelcomeDialog extends AbstractDialog {
 			private static final long serialVersionUID = 1L;
 			@Override public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
 				RecentProjectStore.Entry entry = (RecentProjectStore.Entry) value;
-				String prefix = entry.pinned() ? "★ " : "";
-				String suffix = entry.exists() ? "" : "  (" + UsabilityStrings.text("welcome.missing") + ")";
-				return super.getListCellRendererComponent(list, prefix + entry.path().getFileName() + " — " + entry.path().getParent() + suffix, index, selected, focus);
-			}
-		});
+				// Microsoft Project style: bold file name on the first line, dimmed
+				// folder path beneath it. Missing files are greyed out entirely.
+				String pinMark = entry.pinned() ? "★ " : "";
+				String missing = entry.exists() ? "" : " (" + UsabilityStrings.text("welcome.missing") + ")";
+				String color = entry.exists() ? "" : " color='#808080'";
+				setText("<html><div style='line-height:1.2" + color + "'><b>"
+					+ escapeHtml(pinMark + entry.path().getFileName() + missing)
+					+ "</b></div><div style='color:#6e6e6e;font-size:0.85em'>"
+					+ escapeHtml(entry.path().getParent().toString())
+					+ "</div></html>");
+				return super.getListCellRendererComponent(list, "", index, selected, focus);
+				}
+				});
 		recentProjects.addMouseListener(new MouseAdapter() {
 			@Override public void mouseClicked(MouseEvent event) {
 				if (event.getClickCount() == 2) openSelectedRecentProject();
@@ -213,11 +222,23 @@ public final class WelcomeDialog extends AbstractDialog {
 		template.add(createTemplate, BorderLayout.SOUTH); start.add(template); start.add(restoreSession);
 		builder.add(start, BorderLayout.WEST);
 		JPanel recent = new JPanel(new BorderLayout(4, 4)); recent.add(new JLabel(UsabilityStrings.text("welcome.recent")), BorderLayout.NORTH);
-		recentProjects.setVisibleRowCount(9); recent.add(new JScrollPane(recentProjects), BorderLayout.CENTER);
+		recentProjects.setVisibleRowCount(9);
+		recentProjects.setFixedCellHeight(36); // two-line MSP-style rows (name + folder)
+		recent.add(new JScrollPane(recentProjects), BorderLayout.CENTER);
 		JPanel recentButtons = new JPanel(); JButton openRecent = new JButton(UsabilityStrings.text("welcome.openSelected"));
 		openRecent.addActionListener(event -> openSelectedRecentProject());
-		JButton pin = new JButton(UsabilityStrings.text("welcome.pin")); pin.addActionListener(event -> { RecentProjectStore.Entry entry = recentProjects.getSelectedValue(); if (entry != null) { recentStore.setPinned(entry.path(), !entry.pinned()); recentProjects.setListData(recentStore.entries().toArray(RecentProjectStore.Entry[]::new)); } });
-		JButton remove = new JButton(UsabilityStrings.text("welcome.remove")); remove.addActionListener(event -> { RecentProjectStore.Entry entry = recentProjects.getSelectedValue(); if (entry != null) { recentStore.remove(entry.path()); recentProjects.setListData(recentStore.entries().toArray(RecentProjectStore.Entry[]::new)); } });
+		JButton pin = new JButton();
+		pin.addActionListener(event -> {
+			RecentProjectStore.Entry entry = recentProjects.getSelectedValue(); if (entry == null) return;
+			Path selectedPath = entry.path();
+			recentStore.setPinned(selectedPath, !entry.pinned());
+			recentProjects.setListData(recentStore.entries().toArray(RecentProjectStore.Entry[]::new));
+			restoreSelection(selectedPath); // MSP keeps the item selected across pin/unpin
+			updatePinButton(pin);
+		});
+		JButton remove = new JButton(UsabilityStrings.text("welcome.remove")); remove.addActionListener(event -> { RecentProjectStore.Entry entry = recentProjects.getSelectedValue(); if (entry != null) { recentStore.remove(entry.path()); recentProjects.setListData(recentStore.entries().toArray(RecentProjectStore.Entry[]::new)); updatePinButton(pin); } });
+		recentProjects.addListSelectionListener(event -> { if (!event.getValueIsAdjusting()) updatePinButton(pin); });
+		updatePinButton(pin);
 		recentButtons.add(openRecent); recentButtons.add(pin); recentButtons.add(remove); recent.add(recentButtons, BorderLayout.SOUTH); recent.setPreferredSize(new Dimension(560, 260));
 		builder.add(recent, BorderLayout.CENTER);
 		if (focusRecentProjects) SwingUtilities.invokeLater(() -> {
@@ -227,6 +248,30 @@ public final class WelcomeDialog extends AbstractDialog {
 		});
 		requestFocusInWindow();
 		return builder;
+	}
+
+	/** Escapes text for the HTML two-line recent-project cell renderer. */
+	private static String escapeHtml(String text) {
+		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+	}
+
+	/** Keeps the same project selected after the list re-sorts (MSP pin behavior). */
+	private void restoreSelection(Path path) {
+		for (int i = 0; i < recentProjects.getModel().getSize(); i++) {
+			if (recentProjects.getModel().getElementAt(i).path().equals(path)) {
+				recentProjects.setSelectedIndex(i);
+				recentProjects.ensureIndexIsVisible(i);
+				return;
+			}
+		}
+	}
+
+	/** The pin button names the action on the current selection, like MSP's pin toggle. */
+	private void updatePinButton(JButton pin) {
+		RecentProjectStore.Entry entry = recentProjects.getSelectedValue();
+		pin.setEnabled(entry != null);
+		if (entry == null) { pin.setText(UsabilityStrings.text("welcome.pin")); return; }
+		pin.setText(UsabilityStrings.text(entry.pinned() ? "welcome.unpin" : "welcome.pin"));
 	}
 
 	private void openSelectedRecentProject() {

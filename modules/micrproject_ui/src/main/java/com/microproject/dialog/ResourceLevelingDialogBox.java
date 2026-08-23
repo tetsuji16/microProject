@@ -169,7 +169,6 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		JButton close = new JButton(UsabilityStrings.text("common.close"));
 		close.addActionListener(event -> dispose());
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-		buttons.add(status);
 		buttons.add(preview);
 		buttons.add(clear);
 		buttons.add(apply);
@@ -181,7 +180,15 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		tabs.addTab(UsabilityStrings.text("ccpm.bufferChartTab"), criticalChainBufferChart);
 		setLayout(new BorderLayout());
 		add(tabs, BorderLayout.CENTER);
-		add(buttons, BorderLayout.SOUTH);
+		JPanel south = new JPanel(new BorderLayout());
+		// The CCPM status text is wider than the dialog; clip it in the center
+		// instead of letting it push the action buttons off the dialog edge.
+		JPanel statusArea = new JPanel(new BorderLayout());
+		status.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+		statusArea.add(status, BorderLayout.CENTER);
+		south.add(statusArea, BorderLayout.CENTER);
+		south.add(buttons, BorderLayout.EAST);
+		add(south, BorderLayout.SOUTH);
 		setPreferredSize(new Dimension(900, 520));
 		pack();
 		setLocationRelativeTo(getOwner());
