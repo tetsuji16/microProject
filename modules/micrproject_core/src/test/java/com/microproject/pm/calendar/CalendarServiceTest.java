@@ -25,8 +25,11 @@
 package com.microproject.pm.calendar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Calendar;
 
 import org.junit.jupiter.api.Test;
 
@@ -49,5 +52,46 @@ class CalendarServiceTest {
 		service.invalidate(null);
 		assertThrows(IllegalArgumentException.class, () -> service.makeScratchCopy(null));
 		assertThrows(IllegalArgumentException.class, () -> service.assignCalendar(original, null));
+	}
+
+	/**
+	 * Issue #355 / upstream SF #112: editing a base calendar must invalidate
+	 * the merged concrete calendar used by derived resource calendars.
+	 */
+	@Test
+	void derivedCalendarConcreteReflectsBaseEdit() throws WorkRangeException {
+		CalendarService service = CalendarService.getInstance();
+		WorkingCalendar base = WorkingCalendar.getInstance();
+		base.setName("Issue355-base");
+		base.setUniqueId(-9000001L);
+
+		WorkDay working = new WorkDay();
+		working.getWorkingHours().setInterval(0, WorkingHours.hourTime(8), WorkingHours.hourTime(12));
+		working.getWorkingHours().setInterval(1, WorkingHours.hourTime(13), WorkingHours.hourTime(17));
+		WorkDay nonWorking = new WorkDay();
+		nonWorking.getWorkingHours().setNonWorking();
+		base.setWeekDays(working);
+		base.setWeekends(nonWorking);
+		service.add(base);
+
+		WorkingCalendar derived = WorkingCalendar.getInstanceBasedOn(base);
+		derived.setName("Issue355-derived");
+		derived.setUniqueId(-9000002L);
+		service.add(derived);
+
+		derived.getConcreteInstance();
+		assertFalse(derived.isInvalid(), "derived concrete should be cached before the base edit");
+		assertTrue(!derived.getConcreteInstance().getWeekDay(Calendar.SATURDAY - 1).isWorking(),
+				"Saturday must be non-working before the base edit");
+
+		WorkingHours saturdayHours = new WorkingHours();
+		saturdayHours.setInterval(0, WorkingHours.hourTime(8), WorkingHours.hourTime(12));
+		saturdayHours.setInterval(1, WorkingHours.hourTime(13), WorkingHours.hourTime(17));
+		base.setWeekDayWorkingHours(Calendar.SATURDAY, saturdayHours);
+		base.invalidate();
+
+		assertTrue(derived.isInvalid(), "base edit must invalidate the derived concrete cache");
+		assertTrue(derived.getConcreteInstance().getWeekDay(Calendar.SATURDAY - 1).isWorking(),
+				"derived calendar must reflect the base edit");
 	}
 }
