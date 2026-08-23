@@ -106,7 +106,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
     private UndoController undoController;
     private Form form;
     WorkingHours defaultWorkingHours = WorkingHours.getDefault();
-    boolean unsaved = false;
     JComboBox calendarType;
     CalendarView sdCalendar;
     JRadioButton unknownWorkingTime;
@@ -132,6 +131,14 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
     WorkingCalendar editedCalendar;
     boolean restrict;
 	private Project project;
+    /**
+     * True while the scratch copy ({@code form}) holds edits not yet committed back to
+     * {@code editedCalendar}. Per the MS Project "Change Working Time" spec (issue #353)
+     * every in-dialog edit marks this; OK commits everything and Cancel discards it all.
+     */
+    boolean calendarEdited = false;
+    /** Set once {@link #saveCalendar()} commits the scratch copy (test hook). */
+    private boolean committed;
 
 
     private void setEditable(boolean editable) {
@@ -246,13 +253,13 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	    timeEnd=new JTextField[Settings.CALENDAR_INTERVALS];
 	    DocumentListener makeDirtyListener = new DocumentListener(){
             public void changedUpdate(DocumentEvent e) {
-		           dirtyWorkingHours=true;
+		           markCalendarEdited();
 	            }
 	            public void insertUpdate(DocumentEvent e) {
-	                dirtyWorkingHours=true;
+	                markCalendarEdited();
 	            }
 	            public void removeUpdate(DocumentEvent e) {
-	                dirtyWorkingHours=true;
+	                markCalendarEdited();
 	            }
 	    	};
 
@@ -272,7 +279,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 			    CalendarService service=CalendarService.getInstance();
 			    WorkingCalendar wc=form.getCalendar();
 			    service.makeDefaultDays(wc,sdCalendar.getSelectedFixedIntervals(), sdCalendar.getSelectedWeekDays());
-			    dirtyWorkingHours = false;
+			    markCalendarEdited();
 			    updateWorkingHours();
 			    updateView();
 			    clearLastSelection();
@@ -293,7 +300,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 					Alert.error(e1.getMessage(),ChangeWorkingTimeDialogBox.this);
 					return;
 				}
-			    dirtyWorkingHours = false;
+			    markCalendarEdited();
 			    updateWorkingHours();
 			    updateView();
 	            clearLastSelection();
@@ -310,7 +317,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 			    try {
                     service.setDaysWorkingHours(copy,sdCalendar.getSelectedFixedIntervals(), sdCalendar.getSelectedWeekDays(),defaultWorkingHours);
                     service.setDaysWorkingHours(wc,sdCalendar.getSelectedFixedIntervals(), sdCalendar.getSelectedWeekDays(),defaultWorkingHours);
-    			    dirtyWorkingHours = false;
+    			    markCalendarEdited();
     			    updateWorkingHours();
                     updateView();
                 } catch (WorkRangeException e1) {
@@ -331,7 +338,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	            }else if ("selectedDates".equals(property)){ //$NON-NLS-1$
 	            	updateWorkingHours();
 	            }
-	        	dirtyWorkingHours = false;
 	        }
 	    });
 		setCal(form.getCalendar());
@@ -386,12 +392,11 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		    WorkingCalendar copy = wc.makeScratchCopy();
 		    service.setDaysWorkingHours(copy,lastSelection,lastWeekSelection,hours);
 		    service.setDaysWorkingHours(wc,lastSelection,lastWeekSelection,hours);
-		    unsaved = false;
 
 		    if (saveCalendar) {
 		    	saveCalendar();
 		    } else {
-		    	unsaved = true;
+		    	markCalendarEdited();
 		    }
 		    //System.out.println("Saved "+lastSelection);
 	    } catch (WorkRangeException e) {
@@ -406,7 +411,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	}
 
 	private void saveCalendar() {
-		unsaved = false;
 		CalendarService service=CalendarService.getInstance();
 		WorkingCalendar wc=form.getCalendar();
 		UndoableEditSupport undoableEditSupport=undoController.getEditSupport();
@@ -416,12 +420,34 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 
 		service.assignCalendar(editedCalendar,wc);
 		service.saveAndUpdate(editedCalendar);
+		committed = true;
 
 	}
+
+	/**
+	 * Marks the scratch calendar as edited so {@link #onOk()} commits it (issue #353).
+	 */
+	void markCalendarEdited() {
+		calendarEdited = true;
+	}
+
+	/**
+	 * Test/verification hook: true once the scratch copy has been committed back
+	 * to {@code editedCalendar} via {@link #saveCalendar()}.
+	 */
+	boolean isCalendarCommitted() {
+		return committed;
+	}
+
+	/** Test hook: name of the scratch calendar currently being edited. */
+	String getFormCalendarName() {
+		return form.getCalendar().getName();
+	}
+
 	public void saveIfNeeded() {
 		if (dirtyWorkingHours)
 			saveWorkingHoursChanges(true);
-		else if (unsaved)
+		else if (calendarEdited)
 			saveCalendar();
 	}
 
@@ -483,8 +509,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
             	lastWeekSelection[i] = sdCalendar.getSelectedWeekDays()[i];
 	    }
 
-	    //Call at the end because setText causes dirtyWorkingHours to become true
-        dirtyWorkingHours=false;
 	}
 
 
@@ -576,7 +600,11 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
             ChangeWorkingTimeDialogBox.this.datesSetting.setSelected(ChangeWorkingTimeDialogBox.this.working.getModel(),true);
             setWorkingHours(day.getWorkingHours());
         }
-        dirtyWorkingHours = true;
+        // Re-arm the text-field dirty flag: setWorkingHours() programmatically updates the
+        // fields and the DocumentListener then marks calendarEdited; reset it so a pure
+        // selection change (no user edit) is not treated as an edit.
+        dirtyWorkingHours = false;
+        calendarEdited = false;
 	}
 
 	private JComponent createSettingsPanel() {
