@@ -39,7 +39,7 @@ jobs:
           # the standalone WiX 3.11.2 binaries and put them on PATH.
           # build.gradle.kts's packageWindowsMsi prepends its own WiX v7.0 path which
           # does not exist on CI, so this GITHUB_PATH entry is what actually wins.
-          $wixUrl = 'https://github.com/wixtoolset/wix3/releases/download/wix3112/wix311-binaries.zip'
+          $wixUrl = 'https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip'
           Invoke-WebRequest -Uri $wixUrl -OutFile wix311.zip -MaximumRedirection 10
           Expand-Archive -Path wix311.zip -DestinationPath wix311 -Force
           $wixBin = Join-Path $PWD 'wix311'
