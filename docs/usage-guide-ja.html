@@ -167,15 +167,15 @@
         .mock-lane { display: grid; grid-template-columns: 64px 1fr; min-height: 27px; align-items: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #475569; }
         .mock-track { height: 27px; position: relative; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(20% - 1px), #e2e8f0 calc(20% - 1px), #e2e8f0 20%); }
         .mock-bar { position: absolute; top: 7px; height: 13px; border-radius: 7px; }
-        .mock-bar.complete { left: 5%; width: 28%; background: #22c55e; }
-        .mock-bar.in-progress { left: 25%; width: 48%; background: #f59e0b; }
-        .mock-bar.not-started { left: 15%; width: 37%; background: #a8b0ba; }
-        .mock-bar.critical { left: 42%; width: 45%; background: #ef8f9d; }
-        .mock-bar.summary { left: 8%; width: 68%; height: 17px; top: 5px; background: #f59e0b; border-radius: 2px 2px 8px 8px; }
-        .mock-bar.summary::before, .mock-bar.summary::after { content: ""; position: absolute; bottom: -3px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #b45309; }
+        .mock-bar.complete { left: 5%; width: 28%; background: #d9e2f3; }
+        .mock-bar.in-progress { left: 25%; width: 48%; background: #d9e2f3; }
+        .mock-bar.not-started { left: 15%; width: 37%; background: #d9e2f3; }
+        .mock-bar.critical { left: 42%; width: 45%; background: #d9e2f3; border: 2px solid #c00000; }
+        .mock-bar.summary { left: 8%; width: 68%; height: 17px; top: 5px; background: #404040; border-radius: 2px 2px 8px 8px; }
+        .mock-bar.summary::before, .mock-bar.summary::after { content: ""; position: absolute; bottom: -3px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #404040; }
         .mock-bar.summary::before { left: 0; } .mock-bar.summary::after { right: 0; }
         .mock-milestone { position: absolute; left: 66%; top: 7px; width: 13px; height: 13px; background: #64748b; transform: rotate(45deg); }
-        .mock-progress { position: absolute; left: 5%; top: 7px; width: 12%; height: 13px; border-radius: 7px 0 0 7px; background: #15803d; }
+        .mock-progress { position: absolute; left: 5%; top: 7px; width: 12%; height: 13px; border-radius: 7px 0 0 7px; background: #2f5597; }
         .mock-lines { position: relative; height: 134px; border: 1px solid #cbd5e1; border-radius: 5px; background: repeating-linear-gradient(90deg, #fff 0, #fff calc(25% - 1px), #e2e8f0 calc(25% - 1px), #e2e8f0 25%), repeating-linear-gradient(0deg, transparent 0, transparent 32px, #e2e8f0 32px, #e2e8f0 33px); }
         .mock-lines .vline { position: absolute; top: 0; bottom: 0; border-left: 2px dashed; }
         .mock-lines .project-start { left: 22%; border-color: #2563eb; }
@@ -242,7 +242,7 @@
         <li><a href="#task-management">3. タスク管理</a></li>
         <li><a href="#resource-management">4. リソース管理</a></li>
         <li><a href="#scheduling">5. スケジューリング</a></li>
-        <li><a href="#ccpm">5.1 CCPM（クリティカルチェーン）</a></li>
+        <li><a href="#ccpm">5.1 CCPM（クリティカルチェーン）入門</a></li>
         <li><a href="#gantt">6. ガントチャート</a></li>
         <li><a href="#gantt-legend">6.1 画面のアイコン・バー・線の見方</a></li>
         <li><a href="#views">7. ビュー切替</a></li>
@@ -498,10 +498,10 @@
 
 <!-- ============================================================ -->
 <section id="ccpm">
-    <h2>5.1 CCPM（クリティカルチェーン・プロジェクト管理）</h2>
+    <h2>5.1 CCPM（クリティカルチェーン・プロジェクト管理）入門</h2>
     <p>
-        CCPMは、タスク間の依存関係だけでなく、限られたリソースの競合も考慮して、プロジェクトの実行順序とバッファを管理する方法です。
-        microProjectでは、リソース平準化ダイアログでCCPMを有効にすると、クリティカルチェーンとプロジェクトバッファをプレビューできます。
+        CCPMは、タスク間の依存関係だけでなく、限られたリソースの競合も考慮して、実行順序とバッファを管理する方法です。
+        個々のタスクに余裕を分散する代わりに、プロジェクトの終端と経路の合流点にバッファを置いて管理します。
     </p>
 
     <figure class="app-example">
@@ -509,26 +509,66 @@
         <figcaption>CCPMの基本フロー。プレビューで変更件数・未解決競合・バッファを確認してから適用します。</figcaption>
     </figure>
 
-    <h3>操作手順</h3>
+    <h3>実習用サンプルとタスク表</h3>
+    <p>
+        <a href="../samples/CCPM%20path%20comparison%20日本語.mpo">CCPM path comparison 日本語.mpo</a> は、未開始・自動スケジュールのソフトウェアリリース計画です。
+        先行関係に従って後続タスクが開始し、CCPMの表示を安全に試せます。
+    </p>
+    <figure class="app-example">
+        <img src="images/ccpm-scenario-gantt.png" alt="CCPMサンプルのタスク表とMS Project形式のガント。達成率、残存期間、実際の開始日、先行、リソース名の列と、依存関係でつながるバーを表示している。">
+        <figcaption>CCPM入門用の表。達成率と残存期間を分けて記録し、開始・終了・先行関係への影響を確認します。</figcaption>
+    </figure>
+    <table>
+        <tr><th>列</th><th>CCPMでの用途</th></tr>
+        <tr><td>達成率</td><td>実際に完了した割合。ガントの完了部分とバッファグラフの横軸に反映されます。</td></tr>
+        <tr><td>残存期間</td><td>現実的な残りの見積り。後続タスク、終了日、バッファ消費に反映されます。</td></tr>
+        <tr><td>実際の開始日</td><td>実際に着手した日を記録します。</td></tr>
+        <tr><td>先行 / リソース名</td><td>日程の順序と、共有リソースの競合を確認します。</td></tr>
+    </table>
+
+    <h3>CCPMを適用する</h3>
     <ol>
         <li>プロジェクトを開き、タスクの依存関係、担当リソース、稼働カレンダーを確認します。</li>
-        <li><strong>リソース</strong> → <strong>リソースの平準化</strong>を開きます。</li>
+        <li><strong>プロジェクト</strong> → <strong>CCPM 設定</strong>を開きます。</li>
         <li><strong>クリティカルチェーン・プロジェクト管理（CCPM）を使用する</strong>にチェックを入れ、プロジェクトバッファの割合を設定します。必要に応じて対象リソースを選択します。</li>
         <li><strong>プレビュー</strong>を押し、変更件数、分割件数、未解決の競合、推奨プロジェクトバッファを確認します。競合が残る場合は、割り当てや平準化条件を見直して再度プレビューします。</li>
-        <li>内容が妥当なら<strong>平準化を適用</strong>を押します。<strong>CCPM Network</strong>タブで、クリティカルチェーン、プロジェクトバッファ、フィーディングバッファを確認します。</li>
+        <li>内容が妥当なら<strong>平準化を適用</strong>を押します。これがCCPMの基準終了日とバッファ量を記録する操作です。</li>
         <li>CCPMの設定と共同編集用の状態を保持する場合は、<strong>.mpo</strong>(MPOF)で保存します。</li>
     </ol>
 
-    <h3>グラフとバッファの読み方</h3>
+    <figure class="app-example">
+        <img src="images/ccpm-scenario-settings.png" alt="CCPM設定ダイアログ。CCPMを有効にし、プロジェクトバッファを25%にしてプレビューできる。">
+        <figcaption>最初にプレビューで競合と推奨バッファを確認し、承認するときだけ平準化を適用します。</figcaption>
+    </figure>
+
+    <h3>ネットワークとバッファの読み方</h3>
+    <figure class="app-example">
+        <img src="images/ccpm-scenario-network.png" alt="CCPMネットワーク。青い依存関係、緑のフィーディングバッファ接続、タスクノードを表示している。">
+        <figcaption>青い実線は先行関係、緑の破線はチェーンへ合流する位置です。共有リソースの競合を解消した接続は橙色で表示されます。</figcaption>
+    </figure>
     <table>
         <tr><th>表示</th><th>意味</th><th>確認ポイント</th></tr>
-        <tr><td>赤色のチェーン</td><td>リソース制約を含めたクリティカルチェーン</td><td>遅延がプロジェクト完了日に波及しやすいため、進捗と担当者を優先確認します。</td></tr>
+        <tr><td>クリティカルチェーン</td><td>リソース制約を含めた終了日に直結するタスク列</td><td>遅延がプロジェクト完了日に波及しやすいため、進捗と担当者を優先確認します。</td></tr>
         <tr><td>プロジェクトバッファ</td><td>チェーン全体の遅延を吸収する共通の余裕</td><td>残り時間と計画時間を比較し、消費が大きい場合は回復策を検討します。</td></tr>
         <tr><td>フィーディングバッファ</td><td>非クリティカルな経路からチェーンへ入る遅延を吸収する余裕</td><td>流入元のタスクの遅れとバッファ残量を合わせて見ます。</td></tr>
     </table>
 
+    <h3>遅れを入力してバッファで判断する</h3>
+    <p>
+        遅れは<strong>達成率</strong>だけでは表せません。実際の開始日と達成率を更新し、残りに必要な見積りを<strong>残存期間</strong>または残作業へ入力します。
+        達成率はガントの濃青部分とグラフの横軸、残存期間は後続タスク・終了日・グラフの縦軸へ反映されます。
+    </p>
+    <figure class="app-example">
+        <img src="images/ccpm-scenario-buffer.png" alt="CCPMバッファ消費状況。横軸がプロジェクト進捗、縦軸がバッファ消費率で、緑、黄、赤のゾーンを示している。">
+        <figcaption>横軸はプロジェクト進捗、縦軸はバッファ消費率です。終了日がCCPM基準終了日を超えた分だけ点が上へ移動します。</figcaption>
+    </figure>
+    <p>
+        日常の確認では、遅れを入力した後にまず<strong>プレビュー</strong>を実行します。
+        すぐに平準化を適用すると遅れを含む計画が新しい基準になり、バッファ消費を比較しにくくなります。正式な再基準化を決めたときだけ適用してください。
+    </p>
+
     <div class="tip">
-        CCPMの分析は現在の依存関係、カレンダー、リソース割り当てを基に計算されます。タスク期間、担当者、平準化条件を変更した後は、必ず<strong>プレビュー</strong>を実行してグラフを更新してください。
+        CCPMの分析は現在の依存関係、カレンダー、リソース割り当てを基に計算されます。タスク期間、残存期間、担当者、平準化条件を変更した後は、必ず<strong>プレビュー</strong>を実行してグラフを更新してください。
     </div>
     <div class="warn">
         <code>.pod</code>は従来のProjectLibre形式のまま保存され、CCPMの拡張状態は追加されません。CCPM設定を再読込後も保持したい場合や、OneDriveなどの共有フォルダーで同時編集する場合は<code>.mpo</code>(MPOF)を使用してください。
@@ -599,7 +639,7 @@
     <h2>6.1 画面のアイコン・バー・線の見方</h2>
     <p>
         タスク表の「指標」列とガント領域は、タスクの状態、期間、関連を短時間で確認するための表示です。
-        表示色は進捗状況を表し、個別にバーの色を変更している場合はその設定が優先されます。
+        MS Project形式では、淡青が未完了の計画期間、濃青が達成率に応じた完了部分です。赤い枠・端点はクリティカル性を表し、遅延済みを直接示すものではありません。個別にバーの色を変更している場合はその設定が優先されます。
     </p>
     <div class="legend-diagrams" aria-label="ガントチャートの構成を再現した図解">
         <figure class="legend-diagram">
@@ -625,7 +665,7 @@
                 <div class="mock-lane"><span>マイルストーン</span><span class="mock-track"><i class="mock-milestone"></i></span></div>
                 <div class="mock-lane"><span>クリティカル</span><span class="mock-track"><i class="mock-bar critical"></i></span></div>
             </div>
-            <figcaption>色は状態、長さは期間、濃い帯は進捗、形は要約・マイルストーンを示します。</figcaption>
+            <figcaption>淡青は未完了の計画期間、濃青の帯は進捗、赤枠はクリティカル性を示します。長さは期間、形は要約・マイルストーンを示します。</figcaption>
         </figure>
         <figure class="legend-diagram">
             <h4>③ 線と基準日の読み方</h4>
@@ -653,11 +693,10 @@
     <h3>ガントバーの色と形</h3>
     <table>
         <tr><th>表示</th><th>意味</th></tr>
-        <tr><td><span class="visual-sample"><span class="mock-bar complete"></span></span><br>緑のバー</td><td>完了したタスクです。バーの長さは予定期間、左右端は予定開始日と予定終了日を示します。</td></tr>
-        <tr><td><span class="visual-sample"><span class="mock-bar in-progress"></span></span><br>オレンジのバー</td><td>作業中のタスクです。進捗があるものの、まだ完了していません。</td></tr>
-        <tr><td><span class="visual-sample"><span class="mock-bar not-started"></span></span><br>灰色のバー</td><td>未着手のタスクです。</td></tr>
-        <tr><td><span class="visual-sample"><span class="mock-bar critical"></span></span><br>赤／ピンクのバー</td><td>クリティカルパス上のタスクです。遅れるとプロジェクト全体の完了日が遅れる可能性があります。</td></tr>
-        <tr><td><span class="visual-sample"><span class="mock-bar summary"></span></span><br>要約バー</td><td>要約タスクです。子タスク全体の開始日から終了日までを表し、色は要約タスクの進捗を示します。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar not-started"></span></span><br>淡青のバー</td><td>未完了の計画期間です。達成率 0% ならバー全体が淡青になります。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar complete"></span></span><br>濃青の完了部分</td><td>達成率に応じて、計画バーの左側に重なります。完了部分の長さは達成率を表します。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar critical"></span></span><br>赤い枠・端点</td><td>クリティカルパスまたはCCPMのクリティカルチェーン上のタスクです。遅延済みではなく、遅れが終了日に直結しやすいことを示します。</td></tr>
+        <tr><td><span class="visual-sample"><span class="mock-bar summary"></span></span><br>濃灰色の要約バー</td><td>要約タスクです。子タスク全体の開始日から終了日までを表します。</td></tr>
         <tr><td><span class="visual-sample"><span class="mock-milestone"></span></span><br>ひし形</td><td>マイルストーンです。期間ゼロの重要な日付を示します。</td></tr>
         <tr><td><span class="visual-sample"><span class="mock-bar complete"><span class="mock-progress"></span></span></span><br>濃い帯</td><td>タスクの達成率です。帯が右へ伸びるほど進捗が高いことを示します。</td></tr>
     </table>
