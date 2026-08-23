@@ -27,6 +27,8 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import com.microproject.util.SafeFileReplace;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Date;
@@ -152,8 +154,12 @@ public class MicrosoftImporter extends ServerFileImporter{
 		}
 
 		if (!file.equals(tmpFile)) {
-			file.delete();
-			tmpFile.renameTo(file);
+			if (!SafeFileReplace.replace(tmpFile, file)) {
+				// The original is preserved by the safe replace; discard the
+				// unusable temp so it does not accumulate (issue #354).
+				tmpFile.delete();
+				throw new IOException("Failed to replace " + file + " with temporary file " + tmpFile);
+			}
 		}
 	}
 

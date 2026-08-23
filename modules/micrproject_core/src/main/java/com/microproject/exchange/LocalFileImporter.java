@@ -54,6 +54,7 @@ import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
+import com.microproject.util.SafeFileReplace;
 import com.microproject.util.SafeObjectInput;
 
 /**
@@ -370,8 +371,12 @@ public class LocalFileImporter extends FileImporter {
 				Alert.error(Messages.getString("Message.saveError"));
 				else Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
 		}else if (!file.equals(tmpFile)){
-			file.delete();
-			tmpFile.renameTo(file);
+			if (!SafeFileReplace.replace(tmpFile, file)) {
+				// The original is preserved by the safe replace; discard the temp
+				// so it does not accumulate (issue #354).
+				tmpFile.delete();
+				Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
+			}
 		}
 
 	}

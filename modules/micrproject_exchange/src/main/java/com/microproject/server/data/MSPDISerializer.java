@@ -37,6 +37,7 @@ import java.util.LinkedList;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import com.microproject.util.SafeFileReplace;
 
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.server.data.linker.Linker;
@@ -339,23 +340,33 @@ public class MSPDISerializer implements ProjectSerializer {
 			tmpFile=new File(tmpFileName);
 		}
 		
-		
 		try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
-			if (saveProject(project, fos)
-					 && tmpFile.length()>0){
-				if (!file.equals(tmpFile)){
-					file.delete();
-					tmpFile.renameTo(file);
-				}
-				return true;
+			if (!saveProject(project, fos) || tmpFile.length()==0){
+				// Serialization failed or produced an empty file: discard the
+				// partial temp so it cannot accumulate, and keep the original.
+				tmpFile.delete();
+				Alert.error(Messages.getString("Message.saveError"));
+				return false;
 			}
 		} catch (IOException e) {
 			logger.log(Level.WARNING, "Failed to save MSPDI file " + fileName, e);
-		}
-		if (file.equals(tmpFile))
+			tmpFile.delete();
 			Alert.error(Messages.getString("Message.saveError"));
-		else Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
-		return false;
+			return false;
+		}
+		// Replace the original with the temp file only after the move has
+		// actually succeeded, so a failed rename can no longer delete the user's
+		// data (issue #354). On failure the temp is discarded to avoid an
+		// ever-growing pile of _tmpN files.
+		if (file.equals(tmpFile)) {
+			return true;
+		}
+		if (!SafeFileReplace.replace(tmpFile, file)) {
+			tmpFile.delete();
+			Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
+			return false;
+		}
+		return true;
 	}
 
 	public boolean saveProject(Project project,OutputStream out) {
