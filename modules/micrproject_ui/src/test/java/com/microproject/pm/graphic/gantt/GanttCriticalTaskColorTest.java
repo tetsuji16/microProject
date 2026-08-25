@@ -44,10 +44,11 @@ class GanttCriticalTaskColorTest {
 		assertTrue(critical.isCritical(), "zero total slack must mark the task critical");
 
 		GanttRenderer renderer = new GanttRenderer();
-		GanttRenderer.DisplayedBarColors colors = renderer.resolveDisplayedBarColors(critical);
-
+		var options = new GanttProjectionCapture.Options(null, null, null, renderer.getPalette(), false);
+		int actual = GanttProjectionCapture.displayedMiddleColor(critical, critical, false, options,
+				GanttProjectionCapture.criticalChainIds(critical.getProject())).getRGB() & 0x00FFFFFF;
 		int expected = renderer.getPalette().getCriticalTaskColor().getRGB() & 0x00FFFFFF;
-		assertEquals(expected, colors.middleRgb(), "critical task bar must use the critical color");
+		assertEquals(expected, actual, "critical task bar must use the critical color");
 	}
 
 	@Test
@@ -58,10 +59,12 @@ class GanttCriticalTaskColorTest {
 		assertFalse(normal.isCritical(), "one day of total slack must not be critical at threshold 0");
 
 		GanttRenderer renderer = new GanttRenderer();
-		GanttRenderer.DisplayedBarColors colors = renderer.resolveDisplayedBarColors(normal);
+		var options = new GanttProjectionCapture.Options(null, null, null, renderer.getPalette(), false);
+		int actual = GanttProjectionCapture.displayedMiddleColor(normal, normal, false, options,
+				GanttProjectionCapture.criticalChainIds(normal.getProject())).getRGB() & 0x00FFFFFF;
 
 		int critical = renderer.getPalette().getCriticalTaskColor().getRGB() & 0x00FFFFFF;
-		assertNotEquals(critical, colors.middleRgb(), "non-critical task must not use the critical color");
+		assertNotEquals(critical, actual, "non-critical task must not use the critical color");
 	}
 
 	@Test
@@ -77,9 +80,11 @@ class GanttCriticalTaskColorTest {
 			java.util.List.of(Long.valueOf(chainTask.getUniqueId())), java.util.Map.of(), java.util.Map.of()));
 
 		GanttRenderer renderer = new GanttRenderer();
-		GanttRenderer.DisplayedBarColors colors = renderer.resolveDisplayedBarColors(chainTask);
+		var options = new GanttProjectionCapture.Options(null, null, null, renderer.getPalette(), false);
+		int actual = GanttProjectionCapture.displayedMiddleColor(chainTask, chainTask, false, options,
+				GanttProjectionCapture.criticalChainIds(project)).getRGB() & 0x00FFFFFF;
 		int expected = renderer.getPalette().getCriticalTaskColor().getRGB() & 0x00FFFFFF;
-		assertEquals(expected, colors.middleRgb());
+		assertEquals(expected, actual);
 	}
 
 	private static NormalTask createTask() {

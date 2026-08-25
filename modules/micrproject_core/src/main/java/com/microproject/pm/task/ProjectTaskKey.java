@@ -24,7 +24,10 @@
 package com.microproject.pm.task;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Durable identity of a task within its owning project.
@@ -54,5 +57,23 @@ public record ProjectTaskKey(long owningProjectId, long taskUniqueId) implements
 		return projectId <= 0L
 				? Optional.empty()
 				: Optional.of(new ProjectTaskKey(projectId, task.getUniqueId()));
+	}
+
+	/** Resolves this durable identity through a master project and its loaded subprojects. */
+	public static Optional<Task> resolve(Project project, ProjectTaskKey key) {
+		return Optional.ofNullable(resolve(project, key,
+				Collections.newSetFromMap(new IdentityHashMap<>())));
+	}
+
+	private static Task resolve(Project project, ProjectTaskKey key, Set<Project> visited) {
+		if (project == null || key == null || !visited.add(project)) return null;
+		for (Task task : project.getTasks()) {
+			if (from(task).filter(key::equals).isPresent()) return task;
+			if (task instanceof SubProj subproject) {
+				Task nested = resolve(subproject.getSubproject(), key, visited);
+				if (nested != null) return nested;
+			}
+		}
+		return null;
 	}
 }

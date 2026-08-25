@@ -241,20 +241,26 @@ public class ViewTransformer{
 		copy.hiddenGrouperIdDirty=hiddenGrouperId!=null;
 		copy.userGrouperIdDirty=userGrouperId!=null;
 		copy.transformerIdDirty=transformerId!=null;
-		if (hiddenFilterId==null) copy.hiddenFilter=hiddenFilter;
-		if (userFilterId==null) copy.userFilter=userFilter;
-		if (hiddenSorterId==null) copy.hiddenSorter=hiddenSorter;
-		if (userSorterId==null) copy.userSorter=userSorter;
-		if (hiddenGrouperId==null) copy.hiddenGrouper=hiddenGrouper;
-		if (userGrouperId==null) copy.userGrouper=userGrouper;
-		if (transformerId==null) copy.transformer=transformer;
+		if (hiddenFilterId==null) copy.hiddenFilter=copyDirect(hiddenFilter);
+		if (userFilterId==null) copy.userFilter=copyDirect(userFilter);
+		if (hiddenSorterId==null) copy.hiddenSorter=copyDirect(hiddenSorter);
+		if (userSorterId==null) copy.userSorter=copyDirect(userSorter);
+		if (hiddenGrouperId==null) copy.hiddenGrouper=copyDirect(hiddenGrouper);
+		if (userGrouperId==null) copy.userGrouper=copyDirect(userGrouper);
+		if (transformerId==null) copy.transformer=copyDirect(transformer);
 		return copy;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T extends CommonTransform> T copyDirect(T transform) {
+		if (transform == null) return null;
+		return (T)transform.copyForSession();
 	}
 
     public NodeFilter getHiddenFilter() {
         if (hiddenFilterIdDirty){
         	hiddenFilter=(NodeFilter)getTransform("hidden_filters",hiddenFilterId);
-        	hiddenFilter.setRedefinitionCallBack(redefinition);
+			if (hiddenFilter != null) hiddenFilter.setRedefinitionCallBack(redefinition);
         	hiddenFilterIdDirty=false;
         }
         return hiddenFilter;
@@ -269,7 +275,7 @@ public class ViewTransformer{
     public NodeGrouper getHiddenGrouper() {
         if (hiddenGrouperIdDirty){
         	hiddenGrouper=(NodeGrouper)getTransform("hidden_groupers",hiddenGrouperId);
-        	hiddenGrouper.setRedefinitionCallBack(redefinition);
+			if (hiddenGrouper != null) hiddenGrouper.setRedefinitionCallBack(redefinition);
         	hiddenGrouperIdDirty=false;
         }
        return hiddenGrouper;
@@ -280,7 +286,7 @@ public class ViewTransformer{
     public NodeSorter getHiddenSorter() {
         if (hiddenSorterIdDirty){
         	hiddenSorter=(NodeSorter)getTransform("hidden_sorters",hiddenSorterId);
-        	hiddenSorter.setRedefinitionCallBack(redefinition);
+			if (hiddenSorter != null) hiddenSorter.setRedefinitionCallBack(redefinition);
         	hiddenSorterIdDirty=false;
         }
        return hiddenSorter;

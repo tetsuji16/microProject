@@ -107,4 +107,17 @@ public class ColumnValueFilter extends NodeFilter {
 	public void setRedefinitionCallBack(Consumer<Object> callback) {
 		this.callback = callback;
 	}
+
+	@Override
+	public ColumnValueFilter copyForSession() {
+		ColumnValueFilter copy = new ColumnValueFilter(field);
+		copy.setShowEmptyLines(isShowEmptyLines());
+		copy.setShowEndEmptyLines(isShowEndEmptyLines());
+		copy.setShowSummary(isShowSummary());
+		copy.setShowEmptySummaries(isShowEmptySummaries());
+		copy.setShowAssignments(isShowAssignments());
+		copy.setPreserveHierarchy(isPreserveHierarchy());
+		copy.setAcceptedValues(acceptedValues, caseSensitive, false);
+		return copy;
+	}
 }

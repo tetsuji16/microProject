@@ -23,6 +23,8 @@
  *******************************************************************************/
 package com.microproject.application.task;
 
+import java.util.Set;
+
 import com.microproject.pm.task.ProjectTaskKey;
 
 /** Collaboration/authorization boundary; implementations may acquire a lock. */
@@ -34,9 +36,23 @@ public interface TaskAuthorizationPort {
 		LOCK_DENIED
 	}
 
-	Decision authorize(ProjectTaskKey key, TaskCommandType commandType);
+	/** Acquires one authorization scope for the complete command target set. */
+	AuthorizationLease acquire(Set<ProjectTaskKey> keys, TaskCommandType commandType);
+
+	interface AuthorizationLease extends AutoCloseable {
+		Decision decision();
+		boolean validateAtCommit();
+		@Override default void close() { }
+	}
 
 	static TaskAuthorizationPort allowAll() {
-		return (key, commandType) -> Decision.ALLOWED;
+		return (keys, commandType) -> fixed(Decision.ALLOWED);
+	}
+
+	static AuthorizationLease fixed(Decision decision) {
+		return new AuthorizationLease() {
+			@Override public Decision decision() { return decision; }
+			@Override public boolean validateAtCommit() { return decision == Decision.ALLOWED; }
+		};
 	}
 }

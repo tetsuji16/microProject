@@ -41,6 +41,10 @@ final class ProjectionRowKeyResolver {
 	private long nextRuntimeId = 1L;
 
 	ProjectionRowKey resolve(GraphicNode graphicNode) {
+		return resolve(graphicNode, null);
+	}
+
+	ProjectionRowKey resolve(GraphicNode graphicNode, String syntheticGroupIdentity) {
 		if (graphicNode == null)
 			return runtime(ProjectionRowKey.Kind.OTHER, this);
 		Object node = graphicNode.getNode();
@@ -48,7 +52,8 @@ final class ProjectionRowKeyResolver {
 		if (graphicNode.isVoid())
 			return runtime(ProjectionRowKey.Kind.VOID, node == null ? graphicNode : node);
 		if (graphicNode.isGroup())
-			return semanticRuntime(ProjectionRowKey.Kind.GROUP, groupPath(graphicNode));
+			return semanticRuntime(ProjectionRowKey.Kind.GROUP,
+					syntheticGroupIdentity == null ? groupPath(graphicNode) : syntheticGroupIdentity);
 		if (value instanceof Assignment assignment) {
 			Task task = assignment.getTask();
 			ProjectTaskKey taskKey = ProjectTaskKey.from(task).orElse(null);

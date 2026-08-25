@@ -43,8 +43,9 @@ import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 import com.microproject.application.task.TaskCommandGateway;
 import com.microproject.application.task.TaskCommandResult;
-import com.microproject.application.task.TaskFieldEditCommand;
-import com.microproject.application.task.TaskDependencyUpdateCommand;
+import com.microproject.application.task.TaskCommands.TaskFieldEditCommand;
+import com.microproject.application.task.TaskCommands.TaskFieldBatchEditCommand;
+import com.microproject.application.task.TaskCommands.TaskDependencyUpdateCommand;
 import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -149,6 +150,34 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 	public void beginTaskCellEditorCommit() { editorCommitInProgress = true; }
 	public void endTaskCellEditorCommit() { editorCommitInProgress = false; }
 
+	public record PasteCell(String value, int row, int modelColumn) { }
+
+	/** Returns null when the target contains non-task rows and needs a different paste strategy. */
+	public Boolean pasteTaskCellsAtomically(java.util.List<PasteCell> cells) {
+		if (cells == null || cells.isEmpty()) return Boolean.FALSE;
+		java.util.List<TaskFieldEditCommand> edits = new java.util.ArrayList<>(cells.size());
+		Project commandProject = null;
+		TaskCommandGateway gateway = null;
+		for (PasteCell cell : cells) {
+			if (cell.row() < 0 || cell.row() >= getRowCount() || cell.modelColumn() <= 0
+					|| cell.modelColumn() >= getColumnCount()) return Boolean.FALSE;
+			Node node = getNodeInRow(cell.row());
+			Field field = getFieldInColumn(cell.modelColumn());
+			if (node == null || field == null || !(node.getImpl() instanceof Task task)) return null;
+			Project owner = task.getOwningProject();
+			ProjectTaskKey key = ProjectTaskKey.from(task).orElse(null);
+			if (owner == null || key == null || (commandProject != null && commandProject != owner)) return Boolean.FALSE;
+			commandProject = owner;
+			if (gateway == null) gateway = taskCommandGateway();
+			edits.add(new TaskFieldEditCommand(key, field.getId(), getValueAt(cell.row(), cell.modelColumn()),
+					cell.value(), fieldContext));
+		}
+		TaskCommandResult result = gateway.editFields(new TaskFieldBatchEditCommand(edits,
+				commandProject.getDomainChangeJournal().revision()));
+		return result.status() == TaskCommandResult.Status.COMMITTED
+				|| result.status() == TaskCommandResult.Status.NO_OP;
+	}
+
 	public void setValueAt(Object value, int row, int col) {
 		if (isReadOnly()) return;
 		if (col == 0)
@@ -176,8 +205,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 				taskCellEditDraft = null;
 				if (!(getCache().getModel().getDataFactory() instanceof Project commandProject))
 					throw new IllegalStateException("Task edit has no project");
-				TaskCommandGateway gateway = getCache() instanceof ViewNodeModelCache viewCache
-						? viewCache.getTaskCommandGateway() : new TaskCommandGateway(commandProject);
+				TaskCommandGateway gateway = taskCommandGateway();
 				TaskCommandResult result = gateway.editField(
 						new TaskFieldEditCommand(draft.taskKey(), field.getId(), draft.expectedValue(), value, fieldContext));
 				handleTaskCommandResult(result);
@@ -211,8 +239,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 				Project commandProject = predecessor == null ? null : predecessor.getOwningProject();
 				if (predecessorKey == null || successorKey == null || commandProject == null)
 					throw new IllegalStateException("Dependency has no command identity");
-				TaskCommandGateway gateway = getCache() instanceof ViewNodeModelCache viewCache
-						? viewCache.getTaskCommandGateway() : new TaskCommandGateway(commandProject);
+				TaskCommandGateway gateway = taskCommandGateway();
 				TaskCommandResult result = gateway.updateDependency(new TaskDependencyUpdateCommand(
 						predecessorKey, successorKey, dependency.getLag(), dependency.getDependencyType(),
 						getDependencyLag(field, value, dependency), getDependencyType(field, value, dependency),
@@ -223,8 +250,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 				Project commandProject = task.getOwningProject();
 				if (taskKey == null || commandProject == null)
 					throw new IllegalStateException("Task has no command identity");
-				TaskCommandGateway gateway = getCache() instanceof ViewNodeModelCache viewCache
-						? viewCache.getTaskCommandGateway() : new TaskCommandGateway(commandProject);
+				TaskCommandGateway gateway = taskCommandGateway();
 				TaskCommandResult result = gateway.editField(
 						new TaskFieldEditCommand(taskKey, field.getId(), oldValue, value, fieldContext));
 				handleTaskCommandResult(result);
@@ -241,6 +267,11 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 				|| result.status() == TaskCommandResult.Status.NO_OP) return;
 		if (result.failure() instanceof RuntimeException runtime) throw runtime;
 		throw new IllegalStateException("Task field command failed: " + result.status(), result.failure());
+	}
+
+	private TaskCommandGateway taskCommandGateway() {
+		if (getCache() instanceof ViewNodeModelCache viewCache) return viewCache.getTaskCommandGateway();
+		throw new IllegalStateException("task edits require a document view cache");
 	}
 
 	static long getDependencyLag(Field editedField, Object value, Dependency dependency) {

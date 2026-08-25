@@ -111,8 +111,10 @@ class CommonSpreadSheetDurationEditingTest {
 		SwingUtilities.invokeAndWait(() -> {
 			TestSpreadSheet sheet = new TestSpreadSheet();
 			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			var reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+			reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				reference,
 				"duration-edit-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(

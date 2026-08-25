@@ -23,6 +23,8 @@
  *******************************************************************************/
 package com.microproject.application.task;
 
+import com.microproject.application.task.TaskCommands.*;
+
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.ArrayList;
@@ -32,17 +34,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-import javax.swing.undo.CompoundEdit;
-
 import com.microproject.configuration.Configuration;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
+import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectTaskKey;
-import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
@@ -53,8 +53,10 @@ import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.transaction.DomainChangeSet;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.undo.ModelFieldEdit;
+import com.microproject.undo.AtomicCompoundEdit;
 import com.microproject.undo.DependencyCreationEdit;
 import com.microproject.undo.DependencySetFieldsEdit;
+import com.microproject.undo.DependencyDeletionEdit;
 import com.microproject.undo.NodeRelocationEdit;
 import com.microproject.undo.NodeIndentEdit;
 import com.microproject.undo.ScheduleEdit;
@@ -62,6 +64,8 @@ import com.microproject.undo.TaskConstraintEdit;
 import com.microproject.undo.NodePasteEdit;
 import com.microproject.undo.FieldEdit;
 import com.microproject.undo.SplitEdit;
+import com.microproject.undo.UndoController;
+import javax.swing.undo.UndoableEdit;
 
 /** Headless per-project use-case gateway. */
 public final class TaskCommandGateway {
@@ -69,8 +73,9 @@ public final class TaskCommandGateway {
 	private final TaskAuthorizationPort authorization;
 
 	public TaskCommandGateway(Project project) {
-		this(project, (key, commandType) -> project != null && project.getCollaborationSession() == null
-				? TaskAuthorizationPort.Decision.ALLOWED : TaskAuthorizationPort.Decision.LOCK_DENIED);
+		this(project, (keys, commandType) -> TaskAuthorizationPort.fixed(
+				project != null && project.getCollaborationSession() == null
+						? TaskAuthorizationPort.Decision.ALLOWED : TaskAuthorizationPort.Decision.LOCK_DENIED));
 	}
 
 	public TaskCommandGateway(Project project, TaskAuthorizationPort authorization) {
@@ -82,63 +87,101 @@ public final class TaskCommandGateway {
 		Task task = resolve(command.taskKey());
 		Project owner = task == null ? null : task.getOwningProject();
 		if (owner == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
-		return owner.getDomainChangeJournal().write(() -> editFieldLocked(command));
+		return owner.getDomainChangeJournal().write(() -> editFieldsLocked(
+				new TaskFieldBatchEditCommand(List.of(command), owner.getDomainChangeJournal().revision()), owner));
 	}
 
-	private TaskCommandResult editFieldLocked(TaskFieldEditCommand command) {
-		Task task = resolve(command.taskKey());
-		if (task == null)
-			return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
-		Project owner = task.getOwningProject();
-		if (project.isReadOnly() || task.isReadOnly() || owner == null || owner.isReadOnly())
-			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		TaskAuthorizationPort.Decision decision = authorization.authorize(command.taskKey(), TaskCommandType.EDIT_FIELD);
-		if (decision == TaskAuthorizationPort.Decision.LOCK_DENIED)
-			return TaskCommandResult.of(TaskCommandResult.Status.LOCK_DENIED);
-		if (decision == TaskAuthorizationPort.Decision.READ_ONLY)
-			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		Field field = Configuration.getFieldFromId(command.fieldId());
-		NodeModel model = owner.getTaskModel();
-		Node node = model.search(task);
-		if (field == null || node == null)
-			return TaskCommandResult.of(TaskCommandResult.Status.INVALID);
-		FieldContext context = command.fieldContext() == null ? new FieldContext() : command.fieldContext();
-		Object original = field.getValue(node, model, context);
-		if (!Objects.deepEquals(original, command.expectedValue()))
+	public TaskCommandResult editFields(TaskFieldBatchEditCommand command) {
+		if (command == null || command.edits().isEmpty()) return TaskCommandResult.of(TaskCommandResult.Status.NO_OP);
+		Task first = resolve(command.edits().get(0).taskKey());
+		Project owner = first == null ? null : first.getOwningProject();
+		if (owner == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+		return owner.getDomainChangeJournal().write(() -> editFieldsLocked(command, owner));
+	}
+
+	private TaskCommandResult editFieldsLocked(TaskFieldBatchEditCommand command, Project ownerProject) {
+		if (ownerProject.getDomainChangeJournal().revision() != command.expectedDomainRevision())
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
-		if (Objects.deepEquals(original, command.proposedValue()))
-			return TaskCommandResult.of(TaskCommandResult.Status.NO_OP);
-		if (field.isReadOnly(node, model, context))
-			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		boolean projectDirty = owner.isDirty();
-		boolean taskDirty = task.isDirty();
-		ProjectScheduleBackup scheduleBackup = isScheduleField(command.fieldId()) ? captureSchedule(owner) : null;
-		ModelTransaction<Object> transaction = ModelTransaction.<Object>builder()
+		record Target(TaskFieldEditCommand command, Task task, NodeModel model, Node node,
+				Field field, FieldContext context, Object original, boolean taskDirty) { }
+		List<Target> targets = new ArrayList<>(command.edits().size());
+		Set<ProjectTaskKey> affectedTasks = new java.util.LinkedHashSet<>();
+		Set<String> affectedFields = new java.util.LinkedHashSet<>();
+		boolean scheduleAffected = false;
+		for (TaskFieldEditCommand edit : command.edits()) {
+			Task task = resolve(edit.taskKey());
+			Project owner = task == null ? null : task.getOwningProject();
+			if (task == null || owner == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+			if (owner != ownerProject) return TaskCommandResult.of(TaskCommandResult.Status.INVALID);
+			if (ownerProject.isReadOnly() || task.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+			Field field = Configuration.getFieldFromId(edit.fieldId());
+			NodeModel model = owner.getTaskModel();
+			Node node = model.search(task);
+			FieldContext context = edit.fieldContext() == null ? new FieldContext() : edit.fieldContext();
+			if (field == null || node == null) return TaskCommandResult.of(TaskCommandResult.Status.INVALID);
+			Object original = field.getValue(node, model, context);
+			if (!Objects.deepEquals(original, edit.expectedValue()))
+				return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+			if (field.isReadOnly(node, model, context))
+				return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+			if (Objects.deepEquals(original, edit.proposedValue())) continue;
+			targets.add(new Target(edit, task, model, node, field, context, original, task.isDirty()));
+			affectedTasks.add(edit.taskKey());
+			affectedFields.add(edit.fieldId());
+			scheduleAffected |= isScheduleField(edit.fieldId());
+		}
+		if (targets.isEmpty()) return TaskCommandResult.of(TaskCommandResult.Status.NO_OP);
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(affectedTasks, TaskCommandType.EDIT_FIELD);
+		boolean projectDirty = ownerProject.isDirty();
+		ProjectScheduleBackup scheduleBackup = scheduleAffected ? captureSchedule(ownerProject) : null;
+		List<Object> appliedValues = new ArrayList<>(targets.size());
+		final boolean scheduleCascade = scheduleAffected;
+		ModelTransaction<List<Object>> transaction = TaskCommandGateway.<List<Object>>authorizedBuilder(ownerProject, authorizationGuard)
 				.captureRollback(() -> () -> {
-					if (scheduleBackup != null) restoreSchedule(owner, scheduleBackup);
-					else field.setValue(node, model, this, original, context);
-					task.setDirty(taskDirty);
-					owner.setDirty(projectDirty);
+					for (int index = targets.size() - 1; index >= 0; index--) {
+						Target target = targets.get(index);
+						target.field().setValue(target.node(), target.model(), this, target.original(), target.context());
+						target.task().setDirty(target.taskDirty());
+					}
+					if (scheduleBackup != null) restoreSchedule(ownerProject, scheduleBackup);
+					ownerProject.setDirty(projectDirty);
 				})
 				.apply(() -> {
-					field.setValue(node, model, this, command.proposedValue(), context);
-					Object applied = field.getValue(node, model, context);
-					return Objects.deepEquals(original, applied)
-							? ModelTransaction.Mutation.noOp(applied)
-							: ModelTransaction.Mutation.changed(applied);
+					boolean changed = false;
+					appliedValues.clear();
+					for (Target target : targets) {
+						setProposed(target.field(), target.node(), target.model(), target.context(),
+								target.command().proposedValue());
+						Object applied = target.field().getValue(target.node(), target.model(), target.context());
+						appliedValues.add(applied);
+						changed |= !Objects.deepEquals(target.original(), applied);
+					}
+					return changed ? ModelTransaction.Mutation.changed(List.copyOf(appliedValues))
+							: ModelTransaction.Mutation.noOp(List.copyOf(appliedValues));
 				})
-				.invariant(() -> resolve(command.taskKey()) == task)
-				.commitUndo(applied -> {
-					if (owner.getUndoController() != null)
-						owner.getUndoController().commitEdit(
-								new ModelFieldEdit(model, field, node, this, applied, original, context));
+				.invariant(() -> {
+					for (int index = 0; index < targets.size(); index++)
+						if (!Objects.deepEquals(appliedValues.get(index),
+								targets.get(index).field().getValue(targets.get(index).node(),
+										targets.get(index).model(), targets.get(index).context()))) return false;
+					return true;
 				})
-				.changes(applied -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
-						Set.of(command.taskKey()), Set.of(command.fieldId()), DomainChangeSet.TopologyImpact.NONE,
-						isScheduleField(command.fieldId()), false))
-				.onRecoveryFailure(failure -> owner.setReadOnly(true))
+				.commitUndo(values -> {
+					if (ownerProject.getUndoController() == null) return;
+					AtomicCompoundEdit compound = new AtomicCompoundEdit();
+					for (int index = 0; index < targets.size(); index++) {
+						Target target = targets.get(index);
+						compound.addEdit(new ModelFieldEdit(target.model(), target.field(), target.node(), this,
+								values.get(index), target.original(), target.context()));
+					}
+					compound.end();
+					ownerProject.getUndoController().commitEdit(compound);
+				})
+				.changes(values -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
+						Set.copyOf(affectedTasks), Set.copyOf(affectedFields), DomainChangeSet.TopologyImpact.NONE,
+						scheduleCascade, false))
 				.build();
-		return map(transaction.execute(owner.getDomainChangeJournal()));
+		return executeAuthorized(transaction, authorizationGuard, ownerProject);
 	}
 
 	public TaskCommandResult createDependency(TaskDependencyCommand command) {
@@ -147,6 +190,106 @@ public final class TaskCommandGateway {
 
 	public TaskCommandResult updateDependency(TaskDependencyUpdateCommand command) {
 		return project.getDomainChangeJournal().write(() -> updateDependencyLocked(command));
+	}
+
+	public TaskCommandResult deleteDependency(TaskDependencyDeleteCommand command) {
+		return project.getDomainChangeJournal().write(() -> deleteDependencyLocked(command));
+	}
+
+	public TaskCommandResult changeDependencies(TaskDependencyBatchCommand command) {
+		return project.getDomainChangeJournal().write(() -> changeDependenciesLocked(command));
+	}
+
+	private TaskCommandResult changeDependenciesLocked(TaskDependencyBatchCommand command) {
+		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		if (command.tasks().size() < (command.operation() == TaskDependencyBatchCommand.Operation.LINK ? 2 : 1))
+			return TaskCommandResult.of(TaskCommandResult.Status.NO_OP);
+		List<Task> tasks = new ArrayList<>(command.tasks().size());
+		for (ProjectTaskKey key : command.tasks()) {
+			Task task = resolve(key);
+			if (task == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+			if (task.isReadOnly() || project.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+			tasks.add(task);
+		}
+		Set<ProjectTaskKey> affected = new java.util.LinkedHashSet<>(command.tasks());
+		if (command.operation() == TaskDependencyBatchCommand.Operation.UNLINK) {
+			for (Task task : tasks) {
+				for (Object value : task.getPredecessorList())
+					addTaskKey(affected, ((Dependency) value).getPredecessor());
+				for (Object value : task.getSuccessorList())
+					addTaskKey(affected, ((Dependency) value).getSuccessor());
+			}
+		}
+		AuthorizationGuard guard = new AuthorizationGuard(Set.copyOf(affected), TaskCommandType.BATCH_DEPENDENCY);
+		boolean projectDirty = project.isDirty();
+		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
+		UndoableEdit[] captured = new UndoableEdit[1];
+		ModelTransaction<List<Task>> transaction = TaskCommandGateway.<List<Task>>authorizedBuilder(project, guard)
+				.captureRollback(() -> () -> {
+					if (captured[0] != null && captured[0].canUndo()) captured[0].undo();
+					restoreSchedule(project, scheduleBackup);
+					project.setDirty(projectDirty);
+				})
+				.apply(() -> {
+					UndoController.EditCapture capture = project.getUndoController().captureEdits();
+					try {
+						if (command.operation() == TaskDependencyBatchCommand.Operation.LINK)
+							DependencyService.getInstance().connect(tasks, this, null);
+						else
+							DependencyService.getInstance().removeAnyDependencies(tasks, this);
+					} finally {
+						capture.close();
+						captured[0] = capture.edit();
+					}
+					return captured[0] == null ? ModelTransaction.Mutation.noOp(List.copyOf(tasks))
+							: ModelTransaction.Mutation.changed(List.copyOf(tasks));
+				})
+				.invariant(() -> command.operation() == TaskDependencyBatchCommand.Operation.LINK
+						? adjacentDependenciesExist(tasks) : tasks.stream().noneMatch(TaskCommandGateway::hasDependencies))
+				.commitUndo(value -> project.getUndoController().commitEdit(captured[0]))
+				.changes(value -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
+						Set.copyOf(affected), Set.of(), DomainChangeSet.TopologyImpact.NONE, true, true))
+				.build();
+		return executeAuthorized(transaction, guard, project);
+	}
+
+	private TaskCommandResult deleteDependencyLocked(TaskDependencyDeleteCommand command) {
+		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		Task predecessor = resolve(command.predecessor());
+		Task successor = resolve(command.successor());
+		Dependency dependency = predecessor == null || successor == null ? null : findDependency(predecessor, successor);
+		if (dependency == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+		if (project.isReadOnly() || predecessor.isReadOnly() || successor.isReadOnly())
+			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+		if (dependency.getLag() != command.expectedLag() || dependency.getDependencyType() != command.expectedType())
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		Set<ProjectTaskKey> keys = Set.of(command.predecessor(), command.successor());
+		AuthorizationGuard guard = new AuthorizationGuard(keys, TaskCommandType.DELETE_DEPENDENCY);
+		boolean projectDirty = project.isDirty();
+		boolean dependencyDirty = dependency.isDirty();
+		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
+		ModelTransaction<Dependency> transaction = TaskCommandGateway.<Dependency>authorizedBuilder(project, guard)
+				.captureRollback(() -> () -> {
+					if (findDependency(predecessor, successor) == null) DependencyService.getInstance().connect(dependency, this);
+					restoreSchedule(project, scheduleBackup);
+					dependency.setDirty(dependencyDirty);
+					project.setDirty(projectDirty);
+				})
+				.apply(() -> {
+					DependencyService.getInstance().remove(dependency, this, false);
+					return ModelTransaction.Mutation.changed(dependency);
+				})
+				.invariant(() -> findDependency(predecessor, successor) == null)
+				.commitUndo(value -> {
+					if (project.getUndoController() != null)
+						project.getUndoController().commitEdit(new DependencyDeletionEdit(value, this));
+				})
+				.changes(value -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
+						keys, Set.of(), DomainChangeSet.TopologyImpact.NONE, true, true))
+				.build();
+		return executeAuthorized(transaction, guard, project);
 	}
 
 	private TaskCommandResult updateDependencyLocked(TaskDependencyUpdateCommand command) {
@@ -158,13 +301,8 @@ public final class TaskCommandGateway {
 		if (dependency == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
 		if (project.isReadOnly() || predecessor.isReadOnly() || successor.isReadOnly())
 			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		for (ProjectTaskKey key : List.of(command.predecessor(), command.successor())) {
-			TaskAuthorizationPort.Decision decision = authorization.authorize(key, TaskCommandType.UPDATE_DEPENDENCY);
-			if (decision == TaskAuthorizationPort.Decision.LOCK_DENIED)
-				return TaskCommandResult.of(TaskCommandResult.Status.LOCK_DENIED);
-			if (decision == TaskAuthorizationPort.Decision.READ_ONLY)
-				return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		}
+		Set<ProjectTaskKey> authorizationKeys = Set.of(command.predecessor(), command.successor());
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(authorizationKeys, TaskCommandType.UPDATE_DEPENDENCY);
 		if (dependency.getLag() != command.expectedLag() || dependency.getDependencyType() != command.expectedType())
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
 		if (command.expectedLag() == command.proposedLag() && command.expectedType() == command.proposedType())
@@ -172,7 +310,7 @@ public final class TaskCommandGateway {
 		boolean dependencyDirty = dependency.isDirty();
 		boolean projectDirty = project.isDirty();
 		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
-		ModelTransaction<Dependency> transaction = ModelTransaction.<Dependency>builder()
+		ModelTransaction<Dependency> transaction = TaskCommandGateway.<Dependency>authorizedBuilder(project, authorizationGuard)
 				.captureRollback(() -> () -> {
 					DependencyService.getInstance().setFields(dependency, command.expectedLag(),
 							command.expectedType(), this, false);
@@ -196,9 +334,8 @@ public final class TaskCommandGateway {
 				.changes(value -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
 						Set.of(command.predecessor(), command.successor()), Set.of(),
 						DomainChangeSet.TopologyImpact.NONE, true, true))
-				.onRecoveryFailure(failure -> project.setReadOnly(true))
 				.build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
 	private TaskCommandResult createDependencyLocked(TaskDependencyCommand command) {
@@ -210,16 +347,8 @@ public final class TaskCommandGateway {
 			return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
 		if (predecessor.isReadOnly() || successor.isReadOnly() || project.isReadOnly())
 			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		TaskAuthorizationPort.Decision predecessorDecision = authorization.authorize(
-				command.predecessor(), TaskCommandType.CREATE_DEPENDENCY);
-		TaskAuthorizationPort.Decision successorDecision = authorization.authorize(
-				command.successor(), TaskCommandType.CREATE_DEPENDENCY);
-		if (predecessorDecision == TaskAuthorizationPort.Decision.LOCK_DENIED
-				|| successorDecision == TaskAuthorizationPort.Decision.LOCK_DENIED)
-			return TaskCommandResult.of(TaskCommandResult.Status.LOCK_DENIED);
-		if (predecessorDecision == TaskAuthorizationPort.Decision.READ_ONLY
-				|| successorDecision == TaskAuthorizationPort.Decision.READ_ONLY)
-			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+		Set<ProjectTaskKey> authorizationKeys = Set.of(command.predecessor(), command.successor());
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(authorizationKeys, TaskCommandType.CREATE_DEPENDENCY);
 		Dependency existing = findDependency(predecessor, successor);
 		if (existing != null) {
 			return existing.getDependencyType() == command.dependencyType() && existing.getLag() == command.lag()
@@ -231,7 +360,7 @@ public final class TaskCommandGateway {
 		boolean successorDirty = successor.isDirty();
 		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
 		Dependency[] created = new Dependency[1];
-		ModelTransaction<Dependency> transaction = ModelTransaction.<Dependency>builder()
+		ModelTransaction<Dependency> transaction = TaskCommandGateway.<Dependency>authorizedBuilder(project, authorizationGuard)
 				.captureRollback(() -> () -> {
 					if (created[0] != null)
 						DependencyService.getInstance().remove(created[0], TaskCommandGateway.this, false);
@@ -254,9 +383,8 @@ public final class TaskCommandGateway {
 				.changes(dependency -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
 						Set.of(command.predecessor(), command.successor()), Set.of(), DomainChangeSet.TopologyImpact.NONE,
 						true, true))
-				.onRecoveryFailure(failure -> project.setReadOnly(true))
 				.build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
 	public TaskCommandResult moveHierarchy(TaskHierarchyMoveCommand command) {
@@ -266,7 +394,6 @@ public final class TaskCommandGateway {
 	private TaskCommandResult moveHierarchyLocked(TaskHierarchyMoveCommand command) {
 		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
-		List<Task> tasks = new ArrayList<>();
 		List<Node> nodes = new ArrayList<>();
 		for (ProjectTaskKey key : command.tasks()) {
 			Task task = resolve(key);
@@ -275,12 +402,6 @@ public final class TaskCommandGateway {
 				return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
 			if (project.isReadOnly() || task.isReadOnly())
 				return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-			TaskAuthorizationPort.Decision decision = authorization.authorize(key, TaskCommandType.MOVE);
-			if (decision == TaskAuthorizationPort.Decision.LOCK_DENIED)
-				return TaskCommandResult.of(TaskCommandResult.Status.LOCK_DENIED);
-			if (decision == TaskAuthorizationPort.Decision.READ_ONLY)
-				return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-			tasks.add(task);
 			nodes.add(node);
 		}
 		NodeModel model = project.getTaskModel();
@@ -291,12 +412,13 @@ public final class TaskCommandGateway {
 		int beforeIndex = parent.getIndex(nodes.get(0));
 		int targetIndex = command.direction() < 0 ? beforeIndex - 1 : beforeIndex + 1;
 		boolean projectDirty = project.isDirty();
-		boolean[] dirty = new boolean[tasks.size()];
-		for (int index = 0; index < tasks.size(); index++) dirty[index] = tasks.get(index).isDirty();
-		ModelTransaction<List<Node>> transaction = ModelTransaction.<List<Node>>builder()
+		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
+		Set<ProjectTaskKey> affected = hierarchyKeys(nodes, parent);
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(affected, TaskCommandType.MOVE);
+		ModelTransaction<List<Node>> transaction = TaskCommandGateway.<List<Node>>authorizedBuilder(project, authorizationGuard)
 				.captureRollback(() -> () -> {
 					model.relocate(nodes, parent, beforeIndex, NodeModel.EVENT);
-					for (int index = 0; index < tasks.size(); index++) tasks.get(index).setDirty(dirty[index]);
+					restoreSchedule(project, scheduleBackup);
 					project.setDirty(projectDirty);
 				})
 				.apply(() -> model.relocate(nodes, parent, targetIndex, NodeModel.EVENT)
@@ -309,10 +431,9 @@ public final class TaskCommandGateway {
 								model, moved, parent, beforeIndex, parent, parent.getIndex(moved.get(0))));
 				})
 				.changes(moved -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
-						Set.copyOf(command.tasks()), Set.of(), DomainChangeSet.TopologyImpact.ROWS, false, false))
-				.onRecoveryFailure(failure -> project.setReadOnly(true))
+						affected, Set.of(), DomainChangeSet.TopologyImpact.ROWS, true, false))
 				.build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
 	public TaskCommandResult relocateHierarchy(TaskHierarchyRelocateCommand command) {
@@ -322,15 +443,13 @@ public final class TaskCommandGateway {
 	private TaskCommandResult relocateHierarchyLocked(TaskHierarchyRelocateCommand command) {
 		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
-		List<Task> tasks = new ArrayList<>();
 		List<Node> nodes = new ArrayList<>();
 		for (ProjectTaskKey key : command.tasks()) {
 			Task task = resolve(key);
 			Node node = task == null ? null : project.getTaskModel().search(task);
 			if (node == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
-			TaskCommandResult rejected = authorizeTask(task, key, TaskCommandType.MOVE);
-			if (rejected != null) return rejected;
-			tasks.add(task); nodes.add(node);
+			if (project.isReadOnly() || task.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+			nodes.add(node);
 		}
 		Task parentTask = command.parent() == null ? null : resolve(command.parent());
 		if (command.parent() != null && parentTask == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
@@ -341,12 +460,13 @@ public final class TaskCommandGateway {
 		Node sourceParent = (Node) nodes.get(0).getParent();
 		int beforeIndex = sourceParent.getIndex(nodes.get(0));
 		boolean projectDirty = project.isDirty();
-		boolean[] dirty = new boolean[tasks.size()];
-		for (int index = 0; index < tasks.size(); index++) dirty[index] = tasks.get(index).isDirty();
-		ModelTransaction<List<Node>> transaction = ModelTransaction.<List<Node>>builder()
+		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
+		Set<ProjectTaskKey> affected = hierarchyKeys(nodes, sourceParent, destination);
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(affected, TaskCommandType.MOVE);
+		ModelTransaction<List<Node>> transaction = TaskCommandGateway.<List<Node>>authorizedBuilder(project, authorizationGuard)
 				.captureRollback(() -> () -> {
 					model.relocate(nodes, sourceParent, beforeIndex, NodeModel.EVENT);
-					for (int index = 0; index < tasks.size(); index++) tasks.get(index).setDirty(dirty[index]);
+					restoreSchedule(project, scheduleBackup);
 					project.setDirty(projectDirty);
 				})
 				.apply(() -> model.relocate(nodes, destination, command.position(), NodeModel.EVENT)
@@ -358,9 +478,9 @@ public final class TaskCommandGateway {
 								sourceParent, beforeIndex, destination, destination.getIndex(moved.get(0))));
 				})
 				.changes(moved -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
-						Set.copyOf(command.tasks()), Set.of(), DomainChangeSet.TopologyImpact.ROWS, false, false))
-				.onRecoveryFailure(failure -> project.setReadOnly(true)).build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+						affected, Set.of(), DomainChangeSet.TopologyImpact.ROWS, true, false))
+				.build();
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
 	public TaskCommandResult indentHierarchy(TaskHierarchyIndentCommand command) {
@@ -370,30 +490,31 @@ public final class TaskCommandGateway {
 	private TaskCommandResult indentHierarchyLocked(TaskHierarchyIndentCommand command) {
 		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
-		List<Task> tasks = new ArrayList<>();
 		List<Node> nodes = new ArrayList<>();
 		for (ProjectTaskKey key : command.tasks()) {
 			Task task = resolve(key);
 			Node node = task == null ? null : project.getTaskModel().search(task);
 			if (node == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
-			TaskCommandResult rejected = authorizeTask(task, key, TaskCommandType.INDENT);
-			if (rejected != null) return rejected;
-			tasks.add(task);
+			if (project.isReadOnly() || task.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
 			nodes.add(node);
 		}
 		NodeModel model = project.getTaskModel();
 		List<NodeIndentEdit.Position> before = hierarchyPositions(model);
 		boolean projectDirty = project.isDirty();
-		boolean[] dirty = new boolean[tasks.size()];
-		for (int index = 0; index < tasks.size(); index++) dirty[index] = tasks.get(index).isDirty();
+		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
+		Node parent = nodes.isEmpty() ? null : (Node) nodes.get(0).getParent();
+		int firstIndex = parent == null ? -1 : parent.getIndex(nodes.get(0));
+		Node previousSibling = firstIndex > 0 ? (Node) parent.getChildAt(firstIndex - 1) : null;
+		Set<ProjectTaskKey> affected = hierarchyKeys(nodes, parent, previousSibling);
 		@SuppressWarnings("unchecked")
 		List<Node>[] changedNodes = new List[] { List.of() };
 		@SuppressWarnings("unchecked")
 		List<NodeIndentEdit.Position>[] after = new List[] { List.of() };
-		ModelTransaction<List<Node>> transaction = ModelTransaction.<List<Node>>builder()
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(affected, TaskCommandType.INDENT);
+		ModelTransaction<List<Node>> transaction = TaskCommandGateway.<List<Node>>authorizedBuilder(project, authorizationGuard)
 				.captureRollback(() -> () -> {
 					restorePositions(model, before);
-					for (int index = 0; index < tasks.size(); index++) tasks.get(index).setDirty(dirty[index]);
+					restoreSchedule(project, scheduleBackup);
 					project.setDirty(projectDirty);
 				})
 				.apply(() -> {
@@ -410,9 +531,9 @@ public final class TaskCommandGateway {
 								command.deltaLevel(), selectPositions(before, changed), selectPositions(after[0], changed)));
 				})
 				.changes(changed -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
-						Set.copyOf(command.tasks()), Set.of(), DomainChangeSet.TopologyImpact.ROWS, false, false))
-				.onRecoveryFailure(failure -> project.setReadOnly(true)).build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+						affected, Set.of(), DomainChangeSet.TopologyImpact.ROWS, true, false))
+				.build();
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
 	public TaskCommandResult dragSchedule(TaskScheduleDragCommand command) {
@@ -425,9 +546,6 @@ public final class TaskCommandGateway {
 		Task task = resolve(command.task());
 		if (task == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
 		if (project.isReadOnly() || task.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		TaskAuthorizationPort.Decision decision = authorization.authorize(command.task(), TaskCommandType.DRAG_SCHEDULE);
-		if (decision == TaskAuthorizationPort.Decision.LOCK_DENIED) return TaskCommandResult.of(TaskCommandResult.Status.LOCK_DENIED);
-		if (decision == TaskAuthorizationPort.Decision.READ_ONLY) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
 		Schedule schedule = task;
 		List<ScheduleInterval> intervals = new ArrayList<>();
 		ScheduleService.getInstance().consumeIntervals(schedule,
@@ -443,14 +561,13 @@ public final class TaskCommandGateway {
 		Object backup = schedule.backupDetail();
 		ProjectScheduleBackup projectScheduleBackup = captureSchedule(project);
 		boolean projectDirty = project.isDirty();
-		boolean taskDirty = task.isDirty();
 		ScheduleInterval liveInterval = findInterval(schedule, command.intervalIndex());
 		if (liveInterval == null) return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
-		ModelTransaction<ScheduleInterval> transaction = ModelTransaction.<ScheduleInterval>builder()
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(Set.of(command.task()), TaskCommandType.DRAG_SCHEDULE);
+		ModelTransaction<ScheduleInterval> transaction = TaskCommandGateway.<ScheduleInterval>authorizedBuilder(project, authorizationGuard)
 				.captureRollback(() -> () -> {
 					restoreSchedule(project, projectScheduleBackup);
 					task.setScheduleConstraint(command.expectedConstraintType(), command.expectedConstraintDate());
-					task.setDirty(taskDirty);
 					project.setDirty(projectDirty);
 				})
 				.apply(() -> {
@@ -466,7 +583,7 @@ public final class TaskCommandGateway {
 				.invariant(() -> task.getStart() <= task.getEnd())
 				.commitUndo(interval -> {
 					if (project.getUndoController() == null) return;
-					CompoundEdit compound = new CompoundEdit();
+					AtomicCompoundEdit compound = new AtomicCompoundEdit();
 					compound.addEdit(new ScheduleEdit(schedule, backup, command.proposedStart(),
 							command.proposedEnd(), interval, false, this));
 					if (command.updateConstraint())
@@ -478,13 +595,69 @@ public final class TaskCommandGateway {
 				.changes(interval -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
 						Set.of(command.task()), Set.of("Field.start", "Field.finish", "Field.constraintType",
 								"Field.constraintDate"), DomainChangeSet.TopologyImpact.NONE, true, false))
-				.onRecoveryFailure(failure -> project.setReadOnly(true))
 				.build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
 	public TaskCommandResult paste(TaskPasteCommand command) {
 		return project.getDomainChangeJournal().write(() -> pasteLocked(command));
+	}
+
+	public TaskCommandResult deleteTasks(TaskDeleteCommand command) {
+		return project.getDomainChangeJournal().write(() -> deleteTasksLocked(command));
+	}
+
+	private TaskCommandResult deleteTasksLocked(TaskDeleteCommand command) {
+		if (command == null || command.tasks().isEmpty()) return TaskCommandResult.of(TaskCommandResult.Status.NO_OP);
+		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		List<Node> nodes = new ArrayList<>(command.tasks().size());
+		List<Task> tasks = new ArrayList<>(command.tasks().size());
+		for (ProjectTaskKey key : command.tasks()) {
+			Task task = resolve(key);
+			Node node = task == null ? null : project.getTaskModel().search(task);
+			if (node == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+			if (project.isReadOnly() || task.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+			nodes.add(node);
+			tasks.add(task);
+		}
+		Set<ProjectTaskKey> affected = new java.util.LinkedHashSet<>(hierarchyKeys(nodes));
+		for (ProjectTaskKey key : List.copyOf(affected)) {
+			Task affectedTask = resolve(key);
+			if (affectedTask == null) continue;
+			for (Object value : affectedTask.getPredecessorList())
+				addTaskKey(affected, ((Dependency) value).getPredecessor());
+			for (Object value : affectedTask.getSuccessorList())
+				addTaskKey(affected, ((Dependency) value).getSuccessor());
+		}
+		Set<ProjectTaskKey> affectedKeys = Set.copyOf(affected);
+		AuthorizationGuard guard = new AuthorizationGuard(affectedKeys, TaskCommandType.DELETE_TASK);
+		UndoableEdit[] capturedEdit = new UndoableEdit[1];
+		boolean projectDirty = project.isDirty();
+		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
+		ModelTransaction<List<Node>> transaction = TaskCommandGateway.<List<Node>>authorizedBuilder(project, guard)
+				.captureRollback(() -> () -> {
+					if (capturedEdit[0] != null && capturedEdit[0].canUndo()) capturedEdit[0].undo();
+					restoreSchedule(project, scheduleBackup);
+					project.setDirty(projectDirty);
+				})
+				.apply(() -> {
+					UndoController.EditCapture capture = project.getUndoController().captureEdits();
+					try {
+						project.getTaskModel().remove(nodes, NodeModel.NORMAL);
+					} finally {
+						capture.close();
+						capturedEdit[0] = capture.edit();
+					}
+					return capturedEdit[0] == null ? ModelTransaction.Mutation.noOp(List.copyOf(nodes))
+							: ModelTransaction.Mutation.changed(List.copyOf(nodes));
+				})
+				.invariant(() -> tasks.stream().allMatch(task -> project.getTaskModel().search(task) == null))
+				.commitUndo(value -> project.getUndoController().commitEdit(capturedEdit[0]))
+				.changes(value -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
+						affectedKeys, Set.of(), DomainChangeSet.TopologyImpact.ROWS, true, true))
+				.build();
+		return executeAuthorized(transaction, guard, project);
 	}
 
 	private TaskCommandResult pasteLocked(TaskPasteCommand command) {
@@ -495,11 +668,6 @@ public final class TaskCommandGateway {
 			return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
 		if (project.isReadOnly() || parentTask != null && parentTask.isReadOnly())
 			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		if (parentTask != null) {
-			TaskAuthorizationPort.Decision decision = authorization.authorize(command.parent(), TaskCommandType.PASTE);
-			if (decision == TaskAuthorizationPort.Decision.LOCK_DENIED) return TaskCommandResult.of(TaskCommandResult.Status.LOCK_DENIED);
-			if (decision == TaskAuthorizationPort.Decision.READ_ONLY) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		}
 		NodeModel model = project.getTaskModel();
 		Node parent = parentTask == null ? (Node) model.getRoot() : model.search(parentTask);
 		if (parent == null || command.position() > parent.getChildCount())
@@ -508,7 +676,9 @@ public final class TaskCommandGateway {
 		for (Node node : nodes)
 			if (node == null || node.getParent() != null) return TaskCommandResult.of(TaskCommandResult.Status.INVALID);
 		boolean projectDirty = project.isDirty();
-		ModelTransaction<List<Node>> transaction = ModelTransaction.<List<Node>>builder()
+		Set<ProjectTaskKey> authorizationKeys = hierarchyKeys(List.of(), parent);
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(authorizationKeys, TaskCommandType.PASTE);
+		ModelTransaction<List<Node>> transaction = TaskCommandGateway.<List<Node>>authorizedBuilder(project, authorizationGuard)
 				.captureRollback(() -> () -> {
 					List<Node> attached = nodes.stream().filter(node -> node.getParent() != null).toList();
 					if (!attached.isEmpty()) model.remove(attached, NodeModel.EVENT);
@@ -528,9 +698,8 @@ public final class TaskCommandGateway {
 						pasted.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast)
 								.map(ProjectTaskKey::from).flatMap(java.util.Optional::stream).collect(java.util.stream.Collectors.toSet()),
 						Set.of(), DomainChangeSet.TopologyImpact.FULL_PROJECTION_INVALIDATION, true, true))
-				.onRecoveryFailure(failure -> project.setReadOnly(true))
 				.build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
 	public TaskCommandResult updateProgress(TaskProgressCommand command) {
@@ -542,8 +711,7 @@ public final class TaskCommandGateway {
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
 		Task task = resolve(command.task());
 		if (task == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
-		TaskCommandResult rejected = authorizeTask(task, command.task(), TaskCommandType.DRAG_SCHEDULE);
-		if (rejected != null) return rejected;
+		if (project.isReadOnly() || task.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
 		Schedule schedule = task;
 		long current = ScheduleService.getInstance().getCompleted(schedule);
 		if (current != command.expectedCompleted()) return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
@@ -556,9 +724,9 @@ public final class TaskCommandGateway {
 		if (oldValue == null) oldValue = Long.valueOf(schedule.getActualStart());
 		Object committedOldValue = oldValue;
 		boolean projectDirty = project.isDirty();
-		boolean taskDirty = task.isDirty();
-		ModelTransaction<Long> transaction = ModelTransaction.<Long>builder()
-				.captureRollback(() -> () -> { restoreSchedule(project, projectScheduleBackup); task.setDirty(taskDirty); project.setDirty(projectDirty); })
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(Set.of(command.task()), TaskCommandType.DRAG_SCHEDULE);
+		ModelTransaction<Long> transaction = TaskCommandGateway.<Long>authorizedBuilder(project, authorizationGuard)
+				.captureRollback(() -> () -> { restoreSchedule(project, projectScheduleBackup); project.setDirty(projectDirty); })
 				.apply(() -> {
 					boolean changed = ScheduleService.getInstance().setCompleted(this, schedule, proposed, null);
 					long applied = ScheduleService.getInstance().getCompleted(schedule);
@@ -572,8 +740,8 @@ public final class TaskCommandGateway {
 				})
 				.changes(value -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
 						Set.of(command.task()), Set.of("Field.stop"), DomainChangeSet.TopologyImpact.NONE, true, false))
-				.onRecoveryFailure(failure -> project.setReadOnly(true)).build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+				.build();
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
 	public TaskCommandResult split(TaskSplitCommand command) {
@@ -585,8 +753,7 @@ public final class TaskCommandGateway {
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
 		Task task = resolve(command.task());
 		if (task == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
-		TaskCommandResult rejected = authorizeTask(task, command.task(), TaskCommandType.DRAG_SCHEDULE);
-		if (rejected != null) return rejected;
+		if (project.isReadOnly() || task.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
 		Schedule schedule = task;
 		if (schedule.getStart() != command.expectedStart() || schedule.getEnd() != command.expectedEnd())
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
@@ -594,9 +761,9 @@ public final class TaskCommandGateway {
 		Object backup = schedule.backupDetail();
 		ProjectScheduleBackup projectScheduleBackup = captureSchedule(project);
 		boolean projectDirty = project.isDirty();
-		boolean taskDirty = task.isDirty();
-		ModelTransaction<Long> transaction = ModelTransaction.<Long>builder()
-				.captureRollback(() -> () -> { restoreSchedule(project, projectScheduleBackup); task.setDirty(taskDirty); project.setDirty(projectDirty); })
+		AuthorizationGuard authorizationGuard = new AuthorizationGuard(Set.of(command.task()), TaskCommandType.DRAG_SCHEDULE);
+		ModelTransaction<Long> transaction = TaskCommandGateway.<Long>authorizedBuilder(project, authorizationGuard)
+				.captureRollback(() -> () -> { restoreSchedule(project, projectScheduleBackup); project.setDirty(projectDirty); })
 				.apply(() -> {
 					ScheduleService.getInstance().split(this, schedule, command.splitAt(), command.splitAt(), null);
 					return beforeIntervals.equals(intervalSignature(schedule))
@@ -609,16 +776,48 @@ public final class TaskCommandGateway {
 				})
 				.changes(value -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
 						Set.of(command.task()), Set.of("Field.start", "Field.finish"), DomainChangeSet.TopologyImpact.NONE, true, false))
-				.onRecoveryFailure(failure -> project.setReadOnly(true)).build();
-		return map(transaction.execute(project.getDomainChangeJournal()));
+				.build();
+		return executeAuthorized(transaction, authorizationGuard, project);
 	}
 
-	private TaskCommandResult authorizeTask(Task task, ProjectTaskKey key, TaskCommandType type) {
-		if (project.isReadOnly() || task.isReadOnly()) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		TaskAuthorizationPort.Decision decision = authorization.authorize(key, type);
-		if (decision == TaskAuthorizationPort.Decision.LOCK_DENIED) return TaskCommandResult.of(TaskCommandResult.Status.LOCK_DENIED);
-		if (decision == TaskAuthorizationPort.Decision.READ_ONLY) return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
-		return null;
+	private TaskCommandResult executeAuthorized(ModelTransaction<?> transaction,
+			AuthorizationGuard guard, Project owner) {
+		UndoController undo = owner.getUndoController();
+		try (guard; UndoController.StateNotificationScope ignored = undo == null ? null : undo.deferStateNotifications()) {
+			ModelTransaction.Result<?> result = transaction.execute(owner.getDomainChangeJournal());
+			if (result.status() == ModelTransaction.Status.AUTHORIZATION_FAILED
+					&& guard.decision() == TaskAuthorizationPort.Decision.READ_ONLY)
+				return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+			return map(result);
+		}
+	}
+
+	private final class AuthorizationGuard implements AutoCloseable {
+		private final Set<ProjectTaskKey> keys;
+		private final TaskCommandType commandType;
+		private TaskAuthorizationPort.AuthorizationLease lease;
+		private TaskAuthorizationPort.Decision decision = TaskAuthorizationPort.Decision.LOCK_DENIED;
+
+		private AuthorizationGuard(Set<ProjectTaskKey> keys, TaskCommandType commandType) {
+			this.keys = Set.copyOf(keys);
+			this.commandType = commandType;
+		}
+
+		private boolean acquire() {
+			lease = authorization.acquire(keys, commandType);
+			decision = lease.decision();
+			return decision == TaskAuthorizationPort.Decision.ALLOWED;
+		}
+
+		private boolean validateAtCommit() {
+			return lease != null && lease.validateAtCommit();
+		}
+
+		private TaskAuthorizationPort.Decision decision() { return decision; }
+
+		@Override public void close() {
+			if (lease != null) lease.close();
+		}
 	}
 
 	private static List<String> intervalSignature(Schedule schedule) {
@@ -626,6 +825,13 @@ public final class TaskCommandGateway {
 		ScheduleService.getInstance().consumeIntervals(schedule,
 				interval -> result.add(interval.getStart() + ":" + interval.getEnd()));
 		return List.copyOf(result);
+	}
+
+	private static <T> ModelTransaction.Builder<T> authorizedBuilder(Project owner, AuthorizationGuard guard) {
+		return ModelTransaction.<T>builder()
+				.authorize(guard::acquire)
+				.commitAuthorization(guard::validateAtCommit)
+				.onRecoveryFailure(failure -> owner.setReadOnly(true));
 	}
 
 	private static boolean isContiguousSiblingBlock(List<Node> nodes) {
@@ -641,12 +847,18 @@ public final class TaskCommandGateway {
 		return true;
 	}
 
-	private record ProjectScheduleBackup(Object projectDetail, Map<Task, Object> taskDetails) { }
+	private record ProjectScheduleBackup(Object projectDetail, boolean projectDirty,
+			Map<Task, Object> taskDetails, Map<Task, Boolean> dirtyStates) { }
 
 	private static ProjectScheduleBackup captureSchedule(Project project) {
 		Map<Task, Object> details = new IdentityHashMap<>();
-		for (Task task : project.getTasks()) details.put(task, task.backupDetail());
-		return new ProjectScheduleBackup(project.backupDetail(), Collections.unmodifiableMap(details));
+		Map<Task, Boolean> dirtyStates = new IdentityHashMap<>();
+		for (Task task : project.getTasks()) {
+			details.put(task, task.backupDetail());
+			dirtyStates.put(task, task.isDirty());
+		}
+		return new ProjectScheduleBackup(project.backupDetail(), project.isDirty(), Collections.unmodifiableMap(details),
+				Collections.unmodifiableMap(dirtyStates));
 	}
 
 	private static void restoreSchedule(Project project, ProjectScheduleBackup backup) {
@@ -654,6 +866,8 @@ public final class TaskCommandGateway {
 		for (Map.Entry<Task, Object> entry : backup.taskDetails().entrySet())
 			entry.getKey().restoreDetail(TaskCommandGateway.class, entry.getValue(), false);
 		project.restoreDetail(TaskCommandGateway.class, backup.projectDetail(), false);
+		backup.dirtyStates().forEach(Task::setDirty);
+		project.setDirty(backup.projectDirty());
 	}
 
 	private static List<NodeIndentEdit.Position> hierarchyPositions(NodeModel model) {
@@ -695,6 +909,29 @@ public final class TaskCommandGateway {
 		}
 	}
 
+	private static Set<ProjectTaskKey> hierarchyKeys(List<Node> moved, Node... context) {
+		Set<ProjectTaskKey> keys = new java.util.LinkedHashSet<>();
+		Set<Node> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+		for (Node node : moved) addHierarchySubtreeKeys(node, keys, visited);
+		for (Node node : context) {
+			for (Node current = node; current != null && visited.add(current);
+					current = current.getParent() instanceof Node parent ? parent : null)
+				addNodeKey(current, keys);
+		}
+		return Set.copyOf(keys);
+	}
+
+	private static void addHierarchySubtreeKeys(Node node, Set<ProjectTaskKey> keys, Set<Node> visited) {
+		if (node == null || !visited.add(node)) return;
+		addNodeKey(node, keys);
+		for (int index = 0; index < node.getChildCount(); index++)
+			addHierarchySubtreeKeys((Node) node.getChildAt(index), keys, visited);
+	}
+
+	private static void addNodeKey(Node node, Set<ProjectTaskKey> keys) {
+		if (node != null && node.getImpl() instanceof Task task) ProjectTaskKey.from(task).ifPresent(keys::add);
+	}
+
 	private static ScheduleInterval findInterval(Schedule schedule, int wanted) {
 		List<ScheduleInterval> intervals = new ArrayList<>();
 		ScheduleService.getInstance().consumeIntervals(schedule, intervals::add);
@@ -702,31 +939,38 @@ public final class TaskCommandGateway {
 	}
 
 	private Task resolve(ProjectTaskKey key) {
-		return resolve(project, key, Collections.newSetFromMap(new IdentityHashMap<>()));
+		return ProjectTaskKey.resolve(project, key).orElse(null);
 	}
 
 	private static Dependency findDependency(Task predecessor, Task successor) {
 		return (Dependency) predecessor.getSuccessorList().findRight(successor);
 	}
 
-	private static Task resolve(Project current, ProjectTaskKey key, Set<Project> visited) {
-		if (current == null || !visited.add(current))
-			return null;
-		for (Task task : current.getTasks()) {
-			if (task.getUniqueId() == key.taskUniqueId() && ProjectTaskKey.from(task).filter(key::equals).isPresent())
-				return task;
-			if (task instanceof SubProj subproject) {
-				Task nested = resolve(subproject.getSubproject(), key, visited);
-				if (nested != null)
-					return nested;
-			}
-		}
-		return null;
+	private static boolean adjacentDependenciesExist(List<Task> tasks) {
+		for (int index = 0; index + 1 < tasks.size(); index++)
+			if (findDependency(tasks.get(index), tasks.get(index + 1)) == null) return false;
+		return true;
+	}
+
+	private static boolean hasDependencies(Task task) {
+		return !task.getPredecessorList().isEmpty() || !task.getSuccessorList().isEmpty();
+	}
+
+	private static void addTaskKey(Set<ProjectTaskKey> keys, Object endpoint) {
+		if (endpoint instanceof Task task) ProjectTaskKey.from(task).ifPresent(keys::add);
 	}
 
 	private static boolean isScheduleField(String fieldId) {
 		return fieldId != null && (fieldId.contains("start") || fieldId.contains("finish")
 				|| fieldId.contains("duration") || fieldId.contains("complete"));
+	}
+
+	private void setProposed(Field field, Node node, NodeModel model, FieldContext context, Object proposed)
+			throws FieldParseException {
+		if (proposed instanceof TaskFieldEditCommand.Text text)
+			field.setText(node, model, text.value(), context);
+		else
+			field.setValue(node, model, this, proposed, context);
 	}
 
 	private static TaskCommandResult map(ModelTransaction.Result<?> result) {

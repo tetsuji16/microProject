@@ -40,61 +40,35 @@ import java.awt.geom.Line2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.Map;
-import java.util.Collections;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.JComponent;
 
 
 import com.microproject.pm.graphic.link_routing.GanttLinkRouting;
 import com.microproject.pm.graphic.graph.GraphParams;
-import com.microproject.pm.graphic.TaskFontStyle;
 import com.microproject.pm.graphic.graph.GraphRenderer;
-import com.microproject.pm.graphic.graph.LinkRouting;
-import com.microproject.pm.graphic.model.cache.GraphicDependency;
-import com.microproject.pm.graphic.model.cache.GraphicNode;
-import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
 import com.microproject.pm.graphic.model.cache.TaskProjectionSnapshot;
-import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
-import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
-import com.microproject.configuration.Configuration;
-import com.microproject.pm.scheduling.IntervalConsumer;
-import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
 import com.microproject.graphic.configuration.BarFormat;
 import com.microproject.graphic.configuration.BarStyles;
-import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.graphic.configuration.TexturedShape;
 import com.microproject.graphic.configuration.shape.PredefinedPaint;
-import com.microproject.grouping.core.transform.TransformList;
-import com.microproject.grouping.core.transform.CommonTransform;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.options.GanttOption;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.scheduling.ScheduleInterval;
-import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.timescale.CalendarUtil;
 import com.microproject.timescale.TimeInterval;
 import com.microproject.timescale.TimeIterator;
@@ -102,8 +76,6 @@ import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttColorPalette;
-import com.microproject.util.GanttProgress;
-import com.microproject.util.DateFieldSupport;
 import com.microproject.util.MicrosoftProjectGanttPalette;
 
 public class GanttRenderer extends GraphRenderer implements Serializable {
@@ -111,22 +83,12 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	 *
 	 */
 	private static final long serialVersionUID = -7437190083991277084L;
-	private static final Logger logger = Logger.getLogger(GanttRenderer.class.getName());
 	private static final Stroke PROGRESS_LINE_STROKE = new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 	private static final Stroke PROGRESS_LINE_HALO_STROKE = new BasicStroke(4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 	private static final Stroke PROGRESS_BAR_STROKE = new BasicStroke(1.25f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 	private static final Stroke SPLIT_CONNECTOR_STROKE = new BasicStroke(1.0f, BasicStroke.CAP_BUTT,
 			BasicStroke.JOIN_MITER, 10.0f, new float[] { 1.5f, 2.5f }, 0.0f);
 	private static final int PROGRESS_LINE_POINT_SIZE = 6;
-	protected NodeRenderer nodeRenderer = new NodeRenderer();
-	protected LinkRenderer linkRenderer = new LinkRenderer();
-	protected HorizontalLineRenderer horizontalLineRenderer = new HorizontalLineRenderer();
-	protected AnnotationRenderer annotationRenderer = new AnnotationRenderer();
-	private transient CriticalChainService ccpmService;
-	private transient Project ccpmProject;
-	private transient CriticalChainService.Baseline ccpmBaseline;
-	private transient CriticalChainService.Analysis ccpmAnalysis;
-	private transient Set<Long> ccpmTaskIds = Set.of();
 	private transient Map<ProjectionRowKey, GanttBarGeometry> barGeometry = new java.util.HashMap<>();
 	private transient long barGeometryRevision = Long.MIN_VALUE;
 	private transient TaskProjectionSnapshot renderValues = TaskProjectionSnapshot.empty();
@@ -167,16 +129,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return graphInfo != null && graphInfo.useTextures();
 	}
 
-    private Schedule getSchedule(Object impl) {
-        if (impl instanceof Schedule)
-            return (Schedule)impl;
-        return null;
-    }
-
-	private Object getNodeImpl(GraphicNode node) {
-		return node == null || node.getNode() == null ? null : node.getNode().getImpl();
-	}
-    
     /**
      * Get the current color palette.
      */
@@ -190,136 +142,23 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
     public void setPalette(GanttColorPalette palette) {
         if (palette != null) {
             this.palette = palette;
+			if (graphInfo instanceof Gantt gantt) gantt.refreshProjectionCapture();
         }
     }
 
-	public DisplayedBarColors resolveDisplayedBarColors(Task task) {
-		if (task == null)
-			return new DisplayedBarColors(BarColorField.DEFAULT_BAR_RGB, BarColorField.DEFAULT_BAR_RGB,
-					BarColorField.DEFAULT_BAR_RGB);
-		BarFormat format = resolveMainBarFormat(task);
-		Color middle = isCriticalTask(task) ? palette.getCriticalTaskColor() : palette.getStatusColor(task, task);
-		Color endpoint = format != null && GanttBarSupport.shouldUseUniformEndpointColor(format)
-				? middle
-				: palette.getAccentColor(format, middle, task);
-		GanttBarFormatOverrides.BarFormat individual = graphInfo instanceof Gantt gantt
-				&& GanttBarSupport.isIndividuallyFormattable(format)
-				? gantt.getBarFormat(task)
-				: GanttBarFormatOverrides.BarFormat.automatic();
-		return new DisplayedBarColors(
-				individual.getStartRgb() == null ? endpoint.getRGB() & 0x00FFFFFF : individual.getStartRgb(),
-				individual.getMiddleRgb() == null ? middle.getRGB() & 0x00FFFFFF : individual.getMiddleRgb(),
-				individual.getEndRgb() == null ? endpoint.getRGB() & 0x00FFFFFF : individual.getEndRgb());
-	}
-
-	private BarFormat resolveMainBarFormat(Task task) {
-		BarStyles barStyles = graphInfo == null ? null : graphInfo.getBarStyles();
-		if (barStyles == null)
-			return null;
-		final BarFormat[] mainFormat = new BarFormat[1];
-		barStyles.apply(task, argument -> {
-			BarFormat candidate = (BarFormat)argument;
-			if (mainFormat[0] == null && candidate.isMain())
-				mainFormat[0] = candidate;
-		});
-		return mainFormat[0];
-	}
-
-    private Color resolveTaskFillColor(GraphicNode node, BarFormat format, Schedule schedule) {
-        Color defaultColor = GanttBarSupport.isBaselineBarFormat(format)
-                ? palette.getBaselineBarColor()
-                : palette.getStatusColor(schedule, getNodeImpl(node));
-        GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
-        if (individualFormat.getMiddleRgb() != null)
-            return new Color(individualFormat.getMiddleRgb());
-        if (!GanttBarSupport.isBaselineBarFormat(format) && isCriticalTask(getNodeImpl(node)))
-            return palette.getCriticalTaskColor();
-        return defaultColor;
-    }
-
-	private boolean isCriticalTask(Object impl) {
-		if (!(impl instanceof Task task)) return false;
-		if (task.isCritical()) return true;
-		// Resource-constrained CCPM edges are not part of the legacy
-		// critical-path flag.  Prefer the document's shared CCPM analysis
-		// snapshot, so Gantt, network and buffer status expose one chain.
-		Project project = task.getProject();
-		if (ccpmService == null) ccpmService = new CriticalChainService();
-		CriticalChainService.Settings settings = ccpmService.findSettings(project);
-		CriticalChainService.Baseline baseline = ccpmService.findBaseline(project);
-		CriticalChainService.Analysis analysis = ccpmService.findAnalysis(project);
-		if (project != ccpmProject || baseline != ccpmBaseline || analysis != ccpmAnalysis) {
-			ccpmProject = project;
-			ccpmBaseline = baseline;
-			ccpmAnalysis = analysis;
-			ccpmTaskIds = analysis != null ? Set.copyOf(analysis.criticalTaskIds())
-				: baseline == null ? Collections.emptySet() : Set.copyOf(baseline.criticalTaskIds());
-		}
-		return CriticalChainDisplayState.isVisible(project) && settings != null && settings.isEnabled() && baseline != null
-			&& ccpmTaskIds.contains(Long.valueOf(task.getUniqueId()));
-	}
-
-	private Color resolveTaskFillColor(GraphicNode node, BarFormat format) {
-		Object impl = getNodeImpl(node);
-		return resolveTaskFillColor(node, format, getSchedule(impl));
-	}
-
-	private Color resolveProgressFillColor(GraphicNode node) {
-		Object impl = getNodeImpl(node);
-		return palette.getProgressFillColor(palette.getStatusColor(getSchedule(impl), impl));
-	}
-
-	GanttBarGeometry getBarGeometry(GraphicNode node) {
-		if (barGeometry == null)
-			barGeometry = new java.util.HashMap<>();
-		ProjectionRowKey key = projectionKey(node);
-		if (barGeometryRevision != geometryContextRevision())
-			return new GanttBarGeometry(0.0d, config.getGanttBarHeight());
-		return key == null ? new GanttBarGeometry(0.0d, config.getGanttBarHeight())
-				: barGeometry.getOrDefault(key, new GanttBarGeometry(0.0d, config.getGanttBarHeight()));
-	}
 	GanttBarGeometry getBarGeometry(ProjectionRowKey key) {
 		if (barGeometry == null || barGeometryRevision != geometryContextRevision() || key == null)
 			return new GanttBarGeometry(0.0d, config.getGanttBarHeight());
 		return barGeometry.getOrDefault(key, new GanttBarGeometry(0.0d, config.getGanttBarHeight()));
 	}
 
-	private void setBarGeometry(GraphicNode node, double offset, double height) {
-		if (barGeometry == null)
-			barGeometry = new java.util.HashMap<>();
-		ProjectionRowKey key = projectionKey(node);
+	boolean isGeometryCurrent() {
+		return barGeometry != null && barGeometryRevision == geometryContextRevision();
+	}
+
+	private void setBarGeometry(ProjectionRowKey key, double offset, double height) {
+		if (barGeometry == null) barGeometry = new java.util.HashMap<>();
 		if (key != null) barGeometry.put(key, new GanttBarGeometry(offset, height));
-	}
-
-	private ProjectionRowKey projectionKey(GraphicNode node) {
-		if (graphInfo == null || !(graphInfo.getCache() instanceof ViewNodeModelCache cache)) return null;
-		RevisionedProjectionIndex.Snapshot topology = cache.getInstalledProjectionSnapshot().topology();
-		int row = topology.rowOf(node);
-		return topology.keyAt(row);
-	}
-
-	private Color resolveAccentColor(GraphicNode node, BarFormat format, Color statusColor) {
-		return palette.getAccentColor(format, statusColor, getNodeImpl(node));
-	}
-
-	private Color resolveAccentColor(GraphicNode node, BarFormat format) {
-		Color statusColor = resolveTaskFillColor(node, format);
-		return resolveAccentColor(node, format, statusColor);
-	}
-
-	private GanttBarFormatOverrides.BarFormat getIndividualBarFormat(GraphicNode node, BarFormat format) {
-		Object impl = getNodeImpl(node);
-		if (!(graphInfo instanceof Gantt gantt)
-				|| !(impl instanceof Task task)
-				|| !GanttBarSupport.isIndividuallyFormattable(format))
-			return GanttBarFormatOverrides.BarFormat.automatic();
-		return gantt.getBarFormat(task);
-	}
-
-	private Color resolveEndpointColor(GraphicNode node, BarFormat format, Color defaultColor, boolean start) {
-		GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
-		Integer rgb = start ? individualFormat.getStartRgb() : individualFormat.getEndRgb();
-		return rgb == null ? defaultColor : new Color(rgb);
 	}
 
 	private Paint createBarPaint(Color fillColor, Rectangle2D bounds, boolean backgroundLayer) {
@@ -342,26 +181,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			shape.setPaint(oldPaint);
 			shape.setColor(oldColor);
 		}
-	}
-
-	private boolean shouldSuppressTaskBarForAssignments(GraphicNode node, BarFormat format) {
-		return GanttRendererSupport.shouldSuppressTaskBarForAssignments(
-				getNodeImpl(node),
-				node != null && node.isSummary(),
-				format,
-				isAssignmentRowsVisible());
-	}
-
-	private boolean shouldSuppressTaskAnnotationForAssignments(GraphicNode node) {
-		return GanttRendererSupport.shouldSuppressTaskAnnotationForAssignments(
-				getNodeImpl(node),
-				node != null && node.isSummary(),
-				isAssignmentRowsVisible());
-	}
-
-	private boolean isAssignmentRowsVisible() {
-		Object transform = TransformList.getInstance("hidden_filters").getTransform("Filter.Gantt");
-		return transform instanceof CommonTransform && ((CommonTransform) transform).isShowAssignments();
 	}
 
 	private void paintCapsuleBar(Graphics2D g2, Rectangle2D bounds, Color fillColor, Color accentColor, boolean backgroundLayer) {
@@ -480,74 +299,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 	}
 
-	private boolean shouldPaintProgressOverlay(GraphicNode node, BarFormat format) {
-		return GanttRendererSupport.shouldPaintProgressOverlay(getNodeImpl(node), format);
-	}
-
-	static double progressRatioForSchedule(Schedule schedule) {
-		return GanttBarSupport.progressRatioForSchedule(schedule);
-	}
-
-	static double progressRatioForObject(Object impl) {
-		return GanttProgress.ratioForObject(impl);
-	}
-
-	static Rectangle2D createCapsuleBarBounds(double x, double y, double width, double height) {
-		return GanttBarSupport.createCapsuleBarBounds(x, y, width, height);
-	}
-
-	static Rectangle2D createSummaryBandBounds(double x, double y, double width, double height) {
-		return GanttBarSupport.createSummaryBandBounds(x, y, width, height);
-	}
-
-	static Rectangle2D progressOverlayBounds(double x, double y, double totalWidth, double progressHeight, double progressRatio) {
-		return GanttBarSupport.progressOverlayBounds(x, y, totalWidth, progressHeight, progressRatio);
-	}
-
-	static Rectangle2D summaryProgressBounds(Rectangle2D summaryBounds, double progressRatio) {
-		return GanttBarSupport.summaryProgressBounds(summaryBounds, progressRatio);
-	}
-
-	static ScheduleInterval mergeIntervalsForDisplay(Iterable<ScheduleInterval> intervals) {
-		return GanttBarSupport.mergeIntervalsForDisplay(intervals);
-	}
-
-	static List<ScheduleInterval> displayIntervals(BarFormat format, Iterable<ScheduleInterval> generatedIntervals,
-			ScheduleInterval plannedInterval) {
-		return GanttBarSupport.displayIntervals(format, generatedIntervals, plannedInterval);
-	}
-
-	static List<ScheduleInterval> splitGaps(List<ScheduleInterval> intervals) {
-		return GanttBarSupport.splitGaps(intervals);
-	}
-
-	static List<Double> progressRatiosForIntervals(List<ScheduleInterval> intervals, double progressRatio) {
-		return GanttBarSupport.progressRatiosForIntervals(intervals, progressRatio);
-	}
-
-	private double progressRatioFor(GraphicNode node) {
-		Object impl = getNodeImpl(node);
-		return progressRatioForObject(impl);
-	}
-
-	private static Schedule getScheduleForObject(Object impl) {
-		return impl instanceof Schedule ? (Schedule)impl : null;
-	}
-
-	private ScheduleInterval plannedIntervalFor(GraphicNode node, BarFormat format) {
-		if (node == null || format == null || format.getFromField() == null || format.getToField() == null || graphInfo == null || graphInfo.getCache() == null)
-			return null;
-		NodeModel nodeModel = graphInfo.getCache().getModel();
-		Node modelNode = node.getNode();
-		if (nodeModel == null || modelNode == null)
-			return null;
-		Object startDate = format.getFromField().getValue(modelNode, nodeModel, null);
-		Object finishDate = format.getToField().getValue(modelNode, nodeModel, null);
-		if (!(startDate instanceof Date) || !(finishDate instanceof Date))
-			return null;
-		return new ScheduleInterval(((Date)startDate).getTime(), ((Date)finishDate).getTime());
-	}
-
 	private void paintVerticalMarkerLine(Graphics2D g2, Rectangle bounds, int x, PredefinedPaint paint) {
 		if (x < bounds.getX() || x > bounds.getMaxX())
 			return;
@@ -562,434 +313,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 
 
-	private class NodeRenderer implements Consumer<Object>, IntervalConsumer, Serializable {
-		private static final long serialVersionUID = -1348039741030744803L;
-		GraphicNode node;
-		Graphics2D g2;
-		protected GanttBarSingleIntervalGenerator singleIntervalGenerator=new GanttBarSingleIntervalGenerator();
-		protected ScheduleInterval interval;
-		protected BarFormat format;
-		protected int yrow;
-		protected int maxLayer=Integer.MAX_VALUE;
-		protected int minLayer=0;
-		protected double intervalProgressRatio;
 
-		public void initialize(Graphics2D g2, GraphicNode node) {
-			this.g2 = g2;
-			this.node = node;
-			int rowHeight=((GanttParams)graphInfo).getRowHeight();
-			yrow=projectionRow(node)*rowHeight;
-			setLayers(BarFormat.MIN_FOREGROUND_LAYER,BarFormat.MAX_FOREGROUND_LAYER);
-		}
-
-		public int getMaxLayer() {
-			return maxLayer;
-		}
-		public void setMaxLayer(int maxLayer) {
-			this.maxLayer = maxLayer;
-		}
-
-		public int getMinLayer() {
-			return minLayer;
-		}
-		public void setMinLayer(int minLayer) {
-			this.minLayer = minLayer;
-		}
-
-		public void setLayers(int minLayer,int maxLayer) {
-			this.minLayer = minLayer;
-			this.maxLayer = maxLayer;
-		}
-
-/**
- * This is the callback which is called from barStyles.apply() below
- */
-		public void accept(Object arg0) {
-			format = (BarFormat)arg0;
-			if (format.getLayer()>maxLayer||format.getLayer()<minLayer) return;
-			if (shouldSuppressTaskBarForAssignments(node, format)) return;
-
-
-
-		    ScheduleIntervalGenerator intervalGenerator;
-			if (format.getScheduleIntervalGenerator()==null){
-				singleIntervalGenerator.initialize(graphInfo.getCache().getModel(),format.getFromField(),format.getToField());
-				intervalGenerator=singleIntervalGenerator;
-			}else{
-				intervalGenerator=format.getScheduleIntervalGenerator();
-			}
-
-			ArrayList<ScheduleInterval> intervals = new ArrayList<ScheduleInterval>();
-			intervalGenerator.consumeIntervals(node, new IntervalConsumer() {
-				@Override
-				public void consumeInterval(ScheduleInterval interval) {
-					intervals.add(interval);
-				}
-			});
-			List<ScheduleInterval> displayIntervals = GanttBarSupport.displayIntervals(
-					format, intervals, plannedIntervalFor(node, format));
-			if (displayIntervals.isEmpty())
-				return;
-			paintSplitConnectors(displayIntervals);
-			List<Double> progressRatios = GanttBarSupport.progressRatiosForIntervals(
-					displayIntervals, progressRatioFor(node));
-			for (int i = 0; i < displayIntervals.size(); i++) {
-				intervalProgressRatio = progressRatios.get(i);
-				consumeInterval(displayIntervals.get(i));
-			}
-
-		}
-
-		private void paintSplitConnectors(List<ScheduleInterval> displayIntervals) {
-			if (g2 == null || !GanttBarSupport.shouldPreserveSplitIntervals(format))
-				return;
-			List<ScheduleInterval> gaps = GanttBarSupport.splitGaps(displayIntervals);
-			if (gaps.isEmpty())
-				return;
-			CoordinatesConverter coord = ((GanttParams)graphInfo).getCoord();
-			double height = format.getRow() == 1 ? config.getGanttBarHeight() : config.getBaselineHeight();
-			double y = yrow + config.getGanttBarYOffset() + height / 2.0d;
-			Color oldColor = g2.getColor();
-			Stroke oldStroke = g2.getStroke();
-			try {
-				g2.setColor(resolveTaskFillColor(node, format));
-				g2.setStroke(SPLIT_CONNECTOR_STROKE);
-				for (ScheduleInterval gap : gaps) {
-					g2.draw(new Line2D.Double(coord.toX(gap.getStart()), y, coord.toX(gap.getEnd()), y));
-				}
-			} finally {
-				g2.setColor(oldColor);
-				g2.setStroke(oldStroke);
-			}
-		}
-
-
-
-		public void consumeInterval(ScheduleInterval interval){
-//			System.out.println("GanttUI consuming interval " + new java.util.Date(interval.getStart()) + " " + new java.util.Date(interval.getEnd()));
-//			if (interval.getEnd() < interval.getStart())
-//				return;
-			CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
-			if (interval.getEnd()>100000000000000L){
-				// this hasn't happened in years. whatever caused it is fixed, but keeping just in case
-				logger.log(Level.SEVERE, "Suspicious gantt interval that could lead to OutOfMemoryError: start={0}, end={1}",
-					new Object[] { interval.getStart(), interval.getEnd() });
-				return;
-			}
-			double x=coord.toX(interval.getStart());
-			double width=CoordinatesConverter.adaptSmallBarEndX(x,coord.toX(interval.getEnd()),node,config)-x;
-//			double width=coord.toW(interval.getEnd()-interval.getStart());
-			double height;
-			double y=yrow+config.getGanttBarYOffset();
-			int row=format.getRow();
-		    if (row==1){
-		    	height=config.getGanttBarHeight();
-		    }
-		    else{
-		    	height=config.getBaselineHeight();
-			    y+=config.getGanttBarHeight()+config.getBaselineHeight()*(row-2);
-		    }
-	    	y+=height/2;
-
-			double dw=height;
-
-			if (format.getMiddle()!=null){
-				Color statusColor = resolveTaskFillColor(node, format);
-				Color accentColor = resolveAccentColor(node, format, statusColor);
-				Rectangle2D barBounds = GanttBarSupport.createCapsuleBarBounds(x, y, width, height);
-				Rectangle2D summaryBounds = GanttBarSupport.createSummaryBandBounds(x, y, width, height);
-
-				if (g2==null&&format.isMain()){
-					if (format != null && "Bar.summary".equals(format.getId())) {
-						setBarGeometry(node, summaryBounds.getY()-y+height/2, Math.max(height, summaryBounds.getHeight()));
-					} else if (GanttBarSupport.shouldUseModernCapsuleBar(format)) {
-						setBarGeometry(node, 0.0d, barBounds.getHeight());
-					} else {
-						Shape shape=format.getMiddle().toGeneralPath(
-								width,
-								height,
-								x,
-								y,
-								null);
-						Rectangle2D bounds=shape.getBounds2D();
-						setBarGeometry(node, bounds.getY()-y+height/2, bounds.getHeight());
-					}
-				}else if (g2 != null){
-					double progressRatio = intervalProgressRatio;
-					Color progressFillColor = resolveProgressFillColor(node);
-					Color progressTrackColor = (GanttBarSupport.shouldUseModernCapsuleBar(format) && progressRatio < 1.0d)
-							? palette.getProgressTrackColor(statusColor)
-							: statusColor;
-					if (format != null && "Bar.summary".equals(format.getId()))
-						paintSummaryBar(g2, summaryBounds, statusColor, progressFillColor, accentColor, progressRatio);
-					else if (GanttBarSupport.shouldUseModernCapsuleBar(format))
-						paintCapsuleBar(g2, barBounds, progressTrackColor, accentColor, true);
-					else
-						drawConfiguredShape(format.getMiddle(), g2, width, height, x, y, statusColor, accentColor, barBounds, true);
-
-					// draw middle before ends
-					if (shouldPaintProgressOverlay(node, format) && !(format != null && "Bar.summary".equals(format.getId()))){
-						double progressHeight = config.getGanttProgressBarHeight();
-						Rectangle2D progressBounds = GanttBarSupport.progressOverlayBounds(x, y, width, progressHeight, progressRatio);
-						if (progressBounds != null) {
-							paintCapsuleBar(g2, progressBounds, progressFillColor, accentColor, false);
-							paintProgressIndicator(g2, progressBounds);
-						}
-					}
-				}
-			}
-			if (g2==null) return;
-
-			Color statusColor = resolveTaskFillColor(node, format);
-			Color accentColor = resolveAccentColor(node, format, statusColor);
-			Color endpointColor = GanttBarSupport.shouldUseUniformEndpointColor(format) ? statusColor : accentColor;
-			Color startColor = resolveEndpointColor(node, format, endpointColor, true);
-			Color endColor = resolveEndpointColor(node, format, endpointColor, false);
-			if (format.getStart()!=null) drawConfiguredShape(format.getStart(), g2, dw, height, x , y, startColor, startColor, new Rectangle2D.Double(x, y - height / 2.0, dw, height), false);
-			if (format.getEnd()!=null) drawConfiguredShape(format.getEnd(), g2, dw, height, x+width, y, endColor, endColor, new Rectangle2D.Double(x + width, y - height / 2.0, dw, height), false);
-
-
-		}
-
-	}
-
-	private class AnnotationRenderer implements Consumer<Object>, Serializable {
-		private static final long serialVersionUID = -137778741030744803L;
-		protected BarFormat format;
-		GraphicNode node;
-		Graphics2D g2;
-		protected int yrow;
-		FontMetrics fontMetrics;
-		Font annotationFont;
-		Set<String> renderedAnnotationKeys;
-		boolean annotationRenderedForNode;
-
-		public void initialize(Graphics2D g2, GraphicNode node) {
-			this.g2 = g2;
-			this.node = node;
-			int rowHeight=((GanttParams)graphInfo).getRowHeight();
-			config=((GanttParams)graphInfo).getConfiguration();
-			yrow=projectionRow(node)*rowHeight;
-			annotationFont = TaskFontStyle.resolveFont(getNodeImpl(node), FlatUiSupport.uiFont().deriveFont(Font.PLAIN));
-			fontMetrics = g2.getFontMetrics(annotationFont);
-			renderedAnnotationKeys = new HashSet<String>();
-			annotationRenderedForNode = false;
-		}
-
-		public void accept(Object arg0) {
-			format = (BarFormat)arg0;
-			if (shouldSuppressTaskAnnotationForAssignments(node))
-				return;
-			Field field=resolveAnnotationField(format);
-			if (field==null) return;
-			if (annotationRenderedForNode)
-				return;
-			String annotationKey = GanttRendererSupport.annotationKey(field, format);
-			if (!renderedAnnotationKeys.add(annotationKey))
-				return;
-			Object value=getAnnotationValue(field);
-			if (value==null) return;
-			CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
-
-//			int y=yrow+config.getGanttBarHeight()+config.getGanttBarYOffset();
-//			int x=(int)Math.ceil(coord.toX(node.getEnd()))+config.getGanttBarAnnotationXOffset();
-//			Color oldColor=g2.getColor();
-//			g2.setColor(format.getMiddle().getColor());
-//			g2.drawString(ObjectConverterManager.toString(value,value.getClass()), x, y);
-//			if (oldColor!=null) g2.setColor(oldColor);
-			String s = DateFieldSupport.annotationTextFor(value, field);
-			if (s==null||s.trim().length()==0) return;
-			int y=yrow+config.getGanttBarYOffset();//+config.getGanttBarAnnotationYOffset();
-			double x0=coord.toX(node.getStart());
-			double x1=coord.toX(node.getEnd());
-			x1=CoordinatesConverter.adaptSmallBarEndX(x0,x1,node,config);
-
-			int h=config.getGanttBarHeight();
-			int annotationOffset = config.getGanttBarAnnotationXOffset();
-			Rectangle clipBounds = g2.getClipBounds();
-			if (clipBounds == null)
-				clipBounds = ((GanttParams)graphInfo).getGanttBounds();
-			int estimatedWidth = fontMetrics.stringWidth(s);
-			GanttRendererSupport.AnnotationLayout layout = GanttRendererSupport.resolveAnnotationLayout(clipBounds, x0, x1, annotationOffset, estimatedWidth);
-			if (layout == null)
-				return;
-			int x = layout.x;
-			int availableWidth = layout.availableWidth;
-			String clipped = GanttRendererSupport.clipAnnotationText(fontMetrics, s, availableWidth);
-			if (clipped == null || clipped.isEmpty())
-				return;
-			annotationRenderedForNode = true;
-			int rowHeight = ((GanttParams)graphInfo).getRowHeight();
-			int textTop = yrow + Math.max(0, (rowHeight - fontMetrics.getHeight()) / 2);
-			int textBaseline = textTop + fontMetrics.getAscent();
-			int clipHeight = Math.min(rowHeight, Math.max(fontMetrics.getHeight() + 2, h + 2));
-			Rectangle originalClip = g2.getClipBounds();
-			Font oldFont = g2.getFont();
-			Color oldColor = g2.getColor();
-			g2.setFont(annotationFont);
-			g2.clipRect(x, textTop, availableWidth, clipHeight);
-			// Dependency connectors are painted before annotations.  Paint an
-			// opaque chart-background strip first so a connector cannot remain
-			// visible through the glyphs or obscure the task label (issue #322).
-			Color annotationBackground = palette.getChartBackground();
-			if (annotationBackground != null) {
-				g2.setColor(annotationBackground);
-				int backgroundWidth = Math.min(availableWidth, fontMetrics.stringWidth(clipped) + 4);
-				g2.fillRect(Math.max(x - 2, clipBounds.x), textTop, backgroundWidth + 2, clipHeight);
-			}
-			g2.setColor(TaskFontStyle.resolveColor(getNodeImpl(node), GanttRendererSupport.resolveAnnotationColor()));
-			g2.drawString(clipped, x, textBaseline);
-			if (originalClip != null)
-				g2.setClip(originalClip);
-			g2.setFont(oldFont);
-			g2.setColor(oldColor);
-		}
-
-		private Object getAnnotationValue(Field field) {
-			Object value=field.getValue(node.getNode(),graphInfo.getCache().getModel(),null);
-			if (value!=null) return value;
-			Object impl=getNodeImpl(node);
-			return impl==null?null:field.getValue(impl,null);
-		}
-
-		private Field resolveAnnotationField(BarFormat format) {
-			if (graphInfo instanceof Gantt) {
-				Gantt gantt = (Gantt) graphInfo;
-				if (gantt.isAnnotationHidden()) {
-					return null;
-				}
-				String fieldId = gantt.getAnnotationFieldId();
-				if (fieldId != null) {
-					return Configuration.getFieldFromId(fieldId);
-				}
-			}
-			return format == null ? null : format.getField();
-		}
-
-
-
-	}
-
-	private class HorizontalLineRenderer implements Consumer<Object>, Serializable {
-		private static final long serialVersionUID = -6350307720624037262L;
-		protected BarFormat format;
-		GraphicNode node;
-		Graphics2D g2;
-		protected int yrow;
-
-		public void initialize(Graphics2D g2, GraphicNode node) {
-			this.g2 = g2;
-			this.node = node;
-			int rowHeight=((GanttParams)graphInfo).getRowHeight();
-			config=((GanttParams)graphInfo).getConfiguration();
-			yrow=(projectionRow(node)+1)*rowHeight -1; // draws under each row
-
-		}
-
-		public void accept(Object arg0) {
-			format = (BarFormat)arg0;
-			if (!((GanttParams)graphInfo).isGridLinesVisible()) {
-				return;
-			}
-			Rectangle bounds = g2.getClipBounds();
-			Stroke oldStroke = g2.getStroke();
-			Color oldColor = g2.getColor();
-			enablePaintHints(g2);
-			g2.setColor(palette.getGridLine());
-			g2.drawLine(bounds.x,yrow,bounds.x+bounds.width,yrow);
-			g2.setColor(oldColor);
-			g2.setStroke(oldStroke);
-		}
-	}
-
-
-	private class LinkRenderer implements Consumer<Object>, Serializable {
-		private static final long serialVersionUID = -2031158189787837110L;
-		protected BarFormat format;
-		protected GraphicDependency dependency;
-		protected Graphics2D g2;
-		void initialize(Graphics2D g2, GraphicDependency dependency) {
-			this.g2 = g2;
-			this.dependency = dependency;
-		}
-
-
-		private double[] extraPoints=new double[3];
-		public void accept(Object arg0) {
-			format = (BarFormat)arg0;
-
-			GanttLinkRouting routing=(GanttLinkRouting)((GanttParams)graphInfo).getRouting();
-			CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
-			//if (format.getMiddle()!=null){
-			    GraphicNode from=dependency.getPredecessor();
-			    GraphicNode to=dependency.getSuccessor();
-			    int type=dependency.getType();
-				int fromSign=(type==DependencyType.SF||type==DependencyType.SS)?-1:1;
-				int toSign=(type==DependencyType.FS||type==DependencyType.SS)?-1:1;
-				double fx0=coord.toX(from.getStart());
-				double fx1=coord.toX(from.getEnd());
-				fx1=CoordinatesConverter.adaptSmallBarEndX(fx0,fx1,from,config);
-				double tx0=coord.toX(to.getStart());
-				double tx1=coord.toX(to.getEnd());
-				tx1=CoordinatesConverter.adaptSmallBarEndX(tx0,tx1,to,config);
-				double x0=fromSign<0?fx0:fx1;
-				double x1=toSign<0?tx0:tx1;
-				int rowHeight=((GanttParams)graphInfo).getRowHeight();
-				int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
-				int y0=rowHeight*projectionRow(from);
-				int y1=rowHeight*projectionRow(to);
-				double y2=Math.max(y0,y1);
-				y0+=yOffset;
-				y1+=yOffset;
-
-				GeneralPath path=getDependencyPath(dependency);
-				double targetHeight = getBarGeometry(to).height();
-				((GanttLinkRouting)routing).routePath(path,x0,y0,x1,y1,y2,y1+targetHeight/2,y1-targetHeight/2,type);
-
-
-
-				enablePaintHints(g2);
-				Color oldColor=g2.getColor();
-				Stroke oldStroke = g2.getStroke();
-				Dependency dep = dependency.getDependency();
-				if (dep.isDisabled()) g2.setStroke(DISABLED_LINK_STROKE);
-				Color linkColor = dep.isCrossProject() ? palette.getExternalLinkColor() : palette.getDependencyLinkColor();
-				g2.setColor(linkColor);
-				g2.draw(path);
-
-			//}
-			try {
-				if (format.getStart()!=null){
-					double theta=routing.getFirstAngle();
-					AffineTransform transform=(theta==0)?null:AffineTransform.getRotateInstance(theta,routing.getFirstX(),routing.getFirstY());
-					drawLinkArrows(dep,transform,format.getStart(),routing.getFirstX(),routing.getFirstY());
-				}
-				if (format.getEnd()!=null){
-					double theta=routing.getLastAngle();
-					AffineTransform transform=(theta==Math.PI||theta==-Math.PI)?null:AffineTransform.getRotateInstance(Math.PI-theta,routing.getLastX(),routing.getLastY());
-					drawLinkArrows(dep,transform,format.getEnd(),routing.getLastX(),routing.getLastY());
-				}
-			} finally {
-				if (oldColor!=null) g2.setColor(oldColor);
-				if (oldStroke!= null) g2.setStroke(oldStroke);
-			}
-		}
-
-		private void drawLinkArrows(Dependency dep, AffineTransform transform, TexturedShape shape, double x, double y) {
-			Paint oldPaint = shape.getPaint();
-			Color oldEndColor = shape.getColor();
-			Color linkColor = dep.isCrossProject() ? palette.getExternalLinkColor() : palette.getDependencyLinkColor();
-			shape.setPaint(linkColor);
-			shape.setColor(linkColor);
-			g2.setColor(linkColor);
-			shape.draw(g2,x,y,transform,useTextures());
-			shape.setPaint(oldPaint);
-			shape.setColor(oldEndColor);
-		}
-	}
-
-
-    public void updateShapes(ListIterator nodeIterator){
+    public void updateShapes(ListIterator ignored){
 		beginGeometryPass();
 		barGeometry.clear();
 		barGeometryRevision=geometryContextRevision();
@@ -1002,19 +327,17 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		int i0=(int)Math.floor(bounds.getY()/rowHeight);
 		int i1=(int)Math.ceil(bounds.getMaxY()/rowHeight);
 
-		GraphicNode node;
-		@SuppressWarnings("unchecked")
-		ListIterator<GraphicNode> i=((GanttParams)graphInfo).getCache().getIterator(i0);
-		while (i.hasNext()&&i.nextIndex()<i1){
-			node=i.next();
-			if (!node.isVoid()) updateShape(node);
+		renderValues = graphInfo.getCache() instanceof ViewNodeModelCache cache
+				? cache.getInstalledProjectionSnapshot().values() : TaskProjectionSnapshot.empty();
+		for (int row = Math.max(0, i0); row < Math.min(i1, renderValues.rows().size()); row++) {
+			TaskProjectionSnapshot.Row value = renderValues.rowAt(row);
+			if (value == null || value.voidRow()) continue;
+			for (TaskProjectionSnapshot.Bar bar : renderValues.ganttRow(value.key()).bars()) {
+				BarFormat format = formatById(bar.formatId());
+				if (format != null) paintSnapshotBar(null, row, value.key(), bar, format);
+			}
 		}
     }
-
-	private int projectionRow(GraphicNode node) {
-		NodeModelCache cache = graphInfo == null ? null : graphInfo.getCache();
-		return cache == null ? -1 : cache.getRowAt(node);
-	}
 
 	@Override
 	protected long geometryContextRevision() {
@@ -1032,54 +355,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 		revision = mix(revision, params.getRowHeight());
 		revision = mix(revision, config == null ? 0L : config.getGanttBarHeight());
-		revision = mix(revision, System.identityHashCode(graphInfo.getBarStyles()));
+		revision = mix(revision, renderValues.renderRevision());
 		return revision;
-	}
-
-    public void updateShape(GraphicNode node){
-    	if (((GanttParams)graphInfo).getCoord()==null) return; //not initialized
-    	BarStyles barStyles = graphInfo.getBarStyles();
-		if (barStyles == null) return;
-		nodeRenderer.initialize(null,node);
-		barStyles.apply(node.getNode().getImpl(),nodeRenderer);
-
-    }
-
-	public void paintNode(Graphics2D g2,GraphicNode node, boolean background){
-		BarStyles barStyles = graphInfo.getBarStyles();
-		if (barStyles == null) return;
-		enablePaintHints(g2);
-		nodeRenderer.initialize(g2,node);
-
-		if (background)
-			nodeRenderer.setLayers(BarFormat.MIN_BACKGROUND_LAYER,BarFormat.MAX_BACKGROUND_LAYER);
-		else nodeRenderer.setLayers(BarFormat.MIN_FOREGROUND_LAYER,BarFormat.MAX_FOREGROUND_LAYER);
-		barStyles.apply(node.getNode().getImpl(),nodeRenderer);
-
-	}
-
-	public void paintAnnotation(Graphics2D g2,GraphicNode node){
-		BarStyles barStyles = graphInfo.getBarStyles();
-		if (barStyles == null) return;
-		enablePaintHints(g2);
-		annotationRenderer.initialize(g2,node);
-		barStyles.apply(node.getNode().getImpl(),annotationRenderer,false,true,false, false);
-	}
-
-	public void paintHorizontalLine(Graphics2D g2,GraphicNode node){
-		BarStyles barStyles = graphInfo.getBarStyles();
-		if (barStyles == null) return;
-		enablePaintHints(g2);
-		horizontalLineRenderer.initialize(g2,node);
-		barStyles.apply(node.getNode().getImpl(),horizontalLineRenderer,false,false,false, true);
-	}
-
-	public void paintLink(Graphics2D g2, GraphicDependency dependency){
-		BarStyles barStyles = graphInfo.getBarStyles();
-		if (barStyles == null) return;
-		enablePaintHints(g2);
-		linkRenderer.initialize(g2,dependency);
-		barStyles.apply(dependency,linkRenderer,true,false,false, false);
 	}
 
 	private void paintChartBackground(Graphics2D g2, Rectangle bounds) {
@@ -1197,6 +474,217 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		if (path != null)
 			path.lineTo((float)referenceX, (float)(lastY + ((GanttParams)graphInfo).getRowHeight() / 2.0d));
 		return path;
+	}
+
+	private BarFormat formatById(String id) {
+		if (id == null || graphInfo == null || graphInfo.getBarStyles() == null) return null;
+		for (var style : graphInfo.getBarStyles().getRows()) {
+			BarFormat format = style.getBarFormat();
+			if (format != null && id.equals(format.getId())) return format;
+		}
+		return null;
+	}
+
+	private double adaptEnd(double start, double end, TaskProjectionSnapshot.Row row) {
+		return end > start && end - start < config.getGanttBarMinWidth() && row.intervals().size() <= 1
+				? start + config.getGanttBarMinWidth() : end;
+	}
+
+	private void paintSnapshotNode(Graphics2D g2, int rowIndex, TaskProjectionSnapshot.Row row, boolean background) {
+		enablePaintHints(g2);
+		for (TaskProjectionSnapshot.Bar bar : renderValues.ganttRow(row.key()).bars()) {
+			boolean backgroundLayer = bar.layer() >= BarFormat.MIN_BACKGROUND_LAYER
+					&& bar.layer() <= BarFormat.MAX_BACKGROUND_LAYER;
+			if (background != backgroundLayer) continue;
+			BarFormat format = formatById(bar.formatId());
+			if (format != null) paintSnapshotBar(g2, rowIndex, row.key(), bar, format);
+		}
+	}
+
+	private void paintSnapshotBar(Graphics2D g2, int rowIndex, ProjectionRowKey key,
+			TaskProjectionSnapshot.Bar bar, BarFormat format) {
+		CoordinatesConverter coord = ((GanttParams)graphInfo).getCoord();
+		double height = bar.row() == 1 ? config.getGanttBarHeight() : config.getBaselineHeight();
+		double y = rowIndex * ((GanttParams)graphInfo).getRowHeight() + config.getGanttBarYOffset();
+		if (bar.row() != 1) y += config.getGanttBarHeight() + config.getBaselineHeight() * (bar.row() - 2);
+		y += height / 2.0d;
+		if (g2 != null && GanttBarSupport.shouldPreserveSplitIntervals(format) && bar.intervals().size() > 1) {
+			Color oldColor = g2.getColor();
+			Stroke oldStroke = g2.getStroke();
+			try {
+				g2.setColor(new Color(bar.middleRgb(), true));
+				g2.setStroke(SPLIT_CONNECTOR_STROKE);
+				for (int i = 1; i < bar.intervals().size(); i++)
+					g2.draw(new Line2D.Double(coord.toX(bar.intervals().get(i - 1).end()), y,
+							coord.toX(bar.intervals().get(i).start()), y));
+			} finally {
+				g2.setColor(oldColor);
+				g2.setStroke(oldStroke);
+			}
+		}
+		for (int index = 0; index < bar.intervals().size(); index++) {
+			TaskProjectionSnapshot.Interval interval = bar.intervals().get(index);
+			if (interval.end() > 100000000000000L) continue;
+			double x = coord.toX(interval.start());
+			double width = adaptEnd(x, coord.toX(interval.end()), renderValues.rowAt(rowIndex)) - x;
+			double ratio = index < bar.progressRatios().size() ? bar.progressRatios().get(index) : 0.0d;
+			paintSnapshotInterval(g2, key, bar, format, x, y, width, height, ratio);
+		}
+	}
+
+	private void paintSnapshotInterval(Graphics2D g2, ProjectionRowKey key, TaskProjectionSnapshot.Bar bar,
+			BarFormat format, double x, double y, double width, double height, double ratio) {
+		Color middle = new Color(bar.middleRgb());
+		Color start = new Color(bar.startRgb());
+		Color end = new Color(bar.endRgb());
+		Color accent = GanttBarSupport.shouldUseUniformEndpointColor(format) ? middle : start;
+		Rectangle2D bounds = GanttBarSupport.createCapsuleBarBounds(x, y, width, height);
+		Rectangle2D summary = GanttBarSupport.createSummaryBandBounds(x, y, width, height);
+		if (g2 == null && format.isMain()) {
+			if ("Bar.summary".equals(format.getId())) setBarGeometry(key, summary.getY() - y + height / 2, Math.max(height, summary.getHeight()));
+			else if (GanttBarSupport.shouldUseModernCapsuleBar(format)) setBarGeometry(key, 0.0d, bounds.getHeight());
+			else if (format.getMiddle() != null) {
+				Rectangle2D shape = format.getMiddle().toGeneralPath(width, height, x, y, null).getBounds2D();
+				setBarGeometry(key, shape.getY() - y + height / 2, shape.getHeight());
+			}
+			return;
+		}
+		if (g2 == null) return;
+		Color progress = new Color(bar.progressRgb());
+		if (format.getMiddle() != null) {
+			if ("Bar.summary".equals(format.getId())) paintSummaryBar(g2, summary, middle, progress, accent, ratio);
+			else if (GanttBarSupport.shouldUseModernCapsuleBar(format))
+				paintCapsuleBar(g2, bounds, ratio < 1.0d ? palette.getProgressTrackColor(middle) : middle, accent, true);
+			else drawConfiguredShape(format.getMiddle(), g2, width, height, x, y, middle, accent, bounds, true);
+			if (bar.progressVisible() && !"Bar.summary".equals(format.getId())) {
+				Rectangle2D progressBounds = GanttBarSupport.progressOverlayBounds(x, y, width,
+						config.getGanttProgressBarHeight(), ratio);
+				if (progressBounds != null) {
+					paintCapsuleBar(g2, progressBounds, progress, accent, false);
+					paintProgressIndicator(g2, progressBounds);
+				}
+			}
+		}
+		if (format.getStart() != null) drawConfiguredShape(format.getStart(), g2, height, height, x, y,
+				start, start, new Rectangle2D.Double(x, y - height / 2, height, height), false);
+		if (format.getEnd() != null) drawConfiguredShape(format.getEnd(), g2, height, height, x + width, y,
+				end, end, new Rectangle2D.Double(x + width, y - height / 2, height, height), false);
+	}
+
+	private void paintSnapshotAnnotation(Graphics2D g2, int rowIndex, TaskProjectionSnapshot.Row row) {
+		TaskProjectionSnapshot.GanttRow gantt = renderValues.ganttRow(row.key());
+		String text = gantt.annotation();
+		if (text == null || text.isBlank()) return;
+		Font base = FlatUiSupport.uiFont();
+		int size = gantt.fontSize() == 0 ? base.getSize() : gantt.fontSize();
+		Font font = gantt.fontFamily() == null || gantt.fontFamily().isBlank()
+				? base.deriveFont(gantt.fontStyle(), (float)size)
+				: new Font(gantt.fontFamily(), gantt.fontStyle(), size);
+		if (gantt.fontStrikethrough()) {
+			Map<java.awt.font.TextAttribute, Object> attributes = new java.util.HashMap<>(font.getAttributes());
+			attributes.put(java.awt.font.TextAttribute.STRIKETHROUGH, java.awt.font.TextAttribute.STRIKETHROUGH_ON);
+			font = font.deriveFont(attributes);
+		}
+		FontMetrics metrics = g2.getFontMetrics(font);
+		CoordinatesConverter coord = ((GanttParams)graphInfo).getCoord();
+		double x0 = coord.toX(row.start());
+		double x1 = adaptEnd(x0, coord.toX(row.end()), row);
+		Rectangle clip = g2.getClipBounds() == null ? ((GanttParams)graphInfo).getGanttBounds() : g2.getClipBounds();
+		GanttRendererSupport.AnnotationLayout layout = GanttRendererSupport.resolveAnnotationLayout(clip, x0, x1,
+				config.getGanttBarAnnotationXOffset(), metrics.stringWidth(text));
+		if (layout == null) return;
+		String clipped = GanttRendererSupport.clipAnnotationText(metrics, text, layout.availableWidth);
+		if (clipped == null || clipped.isEmpty()) return;
+		int rowHeight = ((GanttParams)graphInfo).getRowHeight();
+		int textTop = rowIndex * rowHeight + Math.max(0, (rowHeight - metrics.getHeight()) / 2);
+		int clipHeight = Math.min(rowHeight, Math.max(metrics.getHeight() + 2, config.getGanttBarHeight() + 2));
+		Rectangle oldClip = g2.getClipBounds();
+		Font oldFont = g2.getFont();
+		Color oldColor = g2.getColor();
+		g2.setFont(font);
+		g2.clipRect(layout.x, textTop, layout.availableWidth, clipHeight);
+		g2.setColor(palette.getChartBackground());
+		g2.fillRect(Math.max(layout.x - 2, clip.x), textTop,
+				Math.min(layout.availableWidth, metrics.stringWidth(clipped) + 4) + 2, clipHeight);
+		g2.setColor(new Color(gantt.fontRgb()));
+		g2.drawString(clipped, layout.x, textTop + metrics.getAscent());
+		if (oldClip != null) g2.setClip(oldClip);
+		g2.setFont(oldFont);
+		g2.setColor(oldColor);
+	}
+
+	private void paintSnapshotLine(Graphics2D g2, int rowIndex) {
+		TaskProjectionSnapshot.Row row = renderValues.rowAt(rowIndex);
+		if (row == null || !renderValues.ganttRow(row.key()).horizontalLine()
+				|| !((GanttParams)graphInfo).isGridLinesVisible()) return;
+		Rectangle bounds = g2.getClipBounds();
+		Color old = g2.getColor();
+		g2.setColor(palette.getGridLine());
+		g2.drawLine(bounds.x, (rowIndex + 1) * ((GanttParams)graphInfo).getRowHeight() - 1,
+				bounds.x + bounds.width, (rowIndex + 1) * ((GanttParams)graphInfo).getRowHeight() - 1);
+		g2.setColor(old);
+	}
+
+	private void paintSnapshotLink(Graphics2D g2, TaskProjectionSnapshot.Edge edge) {
+		TaskProjectionSnapshot.Row from = renderValues.rowAt(renderValues.rowOf(edge.predecessor()));
+		TaskProjectionSnapshot.Row to = renderValues.rowAt(renderValues.rowOf(edge.successor()));
+		if (from == null || to == null) return;
+		for (String formatId : renderValues.edgeFormatIds(edge)) {
+			BarFormat format = formatById(formatId);
+			if (format == null) continue;
+			GanttLinkRouting routing = (GanttLinkRouting)((GanttParams)graphInfo).getRouting();
+			CoordinatesConverter coord = ((GanttParams)graphInfo).getCoord();
+			int fromSign = edge.type() == DependencyType.SF || edge.type() == DependencyType.SS ? -1 : 1;
+			int toSign = edge.type() == DependencyType.FS || edge.type() == DependencyType.SS ? -1 : 1;
+			double fx0 = coord.toX(from.start());
+			double fx1 = adaptEnd(fx0, coord.toX(from.end()), from);
+			double tx0 = coord.toX(to.start());
+			double tx1 = adaptEnd(tx0, coord.toX(to.end()), to);
+			double x0 = fromSign < 0 ? fx0 : fx1;
+			double x1 = toSign < 0 ? tx0 : tx1;
+			int rowHeight = ((GanttParams)graphInfo).getRowHeight();
+			int yOffset = config.getGanttBarYOffset() + config.getGanttBarHeight() / 2;
+			int y0 = rowHeight * renderValues.rowOf(edge.predecessor()) + yOffset;
+			int y1 = rowHeight * renderValues.rowOf(edge.successor()) + yOffset;
+			GeneralPath path = getDependencyPath(edge);
+			path.reset();
+			double targetHeight = getBarGeometry(edge.successor()).height();
+			routing.routePath(path, x0, y0, x1, y1, Math.max(y0, y1),
+					y1 + targetHeight / 2, y1 - targetHeight / 2, edge.type());
+			Color oldColor = g2.getColor();
+			Stroke oldStroke = g2.getStroke();
+			Color linkColor = edge.crossProject() ? palette.getExternalLinkColor() : palette.getDependencyLinkColor();
+			if (edge.disabled()) g2.setStroke(DISABLED_LINK_STROKE);
+			g2.setColor(linkColor);
+			g2.draw(path);
+			try {
+				if (format.getStart() != null) {
+					double theta = routing.getFirstAngle();
+					paintSnapshotArrow(g2, format.getStart(), linkColor, routing.getFirstX(), routing.getFirstY(),
+							theta == 0 ? null : AffineTransform.getRotateInstance(theta, routing.getFirstX(), routing.getFirstY()));
+				}
+				if (format.getEnd() != null) {
+					double theta = routing.getLastAngle();
+					paintSnapshotArrow(g2, format.getEnd(), linkColor, routing.getLastX(), routing.getLastY(),
+							theta == Math.PI || theta == -Math.PI ? null
+								: AffineTransform.getRotateInstance(Math.PI - theta, routing.getLastX(), routing.getLastY()));
+				}
+			} finally {
+				g2.setColor(oldColor);
+				g2.setStroke(oldStroke);
+			}
+		}
+	}
+
+	private void paintSnapshotArrow(Graphics2D g2, TexturedShape shape, Color color, double x, double y,
+			AffineTransform transform) {
+		Paint oldPaint = shape.getPaint();
+		Color oldColor = shape.getColor();
+		shape.setPaint(color);
+		shape.setColor(color);
+		shape.draw(g2, x, y, transform, useTextures());
+		shape.setPaint(oldPaint);
+		shape.setColor(oldColor);
 	}
 
 	private boolean shouldIncludeInProgressLine(TaskProjectionSnapshot.Row row) {
@@ -1322,7 +810,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 
-	ArrayList<GraphicNode> nodeList = new ArrayList<GraphicNode>();
     public void paint(Graphics g) {
     	paint(g,null);
     }
@@ -1358,58 +845,25 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		//double t0=coord.toTime(clipBounds.getX());
 		//double t1=coord.toTime(clipBounds.getMaxX());
 
-		nodeList.clear();
-
-		GraphicNode node;
-
-		NodeModelCache cache=graphInfo.getCache();
-		if (cache instanceof ViewNodeModelCache viewCache) {
-			ViewNodeModelCache.InstalledProjectionSnapshot installed = viewCache.getInstalledProjectionSnapshot();
-			renderValues = installed.values();
-			List<RevisionedProjectionIndex.Row> rows = installed.topology().rows();
-			int from = Math.max(0, i0);
-			int to = Math.min(i1, rows.size());
-			for (int rowIndex = from; rowIndex < to; rowIndex++) {
-				RevisionedProjectionIndex.Row projected = rows.get(rowIndex);
-				TaskProjectionSnapshot.Row value = renderValues.rowAt(rowIndex);
-				if (value == null || !projected.key().equals(value.key()) || !value.schedule()) continue;
-				node = projected.node();
-				nodeList.add(node);
-				paintNode(g2,node,true);
-				paintHorizontalLine(g2,node);
-			}
-		} else {
-			renderValues = TaskProjectionSnapshot.empty();
-			@SuppressWarnings("unchecked")
-			ListIterator<GraphicNode> i=cache.getIterator(i0);
-			for (;i.hasNext()&&i.nextIndex()<i1;){
-				node=i.next();
-				if (!node.isSchedule()) continue;
-				nodeList.add(node);
-				paintNode(g2,node,true);
-				paintHorizontalLine(g2,node);
-			}
+		if (!(graphInfo.getCache() instanceof ViewNodeModelCache cache)) return;
+		renderValues = cache.getInstalledProjectionSnapshot().values();
+		beginGeometryPass();
+		int from = Math.max(0, i0);
+		int to = Math.min(i1, renderValues.rows().size());
+		for (int rowIndex = from; rowIndex < to; rowIndex++) {
+			TaskProjectionSnapshot.Row value = renderValues.rowAt(rowIndex);
+			if (value == null || !value.schedule()) continue;
+			paintSnapshotNode(g2, rowIndex, value, true);
+			paintSnapshotLine(g2, rowIndex);
 		}
-
-		GraphicDependency dependency;
-		@SuppressWarnings("unchecked")
-		Iterator<GraphicDependency> dependencyIterator = cache.getVisibleDependencies().getIterator();
-		for (;dependencyIterator.hasNext();){
-			dependency=dependencyIterator.next();
-			//if (nodeList.contains(dependency.getPredecessor())||nodeList.contains(dependency.getSuccessor()))
-				paintLink(g2,dependency);
+		for (TaskProjectionSnapshot.Edge edge : renderValues.edges()) paintSnapshotLink(g2, edge);
+		for (int rowIndex = from; rowIndex < to; rowIndex++) {
+			TaskProjectionSnapshot.Row value = renderValues.rowAt(rowIndex);
+			if (value != null && value.schedule()) paintSnapshotNode(g2, rowIndex, value, false);
 		}
-
-		for (ListIterator<GraphicNode> nodeIterator=nodeList.listIterator();nodeIterator.hasNext();){
-			node=nodeIterator.next();
-			paintNode(g2,node,false);
-		}
-		// Keep bar labels in the topmost layer.  Dependency paths can cross the
-		// area beside a task bar, so painting annotations before links makes task
-		// names hard to read.
-		for (ListIterator<GraphicNode> nodeIterator=nodeList.listIterator();nodeIterator.hasNext();){
-			node=nodeIterator.next();
-			paintAnnotation(g2,node);
+		for (int rowIndex = from; rowIndex < to; rowIndex++) {
+			TaskProjectionSnapshot.Row value = renderValues.rowAt(rowIndex);
+			if (value != null && value.schedule()) paintSnapshotAnnotation(g2, rowIndex, value);
 		}
 		paintProgressLine(g2);
 

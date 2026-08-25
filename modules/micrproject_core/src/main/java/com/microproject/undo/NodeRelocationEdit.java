@@ -56,14 +56,16 @@ public class NodeRelocationEdit extends AbstractUndoableEdit {
 
 	@Override
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		if (!model.relocate(nodes,beforeParent,beforeIndex,NodeModel.EVENT)) throw new CannotUndoException();
+		super.undo();
 	}
 
 	@Override
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		if (!model.relocate(nodes,afterParent,afterIndex,NodeModel.EVENT)) throw new CannotRedoException();
+		super.redo();
 	}
 
 	@Override

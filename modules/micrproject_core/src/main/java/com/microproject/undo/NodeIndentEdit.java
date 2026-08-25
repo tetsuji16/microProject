@@ -66,14 +66,16 @@ public class NodeIndentEdit extends AbstractUndoableEdit{
 	}
 	
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		if (!restorePositions(afterPositions))
 			model.getHierarchy().indent(nodes,deltaLevel,model,NodeModel.EVENT);
+		super.redo();
 	}
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		if (!restorePositions(beforePositions))
 			model.getHierarchy().indent(nodes,-deltaLevel,model,NodeModel.EVENT);
+		super.undo();
 	}	
 	public String getPresentationName() {
 		return "NodeIndent";

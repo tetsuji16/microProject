@@ -31,6 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import java.util.List;
 import javax.swing.SwingUtilities;
 
+import com.microproject.application.task.TaskCommandGateway;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.gantt.Gantt;
@@ -40,6 +42,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.transform.grouping.NodeGroup;
 
 class RevisionedProjectionIndexTest {
 	@Test
@@ -152,6 +156,25 @@ class RevisionedProjectionIndexTest {
 	}
 
 	@Test
+	void duplicateTaskOccurrencesReceiveStableSessionSuffixes() {
+		Project project = createProject("projection-duplicate");
+		NormalTask task = createTask(project, "Repeated");
+		ViewNodeModelCache cache = createViewCache(project, "projection-duplicate-source");
+		onEdt(cache::update);
+		GraphicNode node = (GraphicNode)cache.getGraphicNode(project.getTaskModel().search(task));
+		RevisionedProjectionIndex index = new RevisionedProjectionIndex();
+
+		RevisionedProjectionIndex.Snapshot first = index.refresh(List.of(node, node));
+		RevisionedProjectionIndex.Snapshot repeated = index.refresh(List.of(node, node));
+
+		assertEquals(0L, first.keyAt(0).runtimeId());
+		assertEquals(1L, first.keyAt(1).runtimeId());
+		assertEquals(first.keyAt(0), repeated.keyAt(0));
+		assertEquals(first.keyAt(1), repeated.keyAt(1));
+		cache.close();
+	}
+
+	@Test
 	void collapseStateIsIndependentBetweenTwoRealViewCaches() {
 		Project project = createProject("collapse-isolation");
 		NormalTask parentTask = createTask(project, "Parent");
@@ -202,8 +225,29 @@ class RevisionedProjectionIndexTest {
 		cache.close();
 	}
 
+	@Test
+	void rebuiltSyntheticGroupKeepsItsSemanticRowKey() {
+		ProjectionRowKeyResolver resolver = new ProjectionRowKeyResolver();
+		NodeGroup definition = new NodeGroup();
+		definition.setSorterId("Sorter.Name");
+		Node firstNode = NodeFactory.getInstance().createGroup(definition, "Alpha");
+		Node rebuiltNode = NodeFactory.getInstance().createGroup(definition, "Alpha");
+
+		GraphicNode firstGraphic = new GraphicNode(firstNode, 1);
+		GraphicNode rebuiltGraphic = new GraphicNode(rebuiltNode, 1);
+		ProjectionRowKey first = resolver.resolve(firstGraphic);
+		ProjectionRowKey rebuilt = resolver.resolve(rebuiltGraphic);
+
+		assertEquals(first, rebuilt);
+		assertEquals(ProjectionRowKey.Kind.GROUP, first.kind());
+		VisibleNodes visible = new VisibleNodes("group-state", null);
+		visible.setCollapsed(firstGraphic, true);
+		assertTrue(visible.isCollapsed(rebuiltGraphic));
+	}
+
 	private static ViewNodeModelCache createViewCache(Project project, String name) {
 		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		reference.setTaskCommandGateway(new TaskCommandGateway(project));
 		return (ViewNodeModelCache) NodeModelCacheFactory.getInstance().createFilteredCache(reference, name, null);
 	}
 

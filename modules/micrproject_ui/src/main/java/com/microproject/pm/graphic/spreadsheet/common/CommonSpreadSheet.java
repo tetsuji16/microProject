@@ -79,7 +79,6 @@ import com.microproject.pm.graphic.model.event.CacheListener;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
-import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetSearchContext;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
@@ -992,12 +991,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		}
 		SpreadSheetModel model = getSpreadSheetModel();
 		if (column > 0 && model != null) {
-			var node = model.getNodeInRow(row);
-			if (node != null && !CollaborationHelper.tryLockObject(null, node, this, "edit")) {
-				return false;
-    		}
 			model.beginTaskCellEdit(row, column);
-    	}
+		}
 		var editingStarted = super.editCellAt(row, column, e);
 		if (!editingStarted && model != null)
 			model.clearTaskCellEdit();

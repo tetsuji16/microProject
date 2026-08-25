@@ -44,8 +44,9 @@ class TaskInformationDialogDependencyTest {
 		NormalTask current = addTask(project);
 		NormalTask successor = addTask(project);
 
-		Dependency predecessorLink = TaskInformationDialog.createDependency(current, predecessor, true, this);
-		Dependency successorLink = TaskInformationDialog.createDependency(current, successor, false, this);
+		var gateway = new com.microproject.application.task.TaskCommandGateway(project);
+		Dependency predecessorLink = TaskInformationDialog.createDependency(current, predecessor, true, gateway);
+		Dependency successorLink = TaskInformationDialog.createDependency(current, successor, false, gateway);
 
 		assertSame(predecessor, predecessorLink.getPredecessor());
 		assertSame(current, predecessorLink.getSuccessor());

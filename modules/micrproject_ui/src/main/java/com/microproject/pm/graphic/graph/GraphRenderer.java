@@ -40,7 +40,7 @@ import com.microproject.graphic.configuration.shape.Colors;
 import com.microproject.graphic.configuration.shape.PredefinedStroke;
 
 public abstract class GraphRenderer extends Renderer{
-	private transient Map<GraphicDependency, GeneralPath> dependencyPaths = new IdentityHashMap<>();
+	private transient Map<Object, GeneralPath> dependencyPaths = new IdentityHashMap<>();
 	private transient long dependencyPathGeometryRevision = Long.MIN_VALUE;
 	public static Stroke DISABLED_LINK_STROKE = PredefinedStroke.SPARSE_DASHED;
 	public static Color EXTERNAL_LINK_COLOR = Color.LIGHT_GRAY;
@@ -87,13 +87,13 @@ public abstract class GraphRenderer extends Renderer{
 
 	public void updateShape(GraphicNode node){}
 
-	public GeneralPath getDependencyPath(GraphicDependency dependency) {
+	public GeneralPath getDependencyPath(Object dependency) {
 		if (dependencyPaths == null)
 			dependencyPaths = new IdentityHashMap<>();
 		return dependencyPaths.computeIfAbsent(dependency, ignored -> new GeneralPath());
 	}
 
-	public GeneralPath findDependencyPath(GraphicDependency dependency) {
+	public GeneralPath findDependencyPath(Object dependency) {
 		return geometryContextRevision() == dependencyPathGeometryRevision && dependencyPaths != null
 				? dependencyPaths.get(dependency) : null;
 	}

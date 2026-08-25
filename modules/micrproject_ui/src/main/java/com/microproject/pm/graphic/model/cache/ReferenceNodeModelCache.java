@@ -50,7 +50,6 @@ import com.microproject.grouping.core.hierarchy.NodeHierarchy;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.pm.resource.Resource;
@@ -68,13 +67,14 @@ import com.microproject.transaction.DomainChangeSet;
 
 @SuppressWarnings("unchecked")
 public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyListener, /*TreeModel,*/ ScheduleEventListener {
+	private transient com.microproject.application.task.TaskCommandGateway taskCommands;
 	private static final Logger logger = Logger.getLogger(ReferenceNodeModelCache.class.getName());
 	private NodeModel model;
 	
 	protected NodeCache nodeCache;
 	protected DependencyCache edgeCache;
 	protected Document document;
-	private final LegacyChangeAccumulator legacyChanges;
+	private final com.microproject.transaction.DomainChangeJournal legacyJournal;
 	private volatile boolean closed;
 	
 	protected int type;
@@ -85,9 +85,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	 */
 	public ReferenceNodeModelCache(NodeModel model, Document document, int type) {
 		this.document = document;
-		legacyChanges = document instanceof Project project
-				? new LegacyChangeAccumulator(project.getDomainChangeJournal())
-				: null;
+		legacyJournal = document instanceof Project project ? project.getDomainChangeJournal() : null;
 		nodeCache=new NodeCache();
 		edgeCache=new DependencyCache();
 		setModel(model);
@@ -132,8 +130,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		if (closed) return;
 		closed = true;
 		receiveEvents = false;
-		if (legacyChanges != null)
-			legacyChanges.close();
 	    if (model!=null) {
 	    	removeListeners();
 	    	nodeCache.removeAllVisibleElements();
@@ -153,8 +149,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	public Document getDocument(){
 	    return document;
 	}
-	boolean hasPendingLegacyChange() { return legacyChanges != null && legacyChanges.isPending(); }
-	void flushPendingLegacyChange() { if (legacyChanges != null) legacyChanges.flushNowIfPending(); }
 	
 	
 	
@@ -393,15 +387,24 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 
 	
 	public void createDependency(GraphicNode startNode,GraphicNode endNode) throws InvalidAssociationException{
-		DependencyService service=DependencyService.getInstance();
-		HasDependencies startObject=(HasDependencies)startNode.getNode().getImpl();
-		HasDependencies endObject=(HasDependencies)endNode.getNode().getImpl();
-		//try {
-			Dependency dep=service.newDependency(startObject,endObject,DependencyType.FS,0L,this);
-		//} catch (InvalidAssociationException e) {
-		//	e.printStackTrace();
-		//}
+		if (!(document instanceof Project project)
+				|| !(startNode.getNode().getImpl() instanceof Task predecessor)
+				|| !(endNode.getNode().getImpl() instanceof Task successor))
+			throw new InvalidAssociationException("Dependency endpoints must be project tasks");
+		var predecessorKey = com.microproject.pm.task.ProjectTaskKey.from(predecessor).orElse(null);
+		var successorKey = com.microproject.pm.task.ProjectTaskKey.from(successor).orElse(null);
+		if (predecessorKey == null || successorKey == null)
+			throw new InvalidAssociationException("Dependency endpoints have no durable identity");
+		var result = java.util.Objects.requireNonNull(taskCommands,
+				"task command gateway was not installed").createDependency(
+				new com.microproject.application.task.TaskCommands.TaskDependencyCommand(predecessorKey, successorKey,
+						DependencyType.FS, 0L, project.getDomainChangeJournal().revision()));
+		if (!result.committed()) throw new InvalidAssociationException("Dependency command rejected: " + result.status(), result.failure());
 	}
+	public void setTaskCommandGateway(com.microproject.application.task.TaskCommandGateway taskCommands) {
+		this.taskCommands = java.util.Objects.requireNonNull(taskCommands, "taskCommands");
+	}
+	com.microproject.application.task.TaskCommandGateway taskCommandGatewayOrNull() { return taskCommands; }
 //	public void createHierarchyDependency(GraphicNode startNode,GraphicNode endNode){
 //	    model.getHierarchy().move(endNode.getNode(),startNode.getNode());
 //	}
@@ -462,7 +465,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		if (closed || !receiveEvents) return;
 		//System.out.println("ScheduleEvent: type="+e.getType()+", snap="+e.getSnapshot()+", object="+e.getObject());
 		if (!receiveEvents) return;
-		if (recordRevision) recordLegacyChange();
+		if (recordRevision) recordLegacyChange(e);
 //		nodeCache.updateCachedSchedule();
 //		nodeCache.fireScheduleEvent(e.getSource(),e);
 		update(true);
@@ -487,7 +490,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		if (object instanceof Dependency) {
 			Dependency dependency = ((Dependency)object);
 			if (dependency.getDocument() == document || dependency.getMasterDocument() == document) { // links can come from other projects too, but successor should be in this project
-				if (recordRevision) recordLegacyChange();
+				if (recordRevision) recordLegacyChange(objectEvent);
 				if (objectEvent.isCreate()) {
 					Node preNode=(Node)model.search(dependency.getPredecessor());
 					Node sucNode=(Node)model.search(dependency.getSuccessor());
@@ -521,7 +524,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 				(object instanceof Resource && (type&NodeModelCache.RESOURCE_TYPE)==NodeModelCache.RESOURCE_TYPE)||
 				(object instanceof Assignment && (type&NodeModelCache.ASSIGNMENT_TYPE)==NodeModelCache.ASSIGNMENT_TYPE)||
 				(object instanceof Project && (type&NodeModelCache.PROJECT_TYPE)==NodeModelCache.PROJECT_TYPE))){
-				if (recordRevision) recordLegacyChange();
+				if (recordRevision) recordLegacyChange(objectEvent);
 				if (object!=null&&!objectEvent.isDelete()){ //because node is already deleted
 					Node node=model.search(object);
 					if (node !=null) {
@@ -549,7 +552,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	}
 	private void handleHierarchyEvent(HierarchyEvent e, boolean recordRevision) {
 		if (closed || !receiveEvents) return;
-	    if (receiveEvents&&!e.isConsumed()) { if (recordRevision) recordLegacyChange(); update(); }
+	    if (receiveEvents&&!e.isConsumed()) { if (recordRevision) recordLegacyChange(e); update(); }
 	}
 	public void nodesInserted(HierarchyEvent e) {
 		if (closed || !receiveEvents) return;
@@ -569,14 +572,13 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		handleHierarchyEvent(e, true);
 	}
 
-	private void recordLegacyChange() {
-		if (legacyChanges != null)
-			legacyChanges.record();
+	private void recordLegacyChange(Object eventIdentity) {
+		if (legacyJournal != null)
+			legacyJournal.recordLegacyOnce(DomainChangeSet.Origin.LEGACY, eventIdentity);
 	}
 
 	private void recordLegacyChangeImmediately(Object eventIdentity) {
-		if (legacyChanges != null)
-			legacyChanges.recordImmediately(eventIdentity);
+		recordLegacyChange(eventIdentity);
 	}
 	
 	

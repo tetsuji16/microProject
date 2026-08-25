@@ -120,11 +120,22 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 
 
 	public void showDependencyPropertiesDialog(GraphicDependency dependency) {
+		var modelDependency = dependency.getDependency();
+		long revision = modelDependency.getPredecessor() instanceof com.microproject.pm.task.Task task
+				&& task.getOwningProject() != null
+				? task.getOwningProject().getDomainChangeJournal().revision() : -1L;
+		showDependencyPropertiesDialog(dependency, revision);
+	}
+
+	protected void showDependencyPropertiesDialog(GraphicDependency dependency, long expectedDomainRevision) {
     	if (dependencyPropertiesDialog == null) {
     		Frame parent=JOptionPane.getFrameForComponent(getGraph());
-    		dependencyPropertiesDialog = new DependencyDialog(parent,dependency.getDependency());
-    	}
-    	boolean didAction = DependencyDialog.doDialog(dependencyPropertiesDialog,dependency.getDependency());
+		dependencyPropertiesDialog = new DependencyDialog(parent,dependency.getDependency());
+	    }
+	    if (getGraph().getCache() instanceof com.microproject.pm.graphic.model.cache.ViewNodeModelCache viewCache)
+		dependencyPropertiesDialog.setTaskCommandGateway(viewCache.getTaskCommandGateway());
+		boolean didAction = DependencyDialog.doDialog(dependencyPropertiesDialog, dependency.getDependency(),
+				expectedDomainRevision);
     }
 
 
@@ -478,4 +489,3 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 
 
 }
-

@@ -83,6 +83,7 @@ public final class ModelTransaction<T> {
 	private final CheckedSupplier<Mutation<T>> apply;
 	private final CheckedRunnable schedule;
 	private final CheckedBooleanSupplier invariant;
+	private final CheckedBooleanSupplier commitAuthorization;
 	private final CheckedConsumer<T> commitUndo;
 	private final Function<T, DomainChangeSet.Draft> changes;
 	private final CheckedConsumer<T> postCommit;
@@ -95,6 +96,7 @@ public final class ModelTransaction<T> {
 		apply = Objects.requireNonNull(builder.apply, "apply");
 		schedule = builder.schedule;
 		invariant = builder.invariant;
+		commitAuthorization = builder.commitAuthorization;
 		commitUndo = builder.commitUndo;
 		changes = Objects.requireNonNull(builder.changes, "changes");
 		postCommit = builder.postCommit;
@@ -110,6 +112,7 @@ public final class ModelTransaction<T> {
 		CheckedRunnable rollback = () -> { };
 		DomainChangeJournal.Scope legacySuppression = null;
 		T value = null;
+		boolean rollbackAttempted = false;
 		try {
 			if (!validation.getAsBoolean())
 				return new Result<>(Status.VALIDATION_FAILED, null, null, null);
@@ -120,6 +123,7 @@ public final class ModelTransaction<T> {
 			Mutation<T> mutation = Objects.requireNonNull(apply.get(), "apply result");
 			value = mutation.value();
 			if (!mutation.changed()) {
+				rollbackAttempted = true;
 				rollback.run();
 				legacySuppression.close();
 				legacySuppression = null;
@@ -128,6 +132,13 @@ public final class ModelTransaction<T> {
 			schedule.run();
 			if (!invariant.getAsBoolean())
 				throw new IllegalStateException("transaction invariant failed");
+			if (!commitAuthorization.getAsBoolean()) {
+				rollbackAttempted = true;
+				rollback.run();
+				legacySuppression.close();
+				legacySuppression = null;
+				return new Result<>(Status.AUTHORIZATION_FAILED, value, null, null);
+			}
 			DomainChangeSet.Draft changeDraft = Objects.requireNonNull(changes.apply(value), "change draft");
 			commitUndo.accept(value);
 			DomainChangeSet change = journal.commit(changeDraft);
@@ -143,15 +154,20 @@ public final class ModelTransaction<T> {
 				return new Result<>(Status.COMMITTED, value, change, externalFailure);
 			}
 		} catch (Throwable failure) {
+			Throwable rollbackFailure = rollbackAttempted ? failure : null;
 			try {
-				rollback.run();
+				if (!rollbackAttempted) rollback.run();
 				if (legacySuppression != null)
 					legacySuppression.close();
+				if (rollbackFailure != null) {
+					recoveryFailure.accept(failure);
+					return new Result<>(Status.RECOVERY_REQUIRED, value, null, failure);
+				}
 				return new Result<>(Status.FAILED, value, null, failure);
-			} catch (Throwable rollbackFailure) {
+			} catch (Throwable recoveryError) {
 				if (legacySuppression != null)
 					legacySuppression.close();
-				failure.addSuppressed(rollbackFailure);
+				failure.addSuppressed(recoveryError);
 				recoveryFailure.accept(failure);
 				return new Result<>(Status.RECOVERY_REQUIRED, value, null, failure);
 			}
@@ -169,6 +185,7 @@ public final class ModelTransaction<T> {
 		private CheckedSupplier<Mutation<T>> apply;
 		private CheckedRunnable schedule = () -> { };
 		private CheckedBooleanSupplier invariant = () -> true;
+		private CheckedBooleanSupplier commitAuthorization = () -> true;
 		private CheckedConsumer<T> commitUndo = ignored -> { };
 		private Function<T, DomainChangeSet.Draft> changes;
 		private CheckedConsumer<T> postCommit = ignored -> { };
@@ -180,6 +197,7 @@ public final class ModelTransaction<T> {
 		public Builder<T> apply(CheckedSupplier<Mutation<T>> step) { apply = step; return this; }
 		public Builder<T> schedule(CheckedRunnable step) { schedule = step; return this; }
 		public Builder<T> invariant(CheckedBooleanSupplier step) { invariant = step; return this; }
+		public Builder<T> commitAuthorization(CheckedBooleanSupplier step) { commitAuthorization = step; return this; }
 		public Builder<T> commitUndo(CheckedConsumer<T> step) { commitUndo = step; return this; }
 		public Builder<T> changes(Function<T, DomainChangeSet.Draft> step) { changes = step; return this; }
 		public Builder<T> postCommit(CheckedConsumer<T> step) { postCommit = step; return this; }

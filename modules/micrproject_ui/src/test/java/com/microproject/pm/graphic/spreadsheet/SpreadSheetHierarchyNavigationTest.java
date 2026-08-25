@@ -242,8 +242,10 @@ class SpreadSheetHierarchyNavigationTest {
 		project.getTaskOutlines().addToAll(firstChild, null);
 		project.getTaskOutlines().addToAll(secondChild, null);
 
+		var reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
 		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+			reference,
 			"shortcut-test",
 			null);
 		SpreadSheet sheet = sheetFactory.get();

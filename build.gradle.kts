@@ -179,12 +179,12 @@ val verifyTaskViewArchitecture = tasks.register("verifyTaskViewArchitecture") {
         val spreadsheetModel = ui.resolve("spreadsheet/SpreadSheetModel.java").readText()
         if (spreadsheetModel.contains("DependencyService.getInstance().setFields("))
             throw GradleException("Spreadsheet dependency updates must use TaskCommandGateway")
-        val projectionStore = ui.resolve("views/TaskProjectionStore.java").readText()
-        listOf(" topology()", " values()", "getTopology(", "getValues(")
-            .forEach { forbidden ->
-                if (projectionStore.contains(forbidden))
-                    throw GradleException("Split projection snapshot getter reintroduced: $forbidden")
-            }
+		val ganttRenderer = ui.resolve("gantt/GanttRenderer.java").readText()
+		listOf("GraphicNode", "GraphicDependency", "getVisibleDependencies()", ".getNode()")
+			.forEach { forbidden ->
+				if (ganttRenderer.contains(forbidden))
+					throw GradleException("Gantt paint must use value snapshots: $forbidden")
+			}
         val session = ui.resolve("views/TaskViewSession.java").readText()
         if (Regex("(?m)^\\s*(public|protected|private)?\\s*static\\s+(?!final)").containsMatchIn(session))
             throw GradleException("TaskViewSession must not contain a mutable static registry")

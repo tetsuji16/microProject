@@ -76,13 +76,15 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 		return s;
 	}
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		ScheduleService.getInstance().setInterval(this, schedule, start, end, interval, null);
+		super.redo();
 		//schedule.moveInterval(this,start,end,interval,isChild);
 	}
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		schedule.restoreDetail(this,detailBackup,false);
+		super.undo();
 		
 	}
 }

@@ -203,8 +203,6 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	private transient NodeModel taskModel = null;
 	private transient NodeModel resourceModel = null;
-	private transient Object taskCache = null;
-	private transient Object resourceCache = null;
 	private transient List<Task> repaired = null;
 	private transient Date creationDate,lastModificationDate;
 	private transient IdentityFacade identityFacade = new IdentityFacade();
@@ -258,22 +256,6 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return resourceModel;
 	}
 
-
-	public Object getResourceCache() {
-		return resourceCache;
-	}
-
-	public void setResourceCache(Object resourceCache) {
-		this.resourceCache = resourceCache;
-	}
-
-	public Object getTaskCache() {
-		return taskCache;
-	}
-
-	public void setTaskCache(Object taskCache) {
-		this.taskCache = taskCache;
-	}
 
 	private Project(boolean local) {
 		super();

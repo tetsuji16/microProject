@@ -23,11 +23,14 @@
  *******************************************************************************/
 package com.microproject.application.task;
 
+import com.microproject.application.task.TaskCommands.*;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -35,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.field.FieldContext;
+import com.microproject.configuration.Configuration;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.dependency.DependencyType;
@@ -67,6 +71,20 @@ class TaskCommandGatewayTest {
 	}
 
 	@Test
+	void undoObserverSeesCommittedRevision() {
+		Fixture fixture = fixture("gateway-observer-order");
+		java.util.concurrent.atomic.AtomicLong observedRevision = new java.util.concurrent.atomic.AtomicLong(-1L);
+		fixture.undo.addUndoStateListener(event -> {
+			if (event.cause() == com.microproject.undo.UndoStateEvent.Cause.EDIT_ADDED)
+				observedRevision.set(fixture.project.getDomainChangeJournal().revision());
+		});
+
+		new TaskCommandGateway(fixture.project).editField(command(fixture.task, "Before", "After"));
+
+		assertEquals(1L, observedRevision.get());
+	}
+
+	@Test
 	void staleFieldDraftReturnsConflictWithoutMutationRevisionOrUndo() {
 		Fixture fixture = fixture("gateway-conflict");
 
@@ -82,7 +100,7 @@ class TaskCommandGatewayTest {
 	@Test
 	void lockDenialHasNoDomainSideEffects() {
 		Fixture fixture = fixture("gateway-lock");
-		TaskAuthorizationPort denied = (key, type) -> TaskAuthorizationPort.Decision.LOCK_DENIED;
+		TaskAuthorizationPort denied = (keys, type) -> TaskAuthorizationPort.fixed(TaskAuthorizationPort.Decision.LOCK_DENIED);
 
 		TaskCommandResult result = new TaskCommandGateway(fixture.project, denied)
 				.editField(command(fixture.task, "Before", "After"));
@@ -90,6 +108,28 @@ class TaskCommandGatewayTest {
 		assertEquals(TaskCommandResult.Status.LOCK_DENIED, result.status());
 		assertEquals("Before", fixture.task.getName());
 		assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
+		assertFalse(fixture.undo.canUndo());
+	}
+
+	@Test
+	void lockLossAtCommitRollsBackWithoutRevisionOrUndo() {
+		Fixture fixture = fixture("gateway-lock-loss");
+		TaskAuthorizationPort expiresAtCommit = new TaskAuthorizationPort() {
+			@Override public AuthorizationLease acquire(Set<ProjectTaskKey> keys, TaskCommandType type) {
+				return new AuthorizationLease() {
+					@Override public Decision decision() { return Decision.ALLOWED; }
+					@Override public boolean validateAtCommit() { return false; }
+				};
+			}
+		};
+
+		TaskCommandResult result = new TaskCommandGateway(fixture.project, expiresAtCommit)
+				.editField(command(fixture.task, "Before", "After"));
+
+		assertEquals(TaskCommandResult.Status.LOCK_DENIED, result.status());
+		assertEquals("Before", fixture.task.getName());
+		assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
+		assertFalse(fixture.project.isDirty());
 		assertFalse(fixture.undo.canUndo());
 	}
 
@@ -124,6 +164,71 @@ class TaskCommandGatewayTest {
 		fixture.undo.redo();
 		assertTrue(fixture.task.getSuccessorList().findRight(successor) != null);
 		assertEquals(3L, fixture.project.getDomainChangeJournal().revision());
+	}
+
+	@Test
+	void dependencyDeleteIsAtomicAndUndoable() {
+		Fixture fixture = fixture("gateway-dependency-delete");
+		NormalTask successor = addTask(fixture.project, "Successor");
+		TaskCommandGateway gateway = new TaskCommandGateway(fixture.project);
+		gateway.createDependency(new TaskDependencyCommand(ProjectTaskKey.from(fixture.task).orElseThrow(),
+				ProjectTaskKey.from(successor).orElseThrow(), DependencyType.FS, 0L, 0L));
+		fixture.undo.clear();
+
+		TaskCommandResult result = gateway.deleteDependency(new TaskDependencyDeleteCommand(
+				ProjectTaskKey.from(fixture.task).orElseThrow(), ProjectTaskKey.from(successor).orElseThrow(),
+				0L, DependencyType.FS, 1L));
+
+		assertEquals(TaskCommandResult.Status.COMMITTED, result.status(), String.valueOf(result.failure()));
+		assertTrue(fixture.task.getSuccessorList().findRight(successor) == null);
+		assertEquals(2L, fixture.project.getDomainChangeJournal().revision());
+		fixture.undo.undo();
+		assertTrue(fixture.task.getSuccessorList().findRight(successor) != null);
+	}
+
+	@Test
+	void dependencyBatchIsOneRevisionAndOneUndo() {
+		Fixture fixture = fixture("gateway-dependency-batch");
+		NormalTask second = addTask(fixture.project, "Second");
+		NormalTask third = addTask(fixture.project, "Third");
+		List<ProjectTaskKey> keys = List.of(ProjectTaskKey.from(fixture.task).orElseThrow(),
+				ProjectTaskKey.from(second).orElseThrow(), ProjectTaskKey.from(third).orElseThrow());
+		fixture.undo.clear();
+
+		TaskCommandResult linked = new TaskCommandGateway(fixture.project).changeDependencies(
+				new TaskDependencyBatchCommand(TaskDependencyBatchCommand.Operation.LINK, keys, 0L));
+
+		assertEquals(TaskCommandResult.Status.COMMITTED, linked.status(), String.valueOf(linked.failure()));
+		assertTrue(fixture.task.getSuccessorList().findRight(second) != null);
+		assertTrue(second.getSuccessorList().findRight(third) != null);
+		assertEquals(1L, fixture.project.getDomainChangeJournal().revision());
+		fixture.undo.undo();
+		assertTrue(fixture.task.getSuccessorList().findRight(second) == null);
+		assertTrue(second.getSuccessorList().findRight(third) == null);
+		assertEquals(2L, fixture.project.getDomainChangeJournal().revision());
+	}
+
+	@Test
+	void dependencyBatchUnlinkRemovesEveryIncidentEdgeAtomically() {
+		Fixture fixture = fixture("gateway-dependency-unlink-batch");
+		NormalTask middle = addTask(fixture.project, "Middle");
+		NormalTask last = addTask(fixture.project, "Last");
+		TaskCommandGateway gateway = new TaskCommandGateway(fixture.project);
+		List<ProjectTaskKey> all = List.of(ProjectTaskKey.from(fixture.task).orElseThrow(),
+				ProjectTaskKey.from(middle).orElseThrow(), ProjectTaskKey.from(last).orElseThrow());
+		gateway.changeDependencies(new TaskDependencyBatchCommand(TaskDependencyBatchCommand.Operation.LINK, all, 0L));
+		fixture.undo.clear();
+
+		TaskCommandResult unlinked = gateway.changeDependencies(new TaskDependencyBatchCommand(
+				TaskDependencyBatchCommand.Operation.UNLINK, List.of(ProjectTaskKey.from(middle).orElseThrow()), 1L));
+
+		assertEquals(TaskCommandResult.Status.COMMITTED, unlinked.status(), String.valueOf(unlinked.failure()));
+		assertTrue(fixture.task.getSuccessorList().findRight(middle) == null);
+		assertTrue(middle.getSuccessorList().findRight(last) == null);
+		assertEquals(2L, fixture.project.getDomainChangeJournal().revision());
+		fixture.undo.undo();
+		assertTrue(fixture.task.getSuccessorList().findRight(middle) != null);
+		assertTrue(middle.getSuccessorList().findRight(last) != null);
 	}
 
 	@Test
@@ -188,6 +293,20 @@ class TaskCommandGatewayTest {
 	}
 
 	@Test
+	void taskDeleteCommitsOneCapturedLegacyUndo() {
+		Fixture fixture = fixture("gateway-create-delete");
+		TaskCommandGateway gateway = new TaskCommandGateway(fixture.project);
+		fixture.undo.clear();
+		ProjectTaskKey key = ProjectTaskKey.from(fixture.task).orElseThrow();
+		TaskCommandResult deleted = gateway.deleteTasks(new TaskDeleteCommand(List.of(key),
+				fixture.project.getDomainChangeJournal().revision()));
+		assertEquals(TaskCommandResult.Status.COMMITTED, deleted.status(), String.valueOf(deleted.failure()));
+		assertTrue(fixture.project.getTaskModel().search(fixture.task) == null);
+		fixture.undo.undo();
+		assertTrue(fixture.project.getTaskModel().search(fixture.task) != null);
+	}
+
+	@Test
 	void hierarchyIndentUsesOneRevisionAndRestoresExactParentOnUndo() {
 		Fixture fixture = fixture("gateway-indent");
 		NormalTask second = addTask(fixture.project, "Second");
@@ -208,6 +327,25 @@ class TaskCommandGatewayTest {
 		assertEquals(root, secondNode.getParent());
 		assertEquals(1, root.getIndex(secondNode));
 		assertEquals(2L, fixture.project.getDomainChangeJournal().revision());
+	}
+
+	@Test
+	void hierarchyIndentAuthorizesSelectedTaskAndParentCandidateTogether() {
+		Fixture fixture = fixture("gateway-indent-authorization");
+		NormalTask second = addTask(fixture.project, "Second");
+		java.util.concurrent.atomic.AtomicReference<Set<ProjectTaskKey>> authorized =
+				new java.util.concurrent.atomic.AtomicReference<>();
+		TaskAuthorizationPort port = (keys, type) -> {
+			authorized.set(keys);
+			return TaskAuthorizationPort.fixed(TaskAuthorizationPort.Decision.ALLOWED);
+		};
+
+		TaskCommandResult result = new TaskCommandGateway(fixture.project, port).indentHierarchy(
+				new TaskHierarchyIndentCommand(List.of(ProjectTaskKey.from(second).orElseThrow()), 1, 0L));
+
+		assertEquals(TaskCommandResult.Status.COMMITTED, result.status(), String.valueOf(result.failure()));
+		assertEquals(Set.of(ProjectTaskKey.from(fixture.task).orElseThrow(),
+				ProjectTaskKey.from(second).orElseThrow()), authorized.get());
 	}
 
 	@Test
@@ -244,6 +382,49 @@ class TaskCommandGatewayTest {
 		assertEquals(expected, ScheduleService.getInstance().getCompleted(fixture.task));
 		assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
 		assertFalse(fixture.undo.canUndo());
+	}
+
+	@Test
+	void multiCellEditCommitsOneRevisionAndOneUndo() {
+		Fixture fixture = fixture("gateway-field-batch");
+		NormalTask second = addTask(fixture.project, "Second");
+		fixture.undo.clear();
+		long beforeRevision = fixture.project.getDomainChangeJournal().revision();
+
+		TaskCommandResult result = new TaskCommandGateway(fixture.project).editFields(
+				new TaskFieldBatchEditCommand(List.of(
+						command(fixture.task, "Before", "First changed"),
+						command(second, "Second", "Second changed")), beforeRevision));
+
+		assertEquals(TaskCommandResult.Status.COMMITTED, result.status(), String.valueOf(result.failure()));
+		assertEquals("First changed", fixture.task.getName());
+		assertEquals("Second changed", second.getName());
+		assertEquals(beforeRevision + 1L, fixture.project.getDomainChangeJournal().revision());
+		fixture.undo.undo();
+		assertEquals("Before", fixture.task.getName());
+		assertEquals("Second", second.getName());
+		assertEquals(beforeRevision + 2L, fixture.project.getDomainChangeJournal().revision());
+	}
+
+	@Test
+	void multiCellSetterFailureRollsBackEveryEarlierCellWithoutRevisionOrUndo() {
+		Fixture fixture = fixture("gateway-field-batch-rollback");
+		Node node = fixture.project.getTaskModel().search(fixture.task);
+		var duration = Configuration.getFieldFromId("Field.duration");
+		Object originalDuration = duration.getValue(node, fixture.project.getTaskModel(), new FieldContext());
+
+		TaskCommandResult result = new TaskCommandGateway(fixture.project).editFields(
+				new TaskFieldBatchEditCommand(List.of(
+						command(fixture.task, "Before", "Must roll back"),
+						new TaskFieldEditCommand(ProjectTaskKey.from(fixture.task).orElseThrow(), "Field.duration",
+								originalDuration, "not a duration", new FieldContext())), 0L));
+
+		assertEquals(TaskCommandResult.Status.FAILED, result.status());
+		assertEquals("Before", fixture.task.getName());
+		assertEquals(originalDuration, duration.getValue(node, fixture.project.getTaskModel(), new FieldContext()));
+		assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
+		assertFalse(fixture.undo.canUndo());
+		assertFalse(fixture.project.isDirty());
 	}
 
 	private static TaskFieldEditCommand command(NormalTask task, Object expected, Object proposed) {

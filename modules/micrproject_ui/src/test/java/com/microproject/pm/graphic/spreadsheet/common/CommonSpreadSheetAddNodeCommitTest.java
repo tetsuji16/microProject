@@ -59,8 +59,10 @@ class CommonSpreadSheetAddNodeCommitTest {
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();
 			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			var reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+			reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				reference,
 				"add-node-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(sheet,

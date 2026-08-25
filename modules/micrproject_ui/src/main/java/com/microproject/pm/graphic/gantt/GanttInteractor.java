@@ -38,14 +38,13 @@ import javax.swing.undo.UndoableEditSupport;
 
 import com.microproject.application.task.TaskCommandGateway;
 import com.microproject.application.task.TaskCommandResult;
-import com.microproject.application.task.TaskDependencyCommand;
-import com.microproject.application.task.TaskScheduleDragCommand;
-import com.microproject.application.task.TaskProgressCommand;
-import com.microproject.application.task.TaskSplitCommand;
+import com.microproject.application.task.TaskCommands.TaskDependencyCommand;
+import com.microproject.application.task.TaskCommands.TaskScheduleDragCommand;
+import com.microproject.application.task.TaskCommands.TaskProgressCommand;
+import com.microproject.application.task.TaskCommands.TaskSplitCommand;
 import com.microproject.pm.graphic.graph.GraphInteractor;
 import com.microproject.pm.graphic.graph.GraphUI;
 import com.microproject.pm.graphic.graph.GraphZone;
-import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
@@ -123,6 +122,7 @@ public class GanttInteractor extends GraphInteractor{
 	private boolean panUpdateScheduled;
 	private long gestureDomainRevision = -1L;
 	private long gestureTopologyRevision = -1L;
+	private long gestureRenderRevision = -1L;
 	private GestureTaskDraft gestureTaskDraft;
 	private record GestureTaskDraft(ProjectTaskKey key, long expectedCompleted, long expectedTaskStart,
 			long expectedTaskEnd, int expectedConstraintType, long expectedConstraintDate,
@@ -233,9 +233,8 @@ public class GanttInteractor extends GraphInteractor{
     		super.mousePressed(e);
     		return;
 		}
-		captureGestureRevision();
-
     	select(e.getX(), e.getY());
+		captureGestureRevision();
 		captureGestureTaskDraft();
     	notifyBarSelection(e);
     	if (selected == null) {
@@ -382,13 +381,10 @@ public class GanttInteractor extends GraphInteractor{
 		if (selected==null || !canExecutePointerAction(state == LINK_CREATION, state == LINK_SELECTION, x0, x)) return false;
 		if (isMutatingGesture() && !isGestureRevisionCurrent())
 			return false;
-    	if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
-    		if (!(selected instanceof GraphicNode)) return false;
-    		sourceNode=(GraphicNode)selected;
-    		if (!CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "edit")) {
-    			return false;
-    		}
-    	}
+		if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
+			if (!(selected instanceof GraphicNode)) return false;
+			sourceNode=(GraphicNode)selected;
+		}
     	UndoableEditSupport undoSupport = getUndoableEditSupport();
 		boolean actionPerformed;
 		switch (state) {
@@ -404,7 +400,7 @@ public class GanttInteractor extends GraphInteractor{
 			actionPerformed = createDependencyLink();
 			break;
 		case LINK_SELECTION:
-			showDependencyPropertiesDialog((GraphicDependency)selected);
+			showDependencyPropertiesDialog((GraphicDependency)selected, gestureDomainRevision);
 			return true;
 		case SPLIT:
 			long t=(long)getCoord().toTime(x);
@@ -434,10 +430,6 @@ public class GanttInteractor extends GraphInteractor{
 	}
 
 	private boolean createDependencyLink() {
-		if (sourceNode != null && !CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "link"))
-			return false;
-		if (destinationNode != null && !CollaborationHelper.tryLockObject(null, destinationNode.getNode(), getGraph(), "link"))
-			return false;
 		if (sourceNode == null || destinationNode == null
 				|| !(sourceNode.getNode().getImpl() instanceof Task predecessor)
 				|| !(destinationNode.getNode().getImpl() instanceof Task successor))
@@ -454,9 +446,16 @@ public class GanttInteractor extends GraphInteractor{
 	}
 
 	private void captureGestureRevision() {
+		gestureDomainRevision = -1L;
+		gestureTopologyRevision = -1L;
+		gestureRenderRevision = -1L;
 		Project project = getGraph().getProject();
-		gestureDomainRevision = project == null ? -1L : project.getDomainChangeJournal().revision();
-		gestureTopologyRevision = currentTopologyRevision();
+		if (project == null || !(getGraph().getCache() instanceof ViewNodeModelCache cache)) return;
+		TaskProjectionSnapshot values = cache.getInstalledProjectionSnapshot().values();
+		if (values.domainRevision() != project.getDomainChangeJournal().revision()) return;
+		gestureDomainRevision = values.domainRevision();
+		gestureTopologyRevision = values.topologyRevision();
+		gestureRenderRevision = values.renderRevision();
 	}
 
 	/** Captures every optimistic-lock value at press time, before a long drag begins. */
@@ -479,18 +478,22 @@ public class GanttInteractor extends GraphInteractor{
 		Project project = getGraph().getProject();
 		if (project == null || project.getDomainChangeJournal().revision() != gestureDomainRevision)
 			return false;
-		return currentTopologyRevision() == gestureTopologyRevision;
+		if (!(getGraph().getCache() instanceof ViewNodeModelCache cache)) return false;
+		TaskProjectionSnapshot values = cache.getInstalledProjectionSnapshot().values();
+		return gestureRevisionsMatch(gestureDomainRevision, gestureTopologyRevision, gestureRenderRevision,
+				values.domainRevision(), values.topologyRevision(), values.renderRevision());
 	}
 
-	private long currentTopologyRevision() {
-		return getGraph() instanceof Gantt gantt && gantt.getCache() instanceof ViewNodeModelCache cache
-				? cache.getProjectionSnapshot().topologyRevision()
-				: -1L;
+	static boolean gestureRevisionsMatch(long capturedDomain, long capturedTopology, long capturedRender,
+			long installedDomain, long installedTopology, long installedRender) {
+		return capturedDomain == installedDomain && capturedTopology == installedTopology
+				&& capturedRender == installedRender;
 	}
 
 	private boolean isMutatingGesture() {
 		return state == BAR_MOVE || state == BAR_MOVE_START || state == BAR_MOVE_END
-				|| state == PROGRESS_BAR_MOVE || state == SPLIT || state == LINK_CREATION;
+				|| state == PROGRESS_BAR_MOVE || state == SPLIT || state == LINK_CREATION
+				|| state == LINK_SELECTION;
 	}
 
     private boolean applyIntervalDrag(long dt, UndoableEditSupport undoSupport) {

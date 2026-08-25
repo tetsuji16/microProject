@@ -127,6 +127,38 @@ class TaskWorkspaceMapperTest {
 		}
 	}
 
+	@Test
+	void durableScrollAnchorOverridesStalePixelPositionAfterTopologyChange() throws Exception {
+		Fixture fixture = createFixture("workspace-scroll-anchor");
+		try {
+			CommonSpreadSheet.Workspace[] saved = new CommonSpreadSheet.Workspace[1];
+			int[] offset = new int[1];
+			SwingUtilities.invokeAndWait(() -> {
+				int row = fixture.cache.getRowAt(fixture.secondNode);
+				offset[0] = Math.max(1, fixture.sheet.getRowHeight() / 3);
+				fixture.scrollPane.getViewport().setViewPosition(
+						new java.awt.Point(17, row * fixture.sheet.getRowHeight() + offset[0]));
+				CommonSpreadSheet.Workspace workspace = new CommonSpreadSheet.Workspace();
+				TaskWorkspaceMapper.capture(fixture.sheet, fixture.cache, workspace);
+				saved[0] = roundTrip(workspace);
+			});
+
+			SwingUtilities.invokeAndWait(() -> {
+				fixture.cache.deleteNodes(List.of(fixture.firstNode.getNode()));
+				fixture.cache.update();
+				fixture.scrollPane.getViewport().setViewPosition(new java.awt.Point(17, 0));
+				TaskWorkspaceMapper.restore(fixture.sheet, fixture.cache, saved[0]);
+				int expectedRow = fixture.cache.getRowAt(fixture.secondNode);
+				assertEquals(expectedRow * fixture.sheet.getRowHeight() + offset[0],
+						fixture.scrollPane.getViewport().getViewPosition().y);
+				assertEquals(17, fixture.scrollPane.getViewport().getViewPosition().x,
+						"durable vertical restore must not overwrite view-local horizontal scroll");
+			});
+		} finally {
+			fixture.close();
+		}
+	}
+
 	private static Fixture createFixture(String name) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool(name, undo), undo);
@@ -134,6 +166,7 @@ class TaskWorkspaceMapperTest {
 		NormalTask first = createTask(project, "First");
 		NormalTask second = createTask(project, "Second");
 		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
 		ViewNodeModelCache cache = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
 				.createFilteredCache(reference, name + "-view", null);
 		cache.update();

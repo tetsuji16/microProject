@@ -37,12 +37,19 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.SwingUtilities;
 
 
+import com.microproject.application.task.TaskCommandResult;
+import com.microproject.application.task.TaskAuthorizationPort;
+import com.microproject.application.task.TaskCommandGateway;
+import com.microproject.application.task.TaskCommandType;
+import com.microproject.application.task.TaskCommands.TaskDependencyBatchCommand;
+import com.microproject.collaboration.CollaborationSession;
 import com.microproject.dialog.BaselineDialog;
 import com.microproject.dialog.DelegateTaskDialog;
 import com.microproject.dialog.FindDialog;
@@ -83,7 +90,6 @@ import com.microproject.pm.graphic.views.Searchable;
 import com.microproject.pm.graphic.views.TreeView;
 import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.toolbar.FilterToolBarManager;
-import com.microproject.association.InvalidAssociationException;
 import com.microproject.command.UpdateProjectCommand;
 import com.microproject.configuration.Configuration;
 import com.microproject.document.ObjectEvent;
@@ -95,19 +101,18 @@ import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
-import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
 import com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter;
 import com.microproject.job.JobQueue;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.HasCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Portfolio;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectEvent;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.ProjectListener;
+import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.session.LoadOptions;
@@ -153,6 +158,8 @@ public class DocumentFrame extends NamedFrame implements
 	private FindDialog findDialog = null;
 	protected CoordinatesConverter coord;
 	protected Project project;
+	private DocumentReferenceCaches referenceCaches;
+	private transient TaskCommandGateway taskCommands;
 	protected GraphicManager graphicManager;
 	protected MenuManager menuManager;
 	MenuActionsMap actionsMap = null;
@@ -186,20 +193,10 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public ReferenceNodeModelCache getTaskNodeModelCache() {
-		ReferenceNodeModelCache taskCache = (ReferenceNodeModelCache) project.getTaskCache();
-		if (taskCache == null) {
-			taskCache =NodeModelCacheFactory.createTaskNodeModelCache(project, getTaskModel());
-			project.setTaskCache(taskCache);
-		}
-		return taskCache;
+		return referenceCaches.task();
 	}
 	public ReferenceNodeModelCache getResourceNodeModelCache() {
-		ReferenceNodeModelCache resourceCache = (ReferenceNodeModelCache) project.getResourceCache();
-		if (resourceCache == null) {
-			resourceCache =NodeModelCacheFactory.createResourceNodeModelCache(project.getResourcePool(), getResourceModel());
-			project.setResourceCache(resourceCache);
-		}
-		return resourceCache;
+		return referenceCaches.resource();
 	}
 
 
@@ -224,6 +221,8 @@ public class DocumentFrame extends NamedFrame implements
 		filterToolBarManager = Environment.isNewLook() ? FilterToolBarManager.create(menuManager) : graphicManager.getFilterToolBarManager();
 
 		this.project = project;
+		taskCommands = createTaskCommandGateway();
+		referenceCaches = new DocumentReferenceCaches(project, taskCommands);
 		coord = new CoordinatesConverter(project);
 		coord.addTimeScaleListener(event -> updateStatusBarZoom());
 
@@ -389,6 +388,7 @@ public class DocumentFrame extends NamedFrame implements
 		if (java.awt.GraphicsEnvironment.isHeadless())
 			return;
 		ResourceLevelingDialogBox.getInstance(getGraphicManager().getFrame(), project).setVisible(true);
+		refreshGanttProjection();
 	}
 
 	void doCriticalChainDialog() {
@@ -396,6 +396,14 @@ public class DocumentFrame extends NamedFrame implements
 		if (java.awt.GraphicsEnvironment.isHeadless())
 			return;
 		ResourceLevelingDialogBox.getCriticalChainInstance(getGraphicManager().getFrame(), project).setVisible(true);
+		refreshGanttProjection();
+	}
+
+	void refreshGanttProjection() {
+		if (ganttView != null && ganttView.getGantt() != null) {
+			ganttView.getGantt().refreshProjectionCapture();
+			ganttView.getGantt().repaint();
+		}
 	}
 
 
@@ -478,34 +486,49 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void doLinkTasks() {
 		finishAnyOperations();
-		try {
-			List<Node> taskNodes = getSelectedTaskNodes(false, true);
-			if (taskNodes.size() < 2)
-				return;
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "link"))
-				return;
-			List list = NodeList.nodeListToImplList(taskNodes, NotAssignmentFilter.getInstance());
-			if (list.size() < 2)
-				return;
-			DependencyService.getInstance().connect(list,this,null);
-			//DependencyService.getInstance().connect(list,this);
-		} catch (InvalidAssociationException e) {
-			Alert.error(e.getMessage(),this);
+		changeDependencies(TaskDependencyBatchCommand.Operation.LINK);
+	}
+
+	public TaskCommandGateway getTaskCommandGateway() {
+		if (taskCommands == null) taskCommands = createTaskCommandGateway();
+		return taskCommands;
+	}
+	private TaskCommandGateway createTaskCommandGateway() {
+		return new TaskCommandGateway(project, this::authorizeTaskCommand);
+	}
+
+	private TaskAuthorizationPort.AuthorizationLease authorizeTaskCommand(Set<ProjectTaskKey> keys,
+			TaskCommandType commandType) {
+		List<Task> tasks = new ArrayList<>(keys.size());
+		for (ProjectTaskKey key : keys) {
+			Task task = ProjectTaskKey.resolve(project, key).orElse(null);
+			if (task == null || project.isReadOnly() || task.isReadOnly())
+				return TaskAuthorizationPort.fixed(TaskAuthorizationPort.Decision.READ_ONLY);
+			tasks.add(task);
 		}
+		CollaborationSession session = project.getCollaborationSession();
+		if (session == null) return TaskAuthorizationPort.fixed(TaskAuthorizationPort.Decision.ALLOWED);
+		String action = commandType == TaskCommandType.CREATE_DEPENDENCY
+				|| commandType == TaskCommandType.BATCH_DEPENDENCY ? "link" : "edit";
+		if (!session.tryLockTasks(tasks, this, action))
+			return TaskAuthorizationPort.fixed(TaskAuthorizationPort.Decision.LOCK_DENIED);
+		return new TaskAuthorizationPort.AuthorizationLease() {
+			@Override public TaskAuthorizationPort.Decision decision() { return TaskAuthorizationPort.Decision.ALLOWED; }
+			@Override public boolean validateAtCommit() { return session.validateTaskLocks(tasks); }
+		};
 	}
 	public void doUnlinkTasks() {
 		finishAnyOperations();
-		List<Node> taskNodes = getSelectedTaskNodes(false, true);
-		if (taskNodes.isEmpty())
-			return;
-		if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "unlink"))
-			return;
-		List list = NodeList.nodeListToImplList(taskNodes, NotAssignmentFilter.getInstance());
-		if (list.isEmpty())
-			return;
-
-
-		DependencyService.getInstance().removeAnyDependencies(list,this);
+		changeDependencies(TaskDependencyBatchCommand.Operation.UNLINK);
+	}
+	private void changeDependencies(TaskDependencyBatchCommand.Operation operation) {
+		List<ProjectTaskKey> keys = getSelectedTaskNodes(false, true).stream()
+				.map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast)
+				.map(ProjectTaskKey::from).flatMap(java.util.Optional::stream).toList();
+		TaskCommandResult result = getTaskCommandGateway().changeDependencies(
+				new TaskDependencyBatchCommand(operation, keys,
+						getProject().getDomainChangeJournal().revision()));
+		if (result.failure() != null) Alert.error(result.failure().getMessage(), this);
 	}
 	public void doUndoRedo(boolean isUndo) {
 		if (!isActive())
@@ -628,8 +651,6 @@ public class DocumentFrame extends NamedFrame implements
 			List<Node> taskNodes = getSelectedTaskNodes(false, false);
 			if (taskNodes.isEmpty())
 				return;
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "outdent"))
-				return;
 			ss.executeAction(MenuActionConstants.ACTION_OUTDENT);
 		}
 	}
@@ -657,8 +678,6 @@ public class DocumentFrame extends NamedFrame implements
 		if (ss !=null) {
 			List<Node> taskNodes = getSelectedTaskNodes(false, false);
 			if (taskNodes.isEmpty())
-				return;
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "indent"))
 				return;
 			ss.executeAction(MenuActionConstants.ACTION_INDENT);
 		}
@@ -1390,16 +1409,8 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	private void closeOwnedReferenceCaches() {
-		if (project == null)
-			return;
-		Object taskCache = project.getTaskCache();
-		Object resourceCache = project.getResourceCache();
-		if (taskCache instanceof ReferenceNodeModelCache reference)
-			reference.close();
-		if (resourceCache instanceof ReferenceNodeModelCache reference && resourceCache != taskCache)
-			reference.close();
-		project.setTaskCache(null);
-		project.setResourceCache(null);
+		if (referenceCaches != null) referenceCaches.close();
+		referenceCaches = null;
 	}
 
 	void resetViews() {

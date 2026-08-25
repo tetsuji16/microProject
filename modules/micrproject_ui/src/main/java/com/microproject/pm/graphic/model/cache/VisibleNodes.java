@@ -42,9 +42,8 @@ import com.microproject.pm.graphic.model.transform.CacheTransformer;
  */
 public class VisibleNodes extends VisibleElements {
     protected VisibleDependencies visibleDependencies;
-	private Runnable beforeListenerNotification;
 	private Consumer<Runnable> listenerDispatcher = Runnable::run;
-	private final Map<ProjectionRowKey, Boolean> collapsed = new java.util.HashMap<>();
+	private final Map<Object, Boolean> collapsed = new java.util.HashMap<>();
 	private final ProjectionRowKeyResolver collapseKeys = new ProjectionRowKeyResolver();
     /**
      * @param transformer
@@ -77,25 +76,26 @@ public class VisibleNodes extends VisibleElements {
 	public CacheListener[] getNodeModelListeners() {
 		return (CacheListener[]) listenerList.getListeners(CacheListener.class);
 	}
-	void setBeforeListenerNotification(Runnable callback) {
-		beforeListenerNotification = callback;
-	}
 	void setListenerDispatcher(Consumer<Runnable> dispatcher) {
 		listenerDispatcher = dispatcher == null ? Runnable::run : dispatcher;
 	}
 	boolean isCollapsed(GraphicNode node) {
-		return node != null && collapsed.computeIfAbsent(collapseKeys.resolve(node), ignored -> node.isCollapsed()).booleanValue();
+		return node != null && collapsed.computeIfAbsent(collapseKey(node), ignored -> node.isCollapsed()).booleanValue();
 	}
 	void setCollapsed(GraphicNode node, boolean value) {
-		if (node != null) collapsed.put(collapseKeys.resolve(node), Boolean.valueOf(value));
+		if (node != null) collapsed.put(collapseKey(node), Boolean.valueOf(value));
+	}
+	private Object collapseKey(GraphicNode node) {
+		if (node.isGroup() && getTransformer() instanceof com.microproject.pm.graphic.model.transform.NodeCacheTransformer transformer) {
+			String identity = transformer.getSyntheticGroupIdentity(node);
+			if (identity != null) return "GROUP:" + identity;
+		}
+		return collapseKeys.resolve(node);
 	}
 	void clearViewState() { collapsed.clear(); }
 
 	 protected void fireGraphicNodesCompositeEvent(Object source, List nodeEvents, List edgeEvents) {
 			//System.out.println("fireGraphicNodesCompositeEvent: \n\t"+nodeEvents+"\n\t"+edgeEvents/*+", source="+source*/);
-			if (beforeListenerNotification != null) {
-				beforeListenerNotification.run();
-			}
 			List nodeSnapshot = copyEvents(nodeEvents);
 			List edgeSnapshot = copyEvents(edgeEvents);
 			listenerDispatcher.accept(() -> notifyListeners(source, nodeSnapshot, edgeSnapshot));

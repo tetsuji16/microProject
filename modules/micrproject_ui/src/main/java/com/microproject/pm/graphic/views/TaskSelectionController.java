@@ -62,12 +62,16 @@ final class TaskSelectionController implements AutoCloseable, CacheListener {
 			gantt.setBarSelectionListener(this::syncFromChart);
 		if (cache != null)
 			cache.addNodeModelListener(this);
+		if (cache != null)
+			reconciledTopologyRevision = cache.getProjectionSnapshot().topologyRevision();
 		syncFromTable();
 	}
 
 	private void syncFromTable() {
 		if (closed || synchronizing || gantt == null)
 			return;
+		if (cache != null && cache.getProjectionSnapshot().topologyRevision() != reconciledTopologyRevision)
+			return; // TableModel is transiently rebasing rows; identity remains authoritative.
 		int[] rows = table == null ? null : table.getSelectedRows();
 		if (rows == null || rows.length == 0) {
 			publish(Collections.emptySet());
@@ -105,11 +109,10 @@ final class TaskSelectionController implements AutoCloseable, CacheListener {
 		if (closed || cache == null || table == null)
 			return;
 		long expectedRevision = cache.getProjectionSnapshot().topologyRevision();
-		if (!SwingUtilities.isEventDispatchThread()) {
-			SwingUtilities.invokeLater(() -> reconcileProjection(expectedRevision));
-			return;
-		}
-		reconcileProjection(expectedRevision);
+		// Always run after every TableModel listener has consumed the cache event.
+		// EventListenerList dispatches in reverse registration order, so applying
+		// selection inline would make correctness depend on listener ordering.
+		SwingUtilities.invokeLater(() -> reconcileProjection(expectedRevision));
 	}
 
 	private void reconcileProjection(long expectedRevision) {

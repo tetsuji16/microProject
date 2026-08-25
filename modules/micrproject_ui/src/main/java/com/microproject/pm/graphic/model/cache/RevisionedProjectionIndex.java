@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Structurally immutable, versioned row topology for one view cache.
@@ -99,6 +100,11 @@ public final class RevisionedProjectionIndex {
 	}
 
 	synchronized Snapshot candidate(List<?> elements, long domainRevision) {
+		return candidate(elements, domainRevision, ignored -> null);
+	}
+
+	synchronized Snapshot candidate(List<?> elements, long domainRevision,
+			Function<GraphicNode, String> syntheticGroupIdentity) {
 		refreshCount++;
 		List<Row> rows = new ArrayList<>(elements == null ? 0 : elements.size());
 		Map<GraphicNode, Integer> byNode = new IdentityHashMap<>();
@@ -107,14 +113,13 @@ public final class RevisionedProjectionIndex {
 			for (Object value : elements) {
 				if (!(value instanceof GraphicNode node))
 					continue;
-				ProjectionRowKey key = keyResolver.resolve(node);
+				ProjectionRowKey key = keyResolver.resolve(node, syntheticGroupIdentity.apply(node));
 				int row = rows.size();
 				Integer existingRow = byKey.get(key);
 				if (existingRow != null) {
-					GraphicNode existingNode = rows.get(existingRow.intValue()).node();
-					if (!sameProjectedEntity(existingNode, node))
-						throw new IllegalStateException("Duplicate durable projection identity: " + key);
-					key = duplicateOccurrenceKey(key, row);
+					long occurrence = 1L;
+					do key = new ProjectionRowKey(key.kind(), key.taskKey(), key.entityId(), occurrence++);
+					while (byKey.containsKey(key));
 				}
 				byKey.put(key, Integer.valueOf(row));
 				byNode.put(node, Integer.valueOf(row));
@@ -143,19 +148,6 @@ public final class RevisionedProjectionIndex {
 				return false;
 		}
 		return true;
-	}
-
-	private static ProjectionRowKey duplicateOccurrenceKey(ProjectionRowKey key, int row) {
-		long occurrenceId = row + 1L;
-		ProjectionRowKey duplicate = new ProjectionRowKey(key.kind(), key.taskKey(), key.entityId(), occurrenceId);
-		return duplicate;
-	}
-
-	private static boolean sameProjectedEntity(GraphicNode first, GraphicNode second) {
-		if (first == second || first.getNode() == second.getNode())
-			return true;
-		return first.getNode() != null && second.getNode() != null
-				&& first.getNode().getImpl() == second.getNode().getImpl();
 	}
 
 	public Snapshot snapshot() {

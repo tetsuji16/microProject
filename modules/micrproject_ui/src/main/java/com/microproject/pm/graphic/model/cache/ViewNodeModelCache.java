@@ -47,11 +47,13 @@ import com.microproject.pm.graphic.model.transform.DependencyCacheTransformer;
 import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.application.task.TaskCommandGateway;
-import com.microproject.application.task.TaskHierarchyMoveCommand;
-import com.microproject.application.task.TaskPasteCommand;
-import com.microproject.application.task.TaskHierarchyRelocateCommand;
-import com.microproject.application.task.TaskHierarchyIndentCommand;
-import com.microproject.application.task.TaskDependencyCommand;
+import com.microproject.pm.graphic.gantt.GanttProjectionCapture;
+import com.microproject.application.task.TaskCommands.TaskHierarchyMoveCommand;
+import com.microproject.application.task.TaskCommands.TaskPasteCommand;
+import com.microproject.application.task.TaskCommands.TaskDeleteCommand;
+import com.microproject.application.task.TaskCommands.TaskHierarchyRelocateCommand;
+import com.microproject.application.task.TaskCommands.TaskHierarchyIndentCommand;
+import com.microproject.application.task.TaskCommands.TaskDependencyCommand;
 import com.microproject.application.task.TaskCommandResult;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.hierarchy.HierarchyUtils;
@@ -82,6 +84,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	private TaskViewUpdateCoordinator updateCoordinator;
 	private volatile InstalledProjectionSnapshot installedProjection = new InstalledProjectionSnapshot(
 			projectionIndex.snapshot(), TaskProjectionSnapshot.empty());
+	private volatile GanttProjectionCapture.Options ganttCaptureOptions;
+	private long renderConfigRevision;
 	private final Map<GraphicNode, Integer> pertLevels = new IdentityHashMap<>();
 	private TaskCommandGateway commandGateway;
 	private final AtomicBoolean offEdtUpdateQueued = new AtomicBoolean();
@@ -106,7 +110,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
         visibleDependencies.setVisibleNodes(visibleNodes);
 		visibleNodes.setVisibleDependencies(visibleDependencies);
 		updateCoordinator = new TaskViewUpdateCoordinator(this::currentDomainRevision, this::installSnapshot,
-				SwingUtilities::invokeLater, () -> currentJournalSuppressed() || reference.hasPendingLegacyChange());
+				SwingUtilities::invokeLater, this::currentJournalSuppressed);
 		visibleNodes.setListenerDispatcher(updateCoordinator::afterInstall);
         reference.bindView(visibleNodes,visibleDependencies);
         ((NodeCacheTransformer)visibleNodes.getTransformer()).getTransformer().addViewTransformerListener(this);
@@ -156,7 +160,6 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 			return;
 		}
 //		System.out.println("ViewNodeModelCache update "+getViewName());
-		reference.flushPendingLegacyChange();
 		reference.updateVisibleElements(visibleNodes);
 		refreshProjectionIndex();
 	}
@@ -178,14 +181,24 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	private void installSnapshot(long expectedRevision) {
 		if (closed || expectedRevision < getProjectionSnapshot().domainRevision())
 			return;
-		RevisionedProjectionIndex.Snapshot candidate = projectionIndex.candidate(visibleNodes.getElements(), expectedRevision);
+		NodeCacheTransformer transformer = (NodeCacheTransformer)visibleNodes.getTransformer();
+		RevisionedProjectionIndex.Snapshot candidate = projectionIndex.candidate(visibleNodes.getElements(), expectedRevision,
+				transformer::getSyntheticGroupIdentity);
 		if (reference.getDocument() instanceof Project project) {
-			TaskProjectionSnapshot.capture(project, candidate, this::getLevel, this::isCollapsed).ifPresentOrElse(values -> {
+			project.getDomainChangeJournal().read(() -> {
+			TaskProjectionSnapshot.capture(project, candidate, this::isCollapsed).ifPresentOrElse(base -> {
+				List<GraphicDependency> dependencies = new ArrayList<>();
+				for (ListIterator<?> iterator = visibleDependencies.getIterator(); iterator.hasNext();)
+					dependencies.add((GraphicDependency)iterator.next());
+				TaskProjectionSnapshot values = GanttProjectionCapture.capture(project, candidate, base,
+						getModel(), ganttCaptureOptions, renderConfigRevision, dependencies);
 				projectionIndex.publish(candidate);
 				installedProjection = new InstalledProjectionSnapshot(candidate, values);
 			}, () -> SwingUtilities.invokeLater(() -> {
 				if (!closed) updateCoordinator.requestRevision(currentDomainRevision());
 			}));
+			return null;
+			});
 		} else {
 			projectionIndex.publish(candidate);
 			installedProjection = new InstalledProjectionSnapshot(candidate, TaskProjectionSnapshot.empty());
@@ -212,6 +225,25 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		return installedProjection;
 	}
 
+	public void setGanttCaptureOptions(GanttProjectionCapture.Options options) {
+		ganttCaptureOptions = options;
+		renderConfigRevision++;
+		if (!closed) update();
+	}
+
+	public boolean isShowAssignments() {
+		return ((NodeCacheTransformer)visibleNodes.getTransformer()).getTransformer().isShowAssignments();
+	}
+
+	public void setShowAssignments(boolean visible) {
+		var transformer = ((NodeCacheTransformer)visibleNodes.getTransformer()).getTransformer();
+		if (transformer.isShowAssignments() == visible) return;
+		if (transformer.getHiddenFilter() == null)
+			throw new IllegalStateException("view has no assignment filter");
+		transformer.getHiddenFilter().setShowAssignments(visible);
+		update();
+	}
+
 	public ProjectionRowKey getRowKeyAt(int row) {
 		return getProjectionSnapshot().keyAt(row);
 	}
@@ -225,9 +257,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	}
 	public void setTaskCommandGateway(TaskCommandGateway gateway) { commandGateway = gateway; }
 	public TaskCommandGateway getTaskCommandGateway() {
-		if (commandGateway == null && getModel().getDataFactory() instanceof Project project)
-			commandGateway = new TaskCommandGateway(project);
-		return commandGateway;
+		return java.util.Objects.requireNonNull(commandGateway, "task command gateway was not installed");
 	}
 
 	public Object getElementAt(int i) {
@@ -393,7 +423,6 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 			return;
 		closed = true;
 		removeNodeModelListener(this);
-		visibleNodes.setBeforeListenerNotification(null);
 		visibleNodes.setListenerDispatcher(null);
 		if (updateCoordinator != null)
 			updateCoordinator.close();
@@ -443,7 +472,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		if (node!=null && (node.getImpl() instanceof Task) && ((Task)node.getImpl()).isReadOnly()) return; //read only subprojects
 		Node parent=getModel().getParent(node);
 		int index=parent.getIndex(node);
-		getModel().newNode(parent,index,NodeModel.NORMAL);
+		getModel().newNode(parent,index,NodeModel.NORMAL); // explicit projection VOID-row insertion
 	}
 
 	public void newNode(List nodes) {
@@ -480,13 +509,24 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
 	public void deleteNodes(List nodes){
 		if (!isAllowedAction(nodes,false)) return;
-		getModel().remove(nodes,NodeModel.NORMAL);
+		List<ProjectTaskKey> keys = taskKeys(nodes);
+		if (keys.size() == nodes.size())
+			getTaskCommandGateway().deleteTasks(new TaskDeleteCommand(keys, currentDomainRevision()));
+		else
+			getModel().remove(nodes,NodeModel.NORMAL); // resource/assignment compatibility path
 	}
 	public void cutNodes(List nodes){
 		if (!isAllowedAction(nodes,false)) return;
-		List newNodes=getModel().cut(nodes,NodeModel.NORMAL);
-		nodes.clear();
-		nodes.addAll(newNodes);
+		List<ProjectTaskKey> keys = taskKeys(nodes);
+		if (keys.size() == nodes.size()) {
+			if (getTaskCommandGateway().deleteTasks(new TaskDeleteCommand(keys, currentDomainRevision())).committed()) {
+				nodes.clear();
+			}
+		} else {
+			List newNodes=getModel().cut(nodes,NodeModel.NORMAL); // resource/assignment compatibility path
+			nodes.clear();
+			nodes.addAll(newNodes);
+		}
 	}
 	public void copyNodes(List nodes){
 		List newNodes=getModel().copy(nodes,NodeModel.NORMAL);
@@ -506,7 +546,19 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	}
 
 	public void addNodes(Node sibling,List nodes){
-		getModel().addBefore(sibling,nodes,NodeModel.NORMAL);
+		Node parent = sibling == null ? (Node)getModel().getRoot() : (Node)sibling.getParent();
+		int position = sibling == null ? parent.getChildCount() : parent.getIndex(sibling);
+		pasteNodes(parent, nodes, position);
+	}
+
+	private static List<ProjectTaskKey> taskKeys(List nodes) {
+		List<ProjectTaskKey> keys = new ArrayList<>();
+		for (Object value : nodes) {
+			Node node = value instanceof GraphicNode graphic ? graphic.getNode() : value instanceof Node n ? n : null;
+			if (node == null || !(node.getImpl() instanceof Task task)) continue;
+			ProjectTaskKey.from(task).ifPresent(keys::add);
+		}
+		return keys;
 	}
 
 	public boolean isTaskOrderEditable(){

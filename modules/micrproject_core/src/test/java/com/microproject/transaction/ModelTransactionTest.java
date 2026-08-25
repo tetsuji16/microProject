@@ -145,6 +145,24 @@ class ModelTransactionTest {
 	}
 
 	@Test
+	void noOpRollbackFailureIsAttemptedOnlyOnce() {
+		AtomicInteger attempts = new AtomicInteger();
+		ModelTransaction<String> transaction = ModelTransaction.<String>builder()
+				.captureRollback(() -> () -> {
+					attempts.incrementAndGet();
+					throw new IllegalStateException("rollback failed");
+				})
+				.apply(() -> ModelTransaction.Mutation.noOp("same"))
+				.changes(value -> draft())
+				.build();
+
+		ModelTransaction.Result<String> result = transaction.execute(new DomainChangeJournal());
+
+		assertEquals(ModelTransaction.Status.RECOVERY_REQUIRED, result.status());
+		assertEquals(1, attempts.get());
+	}
+
+	@Test
 	void changeDraftFailureHappensBeforeUndoCommitAndRollsBack() {
 		AtomicInteger state = new AtomicInteger(1);
 		AtomicBoolean undo = new AtomicBoolean();

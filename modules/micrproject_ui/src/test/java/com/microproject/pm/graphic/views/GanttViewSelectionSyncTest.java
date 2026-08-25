@@ -41,6 +41,9 @@ import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -72,6 +75,7 @@ class GanttViewSelectionSyncTest {
 			createTask(project, "First");
 			createTask(project, "Second");
 			ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+			reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
 			ViewNodeModelCache cache = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
 					.createFilteredCache(reference, "projection-selection-view", null);
 			cache.update();
@@ -99,42 +103,49 @@ class GanttViewSelectionSyncTest {
 
 	@Test
 	void selectedTaskFollowsItsIdentityWhenAnEarlierRowIsDeleted() throws Exception {
+		Project project = newProject("projection-selection-delete");
+		NormalTask first = createTask(project, "First");
+		NormalTask second = createTask(project, "Second");
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
+		ViewNodeModelCache cache = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
+				.createFilteredCache(reference, "projection-selection-delete-view", null);
+		Gantt[] gantt = new Gantt[1];
+		SpreadSheet[] table = new SpreadSheet[1];
+		TaskSelectionController[] controller = new TaskSelectionController[1];
+		ProjectionRowKey[] secondKey = new ProjectionRowKey[1];
 		SwingUtilities.invokeAndWait(() -> {
-			Project project = newProject("projection-selection-delete");
-			NormalTask first = createTask(project, "First");
-			NormalTask second = createTask(project, "Second");
-			ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
-			ViewNodeModelCache cache = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
-					.createFilteredCache(reference, "projection-selection-delete-view", null);
 			cache.update();
-			Gantt gantt = new Gantt(project, "Gantt");
-			gantt.setCache(cache);
-			JTable table = new JTable(cache.getSize(), 1);
-			TaskSelectionController controller = new TaskSelectionController(gantt, table);
-			try {
-				GraphicNode firstNode = (GraphicNode) cache.getGraphicNode(project.getTaskModel().search(first));
-				GraphicNode secondNode = (GraphicNode) cache.getGraphicNode(project.getTaskModel().search(second));
-				ProjectionRowKey secondKey = cache.getRowKeyAt(cache.getRowAt(secondNode));
-				table.setRowSelectionInterval(cache.getRowAt(secondNode), cache.getRowAt(secondNode));
-
-				cache.deleteNodes(List.of(firstNode.getNode()));
-				cache.update();
-
-				assertEquals(Set.of(secondKey), gantt.getHighlightedRowKeys());
-				assertEquals(cache.getRowAt(secondKey), table.getSelectedRow());
-			} finally {
-				controller.close();
-				gantt.cleanUp();
-				cache.close();
-				reference.close();
-			}
+			gantt[0] = new Gantt(project, "Gantt");
+			gantt[0].setCache(cache);
+			table[0] = new SpreadSheet();
+			table[0].setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			SpreadSheetUtils.setFieldsAndContext(table[0], cache, SpreadSheetCategories.taskSpreadsheetCategory,
+					"Spreadsheet.Task.entry", true);
+			controller[0] = new TaskSelectionController(gantt[0], table[0]);
+			GraphicNode firstNode = (GraphicNode) cache.getGraphicNode(project.getTaskModel().search(first));
+			GraphicNode secondNode = (GraphicNode) cache.getGraphicNode(project.getTaskModel().search(second));
+			secondKey[0] = cache.getRowKeyAt(cache.getRowAt(secondNode));
+			table[0].setRowSelectionInterval(cache.getRowAt(secondNode), cache.getRowAt(secondNode));
+			cache.deleteNodes(List.of(firstNode.getNode()));
+			cache.update();
 		});
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(Set.of(secondKey[0]), gantt[0].getHighlightedRowKeys());
+			assertEquals(cache.getRowAt(secondKey[0]), table[0].getSelectedRow());
+			controller[0].close();
+			SpreadsheetViewSupport.cleanup(table[0]);
+			gantt[0].cleanUp();
+		});
+		cache.close();
+		reference.close();
 	}
 
 	@Test
 	void projectionNotificationFromWorkerNeverMutatesTheTableOffEdt() throws Exception {
 		Project project = newProject("projection-selection-edt");
 		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
 		ViewNodeModelCache cache = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
 				.createFilteredCache(reference, "projection-selection-edt-view", null);
 		cache.update();

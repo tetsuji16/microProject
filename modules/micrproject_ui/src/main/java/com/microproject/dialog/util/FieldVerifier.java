@@ -150,7 +150,9 @@ public class FieldVerifier extends InputVerifier {
 				if (newValue == null)
 					newValue = Select.EMPTY;
 				
-				field.setText(objectRef,newValue.toString(),context);
+				if (!(objectRef instanceof FieldComponentMap map)
+						|| !map.write(field, source, newValue.toString(), context, true))
+					field.setText(objectRef,newValue.toString(),context);
 			} else {
 				if (field.isDate()) {
 					if (newValue != null && newValue instanceof String) {
@@ -164,13 +166,14 @@ public class FieldVerifier extends InputVerifier {
 				}
 				if (newValue != value){
 					Object oldValue=field.getValue(objectRef, context);
-					if (field.isMoney())
-						field.setText(objectRef,""+newValue,context);
-					else		
-						field.setValue(objectRef,source,newValue,context);
-					UndoableEditSupport undoableEditSupport=objectRef.getDataFactory().getUndoController().getEditSupport();
-					if (undoableEditSupport!=null){
-						undoableEditSupport.postEdit(new FieldEdit(field,objectRef,value,oldValue,this,context));
+					boolean routed = objectRef instanceof FieldComponentMap map
+							&& map.write(field, source, newValue, context, field.isMoney());
+					if (!routed) {
+						if (field.isMoney()) field.setText(objectRef,""+newValue,context);
+						else field.setValue(objectRef,source,newValue,context);
+						UndoableEditSupport undoableEditSupport=objectRef.getDataFactory().getUndoController().getEditSupport();
+						if (undoableEditSupport!=null)
+							undoableEditSupport.postEdit(new FieldEdit(field,objectRef,value,oldValue,this,context));
 					}
 				}
 				
@@ -231,4 +234,3 @@ public class FieldVerifier extends InputVerifier {
 		return exception;
 	}
 }
-

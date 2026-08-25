@@ -72,6 +72,9 @@ public class NodeCacheTransformer implements CacheTransformer {
     protected ViewConfiguration view;
 	private final Map<GraphicNode,List<GraphicNode>> projectionChildren = new IdentityHashMap<>();
 	private final Set<GraphicNode> filteredSummaries = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+	private final SyntheticGroupIdentityRegistry groupIdentityRegistry = new SyntheticGroupIdentityRegistry();
+	private final Map<GraphicNode, String> syntheticGroupIdentities = new IdentityHashMap<>();
+	private final Map<Node, String> syntheticGroupNodeIdentities = new IdentityHashMap<>();
 
     public NodeCacheTransformer(String viewName,ReferenceNodeModelCache refCache,Consumer<Object> transformerClosure){
     	//System.out.println("viewName="+viewName);
@@ -99,6 +102,9 @@ public class NodeCacheTransformer implements CacheTransformer {
     	model.clear();
 		projectionChildren.clear();
 		filteredSummaries.clear();
+		syntheticGroupIdentities.clear();
+		syntheticGroupNodeIdentities.clear();
+		groupIdentityRegistry.beginGeneration();
 
         if (list==null) return;
 
@@ -353,6 +359,10 @@ public class NodeCacheTransformer implements CacheTransformer {
     }
     private void handleGroup(List<GraphicNode> destList,ListIterator<NodeGroup> groupIterator,Node parentGroup,NodeGroup group,GraphicNode last, List<GraphicNode> nodes,NodeTransformer composition, boolean preserveHierarchy){
 		GraphicNode groupNode=createGroup(groupIterator.nextIndex(),group,group.getSorter(),last.getNode());
+		String parentIdentity = parentGroup == null ? null : syntheticGroupNodeIdentities.get(parentGroup);
+		String groupIdentity = groupIdentityRegistry.resolve(groupIterator.nextIndex(), parentIdentity, nodes);
+		syntheticGroupIdentities.put(groupNode, groupIdentity);
+		syntheticGroupNodeIdentities.put(groupNode.getNode(), groupIdentity);
 		destList.add(groupNode);
 		model.addRelationship(parentGroup,groupNode.getNode());
 		if (groupIterator.hasNext()){
@@ -364,6 +374,10 @@ public class NodeCacheTransformer implements CacheTransformer {
     		destList.addAll(nodes);
     	}
     }
+
+	public String getSyntheticGroupIdentity(GraphicNode node) {
+		return syntheticGroupIdentities.get(node);
+	}
 
 
 

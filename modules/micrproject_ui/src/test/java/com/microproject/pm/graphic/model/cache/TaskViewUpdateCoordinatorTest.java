@@ -24,7 +24,6 @@
 package com.microproject.pm.graphic.model.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,63 +53,15 @@ class TaskViewUpdateCoordinatorTest {
 	}
 
 	@Test
-	void legacyEventsCoalesceAndSuppressedOrClosedEventsDisappear() throws Exception {
+	void legacyIdentityRecordingIsSynchronousDeduplicatedAndSuppressible() throws Exception {
 		DomainChangeJournal journal = new DomainChangeJournal();
-		List<Runnable> edt = new ArrayList<>();
-		LegacyChangeAccumulator accumulator = new LegacyChangeAccumulator(journal, edt::add);
-
-		accumulator.record();
-		accumulator.record();
-		assertEquals(1, edt.size());
-		edt.remove(0).run();
+		Object event = new Object();
+		journal.recordLegacyOnce(com.microproject.transaction.DomainChangeSet.Origin.LEGACY, event);
+		journal.recordLegacyOnce(com.microproject.transaction.DomainChangeSet.Origin.LEGACY, event);
 		assertEquals(1L, journal.revision());
 		try (DomainChangeJournal.Scope ignored = journal.suppressLegacyEvents()) {
-			accumulator.record();
+			journal.recordLegacyOnce(com.microproject.transaction.DomainChangeSet.Origin.LEGACY, new Object());
 		}
-		assertTrue(edt.isEmpty());
-		accumulator.record();
-		accumulator.close();
-		edt.remove(0).run();
-		assertEquals(2L, journal.revision(), "closing one view must not cancel the project-wide batch");
-	}
-
-	@Test
-	void offEdtMutationAdvancesRevisionBeforeItsSwingPublicationRuns() {
-		DomainChangeJournal journal = new DomainChangeJournal();
-		List<Runnable> edt = new ArrayList<>();
-		LegacyChangeAccumulator accumulator = new LegacyChangeAccumulator(journal, edt::add);
-
-		accumulator.recordImmediately(new Object());
-
-		assertEquals(1L, journal.revision(), "stale gestures must see the mutation before EDT catches up");
-		assertTrue(edt.isEmpty(), "the journal listener owns UI dispatch; the accumulator must not mutate Swing");
-	}
-
-	@Test
-	void severalViewAccumulatorsPublishOneProjectRevision() {
-		DomainChangeJournal journal = new DomainChangeJournal();
-		List<Runnable> edt = new ArrayList<>();
-		LegacyChangeAccumulator first = new LegacyChangeAccumulator(journal, edt::add);
-		LegacyChangeAccumulator second = new LegacyChangeAccumulator(journal, edt::add);
-
-		first.record();
-		second.record();
-
-		assertEquals(1, edt.size());
-		edt.remove(0).run();
-		assertEquals(1L, journal.revision());
-	}
-
-	@Test
-	void sameOffEdtEventDeliveredToSeveralViewsIsRecordedOnce() {
-		DomainChangeJournal journal = new DomainChangeJournal();
-		LegacyChangeAccumulator first = new LegacyChangeAccumulator(journal, Runnable::run);
-		LegacyChangeAccumulator second = new LegacyChangeAccumulator(journal, Runnable::run);
-		Object event = new Object();
-
-		first.recordImmediately(event);
-		second.recordImmediately(event);
-
 		assertEquals(1L, journal.revision());
 	}
 }

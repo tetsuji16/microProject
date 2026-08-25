@@ -26,7 +26,6 @@ package com.microproject.transaction;
 import java.util.Objects;
 import java.util.IdentityHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -39,7 +38,6 @@ public final class DomainChangeJournal {
 	private final IdentityHashMap<Object, Boolean> recentLegacyEvents = new IdentityHashMap<>();
 	private final Object[] legacyEventRing = new Object[256];
 	private int legacyEventCursor;
-	private final AtomicBoolean legacyBatchQueued = new AtomicBoolean();
 	private final CopyOnWriteArrayList<Consumer<DomainChangeSet>> listeners = new CopyOnWriteArrayList<>();
 	private final ThreadLocal<Integer> legacySuppressionDepth = ThreadLocal.withInitial(() -> Integer.valueOf(0));
 
@@ -88,24 +86,6 @@ public final class DomainChangeJournal {
 				recentLegacyEvents.put(eventIdentity, Boolean.TRUE);
 			}
 			return commitLocked(DomainChangeSet.Draft.fullInvalidation(origin));
-		});
-	}
-
-	/** Claims the single project-wide legacy revision flush for the current UI turn. */
-	public boolean queueLegacyBatch() {
-		return !legacyEventsSuppressed() && legacyBatchQueued.compareAndSet(false, true);
-	}
-
-	public boolean hasQueuedLegacyBatch() {
-		return legacyBatchQueued.get();
-	}
-
-	/** Completes a batch claimed by {@link #queueLegacyBatch()}. */
-	public DomainChangeSet flushLegacyBatch() {
-		return write(() -> {
-			if (!legacyBatchQueued.compareAndSet(true, false)
-					|| legacySuppressionDepth.get().intValue() > 0) return null;
-			return commitLocked(DomainChangeSet.Draft.fullInvalidation(DomainChangeSet.Origin.LEGACY));
 		});
 	}
 

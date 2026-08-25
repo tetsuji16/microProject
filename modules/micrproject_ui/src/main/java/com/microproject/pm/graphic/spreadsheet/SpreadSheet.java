@@ -81,6 +81,7 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.collaboration.CollaborationHelper;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetAction;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
@@ -108,6 +109,7 @@ import com.microproject.options.GeneralOption;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 import com.microproject.server.data.EnterpriseResourceData;
 import com.microproject.server.data.Serializer;
 import com.microproject.session.Session;
@@ -205,7 +207,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (!canMoveSelectedTaskRows(direction, requireEntireRow))
 			return false;
 		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
-		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, nodes, this, "move task"))
+		if (nodes.isEmpty())
 			return false;
 		boolean moved = getCache().moveNodes(getSelectedGraphicNodes(), direction);
 		if (moved) {
@@ -240,7 +242,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		List<Node> locks = new ArrayList<Node>(nodes);
 		if (!locks.contains(target.getNode()))
 			locks.add(target.getNode());
-		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, locks, this, "drag task"))
+		if (nodes.isEmpty())
 			return false;
 		boolean moved = getCache().relocateNodes(getSelectedGraphicNodes(), target.getNode(), after);
 		if (moved) {
@@ -468,7 +470,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		finishCurrentOperations();
 		List<Node> selectedNodes = getSelectedNodes();
-		if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "paste")) {
+		if (!usesTaskCommands(pastedNodes) && !CollaborationHelper.tryLockNodes(null, selectedNodes, this, "paste")) {
 			return false;
 		}
 		Node parent = null;
@@ -489,17 +491,23 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return false;
 		}
 		finishCurrentOperations();
-		return CollaborationHelper.tryLockNodes(null, getSelectedNodes(), this, "paste");
+		List<Node> selected = getSelectedNodes();
+		return usesTaskCommands(selected) || CollaborationHelper.tryLockNodes(null, selected, this, "paste");
 	}
 
 	public boolean cutSelectedCellValues(int[] rows, int[] columns) {
 		if (rows == null || columns == null || rows.length == 0 || columns.length == 0 || isClipboardTargetReadOnly()) {
 			return false;
 		}
-		List<Node> selectedNodes = getSelectedNodes();
-		if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "cut")) {
-			return false;
+		if (getModel() instanceof SpreadSheetModel model) {
+			List<SpreadSheetModel.PasteCell> cells = new ArrayList<>();
+			for (int row : rows) for (int column : columns) if (isCellEditable(row, column))
+				cells.add(new SpreadSheetModel.PasteCell("", row, model.getModelColumnForViewColumn(column)));
+			Boolean result = model.pasteTaskCellsAtomically(cells);
+			if (result != null) return result.booleanValue();
 		}
+		List<Node> selectedNodes = getSelectedNodes();
+		if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "cut")) return false;
 		boolean cleared = false;
 		for (int row : rows) {
 			for (int column : columns) {
@@ -518,7 +526,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		finishCurrentOperations();
 		List<Node> nodes = getSelectedCuttableRows(new ArrayList<>(selectedNodes));
-		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, nodes, this, "cut")) {
+		if (nodes.isEmpty() || (!usesTaskCommands(nodes)
+				&& !CollaborationHelper.tryLockNodes(null, nodes, this, "cut"))) {
 			return false;
 		}
 		getCache().deleteNodes(nodes);
@@ -1325,6 +1334,11 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return true;
 	}
 
+	private boolean usesTaskCommands(List<?> nodes) {
+		return getCache() instanceof ViewNodeModelCache && nodes != null && !nodes.isEmpty()
+				&& nodes.stream().allMatch(value -> value instanceof Node node && node.getImpl() instanceof Task);
+	}
+
 	private int rangeAnchorRow = -1;
 	private int rangeAnchorColumn = -1;
 	private boolean selectingCellRange;
@@ -1844,7 +1858,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			List l = getSelectedDeletableRows();
 			if (l.isEmpty())
 				return;
-			if (!CollaborationHelper.tryLockNodes(null, l, SpreadSheet.this, "delete"))
+			if (!usesTaskCommands(l) && !CollaborationHelper.tryLockNodes(null, l, SpreadSheet.this, "delete"))
 				return;
 			if (!GeneralOption.getInstance().isConfirmDeletes() || Alert.okCancel(Messages.getString("Message.confirmDeleteRows"))) {
 				getCache().deleteNodes(l);
@@ -1866,7 +1880,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				List<Node> nodes = getSelectedCuttableRows((List<Node>) selectedRows);
 				if (nodes.isEmpty())
 					return;
-				if (!CollaborationHelper.tryLockNodes(null, nodes, SpreadSheet.this, "cut"))
+				if (!usesTaskCommands(nodes) && !CollaborationHelper.tryLockNodes(null, nodes, SpreadSheet.this, "cut"))
 					return;
 				executeFirst();
 				getCache().cutNodes(nodes);
@@ -1904,7 +1918,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			if (object instanceof List<?> pastedNodes) {
 				finishCurrentOperations();
 				List selectedNodes = getSelectedNodes();
-				if (!CollaborationHelper.tryLockNodes(null, selectedNodes, SpreadSheet.this, "paste"))
+				if (!usesTaskCommands(pastedNodes) && !CollaborationHelper.tryLockNodes(null, selectedNodes, SpreadSheet.this, "paste"))
 					return;
 				Node parent = null;
 				int position = 0;

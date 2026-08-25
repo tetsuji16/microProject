@@ -46,10 +46,17 @@ public class NodeModelCacheFactory {
 	}
 	
 	public NodeModelCache createAntiAssignmentFilteredCache(ReferenceNodeModelCache cache,String viewName,Consumer<Object> transformerClosure){
-	    return new ViewNodeModelCache(cache,viewName,transformerClosure);
+	    return createViewCache(cache, viewName, transformerClosure);
 	}
 	public NodeModelCache createFilteredCache(ReferenceNodeModelCache cache,String viewName,Consumer<Object> transformerClosure){
-	    return new ViewNodeModelCache(cache,viewName,transformerClosure);
+	    return createViewCache(cache, viewName, transformerClosure);
+	}
+	private ViewNodeModelCache createViewCache(ReferenceNodeModelCache reference, String viewName,
+			Consumer<Object> transformerClosure) {
+		ViewNodeModelCache cache = new ViewNodeModelCache(reference, viewName, transformerClosure);
+		var commands = reference.taskCommandGatewayOrNull();
+		if (commands != null) cache.setTaskCommandGateway(commands);
+		return cache;
 	}
 	
 	public NodeModelCache createDefaultCache(NodeModel model,Document document,int type,String viewName,Consumer<Object> transformerClosure){
@@ -89,4 +96,3 @@ public class NodeModelCacheFactory {
 	}
 
 }
-

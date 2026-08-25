@@ -36,6 +36,7 @@ import javax.swing.JViewport;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
+import com.microproject.application.task.TaskCommandGateway;
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
@@ -114,7 +115,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void init(ReferenceNodeModelCache cache, NodeModel model,CoordinatesConverter coord){
 		this.coord = coord;
-		taskViewSession = new TaskViewSession(project, cache, getViewName());
+		taskViewSession = new TaskViewSession(project, cache, getViewName(), documentFrame.getTaskCommandGateway());
 		this.cache = taskViewSession.cache();
 
 		fieldContext = new FieldContext();

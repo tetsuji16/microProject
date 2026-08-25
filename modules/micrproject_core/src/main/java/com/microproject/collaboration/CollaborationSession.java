@@ -366,11 +366,28 @@ public class CollaborationSession {
 		if (tasks == null) {
 			return true;
 		}
+		java.util.List<Task> newlyAcquired = new java.util.ArrayList<>();
 		for (Task task : tasks) {
+			if (task == null) continue;
+			boolean alreadyOwned = lockManager.isLockedByCurrentUser(task.getUniqueId());
 			if (!tryLockTask(task, parent, actionLabel)) {
+				for (Task acquired : newlyAcquired) {
+					lockManager.release(acquired.getUniqueId());
+					lockBaselineStates.remove(acquired.getUniqueId());
+				}
 				return false;
 			}
+			if (!alreadyOwned) newlyAcquired.add(task);
 		}
+		return true;
+	}
+
+	/** Renews and verifies every lock in a command lease immediately before commit. */
+	public boolean validateTaskLocks(Iterable<Task> tasks) {
+		if (tasks == null) return true;
+		lockManager.renewAll();
+		for (Task task : tasks)
+			if (task != null && !lockManager.isLockedByCurrentUser(task.getUniqueId())) return false;
 		return true;
 	}
 

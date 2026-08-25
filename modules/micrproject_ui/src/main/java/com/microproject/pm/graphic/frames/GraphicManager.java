@@ -150,7 +150,6 @@ import com.microproject.menu.MenuManager;
 import com.microproject.menu.ProjectMenuActionMap;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.TabbedNavigation;
@@ -760,7 +759,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			task.getCurrentSchedule().setStart(project.getStart());
 			task.setDuration(day * durationDays);
 			if (durationDays == 0) task.setMarkTaskAsMilestone(true);
-			if (previous != null) try { DependencyService.getInstance().newDependency(previous, task, DependencyType.FS, 0L, this); } catch (Exception ignored) { }
+			if (previous != null) {
+				var predecessorKey = com.microproject.pm.task.ProjectTaskKey.from(previous).orElse(null);
+				var successorKey = com.microproject.pm.task.ProjectTaskKey.from(task).orElse(null);
+				if (predecessorKey != null && successorKey != null)
+					new com.microproject.application.task.TaskCommandGateway(project).createDependency(
+							new com.microproject.application.task.TaskCommands.TaskDependencyCommand(predecessorKey, successorKey,
+									DependencyType.FS, 0L, project.getDomainChangeJournal().revision()));
+			}
 			previous = task;
 		}
 		project.setDirty(true); project.recalculate();
@@ -1188,7 +1194,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 */
 	private void showTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
 		if (taskInformationDialog == null) {
-			TaskInformationDialog dialog = TaskInformationDialog.getInstance(getFrame(), task, notes);
+			TaskInformationDialog dialog = TaskInformationDialog.getInstance(getFrame(), task, notes,
+					getCurrentFrame().getTaskCommandGateway());
 			try {
 				dialog.pack();
 				dialog.setModal(false);
@@ -2015,6 +2022,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			Project project = getCurrentFrame().getProject();
 			new com.microproject.pm.ccpm.CriticalChainService().clear(project);
 			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, false);
+			getCurrentFrame().refreshGanttProjection();
 			getCurrentFrame().repaint();
 			setButtonState(null, project);
 		}
@@ -2048,6 +2056,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (service.findSettings(project) == null || service.findBaseline(project) == null) return;
 			boolean visible = com.microproject.pm.graphic.gantt.CriticalChainDisplayState.toggle(project);
 			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, visible);
+			getCurrentFrame().getGanttView().getGantt().refreshProjectionCapture();
 			getCurrentFrame().repaint();
 		}
 	}

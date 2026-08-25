@@ -401,7 +401,7 @@ class NodeListTransferablePasteFailureTest {
 			SpreadSheet sheet = new SpreadSheet();
 			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				createTaskNodeModelCache(project),
 				"paste-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(sheet,
@@ -434,15 +434,19 @@ class NodeListTransferablePasteFailureTest {
 			sheetRef[0] = sheet;
 		});
 		project.getUndoController().clear();
+		long revisionBeforePaste = project.getDomainChangeJournal().revision();
 
 		SwingUtilities.invokeAndWait(() -> assertTrue(NodeListTransferable.pasteString("Changed\t3", sheetRef[0])));
 		assertEquals("Changed", task.getName());
 		assertEquals(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), task.getRawDuration());
+		assertEquals(revisionBeforePaste + 1L, project.getDomainChangeJournal().revision(),
+			"one clipboard gesture must publish one domain revision");
 
 		SwingUtilities.invokeAndWait(() -> project.getUndoController().undo());
 		assertEquals("Original", task.getName());
 		assertEquals(com.microproject.datatype.Duration.millis(originalDuration),
 			com.microproject.datatype.Duration.millis(task.getRawDuration()));
+		assertEquals(revisionBeforePaste + 2L, project.getDomainChangeJournal().revision());
 	}
 
 	@Test
@@ -460,7 +464,7 @@ class NodeListTransferablePasteFailureTest {
 			SpreadSheet sourceSheet = new SpreadSheet();
 			sourceSheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 			NodeModelCache sourceCache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(sourceProject, sourceProject.getTaskModel()),
+				createTaskNodeModelCache(sourceProject),
 				"source-paste-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(sourceSheet,
@@ -475,7 +479,7 @@ class NodeListTransferablePasteFailureTest {
 			SpreadSheet targetSheet = new SpreadSheet();
 			targetSheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 			NodeModelCache targetCache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(targetProject, targetProject.getTaskModel()),
+				createTaskNodeModelCache(targetProject),
 				"target-paste-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(targetSheet,
@@ -516,7 +520,7 @@ class NodeListTransferablePasteFailureTest {
 			SpreadSheet sheet = new SpreadSheet();
 			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				createTaskNodeModelCache(project),
 				"clipboard-snapshot-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(sheet,
@@ -547,7 +551,7 @@ class NodeListTransferablePasteFailureTest {
 			SpreadSheet sheet = new SpreadSheet();
 			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				createTaskNodeModelCache(project),
 				"paste-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(sheet,
@@ -578,7 +582,7 @@ class NodeListTransferablePasteFailureTest {
 			SpreadSheet sheet = new SpreadSheet();
 			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				createTaskNodeModelCache(project),
 				"paste-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(sheet,
@@ -613,7 +617,7 @@ class NodeListTransferablePasteFailureTest {
 		List copiedNodes = sourceProject.getTaskModel().copy(nodes, NodeModel.SILENT);
 
 		NodeModelCache targetCache = NodeModelCacheFactory.getInstance().createFilteredCache(
-			NodeModelCacheFactory.createTaskNodeModelCache(targetProject, targetProject.getTaskModel()),
+			createTaskNodeModelCache(targetProject),
 			"paste-target",
 			null);
 		boolean pasted = targetCache.pasteNodes((Node) targetProject.getTaskModel().search(targetTask), copiedNodes, 0);
@@ -638,7 +642,7 @@ class NodeListTransferablePasteFailureTest {
 			SpreadSheet sheet = new SpreadSheet();
 			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				createTaskNodeModelCache(project),
 				"new-action-test",
 				null);
 			SpreadSheetUtils.setFieldsAndContext(sheet,
@@ -750,14 +754,16 @@ class NodeListTransferablePasteFailureTest {
 	}
 
 	private ReferenceNodeModelCache createTaskNodeModelCache(Project project) {
-		return NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
+		return reference;
 	}
 
 	private SpreadSheet createSheet(Project project, String viewName) {
 		SpreadSheet sheet = new SpreadSheet();
 		sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+			createTaskNodeModelCache(project),
 			viewName,
 			null);
 		SpreadSheetUtils.setFieldsAndContext(sheet,

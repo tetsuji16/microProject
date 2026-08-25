@@ -48,6 +48,7 @@ import javax.swing.undo.AbstractUndoableEdit;
 
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.graphic.link_routing.DefaultGanttLinkRouting;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
@@ -62,6 +63,7 @@ import com.microproject.pm.graphic.timescale.ScaledComponent;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.strings.Messages;
 import com.microproject.timescale.TimeScaleEvent;
@@ -108,8 +110,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 	public void setTaskCommandGateway(TaskCommandGateway gateway) { taskCommandGateway = gateway; }
 	public TaskCommandGateway getTaskCommandGateway() {
-		if (taskCommandGateway == null) taskCommandGateway = new TaskCommandGateway(getProject());
-		return taskCommandGateway;
+		return Objects.requireNonNull(taskCommandGateway, "task command gateway was not installed");
 	}
 	public Gantt(Project project,String viewName) {
 		this(new GanttModel(project,viewName),project);
@@ -147,6 +148,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 	public void setAnnotationFieldId(String annotationFieldId) {
 		this.annotationFieldId = annotationFieldId;
+		refreshProjectionCapture();
 	}
 
 	public boolean isAnnotationHidden() {
@@ -308,7 +310,21 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		formatViewName = tracking
 				? GanttBarFormatOverrides.TRACKING_VIEW
 				: GanttBarFormatOverrides.STANDARD_VIEW;
+		refreshProjectionCapture();
 		repaint();
+	}
+
+	@Override public void setBarStyles(BarStyles styles) {
+		super.setBarStyles(styles);
+		refreshProjectionCapture();
+	}
+
+	public void refreshProjectionCapture() {
+		if (!(getCache() instanceof ViewNodeModelCache cache) || getBarStyles() == null) return;
+		GanttColorPalette currentPalette = getUI() instanceof GanttUI ui
+				? ui.getGanttRenderer().getPalette() : null;
+		cache.setGanttCaptureOptions(new GanttProjectionCapture.Options(getBarStyles(), annotationFieldId,
+				formatViewName, currentPalette, cache.isShowAssignments()));
 	}
 
 	public BarFormat getBarFormat(Task task) {
@@ -323,8 +339,18 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	 * instead of a fixed fallback color.
 	 */
 	public GanttRenderer.DisplayedBarColors getDisplayedBarColors(Task task) {
-		if (getUI() instanceof GanttUI ganttUi)
-			return ganttUi.getGanttRenderer().resolveDisplayedBarColors(task);
+		ProjectTaskKey key = ProjectTaskKey.from(task).orElse(null);
+		if (key != null && getCache() instanceof ViewNodeModelCache cache) {
+			for (var row : cache.getTaskProjectionSnapshot().rows()) {
+				if (!key.equals(row.key().taskKey())) continue;
+				for (var bar : cache.getTaskProjectionSnapshot().ganttRow(row.key()).bars()) {
+					if ("Bar.task".equals(bar.formatId()) || "Bar.critical".equals(bar.formatId())
+							|| "Bar.summary".equals(bar.formatId()) || "Bar.assignment".equals(bar.formatId()))
+						return new GanttRenderer.DisplayedBarColors(bar.startRgb() & 0x00FFFFFF,
+								bar.middleRgb() & 0x00FFFFFF, bar.endRgb() & 0x00FFFFFF);
+				}
+			}
+		}
 		return new GanttRenderer.DisplayedBarColors(
 				BarColorField.DEFAULT_BAR_RGB,
 				BarColorField.DEFAULT_BAR_RGB,
@@ -348,12 +374,14 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private void setBarFormat(Task task, BarFormat format) {
 		project.getGanttBarFormatOverrides().set(formatViewName, task.getUniqueId(), format);
 		project.setDirty(true);
+		refreshProjectionCapture();
 		repaint();
 	}
 
 	private void setBarFormat(long taskUniqueId, String viewName, BarFormat format) {
 		project.getGanttBarFormatOverrides().set(viewName, taskUniqueId, format);
 		project.setDirty(true);
+		refreshProjectionCapture();
 		repaint();
 	}
 
