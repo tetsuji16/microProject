@@ -31,4 +31,16 @@ class GanttInteractorDragTest {
 		assertTrue(GanttInteractor.hasMeaningfulDrag(true, 120.0d, 120.0d));
 		assertFalse(GanttInteractor.hasMeaningfulDrag(false, 120.0d, 120.0d));
 	}
+
+	@Test
+	void dependencyLineClickDoesNotRequirePointerMovement() {
+		assertTrue(GanttInteractor.canExecutePointerAction(false, true, 120.0d, 120.0d));
+		assertFalse(GanttInteractor.canExecutePointerAction(false, false, 120.0d, 120.0d));
+	}
+
+	@Test
+	void dependencyLineRequiresDoubleClickToOpenItsProperties() {
+		assertFalse(GanttInteractor.opensDependencyProperties(1));
+		assertTrue(GanttInteractor.opensDependencyProperties(2));
+	}
 }

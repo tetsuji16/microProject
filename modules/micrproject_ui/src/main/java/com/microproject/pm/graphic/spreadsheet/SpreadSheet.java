@@ -77,7 +77,6 @@ import com.microproject.dialog.ResourceAdditionDialog;
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.IconManager;
-import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
@@ -277,17 +276,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		if (getParent() != null)
 			getParent().repaint();
-		// Moving rows posts a NodeRelocationEdit through the model.  Unlike field
-		// edits, this route does not pass through DocumentFrame's edit listener, so
-		// the root-pane Ctrl+Z action can remain disabled even though the edit is
-		// undoable.  Refresh it after both command and drag moves (which share this
-		// method) so the one global shortcut sees the new undo state immediately.
-		GraphicManager graphicManager = GraphicManager.getInstance(this);
-		if (graphicManager != null) {
-			DocumentFrame documentFrame = graphicManager.getCurrentFrame();
-			if (documentFrame != null)
-				documentFrame.refreshUndoButtons();
-		}
 	}
 
 	private void restoreTaskRowSelection(List<Node> nodes) {
@@ -555,10 +543,11 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 	public void setCache(NodeModelCache cache, ArrayList fieldArray, CellStyle cellStyle, ActionList actionList) {
 		unregisterLayoutTarget();
-		// if (getCache()!=null) getCache().close();
-		if (getCache() != null) {
-			getCache().getReference().close(); // deepClose
-		}
+		// The spreadsheet consumes this view cache but does not own its shared
+		// reference cache. Rebinding must not invalidate the paired Gantt or a
+		// second view of the same document.
+		if (getCache() != null)
+			getCache().removeNodeModelListener(this);
 		
 		var oldColModel = getColumnModel();
 		var colModel = (oldColModel instanceof SpreadSheetColumnModel spreadSheetColumnModel
@@ -709,12 +698,12 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			if (!graphicNode.isFetched()) {
 				return IconManager.getIcon("spreadsheet.unfetchedLazy.icon");
 			}
-			return graphicNode.isCollapsed()
+			return getCache().isCollapsed(graphicNode)
 				? IconManager.getIcon("spreadsheet.fetchedLazyCollapsed.icon")
 				: IconManager.getIcon("spreadsheet.fetchedLazyExpanded.icon");
 		}
 		if (graphicNode.isComposite()) {
-			return graphicNode.isCollapsed()
+			return getCache().isCollapsed(graphicNode)
 				? IconManager.getIcon("spreadsheet.collapsed.icon")
 				: IconManager.getIcon("spreadsheet.expanded.icon");
 		}
@@ -1555,7 +1544,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			var model = (SpreadSheetModel) getModel();
 			// GraphicNode node = model.getNode(row);
 			if (model.getCellProperties(node).isCompositeIcon())
-				nameCellComponent.setCollapsed(node.isCollapsed());
+				nameCellComponent.setCollapsed(model.getCache().isCollapsed(node));
 		}
 	}
 

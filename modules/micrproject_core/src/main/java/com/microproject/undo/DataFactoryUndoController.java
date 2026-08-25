@@ -25,8 +25,12 @@
 package com.microproject.undo;
 
 import javax.swing.event.UndoableEditEvent;
+import javax.swing.undo.UndoableEdit;
 
 import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.pm.task.Project;
+import com.microproject.transaction.DomainChangeSet;
+import com.microproject.transaction.DomainChangeJournal;
 
 /**
  *
@@ -42,8 +46,20 @@ public class DataFactoryUndoController extends UndoController {
 	}
 	
 	public void undoableEditHappened(UndoableEditEvent e){
-		super.undoableEditHappened(e);
-		dataFactory.setGroupDirty(true);
+		withProjectWrite(() -> {
+			super.undoableEditHappened(e);
+			dataFactory.setGroupDirty(true);
+		});
+	}
+
+	@Override
+	public void commitEdit(UndoableEdit edit) {
+		withProjectWrite(() -> super.commitEdit(edit));
+	}
+
+	@Override
+	public void clear() {
+		withProjectWrite(super::clear);
 	}
 	public NodeModelDataFactory getDataFactory() {
 		return dataFactory;
@@ -54,6 +70,47 @@ public class DataFactoryUndoController extends UndoController {
 	
 	public String getPresentationName() {
 		return "NodePaste";
+	}
+
+	@Override
+	public void undo() {
+		if (!(dataFactory instanceof Project project)) {
+			super.undo();
+			return;
+		}
+		DomainChangeJournal journal = project.getDomainChangeJournal();
+		journal.write(() -> {
+			if (!canUndo()) return null;
+			try (DomainChangeJournal.Scope ignored = journal.suppressLegacyEvents()) {
+				super.undo();
+			}
+			journal.recordLegacy(DomainChangeSet.Origin.UNDO);
+			return null;
+		});
+	}
+
+	@Override
+	public void redo() {
+		if (!(dataFactory instanceof Project project)) {
+			super.redo();
+			return;
+		}
+		DomainChangeJournal journal = project.getDomainChangeJournal();
+		journal.write(() -> {
+			if (!canRedo()) return null;
+			try (DomainChangeJournal.Scope ignored = journal.suppressLegacyEvents()) {
+				super.redo();
+			}
+			journal.recordLegacy(DomainChangeSet.Origin.REDO);
+			return null;
+		});
+	}
+
+	private void withProjectWrite(Runnable action) {
+		if (dataFactory instanceof Project project)
+			project.getDomainChangeJournal().write(() -> { action.run(); return null; });
+		else
+			action.run();
 	}
 
 

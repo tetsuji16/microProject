@@ -63,7 +63,7 @@ public class FieldEdit extends AbstractUndoableEdit{
 		return "Field (id=" + field.getId() + ", obj=" + object + ", value=" + value + ", oldValue=" + oldValue + ")";
 	}
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		try {
 			if (object instanceof ObjectRef) field.setValue((ObjectRef)object,source,value,context);
 			else field.setValue(object,source,value,context);
@@ -73,9 +73,10 @@ public class FieldEdit extends AbstractUndoableEdit{
 			failure.initCause(e);
 			throw failure;
 		}
+		super.redo();
 	}
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		try {
 			if (object instanceof ObjectRef) field.setValue((ObjectRef)object,source,oldValue,context);
 			else field.setValue(object,source,oldValue,context);
@@ -85,5 +86,6 @@ public class FieldEdit extends AbstractUndoableEdit{
 			failure.initCause(e);
 			throw failure;
 		}
+		super.undo();
 	}
 }

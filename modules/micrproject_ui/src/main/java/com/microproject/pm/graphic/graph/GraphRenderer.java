@@ -28,13 +28,20 @@ import java.awt.Color;
 import java.awt.Stroke;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.awt.geom.GeneralPath;
 
 import com.microproject.pm.graphic.Renderer;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.GraphicDependency;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
 import com.microproject.graphic.configuration.shape.Colors;
 import com.microproject.graphic.configuration.shape.PredefinedStroke;
 
 public abstract class GraphRenderer extends Renderer{
+	private transient Map<GraphicDependency, GeneralPath> dependencyPaths = new IdentityHashMap<>();
+	private transient long dependencyPathGeometryRevision = Long.MIN_VALUE;
 	public static Stroke DISABLED_LINK_STROKE = PredefinedStroke.SPARSE_DASHED;
 	public static Color EXTERNAL_LINK_COLOR = Color.LIGHT_GRAY;
 	public static Color NON_WORKING_COLOR = Colors.VERY_LIGHT_GRAY;;
@@ -51,14 +58,15 @@ public abstract class GraphRenderer extends Renderer{
 	}
 	
     public void updateShapes(){
+		beginGeometryPass();
     	//System.out.println("Deep update");
     	if (graphInfo.getCache() == null) return;
     	updateShapes(graphInfo.getCache().getIterator());
     }
     public void updateShapes(List nodes){
     	//System.out.println("Shallow update");
-    	if (nodes==null) updateShapes();
-    	else updateShapes(nodes.listIterator());
+		if (nodes==null) updateShapes();
+		else { beginGeometryPass(); updateShapes(nodes.listIterator()); }
     }
     public void updateShapes(ListIterator nodeIterator){
     	GraphicNode node;
@@ -79,5 +87,39 @@ public abstract class GraphRenderer extends Renderer{
 
 	public void updateShape(GraphicNode node){}
 
-}
+	public GeneralPath getDependencyPath(GraphicDependency dependency) {
+		if (dependencyPaths == null)
+			dependencyPaths = new IdentityHashMap<>();
+		return dependencyPaths.computeIfAbsent(dependency, ignored -> new GeneralPath());
+	}
 
+	public GeneralPath findDependencyPath(GraphicDependency dependency) {
+		return geometryContextRevision() == dependencyPathGeometryRevision && dependencyPaths != null
+				? dependencyPaths.get(dependency) : null;
+	}
+
+	protected void beginGeometryPass() {
+		if (dependencyPaths == null) dependencyPaths = new IdentityHashMap<>();
+		else dependencyPaths.clear();
+		dependencyPathGeometryRevision = geometryContextRevision();
+	}
+
+	protected long currentTopologyRevision() {
+		return graphInfo != null && graphInfo.getCache() instanceof ViewNodeModelCache cache
+				? cache.getProjectionSnapshot().topologyRevision() : -1L;
+	}
+
+	/** Domain/topology generation used to reject stale hit-test geometry. */
+	protected long geometryContextRevision() {
+		if (graphInfo != null && graphInfo.getCache() instanceof ViewNodeModelCache cache) {
+			ViewNodeModelCache.InstalledProjectionSnapshot installed = cache.getInstalledProjectionSnapshot();
+			return mix(installed.topology().domainRevision(), installed.topology().topologyRevision());
+		}
+		return -1L;
+	}
+
+	protected static long mix(long seed, long value) {
+		return (seed ^ value) * 0x9E3779B97F4A7C15L;
+	}
+
+}

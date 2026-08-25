@@ -27,32 +27,27 @@ package com.microproject.pm.graphic.views;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
 import javax.swing.JScrollPane;
-import javax.swing.JTable;
 import javax.swing.JViewport;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.ListSelectionListener;
 
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.gantt.Gantt;
-import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
-import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.timescale.ScaledScrollPane;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
@@ -98,7 +93,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	private boolean spreadsheetGridVisible = Gantt.DEFAULT_GRID_LINES_VISIBLE;
 	private String currentAnnotationFieldId = ANNOTATION_FIELD_RESOURCE_NAMES;
 	private ChangeListener spreadsheetViewportListener;
-	private ListSelectionListener spreadsheetSelectionListener;
+	private TaskViewSession taskViewSession;
 	private boolean synchronizingRowGeometry;
 	public static final String spreadsheetCategory=taskSpreadsheetCategory;
 
@@ -119,7 +114,8 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void init(ReferenceNodeModelCache cache, NodeModel model,CoordinatesConverter coord){
 		this.coord = coord;
-		this.cache = NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache) cache, getViewName(), null);
+		taskViewSession = new TaskViewSession(project, cache, getViewName());
+		this.cache = taskViewSession.cache();
 
 		fieldContext = new FieldContext();
 		fieldContext.setLeftAssociation(true);
@@ -141,8 +137,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 		//sync the height of spreadsheet and gantt
 		installSpreadsheetViewportListener();
-		installSpreadsheetSelectionListener();
-		installGanttBarSelectionListener();
+		installSelectionController();
 
 //		spreadSheet.getRowHeader().getSelectionModel().addListSelectionListener(new ListSelectionListener(){
 //			public void valueChanged(ListSelectionEvent e) {
@@ -166,10 +161,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void cleanUp() {
 		removeSpreadsheetViewportListener();
-		removeSpreadsheetSelectionListener();
-		if (gantt != null) {
-			gantt.setBarSelectionListener(null);
-		}
+		removeSelectionController();
 		if (coord != null && ganttScrollPane != null) {
 			coord.removeTimeScaleListener(ganttScrollPane);
 		}
@@ -177,6 +169,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			project.removeScheduleListener(this);
 		}
 		cleanupContentViews();
+		if (taskViewSession != null) taskViewSession.close();
 		super.cleanUp();
 		spreadSheet=null;
 		gantt=null;
@@ -188,6 +181,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		project=null;
 		documentFrame=null;
 		fieldContext=null;
+		taskViewSession=null;
 	}
 
 	public void setBarStyles(String styleName) {
@@ -419,6 +413,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 	public void reinitialize() { // applet
 		removeSpreadsheetViewportListener();
+		removeSelectionController();
 		if (coord != null && ganttScrollPane != null) {
 			coord.removeTimeScaleListener(ganttScrollPane);
 		}
@@ -428,8 +423,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		updateHeight(project);
 		updateSize();
 		installSpreadsheetViewportListener();
-		installSpreadsheetSelectionListener();
-		installGanttBarSelectionListener();
+		installSelectionController();
 		synchronizeGanttHeightWithSpreadsheet(leftScrollPane.getViewport().getViewSize());
 	}
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
@@ -443,11 +437,21 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		else
 			standardProgressLineEnabled = ws.progressLineEnabled;
 		ganttScrollPane.restoreWorkspace(ws.scrollPane, context);
+		// Restore the durable entity anchor last. The legacy right-pane workspace
+		// still contains a pixel Y and the viewport synchronizer would otherwise
+		// overwrite the V2 row-key position with that stale number.
+		if (ws.spreadSheet instanceof CommonSpreadSheet.Workspace spreadsheetWorkspace
+				&& cache instanceof ViewNodeModelCache viewCache)
+			TaskWorkspaceMapper.restore(spreadSheet, viewCache, spreadsheetWorkspace);
 		restoreDividerLocation(ws.dividerLocation);
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
+		ws.schemaVersion = TaskWorkspaceMapper.SCHEMA_VERSION;
 		ws.spreadSheet = spreadSheet.createWorkspace(context);
+		if (ws.spreadSheet instanceof CommonSpreadSheet.Workspace spreadsheetWorkspace
+				&& cache instanceof ViewNodeModelCache viewCache)
+			TaskWorkspaceMapper.capture(spreadSheet, viewCache, spreadsheetWorkspace);
 		ws.scrollPane = ganttScrollPane.createWorkspace(context);
 		ws.progressLineEnabled = gantt.isProgressLineEnabled();
 		ws.gridLinesVisible = spreadsheetGridVisible;
@@ -471,6 +475,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		Boolean gridLinesVisible;
 		String annotationFieldId = ANNOTATION_FIELD_RESOURCE_NAMES;
 		int dividerLocation;
+		int schemaVersion;
 		public WorkspaceSetting getSpreadSheet() {
 			return spreadSheet;
 		}
@@ -506,6 +511,12 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		}
 		public void setDividerLocation(int dividerLocation) {
 			this.dividerLocation = dividerLocation;
+		}
+		public int getSchemaVersion() {
+			return schemaVersion;
+		}
+		public void setSchemaVersion(int schemaVersion) {
+			this.schemaVersion = schemaVersion;
 		}
 	}
 
@@ -593,101 +604,13 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		spreadsheetViewportListener = null;
 	}
 
-	/**
-	 * Keeps the Gantt chart's row highlight in sync with the task table
-	 * selection: selecting tasks in the table highlights their complete
-	 * calendar row in the chart (issue #179).
-	 */
-	private void installSpreadsheetSelectionListener() {
-		if (spreadsheetSelectionListener == null && spreadSheet != null) {
-			spreadsheetSelectionListener = createGanttSelectionListener(gantt, spreadSheet);
-			spreadSheet.getSelectionModel().addListSelectionListener(spreadsheetSelectionListener);
-		}
+	private void installSelectionController() {
+		if (taskViewSession != null && gantt != null && spreadSheet != null)
+			taskViewSession.bind(gantt, spreadSheet);
 	}
 
-	/**
-	 * Creates the task-table selection bridge for the Gantt. JTable sends
-	 * adjusting events while the user drags across rows; they must update the
-	 * Gantt immediately so both panes match Microsoft Project's live selection.
-	 */
-	static ListSelectionListener createGanttSelectionListener(Gantt gantt, JTable table) {
-		return event -> syncGanttHighlightedRows(gantt, table == null ? null : table.getSelectedRows());
-	}
-
-	private void removeSpreadsheetSelectionListener() {
-		if (spreadsheetSelectionListener != null && spreadSheet != null
-				&& spreadSheet.getSelectionModel() != null) {
-			spreadSheet.getSelectionModel().removeListSelectionListener(spreadsheetSelectionListener);
-		}
-		spreadsheetSelectionListener = null;
-	}
-
-	private void updateGanttHighlightedRows() {
-		syncGanttHighlightedRows(gantt, spreadSheet == null ? null : spreadSheet.getSelectedRows());
-	}
-
-	private static void syncGanttHighlightedRows(Gantt gantt, int[] rows) {
-		if (gantt == null) {
-			return;
-		}
-		if (rows == null || rows.length == 0) {
-			gantt.setHighlightedRows(Collections.emptySet());
-			return;
-		}
-		Set<Integer> highlighted = new HashSet<>(rows.length);
-		for (int row : rows) {
-			if (row >= 0) {
-				highlighted.add(row);
-			}
-		}
-		gantt.setHighlightedRows(highlighted);
-	}
-
-	/**
-	 * Clicking the chart updates the task table selection exactly like
-	 * Microsoft Project (issue #179): a plain click selects the task, Ctrl/
-	 * Cmd+click toggles it in the selection, Shift+click extends the
-	 * selection, and a click on empty chart space clears the selection.  Both
-	 * panes therefore always highlight the same tasks.
-	 */
-	private void installGanttBarSelectionListener() {
-		if (gantt == null) {
-			return;
-		}
-		gantt.setBarSelectionListener(this::onGanttChartClick);
-	}
-
-	private void onGanttChartClick(Gantt.BarClick click) {
-		if (click == null) {
-			return;
-		}
-		if (click.node() == null) {
-			if (spreadSheet != null) {
-				spreadSheet.clearSelection();
-			}
-			return;
-		}
-		selectSpreadsheetRowForGraphicNode(click);
-	}
-
-	private void selectSpreadsheetRowForGraphicNode(Gantt.BarClick click) {
-		GraphicNode node = click.node();
-		if (node == null || spreadSheet == null
-				|| !(spreadSheet.getModel() instanceof com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model)) {
-			return;
-		}
-		int row = model.findGraphicNodeRow(node);
-		if (row < 0 || row >= spreadSheet.getRowCount()) {
-			return;
-		}
-		int column = spreadSheet.getSelectedColumn();
-		if (column < 0) {
-			column = 0;
-		}
-		if (column >= spreadSheet.getColumnCount()) {
-			column = Math.max(0, spreadSheet.getColumnCount() - 1);
-		}
-		spreadSheet.changeSelection(row, column, click.toggle(), click.extend());
+	private void removeSelectionController() {
+		if (taskViewSession != null) taskViewSession.unbind();
 	}
 
 	private void applySpreadsheetGridStyle() {

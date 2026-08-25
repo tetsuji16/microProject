@@ -90,12 +90,14 @@ public class GraphUI extends ComponentUI implements Serializable {
     	GraphicDependency dependency;
 		while(i.hasNext()){
 			dependency=(GraphicDependency)i.next();
-			if (selectionZone==null&&dependency.getPath().contains(x,y)) return dependency==null?null:new GraphZone(dependency);
+			java.awt.geom.GeneralPath dependencyPath=graphRenderer.findDependencyPath(dependency);
+			if (dependencyPath==null) continue;
+			if (selectionZone==null&&dependencyPath.contains(x,y)) return dependency==null?null:new GraphZone(dependency);
 			else if (selectionZone!=null){
 				int segType;
 				double lx=-1;
 				double ly=-1;
-				for (PathIterator j=(flatness<=0)?dependency.getPath().getPathIterator(null):dependency.getPath().getPathIterator(null,flatness);!j.isDone();j.next()){
+				for (PathIterator j=(flatness<=0)?dependencyPath.getPathIterator(null):dependencyPath.getPathIterator(null,flatness);!j.isDone();j.next()){
 					switch (j.currentSegment(segment)) {
 						case PathIterator.SEG_LINETO:
 						//case PathIterator.SEG_CLOSE:
@@ -163,4 +165,3 @@ public class GraphUI extends ComponentUI implements Serializable {
 
 
 }
-

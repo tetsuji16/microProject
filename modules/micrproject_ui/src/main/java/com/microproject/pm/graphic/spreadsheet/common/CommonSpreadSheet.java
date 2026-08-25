@@ -61,6 +61,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
 import javax.swing.event.EventListenerList;
 import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ChangeEvent;
 import javax.swing.plaf.UIResource;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableModel;
@@ -995,14 +996,35 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			if (node != null && !CollaborationHelper.tryLockObject(null, node, this, "edit")) {
 				return false;
     		}
+			model.beginTaskCellEdit(row, column);
     	}
 		var editingStarted = super.editCellAt(row, column, e);
+		if (!editingStarted && model != null)
+			model.clearTaskCellEdit();
     	if (editingStarted && editorComp != null) {
 //    		System.out.println("editing cell at " + row + " " + column);
     		configureEditorComponentAfterStart(row, column, e);
     	}
     	return editingStarted;
     }
+
+	@Override
+	public void removeEditor() {
+		super.removeEditor();
+		SpreadSheetModel model = getSpreadSheetModel();
+		if (model != null) model.clearTaskCellEdit();
+	}
+
+	@Override
+	public void editingStopped(ChangeEvent event) {
+		SpreadSheetModel model = getSpreadSheetModel();
+		if (model != null) model.beginTaskCellEditorCommit();
+		try {
+			super.editingStopped(event);
+		} finally {
+			if (model != null) model.endTaskCellEditorCommit();
+		}
+	}
 
 	private void configureEditorComponentAfterStart(int row, int column, EventObject e) {
 		Component component;
@@ -1516,13 +1538,14 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		// this checks for invalid conditions and continues
 
 		Workspace ws = (Workspace) w;
-		if (getRowCount() > ws.editingRow)
+		boolean legacyPositionState = ws.schemaVersion < 2;
+		if (legacyPositionState && getRowCount() > ws.editingRow)
 			setEditingRow(ws.editingRow);
-		if (getColumnCount() > ws.editingColumn)
+		if (legacyPositionState && getColumnCount() > ws.editingColumn)
 			setEditingColumn(ws.editingColumn);
-		if (getRowCount() > ws.lastEditingRow)
+		if (legacyPositionState && getRowCount() > ws.lastEditingRow)
 			lastEditingRow = ws.lastEditingRow;
-		if (ws.selectedRows != null) {
+		if (legacyPositionState && ws.selectedRows != null) {
 			for (int i=0; i < ws.selectedRows.length; i++) {
 				try {
 					addRowSelectionInterval(ws.selectedRows[i], ws.selectedRows[i]);
@@ -1534,7 +1557,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 				}
 			}
 		}
-		if (ws.selectedColumns != null) {
+		if (legacyPositionState && ws.selectedColumns != null) {
 			for (int i=0; i < ws.selectedColumns.length; i++) {
 				try {
 					addColumnSelectionInterval(ws.selectedColumns[i], ws.selectedColumns[i]);
@@ -1547,7 +1570,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		if (s != null)
 			setFieldArray(s);
      	Container p = getParent();
-     	if (p instanceof JViewport && ws.viewPosition != null) {
+		if (legacyPositionState && p instanceof JViewport && ws.viewPosition != null) {
      		try {
      		((JViewport)p).setViewPosition(ws.viewPosition);
      		} catch (RuntimeException e) {
@@ -1582,6 +1605,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		int[] selectedColumns=null;
 		String fieldArrayName;
 		Point viewPosition = null;
+		int schemaVersion;
+		String[] selectedEntityKeys;
+		String[] selectedFieldIds;
+		String activeEntityKey;
+		String activeFieldId;
+		String topVisibleEntityKey;
+		String nextVisibleEntityKey;
+		String previousVisibleEntityKey;
+		int topVisibleRowOffset;
 
 		public final int getEditingColumn() {
 			return editingColumn;
@@ -1637,6 +1669,78 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 		public void setViewPosition(Point viewPosition) {
 			this.viewPosition = viewPosition;
+		}
+
+		public int getSchemaVersion() {
+			return schemaVersion;
+		}
+
+		public void setSchemaVersion(int schemaVersion) {
+			this.schemaVersion = schemaVersion;
+		}
+
+		public String[] getSelectedEntityKeys() {
+			return selectedEntityKeys;
+		}
+
+		public void setSelectedEntityKeys(String[] selectedEntityKeys) {
+			this.selectedEntityKeys = selectedEntityKeys;
+		}
+
+		public String[] getSelectedFieldIds() {
+			return selectedFieldIds;
+		}
+
+		public void setSelectedFieldIds(String[] selectedFieldIds) {
+			this.selectedFieldIds = selectedFieldIds;
+		}
+
+		public String getActiveEntityKey() {
+			return activeEntityKey;
+		}
+
+		public void setActiveEntityKey(String activeEntityKey) {
+			this.activeEntityKey = activeEntityKey;
+		}
+
+		public String getActiveFieldId() {
+			return activeFieldId;
+		}
+
+		public void setActiveFieldId(String activeFieldId) {
+			this.activeFieldId = activeFieldId;
+		}
+
+		public String getTopVisibleEntityKey() {
+			return topVisibleEntityKey;
+		}
+
+		public void setTopVisibleEntityKey(String topVisibleEntityKey) {
+			this.topVisibleEntityKey = topVisibleEntityKey;
+		}
+
+		public String getNextVisibleEntityKey() {
+			return nextVisibleEntityKey;
+		}
+
+		public void setNextVisibleEntityKey(String nextVisibleEntityKey) {
+			this.nextVisibleEntityKey = nextVisibleEntityKey;
+		}
+
+		public String getPreviousVisibleEntityKey() {
+			return previousVisibleEntityKey;
+		}
+
+		public void setPreviousVisibleEntityKey(String previousVisibleEntityKey) {
+			this.previousVisibleEntityKey = previousVisibleEntityKey;
+		}
+
+		public int getTopVisibleRowOffset() {
+			return topVisibleRowOffset;
+		}
+
+		public void setTopVisibleRowOffset(int topVisibleRowOffset) {
+			this.topVisibleRowOffset = topVisibleRowOffset;
 		}
 	}
 

@@ -28,9 +28,8 @@ import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 
 import com.microproject.graphic.configuration.GraphicConfiguration;
-import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.TaskProjectionSnapshot;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
-import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.ScheduleInterval;
 
 /**
@@ -42,7 +41,9 @@ final class GanttSelectionGeometrySupport {
 	private static final int BAR_MOVE_END = 5;
 	private static final int PROGRESS_BAR_MOVE = 6;
 
-	private final GraphicNode node;
+	private final TaskProjectionSnapshot.Row row;
+	private final int projectionRow;
+	private final GanttBarGeometry barGeometry;
 	private final CoordinatesConverter coord;
 	private final GanttUI ui;
 	private final GraphicConfiguration config;
@@ -52,9 +53,11 @@ final class GanttSelectionGeometrySupport {
 	private final int selectedIntervalNumber;
 	private final ScheduleInterval selectedInterval;
 
-	GanttSelectionGeometrySupport(GraphicNode node, CoordinatesConverter coord, GanttUI ui, GraphicConfiguration config,
+	GanttSelectionGeometrySupport(TaskProjectionSnapshot.Row row, int projectionRow, GanttBarGeometry barGeometry, CoordinatesConverter coord, GanttUI ui, GraphicConfiguration config,
 			double x0, double x, int state, int selectedIntervalNumber, ScheduleInterval selectedInterval) {
-		this.node = node;
+		this.row = row;
+		this.projectionRow = projectionRow;
+		this.barGeometry = barGeometry;
 		this.coord = coord;
 		this.ui = ui;
 		this.config = config;
@@ -66,118 +69,119 @@ final class GanttSelectionGeometrySupport {
 	}
 
 	Shape createBarShadowBounds() {
-		if (node == null || coord == null || ui == null || config == null) {
+		if (row == null || coord == null || ui == null || config == null) {
 			return null;
 		}
 		double deltaX = x - x0;
-		double xStart = getSelectionStartForNode(node, coord, config);
+		double xStart = getSelectionStartForNode(row, coord, config, barGeometry.height());
 		if (state == PROGRESS_BAR_MOVE) {
-			double completedX = coord.toX(node.getCompleted());
+			double completedX = coord.toX(row.completed());
 			return new Rectangle2D.Double(
 					xStart,
-					barY(node) + node.getGanttShapeOffset() + (node.getGanttShapeHeight() - config.getGanttProgressBarHeight()) / 2.0d,
+					barY() + barGeometry.offset() + (barGeometry.height() - config.getGanttProgressBarHeight()) / 2.0d,
 					completedX - xStart + deltaX,
 					config.getGanttProgressBarHeight());
 		}
 		double xEnd = (selectedIntervalNumber == 0 && state == BAR_MOVE)
-				? getSelectionEndForBar(node, coord, config)
-				: getSelectionEndForInterval(node, coord, config, selectedInterval);
+				? getSelectionEndForBar(row, coord, config, barGeometry.height())
+				: getSelectionEndForInterval(row, coord, config, selectedInterval, barGeometry.height());
 		double w = xEnd - xStart;
 		switch (state) {
 		case BAR_MOVE:
-			return new Rectangle2D.Double(xStart + deltaX, barY(node) + node.getGanttShapeOffset(), w, node.getGanttShapeHeight());
+			return new Rectangle2D.Double(xStart + deltaX, barY() + barGeometry.offset(), w, barGeometry.height());
 		case BAR_MOVE_START:
-			return new Rectangle2D.Double(xStart + deltaX, barY(node) + node.getGanttShapeOffset(), w - deltaX, node.getGanttShapeHeight());
+			return new Rectangle2D.Double(xStart + deltaX, barY() + barGeometry.offset(), w - deltaX, barGeometry.height());
 		case BAR_MOVE_END:
-			return new Rectangle2D.Double(xStart, barY(node) + node.getGanttShapeOffset(), w + deltaX, node.getGanttShapeHeight());
+			return new Rectangle2D.Double(xStart, barY() + barGeometry.offset(), w + deltaX, barGeometry.height());
 		default:
 			return null;
 		}
 	}
 
 	Rectangle2D createLinkSelectionShadowBounds() {
-		if (node == null || coord == null || ui == null || config == null) {
+		if (row == null || coord == null || ui == null || config == null) {
 			return null;
 		}
-		double xStart = getSelectionStartForNode(node, coord, config);
-		double xEnd = getSelectionEndForNode(node, coord, config);
-		return new Rectangle2D.Double(xStart, barY(node) + node.getGanttShapeOffset(), xEnd - xStart, node.getGanttShapeHeight());
+		double xStart = getSelectionStartForNode(row, coord, config, barGeometry.height());
+		double xEnd = getSelectionEndForNode(row, coord, config, barGeometry.height());
+		return new Rectangle2D.Double(xStart, barY() + barGeometry.offset(), xEnd - xStart, barGeometry.height());
 	}
 
 	double getSelectionStartForNode() {
-		return getSelectionStartForNode(node, coord, config);
+		return getSelectionStartForNode(row, coord, config, barGeometry.height());
 	}
 
 	double getSelectionEndForNode() {
-		return getSelectionEndForNode(node, coord, config);
+		return getSelectionEndForNode(row, coord, config, barGeometry.height());
 	}
 
 	double getSelectionEndForInterval() {
-		return getSelectionEndForInterval(node, coord, config, selectedInterval);
+		return getSelectionEndForInterval(row, coord, config, selectedInterval, barGeometry.height());
 	}
 
 	double getSelectionEndForBar() {
-		return getSelectionEndForBar(node, coord, config);
+		return getSelectionEndForBar(row, coord, config, barGeometry.height());
 	}
 
 	double getLinkOriginX() {
-		if (node == null || coord == null || config == null) {
+		if (row == null || coord == null || config == null) {
 			return 0.0d;
 		}
-		long start = selectedIntervalNumber == 0 || selectedInterval == null ? node.getStart() : selectedInterval.getStart();
+		long start = selectedIntervalNumber == 0 || selectedInterval == null ? row.start() : selectedInterval.getStart();
 		double xStart = coord.toX(start);
 		double xEnd = selectedIntervalNumber == 0 ? getSelectionEndForNode() : getSelectionEndForInterval();
 		return (xStart + xEnd) / 2.0d;
 	}
 
 	double getLinkOriginY() {
-		if (node == null || ui == null) {
+		if (row == null || ui == null) {
 			return 0.0d;
 		}
-		return barY(node) + node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d;
+		return barY() + barGeometry.offset() + barGeometry.height() / 2.0d;
 	}
 
-	static double getSelectionEndForBar(GraphicNode node, CoordinatesConverter coord, GraphicConfiguration config) {
-		if (isMilestoneNode(node)) {
-			return milestoneSelectionEnd(coord.toX(node.getStart()), node.getGanttShapeHeight(), config.getSelectionSquare());
+	static double getSelectionEndForBar(TaskProjectionSnapshot.Row row, CoordinatesConverter coord, GraphicConfiguration config, double shapeHeight) {
+		if (row.milestone()) {
+			return milestoneSelectionEnd(coord.toX(row.start()), shapeHeight, config.getSelectionSquare());
 		}
-		return CoordinatesConverter.adaptSmallBarEndX(coord.toX(node.getStart()), coord.toX(node.getEnd()), node, config);
+		return adaptSmallBarEndX(row, coord, config);
 	}
 
-	static double getSelectionEndForNode(GraphicNode node, CoordinatesConverter coord, GraphicConfiguration config) {
-		if (isMilestoneNode(node)) {
-			return milestoneSelectionEnd(coord.toX(node.getStart()), node.getGanttShapeHeight(), config.getSelectionSquare());
+	static double getSelectionEndForNode(TaskProjectionSnapshot.Row row, CoordinatesConverter coord, GraphicConfiguration config, double shapeHeight) {
+		if (row.milestone()) {
+			return milestoneSelectionEnd(coord.toX(row.start()), shapeHeight, config.getSelectionSquare());
 		}
-		return CoordinatesConverter.adaptSmallBarEndX(coord.toX(node.getStart()), coord.toX(node.getEnd()), node, config);
+		return adaptSmallBarEndX(row, coord, config);
 	}
 
-	static double getSelectionEndForInterval(GraphicNode node, CoordinatesConverter coord, GraphicConfiguration config, ScheduleInterval interval) {
-		if (node == null || coord == null || config == null || interval == null) {
+	static double getSelectionEndForInterval(TaskProjectionSnapshot.Row row, CoordinatesConverter coord, GraphicConfiguration config, ScheduleInterval interval, double shapeHeight) {
+		if (row == null || coord == null || config == null || interval == null) {
 			return 0.0d;
 		}
-		if (interval != null && interval.getEnd() == interval.getStart() && isMilestoneNode(node)) {
-			return getMilestoneSelectionEnd(coord.toX(interval.getStart()), node, config);
+		if (interval.getEnd() == interval.getStart() && row.milestone()) {
+			return getMilestoneSelectionEnd(coord.toX(interval.getStart()), shapeHeight, config);
 		}
 		return coord.toX(interval.getEnd());
 	}
 
-	static double getSelectionStartForNode(GraphicNode node, CoordinatesConverter coord, GraphicConfiguration config) {
-		double x = coord.toX(node.getStart());
-		if (!isMilestoneNode(node)) {
+	static double getSelectionStartForNode(TaskProjectionSnapshot.Row row, CoordinatesConverter coord, GraphicConfiguration config, double shapeHeight) {
+		double x = coord.toX(row.start());
+		if (!row.milestone()) {
 			return x;
 		}
-		return milestoneSelectionStart(x, node.getGanttShapeHeight(), config.getSelectionSquare());
+		return milestoneSelectionStart(x, shapeHeight, config.getSelectionSquare());
 	}
 
-	static boolean isMilestoneNode(GraphicNode node) {
-		if (node == null || node.getNode() == null || !(node.getNode().getImpl() instanceof Task)) {
-			return false;
-		}
-		return ((Task) node.getNode().getImpl()).isMilestone();
+	private static double adaptSmallBarEndX(TaskProjectionSnapshot.Row row, CoordinatesConverter coord,
+			GraphicConfiguration config) {
+		double start = coord.toX(row.start());
+		double end = coord.toX(row.end());
+		return row.intervals().size() <= 1 && start < end && end - start < config.getGanttBarMinWidth()
+				? start + config.getGanttBarMinWidth() : end;
 	}
 
-	static double getMilestoneSelectionEnd(double xCenter, GraphicNode node, GraphicConfiguration config) {
-		return milestoneSelectionEnd(xCenter, node.getGanttShapeHeight(), config.getSelectionSquare());
+	static double getMilestoneSelectionEnd(double xCenter, double shapeHeight, GraphicConfiguration config) {
+		return milestoneSelectionEnd(xCenter, shapeHeight, config.getSelectionSquare());
 	}
 
 	static double milestoneSelectionStart(double xCenter, double shapeHeight, double selectionSquare) {
@@ -190,7 +194,7 @@ final class GanttSelectionGeometrySupport {
 		return xCenter + width / 2.0d;
 	}
 
-	private double barY(GraphicNode node) {
-		return ui.getBarY(node.getRow());
+	private double barY() {
+		return ui.getBarY(projectionRow);
 	}
 }

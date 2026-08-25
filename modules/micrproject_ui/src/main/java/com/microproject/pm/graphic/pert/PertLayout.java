@@ -100,7 +100,7 @@ public class PertLayout extends AbstractNetworkLayout {
 		    double centerY=origin.getY()+ref.getMaxY()*row+ref.getHeight()/2;
 		    //System.out.println(centerX+"/"+centerY);
 		    GeneralPath shape=texturedShape.toGeneralPath(ref.getWidth(),ref.getHeight(),centerX-ref.getWidth()/2,centerY,null);
-		    current.setPertShape(shape,centerX,centerY);
+		    setShape(current,shape,centerX,centerY);
 		    Rectangle cellBounds=network.scale(shape.getBounds());
 		    if (isEmpty())
 				bounds.setBounds(cellBounds);
@@ -116,4 +116,3 @@ public class PertLayout extends AbstractNetworkLayout {
 		updateBounds();
 	}
 }
-

@@ -32,6 +32,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -69,6 +70,8 @@ public class NodeCacheTransformer implements CacheTransformer {
     protected int levelOffset=0;
     protected String viewName;
     protected ViewConfiguration view;
+	private final Map<GraphicNode,List<GraphicNode>> projectionChildren = new IdentityHashMap<>();
+	private final Set<GraphicNode> filteredSummaries = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
 
     public NodeCacheTransformer(String viewName,ReferenceNodeModelCache refCache,Consumer<Object> transformerClosure){
     	//System.out.println("viewName="+viewName);
@@ -78,7 +81,7 @@ public class NodeCacheTransformer implements CacheTransformer {
             view.setName(viewName);
             transformer = new ViewTransformer();
         } else {
-            transformer=view.getTransform();
+            transformer=view.getTransform().copyForSession();
         }
         if (transformerClosure!=null) transformerClosure.accept(transformer);
 
@@ -94,6 +97,8 @@ public class NodeCacheTransformer implements CacheTransformer {
 
     public void transfrom(List list){
     	model.clear();
+		projectionChildren.clear();
+		filteredSummaries.clear();
 
         if (list==null) return;
 
@@ -139,7 +144,6 @@ public class NodeCacheTransformer implements CacheTransformer {
         Object current;
         for (Iterator i=list.iterator();i.hasNext();){
             gnode=(GraphicNode)i.next();
-            gnode.setFiltered(false);
             if (!gnode.isVoid()){
 	            current=(composition==null)?gnode.getNode():composition.evaluate(gnode.getNode());
 	            alreadyExcluded=false;
@@ -149,7 +153,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 	                    	i.remove();
 		                    continue;
 	                    }
-                    	if (gnode.isSummary()&&preserveHierarchy) gnode.setFiltered(true);
+						if (gnode.isSummary()&&preserveHierarchy) filteredSummaries.add(gnode);
                     	alreadyExcluded=true;
 	                }
 	            }
@@ -159,7 +163,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 	                		 i.remove();
 	 		                continue;
 	                	 }
-	                    if (gnode.isSummary()&&preserveHierarchy) gnode.setFiltered(true);
+	                    if (gnode.isSummary()&&preserveHierarchy) filteredSummaries.add(gnode);
 	                }
 	             }
             }
@@ -177,7 +181,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 	                 }else if (previous.getLevel()>=gnode.getLevel()){
 	                	 while (parents.size()>=gnode.getLevel()) parents.pop();
 	                 }
-	                 ((GraphicNode)parents.peek()).getChildren().add(gnode);
+	                 childrenOf(parents.peek()).add(gnode);
 	             }
 	             previous=gnode;
              }
@@ -196,9 +200,9 @@ public class NodeCacheTransformer implements CacheTransformer {
 
         if (sorting){
 	        if (sorter1!=null)
-	            sorter1.sortList(localList,new GraphicNodeComparator(sorter1,composition),preserveHierarchy);
+	            sortProjection(localList,new GraphicNodeComparator(sorter1,composition),preserveHierarchy);
 	        if (!transformer.isNoneSorter())
-	            sorter2.sortList(localList,new GraphicNodeComparator(sorter2,composition),preserveHierarchy);
+	            sortProjection(localList,new GraphicNodeComparator(sorter2,composition),preserveHierarchy);
         }
 
 
@@ -234,7 +238,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 				containsVoids=true;
 				continue;
 			}
-			if (!gnode.isSummary()||(gnode.getChildren().size()>0 && filterEmptySummaries(gnode.getChildren(),true))) containsNonSummaries=true;
+			if (!gnode.isSummary()||(!childrenOf(gnode).isEmpty() && filterEmptySummaries(childrenOf(gnode),true))) containsNonSummaries=true;
 			else i.remove();
 		}
 		if (!containsNonSummaries&&(!containsVoids || filterVoids)) list.clear();
@@ -248,8 +252,9 @@ public class NodeCacheTransformer implements CacheTransformer {
 		boolean keep=false;
 		for (Iterator<GraphicNode> i=list.iterator();i.hasNext();){
 			GraphicNode gnode=i.next();
-			boolean cutBranch=cut|gnode.isFiltered();
-			if (!gnode.isSummary()||(!gnode.isFiltered()&&gnode.getChildren().size()==0)||filterBadBranches(gnode.getChildren(),cutBranch)||!gnode.isFiltered()) keep=true;
+			boolean filtered = filteredSummaries.contains(gnode);
+			boolean cutBranch=cut|filtered;
+			if (!gnode.isSummary()||(!filtered&&childrenOf(gnode).isEmpty())||filterBadBranches(childrenOf(gnode),cutBranch)||!filtered) keep=true;
 			else i.remove();
 		}
 		return keep;
@@ -260,9 +265,21 @@ public class NodeCacheTransformer implements CacheTransformer {
 			HierarchicObject gnode=i.next();
 			GraphicNode graphicNode=(GraphicNode)gnode;
 			out.add(graphicNode);
-			if (graphicNode.getChildren().size()>0) treeToList(graphicNode.getChildren(),out);
-			graphicNode.getChildren().clear();
+			if (!childrenOf(graphicNode).isEmpty()) treeToList(childrenOf(graphicNode),out);
+			childrenOf(graphicNode).clear();
 		}
+	}
+
+	private List<GraphicNode> childrenOf(GraphicNode node) {
+		return projectionChildren.computeIfAbsent(node, ignored -> new ArrayList<>());
+	}
+
+	private void sortProjection(List<GraphicNode> nodes, Comparator comparator, boolean preserveHierarchy) {
+		nodes.sort(comparator);
+		if (!preserveHierarchy)
+			return;
+		for (GraphicNode node : nodes)
+			if (!childrenOf(node).isEmpty()) sortProjection(childrenOf(node), comparator, true);
 	}
 
 
@@ -314,7 +331,7 @@ public class NodeCacheTransformer implements CacheTransformer {
     	NodeGroup group=groupIterator.next();
     	NodeSorter sorter=group.getSorter();
     	GraphicNodeComparator gcomp=new GraphicNodeComparator(sorter,composition);
-    	sorter.sortList(list,gcomp,preserveHierarchy);
+		sortProjection(list,gcomp,preserveHierarchy);
     	GraphicNode last=null;
     	List<GraphicNode> nodes=null;
     	GraphicNode current;
@@ -549,4 +566,3 @@ public class NodeCacheTransformer implements CacheTransformer {
 	}
 
 }
-

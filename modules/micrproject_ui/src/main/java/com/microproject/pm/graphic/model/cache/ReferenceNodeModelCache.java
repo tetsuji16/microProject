@@ -36,6 +36,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.swing.SwingUtilities;
+
 import com.microproject.association.AssociationList;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.document.Document;
@@ -56,6 +58,7 @@ import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.transaction.DomainChangeSet;
 /**
  * This class lies between the SpreadSheet and the SpreadSheetModel.
  * It holds the states directly linked to the view.
@@ -71,6 +74,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	protected NodeCache nodeCache;
 	protected DependencyCache edgeCache;
 	protected Document document;
+	private final LegacyChangeAccumulator legacyChanges;
+	private volatile boolean closed;
 	
 	protected int type;
 		
@@ -80,6 +85,9 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	 */
 	public ReferenceNodeModelCache(NodeModel model, Document document, int type) {
 		this.document = document;
+		legacyChanges = document instanceof Project project
+				? new LegacyChangeAccumulator(project.getDomainChangeJournal())
+				: null;
 		nodeCache=new NodeCache();
 		edgeCache=new DependencyCache();
 		setModel(model);
@@ -121,6 +129,11 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	
 	public void close(){
+		if (closed) return;
+		closed = true;
+		receiveEvents = false;
+		if (legacyChanges != null)
+			legacyChanges.close();
 	    if (model!=null) {
 	    	removeListeners();
 	    	nodeCache.removeAllVisibleElements();
@@ -140,6 +153,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	public Document getDocument(){
 	    return document;
 	}
+	boolean hasPendingLegacyChange() { return legacyChanges != null && legacyChanges.isPending(); }
+	void flushPendingLegacyChange() { if (legacyChanges != null) legacyChanges.flushNowIfPending(); }
 	
 	
 	
@@ -434,8 +449,20 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	}
 	
 	public void scheduleChanged(ScheduleEvent e){
+		if (closed || !receiveEvents) return;
+		if (!SwingUtilities.isEventDispatchThread()) {
+			recordLegacyChangeImmediately(e);
+			SwingUtilities.invokeLater(() -> scheduleChangedOnEdt(e, false));
+			return;
+		}
+		scheduleChangedOnEdt(e, true);
+	}
+
+	private void scheduleChangedOnEdt(ScheduleEvent e, boolean recordRevision) {
+		if (closed || !receiveEvents) return;
 		//System.out.println("ScheduleEvent: type="+e.getType()+", snap="+e.getSnapshot()+", object="+e.getObject());
 		if (!receiveEvents) return;
+		if (recordRevision) recordLegacyChange();
 //		nodeCache.updateCachedSchedule();
 //		nodeCache.fireScheduleEvent(e.getSource(),e);
 		update(true);
@@ -443,12 +470,24 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	
 	public void objectChanged(ObjectEvent objectEvent) {
+		if (closed || !receiveEvents) return;
+		if (!SwingUtilities.isEventDispatchThread()) {
+			recordLegacyChangeImmediately(objectEvent);
+			SwingUtilities.invokeLater(() -> objectChangedOnEdt(objectEvent, false));
+			return;
+		}
+		objectChangedOnEdt(objectEvent, true);
+	}
+
+	private void objectChangedOnEdt(ObjectEvent objectEvent, boolean recordRevision) {
+		if (closed || !receiveEvents) return;
 		//System.out.println("ObjectEvent: type="+objectEvent.getType()+", field="+objectEvent.getField()+", object="+objectEvent.getObject());
 		if (!receiveEvents) return;
 		Object object=objectEvent.getObject();
 		if (object instanceof Dependency) {
 			Dependency dependency = ((Dependency)object);
 			if (dependency.getDocument() == document || dependency.getMasterDocument() == document) { // links can come from other projects too, but successor should be in this project
+				if (recordRevision) recordLegacyChange();
 				if (objectEvent.isCreate()) {
 					Node preNode=(Node)model.search(dependency.getPredecessor());
 					Node sucNode=(Node)model.search(dependency.getSuccessor());
@@ -482,6 +521,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 				(object instanceof Resource && (type&NodeModelCache.RESOURCE_TYPE)==NodeModelCache.RESOURCE_TYPE)||
 				(object instanceof Assignment && (type&NodeModelCache.ASSIGNMENT_TYPE)==NodeModelCache.ASSIGNMENT_TYPE)||
 				(object instanceof Project && (type&NodeModelCache.PROJECT_TYPE)==NodeModelCache.PROJECT_TYPE))){
+				if (recordRevision) recordLegacyChange();
 				if (object!=null&&!objectEvent.isDelete()){ //because node is already deleted
 					Node node=model.search(object);
 					if (node !=null) {
@@ -503,16 +543,40 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	
 	public void nodesChanged(HierarchyEvent e) {
-	    if (receiveEvents&&!e.isConsumed()) update();
+		if (closed || !receiveEvents) return;
+		if (!SwingUtilities.isEventDispatchThread()) { recordLegacyChangeImmediately(e); SwingUtilities.invokeLater(() -> handleHierarchyEvent(e, false)); return; }
+		handleHierarchyEvent(e, true);
+	}
+	private void handleHierarchyEvent(HierarchyEvent e, boolean recordRevision) {
+		if (closed || !receiveEvents) return;
+	    if (receiveEvents&&!e.isConsumed()) { if (recordRevision) recordLegacyChange(); update(); }
 	}
 	public void nodesInserted(HierarchyEvent e) {
-		if (receiveEvents&&!e.isConsumed()) update();
+		if (closed || !receiveEvents) return;
+		if (!SwingUtilities.isEventDispatchThread()) { recordLegacyChangeImmediately(e); SwingUtilities.invokeLater(() -> handleHierarchyEvent(e, false)); return; }
+		handleHierarchyEvent(e, true);
 	}
 	public void nodesRemoved(HierarchyEvent e) {
-		if (receiveEvents&&!e.isConsumed()) update();
+		if (closed || !receiveEvents) return;
+		if (closed) return;
+		if (!SwingUtilities.isEventDispatchThread()) { recordLegacyChangeImmediately(e); SwingUtilities.invokeLater(() -> handleHierarchyEvent(e, false)); return; }
+		handleHierarchyEvent(e, true);
 	}
 	public void structureChanged(HierarchyEvent e) {
-		if (receiveEvents&&!e.isConsumed()) update();
+		if (closed || !receiveEvents) return;
+		if (closed) return;
+		if (!SwingUtilities.isEventDispatchThread()) { recordLegacyChangeImmediately(e); SwingUtilities.invokeLater(() -> handleHierarchyEvent(e, false)); return; }
+		handleHierarchyEvent(e, true);
+	}
+
+	private void recordLegacyChange() {
+		if (legacyChanges != null)
+			legacyChanges.record();
+	}
+
+	private void recordLegacyChangeImmediately(Object eventIdentity) {
+		if (legacyChanges != null)
+			legacyChanges.recordImmediately(eventIdentity);
 	}
 	
 	
@@ -576,4 +640,3 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	
 }
-

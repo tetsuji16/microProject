@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.swing.event.UndoableEditEvent;
 import javax.swing.event.UndoableEditListener;
@@ -47,6 +48,8 @@ import com.microproject.util.Environment;
 public class UndoController extends UndoManager implements UndoableEditListener{
 
 	protected transient UndoableEditSupport editSupport;
+	private transient CopyOnWriteArrayList<UndoStateListener> stateListeners = new CopyOnWriteArrayList<>();
+	private transient int updateDepth;
 	//protected transient UndoManager undoManager;
 	/**
 	 *
@@ -61,16 +64,31 @@ public class UndoController extends UndoManager implements UndoableEditListener{
 		UndoableEdit edit=e.getEdit();
 //		undoManager.addEdit(edit);
 		super.addEdit(edit);
+		fireStateChanged(UndoStateEvent.Cause.EDIT_ADDED);
 	}
 
 	public void clear(){
 //		undoManager.discardAllEdits();
 		super.discardAllEdits();
 		nodeMapping.clear();
+		fireStateChanged(UndoStateEvent.Cause.CLEARED);
 	}
 
 	public UndoableEditSupport getEditSupport() {
 		return editSupport;
+	}
+
+	/** Adds a command's already-built edit at the transaction commit point. */
+	public synchronized void commitEdit(UndoableEdit edit) {
+		if (edit == null)
+			throw new IllegalArgumentException("edit is required");
+		if (updateDepth > 0) {
+			editSupport.postEdit(edit);
+			return;
+		}
+		if (!super.addEdit(edit))
+			throw new IllegalStateException("Undo manager rejected committed edit");
+		fireStateChanged(UndoStateEvent.Cause.EDIT_ADDED);
 	}
 
 	public void undo() {
@@ -83,6 +101,7 @@ public class UndoController extends UndoManager implements UndoableEditListener{
 			} finally {
 				Environment.setBatchMode(previousBatchMode);
 			}
+			fireStateChanged(UndoStateEvent.Cause.UNDO);
 		}
 	}
 
@@ -96,6 +115,7 @@ public class UndoController extends UndoManager implements UndoableEditListener{
 			} finally {
 				Environment.setBatchMode(previousBatchMode);
 			}
+			fireStateChanged(UndoStateEvent.Cause.REDO);
 		}
 	}
 	public boolean canUndo() {
@@ -121,11 +141,47 @@ public class UndoController extends UndoManager implements UndoableEditListener{
 		return (Node)modelMap.get(impl);
 	}
 
-	public void beginUpdate(){
-		if (editSupport!=null) 	editSupport.beginUpdate();
+	public synchronized void beginUpdate(){
+		if (editSupport!=null) {
+			editSupport.beginUpdate();
+			updateDepth++;
+		}
 	}
-	public void endUpdate(){
-		if (editSupport!=null) editSupport.endUpdate();
+	public synchronized void endUpdate(){
+		if (editSupport!=null) {
+			if (updateDepth <= 0)
+				throw new IllegalStateException("endUpdate without beginUpdate");
+			try {
+				editSupport.endUpdate();
+			} finally {
+				updateDepth--;
+			}
+		}
+	}
+
+	public void addUndoStateListener(UndoStateListener listener) {
+		if (listener != null)
+			stateListeners().addIfAbsent(listener);
+	}
+
+	public void removeUndoStateListener(UndoStateListener listener) {
+		stateListeners().remove(listener);
+	}
+
+	private void fireStateChanged(UndoStateEvent.Cause cause) {
+		UndoStateEvent event = new UndoStateEvent(this, cause, canUndo(), canRedo(), getUndoName(), getRedoName());
+		for (UndoStateListener listener : stateListeners())
+			try {
+				listener.undoStateChanged(event);
+			} catch (Throwable ignored) {
+				// UI observers cannot invalidate an edit already added to the stack.
+			}
+	}
+
+	private CopyOnWriteArrayList<UndoStateListener> stateListeners() {
+		if (stateListeners == null)
+			stateListeners = new CopyOnWriteArrayList<>();
+		return stateListeners;
 	}
 
 	public List<String> getEditNames(){

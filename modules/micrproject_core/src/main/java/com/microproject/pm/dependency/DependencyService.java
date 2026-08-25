@@ -59,6 +59,11 @@ public class DependencyService {
 	}
 
 	public Dependency newDependency(HasDependencies predecessor, HasDependencies successor, int dependencyType, long lead, Object eventSource) throws InvalidAssociationException {
+		return newDependency(predecessor, successor, dependencyType, lead, eventSource, true);
+	}
+
+	public Dependency newDependency(HasDependencies predecessor, HasDependencies successor, int dependencyType, long lead,
+			Object eventSource, boolean postUndo) throws InvalidAssociationException {
 		if (predecessor == successor)
 			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToSelf"));
 		Task predecessorTask = (Task)predecessor;
@@ -77,7 +82,7 @@ public class DependencyService {
 
 		Dependency dependency = Dependency.getInstance(predecessor, successor, dependencyType, lead);
 		dependency.testValid(false); // throws if exception
-		connect(dependency,eventSource);
+		connect(dependency,eventSource,postUndo);
 		dependency.setDirty(true);
 		return dependency;
 	}
@@ -123,6 +128,10 @@ public class DependencyService {
 	}
 
 	public void connect(Dependency dependency, Object eventSource) {
+		connect(dependency, eventSource, true);
+	}
+
+	public void connect(Dependency dependency, Object eventSource, boolean postUndo) {
 		dependency.getPredecessor().getSuccessorList().add(dependency);
 		dependency.getSuccessor().getPredecessorList().add(dependency);
 		updateSentinels(dependency);
@@ -132,7 +141,7 @@ public class DependencyService {
 		dependency.setDirty(true);
 
 		UndoableEditSupport undoableEditSupport=getUndoableEditSupport(dependency);
-		if (undoableEditSupport!=null&&eventSource!=null&&!(eventSource instanceof UndoableEdit)){
+		if (postUndo&&undoableEditSupport!=null&&eventSource!=null&&!(eventSource instanceof UndoableEdit)){
 			undoableEditSupport.postEdit(new DependencyCreationEdit(dependency,eventSource));
 		}
 	}
@@ -163,6 +172,11 @@ public class DependencyService {
 
 	}
 	public void setFields(Dependency dependency, long lag, int type,Object eventSource) throws InvalidAssociationException{
+		setFields(dependency, lag, type, eventSource, true);
+	}
+
+	public void setFields(Dependency dependency, long lag, int type, Object eventSource, boolean postUndo)
+			throws InvalidAssociationException {
 
 //		if (eventSource != null)
 //			dependency.getDocument().getObjectEventManager().fireUpdateEvent(eventSource,dependency);
@@ -179,7 +193,7 @@ public class DependencyService {
 		dependency.setDirty(true);
 
 		UndoableEditSupport undoableEditSupport=getUndoableEditSupport(dependency);
-		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
+		if (postUndo&&undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			undoableEditSupport.postEdit(new DependencySetFieldsEdit(dependency,oldLag,oldType,eventSource));
 		}
 

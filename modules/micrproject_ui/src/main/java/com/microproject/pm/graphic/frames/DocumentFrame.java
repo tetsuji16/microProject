@@ -41,8 +41,6 @@ import java.util.logging.Logger;
 
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.SwingUtilities;
-import javax.swing.event.UndoableEditEvent;
-import javax.swing.event.UndoableEditListener;
 
 
 import com.microproject.dialog.BaselineDialog;
@@ -114,6 +112,8 @@ import com.microproject.pm.task.Task;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.session.LoadOptions;
 import com.microproject.undo.UndoController;
+import com.microproject.undo.UndoStateEvent;
+import com.microproject.undo.UndoStateListener;
 import com.microproject.util.Alert;
 import com.microproject.util.ArrayUtils;
 import com.microproject.util.ClassUtils;
@@ -127,7 +127,7 @@ import com.microproject.workspace.WorkspaceSetting;
  */
 @SuppressWarnings("unchecked")
 public class DocumentFrame extends NamedFrame implements
-		SelectionNodeListener, UndoableEditListener, MenuActionConstants, ObjectEvent.Listener, ProjectListener, SavableToWorkspace, ObjectSelectionListener {
+		SelectionNodeListener, UndoStateListener, MenuActionConstants, ObjectEvent.Listener, ProjectListener, SavableToWorkspace, ObjectSelectionListener {
 	private static final long serialVersionUID = 2075764134837908178L;
 	private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(DocumentFrame.class.getName());
 	protected MainView mainView;
@@ -518,8 +518,7 @@ public class DocumentFrame extends NamedFrame implements
 				undoController.undo();
 			else
 				undoController.redo();
-			refreshUndoButtons();
-			selectionSnapshot.restore();
+				selectionSnapshot.restore();
 		}
 	}
 
@@ -1174,7 +1173,7 @@ public class DocumentFrame extends NamedFrame implements
 				getSelectedNodes(true), Task.class);
 	}
 
-	public void undoableEditHappened(UndoableEditEvent e) {
+	public void undoStateChanged(UndoStateEvent event) {
 		refreshUndoButtons();
 	}
 
@@ -1199,9 +1198,9 @@ public class DocumentFrame extends NamedFrame implements
 
 		if (undoController!=currentUndoController){
 			if (currentUndoController!=null)
-				currentUndoController.getEditSupport().removeUndoableEditListener(this);
+				currentUndoController.removeUndoStateListener(this);
 			if (undoController!=null)
-				undoController.getEditSupport().addUndoableEditListener(this);
+				undoController.addUndoStateListener(this);
 			currentUndoController=undoController;
 		}
 
@@ -1372,8 +1371,8 @@ public class DocumentFrame extends NamedFrame implements
 			project.removeObjectListener(this);
 			project.removeScheduleListener(coord);
 		}
-		if (getUndoController() != null &&  getUndoController().getEditSupport() != null)
-			getUndoController().getEditSupport().removeUndoableEditListener(this);
+		if (getUndoController() != null)
+			getUndoController().removeUndoStateListener(this);
 		if (coord != null)
 			coord.removeTimeScaleListener(mainView);
     	forAllViews(new Consumer<Object>() { public void accept(Object v) {
@@ -1381,12 +1380,26 @@ public class DocumentFrame extends NamedFrame implements
 					((BaseView)v).cleanUp();
 			}});
     	resetViews();
-    	if (jobQueue != null)
-    		jobQueue.cancel();
-    	jobQueue =null;
+		if (jobQueue != null)
+			jobQueue.cancel();
+		jobQueue =null;
+		closeOwnedReferenceCaches();
 		project = null;
 		coord = null;
 		resetViews();
+	}
+
+	private void closeOwnedReferenceCaches() {
+		if (project == null)
+			return;
+		Object taskCache = project.getTaskCache();
+		Object resourceCache = project.getResourceCache();
+		if (taskCache instanceof ReferenceNodeModelCache reference)
+			reference.close();
+		if (resourceCache instanceof ReferenceNodeModelCache reference && resourceCache != taskCache)
+			reference.close();
+		project.setTaskCache(null);
+		project.setResourceCache(null);
 	}
 
 	void resetViews() {

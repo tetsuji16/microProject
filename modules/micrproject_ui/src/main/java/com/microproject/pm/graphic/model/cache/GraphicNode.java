@@ -24,9 +24,6 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.model.cache;
 
-import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
-import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -52,9 +49,12 @@ import com.microproject.util.GanttProgress;
  *
  */
 public class GraphicNode implements HierarchicObject{
+	@Override
+	public List getChildren() {
+		return java.util.Collections.emptyList();
+	}
 	protected Node node;
 	protected int level;
-	protected int pertLevel;
 	protected boolean voidNode;
 	protected boolean composite;
 	protected boolean summary;
@@ -71,7 +71,6 @@ public class GraphicNode implements HierarchicObject{
 		setNode(node);
 		this.level = level;
 		dirty=false;
-		pertLevel=-1;
 		setScheduleCaching(false);
 	}
 
@@ -89,12 +88,6 @@ public class GraphicNode implements HierarchicObject{
 		dirty=true;
 	}
 
-    public int getPertLevel() {
-        return pertLevel;
-    }
-    void setPertLevel(int pertLevel) {
-        this.pertLevel = pertLevel;
-    }
 	/**
 	 * @return Returns the node.
 	 */
@@ -367,72 +360,6 @@ public class GraphicNode implements HierarchicObject{
 
 
 
-	protected double ganttShapeOffset=0,ganttShapeHeight=GraphicConfiguration.getInstance().getGanttBarHeight();;
-	public double getGanttShapeHeight() {
-		return ganttShapeHeight;
-	}
-	public void setGanttShapeHeight(double ganttShapeHeight) {
-		this.ganttShapeHeight = ganttShapeHeight;
-	}
-	public double getGanttShapeOffset() {
-		return ganttShapeOffset;
-	}
-	public void setGanttShapeOffset(double ganttShapeOffset) {
-		this.ganttShapeOffset = ganttShapeOffset;
-	}
-
-
-	protected int row; //tmp value for performance reasons
-	public int getRow() {
-		return row;
-	}
-	public void setRow(int row) {
-		this.row = row;
-	}
-	protected GeneralPath pertShape=null;
-	protected GeneralPath xbsShape=null;
-	protected Point2D pertCenter=null;
-	protected Point2D xbsCenter=null;
-	public GeneralPath getPertShape() {
-		return pertShape;
-	}
-	public void setPertShape(GeneralPath pertShape,double centerX, double centerY) {
-		this.pertShape = pertShape;
-		if (pertCenter==null)
-			pertCenter=new Point2D.Double();
-		pertCenter.setLocation(centerX,centerY);
-	}
-	public GeneralPath getXbsShape() {
-		return xbsShape;
-	}
-	public void setXbsShape(GeneralPath xbsShape,double centerX, double centerY) {
-		this.xbsShape = xbsShape;
-		setXbsCenter(centerX,centerY);
-	}
-	private void setXbsCenter(double centerX, double centerY) {
-		if (xbsCenter==null)
-			xbsCenter=new Point2D.Double();
-		xbsCenter.setLocation(centerX,centerY);
-	}
-	public Point2D getPertCenter() {
-		return pertCenter;
-	}
-	public Point2D getXbsCenter() {
-		return xbsCenter;
-	}
-	public void translatePertShape(double dx,double dy){
-		AffineTransform t=AffineTransform.getTranslateInstance(dx,dy);
-		getPertShape().transform(t);
-		Point2D point=getPertCenter();
-		point.setLocation(point.getX()+dx,point.getY()+dy);
-	}
-	public void translateXbsShape(double dx,double dy){
-		AffineTransform t=AffineTransform.getTranslateInstance(dx,dy);
-		getXbsShape().transform(t);
-		Point2D point=getXbsCenter();
-		point.setLocation(point.getX()+dx,point.getY()+dy);
-	}
-
 	public long getCompleted(){
 		if (!(getNode().getImpl() instanceof Schedule)) return 0;
 		long completedT=ScheduleService.getInstance().getCompleted((Schedule)getNode().getImpl());
@@ -461,18 +388,5 @@ public class GraphicNode implements HierarchicObject{
 //		this.manualXbs = manualXbs;
 //	}
 
-
-	protected List tmpChildren=new ArrayList();
-	public List getChildren() {
-		return tmpChildren;
-	}
-	protected boolean tmpFiltered;
-	public boolean isFiltered() {
-		return tmpFiltered;
-	}
-
-	public void setFiltered(boolean filtered) {
-		this.tmpFiltered = filtered;
-	}
 
 }

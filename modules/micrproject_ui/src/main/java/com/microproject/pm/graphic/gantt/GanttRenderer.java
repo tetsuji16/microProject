@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Map;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -64,6 +65,10 @@ import com.microproject.pm.graphic.graph.LinkRouting;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
+import com.microproject.pm.graphic.model.cache.TaskProjectionSnapshot;
+import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
@@ -122,6 +127,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private transient CriticalChainService.Baseline ccpmBaseline;
 	private transient CriticalChainService.Analysis ccpmAnalysis;
 	private transient Set<Long> ccpmTaskIds = Set.of();
+	private transient Map<ProjectionRowKey, GanttBarGeometry> barGeometry = new java.util.HashMap<>();
+	private transient long barGeometryRevision = Long.MIN_VALUE;
+	private transient TaskProjectionSnapshot renderValues = TaskProjectionSnapshot.empty();
 
     protected GraphicConfiguration config;
     protected JComponent container;
@@ -259,6 +267,35 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private Color resolveProgressFillColor(GraphicNode node) {
 		Object impl = getNodeImpl(node);
 		return palette.getProgressFillColor(palette.getStatusColor(getSchedule(impl), impl));
+	}
+
+	GanttBarGeometry getBarGeometry(GraphicNode node) {
+		if (barGeometry == null)
+			barGeometry = new java.util.HashMap<>();
+		ProjectionRowKey key = projectionKey(node);
+		if (barGeometryRevision != geometryContextRevision())
+			return new GanttBarGeometry(0.0d, config.getGanttBarHeight());
+		return key == null ? new GanttBarGeometry(0.0d, config.getGanttBarHeight())
+				: barGeometry.getOrDefault(key, new GanttBarGeometry(0.0d, config.getGanttBarHeight()));
+	}
+	GanttBarGeometry getBarGeometry(ProjectionRowKey key) {
+		if (barGeometry == null || barGeometryRevision != geometryContextRevision() || key == null)
+			return new GanttBarGeometry(0.0d, config.getGanttBarHeight());
+		return barGeometry.getOrDefault(key, new GanttBarGeometry(0.0d, config.getGanttBarHeight()));
+	}
+
+	private void setBarGeometry(GraphicNode node, double offset, double height) {
+		if (barGeometry == null)
+			barGeometry = new java.util.HashMap<>();
+		ProjectionRowKey key = projectionKey(node);
+		if (key != null) barGeometry.put(key, new GanttBarGeometry(offset, height));
+	}
+
+	private ProjectionRowKey projectionKey(GraphicNode node) {
+		if (graphInfo == null || !(graphInfo.getCache() instanceof ViewNodeModelCache cache)) return null;
+		RevisionedProjectionIndex.Snapshot topology = cache.getInstalledProjectionSnapshot().topology();
+		int row = topology.rowOf(node);
+		return topology.keyAt(row);
 	}
 
 	private Color resolveAccentColor(GraphicNode node, BarFormat format, Color statusColor) {
@@ -541,7 +578,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			this.g2 = g2;
 			this.node = node;
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
-			yrow=node.getRow()*rowHeight;
+			yrow=projectionRow(node)*rowHeight;
 			setLayers(BarFormat.MIN_FOREGROUND_LAYER,BarFormat.MAX_FOREGROUND_LAYER);
 		}
 
@@ -664,11 +701,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 				if (g2==null&&format.isMain()){
 					if (format != null && "Bar.summary".equals(format.getId())) {
-						node.setGanttShapeOffset(summaryBounds.getY()-y+height/2);
-						node.setGanttShapeHeight(Math.max(height, summaryBounds.getHeight()));
+						setBarGeometry(node, summaryBounds.getY()-y+height/2, Math.max(height, summaryBounds.getHeight()));
 					} else if (GanttBarSupport.shouldUseModernCapsuleBar(format)) {
-						node.setGanttShapeOffset(0.0d);
-						node.setGanttShapeHeight(barBounds.getHeight());
+						setBarGeometry(node, 0.0d, barBounds.getHeight());
 					} else {
 						Shape shape=format.getMiddle().toGeneralPath(
 								width,
@@ -677,8 +712,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 								y,
 								null);
 						Rectangle2D bounds=shape.getBounds2D();
-						node.setGanttShapeOffset(bounds.getY()-y+height/2);
-						node.setGanttShapeHeight(bounds.getHeight());
+						setBarGeometry(node, bounds.getY()-y+height/2, bounds.getHeight());
 					}
 				}else if (g2 != null){
 					double progressRatio = intervalProgressRatio;
@@ -735,7 +769,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			this.node = node;
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
 			config=((GanttParams)graphInfo).getConfiguration();
-			yrow=node.getRow()*rowHeight;
+			yrow=projectionRow(node)*rowHeight;
 			annotationFont = TaskFontStyle.resolveFont(getNodeImpl(node), FlatUiSupport.uiFont().deriveFont(Font.PLAIN));
 			fontMetrics = g2.getFontMetrics(annotationFont);
 			renderedAnnotationKeys = new HashSet<String>();
@@ -848,7 +882,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			this.node = node;
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
 			config=((GanttParams)graphInfo).getConfiguration();
-			yrow=(node.getRow()+1)*rowHeight -1; // draws under each row
+			yrow=(projectionRow(node)+1)*rowHeight -1; // draws under each row
 
 		}
 
@@ -902,14 +936,15 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				double x1=toSign<0?tx0:tx1;
 				int rowHeight=((GanttParams)graphInfo).getRowHeight();
 				int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
-				int y0=rowHeight*from.getRow();
-				int y1=rowHeight*to.getRow();
+				int y0=rowHeight*projectionRow(from);
+				int y1=rowHeight*projectionRow(to);
 				double y2=Math.max(y0,y1);
 				y0+=yOffset;
 				y1+=yOffset;
 
-				GeneralPath path=dependency.getPath();
-				((GanttLinkRouting)routing).routePath(path,x0,y0,x1,y1,y2,y1+to.getGanttShapeHeight()/2,y1-to.getGanttShapeHeight()/2,type);
+				GeneralPath path=getDependencyPath(dependency);
+				double targetHeight = getBarGeometry(to).height();
+				((GanttLinkRouting)routing).routePath(path,x0,y0,x1,y1,y2,y1+targetHeight/2,y1-targetHeight/2,type);
 
 
 
@@ -955,6 +990,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 
     public void updateShapes(ListIterator nodeIterator){
+		beginGeometryPass();
+		barGeometry.clear();
+		barGeometryRevision=geometryContextRevision();
 
     	Rectangle bounds = ((GanttParams)graphInfo).getGanttBounds();
     	CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
@@ -968,12 +1006,35 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		@SuppressWarnings("unchecked")
 		ListIterator<GraphicNode> i=((GanttParams)graphInfo).getCache().getIterator(i0);
 		while (i.hasNext()&&i.nextIndex()<i1){
-			int row=i.nextIndex();
 			node=i.next();
-			node.setRow(row);
 			if (!node.isVoid()) updateShape(node);
 		}
     }
+
+	private int projectionRow(GraphicNode node) {
+		NodeModelCache cache = graphInfo == null ? null : graphInfo.getCache();
+		return cache == null ? -1 : cache.getRowAt(node);
+	}
+
+	@Override
+	protected long geometryContextRevision() {
+		long revision = super.geometryContextRevision();
+		if (!(graphInfo instanceof GanttParams params)) return revision;
+		CoordinatesConverter coord = params.getCoord();
+		if (coord != null) {
+			revision = mix(revision, coord.getOrigin());
+			revision = mix(revision, coord.getEnd());
+		}
+		Rectangle bounds = params.getGanttBounds();
+		if (bounds != null) {
+			revision = mix(revision, bounds.width);
+			revision = mix(revision, bounds.height);
+		}
+		revision = mix(revision, params.getRowHeight());
+		revision = mix(revision, config == null ? 0L : config.getGanttBarHeight());
+		revision = mix(revision, System.identityHashCode(graphInfo.getBarStyles()));
+		return revision;
+	}
 
     public void updateShape(GraphicNode node){
     	if (((GanttParams)graphInfo).getCoord()==null) return; //not initialized
@@ -1040,8 +1101,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	void paintSelectedRows(Graphics2D g2, Rectangle bounds) {
 		if (g2 == null || bounds == null || !(graphInfo instanceof Gantt gantt))
 			return;
-		Set<Integer> rows = gantt.getHighlightedRows();
-		if (rows == null || rows.isEmpty())
+		Set<ProjectionRowKey> keys = gantt.getHighlightedRowKeys();
+		if (keys == null || keys.isEmpty())
 			return;
 		int rowHeight = ((GanttParams) graphInfo).getRowHeight();
 		if (rowHeight <= 0)
@@ -1049,7 +1110,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		Color oldColor = g2.getColor();
 		try {
 			g2.setColor(FlatUiSupport.spreadsheetRangeSelectionBackground());
-			for (int row : rows) {
+			for (ProjectionRowKey key : keys) {
+				int row = gantt.getProjectionRow(key);
 				if (row < 0)
 					continue;
 				int y = row * rowHeight;
@@ -1098,13 +1160,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			return;
 		int size = PROGRESS_LINE_POINT_SIZE;
 		int half = size / 2;
-		for (Iterator<GraphicNode> i=nodeList.iterator(); i.hasNext();) {
-			GraphicNode node = i.next();
-			if (!shouldIncludeInProgressLine(node))
+		for (TaskProjectionSnapshot.Row row : renderValues.rows()) {
+			if (!shouldIncludeInProgressLine(row))
 				continue;
-			Task task = (Task)node.getNode().getImpl();
-			int x = (int)Math.round(getProgressLineX(coord, task));
-			int y = (int)Math.round(getProgressLineY(node));
+			int x = (int)Math.round(getProgressLineX(coord, row));
+			int y = (int)Math.round(getProgressLineY(row));
 			g2.setColor(getProgressLineHaloColor());
 			g2.fillOval(x - half - 1, y - half - 1, size + 2, size + 2);
 			g2.setColor(getProgressLineColor());
@@ -1120,17 +1180,15 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		GeneralPath path = null;
 		double referenceX = Double.NaN;
 		double lastY = Double.NaN;
-		for (Iterator<GraphicNode> i=nodeList.iterator(); i.hasNext();) {
-			GraphicNode node = i.next();
-			if (!shouldIncludeInProgressLine(node))
+		for (TaskProjectionSnapshot.Row row : renderValues.rows()) {
+			if (!shouldIncludeInProgressLine(row))
 				continue;
 
-			Task task = (Task)node.getNode().getImpl();
-			double progressX = getProgressLineX(coord, task);
-			double y = getProgressLineY(node);
+			double progressX = getProgressLineX(coord, row);
+			double y = getProgressLineY(row);
 			if (path == null) {
 				path = new GeneralPath();
-				referenceX = coord.toX(getProgressReferenceDate(task));
+				referenceX = coord.toX(renderValues.projectStatusDate());
 				path.moveTo((float)referenceX, (float)(y - ((GanttParams)graphInfo).getRowHeight() / 2.0d));
 			}
 			path.lineTo((float)progressX, (float)y);
@@ -1141,40 +1199,31 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return path;
 	}
 
-	private boolean shouldIncludeInProgressLine(GraphicNode node) {
-		if (node == null || !node.isSchedule() || node.isAssignment() || node.getNode() == null)
-			return false;
-
-		Object impl = node.getNode().getImpl();
-		if (!(impl instanceof Task))
-			return false;
-
-		Task task = (Task)impl;
-		if (node.isSummary() && !node.isCollapsed())
-			return false;
-		if (task.isMilestone() || task.isExternal() || task.isSubproject())
-			return false;
-
-		long start = task.getStart();
-		long end = task.getEnd();
-		return start != 0L && end > start;
+	private boolean shouldIncludeInProgressLine(TaskProjectionSnapshot.Row row) {
+		return row != null && row.schedule() && !row.assignment() && !row.voidRow()
+				&& (!row.summary() || row.collapsed()) && !row.milestone() && !row.external()
+				&& !row.subproject() && row.start() != 0L && row.end() > row.start();
 	}
 
-	private double getProgressLineX(CoordinatesConverter coord, Task task) {
-		long today = getProgressReferenceDate(task);
-		long progressDate = GanttProgress.progressLineDate(task, today);
+	private double getProgressLineX(CoordinatesConverter coord, TaskProjectionSnapshot.Row row) {
+		long referenceDate = renderValues.projectStatusDate();
+		double progress = Math.max(0.0d, Math.min(1.0d, row.percentComplete()));
+		long progressDate;
+		if (referenceDate != 0L && progress >= 1.0d && row.end() <= referenceDate)
+			progressDate = referenceDate;
+		else if (referenceDate != 0L && progress <= 0.0d && row.start() >= referenceDate)
+			progressDate = referenceDate;
+		else if (row.completed() <= 0L)
+			progressDate = row.start();
+		else
+			progressDate = Math.max(row.start(), Math.min(row.end(), row.completed()));
 		return coord.toX(progressDate);
 	}
 
-	static long getProgressReferenceDate(Task task) {
-		Project project = task.getProject();
-		return project == null ? 0L : project.getStatusDate();
-	}
-
-	private double getProgressLineY(GraphicNode node) {
+	private double getProgressLineY(TaskProjectionSnapshot.Row row) {
 		int rowHeight=((GanttParams)graphInfo).getRowHeight();
 		int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
-		return rowHeight*node.getRow()+yOffset;
+		return rowHeight*renderValues.rowOf(row.key())+yOffset;
 	}
 
 	protected BarFormat calendarFormat;
@@ -1312,25 +1361,34 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		nodeList.clear();
 
 		GraphicNode node;
-//		for (ListIterator i=graph.getModel().getNodeIterator(i0);i.hasNext()&&i.nextIndex()<=i1;){
-//			node=(GraphicNode)i.next();
-//			if (!node.isSchedule()) continue;
-//			nodeList.add(node);
-//			node.setRow(i.previousIndex());
-//			paintNode(g2,node,true);
-//		} //Because row not initialized for some nodes
 
 		NodeModelCache cache=graphInfo.getCache();
-		@SuppressWarnings("unchecked")
-		ListIterator<GraphicNode> i=cache.getIterator(i0);
-		for (;i.hasNext()&&i.nextIndex()<i1;){
-			int row=i.nextIndex();
-			node=i.next();
-			node.setRow(row);
-			if (!node.isSchedule()) continue;
-			nodeList.add(node);
-			paintNode(g2,node,true);
-			paintHorizontalLine(g2,node);
+		if (cache instanceof ViewNodeModelCache viewCache) {
+			ViewNodeModelCache.InstalledProjectionSnapshot installed = viewCache.getInstalledProjectionSnapshot();
+			renderValues = installed.values();
+			List<RevisionedProjectionIndex.Row> rows = installed.topology().rows();
+			int from = Math.max(0, i0);
+			int to = Math.min(i1, rows.size());
+			for (int rowIndex = from; rowIndex < to; rowIndex++) {
+				RevisionedProjectionIndex.Row projected = rows.get(rowIndex);
+				TaskProjectionSnapshot.Row value = renderValues.rowAt(rowIndex);
+				if (value == null || !projected.key().equals(value.key()) || !value.schedule()) continue;
+				node = projected.node();
+				nodeList.add(node);
+				paintNode(g2,node,true);
+				paintHorizontalLine(g2,node);
+			}
+		} else {
+			renderValues = TaskProjectionSnapshot.empty();
+			@SuppressWarnings("unchecked")
+			ListIterator<GraphicNode> i=cache.getIterator(i0);
+			for (;i.hasNext()&&i.nextIndex()<i1;){
+				node=i.next();
+				if (!node.isSchedule()) continue;
+				nodeList.add(node);
+				paintNode(g2,node,true);
+				paintHorizontalLine(g2,node);
+			}
 		}
 
 		GraphicDependency dependency;

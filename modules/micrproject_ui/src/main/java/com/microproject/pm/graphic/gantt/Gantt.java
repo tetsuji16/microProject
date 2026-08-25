@@ -50,7 +50,8 @@ import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.graphic.link_routing.DefaultGanttLinkRouting;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
-import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
 import com.microproject.pm.graphic.graph.Graph;
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.graph.GraphUI;
@@ -67,6 +68,7 @@ import com.microproject.timescale.TimeScaleEvent;
 import com.microproject.timescale.TimeScaleListener;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttColorPalette;
+import com.microproject.application.task.TaskCommandGateway;
 
 /**
  *
@@ -90,9 +92,10 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private boolean gridLinesVisible = DEFAULT_GRID_LINES_VISIBLE;
 	private String annotationFieldId;
 	private String formatViewName = GanttBarFormatOverrides.STANDARD_VIEW;
-	/** Rows whose full calendar width is highlighted because they are selected in the task table. */
-	private Set<Integer> highlightedRows = Collections.emptySet();
+	/** Stable identities whose full calendar row is highlighted in this projection. */
+	private Set<ProjectionRowKey> highlightedRowKeys = Collections.emptySet();
 	private Consumer<BarClick> barSelectionListener;
+	private transient TaskCommandGateway taskCommandGateway;
 
 	/**
 	 * A click on the Gantt chart that drives task selection, mirroring
@@ -100,7 +103,13 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	 * toggles it in the selection, Shift+click extends the selection, and a
 	 * click on empty chart space (node == null) clears the selection.
 	 */
-	public record BarClick(GraphicNode node, boolean toggle, boolean extend) {
+	public record BarClick(ProjectionRowKey rowKey, long domainRevision, long topologyRevision,
+			boolean toggle, boolean extend) {
+	}
+	public void setTaskCommandGateway(TaskCommandGateway gateway) { taskCommandGateway = gateway; }
+	public TaskCommandGateway getTaskCommandGateway() {
+		if (taskCommandGateway == null) taskCommandGateway = new TaskCommandGateway(getProject());
+		return taskCommandGateway;
 	}
 	public Gantt(Project project,String viewName) {
 		this(new GanttModel(project,viewName),project);
@@ -144,22 +153,34 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		return ANNOTATION_FIELD_HIDDEN.equals(annotationFieldId);
 	}
 
-	/**
-	 * Rows whose complete calendar width should be highlighted in the chart,
-	 * mirroring the selection made in the task table on the left. Row indexes
-	 * refer to the shared node cache that backs both the table and the chart.
-	 */
-	public void setHighlightedRows(Set<Integer> rows) {
-		Set<Integer> copy = (rows == null || rows.isEmpty()) ? Collections.emptySet() : new HashSet<>(rows);
-		if (copy.equals(highlightedRows)) {
+	public void setHighlightedRowKeys(Set<ProjectionRowKey> keys) {
+		Set<ProjectionRowKey> copy = (keys == null || keys.isEmpty()) ? Collections.emptySet() : new HashSet<>(keys);
+		if (copy.equals(highlightedRowKeys)) {
 			return;
 		}
-		highlightedRows = copy;
+		highlightedRowKeys = copy;
 		repaint();
 	}
 
-	public Set<Integer> getHighlightedRows() {
-		return highlightedRows;
+	public Set<ProjectionRowKey> getHighlightedRowKeys() {
+		return highlightedRowKeys;
+	}
+
+	public ProjectionRowKey getProjectionRowKey(int row) {
+		return getCache() instanceof ViewNodeModelCache viewCache ? viewCache.getRowKeyAt(row) : null;
+	}
+
+	public ProjectionRowKey getProjectionRowKey(GraphicNode node) {
+		int row = getProjectionRow(node);
+		return row < 0 ? null : getProjectionRowKey(row);
+	}
+
+	public int getProjectionRow(ProjectionRowKey key) {
+		return getCache() instanceof ViewNodeModelCache viewCache ? viewCache.getRowAt(key) : -1;
+	}
+
+	public int getProjectionRow(GraphicNode node) {
+		return getCache() == null ? -1 : getCache().getRowAt(node);
 	}
 
 	/**
@@ -322,9 +343,6 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 			project.getUndoController().getEditSupport().postEdit(
 					new BarFormatEdit(this, task.getUniqueId(), formatViewName, previous, normalized));
 		}
-		GraphicManager manager = GraphicManager.getInstance(this);
-		if (manager != null && manager.getCurrentFrame() != null)
-			manager.getCurrentFrame().refreshUndoButtons();
 	}
 
 	private void setBarFormat(Task task, BarFormat format) {

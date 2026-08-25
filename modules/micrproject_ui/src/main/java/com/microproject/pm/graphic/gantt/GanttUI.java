@@ -27,6 +27,8 @@ package com.microproject.pm.graphic.gantt;
 import com.microproject.pm.graphic.graph.GraphUI;
 import com.microproject.pm.graphic.graph.GraphZone;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
+import com.microproject.pm.graphic.model.cache.TaskProjectionSnapshot;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 
 /**
@@ -61,16 +63,27 @@ public class GanttUI extends GraphUI{
     public GraphZone getNodeAt(double x,double y){
 		double rowHeight=((Gantt)graph).getRowHeight();
 		int row=(int)Math.floor(y/rowHeight);
-		if (row<0||row>=graph.getModel().getCache().getSize()) return null;
-		GraphicNode node=(GraphicNode)graph.getModel().getCache().getElementAt(row);
-		double y0=getBarY(row)+node.getGanttShapeOffset();//row*rowHeight+config.getGanttBarYOffset();
-		double h=node.getGanttShapeHeight();
+		if (!(graph.getModel().getCache() instanceof ViewNodeModelCache cache)) return null;
+		ViewNodeModelCache.InstalledProjectionSnapshot installed = cache.getInstalledProjectionSnapshot();
+		if (row<0||row>=installed.topology().rows().size()) return null;
+		TaskProjectionSnapshot.Row value = installed.values().rowAt(row);
+		var projected = installed.topology().rows().get(row);
+		if (value == null || !value.key().equals(projected.key()) || !value.schedule()) return null;
+		GraphicNode node=projected.node();
+		GanttBarGeometry geometry = getGanttRenderer().getBarGeometry(value.key());
+		double y0=getBarY(row)+geometry.offset();//row*rowHeight+config.getGanttBarYOffset();
+		double h=geometry.height();
 		double delta=config.getSelectionSquare();
 		if (y<y0/*-delta*/||y>y0/*+delta*/+h) return null;
 		CoordinatesConverter coord=getCoord();
 		double t=coord.toTime(x);
 		double deltat=coord.toDuration(delta);
-		if  (node.contains(t,deltat,deltat,coord)==null) return null;
+		boolean contains = false;
+		java.util.List<TaskProjectionSnapshot.Interval> intervals = value.intervals().isEmpty()
+				? java.util.List.of(new TaskProjectionSnapshot.Interval(value.start(), value.end())) : value.intervals();
+		for (TaskProjectionSnapshot.Interval interval : intervals)
+			if (t >= interval.start() - deltat && t <= interval.end() + deltat) { contains = true; break; }
+		if (!contains) return null;
 		double progessH=config.getGanttProgressBarHeight();
 		GraphZone zone=new GraphZone();
 		zone.setObject(node);
@@ -86,4 +99,3 @@ public class GanttUI extends GraphUI{
 		return ((GanttParams)graphRenderer.getGraphInfo()).getCoord();
 	}
 }
-
