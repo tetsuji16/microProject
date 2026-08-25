@@ -80,6 +80,7 @@ public interface NodeModelCache extends TreeModel{
 	//public boolean isSummary(GraphicNode node);
 	
 	public void changeCollapsedState(GraphicNode node);
+	public boolean isCollapsed(GraphicNode node);
 	public void expandNodes(List nodes, boolean expand);
 	
 	public void newNode(GraphicNode node);
@@ -135,4 +136,3 @@ public interface NodeModelCache extends TreeModel{
     public void setReceiveEvents(boolean receiveEvents);
 	
 }
-

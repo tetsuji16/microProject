@@ -27,6 +27,7 @@ package com.microproject.grouping.core.transform;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Iterator;
+import java.util.HashMap;
 
 import org.apache.commons.collections.Transformer;
 
@@ -182,8 +183,20 @@ public abstract class CommonTransformFactory extends CommonTransform{
 	            sub.add(((CommonTransformFactory)i.next()).getTransform());
 	        t.setSubTransforms(sub);
 	    }
-	    t.setParameters(getParameters());
-	    t.setParametersMap(getParametersMap());
+	    if (parameters != null) {
+	        ArrayList<TransformParameter> parameterCopies = new ArrayList<>(parameters.size());
+	        HashMap<String, Object> valueCopies = new HashMap<>();
+	        for (TransformParameter parameter : parameters) {
+	            TransformParameter copy = new TransformParameter();
+	            copy.setId(parameter.getId());
+	            copy.setValue(parameter.getValue());
+	            parameterCopies.add(copy);
+	            if (copy.getId() != null && copy.getValue() != null)
+	                valueCopies.put(copy.getId(), copy.getValue());
+	        }
+	        t.setParameters(parameterCopies);
+	        t.setParametersMap(valueCopies);
+	    }
 	}
 	
 	

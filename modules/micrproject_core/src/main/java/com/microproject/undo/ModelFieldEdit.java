@@ -80,19 +80,27 @@ public class ModelFieldEdit extends AbstractUndoableEdit{
 		
 	}
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		try {
 			model.setFieldValue(field,node,source,value,context,NodeModel.EVENT);
 		} catch (FieldParseException e) {
 			logger.log(Level.WARNING, "Failed to redo model field edit", e);
+			CannotRedoException failure = new CannotRedoException();
+			failure.initCause(e);
+			throw failure;
 		}
+		super.redo();
 	}
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		try {
 			model.setFieldValue(field,node,source,oldValue,context,NodeModel.EVENT);
 		} catch (FieldParseException e) {
 			logger.log(Level.WARNING, "Failed to undo model field edit", e);
+			CannotUndoException failure = new CannotUndoException();
+			failure.initCause(e);
+			throw failure;
 		}
+		super.undo();
 	}
 }

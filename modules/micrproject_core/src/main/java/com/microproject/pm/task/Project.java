@@ -138,6 +138,7 @@ import com.microproject.server.data.DistributionData;
 import com.microproject.session.FileHelper;
 import com.microproject.strings.Messages;
 import com.microproject.transaction.MultipleTransactionManager;
+import com.microproject.transaction.DomainChangeJournal;
 import com.microproject.undo.ClearSnapshotEdit;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.SaveSnapshotEdit;
@@ -163,6 +164,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient boolean initialized = false;
 	private transient ScheduleEventManager scheduleEventManager = new ScheduleEventManager();
 	private transient MultipleTransactionManager multipleTransactionManager = new MultipleTransactionManager();
+	private transient DomainChangeJournal domainChangeJournal = new DomainChangeJournal();
 	private transient ObjectEventManager objectEventManager = new ObjectEventManager();
 	private transient ObjectSelectionEventManager objectSelectionEventManager = new ObjectSelectionEventManager();
 
@@ -201,8 +203,6 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	private transient NodeModel taskModel = null;
 	private transient NodeModel resourceModel = null;
-	private transient Object taskCache = null;
-	private transient Object resourceCache = null;
 	private transient List<Task> repaired = null;
 	private transient Date creationDate,lastModificationDate;
 	private transient IdentityFacade identityFacade = new IdentityFacade();
@@ -256,22 +256,6 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return resourceModel;
 	}
 
-
-	public Object getResourceCache() {
-		return resourceCache;
-	}
-
-	public void setResourceCache(Object resourceCache) {
-		this.resourceCache = resourceCache;
-	}
-
-	public Object getTaskCache() {
-		return taskCache;
-	}
-
-	public void setTaskCache(Object taskCache) {
-		this.taskCache = taskCache;
-	}
 
 	private Project(boolean local) {
 		super();
@@ -1358,6 +1342,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		objectSelectionEventManager = new ObjectSelectionEventManager();
 		scheduleEventManager = new ScheduleEventManager();
 		multipleTransactionManager = new MultipleTransactionManager();
+		domainChangeJournal = new DomainChangeJournal();
 		projectListenerList=new EventListenerList();
 	    taskOutlines=new OutlineCollectionImpl(Settings.numHierarchies(),this);
 	    barClosureInstance = new BarClosure();
@@ -1958,6 +1943,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public final void setExtraFields(Map extraFields) {
 		this.extraFields = extraFields;
+	}
+
+	public DomainChangeJournal getDomainChangeJournal() {
+		if (domainChangeJournal == null)
+			domainChangeJournal = new DomainChangeJournal();
+		return domainChangeJournal;
 	}
 
 	public final Map<String, String> getCustomReportPresets() {

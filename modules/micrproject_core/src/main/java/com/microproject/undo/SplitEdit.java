@@ -71,12 +71,14 @@ public class SplitEdit extends AbstractUndoableEdit{
 		return s;
 	}
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		ScheduleService.getInstance().split(this, schedule, from, to, null);
+		super.redo();
 		//schedule.moveInterval(this,interval.getStart(),interval.getEnd(),oldInterval,isChild);
 	}
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		schedule.restoreDetail(this,detailBackup,false);
+		super.undo();
 	}
 }

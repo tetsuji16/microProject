@@ -48,6 +48,7 @@ import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.task.TaskSpecificFields;
 import com.microproject.strings.Messages;
+import com.microproject.util.GanttProgress;
 
 class GanttRendererProgressTest {
 	@Test
@@ -87,17 +88,17 @@ class GanttRendererProgressTest {
 
 	@Test
 	void progressRatioUsesSchedulePercentForSummaryOverlay() {
-		assertEquals(0.44d, GanttRenderer.progressRatioForSchedule(schedule(0.44d)), 0.00001d);
+		assertEquals(0.44d, GanttBarSupport.progressRatioForSchedule(schedule(0.44d)), 0.00001d);
 	}
 
 	@Test
 	void progressRatioUsesPercentCompleteForTasks() {
-		assertEquals(0.44d, GanttRenderer.progressRatioForObject(taskSpecificSchedule(0.44d, 0.10d)), 0.00001d);
+		assertEquals(0.44d, GanttProgress.ratioForObject(taskSpecificSchedule(0.44d, 0.10d)), 0.00001d);
 	}
 
 	@Test
 	void progressRatioUsesPercentCompleteForSummaryTasks() {
-		assertEquals(0.44d, GanttRenderer.progressRatioForObject(summaryTaskSchedule(0.44d, 0.10d)), 0.00001d);
+		assertEquals(0.44d, GanttProgress.ratioForObject(summaryTaskSchedule(0.44d, 0.10d)), 0.00001d);
 	}
 
 	@Test
@@ -110,18 +111,18 @@ class GanttRendererProgressTest {
 
 	@Test
 	void progressRatioClampsOutOfRangeValues() {
-		assertEquals(0.0d, GanttRenderer.progressRatioForSchedule(schedule(-0.20d)), 0.00001d);
-		assertEquals(1.0d, GanttRenderer.progressRatioForSchedule(schedule(1.50d)), 0.00001d);
+		assertEquals(0.0d, GanttBarSupport.progressRatioForSchedule(schedule(-0.20d)), 0.00001d);
+		assertEquals(1.0d, GanttBarSupport.progressRatioForSchedule(schedule(1.50d)), 0.00001d);
 	}
 
 	@Test
 	void progressRatioFallsBackToZeroWhenScheduleIsMissing() {
-		assertEquals(0.0d, GanttRenderer.progressRatioForSchedule(null), 0.00001d);
+		assertEquals(0.0d, GanttBarSupport.progressRatioForSchedule(null), 0.00001d);
 	}
 
 	@Test
 	void mergeIntervalsForDisplayReturnsSingleEnvelopeBar() {
-		ScheduleInterval merged = GanttRenderer.mergeIntervalsForDisplay(List.of(
+		ScheduleInterval merged = GanttBarSupport.mergeIntervalsForDisplay(List.of(
 				new ScheduleInterval(30L, 50L),
 				new ScheduleInterval(10L, 20L),
 				new ScheduleInterval(70L, 90L)));
@@ -131,13 +132,13 @@ class GanttRendererProgressTest {
 
 	@Test
 	void mergeIntervalsForDisplayReturnsNullWhenEmpty() {
-		assertNull(GanttRenderer.mergeIntervalsForDisplay(List.of()));
+		assertNull(GanttBarSupport.mergeIntervalsForDisplay(List.of()));
 	}
 
 	@Test
 	void splitTaskKeepsItsSectionsInsteadOfUsingThePlannedEnvelope() {
 		BarFormat task = barFormat("Bar.task");
-		List<ScheduleInterval> intervals = GanttRenderer.displayIntervals(task, List.of(
+		List<ScheduleInterval> intervals = GanttBarSupport.displayIntervals(task, List.of(
 				new ScheduleInterval(10L, 30L),
 				new ScheduleInterval(50L, 90L)), new ScheduleInterval(10L, 90L));
 
@@ -149,7 +150,7 @@ class GanttRendererProgressTest {
 	@Test
 	void unsplitTaskUsesItsFullPlannedEnvelope() {
 		BarFormat task = barFormat("Bar.task");
-		List<ScheduleInterval> intervals = GanttRenderer.displayIntervals(task,
+		List<ScheduleInterval> intervals = GanttBarSupport.displayIntervals(task,
 				List.of(new ScheduleInterval(12L, 88L)), new ScheduleInterval(10L, 90L));
 
 		assertEquals(1, intervals.size());
@@ -159,7 +160,7 @@ class GanttRendererProgressTest {
 	@Test
 	void splitSummaryStillUsesOneRollupEnvelope() {
 		BarFormat summary = barFormat("Bar.summary");
-		List<ScheduleInterval> intervals = GanttRenderer.displayIntervals(summary, List.of(
+		List<ScheduleInterval> intervals = GanttBarSupport.displayIntervals(summary, List.of(
 				new ScheduleInterval(10L, 30L),
 				new ScheduleInterval(50L, 90L)), new ScheduleInterval(10L, 90L));
 
@@ -169,7 +170,7 @@ class GanttRendererProgressTest {
 
 	@Test
 	void splitTaskGapsBecomeConnectorRanges() {
-		List<ScheduleInterval> gaps = GanttRenderer.splitGaps(List.of(
+		List<ScheduleInterval> gaps = GanttBarSupport.splitGaps(List.of(
 				new ScheduleInterval(10L, 30L),
 				new ScheduleInterval(50L, 90L),
 				new ScheduleInterval(100L, 120L)));
@@ -181,7 +182,7 @@ class GanttRendererProgressTest {
 
 	@Test
 	void splitTaskProgressIsAllocatedAcrossSectionsInWorkOrder() {
-		List<Double> ratios = GanttRenderer.progressRatiosForIntervals(List.of(
+		List<Double> ratios = GanttBarSupport.progressRatiosForIntervals(List.of(
 				new ScheduleInterval(10L, 30L),
 				new ScheduleInterval(50L, 90L)), 0.5d);
 
@@ -191,12 +192,12 @@ class GanttRendererProgressTest {
 
 	@Test
 	void progressOverlayBoundsOmitOverlayForZeroProgress() {
-		assertNull(GanttRenderer.progressOverlayBounds(10.0d, 20.0d, 100.0d, 8.0d, 0.0d));
+		assertNull(GanttBarSupport.progressOverlayBounds(10.0d, 20.0d, 100.0d, 8.0d, 0.0d));
 	}
 
 	@Test
 	void progressOverlayBoundsScaleMiddleProgressProportionally() {
-		Rectangle2D bounds = GanttRenderer.progressOverlayBounds(10.0d, 20.0d, 100.0d, 8.0d, 0.44d);
+		Rectangle2D bounds = GanttBarSupport.progressOverlayBounds(10.0d, 20.0d, 100.0d, 8.0d, 0.44d);
 		assertEquals(10.0d, bounds.getX(), 0.00001d);
 		assertEquals(44.0d, bounds.getWidth(), 0.00001d);
 		assertEquals(8.0d, bounds.getHeight(), 0.00001d);
@@ -204,7 +205,7 @@ class GanttRendererProgressTest {
 
 	@Test
 	void progressOverlayBoundsCoverFullWidthForCompleteProgress() {
-		Rectangle2D bounds = GanttRenderer.progressOverlayBounds(10.0d, 20.0d, 100.0d, 8.0d, 1.0d);
+		Rectangle2D bounds = GanttBarSupport.progressOverlayBounds(10.0d, 20.0d, 100.0d, 8.0d, 1.0d);
 		assertEquals(100.0d, bounds.getWidth(), 0.00001d);
 	}
 
@@ -224,13 +225,13 @@ class GanttRendererProgressTest {
 
 	@Test
 	void summaryProgressBoundsOmitOverlayForZeroProgress() {
-		Rectangle2D summaryBounds = GanttRenderer.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 12.0d);
-		assertNull(GanttRenderer.summaryProgressBounds(summaryBounds, 0.0d));
+		Rectangle2D summaryBounds = GanttBarSupport.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 12.0d);
+		assertNull(GanttBarSupport.summaryProgressBounds(summaryBounds, 0.0d));
 	}
 
 	@Test
 	void summaryBandUsesSlightlyReducedHeight() {
-		Rectangle2D summaryBounds = GanttRenderer.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 11.0d);
+		Rectangle2D summaryBounds = GanttBarSupport.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 11.0d);
 		assertEquals(100.0d, summaryBounds.getWidth(), 0.00001d);
 		assertEquals(5.5d, summaryBounds.getHeight(), 0.00001d);
 		assertEquals(17.25d, summaryBounds.getY(), 0.00001d);
@@ -238,8 +239,8 @@ class GanttRendererProgressTest {
 
 	@Test
 	void summaryProgressBoundsScaleMiddleProgressProportionally() {
-		Rectangle2D summaryBounds = GanttRenderer.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 12.0d);
-		Rectangle2D progressBounds = GanttRenderer.summaryProgressBounds(summaryBounds, 0.44d);
+		Rectangle2D summaryBounds = GanttBarSupport.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 12.0d);
+		Rectangle2D progressBounds = GanttBarSupport.summaryProgressBounds(summaryBounds, 0.44d);
 		assertEquals(summaryBounds.getX(), progressBounds.getX(), 0.00001d);
 		assertEquals(summaryBounds.getY(), progressBounds.getY(), 0.00001d);
 		assertEquals(44.0d, progressBounds.getWidth(), 0.00001d);
@@ -248,8 +249,8 @@ class GanttRendererProgressTest {
 
 	@Test
 	void summaryProgressBoundsCoverFullWidthForCompleteProgress() {
-		Rectangle2D summaryBounds = GanttRenderer.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 12.0d);
-		Rectangle2D progressBounds = GanttRenderer.summaryProgressBounds(summaryBounds, 1.0d);
+		Rectangle2D summaryBounds = GanttBarSupport.createSummaryBandBounds(10.0d, 20.0d, 100.0d, 12.0d);
+		Rectangle2D progressBounds = GanttBarSupport.summaryProgressBounds(summaryBounds, 1.0d);
 		assertEquals(summaryBounds.getWidth(), progressBounds.getWidth(), 0.00001d);
 	}
 

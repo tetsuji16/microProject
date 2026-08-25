@@ -268,7 +268,7 @@ public class NameCellComponent extends JPanel {
 		component.setLazy(node.isLazyParent());
 		component.setFetched(node.isFetched());
 		if (model.getCellProperties(node).isCompositeIcon()) {
-			component.setCollapsed(node.isCollapsed());
+			component.setCollapsed(model.getCache().isCollapsed(node));
 		} else {
 			component.setLeaf(node.isVoid());
 		}
@@ -291,7 +291,7 @@ public class NameCellComponent extends JPanel {
 		component.setLazy(node.isLazyParent());
 		component.setFetched(node.isFetched());
 		if (format.isCompositeIcon()) {
-			component.setCollapsed(node.isCollapsed());
+			component.setCollapsed(params.getCache().isCollapsed(node));
 		} else {
 			component.setLeaf(node.isVoid());
 		}

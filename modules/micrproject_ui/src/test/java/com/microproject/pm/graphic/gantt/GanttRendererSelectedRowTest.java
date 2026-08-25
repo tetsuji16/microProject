@@ -33,11 +33,14 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.FlatUiSupport;
@@ -51,9 +54,9 @@ class GanttRendererSelectedRowTest {
 
 	@Test
 	void highlightedRowsSpanTheFullChartWidth() {
-		Gantt gantt = newGantt();
+		TestProjectionGantt gantt = newGantt();
 		try {
-			gantt.setHighlightedRows(Set.of(1, 3));
+			gantt.setHighlightedRowKeys(Set.of(gantt.keyAt(1), gantt.keyAt(3)));
 			BufferedImage image = render(gantt);
 
 			Color highlight = FlatUiSupport.spreadsheetRangeSelectionBackground();
@@ -72,10 +75,10 @@ class GanttRendererSelectedRowTest {
 
 	@Test
 	void clearingHighlightedRowsRemovesTheBand() {
-		Gantt gantt = newGantt();
+		TestProjectionGantt gantt = newGantt();
 		try {
-			gantt.setHighlightedRows(Set.of(1));
-			gantt.setHighlightedRows(Collections.emptySet());
+			gantt.setHighlightedRowKeys(Set.of(gantt.keyAt(1)));
+			gantt.setHighlightedRowKeys(Collections.emptySet());
 			BufferedImage image = render(gantt);
 
 			Color highlight = FlatUiSupport.spreadsheetRangeSelectionBackground();
@@ -87,28 +90,71 @@ class GanttRendererSelectedRowTest {
 
 	@Test
 	void highlightedRowsStateStoresAndNormalizesItsInput() {
-		Gantt gantt = newGantt();
+		TestProjectionGantt gantt = newGantt();
 		try {
-			gantt.setHighlightedRows(null);
-			assertTrue(gantt.getHighlightedRows().isEmpty(), "null should clear highlighted rows");
+			gantt.setHighlightedRowKeys(null);
+			assertTrue(gantt.getHighlightedRowKeys().isEmpty(), "null should clear highlighted rows");
 
-			gantt.setHighlightedRows(Set.of(5, 7));
-			Set<Integer> rows = gantt.getHighlightedRows();
-			assertEquals(2, rows.size());
-			assertTrue(rows.contains(5));
-			assertTrue(rows.contains(7));
+			ProjectionRowKey key5 = gantt.keyAt(5);
+			ProjectionRowKey key7 = gantt.keyAt(7);
+			gantt.setHighlightedRowKeys(Set.of(key5, key7));
+			Set<ProjectionRowKey> keys = gantt.getHighlightedRowKeys();
+			assertEquals(2, keys.size());
+			assertTrue(keys.contains(key5));
+			assertTrue(keys.contains(key7));
 		} finally {
 			gantt.cleanUp();
 		}
 	}
 
-	private static Gantt newGantt() {
+	private static TestProjectionGantt newGantt() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("selected-row-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
-		Gantt gantt = new Gantt(project, "Gantt");
+		TestProjectionGantt gantt = new TestProjectionGantt(project);
 		gantt.setRowHeight(ROW_HEIGHT);
 		return gantt;
+	}
+
+	@Test
+	void identitySelectionFollowsProjectionReorder() {
+		TestProjectionGantt gantt = newGantt();
+		try {
+			ProjectionRowKey selected = gantt.keyAt(1);
+			gantt.setHighlightedRowKeys(Set.of(selected));
+			gantt.move(selected, 3);
+
+			BufferedImage image = render(gantt);
+			Color highlight = FlatUiSupport.spreadsheetRangeSelectionBackground();
+			assertNotEquals(highlight.getRGB(), image.getRGB(5, ROW_HEIGHT + ROW_HEIGHT / 2));
+			assertEquals(highlight.getRGB(), image.getRGB(5, ROW_HEIGHT * 3 + ROW_HEIGHT / 2));
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	private static final class TestProjectionGantt extends Gantt {
+		private static final long serialVersionUID = 1L;
+		private final Map<ProjectionRowKey, Integer> rows = new HashMap<>();
+
+		private TestProjectionGantt(Project project) {
+			super(project, "Gantt");
+		}
+
+		private ProjectionRowKey keyAt(int row) {
+			ProjectionRowKey key = new ProjectionRowKey(ProjectionRowKey.Kind.TASK, null, 0L, row + 1L);
+			rows.put(key, Integer.valueOf(row));
+			return key;
+		}
+
+		private void move(ProjectionRowKey key, int row) {
+			rows.put(key, Integer.valueOf(row));
+		}
+
+		@Override
+		public int getProjectionRow(ProjectionRowKey key) {
+			return rows.getOrDefault(key, Integer.valueOf(-1)).intValue();
+		}
 	}
 
 	private static BufferedImage render(Gantt gantt) {

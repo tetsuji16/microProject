@@ -2,6 +2,8 @@ package com.microproject.grouping.core.transform.filtering;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -15,6 +17,7 @@ import com.microproject.field.Field;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**
@@ -75,6 +78,33 @@ class ColumnValueFilterTest {
 		assertEquals(1, calls.get());
 		filter.setAcceptedValues(List.of("Beta"), false, false);
 		assertEquals(1, calls.get(), "needCallback=false must not fire");
+	}
+
+	@Test
+	void sessionCopyDoesNotShareMutableAcceptedValues() throws Exception {
+		Field name = field("Field.name");
+		ColumnValueFilter original = new ColumnValueFilter(name);
+		original.setAcceptedValues(List.of("Alpha"), false, false);
+		ViewTransformer configured = new ViewTransformer();
+		configured.setHiddenFilter(original);
+
+		ColumnValueFilter first = (ColumnValueFilter)configured.copyForSession().getHiddenFilter();
+		ColumnValueFilter second = (ColumnValueFilter)configured.copyForSession().getHiddenFilter();
+		assertNotSame(first, second);
+		first.setAcceptedValues(List.of("Beta"), false, false);
+
+		assertTrue(second.matchesImpl(task("Alpha")));
+		assertFalse(second.matchesImpl(task("Beta")));
+	}
+
+	@Test
+	void sessionCopyRejectsUnknownMutableTransformInsteadOfSharingIt() {
+		ViewTransformer configured = new ViewTransformer();
+		configured.setHiddenFilter(new NodeFilter() {
+			@Override public boolean evaluate(Object value) { return true; }
+		});
+
+		assertThrows(IllegalStateException.class, configured::copyForSession);
 	}
 
 	private static Field field(String id) {

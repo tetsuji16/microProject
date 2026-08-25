@@ -45,7 +45,13 @@ public class NodeGrouper extends CommonTransformFactory{
 	
 	public CommonTransform getTransform() throws InvalidFormulaException{
 	    if (groups.size()==0) return null;
-		return this;
+		NodeGrouper copy = new NodeGrouper();
+		copy.type = type;
+		for (Object group : groups) {
+			copy.groups.add(group instanceof NodeGroup nodeGroup ? nodeGroup.copyForSession() : group);
+		}
+		setProperties(copy);
+		return copy;
 	}
 	
     public String getType() {

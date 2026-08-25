@@ -61,7 +61,8 @@ public class FieldChangeListener implements ItemListener,ChangeListener {
 		Object source = evt.getSource();
 		Boolean value = (evt.getStateChange() == ItemEvent.SELECTED) ? Boolean.TRUE : Boolean.FALSE;
 		try {
-			field.setValue(objectRef,source,value,context);
+			if (!(objectRef instanceof FieldComponentMap map) || !map.write(field, source, value, context, false))
+				field.setValue(objectRef,source,value,context);
 		} catch (FieldParseException e) {
 			Alert.error(e.getMessage());
 			((JComponent)source).requestFocus();
@@ -73,7 +74,9 @@ public class FieldChangeListener implements ItemListener,ChangeListener {
 		if (e.getSource() instanceof LookupField) {
 			LookupField f = (LookupField)e.getSource();
 			try {
-				field.setText(objectRef,f.getValue(),context);
+				if (!(objectRef instanceof FieldComponentMap map)
+						|| !map.write(field, f, f.getValue(), context, true))
+					field.setText(objectRef,f.getValue(),context);
 			} catch (FieldParseException e1) {
 				logger.log(Level.WARNING, "Failed to update field from lookup value", e1);
 			}
@@ -81,4 +84,3 @@ public class FieldChangeListener implements ItemListener,ChangeListener {
 	}
 
 }
-

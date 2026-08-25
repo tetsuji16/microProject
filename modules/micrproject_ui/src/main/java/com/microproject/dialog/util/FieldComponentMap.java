@@ -37,6 +37,8 @@ import com.microproject.dialog.FieldDialog;
 import com.microproject.help.HelpUtil;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
+import com.microproject.field.FieldContext;
+import com.microproject.field.FieldParseException;
 import com.microproject.field.ObjectRef;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -54,6 +56,13 @@ public class FieldComponentMap implements ObjectRef {
 	private Map<String, JComponent> map = new HashMap<>();
 	private FieldDialog fieldDialog;
 	private NodeModelDataFactory dataFactory;
+	private FieldWriter fieldWriter;
+
+	@FunctionalInterface
+	public interface FieldWriter {
+		void write(Field field, FieldComponentMap target, Object source, Object value,
+				FieldContext context, boolean text) throws FieldParseException;
+	}
 
 	public FieldComponentMap(Object object) {
 		this.object = object;
@@ -187,5 +196,12 @@ public class FieldComponentMap implements ObjectRef {
 	public NodeModelDataFactory getDataFactory(){
 		return dataFactory;
 	}
-}
 
+	public void setFieldWriter(FieldWriter fieldWriter) { this.fieldWriter = fieldWriter; }
+	boolean write(Field field, Object source, Object value, FieldContext context, boolean text)
+			throws FieldParseException {
+		if (fieldWriter == null) return false;
+		fieldWriter.write(field, this, source, value, context, text);
+		return true;
+	}
+}

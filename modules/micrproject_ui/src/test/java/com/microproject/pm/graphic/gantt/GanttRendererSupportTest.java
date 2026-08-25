@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.gantt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.awt.Color;
@@ -41,6 +42,33 @@ import com.microproject.util.MicrosoftProjectGanttPalette;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GanttRendererSupportTest {
+	@Test
+	void staleInstalledDomainRevisionRejectsHitTesting() {
+		assertTrue(GanttUI.domainRevisionMatches(7L, 7L));
+		assertFalse(GanttUI.domainRevisionMatches(7L, 8L));
+	}
+
+	@Test
+	void gestureRequiresSameDomainTopologyAndRenderRevisions() {
+		assertTrue(GanttInteractor.gestureRevisionsMatch(7L, 3L, 5L, 7L, 3L, 5L));
+		assertFalse(GanttInteractor.gestureRevisionsMatch(7L, 3L, 5L, 8L, 3L, 5L));
+		assertFalse(GanttInteractor.gestureRevisionsMatch(7L, 3L, 5L, 7L, 4L, 5L));
+		assertFalse(GanttInteractor.gestureRevisionsMatch(7L, 3L, 5L, 7L, 3L, 6L));
+	}
+
+	@Test
+	void horizontalGridCaptureDoesNotConfuseCalendarStyles() {
+		com.microproject.graphic.configuration.BarStyles styles = new com.microproject.graphic.configuration.BarStyles();
+		com.microproject.graphic.configuration.BarStyle calendar = new com.microproject.graphic.configuration.BarStyle();
+		calendar.setCalendar(true);
+		styles.getRows().add(calendar);
+		assertFalse(GanttProjectionCapture.hasHorizontalLine(styles, new Object()));
+
+		com.microproject.graphic.configuration.BarStyle horizontal = new com.microproject.graphic.configuration.BarStyle();
+		horizontal.setHorizontalGrid(true);
+		styles.getRows().add(horizontal);
+		assertTrue(GanttProjectionCapture.hasHorizontalLine(styles, new Object()));
+	}
 	@Test
 	void annotationLayoutPrefersRightSideWhenSpaceExists() {
 		GanttRendererSupport.AnnotationLayout layout = GanttRendererSupport.resolveAnnotationLayout(

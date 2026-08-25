@@ -24,12 +24,16 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.model.cache;
 
+import java.util.ArrayList;
 import java.util.EventListener;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 import javax.swing.event.EventListenerList;
 
 import com.microproject.pm.graphic.model.event.CacheListener;
+import com.microproject.pm.graphic.model.event.CacheEvent;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.model.transform.CacheTransformer;
 
@@ -38,6 +42,9 @@ import com.microproject.pm.graphic.model.transform.CacheTransformer;
  */
 public class VisibleNodes extends VisibleElements {
     protected VisibleDependencies visibleDependencies;
+	private Consumer<Runnable> listenerDispatcher = Runnable::run;
+	private final Map<Object, Boolean> collapsed = new java.util.HashMap<>();
+	private final ProjectionRowKeyResolver collapseKeys = new ProjectionRowKeyResolver();
     /**
      * @param transformer
      */
@@ -69,20 +76,60 @@ public class VisibleNodes extends VisibleElements {
 	public CacheListener[] getNodeModelListeners() {
 		return (CacheListener[]) listenerList.getListeners(CacheListener.class);
 	}
+	void setListenerDispatcher(Consumer<Runnable> dispatcher) {
+		listenerDispatcher = dispatcher == null ? Runnable::run : dispatcher;
+	}
+	boolean isCollapsed(GraphicNode node) {
+		return node != null && collapsed.computeIfAbsent(collapseKey(node), ignored -> node.isCollapsed()).booleanValue();
+	}
+	void setCollapsed(GraphicNode node, boolean value) {
+		if (node != null) collapsed.put(collapseKey(node), Boolean.valueOf(value));
+	}
+	private Object collapseKey(GraphicNode node) {
+		if (node.isGroup() && getTransformer() instanceof com.microproject.pm.graphic.model.transform.NodeCacheTransformer transformer) {
+			String identity = transformer.getSyntheticGroupIdentity(node);
+			if (identity != null) return "GROUP:" + identity;
+		}
+		return collapseKeys.resolve(node);
+	}
+	void clearViewState() { collapsed.clear(); }
+
 	 protected void fireGraphicNodesCompositeEvent(Object source, List nodeEvents, List edgeEvents) {
 			//System.out.println("fireGraphicNodesCompositeEvent: \n\t"+nodeEvents+"\n\t"+edgeEvents/*+", source="+source*/);
-			Object[] listeners = listenerList.getListenerList();
-			CompositeCacheEvent e = null;
-			for (int i = listeners.length - 2; i >= 0; i -= 2) {
-				if (listeners[i] == CacheListener.class) {
-					if (e == null) {
-						e = new CompositeCacheEvent(source,
-								nodeEvents,edgeEvents);
-					}
-					((CacheListener) listeners[i + 1]).graphicNodesCompositeEvent(e);
-				}
+			List nodeSnapshot = copyEvents(nodeEvents);
+			List edgeSnapshot = copyEvents(edgeEvents);
+			listenerDispatcher.accept(() -> notifyListeners(source, nodeSnapshot, edgeSnapshot));
+		}
+
+	private static List copyEvents(List events) {
+		if (events == null) return null;
+		// Legacy caches clear/reuse their event lists immediately after dispatch.
+		// ArrayList.toArray uses one bulk copy and does not expose a fail-fast
+		// iterator to that concurrent clear.
+		Object[] eventValues = events.toArray();
+		List<CacheEvent> snapshot = new ArrayList<>(eventValues.length);
+		for (Object value : eventValues) {
+			if (!(value instanceof CacheEvent event)) continue;
+			List nodes = event.getNodes() == null ? null
+					: new ArrayList(java.util.Arrays.asList(event.getNodes().toArray()));
+			List intervals = new ArrayList();
+			event.forIntervals(intervals::add);
+			snapshot.add(new CacheEvent(event.getSource(), event.getType(), nodes, intervals));
+		}
+		return List.copyOf(snapshot);
+	}
+
+	private void notifyListeners(Object source, List nodeEvents, List edgeEvents) {
+		Object[] listeners = listenerList.getListenerList();
+		CompositeCacheEvent e = null;
+		for (int i = listeners.length - 2; i >= 0; i -= 2) {
+			if (listeners[i] == CacheListener.class) {
+				if (e == null)
+					e = new CompositeCacheEvent(source, nodeEvents, edgeEvents);
+				((CacheListener) listeners[i + 1]).graphicNodesCompositeEvent(e);
 			}
 		}
+	}
 
 
 
@@ -96,4 +143,3 @@ public class VisibleNodes extends VisibleElements {
     }
 
 }
-

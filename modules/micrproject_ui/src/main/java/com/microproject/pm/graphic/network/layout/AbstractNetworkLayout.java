@@ -26,12 +26,18 @@ package com.microproject.pm.graphic.network.layout;
 
 import java.awt.Rectangle;
 import java.util.EventListener;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Point2D;
+import java.awt.geom.AffineTransform;
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 import javax.swing.event.EventListenerList;
 
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.network.NetworkParams;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.document.ObjectEvent;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.scheduling.ScheduleEvent;
@@ -44,6 +50,8 @@ public abstract class AbstractNetworkLayout implements NetworkLayout {
 	protected BarStyles barStyles;
 	protected Rectangle bounds;
 	protected NetworkParams network;
+	private final Map<GraphicNode, ViewShape> shapes = new IdentityHashMap<>();
+	private record ViewShape(GeneralPath path, Point2D center) { }
 	public AbstractNetworkLayout(NetworkParams network){
 		this.network=network;
 		addNetworkLayoutListener(network);
@@ -68,6 +76,17 @@ public abstract class AbstractNetworkLayout implements NetworkLayout {
 	}
 	protected boolean isEmpty(){
 		return bounds.isEmpty();
+	}
+	public GeneralPath getShape(GraphicNode node) { ViewShape value = shapes.get(node); return value == null ? null : value.path(); }
+	public Point2D getCenter(GraphicNode node) { ViewShape value = shapes.get(node); return value == null ? null : value.center(); }
+	protected void setShape(GraphicNode node, GeneralPath path, double centerX, double centerY) {
+		shapes.put(node, new ViewShape(path, new Point2D.Double(centerX, centerY)));
+	}
+	public void translateShape(GraphicNode node, double dx, double dy) {
+		ViewShape value = shapes.get(node);
+		if (value == null) return;
+		value.path().transform(AffineTransform.getTranslateInstance(dx, dy));
+		value.center().setLocation(value.center().getX() + dx, value.center().getY() + dy);
 	}
 	
 	public void scheduleChanged(ScheduleEvent evt) {
@@ -108,4 +127,3 @@ public abstract class AbstractNetworkLayout implements NetworkLayout {
 
 	
 }
-

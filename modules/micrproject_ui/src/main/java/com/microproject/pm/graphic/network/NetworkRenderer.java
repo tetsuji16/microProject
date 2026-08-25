@@ -128,7 +128,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			    if (fromCenter == null)
 			    	return;
 			    
-				GeneralPath path=dependency.getPath();
+				GeneralPath path=getDependencyPath(dependency);
 				NetworkLinkRouting routing=(NetworkLinkRouting)getRouting();
 				if (vertical) routing.routePath(path,fromCenter.getX(),fromPoints[3],toCenter.getX(),toPoints[2],(fromPoints[3]+toPoints[2])/2,dependency.getType());
 				else routing.routePath(path,fromPoints[1],fromCenter.getY(),toPoints[0],toCenter.getY(),(fromPoints[1]+toPoints[0])/2,dependency.getType());

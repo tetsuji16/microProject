@@ -73,7 +73,8 @@ class TaskInformationComboboxContentTest {
 
 		final JComponent[] panelHolder = new JComponent[1];
 		SwingUtilities.invokeAndWait(() -> {
-			TaskInformationDialog dlg = TaskInformationDialog.getInstance(null, task, false);
+			TaskInformationDialog dlg = TaskInformationDialog.getInstance(null, task, false,
+					new com.microproject.application.task.TaskCommandGateway(task.getOwningProject()));
 			panelHolder[0] = dlg.createContentPanel(); // must not throw
 		});
 

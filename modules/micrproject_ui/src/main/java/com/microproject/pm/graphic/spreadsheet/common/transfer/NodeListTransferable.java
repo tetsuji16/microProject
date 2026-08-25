@@ -43,6 +43,7 @@ import org.apache.commons.collections.CollectionUtils;
 
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
@@ -277,6 +278,8 @@ public class NodeListTransferable implements Transferable {
 				return PASTE_FAILED;
 			}
 			fieldContext.setParseOnly(false);
+			Boolean atomic = applyTaskClipboardValuesAtomically(model, values, rows, cols);
+			if (atomic != null) return atomic.booleanValue() ? PASTE_APPLIED : PASTE_FAILED;
 			UndoController undoController = model.getCache().getModel().getUndoController();
 			if (undoController != null)
 				undoController.beginUpdate();
@@ -324,6 +327,26 @@ public class NodeListTransferable implements Transferable {
 		return false;
 	}
 
+	private static Boolean applyTaskClipboardValuesAtomically(CommonSpreadSheetModel model, String[][] values,
+			int[] rows, int[] cols) {
+		if (!(model instanceof SpreadSheetModel taskModel)) return null;
+		List<SpreadSheetModel.PasteCell> cells = new ArrayList<>();
+		if (values.length==1&&values[0].length==1) {
+			for (int row : rows) for (int col : cols)
+				cells.add(new SpreadSheetModel.PasteCell(values[0][0], row, col + 1));
+		} else if (values.length==1&&values[0].length==cols.length) {
+			for (int row : rows) for (int j=0;j<cols.length;j++)
+				cells.add(new SpreadSheetModel.PasteCell(values[0][j], row, cols[j] + 1));
+		} else if (values[0].length==1&&values.length==rows.length) {
+			for (int i=0;i<rows.length;i++) for (int col : cols)
+				cells.add(new SpreadSheetModel.PasteCell(values[i][0], rows[i], col + 1));
+		} else if (values.length==rows.length&&values[0].length==cols.length) {
+			for (int i=0;i<rows.length;i++) for (int j=0;j<cols.length;j++)
+				cells.add(new SpreadSheetModel.PasteCell(values[i][j], rows[i], cols[j] + 1));
+		} else return Boolean.FALSE;
+		return taskModel.pasteTaskCellsAtomically(cells);
+	}
+
 	private static String[][] parseClipboardTable(String s){
 		if (s==null)
 			return new String[0][0];
@@ -363,6 +386,8 @@ public class NodeListTransferable implements Transferable {
 				return false;
 			}
 			fieldContext.setParseOnly(false);
+			Boolean atomic = applyTaskClipboardValuesAtomically(model, values, row0, col0);
+			if (atomic != null) return atomic.booleanValue();
 			UndoController undoController = model.getCache().getModel().getUndoController();
 			if (undoController != null)
 				undoController.beginUpdate();
@@ -389,6 +414,16 @@ public class NodeListTransferable implements Transferable {
 			}
 		}
 		return ok;
+	}
+
+	private static Boolean applyTaskClipboardValuesAtomically(CommonSpreadSheetModel model, String[][] values,
+			int row0, int col0) {
+		if (!(model instanceof SpreadSheetModel taskModel)) return null;
+		List<SpreadSheetModel.PasteCell> cells = new ArrayList<>();
+		for (int i=0;i<values.length;i++)
+			for (int j=0;j<values[i].length;j++)
+				cells.add(new SpreadSheetModel.PasteCell(values[i][j], row0 + i, col0 + j + 1));
+		return taskModel.pasteTaskCellsAtomically(cells);
 	}
 
 	

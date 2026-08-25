@@ -452,8 +452,10 @@ class SpreadSheetMouseInteractionTest {
 		NormalTask firstTask = createTask(project, "First task");
 		NormalTask secondTask = createTask(project, "Second task");
 
+		var reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		reference.setTaskCommandGateway(new com.microproject.application.task.TaskCommandGateway(project));
 		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
-			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+			reference,
 			"mouse-test",
 			null);
 		RecordingSpreadSheet sheet = new RecordingSpreadSheet();

@@ -57,13 +57,15 @@ public class TaskConstraintEdit extends AbstractUndoableEdit {
 	}
 
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		task.setScheduleConstraintAndUpdate(newConstraintType, newConstraintDate);
+		super.redo();
 	}
 
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		task.setScheduleConstraintAndUpdate(oldConstraintType, oldConstraintDate);
+		super.undo();
 	}
 
 	public Object getSource() {

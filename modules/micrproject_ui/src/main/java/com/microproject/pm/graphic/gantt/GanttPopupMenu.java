@@ -49,8 +49,7 @@ import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.graph.GraphPopupMenu;
 import com.microproject.graphic.configuration.BarStyle;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
-import com.microproject.grouping.core.transform.TransformList;
-import com.microproject.grouping.core.transform.filtering.BaseFilter;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
 import com.microproject.strings.Messages;
 import com.microproject.pm.task.Task;
 
@@ -78,28 +77,29 @@ public class GanttPopupMenu extends GraphPopupMenu{
     		setSelected(style.isActive());
     		addActionListener(this);
     	}
-    	public void actionPerformed(ActionEvent arg0) {
-    	    style.setActive(isSelected());
-    	    ((GraphModel)interactor.getGraph().getModel()).updateAll(true);
-    	}
+		public void actionPerformed(ActionEvent arg0) {
+			style.setActive(isSelected());
+			if (interactor.getGraph() instanceof Gantt gantt) {
+				gantt.refreshProjectionCapture();
+				gantt.repaint();
+			} else {
+				((GraphModel)interactor.getGraph().getModel()).updateAll(true);
+			}
+		}
     }
     
     private class AssignmentsMenuAction extends JRadioButtonMenuItem implements ActionListener {
 		private static final long serialVersionUID = 3480838269288912755L;
-		BaseFilter filter,filterOffline;
-    	
-    	AssignmentsMenuAction() {
-    		super(Messages.getString("Gantt.Popup.showAssignments"));
-    		filter=(BaseFilter)TransformList.getInstance("hidden_filters").getTransform("Filter.Gantt");
-    		filterOffline=(BaseFilter)TransformList.getInstance("hidden_filters").getTransform("Filter.OfflineGantt");
-    		setSelected(filter.isShowAssignments());
-    		addActionListener(this);
-    	}
-        public void actionPerformed(ActionEvent e) {
-            filter.setShowAssignments(isSelected());
-            filterOffline.setShowAssignments(isSelected());
-            ((GraphModel)interactor.getGraph().getModel()).getCache().update();
-        }
+		AssignmentsMenuAction() {
+			super(Messages.getString("Gantt.Popup.showAssignments"));
+			setSelected(interactor.getGraph().getCache() instanceof ViewNodeModelCache cache && cache.isShowAssignments());
+			addActionListener(this);
+		}
+		public void actionPerformed(ActionEvent e) {
+			if (interactor.getGraph().getCache() instanceof ViewNodeModelCache cache)
+				cache.setShowAssignments(isSelected());
+			if (interactor.getGraph() instanceof Gantt gantt) gantt.refreshProjectionCapture();
+		}
     }
 
     private class ProgressLineMenuAction extends JRadioButtonMenuItem implements ActionListener {

@@ -30,6 +30,8 @@ import java.awt.geom.Point2D;
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.network.NetworkRenderer;
+import com.microproject.pm.graphic.network.NetworkParams;
+import com.microproject.pm.graphic.network.layout.AbstractNetworkLayout;
 
 public class PertRenderer extends NetworkRenderer {
 	public PertRenderer(){
@@ -41,14 +43,14 @@ public class PertRenderer extends NetworkRenderer {
 		//setVertical(false);
 	}
 	protected GeneralPath getNonScaledShape(GraphicNode node){
-		return node.getPertShape();
+		return layout().getShape(node);
 	}
 	protected Point2D getNonScaledCenter(GraphicNode node){
-		return node.getPertCenter();
+		return layout().getCenter(node);
 	}
 	protected void translateNonScaledShape(GraphicNode node, double dx,double dy){
-		node.translatePertShape(dx,dy);
+		layout().translateShape(node,dx,dy);
 	}
+	private AbstractNetworkLayout layout() { return (AbstractNetworkLayout)((NetworkParams)graphInfo).getNetworkLayout(); }
 
 }
-

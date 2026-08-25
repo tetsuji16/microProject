@@ -71,8 +71,12 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentEntry;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyNodeModelDataFactory;
-import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.application.task.TaskCommandGateway;
+import com.microproject.application.task.TaskCommandResult;
+import com.microproject.application.task.TaskCommands.TaskDependencyCommand;
+import com.microproject.application.task.TaskCommands.TaskFieldEditCommand;
+import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.key.HasId;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
@@ -85,13 +89,16 @@ import com.microproject.util.FlatUiSupport;
  */
 public class TaskInformationDialog extends InformationDialog {
 	private static final long serialVersionUID = 1L;
+	private final transient TaskCommandGateway taskCommands;
 
-	public static TaskInformationDialog getInstance(Frame owner, Task task, boolean notes) {
-		return new TaskInformationDialog(owner, task, notes);
+	public static TaskInformationDialog getInstance(Frame owner, Task task, boolean notes,
+			TaskCommandGateway taskCommands) {
+		return new TaskInformationDialog(owner, task, notes, taskCommands);
 	}
 
-	private TaskInformationDialog(Frame owner, Task task, boolean notes) {
+	private TaskInformationDialog(Frame owner, Task task, boolean notes, TaskCommandGateway taskCommands) {
 		super(owner, Messages.getString("TaskInformationDialog.TaskInformation")); //$NON-NLS-1$
+		this.taskCommands = java.util.Objects.requireNonNull(taskCommands, "taskCommands");
 		setObjectClass(Task.class);
 		setObject(task);
 		addDocHelp("Task_Information_Dialog");
@@ -107,6 +114,28 @@ public class TaskInformationDialog extends InformationDialog {
 	private BarColorField barEndColor;
 	private BarColorEditorPanel barColorEditor;
 	private BarColorField fontColorField;
+
+	@Override protected FieldComponentMap createMap() {
+		FieldComponentMap map = super.createMap();
+		map.setFieldWriter(this::writeTaskField);
+		return map;
+	}
+
+	private void writeTaskField(Field field, FieldComponentMap target, Object source, Object value,
+			com.microproject.field.FieldContext context, boolean text) throws com.microproject.field.FieldParseException {
+		if (!(target.getObject() instanceof Task task))
+			throw new IllegalStateException("Task Information field target is not a task");
+		ProjectTaskKey key = ProjectTaskKey.from(task).orElseThrow(
+				() -> new IllegalStateException("Task has no command identity"));
+		Object expected = field.getValue(target, context);
+		Object proposed = text ? new TaskFieldEditCommand.Text(String.valueOf(value)) : value;
+		TaskCommandResult result = taskCommands.editField(new TaskFieldEditCommand(key, field.getId(), expected,
+				proposed, context));
+		if (result.status() == TaskCommandResult.Status.COMMITTED || result.status() == TaskCommandResult.Status.NO_OP)
+			return;
+		if (result.failure() instanceof com.microproject.field.FieldParseException parse) throw parse;
+		throw new IllegalStateException("Task field command rejected: " + result.status(), result.failure());
+	}
 
 	private Gantt getGantt() {
 		try {
@@ -537,19 +566,25 @@ public class TaskInformationDialog extends InformationDialog {
 		if (selected == null)
 			return;
 		try {
-			createDependency(task, selected, predecessors, this);
+			createDependency(task, selected, predecessors, taskCommands);
 			updateAll();
 		} catch (InvalidAssociationException e) {
 			Alert.warn(e.getMessage(), this);
 		}
 	}
 
-	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors, Object eventSource)
-			throws InvalidAssociationException {
-		return DependencyService.getInstance().newDependency(
-				predecessors ? selectedTask : task,
-				predecessors ? task : selectedTask,
-				DependencyType.Kind.FS.code(), 0, eventSource);
+	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors,
+			TaskCommandGateway gateway) throws InvalidAssociationException {
+		Task predecessor = predecessors ? selectedTask : task;
+		Task successor = predecessors ? task : selectedTask;
+		ProjectTaskKey predecessorKey = ProjectTaskKey.from(predecessor).orElse(null);
+		ProjectTaskKey successorKey = ProjectTaskKey.from(successor).orElse(null);
+		if (predecessorKey == null || successorKey == null)
+			throw new InvalidAssociationException("Dependency endpoints have no durable identity");
+		TaskCommandResult result = gateway.createDependency(new TaskDependencyCommand(predecessorKey, successorKey,
+				DependencyType.Kind.FS.code(), 0L, task.getOwningProject().getDomainChangeJournal().revision()));
+		if (!result.committed()) throw new InvalidAssociationException("Dependency command rejected: " + result.status(), result.failure());
+		return (Dependency) predecessor.getSuccessorList().findRight(successor);
 	}
 
 	private List<Task> getLinkableTasks(Task task, boolean predecessors) {

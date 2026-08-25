@@ -36,19 +36,23 @@ import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.undo.UndoableEditSupport;
 
+import com.microproject.application.task.TaskCommandGateway;
+import com.microproject.application.task.TaskCommandResult;
+import com.microproject.application.task.TaskCommands.TaskDependencyCommand;
+import com.microproject.application.task.TaskCommands.TaskScheduleDragCommand;
+import com.microproject.application.task.TaskCommands.TaskProgressCommand;
+import com.microproject.application.task.TaskCommands.TaskSplitCommand;
 import com.microproject.pm.graphic.graph.GraphInteractor;
 import com.microproject.pm.graphic.graph.GraphUI;
 import com.microproject.pm.graphic.graph.GraphZone;
-import com.microproject.pm.graphic.collaboration.CollaborationHelper;
-import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
+import com.microproject.pm.graphic.model.cache.TaskProjectionSnapshot;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
-import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.scheduling.IntervalConsumer;
-import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.pm.scheduling.ConstraintType;
@@ -56,6 +60,7 @@ import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
 import com.microproject.undo.TaskConstraintEdit;
 import com.microproject.util.Alert;
@@ -115,6 +120,13 @@ public class GanttInteractor extends GraphInteractor{
 	private Point panStartViewPosition;
 	private Point pendingPanScreenPoint;
 	private boolean panUpdateScheduled;
+	private long gestureDomainRevision = -1L;
+	private long gestureTopologyRevision = -1L;
+	private long gestureRenderRevision = -1L;
+	private GestureTaskDraft gestureTaskDraft;
+	private record GestureTaskDraft(ProjectTaskKey key, long expectedCompleted, long expectedTaskStart,
+			long expectedTaskEnd, int expectedConstraintType, long expectedConstraintDate,
+			int intervalNumber, long expectedIntervalStart, long expectedIntervalEnd) { }
 	/**
 	 *
 	 */
@@ -197,12 +209,13 @@ public class GanttInteractor extends GraphInteractor{
     private NodeSelectionIntervalConsumer nodeSelectionIntervalConsumer=new NodeSelectionIntervalConsumer();
 
     public void mousePressed(MouseEvent e) {
+		gestureTaskDraft = null;
     	if (isReadOnly()) {
 			// Read-only applies to bar editing, not to inspecting a task.  Keep
 			// Task Information available for imported/read-only projects.
 			if (SwingUtilities.isLeftMouseButton(e)) {
-				select(e.getX(), e.getY());
-				notifyBarSelection(e);
+		select(e.getX(), e.getY());
+		notifyBarSelection(e);
 				if (e.getClickCount() == 2)
 				openTaskInformationAt(e.getX(), e.getY());
 			}
@@ -216,12 +229,13 @@ public class GanttInteractor extends GraphInteractor{
     		super.mousePressed(e);
     		return;
     	}
-    	if (!SwingUtilities.isLeftMouseButton(e)) {
+		if (!SwingUtilities.isLeftMouseButton(e)) {
     		super.mousePressed(e);
     		return;
-    	}
-
+		}
     	select(e.getX(), e.getY());
+		captureGestureRevision();
+		captureGestureTaskDraft();
     	notifyBarSelection(e);
     	if (selected == null) {
     		startPan(e);
@@ -232,8 +246,15 @@ public class GanttInteractor extends GraphInteractor{
 		// can consume the following click notification.  Handle a double-click
 		// here, after hit-testing has selected the bar, rather than relying on
 		// mouseClicked() which is not reliably delivered for this component.
-		if (e.getClickCount() == 2) {
+	if (e.getClickCount() == 2 && !(selected instanceof GraphicDependency)) {
 			openTaskInformationAt(e.getX(), e.getY());
+			return;
+	}
+		// MS Project opens a task-dependency dialog on a double-click of the
+		// link line. A single click only selects the line; do not let the base
+		// interactor treat it as a direct action.
+		if (selected instanceof GraphicDependency && !opensDependencyProperties(e.getClickCount())) {
+			notifyMode();
 			return;
 		}
     	super.mousePressed(e);
@@ -252,12 +273,23 @@ public class GanttInteractor extends GraphInteractor{
     public void mouseReleased(MouseEvent e) {
     	if (panning) {
     		stopPan();
+			gestureTaskDraft = null;
     		notifyMode("StatusBar.Ready");
     		e.consume();
     		return;
     	}
-    	getGraph().requestFocusInWindow();
-    	super.mouseReleased(e);
+	getGraph().requestFocusInWindow();
+		if (selected instanceof GraphicDependency && !opensDependencyProperties(e.getClickCount())) {
+			state=NOTHING_SELECTED;
+			gestureTaskDraft = null;
+			notifyMode("StatusBar.Ready");
+			return;
+		}
+		try {
+			super.mouseReleased(e);
+		} finally {
+			gestureTaskDraft = null;
+		}
     	notifyMode("StatusBar.Ready");
     }
 
@@ -276,11 +308,13 @@ public class GanttInteractor extends GraphInteractor{
 		if (!(selected instanceof GraphicNode node)) {
 			return null;
 		}
-		return new GanttSelectionGeometrySupport(node, getCoord(), (GanttUI)ui, config, x0, x, state, selectedIntervalNumber, selectedInterval)
+		TaskProjectionSnapshot.Row value = projectionValue(node);
+		return new GanttSelectionGeometrySupport(value, projectionRow(node), ((GanttUI)ui).getGanttRenderer().getBarGeometry(value == null ? null : value.key()), getCoord(), (GanttUI)ui, config, x0, x, state, selectedIntervalNumber, selectedInterval)
 				.createBarShadowBounds();
     }
 	protected Rectangle2D getLinkSelectionShadowBounds(GraphicNode node){
-		return new GanttSelectionGeometrySupport(node, getCoord(), (GanttUI)ui, config, x0, x0, state, selectedIntervalNumber, selectedInterval)
+		TaskProjectionSnapshot.Row value = projectionValue(node);
+		return new GanttSelectionGeometrySupport(value, projectionRow(node), ((GanttUI)ui).getGanttRenderer().getBarGeometry(value == null ? null : value.key()), getCoord(), (GanttUI)ui, config, x0, x0, state, selectedIntervalNumber, selectedInterval)
 				.createLinkSelectionShadowBounds();
 	}
 
@@ -291,7 +325,8 @@ public class GanttInteractor extends GraphInteractor{
 
 	protected void setLinkOrigin(){
     	GraphicNode node=(GraphicNode)selected;
-		GanttSelectionGeometrySupport geometry = new GanttSelectionGeometrySupport(node, getCoord(), (GanttUI)ui, config, x0, x0, state, selectedIntervalNumber, selectedInterval);
+		TaskProjectionSnapshot.Row value = projectionValue(node);
+		GanttSelectionGeometrySupport geometry = new GanttSelectionGeometrySupport(value, projectionRow(node), ((GanttUI)ui).getGanttRenderer().getBarGeometry(value == null ? null : value.key()), getCoord(), (GanttUI)ui, config, x0, x0, state, selectedIntervalNumber, selectedInterval);
 		x0link = geometry.getLinkOriginX();
 		y0link = geometry.getLinkOriginY();
 
@@ -306,8 +341,20 @@ public class GanttInteractor extends GraphInteractor{
 		GraphicNode node=(GraphicNode)selected;
 		Object impl = node.getNode().getImpl();
 		return impl instanceof HasDependencies &&
-				((int)y)/((Gantt)getGraph()).getRowHeight()!=node.getRow() ;
+				((int)y)/((Gantt)getGraph()).getRowHeight()!=projectionRow(node) ;
     }
+
+	private TaskProjectionSnapshot.Row projectionValue(GraphicNode node) {
+		if (!(getGraph().getCache() instanceof ViewNodeModelCache cache) || node == null) return null;
+		ViewNodeModelCache.InstalledProjectionSnapshot installed = cache.getInstalledProjectionSnapshot();
+		int row = installed.topology().rowOf(node);
+		TaskProjectionSnapshot.Row value = installed.values().rowAt(row);
+		return row >= 0 && value != null && installed.topology().keyAt(row).equals(value.key()) ? value : null;
+	}
+
+	private int projectionRow(GraphicNode node) {
+		return getGraph() instanceof Gantt gantt ? gantt.getProjectionRow(node) : -1;
+	}
 
     public Cursor selectCursor(){
     	Cursor cursor=null;
@@ -331,14 +378,13 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     public boolean executeAction(double x,double y){
-		if (selected==null || !hasMeaningfulDrag(state == LINK_CREATION, x0, x)) return false;
-    	if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
-    		if (!(selected instanceof GraphicNode)) return false;
-    		sourceNode=(GraphicNode)selected;
-    		if (!CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "edit")) {
-    			return false;
-    		}
-    	}
+		if (selected==null || !canExecutePointerAction(state == LINK_CREATION, state == LINK_SELECTION, x0, x)) return false;
+		if (isMutatingGesture() && !isGestureRevisionCurrent())
+			return false;
+		if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
+			if (!(selected instanceof GraphicNode)) return false;
+			sourceNode=(GraphicNode)selected;
+		}
     	UndoableEditSupport undoSupport = getUndoableEditSupport();
 		boolean actionPerformed;
 		switch (state) {
@@ -354,19 +400,18 @@ public class GanttInteractor extends GraphInteractor{
 			actionPerformed = createDependencyLink();
 			break;
 		case LINK_SELECTION:
-			showDependencyPropertiesDialog((GraphicDependency)selected);
+			showDependencyPropertiesDialog((GraphicDependency)selected, gestureDomainRevision);
 			return true;
 		case SPLIT:
 			long t=(long)getCoord().toTime(x);
-			Schedule schedule = getSourceSchedule();
-			actionPerformed = ScheduleService.getInstance().split(this,schedule,t,t,undoSupport);
+			actionPerformed = applySplit(t);
 			break;
 		default:
 			return false;
 		}
 		// Every mutating Gantt gesture goes through this one gate.  This prevents
 		// new gesture types from silently omitting the root-pane Ctrl+Z refresh.
-		return refreshUndoState(actionPerformed);
+		return actionPerformed;
     }
 
 	static boolean hasMeaningfulDrag(boolean linkCreation, double startX, double endX) {
@@ -374,37 +419,90 @@ public class GanttInteractor extends GraphInteractor{
 		return linkCreation || endX != startX;
 	}
 
+	static boolean canExecutePointerAction(boolean linkCreation, boolean directAction, double startX, double endX) {
+		// A dependency line opens its properties dialog on a click. It is not a
+		// drag gesture, so it must not inherit the bar-drag distance guard.
+		return directAction || hasMeaningfulDrag(linkCreation, startX, endX);
+	}
+
+	static boolean opensDependencyProperties(int clickCount) {
+		return clickCount >= 2;
+	}
+
 	private boolean createDependencyLink() {
-		try {
-			if (sourceNode != null && !CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "link"))
-				return false;
-			if (destinationNode != null && !CollaborationHelper.tryLockObject(null, destinationNode.getNode(), getGraph(), "link"))
-				return false;
-			if (sourceNode == null || destinationNode == null
-					|| !(sourceNode.getNode().getImpl() instanceof HasDependencies)
-					|| !(destinationNode.getNode().getImpl() instanceof HasDependencies))
-				return false;
-			// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
-			DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),
-					(HasDependencies)destinationNode.getNode().getImpl(), DependencyType.FS, 0, this);
-			return true;
-		} catch (InvalidAssociationException e) {
-			Alert.error(e.getMessage());
+		if (sourceNode == null || destinationNode == null
+				|| !(sourceNode.getNode().getImpl() instanceof Task predecessor)
+				|| !(destinationNode.getNode().getImpl() instanceof Task successor))
 			return false;
-		}
+		ProjectTaskKey predecessorKey = ProjectTaskKey.from(predecessor).orElse(null);
+		ProjectTaskKey successorKey = ProjectTaskKey.from(successor).orElse(null);
+		if (predecessorKey == null || successorKey == null)
+			return false;
+		TaskCommandResult result = ((Gantt)getGraph()).getTaskCommandGateway().createDependency(
+				new TaskDependencyCommand(predecessorKey, successorKey, DependencyType.FS, 0L, gestureDomainRevision));
+		if (result.failure() != null && result.failure().getMessage() != null)
+			Alert.error(result.failure().getMessage());
+		return result.committed();
+	}
+
+	private void captureGestureRevision() {
+		gestureDomainRevision = -1L;
+		gestureTopologyRevision = -1L;
+		gestureRenderRevision = -1L;
+		Project project = getGraph().getProject();
+		if (project == null || !(getGraph().getCache() instanceof ViewNodeModelCache cache)) return;
+		TaskProjectionSnapshot values = cache.getInstalledProjectionSnapshot().values();
+		if (values.domainRevision() != project.getDomainChangeJournal().revision()) return;
+		gestureDomainRevision = values.domainRevision();
+		gestureTopologyRevision = values.topologyRevision();
+		gestureRenderRevision = values.renderRevision();
+	}
+
+	/** Captures every optimistic-lock value at press time, before a long drag begins. */
+	private void captureGestureTaskDraft() {
+		gestureTaskDraft = null;
+		if (!(selected instanceof GraphicNode node) || node.getNode() == null
+				|| !(node.getNode().getImpl() instanceof Task task))
+			return;
+		ProjectTaskKey key = ProjectTaskKey.from(task).orElse(null);
+		if (key == null)
+			return;
+		long intervalStart = selectedInterval == null ? task.getStart() : selectedInterval.getStart();
+		long intervalEnd = selectedInterval == null ? task.getEnd() : selectedInterval.getEnd();
+		gestureTaskDraft = new GestureTaskDraft(key, ScheduleService.getInstance().getCompleted(task),
+				task.getStart(), task.getEnd(), task.getConstraintType(), task.getConstraintDate(),
+				selectedIntervalNumber, intervalStart, intervalEnd);
+	}
+
+	private boolean isGestureRevisionCurrent() {
+		Project project = getGraph().getProject();
+		if (project == null || project.getDomainChangeJournal().revision() != gestureDomainRevision)
+			return false;
+		if (!(getGraph().getCache() instanceof ViewNodeModelCache cache)) return false;
+		TaskProjectionSnapshot values = cache.getInstalledProjectionSnapshot().values();
+		return gestureRevisionsMatch(gestureDomainRevision, gestureTopologyRevision, gestureRenderRevision,
+				values.domainRevision(), values.topologyRevision(), values.renderRevision());
+	}
+
+	static boolean gestureRevisionsMatch(long capturedDomain, long capturedTopology, long capturedRender,
+			long installedDomain, long installedTopology, long installedRender) {
+		return capturedDomain == installedDomain && capturedTopology == installedTopology
+				&& capturedRender == installedRender;
+	}
+
+	private boolean isMutatingGesture() {
+		return state == BAR_MOVE || state == BAR_MOVE_START || state == BAR_MOVE_END
+				|| state == PROGRESS_BAR_MOVE || state == SPLIT || state == LINK_CREATION
+				|| state == LINK_SELECTION;
 	}
 
     private boolean applyIntervalDrag(long dt, UndoableEditSupport undoSupport) {
-    	long start=selectedInterval.getStart();
-    	long end=selectedInterval.getEnd();
-		Schedule schedule = getSourceSchedule();
-		Task task = getSourceTask();
-		long originalScheduleStart = schedule.getStart();
-		long originalScheduleEnd = schedule.getEnd();
-		long originalTaskStart = task == null ? 0L : task.getStart();
-		long originalTaskEnd = task == null ? 0L : task.getEnd();
-		int originalConstraintType = task == null ? ConstraintType.ASAP : task.getConstraintType();
-		long originalConstraintDate = task == null ? 0L : task.getConstraintDate();
+		GestureTaskDraft draft = gestureTaskDraft;
+		if (draft == null || selectedInterval == null) return false;
+		long start=draft.expectedIntervalStart();
+		long end=draft.expectedIntervalEnd();
+		long expectedStart = start;
+		long expectedEnd = end;
     	switch (state) {
 		case BAR_MOVE:
 			start+=dt;
@@ -426,34 +524,10 @@ public class GanttInteractor extends GraphInteractor{
 			return false;
 		}
 		boolean updateConstraint = shouldUpdateTaskConstraint();
-		boolean preparedConstraint = false;
 		int targetConstraintType = updateConstraint ? getConstraintTypeForDrag() : ConstraintType.ASAP;
-		long requestedConstraintDate = updateConstraint ? getRequestedConstraintDate(start, end) : 0L;
-		if (updateConstraint && undoSupport != null) {
-			undoSupport.beginUpdate();
-		}
-		boolean scheduleChanged = false;
-		try {
-			if (updateConstraint && task != null) {
-				preparedConstraint = prepareConstraintForIntervalUpdate(task, targetConstraintType, requestedConstraintDate, originalConstraintType, originalConstraintDate);
-			}
-			scheduleChanged = ScheduleService.getInstance().setInterval(this,schedule,start,end,selectedInterval,undoSupport);
-			if (!scheduleChanged) {
-				scheduleChanged = didScheduleChange(schedule, task, originalScheduleStart, originalScheduleEnd, originalTaskStart, originalTaskEnd);
-			}
-			if (updateConstraint) {
-				if (task != null && scheduleChanged) {
-					applyConstraintAfterDrag(task, targetConstraintType, getConstraintDateForDrag(task), originalConstraintType, originalConstraintDate, undoSupport);
-				} else if (task != null && preparedConstraint) {
-					task.setScheduleConstraint(originalConstraintType, originalConstraintDate);
-				}
-			}
-		} finally {
-			if (updateConstraint && undoSupport != null) {
-				undoSupport.endUpdate();
-			}
-		}
-		return scheduleChanged;
+		return ((Gantt)getGraph()).getTaskCommandGateway().dragSchedule(new TaskScheduleDragCommand(draft.key(),
+				draft.intervalNumber(), expectedStart, expectedEnd, start, end, draft.expectedConstraintType(),
+				draft.expectedConstraintDate(), updateConstraint, targetConstraintType, gestureDomainRevision)).committed();
     }
 
 	static boolean changesIntervalAtHourPrecision(ScheduleInterval original, long start, long end) {
@@ -463,7 +537,16 @@ public class GanttInteractor extends GraphInteractor{
 	}
 
 	private boolean applyProgressDrag(long completed, UndoableEditSupport undoSupport) {
-		return ScheduleService.getInstance().setCompleted(this,getSourceSchedule(),completed,undoSupport);
+		GestureTaskDraft draft = gestureTaskDraft;
+		return draft != null && ((Gantt)getGraph()).getTaskCommandGateway().updateProgress(new TaskProgressCommand(
+				draft.key(), draft.expectedCompleted(), completed, gestureDomainRevision)).committed();
+	}
+
+	private boolean applySplit(long splitAt) {
+		GestureTaskDraft draft = gestureTaskDraft;
+		return draft != null && ((Gantt)getGraph()).getTaskCommandGateway().split(new TaskSplitCommand(
+				draft.key(), draft.expectedTaskStart(), draft.expectedTaskEnd(), splitAt,
+				gestureDomainRevision)).committed();
 	}
 
     private Schedule getSourceSchedule() {
@@ -486,63 +569,6 @@ public class GanttInteractor extends GraphInteractor{
 		return ConstraintType.SNET;
 	}
 
-	private long getConstraintDateForDrag(Task task) {
-		return task.getStart();
-	}
-
-	private long getRequestedConstraintDate(long requestedStart, long requestedEnd) {
-		return requestedStart;
-	}
-
-    private boolean prepareConstraintForIntervalUpdate(Task task, int constraintType, long constraintDate, int originalConstraintType, long originalConstraintDate) {
-    	if (task == null) {
-    		return false;
-    	}
-    	if (originalConstraintType == constraintType && originalConstraintDate == constraintDate) {
-    		return false;
-    	}
-    	task.setScheduleConstraint(constraintType, constraintDate);
-    	return true;
-    }
-
-    private void applyConstraintAfterDrag(Task task, int constraintType, long constraintDate, int originalConstraintType, long originalConstraintDate, UndoableEditSupport undoSupport) {
-    	if (task == null) {
-    		return;
-    	}
-    	if (originalConstraintType == constraintType && originalConstraintDate == constraintDate) {
-    		return;
-    	}
-		task.setScheduleConstraint(constraintType, constraintDate);
-    	if (undoSupport != null) {
-    		undoSupport.postEdit(new TaskConstraintEdit(task, originalConstraintType, originalConstraintDate, constraintType, constraintDate, this));
-    	}
-    }
-
-    private boolean didScheduleChange(Schedule schedule, Task task, long originalScheduleStart, long originalScheduleEnd, long originalTaskStart, long originalTaskEnd) {
-    	if (task != null) {
-    		switch (state) {
-    		case BAR_MOVE:
-    			return task.getStart() != originalTaskStart || task.getEnd() != originalTaskEnd;
-    		case BAR_MOVE_START:
-    			return task.getStart() != originalTaskStart;
-    		case BAR_MOVE_END:
-    			return task.getEnd() != originalTaskEnd;
-    		default:
-    			return false;
-    		}
-    	}
-    	switch (state) {
-    	case BAR_MOVE:
-    		return schedule.getStart() != originalScheduleStart || schedule.getEnd() != originalScheduleEnd;
-    	case BAR_MOVE_START:
-    		return schedule.getStart() != originalScheduleStart;
-    	case BAR_MOVE_END:
-    		return schedule.getEnd() != originalScheduleEnd;
-    	default:
-    		return false;
-    	}
-    }
-
     private boolean isMilestoneInterval(ScheduleInterval interval) {
     	if (interval == null || selected == null || !(selected instanceof GraphicNode)) {
     		return false;
@@ -556,20 +582,6 @@ public class GanttInteractor extends GraphInteractor{
     		return null;
     	}
     	return ui.getGraph().getProject().getUndoController().getEditSupport();
-    }
-
-    private boolean refreshUndoState(boolean actionPerformed) {
-    	if (!actionPerformed) {
-    		return false;
-    	}
-    	GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
-    	if (graphicManager != null) {
-    		DocumentFrame currentFrame = graphicManager.getCurrentFrame();
-    		if (currentFrame != null) {
-    			currentFrame.refreshUndoButtons();
-    		}
-    	}
-    	return true;
     }
 
     public void setSplitMode(){
@@ -716,7 +728,15 @@ public class GanttInteractor extends GraphInteractor{
     	// A right click on empty space (or on a link) keeps the current
     	// selection; only left clicks on empty chart space clear it.
     	if (node == null && !(leftClick && selected == null)) return;
-    	gantt.notifyBarSelection(new Gantt.BarClick(node, isToggleModifier(e), e != null && e.isShiftDown()));
+		long domainRevision=-1L;
+		long topologyRevision=-1L;
+		if (gantt.getCache() instanceof ViewNodeModelCache cache) {
+			var installed=cache.getInstalledProjectionSnapshot();
+			domainRevision=installed.topology().domainRevision();
+			topologyRevision=installed.topology().topologyRevision();
+		}
+		gantt.notifyBarSelection(new Gantt.BarClick(gantt.getProjectionRowKey(node), domainRevision,
+				topologyRevision, isToggleModifier(e), e != null && e.isShiftDown()));
     }
 
     private static boolean isToggleModifier(MouseEvent e){

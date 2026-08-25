@@ -28,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.application.task.TaskCommandGateway;
+
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.resource.ResourcePool;
@@ -43,6 +45,7 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 		NormalTask childTask = createTask(project, "Child");
 
 		ReferenceNodeModelCache referenceCache = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		referenceCache.setTaskCommandGateway(new TaskCommandGateway(project));
 		ViewNodeModelCache viewCache = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
 			.createFilteredCache(referenceCache, "hierarchy-test", null);
 

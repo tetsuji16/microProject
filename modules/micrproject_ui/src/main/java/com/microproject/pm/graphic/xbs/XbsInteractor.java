@@ -25,7 +25,6 @@
 package com.microproject.pm.graphic.xbs;
 
 import java.awt.Frame;
-import java.util.LinkedList;
 import java.util.function.Consumer;
 import java.util.List;
 
@@ -39,7 +38,10 @@ import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.network.NetworkInteractor;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeBridge;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.application.task.TaskCommands.TaskHierarchyRelocateCommand;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
+import com.microproject.pm.task.ProjectTaskKey;
+import com.microproject.pm.task.Task;
 
 /**
  *
@@ -59,9 +61,12 @@ public class XbsInteractor extends NetworkInteractor {
     	switch (state) {
 		case LINK_CREATION:
 			if (sourceNode!=null&&destinationNode!=null){
-				List nodes=new LinkedList();
-				nodes.add(destinationNode.getNode());
-				getGraph().getModel().getCache().getModel().move(sourceNode.getNode(),nodes,0,NodeModel.NORMAL);
+				try {
+					getGraph().getModel().getCache().createHierarchyDependency(sourceNode, destinationNode);
+				} catch (com.microproject.association.InvalidAssociationException failure) {
+					com.microproject.util.Alert.warn(failure.getMessage(), getGraph());
+					return false;
+				}
 			}
 			return true;
 		case LINK_SELECTION:
@@ -86,13 +91,14 @@ public class XbsInteractor extends NetworkInteractor {
     				NodeBridge previous=(NodeBridge)path[1];
     				position=previous.getRoot().getIndex(previous)+1;
     			}
-    			List nodes=new LinkedList();
-				nodes.add(child);
-				getGraph().getModel().getCache().getModel().move(null,nodes,position,NodeModel.NORMAL);
-    		}
+				if (child.getImpl() instanceof Task task && getGraph().getCache() instanceof ViewNodeModelCache cache) {
+					ProjectTaskKey key = ProjectTaskKey.from(task).orElse(null);
+					if (key != null) cache.getTaskCommandGateway().relocateHierarchy(new TaskHierarchyRelocateCommand(
+							List.of(key), null, position, cache.getProjectionSnapshot().domainRevision()));
+				}
+		}
     	});
     }	
 
 
 }
-

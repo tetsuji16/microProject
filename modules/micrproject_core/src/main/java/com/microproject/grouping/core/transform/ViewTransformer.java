@@ -210,15 +210,57 @@ public class ViewTransformer{
     private CommonTransform getTransform(String listName,String id){
     	TransformList list=TransformList.getInstance(listName);
     	if (list==null) return null;
-    	CommonTransform transform=(CommonTransform)list.getTransform(id);
+	    CommonTransform transform=null;
+	    CommonTransformFactory factory=list.getFactory(id);
+	    try {
+		transform=factory==null?(CommonTransform)list.getTransform(id):factory.getTransform();
+	    } catch (com.microproject.field.InvalidFormulaException exception) {
+		throw new IllegalArgumentException("Invalid view transform: "+id,exception);
+	    }
     	if (transform!=null) transform.askForParameters();
     	return transform;
     }
 
+	/** Creates a listener-free, mutable transform state for one view session. */
+	public ViewTransformer copyForSession() {
+		ViewTransformer copy=new ViewTransformer();
+		copy.filters=filters==null?null:new ArrayList<>(filters);
+		copy.sorters=sorters==null?null:new ArrayList<>(sorters);
+		copy.groupers=groupers==null?null:new ArrayList<>(groupers);
+		copy.hiddenFilterId=hiddenFilterId;
+		copy.userFilterId=userFilterId;
+		copy.hiddenSorterId=hiddenSorterId;
+		copy.userSorterId=userSorterId;
+		copy.hiddenGrouperId=hiddenGrouperId;
+		copy.userGrouperId=userGrouperId;
+		copy.transformerId=transformerId;
+		copy.hiddenFilterIdDirty=hiddenFilterId!=null;
+		copy.userFilterIdDirty=userFilterId!=null;
+		copy.hiddenSorterIdDirty=hiddenSorterId!=null;
+		copy.userSorterIdDirty=userSorterId!=null;
+		copy.hiddenGrouperIdDirty=hiddenGrouperId!=null;
+		copy.userGrouperIdDirty=userGrouperId!=null;
+		copy.transformerIdDirty=transformerId!=null;
+		if (hiddenFilterId==null) copy.hiddenFilter=copyDirect(hiddenFilter);
+		if (userFilterId==null) copy.userFilter=copyDirect(userFilter);
+		if (hiddenSorterId==null) copy.hiddenSorter=copyDirect(hiddenSorter);
+		if (userSorterId==null) copy.userSorter=copyDirect(userSorter);
+		if (hiddenGrouperId==null) copy.hiddenGrouper=copyDirect(hiddenGrouper);
+		if (userGrouperId==null) copy.userGrouper=copyDirect(userGrouper);
+		if (transformerId==null) copy.transformer=copyDirect(transformer);
+		return copy;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T extends CommonTransform> T copyDirect(T transform) {
+		if (transform == null) return null;
+		return (T)transform.copyForSession();
+	}
+
     public NodeFilter getHiddenFilter() {
         if (hiddenFilterIdDirty){
         	hiddenFilter=(NodeFilter)getTransform("hidden_filters",hiddenFilterId);
-        	hiddenFilter.setRedefinitionCallBack(redefinition);
+			if (hiddenFilter != null) hiddenFilter.setRedefinitionCallBack(redefinition);
         	hiddenFilterIdDirty=false;
         }
         return hiddenFilter;
@@ -233,7 +275,7 @@ public class ViewTransformer{
     public NodeGrouper getHiddenGrouper() {
         if (hiddenGrouperIdDirty){
         	hiddenGrouper=(NodeGrouper)getTransform("hidden_groupers",hiddenGrouperId);
-        	hiddenGrouper.setRedefinitionCallBack(redefinition);
+			if (hiddenGrouper != null) hiddenGrouper.setRedefinitionCallBack(redefinition);
         	hiddenGrouperIdDirty=false;
         }
        return hiddenGrouper;
@@ -244,7 +286,7 @@ public class ViewTransformer{
     public NodeSorter getHiddenSorter() {
         if (hiddenSorterIdDirty){
         	hiddenSorter=(NodeSorter)getTransform("hidden_sorters",hiddenSorterId);
-        	hiddenSorter.setRedefinitionCallBack(redefinition);
+			if (hiddenSorter != null) hiddenSorter.setRedefinitionCallBack(redefinition);
         	hiddenSorterIdDirty=false;
         }
        return hiddenSorter;

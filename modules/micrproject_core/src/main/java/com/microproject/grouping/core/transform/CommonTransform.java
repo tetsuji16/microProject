@@ -40,6 +40,11 @@ import java.util.logging.Logger;
  */
 public abstract class CommonTransform {
 	protected static final Logger logger = Logger.getLogger(CommonTransform.class.getName());
+	/** Returns mutable state isolated for one view session. */
+	public CommonTransform copyForSession() {
+		throw new IllegalStateException("Mutable view transform does not support session isolation: "
+				+ getClass().getName());
+	}
 
     public abstract boolean isShowEmptyLines();
     public abstract void setShowEmptyLines(boolean showEmptyLines);

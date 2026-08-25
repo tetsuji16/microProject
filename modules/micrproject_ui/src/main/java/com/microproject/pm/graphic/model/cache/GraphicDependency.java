@@ -24,8 +24,6 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.model.cache;
 
-import java.awt.geom.GeneralPath;
-
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyType;
 
@@ -37,8 +35,6 @@ public class GraphicDependency /*extends GraphicNode*/{
 	protected GraphicNode successor=null;
 	protected Dependency dependency;
 	protected boolean dirty;
-
-	protected GeneralPath path=null;
 
 
 
@@ -86,12 +82,6 @@ public class GraphicDependency /*extends GraphicNode*/{
 
 
 
-	public GeneralPath getPath() {
-		if (path==null) path=new GeneralPath();
-		return path;
-	}
-
-
     public boolean isDirty() {
         return dirty;
     }
@@ -100,4 +90,3 @@ public class GraphicDependency /*extends GraphicNode*/{
         this.dirty = dirty;
     }
 }
-

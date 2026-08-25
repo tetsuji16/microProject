@@ -58,11 +58,13 @@ public class DependencyCreationEdit extends AbstractUndoableEdit{
 		return "DependencyCreation";
 	}
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		DependencyService.getInstance().connect(dependency,this);
+		super.redo();
 	}
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		DependencyService.getInstance().remove(dependency,this,false);
+		super.undo();
 	}
 }

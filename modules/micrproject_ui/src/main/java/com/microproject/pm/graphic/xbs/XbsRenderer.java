@@ -32,6 +32,7 @@ import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.network.NetworkParams;
 import com.microproject.pm.graphic.network.NetworkRenderer;
+import com.microproject.pm.graphic.network.layout.AbstractNetworkLayout;
 
 public class XbsRenderer extends NetworkRenderer {
 	public XbsRenderer(){
@@ -43,18 +44,18 @@ public class XbsRenderer extends NetworkRenderer {
 		//setVertical(true);
 	}
 	protected GeneralPath getNonScaledShape(GraphicNode node){
-		return node.getXbsShape();
+		return layout().getShape(node);
 	}
 	protected Point2D getNonScaledCenter(GraphicNode node){
-		return node.getXbsCenter();
+		return layout().getCenter(node);
 	}
 	protected void translateNonScaledShape(GraphicNode node, double dx,double dy){
-		node.translateXbsShape(dx,dy);
+		layout().translateShape(node,dx,dy);
 	}
+	private AbstractNetworkLayout layout() { return (AbstractNetworkLayout)((NetworkParams)graphInfo).getNetworkLayout(); }
 	
 	public Iterator getDependenciesIterator(){
    		return ((XbsLayout)((NetworkParams)graphInfo).getNetworkLayout()).getDependencies().iterator();
   	}
 
 }
-

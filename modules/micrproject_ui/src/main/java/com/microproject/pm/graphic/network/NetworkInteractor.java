@@ -30,6 +30,7 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -40,6 +41,11 @@ import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.network.rendering.FieldChange;
 import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.application.task.TaskCommands.TaskFieldBatchEditCommand;
+import com.microproject.application.task.TaskCommands.TaskFieldEditCommand;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
+import com.microproject.pm.task.ProjectTaskKey;
+import com.microproject.pm.task.Task;
 
 /**
  *
@@ -127,12 +133,26 @@ public class NetworkInteractor extends GraphInteractor{
 	    			List changes=nui.getEditorChange();
 	    			GraphicNode node=nui.getEditorNode();
 	    			nui.editNode(null);
-	    			if (changes!=null) for (Iterator i=changes.iterator();i.hasNext();){
+				if (changes!=null && node != null && node.getNode().getImpl() instanceof Task task
+						&& nui.getGraph().getCache() instanceof ViewNodeModelCache viewCache) {
+					ProjectTaskKey key = ProjectTaskKey.from(task).orElse(null);
+					if (key != null) {
+						List<TaskFieldEditCommand> edits = new ArrayList<>();
+						for (Object value : changes) {
+							FieldChange change = (FieldChange) value;
+							Object expected = change.getField().getValue(node.getNode(), viewCache.getWalkersModel(), null);
+							edits.add(new TaskFieldEditCommand(key, change.getField().getId(), expected,
+									change.getValue(), null));
+						}
+						viewCache.getTaskCommandGateway().editFields(new TaskFieldBatchEditCommand(edits,
+								viewCache.getProjectionSnapshot().domainRevision()));
+					}
+				} else if (changes!=null) for (Iterator i=changes.iterator();i.hasNext();){
 	    				FieldChange change=(FieldChange)i.next();
 						try {
 							nui.getGraph().getCache().getModel().setFieldValue(change.getField(),node.getNode(), this, change.getValue(), null,NodeModel.NORMAL);
 						} catch (FieldParseException e) {
-							logger.log(Level.WARNING, "Failed to apply network field change", e);
+							logger.log(Level.WARNING, "Failed to apply non-task network field change", e);
 						}
 	    			}
 	    		}
@@ -158,4 +178,3 @@ public class NetworkInteractor extends GraphInteractor{
 
 
 }
-

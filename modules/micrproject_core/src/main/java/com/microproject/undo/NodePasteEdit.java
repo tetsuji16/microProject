@@ -66,13 +66,15 @@ public class NodePasteEdit extends AbstractUndoableEdit{
 		HierarchyUtils.extractParents(children, roots);
 	}
 	public void redo() throws CannotRedoException {
-		super.redo();
+		if (!canRedo()) throw new CannotRedoException();
 		model.paste(parent,roots,position,NodeModel.EVENT);
+		super.redo();
 		
 	}
 	public void undo() throws CannotUndoException {
-		super.undo();
+		if (!canUndo()) throw new CannotUndoException();
 		model.remove(roots,NodeModel.EVENT,false);
+		super.undo();
 	}	
 	public String getPresentationName() {
 		return "NodePaste";

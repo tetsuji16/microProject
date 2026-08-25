@@ -140,6 +140,72 @@ tasks.register("verifyIndependentBoundaries") {
     }
 }
 
+val verifyTaskViewArchitecture = tasks.register("verifyTaskViewArchitecture") {
+    group = "verification"
+    description = "Rejects reintroduction of shared task-view state and direct Gantt mutation paths."
+    doLast {
+        val ui = project(":micrproject_ui").projectDir.resolve("src/main/java/com/microproject/pm/graphic")
+        val graphicNode = ui.resolve("model/cache/GraphicNode.java").readText()
+        listOf("ganttShapeOffset", "ganttShapeHeight", "tmpChildren", "tmpFiltered", "pertShape", "xbsShape", "pertLevel")
+            .forEach { forbidden ->
+                if (graphicNode.contains(forbidden))
+                    throw GradleException("Shared GraphicNode view state reintroduced: $forbidden")
+            }
+        val interactor = ui.resolve("gantt/GanttInteractor.java").readText()
+        listOf("DependencyService.getInstance().newDependency(", "ScheduleService.getInstance().setInterval(",
+            "ScheduleService.getInstance().setCompleted(", "ScheduleService.getInstance().split(")
+            .forEach { forbidden ->
+                if (interactor.contains(forbidden))
+                    throw GradleException("Direct Gantt mutation path reintroduced: $forbidden")
+            }
+        val ganttUi = ui.resolve("gantt/GanttUI.java").readText()
+        listOf("node.contains(", "node.getStart(", "node.getEnd(", "node.getCompleted(")
+            .forEach { forbidden ->
+                if (ganttUi.contains(forbidden))
+                    throw GradleException("Mutable-node Gantt hit testing reintroduced: $forbidden")
+            }
+        val selectionGeometry = ui.resolve("gantt/GanttSelectionGeometrySupport.java").readText()
+        listOf("import com.microproject.pm.graphic.model.cache.GraphicNode", "import com.microproject.pm.task.Task")
+            .forEach { forbidden ->
+                if (selectionGeometry.contains(forbidden))
+                    throw GradleException("Selection geometry must use immutable projection rows: $forbidden")
+            }
+        val viewCache = ui.resolve("model/cache/ViewNodeModelCache.java").readText()
+        listOf("reference.createDependency(", "reference.createHierarchyDependency(")
+            .forEach { forbidden ->
+                if (viewCache.contains(forbidden))
+                    throw GradleException("Task command gateway bypass reintroduced: $forbidden")
+            }
+        val spreadsheetModel = ui.resolve("spreadsheet/SpreadSheetModel.java").readText()
+        if (spreadsheetModel.contains("DependencyService.getInstance().setFields("))
+            throw GradleException("Spreadsheet dependency updates must use TaskCommandGateway")
+		val ganttRenderer = ui.resolve("gantt/GanttRenderer.java").readText()
+		listOf("GraphicNode", "GraphicDependency", "getVisibleDependencies()", ".getNode()")
+			.forEach { forbidden ->
+				if (ganttRenderer.contains(forbidden))
+					throw GradleException("Gantt paint must use value snapshots: $forbidden")
+			}
+        val session = ui.resolve("views/TaskViewSession.java").readText()
+        if (Regex("(?m)^\\s*(public|protected|private)?\\s*static\\s+(?!final)").containsMatchIn(session))
+            throw GradleException("TaskViewSession must not contain a mutable static registry")
+        val workspaceFiles = listOf(
+            ui.resolve("views/GanttView.java"),
+            ui.resolve("spreadsheet/common/CommonSpreadSheet.java")
+        )
+        workspaceFiles.forEach { source ->
+            val text = source.readText()
+            listOf("domainRevision", "topologyRevision", "GraphicNode").forEach { forbidden ->
+                if (text.contains("class Workspace") && text.substring(text.indexOf("class Workspace")).contains(forbidden))
+                    throw GradleException("Runtime projection state must not be persisted by Workspace: ${source.name}: $forbidden")
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(verifyTaskViewArchitecture)
+}
+
 tasks.register<Delete>("cleanLegacyPackagingArtifacts") {
     group = "build"
     description = "Removes generated legacy packaging artifacts that are not part of the Gradle source of truth."

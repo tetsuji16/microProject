@@ -30,9 +30,6 @@ import com.microproject.pm.graphic.graph.GraphUI;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.network.NetworkInteractor;
-import com.microproject.association.InvalidAssociationException;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.util.Alert;
 
@@ -65,9 +62,9 @@ public class PertInteractor extends NetworkInteractor {
 					if (sourceNode!=null&&destinationNode!=null&&
 							sourceNode.getNode().getImpl() instanceof HasDependencies &&
 							destinationNode.getNode().getImpl() instanceof HasDependencies){
-						DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),(HasDependencies)destinationNode.getNode().getImpl(),DependencyType.FS,0,this);
+						getGraph().getCache().createDependency(sourceNode, destinationNode);
 					}
-				} catch (InvalidAssociationException e) {
+				} catch (com.microproject.association.InvalidAssociationException e) {
 					Alert.error(e.getMessage());
 				}
 			return true;
@@ -80,4 +77,3 @@ public class PertInteractor extends NetworkInteractor {
     }
 
 }
-

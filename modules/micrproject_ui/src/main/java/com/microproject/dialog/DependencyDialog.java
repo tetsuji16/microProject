@@ -45,9 +45,15 @@ import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.field.Field;
 import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.application.task.TaskCommandGateway;
+import com.microproject.application.task.TaskCommandResult;
+import com.microproject.application.task.TaskCommands.TaskDependencyDeleteCommand;
+import com.microproject.application.task.TaskCommands.TaskDependencyUpdateCommand;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectTaskKey;
+import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 
@@ -64,16 +70,24 @@ public class DependencyDialog extends AbstractDialog {
 	Field dependencyTypeField = Configuration.getFieldFromId("Field.dependencyType");
 	boolean remove=false;
 	Dependency dependency;
+	private TaskCommandGateway commandGateway;
+	private long proposedLag;
+	private int proposedType;
+	private long expectedDomainRevision = -1L;
+	private long expectedLag;
+	private int expectedType;
 	
 	public static boolean doDialog(DependencyDialog dialog, Dependency dependency) {
-		dialog.setDependency(dependency);
+		Project project = dependency.getPredecessor() instanceof Task task ? task.getOwningProject() : null;
+		long revision = project == null ? -1L : project.getDomainChangeJournal().revision();
+		return doDialog(dialog, dependency, revision);
+	}
+
+	public static boolean doDialog(DependencyDialog dialog, Dependency dependency, long expectedDomainRevision) {
+		dialog.setDependency(dependency, expectedDomainRevision);
 		boolean result;
 		if (result = dialog.doModal()) {
-			if (dialog.remove) {
-				DependencyService.getInstance().remove(dependency,dialog,true);
-			} else {
-				DependencyService.getInstance().update(dependency,dialog);
-			}
+			result = dialog.commitDraft();
 		}
 		dialog.dependency = null;
 		return result;
@@ -86,8 +100,16 @@ public class DependencyDialog extends AbstractDialog {
 	}
 
 	public void setDependency(Dependency dependency) {
+		Project project = dependency.getPredecessor() instanceof Task task ? task.getOwningProject() : null;
+		setDependency(dependency, project == null ? -1L : project.getDomainChangeJournal().revision());
+	}
+
+	void setDependency(Dependency dependency, long expectedDomainRevision) {
 		remove= false;
 		this.dependency = dependency;
+		this.expectedDomainRevision = expectedDomainRevision;
+		expectedLag = dependency.getLag();
+		expectedType = dependency.getDependencyType();
 		if (dependency.isExternal()) {
 			if (dependency.isDisabled())
 				setTitle(Messages.getString("Text.DisabledExternalTaskDependency"));
@@ -98,6 +120,27 @@ public class DependencyDialog extends AbstractDialog {
 		}
 		bind(true);
 		
+	}
+	public void setTaskCommandGateway(TaskCommandGateway commandGateway) { this.commandGateway = commandGateway; }
+
+	private boolean commitDraft() {
+		Task predecessor = dependency.getPredecessor() instanceof Task task ? task : null;
+		Task successor = dependency.getSuccessor() instanceof Task task ? task : null;
+		Project project = predecessor == null ? null : predecessor.getOwningProject();
+		ProjectTaskKey predecessorKey = ProjectTaskKey.from(predecessor).orElse(null);
+		ProjectTaskKey successorKey = ProjectTaskKey.from(successor).orElse(null);
+		if (project == null || predecessorKey == null || successorKey == null) return false;
+		TaskCommandGateway gateway = java.util.Objects.requireNonNull(commandGateway,
+				"task command gateway was not installed");
+		TaskCommandResult result = remove
+				? gateway.deleteDependency(new TaskDependencyDeleteCommand(predecessorKey, successorKey,
+						expectedLag, expectedType, expectedDomainRevision))
+				: gateway.updateDependency(new TaskDependencyUpdateCommand(predecessorKey, successorKey,
+						expectedLag, expectedType, proposedLag, proposedType, expectedDomainRevision));
+		if (result.status() == TaskCommandResult.Status.COMMITTED || result.status() == TaskCommandResult.Status.NO_OP)
+			return true;
+		Alert.warn("Dependency change rejected: " + result.status(), this);
+		return false;
 	}
 	protected void initComponents() {
 		if (contentPanel != null) // if already shown once
@@ -199,12 +242,10 @@ public class DependencyDialog extends AbstractDialog {
 				
 //				dependency.setLag(duration.getEncodedMillis());
 //				dependency.setDependencyType(type);
-				DependencyService.getInstance().setFields(dependency,duration.getEncodedMillis(),type,this);
+				proposedLag = duration.getEncodedMillis();
+				proposedType = type;
 			} catch (ParseException e) {
 				Alert.warn(Messages.getString("Message.invalidDuration"),this);
-				return false;
-			} catch (InvalidAssociationException e) {
-				Alert.warn(e.getMessage(),this);
 				return false;
 			}
 		}

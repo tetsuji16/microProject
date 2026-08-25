@@ -87,7 +87,9 @@ public class GraphModel implements Serializable, /*ScheduleEventListener,*/ Cach
 			this.cache.removeNodeModelListener(this);
 		}
 		this.cache = cache;
-		cache.addNodeModelListener(this);
+		if (cache != null) {
+			cache.addNodeModelListener(this);
+		}
 		
 	}
 	
@@ -237,4 +239,3 @@ public class GraphModel implements Serializable, /*ScheduleEventListener,*/ Cach
 
 	
 }
-

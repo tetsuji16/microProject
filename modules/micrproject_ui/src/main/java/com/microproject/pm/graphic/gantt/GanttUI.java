@@ -24,9 +24,18 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.gantt;
 
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Line2D;
+import java.awt.geom.PathIterator;
+import java.awt.geom.Rectangle2D;
+import java.util.Iterator;
+
 import com.microproject.pm.graphic.graph.GraphUI;
 import com.microproject.pm.graphic.graph.GraphZone;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.GraphicDependency;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
+import com.microproject.pm.graphic.model.cache.TaskProjectionSnapshot;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 
 /**
@@ -61,16 +70,29 @@ public class GanttUI extends GraphUI{
     public GraphZone getNodeAt(double x,double y){
 		double rowHeight=((Gantt)graph).getRowHeight();
 		int row=(int)Math.floor(y/rowHeight);
-		if (row<0||row>=graph.getModel().getCache().getSize()) return null;
-		GraphicNode node=(GraphicNode)graph.getModel().getCache().getElementAt(row);
-		double y0=getBarY(row)+node.getGanttShapeOffset();//row*rowHeight+config.getGanttBarYOffset();
-		double h=node.getGanttShapeHeight();
+		if (!(graph.getModel().getCache() instanceof ViewNodeModelCache cache)) return null;
+		if (!getGanttRenderer().isGeometryCurrent()) return null;
+		ViewNodeModelCache.InstalledProjectionSnapshot installed = cache.getInstalledProjectionSnapshot();
+		if (!isCurrentDomainRevision(installed)) return null;
+		if (row<0||row>=installed.topology().rows().size()) return null;
+		TaskProjectionSnapshot.Row value = installed.values().rowAt(row);
+		var projected = installed.topology().rows().get(row);
+		if (value == null || !value.key().equals(projected.key()) || !value.schedule()) return null;
+		GraphicNode node=projected.node();
+		GanttBarGeometry geometry = getGanttRenderer().getBarGeometry(value.key());
+		double y0=getBarY(row)+geometry.offset();//row*rowHeight+config.getGanttBarYOffset();
+		double h=geometry.height();
 		double delta=config.getSelectionSquare();
 		if (y<y0/*-delta*/||y>y0/*+delta*/+h) return null;
 		CoordinatesConverter coord=getCoord();
 		double t=coord.toTime(x);
 		double deltat=coord.toDuration(delta);
-		if  (node.contains(t,deltat,deltat,coord)==null) return null;
+		boolean contains = false;
+		java.util.List<TaskProjectionSnapshot.Interval> intervals = value.intervals().isEmpty()
+				? java.util.List.of(new TaskProjectionSnapshot.Interval(value.start(), value.end())) : value.intervals();
+		for (TaskProjectionSnapshot.Interval interval : intervals)
+			if (t >= interval.start() - deltat && t <= interval.end() + deltat) { contains = true; break; }
+		if (!contains) return null;
 		double progessH=config.getGanttProgressBarHeight();
 		GraphZone zone=new GraphZone();
 		zone.setObject(node);
@@ -80,10 +102,70 @@ public class GanttUI extends GraphUI{
 
     }
 
+	@Override public GraphZone getLinkAt(double x, double y) {
+		if (!(graph.getModel().getCache() instanceof ViewNodeModelCache cache)) return null;
+		if (!getGanttRenderer().isGeometryCurrent()) return null;
+		ViewNodeModelCache.InstalledProjectionSnapshot installed = cache.getInstalledProjectionSnapshot();
+		if (!isCurrentDomainRevision(installed)) return null;
+		for (TaskProjectionSnapshot.Edge edge : installed.values().edges()) {
+			GeneralPath path = getGanttRenderer().findDependencyPath(edge);
+			if (path != null && hits(path, x, y)) {
+				GraphicDependency dependency = resolveDependency(cache, installed, edge);
+				return dependency == null ? null : new GraphZone(dependency);
+			}
+		}
+		return null;
+	}
+
+	private boolean isCurrentDomainRevision(ViewNodeModelCache.InstalledProjectionSnapshot installed) {
+		var project = graph.getProject();
+		return project != null && domainRevisionMatches(installed.values().domainRevision(),
+				project.getDomainChangeJournal().revision());
+	}
+
+	static boolean domainRevisionMatches(long installedRevision, long currentRevision) {
+		return installedRevision == currentRevision;
+	}
+
+	private boolean hits(GeneralPath path, double x, double y) {
+		double delta = config.getSelectionSquare();
+		if (delta == 0) return path.contains(x, y);
+		Rectangle2D zone = new Rectangle2D.Double(x - delta, y - delta, 2 * delta + 1, 2 * delta + 1);
+		if (!path.intersects(zone)) return false;
+		double flatness = config.getLinkFlatness();
+		double lastX = -1.0d;
+		double lastY = -1.0d;
+		for (PathIterator iterator = flatness <= 0 ? path.getPathIterator(null)
+				: path.getPathIterator(null, flatness); !iterator.isDone(); iterator.next()) {
+			int type = iterator.currentSegment(segment);
+			if (type == PathIterator.SEG_LINETO
+					&& Line2D.ptSegDist(lastX, lastY, segment[0], segment[1], x, y) <= delta) return true;
+			lastX = segment[0];
+			lastY = segment[1];
+		}
+		return false;
+	}
+
+	private static GraphicDependency resolveDependency(ViewNodeModelCache cache,
+			ViewNodeModelCache.InstalledProjectionSnapshot installed, TaskProjectionSnapshot.Edge edge) {
+		int predecessorRow = installed.topology().rowOf(edge.predecessor());
+		int successorRow = installed.topology().rowOf(edge.successor());
+		if (predecessorRow < 0 || successorRow < 0) return null;
+		GraphicNode predecessor = installed.topology().rows().get(predecessorRow).node();
+		GraphicNode successor = installed.topology().rows().get(successorRow).node();
+		@SuppressWarnings("unchecked")
+		Iterator<GraphicDependency> dependencies = cache.getVisibleDependencies().getIterator();
+		while (dependencies.hasNext()) {
+			GraphicDependency dependency = dependencies.next();
+			if (dependency.getPredecessor() == predecessor && dependency.getSuccessor() == successor
+					&& dependency.getType() == edge.type()) return dependency;
+		}
+		return null;
+	}
+
 
 
 	public CoordinatesConverter getCoord() {
 		return ((GanttParams)graphRenderer.getGraphInfo()).getCoord();
 	}
 }
-

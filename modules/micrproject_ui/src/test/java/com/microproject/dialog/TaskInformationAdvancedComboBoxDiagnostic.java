@@ -65,7 +65,8 @@ class TaskInformationAdvancedComboBoxDiagnostic {
 
 		final List<String> report = new ArrayList<>();
 		SwingUtilities.invokeAndWait(() -> {
-			TaskInformationDialog dlg = TaskInformationDialog.getInstance(null, task, false);
+			TaskInformationDialog dlg = TaskInformationDialog.getInstance(null, task, false,
+					new com.microproject.application.task.TaskCommandGateway(task.getOwningProject()));
 			JComponent panel = dlg.createContentPanel();
 			collectComboBoxes(panel, 0, report);
 

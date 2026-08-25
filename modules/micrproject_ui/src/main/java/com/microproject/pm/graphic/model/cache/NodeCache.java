@@ -69,7 +69,7 @@ public class NodeCache extends CellCache {
 			if (minLevel!=-1&&node.getLevel()>minLevel) continue;
 			minLevel=-1;
 			visibleElements.add(node);
-			if (node.isComposite()&&node.isCollapsed()) minLevel=node.getLevel();
+			if (node.isComposite()&&v.isCollapsed(node)) minLevel=node.getLevel();
 		}
 //		long t1=System.currentTimeMillis();
 //		System.out.println("\t\tcache NodeCache#1 ran in "+(t1-t0)+"ms");
@@ -303,4 +303,3 @@ public class NodeCache extends CellCache {
 	}
 
 }
-

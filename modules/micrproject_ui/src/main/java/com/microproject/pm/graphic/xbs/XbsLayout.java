@@ -85,11 +85,11 @@ public class XbsLayout extends AbstractNetworkLayout {
 	
 	
 	
-	private void setShape(GraphicNode node,Rectangle2D ref,double centerX,double centerY){
+	private void setNodeShape(GraphicNode node,Rectangle2D ref,double centerX,double centerY){
 	    TexturedShape texturedShape=findShape(node);
 	    if (texturedShape==null) return;
 	    GeneralPath shape=texturedShape.toGeneralPath(ref.getWidth(),ref.getHeight(),centerX-ref.getWidth()/2,centerY,null);
-	    node.setXbsShape(shape,centerX,centerY);
+	    setShape(node,shape,centerX,centerY);
 	    Rectangle.union(bounds,network.scale(shape.getBounds()),bounds);
 	}
 	
@@ -102,13 +102,13 @@ public class XbsLayout extends AbstractNetworkLayout {
 			node=(GraphicNode)i.next();
 			if (node.getLevel()>maxLevel) maxLevel=node.getLevel();
 			if (previous!=null&&node.getLevel()<=previous.getLevel()){
-				setShape(previous,ref,x,y+(previous.getLevel()-1)*(ref.getMaxY()));
+				setNodeShape(previous,ref,x,y+(previous.getLevel()-1)*(ref.getMaxY()));
 				x+=ref.getMaxX();
 			}
 			previous=node;
 		}
 		if (previous!=null){
-			setShape(previous,ref,x,y+(previous.getLevel()-1)*(ref.getMaxY()));
+			setNodeShape(previous,ref,x,y+(previous.getLevel()-1)*(ref.getMaxY()));
 		}
 		return maxLevel;
 	}
@@ -132,13 +132,13 @@ public class XbsLayout extends AbstractNetworkLayout {
 						break;
 					}else if (child.getLevel()==level+1){
 						hasChild=true;
-						childCenter=child.getXbsCenter();
+						childCenter=getCenter(child);
 						if (x0==-1||childCenter.getX()<x0) x0=childCenter.getX();
 						if (x1==-1||childCenter.getX()>x1) x1=childCenter.getX();
 						dependencies.add(new GraphicDependency(node,child,null));
 					}
 				}
-				if (hasChild) setShape(node,ref,(x0+x1)/2,y);
+				if (hasChild) setNodeShape(node,ref,(x0+x1)/2,y);
 			}
 			
 		}
@@ -167,4 +167,3 @@ public class XbsLayout extends AbstractNetworkLayout {
 		updateBounds();
 	}
 }
-
