@@ -9,7 +9,7 @@
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * furnished to do so subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet.selection.event;
 
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 import javax.swing.SwingUtilities;
@@ -32,19 +31,22 @@ import javax.swing.SwingUtilities;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnMenu;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
+
 /**
- *
+ * Column-header mouse handler: toggles a fully-selected column on left-click
+ * and shows the column popup on a right-click/popup-trigger.
  */
-public class HeaderMouseListener extends MouseAdapter {
+public class HeaderMouseListener extends PopupTriggerHandler {
 	protected SpreadSheet table;
-	private boolean popupShown;
+
 	public HeaderMouseListener(SpreadSheet table) {
 		super();
-		this.table=table;
+		this.table = table;
 	}
-	public void mouseClicked(MouseEvent e){
+
+	public void mouseClicked(MouseEvent e) {
 		int col = table.columnAtPoint(e.getPoint());
-		if  (SwingUtilities.isLeftMouseButton(e)) {
+		if (SwingUtilities.isLeftMouseButton(e)) {
 			if (table.isColumnFullySelected(col)) {
 				table.clearSelection();
 				e.consume();
@@ -54,17 +56,9 @@ public class HeaderMouseListener extends MouseAdapter {
 		}
 	}
 
-	@Override public void mousePressed(MouseEvent event) {
-		popupShown = showPopup(event);
-	}
-
-	@Override public void mouseReleased(MouseEvent event) {
-		if (!popupShown) showPopup(event);
-		popupShown = false;
-	}
-
-	private boolean showPopup(MouseEvent event) {
-		if (!event.isPopupTrigger() && !SwingUtilities.isRightMouseButton(event)) return false;
+	@Override
+	protected boolean showPopup(MouseEvent event) {
+		if (!isPopupTrigger(event)) return false;
 		int column = table.columnAtPoint(event.getPoint());
 		if (column < 0 || table.getSpreadSheetCategory() == null || !table.isHasColumnHeaderPopup()) return false;
 		CommonSpreadSheet sheet = table;

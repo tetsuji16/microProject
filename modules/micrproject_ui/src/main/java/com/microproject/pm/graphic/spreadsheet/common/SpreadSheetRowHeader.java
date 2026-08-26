@@ -37,12 +37,13 @@ import javax.swing.JTable;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import javax.swing.event.MouseInputAdapter;
+import javax.swing.event.MouseInputListener;
 import javax.swing.table.DefaultTableColumnModel;
 
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
+import com.microproject.pm.graphic.spreadsheet.selection.event.PopupTriggerHandler;
 import java.awt.Dimension;
 import com.microproject.util.FlatUiSupport;
 
@@ -105,82 +106,7 @@ public class SpreadSheetRowHeader extends JTable {
 			final SpreadSheet spreadSheet=(SpreadSheet)table;
 			if (!mouseHandlersInstalled){
 				mouseHandlersInstalled=true;
-				MouseInputAdapter handler=new MouseInputAdapter() {
-					private Point pressPoint;
-					private int pressRow = -1;
-					private boolean dragging;
-					private boolean popupShown;
-					public void mousePressed(MouseEvent e) {
-						popupShown=false;
-						if (SwingUtilities.isLeftMouseButton(e)){
-							int row = rowAtPoint(e.getPoint());
-							if (row < 0) {
-								return;
-							}
-							boolean keepExisting=isRowSelected(row)&&getSelectedRowCount()>1&&!e.isControlDown()&&!e.isShiftDown();
-							selectRowForMove(row,e.isShiftDown(),e.isControlDown(),keepExisting);
-							// The row header is only a selection affordance.  Keep keyboard
-							// input on the task table so Ctrl+C/V and typed edits continue
-							// through the document's single root-pane shortcut routing.
-							spreadSheet.requestFocusInWindow();
-							pressRow=row;
-							pressPoint=e.getPoint();
-							dragging=false;
-							if (e.getClickCount()==2){
-								spreadSheet.doDoubleClick(row,0);
-//								Component comp=SpreadSheetRowHeader.this;
-//								while(!((comp=comp.getParent()) instanceof MainFrame));
-//								MainFrame mainFrame=(MainFrame)comp;
-//								mainFrame.doInformationDialog(false);
-//
-							}
-						}else if (e.isPopupTrigger()||SwingUtilities.isRightMouseButton(e)){
-							popupShown=showPopup(e,spreadSheet);
-						}
-					}
-					public void mouseDragged(MouseEvent e) {
-						if (pressPoint==null||(e.getModifiersEx()&MouseEvent.BUTTON1_DOWN_MASK)==0) return;
-						if (!dragging&&pressPoint.distance(e.getPoint())<4.0d) return;
-						dragging=true;
-						// Microsoft Project selects a range of rows when the user
-						// drags through the row header (ID column). Extend the
-						// selection live so the Gantt chart's row highlight follows
-						// the drag immediately (issue #179). Task reordering is done
-						// from the Move Up/Down buttons and keyboard shortcuts, so a
-						// selection drag must never relocate tasks or beep.
-						int currentRow=rowAtPoint(e.getPoint());
-						if (currentRow>=0&&pressRow>=0){
-							int first=Math.min(pressRow,currentRow);
-							int last=Math.max(pressRow,currentRow);
-							getSelectionModel().setSelectionInterval(first,last);
-							if (getColumnCount()>0)
-								getColumnModel().getSelectionModel().setSelectionInterval(0,getColumnCount()-1);
-						}
-					}
-					public void mouseReleased(MouseEvent e) {
-						if (!popupShown&&e.isPopupTrigger()) showPopup(e,spreadSheet);
-						popupShown=false;
-						pressPoint=null;
-						pressRow=-1;
-						dragging=false;
-						repaint();
-					}
-
-					private boolean showPopup(MouseEvent event,SpreadSheet spreadSheet){
-						SpreadSheetPopupMenu popup=getPopup();
-						int row=rowAtPoint(event.getPoint());
-						if (popup==null||row<0) return false;
-						if (!isRowSelected(row)) table.selectRowAndAllColumns(row);
-						spreadSheet.requestFocusInWindow();
-						popup.setRow(row);
-						popup.setCol(0);
-						// Delegated so subclasses/tests can intercept the actual
-						// showing (headless environments have no screen to show on).
-						showHeaderPopup(popup, event);
-						event.consume();
-						return true;
-					}
-				};
+				RowHeaderMouseHandler handler=new RowHeaderMouseHandler(spreadSheet);
 				addMouseListener(handler);
 				addMouseMotionListener(handler);
 			}
@@ -222,5 +148,93 @@ public class SpreadSheetRowHeader extends JTable {
 		setShowVerticalLines(false);
 		setIntercellSpacing(new Dimension(0, 0));
 		setRowMargin(0);
+	}
+
+	/**
+	 * Row-header mouse handler: left-drag extends the row selection (issue
+	 * #179), a right-click/popup-trigger shows the task-table popup. The shared
+	 * press/release popup-trigger dedupe lives in {@link PopupTriggerHandler}.
+	 */
+	private final class RowHeaderMouseHandler extends PopupTriggerHandler implements MouseInputListener {
+		private final SpreadSheet spreadSheet;
+		private Point pressPoint;
+		private int pressRow = -1;
+		private boolean dragging;
+
+		RowHeaderMouseHandler(SpreadSheet spreadSheet) {
+			this.spreadSheet = spreadSheet;
+		}
+
+		@Override
+		public void mousePressed(MouseEvent e) {
+			if (SwingUtilities.isLeftMouseButton(e)) {
+				int row = rowAtPoint(e.getPoint());
+				if (row < 0) return;
+				boolean keepExisting = isRowSelected(row) && getSelectedRowCount() > 1
+						&& !e.isControlDown() && !e.isShiftDown();
+				selectRowForMove(row, e.isShiftDown(), e.isControlDown(), keepExisting);
+				// The row header is only a selection affordance. Keep keyboard
+				// input on the task table so Ctrl+C/V and typed edits continue
+				// through the document's single root-pane shortcut routing.
+				spreadSheet.requestFocusInWindow();
+				pressRow = row;
+				pressPoint = e.getPoint();
+				dragging = false;
+				if (e.getClickCount() == 2) {
+					spreadSheet.doDoubleClick(row, 0);
+				}
+			} else {
+				super.mousePressed(e);
+			}
+		}
+
+		@Override
+		public void mouseDragged(MouseEvent e) {
+			if (pressPoint == null || (e.getModifiersEx() & MouseEvent.BUTTON1_DOWN_MASK) == 0) return;
+			if (!dragging && pressPoint.distance(e.getPoint()) < 4.0d) return;
+			dragging = true;
+			// Microsoft Project selects a range of rows when the user drags
+			// through the row header (ID column). Extend the selection live so
+			// the Gantt chart's row highlight follows the drag immediately
+			// (issue #179). Task reordering is done from the Move Up/Down
+			// buttons and keyboard shortcuts, so a selection drag must never
+			// relocate tasks or beep.
+			int currentRow = rowAtPoint(e.getPoint());
+			if (currentRow >= 0 && pressRow >= 0) {
+				int first = Math.min(pressRow, currentRow);
+				int last = Math.max(pressRow, currentRow);
+				getSelectionModel().setSelectionInterval(first, last);
+				if (getColumnCount() > 0)
+					getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
+			}
+		}
+
+		@Override
+		public void mouseReleased(MouseEvent e) {
+			// Let PopupTriggerHandler handle the popup-trigger release path,
+			// then clear the drag state regardless of which branch ran.
+			super.mouseReleased(e);
+			pressPoint = null;
+			pressRow = -1;
+			dragging = false;
+			repaint();
+		}
+
+		@Override
+		protected boolean showPopup(MouseEvent event) {
+			if (!isPopupTrigger(event)) return false;
+			SpreadSheetPopupMenu popup = getPopup();
+			int row = rowAtPoint(event.getPoint());
+			if (popup == null || row < 0) return false;
+			if (!isRowSelected(row)) table.selectRowAndAllColumns(row);
+			spreadSheet.requestFocusInWindow();
+			popup.setRow(row);
+			popup.setCol(0);
+			// Delegated so subclasses/tests can intercept the actual showing
+			// (headless environments have no screen to show on).
+			showHeaderPopup(popup, event);
+			event.consume();
+			return true;
+		}
 	}
 }

@@ -50,6 +50,7 @@ import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
 import com.microproject.pm.graphic.spreadsheet.selection.event.HeaderMouseListener;
+import com.microproject.pm.graphic.spreadsheet.selection.event.PopupTriggerHandler;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -692,5 +693,56 @@ class SpreadSheetMouseInteractionTest {
 			popupShown = true;
 			shownPopup = popup;
 		}
+	}
+
+	/**
+	 * The {@link PopupTriggerHandler} base must show a context popup exactly
+	 * once per right-click gesture: on the platform that raises the trigger on
+	 * press it must not also show on release, and vice versa. This guards the
+	 * dedupe logic shared by the row/column/task-table handlers after the
+	 * consolidation in issue #414.
+	 */
+	@Test
+	void popupTriggerHandlerShowsPopupExactlyOncePerGesture() throws Exception {
+		AtomicInteger shown = new AtomicInteger();
+		PopupTriggerHandler handler = new PopupTriggerHandler() {
+			@Override
+			protected boolean showPopup(MouseEvent event) {
+				if (!isPopupTrigger(event)) return false;
+				shown.incrementAndGet();
+				event.consume();
+				return true;
+			}
+		};
+
+		// Windows: trigger on release, not press.
+		MouseEvent press = new MouseEvent(new java.awt.Component() {}, MouseEvent.MOUSE_PRESSED,
+				System.currentTimeMillis(), 0, 10, 10, 1, false, MouseEvent.BUTTON3);
+		MouseEvent release = new MouseEvent(new java.awt.Component() {}, MouseEvent.MOUSE_RELEASED,
+				System.currentTimeMillis(), 0, 10, 10, 1, false, MouseEvent.BUTTON3);
+
+		SwingUtilities.invokeAndWait(() -> {
+			handler.mousePressed(press);
+			handler.mouseReleased(release);
+		});
+		assertEquals(1, shown.get(), "popup must show exactly once for a press+release gesture");
+
+		// Reset and verify the press-trigger platform also dedupes on release.
+		shown.set(0);
+		MouseEvent pressTrigger = new MouseEvent(new java.awt.Component() {}, MouseEvent.MOUSE_PRESSED,
+				System.currentTimeMillis(), MouseEvent.BUTTON3_DOWN_MASK, 10, 10, 1, false, MouseEvent.BUTTON3) {
+			@Override
+			public boolean isPopupTrigger() { return true; }
+		};
+		MouseEvent releaseTrigger = new MouseEvent(new java.awt.Component() {}, MouseEvent.MOUSE_RELEASED,
+				System.currentTimeMillis(), 0, 10, 10, 1, false, MouseEvent.BUTTON3) {
+			@Override
+			public boolean isPopupTrigger() { return true; }
+		};
+		SwingUtilities.invokeAndWait(() -> {
+			handler.mousePressed(pressTrigger);
+			handler.mouseReleased(releaseTrigger);
+		});
+		assertEquals(1, shown.get(), "popup must show exactly once when trigger fires on press");
 	}
 }
