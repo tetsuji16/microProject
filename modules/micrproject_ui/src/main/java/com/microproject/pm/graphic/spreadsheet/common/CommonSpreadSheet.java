@@ -136,10 +136,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		//setSurrendersFocusOnKeystroke(true); //has the side effect of selecting the first character of cell after ENTER keystroke
 		setAutoCreateColumnsFromModel(false);
 		enableInputMethods(true);
-		rowHeader=new SpreadSheetRowHeader(this);
+		rowHeader=createRowHeader();
 		rowHeader.setRowHeight(getRowHeight());
 
 		setFocusCycleRoot(true);
+	}
+
+	/** Overridable so subclasses/tests can intercept header popup showing. */
+	protected SpreadSheetRowHeader createRowHeader() {
+		return new SpreadSheetRowHeader(this);
 	}
 	public void cleanUp() {
 		NodeModelCache currentCache = getCache();
