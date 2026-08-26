@@ -34,6 +34,8 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
+import com.microproject.application.task.TaskCommandResult;
+import com.microproject.application.task.TaskCommands.TaskAssignmentBatchCommand;
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
@@ -54,10 +56,10 @@ import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
 import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.strings.Messages;
@@ -83,8 +85,8 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	
 	public AssignmentDialog(DocumentFrame documentFrame) {
 		super(documentFrame.getGraphicManager().getFrame(),Messages.getString("Text.AssignResources"),false); //$NON-NLS-1$
+		listenersActivated = false;
 		setDocumentFrame(documentFrame);
-		DocumentSelectedEvent.addListener(this);
 		addDocHelp("Assign_Resources");
 		//createContentPanel();
 	}
@@ -146,9 +148,6 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
         });
         setEditorButtonsVisible(false);
         
-        documentFrame.getProject().addObjectListener(this);
-        documentFrame.getGraphicManager().getPreferences().addObjectListener(this);
-        
 	}
 	
 	public void setEditorButtonsVisible(boolean visible){
@@ -173,7 +172,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 				continue;
 			taskList.add(task);
 		}
-		AssignmentService.getInstance().newAssignments(taskList,resourceList,units,0,this,true);
+		runAssignmentCommand(taskList, resourceList, List.of(), units);
 		spreadSheetPane.updateTable();
 	}
 	
@@ -193,27 +192,32 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 /**
  * Removes given the current task selection for the given resource lsit
  * @param resourceList
- */	void remove(List<?> resourceList) {
-		for (Resource resource : getSelectedResources()) {
-			remove(resource);
-		}
+	 */	void remove(List<?> resourceList) {
+		if (selectedTasks == null) return;
+		runAssignmentCommand(selectedTasks, List.of(), resourceList, 0D);
 		spreadSheetPane.updateTable();
 	}
-	
-/**
- * Removes given resource from current task selection 
- * @param resource
- * @param selectedTasks
- */	void remove(Resource resource) {
-		if (selectedTasks == null)
-			return;
-		Assignment assignment;
-		for (NormalTask task : selectedTasks) {
-			assignment = task.findAssignment(resource);
-			if (assignment != null)
-				AssignmentService.getInstance().remove(assignment,this,true);
-		}
-	}	
+
+	private void runAssignmentCommand(List<NormalTask> tasks, List<?> assignments, List<?> removals, double units) {
+		if (tasks == null || assignments.isEmpty() && removals.isEmpty()) return;
+		List<ProjectTaskKey> taskKeys = tasks.stream().map(ProjectTaskKey::from)
+				.flatMap(java.util.Optional::stream).toList();
+		List<Long> assignmentIds = resourceIds(assignments);
+		List<Long> removalIds = resourceIds(removals);
+		if (taskKeys.size() != tasks.size() || assignmentIds.size() != assignments.size()
+				|| removalIds.size() != removals.size()) return;
+		Project project = documentFrame.getProject();
+		TaskCommandResult result = documentFrame.getTaskCommandGateway().changeAssignments(
+				new TaskAssignmentBatchCommand(taskKeys, assignmentIds, removalIds, units,
+						project.getDomainChangeJournal().revision()));
+		if (!result.committed() && result.status() != TaskCommandResult.Status.NO_OP)
+			Alert.warn("Assignment command rejected: " + result.status(), this);
+	}
+
+	private static List<Long> resourceIds(List<?> resources) {
+		return resources.stream().filter(Resource.class::isInstance).map(Resource.class::cast)
+				.map(Resource::getUniqueId).toList();
+	}
 	
 	void replace() {
 		List<Resource> list = spreadSheetPane.getSelectedResources(true);
@@ -227,11 +231,10 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		List<Resource> replacementList = ReplaceAssignmentDialog.getReplacementFromDialog(documentFrame,resource);
 		if (replacementList == null || replacementList.isEmpty()) // cancelled or nothing chosen
 			return;
-		if (!replacementList.contains(resource)) // if resource was replaced, remove it
-			remove(resource);
-		else // resource is in new list too, so don't touch it
-			replacementList.remove(resource);
-		assign(replacementList,1.0); // Preserve the current unit assignment for the replacement flow.
+		List<Resource> assignments = new ArrayList<>(replacementList);
+		boolean keepOriginal = assignments.remove(resource);
+		runAssignmentCommand(selectedTasks, assignments, keepOriginal ? List.of() : List.of(resource), 1.0D);
+		spreadSheetPane.updateTable();
 	}
 
 	
@@ -332,15 +335,16 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	public void setDocumentFrame(DocumentFrame documentFrame) {
 		detachDocumentFrame(this.documentFrame);
 		this.documentFrame = documentFrame;
-		attachDocumentFrame(documentFrame);
+		if (listenersActivated) attachDocumentFrame(documentFrame);
 //		if (projectName != null)
 //			projectName.setText(project == null ? "" : "Resources from: " + project.getName());
 	}
 
 	private void detachDocumentFrame(DocumentFrame frame) {
-		if (frame != null && frame.getProject() != null) {
-			frame.getProject().removeObjectListener(this);
-		}
+		if (frame == null || frame.getProject() == null) return;
+		frame.getProject().removeObjectListener(this);
+		frame.getProject().getResourcePool().removeObjectListener(this);
+		frame.getGraphicManager().getPreferences().removeObjectListener(this);
 	}
 
 	private void attachDocumentFrame(DocumentFrame frame) {
@@ -348,7 +352,28 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 			return;
 		}
 		Project project = frame.getProject();
+		project.addObjectListener(this);
 		project.getResourcePool().addObjectListener(this);
+		frame.getGraphicManager().getPreferences().addObjectListener(this);
+	}
+
+	@Override protected void activateListeners() {
+		if (listenersActivated) return;
+		super.activateListeners();
+		DocumentSelectedEvent.addListener(this);
+		attachDocumentFrame(documentFrame);
+	}
+
+	@Override protected void desactivateListeners() {
+		if (!listenersActivated) return;
+		DocumentSelectedEvent.removeListener(this);
+		detachDocumentFrame(documentFrame);
+		super.desactivateListeners();
+	}
+
+	@Override public void dispose() {
+		desactivateListeners();
+		super.dispose();
 	}
 	
 	private static final List<Object> emptyList = List.of();

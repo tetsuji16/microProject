@@ -31,12 +31,12 @@ import java.awt.GridLayout;
 import java.nio.file.Path;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 import javax.swing.BorderFactory;
+import javax.swing.AbstractAction;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -48,6 +48,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JCheckBox;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.SwingUtilities;
+import javax.swing.KeyStroke;
 import javax.swing.border.Border;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
@@ -144,13 +145,10 @@ public final class WelcomeDialog extends AbstractDialog {
 				if (event.getClickCount() == 2) openSelectedRecentProject();
 			}
 		});
-		recentProjects.addKeyListener(new KeyAdapter() {
-			@Override public void keyPressed(KeyEvent event) {
-				if (event.getKeyCode() == KeyEvent.VK_ENTER) {
-					openSelectedRecentProject();
-					event.consume();
-				}
-			}
+		recentProjects.getInputMap(JComponent.WHEN_FOCUSED)
+				.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "openRecentProject");
+		recentProjects.getActionMap().put("openRecentProject", new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) { openSelectedRecentProject(); }
 		});
 		templateChoice = new JComboBox<>(new String[] {
 			UsabilityStrings.text("welcome.template.basic"),

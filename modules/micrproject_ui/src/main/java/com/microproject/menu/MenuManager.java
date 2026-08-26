@@ -46,10 +46,10 @@ import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 
 import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
+import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 
-import com.microproject.ui.ribbon.SwingRibbonFactory;
-import com.microproject.ui.ribbon.SwingRibbonModel;
 import com.microproject.ui.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ui.ribbon.FlamingoRibbonPanel;
 import com.microproject.pm.graphic.TabbedNavigation;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.util.ClassLoaderUtils;
@@ -83,7 +83,7 @@ public class MenuManager {
 	static ResourceBundle[] bundles;
 	/*static*/ ExtMenuFactory menuFactory;
 	ExtToolBarFactory toolBarFactory;
-	SwingRibbonFactory ribbonFactory;
+	ExtRibbonFactory ribbonFactory;
 
 	private final Collection<TabbedNavigation> tabbedNavigations = new LinkedList<>();
 
@@ -105,7 +105,7 @@ public class MenuManager {
 		}
 	menuFactory = new ExtMenuFactory(rootActionMap,bundles);
 	toolBarFactory = new ExtToolBarFactory(rootActionMap,bundles);
-	if (Environment.isRibbonUI()) ribbonFactory = new SwingRibbonFactory(toolBarFactory, bundles);
+	if (Environment.isRibbonUI()) ribbonFactory = new ExtRibbonFactory(rootActionMap, bundles);
 	}
 
 	public static MenuManager getInstance(ProjectMenuActionMap rootActionMap) {
@@ -187,7 +187,7 @@ public class MenuManager {
 	public final ExtToolBarFactory getToolBarFactory() {
 		return toolBarFactory;
 	}
-	public final SwingRibbonFactory getRibbonFactory() {
+	public final ExtRibbonFactory getRibbonFactory() {
 		return ribbonFactory;
 	}
 	public JToolBar getToolBar(String name) {
@@ -198,16 +198,12 @@ public class MenuManager {
 	public void initComponent(String name, JComponent component) {
 		toolBarFactory.initJComponent(name,component);
 	}
-	public SwingRibbonModel getRibbon(String name, CustomRibbonBandGenerator customBandsGenerator) {
-		return ribbonFactory == null ? null : ribbonFactory.createModel(name, customBandsGenerator);
-	}
-
 	public JPanel createRibbonPanel(String name, Runnable helpAction) {
 		return createRibbonPanel(name, null, helpAction);
 	}
 
 	public JPanel createRibbonPanel(String name, CustomRibbonBandGenerator customBandsGenerator, Runnable helpAction) {
-		return ribbonFactory == null ? null : ribbonFactory.createPanel(name, customBandsGenerator, helpAction);
+		return ribbonFactory == null ? null : new FlamingoRibbonPanel(ribbonFactory, name, customBandsGenerator, helpAction);
 	}
 
 	public void setActionEnabled(String id, boolean enable) {
@@ -221,6 +217,8 @@ public class MenuManager {
 				Object button = i.next();
 				if (button instanceof AbstractButton)
 					((AbstractButton)button).setEnabled(enable);
+				else if (button instanceof AbstractCommandButton commandButton)
+					commandButton.setEnabled(enable);
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
@@ -235,6 +233,8 @@ public class MenuManager {
 				Object button = i.next();
 				if (button instanceof AbstractButton)
 					((AbstractButton)button).setVisible(enable);
+				else if (button instanceof AbstractCommandButton commandButton)
+					commandButton.setVisible(enable);
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
@@ -276,6 +276,8 @@ public class MenuManager {
 				Object button = i.next();
 				if (button instanceof AbstractButton)
 					((AbstractButton)button).setToolTipText(text);
+				else if (button instanceof AbstractCommandButton commandButton)
+					commandButton.setToolTipText(text);
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
@@ -301,4 +303,3 @@ public class MenuManager {
     }
 
 }
-

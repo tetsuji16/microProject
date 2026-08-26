@@ -25,8 +25,12 @@
 package com.microproject.pm.graphic.views.synchro;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Point;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.InputEvent;
 import java.lang.reflect.Field;
 import java.util.Calendar;
 import java.util.List;
@@ -55,6 +59,94 @@ class ScrollPaneSynchronizerTest {
 
 		synchronizer.removeSynchro(first, second, ScrollPaneSynchronizer.HORIZONTAL);
 		assertEquals(0, ((List<?>) field.get(synchronizer)).size());
+	}
+
+	@Test
+	void wheelListenerIsOwnedOnlyByTheScrollPanesAndIsRemovedSymmetrically() {
+		JPanel firstView = new JPanel();
+		JPanel secondView = new JPanel();
+		JScrollPane first = new JScrollPane(firstView);
+		JScrollPane second = new JScrollPane(secondView);
+		int firstPaneListeners = first.getMouseWheelListeners().length;
+		int secondPaneListeners = second.getMouseWheelListeners().length;
+		int firstViewListeners = firstView.getMouseWheelListeners().length;
+		int secondViewListeners = secondView.getMouseWheelListeners().length;
+		Synchronizer synchronizer = new Synchronizer();
+
+		synchronizer.addSynchro(first, second, ScrollPaneSynchronizer.HORIZONTAL);
+
+		assertEquals(firstPaneListeners + 1, first.getMouseWheelListeners().length);
+		assertEquals(secondPaneListeners + 1, second.getMouseWheelListeners().length);
+		assertEquals(firstViewListeners, firstView.getMouseWheelListeners().length);
+		assertEquals(secondViewListeners, secondView.getMouseWheelListeners().length);
+
+		synchronizer.removeSynchro(first, second, ScrollPaneSynchronizer.HORIZONTAL);
+		assertEquals(firstPaneListeners, first.getMouseWheelListeners().length);
+		assertEquals(secondPaneListeners, second.getMouseWheelListeners().length);
+	}
+
+	@Test
+	void fractionalWheelInputIsConsumedByItsOwnerWhileItAccumulates() {
+		JScrollPane first = new JScrollPane(new JPanel());
+		JScrollPane second = new JScrollPane(new JPanel());
+		Synchronizer synchronizer = new Synchronizer();
+		synchronizer.addSynchro(first, second, ScrollPaneSynchronizer.HORIZONTAL);
+		MouseWheelEvent event = new MouseWheelEvent(first, MouseEvent.MOUSE_WHEEL, System.currentTimeMillis(), 0,
+				10, 10, 10, 10, 0, false, MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, 0, 0.25d);
+
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(event);
+
+		assertTrue(event.isConsumed());
+	}
+
+	@Test
+	void fractionalRemaindersAreIndependentAcrossWheelModes() throws ReflectiveOperationException {
+		JScrollPane first = new JScrollPane(new JPanel());
+		JScrollPane second = new JScrollPane(new JPanel());
+		Synchronizer synchronizer = new Synchronizer();
+		synchronizer.addSynchro(first, second, ScrollPaneSynchronizer.HORIZONTAL);
+		MouseWheelEvent scroll = wheel(first, 0, 0.6d);
+		MouseWheelEvent zoom = wheel(first, InputEvent.CTRL_DOWN_MASK, 0.6d);
+		MouseWheelEvent finishScroll = wheel(first, 0, 0.4d);
+		MouseWheelEvent finishZoom = wheel(first, InputEvent.CTRL_DOWN_MASK, 0.4d);
+		MouseWheelEvent horizontal = wheel(first, InputEvent.SHIFT_DOWN_MASK, 0.25d);
+		MouseWheelEvent ctrlShift = wheel(first, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK, 0.25d);
+
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(scroll);
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(zoom);
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(finishScroll);
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(finishZoom);
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(horizontal);
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(ctrlShift);
+
+		assertTrue(scroll.isConsumed());
+		assertTrue(zoom.isConsumed());
+		Field synchronizers = Synchronizer.class.getDeclaredField("scrollPaneSynchronizers");
+		synchronizers.setAccessible(true);
+		Object paneSynchronizer = ((List<?>) synchronizers.get(synchronizer)).get(0);
+		Field remainder = ScrollPaneSynchronizer.class.getDeclaredField("scrollPane1WheelRemainders");
+		remainder.setAccessible(true);
+		double[] values = (double[]) remainder.get(paneSynchronizer);
+		assertEquals(0.0d, values[0], 0.00001d, "vertical remainder must resume after zoom");
+		assertEquals(0.25d, values[1], 0.00001d, "Shift uses the horizontal bucket");
+		assertEquals(0.25d, values[2], 0.00001d, "Ctrl takes precedence over Shift for zoom");
+	}
+
+	@Test
+	void fractionalWheelDirectionReversalCancelsWithinItsModeOnly() throws ReflectiveOperationException {
+		JScrollPane first = new JScrollPane(new JPanel());
+		JScrollPane second = new JScrollPane(new JPanel());
+		Synchronizer synchronizer = new Synchronizer();
+		synchronizer.addSynchro(first, second, ScrollPaneSynchronizer.HORIZONTAL);
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(wheel(first, 0, 0.6d));
+		for (var listener : first.getMouseWheelListeners()) listener.mouseWheelMoved(wheel(first, 0, -0.25d));
+
+		Field synchronizers = Synchronizer.class.getDeclaredField("scrollPaneSynchronizers");
+		synchronizers.setAccessible(true);
+		Object paneSynchronizer = ((List<?>) synchronizers.get(synchronizer)).get(0);
+		Field remainder = ScrollPaneSynchronizer.class.getDeclaredField("scrollPane1WheelRemainders");
+		remainder.setAccessible(true);
+		assertEquals(0.35d, ((double[]) remainder.get(paneSynchronizer))[0], 0.00001d);
 	}
 	@Test
 	void resolveViewportLeftEdgeDateUsesCurrentViewportOffset() {
@@ -144,6 +236,11 @@ class ScrollPaneSynchronizerTest {
 		scale.setNumber1(number1);
 		scale.setNormalMinWidth(1);
 		return scale;
+	}
+
+	private static MouseWheelEvent wheel(JScrollPane source, int modifiers, double rotation) {
+		return new MouseWheelEvent(source, MouseEvent.MOUSE_WHEEL, System.currentTimeMillis(), modifiers,
+				10, 10, 10, 10, 0, false, MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, 0, rotation);
 	}
 
 	private static long date(int year, int month, int dayOfMonth) {

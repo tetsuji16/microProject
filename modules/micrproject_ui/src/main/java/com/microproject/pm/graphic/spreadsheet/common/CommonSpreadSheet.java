@@ -32,7 +32,6 @@ import java.awt.event.InputMethodEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.im.InputContext;
-import java.lang.reflect.Method;
 import java.text.AttributedCharacterIterator;
 import java.util.ArrayList;
 import java.util.EventListener;
@@ -40,11 +39,8 @@ import java.util.EventObject;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.swing.CellEditor;
 import javax.swing.AbstractAction;
@@ -108,7 +104,6 @@ import com.microproject.util.FlatUiSupport;
  */
 @SuppressWarnings("unchecked")
 public class CommonSpreadSheet extends CommonTable implements CacheListener, SavableToWorkspace, Searchable {
-	private static final Map<Class<?>, Optional<Method>> TEXT_FIELD_METHODS = new ConcurrentHashMap<>();
 	private static final Logger logger = Logger.getLogger(CommonSpreadSheet.class.getName());
 	/**
 	 *
@@ -391,10 +386,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return;
 		}
 		if (e != null && !isEditing()) {
-			if (e.getID() == KeyEvent.KEY_PRESSED && handleHierarchyNavigationKeyEvent(e)) {
-				e.consume();
-				return;
-			}
 			if (e.getID() == KeyEvent.KEY_PRESSED && isClearCellKey(e)) {
 				if (handleClearCellKey(e)) {
 					e.consume();
@@ -535,32 +526,28 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		if (!(editorComp instanceof Component component)) {
 			return null;
 		}
-		if (component instanceof NameCellComponent nameCellComponent) {
-			var textComponent = nameCellComponent.getTextComponent();
-			if (textComponent instanceof JTextComponent text) {
-				return text;
-			}
-			return null;
-		}
 		if (component instanceof JTextComponent textComponent) {
 			return textComponent;
 		}
-		Optional<Method> method = TEXT_FIELD_METHODS.computeIfAbsent(component.getClass(), type -> {
-			try {
-				return Optional.of(type.getMethod("getTextField"));
-			} catch (NoSuchMethodException ignored) {
-				return Optional.empty();
+		if (component instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				JTextComponent text = findTextComponent(child);
+				if (text != null)
+					return text;
 			}
-		});
-		try {
-			if (method.isEmpty())
-				return null;
-			var textField = method.get().invoke(component);
-			if (textField instanceof JTextComponent text) {
-				return text;
+		}
+		return null;
+	}
+
+	private JTextComponent findTextComponent(Component component) {
+		if (component instanceof JTextComponent text)
+			return text;
+		if (component instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				JTextComponent text = findTextComponent(child);
+				if (text != null)
+					return text;
 			}
-		} catch (Exception ignored) {
-			// Ignore; not all editors expose a text field accessor.
 		}
 		return null;
 	}
@@ -1167,13 +1154,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
     	return Utilities.getWordStart(text, bounded);
     }
 
-    protected boolean handleHierarchyNavigationKeyEvent(KeyEvent e) {
-    	return false;
-    }
-
-
-
-    protected boolean editOnSelect=false;
+	protected boolean editOnSelect=false;
 
 	/**
 	 * @return Returns the editOnSelect.

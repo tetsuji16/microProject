@@ -31,8 +31,6 @@ import java.util.MissingResourceException;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-import javax.swing.AbstractButton;
-
 import com.microproject.menu.resource.MissingListenerException;
 import com.microproject.menu.resource.ResourceFormatException;
 import com.microproject.menu.resource.RibbonFactory;
@@ -52,17 +50,11 @@ public class ExtRibbonFactory extends RibbonFactory {
 	}
 	
 	
-	public AbstractCommandButton createJButton(String name) throws MissingResourceException,
-	ResourceFormatException, MissingListenerException {
-		return createCommandButton(name);
-	}
-
 	@Override
 	public AbstractCommandButton createCommandButton(String name) throws MissingResourceException,
 	ResourceFormatException, MissingListenerException {
 		AbstractCommandButton button = super.createCommandButton(name);
 		button.setName(name);
-		button.putClientProperty("ProjectLibre.ribbonActionId", name);
 		registerButton(name, button);
 		return button;
 	}

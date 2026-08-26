@@ -30,7 +30,6 @@ import java.awt.Frame;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -41,11 +40,13 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.swing.DefaultListSelectionModel;
+import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -275,13 +276,9 @@ public final class OpenProjectDialog extends AbstractDialog {
 	        setSelectionModel(new OpenProjectListSelectionModel());
 	        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 	        addMouseListener();
-			addKeyListener(new KeyAdapter() {
-				public void keyPressed(KeyEvent e) {
-					if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
-						OpenProjectDialog.this.onCancel();
-					else if (e.getKeyCode() == KeyEvent.VK_ENTER)
-						OpenProjectDialog.this.onOk();
-				}
+			getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "openProject");
+			getActionMap().put("openProject", new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) { OpenProjectDialog.this.onOk(); }
 			});
 			setGridColor(FlatUiSupport.borderColor());
 
@@ -478,4 +475,3 @@ public final class OpenProjectDialog extends AbstractDialog {
 
 
 }
-

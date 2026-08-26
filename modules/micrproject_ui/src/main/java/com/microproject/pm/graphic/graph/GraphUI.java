@@ -71,6 +71,22 @@ public class GraphUI extends ComponentUI implements Serializable {
 		return interactor;
 	}
 
+	@Override
+	public void installUI(JComponent component) {
+		super.installUI(component);
+		if (interactor != null) interactor.install();
+	}
+
+	@Override
+	public void uninstallUI(JComponent component) {
+		dispose();
+		super.uninstallUI(component);
+	}
+
+	public void dispose() {
+		if (interactor != null) interactor.uninstall();
+	}
+
 
 
 
@@ -142,7 +158,9 @@ public class GraphUI extends ComponentUI implements Serializable {
     	paint(g, c);
     }
     public void paint(Graphics g, JComponent c) {
-    	graphRenderer.paint(g);
+		graphRenderer.paint(g);
+		if (interactor != null && g instanceof java.awt.Graphics2D graphics)
+			interactor.paintPreview(graphics);
     }
     public void updateShape(GraphicNode node){
     	graphRenderer.updateShape(node);

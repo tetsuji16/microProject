@@ -35,17 +35,13 @@ import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
-import java.awt.Component;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Serializable;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import javax.swing.JOptionPane;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
-import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 
 import com.microproject.dialog.DependencyDialog;
@@ -58,7 +54,7 @@ import com.microproject.graphic.configuration.GraphicConfiguration;
 /**
  *
  */
-public abstract class GraphInteractor implements MouseListener, MouseMotionListener, MouseWheelListener, Serializable{
+public abstract class GraphInteractor implements MouseListener, MouseMotionListener, Serializable{
 	protected static final int NOTHING_SELECTED=0;
 	protected static final int LINK_CREATION=1;
 	protected static final int LINK_SELECTION=2;
@@ -76,6 +72,7 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 	private static final int SCROLL_THROTTLE_PX = 30;
 	private int lastScrollX = Integer.MIN_VALUE;
 	private int lastScrollY = Integer.MIN_VALUE;
+	private transient boolean installed;
 	/**
 	 *
 	 */
@@ -84,15 +81,27 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 		config=GraphicConfiguration.getInstance();
 		state=NOTHING_SELECTED;
 		selection=true;
-		init();
+		defaultCursor=getGraph().getCursor();
 	}
 
-	protected void init(){
-    	ui.getGraph().addMouseListener(this);
-    	ui.getGraph().addMouseMotionListener(this);
-    	ui.getGraph().addMouseWheelListener(this);
-    	defaultCursor=getGraph().getCursor();
-    }
+	final void install() {
+		if (installed) return;
+		getGraph().addMouseListener(this);
+		getGraph().addMouseMotionListener(this);
+		installed = true;
+	}
+
+	final void uninstall() {
+		if (!installed) return;
+		getGraph().removeMouseListener(this);
+		getGraph().removeMouseMotionListener(this);
+		installed = false;
+		reset();
+		if (dependencyPropertiesDialog != null) {
+			dependencyPropertiesDialog.dispose();
+			dependencyPropertiesDialog = null;
+		}
+	}
 
     protected void reset(){
      	lastShadowX=-1;
@@ -101,7 +110,9 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
     	lastLinkShadowY=-1;
        	sourceNode=null;
     	destinationNode=null;
-    	selection=true;
+		selection=true;
+		linkSelectionHighlights.clear();
+		getGraph().repaint();
     	// Reset scroll throttle so next drag starts fresh
     	lastScrollX = Integer.MIN_VALUE;
     	lastScrollY = Integer.MIN_VALUE;
@@ -214,41 +225,29 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 		}
     }
 
-    protected Graphics2D initGraphics(){
-    	Graph graph=getGraph();
-    	Graphics2D g=(Graphics2D)graph.getGraphics();
-		g.setColor(graph.getForeground());
-		g.setXORMode(graph.getBackground().darker());
-		return g;
-    }
-
     protected double lastShadowX=-1;
     protected double lastShadowY=-1;
     protected void drawBarShadow(double x,double y, boolean alternate){
-    	if (x==-1) return;
-		Graphics2D g=initGraphics();
-
-		Shape bounds=getBarShadowBounds(x,y);
-		if (bounds==null) return;
-		g.setStroke(new BasicStroke(3));
-		g.draw(bounds);
-		if (alternate){
-			lastShadowX=(lastShadowX==-1)?x:-1;
-			lastShadowY=(lastShadowY==-1)?y:-1;
+		if (x==-1) return;
+		if (alternate && lastShadowX == x && lastShadowY == y) {
+			lastShadowX=-1;
+			lastShadowY=-1;
+		} else {
+			lastShadowX=x;
+			lastShadowY=y;
 		}
+		getGraph().repaint();
     }
 
 
 
     protected GraphicNode sourceNode=null;
     protected GraphicNode destinationNode=null;
+	private final Set<GraphicNode> linkSelectionHighlights = new LinkedHashSet<>();
     protected void drawLinkSelectionBarShadow(GraphicNode node){
-    	if (node==null) return;
-    	Graphics2D g=initGraphics();
-		Rectangle2D selectionRectangle=getLinkSelectionShadowBounds(node);
-		if (selectionRectangle==null) return;
-		g.setStroke(new BasicStroke(3));
-		g.draw(selectionRectangle);
+		if (node==null) return;
+		if (!linkSelectionHighlights.add(node)) linkSelectionHighlights.remove(node);
+		getGraph().repaint();
     }
 
 
@@ -257,40 +256,47 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
     protected double lastLinkShadowY=-1;
     protected double x0link,y0link;
     private void drawLinkShadow(double x,double y,boolean alternate){
-    	if (x==-1||y==-1) return;
-		Graphics2D g=initGraphics();
-
-		Line2D line=new Line2D.Double(x0link,y0link,x,y);
-		g.setStroke(new BasicStroke(2));
-		g.draw(line);
-
-		if (alternate){
-			lastLinkShadowX=(lastLinkShadowX==-1)?x:-1;
-			lastLinkShadowY=(lastLinkShadowY==-1)?y:-1;
+		if (x==-1||y==-1) return;
+		if (alternate && lastLinkShadowX == x && lastLinkShadowY == y) {
+			lastLinkShadowX=-1;
+			lastLinkShadowY=-1;
+		} else {
+			lastLinkShadowX=x;
+			lastLinkShadowY=y;
 		}
+		getGraph().repaint();
     }
+
+	final void paintPreview(Graphics2D graphics) {
+		Graphics2D preview=(Graphics2D)graphics.create();
+		try {
+			preview.setColor(getGraph().getForeground());
+			if (lastShadowX!=-1) {
+				Shape bar=getBarShadowBounds(lastShadowX,lastShadowY);
+				if (bar!=null) {
+					preview.setStroke(new BasicStroke(3));
+					preview.draw(bar);
+				}
+			}
+			for (GraphicNode node:linkSelectionHighlights) {
+				Rectangle2D highlight=getLinkSelectionShadowBounds(node);
+				if (highlight!=null) {
+					preview.setStroke(new BasicStroke(3));
+					preview.draw(highlight);
+				}
+			}
+			if (lastLinkShadowX!=-1 && lastLinkShadowY!=-1) {
+				preview.setStroke(new BasicStroke(2));
+				preview.draw(new Line2D.Double(x0link,y0link,lastLinkShadowX,lastLinkShadowY));
+			}
+		} finally {
+			preview.dispose();
+		}
+	}
 
 
     //Mouse
     public void mouseClicked(MouseEvent e){}
-    public void mouseWheelMoved(MouseWheelEvent e){
-        if (e.isConsumed() || e.isShiftDown() || e.isControlDown()) {
-            return;
-        }
-        // Directly scroll the parent scroll pane by manipulating its vertical scrollbar
-        Component comp = getGraph();
-        while (comp != null && !(comp instanceof JScrollPane)) {
-            comp = comp.getParent();
-        }
-        if (comp instanceof JScrollPane) {
-            JScrollPane sp = (JScrollPane) comp;
-            JScrollBar bar = sp.getVerticalScrollBar();
-            int rotation = e.getWheelRotation();
-            int increment = (rotation < 0) ? -bar.getUnitIncrement() : bar.getUnitIncrement();
-            bar.setValue(bar.getValue() + increment);
-            e.consume();
-        }
-    }
 
 
     public void mousePressed(MouseEvent e){
@@ -390,39 +396,6 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
     		drawBarShadow(e.getX(),e.getY(),true);
     	}
     }
-//    public void mouseDragged(MouseEvent e){
-//    	if (isReadOnly()) return;
-//    	if (!SwingUtilities.isLeftMouseButton(e)) return;
-//    	if (state!=LINK_CREATION&&selected instanceof GraphicNode){
-//    		GraphicNode node=(GraphicNode)selected;
-//    		if (switchOnLinkCreation(e.getX(),e.getY())){
-//    			drawBarShadow(lastShadowX,lastLinkShadowY,true);
-//    			state=LINK_CREATION;
-//    			selectCursor();
-//
-//    			sourceNode=(GraphicNode)selected;
-//    			drawLinkSelectionBarShadow(sourceNode);
-//
-//    			setLinkOrigin();
-//    		}
-//    	}
-//    	if (state==LINK_CREATION){
-//			GraphicNode newDestinationNode=ui.getNodeAt(e.getX(),e.getY());
-//			drawLinkSelectionBarShadow(destinationNode);
-//    		drawLinkShadow(lastLinkShadowX,lastLinkShadowY,true);
-//    		scrollToVisible(e.getX(),e.getY());
-//			drawLinkShadow(e.getX(),e.getY(),true);
-//			if (newDestinationNode!=null && newDestinationNode.isLinkable() && sourceNode != newDestinationNode){
-//				destinationNode=newDestinationNode;
-//				drawLinkSelectionBarShadow(destinationNode);
-//			}else destinationNode=null;
-//    	}else if (isMove()){
-//    		drawBarShadow(lastShadowX,lastShadowY,true);
-//    		scrollToVisible(e.getX(),e.getY());
-//    		drawBarShadow(e.getX(),e.getY(),true);
-//    	}
-//    }
-
     public void mouseMoved(MouseEvent e){
     	if (isReadOnly()) return;
     	select(e.getX(),e.getY());

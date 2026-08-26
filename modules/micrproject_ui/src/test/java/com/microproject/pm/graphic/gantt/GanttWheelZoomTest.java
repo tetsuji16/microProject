@@ -54,7 +54,7 @@ class GanttWheelZoomTest {
 			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
 
 			int before = coord.getTimescaleManager().getCurrentScaleIndex();
-			dispatchCtrlWheel(gantt, 10, 1);
+			dispatchCtrlWheel(chartPane, gantt, 10, 1);
 
 			int after = coord.getTimescaleManager().getCurrentScaleIndex();
 			assertTrue(after > before, "Ctrl+wheel down should zoom out (increase scale index), was " + before + " -> " + after);
@@ -77,12 +77,12 @@ class GanttWheelZoomTest {
 
 			// Zoom out once so a zoom-in (which can anchor without left-edge clamping) is available.
 			assertTrue(coord.canZoomOut(), "default scale must allow zooming out");
-			dispatchCtrlWheel(gantt, 150, 1);
+			dispatchCtrlWheel(chartPane, gantt, 150, 1);
 			assertTrue(coord.canZoomIn(), "after zooming out a zoom-in must be available");
 
 			int cursorX = 150;
 			double anchorDate = coord.toTime(cursorX);
-			dispatchCtrlWheel(gantt, cursorX, -1);
+			dispatchCtrlWheel(chartPane, gantt, cursorX, -1);
 
 			int left = chartPane.getViewport().getViewPosition().x;
 			int expectedLeft = (int) Math.round(coord.toX(anchorDate)) - cursorX;
@@ -110,7 +110,7 @@ class GanttWheelZoomTest {
 			MouseWheelEvent wheel = new MouseWheelEvent(gantt, MouseEvent.MOUSE_WHEEL,
 					System.currentTimeMillis(), 0, 10, 10, 0, false,
 					MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, 1);
-			gantt.dispatchEvent(wheel);
+			dispatchThroughScrollPane(chartPane, wheel);
 
 			int after = coord.getTimescaleManager().getCurrentScaleIndex();
 			assertTrue(after == before, "plain wheel must scroll, not zoom (scale index " + before + " -> " + after + ")");
@@ -124,11 +124,15 @@ class GanttWheelZoomTest {
 		return new Gantt(project, "Gantt");
 	}
 
-	private static void dispatchCtrlWheel(Gantt gantt, int x, int rotation) {
+	private static void dispatchCtrlWheel(JScrollPane scrollPane, Gantt gantt, int x, int rotation) {
 		MouseWheelEvent wheel = new MouseWheelEvent(gantt, MouseEvent.MOUSE_WHEEL,
 				System.currentTimeMillis(), InputEvent.CTRL_DOWN_MASK, x, 10, 0, false,
 				MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, rotation);
-		gantt.dispatchEvent(wheel);
+		dispatchThroughScrollPane(scrollPane, wheel);
+	}
+
+	private static void dispatchThroughScrollPane(JScrollPane scrollPane, MouseWheelEvent wheel) {
+		for (var listener : scrollPane.getMouseWheelListeners()) listener.mouseWheelMoved(wheel);
 	}
 
 	private static boolean hasLocalBinding(javax.swing.InputMap inputMap, KeyStroke keyStroke) {

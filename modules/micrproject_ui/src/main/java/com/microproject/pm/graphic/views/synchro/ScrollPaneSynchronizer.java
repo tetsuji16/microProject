@@ -25,7 +25,6 @@
 package com.microproject.pm.graphic.views.synchro;
 
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -33,7 +32,6 @@ import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.function.DoubleUnaryOperator;
@@ -79,13 +77,8 @@ public class ScrollPaneSynchronizer {
 
 	protected MouseWheelListener scrollPane2WheelListener = null;
 
-	protected MouseWheelEvent scrollPane1LastWheelEvent = null;
-
-	protected MouseWheelEvent scrollPane2LastWheelEvent = null;
-
-	protected ArrayList scrollPane1WheelTargets = new ArrayList();
-
-	protected ArrayList scrollPane2WheelTargets = new ArrayList();
+	private final double[] scrollPane1WheelRemainders = new double[WheelMode.values().length];
+	private final double[] scrollPane2WheelRemainders = new double[WheelMode.values().length];
 
 	protected int defaultScrollBarPolicy1;
 
@@ -224,44 +217,10 @@ public class ScrollPaneSynchronizer {
 			scrollPane1.getHorizontalScrollBar().addAdjustmentListener(scrollPane1HorizontalAdjustmentListener);
 			scrollPane2.getHorizontalScrollBar().addAdjustmentListener(scrollPane2HorizontalAdjustmentListener);
 
-			scrollPane1WheelListener = new MouseWheelListener() {
-				public void mouseWheelMoved(MouseWheelEvent e) {
-					if (e == scrollPane1LastWheelEvent) {
-						return;
-					}
-					scrollPane1LastWheelEvent = e;
-					if (handleZoomWheel(scrollPane1, e)) {
-						e.consume();
-						return;
-					}
-					if (e.isShiftDown()) {
-						scrollHorizontally(scrollPane1, e);
-					} else {
-						scrollVertically(scrollPane1, e);
-					}
-					e.consume();
-				}
-			};
-			scrollPane2WheelListener = new MouseWheelListener() {
-				public void mouseWheelMoved(MouseWheelEvent e) {
-					if (e == scrollPane2LastWheelEvent) {
-						return;
-					}
-					scrollPane2LastWheelEvent = e;
-					if (handleZoomWheel(scrollPane2, e)) {
-						e.consume();
-						return;
-					}
-					if (e.isShiftDown()) {
-						scrollHorizontally(scrollPane2, e);
-					} else {
-						scrollVertically(scrollPane2, e);
-					}
-					e.consume();
-				}
-			};
-			registerMouseWheelTargets(scrollPane1, scrollPane1WheelListener, scrollPane1WheelTargets);
-			registerMouseWheelTargets(scrollPane2, scrollPane2WheelListener, scrollPane2WheelTargets);
+			scrollPane1WheelListener = createWheelListener(scrollPane1);
+			scrollPane2WheelListener = createWheelListener(scrollPane2);
+			scrollPane1.addMouseWheelListener(scrollPane1WheelListener);
+			scrollPane2.addMouseWheelListener(scrollPane2WheelListener);
 
 		} else if (orientation == VERTICAL) {
 			defaultScrollBarPolicy1 = scrollPane1.getHorizontalScrollBarPolicy();
@@ -326,10 +285,12 @@ public class ScrollPaneSynchronizer {
 				scrollPane2.getHorizontalScrollBar().removeAdjustmentListener(scrollPane2HorizontalAdjustmentListener);
 				scrollPane2HorizontalAdjustmentListener = null;
 			}
-			unregisterMouseWheelTargets(scrollPane1WheelTargets, scrollPane1WheelListener);
-			unregisterMouseWheelTargets(scrollPane2WheelTargets, scrollPane2WheelListener);
+			if (scrollPane1WheelListener != null) scrollPane1.removeMouseWheelListener(scrollPane1WheelListener);
+			if (scrollPane2WheelListener != null) scrollPane2.removeMouseWheelListener(scrollPane2WheelListener);
 			scrollPane1WheelListener = null;
 			scrollPane2WheelListener = null;
+			java.util.Arrays.fill(scrollPane1WheelRemainders, 0.0d);
+			java.util.Arrays.fill(scrollPane2WheelRemainders, 0.0d);
 			scrollPane1.setWheelScrollingEnabled(defaultWheelScrollingEnabled1);
 			scrollPane2.setWheelScrollingEnabled(defaultWheelScrollingEnabled2);
 			scrollPane1.setVerticalScrollBarPolicy(defaultScrollBarPolicy1);
@@ -345,8 +306,21 @@ public class ScrollPaneSynchronizer {
 		}
 	}
 
-	private void scrollVertically(JScrollPane scrollPane, MouseWheelEvent e) {
-		int steps = getWheelSteps(e);
+	private MouseWheelListener createWheelListener(JScrollPane scrollPane) {
+		return event -> {
+			int steps = consumeWheelSteps(scrollPane, event);
+			if (steps == 0) {
+				if (event.getPreciseWheelRotation() != 0.0d) event.consume();
+				return;
+			}
+			if (event.isControlDown()) performZoom(scrollPane, steps, resolveWheelCursorX(scrollPane, event));
+			else if (event.isShiftDown()) scrollHorizontally(scrollPane, steps);
+			else scrollVertically(scrollPane, steps);
+			event.consume();
+		};
+	}
+
+	private void scrollVertically(JScrollPane scrollPane, int steps) {
 		if (steps == 0) {
 			return;
 		}
@@ -362,8 +336,7 @@ public class ScrollPaneSynchronizer {
 		viewport.setViewPosition(viewPosition);
 	}
 
-	private void scrollHorizontally(JScrollPane scrollPane, MouseWheelEvent e) {
-		int steps = getWheelSteps(e);
+	private void scrollHorizontally(JScrollPane scrollPane, int steps) {
 		if (steps == 0) {
 			return;
 		}
@@ -379,13 +352,6 @@ public class ScrollPaneSynchronizer {
 		clampViewPosition(viewport, viewPosition);
 		setViewportViewPosition(viewport, viewPosition);
 		updateKeptLeftDate(getZoomRestoreState(scrollPane), resolveViewportLeftEdgeDate(coord -> coord, viewPosition));
-	}
-
-	private boolean handleZoomWheel(JScrollPane scrollPane, MouseWheelEvent e) {
-		if (!e.isControlDown()) {
-			return false;
-		}
-		return performZoom(scrollPane, getWheelSteps(e), resolveWheelCursorX(scrollPane, e));
 	}
 
 	/**
@@ -675,13 +641,17 @@ public class ScrollPaneSynchronizer {
 		}
 	}
 
-	private int getWheelSteps(MouseWheelEvent e) {
-		double rotation = e.getPreciseWheelRotation();
-		if (rotation == 0.0d) {
-			return 0;
-		}
-		return rotation > 0.0d ? 1 : -1;
+	private int consumeWheelSteps(JScrollPane scrollPane, MouseWheelEvent event) {
+		WheelMode mode = event.isControlDown() ? WheelMode.ZOOM
+				: event.isShiftDown() ? WheelMode.HORIZONTAL : WheelMode.VERTICAL;
+		double[] remainders = scrollPane == scrollPane1 ? scrollPane1WheelRemainders : scrollPane2WheelRemainders;
+		double total = event.getPreciseWheelRotation() + remainders[mode.ordinal()];
+		int steps = total > 0.0d ? (int)Math.floor(total) : (int)Math.ceil(total);
+		remainders[mode.ordinal()] = total - steps;
+		return steps;
 	}
+
+	private enum WheelMode { VERTICAL, HORIZONTAL, ZOOM }
 
 	private int getVerticalScrollStep(JScrollPane scrollPane) {
 		int synchronizedRowHeight = getSynchronizedRowHeight();
@@ -766,45 +736,6 @@ public class ScrollPaneSynchronizer {
 		}
 	}
 
-	private void registerMouseWheelTargets(JScrollPane scrollPane, MouseWheelListener listener, ArrayList targets) {
-		registerMouseWheelTargets(scrollPane.getViewport(), listener, targets);
-		registerMouseWheelTargets(scrollPane.getViewport() == null ? null : scrollPane.getViewport().getView(), listener, targets);
-		if (scrollPane.getRowHeader() != null) {
-			registerMouseWheelTargets(scrollPane.getRowHeader(), listener, targets);
-			registerMouseWheelTargets(scrollPane.getRowHeader().getView(), listener, targets);
-		}
-		if (scrollPane.getColumnHeader() != null) {
-			registerMouseWheelTargets(scrollPane.getColumnHeader(), listener, targets);
-			registerMouseWheelTargets(scrollPane.getColumnHeader().getView(), listener, targets);
-		}
-	}
-
-	private void registerMouseWheelTargets(Component component, MouseWheelListener listener, ArrayList targets) {
-		if (component == null || listener == null) {
-			return;
-		}
-		component.addMouseWheelListener(listener);
-		targets.add(component);
-		if (component instanceof Container) {
-			Component[] children = ((Container) component).getComponents();
-			for (int i = 0; i < children.length; i++) {
-				registerMouseWheelTargets(children[i], listener, targets);
-			}
-		}
-	}
-
-	private void unregisterMouseWheelTargets(ArrayList targets, MouseWheelListener listener) {
-		if (listener == null) {
-			targets.clear();
-			return;
-		}
-		for (int i = 0; i < targets.size(); i++) {
-			Component component = (Component) targets.get(i);
-			component.removeMouseWheelListener(listener);
-		}
-		targets.clear();
-	}
-
 	private static ScrollPaneSynchronizer findSynchronizer(Component component) {
 		Component current = component;
 		while (current != null) {
@@ -862,4 +793,3 @@ public class ScrollPaneSynchronizer {
         this.scrollPane2 = scrollPane2;
     }
 }
-

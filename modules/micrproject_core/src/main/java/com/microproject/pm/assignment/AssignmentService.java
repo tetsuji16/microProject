@@ -93,7 +93,7 @@ public class AssignmentService {
 			for (Object taskObject : tasks) {
 				NormalTask task = (NormalTask) taskObject;
 				batchUpdate.beginIfNeeded(task, tasks, transactionResourcePool, this, undo);
-				batchAssignResources(task, resources, units, delay, eventSource);
+				batchAssignResources(task, resources, units, delay, eventSource, undo);
 			}
 		} finally {
 			batchUpdate.endIfNeeded();
@@ -104,7 +104,8 @@ public class AssignmentService {
 		return resource.getDocument() instanceof ResourcePool ? (ResourcePool) resource.getDocument() : null;
 	}
 
-	private void batchAssignResources(NormalTask task, Collection resources, double units, long delay, Object eventSource) {
+	private void batchAssignResources(NormalTask task, Collection resources, double units, long delay, Object eventSource,
+			boolean undo) {
 		boolean taskHadNoRealAssignments = !task.hasRealAssignments() || !task.hasLaborAssignment();
 		TaskState taskState = preserveTaskState(task, taskHadNoRealAssignments);
 		Set<Resource> assignedResources = getAssignedResources(task);
@@ -114,7 +115,7 @@ public class AssignmentService {
 				if (assignedResources.contains(resource)) {
 					continue;
 				}
-				Assignment assignment = newAssignment(task, resource, units, delay, eventSource, true);
+				Assignment assignment = newAssignment(task, resource, units, delay, eventSource, undo);
 				if (assignment != null) {
 					if (!resource.isLabor()) {
 						assignment.setRateUnit(TimeUnit.NON_TEMPORAL);

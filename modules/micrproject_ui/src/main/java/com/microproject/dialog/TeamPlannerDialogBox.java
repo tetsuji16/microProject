@@ -45,16 +45,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSlider;
-import javax.swing.ToolTipManager;
+import javax.swing.SwingUtilities;
 
 import com.microproject.options.CalendarOption;
+import com.microproject.application.task.TaskCommandGateway;
+import com.microproject.application.task.TaskCommandResult;
+import com.microproject.application.task.TaskCommands.TaskTimelineMoveCommand;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.TeamPlannerService;
@@ -69,22 +71,27 @@ public final class TeamPlannerDialogBox extends JDialog {
 	private final Project project;
 	private final TeamPlannerCanvas canvas;
 
-	public static TeamPlannerDialogBox getInstance(java.awt.Frame owner, Project project) {
-		return new TeamPlannerDialogBox(owner, project);
+	public static TeamPlannerDialogBox getInstance(java.awt.Frame owner, Project project, TaskCommandGateway commands) {
+		return new TeamPlannerDialogBox(owner, project, commands);
 	}
 
-	private TeamPlannerDialogBox(java.awt.Frame owner, Project project) {
+	private TeamPlannerDialogBox(java.awt.Frame owner, Project project, TaskCommandGateway commands) {
 		super(owner, UsabilityStrings.text("team.title"), false);
 		HelpUtil.addDocHelp(getRootPane(), "Team_Planner");
 		getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("team.hint"));
 		PopupDialogSupport.bindEscapeToDispose(this);
+		FlatUiSupport.styleDialogRoot(getRootPane());
 		this.project = project;
-		this.canvas = new TeamPlannerCanvas(project);
-		buildUi();
+		this.canvas = new TeamPlannerCanvas(project, commands);
+		setContentPane(createPanel(owner, project, canvas, this::dispose));
+		setPreferredSize(new Dimension(1120, 680));
+		pack();
+		setLocationRelativeTo(getOwner());
 	}
 
-	private void buildUi() {
-		FlatUiSupport.styleDialogRoot(getRootPane());
+	private static JPanel createPanel(java.awt.Frame owner, Project project, TeamPlannerCanvas canvas,
+			Runnable closeAction) {
+		JPanel panel = new JPanel(new BorderLayout());
 		JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
 		toolbar.add(new JLabel(UsabilityStrings.text("team.zoom")));
 		JSlider zoom = new JSlider(8, 48, canvas.getPixelsPerDay());
@@ -97,34 +104,24 @@ public final class TeamPlannerDialogBox extends JDialog {
 		toolbar.add(today);
 		JButton level = new JButton(UsabilityStrings.text("team.resolve"));
 		level.addActionListener(event -> ResourceLevelingDialogBox.getInstance(
-			(java.awt.Frame) getOwner(), project).setVisible(true));
+			owner, project).setVisible(true));
 		toolbar.add(level);
-		JButton close = new JButton(UsabilityStrings.text("common.close"));
-		close.addActionListener(event -> dispose());
 		JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		footer.add(new JLabel(UsabilityStrings.text("team.hint") + " "));
-		footer.add(close);
-
-		setLayout(new BorderLayout());
-		add(toolbar, BorderLayout.NORTH);
-		add(scrollPane, BorderLayout.CENTER);
-		add(footer, BorderLayout.SOUTH);
-		setPreferredSize(new Dimension(1120, 680));
-		pack();
-		setLocationRelativeTo(getOwner());
+		if (closeAction != null) {
+			JButton close = new JButton(UsabilityStrings.text("common.close"));
+			close.addActionListener(event -> closeAction.run());
+			footer.add(close);
+		}
+		panel.add(toolbar, BorderLayout.NORTH);
+		panel.add(scrollPane, BorderLayout.CENTER);
+		panel.add(footer, BorderLayout.SOUTH);
+		return panel;
 	}
 
 	/** Creates the Team Planner UI for embedding in a document view. */
-	public static JPanel createEmbeddedPanel(java.awt.Frame owner, Project project) {
-		TeamPlannerDialogBox dialog = new TeamPlannerDialogBox(owner, project);
-		java.awt.Container content = dialog.getContentPane();
-		if (!(content instanceof JPanel panel)) {
-			dialog.dispose();
-			throw new IllegalStateException("Team Planner content is not a Swing panel");
-		}
-		dialog.getRootPane().setContentPane(new JPanel(new BorderLayout()));
-		dialog.dispose();
-		return panel;
+	public static JPanel createEmbeddedPanel(java.awt.Frame owner, Project project, TaskCommandGateway commands) {
+		return createPanel(owner, project, new TeamPlannerCanvas(project, commands), null);
 	}
 
 	static final class TeamPlannerCanvas extends JPanel {
@@ -136,6 +133,7 @@ public final class TeamPlannerDialogBox extends JDialog {
 		private static final long DAY = 24L * 60L * 60L * 1000L;
 		private final Project project;
 		private final TeamPlannerService service = new TeamPlannerService();
+		private final TaskCommandGateway commands;
 		private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("MMM d")
 			.withZone(ZoneId.systemDefault());
 		private final Map<Rectangle, TeamPlannerService.Slot> hitAreas = new LinkedHashMap<>();
@@ -147,13 +145,14 @@ public final class TeamPlannerDialogBox extends JDialog {
 		private TeamPlannerService.Slot dragged;
 		private Point dragOrigin;
 		private Point dragPoint;
+		private AutoCloseable projectSubscription;
 
-		TeamPlannerCanvas(Project project) {
+		TeamPlannerCanvas(Project project, TaskCommandGateway commands) {
 			this.project = project;
+			this.commands = commands;
 			setOpaque(true);
 			setBackground(Color.WHITE);
 			setToolTipText("");
-			ToolTipManager.sharedInstance().registerComponent(this);
 			MouseAdapter mouse = new MouseAdapter() {
 				public void mousePressed(MouseEvent event) {
 					dragged = slotAt(event.getPoint());
@@ -181,6 +180,25 @@ public final class TeamPlannerDialogBox extends JDialog {
 			addMouseListener(mouse);
 			addMouseMotionListener(mouse);
 			reload();
+		}
+
+		@Override
+		public void addNotify() {
+			super.addNotify();
+			if (projectSubscription == null) {
+				projectSubscription = project.getDomainChangeJournal().subscribe(change ->
+						SwingUtilities.invokeLater(() -> { if (isDisplayable()) reload(); }));
+			}
+		}
+
+		@Override
+		public void removeNotify() {
+			if (projectSubscription != null) {
+				try { projectSubscription.close(); }
+				catch (Exception ignored) { }
+				projectSubscription = null;
+			}
+			super.removeNotify();
 		}
 
 		int getPixelsPerDay() {
@@ -279,7 +297,7 @@ public final class TeamPlannerDialogBox extends JDialog {
 				g2.fillRoundRect(x, y, width, BAR_HEIGHT, 8, 8);
 				g2.setColor(Color.WHITE);
 				FontMetrics metrics = g2.getFontMetrics();
-				String text = ellipsize(slot.task().getName(), metrics, width - 10);
+				String text = ellipsize(slot.taskName(), metrics, width - 10);
 				g2.drawString(text, x + 5, y + 19);
 			}
 		}
@@ -305,17 +323,18 @@ public final class TeamPlannerDialogBox extends JDialog {
 			int dayDelta = Math.round((release.x - dragOrigin.x) / (float) pixelsPerDay);
 			int row = targetRow(release.y);
 			try {
-				if (row >= 0) {
-					Resource target = rows.get(row);
-					if (target != dragged.resource()) {
-						service.reassign(dragged.assignment(), target, this);
-					}
-				}
+				Resource target = row >= 0 ? rows.get(row) : dragged.resource();
+				Long newStart = null;
 				if (dayDelta != 0) {
 					long work = dayDelta * CalendarOption.getInstance().getMillisPerDay();
-					long newStart = dragged.task().getEffectiveWorkCalendar().add(dragged.task().getStart(), work, false);
-					service.reschedule(dragged.task(), newStart, this);
+					newStart = dragged.task().getEffectiveWorkCalendar().add(dragged.task().getStart(), work, false);
 				}
+				var taskKey = com.microproject.pm.task.ProjectTaskKey.from(dragged.task()).orElseThrow();
+				TaskCommandResult result = commands.moveTimeline(new TaskTimelineMoveCommand(taskKey,
+						dragged.assignment().getUniqueId(), dragged.resource().getUniqueId(), target.getUniqueId(),
+						dragged.task().getStart(), newStart, dragged.domainRevision()));
+				if (!result.committed() && result.status() != TaskCommandResult.Status.NO_OP)
+					throw new IllegalArgumentException("The Team Planner changed during the drag; try again");
 			} catch (IllegalArgumentException ex) {
 				javax.swing.JOptionPane.showMessageDialog(this, ex.getMessage(), UsabilityStrings.text("team.title"),
 					javax.swing.JOptionPane.WARNING_MESSAGE);
@@ -328,7 +347,7 @@ public final class TeamPlannerDialogBox extends JDialog {
 			if (slot == null) {
 				return null;
 			}
-			return "<html><b>" + escape(slot.task().getName()) + "</b><br>"
+			return "<html><b>" + escape(slot.taskName()) + "</b><br>"
 				+ dateFormat.format(Instant.ofEpochMilli(slot.start())) + " – "
 				+ dateFormat.format(Instant.ofEpochMilli(slot.end())) + "<br>"
 				+ Math.round(slot.units() * 100D) + "% units"

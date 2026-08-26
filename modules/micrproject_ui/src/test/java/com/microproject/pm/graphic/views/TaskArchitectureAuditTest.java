@@ -55,6 +55,14 @@ class TaskArchitectureAuditTest {
 	}
 
 	@Test
+	void assignmentUiCannotBypassTheDocumentCommandGateway() throws IOException {
+		Path file = sourceRoot().resolve("com/microproject/dialog/assignment/AssignmentDialog.java");
+		String source = Files.readString(file, StandardCharsets.UTF_8);
+		assertFalse(source.contains("AssignmentService"),
+				"assignment mutations must use DocumentFrame's TaskCommandGateway");
+	}
+
+	@Test
 	void ganttPaintCannotReadMutableProjectionOrDomainObjects() throws IOException {
 		Path file = sourceRoot().resolve("com/microproject/pm/graphic/gantt/GanttRenderer.java");
 		String source = Files.readString(file, StandardCharsets.UTF_8);

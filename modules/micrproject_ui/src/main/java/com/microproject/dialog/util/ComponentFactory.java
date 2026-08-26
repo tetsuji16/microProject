@@ -26,8 +26,6 @@ package com.microproject.dialog.util;
 
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.beans.PropertyChangeEvent;
@@ -48,6 +46,8 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.JTextComponent;
 
@@ -268,19 +268,18 @@ public class ComponentFactory {
 			}
 		}
 		if (text != null) {
-			text.addKeyListener(new KeyListener() {
-			public void keyPressed(KeyEvent arg0) {
-			}
-			public void keyReleased(KeyEvent arg0) {
-			}
-
-			public void keyTyped(KeyEvent arg0) {
-				JTextComponent textComponent = (JTextComponent)arg0.getComponent();
-				textComponent.setForeground(FlatUiSupport.accentColor());
-				FieldDialog parentFieldDialog = getParentFieldDialog(textComponent);
-				if (parentFieldDialog != null)
-					parentFieldDialog.setDirtyComponent(textComponent);
-			}});
+			JTextComponent textComponent = text;
+			text.getDocument().addDocumentListener(new DocumentListener() {
+				private void changed() {
+					if (textComponent.getInputVerifier() instanceof FieldVerifier verifier && verifier.isUpdating()) return;
+					textComponent.setForeground(FlatUiSupport.accentColor());
+					FieldDialog parent = getParentFieldDialog(textComponent);
+					if (parent != null) parent.setDirtyComponent(textComponent);
+				}
+				@Override public void insertUpdate(DocumentEvent event) { changed(); }
+				@Override public void removeUpdate(DocumentEvent event) { changed(); }
+				@Override public void changedUpdate(DocumentEvent event) { changed(); }
+			});
 
 		}
 		if (!(component instanceof JCheckBox))
@@ -332,16 +331,15 @@ public class ComponentFactory {
 			}
 		}
 
-		JComponent verifiedComponent = verifiedComponent(component);
+		JComponent verifiedComponent = verifiedComponent(getFieldComponent(component));
 		FieldVerifier verifier = (FieldVerifier) verifiedComponent.getInputVerifier();
-		if (verifier != null)
-			verifier.setUpdating(true);
-		setValueOfComponent(component,value,readOnly);
-		
-		// Need to update cached value of field verifier also
-		if (verifier != null) {
-			verifier.setValue(value);
-			verifier.setUpdating(false);
+		if (verifier != null) verifier.setUpdating(true);
+		try {
+			setValueOfComponent(component,value,readOnly);
+			// Need to update cached value of field verifier also
+			if (verifier != null) verifier.setValue(value);
+		} finally {
+			if (verifier != null) verifier.setUpdating(false);
 		}
 		markComponentAsUnmodified(component);
 	}
@@ -462,5 +460,3 @@ public class ComponentFactory {
 	}
 	
 }
-
-

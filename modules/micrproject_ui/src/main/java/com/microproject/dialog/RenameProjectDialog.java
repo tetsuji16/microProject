@@ -25,12 +25,12 @@
 package com.microproject.dialog;
 
 import java.awt.Frame;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.util.Set;
 
 import javax.swing.JComponent;
 import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -88,13 +88,24 @@ public final class RenameProjectDialog extends AbstractDialog {
 	 */
 	protected void initControls() {
 		nameField = new JTextField();
-		nameField.addKeyListener(new KeyAdapter(){
-		    public void keyReleased(KeyEvent e) {
-		    	String text=nameField.getText();
-		    	ok.setEnabled(!form.getProjectNames().contains(text)&&text.length()>0);
-		    }
+		nameField.getDocument().addDocumentListener(new DocumentListener() {
+			@Override public void insertUpdate(DocumentEvent event) { updateOkState(); }
+			@Override public void removeUpdate(DocumentEvent event) { updateOkState(); }
+			@Override public void changedUpdate(DocumentEvent event) { updateOkState(); }
 		});
 		bind(true);
+	}
+
+	private void updateOkState() {
+		if (ok == null) return;
+		String text=nameField.getText();
+		ok.setEnabled(!form.getProjectNames().contains(text)&&!text.isEmpty());
+	}
+
+	@Override
+	protected boolean initialOkEnabledState() {
+		String text=nameField.getText();
+		return !form.getProjectNames().contains(text)&&!text.isEmpty();
 	}
 	
 	@Override

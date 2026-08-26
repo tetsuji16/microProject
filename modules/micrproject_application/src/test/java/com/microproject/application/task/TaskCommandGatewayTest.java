@@ -39,10 +39,15 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.field.FieldContext;
 import com.microproject.configuration.Configuration;
+import com.microproject.document.ObjectEvent;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.options.CalendarOption;
+import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -425,6 +430,237 @@ class TaskCommandGatewayTest {
 		assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
 		assertFalse(fixture.undo.canUndo());
 		assertFalse(fixture.project.isDirty());
+	}
+
+	@Test
+	void timelineMoveCommitsResourceAndStartAsOneAuthorizedRevisionAndUndo() {
+		Fixture fixture = fixture("gateway-timeline");
+		fixture.task.setManuallyScheduled(false);
+		ResourceImpl first = fixture.project.getResourcePool().newResourceInstance();
+		ResourceImpl second = fixture.project.getResourcePool().newResourceInstance();
+		var assignment = AssignmentService.getInstance().newAssignment(fixture.task, first, 1D, 0L, this);
+		assignment.setRequestDemandType(2);
+		long originalStart = fixture.task.getStart();
+		long newStart = fixture.project.getWorkCalendar().add(originalStart,
+				CalendarOption.getInstance().getMillisPerDay(), false);
+		fixture.undo.clear();
+		long revision = fixture.project.getDomainChangeJournal().revision();
+		java.util.concurrent.atomic.AtomicLong observed = new java.util.concurrent.atomic.AtomicLong(-1L);
+		fixture.undo.addUndoStateListener(event -> observed.set(fixture.project.getDomainChangeJournal().revision()));
+
+		TaskCommandResult result = new TaskCommandGateway(fixture.project).moveTimeline(new TaskTimelineMoveCommand(
+				ProjectTaskKey.from(fixture.task).orElseThrow(), assignment.getUniqueId(), first.getUniqueId(),
+				second.getUniqueId(), originalStart, newStart, revision));
+
+		assertEquals(TaskCommandResult.Status.COMMITTED, result.status(), String.valueOf(result.failure()));
+		assertEquals(revision + 1L, observed.get(), "Undo observers must see the committed revision");
+		assertEquals(ConstraintType.SNET, fixture.task.getConstraintType());
+		var moved = fixture.task.findAssignment(second);
+		assertTrue(moved != null);
+		assertEquals(2, moved.getRequestDemandType(), "replacement must retain assignment-specific fields");
+		fixture.undo.undo();
+		assertEquals(ConstraintType.ASAP, fixture.task.getConstraintType());
+		assertTrue(fixture.task.findAssignment(first) == assignment, "Undo must restore the original assignment identity");
+		fixture.undo.redo();
+		assertTrue(fixture.task.findAssignment(second) == moved, "Redo must restore the replacement assignment identity");
+	}
+
+	@Test
+	void timelineMoveRollsBackWhenAuthorizationExpiresAtCommit() {
+		Fixture fixture = fixture("gateway-timeline-lock");
+		fixture.task.setManuallyScheduled(false);
+		ResourceImpl first = fixture.project.getResourcePool().newResourceInstance();
+		ResourceImpl second = fixture.project.getResourcePool().newResourceInstance();
+		var assignment = AssignmentService.getInstance().newAssignment(fixture.task, first, 1D, 0L, this);
+		long originalStart = fixture.task.getStart();
+		TaskAuthorizationPort expires = (keys, type) -> new TaskAuthorizationPort.AuthorizationLease() {
+			@Override public TaskAuthorizationPort.Decision decision() { return TaskAuthorizationPort.Decision.ALLOWED; }
+			@Override public boolean validateAtCommit() { return false; }
+		};
+		fixture.undo.clear();
+
+		TaskCommandResult result = new TaskCommandGateway(fixture.project, expires).moveTimeline(
+				new TaskTimelineMoveCommand(ProjectTaskKey.from(fixture.task).orElseThrow(), assignment.getUniqueId(),
+						first.getUniqueId(), second.getUniqueId(), originalStart, originalStart + 1L, 0L));
+
+		assertEquals(TaskCommandResult.Status.LOCK_DENIED, result.status());
+		assertEquals(originalStart, fixture.task.getStart());
+		assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
+		assertFalse(fixture.undo.canUndo());
+		assertTrue(fixture.task.getAssignments().stream().map(com.microproject.pm.assignment.Assignment.class::cast)
+				.anyMatch(value -> value.getResource() == first));
+	}
+
+	@Test
+	void timelineMoveRestoresTheOriginalAssignmentWhenADeleteListenerFails() {
+		Fixture fixture = fixture("gateway-timeline-listener-failure");
+		ResourceImpl first = fixture.project.getResourcePool().newResourceInstance();
+		ResourceImpl second = fixture.project.getResourcePool().newResourceInstance();
+		var original = AssignmentService.getInstance().newAssignment(fixture.task, first, 1D, 0L, this);
+		fixture.undo.clear();
+		java.util.concurrent.atomic.AtomicBoolean failOnce = new java.util.concurrent.atomic.AtomicBoolean(true);
+		ObjectEvent.Listener listener = event -> {
+			if (event.isDelete() && event.getObject() == original && failOnce.getAndSet(false))
+				throw new IllegalStateException("injected listener failure");
+		};
+		fixture.project.addObjectListener(listener);
+		try {
+			TaskCommandResult result = new TaskCommandGateway(fixture.project).moveTimeline(
+					new TaskTimelineMoveCommand(ProjectTaskKey.from(fixture.task).orElseThrow(), original.getUniqueId(),
+							first.getUniqueId(), second.getUniqueId(), fixture.task.getStart(), null, 0L));
+			assertEquals(TaskCommandResult.Status.FAILED, result.status());
+			assertTrue(fixture.task.findAssignment(first) == original);
+			assertTrue(fixture.task.findAssignment(second) == null);
+			assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
+			assertFalse(fixture.undo.canUndo());
+		} finally {
+			fixture.project.removeObjectListener(listener);
+		}
+	}
+
+	@Test
+	void timelineMoveRejectsAnAlreadyAssignedTargetWithoutMutation() {
+		Fixture fixture = fixture("gateway-timeline-collision");
+		ResourceImpl first = fixture.project.getResourcePool().newResourceInstance();
+		ResourceImpl second = fixture.project.getResourcePool().newResourceInstance();
+		var firstAssignment = AssignmentService.getInstance().newAssignment(fixture.task, first, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(fixture.task, second, 1D, 0L, this);
+		fixture.undo.clear();
+
+		TaskCommandResult result = new TaskCommandGateway(fixture.project).moveTimeline(new TaskTimelineMoveCommand(
+				ProjectTaskKey.from(fixture.task).orElseThrow(), firstAssignment.getUniqueId(), first.getUniqueId(),
+				second.getUniqueId(), fixture.task.getStart(), null, 0L));
+
+		assertEquals(TaskCommandResult.Status.CONFLICT, result.status());
+		assertTrue(fixture.task.findAssignment(first) != null);
+		assertTrue(fixture.task.findAssignment(second) != null);
+		assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
+		assertFalse(fixture.undo.canUndo());
+	}
+
+	@Test
+	void timelineMoveToUnassignedRequiresTheLastRealAssignmentAndSupportsUndoRedo() {
+		Fixture fixture = fixture("gateway-timeline-unassigned");
+		ResourceImpl first = fixture.project.getResourcePool().newResourceInstance();
+		ResourceImpl second = fixture.project.getResourcePool().newResourceInstance();
+		var firstAssignment = AssignmentService.getInstance().newAssignment(fixture.task, first, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(fixture.task, second, 1D, 0L, this);
+		fixture.undo.clear();
+		TaskCommandGateway gateway = new TaskCommandGateway(fixture.project);
+
+		TaskCommandResult collision = gateway.moveTimeline(new TaskTimelineMoveCommand(
+				ProjectTaskKey.from(fixture.task).orElseThrow(), firstAssignment.getUniqueId(), first.getUniqueId(),
+				ResourceImpl.getUnassignedInstance().getUniqueId(), fixture.task.getStart(), null, 0L));
+
+		assertEquals(TaskCommandResult.Status.CONFLICT, collision.status());
+		assertTrue(fixture.task.findAssignment(first) != null);
+		AssignmentService.getInstance().remove(fixture.task.findAssignment(second), this, false);
+		fixture.undo.clear();
+		TaskCommandResult committed = gateway.moveTimeline(new TaskTimelineMoveCommand(
+				ProjectTaskKey.from(fixture.task).orElseThrow(), firstAssignment.getUniqueId(), first.getUniqueId(),
+				ResourceImpl.getUnassignedInstance().getUniqueId(), fixture.task.getStart(), null, 0L));
+
+		assertEquals(TaskCommandResult.Status.COMMITTED, committed.status(), String.valueOf(committed.failure()));
+		assertTrue(fixture.task.findAssignment(ResourceImpl.getUnassignedInstance()) != null);
+		fixture.undo.undo();
+		assertTrue(fixture.task.findAssignment(first) != null);
+		fixture.undo.redo();
+		assertTrue(fixture.task.findAssignment(ResourceImpl.getUnassignedInstance()) != null);
+	}
+
+	@Test
+	void assignmentBatchUsesOneRevisionAndOneUndoBoundary() {
+		Fixture fixture = fixture("gateway-assignment-batch");
+		ResourceImpl resource = fixture.project.getResourcePool().newResourceInstance();
+		NormalTask second = addTask(fixture.project, "Second");
+		fixture.undo.clear();
+		TaskCommandGateway gateway = new TaskCommandGateway(fixture.project);
+		List<ProjectTaskKey> tasks = List.of(ProjectTaskKey.from(fixture.task).orElseThrow(),
+				ProjectTaskKey.from(second).orElseThrow());
+
+		TaskCommandResult result = gateway.changeAssignments(new TaskAssignmentBatchCommand(
+				tasks, List.of(resource.getUniqueId()), List.of(), 1D, 0L));
+
+		assertEquals(TaskCommandResult.Status.COMMITTED, result.status(), String.valueOf(result.failure()));
+		assertEquals(1L, fixture.project.getDomainChangeJournal().revision());
+		assertTrue(fixture.task.findAssignment(resource) != null);
+		assertTrue(second.findAssignment(resource) != null);
+		fixture.undo.undo();
+		assertTrue(fixture.task.findAssignment(resource) == null);
+		assertTrue(second.findAssignment(resource) == null);
+		fixture.undo.redo();
+		assertTrue(fixture.task.findAssignment(resource) != null);
+		assertTrue(second.findAssignment(resource) != null);
+		fixture.undo.clear();
+		long beforeNoOp = fixture.project.getDomainChangeJournal().revision();
+		TaskCommandResult noOp = gateway.changeAssignments(new TaskAssignmentBatchCommand(
+				tasks, List.of(resource.getUniqueId()), List.of(), 1D, beforeNoOp));
+		assertEquals(TaskCommandResult.Status.NO_OP, noOp.status());
+		assertEquals(beforeNoOp, fixture.project.getDomainChangeJournal().revision());
+		assertFalse(fixture.undo.canUndo());
+
+		TaskCommandResult removed = gateway.changeAssignments(new TaskAssignmentBatchCommand(
+				tasks, List.of(), List.of(resource.getUniqueId()), 0D,
+				fixture.project.getDomainChangeJournal().revision()));
+		assertEquals(TaskCommandResult.Status.COMMITTED, removed.status(), String.valueOf(removed.failure()));
+		assertTrue(fixture.task.findAssignment(resource) == null);
+		assertTrue(second.findAssignment(resource) == null);
+		fixture.undo.undo();
+		assertTrue(fixture.task.findAssignment(resource) != null);
+		assertTrue(second.findAssignment(resource) != null);
+		fixture.undo.redo();
+		assertTrue(fixture.task.findAssignment(resource) == null);
+		assertTrue(second.findAssignment(resource) == null);
+	}
+
+	@Test
+	void assignmentReplacementRollsBackAsOneDeltaWhenAuthorizationExpires() {
+		Fixture fixture = fixture("gateway-assignment-replace-lock");
+		ResourceImpl before = fixture.project.getResourcePool().newResourceInstance();
+		ResourceImpl after = fixture.project.getResourcePool().newResourceInstance();
+		var original = AssignmentService.getInstance().newAssignment(fixture.task, before, 0.75D, 123L, this);
+		fixture.undo.clear();
+		TaskAuthorizationPort expires = (keys, type) -> new TaskAuthorizationPort.AuthorizationLease() {
+			@Override public TaskAuthorizationPort.Decision decision() { return TaskAuthorizationPort.Decision.ALLOWED; }
+			@Override public boolean validateAtCommit() { return false; }
+		};
+
+		TaskCommandResult result = new TaskCommandGateway(fixture.project, expires).changeAssignments(
+				new TaskAssignmentBatchCommand(List.of(ProjectTaskKey.from(fixture.task).orElseThrow()),
+						List.of(after.getUniqueId()), List.of(before.getUniqueId()), 1D, 0L));
+
+		assertEquals(TaskCommandResult.Status.LOCK_DENIED, result.status());
+		assertTrue(fixture.task.findAssignment(before) == original, "rollback must restore assignment identity and fields");
+		assertTrue(fixture.task.findAssignment(after) == null);
+		assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
+		assertFalse(fixture.undo.canUndo());
+	}
+
+	@Test
+	void assignmentDeltaRollsBackWhenAnObjectListenerFailsAfterDeletion() {
+		Fixture fixture = fixture("gateway-assignment-listener-failure");
+		ResourceImpl before = fixture.project.getResourcePool().newResourceInstance();
+		ResourceImpl after = fixture.project.getResourcePool().newResourceInstance();
+		var original = AssignmentService.getInstance().newAssignment(fixture.task, before, 1D, 0L, this);
+		fixture.undo.clear();
+		java.util.concurrent.atomic.AtomicBoolean failOnce = new java.util.concurrent.atomic.AtomicBoolean(true);
+		ObjectEvent.Listener listener = event -> {
+			if (event.isDelete() && event.getObject() == original && failOnce.getAndSet(false))
+				throw new IllegalStateException("injected listener failure");
+		};
+		fixture.project.addObjectListener(listener);
+		try {
+			TaskCommandResult result = new TaskCommandGateway(fixture.project).changeAssignments(
+					new TaskAssignmentBatchCommand(List.of(ProjectTaskKey.from(fixture.task).orElseThrow()),
+							List.of(after.getUniqueId()), List.of(before.getUniqueId()), 1D, 0L));
+			assertEquals(TaskCommandResult.Status.FAILED, result.status());
+			assertTrue(fixture.task.findAssignment(before) == original);
+			assertTrue(fixture.task.findAssignment(after) == null);
+			assertEquals(0L, fixture.project.getDomainChangeJournal().revision());
+			assertFalse(fixture.undo.canUndo());
+		} finally {
+			fixture.project.removeObjectListener(listener);
+		}
 	}
 
 	private static TaskFieldEditCommand command(NormalTask task, Object expected, Object proposed) {

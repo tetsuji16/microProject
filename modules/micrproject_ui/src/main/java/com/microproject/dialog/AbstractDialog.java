@@ -34,12 +34,12 @@ import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.logging.Logger;
 
 import javax.swing.BoxLayout;
+import javax.swing.AbstractAction;
 import javax.swing.ComboBoxModel;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
@@ -100,34 +100,17 @@ public abstract class AbstractDialog extends JDialog {
 	}
 
 	protected JRootPane createRootPane() {
-		ActionListener escapeListener = new ActionListener() {
-			public void actionPerformed(ActionEvent actionEvent) {
-				onCancel();
-
-			}
-		};
-		ActionListener enterListener = new ActionListener() {
-			public void actionPerformed(ActionEvent actionEvent) {
-				onOk();
-
-			}
-		};
-
-		ActionListener helpListener = new ActionListener() {
-			public void actionPerformed(ActionEvent actionEvent) {
-				onHelp();
-
-			}
-
-
-		};
 		JRootPane rootPane = new JRootPane();
-		KeyStroke escapeStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
-		rootPane.registerKeyboardAction(escapeListener, escapeStroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
-		KeyStroke enterStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
-		rootPane.registerKeyboardAction(enterListener, enterStroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
-		KeyStroke f1Stroke = KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0);
-		rootPane.registerKeyboardAction(helpListener, f1Stroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
+		var inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		var actionMap = rootPane.getActionMap();
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "dialog.cancel");
+		actionMap.put("dialog.cancel", new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) { onCancel(); }
+		});
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), "dialog.help");
+		actionMap.put("dialog.help", new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) { onHelp(); }
+		});
 		return rootPane;
 	}
 
@@ -235,10 +218,7 @@ public abstract class AbstractDialog extends JDialog {
 				help= new JButton(MenuManager.getMenuString("Help.text"));//,IconManager.getIcon("menu24.help"));
 				FlatUiSupport.styleDialogButton((JButton) help, false);
 
-				help.addMouseListener(new MouseAdapter() {
-				public void mouseClicked(MouseEvent arg0) {
-					AbstractDialog.this.onHelp();
-			}});
+				((JButton) help).addActionListener(event -> AbstractDialog.this.onHelp());
     	}
     	return help;
     }
@@ -269,6 +249,7 @@ public abstract class AbstractDialog extends JDialog {
 			buttonPanel.addButton(cancel);
 		if (hasHelpButton())
 			buttonPanel.add(getHelpButton());
+		getRootPane().setDefaultButton(ok);
 		return buttonPanel;
 	}
 
@@ -407,4 +388,3 @@ public abstract class AbstractDialog extends JDialog {
 		this.helpAddress = helpAddress;
 	}
 }
-

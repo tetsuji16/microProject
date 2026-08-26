@@ -37,6 +37,7 @@ import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
  */
 public class HeaderMouseListener extends MouseAdapter {
 	protected SpreadSheet table;
+	private boolean popupShown;
 	public HeaderMouseListener(SpreadSheet table) {
 		super();
 		this.table=table;
@@ -50,16 +51,26 @@ public class HeaderMouseListener extends MouseAdapter {
 				return;
 			}
 			table.selectColumnAndAllRows(col);
-		} else if (SwingUtilities.isRightMouseButton(e)) {
-			if (table instanceof CommonSpreadSheet && ((CommonSpreadSheet)table).getSpreadSheetCategory() != null){
-				CommonSpreadSheet sp=(CommonSpreadSheet)table;
-				if (sp.isHasColumnHeaderPopup()) {
-					SpreadSheetColumnMenu columnsPopup = new SpreadSheetColumnMenu(sp,col+1);
-					columnsPopup.show(sp,e.getX(),e.getY());
-				}
-			}
 		}
+	}
 
+	@Override public void mousePressed(MouseEvent event) {
+		popupShown = showPopup(event);
+	}
+
+	@Override public void mouseReleased(MouseEvent event) {
+		if (!popupShown) showPopup(event);
+		popupShown = false;
+	}
+
+	private boolean showPopup(MouseEvent event) {
+		if (!event.isPopupTrigger() && !SwingUtilities.isRightMouseButton(event)) return false;
+		int column = table.columnAtPoint(event.getPoint());
+		if (column < 0 || table.getSpreadSheetCategory() == null || !table.isHasColumnHeaderPopup()) return false;
+		CommonSpreadSheet sheet = table;
+		SpreadSheetColumnMenu menu = new SpreadSheetColumnMenu(sheet, column + 1);
+		menu.show(table.getTableHeader(), event.getX(), event.getY());
+		event.consume();
+		return true;
 	}
 }
-

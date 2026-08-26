@@ -73,7 +73,7 @@ public class GanttSVGRenderer implements SVGRenderer,Cloneable{
 	}
 	public void init(Project project, NodeModelCache cache,SpreadSheetFieldArray fieldArray,List<Integer> colWidth,int scale,boolean printGantt) {
 		this.project=project;
-		coord = new CoordinatesConverter(project);
+		coord = CoordinatesConverter.createOffline(project);
 		if (scale!=-1) coord.getTimescaleManager().setCurrentScaleIndex(scale);
 		params=new SpreadSheetParamsImpl(fieldArray,colWidth,printGantt);
 		int rowHeight=project.getRowHeight(new TreeSet<Integer>());
@@ -204,4 +204,3 @@ public class GanttSVGRenderer implements SVGRenderer,Cloneable{
 	}
 
 }
-
