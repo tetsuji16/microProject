@@ -1433,10 +1433,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TOGGLE_PROGRESS_LINE, new ToggleProgressLineAction());
 		actionsMap.addHandler(ACTION_LABEL_RESOURCE_NAMES, new LabelResourceNamesAction());
 		actionsMap.addHandler(ACTION_LABEL_TASK_NAME, new LabelTaskNameAction());
-		actionsMap.addHandler(ACTION_INDENT, new IndentAction());
-		actionsMap.addHandler(ACTION_OUTDENT, new OutdentAction());
-		actionsMap.addHandler(ACTION_MOVE_TASK_UP, new MoveTaskUpAction());
-		actionsMap.addHandler(ACTION_MOVE_TASK_DOWN, new MoveTaskDownAction());
+		actionsMap.addHandler(ACTION_INDENT, new TaskEditAction(f -> f.doIndent()));
+		actionsMap.addHandler(ACTION_OUTDENT, new TaskEditAction(f -> f.doOutdent()));
+		actionsMap.addHandler(ACTION_MOVE_TASK_UP, new TaskEditAction(f -> f.doMoveSelectedTasks(-1)));
+		actionsMap.addHandler(ACTION_MOVE_TASK_DOWN, new TaskEditAction(f -> f.doMoveSelectedTasks(1)));
 		actionsMap.addHandler(ACTION_COLLAPSE, new OutlineAction(false));
 		actionsMap.addHandler(ACTION_EXPAND, new OutlineAction(true));
 		actionsMap.addHandler(ACTION_HIDE_SELECTED_TASKS, new HideSelectedTasksAction());
@@ -2365,45 +2365,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
-	public class IndentAction extends MenuActionsMap.DocumentMenuAction {
+	/** Shared task-tree edit action: runs {@code edit} on the active frame when a
+	 *  single task is selected. Replaces IndentAction/OutdentAction/MoveTaskUpAction/
+	 *  MoveTaskDownAction, which only differed in the frame method they invoked. */
+	public class TaskEditAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
+		private final java.util.function.Consumer<DocumentFrame> edit;
+		TaskEditAction(java.util.function.Consumer<DocumentFrame> edit) {
+			this.edit = edit;
+		}
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
-				getCurrentFrame().doIndent();
-		}
-		protected boolean allowed(boolean enable) {
-			if (enable==false) return true;
-			return isDocumentWritable();
-		}
-	}
-	public class OutdentAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent arg0) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
-				getCurrentFrame().doOutdent();
-		}
-		protected boolean allowed(boolean enable) {
-			if (enable==false) return true;
-			return isDocumentWritable();
-		}
-	}
-	public class MoveTaskUpAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent event) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false,1,false)) getCurrentFrame().doMoveSelectedTasks(-1);
-		}
-		protected boolean allowed(boolean enable) {
-			return !enable || isDocumentWritable();
-		}
-	}
-	public class MoveTaskDownAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent event) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false,1,false)) getCurrentFrame().doMoveSelectedTasks(1);
+				edit.accept(getCurrentFrame());
 		}
 		protected boolean allowed(boolean enable) {
 			return !enable || isDocumentWritable();
