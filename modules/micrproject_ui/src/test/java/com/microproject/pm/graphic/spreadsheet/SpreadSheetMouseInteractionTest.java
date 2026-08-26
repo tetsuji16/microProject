@@ -47,6 +47,7 @@ import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
+import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
 import com.microproject.pm.graphic.spreadsheet.selection.event.HeaderMouseListener;
 import com.microproject.pm.resource.ResourcePool;
@@ -571,8 +572,62 @@ class SpreadSheetMouseInteractionTest {
 			MouseEvent.BUTTON1);
 	}
 
+	@Test
+	void rowHeaderRightClickSelectsTheWholeTaskRowAndShowsItsPopup() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
+			int secondRow = findRow(sheet, fixture.secondTask());
+			int firstRow = findRow(sheet, fixture.firstTask());
+			int column = findNameColumn(sheet);
+			sheet.changeSelection(firstRow, column, false, false);
+
+			rowHeader.setUI(null);
+			rowHeader.dispatchEvent(rightClickRowHeaderPress(rowHeader, secondRow));
+
+			assertEquals(secondRow, sheet.getSelectedRow(),
+					"right-clicking an unselected row header must move the selection");
+			assertTrue(sheet.isRowFullySelected(secondRow),
+					"row-header popup must use the same whole-row selection as the task table");
+			assertTrue(sheet.popupShown,
+					"row header and task table must show the same single popup path");
+			assertEquals(secondRow, sheet.shownPopup.getRow());
+		});
+	}
+
+	private MouseEvent rightClickRowHeaderPress(SpreadSheetRowHeader rowHeader, int row) {
+		Rectangle bounds = rowHeader.getCellRect(row, 0, true);
+		return new MouseEvent(rowHeader,
+				MouseEvent.MOUSE_PRESSED,
+				System.currentTimeMillis(),
+				MouseEvent.BUTTON3_DOWN_MASK,
+				bounds.x + Math.max(1, bounds.width / 2),
+				bounds.y + Math.max(1, bounds.height / 2),
+				1,
+				true,
+				MouseEvent.BUTTON3);
+	}
+
 	private void fireProjectLibreRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
 		fireProjectLibreRowHeaderPress(rowHeader, row, clickCount, false);
+	}
+
+	private static final class RecordingRowHeader extends SpreadSheetRowHeader {
+		private static final long serialVersionUID = 1L;
+		private final RecordingSpreadSheet sheet;
+
+		RecordingRowHeader(CommonSpreadSheet table) {
+			super(table);
+			this.sheet = (RecordingSpreadSheet) table;
+		}
+
+		@Override
+		protected void showHeaderPopup(SpreadSheetPopupMenu popup, MouseEvent event) {
+			// Headless: record instead of showing on screen.
+			sheet.popupShown = true;
+			sheet.shownPopup = popup;
+		}
 	}
 
 	private void fireProjectLibreRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount, boolean controlDown) {
@@ -618,6 +673,11 @@ class SpreadSheetMouseInteractionTest {
 		public boolean requestFocusInWindow() {
 			focusRequestCount++;
 			return true;
+		}
+
+		@Override
+		protected SpreadSheetRowHeader createRowHeader() {
+			return new RecordingRowHeader(this);
 		}
 
 		@Override

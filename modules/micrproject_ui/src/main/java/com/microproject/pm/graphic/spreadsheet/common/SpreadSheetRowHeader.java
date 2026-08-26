@@ -174,7 +174,9 @@ public class SpreadSheetRowHeader extends JTable {
 						spreadSheet.requestFocusInWindow();
 						popup.setRow(row);
 						popup.setCol(0);
-						popup.show(SpreadSheetRowHeader.this,event.getX(),event.getY());
+						// Delegated so subclasses/tests can intercept the actual
+						// showing (headless environments have no screen to show on).
+						showHeaderPopup(popup, event);
 						event.consume();
 						return true;
 					}
@@ -184,6 +186,10 @@ public class SpreadSheetRowHeader extends JTable {
 			}
 		}
 
+	}
+
+	protected void showHeaderPopup(SpreadSheetPopupMenu popup, MouseEvent event) {
+		popup.show(this, event.getX(), event.getY());
 	}
 
 	private void selectRowForMove(int row,boolean extend,boolean toggle,boolean keepExisting){
