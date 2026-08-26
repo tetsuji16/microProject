@@ -36,7 +36,6 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.Reader;
@@ -92,6 +91,7 @@ import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetListSelectionModel;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetSelectionModel;
 import com.microproject.pm.graphic.spreadsheet.selection.event.HeaderMouseListener;
+import com.microproject.pm.graphic.spreadsheet.selection.event.PopupTriggerHandler;
 import com.microproject.datatype.Hyperlink;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.ActionList;
@@ -138,29 +138,31 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private Object defaultTabActionKey;
 	private Object defaultShiftTabActionKey;
 	private final HeaderMouseListener headerMouseListener = new HeaderMouseListener(this);
-	private final MouseAdapter tableMouseHandler = new MouseAdapter() {
-		private boolean popupShown;
-
+	private final TablePopupHandler tableMouseHandler = new TablePopupHandler(this);
+	private static final class TablePopupHandler extends PopupTriggerHandler implements javax.swing.event.MouseInputListener {
+		private final SpreadSheet sheet;
+		TablePopupHandler(SpreadSheet sheet) { this.sheet = sheet; }
 		@Override
 		public void mousePressed(MouseEvent event) {
-			popupShown = false;
-			beginCellRangeSelection(event);
-			handleTableMousePressed(event);
-			popupShown = event.isConsumed() && (event.isPopupTrigger() || SwingUtilities.isRightMouseButton(event));
+			sheet.beginCellRangeSelection(event);
+			sheet.handleTableMousePressed(event);
+			popupShown = isPopupTrigger(event) && event.isConsumed();
 		}
-
 		@Override
 		public void mouseDragged(MouseEvent event) {
-			extendCellRangeSelection(event);
+			sheet.extendCellRangeSelection(event);
 		}
-
 		@Override
 		public void mouseReleased(MouseEvent event) {
-			if (!popupShown && event.isPopupTrigger()) showTablePopup(event);
+			if (!popupShown && isPopupTrigger(event)) sheet.showTablePopup(event);
 			popupShown = false;
-			endCellRangeSelection();
+			sheet.endCellRangeSelection();
 		}
-	};
+		@Override
+		protected boolean showPopup(MouseEvent event) {
+			return false;
+		}
+	}
 	protected SpreadSheetPopupMenu popup=null;
 	private boolean hierarchyActionInProgress;
 	private String[] actionList = null;
