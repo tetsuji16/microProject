@@ -67,96 +67,30 @@ public class GanttPopupMenu extends GraphPopupMenu{
 	private static final String ANNOTATION_FIELD_TASK_NAME = "Field.name";
 
 
-	private class BarMenuAction extends JRadioButtonMenuItem implements ActionListener {
-		private static final long serialVersionUID = 8168153384233811506L;
-		BarStyle style;
-    	
-    	BarMenuAction(final BarStyle style) {
-    		super(style.getName());
-    		this.style = style;
-    		setSelected(style.isActive());
-    		addActionListener(this);
-    	}
+	/** Shared radio-button menu item: runs {@code onApply(selected)} when activated.
+	 *  Replaces the per-action subclasses (BarMenuAction, AssignmentsMenuAction,
+	 *  ProgressLineMenuAction, AnnotationTextMenuAction) that only differed in
+	 *  their apply step. */
+	private static final class ToggleMenuAction extends JRadioButtonMenuItem implements ActionListener {
+		private static final long serialVersionUID = 1L;
+		private final java.util.function.Consumer<Boolean> onApply;
+		ToggleMenuAction(String text, boolean selected, java.util.function.Consumer<Boolean> onApply) {
+			super(text);
+			this.onApply = onApply;
+			setSelected(selected);
+			addActionListener(this);
+		}
+		@Override
 		public void actionPerformed(ActionEvent arg0) {
-			style.setActive(isSelected());
-			if (interactor.getGraph() instanceof Gantt gantt) {
-				gantt.refreshProjectionCapture();
-				gantt.repaint();
-			} else {
-				((GraphModel)interactor.getGraph().getModel()).updateAll(true);
-			}
+			onApply.accept(isSelected());
 		}
-    }
-    
-    private class AssignmentsMenuAction extends JRadioButtonMenuItem implements ActionListener {
-		private static final long serialVersionUID = 3480838269288912755L;
-		AssignmentsMenuAction() {
-			super(Messages.getString("Gantt.Popup.showAssignments"));
-			setSelected(interactor.getGraph().getCache() instanceof ViewNodeModelCache cache && cache.isShowAssignments());
-			addActionListener(this);
-		}
-		public void actionPerformed(ActionEvent e) {
-			if (interactor.getGraph().getCache() instanceof ViewNodeModelCache cache)
-				cache.setShowAssignments(isSelected());
-			if (interactor.getGraph() instanceof Gantt gantt) gantt.refreshProjectionCapture();
-		}
-    }
+	}
 
-    private class ProgressLineMenuAction extends JRadioButtonMenuItem implements ActionListener {
-		private static final long serialVersionUID = -7938597987478064286L;
-
-		ProgressLineMenuAction() {
-			super(Messages.getString("Gantt.Popup.showProgressLine"));
-			if (interactor.getGraph() instanceof Gantt)
-				setSelected(((Gantt)interactor.getGraph()).isProgressLineEnabled());
-			addActionListener(this);
-		}
-
-		public void actionPerformed(ActionEvent e) {
-			if (!(interactor.getGraph() instanceof Gantt))
-				return;
-			((Gantt)interactor.getGraph()).setProgressLineEnabled(isSelected());
-			((GraphModel)interactor.getGraph().getModel()).updateAll(true);
-		}
-    }
-
-    private class AnnotationTextMenuAction extends JRadioButtonMenuItem implements ActionListener {
-		private static final long serialVersionUID = -6784371291922163170L;
-		private final String fieldId;
-
-		AnnotationTextMenuAction(String messageKey, String fieldId) {
-			super(Messages.getString(messageKey));
-			this.fieldId = fieldId;
-			setSelected(fieldId.equals(getCurrentAnnotationFieldId()));
-			addActionListener(this);
-		}
-
-		public void actionPerformed(ActionEvent e) {
-			if (!isSelected())
-				return;
-			applyAnnotationField(fieldId);
-		}
-    }
-   
-    private class SplitModeMenuAction extends AbstractAction {
-    	/**
-		 * 
-		 */
-		private static final long serialVersionUID = -8615889754474230400L;
-		SplitModeMenuAction() {
-    		super(Messages.getString("Gantt.Popup.splitMode"));
-    	}
-        public void actionPerformed(ActionEvent e) {
-            ((GanttInteractor)interactor).setSplitMode();
-        }
-    }
-    
-    
     public GanttPopupMenu(final GraphInteractor interactor) {
         super(interactor);
     }
     
-	
+
 /**
  * Because the styles may change, rebuild the menu each time
  *
@@ -178,17 +112,40 @@ public class GanttPopupMenu extends GraphPopupMenu{
 			});
 			addSeparator();
 		}
-    	add(new SplitModeMenuAction());
-    	add(new AssignmentsMenuAction());
-    	add(new ProgressLineMenuAction());
-        final JMenu bars=new JMenu(Messages.getString("Gantt.Popup.barStylesMenu"));
-        final JMenu annotations=new JMenu(Messages.getString("Gantt.Popup.annotationStylesMenu"));
-        final JMenu annotationText=new JMenu(Messages.getString("Gantt.Popup.annotationTextMenu"));
-        final ButtonGroup annotationTextGroup = new ButtonGroup();
-		JRadioButtonMenuItem hiddenItem = new AnnotationTextMenuAction("Gantt.Popup.annotationHidden", Gantt.ANNOTATION_FIELD_HIDDEN);
-        JRadioButtonMenuItem resourceNamesItem = new AnnotationTextMenuAction("Gantt.Popup.annotationResourceNames", ANNOTATION_FIELD_RESOURCE_NAMES);
-        JRadioButtonMenuItem taskNamesItem = new AnnotationTextMenuAction("Gantt.Popup.annotationTaskNames", ANNOTATION_FIELD_TASK_NAME);
-		annotationTextGroup.add(hiddenItem);
+    	add(new AbstractAction(Messages.getString("Gantt.Popup.splitMode")) {
+    		private static final long serialVersionUID = 1L;
+    		public void actionPerformed(ActionEvent e) {
+    			((GanttInteractor)interactor).setSplitMode();
+    		}
+    	});
+    	add(new ToggleMenuAction(Messages.getString("Gantt.Popup.showAssignments"),
+    			interactor.getGraph().getCache() instanceof ViewNodeModelCache cache && cache.isShowAssignments(),
+    			selected -> {
+    				if (interactor.getGraph().getCache() instanceof ViewNodeModelCache cache)
+    					cache.setShowAssignments(selected);
+    				if (interactor.getGraph() instanceof Gantt gantt) gantt.refreshProjectionCapture();
+    			}));
+    	add(new ToggleMenuAction(Messages.getString("Gantt.Popup.showProgressLine"),
+    			interactor.getGraph() instanceof Gantt gantt && gantt.isProgressLineEnabled(),
+    			selected -> {
+    				if (!(interactor.getGraph() instanceof Gantt gantt)) return;
+    				gantt.setProgressLineEnabled(selected);
+    				((GraphModel)interactor.getGraph().getModel()).updateAll(true);
+    			}));
+    	final JMenu bars=new JMenu(Messages.getString("Gantt.Popup.barStylesMenu"));
+    	final JMenu annotations=new JMenu(Messages.getString("Gantt.Popup.annotationStylesMenu"));
+    	final JMenu annotationText=new JMenu(Messages.getString("Gantt.Popup.annotationTextMenu"));
+    	final ButtonGroup annotationTextGroup = new ButtonGroup();
+    	JRadioButtonMenuItem hiddenItem = new ToggleMenuAction(Messages.getString("Gantt.Popup.annotationHidden"),
+    	Gantt.ANNOTATION_FIELD_HIDDEN.equals(getCurrentAnnotationFieldId()),
+    	selected -> { if (selected) applyAnnotationField(Gantt.ANNOTATION_FIELD_HIDDEN); });
+    	JRadioButtonMenuItem resourceNamesItem = new ToggleMenuAction(Messages.getString("Gantt.Popup.annotationResourceNames"),
+    	ANNOTATION_FIELD_RESOURCE_NAMES.equals(getCurrentAnnotationFieldId()),
+    	selected -> { if (selected) applyAnnotationField(ANNOTATION_FIELD_RESOURCE_NAMES); });
+    	JRadioButtonMenuItem taskNamesItem = new ToggleMenuAction(Messages.getString("Gantt.Popup.annotationTaskNames"),
+    	ANNOTATION_FIELD_TASK_NAME.equals(getCurrentAnnotationFieldId()),
+    	selected -> { if (selected) applyAnnotationField(ANNOTATION_FIELD_TASK_NAME); });
+    	annotationTextGroup.add(hiddenItem);
         annotationTextGroup.add(resourceNamesItem);
         annotationTextGroup.add(taskNamesItem);
 		annotationText.add(hiddenItem);
@@ -196,20 +153,29 @@ public class GanttPopupMenu extends GraphPopupMenu{
         annotationText.add(taskNamesItem);
         annotations.add(annotationText);
 		DataUtils.forAllDo(interactor.getGraph().getBarStyles().getRows().iterator(), new Consumer<Object>() { public void accept(Object arg0) {
-				BarStyle barStyle = (BarStyle)arg0;
-				BarMenuAction menuAction =new BarMenuAction(barStyle); 
-				if (barStyle.isLink()) // move the show links item to the main menu
-					add(menuAction);
-				else if (barStyle.isCalendar()) // move the show links item to the main menu
-					add(menuAction);
-				else if (barStyle.isHorizontalGrid()) // move the show links item to the main menu
-					add(menuAction);
-				else if (barStyle.isAnnotation())
-					annotations.add(menuAction);
-				else 
-					bars.add(menuAction);
+			BarStyle barStyle = (BarStyle)arg0;
+			ToggleMenuAction menuAction = new ToggleMenuAction(barStyle.getName(), barStyle.isActive(),
+				selected -> {
+					barStyle.setActive(selected);
+					if (interactor.getGraph() instanceof Gantt gantt) {
+						gantt.refreshProjectionCapture();
+						gantt.repaint();
+					} else {
+						((GraphModel)interactor.getGraph().getModel()).updateAll(true);
+					}
+				});
+			if (barStyle.isLink())
+				add(menuAction);
+			else if (barStyle.isCalendar())
+				add(menuAction);
+			else if (barStyle.isHorizontalGrid())
+				add(menuAction);
+			else if (barStyle.isAnnotation())
+				annotations.add(menuAction);
+			else 
+				bars.add(menuAction);
 				
-			}
+		}
 		});
         add(bars);
         add(annotations);
