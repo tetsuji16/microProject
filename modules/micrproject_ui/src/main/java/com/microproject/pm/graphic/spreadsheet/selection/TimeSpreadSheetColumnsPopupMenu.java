@@ -1,4 +1,4 @@
-/*******************************************************************************
+/*
  * MIT License
  *
  * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
@@ -9,7 +9,7 @@
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * furnished to do so subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
@@ -21,60 +21,39 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *******************************************************************************/
+ */
 package com.microproject.pm.graphic.spreadsheet.selection;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
-import java.util.Iterator;
 
-import javax.swing.JPopupMenu;
-import javax.swing.JRadioButtonMenuItem;
-
-import com.microproject.pm.graphic.spreadsheet.time.TimeSpreadSheet;
 import com.microproject.configuration.Dictionary;
 import com.microproject.field.Field;
+import com.microproject.pm.graphic.spreadsheet.time.TimeSpreadSheet;
 
 /**
- *
+ * Time-phased spreadsheet column picker: each {@link Field} of the time
+ * spreadsheet's first Dictionary layout is a toggleable column, and selecting
+ * one adds it to the visible field array. Shares the menu-building logic with
+ * {@link SpreadSheetColumnsPopupMenu}.
  */
-public class TimeSpreadSheetColumnsPopupMenu extends JPopupMenu {
-    protected final TimeSpreadSheet spreadSheet;
-    /**
-     * 
-     */
-    
-    private class MenuAction extends JRadioButtonMenuItem implements ActionListener {
-    	TimeSpreadSheet spreadSheet;
-    	Field field;
-    	MenuAction(String text, TimeSpreadSheet spreadSheet, Field field, boolean selected) {
-    		super(text);
-    		this.field = field;
-    		this.spreadSheet = spreadSheet;
-    		this.setSelected(selected);
-    		this.addActionListener(this); // it listens to itself
-    	}
-		public void actionPerformed(ActionEvent arg0) {
-			spreadSheet.finishCurrentOperations();
-			spreadSheet.selectFieldArray(field);
-		}
-    	
-    }
-    
-    public TimeSpreadSheetColumnsPopupMenu(TimeSpreadSheet spreadSheet, String type) {
-        super();
-        this.spreadSheet=spreadSheet;
-        
-		Object columnDefinitions[] = Dictionary.getAll(type);
-		//if (columnDefinitions==null||columnDefinitions.length==0) return;
-		ArrayList fieldArray =(ArrayList) columnDefinitions[0];
-		for (Iterator i=fieldArray.iterator();i.hasNext();) {
-			Field field=(Field)i.next();
-			boolean selected = (spreadSheet.getSelectedFieldArray().contains(field));
-			add(new MenuAction(field.toString(),spreadSheet,field, selected));
-		}
-    }
+public class TimeSpreadSheetColumnsPopupMenu extends SpreadSheetColumnsPopupMenu {
+	public TimeSpreadSheetColumnsPopupMenu(TimeSpreadSheet spreadSheet, String type) {
+		super(spreadSheet, type);
+	}
 
+	@Override
+	protected Object[] getColumnDefinitions() {
+		// The time spreadsheet stores its fields as the first Dictionary layout.
+		return ((ArrayList<?>) Dictionary.getAll(type)[0]).toArray();
+	}
+
+	@Override
+	protected boolean isSelected(Object item) {
+		return ((TimeSpreadSheet) spreadSheet).getSelectedFieldArray().contains(item);
+	}
+
+	@Override
+	protected void applySelection(Object item) {
+		((TimeSpreadSheet) spreadSheet).selectFieldArray((Field) item);
+	}
 }
-
