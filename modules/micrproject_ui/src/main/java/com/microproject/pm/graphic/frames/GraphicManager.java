@@ -1437,8 +1437,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_OUTDENT, new OutdentAction());
 		actionsMap.addHandler(ACTION_MOVE_TASK_UP, new MoveTaskUpAction());
 		actionsMap.addHandler(ACTION_MOVE_TASK_DOWN, new MoveTaskDownAction());
-		actionsMap.addHandler(ACTION_COLLAPSE, new CollapseAction());
-		actionsMap.addHandler(ACTION_EXPAND, new ExpandAction());
+		actionsMap.addHandler(ACTION_COLLAPSE, new OutlineAction(false));
+		actionsMap.addHandler(ACTION_EXPAND, new OutlineAction(true));
 		actionsMap.addHandler(ACTION_HIDE_SELECTED_TASKS, new HideSelectedTasksAction());
 		actionsMap.addHandler(ACTION_SHOW_ALL_TASKS, new ShowAllTasksAction());
 
@@ -2319,24 +2319,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				getCurrentFrame().doScrollToTask();
 		}
 	}
-	public class ExpandAction extends MenuActionsMap.DocumentMenuAction {
+	public class OutlineAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
+		private final boolean expand;
+		OutlineAction(boolean expand) {
+			this.expand = expand;
+		}
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
-				getCurrentFrame().doExpand();
-		}
-		protected boolean allowed(boolean enable) {
-			if (enable==false) return true;
-			return isDocumentWritable();
-		}
-	}
-	public class CollapseAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent arg0) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
-				getCurrentFrame().doCollapse();
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false)) {
+				if (expand) getCurrentFrame().doExpand();
+				else getCurrentFrame().doCollapse();
+			}
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3473,11 +3467,11 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	    addCtrlAccel(KeyEvent.VK_I, ACTION_INSERT_TASK, null);
 	    addCtrlAccel(KeyEvent.VK_PERIOD, ACTION_INDENT, null);
 	    addCtrlAccel(KeyEvent.VK_COMMA, ACTION_OUTDENT, null);
-	    addCtrlAccel(KeyEvent.VK_PLUS, ACTION_EXPAND, new ExpandAction());
-	    addCtrlAccel(KeyEvent.VK_ADD, ACTION_EXPAND, new ExpandAction());
-	    addCtrlAccel(KeyEvent.VK_EQUALS, ACTION_EXPAND, new ExpandAction());
-	    addCtrlAccel(KeyEvent.VK_MINUS, ACTION_COLLAPSE, new CollapseAction());
-	    addCtrlAccel(KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, new CollapseAction());
+	    addCtrlAccel(KeyEvent.VK_PLUS, ACTION_EXPAND, new OutlineAction(true));
+	    addCtrlAccel(KeyEvent.VK_ADD, ACTION_EXPAND, new OutlineAction(true));
+	    addCtrlAccel(KeyEvent.VK_EQUALS, ACTION_EXPAND, new OutlineAction(true));
+	    addCtrlAccel(KeyEvent.VK_MINUS, ACTION_COLLAPSE, new OutlineAction(false));
+	    addCtrlAccel(KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, new OutlineAction(false));
 
 			// To force a recalculation. This normally shouldn't be needed.
 	    addCtrlAccel(KeyEvent.VK_R, ACTION_RECALCULATE, new RecalculateAction());
@@ -3533,8 +3527,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		// Microsoft Project outline keys: Alt+Shift+Right/Left indent/outdent, Alt+Shift++/= expand, Alt+Shift+- collapse.
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_INDENT, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_OUTDENT, null);
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, new ExpandAction());
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, new CollapseAction());
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, new OutlineAction(true));
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, new OutlineAction(false));
 		// Microsoft Project selection shortcuts: Ctrl+Space selects the row, Shift+Space
 		// the column, Ctrl+Shift+Space the whole sheet.
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK), "SelectRow",
