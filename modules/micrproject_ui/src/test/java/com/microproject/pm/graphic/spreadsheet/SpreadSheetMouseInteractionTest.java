@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.spreadsheet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -37,6 +38,7 @@ import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JMenuItem;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
+import com.microproject.pm.graphic.spreadsheet.selection.event.HeaderMouseListener;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -53,6 +56,36 @@ import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 
 class SpreadSheetMouseInteractionTest {
+	@Test
+	void rebindingTheModelDoesNotAccumulateMouseHandlersOrCorruptTabFallback() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int tableMouseListeners = sheet.getMouseListeners().length;
+			int tableMotionListeners = sheet.getMouseMotionListeners().length;
+
+			for (int i = 0; i < 10; i++)
+				sheet.setModel((SpreadSheetModel) sheet.getModel(), null);
+
+			assertEquals(tableMouseListeners, sheet.getMouseListeners().length);
+			assertEquals(tableMotionListeners, sheet.getMouseMotionListeners().length);
+			assertEquals(1, Arrays.stream(sheet.getTableHeader().getMouseListeners())
+					.filter(HeaderMouseListener.class::isInstance).count());
+
+			int row = findRow(sheet, fixture.firstTask());
+			int nonNameColumn = 0;
+			while (nonNameColumn < sheet.getColumnCount() && sheet.isNameFieldColumn(nonNameColumn))
+				nonNameColumn++;
+			assertTrue(nonNameColumn < sheet.getColumnCount(), "fixture needs a non-name column for the Tab fallback");
+			sheet.changeSelection(row, nonNameColumn, false, false);
+			var tabAction = sheet.getActionMap().get(SpreadSheet.NAME_COLUMN_INDENT_ACTION);
+			assertDoesNotThrow(() -> tabAction.actionPerformed(
+					new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, KeyStroke.getKeyStroke("TAB").toString())));
+			assertEquals((nonNameColumn + 1) % sheet.getColumnCount(), sheet.getSelectedColumn(),
+					"non-name Tab must retain JTable's next-cell navigation");
+		});
+	}
+
 	@Test
 	void msProjectShortcutMovesAWholeTaskRowAndHonorsBoundaries() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {

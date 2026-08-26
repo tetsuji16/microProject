@@ -74,14 +74,12 @@
 
 package com.microproject.menu.resource;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
-import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
@@ -130,7 +128,6 @@ public class RibbonFactory extends ResourceManager {
     /**
      * The current radio group
      */
-    private ButtonGroup buttonGroup;
 
 	/**
 	 * Creates a new tool bar factory
@@ -143,7 +140,6 @@ public class RibbonFactory extends ResourceManager {
 	public RibbonFactory(ProjectMenuActionMap am, ResourceBundle...rb) {
 		super(rb);
 		buttonFactory = new ExtButtonFactory(am,rb);
-		buttonGroup = null;
 	}
 
 	
@@ -177,6 +173,8 @@ public class RibbonFactory extends ResourceManager {
 		AbstractRibbonBand<?>[] bands=ribbonBands.toArray(new AbstractRibbonBand<?>[ribbonBands.size()]);		
 		
 		RibbonTask result = new RibbonTask(title,bands);		
+		String keyTip = getStringOrNull(name + ".keyTip");
+		if (keyTip != null && !keyTip.isBlank()) result.setKeyTip(keyTip);
 
 		return result;
 	}
@@ -322,6 +320,8 @@ public class RibbonFactory extends ResourceManager {
 	public AbstractCommandButton createCommandButton(String name) throws MissingResourceException,
 			ResourceFormatException, MissingListenerException {
 		AbstractCommandButton result = buttonFactory.createRibbonButton(name);
+		String keyTip = getStringOrNull(name + ".mnemonic");
+		if (keyTip != null && !keyTip.isBlank()) result.setActionKeyTip(keyTip);
 //		String type = null;
 //		try {
 //			type = getString(name + ExtButtonFactory.TYPE_SUFFIX);

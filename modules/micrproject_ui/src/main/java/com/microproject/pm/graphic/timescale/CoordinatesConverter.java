@@ -31,6 +31,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.event.EventListenerList;
+import javax.swing.SwingUtilities;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.graphic.configuration.GraphicConfiguration;
@@ -58,6 +59,8 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 	protected long end;
 	
 	protected Project project;
+	private transient boolean scheduleUpdatePending;
+	private transient boolean disposed;
 	
 	
 	public CoordinatesConverter(Project project){
@@ -67,10 +70,18 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 	 * 
 	 */
 	public CoordinatesConverter(Project project,TimeScaleManager timescaleManager) {
+		this(project, timescaleManager, true);
+	}
+
+	private CoordinatesConverter(Project project,TimeScaleManager timescaleManager, boolean observeSchedule) {
 		this.project=project;
 		this.timescaleManager=timescaleManager;
 		updateLargeInterval(false);
-		project.addScheduleListener(this);
+		if (observeSchedule) project.addScheduleListener(this);
+	}
+
+	public static CoordinatesConverter createOffline(Project project) {
+		return new CoordinatesConverter(project, TimeScaleManager.createInstance(), false);
 	}
 	
 
@@ -261,8 +272,24 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 
 	
 	public void scheduleChanged(ScheduleEvent evt) {
-		updateLargeInterval(true);
+		synchronized (this) {
+			if (disposed || scheduleUpdatePending) return;
+			scheduleUpdatePending = true;
+		}
+		SwingUtilities.invokeLater(() -> {
+			synchronized (CoordinatesConverter.this) {
+				scheduleUpdatePending = false;
+				if (disposed) return;
+				updateLargeInterval(true);
+			}
+		});
 		//if project start or end have changed, it triggers a TimeScaleEvent
+	}
+
+	public synchronized void dispose() {
+		if (disposed) return;
+		disposed = true;
+		if (project != null) project.removeScheduleListener(this);
 	}
 	
 	
@@ -360,4 +387,3 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 	
 	
 }
-

@@ -50,6 +50,12 @@ import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleService;
+import com.microproject.pm.scheduling.ConstraintType;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.task.NormalTask;
 import com.microproject.transaction.DomainChangeSet;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.undo.ModelFieldEdit;
@@ -66,6 +72,7 @@ import com.microproject.undo.FieldEdit;
 import com.microproject.undo.SplitEdit;
 import com.microproject.undo.UndoController;
 import javax.swing.undo.UndoableEdit;
+import javax.swing.undo.AbstractUndoableEdit;
 
 /** Headless per-project use-case gateway. */
 public final class TaskCommandGateway {
@@ -540,6 +547,169 @@ public final class TaskCommandGateway {
 		return project.getDomainChangeJournal().write(() -> dragScheduleLocked(command));
 	}
 
+	public TaskCommandResult moveTimeline(TaskTimelineMoveCommand command) {
+		return project.getDomainChangeJournal().write(() -> moveTimelineLocked(command));
+	}
+
+	public TaskCommandResult changeAssignments(TaskAssignmentBatchCommand command) {
+		return project.getDomainChangeJournal().write(() -> changeAssignmentsLocked(command));
+	}
+
+	private TaskCommandResult changeAssignmentsLocked(TaskAssignmentBatchCommand command) {
+		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		List<NormalTask> tasks = new ArrayList<>(command.tasks().size());
+		for (ProjectTaskKey key : command.tasks()) {
+			Task task = resolve(key);
+			if (!(task instanceof NormalTask normalTask)) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+			if (project.isReadOnly() || task.isReadOnly() || !task.isAssignable())
+				return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+			tasks.add(normalTask);
+		}
+		List<Resource> assignResources = resolveResources(command.assignResourceUniqueIds());
+		List<Resource> removeResources = resolveResources(command.removeResourceUniqueIds());
+		if (assignResources == null || removeResources == null)
+			return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+		List<Assignment> removals = new ArrayList<>();
+		record MissingAssignment(NormalTask task, Resource resource) { }
+		List<MissingAssignment> missing = new ArrayList<>();
+		for (NormalTask task : tasks) {
+			for (Resource resource : assignResources)
+				if (task.findAssignment(resource) == null) missing.add(new MissingAssignment(task, resource));
+			for (Resource resource : removeResources) {
+				Assignment existing = task.findAssignment(resource);
+				if (existing != null) removals.add(existing);
+			}
+		}
+		if (missing.isEmpty() && removals.isEmpty()) return TaskCommandResult.of(TaskCommandResult.Status.NO_OP);
+
+		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
+		AssignmentDeltaEdit assignmentEdit = new AssignmentDeltaEdit(project);
+		removals.forEach(assignmentEdit::recordRemoval);
+		AuthorizationGuard guard = new AuthorizationGuard(Set.copyOf(command.tasks()), TaskCommandType.CHANGE_ASSIGNMENTS);
+		ModelTransaction<List<NormalTask>> transaction = TaskCommandGateway.<List<NormalTask>>authorizedBuilder(project, guard)
+				.captureRollback(() -> () -> {
+					assignmentEdit.restoreBeforeCommit();
+					restoreSchedule(project, scheduleBackup);
+				})
+				.apply(() -> {
+					for (Assignment assignment : removals)
+						AssignmentService.getInstance().remove(assignment, this, false);
+					try {
+						AssignmentService.getInstance().newAssignments(tasks, assignResources, command.units(), 0L, this, false);
+					} finally {
+						for (MissingAssignment target : missing) {
+							Assignment assigned = target.task().findAssignment(target.resource());
+							if (assigned != null) assignmentEdit.recordAddition(assigned);
+						}
+					}
+					if (assignmentEdit.additionCount() != missing.size())
+						throw new IllegalStateException("Assignment was not connected");
+					project.recalculate();
+					return ModelTransaction.Mutation.changed(List.copyOf(tasks));
+				})
+				.invariant(() -> tasks.stream().allMatch(task ->
+						assignResources.stream().allMatch(resource -> task.findAssignment(resource) != null)
+						&& removeResources.stream().allMatch(resource -> task.findAssignment(resource) == null)))
+				.commitUndo(value -> project.getUndoController().commitEdit(assignmentEdit))
+				.changes(value -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
+						Set.copyOf(command.tasks()), Set.of("Field.resourceNames"),
+						DomainChangeSet.TopologyImpact.NONE, true, false))
+				.build();
+		return executeAuthorized(transaction, guard, project);
+	}
+
+	private TaskCommandResult moveTimelineLocked(TaskTimelineMoveCommand command) {
+		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		Task task = resolve(command.task());
+		if (task == null) return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+		if (project.isReadOnly() || task.isReadOnly() || command.proposedStart() != null && task.inProgress())
+			return TaskCommandResult.of(TaskCommandResult.Status.READ_ONLY);
+		Assignment assignment = command.assignmentUniqueId() == null ? null : findAssignment(task, command.assignmentUniqueId());
+		if (command.assignmentUniqueId() != null && (assignment == null
+				|| assignment.getResource().getUniqueId() != command.expectedResourceUniqueId().longValue()))
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		Resource target = command.targetResourceUniqueId() == null ? null : findResource(command.targetResourceUniqueId());
+		if (command.targetResourceUniqueId() != null && target == null)
+			return TaskCommandResult.of(TaskCommandResult.Status.NOT_FOUND);
+		boolean changeResource = assignment != null && assignment.getResource() != target;
+		NormalTask normalTask = assignment == null ? null : (NormalTask) task;
+		boolean targetIsUnassigned = target == ResourceImpl.getUnassignedInstance();
+		if (changeResource && normalTask.findAssignment(target) != null)
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		if (changeResource && targetIsUnassigned && normalTask.getRealAssignments().size() != 1)
+			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		boolean changeStart = command.proposedStart() != null && command.proposedStart().longValue() != task.getStart();
+		boolean manualStart = changeStart && task.isManuallyScheduled();
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		int originalConstraintType = task.getConstraintType();
+		long originalConstraintDate = task.getConstraintDate();
+		if (task.getStart() != command.expectedStart()) return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
+		if (!changeResource && !changeStart) return TaskCommandResult.of(TaskCommandResult.Status.NO_OP);
+
+		UndoableEdit[] captured = new UndoableEdit[1];
+		ProjectScheduleBackup scheduleBackup = captureSchedule(project);
+		boolean projectDirty = project.isDirty();
+		AssignmentDeltaEdit assignmentEdit = changeResource ? new AssignmentDeltaEdit(project) : null;
+		if (assignmentEdit != null) assignmentEdit.recordRemoval(assignment);
+		AuthorizationGuard guard = new AuthorizationGuard(Set.of(command.task()), TaskCommandType.MOVE_TIMELINE);
+		ModelTransaction<Task> transaction = TaskCommandGateway.<Task>authorizedBuilder(project, guard)
+				.captureRollback(() -> () -> {
+					if (captured[0] != null && captured[0].canUndo()) captured[0].undo();
+					if (assignmentEdit != null) assignmentEdit.restoreBeforeCommit();
+					restoreSchedule(project, scheduleBackup);
+					task.setScheduleConstraint(originalConstraintType, originalConstraintDate);
+					project.setDirty(projectDirty);
+				})
+				.apply(() -> {
+					UndoController.EditCapture capture = project.getUndoController().captureEdits();
+					try {
+						if (assignmentEdit != null) {
+							AssignmentService.getInstance().remove(assignment, this, false);
+							if (!targetIsUnassigned) {
+								try {
+									AssignmentService.getInstance().newAssignment(normalTask, target,
+											assignment.getUnits(), assignment.getDelay(), this, false);
+								} finally {
+									Assignment added = normalTask.findAssignment(target);
+									if (added != null) {
+										added.usePropertiesOf(assignment);
+										assignmentEdit.recordAddition(added);
+									}
+								}
+							}
+						}
+						if (manualStart)
+							task.setManualDates(command.proposedStart().longValue(),
+									command.proposedStart().longValue() + Math.max(0L, originalEnd - originalStart));
+						else if (changeStart)
+							ScheduleService.getInstance().setConstraint(this, task, ConstraintType.SNET,
+									command.proposedStart().longValue(), project.getUndoController().getEditSupport());
+						task.setDirty(true);
+						project.recalculate();
+					} finally {
+						capture.close();
+						captured[0] = capture.edit();
+					}
+					return captured[0] == null && !manualStart && assignmentEdit == null ? ModelTransaction.Mutation.noOp(task)
+							: ModelTransaction.Mutation.changed(task);
+				})
+				.invariant(() -> task.getStart() <= task.getEnd()
+						&& (!changeResource || normalTask.findAssignment(target) != null))
+				.commitUndo(value -> {
+					UndoableEdit manual = manualStart ? new ManualDatesEdit(task, originalStart, originalEnd,
+							task.getStart(), task.getEnd(), project) : null;
+					project.getUndoController().commitEdit(combineEdits(assignmentEdit, captured[0], manual));
+				})
+				.changes(value -> new DomainChangeSet.Draft(UUID.randomUUID(), DomainChangeSet.Origin.COMMAND,
+						Set.of(command.task()), Set.of("Field.resourceNames", "Field.start", "Field.finish"),
+						DomainChangeSet.TopologyImpact.NONE, true, false))
+				.build();
+		return executeAuthorized(transaction, guard, project);
+	}
+
 	private TaskCommandResult dragScheduleLocked(TaskScheduleDragCommand command) {
 		if (project.getDomainChangeJournal().revision() != command.expectedDomainRevision())
 			return TaskCommandResult.of(TaskCommandResult.Status.CONFLICT);
@@ -942,6 +1112,29 @@ public final class TaskCommandGateway {
 		return ProjectTaskKey.resolve(project, key).orElse(null);
 	}
 
+	private static Assignment findAssignment(Task task, long uniqueId) {
+		if (!(task instanceof NormalTask normalTask)) return null;
+		return normalTask.getAssignments().stream().map(Assignment.class::cast)
+				.filter(value -> value.getUniqueId() == uniqueId).findFirst().orElse(null);
+	}
+
+	private Resource findResource(long uniqueId) {
+		Resource unassigned = ResourceImpl.getUnassignedInstance();
+		if (unassigned.getUniqueId() == uniqueId) return unassigned;
+		return project.getResourcePool().getResourceList().stream()
+				.filter(value -> value.getUniqueId() == uniqueId).findFirst().orElse(null);
+	}
+
+	private List<Resource> resolveResources(List<Long> uniqueIds) {
+		List<Resource> resources = new ArrayList<>(uniqueIds.size());
+		for (long uniqueId : uniqueIds) {
+			Resource resource = findResource(uniqueId);
+			if (resource == null) return null;
+			resources.add(resource);
+		}
+		return List.copyOf(resources);
+	}
+
 	private static Dependency findDependency(Task predecessor, Task successor) {
 		return (Dependency) predecessor.getSuccessorList().findRight(successor);
 	}
@@ -963,6 +1156,75 @@ public final class TaskCommandGateway {
 	private static boolean isScheduleField(String fieldId) {
 		return fieldId != null && (fieldId.contains("start") || fieldId.contains("finish")
 				|| fieldId.contains("duration") || fieldId.contains("complete"));
+	}
+
+	private static UndoableEdit combineEdits(UndoableEdit... edits) {
+		List<UndoableEdit> present = java.util.Arrays.stream(edits).filter(Objects::nonNull).toList();
+		if (present.isEmpty()) throw new IllegalStateException("A committed mutation requires an Undo edit");
+		if (present.size() == 1) return present.get(0);
+		AtomicCompoundEdit compound = new AtomicCompoundEdit();
+		present.forEach(compound::addEdit);
+		compound.end();
+		return compound;
+	}
+
+	private static final class AssignmentDeltaEdit extends AbstractUndoableEdit {
+		private static final long serialVersionUID = 1L;
+		private final List<Assignment> removals = new ArrayList<>();
+		private final List<Assignment> additions = new ArrayList<>();
+		private final Project project;
+
+		AssignmentDeltaEdit(Project project) { this.project = project; }
+		void recordRemoval(Assignment assignment) { if (!removals.contains(assignment)) removals.add(assignment); }
+		void recordAddition(Assignment assignment) { if (!additions.contains(assignment)) additions.add(assignment); }
+		int additionCount() { return additions.size(); }
+		void restoreBeforeCommit() { restoreBefore(); project.recalculate(); }
+		@Override public void undo() {
+			super.undo();
+			restoreBefore();
+			project.recalculate();
+		}
+		@Override public void redo() {
+			super.redo();
+			for (int index = removals.size() - 1; index >= 0; index--) removeIfConnected(removals.get(index));
+			for (Assignment assignment : additions) connectIfMissing(assignment);
+			project.recalculate();
+		}
+		private void restoreBefore() {
+			for (int index = additions.size() - 1; index >= 0; index--) removeIfConnected(additions.get(index));
+			for (Assignment assignment : removals) connectIfMissing(assignment);
+		}
+		private void connectIfMissing(Assignment assignment) {
+			if (((NormalTask) assignment.getTask()).findAssignment(assignment.getResource()) == null)
+				AssignmentService.getInstance().connect(assignment, this, false);
+		}
+		private void removeIfConnected(Assignment assignment) {
+			Assignment current = ((NormalTask) assignment.getTask()).findAssignment(assignment.getResource());
+			if (current != null) AssignmentService.getInstance().remove(current, this, false);
+		}
+	}
+
+	private static final class ManualDatesEdit extends AbstractUndoableEdit {
+		private static final long serialVersionUID = 1L;
+		private final Task task;
+		private final long beforeStart;
+		private final long beforeEnd;
+		private final long afterStart;
+		private final long afterEnd;
+		private final Project project;
+
+		ManualDatesEdit(Task task, long beforeStart, long beforeEnd, long afterStart, long afterEnd, Project project) {
+			this.task = task;
+			this.beforeStart = beforeStart;
+			this.beforeEnd = beforeEnd;
+			this.afterStart = afterStart;
+			this.afterEnd = afterEnd;
+			this.project = project;
+		}
+
+		@Override public void undo() { super.undo(); apply(beforeStart, beforeEnd); }
+		@Override public void redo() { super.redo(); apply(afterStart, afterEnd); }
+		private void apply(long start, long end) { task.setManualDates(start, end); project.recalculate(); }
 	}
 
 	private void setProposed(Field field, Node node, NodeModel model, FieldContext context, Object proposed)

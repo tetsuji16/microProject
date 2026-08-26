@@ -40,7 +40,10 @@ class PopupEscapeAuditTest {
 		String source = source("modules/micrproject_ui/src/main/java/com/microproject/dialog/AbstractDialog.java");
 
 		assertTrue(source.contains("KeyEvent.VK_ESCAPE"));
-		assertTrue(source.contains("rootPane.registerKeyboardAction(escapeListener"));
+		assertTrue(source.contains("inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE"));
+		assertTrue(source.contains("actionMap.put(\"dialog.cancel\""));
+		assertTrue(source.contains("getRootPane().setDefaultButton(ok)"));
+		assertFalse(source.contains("registerKeyboardAction"));
 	}
 
 	@Test

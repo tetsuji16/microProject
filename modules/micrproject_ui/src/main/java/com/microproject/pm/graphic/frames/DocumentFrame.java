@@ -460,7 +460,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	void doCalendarViewDialog() {
 		finishAnyOperations();
-		new CalendarViewDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
+		new CalendarViewDialogBox(getGraphicManager().getFrame(), project, getTaskCommandGateway()).setVisible(true);
 	}
 
 	void doCustomReportDialog() {
@@ -855,7 +855,7 @@ public class DocumentFrame extends NamedFrame implements
 	public DockableProjectToolView getTeamPlannerView() {
 		if (teamPlannerView == null) {
 			teamPlannerView = new DockableProjectToolView(project, ACTION_DELEGATE_TASKS,
-				TeamPlannerDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+				TeamPlannerDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project, getTaskCommandGateway()));
 			restoreWorkspaceFor(teamPlannerView);
 		}
 		return teamPlannerView;
@@ -1388,12 +1388,13 @@ public class DocumentFrame extends NamedFrame implements
 		if (project != null) {
 			project.removeProjectListener(this);
 			project.removeObjectListener(this);
-			project.removeScheduleListener(coord);
 		}
 		if (getUndoController() != null)
 			getUndoController().removeUndoStateListener(this);
-		if (coord != null)
+		if (coord != null) {
 			coord.removeTimeScaleListener(mainView);
+			coord.dispose();
+		}
     	forAllViews(new Consumer<Object>() { public void accept(Object v) {
 				if (v != null)
 					((BaseView)v).cleanUp();

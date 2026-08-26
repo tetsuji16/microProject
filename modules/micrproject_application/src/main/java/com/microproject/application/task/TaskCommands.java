@@ -116,6 +116,33 @@ public final class TaskCommands {
 		}
 	}
 
+	public record TaskAssignmentBatchCommand(List<ProjectTaskKey> tasks, List<Long> assignResourceUniqueIds,
+			List<Long> removeResourceUniqueIds, double units, long expectedDomainRevision) {
+		public TaskAssignmentBatchCommand {
+			tasks = requiredTasks(tasks);
+			assignResourceUniqueIds = resourceIds(assignResourceUniqueIds);
+			removeResourceUniqueIds = resourceIds(removeResourceUniqueIds);
+			if (assignResourceUniqueIds.isEmpty() && removeResourceUniqueIds.isEmpty())
+				throw new IllegalArgumentException("an assignment change is required");
+			if (assignResourceUniqueIds.stream().anyMatch(removeResourceUniqueIds::contains))
+				throw new IllegalArgumentException("a resource cannot be assigned and removed together");
+			if (!Double.isFinite(units) || units < 0D) throw new IllegalArgumentException("units must be finite and non-negative");
+			revision(expectedDomainRevision);
+		}
+	}
+
+	public record TaskTimelineMoveCommand(ProjectTaskKey task, Long assignmentUniqueId,
+			Long expectedResourceUniqueId, Long targetResourceUniqueId, long expectedStart,
+			Long proposedStart, long expectedDomainRevision) {
+		public TaskTimelineMoveCommand {
+			TaskCommands.task(task);
+			if ((assignmentUniqueId == null) != (expectedResourceUniqueId == null)
+					|| (assignmentUniqueId == null) != (targetResourceUniqueId == null))
+				throw new IllegalArgumentException("assignment and resource ids must be supplied together");
+			revision(expectedDomainRevision);
+		}
+	}
+
 	public record TaskSplitCommand(ProjectTaskKey task, long expectedStart, long expectedEnd, long splitAt,
 			long expectedDomainRevision) {
 		public TaskSplitCommand { TaskCommands.task(task); revision(expectedDomainRevision); }
@@ -125,6 +152,11 @@ public final class TaskCommands {
 		List<ProjectTaskKey> copy = tasks == null ? List.of() : List.copyOf(tasks);
 		if (copy.isEmpty()) throw new IllegalArgumentException("tasks are required");
 		return copy;
+	}
+	private static List<Long> resourceIds(List<Long> resourceIds) {
+		List<Long> copy = resourceIds == null ? List.of() : List.copyOf(resourceIds);
+		if (copy.stream().anyMatch(java.util.Objects::isNull)) throw new IllegalArgumentException("resource ids cannot be null");
+		return List.copyOf(new java.util.LinkedHashSet<>(copy));
 	}
 	private static void endpoints(ProjectTaskKey predecessor, ProjectTaskKey successor) {
 		if (predecessor == null || successor == null) throw new IllegalArgumentException("dependency endpoints are required");

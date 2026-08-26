@@ -109,8 +109,9 @@ public class SpreadSheetRowHeader extends JTable {
 					private Point pressPoint;
 					private int pressRow = -1;
 					private boolean dragging;
+					private boolean popupShown;
 					public void mousePressed(MouseEvent e) {
-						SpreadSheetPopupMenu popup=getPopup();
+						popupShown=false;
 						if (SwingUtilities.isLeftMouseButton(e)){
 							int row = rowAtPoint(e.getPoint());
 							if (row < 0) {
@@ -133,13 +134,8 @@ public class SpreadSheetRowHeader extends JTable {
 //								mainFrame.doInformationDialog(false);
 //
 							}
-						}else if (popup!=null&&SwingUtilities.isRightMouseButton(e)){ //e.isPopupTrigger() can be used too
-							int row = rowAtPoint(e.getPoint());
-							table.selectRowAndAllColumns(row);
-							spreadSheet.requestFocusInWindow();
-							popup.setRow(row);
-							popup.setCol(0);
-							popup.show(SpreadSheetRowHeader.this,e.getX(),e.getY());
+						}else if (e.isPopupTrigger()||SwingUtilities.isRightMouseButton(e)){
+							popupShown=showPopup(e,spreadSheet);
 						}
 					}
 					public void mouseDragged(MouseEvent e) {
@@ -162,10 +158,25 @@ public class SpreadSheetRowHeader extends JTable {
 						}
 					}
 					public void mouseReleased(MouseEvent e) {
+						if (!popupShown&&e.isPopupTrigger()) showPopup(e,spreadSheet);
+						popupShown=false;
 						pressPoint=null;
 						pressRow=-1;
 						dragging=false;
 						repaint();
+					}
+
+					private boolean showPopup(MouseEvent event,SpreadSheet spreadSheet){
+						SpreadSheetPopupMenu popup=getPopup();
+						int row=rowAtPoint(event.getPoint());
+						if (popup==null||row<0) return false;
+						if (!isRowSelected(row)) table.selectRowAndAllColumns(row);
+						spreadSheet.requestFocusInWindow();
+						popup.setRow(row);
+						popup.setCol(0);
+						popup.show(SpreadSheetRowHeader.this,event.getX(),event.getY());
+						event.consume();
+						return true;
 					}
 				};
 				addMouseListener(handler);

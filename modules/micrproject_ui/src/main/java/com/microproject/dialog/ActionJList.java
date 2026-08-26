@@ -26,13 +26,15 @@ package com.microproject.dialog;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
 
 import javax.swing.JList;
+import javax.swing.AbstractAction;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
 import javax.swing.ListModel;
 
 /**
@@ -42,35 +44,25 @@ import javax.swing.ListModel;
 public class ActionJList extends JList {
 	private static final long serialVersionUID = 1L;
 	private void init() {
+		var activateSelection = new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) {
+				if (al == null) return;
+				List<?> selectedValues = getSelectedValuesList();
+				if (selectedValues.size() == 1)
+					al.actionPerformed(new ActionEvent(ActionJList.this,
+							ActionEvent.ACTION_PERFORMED, selectedValues.get(0).toString()));
+			}
+		};
 		addMouseListener(new MouseAdapter() {
 			public void mouseClicked(MouseEvent me) {
-				if (al == null)
-					return;
-				List<?> selectedValues = getSelectedValuesList();
-				if (selectedValues.size() != 1)
-					return;
 				if (me.getClickCount() == 2) {
-					al.actionPerformed(new ActionEvent(this,
-							ActionEvent.ACTION_PERFORMED, selectedValues.get(0).toString()));
+					activateSelection.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "activate"));
 					me.consume();
 				}
 			}
 		});
-
-		addKeyListener(new KeyAdapter() {
-			public void keyReleased(KeyEvent ke) {
-				if (al == null)
-					return;
-				List<?> selectedValues = getSelectedValuesList();
-				if (selectedValues.size() != 1)
-					return;
-				if (ke.getKeyCode() == KeyEvent.VK_ENTER) {
-					al.actionPerformed(new ActionEvent(this,
-							ActionEvent.ACTION_PERFORMED, selectedValues.get(0).toString()));
-					ke.consume();
-				}
-			}
-		});
+		getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "activateSelection");
+		getActionMap().put("activateSelection", activateSelection);
 		this.setSelectedIndex(0);
 	}
 	
@@ -120,5 +112,4 @@ public class ActionJList extends JList {
 		this.al = al;
 	}
 }
-
 

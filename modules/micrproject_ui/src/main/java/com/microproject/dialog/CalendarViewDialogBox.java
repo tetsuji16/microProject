@@ -53,7 +53,9 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
-import com.microproject.pm.resource.TeamPlannerService;
+import com.microproject.application.task.TaskCommandGateway;
+import com.microproject.application.task.TaskCommandResult;
+import com.microproject.application.task.TaskCommands.TaskTimelineMoveCommand;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
@@ -67,14 +69,14 @@ public final class CalendarViewDialogBox extends JDialog {
 	private final CalendarCanvas canvas;
 	private YearMonth month = YearMonth.now();
 
-	public CalendarViewDialogBox(java.awt.Frame owner, Project project) {
+	public CalendarViewDialogBox(java.awt.Frame owner, Project project, TaskCommandGateway commands) {
 		super(owner, UsabilityStrings.text("calendar.title"), false);
 		HelpUtil.addDocHelp(getRootPane(), "Calendar_View");
 		getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("calendar.hint"));
 		PopupDialogSupport.bindEscapeToDispose(this);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		setLayout(new BorderLayout(6, 6));
-		canvas = new CalendarCanvas(project);
+		canvas = new CalendarCanvas(project, commands);
 		JPanel navigation = new JPanel();
 		JButton previous = new JButton(UsabilityStrings.text("common.previous"));
 		JButton today = new JButton(UsabilityStrings.text("common.today"));
@@ -105,22 +107,30 @@ public final class CalendarViewDialogBox extends JDialog {
 		private static final int HEADER = 34;
 		private static final int CELL_HEIGHT = 105;
 		private final Project project;
+		private final TaskCommandGateway commands;
 		private final ZoneId zone = ZoneId.systemDefault();
 		private final List<Card> cards = new ArrayList<>();
 		private Task draggedTask;
+		private long draggedRevision;
 		private Point dragPoint;
 
-		CalendarCanvas(Project project) {
+		CalendarCanvas(Project project, TaskCommandGateway commands) {
 			this.project = project;
+			this.commands = commands;
 			setBackground(Color.WHITE);
 			setPreferredSize(new Dimension(980, HEADER + CELL_HEIGHT * 6));
 			MouseAdapter mouse = new MouseAdapter() {
 				@Override public void mousePressed(MouseEvent event) {
-					for (Card card : cards) if (card.bounds().contains(event.getPoint())) { draggedTask = card.task(); dragPoint = event.getPoint(); break; }
+					for (Card card : cards) if (card.bounds().contains(event.getPoint())) {
+						draggedTask = card.task();
+						draggedRevision = project.getDomainChangeJournal().revision();
+						dragPoint = event.getPoint();
+						break;
+					}
 				}
 				@Override public void mouseDragged(MouseEvent event) { if (draggedTask != null) { dragPoint = event.getPoint(); repaint(); } }
 				@Override public void mouseReleased(MouseEvent event) {
-					if (draggedTask != null) moveTask(draggedTask, dateAt(event.getPoint()));
+					if (draggedTask != null) moveTask(draggedTask, draggedRevision, dateAt(event.getPoint()));
 					draggedTask = null; dragPoint = null; repaint();
 				}
 			};
@@ -191,14 +201,16 @@ public final class CalendarViewDialogBox extends JDialog {
 			return first.minusDays(first.getDayOfWeek().getValue() - 1L).plusDays(row * 7L + column);
 		}
 
-		private void moveTask(Task task, LocalDate day) {
+		private void moveTask(Task task, long expectedRevision, LocalDate day) {
 			if (day == null || task.isReadOnly() || task.inProgress() || task.isInactiveTask()) return;
 			try {
 				long rawStart = day.atStartOfDay(zone).toInstant().toEpochMilli();
 				long newStart = task.getEffectiveWorkCalendar().adjustInsideCalendar(rawStart, false);
-				if (task.isManuallyScheduled()) task.setManualDates(newStart, newStart + Math.max(0L, task.getEnd() - task.getStart()));
-				else new TeamPlannerService().reschedule(task, newStart, this);
-				project.recalculate();
+				var key = com.microproject.pm.task.ProjectTaskKey.from(task).orElseThrow();
+				TaskCommandResult result = commands.moveTimeline(new TaskTimelineMoveCommand(key, null, null, null,
+						task.getStart(), newStart, expectedRevision));
+				if (!result.committed() && result.status() != TaskCommandResult.Status.NO_OP)
+					throw new IllegalArgumentException("The calendar changed during the drag; try again");
 			} catch (RuntimeException exception) { Alert.error(exception.getMessage()); }
 		}
 	}

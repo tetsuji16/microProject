@@ -65,7 +65,7 @@ class RibbonUiAuditTest {
 
 	@Test
 	void standardRibbonButtonsWithConfiguredIconsCreateVisibleRibbonIcons() throws Exception {
-		ExtToolBarFactory factory = new ExtToolBarFactory(
+		ExtRibbonFactory factory = new ExtRibbonFactory(
 			MenuActionMapSupport.noopActionMap(),
 			MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT));
 		javax.swing.SwingUtilities.invokeAndWait(() -> {
@@ -73,7 +73,7 @@ class RibbonUiAuditTest {
 				if (!spec.requiresIcon()) {
 					continue;
 				}
-				var button = factory.createJButton(spec.id());
+				var button = factory.createCommandButton(spec.id());
 				assertNotNull(button.getIcon(), () -> spec.id() + " did not create a ribbon icon");
 				assertTrue(button.getIcon().getIconWidth() > 0, () -> spec.id() + " ribbon icon width was not positive");
 				assertTrue(button.getIcon().getIconHeight() > 0, () -> spec.id() + " ribbon icon height was not positive");

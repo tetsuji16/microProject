@@ -29,10 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
-import javax.swing.AbstractButton;
 import javax.swing.JPanel;
 
 import org.junit.jupiter.api.Test;
+import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 
 import com.microproject.menu.MenuManager;
 
@@ -53,9 +53,10 @@ class StartupFactoryCommandStateTest {
 
 	private static void assertCommandsEnabled(MenuManager menuManager, boolean expected) {
 		for (String id : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject")) {
-			AbstractButton button = menuManager.getToolButtonsFromId(id).stream()
-				.map(AbstractButton.class::cast)
-				.filter(candidate -> id.equals(candidate.getActionCommand()))
+			AbstractCommandButton button = menuManager.getToolButtonsFromId(id).stream()
+				.filter(AbstractCommandButton.class::isInstance)
+				.map(AbstractCommandButton.class::cast)
+				.filter(candidate -> id.equals(candidate.getName()))
 				.findFirst()
 				.orElseThrow(() -> new AssertionError(id + " was not created"));
 			if (expected) {

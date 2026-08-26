@@ -30,22 +30,24 @@ import java.util.List;
 import java.util.Objects;
 
 import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.pm.scheduling.ConstraintType;
-import com.microproject.pm.scheduling.ScheduleService;
 
 /** Model operations used by the interactive Team Planner timeline. */
 public final class TeamPlannerService {
-	public record Slot(Task task, Resource resource, Assignment assignment, long start, long end,
-		double units, boolean overallocated) {
+	public record Slot(Task task, String taskName, Resource resource, Assignment assignment, long start, long end,
+		double units, boolean overallocated, long domainRevision) {
 	}
 
 	public List<Slot> slots(Project project) {
 		Objects.requireNonNull(project, "project");
+		return project.getDomainChangeJournal().read(() -> slotsLocked(project));
+	}
+
+	private List<Slot> slotsLocked(Project project) {
 		List<Slot> slots = new ArrayList<>();
+		long revision = project.getDomainChangeJournal().revision();
 		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
 			Task task = (Task) iterator.next();
 			if (!(task instanceof NormalTask normalTask) || task.isSummary()) {
@@ -55,44 +57,13 @@ public final class TeamPlannerService {
 				Assignment assignment = (Assignment) value;
 				Resource resource = assignment.getResource();
 				boolean overloaded = isOverallocated(resource, assignment);
-				slots.add(new Slot(task, resource, assignment, assignment.getStart(), assignment.getEnd(),
-					assignment.getUnits(), overloaded));
+				slots.add(new Slot(task, task.getName(), resource, assignment, assignment.getStart(), assignment.getEnd(),
+					assignment.getUnits(), overloaded, revision));
 			}
 		}
 		slots.sort(Comparator.comparing((Slot value) -> displayName(value.resource()))
 			.thenComparingLong(Slot::start).thenComparingLong(value -> value.task().getId()));
 		return List.copyOf(slots);
-	}
-
-	public void reschedule(Task task, long newStart, Object eventSource) {
-		Objects.requireNonNull(task, "task");
-		if (task.isReadOnly() || task.inProgress()) {
-			throw new IllegalArgumentException("The selected task cannot be rescheduled");
-		}
-		ScheduleService.getInstance().setConstraint(eventSource, task, ConstraintType.SNET, newStart,
-			task.getOwningProject().getUndoController().getEditSupport());
-		task.setDirty(true);
-		task.getOwningProject().recalculate();
-	}
-
-	public Assignment reassign(Assignment assignment, Resource target, Object eventSource) {
-		Objects.requireNonNull(assignment, "assignment");
-		Task task = assignment.getTask();
-		if (!(task instanceof NormalTask) || task.isReadOnly()) {
-			throw new IllegalArgumentException("The selected assignment cannot be changed");
-		}
-		Resource normalizedTarget = target == null ? ResourceImpl.getUnassignedInstance() : target;
-		if (normalizedTarget.equals(assignment.getResource())) {
-			return assignment;
-		}
-		double units = assignment.getUnits();
-		long delay = assignment.getDelay();
-		AssignmentService service = AssignmentService.getInstance();
-		service.remove(assignment, eventSource, true);
-		Assignment replacement = service.newAssignment((NormalTask) task, normalizedTarget, units, delay, eventSource);
-		task.setDirty(true);
-		task.getOwningProject().recalculate();
-		return replacement;
 	}
 
 	private static boolean isOverallocated(Resource resource, Assignment candidate) {

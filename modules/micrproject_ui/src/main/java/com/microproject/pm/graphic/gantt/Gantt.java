@@ -420,7 +420,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 
 	private void installKeyboardActions() {
-		var inputMap = getInputMap(WHEN_IN_FOCUSED_WINDOW);
+		var inputMap = getInputMap(WHEN_FOCUSED);
 		var actionMap = getActionMap();
 
 		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.CTRL_DOWN_MASK), ZOOM_OUT_ACTION);

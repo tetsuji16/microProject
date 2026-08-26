@@ -36,7 +36,7 @@ import javax.swing.WindowConstants;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
-import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.FlamingoRibbonPanel;
 import com.microproject.util.Environment;
 
 public class MainRibbonFrame extends JFrame implements FrameHolder{
@@ -91,14 +91,14 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 	/** Updates view-specific tabs without rebuilding or re-registering commands. */
 	public void setVisibleContextualRibbonTabs(java.util.Collection<String> tabIds) {
 		if (ribbonPanel == null) return;
-		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		if (value instanceof ModernRibbonPanel panel) panel.setVisibleContextualTabs(tabIds);
+		Object value = ribbonPanel.getClientProperty(FlamingoRibbonPanel.CONTROLLER_PROPERTY);
+		if (value instanceof FlamingoRibbonPanel panel) panel.setVisibleContextualTabs(tabIds);
 	}
 
 	public void setContextualRibbonTabTitles(java.util.Map<String, String> titles) {
 		if (ribbonPanel == null) return;
-		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		if (value instanceof ModernRibbonPanel panel) panel.setContextualTabTitles(titles);
+		Object value = ribbonPanel.getClientProperty(FlamingoRibbonPanel.CONTROLLER_PROPERTY);
+		if (value instanceof FlamingoRibbonPanel panel) panel.setContextualTabTitles(titles);
 	}
 
 	public FrameManager getFrameManager() {

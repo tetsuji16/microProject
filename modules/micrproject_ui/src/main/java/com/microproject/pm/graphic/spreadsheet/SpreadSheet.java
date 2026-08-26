@@ -137,6 +137,30 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public static final String MOVE_TASK_DOWN_ACTION = "spreadsheet.moveTaskDown";
 	private Object defaultTabActionKey;
 	private Object defaultShiftTabActionKey;
+	private final HeaderMouseListener headerMouseListener = new HeaderMouseListener(this);
+	private final MouseAdapter tableMouseHandler = new MouseAdapter() {
+		private boolean popupShown;
+
+		@Override
+		public void mousePressed(MouseEvent event) {
+			popupShown = false;
+			beginCellRangeSelection(event);
+			handleTableMousePressed(event);
+			popupShown = event.isConsumed() && (event.isPopupTrigger() || SwingUtilities.isRightMouseButton(event));
+		}
+
+		@Override
+		public void mouseDragged(MouseEvent event) {
+			extendCellRangeSelection(event);
+		}
+
+		@Override
+		public void mouseReleased(MouseEvent event) {
+			if (!popupShown && event.isPopupTrigger()) showTablePopup(event);
+			popupShown = false;
+			endCellRangeSelection();
+		}
+	};
 	protected SpreadSheetPopupMenu popup=null;
 	private boolean hierarchyActionInProgress;
 	private String[] actionList = null;
@@ -156,6 +180,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		removeDuplicateClipboardKeyBindings(this);
 		installClipboardPasteBindings();
 		installTaskMoveBindings(this);
+		installNameColumnHierarchyNavigationActions();
+		installNameColumnTabActions();
+		addMouseListener(tableMouseHandler);
+		addMouseMotionListener(tableMouseHandler);
 
 	}
 
@@ -1024,36 +1052,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		});
 	}
 
-	@Override
-	protected boolean handleHierarchyNavigationKeyEvent(KeyEvent e) {
-		if (e == null || e.getID() != KeyEvent.KEY_PRESSED)
-			return false;
-		var column = getSelectedColumn();
-		if (!isNameFieldColumn(column))
-			return false;
-		if ((e.getModifiersEx() & (KeyEvent.CTRL_DOWN_MASK | KeyEvent.ALT_DOWN_MASK | KeyEvent.META_DOWN_MASK)) != KeyEvent.CTRL_DOWN_MASK)
-			return false;
-		return switch (e.getKeyCode()) {
-			case KeyEvent.VK_LEFT -> {
-				executeNameCellCollapseExpand(false);
-				yield true;
-			}
-			case KeyEvent.VK_RIGHT -> {
-				executeNameCellCollapseExpand(true);
-				yield true;
-			}
-			case KeyEvent.VK_UP -> {
-				executeNameCellHierarchyJump(false);
-				yield true;
-			}
-			case KeyEvent.VK_DOWN -> {
-				executeNameCellHierarchyJump(true);
-				yield true;
-			}
-			default -> false;
-		};
-	}
-
 	private void invokeBoundAction(Object actionKey, ActionEvent event) {
 		if (actionKey == null)
 			return;
@@ -1110,8 +1108,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 //		}
 	}
 
-	private void makeCustomTableHeader(TableColumnModel columnModel) {
-		JTableHeader h =new JTableHeader(columnModel) {
+	private JTableHeader createSpreadsheetTableHeader(TableColumnModel columnModel) {
+		return new JTableHeader(columnModel) {
 
 			public String getToolTipText(MouseEvent e) {
 				if (isHasColumnHeaderPopup()) {
@@ -1125,8 +1123,13 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			}
 			
 		};
-		setTableHeader(h);
-		
+	}
+
+	private void replaceTableHeader(JTableHeader header) {
+		JTableHeader previous = getTableHeader();
+		if (previous != null) previous.removeMouseListener(headerMouseListener);
+		setTableHeader(header);
+		header.addMouseListener(headerMouseListener);
 	}
 	public SpreadSheetPopupMenu getPopup(){
 		if (popup == null && (hasRowPopup()
@@ -1140,7 +1143,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public void setModel(SpreadSheetModel spreadSheetModel, SpreadSheetColumnModel spreadSheetColumnModel) {
 		if (spreadSheetModel == null)
 			return;
-		makeCustomTableHeader(spreadSheetColumnModel);
 		var oldModel = getModel();
 		setModel(spreadSheetModel);
 		
@@ -1157,8 +1159,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		
 		registerEditors(); //Consume memory
-		installNameColumnHierarchyNavigationActions();
-		installNameColumnTabActions();
 		initRowHeader(spreadSheetModel);
 		initModel();
 		if (SpreadSheetCategories.taskSpreadsheetCategory.equals(getSpreadSheetCategory())
@@ -1166,61 +1166,11 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			spreadSheetColumnModel.autoSizeColumnsToContent(this);
 			resizeAndRepaintHeader();
 		}
-		initListeners();
-
 		var config = GraphicConfiguration.getInstance();
 		//fix for substance
-		setTableHeader(createDefaultTableHeader());
+		replaceTableHeader(createSpreadsheetTableHeader(getColumnModel()));
 		JTableHeader header = getTableHeader();
 		header.setPreferredSize(new Dimension((int) header.getPreferredSize().getWidth(), config.getColumnHeaderHeight()));
-		header.addMouseListener(new HeaderMouseListener(this));
-
-		
-
-		addMouseListener(new MouseAdapter() {
-//			Cursor oldCursor = null;
-//			public void mouseEntered(MouseEvent e) {
-//				Point p = e.getPoint();
-//				int col = columnAtPoint(p);
-//				Field field = ((SpreadSheetModel) getModel()).getFieldInNonTranslatedColumn(col + 1);
-//				System.out.println("mouse entered field " + field);
-//				if (field != null && field.isHyperlink()) {
-//					oldCursor = getCursor();
-//					setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-//					System.out.println("setting new cursor to " + Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) + " old is " + oldCursor);
-//				} else 
-//					super.mouseEntered(e);
-//
-//			}
-//
-//			public void mouseExited(MouseEvent e) {
-//				Point p = e.getPoint();
-//				int col = columnAtPoint(p);
-//				Field field = ((SpreadSheetModel) getModel()).getFieldInNonTranslatedColumn(col + 1);
-//				System.out.println("mouse exited field " + field);
-//				if (field != null && field.isHyperlink()) {
-//					setCursor(oldCursor);
-//					System.out.println("setting old cursor to " + oldCursor);
-//					e.consume();
-//				} else 
-//					super.mouseEntered(e);
-//			}
-
-			public void mousePressed(MouseEvent e) { // changed to mousePressed instead of mouseClicked() for snappier handling 17/5/04 hk
-				beginCellRangeSelection(e);
-				handleTableMousePressed(e);
-			}
-
-			@Override
-			public void mouseDragged(MouseEvent e) {
-				extendCellRangeSelection(e);
-			}
-
-			@Override
-			public void mouseReleased(MouseEvent e) {
-				endCellRangeSelection();
-			}
-		});
 
 		if (oldModel != spreadSheetModel && oldModel instanceof CommonSpreadSheetModel commonModel) {
 			NodeModelCache currentCache = commonModel.getCache();
@@ -1286,14 +1236,21 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 					doClick(row,col);
 				}
 			}
-		} else if (popup != null && SwingUtilities.isRightMouseButton(e)) { // e.isPopupTrigger() can be used too
-			if (!isCellSelected(row, col)) {
-				selectCellFromClick(row, col, null);
-			}
-			popup.setRow(row);
-			popup.setCol(col);
-			showPopupMenu(popup, e);
+		} else if (popup != null && (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e))) {
+			showTablePopup(e);
 		}
+	}
+
+	private void showTablePopup(MouseEvent event) {
+		int row = rowAtPoint(event.getPoint());
+		int column = columnAtPoint(event.getPoint());
+		SpreadSheetPopupMenu menu = getPopup();
+		if (menu == null || row < 0 || column < 0) return;
+		if (!isCellSelected(row, column)) selectCellFromClick(row, column, null);
+		menu.setRow(row);
+		menu.setCol(column);
+		showPopupMenu(menu, event);
+		event.consume();
 	}
 
 	protected void showPopupMenu(SpreadSheetPopupMenu popup, MouseEvent e) {
