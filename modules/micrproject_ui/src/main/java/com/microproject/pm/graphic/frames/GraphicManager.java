@@ -3467,7 +3467,6 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	    addCtrlAccel(KeyEvent.VK_PLUS, ACTION_EXPAND, new ExpandAction());
 	    addCtrlAccel(KeyEvent.VK_ADD, ACTION_EXPAND, new ExpandAction());
 	    addCtrlAccel(KeyEvent.VK_EQUALS, ACTION_EXPAND, new ExpandAction());
-	    addCtrlAccel(KeyEvent.VK_MINUS, ACTION_COLLAPSE, new CollapseAction());
 	    addCtrlAccel(KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, new CollapseAction());
 
 			// To force a recalculation. This normally shouldn't be needed.
@@ -3491,14 +3490,17 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
      * (or to {@link SpreadSheetDispatchAction} instances that route to the active
      * spreadsheet), all of which already exist elsewhere in the app.
      */
+	private static final String DELETE_ROW_ACTION = "DeleteRow";
+
     void applyMicrosoftShortcuts(InputMap inputMap, ActionMap actionMap) {
 		int ctrl = menuShortcutMask();
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_X, ACTION_CUT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_COPY, 0, null);
-		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_V, ACTION_PASTE, 0, new SpreadSheetDispatchAction("Paste") {
-			private static final long serialVersionUID = 1L;
-			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.pasteClipboardContents(); }
-		});
+		// Clipboard and task-edit commands must reuse the menu actions.  Those actions
+		// perform the document-level writability, collaboration-routing, and history
+		// checks; spreadsheet-local implementations would make keyboard behavior differ
+		// from the corresponding menu command.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_V, ACTION_PASTE, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_D, ACTION_FILL_DOWN, 0, new SpreadSheetDispatchAction("FillDown") {
 			private static final long serialVersionUID = 1L;
 			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.fillDownSelection(); }
@@ -3508,14 +3510,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), ACTION_GOTO, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK), ACTION_FIND, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_FIND, null);
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), ACTION_NEW, new SpreadSheetDispatchAction("NewTask") {
-			private static final long serialVersionUID = 1L;
-			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.executeAction(ACTION_NEW); }
-		});
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), ACTION_DELETE, new SpreadSheetDispatchAction("Delete") {
-			private static final long serialVersionUID = 1L;
-			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.executeAction(ACTION_DELETE); }
-		});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), ACTION_NEW, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), ACTION_DELETE, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "EditField", new SpreadSheetDispatchAction("EditField") {
 			private static final long serialVersionUID = 1L;
 			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.editActiveCell(); }
@@ -3548,7 +3544,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 					@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.selectAll(); }
 				});
 		// Microsoft Project "Ctrl+Minus" deletes the selected row (MS sheet-view behavior).
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK), ACTION_DELETE,
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK), DELETE_ROW_ACTION,
 				new SpreadSheetDispatchAction("DeleteRow") {
 					private static final long serialVersionUID = 1L;
 					@Override protected void runOnSpreadSheet(SpreadSheet sheet) {

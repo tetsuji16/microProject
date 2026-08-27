@@ -21,6 +21,7 @@ package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
@@ -67,6 +68,10 @@ class MicrosoftShortcutsRootPaneTest {
 
 		Object bindingFor(KeyStroke key) {
 			return panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(key);
+		}
+
+		Action actionFor(KeyStroke key) {
+			return panel.getActionMap().get(bindingFor(key));
 		}
 	}
 
@@ -190,7 +195,7 @@ class MicrosoftShortcutsRootPaneTest {
 			assertEquals("SelectAll",
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
 					"Ctrl+Shift+Space must select the whole sheet");
-			assertEquals(MenuActionConstants.ACTION_DELETE,
+			assertEquals("DeleteRow",
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK)),
 					"Ctrl+Minus must delete the selected row");
 
@@ -199,6 +204,28 @@ class MicrosoftShortcutsRootPaneTest {
 			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_PASTE));
 			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_LINK));
 			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_INDENT));
+		});
+	}
+
+	@Test
+	void editShortcutsReuseTheMenuActions() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+					harness.panel.getActionMap());
+
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_PASTE),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK)),
+					"Ctrl+V must use the same paste action as the menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_NEW),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0)),
+					"Insert must use the same new-task action as the menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_DELETE),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)),
+					"Delete must use the same delete action as the menu");
+			assertNotNull(harness.panel.getActionMap().get("DeleteRow"),
+					"Ctrl+Minus must keep its row-delete action separate from Delete");
 		});
 	}
 
