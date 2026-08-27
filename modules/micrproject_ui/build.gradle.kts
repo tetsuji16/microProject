@@ -1,4 +1,5 @@
 import org.gradle.jvm.application.tasks.CreateStartScripts
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     application
@@ -68,4 +69,31 @@ tasks.test {
     enabled = true
     useJUnitPlatform()
     systemProperty("java.awt.headless", "true")
+}
+
+val guiTestSourceSet = sourceSets.create("guiTest") {
+    java.srcDir("src/guiTest/java")
+    resources.srcDir("src/guiTest/resources")
+    compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output + configurations.testRuntimeClasspath.get()
+    runtimeClasspath += output + compileClasspath
+}
+
+configurations.named(guiTestSourceSet.implementationConfigurationName) {
+    extendsFrom(configurations.testImplementation.get())
+}
+configurations.named(guiTestSourceSet.runtimeOnlyConfigurationName) {
+    extendsFrom(configurations.testRuntimeOnly.get())
+}
+
+tasks.register<Test>("guiTest") {
+    group = "verification"
+    description = "Runs non-headless Swing acceptance tests after regenerating installDist."
+    enabled = true
+    dependsOn(tasks.installDist)
+    testClassesDirs = guiTestSourceSet.output.classesDirs
+    classpath = guiTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    systemProperty("java.awt.headless", "false")
+    systemProperty("micrproject.gui.artifacts.dir", layout.buildDirectory.dir("reports/guiTest-artifacts").get().asFile.absolutePath)
+    mustRunAfter(tasks.test)
 }

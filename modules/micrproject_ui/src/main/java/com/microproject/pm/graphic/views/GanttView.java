@@ -694,10 +694,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		TaskGanttSyncSupport.applySpreadsheetGridStyle(spreadSheet, gantt, spreadsheetGridVisible, getSpreadsheetGridLineColor());
 	}
 
-	static void applySpreadsheetGridStyle(SpreadSheet spreadSheet, Gantt gantt, boolean spreadsheetGridVisible, Color gridLineColor) {
-		TaskGanttSyncSupport.applySpreadsheetGridStyle(spreadSheet, gantt, spreadsheetGridVisible, gridLineColor);
-	}
-
 	private Color getSpreadsheetGridLineColor() {
 		return TaskGanttSyncSupport.resolveGridLineColor(gantt);
 	}

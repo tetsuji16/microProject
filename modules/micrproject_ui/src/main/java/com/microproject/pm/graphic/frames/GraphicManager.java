@@ -3383,11 +3383,6 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		//return container instanceof Applet;
     }
     
-	public void setRibbon(MainRibbonFrame frame, MenuManager menuManger){
-		frame.setRibbonPanel(menuManger.createRibbonPanel(MenuManager.STANDARD_RIBBON, this::showHelpDialog));
-    }
-    
-    
 //    public void addProjectTab(String projectName){
 //    	if (!(container instanceof JRibbonFrame))
 //    		return;

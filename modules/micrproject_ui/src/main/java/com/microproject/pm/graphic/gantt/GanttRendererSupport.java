@@ -83,6 +83,12 @@ final class GanttRendererSupport {
 		return GanttBarSupport.shouldUseUniformEndpointColor(format) ? statusColor : accentColor;
 	}
 
+	static Color resolveEndpointColor(com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat format,
+			Color defaultColor, boolean start) {
+		Integer rgb = start ? format.getStartRgb() : format.getEndRgb();
+		return rgb == null ? defaultColor : new Color(rgb);
+	}
+
 	static String annotationKey(Field field, BarFormat format) {
 		String fieldName = field == null ? "" : field.getName();
 		String formatId = format == null || format.getId() == null ? "" : format.getId();

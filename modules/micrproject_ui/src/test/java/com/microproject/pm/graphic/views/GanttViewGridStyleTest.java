@@ -74,12 +74,12 @@ class GanttViewGridStyleTest {
 			SpreadSheet sheet = new SpreadSheet();
 			Color gridColor = FlatUiSupport.tableGridColor();
 
-			GanttView.applySpreadsheetGridStyle(sheet, null, true, gridColor);
+			TaskGanttSyncSupport.applySpreadsheetGridStyle(sheet, null, true, gridColor);
 			assertTrue(sheet.getShowHorizontalLines());
 			assertTrue(sheet.getShowVerticalLines());
 			assertTrue(sheet.getRowHeader().getShowHorizontalLines());
 
-			GanttView.applySpreadsheetGridStyle(sheet, null, false, gridColor);
+			TaskGanttSyncSupport.applySpreadsheetGridStyle(sheet, null, false, gridColor);
 			assertFalse(sheet.getShowHorizontalLines());
 			assertFalse(sheet.getShowVerticalLines());
 			assertFalse(sheet.getRowHeader().getShowHorizontalLines());

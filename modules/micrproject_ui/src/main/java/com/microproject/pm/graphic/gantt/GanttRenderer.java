@@ -280,9 +280,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	private Color resolveEndpointColor(GraphicNode node, BarFormat format, Color defaultColor, boolean start) {
-		GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
-		Integer rgb = start ? individualFormat.getStartRgb() : individualFormat.getEndRgb();
-		return rgb == null ? defaultColor : new Color(rgb);
+		return GanttRendererSupport.resolveEndpointColor(getIndividualBarFormat(node, format), defaultColor, start);
 	}
 
 	private Paint createBarPaint(Color fillColor, Rectangle2D bounds, boolean backgroundLayer) {
@@ -447,50 +445,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return GanttRendererSupport.shouldPaintProgressOverlay(getNodeImpl(node), format);
 	}
 
-	static double progressRatioForSchedule(Schedule schedule) {
-		return GanttBarSupport.progressRatioForSchedule(schedule);
-	}
-
-	static double progressRatioForObject(Object impl) {
-		return GanttProgress.ratioForObject(impl);
-	}
-
-	static Rectangle2D createCapsuleBarBounds(double x, double y, double width, double height) {
-		return GanttBarSupport.createCapsuleBarBounds(x, y, width, height);
-	}
-
-	static Rectangle2D createSummaryBandBounds(double x, double y, double width, double height) {
-		return GanttBarSupport.createSummaryBandBounds(x, y, width, height);
-	}
-
-	static Rectangle2D progressOverlayBounds(double x, double y, double totalWidth, double progressHeight, double progressRatio) {
-		return GanttBarSupport.progressOverlayBounds(x, y, totalWidth, progressHeight, progressRatio);
-	}
-
-	static Rectangle2D summaryProgressBounds(Rectangle2D summaryBounds, double progressRatio) {
-		return GanttBarSupport.summaryProgressBounds(summaryBounds, progressRatio);
-	}
-
-	static ScheduleInterval mergeIntervalsForDisplay(Iterable<ScheduleInterval> intervals) {
-		return GanttBarSupport.mergeIntervalsForDisplay(intervals);
-	}
-
-	static List<ScheduleInterval> displayIntervals(BarFormat format, Iterable<ScheduleInterval> generatedIntervals,
-			ScheduleInterval plannedInterval) {
-		return GanttBarSupport.displayIntervals(format, generatedIntervals, plannedInterval);
-	}
-
-	static List<ScheduleInterval> splitGaps(List<ScheduleInterval> intervals) {
-		return GanttBarSupport.splitGaps(intervals);
-	}
-
-	static List<Double> progressRatiosForIntervals(List<ScheduleInterval> intervals, double progressRatio) {
-		return GanttBarSupport.progressRatiosForIntervals(intervals, progressRatio);
-	}
-
 	private double progressRatioFor(GraphicNode node) {
 		Object impl = getNodeImpl(node);
-		return progressRatioForObject(impl);
+		return GanttProgress.ratioForObject(impl);
 	}
 
 	private static Schedule getScheduleForObject(Object impl) {

@@ -131,6 +131,7 @@
 | U-14 | 境界 | `foo.PDF`, `foo.png`, parent null | extension append | 大文字/PNG 方針を仕様化 |
 | U-15 | 異常 | 0 page printable | export | 空/破損 PDF を作らない、job complete |
 | U-16 | 大量 | 多ページ Gantt PDF | export | page count 分出力、progress 1.0、stream close |
+| U-17 | 受入 | 実 JFrame、タスク 1 件、期間列を選択 | `:micrproject_ui:guiTest` で Robot click → root-pane EditField → `3` を commit | F2 に対応する root-pane の一経路で期間だけが更新され、想定外モーダルなし |
 
 ### Build / Packaging / Regression
 
@@ -150,6 +151,7 @@
 
 - OS: Windows、JDK 25+、Gradle Wrapper 使用。
 - Headless unit test: `java.awt.headless=true`。Swing/EDT 系は `SwingUtilities.invokeAndWait` を使う。
+- GUI acceptance test: Windows のデスクトップセッションで `:micrproject_ui:guiTest` を実行する。`installDist` を依存に含み、Robot 操作の失敗時は `micrproject_ui/build/reports/guiTest-artifacts/` に画面を保存する。
 - Sample data: `samples/sampledata.mpp`, `samples/Commercial construction project plan.{mpp,pod,xlsx,xml,json}`。
 - 一時ファイル: JUnit の temp directory を使い、POD/XLSX/sidecar を毎回隔離。
 - 並行性: thread pool で sidecar lock、`Timer` poll、UI thread 操作を重ねる。

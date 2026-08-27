@@ -37,6 +37,7 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.grouping.core.Node;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -54,8 +55,8 @@ class CommonSpreadSheetDurationEditingTest {
 		SpreadsheetFixture fixture = createFixture();
 
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.changeSelection(0, fixture.durationColumn, false, false);
-			assertTrue(fixture.sheet.editCellAt(0, fixture.durationColumn, doubleClick(fixture.sheet)));
+			fixture.sheet.changeSelection(fixture.taskRow, fixture.durationColumn, false, false);
+			assertTrue(fixture.sheet.editCellAt(fixture.taskRow, fixture.durationColumn, doubleClick(fixture.sheet)));
 			JTextField editor = (JTextField) fixture.sheet.getEditorComponent();
 			editor.setText("3");
 			assertTrue(fixture.sheet.getCellEditor().stopCellEditing());
@@ -70,8 +71,8 @@ class CommonSpreadSheetDurationEditingTest {
 		SpreadsheetFixture fixture = createFixture();
 
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.changeSelection(0, fixture.durationColumn, false, false);
-			assertTrue(fixture.sheet.editCellAt(0, fixture.durationColumn, doubleClick(fixture.sheet)));
+			fixture.sheet.changeSelection(fixture.taskRow, fixture.durationColumn, false, false);
+			assertTrue(fixture.sheet.editCellAt(fixture.taskRow, fixture.durationColumn, doubleClick(fixture.sheet)));
 			assertTrue(fixture.sheet.getCellEditor().stopCellEditing());
 		});
 
@@ -85,8 +86,8 @@ class CommonSpreadSheetDurationEditingTest {
 		final boolean[] stopped = new boolean[1];
 
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.changeSelection(0, fixture.durationColumn, false, false);
-			assertTrue(fixture.sheet.editCellAt(0, fixture.durationColumn, doubleClick(fixture.sheet)));
+			fixture.sheet.changeSelection(fixture.taskRow, fixture.durationColumn, false, false);
+			assertTrue(fixture.sheet.editCellAt(fixture.taskRow, fixture.durationColumn, doubleClick(fixture.sheet)));
 			JTextField editor = (JTextField) fixture.sheet.getEditorComponent();
 			editor.setText("not-a-duration");
 			stopped[0] = fixture.sheet.getCellEditor().stopCellEditing();
@@ -106,12 +107,10 @@ class CommonSpreadSheetDurationEditingTest {
 		NormalTask task = project.createScriptedTask();
 		task.setName("Duration edit");
 		task.setDuration(CalendarOption.getInstance().getMillisPerDay());
-		project.connectTask(task);
-		project.getTaskOutlines().addToAll(task, null);
 
 		final SpreadsheetFixture[] fixtureRef = new SpreadsheetFixture[1];
 		SwingUtilities.invokeAndWait(() -> {
-			TestSpreadSheet sheet = new TestSpreadSheet();
+			SpreadSheet sheet = new SpreadSheet();
 			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
 				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
@@ -123,9 +122,15 @@ class CommonSpreadSheetDurationEditingTest {
 				SpreadSheetCategories.taskSpreadsheetCategory,
 				"Spreadsheet.Task.entry",
 				true);
-			fixtureRef[0] = new SpreadsheetFixture(sheet, task);
+			Node taskNode = (Node) cache.getModel().search(task);
+			fixtureRef[0] = new SpreadsheetFixture(sheet, task,
+				modelRowForTask((SpreadSheetModel) sheet.getModel(), cache, taskNode));
 		});
 		return fixtureRef[0];
+	}
+
+	private static int modelRowForTask(SpreadSheetModel model, NodeModelCache cache, Node taskNode) {
+		return model.findGraphicNodeRow(cache.getGraphicNode(taskNode));
 	}
 
 	private static MouseEvent doubleClick(SpreadSheet sheet) {
@@ -133,14 +138,16 @@ class CommonSpreadSheetDurationEditingTest {
 	}
 
 	private static final class SpreadsheetFixture {
-		private final TestSpreadSheet sheet;
+		private final SpreadSheet sheet;
 		private final NormalTask task;
+		private final int taskRow;
 		private final int durationColumn;
 		private final long originalDuration;
 
-		private SpreadsheetFixture(TestSpreadSheet sheet, NormalTask task) {
+		private SpreadsheetFixture(SpreadSheet sheet, NormalTask task, int taskRow) {
 			this.sheet = sheet;
 			this.task = task;
+			this.taskRow = taskRow;
 			this.durationColumn = findColumnByFieldId(sheet, "Field.duration");
 			this.originalDuration = task.getDuration();
 		}
@@ -150,23 +157,11 @@ class CommonSpreadSheetDurationEditingTest {
 			for (int column = 0; column < model.getColumnCount(); column++) {
 				com.microproject.field.Field field = model.getFieldInColumn(column);
 				if (field != null && fieldId.equals(field.getId())) {
-					return column;
+					return sheet.convertColumnIndexToView(column);
 				}
 			}
 			throw new IllegalArgumentException("Missing field: " + fieldId);
 		}
 	}
 
-	private static final class TestSpreadSheet extends SpreadSheet {
-		@Override
-		public void setValueAt(Object value, int row, int column) {
-			lastException = null;
-			try {
-				getModel().setValueAt(value, row, column);
-			} catch (Exception e) {
-				lastException = (e.getCause() instanceof Exception) ? (Exception) e.getCause() : e;
-				doPostExceptionTreatment();
-			}
-		}
-	}
 }
