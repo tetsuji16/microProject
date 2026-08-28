@@ -35,6 +35,9 @@ import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -46,6 +49,8 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 
 import javax.swing.AbstractButton;
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.ButtonGroup;
@@ -55,7 +60,11 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JRootPane;
 import javax.swing.JToggleButton;
+import javax.swing.InputMap;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
@@ -84,6 +93,7 @@ public final class ModernRibbonPanel extends JPanel {
 	private final ButtonGroup tabGroup;
 	private final Map<String, JPanel> tabBodies;
 	private final Map<String, JToggleButton> tabButtons;
+	private final Map<String, javax.swing.Action> commandActions = new LinkedHashMap<>();
 	private final RibbonButtonStyler buttonStyler;
 	private final List<Integer> bandHeights;
 	private final java.util.Set<String> visibleContextualTabs = new LinkedHashSet<>();
@@ -91,6 +101,8 @@ public final class ModernRibbonPanel extends JPanel {
 	private RibbonDensity density = RibbonDensity.FULL;
 	private String activeTabId;
 	private boolean rebuildingDensity;
+	private JRootPane shortcutRoot;
+	private final Map<KeyStroke, String> fileAccessBindings = new LinkedHashMap<>();
 
 	ModernRibbonPanel(SwingRibbonModel model, ExtToolBarFactory buttonFactory, ResourceBundle[] bundles, Runnable helpAction) {
 		super(new BorderLayout());
@@ -169,8 +181,89 @@ public final class ModernRibbonPanel extends JPanel {
 	@Override
 	public void addNotify() {
 		super.addNotify();
+		installTabAccessKeys();
 		updateResponsiveMode();
 	}
+
+	@Override
+	public void removeNotify() {
+		uninstallTabAccessKeys();
+		super.removeNotify();
+	}
+
+	private void installTabAccessKeys() {
+		JRootPane root = SwingUtilities.getRootPane(this);
+		if (root == null || root == shortcutRoot) return;
+		uninstallTabAccessKeys();
+		shortcutRoot = root;
+		InputMap inputMap = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		ActionMap actionMap = root.getActionMap();
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			String accessKey = tab.getAccessKey();
+			if (accessKey == null || accessKey.length() != 1) continue;
+			KeyStroke keyStroke = KeyStroke.getKeyStroke(Character.toUpperCase(accessKey.charAt(0)), InputEvent.ALT_DOWN_MASK);
+			String actionId = accessActionId(tab.getId());
+			inputMap.put(keyStroke, actionId);
+				actionMap.put(actionId, new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) {
+					showTab(tab.getId());
+					if ("FileRibbonTask".equals(tab.getId())) installFileAccessKeys();
+				}
+			});
+		}
+	}
+
+	private void uninstallTabAccessKeys() {
+		if (shortcutRoot == null) return;
+		uninstallFileAccessKeys();
+		InputMap inputMap = shortcutRoot.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		ActionMap actionMap = shortcutRoot.getActionMap();
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			String accessKey = tab.getAccessKey();
+			if (accessKey != null && accessKey.length() == 1)
+				inputMap.remove(KeyStroke.getKeyStroke(Character.toUpperCase(accessKey.charAt(0)), InputEvent.ALT_DOWN_MASK));
+			actionMap.remove(accessActionId(tab.getId()));
+		}
+		shortcutRoot = null;
+	}
+
+	private void installFileAccessKeys() {
+		if (shortcutRoot == null) return;
+		uninstallFileAccessKeys();
+		registerFileAccessKey(KeyEvent.VK_E, "RibbonExportProject");
+		registerFileAccessKey(KeyEvent.VK_V, "RibbonPrintPreview");
+		registerFileAccessKey(KeyEvent.VK_L, "RibbonLocale");
+		registerFileAccessKey(KeyEvent.VK_H, "RibbonProjectLibreDocumentation");
+		registerFileAccessKey(KeyEvent.VK_I, "RibbonAboutProjectLibre");
+	}
+
+	private void registerFileAccessKey(int keyCode, String commandId) {
+		javax.swing.Action command = commandActions.get(commandId);
+		if (command == null) return;
+		KeyStroke keyStroke = KeyStroke.getKeyStroke(keyCode, 0);
+		String actionId = "microproject.ribbon.file." + commandId;
+		shortcutRoot.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStroke, actionId);
+		shortcutRoot.getActionMap().put(actionId, new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) {
+				uninstallFileAccessKeys();
+				command.actionPerformed(new ActionEvent(ModernRibbonPanel.this, ActionEvent.ACTION_PERFORMED, commandId));
+			}
+		});
+		fileAccessBindings.put(keyStroke, actionId);
+	}
+
+	private void uninstallFileAccessKeys() {
+		if (shortcutRoot == null) return;
+		InputMap inputMap = shortcutRoot.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		ActionMap actionMap = shortcutRoot.getActionMap();
+		for (Map.Entry<KeyStroke, String> binding : fileAccessBindings.entrySet()) {
+			inputMap.remove(binding.getKey());
+			actionMap.remove(binding.getValue());
+		}
+		fileAccessBindings.clear();
+	}
+
+	private static String accessActionId(String tabId) { return "microproject.ribbon.select." + tabId; }
 
 	@Override
 	public void doLayout() {
@@ -734,6 +827,7 @@ public final class ModernRibbonPanel extends JPanel {
 		}
 		button.setAlignmentY(Component.TOP_ALIGNMENT);
 		button.setActionCommand(buttonId);
+		if (button.getAction() != null) commandActions.putIfAbsent(buttonId, button.getAction());
 		if (specification.getIconKey() != null) {
 			button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, specification.getIconKey());
 		}

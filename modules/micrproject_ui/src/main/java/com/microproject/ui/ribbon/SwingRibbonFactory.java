@@ -100,7 +100,7 @@ public final class SwingRibbonFactory {
 			bands.add(createBand(bandId, customBandsGenerator));
 		}
 		return new SwingRibbonModel.RibbonTab(tabId, resolveString(tabId + ".title"), bands,
-			Boolean.parseBoolean(resolveStringOrNull(tabId + ".contextual")));
+			Boolean.parseBoolean(resolveStringOrNull(tabId + ".contextual")), resolveStringOrNull(tabId + ".accessKey"));
 	}
 
 	private SwingRibbonModel.RibbonBand createBand(String bandId, CustomRibbonBandGenerator customBandsGenerator) {

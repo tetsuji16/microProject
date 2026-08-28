@@ -207,16 +207,22 @@ public final class SwingRibbonModel {
 		private final String title;
 		private final List<RibbonBand> bands;
 		private final boolean contextual;
+		private final String accessKey;
 
 		public RibbonTab(String id, String title, List<RibbonBand> bands) {
 			this(id, title, bands, false);
 		}
 
 		public RibbonTab(String id, String title, List<RibbonBand> bands, boolean contextual) {
+			this(id, title, bands, contextual, null);
+		}
+
+		public RibbonTab(String id, String title, List<RibbonBand> bands, boolean contextual, String accessKey) {
 			this.id = Objects.requireNonNull(id);
 			this.title = Objects.requireNonNull(title);
 			this.bands = List.copyOf(bands);
 			this.contextual = contextual;
+			this.accessKey = accessKey;
 		}
 
 		public String getId() {
@@ -235,6 +241,8 @@ public final class SwingRibbonModel {
 		public boolean isContextual() {
 			return contextual;
 		}
+
+		public String getAccessKey() { return accessKey; }
 	}
 
 	private final String id;
