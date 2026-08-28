@@ -289,10 +289,21 @@ final class OfficeChromePanel extends JPanel {
 		searchField.setOpaque(false);
 		searchField.setFont(FlatUiSupport.ribbonChromeLabelFont());
 		searchField.addActionListener(event -> triggerFindAction());
+		searchField.addFocusListener(new java.awt.event.FocusAdapter() {
+			@Override public void focusGained(java.awt.event.FocusEvent event) { box.repaint(); }
+			@Override public void focusLost(java.awt.event.FocusEvent event) { box.repaint(); }
+		});
+		box.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override public void mousePressed(java.awt.event.MouseEvent event) { focusSearchField(); }
+		});
 
 		box.add(searchButton, BorderLayout.WEST);
 		box.add(searchField, BorderLayout.CENTER);
 		return box;
+	}
+
+	private void focusSearchField() {
+		searchField.requestFocusInWindow();
 	}
 
 	private JLabel createLabel(String text, Color color) {

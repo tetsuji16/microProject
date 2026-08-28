@@ -1218,10 +1218,11 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				extendCellRangeSelection(e);
 			}
 
-			@Override
-			public void mouseReleased(MouseEvent e) {
-				endCellRangeSelection();
-			}
+		@Override
+		public void mouseReleased(MouseEvent e) {
+			endCellRangeSelection();
+			handleTablePopupTrigger(e);
+		}
 		});
 
 		if (oldModel != spreadSheetModel && oldModel instanceof CommonSpreadSheetModel commonModel) {
@@ -1288,14 +1289,30 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 					doClick(row,col);
 				}
 			}
-		} else if (popup != null && SwingUtilities.isRightMouseButton(e)) { // e.isPopupTrigger() can be used too
+		} else if (popup != null && (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger())) {
+			showTablePopup(row, col, popup, e);
+		}
+	}
+
+	private void handleTablePopupTrigger(MouseEvent e) {
+		if (!e.isPopupTrigger()) {
+			return;
+		}
+		int row = rowAtPoint(e.getPoint());
+		int col = columnAtPoint(e.getPoint());
+		SpreadSheetPopupMenu popup = getPopup();
+		if (row >= 0 && col >= 0 && popup != null) {
+			showTablePopup(row, col, popup, e);
+		}
+	}
+
+	private void showTablePopup(int row, int col, SpreadSheetPopupMenu popup, MouseEvent e) {
 			if (!isCellSelected(row, col)) {
 				selectCellFromClick(row, col, null);
 			}
 			popup.setRow(row);
 			popup.setCol(col);
 			showPopupMenu(popup, e);
-		}
 	}
 
 	protected void showPopupMenu(SpreadSheetPopupMenu popup, MouseEvent e) {
