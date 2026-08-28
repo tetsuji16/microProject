@@ -35,7 +35,6 @@ import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.event.ItemEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -293,7 +292,6 @@ public final class ModernRibbonPanel extends JPanel {
 		tabGroup.add(button);
 		FlatUiSupport.styleRibbonTabButton(button);
 		button.setHorizontalAlignment(SwingConstants.LEFT);
-		button.addItemListener(event -> updateTabButtonAppearance(button, event.getStateChange() == ItemEvent.SELECTED));
 		button.getModel().addChangeListener(event -> updateTabButtonAppearance(button, button.isSelected()));
 		button.addActionListener(e -> showTab(tab.getId()));
 		button.setVisible(!tab.isContextual() || visibleContextualTabs.contains(tab.getId()));
@@ -478,12 +476,7 @@ public final class ModernRibbonPanel extends JPanel {
 					bandMenu.add(custom);
 				}
 			} else {
-				for (SwingRibbonModel.RibbonButton specification : band.getButtons()) {
-					AbstractButton command = createButton(specification, false);
-					buttonStyler.styleActionButton(command, "small");
-					command.setMaximumSize(new Dimension(260, command.getPreferredSize().height));
-					bandMenu.add(command);
-				}
+				addTransientCommandButtons(bandMenu, band.getButtons(), true);
 			}
 			if (bandMenu.getMenuComponentCount() > 0) {
 				popup.add(bandMenu);
@@ -600,13 +593,26 @@ public final class ModernRibbonPanel extends JPanel {
 		overflow.getAccessibleContext().setAccessibleName(band.getTitle());
 		FlatUiSupport.styleRibbonSmallButton(overflow);
 		JPopupMenu popup = new JPopupMenu();
+		addTransientCommandButtons(popup, specifications, false);
+		overflow.addActionListener(event -> popup.show(overflow, 0, overflow.getHeight()));
+		return overflow;
+	}
+
+	/**
+	 * Builds commands used only while a responsive ribbon popup is open.  They
+	 * must share the registered command Action without becoming another entry in
+	 * the toolbar button registry.
+	 */
+	private void addTransientCommandButtons(Container popup, List<SwingRibbonModel.RibbonButton> specifications,
+		boolean constrainWidth) {
 		for (SwingRibbonModel.RibbonButton specification : specifications) {
 			AbstractButton command = createButton(specification, false);
 			buttonStyler.styleActionButton(command, "small");
+			if (constrainWidth) {
+				command.setMaximumSize(new Dimension(260, command.getPreferredSize().height));
+			}
 			popup.add(command);
 		}
-		overflow.addActionListener(event -> popup.show(overflow, 0, overflow.getHeight()));
-		return overflow;
 	}
 
 	private int computeBandHeight(JComponent content, JLabel title) {

@@ -5,6 +5,7 @@
  ******************************************************************************/
 package com.microproject.dialog;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -27,6 +28,17 @@ class WelcomeDialogRecentProjectRendererTest {
 
 			assertTrue(label.getText().contains("roadmap.pod"));
 			assertTrue(label.getText().contains("projects"));
+		});
+	}
+
+	@Test void doesNotRenderTheLegacyMissingFileDecoration() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			RecentProjectStore.Entry entry = new RecentProjectStore.Entry(Path.of("C:/projects/missing.pod"), 0L, false, false);
+			DefaultListCellRenderer renderer = WelcomeDialog.recentProjectRenderer();
+			JLabel label = (JLabel) renderer.getListCellRendererComponent(new JList<>(), entry, 0, false, false);
+
+			assertFalse(label.getText().contains(UsabilityStrings.text("welcome.missing")));
+			assertTrue(label.getText().contains("missing.pod"));
 		});
 	}
 }

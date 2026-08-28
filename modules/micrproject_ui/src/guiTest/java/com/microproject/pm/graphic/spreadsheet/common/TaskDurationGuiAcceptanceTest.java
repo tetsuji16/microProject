@@ -14,6 +14,7 @@ import java.awt.AWTEvent;
 import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.KeyboardFocusManager;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
@@ -87,23 +88,24 @@ class TaskDurationGuiAcceptanceTest {
 		try {
 			activateFixtureWindow(fixture);
 			clickCell(robot, fixture);
+			GuiAcceptanceSupport.await(() -> frame.isFocused() && fixture.sheet.isFocusOwner(),
+				"the Robot click did not leave the spreadsheet in the active fixture window");
 			assertEquals(fixture.durationColumn, fixture.sheet.getSelectedColumn());
 			assertEquals(fixture.durationColumn, fixture.sheet.getSelection().getActiveColumn());
 			assertNull(fixture.sheet.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
 				.get(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0)), "ETable must not intercept the global F2 shortcut");
+			assertNull(fixture.sheet.getInputMap(JComponent.WHEN_FOCUSED)
+				.get(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0)), "the spreadsheet itself must not intercept the global F2 shortcut");
 
-			// The visible cell is selected by Robot. Invoke the exact action registered
-			// for the root-pane F2 binding so the acceptance test stays deterministic
-			// when another desktop application owns the native foreground window.
-			final boolean[] started = new boolean[1];
-			SwingUtilities.invokeAndWait(() -> {
-				frame.getRootPane().getActionMap().get("EditField")
-					.actionPerformed(new java.awt.event.ActionEvent(fixture.sheet, java.awt.event.ActionEvent.ACTION_PERFORMED, "EditField"));
-				started[0] = Boolean.TRUE.equals(fixture.sheet.getClientProperty("gui.edit.started"));
-			});
-			assertTrue(started[0], "root-pane EditField could not start the selected cell editor");
+			// Dispatch the F2 KeyEvent through Swing's focused-component route. Calling the root-pane action directly would
+			// bypass the ETable ancestor InputMap that caused issue #415, so it
+			// cannot prove that the duplicate shortcut route stays removed.
+			dispatchF2(fixture.sheet);
+			GuiAcceptanceSupport.await(() -> Boolean.TRUE.equals(fixture.sheet.getClientProperty("gui.edit.started")),
+				"F2 did not reach the root-pane EditField action");
 			GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start editing");
 			GuiAcceptanceSupport.await(() -> fixture.sheet.getEditorComponent() != null && fixture.sheet.getEditorComponent().isFocusOwner(), "editor did not receive focus");
+			assertEquals(fixture.durationColumn, fixture.sheet.getEditingColumn(), "F2 must edit the selected duration column");
 			SwingUtilities.invokeAndWait(() -> {
 				JTextComponent editor = (JTextComponent) fixture.sheet.getEditorComponent();
 				editor.setText("3");
@@ -192,6 +194,11 @@ class TaskDurationGuiAcceptanceTest {
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 	}
 
+	private static void dispatchF2(SpreadSheet sheet) throws Exception {
+		SwingUtilities.invokeAndWait(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().dispatchEvent(
+			new KeyEvent(sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_F2, KeyEvent.CHAR_UNDEFINED)));
+	}
+
 	private static void captureFailure(Robot robot, Throwable failure) {
 		try {
 			Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
@@ -217,4 +224,5 @@ class TaskDurationGuiAcceptanceTest {
 			}
 		}
 	}
+
 }

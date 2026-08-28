@@ -69,20 +69,27 @@ class GanttViewGridStyleTest {
 	}
 
 	@Test
-	void spreadsheetGridStyleTogglesBothGridDirectionsAndRowHeader() throws Exception {
+	void spreadsheetGridStyleTogglesTheTaskTableRowHeaderAndGanttTogether() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("gantt-grid-sync-test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		Gantt gantt = new Gantt(project, "Gantt");
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();
 			Color gridColor = FlatUiSupport.tableGridColor();
 
-			TaskGanttSyncSupport.applySpreadsheetGridStyle(sheet, null, true, gridColor);
+			TaskGanttSyncSupport.applySpreadsheetGridStyle(sheet, gantt, true, gridColor);
 			assertTrue(sheet.getShowHorizontalLines());
 			assertTrue(sheet.getShowVerticalLines());
 			assertTrue(sheet.getRowHeader().getShowHorizontalLines());
+			assertTrue(gantt.isGridLinesVisible());
 
-			TaskGanttSyncSupport.applySpreadsheetGridStyle(sheet, null, false, gridColor);
+			TaskGanttSyncSupport.applySpreadsheetGridStyle(sheet, gantt, false, gridColor);
 			assertFalse(sheet.getShowHorizontalLines());
 			assertFalse(sheet.getShowVerticalLines());
 			assertFalse(sheet.getRowHeader().getShowHorizontalLines());
+			assertFalse(gantt.isGridLinesVisible());
 		});
+		gantt.cleanUp();
 	}
 }

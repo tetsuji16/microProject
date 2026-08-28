@@ -546,6 +546,76 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void everyVisibleRibbonGroupCommandDispatchesExactlyOnceDuringProgrammaticScreening() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ClickRecordingActionMap actionMap = new ClickRecordingActionMap();
+			MenuManager manager = MenuManager.getInstance(actionMap);
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+			ResourceBundle labels = menuBundle(Locale.getDefault());
+
+			for (String tabId : ribbonTaskIds()) {
+				findButtonByText(host, labels.getString(tabId + ".title")).doClick();
+				for (String bandId : ribbonBandIds(tabId)) {
+					for (String buttonId : ribbonButtonIds(bandId)) {
+						AbstractButton button = findAttachedButtonByCommand(host, buttonId);
+						String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
+						int previousClickCount = actionMap.clickCount(actionId);
+						assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
+						button.doClick();
+						assertEquals(previousClickCount + 1, actionMap.clickCount(actionId),
+							() -> buttonId + " in " + bandId + " did not dispatch exactly once");
+					}
+				}
+			}
+		});
+	}
+
+	@Test
+	void everyVisibleRibbonGroupButtonUsesItsLiveGraphicManagerAction() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			GraphicManager graphicManager = new GraphicManager(new JPanel());
+			MenuManager manager = graphicManager.getMenuManager();
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+			ResourceBundle labels = menuBundle(Locale.getDefault());
+
+			for (String tabId : ribbonTaskIds()) {
+				findButtonByText(host, labels.getString(tabId + ".title")).doClick();
+				for (String bandId : ribbonBandIds(tabId)) {
+					for (String buttonId : ribbonButtonIds(bandId)) {
+						AbstractButton button = findAttachedButtonByCommand(host, buttonId);
+						String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
+						assertSame(graphicManager.getAction(actionId), button.getAction(),
+							() -> buttonId + " in " + bandId + " is not wired to " + actionId);
+					}
+				}
+			}
+		});
+	}
+
+	@Test
+	void ribbonTabClicksUseTheButtonModelAsTheSingleSelectionAppearanceSource() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			ResourceBundle labels = menuBundle(Locale.getDefault());
+			AbstractButton fileTab = findButtonByText(host, labels.getString("FileRibbonTask.title"));
+			AbstractButton taskTab = findButtonByText(host, labels.getString("TaskRibbonTask.title"));
+
+			assertTrue(fileTab.isSelected());
+			taskTab.doClick();
+
+			assertTrue(taskTab.isSelected());
+			assertFalse(fileTab.isSelected());
+			assertEquals(FlatUiSupport.tabSelectedForeground(), taskTab.getForeground());
+			assertEquals(FlatUiSupport.tabUnselectedForeground(), fileTab.getForeground());
+		});
+	}
+
+	@Test
 	void teamResourcesRibbonButtonTracksItsFilterState() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
@@ -621,6 +691,15 @@ class RibbonAndToolbarButtonTest {
 			}
 		}
 		throw new AssertionError("Button not found with text: " + text);
+	}
+
+	private static AbstractButton findAttachedButtonByCommand(JComponent root, String command) {
+		for (var component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
+			if (component instanceof AbstractButton button && command.equals(button.getActionCommand())) {
+				return button;
+			}
+		}
+		throw new AssertionError("Visible ribbon button not found: " + command);
 	}
 
 	private static JLabel findLabelByText(JComponent root, String text) {

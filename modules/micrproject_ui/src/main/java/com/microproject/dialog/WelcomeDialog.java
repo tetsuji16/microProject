@@ -247,12 +247,10 @@ public final class WelcomeDialog extends AbstractDialog {
 				RecentProjectStore.Entry entry = (RecentProjectStore.Entry) value;
 				super.getListCellRendererComponent(list, "", index, selected, focus);
 				// Microsoft Project style: bold file name on the first line, dimmed
-				// folder path beneath it. Missing files are greyed out entirely.
+				// folder path beneath it. RecentProjectStore supplies existing files only.
 				String pinMark = entry.pinned() ? "★ " : "";
-				String missing = entry.exists() ? "" : " (" + UsabilityStrings.text("welcome.missing") + ")";
-				String color = entry.exists() ? "" : " color='#808080'";
-				setText("<html><div style='line-height:1.2" + color + "'><b>"
-					+ escapeHtml(pinMark + entry.path().getFileName() + missing)
+				setText("<html><div style='line-height:1.2'><b>"
+					+ escapeHtml(pinMark + entry.path().getFileName())
 					+ "</b></div><div style='color:#6e6e6e;font-size:0.85em'>"
 					+ escapeHtml(entry.path().getParent().toString())
 					+ "</div></html>");
@@ -282,7 +280,7 @@ public final class WelcomeDialog extends AbstractDialog {
 
 	private void openSelectedRecentProject() {
 		RecentProjectStore.Entry entry = recentProjects.getSelectedValue();
-		if (entry == null || !entry.exists()) return;
+		if (entry == null) return;
 		createProject.setSelected(false);
 		openProject.setSelected(false);
 		manageResources.setSelected(false);

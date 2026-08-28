@@ -65,10 +65,25 @@ class RecentProjectStoreTest {
 			store.recordOpened(old.toString());
 			assertTrue(store.entries().stream().filter(e -> e.path().equals(old)).findFirst().orElseThrow().pinned());
 			// trimming keeps pinned entries even when they would fall off the tail
-			for (int i = 0; i < 25; i++) store.recordOpened(temp.resolve("filler" + i + ".pod").toString());
+			for (int i = 0; i < 25; i++) store.recordOpened(Files.createFile(temp.resolve("filler" + i + ".pod")).toString());
 			final Path oldPath = old;
 			assertTrue(store.entries().stream().anyMatch(e -> e.path().equals(oldPath)), "pinned entry must survive trim");
 			assertEquals(1, store.entries().stream().filter(RecentProjectStore.Entry::pinned).count());
+		} finally { prefs.removeNode(); }
+	}
+
+	@Test void excludesAndPurgesMissingRecentFilesIncludingPinnedEntries() throws Exception {
+		Preferences prefs = Preferences.userRoot().node("projectlibre-test-" + UUID.randomUUID());
+		try {
+			RecentProjectStore store = new RecentProjectStore(prefs);
+			Path existing = Files.createFile(temp.resolve("existing.pod"));
+			store.recordOpened(existing.toString());
+			Preferences stale = prefs.node("items").node("stale");
+			stale.put("path", temp.resolve("missing.pod").toString());
+			stale.putBoolean("pinned", true);
+
+			assertEquals(List.of(existing.toAbsolutePath()), store.entries().stream().map(RecentProjectStore.Entry::path).toList());
+			assertEquals(1, prefs.node("items").childrenNames().length, "stale preferences must be removed");
 		} finally { prefs.removeNode(); }
 	}
 }

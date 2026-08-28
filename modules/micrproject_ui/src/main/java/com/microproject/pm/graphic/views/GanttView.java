@@ -388,9 +388,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void setSpreadsheetGridVisible(boolean visible) {
 		spreadsheetGridVisible = visible;
-		if (gantt != null) {
-			gantt.setGridLinesVisible(visible);
-		}
 		applySpreadsheetGridStyle();
 	}
 	public boolean hasNormalMinWidth() {

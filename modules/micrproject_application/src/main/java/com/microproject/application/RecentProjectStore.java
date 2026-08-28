@@ -45,7 +45,7 @@ public final class RecentProjectStore {
 	RecentProjectStore(Preferences root) { this.root = root; }
 
 	public void recordOpened(String fileName) {
-		Path path = normalize(fileName); if (path == null) return;
+		Path path = normalize(fileName); if (path == null || !Files.isRegularFile(path)) return;
 		Preferences node = root.node("items").node(nodeKey(path));
 		node.put("path", path.toString()); node.putLong("opened", System.currentTimeMillis());
 		trim();
@@ -55,9 +55,14 @@ public final class RecentProjectStore {
 		List<Entry> result = new ArrayList<>();
 		try {
 			Preferences items = root.node("items");
+			List<String> staleEntries = new ArrayList<>();
 			for (String child : items.childrenNames()) {
-				Preferences node = items.node(child); Path path = normalize(node.get("path", null)); if (path == null) continue;
-				result.add(new Entry(path, node.getLong("opened", 0L), node.getBoolean("pinned", false), Files.isRegularFile(path)));
+				Preferences node = items.node(child); Path path = normalize(node.get("path", null));
+				if (path == null || !Files.isRegularFile(path)) { staleEntries.add(child); continue; }
+				result.add(new Entry(path, node.getLong("opened", 0L), node.getBoolean("pinned", false), true));
+			}
+			for (String child : staleEntries) {
+				items.node(child).removeNode();
 			}
 		} catch (BackingStoreException ignored) { }
 		result.sort(Comparator.comparing(Entry::pinned).reversed()
@@ -66,7 +71,7 @@ public final class RecentProjectStore {
 	}
 
 	public void setPinned(Path path, boolean pinned) {
-		Path normalized = normalize(path == null ? null : path.toString()); if (normalized == null) return;
+		Path normalized = normalize(path == null ? null : path.toString()); if (normalized == null || !Files.isRegularFile(normalized)) return;
 		Preferences node = root.node("items").node(nodeKey(normalized)); node.put("path", normalized.toString()); node.putBoolean("pinned", pinned);
 	}
 
