@@ -1289,8 +1289,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 					doClick(row,col);
 				}
 			}
-		} else if (popup != null && (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger())) {
-			showTablePopup(row, col, popup, e);
+		} else if (popup != null && e.isPopupTrigger()) {
+			showPopupForCell(row, col, this, e);
 		}
 	}
 
@@ -1300,23 +1300,35 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		int row = rowAtPoint(e.getPoint());
 		int col = columnAtPoint(e.getPoint());
-		SpreadSheetPopupMenu popup = getPopup();
-		if (row >= 0 && col >= 0 && popup != null) {
-			showTablePopup(row, col, popup, e);
+		if (row >= 0 && col >= 0) {
+			showPopupForCell(row, col, this, e);
 		}
 	}
 
-	private void showTablePopup(int row, int col, SpreadSheetPopupMenu popup, MouseEvent e) {
+	/**
+	 * Shows the task popup after synchronizing table selection and popup context.
+	 * Row headers delegate here so both hit areas keep identical popup behavior.
+	 */
+	public void showPopupForCell(int row, int col, Component invoker, MouseEvent e) {
+		if (row < 0 || col < 0 || invoker == null || e == null)
+			return;
+		SpreadSheetPopupMenu popup = getPopup();
+		if (popup == null)
+			return;
 			if (!isCellSelected(row, col)) {
 				selectCellFromClick(row, col, null);
 			}
 			popup.setRow(row);
 			popup.setCol(col);
-			showPopupMenu(popup, e);
+			showPopupMenu(popup, invoker, e);
 	}
 
 	protected void showPopupMenu(SpreadSheetPopupMenu popup, MouseEvent e) {
-		popup.show(this, e.getX(), e.getY());
+		showPopupMenu(popup, this, e);
+	}
+
+	protected void showPopupMenu(SpreadSheetPopupMenu popup, Component invoker, MouseEvent e) {
+		popup.show(invoker, e.getX(), e.getY());
 	}
 
 	/**

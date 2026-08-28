@@ -148,6 +148,23 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void rowHeaderPopupDelegatesToTheTaskTablePopupPath() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int row = findRow(sheet, fixture.secondTask());
+			SpreadSheetRowHeader header = sheet.getRowHeader();
+
+			header.dispatchEvent(rowHeaderPopupRelease(header, row));
+
+			assertTrue(sheet.popupShown);
+			assertEquals(row, sheet.shownPopup.getRow());
+			assertEquals(0, sheet.shownPopup.getCol());
+			assertEquals(header, sheet.popupInvoker);
+		});
+	}
+
+	@Test
 	void taskPopupStartsWithTaskInformationCommand() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
@@ -542,6 +559,13 @@ class SpreadSheetMouseInteractionTest {
 			1, true, MouseEvent.BUTTON3);
 	}
 
+	private MouseEvent rowHeaderPopupRelease(SpreadSheetRowHeader header, int row) {
+		Rectangle bounds = header.getCellRect(row, 0, true);
+		return new MouseEvent(header, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(), 0,
+			bounds.x + Math.max(1, bounds.width / 2), bounds.y + Math.max(1, bounds.height / 2),
+			1, true, MouseEvent.BUTTON3);
+	}
+
 	private MouseEvent rowHeaderMousePress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
 		return rowHeaderMousePress(rowHeader, row, clickCount, false);
 	}
@@ -600,6 +624,7 @@ class SpreadSheetMouseInteractionTest {
 		private int informationColumn = -1;
 		private boolean popupShown;
 		private SpreadSheetPopupMenu shownPopup;
+		private java.awt.Component popupInvoker;
 		private int focusRequestCount;
 
 		@Override
@@ -616,9 +641,10 @@ class SpreadSheetMouseInteractionTest {
 		}
 
 		@Override
-		protected void showPopupMenu(SpreadSheetPopupMenu popup, MouseEvent e) {
+		protected void showPopupMenu(SpreadSheetPopupMenu popup, java.awt.Component invoker, MouseEvent e) {
 			popupShown = true;
 			shownPopup = popup;
+			popupInvoker = invoker;
 		}
 	}
 }

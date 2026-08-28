@@ -110,7 +110,6 @@ public class SpreadSheetRowHeader extends JTable {
 					private int pressRow = -1;
 					private boolean dragging;
 					public void mousePressed(MouseEvent e) {
-						SpreadSheetPopupMenu popup=getPopup();
 						if (SwingUtilities.isLeftMouseButton(e)){
 							int row = rowAtPoint(e.getPoint());
 							if (row < 0) {
@@ -133,13 +132,8 @@ public class SpreadSheetRowHeader extends JTable {
 //								mainFrame.doInformationDialog(false);
 //
 							}
-						}else if (popup!=null&&SwingUtilities.isRightMouseButton(e)){ //e.isPopupTrigger() can be used too
-							int row = rowAtPoint(e.getPoint());
-							table.selectRowAndAllColumns(row);
-							spreadSheet.requestFocusInWindow();
-							popup.setRow(row);
-							popup.setCol(0);
-							popup.show(SpreadSheetRowHeader.this,e.getX(),e.getY());
+						}else if (e.isPopupTrigger()){
+							showTaskPopup(e);
 						}
 					}
 					public void mouseDragged(MouseEvent e) {
@@ -162,6 +156,8 @@ public class SpreadSheetRowHeader extends JTable {
 						}
 					}
 					public void mouseReleased(MouseEvent e) {
+						if (e.isPopupTrigger())
+							showTaskPopup(e);
 						pressPoint=null;
 						pressRow=-1;
 						dragging=false;
@@ -173,6 +169,16 @@ public class SpreadSheetRowHeader extends JTable {
 			}
 		}
 
+	}
+
+	private void showTaskPopup(MouseEvent e) {
+		if (!(table instanceof SpreadSheet spreadSheet))
+			return;
+		int row = rowAtPoint(e.getPoint());
+		if (row < 0)
+			return;
+		spreadSheet.requestFocusInWindow();
+		spreadSheet.showPopupForCell(row, 0, this, e);
 	}
 
 	private void selectRowForMove(int row,boolean extend,boolean toggle,boolean keepExisting){
