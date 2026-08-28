@@ -43,21 +43,14 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 
-import javax.swing.event.TreeModelListener;
-import javax.swing.tree.AbstractLayoutCache;
-import javax.swing.tree.TreePath;
-
-import org.netbeans.swing.outline.DefaultOutlineModel;
 import org.netbeans.swing.outline.OutlineModel;
 import org.netbeans.swing.outline.RowModel;
-import org.netbeans.swing.outline.TreePathSupport;
 
 /**
  * 
  */
 public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineModel, RowModel {
 	protected boolean readOnly;
-	private transient OutlineModel outlineDelegate;
 	private static final String DEPENDENCY_TYPE_FIELD_ID = "Field.dependencyType";
 	private static final String DEPENDENCY_LAG_FIELD_ID = "Field.lag";
 	/**
@@ -67,20 +60,6 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		super(cache, colModel, cellStyle, actionList);
 	}
 
-	@Override
-	public void setCache(NodeModelCache cache) {
-		super.setCache(cache);
-		rebuildOutlineDelegate();
-	}
-
-	private void rebuildOutlineDelegate() {
-		var currentCache = getCache();
-		if (currentCache == null) {
-			outlineDelegate = null;
-			return;
-		}
-		outlineDelegate = DefaultOutlineModel.createOutlineModel(currentCache, this, false, "");
-	}
 
 	public int getColumnCount() {
 		return colModel.getFieldColumnCount();
@@ -235,104 +214,9 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		return readOnly;
 	}
 
-	@Override
-	public Object getValueFor(Object node, int column) {
-		if (!(node instanceof GraphicNode graphicNode)) {
-			return null;
-		}
-		int row = cache.getRowAt(graphicNode);
-		return row >= 0 ? getValueAt(row, column) : null;
-	}
-
-	@Override
-	public void setValueFor(Object node, int column, Object value) {
-		if (!(node instanceof GraphicNode graphicNode)) {
-			return;
-		}
-		int row = cache.getRowAt(graphicNode);
-		if (row >= 0) {
-			setValueAt(value, row, column);
-		}
-	}
-
-	@Override
-	public boolean isCellEditable(Object node, int column) {
-		if (!(node instanceof com.microproject.pm.graphic.model.cache.GraphicNode graphicNode)) {
-			return false;
-		}
-		int row = cache.getRowAt(graphicNode);
-		return row >= 0 && isCellEditable(row, column);
-	}
-
 	public void setReadOnly(boolean readOnly) {
 		this.readOnly = readOnly;
 	}
-
-	@Override
-	public Object getRoot() {
-		return getCache().getRoot();
-	}
-
-	@Override
-	public Object getChild(Object parent, int index) {
-		return getCache().getChild(parent, index);
-	}
-
-	@Override
-	public int getChildCount(Object parent) {
-		return getCache().getChildCount(parent);
-	}
-
-	@Override
-	public boolean isLeaf(Object node) {
-		return getCache().isLeaf(node);
-	}
-
-	@Override
-	public int getIndexOfChild(Object parent, Object child) {
-		return getCache().getIndexOfChild(parent, child);
-	}
-
-	@Override
-	public void valueForPathChanged(TreePath path, Object newValue) {
-		// Tree edits are driven through the spreadsheet actions and node model.
-	}
-
-	@Override
-	public void addTreeModelListener(TreeModelListener l) {
-		getCache().addTreeModelListener(l);
-	}
-
-	@Override
-	public void removeTreeModelListener(TreeModelListener l) {
-		getCache().removeTreeModelListener(l);
-	}
-
-	@Override
-	public TreePathSupport getTreePathSupport() {
-		ensureOutlineDelegate();
-		return outlineDelegate.getTreePathSupport();
-	}
-
-	@Override
-	public boolean isLargeModel() {
-		return false;
-	}
-
-	@Override
-	public AbstractLayoutCache getLayout() {
-		ensureOutlineDelegate();
-		return outlineDelegate.getLayout();
-	}
-
-	private void ensureOutlineDelegate() {
-		if (outlineDelegate == null && getCache() != null) {
-			outlineDelegate = DefaultOutlineModel.createOutlineModel(getCache(), this, false, "");
-		}
-	}
-	
-	
-
 
 }
 

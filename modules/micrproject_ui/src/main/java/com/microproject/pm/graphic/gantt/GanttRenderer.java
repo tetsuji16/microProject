@@ -849,12 +849,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			    int type=dependency.getType();
 				int fromSign=(type==DependencyType.SF||type==DependencyType.SS)?-1:1;
 				int toSign=(type==DependencyType.FS||type==DependencyType.SS)?-1:1;
-				double fx0=coord.toX(from.getStart());
-				double fx1=coord.toX(from.getEnd());
-				fx1=CoordinatesConverter.adaptSmallBarEndX(fx0,fx1,from,config);
-				double tx0=coord.toX(to.getStart());
-				double tx1=coord.toX(to.getEnd());
-				tx1=CoordinatesConverter.adaptSmallBarEndX(tx0,tx1,to,config);
+				// A milestone has zero scheduled width but is painted as a diamond.
+				// Route links from/to that painted edge, rather than its centre, so the
+				// subsequent bar paint cannot hide the first segment of the connector.
+				double fx0=GanttSelectionGeometrySupport.getSelectionStartForNode(from,coord,config);
+				double fx1=GanttSelectionGeometrySupport.getSelectionEndForNode(from,coord,config);
+				double tx0=GanttSelectionGeometrySupport.getSelectionStartForNode(to,coord,config);
+				double tx1=GanttSelectionGeometrySupport.getSelectionEndForNode(to,coord,config);
 				double x0=fromSign<0?fx0:fx1;
 				double x1=toSign<0?tx0:tx1;
 				int rowHeight=((GanttParams)graphInfo).getRowHeight();

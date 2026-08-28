@@ -25,7 +25,6 @@
 package com.microproject.pm.graphic.views.synchro;
 
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -78,10 +77,6 @@ public class ScrollPaneSynchronizer {
 	protected MouseWheelListener scrollPane1WheelListener = null;
 
 	protected MouseWheelListener scrollPane2WheelListener = null;
-
-	protected MouseWheelEvent scrollPane1LastWheelEvent = null;
-
-	protected MouseWheelEvent scrollPane2LastWheelEvent = null;
 
 	protected ArrayList scrollPane1WheelTargets = new ArrayList();
 
@@ -224,42 +219,8 @@ public class ScrollPaneSynchronizer {
 			scrollPane1.getHorizontalScrollBar().addAdjustmentListener(scrollPane1HorizontalAdjustmentListener);
 			scrollPane2.getHorizontalScrollBar().addAdjustmentListener(scrollPane2HorizontalAdjustmentListener);
 
-			scrollPane1WheelListener = new MouseWheelListener() {
-				public void mouseWheelMoved(MouseWheelEvent e) {
-					if (e == scrollPane1LastWheelEvent) {
-						return;
-					}
-					scrollPane1LastWheelEvent = e;
-					if (handleZoomWheel(scrollPane1, e)) {
-						e.consume();
-						return;
-					}
-					if (e.isShiftDown()) {
-						scrollHorizontally(scrollPane1, e);
-					} else {
-						scrollVertically(scrollPane1, e);
-					}
-					e.consume();
-				}
-			};
-			scrollPane2WheelListener = new MouseWheelListener() {
-				public void mouseWheelMoved(MouseWheelEvent e) {
-					if (e == scrollPane2LastWheelEvent) {
-						return;
-					}
-					scrollPane2LastWheelEvent = e;
-					if (handleZoomWheel(scrollPane2, e)) {
-						e.consume();
-						return;
-					}
-					if (e.isShiftDown()) {
-						scrollHorizontally(scrollPane2, e);
-					} else {
-						scrollVertically(scrollPane2, e);
-					}
-					e.consume();
-				}
-			};
+			scrollPane1WheelListener = createWheelListener(scrollPane1);
+			scrollPane2WheelListener = createWheelListener(scrollPane2);
 			registerMouseWheelTargets(scrollPane1, scrollPane1WheelListener, scrollPane1WheelTargets);
 			registerMouseWheelTargets(scrollPane2, scrollPane2WheelListener, scrollPane2WheelTargets);
 
@@ -767,30 +728,42 @@ public class ScrollPaneSynchronizer {
 	}
 
 	private void registerMouseWheelTargets(JScrollPane scrollPane, MouseWheelListener listener, ArrayList targets) {
-		registerMouseWheelTargets(scrollPane.getViewport(), listener, targets);
-		registerMouseWheelTargets(scrollPane.getViewport() == null ? null : scrollPane.getViewport().getView(), listener, targets);
-		if (scrollPane.getRowHeader() != null) {
-			registerMouseWheelTargets(scrollPane.getRowHeader(), listener, targets);
-			registerMouseWheelTargets(scrollPane.getRowHeader().getView(), listener, targets);
+		if (scrollPane == null || listener == null) {
+			return;
 		}
-		if (scrollPane.getColumnHeader() != null) {
-			registerMouseWheelTargets(scrollPane.getColumnHeader(), listener, targets);
-			registerMouseWheelTargets(scrollPane.getColumnHeader().getView(), listener, targets);
-		}
+		registerMouseWheelTarget(scrollPane, listener, targets);
+		JViewport viewport = scrollPane.getViewport();
+		registerMouseWheelTarget(viewport == null ? null : viewport.getView(), listener, targets);
+		registerMouseWheelTarget(scrollPane.getRowHeader(), listener, targets);
+		registerMouseWheelTarget(scrollPane.getRowHeader() == null ? null : scrollPane.getRowHeader().getView(), listener, targets);
+		registerMouseWheelTarget(scrollPane.getColumnHeader(), listener, targets);
+		registerMouseWheelTarget(scrollPane.getColumnHeader() == null ? null : scrollPane.getColumnHeader().getView(), listener, targets);
 	}
 
-	private void registerMouseWheelTargets(Component component, MouseWheelListener listener, ArrayList targets) {
-		if (component == null || listener == null) {
+	private void registerMouseWheelTarget(Component component, MouseWheelListener listener, ArrayList targets) {
+		if (component == null) {
 			return;
 		}
 		component.addMouseWheelListener(listener);
 		targets.add(component);
-		if (component instanceof Container) {
-			Component[] children = ((Container) component).getComponents();
-			for (int i = 0; i < children.length; i++) {
-				registerMouseWheelTargets(children[i], listener, targets);
+	}
+
+	private MouseWheelListener createWheelListener(JScrollPane scrollPane) {
+		return new MouseWheelListener() {
+			@Override
+			public void mouseWheelMoved(MouseWheelEvent event) {
+				if (handleZoomWheel(scrollPane, event)) {
+					event.consume();
+					return;
+				}
+				if (event.isShiftDown()) {
+					scrollHorizontally(scrollPane, event);
+				} else {
+					scrollVertically(scrollPane, event);
+				}
+				event.consume();
 			}
-		}
+		};
 	}
 
 	private void unregisterMouseWheelTargets(ArrayList targets, MouseWheelListener listener) {

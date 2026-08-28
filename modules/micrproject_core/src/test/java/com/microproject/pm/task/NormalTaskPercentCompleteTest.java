@@ -88,6 +88,21 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void unstartedTaskKeepsActualStartEmptyUntilProgressBegins() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+
+		// CCPM plans must not report an actual start for a 0% task.  The UI
+		// renders the zero timestamp as an empty Actual Start cell.
+		assertEquals(0L, task.getActualStart());
+		task.setPercentComplete(0.0d);
+		assertEquals(0L, task.getActualStart());
+
+		task.setPercentComplete(0.01d);
+		assertEquals(task.getStart(), task.getActualStart());
+	}
+
+	@Test
 	void settingPercentWorkCompleteDoesNotChangeDurationBasedPercentComplete() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

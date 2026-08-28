@@ -146,14 +146,8 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
      	columnModel.setCoord(coord);
     }
      
- 	/*protected void registerEditors(){
-		GraphicConfiguration config=GraphicConfiguration.getInstance();
-		
-		//Modify here to register a custom editor
-		//all the types used have to be registered here
-		setAdaptedRenderer(Duration.class,new TimeSimpleRenderer());
-		setAdaptedEditor(Duration.class,new TimeSimpleEditor(Duration.class));
-	}*/
+	// Time-phased cells use the canonical SimpleRenderer registered by
+	// CommonTable; there is no separate time-only renderer path.
     
      
 
@@ -202,4 +196,3 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
     
      
 }
-

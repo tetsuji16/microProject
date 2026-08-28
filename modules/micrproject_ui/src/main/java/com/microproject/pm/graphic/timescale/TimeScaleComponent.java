@@ -129,6 +129,8 @@ public class TimeScaleComponent extends JPanel {
 
 		long start=-1;
 		long end=-1;
+		double lastBottomLabelEnd = Double.NEGATIVE_INFINITY;
+		double lastTopLabelEnd = Double.NEGATIVE_INFINITY;
 
 		while(i.hasNext()){
 			TimeInterval interval=i.next();
@@ -143,8 +145,13 @@ public class TimeScaleComponent extends JPanel {
 
 			String text=interval.getText1();
 			LineMetrics metrics=font.getLineMetrics(text,context);
-			g2.setColor(textColor);
-			g2.drawString(text,(int)x1+2,((int)h)-metrics.getDescent()-metrics.getLeading());
+			double bottomLabelX = x1 + 2;
+			double bottomLabelWidth = font.getStringBounds(text, context).getWidth();
+			if (canPaintLabel(bottomLabelX, bottomLabelWidth, lastBottomLabelEnd)) {
+				g2.setColor(textColor);
+				g2.drawString(text,(int)bottomLabelX,((int)h)-metrics.getDescent()-metrics.getLeading());
+				lastBottomLabelEnd = bottomLabelX + bottomLabelWidth;
+			}
 
 			if (interval.getText2()!=null){
 				double X1=/*Math.round(*/coord.toX(interval.getStart2())/*)*/; //round for TimeSpreadSheet
@@ -155,9 +162,12 @@ public class TimeScaleComponent extends JPanel {
 				g2.draw(new Line2D.Double(X2,0,X2,h/2));
 				text=interval.getText2();
 				metrics=font.getLineMetrics(text,context);
-				if (clipping||((int)X1+2>=x0)){
+				double topLabelX = X1 + 2;
+				double topLabelWidth = font.getStringBounds(text, context).getWidth();
+				if ((clipping||((int)X1+2>=x0)) && canPaintLabel(topLabelX, topLabelWidth, lastTopLabelEnd)){
 					g2.setColor(textColor);
-					g2.drawString(text,(int)X1+2,((int)h)/2-metrics.getDescent()-metrics.getLeading());
+					g2.drawString(text,(int)topLabelX,((int)h)/2-metrics.getDescent()-metrics.getLeading());
+					lastTopLabelEnd = topLabelX + topLabelWidth;
 				}
 				//avoids svg clipping. Very slow with firefox or opera
 			}
@@ -167,9 +177,13 @@ public class TimeScaleComponent extends JPanel {
 
 	}
 
+	/** Returns whether a timescale label can be painted without colliding with its predecessor. */
+	static boolean canPaintLabel(double x, double width, double previousEnd) {
+		return width > 0.0d && x >= previousEnd + 4.0d;
+	}
+
 	private static void refreshThemeColors() {
 		textColor = FlatUiSupport.headerForeground();
 		lineColor = FlatUiSupport.ganttHeaderGridColor();
 	}
 }
-

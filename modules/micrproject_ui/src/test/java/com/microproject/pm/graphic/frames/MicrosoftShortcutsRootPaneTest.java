@@ -234,6 +234,26 @@ class MicrosoftShortcutsRootPaneTest {
 		});
 	}
 
+	@Test
+	void expandAndCollapseShortcutVariantsShareOneCommandAction() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyDocumentShortcuts(
+				harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+				harness.panel.getActionMap());
+
+			int ctrl = InputEvent.CTRL_DOWN_MASK;
+			assertSame(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, ctrl)),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"expand shortcut variants must use one command action");
+			assertSame(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, ctrl)),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"collapse shortcut variants must use one command action");
+		});
+	}
+
 	/**
 	 * The binding-resolution test above is a false negative for issue #47: it proves the
 	 * keystroke maps to the right action constant, but never proves a real keypress
@@ -288,6 +308,32 @@ class MicrosoftShortcutsRootPaneTest {
 			assertTrue(harness.panel.dispatch(
 					KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), helpEvent), "F1 must dispatch to an action");
 			assertTrue(help[0], "F1 must invoke the documentation action");
+		});
+	}
+
+	@Test
+	void aShortcutKeyPressInvokesItsActionOnlyOnce() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyDocumentShortcuts(
+				harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+				harness.panel.getActionMap());
+			int[] invocationCount = {0};
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_COPY, new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+
+				@Override
+				public void actionPerformed(ActionEvent event) {
+					invocationCount[0]++;
+				}
+			});
+
+			int ctrl = InputEvent.CTRL_DOWN_MASK;
+			KeyEvent copyEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+				System.currentTimeMillis(), ctrl, KeyEvent.VK_C, KeyEvent.CHAR_UNDEFINED);
+			assertTrue(harness.panel.dispatch(KeyStroke.getKeyStroke(KeyEvent.VK_C, ctrl), copyEvent));
+			assertEquals(1, invocationCount[0],
+				"Ctrl+C must resolve through the root-pane shortcut layer exactly once");
 		});
 	}
 

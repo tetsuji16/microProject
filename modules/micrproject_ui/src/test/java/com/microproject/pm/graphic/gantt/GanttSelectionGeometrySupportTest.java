@@ -26,7 +26,12 @@ package com.microproject.pm.graphic.gantt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.awt.geom.GeneralPath;
+
 import org.junit.jupiter.api.Test;
+
+import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.graphic.link_routing.DefaultGanttLinkRouting;
 
 class GanttSelectionGeometrySupportTest {
 	@Test
@@ -39,5 +44,18 @@ class GanttSelectionGeometrySupportTest {
 	void milestoneSelectionUsesShapeHeightWhenItExceedsSelectionSquare() {
 		assertEquals(90.0d, GanttSelectionGeometrySupport.milestoneSelectionStart(100.0d, 20.0d, 12.0d), 0.00001d);
 		assertEquals(110.0d, GanttSelectionGeometrySupport.milestoneSelectionEnd(100.0d, 20.0d, 12.0d), 0.00001d);
+	}
+
+	@Test
+	void finishToStartLinkStartsAtTheVisibleMilestoneEdge() {
+		// Simulates a renderer routing an FS dependency from a zero-duration
+		// milestone centered at x=100 to a later task. Starting at the center
+		// would put the first connector segment behind the diamond.
+		double milestoneRightEdge = GanttSelectionGeometrySupport.milestoneSelectionEnd(100.0d, 8.0d, 12.0d);
+		DefaultGanttLinkRouting routing = new DefaultGanttLinkRouting();
+		routing.routePath(new GeneralPath(), milestoneRightEdge, 12.0d, 180.0d, 36.0d,
+			36.0d, 30.0d, 42.0d, DependencyType.FS);
+
+		assertEquals(milestoneRightEdge, routing.getFirstX(), 0.00001d);
 	}
 }

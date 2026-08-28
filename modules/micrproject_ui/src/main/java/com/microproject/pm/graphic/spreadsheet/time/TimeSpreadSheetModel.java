@@ -62,7 +62,6 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 	FieldContext fieldContext = new FieldContext(); // this is re-used like a renderer
 	//TimeSpreadSheetModel with coord.getProjectTimeIterator()
 	ArrayList<Field> fieldArray;
-	private transient OutlineModel outlineDelegate;
 	public ArrayList<Field> getFieldArray() {
 		return fieldArray;
 	}
@@ -78,20 +77,6 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 		setFieldContext(fieldContext);
 	}
 
-	@Override
-	public void setCache(NodeModelCache cache) {
-		super.setCache(cache);
-		rebuildOutlineDelegate();
-	}
-
-	private void rebuildOutlineDelegate() {
-		var currentCache = getCache();
-		if (currentCache == null) {
-			outlineDelegate = null;
-			return;
-		}
-		outlineDelegate = DefaultOutlineModel.createOutlineModel(currentCache, this, false, "");
-	}
 	
 	
 //    public void graphicNodesCompositeEvent(CompositeCacheEvent compositeEvent){
@@ -247,101 +232,6 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 		return ! getFieldInRow(row).isReadOnly(node, getCache().getWalkersModel(),fieldContext);
 	}
 
-	@Override
-	public Object getValueFor(Object node, int column) {
-		if (!(node instanceof GraphicNode graphicNode)) {
-			return null;
-		}
-		int row = cache.getRowAt(graphicNode);
-		return row >= 0 ? getValueAt(row, column) : null;
-	}
-
-	@Override
-	public void setValueFor(Object node, int column, Object value) {
-		if (!(node instanceof GraphicNode graphicNode)) {
-			return;
-		}
-		int row = cache.getRowAt(graphicNode);
-		if (row >= 0) {
-			setValueAt(value, row, column);
-		}
-	}
-
-	@Override
-	public boolean isCellEditable(Object node, int column) {
-		if (!(node instanceof GraphicNode graphicNode)) {
-			return false;
-		}
-		int row = cache.getRowAt(graphicNode);
-		return row >= 0 && isCellEditable(row, column);
-	}
-
-	@Override
-	public Object getRoot() {
-		return getCache().getRoot();
-	}
-
-	@Override
-	public Object getChild(Object parent, int index) {
-		return getCache().getChild(parent, index);
-	}
-
-	@Override
-	public int getChildCount(Object parent) {
-		return getCache().getChildCount(parent);
-	}
-
-	@Override
-	public boolean isLeaf(Object node) {
-		return getCache().isLeaf(node);
-	}
-
-	@Override
-	public int getIndexOfChild(Object parent, Object child) {
-		return getCache().getIndexOfChild(parent, child);
-	}
-
-	@Override
-	public void valueForPathChanged(TreePath path, Object newValue) {
-		// Tree edits are handled through spreadsheet editing and the cache model.
-	}
-
-	@Override
-	public void addTreeModelListener(TreeModelListener l) {
-		getCache().addTreeModelListener(l);
-	}
-
-	@Override
-	public void removeTreeModelListener(TreeModelListener l) {
-		getCache().removeTreeModelListener(l);
-	}
-
-	@Override
-	public TreePathSupport getTreePathSupport() {
-		ensureOutlineDelegate();
-		return outlineDelegate.getTreePathSupport();
-	}
-
-	@Override
-	public boolean isLargeModel() {
-		return false;
-	}
-
-	@Override
-	public AbstractLayoutCache getLayout() {
-		ensureOutlineDelegate();
-		return outlineDelegate.getLayout();
-	}
-
-	private void ensureOutlineDelegate() {
-		if (outlineDelegate == null && getCache() != null) {
-			outlineDelegate = DefaultOutlineModel.createOutlineModel(getCache(), this, false, "");
-		}
-	}
-	
-	
-	
-	
 //	timescale	
     public CoordinatesConverter getCoord() {
         return coord;
@@ -391,4 +281,3 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 	
 
 }
-

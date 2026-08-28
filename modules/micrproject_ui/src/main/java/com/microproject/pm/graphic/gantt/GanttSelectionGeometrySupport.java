@@ -80,7 +80,7 @@ final class GanttSelectionGeometrySupport {
 					config.getGanttProgressBarHeight());
 		}
 		double xEnd = (selectedIntervalNumber == 0 && state == BAR_MOVE)
-				? getSelectionEndForBar(node, coord, config)
+				? getSelectionEndForNode(node, coord, config)
 				: getSelectionEndForInterval(node, coord, config, selectedInterval);
 		double w = xEnd - xStart;
 		switch (state) {
@@ -116,10 +116,6 @@ final class GanttSelectionGeometrySupport {
 		return getSelectionEndForInterval(node, coord, config, selectedInterval);
 	}
 
-	double getSelectionEndForBar() {
-		return getSelectionEndForBar(node, coord, config);
-	}
-
 	double getLinkOriginX() {
 		if (node == null || coord == null || config == null) {
 			return 0.0d;
@@ -135,13 +131,6 @@ final class GanttSelectionGeometrySupport {
 			return 0.0d;
 		}
 		return barY(node) + node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d;
-	}
-
-	static double getSelectionEndForBar(GraphicNode node, CoordinatesConverter coord, GraphicConfiguration config) {
-		if (isMilestoneNode(node)) {
-			return milestoneSelectionEnd(coord.toX(node.getStart()), node.getGanttShapeHeight(), config.getSelectionSquare());
-		}
-		return CoordinatesConverter.adaptSmallBarEndX(coord.toX(node.getStart()), coord.toX(node.getEnd()), node, config);
 	}
 
 	static double getSelectionEndForNode(GraphicNode node, CoordinatesConverter coord, GraphicConfiguration config) {

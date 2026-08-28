@@ -25,6 +25,8 @@
 package com.microproject.pm.graphic.timescale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.swing.border.Border;
 
@@ -52,5 +54,15 @@ class TimeScaleComponentThemeTest {
 		GanttParamsImpl params = new GanttParamsImpl();
 
 		assertEquals(FlatUiSupport.ganttHeaderFont().getSize2D(), params.getColumnHeaderFont().getSize2D());
+	}
+
+	@Test
+	void denseMonthLabelsAreSkippedUntilThereIsRoomAfterThePreviousLabel() {
+		// Simulates three month labels at a dense zoom level. The middle label
+		// would overlap "Aug" and is omitted; "Oct" remains visible once its
+		// start clears the previous label's right edge plus the visual gap.
+		assertTrue(TimeScaleComponent.canPaintLabel(2.0d, 24.0d, Double.NEGATIVE_INFINITY));
+		assertFalse(TimeScaleComponent.canPaintLabel(14.0d, 24.0d, 26.0d));
+		assertTrue(TimeScaleComponent.canPaintLabel(31.0d, 24.0d, 26.0d));
 	}
 }

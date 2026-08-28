@@ -34,7 +34,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
@@ -132,6 +131,34 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void taskTableReinitializationDoesNotDuplicateMousePressHandling() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int row = findRow(sheet, fixture.secondTask());
+			int column = findNameColumn(sheet);
+
+			// Rebuilding the task table happens when fields/context are reapplied.
+			// Dispatch through Swing so every registered listener participates; prior to
+			// the fix this invoked the custom press path twice.
+			SpreadSheetUtils.setFieldsAndContext(sheet,
+				fixture.sheet().getCache(),
+				SpreadSheetCategories.taskSpreadsheetCategory,
+				"Spreadsheet.Task.entry",
+				true);
+			fixture.sheet().getCache().update();
+			row = findRow(sheet, fixture.secondTask());
+			column = findNameColumn(sheet);
+			sheet.resetMousePressCount();
+			sheet.dispatchEvent(mousePress(sheet, row, column, MouseEvent.BUTTON1, 1));
+			sheet.dispatchEvent(mousePress(sheet, row, column, MouseEvent.BUTTON1, 1));
+
+			assertEquals(2, sheet.tableMousePressCount,
+				"two physical clicks must reach the task-table handler exactly twice after a rebuild");
+		});
+	}
+
+	@Test
 	void popupTriggerOnMouseReleaseShowsTheSameTaskPopup() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
@@ -144,6 +171,23 @@ class SpreadSheetMouseInteractionTest {
 			assertTrue(sheet.popupShown);
 			assertEquals(row, sheet.shownPopup.getRow());
 			assertEquals(column, sheet.shownPopup.getCol());
+		});
+	}
+
+	@Test
+	void clickingATaskSheetHeaderSelectsItsColumn() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int column = findNameColumn(sheet);
+
+			// Project's task-sheet header is a column-selection control.  It is
+			// intentionally not a sort trigger: its selection enables actions such
+			// as removing the displayed field with Backspace.
+			sheet.getTableHeader().dispatchEvent(headerClick(sheet, column));
+
+			assertTrue(sheet.isColumnFullySelected(column));
+			assertEquals(sheet.getRowCount(), sheet.getSelectedRowCount());
 		});
 	}
 
@@ -559,6 +603,14 @@ class SpreadSheetMouseInteractionTest {
 			1, true, MouseEvent.BUTTON3);
 	}
 
+	private MouseEvent headerClick(SpreadSheet sheet, int column) {
+		Rectangle bounds = sheet.getTableHeader().getHeaderRect(column);
+		return new MouseEvent(sheet.getTableHeader(), MouseEvent.MOUSE_CLICKED,
+			System.currentTimeMillis(), MouseEvent.BUTTON1_DOWN_MASK,
+			bounds.x + Math.max(1, bounds.width / 2), bounds.y + Math.max(1, bounds.height / 2),
+			1, false, MouseEvent.BUTTON1);
+	}
+
 	private MouseEvent rowHeaderPopupRelease(SpreadSheetRowHeader header, int row) {
 		Rectangle bounds = header.getCellRect(row, 0, true);
 		return new MouseEvent(header, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(), 0,
@@ -626,6 +678,17 @@ class SpreadSheetMouseInteractionTest {
 		private SpreadSheetPopupMenu shownPopup;
 		private java.awt.Component popupInvoker;
 		private int focusRequestCount;
+		private int tableMousePressCount;
+
+		@Override
+		void handleTableMousePressed(MouseEvent e) {
+			tableMousePressCount++;
+			super.handleTableMousePressed(e);
+		}
+
+		private void resetMousePressCount() {
+			tableMousePressCount = 0;
+		}
 
 		@Override
 		public boolean requestFocusInWindow() {

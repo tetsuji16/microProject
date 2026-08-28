@@ -3462,6 +3462,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	private static final String DELETE_ROW_ACTION = "DeleteRow";
 
     void applyDocumentShortcuts(InputMap inputMap, ActionMap actionMap) {
+		Action expandAction = new ExpandAction();
+		Action collapseAction = new CollapseAction();
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_G, ACTION_GOTO, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_L, ACTION_GOTO, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F, ACTION_FIND, 0, null);
@@ -3474,10 +3476,10 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_I, ACTION_INSERT_TASK, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_PERIOD, ACTION_INDENT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_COMMA, ACTION_OUTDENT, 0, null);
-		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_PLUS, ACTION_EXPAND, 0, new ExpandAction());
-		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_ADD, ACTION_EXPAND, 0, new ExpandAction());
-		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_EQUALS, ACTION_EXPAND, 0, new ExpandAction());
-		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, 0, new CollapseAction());
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_PLUS, ACTION_EXPAND, 0, expandAction);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_ADD, ACTION_EXPAND, 0, expandAction);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_EQUALS, ACTION_EXPAND, 0, expandAction);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, 0, collapseAction);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_R, ACTION_RECALCULATE, 0, new RecalculateAction());
 
 		// Spreadsheet editing / outline / information shortcuts (issue #47).
@@ -3508,8 +3510,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		// Microsoft Project outline keys: Alt+Shift+Right/Left indent/outdent, Alt+Shift++/= expand, Alt+Shift+- collapse.
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_INDENT, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_OUTDENT, null);
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, new ExpandAction());
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, new CollapseAction());
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, collapseAction);
 		// Microsoft Project selection shortcuts: Ctrl+Space selects the row, Shift+Space
 		// the column, Ctrl+Shift+Space the whole sheet.
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK), "SelectRow",
