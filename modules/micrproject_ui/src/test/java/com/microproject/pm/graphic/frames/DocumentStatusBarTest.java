@@ -1,6 +1,10 @@
 package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 import org.junit.jupiter.api.Test;
 
@@ -49,5 +53,14 @@ class DocumentStatusBarTest {
 		DocumentStatusBar bar = new DocumentStatusBar();
 		bar.setMode("StatusBar.Ready");
 		assertTrue(bar.getComponent(2).isVisible());
+	}
+
+	@Test
+	void japaneseStatusLabelsDescribeCountsAndZoomLevels() {
+		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
+		assertEquals("選択中のタスク数: {0}", japanese.getString("StatusBar.SelectedTasks"));
+		assertEquals("ズーム: {0} / {1} 段階", japanese.getString("StatusBar.Zoom"));
+		assertEquals("microProject エラー", japanese.getString("Title.ProjectLibreError"));
+		assertTrue(japanese.getString("Message.invalidDuration").contains("3ed"));
 	}
 }

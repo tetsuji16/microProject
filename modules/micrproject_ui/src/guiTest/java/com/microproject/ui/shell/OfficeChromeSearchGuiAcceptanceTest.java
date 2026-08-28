@@ -5,12 +5,10 @@
  ******************************************************************************/
 package com.microproject.ui.shell;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.util.concurrent.TimeUnit;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -23,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
+import com.microproject.testsupport.GuiAcceptanceSupport;
 
 /** Verifies the title-bar search hit area using a realized Swing window. */
 class OfficeChromeSearchGuiAcceptanceTest {
@@ -58,7 +57,10 @@ class OfficeChromeSearchGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(() -> box[0].dispatchEvent(new MouseEvent(
 			box[0], MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), 0, 2, 2, 1, false, MouseEvent.BUTTON1)));
-		await(field[0]::isFocusOwner, "search box margin did not focus the text field");
+		GuiAcceptanceSupport.await(field[0]::isFocusOwner, "search box margin did not focus the text field");
+		SwingUtilities.invokeAndWait(() -> field[0].dispatchEvent(new KeyEvent(
+			field[0], KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, 'x')));
+		GuiAcceptanceSupport.await(() -> "x".equals(field[0].getText()), "focused search field did not accept typed text");
 	}
 
 	private static <T extends Component> T find(Component root, String name, Class<T> type) {
@@ -76,12 +78,4 @@ class OfficeChromeSearchGuiAcceptanceTest {
 		throw new IllegalArgumentException("Component not found: " + name);
 	}
 
-	private static void await(java.util.function.BooleanSupplier condition, String message) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-		while (System.nanoTime() < deadline) {
-			if (condition.getAsBoolean()) return;
-			Thread.sleep(25);
-		}
-		assertTrue(false, message);
-	}
 }

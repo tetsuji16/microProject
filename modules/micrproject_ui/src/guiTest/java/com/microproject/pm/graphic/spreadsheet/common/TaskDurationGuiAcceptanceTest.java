@@ -27,8 +27,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
@@ -57,6 +55,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.testsupport.GuiAcceptanceSupport;
 
 /** Non-headless regression coverage for the visible task duration edit flow. */
 class TaskDurationGuiAcceptanceTest {
@@ -103,14 +102,14 @@ class TaskDurationGuiAcceptanceTest {
 				started[0] = Boolean.TRUE.equals(fixture.sheet.getClientProperty("gui.edit.started"));
 			});
 			assertTrue(started[0], "root-pane EditField could not start the selected cell editor");
-			await(fixture.sheet::isEditing, "F2 did not start editing");
-			await(() -> fixture.sheet.getEditorComponent() != null && fixture.sheet.getEditorComponent().isFocusOwner(), "editor did not receive focus");
+			GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start editing");
+			GuiAcceptanceSupport.await(() -> fixture.sheet.getEditorComponent() != null && fixture.sheet.getEditorComponent().isFocusOwner(), "editor did not receive focus");
 			SwingUtilities.invokeAndWait(() -> {
 				JTextComponent editor = (JTextComponent) fixture.sheet.getEditorComponent();
 				editor.setText("3");
 				assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "duration editor rejected valid text");
 			});
-			await(() -> !fixture.sheet.isEditing(), "Enter did not commit the edit");
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "Enter did not commit the edit");
 
 			assertEquals(3L * CalendarOption.getInstance().getMillisPerDay(), fixture.task.getRawDuration());
 			assertTrue(dialogs.messages().isEmpty(), "unexpected dialog: " + dialogs.messages());
@@ -146,7 +145,7 @@ class TaskDurationGuiAcceptanceTest {
 			frame.requestFocus();
 			fixture.sheet.requestFocusInWindow();
 		});
-		await(fixture.sheet::isFocusOwner, "spreadsheet did not receive focus");
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "spreadsheet did not receive focus");
 	}
 
 	private static Fixture createFixture() throws Exception {
@@ -191,15 +190,6 @@ class TaskDurationGuiAcceptanceTest {
 		robot.mouseMove(cell[0].x + cell[0].width / 2, cell[0].y + cell[0].height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-	}
-
-	private static void await(BooleanSupplier condition, String failure) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-		while (System.nanoTime() < deadline) {
-			if (condition.getAsBoolean()) return;
-			Thread.sleep(25);
-		}
-		assertFalse(true, failure);
 	}
 
 	private static void captureFailure(Robot robot, Throwable failure) {
