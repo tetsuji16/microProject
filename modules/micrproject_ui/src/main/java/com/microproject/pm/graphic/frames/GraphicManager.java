@@ -3446,49 +3446,41 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			projectListMenu = handles.getProjectListMenu();
 		}
 
-		//accelerators
-	    addCtrlAccel(KeyEvent.VK_G, ACTION_GOTO, null);
-	    addCtrlAccel(KeyEvent.VK_L, ACTION_GOTO, null);
-	    addCtrlAccel(KeyEvent.VK_F, ACTION_FIND, null);
-	    addCtrlAccel(KeyEvent.VK_Z, ACTION_UNDO, null);			//- Sanhita
-	    addCtrlAccel(KeyEvent.VK_Y, ACTION_REDO, null);
-	    addCtrlAccel(KeyEvent.VK_N, ACTION_NEW_PROJECT, null);
-	    addCtrlAccel(KeyEvent.VK_O, ACTION_OPEN_PROJECT, null);
-	    addCtrlAccel(KeyEvent.VK_S, ACTION_SAVE_PROJECT, null);
-	    addCtrlAccel(KeyEvent.VK_P, ACTION_PRINT, null);			//-Sanhita
-	    addCtrlAccel(KeyEvent.VK_I, ACTION_INSERT_TASK, null);
-	    addCtrlAccel(KeyEvent.VK_PERIOD, ACTION_INDENT, null);
-	    addCtrlAccel(KeyEvent.VK_COMMA, ACTION_OUTDENT, null);
-	    addCtrlAccel(KeyEvent.VK_PLUS, ACTION_EXPAND, new ExpandAction());
-	    addCtrlAccel(KeyEvent.VK_ADD, ACTION_EXPAND, new ExpandAction());
-	    addCtrlAccel(KeyEvent.VK_EQUALS, ACTION_EXPAND, new ExpandAction());
-	    addCtrlAccel(KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, new CollapseAction());
-
-			// To force a recalculation. This normally shouldn't be needed.
-	    addCtrlAccel(KeyEvent.VK_R, ACTION_RECALCULATE, new RecalculateAction());
-
-		// Microsoft Project editing / outline / information shortcuts (issue #47).
-		// These were missing from the global (root-pane) layer, so in the ribbon UI
-		// the JMenuItem accelerators never dispatched and clipboard/delete via the
-		// keyboard did not work. All of these route through existing handlers that
-		// act on the active document/frame, so the only change is wiring the keys.
-		RootPaneContainer microsoftShortcutRoot = (RootPaneContainer)container;
-		applyMicrosoftShortcuts(
-				microsoftShortcutRoot.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
-				microsoftShortcutRoot.getRootPane().getActionMap());
+		RootPaneContainer shortcutRoot = (RootPaneContainer)container;
+		applyDocumentShortcuts(
+				shortcutRoot.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+				shortcutRoot.getRootPane().getActionMap());
     }
 
     /**
-     * Installs the Microsoft Project keyboard shortcuts (issue #47) onto the supplied
-     * input/action maps. Extracted from {@link #setToolBarAndMenus} so the same wiring
-     * can be unit-tested without a window. Keys resolve to the existing action constants
-     * (or to {@link SpreadSheetDispatchAction} instances that route to the active
-     * spreadsheet), all of which already exist elsewhere in the app.
+     * Installs every document-wide shortcut onto the supplied root-pane maps. Extracted
+     * from {@link #setToolBarAndMenus} so the same wiring can be unit-tested without a
+     * window. Keys resolve to the existing action constants (or to
+     * {@link SpreadSheetDispatchAction} instances that route to the active spreadsheet),
+     * all of which already exist elsewhere in the app.
      */
 	private static final String DELETE_ROW_ACTION = "DeleteRow";
 
-    void applyMicrosoftShortcuts(InputMap inputMap, ActionMap actionMap) {
-		int ctrl = menuShortcutMask();
+    void applyDocumentShortcuts(InputMap inputMap, ActionMap actionMap) {
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_G, ACTION_GOTO, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_L, ACTION_GOTO, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F, ACTION_FIND, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_Z, ACTION_UNDO, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_Y, ACTION_REDO, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_N, ACTION_NEW_PROJECT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_O, ACTION_OPEN_PROJECT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_S, ACTION_SAVE_PROJECT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_P, ACTION_PRINT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_I, ACTION_INSERT_TASK, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_PERIOD, ACTION_INDENT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_COMMA, ACTION_OUTDENT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_PLUS, ACTION_EXPAND, 0, new ExpandAction());
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_ADD, ACTION_EXPAND, 0, new ExpandAction());
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_EQUALS, ACTION_EXPAND, 0, new ExpandAction());
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, 0, new CollapseAction());
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_R, ACTION_RECALCULATE, 0, new RecalculateAction());
+
+		// Spreadsheet editing / outline / information shortcuts (issue #47).
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_X, ACTION_CUT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_COPY, 0, null);
 		// Clipboard and task-edit commands must reuse the menu actions.  Those actions
@@ -3504,6 +3496,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F2, ACTION_UNLINK, InputEvent.SHIFT_DOWN_MASK, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), ACTION_GOTO, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK), ACTION_FIND, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), ACTION_PROJECTLIBRE_DOCUMENTATION, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_FIND, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), ACTION_NEW, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), ACTION_DELETE, null);
@@ -3583,12 +3576,6 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			}
 		}
 		actionMap.put(actionConstant, action);
-	}
-
-    private void addCtrlAccel(int vk, String actionConstant, Action action) {
-		RootPaneContainer root = (RootPaneContainer)container;
-		putCtrlAccel(root.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
-				root.getRootPane().getActionMap(), vk, actionConstant, 0, action);
 	}
 
 	/**

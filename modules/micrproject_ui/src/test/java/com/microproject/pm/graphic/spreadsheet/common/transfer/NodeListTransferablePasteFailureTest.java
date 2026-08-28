@@ -861,7 +861,7 @@ class NodeListTransferablePasteFailureTest {
 	/**
 	 * Regression for issue #47: the SpreadSheet must NOT bind ctrl C/X/V on its own
 	 * WHEN_FOCUSED input map. Those keys are wired globally to ACTION_COPY/CUT/PASTE
-	 * on the document root-pane (WHEN_IN_FOCUSED_WINDOW) by GraphicManager.applyMicrosoftShortcuts.
+	 * on the document root-pane (WHEN_IN_FOCUSED_WINDOW) by GraphicManager.applyDocumentShortcuts.
 	 * If both layers answer ctrl+V the paste shortcut becomes non-deterministic
 	 * ("paste doesn't work well"). The real paste logic (NodeListTransferHandler.importData)
 	 * stays reachable through ACTION_PASTE, so only the duplicate keyboard bindings are removed.
@@ -880,7 +880,7 @@ class NodeListTransferablePasteFailureTest {
 		assertNull(focused.get(KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.CTRL_DOWN_MASK)),
 				"ctrl+X must not be bound on WHEN_FOCUSED (root-pane ACTION_CUT owns it)");
 		// The real paste logic (NodeListTransferHandler.importData) is still reachable via
-		// ACTION_PASTE on the root pane (wired by GraphicManager.applyMicrosoftShortcuts),
+		// ACTION_PASTE on the root pane (wired by GraphicManager.applyDocumentShortcuts),
 		// so removing these duplicate bindings does not disable paste.
 	}
 

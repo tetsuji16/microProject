@@ -51,7 +51,7 @@ import com.microproject.workspace.WorkspaceSetting;
  * path that makes Ctrl+X/C/V/Delete/Link/Unlink/Indent/Outdent/Information etc. work
  * from the keyboard.
  *
- * <p>The wiring is exercised through {@code GraphicManager.applyMicrosoftShortcuts},
+ * <p>The wiring is exercised through {@code GraphicManager.applyDocumentShortcuts},
  * which writes to an arbitrary InputMap/ActionMap (no window required). This test
  * drives that seam directly so it runs headless.
  */
@@ -132,7 +132,7 @@ class MicrosoftShortcutsRootPaneTest {
 	void microsoftShortcutsResolveOnRootPane() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ShortcutHarness harness = new ShortcutHarness();
-			harness.manager.applyMicrosoftShortcuts(
+			harness.manager.applyDocumentShortcuts(
 					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 					harness.panel.getActionMap());
 
@@ -157,6 +157,8 @@ class MicrosoftShortcutsRootPaneTest {
 			assertEquals(MenuActionConstants.ACTION_FIND,
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK)),
 					"Shift+F5 must find");
+			assertEquals(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)), "F1 must open help");
 			assertEquals(MenuActionConstants.ACTION_NEW,
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0)), "Insert must add a task");
 			assertEquals(MenuActionConstants.ACTION_DELETE,
@@ -211,7 +213,7 @@ class MicrosoftShortcutsRootPaneTest {
 	void editShortcutsReuseTheMenuActions() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ShortcutHarness harness = new ShortcutHarness();
-			harness.manager.applyMicrosoftShortcuts(
+			harness.manager.applyDocumentShortcuts(
 					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 					harness.panel.getActionMap());
 
@@ -224,6 +226,9 @@ class MicrosoftShortcutsRootPaneTest {
 			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_DELETE),
 					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)),
 					"Delete must use the same delete action as the menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)),
+					"F1 must use the same help action as the ribbon and menu");
 			assertNotNull(harness.panel.getActionMap().get("DeleteRow"),
 					"Ctrl+Minus must keep its row-delete action separate from Delete");
 		});
@@ -244,17 +249,18 @@ class MicrosoftShortcutsRootPaneTest {
 	void microsoftShortcutKeyPressInvokesRoutedAction() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ShortcutHarness harness = new ShortcutHarness();
-			harness.manager.applyMicrosoftShortcuts(
+			harness.manager.applyDocumentShortcuts(
 					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 					harness.panel.getActionMap());
 
 			// Spy on the routed clipboard actions (the real ones come from the menu manager).
 			// The menu button uses the very same constants, so proving a keypress reaches them
 			// proves the keyboard path is equivalent to the (working) menu button.
-			boolean[] cut = {false}, copy = {false}, paste = {false};
+			boolean[] cut = {false}, copy = {false}, paste = {false}, help = {false};
 			harness.panel.getActionMap().put(MenuActionConstants.ACTION_CUT, recordingSpy(cut));
 			harness.panel.getActionMap().put(MenuActionConstants.ACTION_COPY, recordingSpy(copy));
 			harness.panel.getActionMap().put(MenuActionConstants.ACTION_PASTE, recordingSpy(paste));
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION, recordingSpy(help));
 
 			int ctrl = InputEvent.CTRL_DOWN_MASK;
 
@@ -276,6 +282,12 @@ class MicrosoftShortcutsRootPaneTest {
 			assertTrue(harness.panel.dispatch(
 					KeyStroke.getKeyStroke(KeyEvent.VK_V, ctrl), pasteEvent), "Ctrl+V must dispatch to an action");
 			assertTrue(paste[0], "Ctrl+V must invoke ACTION_PASTE");
+
+			KeyEvent helpEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+					System.currentTimeMillis(), 0, KeyEvent.VK_F1, KeyEvent.CHAR_UNDEFINED);
+			assertTrue(harness.panel.dispatch(
+					KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), helpEvent), "F1 must dispatch to an action");
+			assertTrue(help[0], "F1 must invoke the documentation action");
 		});
 	}
 
