@@ -68,7 +68,7 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 				return service.analysis(project);
 			}
 			@Override protected void done() {
-				if (!isDisplayable()) return;
+				if (content == null) return;
 				try {
 					CriticalChainService.Analysis analysis = get();
 					content.removeAll();
