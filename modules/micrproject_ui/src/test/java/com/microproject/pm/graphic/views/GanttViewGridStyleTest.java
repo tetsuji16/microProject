@@ -76,13 +76,15 @@ class GanttViewGridStyleTest {
 		Gantt gantt = new Gantt(project, "Gantt");
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();
-			Color gridColor = FlatUiSupport.tableGridColor();
+			Color gridColor = new Color(0x345678);
 
 			TaskGanttSyncSupport.applySpreadsheetGridStyle(sheet, gantt, true, gridColor);
 			assertTrue(sheet.getShowHorizontalLines());
 			assertTrue(sheet.getShowVerticalLines());
 			assertTrue(sheet.getRowHeader().getShowHorizontalLines());
 			assertTrue(gantt.isGridLinesVisible());
+			assertEquals(gridColor, sheet.getGridColor());
+			assertEquals(gridColor, gantt.getGridLineColor());
 
 			TaskGanttSyncSupport.applySpreadsheetGridStyle(sheet, gantt, false, gridColor);
 			assertFalse(sheet.getShowHorizontalLines());

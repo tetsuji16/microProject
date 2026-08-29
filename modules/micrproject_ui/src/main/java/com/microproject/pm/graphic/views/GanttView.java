@@ -692,6 +692,10 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 
 	private Color getSpreadsheetGridLineColor() {
+		Integer configuredColor = documentFrame.getGraphicManager().getPreferences().getGridLineColor();
+		if (configuredColor != null) return new Color(configuredColor.intValue());
+		// Clear the user override before resolving the current theme palette.
+		if (gantt != null) gantt.setGridLineColor(null);
 		return TaskGanttSyncSupport.resolveGridLineColor(gantt);
 	}
 

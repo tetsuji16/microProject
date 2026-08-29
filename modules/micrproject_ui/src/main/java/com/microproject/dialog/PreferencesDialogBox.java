@@ -8,11 +8,13 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.GridLayout;
+import java.awt.Color;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JColorChooser;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -46,12 +48,24 @@ public final class PreferencesDialogBox extends JDialog {
 		JComboBox<String> font = new JComboBox<>(fonts);
 		font.setSelectedItem(preferences.getFontFamily());
 		JSpinner size = new JSpinner(new SpinnerNumberModel(preferences.getFontSize(), 0, 32, 1));
+		JButton gridColor = new JButton(UsabilityStrings.text("preferences.gridColorAutomatic"));
+		Integer savedGridColor = preferences.getGridLineColor();
+		final Color[] selectedGridColor = { savedGridColor == null ? null : new Color(savedGridColor.intValue()) };
+		updateGridColorButton(gridColor, selectedGridColor[0]);
+		gridColor.addActionListener(event -> {
+			Color selected = JColorChooser.showDialog(this, UsabilityStrings.text("preferences.gridColor"), selectedGridColor[0]);
+			if (selected != null) { selectedGridColor[0] = selected; updateGridColorButton(gridColor, selected); }
+		});
+		JButton resetGridColor = new JButton(UsabilityStrings.text("preferences.reset"));
+		resetGridColor.addActionListener(event -> { selectedGridColor[0] = null; updateGridColorButton(gridColor, null); });
 
 		JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
 		form.setBorder(BorderFactory.createEmptyBorder(12, 12, 4, 12));
 		form.add(new JLabel(UsabilityStrings.text("preferences.userName"))); form.add(userName);
 		form.add(new JLabel(UsabilityStrings.text("preferences.font"))); form.add(font);
 		form.add(new JLabel(UsabilityStrings.text("preferences.fontSize"))); form.add(size);
+		form.add(new JLabel(UsabilityStrings.text("preferences.gridColor")));
+		JPanel gridColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); gridColorControls.add(gridColor); gridColorControls.add(resetGridColor); form.add(gridColorControls);
 		form.add(new JLabel()); form.add(rowLines);
 		form.add(new JLabel()); form.add(checkUpdates);
 
@@ -62,6 +76,7 @@ public final class PreferencesDialogBox extends JDialog {
 			Object selectedFont = font.getSelectedItem();
 			preferences.setFontFamily(selectedFont == null ? "" : selectedFont.toString());
 			preferences.setFontSize(((Number) size.getValue()).intValue());
+			preferences.setGridLineColor(selectedGridColor[0] == null ? null : Integer.valueOf(selectedGridColor[0].getRGB()));
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
 			dispose();
 		});
@@ -72,5 +87,10 @@ public final class PreferencesDialogBox extends JDialog {
 		setLayout(new BorderLayout());
 		add(form, BorderLayout.CENTER); add(buttons, BorderLayout.SOUTH);
 		pack(); setLocationRelativeTo(owner);
+	}
+
+	private static void updateGridColorButton(JButton button, Color color) {
+		button.setBackground(color);
+		button.setText(color == null ? UsabilityStrings.text("preferences.gridColorAutomatic") : String.format("#%06X", color.getRGB() & 0x00ffffff));
 	}
 }

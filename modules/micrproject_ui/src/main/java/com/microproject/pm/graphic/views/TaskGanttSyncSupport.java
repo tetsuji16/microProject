@@ -72,6 +72,7 @@ final class TaskGanttSyncSupport {
 			spreadSheet.repaint();
 		}
 		if (gantt != null) {
+			gantt.setGridLineColor(gridLineColor);
 			gantt.setGridLinesVisible(spreadsheetGridVisible);
 		}
 	}

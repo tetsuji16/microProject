@@ -18,6 +18,7 @@ class GlobalPreferencesTest {
 		boolean originalRows = preferences.isShowRowLines();
 		String originalFamily = preferences.getFontFamily();
 		int originalSize = preferences.getFontSize();
+		Integer originalGridColor = preferences.getGridLineColor();
 		try {
 			preferences.setUserName("  editor  ");
 			preferences.setShowRowLines(false);
@@ -31,11 +32,16 @@ class GlobalPreferencesTest {
 			assertEquals(8, preferences.getFontSize());
 			preferences.setFontFamily(null);
 			assertEquals("", preferences.getFontFamily());
+			preferences.setGridLineColor(Integer.valueOf(0x12345678));
+			assertEquals(Integer.valueOf(0x345678), preferences.getGridLineColor());
+			preferences.setGridLineColor(null);
+			assertEquals(null, preferences.getGridLineColor());
 		} finally {
 			preferences.setUserName(originalName);
 			preferences.setShowRowLines(originalRows);
 			preferences.setFontFamily(originalFamily);
 			preferences.setFontSize(originalSize);
+			preferences.setGridLineColor(originalGridColor);
 		}
 		assertTrue(preferences.getFontSize() >= 0);
 	}

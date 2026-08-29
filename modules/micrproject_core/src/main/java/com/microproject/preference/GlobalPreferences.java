@@ -35,6 +35,8 @@ public class GlobalPreferences {
 	private String userName = STORE.get("userName", System.getProperty("user.name", ""));
 	/** MS Project-compatible default: Gantt gridlines are hidden until enabled. */
 	private boolean showRowLines = STORE.getBoolean("showRowLines", false);
+	/** Null keeps grid lines synchronized with the active UI theme. */
+	private Integer gridLineColor = readColor("gridLineColor");
 	private String fontFamily = STORE.get("fontFamily", "");
 	private int fontSize = clampFontSize(STORE.getInt("fontSize", 0));
 
@@ -87,6 +89,16 @@ public class GlobalPreferences {
 		fireUpdateEvent(this, this);
 	}
 
+	public Integer getGridLineColor() { return gridLineColor; }
+	public void setGridLineColor(Integer value) {
+		Integer normalized = value == null ? null : Integer.valueOf(value.intValue() & 0x00ffffff);
+		if (java.util.Objects.equals(gridLineColor, normalized)) return;
+		gridLineColor = normalized;
+		if (normalized == null) STORE.remove("gridLineColor");
+		else STORE.putInt("gridLineColor", normalized.intValue());
+		fireUpdateEvent(this, this);
+	}
+
 	/** Empty family/zero size means use the platform theme default. */
 	public String getFontFamily() { return fontFamily; }
 	public void setFontFamily(String value) {
@@ -107,6 +119,10 @@ public class GlobalPreferences {
 	}
 
 	private static int clampFontSize(int value) { return value <= 0 ? 0 : Math.max(8, Math.min(32, value)); }
+	private static Integer readColor(String key) {
+		int value = STORE.getInt(key, -1);
+		return value < 0 ? null : Integer.valueOf(value & 0x00ffffff);
+	}
 
 	/** Check GitHub Releases at startup for a newer version (#338 plan D). */
 	public boolean isCheckForUpdates() { return STORE.getBoolean("checkForUpdates", true); }

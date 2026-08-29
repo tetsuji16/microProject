@@ -818,7 +818,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			Stroke oldStroke = g2.getStroke();
 			Color oldColor = g2.getColor();
 			enablePaintHints(g2);
-			g2.setColor(palette.getGridLine());
+			g2.setColor(graphInfo instanceof Gantt gantt ? gantt.getGridLineColor() : palette.getGridLine());
 			g2.drawLine(bounds.x,yrow,bounds.x+bounds.width,yrow);
 			g2.setColor(oldColor);
 			g2.setStroke(oldStroke);

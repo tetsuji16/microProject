@@ -88,6 +88,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	public static final String ANNOTATION_FIELD_HIDDEN = "Gantt.Annotation.Hidden";
 	private boolean progressLineEnabled = false;
 	private boolean gridLinesVisible = DEFAULT_GRID_LINES_VISIBLE;
+	private Color customGridLineColor;
 	private String annotationFieldId;
 	private String formatViewName = GanttBarFormatOverrides.STANDARD_VIEW;
 	/** Rows whose full calendar width is highlighted because they are selected in the task table. */
@@ -266,6 +267,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 
 	public Color getGridLineColor() {
+		if (customGridLineColor != null) return customGridLineColor;
 		if (getUI() != null && getUI().getGraphRenderer() instanceof GanttRenderer ganttRenderer) {
 			GanttColorPalette palette = ganttRenderer.getPalette();
 			if (palette != null) {
@@ -276,7 +278,8 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 
 	public void setGridLineColor(Color color) {
-		// The live gantt grid color is derived from the renderer palette.
+		customGridLineColor = color;
+		repaint();
 	}
 
 	public String getFormatViewName() {
