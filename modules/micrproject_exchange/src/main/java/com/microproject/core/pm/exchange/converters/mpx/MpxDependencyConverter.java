@@ -73,7 +73,12 @@ public class MpxDependencyConverter {
 		int type = dependencyType == null ? 0 : dependencyType.intValue();
 
 		try {
-			return DependencyService.getInstance().newDependency(predecessor, successor, type, lag, null);
+			Dependency dependency = Dependency.getInstance(predecessor, successor, type, lag);
+			// Import must restore valid MSPDI external-task links. The interactive
+			// creation API intentionally rejects external tasks, so use the
+			// deserialization initializer instead.
+			DependencyService.getInstance().initDependency(dependency, predecessor, successor, null);
+			return dependency;
 		} catch (InvalidAssociationException e) {
 			return null;
 		}

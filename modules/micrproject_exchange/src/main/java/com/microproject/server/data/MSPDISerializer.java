@@ -29,14 +29,15 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.microproject.util.SafeFileReplace;
 
 import com.microproject.exchange.ImportedCalendarService;
@@ -191,6 +192,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		CalendarOption.setInstance(CalendarOption.getDefaultInstance());
 
 		int taskCount = 0;
+		Map<Task, net.sf.mpxj.Task> externalTasks=new HashMap<Task, net.sf.mpxj.Task>();
 		LinkedList<Object> voidTasksQueue=new LinkedList<>(); // we do not want to export nulls lines at end, so once all tasks done, stop
     	for (Iterator i=project.getTaskOutline().iterator();i.hasNext();){
     		Object obj = ((Node)i.next()).getImpl();
@@ -218,7 +220,7 @@ public class MSPDISerializer implements ProjectSerializer {
 	            	Task pred=(Task)dependency.getPredecessor();
 	            	net.sf.mpxj.Task predData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(pred);
 				if (predData==null)
-					continue; // Cross-project predecessors are preserved by the POD data, not MSPDI's task table.
+					predData=externalTask(projectFile,externalTasks,pred);
 	            	Relation rel=taskData.addPredecessor(predData,RelationType.getInstance(dependency.getDependencyType()),MPXConverter.toMPXDuration(dependency.getLag())); //claur
 	            }
 	            taskCount++;
@@ -228,6 +230,33 @@ public class MSPDISerializer implements ProjectSerializer {
 		CalendarOption.setInstance(oldOptions);
         return taskLinker.getTransformationMap();
     }
+
+	private net.sf.mpxj.Task externalTask(ProjectFile projectFile,Map<Task, net.sf.mpxj.Task> externalTasks,Task task) {
+		net.sf.mpxj.Task taskData=externalTasks.get(task);
+		if (taskData!=null)
+			return taskData;
+		taskData=projectFile.addTask();
+		MPXConverter.toMPXTask((NormalTask)task,taskData);
+		taskData.setID(nextMpxTaskIdentifier(projectFile,false));
+		taskData.setUniqueID(nextMpxTaskIdentifier(projectFile,true));
+		taskData.setOutlineLevel(Integer.valueOf(1));
+		taskData.setExternalTask(true);
+		taskData.setExternalTaskProject(Long.toString(task.getProjectId()));
+		taskData.setSubprojectFile(Long.toString(task.getProjectId()));
+		taskData.setSubprojectTaskID(Integer.valueOf((int)task.getId()));
+		externalTasks.put(task,taskData);
+		return taskData;
+	}
+
+	private Integer nextMpxTaskIdentifier(ProjectFile projectFile,boolean unique) {
+		int max=0;
+		for (net.sf.mpxj.Task task : projectFile.getTasks()) {
+			Integer value=unique ? task.getUniqueID() : task.getID();
+			if (value!=null)
+				max=Math.max(max,value.intValue());
+		}
+		return Integer.valueOf(max+1);
+	}
 
     public ProjectFile serializeProject(Project project) throws Exception{
     	return serializeProject(project,false);

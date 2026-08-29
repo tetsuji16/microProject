@@ -308,6 +308,14 @@ public class MspImporter {
 		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getChildTasks()){
 			importTasks(project,mpxTask,null);
 		}
+		// MPXJ materializes a cross-project predecessor as an external task
+		// placeholder. These placeholders are present in getTasks() but need not
+		// be reachable from the normal task hierarchy, so import them explicitly
+		// before resolving predecessor links.
+		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getTasks()) {
+			if (mpxTask.getExternalTask() && state.getTask(mpxTask)==null && !shouldSkipTask(mpxTask))
+				importRegularTask(project,mpxTask,null);
+		}
 	}
 	
 	protected void importTasks(Project project,net.sf.mpxj.Task mpxTask, Task parentTask) {
@@ -347,6 +355,11 @@ public class MspImporter {
 
 	private Task importRegularTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {
 		Task task = createTask(project, mpxTask, parentTask);
+		if (mpxTask.getExternalTask()) {
+			task.setExternal(true);
+			task.setProjectId(externalProjectId(mpxTask));
+			project.addExternalTask(task);
+		}
 		updateEarliestTaskStart(task);
 		state.mapTask(mpxTask, task);
 		importTaskSnapshots(mpxTask, task);
@@ -358,6 +371,19 @@ public class MspImporter {
 		if (task instanceof NormalTask && mpxTask.getPercentageWorkComplete() != null)
 			((NormalTask) task).setImportedPercentWorkComplete(mpxTask.getPercentageWorkComplete().doubleValue() / 100.0D);
 		return task;
+	}
+
+	private long externalProjectId(net.sf.mpxj.Task mpxTask) {
+		String externalProject=mpxTask.getExternalTaskProject();
+		if (externalProject==null)
+			externalProject=mpxTask.getSubprojectFile();
+		if (externalProject==null)
+			return 0L;
+		try {
+			return Long.parseLong(externalProject);
+		} catch (NumberFormatException e) {
+			return 0L;
+		}
 	}
 
 	private Task createTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {

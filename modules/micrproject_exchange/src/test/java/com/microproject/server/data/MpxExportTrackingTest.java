@@ -31,10 +31,14 @@ import java.util.Iterator;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 
 import junit.framework.TestCase;
@@ -151,6 +155,47 @@ public class MpxExportTrackingTest extends TestCase {
 		assertEquals(0.30d, reloadedTask.getPhysicalPercentComplete(), 0.00001d);
 		assertTrue(reloadedTask.isManuallyScheduled());
 		assertTrue(reloadedTask.isInactiveTask());
+	}
+
+	public void testMicrosoftXmlRoundTripPreservesCrossProjectDependencies() throws Exception {
+		Project local = createProject();
+		Project external = createProject();
+		NormalTask localSuccessor = (NormalTask) local.createLocalTaskNode(null).getImpl();
+		localSuccessor.setName("Local successor");
+		NormalTask externalPredecessor = (NormalTask) external.createLocalTaskNode(null).getImpl();
+		externalPredecessor.setName("External predecessor");
+		DependencyService.getInstance().newDependency(externalPredecessor, localSuccessor, DependencyType.Kind.SS.code(), 0L, this);
+
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("cross-project.xml");
+		assertTrue(exporter.saveProject(local, output));
+		net.sf.mpxj.ProjectFile exported = new net.sf.mpxj.mspdi.MSPDIReader()
+				.read(new ByteArrayInputStream(output.toByteArray()));
+		assertTrue(exported.getTasks().stream().anyMatch(net.sf.mpxj.Task::getExternalTask));
+		for (net.sf.mpxj.Task task : exported.getTasks()) {
+			if (task.getExternalTask()) {
+				assertEquals(Long.toString(external.getUniqueId()), task.getExternalTaskProject());
+			}
+		}
+		net.sf.mpxj.Task exportedSuccessor = exported.getTasks().stream()
+				.filter(task -> "Local successor".equals(task.getName())).findFirst().orElseThrow();
+		assertEquals(1, exportedSuccessor.getPredecessors().size());
+
+		com.microproject.core.pm.exchange.MspImporter importer = new com.microproject.core.pm.exchange.MspImporter();
+		Project reloaded = importer.importProject(new ByteArrayInputStream(output.toByteArray()), "xml", (progress, label) -> {});
+		NormalTask reloadedLocalSuccessor = taskNamed(reloaded, "Local successor");
+		Dependency incoming = (Dependency) reloadedLocalSuccessor.getPredecessorList().iterator().next();
+		assertTrue(((Task) incoming.getPredecessor()).isExternal());
+		assertEquals(external.getUniqueId(), ((Task) incoming.getPredecessor()).getProjectId());
+		assertEquals(DependencyType.Kind.SS.code(), incoming.getDependencyType());
+	}
+
+	private NormalTask taskNamed(Project project, String name) {
+		for (Task task : project.getTaskList()) {
+			if (name.equals(task.getName())) return (NormalTask) task;
+		}
+		throw new AssertionError("Missing task: " + name);
 	}
 
 	private NormalTask createTask() {
