@@ -25,6 +25,7 @@
 package com.microproject.dialog;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GridLayout;
@@ -66,6 +67,11 @@ import javax.swing.table.TableModel;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
@@ -123,6 +129,8 @@ public final class CustomReportDialogBox extends JDialog {
 		@Override public boolean isCellEditable(int row, int column) { return false; }
 	};
 	private final JTable preview = new JTable(previewModel);
+	private final JPanel previewCards = new JPanel(new CardLayout());
+	private final ChartPanel chartPreview = new ChartPanel(null);
 	private final JLabel summary = new JLabel(" ");
 	private ReportTemplate selectedTemplate = ReportTemplate.TABLE;
 
@@ -141,7 +149,9 @@ public final class CustomReportDialogBox extends JDialog {
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		setLayout(new BorderLayout(8, 8));
 		add(buildSettings(), BorderLayout.NORTH);
-		JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(columns), new JScrollPane(preview));
+		previewCards.add(new JScrollPane(preview), "table");
+		previewCards.add(chartPreview, "chart");
+		JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(columns), previewCards);
 		split.setResizeWeight(0.2D); add(split, BorderLayout.CENTER);
 		add(buildButtons(), BorderLayout.SOUTH);
 		preview.setAutoCreateRowSorter(true); preview.setRowHeight(Math.max(22, preview.getRowHeight()));
@@ -194,6 +204,7 @@ public final class CustomReportDialogBox extends JDialog {
 		List<Field> selected = columns.getSelectedValuesList();
 		if (selected.isEmpty()) {
 			previewModel.setDataVector(new Object[0][0], new Object[0]);
+			showTablePreview();
 			summary.setText(t("report.blankPreview"));
 			return;
 		}
@@ -212,6 +223,43 @@ public final class CustomReportDialogBox extends JDialog {
 			}
 		}
 		summary.setText(tasks.size() + " tasks  |  Cost: " + String.format(Locale.getDefault(), "%,.2f", totalCost) + "  |  Work: " + totalWork);
+		if (selectedTemplate == ReportTemplate.CHART) {
+			chartPreview.setChart(createWorkChart(tasks));
+			showChartPreview();
+		} else {
+			showTablePreview();
+		}
+	}
+
+	private void showTablePreview() {
+		((CardLayout)previewCards.getLayout()).show(previewCards, "table");
+	}
+
+	private void showChartPreview() {
+		((CardLayout)previewCards.getLayout()).show(previewCards, "chart");
+	}
+
+	static JFreeChart createWorkChart(List<? extends Task> tasks) {
+		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+		double work = 0D;
+		double actualWork = 0D;
+		double remainingWork = 0D;
+		for (Task task : tasks) {
+			if (task instanceof com.microproject.pm.task.NormalTask normal) {
+				work += hours(normal.getWork(null));
+				actualWork += hours(normal.getActualWork(null));
+				remainingWork += hours(normal.getRemainingWork(null));
+			}
+		}
+		dataset.addValue(work, "Work", "Project");
+		dataset.addValue(actualWork, "Actual Work", "Project");
+		dataset.addValue(remainingWork, "Remaining Work", "Project");
+		return ChartFactory.createBarChart("Work", "", "Hours", dataset,
+			PlotOrientation.VERTICAL, true, true, false);
+	}
+
+	private static double hours(long milliseconds) {
+		return milliseconds / 3_600_000D;
 	}
 
 	private List<Task> filteredTasks() {

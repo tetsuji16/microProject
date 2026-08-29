@@ -12,6 +12,7 @@ import javax.swing.table.DefaultTableModel;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.jfree.data.category.CategoryDataset;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +43,16 @@ class CustomReportDialogBoxCsvTest {
 
 		assertEquals(original, CustomReportDialogBox.decodePreset(CustomReportDialogBox.encodePreset(original)));
 		assertNull(CustomReportDialogBox.decodePreset("not-a-preset"));
+	}
+
+	@Test
+	void chartTemplateBuildsTheMicrosoftProjectWorkSeries() {
+		CategoryDataset dataset = CustomReportDialogBox.createWorkChart(List.of()).getCategoryPlot().getDataset();
+		assertEquals(3, dataset.getRowCount());
+		assertEquals("Work", dataset.getRowKey(0));
+		assertEquals("Actual Work", dataset.getRowKey(1));
+		assertEquals("Remaining Work", dataset.getRowKey(2));
+		assertEquals(0D, dataset.getValue("Work", "Project").doubleValue());
 	}
 
 	private static String bodyWithoutBom(ByteArrayOutputStream out) {
