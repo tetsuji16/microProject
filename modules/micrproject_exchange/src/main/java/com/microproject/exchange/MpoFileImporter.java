@@ -67,14 +67,14 @@ public final class MpoFileImporter extends FileImporter {
 	/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
 	/** Container version this build writes; every save rewrites the file at this version. */
-	static final String FORMAT_VERSION = "1.0";
+	static final String FORMAT_VERSION = MpoFormatVersion.CURRENT.toString();
 	/**
 	 * A container is readable when its major version matches. Minor revisions are additive
 	 * (unknown entries are carried through as extensions), so an older or newer minor
 	 * revision still opens and is upgraded to {@link #FORMAT_VERSION} on the next save
 	 * (issue #356). A different major version is rejected with an explicit message.
 	 */
-	static final int SUPPORTED_FORMAT_MAJOR = 1;
+	static final int SUPPORTED_FORMAT_MAJOR = MpoFormatVersion.CURRENT.major();
 	private static final String MIME_TYPE = "application/vnd.microproject.openproject";
 	/** Marker added once MPOF snapshots use the MSPDI minute-based delay unit. */
 	private static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
@@ -533,9 +533,8 @@ public final class MpoFileImporter extends FileImporter {
 	 */
 	static void requireReadableFormatVersion(String value) throws IOException {
 		if (value == null || value.isBlank()) throw new IOException("MPOF manifest is missing formatVersion");
-		if (!value.matches("[0-9]{1,4}\\.[0-9]{1,4}")) throw new IOException("Invalid MPOF formatVersion: " + value);
-		int major = Integer.parseInt(value.substring(0, value.indexOf('.')));
-		if (major != SUPPORTED_FORMAT_MAJOR) {
+		MpoFormatVersion version = MpoFormatVersion.parse(value);
+		if (!version.isReadableBy(MpoFormatVersion.CURRENT)) {
 			throw new IOException("Unsupported MPOF format version " + value + "; this build reads version "
 				+ SUPPORTED_FORMAT_MAJOR + ".x and writes " + FORMAT_VERSION);
 		}

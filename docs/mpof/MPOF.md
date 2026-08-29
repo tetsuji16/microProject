@@ -25,6 +25,15 @@ MPOF is the open, ODF-style project container for microProject.
   invalid-manifest error, because a major bump may change existing entry semantics.
 - **Missing or malformed `formatVersion`** — rejected.
 
+## Evolving the format
+
+The supported-version policy is centralized in `MpoFormatVersion`. Additive changes
+use the current major with a new minor version and retain unknown ZIP entries on a
+load/save round trip. An incompatible change must introduce a new major version,
+add its explicit reader/migration there, and retain the existing major reader until
+the published deprecation window ends. This prevents a future specification update
+from silently changing how existing `.mpo` files are interpreted.
+
 Saving always rewrites the whole container at the version this build writes
 (`formatVersion="1.0"`), so opening an older file and saving it upgrades it to the
 current layout. One canonical check
