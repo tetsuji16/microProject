@@ -332,9 +332,11 @@ public class Serializer {
             taskLinker.setArgs(new Object[]{resourceMap});
     	taskLinker.init();
     	taskLinker.setOptions(options);
-    	taskLinker.addTransformedObjects();
-    	taskLinker.addOutline(project.getTaskOutlineRoot());
-    	long projectId = project.getUniqueId();
+		taskLinker.addTransformedObjects();
+		taskLinker.addOutline(project.getTaskOutlineRoot());
+		long projectId = project.getUniqueId();
+		Collection<TaskData> taskDataCollection=getTaskDataCollection(projectData);
+		Map<Task, TaskData> externalTaskData=new HashMap<Task, TaskData>();
         //dependencies
         //Count depCount=new Count("Dependencies");
         for (Iterator<?> i=project.getTaskOutlineIterator();i.hasNext();){
@@ -376,7 +378,7 @@ public class Serializer {
 		                if (predData != null && !predData.isExternal())
 		                	linkData.setPredecessor(predData);
 		                else {
-		                	linkData.setPredecessorId(pred.getUniqueId()); // external link
+					linkData.setPredecessor(externalTaskData(pred, externalTaskData, taskDataCollection));
 		                }
 		                predecessors.add(linkData);
 	                } else {
@@ -389,6 +391,20 @@ public class Serializer {
 		            taskData.setPredecessors(predecessors);
 
 	        }
+			if (flatLinks==null){
+				for (Iterator<?> successorIterator=task.getSuccessorList().iterator();successorIterator.hasNext();){
+					Dependency dependency=(Dependency)successorIterator.next();
+					Task successor=(Task)dependency.getSuccessor();
+					TaskData successorData=(TaskData)taskLinker.getTransformationMap().get(successor);
+					if (successorData != null && !successorData.isExternal())
+						continue;
+					LinkData linkData=(LinkData)serialize(dependency,LinkData.FACTORY,null);
+					linkData.setDirty(dependency.isDirty());
+					linkData.setPredecessor(taskData);
+					linkData.setSuccessor(externalTaskData(successor, externalTaskData, taskDataCollection));
+					linkData.getSuccessor().addPredecessor(linkData);
+				}
+			}
 
         }
 
@@ -421,6 +437,19 @@ public class Serializer {
 
         return; //taskLinker.getTransformationMap();
     }
+
+	private TaskData externalTaskData(Task task,Map<Task, TaskData> externalTaskData,Collection<TaskData> taskDataCollection) throws IOException{
+		TaskData taskData=externalTaskData.get(task);
+		if (taskData!=null)
+			return taskData;
+		taskData=(TaskData)serialize(task,TaskData.FACTORY,null);
+		taskData.setExternal(true);
+		taskData.setProjectId(task.getProjectId());
+		taskData.setChildPosition(taskDataCollection.size());
+		externalTaskData.put(task,taskData);
+		taskDataCollection.add(taskData);
+		return taskData;
+	}
 
     public DocumentData serializeDocument(Project project) throws Exception{
     	return serializeProject(project,null,null,false,null);

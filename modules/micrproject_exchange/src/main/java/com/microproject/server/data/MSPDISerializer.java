@@ -217,7 +217,8 @@ public class MSPDISerializer implements ProjectSerializer {
 	            	Dependency dependency=(Dependency)j.next();
 	            	Task pred=(Task)dependency.getPredecessor();
 	            	net.sf.mpxj.Task predData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(pred);
-	            	
+				if (predData==null)
+					continue; // Cross-project predecessors are preserved by the POD data, not MSPDI's task table.
 	            	Relation rel=taskData.addPredecessor(predData,RelationType.getInstance(dependency.getDependencyType()),MPXConverter.toMPXDuration(dependency.getLag())); //claur
 	            }
 	            taskCount++;

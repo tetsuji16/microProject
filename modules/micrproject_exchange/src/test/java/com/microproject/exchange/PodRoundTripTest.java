@@ -46,6 +46,8 @@ import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
@@ -59,6 +61,51 @@ import com.microproject.server.data.ProjectData;
 import com.microproject.server.data.Serializer;
 
 public class PodRoundTripTest {
+	@Test
+	public void podRoundTripPreservesExternalPredecessorForCrossProjectLink() throws Exception {
+		DataFactoryUndoController localUndo = new DataFactoryUndoController();
+		Project local = Project.createProject(ResourcePool.createRourcePool("local", localUndo), localUndo);
+		local.initialize(false, false);
+		DataFactoryUndoController externalUndo = new DataFactoryUndoController();
+		Project external = Project.createProject(ResourcePool.createRourcePool("external", externalUndo), externalUndo);
+		external.initialize(false, false);
+		NormalTask localTask = (NormalTask)local.createLocalTaskNode(null).getImpl();
+		localTask.setName("Local successor");
+		NormalTask externalTask = (NormalTask)external.createLocalTaskNode(null).getImpl();
+		externalTask.setName("External predecessor");
+		DependencyService.getInstance().newDependency(externalTask, localTask, DependencyType.Kind.SS.code(), 0L, this);
+		NormalTask localPredecessor = (NormalTask)local.createLocalTaskNode(null).getImpl();
+		localPredecessor.setName("Local predecessor");
+		NormalTask externalSuccessor = (NormalTask)external.createLocalTaskNode(null).getImpl();
+		externalSuccessor.setName("External successor");
+		DependencyService.getInstance().newDependency(localPredecessor, externalSuccessor, DependencyType.Kind.FF.code(), 0L, this);
+
+		File saved = File.createTempFile("microproject-cross-project", ".pod");
+		saved.deleteOnExit();
+		LocalFileImporter exporter = new LocalFileImporter();
+		exporter.setFileName(saved.getAbsolutePath());
+		exporter.setProject(local);
+		exporter.exportFile();
+
+		Project restoredProject = load(saved);
+		Task restoredLocal = taskNamed(restoredProject, "Local successor");
+		assertEquals(1, restoredLocal.getPredecessorList().size());
+		Dependency restored = (Dependency)restoredLocal.getPredecessorList().iterator().next();
+		Task restoredExternal = (Task)restored.getPredecessor();
+		assertTrue(restoredExternal.isExternal());
+		assertEquals("External predecessor", restoredExternal.getName());
+		assertEquals(external.getUniqueId(), restoredExternal.getProjectId());
+		assertEquals(DependencyType.Kind.SS.code(), restored.getDependencyType());
+		Task restoredLocalPredecessor = taskNamed(restoredProject, "Local predecessor");
+		assertEquals(1, restoredLocalPredecessor.getSuccessorList().size());
+		Dependency restoredOutgoing = (Dependency)restoredLocalPredecessor.getSuccessorList().iterator().next();
+		Task restoredExternalSuccessor = (Task)restoredOutgoing.getSuccessor();
+		assertTrue(restoredExternalSuccessor.isExternal());
+		assertEquals("External successor", restoredExternalSuccessor.getName());
+		assertEquals(external.getUniqueId(), restoredExternalSuccessor.getProjectId());
+		assertEquals(DependencyType.Kind.FF.code(), restoredOutgoing.getDependencyType());
+	}
+
 	@Test
 	public void podRoundTripPreservesProjectScopedCustomReportTemplates() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -389,6 +436,13 @@ public class PodRoundTripTest {
 		if (!iterator.hasNext())
 			throw new AssertionError("Sample project has no tasks");
 		return (Task) iterator.next();
+	}
+
+	private static Task taskNamed(Project project, String name) {
+		for (Task task : project.getTaskList()) {
+			if (name.equals(task.getName())) return task;
+		}
+		throw new AssertionError("Missing task: " + name);
 	}
 
 	private static File findSample(String name) {
