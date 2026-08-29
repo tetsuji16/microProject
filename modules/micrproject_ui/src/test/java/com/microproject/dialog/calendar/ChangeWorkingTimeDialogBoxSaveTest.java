@@ -86,13 +86,23 @@ class ChangeWorkingTimeDialogBoxSaveTest {
 		String saveBody = src.substring(saveCalendar, src.indexOf("saveAndUpdate", saveCalendar));
 		assertTrue(saveBody.contains("assignCalendar(editedCalendar"),
 				"commit path must assign the scratch copy onto the edited calendar");
+
+		int importNonWorkingDays = src.indexOf("private void importNonWorkingDays()");
+		assertTrue(importNonWorkingDays > 0,
+				"Change Working Time must expose the holiday/leave import route");
+		String importBody = src.substring(importNonWorkingDays, src.indexOf("/**", importNonWorkingDays));
+		assertTrue(importBody.contains("CalendarExceptionImporter.applyNonWorkingDates"),
+				"import must create calendar non-working exceptions");
+		assertTrue(importBody.contains("markCalendarEdited()"),
+				"imported exceptions must be committed by OK");
 	}
 
 	@Test
 	void messagesResolveForRadioButtons() {
 		for (String key : new String[] { "ChangeWorkingTimeDialogBox.UseDefault",
 				"ChangeWorkingTimeDialogBox.NonWorkingTime",
-				"ChangeWorkingTimeDialogBox.NonDefaultWorkingTime" }) {
+				"ChangeWorkingTimeDialogBox.NonDefaultWorkingTime",
+				"ChangeWorkingTimeDialogBox.ImportNonWorkingDays" }) {
 			assertFalse(Messages.getString(key).startsWith("!"), key);
 		}
 	}

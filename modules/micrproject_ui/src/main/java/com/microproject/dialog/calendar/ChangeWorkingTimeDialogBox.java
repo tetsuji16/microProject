@@ -32,8 +32,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.Reader;
+import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -51,6 +54,7 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -72,6 +76,7 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.configuration.Settings;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.calendar.CalendarExceptionImporter;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.DayDescriptor;
 import com.microproject.pm.calendar.InvalidCalendarException;
@@ -124,6 +129,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
     JComponent cal;
     JButton newCalendar;
     JButton options;
+    JButton importNonWorkingDays;
     SimpleDateFormat hourFormat= DateTime.dateFormatInstance("H:mm"); //$NON-NLS-1$
     JLabel basedOnText;
     List<WorkingCalendar> documentCalendars;
@@ -155,6 +161,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
     		timeStart[i].setEnabled(editable);
     		timeEnd[i].setEnabled(editable);
     	}
+		if (importNonWorkingDays != null)
+			importNonWorkingDays.setEnabled(editable);
     }
 	public static ChangeWorkingTimeDialogBox getInstance(Frame owner, Project project, WorkingCalendar cal, List<WorkingCalendar> documentCalendars, boolean restrict, UndoController undoController) {
 		return new ChangeWorkingTimeDialogBox(owner, project,cal,documentCalendars, restrict,undoController);
@@ -422,6 +430,23 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		service.saveAndUpdate(editedCalendar);
 		committed = true;
 
+	}
+
+	private void importNonWorkingDays() {
+		JFileChooser chooser = new JFileChooser();
+		chooser.setDialogTitle(Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays")); //$NON-NLS-1$
+		if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION)
+			return;
+		try (Reader reader = Files.newBufferedReader(chooser.getSelectedFile().toPath())) {
+			int imported = CalendarExceptionImporter.applyNonWorkingDates(form.getCalendar(),
+				CalendarExceptionImporter.readNonWorkingDates(reader), ZoneId.systemDefault());
+			if (imported > 0) {
+				markCalendarEdited();
+				updateView();
+			}
+		} catch (Exception error) {
+			Alert.error(error.getMessage(), this);
+		}
 	}
 
 	/**
@@ -751,12 +776,19 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 			    		CalendarOption.setInstance(option);
 			    		project.setCalendarOption(option);
 			    	}
-			    }
-			 });
+			 }
+		 });
+		importNonWorkingDays = new JButton(Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays")); //$NON-NLS-1$
+		importNonWorkingDays.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent e){
+					importNonWorkingDays();
+				}
+			});
 
 		ButtonPanel buttonPanel = new ButtonPanel();
 		buttonPanel.addButton(newCalendar);
 		buttonPanel.addButton(options);
+		buttonPanel.addButton(importNonWorkingDays);
 		buttonPanel.addButton(ok);
 		buttonPanel.addButton(cancel);
 		buttonPanel.add(getHelpButton());
