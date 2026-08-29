@@ -543,8 +543,13 @@ public class TaskInformationDialog extends InformationDialog {
 				choices.toArray(), choices.get(0)); //$NON-NLS-1$
 		if (selected == null)
 			return;
+		DependencyTypeChoice type = (DependencyTypeChoice) JOptionPane.showInputDialog(this,
+				Messages.getString("Text.Type"), Messages.getString("Text.TaskDependency"), //$NON-NLS-1$ //$NON-NLS-2$
+				JOptionPane.PLAIN_MESSAGE, null, dependencyTypeChoices(), dependencyTypeChoices()[0]);
+		if (type == null)
+			return;
 		try {
-			createDependency(task, selected.task, predecessors, this);
+			createDependency(task, selected.task, predecessors, type.kind.code(), this);
 			updateAll();
 		} catch (InvalidAssociationException e) {
 			Alert.warn(e.getMessage(), this);
@@ -553,10 +558,21 @@ public class TaskInformationDialog extends InformationDialog {
 
 	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors, Object eventSource)
 			throws InvalidAssociationException {
+		return createDependency(task, selectedTask, predecessors, DependencyType.Kind.FS.code(), eventSource);
+	}
+
+	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors, int dependencyType,
+			Object eventSource) throws InvalidAssociationException {
 		return DependencyService.getInstance().newDependency(
 				predecessors ? selectedTask : task,
 				predecessors ? task : selectedTask,
-				DependencyType.Kind.FS.code(), 0, eventSource);
+				dependencyType, 0, eventSource);
+	}
+
+	static DependencyTypeChoice[] dependencyTypeChoices() {
+		return new DependencyTypeChoice[] {
+			new DependencyTypeChoice(DependencyType.Kind.FS), new DependencyTypeChoice(DependencyType.Kind.SS),
+			new DependencyTypeChoice(DependencyType.Kind.FF), new DependencyTypeChoice(DependencyType.Kind.SF) };
 	}
 
 	private List<Task> getLinkableTasks(Task task, boolean predecessors) {
@@ -602,6 +618,19 @@ public class TaskInformationDialog extends InformationDialog {
 			Project project = task.getProject();
 			String projectName = project == null ? "" : project.getName();
 			return projectName + ": " + task.getName();
+		}
+	}
+
+	static final class DependencyTypeChoice {
+		private final DependencyType.Kind kind;
+
+		DependencyTypeChoice(DependencyType.Kind kind) {
+			this.kind = kind;
+		}
+
+		@Override
+		public String toString() {
+			return DependencyType.toLongString(kind.code()) + " (" + kind.name() + ')';
 		}
 	}
 

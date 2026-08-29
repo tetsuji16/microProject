@@ -26,6 +26,7 @@ package com.microproject.dialog;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
@@ -74,9 +75,23 @@ class TaskInformationDialogDependencyTest {
 		assertEquals(2, candidates.size());
 		assertTrue(candidates.contains(localCandidate));
 		assertTrue(candidates.contains(crossProjectCandidate));
-		Dependency dependency = TaskInformationDialog.createDependency(current, crossProjectCandidate, true, this);
-		assertSame(crossProjectCandidate, dependency.getPredecessor());
-		assertSame(current, dependency.getSuccessor());
+		for (DependencyType.Kind kind : DependencyType.Kind.values()) {
+			Dependency dependency = TaskInformationDialog.createDependency(current, crossProjectCandidate, true, kind.code(), this);
+			assertSame(crossProjectCandidate, dependency.getPredecessor());
+			assertSame(current, dependency.getSuccessor());
+			assertEquals(kind.code(), dependency.getDependencyType());
+			DependencyService.getInstance().remove(dependency, this, false);
+		}
+	}
+
+	@Test
+	void dependencyTypeChoicesExposeAllMicrosoftProjectLinkTypes() {
+		TaskInformationDialog.DependencyTypeChoice[] choices = TaskInformationDialog.dependencyTypeChoices();
+		assertEquals(4, choices.length);
+		assertTrue(choices[0].toString().contains("FS"));
+		assertTrue(choices[1].toString().contains("SS"));
+		assertTrue(choices[2].toString().contains("FF"));
+		assertTrue(choices[3].toString().contains("SF"));
 	}
 
 	private Project newProject(String name) {
