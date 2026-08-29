@@ -73,6 +73,8 @@ import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.gantt.TaskSeries;
+import org.jfree.data.gantt.TaskSeriesCollection;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
@@ -246,6 +248,9 @@ public final class CustomReportDialogBox extends JDialog implements ScheduleEven
 		if (selectedTemplate == ReportTemplate.CHART) {
 			chartPreview.setChart(createWorkChart(tasks));
 			showChartPreview();
+		} else if (selectedTemplate == ReportTemplate.COMPARISON) {
+			chartPreview.setChart(createComparisonChart(tasks));
+			showChartPreview();
 		} else {
 			showTablePreview();
 		}
@@ -276,6 +281,33 @@ public final class CustomReportDialogBox extends JDialog implements ScheduleEven
 		dataset.addValue(remainingWork, "Remaining Work", "Project");
 		return ChartFactory.createBarChart("Work", "", "Hours", dataset,
 			PlotOrientation.VERTICAL, true, true, false);
+	}
+
+	/**
+	 * Shows the current and saved-baseline schedules on a common time line, just as
+	 * the Microsoft Project Comparison report does.  The table remains populated so
+	 * exports and printed reports retain their explicit date values.
+	 */
+	static JFreeChart createComparisonChart(List<? extends Task> tasks) {
+		TaskSeries current = new TaskSeries(t("report.currentSchedule"));
+		TaskSeries baseline = new TaskSeries(t("report.baselineSchedule"));
+		for (Task task : tasks) {
+			if (!(task instanceof com.microproject.pm.task.NormalTask normal))
+				continue;
+			addScheduleTask(current, task.getName(), task.getStart(), task.getEnd());
+			addScheduleTask(baseline, task.getName(), normal.getBaselineStartOrZero(), normal.getBaselineFinishOrZero());
+		}
+		TaskSeriesCollection dataset = new TaskSeriesCollection();
+		dataset.add(current);
+		dataset.add(baseline);
+		return ChartFactory.createGanttChart(t("report.comparisonTimeline"), t("Field.name"), "",
+			dataset, true, true, false);
+	}
+
+	private static void addScheduleTask(TaskSeries series, String taskName, long start, long finish) {
+		if (start <= 0L || finish < start)
+			return;
+		series.add(new org.jfree.data.gantt.Task(taskName == null ? "" : taskName, new Date(start), new Date(finish)));
 	}
 
 	private static double hours(long milliseconds) {

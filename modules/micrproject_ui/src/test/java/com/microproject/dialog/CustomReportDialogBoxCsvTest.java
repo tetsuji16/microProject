@@ -13,6 +13,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.gantt.TaskSeriesCollection;
 
 import org.junit.jupiter.api.Test;
 
@@ -73,6 +74,16 @@ class CustomReportDialogBoxCsvTest {
 		assertEquals("Actual Work", dataset.getRowKey(1));
 		assertEquals("Remaining Work", dataset.getRowKey(2));
 		assertEquals(0D, dataset.getValue("Work", "Project").doubleValue());
+	}
+
+	@Test
+	void comparisonTemplateBuildsSeparateCurrentAndBaselineTimelineSeries() {
+		TaskSeriesCollection dataset = (TaskSeriesCollection) CustomReportDialogBox.createComparisonChart(List.of())
+			.getCategoryPlot().getDataset();
+		assertEquals(2, dataset.getSeriesCount());
+		assertTrue(!dataset.getSeries(0).getKey().equals(dataset.getSeries(1).getKey()));
+		assertEquals(0, dataset.getSeries(0).getItemCount());
+		assertEquals(0, dataset.getSeries(1).getItemCount());
 	}
 
 	private static String bodyWithoutBom(ByteArrayOutputStream out) {
