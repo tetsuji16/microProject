@@ -30,6 +30,8 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.document.ObjectEventManager;
 
 public class GlobalPreferences {
+	public static final String GANTT_BAR_TEXT_RESOURCE_NAMES = "Field.resourceNames";
+	public static final String GANTT_BAR_TEXT_TASK_NAME = "Field.name";
 	private static final Preferences STORE = Preferences.userNodeForPackage(GlobalPreferences.class).node("ui");
 	protected transient boolean showAllResources = true;
 	private String userName = STORE.get("userName", System.getProperty("user.name", ""));
@@ -39,6 +41,8 @@ public class GlobalPreferences {
 	private Integer gridLineColor = readColor("gridLineColor");
 	private String fontFamily = STORE.get("fontFamily", "");
 	private int fontSize = clampFontSize(STORE.getInt("fontSize", 0));
+	private String defaultGanttBarText = normalizeGanttBarText(
+			STORE.get("defaultGanttBarText", GANTT_BAR_TEXT_RESOURCE_NAMES));
 
 	public boolean isShowProjectResourcesOnly() {
 		return !showAllResources;
@@ -118,7 +122,20 @@ public class GlobalPreferences {
 		fireUpdateEvent(this, this);
 	}
 
+	/** Default annotation for newly opened Gantt views; saved view settings still take precedence. */
+	public String getDefaultGanttBarText() { return defaultGanttBarText; }
+	public void setDefaultGanttBarText(String value) {
+		String normalized = normalizeGanttBarText(value);
+		if (normalized.equals(defaultGanttBarText)) return;
+		defaultGanttBarText = normalized;
+		STORE.put("defaultGanttBarText", normalized);
+		fireUpdateEvent(this, this);
+	}
+
 	private static int clampFontSize(int value) { return value <= 0 ? 0 : Math.max(8, Math.min(32, value)); }
+	private static String normalizeGanttBarText(String value) {
+		return GANTT_BAR_TEXT_TASK_NAME.equals(value) ? GANTT_BAR_TEXT_TASK_NAME : GANTT_BAR_TEXT_RESOURCE_NAMES;
+	}
 	private static Integer readColor(String key) {
 		int value = STORE.getInt(key, -1);
 		return value < 0 ? null : Integer.valueOf(value & 0x00ffffff);

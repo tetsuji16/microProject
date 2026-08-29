@@ -65,6 +65,7 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.task.Project;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.WorkspaceSetting;
@@ -113,6 +114,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		super(synchronizer);
 		this.documentFrame = documentFrame;
 		this.project = documentFrame.getProject();
+		this.currentAnnotationFieldId = documentFrame.getGraphicManager().getPreferences().getDefaultGanttBarText();
 		HelpUtil.addDocHelp(this,"Gantt_Chart");
 		setNeedVoidBar(true);
 		//setScaled(true);

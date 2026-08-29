@@ -19,6 +19,7 @@ class GlobalPreferencesTest {
 		String originalFamily = preferences.getFontFamily();
 		int originalSize = preferences.getFontSize();
 		Integer originalGridColor = preferences.getGridLineColor();
+		String originalGanttBarText = preferences.getDefaultGanttBarText();
 		try {
 			preferences.setUserName("  editor  ");
 			preferences.setShowRowLines(false);
@@ -36,12 +37,17 @@ class GlobalPreferencesTest {
 			assertEquals(Integer.valueOf(0x345678), preferences.getGridLineColor());
 			preferences.setGridLineColor(null);
 			assertEquals(null, preferences.getGridLineColor());
+			preferences.setDefaultGanttBarText(GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME);
+			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME, preferences.getDefaultGanttBarText());
+			preferences.setDefaultGanttBarText("unsupported");
+			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_RESOURCE_NAMES, preferences.getDefaultGanttBarText());
 		} finally {
 			preferences.setUserName(originalName);
 			preferences.setShowRowLines(originalRows);
 			preferences.setFontFamily(originalFamily);
 			preferences.setFontSize(originalSize);
 			preferences.setGridLineColor(originalGridColor);
+			preferences.setDefaultGanttBarText(originalGanttBarText);
 		}
 		assertTrue(preferences.getFontSize() >= 0);
 	}

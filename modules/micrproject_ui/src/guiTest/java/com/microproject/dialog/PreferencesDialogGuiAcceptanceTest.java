@@ -43,6 +43,8 @@ class PreferencesDialogGuiAcceptanceTest {
 		PreferencesDialogBox dialog = findDialog();
 		assertTrue(hasButton(dialog, UsabilityStrings.text("preferences.gridColorAutomatic")));
 		assertTrue(hasButton(dialog, UsabilityStrings.text("preferences.reset")));
+		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextResourceNames")));
+		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextTaskName")));
 		capture(new Robot(), dialog);
 	}
 
@@ -57,6 +59,16 @@ class PreferencesDialogGuiAcceptanceTest {
 		for (java.awt.Component child : container.getComponents()) {
 			if (child instanceof AbstractButton button && text.equals(button.getText())) return true;
 			if (child instanceof java.awt.Container nested && hasButton(nested, text)) return true;
+		}
+		return false;
+	}
+
+	private static boolean hasComboItem(java.awt.Container container, String text) {
+		for (java.awt.Component child : container.getComponents()) {
+			if (child instanceof javax.swing.JComboBox<?> combo)
+				for (int index = 0; index < combo.getItemCount(); index++)
+					if (text.equals(combo.getItemAt(index))) return true;
+			if (child instanceof java.awt.Container nested && hasComboItem(nested, text)) return true;
 		}
 		return false;
 	}
