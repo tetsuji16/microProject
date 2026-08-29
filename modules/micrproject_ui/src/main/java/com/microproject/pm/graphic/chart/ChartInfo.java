@@ -58,7 +58,7 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 	NodeModel nodeModel;
 	ChartView chartView;
 	
-	boolean simple;
+	ChartMode mode = ChartMode.REPORT_CHART;
 	List<Object> selectedObjects = new ArrayList<>();
 	ChartModel model;
 	ChartLegend chartLegend;
@@ -170,17 +170,14 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 	public void setSelectedObjects(List<Object> selectedObjects) {
 		this.selectedObjects = selectedObjects;
 	}
-	/**
-	 * @return Returns the simple.
-	 */
-	public boolean isSimple() {
-		return simple;
+	public ChartMode getMode() {
+		return mode;
 	}
-	/**
-	 * @param simple The simple to set.
-	 */
-	public void setSimple(boolean simple) {
-		this.simple = simple;
+	public void setMode(ChartMode mode) {
+		this.mode = mode;
+	}
+	public boolean isResourceGraph() {
+		return mode.isResourceGraph();
 	}
 	/**
 	 * @return Returns the tasks.
@@ -317,7 +314,7 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 	public void updateChart(List<?> tasks, List<Resource> resources) {
 		this.tasks = tasks;
 		this.resources = resources;
-		if (isSimple())
+		if (isResourceGraph())
 			model.computeHistogram(getProject(), tasks, resources,traces);
 		else
 			model.computeValues(tasks,resources, cumulative, traces, histogram);
@@ -393,7 +390,7 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		work = ws.work;
 		chartPanel.setVerticalScrolling(ws.verticalScroll);
 		chartPanel.verticalScrollingItem.setSelected(ws.verticalScroll);
-		if (!simple)
+		if (!isResourceGraph())
 			setTraces(SpreadSheetFieldArray.fromIdArray(ws.traces));
 	}
 	public WorkspaceSetting createWorkspace(int context) {
@@ -403,7 +400,7 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		ws.selectedOnTop = selectedOnTop;
 		ws.work = work;
 		ws.verticalScroll = chartPanel.isVerticalScrolling();
-		if (!simple)
+		if (!isResourceGraph())
 			ws.traces = SpreadSheetFieldArray.toIdArray(traces);
 		return ws;
 	}

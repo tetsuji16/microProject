@@ -1212,6 +1212,16 @@
 			</transform>
 
 		</view>
+		<view id="View.Histogram">
+			<transform
+				filters="Filter.None,Filter.ResourcesMaterial,Filter.ResourcesWork,Filter.ResourcesMe,Filter.InProgressAssignments,Filter.UnstartedAssignments,Filter.WorkComplete"
+				sorters="Sorter.None"
+				groupers="Grouper.None"
+				>
+				<filter id="Filter.Charts" hidden="true"/>
+			</transform>
+
+		</view>
 
 	</views>
 

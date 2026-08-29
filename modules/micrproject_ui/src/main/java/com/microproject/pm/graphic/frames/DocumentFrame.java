@@ -74,6 +74,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.views.ChartView;
+import com.microproject.pm.graphic.chart.ChartMode;
 import com.microproject.pm.graphic.views.DockableProjectToolView;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.views.GanttView;
@@ -790,7 +791,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	public ChartView getChartView() {
 		if (chartView == null) {
-			chartView = new ChartView(this, false, graphicManager.getMenuManager(),mainView.getSynchronizer(),addTransformerInitializationClosure());
+			chartView = new ChartView(this, ChartMode.REPORT_CHART, graphicManager.getMenuManager(),mainView.getSynchronizer(),addTransformerInitializationClosure());
 			chartView.init(coord);
 			restoreWorkspaceFor(chartView);
 		}
@@ -799,7 +800,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	public ChartView getHistogramView() {
 		if (histogramView == null) {
-			histogramView = new ChartView(this, true, graphicManager
+			histogramView = new ChartView(this, ChartMode.RESOURCE_GRAPH, graphicManager
 					.getMenuManager(),mainView.getSynchronizer(),addTransformerInitializationClosure());
 			histogramView.init(coord);
 			restoreWorkspaceFor(histogramView);

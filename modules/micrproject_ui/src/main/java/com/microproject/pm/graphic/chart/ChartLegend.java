@@ -117,7 +117,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	public ChartLegend(ChartInfo chartInfo) {
 		super();
 		this.chartInfo = chartInfo;
-		this.simple = chartInfo.isSimple();
+		this.simple = chartInfo.isResourceGraph();
 	}
 	
 	void rebuildTree() {
@@ -188,7 +188,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	void initControls() {
 		chartInfo.setAxisPanel(new AxisPanel(chartInfo));
 		filterComboBox=new TransformComboBox(null,MenuActionConstants.ACTION_CHOOSE_FILTER,TransformComboBoxModel.FILTER);
-		filterComboBox.setView(ViewConfiguration.getView(MenuActionConstants.ACTION_CHARTS));
+		filterComboBox.setView(ViewConfiguration.getView(chartInfo.getMode().getViewAction()));
 		filterComboBox.addActionListener(new ActionListener() {
 
 			public void actionPerformed(ActionEvent e) {

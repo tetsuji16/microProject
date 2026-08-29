@@ -124,7 +124,7 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 		NumberFormat numberFormat = NumberFormat.getPercentInstance(); // default
 		Object[] traces = chartInfo.getTraces();
 		// chartInfo.getModel().dumpDataset(traces);
-		if (!chartInfo.isSimple() && (traces.length > 0 && traces[0] instanceof Field)) {
+		if (!chartInfo.isResourceGraph() && (traces.length > 0 && traces[0] instanceof Field)) {
 			Field field = (Field) traces[0];
 			if (field.isMoney()){
 				numberFormat=new NumberFormat(){
@@ -190,7 +190,7 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 		}
 		// Resource Graph overlays availability and an explicit red over-allocation
 		// series. The latter is empty when all selected resources are within capacity.
-		if (chartInfo.isSimple() && chart.getXYPlot().getDataset(1) != null
+		if (chartInfo.isResourceGraph() && chart.getXYPlot().getDataset(1) != null
 				&& chart.getXYPlot().getDataset(1).getSeriesCount() > 1) {
 			chart.getXYPlot().getRenderer(1).setSeriesPaint(1,
 				ChartHelper.getColorForField(HasTimeDistributedData.OVERALLOCATED));

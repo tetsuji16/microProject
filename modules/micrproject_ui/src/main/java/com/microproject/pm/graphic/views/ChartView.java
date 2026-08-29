@@ -36,6 +36,7 @@ import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.chart.ChartInfo;
 import com.microproject.pm.graphic.chart.ChartLegend;
+import com.microproject.pm.graphic.chart.ChartMode;
 import com.microproject.pm.graphic.chart.TimeChartPanel;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
@@ -70,7 +71,7 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 	 * @param manager
 	 *  
 	 */
-	public ChartView(DocumentFrame documentFrame, boolean simple, MenuManager menuManager, Synchronizer synchronizer,Consumer<Object> transformerClosure) {
+	public ChartView(DocumentFrame documentFrame, ChartMode mode, MenuManager menuManager, Synchronizer synchronizer,Consumer<Object> transformerClosure) {
 		super(synchronizer);
 		this.menuManager = menuManager;
 		this.documentFrame = documentFrame;
@@ -78,7 +79,7 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		this.transformerClosure=transformerClosure;
 		chartInfo = new ChartInfo();
 		chartInfo.setProject(documentFrame.getProject());
-		chartInfo.setSimple(simple);
+		chartInfo.setMode(mode);
 		chartInfo.setChartView(this);
 		chartInfo.setCache(getCache());
 		setDeltaDivider(GraphicConfiguration.getInstance().getRowChartHeaderWidth());
@@ -171,10 +172,7 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 	}
 
 	public String getViewName() {
-		if (chartInfo.isSimple())
-			return MenuActionConstants.ACTION_HISTOGRAM;
-		else 
-			return MenuActionConstants.ACTION_CHARTS;
+		return chartInfo.getMode().getViewAction();
 	}
 
 	public boolean showsTasks() {
@@ -187,8 +185,8 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 	
 	NodeModelCache cache = null;
 	public NodeModelCache getCache() {
-		if (cache == null) // note that histogram and charts share same filtered cache
-			cache = NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)documentFrame.getResourceNodeModelCache(),MenuActionConstants.ACTION_CHARTS,transformerClosure);
+		if (cache == null)
+			cache = NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)documentFrame.getResourceNodeModelCache(),chartInfo.getMode().getViewAction(),transformerClosure);
 		return cache;
 	}
 
