@@ -355,7 +355,7 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
-	void rowHeaderDragSelectsARangeOfRowsAndDoesNotMoveTasks() throws Exception {
+	void rowHeaderDragMovesTheSelectedTaskToAValidInsertionPosition() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
@@ -364,31 +364,26 @@ class SpreadSheetMouseInteractionTest {
 			int secondRow = findRow(sheet, fixture.secondTask());
 			long uniqueId = fixture.firstTask().getUniqueId();
 
-			// Press and drag through the row header (ID column) without releasing,
-			// exactly like a user selecting a range of rows.
+			// Drag the selected ID row below the next task, as in MS Project.
 			dispatchProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, true, false);
 
-			// The selection must already span the dragged range so the Gantt chart
-			// row highlight follows the drag live (issue #179).
+			// The dragged task remains the sole selected row until drop.
 			int[] selected = sheet.getSelectedRows();
 			Arrays.sort(selected);
-			assertEquals(Arrays.toString(new int[] { firstRow, secondRow }),
-					Arrays.toString(selected),
-					"dragging the row header must select the full range immediately");
+			assertEquals(Arrays.toString(new int[] { firstRow }), Arrays.toString(selected));
 			assertEquals(sheet.getColumnCount(), sheet.getSelectedColumnCount(),
 					"row-header drag selects whole rows");
 
 			dispatchRowHeaderRelease(rowHeader, secondRow, true);
 
-			// Selecting by dragging must never reorder tasks or change unique ids.
+			// A valid drop reorders the task but preserves its persistent identity.
 			assertEquals(uniqueId, fixture.firstTask().getUniqueId());
-			assertEquals(firstRow, findRow(sheet, fixture.firstTask()));
-			assertEquals(secondRow, findRow(sheet, fixture.secondTask()));
+			assertTrue(findRow(sheet, fixture.firstTask()) > findRow(sheet, fixture.secondTask()));
 		});
 	}
 
 	@Test
-	void rowHeaderDragDoesNotRelocateTasksOrChangeOutlineLevel() throws Exception {
+	void rowHeaderDragRejectsOutlineLevelChangingDrop() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
@@ -401,16 +396,14 @@ class SpreadSheetMouseInteractionTest {
 			int secondRow = findRow(sheet, fixture.secondTask());
 			SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
 
-			// Drag the row header across rows: this is a selection gesture, so it
-			// must not relocate tasks or change the outline level (issue #179).
-			// Previously the same gesture attempted a move and could change the
-			// outline level, and beeped on an invalid drop.
+			// The target would change the outline level, so MS Project-compatible
+			// drag/drop must reject it without mutating the task hierarchy.
 			dispatchProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, false, false);
 			dispatchRowHeaderRelease(rowHeader, secondRow, false);
 
 			assertTrue(((Node) firstNode.getParent()).isRoot());
 			assertEquals(0, fixture.firstTask().getOutlineLevel());
-			assertEquals(2, sheet.getSelectedRowCount());
+			assertEquals(1, sheet.getSelectedRowCount());
 		});
 	}
 

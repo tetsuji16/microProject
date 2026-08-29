@@ -109,6 +109,9 @@ public class SpreadSheetRowHeader extends JTable {
 					private Point pressPoint;
 					private int pressRow = -1;
 					private boolean dragging;
+					private int targetRow = -1;
+					private boolean dropAfter;
+					private boolean validDrop;
 					public void mousePressed(MouseEvent e) {
 						if (SwingUtilities.isLeftMouseButton(e)){
 							int row = rowAtPoint(e.getPoint());
@@ -124,6 +127,8 @@ public class SpreadSheetRowHeader extends JTable {
 							pressRow=row;
 							pressPoint=e.getPoint();
 							dragging=false;
+							targetRow=-1;
+							validDrop=false;
 							if (e.getClickCount()==2){
 								spreadSheet.doDoubleClick(row,0);
 //								Component comp=SpreadSheetRowHeader.this;
@@ -140,27 +145,26 @@ public class SpreadSheetRowHeader extends JTable {
 						if (pressPoint==null||(e.getModifiersEx()&MouseEvent.BUTTON1_DOWN_MASK)==0) return;
 						if (!dragging&&pressPoint.distance(e.getPoint())<4.0d) return;
 						dragging=true;
-						// Microsoft Project selects a range of rows when the user
-						// drags through the row header (ID column). Extend the
-						// selection live so the Gantt chart's row highlight follows
-						// the drag immediately (issue #179). Task reordering is done
-						// from the Move Up/Down buttons and keyboard shortcuts, so a
-						// selection drag must never relocate tasks or beep.
 						int currentRow=rowAtPoint(e.getPoint());
 						if (currentRow>=0&&pressRow>=0){
-							int first=Math.min(pressRow,currentRow);
-							int last=Math.max(pressRow,currentRow);
-							getSelectionModel().setSelectionInterval(first,last);
-							if (getColumnCount()>0)
-								getColumnModel().getSelectionModel().setSelectionInterval(0,getColumnCount()-1);
+							targetRow=currentRow;
+							Rectangle bounds=getCellRect(currentRow,0,true);
+							dropAfter=e.getY()>=bounds.y+bounds.height/2;
+							validDrop=spreadSheet.canMoveSelectedTaskRowsTo(targetRow,dropAfter);
+							setCursor(validDrop ? Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR) : Cursor.getDefaultCursor());
 						}
 					}
 					public void mouseReleased(MouseEvent e) {
+						if (dragging&&validDrop)
+							spreadSheet.moveSelectedTaskRowsTo(targetRow,dropAfter);
 						if (e.isPopupTrigger())
 							showTaskPopup(e);
 						pressPoint=null;
 						pressRow=-1;
 						dragging=false;
+						targetRow=-1;
+						validDrop=false;
+						setCursor(Cursor.getDefaultCursor());
 						repaint();
 					}
 				};
