@@ -188,6 +188,14 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 			});
 			series++; // excludes availability from count
 		}
+		// Resource Graph overlays availability and an explicit red over-allocation
+		// series. The latter is empty when all selected resources are within capacity.
+		if (chartInfo.isSimple() && chart.getXYPlot().getDataset(1) != null
+				&& chart.getXYPlot().getDataset(1).getSeriesCount() > 1) {
+			chart.getXYPlot().getRenderer(1).setSeriesPaint(1,
+				ChartHelper.getColorForField(HasTimeDistributedData.OVERALLOCATED));
+			chart.getXYPlot().getRenderer(1).setSeriesStroke(1, PredefinedStroke.LARGE_FRAMED);
+		}
 		// chart.getXYPlot().addRangeMarker(new ValueMarker(1.0));
 
 		chart.getXYPlot().getDomainAxis().setLowerBound(chartInfo.getCoord().getOrigin());
@@ -272,4 +280,3 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 	}
 
 }
-

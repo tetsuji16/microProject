@@ -182,6 +182,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 
 		//Selected
 		GroupedCalculatedValues selectedCalculatedValues = (GroupedCalculatedValues) computeTrace(tasks==null?null:tasks.iterator(),resources, WORK,  true, false);
+		XYSeries overallocatedSeries = new XYSeries(OVERALLOCATED.toString(), false, true);
 
 
 		// stack so that order is (from botom to top) other projects, this project, selected
@@ -190,6 +191,12 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 			double allProjects = thisProject;
 			if (otherProjectsCalculatedValues!=null) allProjects+= otherProjectsCalculatedValues.getUnscaledValue(i); // stack
 			double selected = selectedCalculatedValues != null ? selectedCalculatedValues.getUnscaledValue(i) : 0D;
+			Long date = availabilityCalculatedValues.getDate(i);
+			if (date == null && thisProjectCalculatedValues != null) date = thisProjectCalculatedValues.getDate(i);
+			if (date != null) {
+				double excess = overallocatedAmount(allProjects, availabilityCalculatedValues.getUnscaledValue(i));
+				if (excess > 0D) overallocatedSeries.add(date.doubleValue(), excess / getScaleFactor(WORK));
+			}
 			if (stackCurrentOnTop) {
 				if (selectedCalculatedValues != null)
 					selectedCalculatedValues.setValue(i, allProjects);
@@ -220,6 +227,12 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 
 		secondSeriesCollection = new XYSeriesCollection();
 		secondSeriesCollection.addSeries(availabilitySeries);
+		secondSeriesCollection.addSeries(overallocatedSeries);
+	}
+
+	/** Resource Graph over-allocation is the work above the resource availability. */
+	static double overallocatedAmount(double work, double availability) {
+		return Math.max(0D, work - availability);
 	}
 	
 	private XYSeries buildHistogramSeries(Object trace, CalculatedValues values) {
