@@ -31,6 +31,7 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 	public enum Surface { BUFFER_STATUS, NETWORK }
 
 	public static void show(Frame owner, Project project, Surface surface) {
+		if (java.awt.GraphicsEnvironment.isHeadless()) return;
 		new CriticalChainStatusDialogBox(owner, project, surface).setVisible(true);
 	}
 
