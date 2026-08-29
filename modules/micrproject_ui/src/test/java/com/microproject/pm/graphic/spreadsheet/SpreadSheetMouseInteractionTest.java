@@ -27,6 +27,7 @@ package com.microproject.pm.graphic.spreadsheet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Rectangle;
@@ -127,6 +128,16 @@ class SpreadSheetMouseInteractionTest {
 			assertTrue(sheet.popupShown);
 			assertEquals(secondRow, sheet.shownPopup.getRow());
 			assertEquals(column, sheet.shownPopup.getCol());
+		});
+	}
+
+	@Test
+	void doubleClickResolvesTheTaskFromItsClickedRowInsteadOfCurrentSelection() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			int row = findRow(fixture.sheet(), fixture.secondTask());
+
+			assertSame(fixture.secondTask(), fixture.sheet().getTaskAtRow(row));
 		});
 	}
 

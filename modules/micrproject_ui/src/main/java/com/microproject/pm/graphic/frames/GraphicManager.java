@@ -241,6 +241,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	ProjectFactory projectFactory = null;
 	private final AutoRecoveryManager autoRecoveryManager;
 	private final RecentProjectStore recentProjectStore = new RecentProjectStore();
+	private Runnable afterSaveNewProject;
 	private volatile boolean quitting;
 	protected Container container;
 	protected Frame frame;
@@ -1475,6 +1476,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (!beforeExternalRoute("newProject")) return;
+			DocumentFrame current = getCurrentFrame();
+			Project project = current == null ? null : current.getProject();
+			if (project != null && project.needsSaving()) {
+				int choice = PopupDialogSupport.showConfirmDialog(getFrame(),
+					Messages.getString("Message.unsavedProject"),
+					Messages.getString("ProjectDialog.NewProject"),
+					JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+				if (choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION) return;
+				if (choice == JOptionPane.YES_OPTION) {
+					afterSaveNewProject = GraphicManager.this::doNewProjectDialog;
+					if (!saveLocalProject(false)) afterSaveNewProject = null;
+					return;
+				}
+			}
 			doNewProjectDialog();
 		}
 		protected boolean allowed(boolean enable){
@@ -2712,6 +2727,9 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 						persistCollaborationWorkspace(savedProject);
 					}
 					refreshSaveStatus(true);
+					Runnable continuation = afterSaveNewProject;
+					afterSaveNewProject = null;
+					if (continuation != null) SwingUtilities.invokeLater(continuation);
 				}
 			});
 		if (opt == null) {
@@ -2798,14 +2816,19 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		if (fileName!=null) loadLocalDocument(fileName,!Environment.getStandAlone());
 	}
 
-	public void saveLocalProject(boolean saveAs){
+	public boolean saveLocalProject(boolean saveAs){
+		if (getCurrentFrame() == null || getCurrentFrame().getProject() == null) return false;
 		String fileName=null;
 		Project project=getCurrentFrame().getProject();
 		if (!saveAs){
 			fileName=project.getFileName();
 		}
 		if (fileName==null) fileName=SessionFactory.getInstance().getLocalSession().chooseFileName(true,project.getGuessedFileName());
-		if (fileName!=null) saveLocalDocument(fileName,saveAs);
+		if (fileName!=null) {
+			saveLocalDocument(fileName,saveAs);
+			return true;
+		}
+		return false;
 	}
 
 

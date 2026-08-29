@@ -82,7 +82,7 @@ public final class ProjectDocumentWorkflow {
 		options.setSaveAs(saveAs);
 		options.setFileName(requestedFileName);
 		ProjectFilePolicies.configureSaveOptions(options, requestedFileName);
-		if (callbacks != null && (collaborationEnabled || fileNameChanged || finalSaveAs)) {
+		if (callbacks != null) {
 			options.setPostSaving(new Consumer<Object>() { public void accept(Object arg0) {
 					callbacks.afterSave(project, finalSaveAs, fileNameChanged, collaborationEnabled);
 				}

@@ -222,11 +222,16 @@ final class RibbonButtonStyler {
 		static RibbonButtonMetrics large(AbstractButton button) {
 			RibbonButtonStyler styler = new RibbonButtonStyler();
 			String plainText = button.getText() == null ? "" : button.getText();
-			String displayText = styler.toLargeButtonText(plainText);
+			// Recent Projects is a single Japanese phrase. Splitting it by glyphs
+			// makes the command look broken, and its measured width is known, so let
+			// the ribbon allocate the width required for one line.
+			boolean keepSingleLine = "RibbonRecentProjects".equals(button.getActionCommand());
+			String displayText = keepSingleLine ? plainText : styler.toLargeButtonText(plainText);
 			JLabel probe = new JLabel(displayText);
 			probe.setFont(FlatUiSupport.ribbonButtonFont());
 			Dimension textSize = probe.getPreferredSize();
-			int longLabelMinWidth = plainText.length() >= 7 ? LARGE_LONG_LABEL_WIDTH : FlatUiSupport.ribbonLargeButtonMinWidth();
+			int longLabelMinWidth = keepSingleLine ? textSize.width + LARGE_HORIZONTAL_PADDING
+				: plainText.length() >= 7 ? LARGE_LONG_LABEL_WIDTH : FlatUiSupport.ribbonLargeButtonMinWidth();
 			int preferredWidth = Math.max(
 				longLabelMinWidth,
 				Math.max(LARGE_ICON_SIZE + LARGE_HORIZONTAL_PADDING, textSize.width + LARGE_HORIZONTAL_PADDING))

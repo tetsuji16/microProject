@@ -28,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -62,5 +64,25 @@ class ProjectDocumentWorkflowTest {
 		assertEquals("plan.pod", options.getFileName());
 		assertEquals(LocalSession.LOCAL_PROJECT_IMPORTER, options.getImporter());
 		assertFalse(options.isSaveAs());
+	}
+
+	@Test
+	void normalSaveRunsTheCompletionCallbackThatClearsTheDocumentDirtyState() {
+		Project project = ProjectFactory.getInstance().createProject();
+		AtomicInteger completions = new AtomicInteger();
+		ProjectDocumentWorkflow.SaveCallbacks callbacks = new ProjectDocumentWorkflow.SaveCallbacks() {
+			@Override public void persistWorkspace(Project ignored) { }
+			@Override public int resolveSaveDecision(Project ignored, com.microproject.collaboration.CollaborationSession session) { return 0; }
+			@Override public String chooseSaveAsCopyFileName(Project ignored) { return null; }
+			@Override public void afterSave(Project saved, boolean saveAs, boolean fileNameChanged, boolean collaborationEnabled) {
+				completions.incrementAndGet();
+			}
+		};
+
+		SaveOptions options = ProjectDocumentWorkflow.prepareSaveOptions(project, "plan.pod", false, true, null, "user", null, callbacks);
+
+		assertNotNull(options.getPostSaving());
+		options.getPostSaving().accept(null);
+		assertEquals(1, completions.get(), "ordinary Save must run the same completion path as Save As");
 	}
 }

@@ -184,7 +184,12 @@ public class DefaultFormBuilder {
 	}
 
 	public void nextLine(int gapRows) {
-		currentRow += Math.max(1, gapRows);
+		// Form layouts express a content row and its following gap as two grid
+		// rows.  Legacy callers use nextLine(2) to move from that gap to the
+		// next content row; advancing by two grid rows puts fields on a gap (and
+		// eventually beyond the layout).  Keep the older builder API's logical
+		// "next content line" behavior for both nextLine() and nextLine(2).
+		currentRow += Math.max(1, gapRows - 1);
 		currentColumn = 1;
 	}
 

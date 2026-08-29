@@ -15,6 +15,7 @@ import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.KeyboardFocusManager;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
@@ -90,8 +91,15 @@ class TaskDurationGuiAcceptanceTest {
 			clickCell(robot, fixture);
 			GuiAcceptanceSupport.await(() -> frame.isFocused() && fixture.sheet.isFocusOwner(),
 				"the Robot click did not leave the spreadsheet in the active fixture window");
-			assertEquals(fixture.durationColumn, fixture.sheet.getSelectedColumn());
+			GuiAcceptanceSupport.await(() -> fixture.sheet.isRowFullySelected(fixture.taskRow),
+				"the task-cell click did not preserve the complete task-row selection");
+			assertEquals(0, fixture.sheet.getSelectedColumn(),
+				"a complete task-row selection has the first column as JTable's lead selection");
 			assertEquals(fixture.durationColumn, fixture.sheet.getSelection().getActiveColumn());
+			assertEquals(fixture.sheet.getColumnCount(), fixture.sheet.getSelectedColumnCount(),
+				"a real task-cell click must highlight the complete task row");
+			assertTrue(fixture.sheet.isRowFullySelected(fixture.taskRow),
+				"the clicked task row must remain fully highlighted while its active cell is retained");
 			assertNull(fixture.sheet.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
 				.get(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0)), "ETable must not intercept the global F2 shortcut");
 			assertNull(fixture.sheet.getInputMap(JComponent.WHEN_FOCUSED)
@@ -185,9 +193,11 @@ class TaskDurationGuiAcceptanceTest {
 	private static void clickCell(Robot robot, Fixture fixture) throws Exception {
 		final Rectangle[] cell = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.changeSelection(fixture.taskRow, fixture.durationColumn, false, false);
-			cell[0] = fixture.sheet.getCellRect(fixture.taskRow, fixture.durationColumn, true);
-			cell[0].setLocation(SwingUtilities.convertPoint(fixture.sheet, cell[0].getLocation(), null));
+			int otherColumn = fixture.durationColumn == 0 ? 1 : fixture.durationColumn - 1;
+			fixture.sheet.changeSelection(fixture.taskRow, otherColumn, false, false);
+			Rectangle bounds = fixture.sheet.getCellRect(fixture.taskRow, fixture.durationColumn, true);
+			Point location = fixture.sheet.getLocationOnScreen();
+			cell[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
 		robot.mouseMove(cell[0].x + cell[0].width / 2, cell[0].y + cell[0].height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);

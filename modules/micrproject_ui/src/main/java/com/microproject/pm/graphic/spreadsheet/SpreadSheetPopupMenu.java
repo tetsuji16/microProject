@@ -67,8 +67,8 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 						spreadSheet.doDoubleClick(row, col);
 					}
 				}, Environment.isNewLook() ? "menu24.taskInformation" : "menu.taskInformation");
-				addGraphicManagerAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS, "menu.filter");
-				addGraphicManagerAction(MenuActionConstants.ACTION_SHOW_ALL_TASKS, "menu.filter");
+				addGraphicManagerAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS, "ribbon.hideSelectedTasks");
+				addGraphicManagerAction(MenuActionConstants.ACTION_SHOW_ALL_TASKS, "ribbon.showAllTasks");
 				if (actions != null && actions.length > 0) {
 					addSeparator();
 				}

@@ -284,6 +284,8 @@ final class OfficeChromePanel extends JPanel {
 		searchButton.setMaximumSize(new Dimension(searchButtonSize, searchButtonSize));
 
 		searchField.setName(SEARCH_FIELD_NAME);
+		searchField.setFocusable(true);
+		searchField.setRequestFocusEnabled(true);
 		searchField.putClientProperty("JTextField.placeholderText", UsabilityStrings.text("chrome.search"));
 		searchField.setBorder(BorderFactory.createEmptyBorder());
 		searchField.setOpaque(false);
@@ -294,6 +296,9 @@ final class OfficeChromePanel extends JPanel {
 			@Override public void focusLost(java.awt.event.FocusEvent event) { box.repaint(); }
 		});
 		box.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override public void mousePressed(java.awt.event.MouseEvent event) { focusSearchField(); }
+		});
+		searchField.addMouseListener(new java.awt.event.MouseAdapter() {
 			@Override public void mousePressed(java.awt.event.MouseEvent event) { focusSearchField(); }
 		});
 

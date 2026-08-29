@@ -36,7 +36,6 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.Reader;
@@ -109,6 +108,7 @@ import com.microproject.options.GeneralOption;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 import com.microproject.server.data.EnterpriseResourceData;
 import com.microproject.server.data.Serializer;
 import com.microproject.session.Session;
@@ -1196,24 +1196,40 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (tableMouseHandlerInstalled)
 			return;
 		tableMouseHandlerInstalled = true;
-		addMouseListener(new MouseAdapter() {
-			@Override
-			public void mousePressed(MouseEvent e) {
-				beginCellRangeSelection(e);
-				handleTableMousePressed(e);
-			}
+	}
 
-			@Override
-			public void mouseDragged(MouseEvent e) {
-				extendCellRangeSelection(e);
-			}
+	/**
+	 * Own table gestures after the Swing UI delegate has processed the native
+	 * event.  ETable's own mouse listener may consume or replace a selection;
+	 * installing a second listener made dispatch order determine whether task
+	 * clicks selected a cell or a whole row.  Processing here leaves one
+	 * deterministic controller for the task-table surface.
+	 */
+	@Override
+	protected void processMouseEvent(MouseEvent e) {
+		super.processMouseEvent(e);
+		if (!tableMouseHandlerInstalled)
+			return;
+		if (e.getID() == MouseEvent.MOUSE_PRESSED) {
+			beginCellRangeSelection(e);
+			handleTableMousePressed(e);
+		} else if (e.getID() == MouseEvent.MOUSE_RELEASED) {
+			endCellRangeSelection();
+			handleTablePopupTrigger(e);
+		} else if (e.getID() == MouseEvent.MOUSE_CLICKED
+				&& SwingUtilities.isLeftMouseButton(e) && !e.isControlDown()
+				&& !e.isMetaDown() && !e.isShiftDown()) {
+			// ETable also updates its lead selection from mouseClicked.  Apply the
+			// row semantics after that final UI-delegate callback.
+			restoreTaskRowSelection(rowAtPoint(e.getPoint()), columnAtPoint(e.getPoint()));
+		}
+	}
 
-			@Override
-			public void mouseReleased(MouseEvent e) {
-				endCellRangeSelection();
-				handleTablePopupTrigger(e);
-			}
-		});
+	@Override
+	protected void processMouseMotionEvent(MouseEvent e) {
+		super.processMouseMotionEvent(e);
+		if (tableMouseHandlerInstalled && e.getID() == MouseEvent.MOUSE_DRAGGED)
+			extendCellRangeSelection(e);
 	}
 
 	void handleTableMousePressed(MouseEvent e) {
@@ -1263,10 +1279,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				if (e.getClickCount() == 2) {
 					finishCurrentOperations();
 					doDoubleClick(row, col);
-					e.consume();
 				} else {
 					doClick(row,col);
 				}
+				// The BasicTableUI mouse listener otherwise applies a second,
+				// cell-only selection after this controller has selected the complete
+				// task row.  This table owns task-cell gestures, so consume the press
+				// once its single selection route has run.
+				e.consume();
 			}
 		} else if (popup != null && e.isPopupTrigger()) {
 			showPopupForCell(row, col, this, e);
@@ -1514,7 +1534,16 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		scrollRectToVisible(getCellRect(row, col, true));
 	}
-	
+
+	private void restoreTaskRowSelection(int row, int col) {
+		if (row < 0 || row >= getRowCount() || col < 0 || col >= getColumnCount()
+				|| getSelection() == null)
+			return;
+		selectRowAndAllColumns(row);
+		setRowHeaderSelectionActive(false);
+		getSelection().setActiveCell(row, col);
+	}
+
 //    public void columnSelectionChanged(ListSelectionEvent e) {
 //		System.out.println("JTable: "+((e.getValueIsAdjusting())?"lse=":"LSE=")+e.getFirstIndex()+", "+e.getLastIndex());
 //    	super.columnSelectionChanged(e);
@@ -1522,7 +1551,27 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
     
 
 	public void doDoubleClick(int row, int col) {
-		GraphicManager.getInstance(this).doInformationDialog(false);
+		GraphicManager manager = GraphicManager.getInstance(this);
+		if (manager == null)
+			return;
+		Task task = getTaskAtRow(row);
+		if (task != null)
+			manager.doInformationDialog(task, false);
+		else
+			manager.doInformationDialog(false);
+	}
+
+	/**
+	 * Resolves the task represented by a clicked view row.  Information dialogs
+	 * opened from the spreadsheet must use this value rather than relying on the
+	 * document frame's asynchronously updated selection.
+	 */
+	Task getTaskAtRow(int row) {
+		if (row < 0 || row >= getRowCount() || !(getModel() instanceof SpreadSheetModel model))
+			return null;
+		GraphicNode graphicNode = model.getNode(row);
+		Node node = graphicNode == null ? null : graphicNode.getNode();
+		return node != null && node.getImpl() instanceof Task task ? task : null;
 	}
 	public void doClick(int row, int col) {
 		// override to treat cell clicks
