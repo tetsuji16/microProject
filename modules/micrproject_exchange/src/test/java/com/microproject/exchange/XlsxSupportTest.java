@@ -40,7 +40,9 @@ import java.util.Map;
 
 import junit.framework.TestCase;
 import net.sf.mpxj.ProjectFile;
+import net.sf.mpxj.ProjectCalendar;
 import net.sf.mpxj.Task;
+import net.sf.mpxj.mspdi.MSPDIWriter;
 import net.sf.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
 import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
@@ -51,7 +53,12 @@ import com.microproject.exchange.LocalFileImporter;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.core.pm.exchange.MspImporter;
 import com.microproject.collaboration.CollaborationMetadataStore;
+import com.microproject.pm.calendar.CalendarService;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.server.data.MSPDISerializer;
 import com.microproject.session.FileHelper;
+import com.microproject.undo.DataFactoryUndoController;
 
 public class XlsxSupportTest extends TestCase {
 	public void testFileHelperAcceptsMppForReadOnlyImport() {
@@ -177,6 +184,54 @@ public class XlsxSupportTest extends TestCase {
 		});
 
 		assertNotNull(imported);
+	}
+
+	public void testMspImporterUsesMspdiProjectDefaultCalendar() throws Exception {
+		ProjectFile file = new ProjectFile();
+		file.addDefaultBaseCalendar();
+		ProjectCalendar nightShift = file.addCalendar();
+		nightShift.setName("Night Shift");
+		file.getProjectProperties().setDefaultCalendar(nightShift);
+		Task task = file.addTask();
+		task.setName("Uses project calendar");
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		new MSPDIWriter().write(file, output);
+
+		MspImporter importer = new MspImporter();
+		com.microproject.pm.task.Project imported = importer.importProject(
+				new ByteArrayInputStream(output.toByteArray()), "xml", new MspImporter.ProgressClosure() {
+					@Override
+					public void updateProgress(float progress, String label) {
+					}
+				});
+
+		assertNotNull(imported);
+		assertNotNull(imported.getBaseCalendar());
+		assertEquals("Night Shift", imported.getBaseCalendar().getName());
+	}
+
+	public void testMspdiRoundTripPreservesProjectDefaultCalendar() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		com.microproject.pm.task.Project source = com.microproject.pm.task.Project.createProject(
+				ResourcePool.createRourcePool("calendar-round-trip", undo), undo);
+		WorkingCalendar calendar = CalendarService.getInstance().getStandardBasedInstance();
+		calendar.setName("MSP custom project calendar");
+		source.setBaseCalendar(calendar);
+		net.sf.mpxj.ProjectFile exported = new MSPDISerializer().serializeProject(source);
+		assertNotNull(exported.getProjectProperties().getDefaultCalendar());
+		assertEquals("MSP custom project calendar", exported.getProjectProperties().getDefaultCalendar().getName());
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		new MSPDIWriter().write(exported, output);
+
+		MspImporter importer = new MspImporter();
+		com.microproject.pm.task.Project imported = importer.importProject(
+				new ByteArrayInputStream(output.toByteArray()), "xml", new MspImporter.ProgressClosure() {
+					@Override
+					public void updateProgress(float progress, String label) {
+					}
+				});
+
+		assertEquals("MSP custom project calendar", imported.getBaseCalendar().getName());
 	}
 
 	public void testCommercialConstructionPodExportsAndReloadsAsXlsx() throws Exception {
