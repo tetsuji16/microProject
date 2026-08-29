@@ -24,6 +24,12 @@ implementation). They do not share project-file state or release artifacts.
 
 ## What This Fork Is For
 
+- **Final objective: complete Microsoft Project (MSP) compatibility.** microProject
+  treats the current Microsoft Project desktop behavior and project-file semantics
+  as the compatibility target for planning, scheduling, resources, views, commands,
+  printing, and supported interchange formats. See
+  [`docs/msp-compatibility-goal.md`](docs/msp-compatibility-goal.md) for the
+  decision and verification rules.
 - Keep microProject usable on a modern JDK and packaging toolchain
 - Improve real-world planning workflows: task hierarchies, schedules, dependencies, resources, and progress in one desktop workspace
 - Add collaboration-oriented features for teams sharing project files locally
