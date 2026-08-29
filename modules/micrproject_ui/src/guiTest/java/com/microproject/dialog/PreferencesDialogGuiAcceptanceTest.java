@@ -42,6 +42,7 @@ class PreferencesDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open");
 		PreferencesDialogBox dialog = findDialog();
 		assertTrue(hasButton(dialog, UsabilityStrings.text("preferences.gridColorAutomatic")));
+		assertTrue(hasButton(dialog, UsabilityStrings.text("preferences.ganttBarColorAutomatic")));
 		assertTrue(hasButton(dialog, UsabilityStrings.text("preferences.reset")));
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextResourceNames")));
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextTaskName")));

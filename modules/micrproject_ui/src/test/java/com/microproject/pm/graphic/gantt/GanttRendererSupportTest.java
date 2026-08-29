@@ -86,6 +86,18 @@ class GanttRendererSupportTest {
 	}
 
 	@Test
+	void configuredDefaultBarColorKeepsIndividualCriticalAndBaselinePriorities() {
+		assertEquals(new Color(0x112233), GanttRendererSupport.resolveTaskBarColor(false, false, null, 0x112233,
+				Color.BLUE, Color.GRAY, Color.RED));
+		assertEquals(new Color(0x445566), GanttRendererSupport.resolveTaskBarColor(false, false, 0x445566, 0x112233,
+				Color.BLUE, Color.GRAY, Color.RED));
+		assertEquals(Color.RED, GanttRendererSupport.resolveTaskBarColor(false, true, null, 0x112233,
+				Color.BLUE, Color.GRAY, Color.RED));
+		assertEquals(Color.GRAY, GanttRendererSupport.resolveTaskBarColor(true, false, null, 0x112233,
+				Color.BLUE, Color.GRAY, Color.RED));
+	}
+
+	@Test
 	void clipAnnotationTextShortensWithEllipsis() {
 		FontMetrics metrics = createMetrics();
 		String clipped = GanttRendererSupport.clipAnnotationText(metrics, "project milestone", 40);

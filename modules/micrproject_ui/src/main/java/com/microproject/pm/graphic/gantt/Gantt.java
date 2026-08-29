@@ -321,6 +321,11 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 				BarColorField.DEFAULT_BAR_RGB);
 	}
 
+	public void setDefaultTaskBarColor(Integer rgb) {
+		if (getUI() instanceof GanttUI ganttUi)
+			ganttUi.getGanttRenderer().setDefaultTaskBarColor(rgb);
+	}
+
 	public void applyBarFormat(Task task, BarFormat format) {
 		if (task == null || project.isReadOnly())
 			return;

@@ -126,6 +126,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
     protected GraphicConfiguration config;
     protected JComponent container;
 	protected GanttColorPalette palette = new MicrosoftProjectGanttPalette();
+	private Integer defaultTaskBarColor;
 
 	/** Colors resolved exactly as an automatically formatted task bar is painted. */
 	public record DisplayedBarColors(Integer startRgb, Integer middleRgb, Integer endRgb) {
@@ -185,12 +186,19 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
         }
     }
 
+	public void setDefaultTaskBarColor(Integer rgb) {
+		defaultTaskBarColor = rgb == null ? null : Integer.valueOf(rgb.intValue() & 0x00ffffff);
+	}
+
+	public Integer getDefaultTaskBarColor() { return defaultTaskBarColor; }
+
 	public DisplayedBarColors resolveDisplayedBarColors(Task task) {
 		if (task == null)
 			return new DisplayedBarColors(BarColorField.DEFAULT_BAR_RGB, BarColorField.DEFAULT_BAR_RGB,
 					BarColorField.DEFAULT_BAR_RGB);
 		BarFormat format = resolveMainBarFormat(task);
-		Color middle = isCriticalTask(task) ? palette.getCriticalTaskColor() : palette.getStatusColor(task, task);
+		Color middle = GanttRendererSupport.resolveTaskBarColor(false, isCriticalTask(task), null, defaultTaskBarColor,
+				palette.getStatusColor(task, task), palette.getBaselineBarColor(), palette.getCriticalTaskColor());
 		Color endpoint = format != null && GanttBarSupport.shouldUseUniformEndpointColor(format)
 				? middle
 				: palette.getAccentColor(format, middle, task);
@@ -218,15 +226,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
     private Color resolveTaskFillColor(GraphicNode node, BarFormat format, Schedule schedule) {
-        Color defaultColor = GanttBarSupport.isBaselineBarFormat(format)
-                ? palette.getBaselineBarColor()
-                : palette.getStatusColor(schedule, getNodeImpl(node));
+		boolean baseline = GanttBarSupport.isBaselineBarFormat(format);
         GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
-        if (individualFormat.getMiddleRgb() != null)
-            return new Color(individualFormat.getMiddleRgb());
-        if (!GanttBarSupport.isBaselineBarFormat(format) && isCriticalTask(getNodeImpl(node)))
-            return palette.getCriticalTaskColor();
-        return defaultColor;
+		return GanttRendererSupport.resolveTaskBarColor(baseline, isCriticalTask(getNodeImpl(node)),
+				individualFormat.getMiddleRgb(), defaultTaskBarColor, palette.getStatusColor(schedule, getNodeImpl(node)),
+				palette.getBaselineBarColor(), palette.getCriticalTaskColor());
     }
 
 	private boolean isCriticalTask(Object impl) {

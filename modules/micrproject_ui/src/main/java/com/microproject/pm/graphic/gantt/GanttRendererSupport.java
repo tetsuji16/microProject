@@ -100,6 +100,14 @@ final class GanttRendererSupport {
 		return rgb == null ? defaultColor : new Color(rgb);
 	}
 
+	static Color resolveTaskBarColor(boolean baseline, boolean critical, Integer individualRgb, Integer configuredRgb,
+			Color statusColor, Color baselineColor, Color criticalColor) {
+		if (individualRgb != null) return new Color(individualRgb.intValue());
+		if (baseline) return baselineColor;
+		if (critical) return criticalColor;
+		return configuredRgb == null ? statusColor : new Color(configuredRgb.intValue());
+	}
+
 	static String annotationKey(Field field, BarFormat format) {
 		String fieldName = field == null ? "" : field.getName();
 		String formatId = format == null || format.getId() == null ? "" : format.getId();

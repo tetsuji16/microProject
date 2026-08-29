@@ -70,6 +70,16 @@ public final class PreferencesDialogBox extends JDialog {
 		});
 		JButton resetGridColor = new JButton(UsabilityStrings.text("preferences.reset"));
 		resetGridColor.addActionListener(event -> { selectedGridColor[0] = null; updateGridColorButton(gridColor, null); });
+		JButton defaultBarColor = new JButton(UsabilityStrings.text("preferences.ganttBarColorAutomatic"));
+		Integer savedBarColor = preferences.getDefaultGanttBarColor();
+		final Color[] selectedBarColor = { savedBarColor == null ? null : new Color(savedBarColor.intValue()) };
+		updateDefaultBarColorButton(defaultBarColor, selectedBarColor[0]);
+		defaultBarColor.addActionListener(event -> {
+			Color selected = JColorChooser.showDialog(this, UsabilityStrings.text("preferences.ganttBarColor"), selectedBarColor[0]);
+			if (selected != null) { selectedBarColor[0] = selected; updateDefaultBarColorButton(defaultBarColor, selected); }
+		});
+		JButton resetBarColor = new JButton(UsabilityStrings.text("preferences.reset"));
+		resetBarColor.addActionListener(event -> { selectedBarColor[0] = null; updateDefaultBarColorButton(defaultBarColor, null); });
 
 		JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
 		form.setBorder(BorderFactory.createEmptyBorder(12, 12, 4, 12));
@@ -78,6 +88,8 @@ public final class PreferencesDialogBox extends JDialog {
 		form.add(new JLabel(UsabilityStrings.text("preferences.fontSize"))); form.add(size);
 		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarText"))); form.add(ganttBarText);
 		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarTextPosition"))); form.add(ganttBarTextPosition);
+		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarColor")));
+		JPanel barColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); barColorControls.add(defaultBarColor); barColorControls.add(resetBarColor); form.add(barColorControls);
 		form.add(new JLabel(UsabilityStrings.text("preferences.gridColor")));
 		JPanel gridColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); gridColorControls.add(gridColor); gridColorControls.add(resetGridColor); form.add(gridColorControls);
 		form.add(new JLabel()); form.add(rowLines);
@@ -97,6 +109,7 @@ public final class PreferencesDialogBox extends JDialog {
 					: rightPosition.equals(ganttBarTextPosition.getSelectedItem())
 						? GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT : GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO);
 			preferences.setGridLineColor(selectedGridColor[0] == null ? null : Integer.valueOf(selectedGridColor[0].getRGB()));
+			preferences.setDefaultGanttBarColor(selectedBarColor[0] == null ? null : Integer.valueOf(selectedBarColor[0].getRGB()));
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
 			dispose();
 		});
@@ -112,5 +125,10 @@ public final class PreferencesDialogBox extends JDialog {
 	private static void updateGridColorButton(JButton button, Color color) {
 		button.setBackground(color);
 		button.setText(color == null ? UsabilityStrings.text("preferences.gridColorAutomatic") : String.format("#%06X", color.getRGB() & 0x00ffffff));
+	}
+
+	private static void updateDefaultBarColorButton(JButton button, Color color) {
+		button.setBackground(color);
+		button.setText(color == null ? UsabilityStrings.text("preferences.ganttBarColorAutomatic") : String.format("#%06X", color.getRGB() & 0x00ffffff));
 	}
 }

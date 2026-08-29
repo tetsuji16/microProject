@@ -19,6 +19,7 @@ class GlobalPreferencesTest {
 		String originalFamily = preferences.getFontFamily();
 		int originalSize = preferences.getFontSize();
 		Integer originalGridColor = preferences.getGridLineColor();
+		Integer originalBarColor = preferences.getDefaultGanttBarColor();
 		String originalGanttBarText = preferences.getDefaultGanttBarText();
 		String originalGanttBarTextPosition = preferences.getDefaultGanttBarTextPosition();
 		try {
@@ -38,6 +39,10 @@ class GlobalPreferencesTest {
 			assertEquals(Integer.valueOf(0x345678), preferences.getGridLineColor());
 			preferences.setGridLineColor(null);
 			assertEquals(null, preferences.getGridLineColor());
+			preferences.setDefaultGanttBarColor(Integer.valueOf(0xAA123456));
+			assertEquals(Integer.valueOf(0x123456), preferences.getDefaultGanttBarColor());
+			preferences.setDefaultGanttBarColor(null);
+			assertEquals(null, preferences.getDefaultGanttBarColor());
 			preferences.setDefaultGanttBarText(GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME);
 			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME, preferences.getDefaultGanttBarText());
 			preferences.setDefaultGanttBarText("unsupported");
@@ -52,6 +57,7 @@ class GlobalPreferencesTest {
 			preferences.setFontFamily(originalFamily);
 			preferences.setFontSize(originalSize);
 			preferences.setGridLineColor(originalGridColor);
+			preferences.setDefaultGanttBarColor(originalBarColor);
 			preferences.setDefaultGanttBarText(originalGanttBarText);
 			preferences.setDefaultGanttBarTextPosition(originalGanttBarTextPosition);
 		}

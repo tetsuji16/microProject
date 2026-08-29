@@ -42,6 +42,8 @@ public class GlobalPreferences {
 	private boolean showRowLines = STORE.getBoolean("showRowLines", false);
 	/** Null keeps grid lines synchronized with the active UI theme. */
 	private Integer gridLineColor = readColor("gridLineColor");
+	/** Null keeps the MS Project-compatible palette default for ordinary task bars. */
+	private Integer defaultGanttBarColor = readColor("defaultGanttBarColor");
 	private String fontFamily = STORE.get("fontFamily", "");
 	private int fontSize = clampFontSize(STORE.getInt("fontSize", 0));
 	private String defaultGanttBarText = normalizeGanttBarText(
@@ -105,6 +107,16 @@ public class GlobalPreferences {
 		gridLineColor = normalized;
 		if (normalized == null) STORE.remove("gridLineColor");
 		else STORE.putInt("gridLineColor", normalized.intValue());
+		fireUpdateEvent(this, this);
+	}
+
+	public Integer getDefaultGanttBarColor() { return defaultGanttBarColor; }
+	public void setDefaultGanttBarColor(Integer value) {
+		Integer normalized = value == null ? null : Integer.valueOf(value.intValue() & 0x00ffffff);
+		if (java.util.Objects.equals(defaultGanttBarColor, normalized)) return;
+		defaultGanttBarColor = normalized;
+		if (normalized == null) STORE.remove("defaultGanttBarColor");
+		else STORE.putInt("defaultGanttBarColor", normalized.intValue());
 		fireUpdateEvent(this, this);
 	}
 
