@@ -296,6 +296,7 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 //			System.out.println("zz " +zz);
 			startDateChooser.setValue(d);
 			forward.setSelected(form.isForward());
+			resourcePool.setSelectedItem(form.getResourcePool() == null ? "" : form.getResourcePool());
 //			remote.setSelected(!form.isLocal());
 			projectType.setSelectedItem(Integer.valueOf(form.getProjectType()));
 			projectStatus.setSelectedItem(Integer.valueOf(form.getProjectStatus()));
@@ -324,9 +325,7 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 				d = CalendarOption.getInstance().makeValidEnd(d, true);
 			}
 			form.setStartDate(d);
-//			Object pool = resourcePool.getSelectedItem();
-//			if (pool instanceof ResourcePool)
-//				form.setResourcePool((ResourcePool) pool);
+			form.setResourcePool(selectedResourcePool(resourcePool.getSelectedItem()));
 			form.setForward(forward.isSelected());
 //			form.setLocal(!remote.isSelected());
 			form.setProjectType(projectType.getSelectedIndex()); // caution ids must be sequential
@@ -337,6 +336,10 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 			if (!Environment.getStandAlone()) form.setAccessControlType(accessControl.getSelectedIndex());
 		}
 		return true;
+	}
+
+	static ResourcePool selectedResourcePool(Object selected) {
+		return selected instanceof ResourcePool pool ? pool : null;
 	}
 
 	// Building *************************************************************
@@ -354,7 +357,7 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("default, 3dlu, 220dlu, 3dlu, default:grow", // cols //$NON-NLS-1$
-				"p, 3dlu,p, 3dlu,p, 3dlu, p, 3dlu, p, 3dlu,p, 3dlu, fill:50dlu:grow"); // rows //$NON-NLS-1$
+				"p, 3dlu,p, 3dlu,p, 3dlu, p, 3dlu, p, 3dlu,p, 3dlu, p, 3dlu, fill:50dlu:grow"); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
@@ -369,7 +372,9 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		builder.append(startDateChooser);
 		builder.append(forward);
 		builder.nextLine(2);
-		
+		builder.append(Messages.getString("Field.resourcePool"), resourcePool, 3); //$NON-NLS-1$
+		builder.nextLine(2);
+
 		if (!Environment.getStandAlone()) {
 			builder.append(Messages.getString("ProjectDialog.ProjectTeam")); //$NON-NLS-1$
 			builder.add(accessControl, cc.xy(builder.getColumn(), builder.getRow(),
@@ -397,8 +402,6 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		}
 		builder.nextLine(2);
 		
-//		builder.append("Shared resource Pool:", resourcePool);
-//		builder.nextLine(2);
 		builder.append(Messages.getString("ProjectDialog.Notes")); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.add(new JScrollPane(notes), cc.xyw(builder.getColumn(), builder
