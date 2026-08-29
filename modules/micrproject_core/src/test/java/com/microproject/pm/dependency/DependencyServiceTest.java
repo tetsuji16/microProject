@@ -71,6 +71,24 @@ class DependencyServiceTest {
 	}
 
 	@Test
+	void crossProjectLinksSupportEveryMicrosoftProjectDependencyType() throws InvalidAssociationException {
+		Project predecessorProject = createProject("predecessor-project");
+		Project successorProject = createProject("successor-project");
+		NormalTask predecessor = new NormalTask(predecessorProject);
+		NormalTask successor = new NormalTask(successorProject);
+		predecessorProject.connectTask(predecessor);
+		successorProject.connectTask(successor);
+
+		for (int type : new int[] { DependencyType.FS, DependencyType.SS, DependencyType.FF, DependencyType.SF }) {
+			Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, type, 0L, this);
+			assertEquals(type, dependency.getDependencyType());
+			assertSame(predecessor, dependency.getPredecessor());
+			assertSame(successor, dependency.getSuccessor());
+			DependencyService.getInstance().remove(dependency, this, false);
+		}
+	}
+
+	@Test
 	void dependencyDataObjectHasStableIdentityAndName() throws InvalidAssociationException {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
@@ -290,6 +308,12 @@ class DependencyServiceTest {
 
 		assertFalse(predecessor.getSuccessorList().iterator().hasNext());
 		assertFalse(successor.getPredecessorList().iterator().hasNext());
+	}
+
+	private static Project createProject(String name) {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool(name, undoController);
+		return Project.createProject(resourcePool, undoController);
 	}
 
 	private static final class SubprojectTask extends NormalTask implements SubProj {
