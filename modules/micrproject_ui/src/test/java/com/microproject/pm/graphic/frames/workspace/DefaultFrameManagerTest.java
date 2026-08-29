@@ -42,7 +42,8 @@ class DefaultFrameManagerTest {
 	@Test
 	void projectSelectorActivatesTheSelectedOpenProjectFrame() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			JPanel container = new JPanel(new BorderLayout());
+			TrackingPanel container = new TrackingPanel();
+			container.setLayout(new BorderLayout());
 			JPanel emptyPanel = new JPanel();
 			GraphicManager graphicManager = new GraphicManager(new JPanel());
 			DefaultFrameManager frameManager = new DefaultFrameManager(container, emptyPanel, graphicManager);
@@ -58,6 +59,7 @@ class DefaultFrameManagerTest {
 			assertTrue(secondProject.isActive());
 			assertFalse(firstProject.isActive());
 
+			container.resetRepaintCount();
 			projectSelector.setSelectedItem(firstProject);
 
 			assertSame(firstProject, frameManager.getSelectedFrame());
@@ -66,7 +68,22 @@ class DefaultFrameManagerTest {
 			assertFalse(secondProject.isActive());
 			assertFalse(secondProject.isVisible());
 			assertSame(firstProject, container.getComponent(0));
+			assertTrue(container.repaintCount > 0, "Switching open projects must repaint the document container");
 		});
+	}
+
+	private static final class TrackingPanel extends JPanel {
+		private int repaintCount;
+
+		@Override
+		public void repaint() {
+			repaintCount++;
+			super.repaint();
+		}
+
+		private void resetRepaintCount() {
+			repaintCount = 0;
+		}
 	}
 
 	private static final class TestNamedFrame extends NamedFrame {

@@ -35,6 +35,7 @@ import java.util.LinkedList;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.RootPaneContainer;
@@ -134,13 +135,27 @@ public class DefaultFrameManager implements FrameManager {
 				container.remove(emptyPanel);
 		}
 		previous = frame;
-		if (frame == null) // happens when closing all
+		if (frame == null) { // happens when closing all
+			refreshContainer();
 			return;
+		}
 		container.add(frame,"Center");
 		frame.setActive(true);
 		frame.setVisible(true);
+		refreshContainer();
 
 
+	}
+
+	private void refreshContainer() {
+		if (container instanceof JComponent component)
+			component.revalidate();
+		else if (container != null) {
+			container.invalidate();
+			container.validate();
+		}
+		if (container != null)
+			container.repaint();
 	}
 	public NamedFrame getFrame(String id) {
 		for (int i = 0; i < getProjectComboBox().getItemCount(); i++) {
@@ -272,4 +287,3 @@ public class DefaultFrameManager implements FrameManager {
 	}
 
 }
-
