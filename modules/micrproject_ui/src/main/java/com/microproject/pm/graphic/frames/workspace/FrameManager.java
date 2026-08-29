@@ -36,9 +36,9 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 	void removeFrame(NamedFrame frame);
 	Workspace getWorkspace();
 	void activateFrame(NamedFrame frame);
+	default void arrangeAll() { }
 	Component getSelectedFrame();
 	AbstractList getAllFrames();
 	void setTabTitle(NamedFrame frame, String tabTitle);
 	void update();
 }
-

@@ -142,7 +142,7 @@ final class RibbonCommandCatalog {
 		register(result, CommandScope.VIEW, VIEW,
 			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
 			"RibbonTimeline", "RibbonCalendarView", "RibbonProjects", "RibbonTaskUsageDetail", "RibbonResourceUsageDetail", "RibbonNoTextNoSubWindow",
-			"RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonCCPMNetwork");
+			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonCCPMNetwork");
 		register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
 			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBar", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");

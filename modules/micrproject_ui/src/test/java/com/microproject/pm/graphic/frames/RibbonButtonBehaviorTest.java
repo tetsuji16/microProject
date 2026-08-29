@@ -550,6 +550,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsert",
 			"RibbonInsertResource",
 			"RibbonInsertRecurring",
+			"RibbonArrangeAll",
 			"RibbonLevelResources",
 			"RibbonCCPMSettings",
 			"RibbonCCPMClear",

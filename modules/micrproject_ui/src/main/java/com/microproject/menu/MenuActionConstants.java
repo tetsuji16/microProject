@@ -84,6 +84,7 @@ public interface MenuActionConstants {
 	public static final String ACTION_TASK_USAGE              = "TaskUsage";
 	public static final String ACTION_RESOURCE_USAGE          = "ResourceUsage";
 	public static final String ACTION_NO_SUB_WINDOW           = "NoSubWindow";
+	public static final String ACTION_ARRANGE_ALL             = "ArrangeAll";
 	public static final String ACTION_TIMELINE                = "Timeline";
 	public static final String ACTION_CALENDAR_VIEW           = "CalendarView";
 

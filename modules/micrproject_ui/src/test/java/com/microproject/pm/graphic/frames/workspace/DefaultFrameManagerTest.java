@@ -24,6 +24,7 @@
 package com.microproject.pm.graphic.frames.workspace;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -69,6 +70,33 @@ class DefaultFrameManagerTest {
 			assertFalse(secondProject.isVisible());
 			assertSame(firstProject, container.getComponent(0));
 			assertTrue(container.repaintCount > 0, "Switching open projects must repaint the document container");
+		});
+	}
+
+	@Test
+	void arrangeAllTilesOpenProjectsAndProjectSelectionReturnsToSingleFrame() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			container.setLayout(new BorderLayout());
+			DefaultFrameManager manager = new DefaultFrameManager(container, new JPanel(), new GraphicManager(new JPanel()));
+			TestNamedFrame first = new TestNamedFrame("first", "First");
+			TestNamedFrame second = new TestNamedFrame("second", "Second");
+			manager.addFrame(first);
+			manager.addFrame(second);
+
+			manager.arrangeAll();
+
+			assertTrue(container.getComponent(0) instanceof JPanel);
+			assertEquals(2, ((JPanel) container.getComponent(0)).getComponentCount());
+			assertTrue(first.isVisible());
+			assertTrue(second.isVisible());
+			assertTrue(second.isActive());
+
+			manager.activateFrame(first);
+
+			assertSame(first, container.getComponent(0));
+			assertTrue(first.isActive());
+			assertFalse(second.isVisible());
 		});
 	}
 

@@ -1458,6 +1458,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TASK_USAGE, new ViewAction(ACTION_TASK_USAGE));
 		actionsMap.addHandler(ACTION_RESOURCE_USAGE, new ViewAction(ACTION_RESOURCE_USAGE));
 		actionsMap.addHandler(ACTION_NO_SUB_WINDOW, new ViewAction(ACTION_NO_SUB_WINDOW));
+		actionsMap.addHandler(ACTION_ARRANGE_ALL, new ArrangeAllAction());
 
 		actionsMap.addHandler(ACTION_CHOOSE_FILTER, new TransformAction(TransformComboBoxModel.FILTER));
 		actionsMap.addHandler(ACTION_CHOOSE_SORT, new TransformAction(TransformComboBoxModel.SORTER));
@@ -2829,6 +2830,17 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 			return true;
 		}
 		return false;
+	}
+
+	public class ArrangeAllAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			getFrameManager().arrangeAll();
+		}
+		protected boolean allowed(boolean enable) {
+			return getFrameManager() != null && getFrameManager().getAllFrames().size() > 1;
+		}
 	}
 
 

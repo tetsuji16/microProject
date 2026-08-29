@@ -27,6 +27,7 @@ package com.microproject.pm.graphic.frames.workspace;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.AbstractList;
@@ -62,6 +63,7 @@ public class DefaultFrameManager implements FrameManager {
 	NamedFrame previous = null;
 	GraphicManager graphicManager;
 	private FrameWorkspace workspace;
+	private JPanel arrangedFrames;
 	public DefaultFrameManager(Container container, Container emptyPanel, GraphicManager graphicManager) {
 		this.container = container;
 		this.emptyPanel = emptyPanel;
@@ -125,6 +127,7 @@ public class DefaultFrameManager implements FrameManager {
 
 
 	public void activateFrame(NamedFrame frame) {
+		leaveArrangeAll();
 		getProjectComboBox().setSelectedItem(frame);
 		if (previous != null) {
 			container.remove(previous);
@@ -145,6 +148,35 @@ public class DefaultFrameManager implements FrameManager {
 		refreshContainer();
 
 
+	}
+
+	/** Displays all open project frames in a compact grid, like MS Project Arrange All. */
+	public void arrangeAll() {
+		int count = getProjectComboBox().getItemCount();
+		if (count < 2 || container == null)
+			return;
+		leaveArrangeAll();
+		if (previous != null)
+			container.remove(previous);
+		int columns = (int) Math.ceil(Math.sqrt(count));
+		int rows = (int) Math.ceil((double) count / columns);
+		arrangedFrames = new JPanel(new GridLayout(rows, columns, 6, 6));
+		for (int index = 0; index < count; index++) {
+			NamedFrame frame = (NamedFrame) getProjectComboBox().getItemAt(index);
+			frame.setActive(frame == previous);
+			frame.setVisible(true);
+			arrangedFrames.add(frame);
+		}
+		container.add(arrangedFrames, "Center");
+		refreshContainer();
+	}
+
+	private void leaveArrangeAll() {
+		if (arrangedFrames == null || container == null)
+			return;
+		container.remove(arrangedFrames);
+		arrangedFrames.removeAll();
+		arrangedFrames = null;
 	}
 
 	private void refreshContainer() {
@@ -190,6 +222,7 @@ public class DefaultFrameManager implements FrameManager {
 	public void removeFrame(NamedFrame frame) {
 		if (frame == null) // in case of subproject for example, it didn't have its own frame
 			return;
+		leaveArrangeAll();
 		getProjectComboBox().removeItem(frame);
 		container.remove(frame);
 		((DocumentFrame)frame).cleanUp();
