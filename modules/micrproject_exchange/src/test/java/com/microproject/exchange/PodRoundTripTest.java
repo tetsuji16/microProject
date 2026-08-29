@@ -29,6 +29,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -75,6 +77,45 @@ public class PodRoundTripTest {
 		exporter.exportFile();
 
 		assertEquals(expectedPresets, load(saved).getCustomReportPresets());
+	}
+
+	@Test
+	public void podRoundTripPreservesReferringMasterProjectPlaceholder() throws Exception {
+		DataFactoryUndoController masterUndo = new DataFactoryUndoController();
+		Project master = Project.createProject(ResourcePool.createRourcePool("master", masterUndo), masterUndo);
+		master.initialize(false, false);
+		DataFactoryUndoController childUndo = new DataFactoryUndoController();
+		Project child = Project.createProject(ResourcePool.createRourcePool("child", childUndo), childUndo);
+		child.initialize(false, false);
+
+		Node placeholderNode = master.createLocalTaskNode(null);
+		Task placeholder = (Task)placeholderNode.getImpl();
+		placeholder.setName("Child project reference");
+		master.getSubprojectHandler().addSubproject(child, placeholderNode, true, false);
+		long referringProjectId = placeholder.getProjectId();
+		assertEquals(1, child.getReferringSubprojectTasks().size());
+		Serializer serializer = new Serializer();
+		ProjectData serialized = serializer.serializeProject(child);
+		assertEquals(1, serialized.getReferringSubprojectTasks().size());
+		assertEquals(1, serializer.deserializeProject(serialized, false, null, null).getReferringSubprojectTasks().size());
+
+		File saved = File.createTempFile("microproject-subproject-reference", ".pod");
+		saved.deleteOnExit();
+		LocalFileImporter exporter = new LocalFileImporter();
+		exporter.setFileName(saved.getAbsolutePath());
+		exporter.setProject(child);
+		exporter.exportFile();
+		try (ObjectInputStream input = com.microproject.util.SafeObjectInput.create(new FileInputStream(saved))) {
+			input.readObject();
+			ProjectData persisted = (ProjectData)input.readObject();
+			assertEquals(1, persisted.getReferringSubprojectTasks().size());
+		}
+
+		Project restored = load(saved);
+		assertEquals(1, restored.getReferringSubprojectTasks().size());
+		Task restoredPlaceholder = (Task)restored.getReferringSubprojectTasks().iterator().next();
+		assertEquals("Child project reference", restoredPlaceholder.getName());
+		assertEquals(referringProjectId, restoredPlaceholder.getProjectId());
 	}
 
 	@Test

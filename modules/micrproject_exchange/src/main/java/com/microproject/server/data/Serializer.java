@@ -542,6 +542,19 @@ public class Serializer {
         projectData.setAccessControlPolicy(project.getAccessControlPolicy());
         projectData.setCreationDate(project.getCreationDate());
         projectData.setLastModificationDate(project.getLastModificationDate());
+		Collection<DataObject> referringSubprojectTasks = new ArrayList<DataObject>();
+		for (Object value : project.getReferringSubprojectTasks()) {
+			if (!(value instanceof Task))
+				continue;
+			Task referringTask = (Task)value;
+			TaskData referringTaskData = (TaskData)serialize(referringTask, TaskData.FACTORY, null);
+			referringTaskData.setNotes(referringTask.getNotes());
+			referringTaskData.setProjectId(referringTask.getProjectId());
+			if (referringTask.isSubproject())
+				referringTaskData.setSubprojectId(((SubProj)referringTask).getSubprojectUniqueId());
+			referringSubprojectTasks.add(referringTaskData);
+		}
+		projectData.setReferringSubprojectTasks(referringSubprojectTasks);
         //  	System.out.println("done serialize project " + project);
 
 //        Collection<DistributionData> dis=(Collection<DistributionData>)projectData.getDistributions();
@@ -1033,33 +1046,7 @@ public class Serializer {
     		}
 
 
-    		// the collection which holds a list of corresponding subproject tasks for projects which include this project
-    		// note that their task names have been transformed to hold the name of the project
-    		Collection<TaskData> referringSubprojectTaskData=(Collection<TaskData>)(Collection<?>)projectData.getReferringSubprojectTasks();
-    		if (tasks!=null&&referringSubprojectTaskData!=null){
-    			ArrayList<Task> referringSubprojectTasks = new ArrayList<>(referringSubprojectTaskData.size());
-    			project.setReferringSubprojectTasks(referringSubprojectTasks);
-    			for (TaskData taskData:referringSubprojectTaskData){
-    				String projectName = taskData.getName(); // it was set to the referrig project name by synchronizer
-    				task = null;
-    				try {
-    					task = (NormalTask)deserialize(taskData,reindex);
-    				} catch (Exception e) {
-    					if (taskData.isSubproject()){ //For migration
-    						task=(NormalTask) project.getSubprojectHandler().createSubProj(taskData.getSubprojectId());
-    						task.setUniqueId(taskData.getUniqueId());
-    						task.setName(taskData.getName());
-    						((SubProj)task).setSubprojectFieldValues(taskData.getSubprojectFieldValues());
-    					}
-    					else throw new IOException("Subproject:"+e);
-    				}
-    				task.setName(projectName);
-    				task.setProjectId(taskData.getProjectId());
-    				referringSubprojectTasks.add(task);
-    			}
-    		}
-
-    		//dependencies
+			//dependencies
     		//Set<DependencyKey> initialLinkIds=null;
     		for (TaskData successorssorData:getTaskDataCollection(projectData)){
     			if (successorssorData.getPredecessors()!=null){
@@ -1084,9 +1071,9 @@ public class Serializer {
     			}
     		}
 
-    	}
+		}
 
-    	//task outline
+		//task outline
     	if (tasks!=null){
 
     		//add missing summary task
@@ -1175,9 +1162,34 @@ public class Serializer {
 
 
 
-    	project.initialize(subproject,updateDistribution&&!fixCorruption);
+		project.initialize(subproject,updateDistribution&&!fixCorruption);
+		// This relationship also exists for an empty child project. Restore it after
+		// initialization, which rebuilds the transient subproject handler.
+		Collection<TaskData> referringSubprojectTaskData=(Collection<TaskData>)(Collection<?>)projectData.getReferringSubprojectTasks();
+		if (referringSubprojectTaskData!=null){
+			ArrayList<Task> referringSubprojectTasks = new ArrayList<>(referringSubprojectTaskData.size());
+			for (TaskData taskData:referringSubprojectTaskData){
+				String projectName = taskData.getName(); // it was set to the referrig project name by synchronizer
+				NormalTask referringTask;
+				try {
+					referringTask = (NormalTask)deserialize(taskData,reindex);
+				} catch (Exception e) {
+					if (taskData.isSubproject()){ //For migration
+						referringTask=(NormalTask) project.getSubprojectHandler().createSubProj(taskData.getSubprojectId());
+						referringTask.setUniqueId(taskData.getUniqueId());
+						referringTask.setName(taskData.getName());
+						((SubProj)referringTask).setSubprojectFieldValues(taskData.getSubprojectFieldValues());
+					}
+					else throw new IOException("Subproject:"+e);
+				}
+				referringTask.setName(projectName);
+				referringTask.setProjectId(taskData.getProjectId());
+				referringSubprojectTasks.add(referringTask);
+			}
+			project.setReferringSubprojectTasks(referringSubprojectTasks);
+		}
 
-    	projectData.emtpy();
+		projectData.emtpy();
     	//incremental.setProject(projectData); //remove
 
     	(new DistributionConverter()).substractDistributionFromProject(project);
