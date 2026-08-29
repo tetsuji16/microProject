@@ -77,8 +77,12 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 		if (subproject == null)
 			throw new IllegalArgumentException("Subproject cannot be null");
 		subproject.setOpenedAsSubproject(true);
-		if (subprojectNode != null && subprojectNode.getImpl() instanceof Task)
-			subproject.setContainingSubprojectTask((Task) subprojectNode.getImpl());
+		if (subprojectNode != null && subprojectNode.getImpl() instanceof Task task) {
+			subproject.setContainingSubprojectTask(task);
+			Collection referringTasks = subproject.getReferringSubprojectTasks();
+			if (!referringTasks.contains(task))
+				referringTasks.add(task);
+		}
 	}
 
 	public boolean canInsertProject(long projectId) {

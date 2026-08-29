@@ -26,11 +26,17 @@ package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
+
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.undo.DataFactoryUndoController;
 
 class DefaultSubprojectHandlerTest {
 	@Test
@@ -44,6 +50,28 @@ class DefaultSubprojectHandlerTest {
 		assertTrue(subproject instanceof NormalTask);
 		assertEquals(42L, subproject.getSubprojectUniqueId());
 		assertEquals(0L, handler.getReferringSubprojectTaskDependencyDate());
+	}
+
+	@Test
+	void insertingASubprojectRecordsTheParentPlaceholderForPersistenceWithoutDuplicates() {
+		Project master = newProject("master");
+		Project subproject = newProject("subproject");
+		NormalTask placeholder = new NormalTask(master);
+		Node node = NodeFactory.getInstance().createNode(placeholder);
+		DefaultSubprojectHandler handler = new DefaultSubprojectHandler(master);
+
+		handler.addSubproject(subproject, node, true, false);
+		handler.addSubproject(subproject, node, false, true);
+
+		assertTrue(subproject.isOpenedAsSubproject());
+		assertSame(placeholder, subproject.getContainingSubprojectTask());
+		assertEquals(1, subproject.getReferringSubprojectTasks().size());
+		assertSame(placeholder, subproject.getReferringSubprojectTasks().iterator().next());
+	}
+
+	private static Project newProject(String name) {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		return Project.createProject(ResourcePool.createRourcePool(name, undo), undo);
 	}
 
 }
