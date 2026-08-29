@@ -27,9 +27,11 @@ package com.microproject.pm.graphic.gantt;
 import java.awt.FontMetrics;
 import java.awt.Rectangle;
 import java.awt.Color;
+import java.awt.Shape;
 
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.graphic.configuration.shape.PredefinedShape;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.util.FlatUiSupport;
@@ -50,6 +52,14 @@ final class GanttRendererSupport {
 	}
 
 	private GanttRendererSupport() {
+	}
+
+	static Shape individualMilestoneShape(String shapeName, double size, double x, double y) {
+		if (!"DIAMOND".equals(shapeName) && !"SQUARE".equals(shapeName)
+				&& !"TRIANGLE_UP".equals(shapeName) && !"TRIANGLE_DOWN".equals(shapeName))
+			return null;
+		PredefinedShape shape = PredefinedShape.find(shapeName);
+		return shape == null ? null : shape.toGeneralPath(size, size, x, y);
 	}
 
 	static boolean shouldSuppressTaskBarForAssignments(Object impl, boolean summary, BarFormat format, boolean assignmentRowsVisible) {

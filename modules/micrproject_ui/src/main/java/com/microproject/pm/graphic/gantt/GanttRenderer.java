@@ -305,6 +305,22 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 	}
 
+	private void drawIndividualMilestoneShape(String shapeName, Graphics2D g2, double size, double x, double y,
+			Color fillColor, Color strokeColor) {
+		Shape path = GanttRendererSupport.individualMilestoneShape(shapeName, size, x, y);
+		if (path == null)
+			return;
+		Color oldColor = g2.getColor();
+		try {
+			g2.setColor(fillColor);
+			g2.fill(path);
+			g2.setColor(strokeColor);
+			g2.draw(path);
+		} finally {
+			g2.setColor(oldColor);
+		}
+	}
+
 	private boolean shouldSuppressTaskBarForAssignments(GraphicNode node, BarFormat format) {
 		return GanttRendererSupport.shouldSuppressTaskBarForAssignments(
 				getNodeImpl(node),
@@ -668,7 +684,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			Color endpointColor = GanttBarSupport.shouldUseUniformEndpointColor(format) ? statusColor : accentColor;
 			Color startColor = resolveEndpointColor(node, format, endpointColor, true);
 			Color endColor = resolveEndpointColor(node, format, endpointColor, false);
-			if (format.getStart()!=null) drawConfiguredShape(format.getStart(), g2, dw, height, x , y, startColor, startColor, new Rectangle2D.Double(x, y - height / 2.0, dw, height), false);
+			String milestoneShape = getIndividualBarFormat(node, format).getMilestoneShapeName();
+			if (format.getStart()!=null) {
+				if (milestoneShape != null && getNodeImpl(node) instanceof Task task && task.isMilestone())
+					drawIndividualMilestoneShape(milestoneShape, g2, dw, x, y, startColor, startColor);
+				else
+					drawConfiguredShape(format.getStart(), g2, dw, height, x, y, startColor, startColor, new Rectangle2D.Double(x, y - height / 2.0, dw, height), false);
+			}
 			if (format.getEnd()!=null) drawConfiguredShape(format.getEnd(), g2, dw, height, x+width, y, endColor, endColor, new Rectangle2D.Double(x + width, y - height / 2.0, dw, height), false);
 
 

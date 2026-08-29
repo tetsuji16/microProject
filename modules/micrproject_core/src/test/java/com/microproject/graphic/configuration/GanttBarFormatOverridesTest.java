@@ -70,9 +70,17 @@ class GanttBarFormatOverridesTest {
 	}
 
 	@Test
+	void milestoneShapeIsWhitelistedAndPersistsWithTheOverride() {
+		BarFormat format = new BarFormat(null, null, null).withMilestoneShapeName("TRIANGLE_UP");
+		assertEquals("TRIANGLE_UP", format.getMilestoneShapeName());
+		assertTrue(!format.isAutomatic());
+		assertNull(format.withMilestoneShapeName("ARROW_UP").getMilestoneShapeName());
+	}
+
+	@Test
 	void normalizesRgbAndPreservesItAcrossSerialization() throws Exception {
 		GanttBarFormatOverrides overrides = new GanttBarFormatOverrides();
-		overrides.set(GanttBarFormatOverrides.STANDARD_VIEW, 7L, new BarFormat(0xFFABCDEF, null, 0x00123456));
+		overrides.set(GanttBarFormatOverrides.STANDARD_VIEW, 7L, new BarFormat(0xFFABCDEF, null, 0x00123456, "SQUARE"));
 
 		byte[] serialized;
 		try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -90,5 +98,6 @@ class GanttBarFormatOverridesTest {
 		assertEquals(0xABCDEF, format.getStartRgb());
 		assertEquals(0x123456, format.getEndRgb());
 		assertNull(format.getMiddleRgb());
+		assertEquals("SQUARE", format.getMilestoneShapeName());
 	}
 }

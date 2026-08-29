@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.JComboBox;
 
 import org.junit.jupiter.api.Test;
 
@@ -123,6 +124,18 @@ class GanttBarFormatDialogTest {
 		assertTrue(allComponentsEnabled(panel, BarColorField.class));
 		assertEquals(1, countComponents(panel, JTabbedPane.class));
 		assertTrue(panel.getPreferredSize().width > 420);
+	}
+
+	@Test
+	void milestoneFormatPanelOffersTheSafeShapeChoices() {
+		JPanel panel = GanttBarFormatDialog.createPanelForTest(new BarFormat(null, null, null), true, false);
+		JTabbedPane tabs = findComponents(panel, JTabbedPane.class).get(0);
+		assertEquals(2, tabs.getTabCount());
+		assertEquals(1, countComponents(panel, JComboBox.class));
+		JComboBox<?> choices = findComponents(panel, JComboBox.class).get(0);
+		assertEquals(5, choices.getItemCount());
+		assertEquals(Messages.getString("Gantt.FormatBar.shapeDiamond"), choices.getItemAt(1).toString());
+		assertEquals(Messages.getString("Gantt.FormatBar.shapeTriangleDown"), choices.getItemAt(4).toString());
 	}
 
 	@Test

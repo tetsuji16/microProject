@@ -77,6 +77,15 @@ class GanttRendererSupportTest {
 	}
 
 	@Test
+	void individualMilestoneShapeProducesOnlyKnownShapePaths() {
+		assertNull(GanttRendererSupport.individualMilestoneShape("ARROW_UP", 12.0d, 30.0d, 20.0d));
+		assertTrue(GanttRendererSupport.individualMilestoneShape("DIAMOND", 12.0d, 30.0d, 20.0d).getBounds2D().getWidth() > 0.0d);
+		assertTrue(GanttRendererSupport.individualMilestoneShape("SQUARE", 12.0d, 30.0d, 20.0d).getBounds2D().getHeight() > 0.0d);
+		assertTrue(GanttRendererSupport.individualMilestoneShape("TRIANGLE_UP", 12.0d, 30.0d, 20.0d).getBounds2D().getWidth() > 0.0d);
+		assertTrue(GanttRendererSupport.individualMilestoneShape("TRIANGLE_DOWN", 12.0d, 30.0d, 20.0d).getBounds2D().getHeight() > 0.0d);
+	}
+
+	@Test
 	void clipAnnotationTextShortensWithEllipsis() {
 		FontMetrics metrics = createMetrics();
 		String clipped = GanttRendererSupport.clipAnnotationText(metrics, "project milestone", 40);

@@ -68,16 +68,23 @@ public final class GanttBarFormatOverrides implements Serializable {
 
 	public static final class BarFormat implements Serializable {
 		private static final long serialVersionUID = 1L;
-		private static final BarFormat AUTOMATIC = new BarFormat(null, null, null);
+		private static final BarFormat AUTOMATIC = new BarFormat(null, null, null, null);
 
 		private final Integer startRgb;
 		private final Integer middleRgb;
 		private final Integer endRgb;
+		/** A safe {@link com.microproject.graphic.configuration.shape.PredefinedShape} name for milestones. */
+		private final String milestoneShapeName;
 
 		public BarFormat(Integer startRgb, Integer middleRgb, Integer endRgb) {
+			this(startRgb, middleRgb, endRgb, null);
+		}
+
+		public BarFormat(Integer startRgb, Integer middleRgb, Integer endRgb, String milestoneShapeName) {
 			this.startRgb = normalize(startRgb);
 			this.middleRgb = normalize(middleRgb);
 			this.endRgb = normalize(endRgb);
+			this.milestoneShapeName = normalizeMilestoneShapeName(milestoneShapeName);
 		}
 
 		public static BarFormat automatic() {
@@ -96,16 +103,20 @@ public final class GanttBarFormatOverrides implements Serializable {
 			return endRgb;
 		}
 
+		public String getMilestoneShapeName() {
+			return milestoneShapeName;
+		}
+
 		public BarFormat withStartRgb(Integer rgb) {
-			return new BarFormat(rgb, middleRgb, endRgb);
+			return new BarFormat(rgb, middleRgb, endRgb, milestoneShapeName);
 		}
 
 		public BarFormat withMiddleRgb(Integer rgb) {
-			return new BarFormat(startRgb, rgb, endRgb);
+			return new BarFormat(startRgb, rgb, endRgb, milestoneShapeName);
 		}
 
 		public BarFormat withEndRgb(Integer rgb) {
-			return new BarFormat(startRgb, middleRgb, rgb);
+			return new BarFormat(startRgb, middleRgb, rgb, milestoneShapeName);
 		}
 
 		/**
@@ -114,15 +125,26 @@ public final class GanttBarFormatOverrides implements Serializable {
 		 * whose configured style uses start or end shapes.
 		 */
 		public BarFormat withFillRgb(Integer rgb) {
-			return new BarFormat(rgb, rgb, rgb);
+			return new BarFormat(rgb, rgb, rgb, milestoneShapeName);
+		}
+
+		public BarFormat withMilestoneShapeName(String shapeName) {
+			return new BarFormat(startRgb, middleRgb, endRgb, shapeName);
 		}
 
 		public boolean isAutomatic() {
-			return startRgb == null && middleRgb == null && endRgb == null;
+			return startRgb == null && middleRgb == null && endRgb == null && milestoneShapeName == null;
 		}
 
 		private static Integer normalize(Integer rgb) {
 			return rgb == null ? null : rgb & 0x00FFFFFF;
+		}
+
+		private static String normalizeMilestoneShapeName(String shapeName) {
+			if ("DIAMOND".equals(shapeName) || "SQUARE".equals(shapeName)
+					|| "TRIANGLE_UP".equals(shapeName) || "TRIANGLE_DOWN".equals(shapeName))
+				return shapeName;
+			return null;
 		}
 
 		@Override
@@ -133,12 +155,13 @@ public final class GanttBarFormatOverrides implements Serializable {
 				return false;
 			return Objects.equals(startRgb, other.startRgb)
 					&& Objects.equals(middleRgb, other.middleRgb)
-					&& Objects.equals(endRgb, other.endRgb);
+					&& Objects.equals(endRgb, other.endRgb)
+					&& Objects.equals(milestoneShapeName, other.milestoneShapeName);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(startRgb, middleRgb, endRgb);
+			return Objects.hash(startRgb, middleRgb, endRgb, milestoneShapeName);
 		}
 	}
 }
