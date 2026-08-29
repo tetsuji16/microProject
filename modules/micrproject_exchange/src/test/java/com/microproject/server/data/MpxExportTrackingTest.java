@@ -31,6 +31,7 @@ import java.util.Iterator;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -39,6 +40,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.scheduling.SchedulingType;
 import com.microproject.undo.DataFactoryUndoController;
 
 import junit.framework.TestCase;
@@ -122,6 +124,11 @@ public class MpxExportTrackingTest extends TestCase {
 		sourceTask.setPercentWorkComplete(0.40d);
 		sourceTask.setPhysicalPercentComplete(0.30d);
 		sourceTask.setInactiveTask(true);
+		sourceTask.setEffortDriven(false);
+		sourceTask.setSchedulingType(SchedulingType.Kind.FIXED_DURATION.code());
+		sourceTask.setPriority(800);
+		sourceTask.setFixedCost(1234.5d);
+		sourceTask.setFixedCostAccrual(Accrual.Kind.START.code());
 
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		MicrosoftImporter exporter = new MicrosoftImporter();
@@ -155,6 +162,11 @@ public class MpxExportTrackingTest extends TestCase {
 		assertEquals(0.30d, reloadedTask.getPhysicalPercentComplete(), 0.00001d);
 		assertTrue(reloadedTask.isManuallyScheduled());
 		assertTrue(reloadedTask.isInactiveTask());
+		assertFalse(reloadedTask.isEffortDriven());
+		assertEquals(SchedulingType.Kind.FIXED_DURATION.code(), reloadedTask.getSchedulingType());
+		assertEquals(800, reloadedTask.getPriority());
+		assertEquals(1234.5d, reloadedTask.getFixedCost(), 0.00001d);
+		assertEquals(Accrual.Kind.START.code(), reloadedTask.getFixedCostAccrual());
 	}
 
 	public void testMicrosoftXmlRoundTripPreservesCrossProjectDependencies() throws Exception {

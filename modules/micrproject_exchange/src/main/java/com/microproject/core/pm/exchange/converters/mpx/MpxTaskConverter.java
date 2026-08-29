@@ -27,8 +27,12 @@ package com.microproject.core.pm.exchange.converters.mpx;
 import java.util.Date;
 
 import com.microproject.core.time.TimeUtil;
+import com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConverter;
+import com.microproject.core.pm.exchange.converters.mpx.type.MpxPriorityConverter;
+import com.microproject.core.pm.exchange.converters.mpx.type.MpxSchedulingTypeConverter;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
 
 import net.sf.mpxj.Duration;
@@ -83,6 +87,18 @@ public class MpxTaskConverter {
 		task.setPercentComplete(toRatio(mpxTask.getPercentageComplete()));
 		if (mpxTask.getPhysicalPercentComplete() != null)
 			task.setPhysicalPercentComplete(toRatio(mpxTask.getPhysicalPercentComplete()));
+		if (task instanceof NormalTask) {
+			NormalTask normalTask=(NormalTask)task;
+			normalTask.setEffortDriven(mpxTask.getEffortDriven());
+			if (mpxTask.getType() != null)
+				normalTask.setSchedulingType(((Integer)new MpxSchedulingTypeConverter().from(mpxTask.getType())).intValue());
+			if (mpxTask.getPriority() != null)
+				normalTask.setPriority(((Integer)new MpxPriorityConverter().from(mpxTask.getPriority())).intValue());
+			if (mpxTask.getFixedCost() != null)
+				normalTask.setFixedCost(mpxTask.getFixedCost().doubleValue());
+			if (mpxTask.getFixedCostAccrual() != null)
+				normalTask.setFixedCostAccrual(((Integer)new MpxAccrueTypeConverter().from(mpxTask.getFixedCostAccrual())).intValue());
+		}
 
 		task.setInactiveTask(!mpxTask.getActive());
 		task.setManuallyScheduled(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED);
