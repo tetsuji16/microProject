@@ -33,7 +33,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.Test;
@@ -55,6 +57,26 @@ import com.microproject.server.data.ProjectData;
 import com.microproject.server.data.Serializer;
 
 public class PodRoundTripTest {
+	@Test
+	public void podRoundTripPreservesProjectScopedCustomReportTemplates() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("custom-report-presets", undo), undo);
+		project.initialize(false, false);
+		Map<String, String> expectedPresets = new LinkedHashMap<>();
+		expectedPresets.put("Work chart", "template=chart\ncolumns=Field.name,Field.work,Field.actualWork,Field.remainingWork");
+		expectedPresets.put("Baseline comparison", "template=comparison\ncolumns=Field.name,Field.baselineStart,Field.baselineFinish");
+		project.getCustomReportPresets().putAll(expectedPresets);
+
+		File saved = File.createTempFile("microproject-custom-report-presets", ".pod");
+		saved.deleteOnExit();
+		LocalFileImporter exporter = new LocalFileImporter();
+		exporter.setFileName(saved.getAbsolutePath());
+		exporter.setProject(project);
+		exporter.exportFile();
+
+		assertEquals(expectedPresets, load(saved).getCustomReportPresets());
+	}
+
 	@Test
 	public void podRoundTripPreservesTaskVisibilityAndTextStyle() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
