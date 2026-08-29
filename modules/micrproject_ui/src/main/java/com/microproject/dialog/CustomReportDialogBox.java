@@ -58,6 +58,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
+import javax.swing.SwingUtilities;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
@@ -76,6 +77,8 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.scheduling.ScheduleEvent;
+import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
@@ -83,7 +86,7 @@ import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
 
 /** User-configurable task report with reusable presets, preview, print, and CSV export. */
-public final class CustomReportDialogBox extends JDialog {
+public final class CustomReportDialogBox extends JDialog implements ScheduleEventListener {
 	private static final long serialVersionUID = 1L;
 	enum ReportTemplate {
 		BLANK("blank", "report.template.blank", List.of()),
@@ -140,6 +143,7 @@ public final class CustomReportDialogBox extends JDialog {
 		getAccessibleContext().setAccessibleDescription(t("report.accessible"));
 		PopupDialogSupport.bindEscapeToDispose(this);
 		this.project = project;
+		project.addScheduleListener(this);
 		fields = reportFields();
 		columns = new JList<>(fields.toArray(Field[]::new));
 		columns.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
@@ -158,6 +162,22 @@ public final class CustomReportDialogBox extends JDialog {
 		preview.getAccessibleContext().setAccessibleName(t("report.accessible"));
 		refreshPresetNames(); generate();
 		setMinimumSize(new Dimension(950, 600)); setSize(1200, 760); setLocationRelativeTo(owner);
+	}
+
+	@Override
+	public void scheduleChanged(ScheduleEvent event) {
+		if (!isDisplayable())
+			return;
+		SwingUtilities.invokeLater(() -> {
+			if (isDisplayable())
+				generate();
+		});
+	}
+
+	@Override
+	public void dispose() {
+		project.removeScheduleListener(this);
+		super.dispose();
 	}
 
 	private JPanel buildSettings() {

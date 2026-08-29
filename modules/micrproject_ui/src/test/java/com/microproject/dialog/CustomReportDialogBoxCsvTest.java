@@ -19,8 +19,28 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CustomReportDialogBoxCsvTest {
+	@Test
+	void reportDialogSubscribesToScheduleChangesAndCleansUpOnDispose() throws Exception {
+		String source = reportDialogSource();
+		assertTrue(source.contains("implements ScheduleEventListener"));
+		assertTrue(source.contains("project.addScheduleListener(this)"));
+		assertTrue(source.contains("SwingUtilities.invokeLater"));
+		assertTrue(source.contains("project.removeScheduleListener(this)"));
+	}
+
+	private static String reportDialogSource() throws java.io.IOException {
+		for (java.nio.file.Path current = java.nio.file.Path.of("").toAbsolutePath(); current != null; current = current.getParent()) {
+			java.nio.file.Path source = current.resolve(
+				"modules/micrproject_ui/src/main/java/com/microproject/dialog/CustomReportDialogBox.java");
+			if (java.nio.file.Files.isRegularFile(source))
+				return java.nio.file.Files.readString(source);
+		}
+		throw new java.nio.file.NoSuchFileException("CustomReportDialogBox.java");
+	}
+
 	@Test
 	void reportTemplatesExposeTheFourMicrosoftProjectStartingPoints() {
 		assertEquals(List.of(), CustomReportDialogBox.ReportTemplate.BLANK.fieldIds());
