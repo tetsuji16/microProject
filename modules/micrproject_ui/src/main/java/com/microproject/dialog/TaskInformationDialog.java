@@ -28,8 +28,10 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -75,6 +77,8 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.key.HasId;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.strings.Messages;
@@ -530,14 +534,17 @@ public class TaskInformationDialog extends InformationDialog {
 		List<Task> candidates = getLinkableTasks(task, predecessors);
 		if (candidates.isEmpty())
 			return;
-		Task selected = (Task) JOptionPane.showInputDialog(this,
+		List<DependencyTaskChoice> choices = new ArrayList<>();
+		for (Task candidate : candidates)
+			choices.add(new DependencyTaskChoice(candidate));
+		DependencyTaskChoice selected = (DependencyTaskChoice) JOptionPane.showInputDialog(this,
 				Messages.getString(predecessors ? "TaskInformationDialog.Predecessors" : "TaskInformationDialog.Successors"), //$NON-NLS-1$ //$NON-NLS-2$
 				Messages.getString("Text.TaskDependency"), JOptionPane.PLAIN_MESSAGE, null,
-				candidates.toArray(), candidates.get(0)); //$NON-NLS-1$
+				choices.toArray(), choices.get(0)); //$NON-NLS-1$
 		if (selected == null)
 			return;
 		try {
-			createDependency(task, selected, predecessors, this);
+			createDependency(task, selected.task, predecessors, this);
 			updateAll();
 		} catch (InvalidAssociationException e) {
 			Alert.warn(e.getMessage(), this);
@@ -553,19 +560,49 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	private List<Task> getLinkableTasks(Task task, boolean predecessors) {
-		List<Task> candidates = new ArrayList<>();
-		for (Task candidate : task.getProject().getTaskList()) {
-			if (candidate != task && !candidate.isReadOnly() && !candidate.isExternal()
-					&& !isAlreadyLinked(task, candidate, predecessors))
-				candidates.add(candidate);
-		}
-		return candidates;
+		List<Project> projects = new ArrayList<>();
+		if (task.getProject() != null)
+			projects.add(task.getProject());
+		ProjectFactory.getInstance().getPortfolio().forProjects(value -> {
+			if (value instanceof Project project && !projects.contains(project))
+				projects.add(project);
+		});
+		return getLinkableTasks(task, predecessors, projects);
 	}
 
-	private boolean isAlreadyLinked(Task task, Task candidate, boolean predecessors) {
+	static List<Task> getLinkableTasks(Task task, boolean predecessors, Iterable<Project> projects) {
+		Set<Task> candidates = new LinkedHashSet<>();
+		for (Project project : projects) {
+			if (project == null)
+				continue;
+			for (Task candidate : project.getTaskList()) {
+				if (candidate != task && !candidate.isReadOnly() && !candidate.isExternal()
+						&& !isAlreadyLinked(task, candidate, predecessors))
+					candidates.add(candidate);
+			}
+		}
+		return new ArrayList<>(candidates);
+	}
+
+	private static boolean isAlreadyLinked(Task task, Task candidate, boolean predecessors) {
 		return predecessors
 				? task.getPredecessorList().findLeft(candidate) != null
 				: task.getSuccessorList().findRight(candidate) != null;
+	}
+
+	private static final class DependencyTaskChoice {
+		private final Task task;
+
+		private DependencyTaskChoice(Task task) {
+			this.task = task;
+		}
+
+		@Override
+		public String toString() {
+			Project project = task.getProject();
+			String projectName = project == null ? "" : project.getName();
+			return projectName + ": " + task.getName();
+		}
 	}
 
 	private void removeSelectedDependencies(boolean predecessors) {

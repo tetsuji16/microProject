@@ -1355,6 +1355,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public void addHandlers() {
+		if (menuManager == null)
+			menuManager = MenuManager.getInstance(this);
 		actionsMap = new MenuActionsMap(menuManager);
 		actionsMap.addHandler(ACTION_NEW_PROJECT, new NewProjectAction());
 		actionsMap.addHandler(ACTION_OPEN_PROJECT, new OpenProjectAction());

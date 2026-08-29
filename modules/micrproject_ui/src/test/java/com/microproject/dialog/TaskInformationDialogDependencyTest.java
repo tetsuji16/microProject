@@ -34,6 +34,9 @@ import com.microproject.undo.DataFactoryUndoController;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
 
 class TaskInformationDialogDependencyTest {
 	@Test
@@ -55,6 +58,30 @@ class TaskInformationDialogDependencyTest {
 		assertEquals(DependencyType.Kind.FS.code(), successorLink.getDependencyType());
 		assertEquals(1, current.getPredecessorList().size());
 		assertEquals(1, current.getSuccessorList().size());
+	}
+
+	@Test
+	void offersTasksFromOtherOpenProjectsForCrossProjectLinks() throws Exception {
+		Project firstProject = newProject("First");
+		Project secondProject = newProject("Second");
+		NormalTask current = addTask(firstProject);
+		NormalTask localCandidate = addTask(firstProject);
+		NormalTask crossProjectCandidate = addTask(secondProject);
+
+		List<com.microproject.pm.task.Task> candidates = TaskInformationDialog.getLinkableTasks(
+				current, true, List.of(firstProject, secondProject));
+
+		assertEquals(2, candidates.size());
+		assertTrue(candidates.contains(localCandidate));
+		assertTrue(candidates.contains(crossProjectCandidate));
+		Dependency dependency = TaskInformationDialog.createDependency(current, crossProjectCandidate, true, this);
+		assertSame(crossProjectCandidate, dependency.getPredecessor());
+		assertSame(current, dependency.getSuccessor());
+	}
+
+	private Project newProject(String name) {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		return Project.createProject(ResourcePool.createRourcePool(name, undoController), undoController);
 	}
 
 	private NormalTask addTask(Project project) {
