@@ -63,6 +63,12 @@ were removed so each key resolves to exactly one action.
 | `Insert` | Add a new task | `ACTION_NEW` on active spreadsheet | New global route (was only on spreadsheet `KeyListener`). |
 | `F2` | Activate entry bar / edit field | edit selected cell on active spreadsheet | New global route (was only on spreadsheet). |
 | `Shift+F2` | Display task/resource/assignment information | `ACTION_INFORMATION` | New. |
+| `Ctrl+Shift+K` | Show the CCPM remaining-buffer (fever) chart | `ACTION_CCPM_BUFFER_STATUS` | New. CCPM is not an MS Project feature, so this uses a chord that does NOT collide with MS Project's reserved keys (Ctrl+B=Bold, Ctrl+Shift+B=set work to 100%). |
+| `Ctrl+Shift+N` | Show the CCPM network | `ACTION_CCPM_NETWORK` | New. Avoids Ctrl+Shift+B (MSP: set work to 100%). |
+| `Ctrl+Alt+C` | Open CCPM settings | `ACTION_CCPM_SETTINGS` | New. |
+| `Ctrl+Shift+J` | Toggle the critical-chain Gantt overlay | `ACTION_TOGGLE_CRITICAL_CHAIN` | New. Avoids Ctrl+T (MSP: task information detail) and Ctrl+Shift+P (MSP: task information). |
+| `Ctrl+Shift+F` | Font dialog | `ACTION_FONT` | New. Matches MS Project's Ctrl+Shift+F (Font). |
+| `Ctrl+Shift+P` | Task Information | `ACTION_INFORMATION` | New. Matches MS Project's Ctrl+Shift+P; also reachable via Shift+F2. |
 
 ## Spreadsheet edit-entry and shortcut precedence
 

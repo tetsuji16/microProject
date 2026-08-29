@@ -35,6 +35,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 
+import java.awt.event.KeyEvent;
+
+import javax.swing.JButton;
 import javax.swing.JOptionPane;
 import javax.swing.Timer;
 
@@ -134,10 +137,13 @@ final class AutoRecoveryManager implements AutoSaveControl {
 			for (AutoRecoveryStore.Entry entry : store.listRecoverable()) {
 				String title = entry.displayName() == null ? UsabilityStrings.text("recovery.untitled") : entry.displayName();
 				String message = java.text.MessageFormat.format(UsabilityStrings.text("recovery.prompt"), title, entry.savedAt());
-				Object[] options = { UsabilityStrings.text("recovery.recover"), UsabilityStrings.text("recovery.discard"), UsabilityStrings.text("recovery.later") };
+				Object[] options = {
+					withMnemonic(UsabilityStrings.text("recovery.recover"), KeyEvent.VK_R),
+					withMnemonic(UsabilityStrings.text("recovery.discard"), KeyEvent.VK_D),
+					withMnemonic(UsabilityStrings.text("recovery.later"), KeyEvent.VK_L) };
 				int choice = JOptionPane.showOptionDialog(graphicManager.getFrame(), message,
-					UsabilityStrings.text("recovery.title"), JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
-					null, options, options[0]);
+						UsabilityStrings.text("recovery.title"), JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+						null, options, options[0]);
 				if (choice == 0) {
 					Project project = graphicManager.loadRecoveryDocument(entry);
 					recovered |= project != null;
@@ -152,6 +158,12 @@ final class AutoRecoveryManager implements AutoSaveControl {
 			LOGGER.log(Level.WARNING, "Could not inspect recovery snapshots", ex);
 			return false;
 		}
+	}
+
+	private static JButton withMnemonic(String label, int keyEvent) {
+		JButton button = new JButton(label);
+		button.setMnemonic(keyEvent);
+		return button;
 	}
 
 	private void save(Project project) {

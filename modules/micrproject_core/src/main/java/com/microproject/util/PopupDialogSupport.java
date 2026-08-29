@@ -29,6 +29,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 
 import javax.swing.Icon;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
@@ -69,7 +70,25 @@ public final class PopupDialogSupport {
 	}
 
 	public static int showConfirmDialog(Component parentComponent, Object message, String title, int optionType, int messageType, int escapeResult) {
+		// YES/NO confirmations get (Y)/(N) accelerator mnemonics so they can be driven
+		// from the keyboard (e.g. headless UI verification that cannot click the button).
+		if (optionType == JOptionPane.YES_NO_OPTION) {
+			JButton yes = new JButton(localized("dialog.yes", "Yes (Y)"));
+			yes.setMnemonic(KeyEvent.VK_Y);
+			JButton no = new JButton(localized("dialog.no", "No (N)"));
+			no.setMnemonic(KeyEvent.VK_N);
+			Object[] options = new Object[] { yes, no };
+			return showOptionDialog(parentComponent, message, title, JOptionPane.YES_NO_OPTION, messageType, null, options, no, escapeResult);
+		}
 		return showOptionDialog(parentComponent, message, title, optionType, messageType, null, null, null, escapeResult);
+	}
+
+	private static String localized(String key, String fallback) {
+		try {
+			return java.util.ResourceBundle.getBundle("com.microproject.dialog.usability").getString(key);
+		} catch (Exception ignored) {
+			return fallback;
+		}
 	}
 
 	public static int showOptionDialog(Component parentComponent, Object message, String title, int optionType, int messageType,

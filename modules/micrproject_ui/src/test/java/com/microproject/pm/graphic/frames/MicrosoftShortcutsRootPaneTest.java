@@ -201,6 +201,30 @@ class MicrosoftShortcutsRootPaneTest {
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK)),
 					"Ctrl+Minus must delete the selected row");
 
+			// Critical Chain (CCPM) shortcuts — reachable from the keyboard without
+			// colliding with MS Project's reserved keys (Ctrl+B=Bold, Ctrl+Shift+B=
+			// set work to 100%, Ctrl+Shift+P=task information, etc.).
+			assertEquals(MenuActionConstants.ACTION_CCPM_BUFFER_STATUS,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_K, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+K must open the CCPM remaining-buffer chart");
+			assertEquals(MenuActionConstants.ACTION_CCPM_NETWORK,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_N, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+N must open the CCPM network");
+			assertEquals(MenuActionConstants.ACTION_CCPM_SETTINGS,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_C, ctrl | InputEvent.ALT_DOWN_MASK)),
+					"Ctrl+Alt+C must open CCPM settings");
+			assertEquals(MenuActionConstants.ACTION_TOGGLE_CRITICAL_CHAIN,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_J, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+J must toggle the critical-chain Gantt overlay");
+
+			// MS Project-conformant editing shortcuts.
+			assertEquals(MenuActionConstants.ACTION_FONT,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+F must open the Font dialog");
+			assertEquals(MenuActionConstants.ACTION_INFORMATION,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_P, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+P must open Task Information");
+
 			// The bound action objects must actually exist in the action map.
 			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_CUT));
 			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_PASTE));

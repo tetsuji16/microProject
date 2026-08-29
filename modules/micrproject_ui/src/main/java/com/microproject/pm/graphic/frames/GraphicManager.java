@@ -3519,6 +3519,25 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, 0, collapseAction);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_R, ACTION_RECALCULATE, 0, new RecalculateAction());
 
+		// Critical Chain (CCPM) shortcuts. CCPM is a feature Microsoft Project does not
+		// have, so there is no MS-conformant binding to follow. We use chords that do NOT
+		// collide with MS Project's reserved keys (Ctrl+B = Bold, Ctrl+Shift+B = set work
+		// to 100%, Ctrl+Shift+P = task information, etc.) so the rest of the app stays
+		// MS-conformant: Ctrl+Shift+K shows the remaining-buffer chart, Ctrl+Shift+N the
+		// CCPM network, Ctrl+Alt+C opens CCPM settings, Ctrl+Shift+J toggles the
+		// critical-chain Gantt overlay.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_K, ACTION_CCPM_BUFFER_STATUS, InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_N, ACTION_CCPM_NETWORK, InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_CCPM_SETTINGS, InputEvent.ALT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_J, ACTION_TOGGLE_CRITICAL_CHAIN, InputEvent.SHIFT_DOWN_MASK, null);
+
+		// MS Project-conformant editing shortcuts. These bind the same action constants
+		// MS Project uses for the same keys, so the keyboard behaves like Project.
+		// Ctrl+Shift+F opens the Font dialog (MSP), Ctrl+Shift+P opens Task Information
+		// (MSP; also reachable via Shift+F2).
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F, ACTION_FONT, InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_P, ACTION_INFORMATION, InputEvent.SHIFT_DOWN_MASK, null);
+
 		// Spreadsheet editing / outline / information shortcuts (issue #47).
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_X, ACTION_CUT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_COPY, 0, null);
