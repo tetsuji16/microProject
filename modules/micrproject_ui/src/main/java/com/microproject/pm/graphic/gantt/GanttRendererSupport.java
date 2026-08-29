@@ -31,6 +31,7 @@ import java.awt.Color;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.BarFormat;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttProgress;
 
@@ -96,6 +97,12 @@ final class GanttRendererSupport {
 	}
 
 	static AnnotationLayout resolveAnnotationLayout(Rectangle clipBounds, double x0, double x1, int annotationOffset, int estimatedWidth) {
+		return resolveAnnotationLayout(clipBounds, x0, x1, annotationOffset, estimatedWidth,
+				GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO);
+	}
+
+	static AnnotationLayout resolveAnnotationLayout(Rectangle clipBounds, double x0, double x1, int annotationOffset,
+			int estimatedWidth, String position) {
 		if (clipBounds == null)
 			return null;
 		int clipLeft = clipBounds.x;
@@ -110,9 +117,13 @@ final class GanttRendererSupport {
 		int minX = clipBounds.x + 4;
 		int maxTextWidth = Math.max(64, Math.min(180, clipBounds.width / 5));
 		int rightAvailableWidth = Math.min(maxTextWidth, clipRight - preferredRightX - 4);
-		int x = preferredRightX;
-		int availableWidth = rightAvailableWidth;
-		if (availableWidth < 24 && preferredLeftX >= minX) {
+		boolean leftRequested = GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT.equals(position);
+		boolean rightRequested = GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT.equals(position);
+		int x = leftRequested ? preferredLeftX : preferredRightX;
+		int availableWidth = leftRequested
+				? Math.min(maxTextWidth, clipRight - preferredLeftX - 4)
+				: rightAvailableWidth;
+		if (!rightRequested && availableWidth < 24 && preferredLeftX >= minX) {
 			x = preferredLeftX;
 			availableWidth = Math.min(maxTextWidth, clipRight - preferredLeftX - 4);
 		}

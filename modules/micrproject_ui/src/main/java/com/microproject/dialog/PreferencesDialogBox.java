@@ -53,6 +53,13 @@ public final class PreferencesDialogBox extends JDialog {
 		JComboBox<String> ganttBarText = new JComboBox<>(new String[] { resourceNames, taskName });
 		ganttBarText.setSelectedItem(GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME.equals(preferences.getDefaultGanttBarText())
 				? taskName : resourceNames);
+		String automaticPosition = UsabilityStrings.text("preferences.ganttBarTextPositionAutomatic");
+		String rightPosition = UsabilityStrings.text("preferences.ganttBarTextPositionRight");
+		String leftPosition = UsabilityStrings.text("preferences.ganttBarTextPositionLeft");
+		JComboBox<String> ganttBarTextPosition = new JComboBox<>(new String[] { automaticPosition, rightPosition, leftPosition });
+		String savedPosition = preferences.getDefaultGanttBarTextPosition();
+		ganttBarTextPosition.setSelectedItem(GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT.equals(savedPosition) ? leftPosition
+				: GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT.equals(savedPosition) ? rightPosition : automaticPosition);
 		JButton gridColor = new JButton(UsabilityStrings.text("preferences.gridColorAutomatic"));
 		Integer savedGridColor = preferences.getGridLineColor();
 		final Color[] selectedGridColor = { savedGridColor == null ? null : new Color(savedGridColor.intValue()) };
@@ -70,6 +77,7 @@ public final class PreferencesDialogBox extends JDialog {
 		form.add(new JLabel(UsabilityStrings.text("preferences.font"))); form.add(font);
 		form.add(new JLabel(UsabilityStrings.text("preferences.fontSize"))); form.add(size);
 		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarText"))); form.add(ganttBarText);
+		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarTextPosition"))); form.add(ganttBarTextPosition);
 		form.add(new JLabel(UsabilityStrings.text("preferences.gridColor")));
 		JPanel gridColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); gridColorControls.add(gridColor); gridColorControls.add(resetGridColor); form.add(gridColorControls);
 		form.add(new JLabel()); form.add(rowLines);
@@ -84,6 +92,10 @@ public final class PreferencesDialogBox extends JDialog {
 			preferences.setFontSize(((Number) size.getValue()).intValue());
 			preferences.setDefaultGanttBarText(taskName.equals(ganttBarText.getSelectedItem())
 					? GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME : GlobalPreferences.GANTT_BAR_TEXT_RESOURCE_NAMES);
+			preferences.setDefaultGanttBarTextPosition(leftPosition.equals(ganttBarTextPosition.getSelectedItem())
+					? GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT
+					: rightPosition.equals(ganttBarTextPosition.getSelectedItem())
+						? GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT : GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO);
 			preferences.setGridLineColor(selectedGridColor[0] == null ? null : Integer.valueOf(selectedGridColor[0].getRGB()));
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
 			dispose();

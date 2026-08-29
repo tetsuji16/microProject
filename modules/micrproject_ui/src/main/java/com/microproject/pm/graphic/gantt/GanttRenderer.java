@@ -733,7 +733,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			if (clipBounds == null)
 				clipBounds = ((GanttParams)graphInfo).getGanttBounds();
 			int estimatedWidth = fontMetrics.stringWidth(s);
-			GanttRendererSupport.AnnotationLayout layout = GanttRendererSupport.resolveAnnotationLayout(clipBounds, x0, x1, annotationOffset, estimatedWidth);
+			String annotationPosition = graphInfo instanceof Gantt gantt ? gantt.getAnnotationPosition() : null;
+			GanttRendererSupport.AnnotationLayout layout = GanttRendererSupport.resolveAnnotationLayout(
+					clipBounds, x0, x1, annotationOffset, estimatedWidth, annotationPosition);
 			if (layout == null)
 				return;
 			int x = layout.x;

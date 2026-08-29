@@ -32,6 +32,9 @@ import com.microproject.document.ObjectEventManager;
 public class GlobalPreferences {
 	public static final String GANTT_BAR_TEXT_RESOURCE_NAMES = "Field.resourceNames";
 	public static final String GANTT_BAR_TEXT_TASK_NAME = "Field.name";
+	public static final String GANTT_BAR_TEXT_POSITION_AUTO = "auto";
+	public static final String GANTT_BAR_TEXT_POSITION_RIGHT = "right";
+	public static final String GANTT_BAR_TEXT_POSITION_LEFT = "left";
 	private static final Preferences STORE = Preferences.userNodeForPackage(GlobalPreferences.class).node("ui");
 	protected transient boolean showAllResources = true;
 	private String userName = STORE.get("userName", System.getProperty("user.name", ""));
@@ -43,6 +46,8 @@ public class GlobalPreferences {
 	private int fontSize = clampFontSize(STORE.getInt("fontSize", 0));
 	private String defaultGanttBarText = normalizeGanttBarText(
 			STORE.get("defaultGanttBarText", GANTT_BAR_TEXT_RESOURCE_NAMES));
+	private String defaultGanttBarTextPosition = normalizeGanttBarTextPosition(
+			STORE.get("defaultGanttBarTextPosition", GANTT_BAR_TEXT_POSITION_AUTO));
 
 	public boolean isShowProjectResourcesOnly() {
 		return !showAllResources;
@@ -132,9 +137,24 @@ public class GlobalPreferences {
 		fireUpdateEvent(this, this);
 	}
 
+	/** Default label position for newly opened Gantt views. */
+	public String getDefaultGanttBarTextPosition() { return defaultGanttBarTextPosition; }
+	public void setDefaultGanttBarTextPosition(String value) {
+		String normalized = normalizeGanttBarTextPosition(value);
+		if (normalized.equals(defaultGanttBarTextPosition)) return;
+		defaultGanttBarTextPosition = normalized;
+		STORE.put("defaultGanttBarTextPosition", normalized);
+		fireUpdateEvent(this, this);
+	}
+
 	private static int clampFontSize(int value) { return value <= 0 ? 0 : Math.max(8, Math.min(32, value)); }
 	private static String normalizeGanttBarText(String value) {
 		return GANTT_BAR_TEXT_TASK_NAME.equals(value) ? GANTT_BAR_TEXT_TASK_NAME : GANTT_BAR_TEXT_RESOURCE_NAMES;
+	}
+	private static String normalizeGanttBarTextPosition(String value) {
+		if (GANTT_BAR_TEXT_POSITION_LEFT.equals(value) || GANTT_BAR_TEXT_POSITION_RIGHT.equals(value))
+			return value;
+		return GANTT_BAR_TEXT_POSITION_AUTO;
 	}
 	private static Integer readColor(String key) {
 		int value = STORE.getInt(key, -1);

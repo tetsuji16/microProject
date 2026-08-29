@@ -226,6 +226,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		gantt = new Gantt(project, "Gantt");
 		gantt.setCache(cache);
 		gantt.setAnnotationFieldId(currentAnnotationFieldId);
+		gantt.setAnnotationPosition(documentFrame.getGraphicManager().getPreferences().getDefaultGanttBarTextPosition());
 		gantt.setTrackingView(tracking);
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, DEFAULT_GANTT_BAR_STYLE));
 		ganttScrollPane = new ScaledScrollPane(gantt, coord, documentFrame, spreadSheet.getRowHeight());

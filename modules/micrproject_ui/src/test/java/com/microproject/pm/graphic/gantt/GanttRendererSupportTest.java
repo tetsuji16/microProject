@@ -37,6 +37,7 @@ import java.awt.image.BufferedImage;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.util.MicrosoftProjectGanttPalette;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -62,6 +63,17 @@ class GanttRendererSupportTest {
 				260.0d,
 				8,
 				40));
+	}
+
+	@Test
+	void annotationLayoutHonorsRequestedSideWhenItFits() {
+		Rectangle clip = new Rectangle(0, 0, 400, 80);
+		GanttRendererSupport.AnnotationLayout left = GanttRendererSupport.resolveAnnotationLayout(
+				clip, 150, 210, 4, 80, GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT);
+		GanttRendererSupport.AnnotationLayout right = GanttRendererSupport.resolveAnnotationLayout(
+				clip, 150, 210, 4, 80, GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT);
+		assertTrue(left.x < 150);
+		assertTrue(right.x > 210);
 	}
 
 	@Test

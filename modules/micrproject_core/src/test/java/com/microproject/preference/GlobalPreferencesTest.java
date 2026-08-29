@@ -20,6 +20,7 @@ class GlobalPreferencesTest {
 		int originalSize = preferences.getFontSize();
 		Integer originalGridColor = preferences.getGridLineColor();
 		String originalGanttBarText = preferences.getDefaultGanttBarText();
+		String originalGanttBarTextPosition = preferences.getDefaultGanttBarTextPosition();
 		try {
 			preferences.setUserName("  editor  ");
 			preferences.setShowRowLines(false);
@@ -41,6 +42,10 @@ class GlobalPreferencesTest {
 			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME, preferences.getDefaultGanttBarText());
 			preferences.setDefaultGanttBarText("unsupported");
 			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_RESOURCE_NAMES, preferences.getDefaultGanttBarText());
+			preferences.setDefaultGanttBarTextPosition(GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT);
+			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT, preferences.getDefaultGanttBarTextPosition());
+			preferences.setDefaultGanttBarTextPosition("unsupported");
+			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO, preferences.getDefaultGanttBarTextPosition());
 		} finally {
 			preferences.setUserName(originalName);
 			preferences.setShowRowLines(originalRows);
@@ -48,6 +53,7 @@ class GlobalPreferencesTest {
 			preferences.setFontSize(originalSize);
 			preferences.setGridLineColor(originalGridColor);
 			preferences.setDefaultGanttBarText(originalGanttBarText);
+			preferences.setDefaultGanttBarTextPosition(originalGanttBarTextPosition);
 		}
 		assertTrue(preferences.getFontSize() >= 0);
 	}

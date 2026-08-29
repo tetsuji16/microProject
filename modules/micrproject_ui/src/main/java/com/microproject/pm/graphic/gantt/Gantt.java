@@ -62,6 +62,7 @@ import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.strings.Messages;
 import com.microproject.timescale.TimeScaleEvent;
 import com.microproject.timescale.TimeScaleListener;
@@ -90,6 +91,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private boolean gridLinesVisible = DEFAULT_GRID_LINES_VISIBLE;
 	private Color customGridLineColor;
 	private String annotationFieldId;
+	private String annotationPosition = GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO;
 	private String formatViewName = GanttBarFormatOverrides.STANDARD_VIEW;
 	/** Rows whose full calendar width is highlighted because they are selected in the task table. */
 	private Set<Integer> highlightedRows = Collections.emptySet();
@@ -139,6 +141,12 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 	public void setAnnotationFieldId(String annotationFieldId) {
 		this.annotationFieldId = annotationFieldId;
+	}
+	public String getAnnotationPosition() { return annotationPosition; }
+	public void setAnnotationPosition(String value) {
+		annotationPosition = GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT.equals(value)
+				|| GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT.equals(value)
+				? value : GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO;
 	}
 
 	public boolean isAnnotationHidden() {
