@@ -195,6 +195,7 @@
 - B-02: `./gradlew.bat :micrproject_reports:test --console=plain` を実行し、レポート生成モジュールの回帰テストがBUILD SUCCESSFULであることを確認した。
 - B-02 / CCPM-GUI-10補助検証: `./gradlew.bat :micrproject_application:test --console=plain` を実行し、プロジェクト作成・保存ワークフローの回帰テストがBUILD SUCCESSFULであることを確認した。
 - B-02: `./gradlew.bat :micrproject_core:test --console=plain` を実行し、スケジューリング・カレンダー・依存関係を含むcore全体の回帰テストがBUILD SUCCESSFULであることを確認した。
+- GUI受入全体: `./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain` を実行し、15 GUIテストクラス（全受入ケース）がクラス間干渉・ウィンドウ残留なしでBUILD SUCCESSFUL（34秒）となることを確認した。
 - GUI-NC-08: `OfficeChromeSearchGuiAcceptanceTest` を実GUIで再実行し、リボン／Office Chromeの検索入力と結果表示経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.ui.shell.OfficeChromeSearchGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
 - GUI-NC-04: `TaskDurationGuiAcceptanceTest` を実GUIで再実行し、期間セル入力によるタスク期間更新とガント表示反映を確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.TaskDurationGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
 - GUI-NC-12: `TaskTextInputGuiAcceptanceTest` を実GUIで再実行し、日本語・長文・空文字のテキスト入力で対象セルのみが更新されることを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskTextInputGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
