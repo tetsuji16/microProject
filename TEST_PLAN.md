@@ -169,3 +169,8 @@
 - 並行性: JSON 破損、二重 lock、期限切れ lock 残留、reload 二重発火がない。
 - 性能: 大量データで OOM/StackOverflow なし。基準時間を CI/nightly で固定。
 - 回帰: 既存テストに加え、上記 ID を unit/integration/manual に分類して CI で少なくとも unit + packaged import を必須化する。PR CI で `-x test` を使わず、保存・Save As の回帰テストを必ず実行する。
+
+### 2026-08-30 追加検証
+
+- U-05/U-06: `YearlessDateInputParserTest` に数値時刻の範囲外（`25:00`）と、完全日付で `fallbackFormat == null` の異常系を追加し、いずれも `ParseException` で安全に拒否することを確認した。
+- 実行: `./gradlew.bat :micrproject_core:test --tests "com.microproject.util.YearlessDateInputParserTest" --console=plain`（BUILD SUCCESSFUL）。

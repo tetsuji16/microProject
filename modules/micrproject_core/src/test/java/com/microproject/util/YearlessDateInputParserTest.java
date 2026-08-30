@@ -77,6 +77,12 @@ class YearlessDateInputParserTest {
 	}
 
 	@Test
+	void rejectsFullDateWhenFallbackFormatIsMissing() {
+		assertThrows(ParseException.class, () ->
+			YearlessDateInputParser.parse("2026/09/02", null, null));
+	}
+
+	@Test
 	void parsesNumericTimeSuffix() throws Exception {
 		Date reference = DateTime.calendarInstance(2020, Calendar.FEBRUARY, 28).getTime();
 		Date parsed = YearlessDateInputParser.parse("2/29 9:30:15", new SimpleDateFormat("yyyy/MM/dd"), reference);
@@ -95,5 +101,12 @@ class YearlessDateInputParserTest {
 	void rejectsInvalidDates() throws Exception {
 		assertThrows(ParseException.class, () ->
 			YearlessDateInputParser.parse("2/30", new SimpleDateFormat("yyyy/MM/dd"), new Date()));
+	}
+
+	@Test
+	void rejectsInvalidNumericTimeSuffix() throws Exception {
+		Date reference = DateTime.calendarInstance(2026, Calendar.JUNE, 1).getTime();
+		assertThrows(ParseException.class, () ->
+			YearlessDateInputParser.parse("6/2 25:00", new SimpleDateFormat("yyyy/MM/dd"), reference));
 	}
 }
