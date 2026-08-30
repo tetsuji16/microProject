@@ -6,6 +6,9 @@ package com.microproject.pm.ccpm;
 
 import java.time.ZoneOffset;
 import java.time.temporal.IsoFields;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 /** Deterministic CSV/HTML reports built from persisted CCPM observations. */
@@ -24,6 +27,14 @@ public final class CriticalChainReportService {
 		out.append(escape(projectName == null ? "" : projectName)).append("</h1><table><thead><tr><th>Observed</th><th>Actor</th><th>Progress %</th><th>Buffer %</th><th>Zone</th></tr></thead><tbody>");
 		if (history != null) for (CriticalChainBufferHistory.Point p : history.points()) out.append("<tr><td>").append(p.observedAt()).append("</td><td>").append(escape(p.actorName())).append("</td><td>").append(p.progressPercent()).append("</td><td>").append(p.consumptionPercent()).append("</td><td>").append(escape(p.zone())).append("</td></tr>");
 		return out.append("</tbody></table>").toString();
+	}
+
+	public void writeCsv(Path target, CriticalChainBufferHistory history) throws IOException {
+		Files.writeString(target, toCsv(history));
+	}
+
+	public void writeHtml(Path target, String projectName, CriticalChainBufferHistory history) throws IOException {
+		Files.writeString(target, toHtml(projectName, history));
 	}
 
 	public List<CriticalChainBufferHistory.Point> isoWeek(CriticalChainBufferHistory history, int week) {
