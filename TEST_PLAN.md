@@ -226,4 +226,5 @@
 - #395 複数選択順序回帰: `SwingFileChooserProvider.selectedFileNames`で複数選択の全ファイルを順序どおり返し、null要素と空配列を安全に扱うことを確認（UI focused test BUILD SUCCESSFUL、6秒）。
 - #395 統合GUI再確認: 複数選択変換ヘルパー追加後にinstallDistを再生成し、全16クラス実Robot GUI受入スイートがBUILD SUCCESSFUL（40秒）となることを確認。
 - #395 相対パス境界回帰: 複数選択結果の先頭ファイルに親ディレクトリがない場合も最終アクセス先保存でNPEにならないガードを追加し、`SwingFileChooserProviderTest`を再実行（BUILD SUCCESSFUL、3秒）。
+- #395 UI回帰全体: 相対パスガード後に`:micrproject_ui:test`全体を実行し、BUILD SUCCESSFUL（52秒）。
 - #395後続GUI回帰: null結果ガード後にinstallDistを再生成し、全16クラスの実Robot GUI受入スイートを再実行（BUILD SUCCESSFUL、44秒）。
