@@ -84,3 +84,7 @@ success、Release Run `33315015982` は pending（GitHub Actions のリリース
 さらに `PercentWorkCompleteService` の収集済み葉タスク数／子ノード数が既知の一時
 リストを事前確保した。`NormalTaskPercentCompleteTest`（BUILD SUCCESSFUL、4秒）と
 `:micrproject_core:test` 全体（BUILD SUCCESSFUL、12秒）で回帰がないことを確認した。
+
+`ProjectFactory.getCloseProjectsOnServerJob(Collection)` でも入力プロジェクト数を
+事前容量に反映した。`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と
+`:micrproject_core:test` 全体（BUILD SUCCESSFUL、12秒）で回帰がないことを確認した。

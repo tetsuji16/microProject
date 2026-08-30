@@ -489,8 +489,9 @@ public class ProjectFactory {
 
 
 	public Job getCloseProjectsOnServerJob(Collection projects) {
-		List<Project> localProjects=new ArrayList<Project>();
-		List<Project> serverProjects=new ArrayList<Project>();
+		int projectCount = projects == null ? 0 : projects.size();
+		List<Project> localProjects=new ArrayList<Project>(projectCount);
+		List<Project> serverProjects=new ArrayList<Project>(projectCount);
 		for (Project project : (Collection<Project>)projects) {
 			if (project.isReadOnly()) continue;
 			if (project.isLocal()) localProjects.add(project);
