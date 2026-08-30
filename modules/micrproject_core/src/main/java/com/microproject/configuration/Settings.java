@@ -41,7 +41,8 @@ public class Settings {
 	public static final boolean CLUSTERED=true;
 	public static final String CLUSTER_NODES="jnp://localhost:1100";
 	public static final String SITE_HOME = "https://github.com/tetsuji16/ProjectLibre";
-	public static final String HELP_HOME = SITE_HOME + "/tree/master/docs";
+	/** GitHub Pages publishes the repository's docs directory at the site root. */
+	public static final String HELP_HOME = "https://tetsuji16.github.io/ProjectLibre/";
 	public static final String WEB_APP= "web";
 	public static final String WEB_HOME = SITE_HOME + "/" + WEB_APP;
 	

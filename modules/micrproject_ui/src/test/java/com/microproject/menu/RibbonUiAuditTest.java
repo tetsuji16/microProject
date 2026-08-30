@@ -110,6 +110,7 @@ class RibbonUiAuditTest {
 
 	@Test
 	void helpUrlsAreNormalizedToCurrentDocumentationTargets() {
+		assertEquals("https://tetsuji16.github.io/ProjectLibre/", UiLinkTargets.DOCUMENTATION_HOME);
 		assertEquals(UiLinkTargets.DOCUMENTATION_HOME, HelpUtil.getHelpURL(null));
 		assertEquals(UiLinkTargets.DOCUMENTATION_HOME, HelpUtil.getHelpURL(""));
 		assertEquals("https://example.com/help", HelpUtil.getHelpURL("https://example.com/help"));

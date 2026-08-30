@@ -8,7 +8,7 @@ Current release in this fork:
 
 Quick links:
 
-- [microProject documentation](https://tetsuji16.github.io/ProjectLibre/docs/)
+- [microProject documentation](https://tetsuji16.github.io/ProjectLibre/)
 
 ![microProject commercial construction project plan in the Gantt view](docs/images/demo_gannt.png)
 
