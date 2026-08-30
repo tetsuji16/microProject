@@ -238,3 +238,4 @@
 - #228 OperationLog容量回帰: 入力操作数／JSON配列長が既知の協調ログMap・一時リストを事前確保し、`OperationLogTest`（BUILD SUCCESSFUL、3秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
 - #228 ProjectMergeService容量回帰: 外部タスク件数が既知の変更ノード通知リストを事前確保し、`:micrproject_core:test`全体（BUILD SUCCESSFUL、15秒）を再実行。
 - #228 RemovalSnapshot／終了通知容量回帰: 既知のルート／ID件数をエントリ・コールバック通知リストへ反映し、`DefaultNodeModelTest`＋`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
+- #228 MutableNodeHierarchy通知容量回帰: 削除ルート数／最低1件を削除・移動通知リストへ反映し、`:micrproject_core:test`全体（BUILD SUCCESSFUL、14秒）を再実行。

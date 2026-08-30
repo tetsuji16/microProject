@@ -106,3 +106,7 @@ success、Release Run `33315015982` は pending（GitHub Actions のリリース
 `ProjectFactory` の終了コールバック通知一覧を入力件数で事前確保した。
 focusedテスト（BUILD SUCCESSFUL、4秒）と `:micrproject_core:test` 全体（BUILD
 SUCCESSFUL、13秒）で回帰がないことを確認した。
+
+`MutableNodeHierarchy` の削除通知リスト（削除ルート数）と移動通知リスト（最低1件）
+も事前容量を設定した。`:micrproject_core:test` 全体（BUILD SUCCESSFUL、14秒）で
+回帰がないことを確認した。

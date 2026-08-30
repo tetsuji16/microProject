@@ -443,7 +443,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         	int transactionId = 0;
         	if (doTransaction)
         		transactionId = model.getDocument().fireMultipleTransaction(0,true);
- 	        ArrayList<Node> removed = new ArrayList<Node>();
+	 	    ArrayList<Node> removed = new ArrayList<Node>(nodes.size());
  		    for (Iterator i=nodes.iterator();i.hasNext();){
  		        	LinkedList<Node> toRemove=new LinkedList<Node>();
  		            removeSubTree((Node)i.next(),model,toRemove,actionType, removeDependencies);
@@ -546,7 +546,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     public void move(Node node,Node newParent,int actionType){
 		setSubprojectLevel(node,getChildrenSubprojectLevel(newParent));
     	newParent.add(node);
-    	ArrayList<Node> change = new ArrayList<Node>();
+	    	ArrayList<Node> change = new ArrayList<Node>(1);
     	for (Enumeration e=((NodeBridge)node).preorderEnumeration();e.hasMoreElements();)
     		change.add((Node)e.nextElement());
 
