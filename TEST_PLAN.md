@@ -204,3 +204,4 @@
 - GUI受入回帰: 20タスクケース追加後の全体実行で、不正先行入力ケースの警告ダイアログがEDTを待たせる問題をスレッドダンプで検出。GUIテストの警告解除 watcher をモーダルループに依存しない直接disposeへ変更し、`./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain`（BUILD SUCCESSFUL、33秒）で15クラスの完走を確認した。
 - 最新コミット再検証: `./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain` を`1c97aa0d5`上で再実行し、20タスクケースを含む全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
 - 20タスク構造回帰: 同ケースにタスク総数20、FSリンク数9、独立タスク数10の明示アサーションを追加し、focused実Robot GUIテストがBUILD SUCCESSFUL（8秒）となることを確認した。
+- 20タスク構造回帰（全体）: 構造アサーション追加後の`4d02db9d4`で`./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain`を再実行し、全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
