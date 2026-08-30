@@ -208,3 +208,4 @@
 - Gantt表示証跡: `TaskTableGanttGridGuiAcceptanceTest`のfixtureに実GUIと同じ座標変換・標準バー形式・サイズ更新・描画待ちを設定し、Gantt表示の初期化不足を是正。focused実RobotテストはBUILD SUCCESSFUL（5秒）。空白キャプチャを製品不具合と誤登録しないよう、fixture起因として整理した。
 - Gantt描画アサーション: 同ケースに`GanttUI.getNodeAt`の走査を追加し、少なくとも1つのタスクノードが実際に描画されることをfocused実Robotテスト（BUILD SUCCESSFUL、5秒）で確認した。
 - 日付連動・20タスク再検証: `TaskDateDependencyGuiAcceptanceTest`（FS/SS/FF/SF、ラグ、Robot日付編集）と`TaskTableGanttGridGuiAcceptanceTest`（20タスク、連続/独立、実マウスのスクロール、Ganttノード描画）を同時実行し、BUILD SUCCESSFUL（11秒、22 actionable tasks）を確認した。MS Project本体との直接比較は実行環境待ち。
+- MSPDI依存関係出力回帰: `MsProjectTaskMoveCompatibilityTest.xmlExportPreservesAllMicrosoftDependencyTypesAndDayLag` を追加し、FS/SS/FF/SFの4種類と1営業日ラグ（MSPDI `LinkLag=4800`）の型・先行UID・ラグ出力を検証した。期待値の単位誤りをテスト実行で検出・修正後、focused exchange testがBUILD SUCCESSFUL（4秒）。

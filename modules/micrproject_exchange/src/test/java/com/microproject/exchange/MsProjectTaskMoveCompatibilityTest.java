@@ -41,6 +41,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.options.CalendarOption;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -79,6 +80,51 @@ public class MsProjectTaskMoveCompatibilityTest {
 		assertTaskIdentity((Element)tasks.item(2), "Third", thirdUid, "3");
 		Element predecessor = (Element)((Element)tasks.item(2)).getElementsByTagName("PredecessorLink").item(0);
 		assertEquals(childText((Element)tasks.item(0), "UID"), childText(predecessor, "PredecessorUID"));
+	}
+
+	@Test
+	public void xmlExportPreservesAllMicrosoftDependencyTypesAndDayLag() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("dependency-export", undo), undo);
+		project.initialize(false, false);
+		NormalTask predecessor = task(project, "Predecessor");
+		int[] types = { DependencyType.FS, DependencyType.SS, DependencyType.FF, DependencyType.SF };
+		for (int type : types) {
+			NormalTask successor = task(project, "Successor-" + type);
+			DependencyService.getInstance().newDependency(predecessor, successor, type,
+					CalendarOption.getInstance().getMillisPerDay(), this);
+		}
+
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("dependency-export.xml");
+		assertTrue(exporter.saveProject(project, output));
+		org.w3c.dom.Document xml = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+				.parse(new ByteArrayInputStream(output.toByteArray()));
+		NodeList tasks = xml.getElementsByTagName("Task");
+		for (int type : types) {
+			Element successor = taskByName(tasks, "Successor-" + type);
+			Element link = (Element) successor.getElementsByTagName("PredecessorLink").item(0);
+			assertEquals(String.valueOf(type), childText(link, "Type"));
+			assertEquals(String.valueOf(predecessor.getUniqueId()), childText(link, "PredecessorUID"));
+			// MSPDI LinkLag is expressed in tenths of a working minute: one
+			// standard eight-hour working day is 8 * 60 * 10 = 4800.
+			assertEquals("4800", childText(link, "LinkLag"));
+		}
+	}
+
+	private static NormalTask task(Project project, String name) {
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName(name);
+		return task;
+	}
+
+	private static Element taskByName(NodeList tasks, String name) {
+		for (int i = 0; i < tasks.getLength(); i++) {
+			Element task = (Element) tasks.item(i);
+			if (name.equals(childText(task, "Name"))) return task;
+		}
+		throw new AssertionError("Missing task: " + name);
 	}
 
 	private static void assertTask(Element task,String name,long id,long uid,String outlineNumber) {
