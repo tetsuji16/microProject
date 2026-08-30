@@ -39,6 +39,7 @@ import javax.swing.JTabbedPane;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
+import com.microproject.util.PopupDialogSupport;
 
 /**
  * Individual Gantt bar formatting, corresponding to Microsoft Project's
@@ -56,7 +57,7 @@ final class GanttBarFormatDialog {
 		FormatPanel fields = new FormatPanel(parent, original, gantt.getDisplayedBarColors(task),
 				task.isMilestone(), task.isSummary());
 
-		int result = JOptionPane.showConfirmDialog(
+		int result = PopupDialogSupport.showConfirmDialog(
 				parent,
 				fields,
 				Messages.getString("Gantt.FormatBar.title"),

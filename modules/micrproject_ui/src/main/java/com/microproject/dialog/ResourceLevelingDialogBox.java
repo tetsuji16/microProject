@@ -225,7 +225,7 @@ public final class ResourceLevelingDialogBox extends JDialog {
 			return;
 		}
 		if (!currentPlan.isComplete()) {
-			int answer = JOptionPane.showConfirmDialog(this,
+			int answer = PopupDialogSupport.showConfirmDialog(this,
 				UsabilityStrings.text("leveling.partial"),
 				UsabilityStrings.text("leveling.title"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 			if (answer != JOptionPane.YES_OPTION) {

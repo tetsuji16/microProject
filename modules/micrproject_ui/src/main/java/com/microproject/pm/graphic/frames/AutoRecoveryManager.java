@@ -49,6 +49,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
+import com.microproject.util.PopupDialogSupport;
 
 /** Periodically writes complete, non-destructive recovery snapshots. */
 final class AutoRecoveryManager implements AutoSaveControl {
@@ -141,9 +142,9 @@ final class AutoRecoveryManager implements AutoSaveControl {
 					withMnemonic(UsabilityStrings.text("recovery.recover"), KeyEvent.VK_R),
 					withMnemonic(UsabilityStrings.text("recovery.discard"), KeyEvent.VK_D),
 					withMnemonic(UsabilityStrings.text("recovery.later"), KeyEvent.VK_L) };
-				int choice = JOptionPane.showOptionDialog(graphicManager.getFrame(), message,
+				int choice = PopupDialogSupport.showOptionDialog(graphicManager.getFrame(), message,
 						UsabilityStrings.text("recovery.title"), JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
-						null, options, options[0]);
+						null, options, options[0], JOptionPane.CLOSED_OPTION);
 				if (choice == 0) {
 					Project project = graphicManager.loadRecoveryDocument(entry);
 					recovered |= project != null;

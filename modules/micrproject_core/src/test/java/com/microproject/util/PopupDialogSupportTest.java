@@ -29,10 +29,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.Action;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JRootPane;
@@ -71,5 +73,41 @@ class PopupDialogSupportTest {
 			PopupDialogSupport.normalizeOptionPaneValue(Integer.valueOf(JOptionPane.YES_OPTION), null, JOptionPane.CANCEL_OPTION));
 		assertEquals(1,
 			PopupDialogSupport.normalizeOptionPaneValue("Discard My Changes", new Object[] { "Restore and Save", "Discard My Changes", "Save Copy" }, JOptionPane.CANCEL_OPTION));
+	}
+
+	@Test
+	void confirmationButtonsExposeWindowsYesNoAndCancelMnemonicsAtTheDialogRoot() {
+		JRootPane rootPane = new JRootPane();
+		AtomicBoolean yesClicked = new AtomicBoolean(false);
+		AtomicBoolean noClicked = new AtomicBoolean(false);
+		AtomicBoolean cancelClicked = new AtomicBoolean(false);
+		JButton yes = button(KeyEvent.VK_Y, yesClicked);
+		JButton no = button(KeyEvent.VK_N, noClicked);
+		JButton cancel = button(KeyEvent.VK_C, cancelClicked);
+
+		PopupDialogSupport.bindConfirmationMnemonics(rootPane, new Object[] { yes, no, cancel });
+
+		assertEquals("microproject.option." + KeyEvent.VK_Y,
+			rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.ALT_DOWN_MASK)));
+		assertEquals("microproject.option." + KeyEvent.VK_N,
+			rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke(KeyEvent.VK_N, 0)));
+		invoke(rootPane, KeyEvent.VK_Y);
+		invoke(rootPane, KeyEvent.VK_N);
+		invoke(rootPane, KeyEvent.VK_C);
+		assertTrue(yesClicked.get());
+		assertTrue(noClicked.get());
+		assertTrue(cancelClicked.get());
+	}
+
+	private static JButton button(int mnemonic, AtomicBoolean clicked) {
+		JButton button = new JButton();
+		button.setMnemonic(mnemonic);
+		button.addActionListener(event -> clicked.set(true));
+		return button;
+	}
+
+	private static void invoke(JRootPane rootPane, int mnemonic) {
+		String actionKey = "microproject.option." + mnemonic;
+		rootPane.getActionMap().get(actionKey).actionPerformed(new ActionEvent(rootPane, ActionEvent.ACTION_PERFORMED, actionKey));
 	}
 }

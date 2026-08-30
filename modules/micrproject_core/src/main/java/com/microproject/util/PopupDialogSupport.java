@@ -26,6 +26,7 @@ package com.microproject.util;
 
 import java.awt.Component;
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
 import javax.swing.Icon;
@@ -70,17 +71,31 @@ public final class PopupDialogSupport {
 	}
 
 	public static int showConfirmDialog(Component parentComponent, Object message, String title, int optionType, int messageType, int escapeResult) {
-		// YES/NO confirmations get (Y)/(N) accelerator mnemonics so they can be driven
-		// from the keyboard (e.g. headless UI verification that cannot click the button).
-		if (optionType == JOptionPane.YES_NO_OPTION) {
-			JButton yes = new JButton(localized("dialog.yes", "Yes (Y)"));
-			yes.setMnemonic(KeyEvent.VK_Y);
-			JButton no = new JButton(localized("dialog.no", "No (N)"));
-			no.setMnemonic(KeyEvent.VK_N);
-			Object[] options = new Object[] { yes, no };
-			return showOptionDialog(parentComponent, message, title, JOptionPane.YES_NO_OPTION, messageType, null, options, no, escapeResult);
+		Object[] options = createConfirmationOptions(optionType);
+		if (options != null) {
+			// Preserve the established safe default: confirmation dialogs focus No rather
+			// than accepting a destructive action when Enter is pressed.
+			return showOptionDialog(parentComponent, message, title, optionType, messageType, null, options, options[1], escapeResult);
 		}
 		return showOptionDialog(parentComponent, message, title, optionType, messageType, null, null, null, escapeResult);
+	}
+
+	private static Object[] createConfirmationOptions(int optionType) {
+		if (optionType != JOptionPane.YES_NO_OPTION && optionType != JOptionPane.YES_NO_CANCEL_OPTION) {
+			return null;
+		}
+		JButton yes = confirmationButton("dialog.yes", "Yes (Y)", KeyEvent.VK_Y);
+		JButton no = confirmationButton("dialog.no", "No (N)", KeyEvent.VK_N);
+		if (optionType == JOptionPane.YES_NO_CANCEL_OPTION) {
+			return new Object[] { yes, no, confirmationButton("dialog.cancel", "Cancel (C)", KeyEvent.VK_C) };
+		}
+		return new Object[] { yes, no };
+	}
+
+	private static JButton confirmationButton(String key, String fallback, int mnemonic) {
+		JButton button = new JButton(localized(key, fallback));
+		button.setMnemonic(mnemonic);
+		return button;
 	}
 
 	private static String localized(String key, String fallback) {
@@ -101,10 +116,41 @@ public final class PopupDialogSupport {
 		JOptionPane optionPane = new JOptionPane(message, messageType, optionType, icon, options, initialValue);
 		JDialog dialog = optionPane.createDialog(parentComponent, title);
 		bindEscapeToOptionPane(dialog, optionPane, escapeResult);
+		bindConfirmationMnemonics(dialog.getRootPane(), options);
 		dialog.setVisible(true);
 		int result = normalizeOptionPaneValue(optionPane.getValue(), options, escapeResult);
 		dialog.dispose();
 		return result;
+	}
+
+	/**
+	 * Makes the conventional Windows/MS Project confirmation keys available at the
+	 * dialog root. JButton mnemonics normally supply these bindings, but installing
+	 * them here keeps Alt+Y/Alt+N reliable across look-and-feels and custom option
+	 * panes that place the buttons in a nested container. The unmodified key is
+	 * also accepted, matching the traditional Windows/MS Project confirmation
+	 * behavior indicated by labels such as {@code Yes (Y)} and {@code No (N)}.
+	 */
+	static void bindConfirmationMnemonics(JRootPane rootPane, Object[] options) {
+		if (options == null) return;
+		for (Object option : options) {
+			if (!(option instanceof JButton)) continue;
+			JButton button = (JButton) option;
+			int mnemonic = button.getMnemonic();
+			if (mnemonic == KeyEvent.VK_UNDEFINED) continue;
+			String actionKey = "microproject.option." + mnemonic;
+			rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+				KeyStroke.getKeyStroke(mnemonic, 0), actionKey);
+			rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+				KeyStroke.getKeyStroke(mnemonic, InputEvent.ALT_DOWN_MASK), actionKey);
+			rootPane.getActionMap().put(actionKey, new javax.swing.AbstractAction() {
+				private static final long serialVersionUID = 1L;
+
+				public void actionPerformed(ActionEvent event) {
+					if (button.isEnabled()) button.doClick();
+				}
+			});
+		}
 	}
 
 	public static void showMessageDialog(Component parentComponent, Object message, String title, int messageType) {
