@@ -42,7 +42,7 @@ public class MapAdapter<K, V> extends XmlAdapter<MapAdapterList<K, V>, Map<K, V>
     
    @Override
     public Map<K, V> unmarshal(MapAdapterList<K, V> list) throws Exception {
-        HashMap<K, V> map = new HashMap<K, V>(); 
+        HashMap<K, V> map = new HashMap<K, V>(list.getEntry().size()); 
         for (MapAdapterEntry<K, V> element : list.getEntry()) {
             map.put(element.getKey(), element.getValue());
         }
