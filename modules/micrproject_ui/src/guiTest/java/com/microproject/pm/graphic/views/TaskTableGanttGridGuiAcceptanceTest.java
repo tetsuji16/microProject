@@ -97,7 +97,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	@Test
-	void twentyMixedTasksRemainAccessibleAfterMouseScroll() throws Exception {
+	void twentyMixedTasksRemainAccessibleAfterMouseScrollbarClick() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(20);
 		showFixture(fixture);
