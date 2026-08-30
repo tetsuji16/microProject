@@ -710,10 +710,11 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(settings.isEnabled());
 		org.junit.jupiter.api.Assertions.assertNull(service.findBaseline(loaded));
 		org.junit.jupiter.api.Assertions.assertEquals(20, taskCount(loaded));
-		org.junit.jupiter.api.Assertions.assertEquals(1D, findByName(loaded, "要件定義").getPercentComplete(), 0.00001D);
-		org.junit.jupiter.api.Assertions.assertEquals(0.75D, findByName(loaded, "基幹機能の実装").getPercentComplete(), 0.00001D);
-		org.junit.jupiter.api.Assertions.assertEquals(0.20D, findByName(loaded, "結合テスト").getPercentComplete(), 0.00001D);
-		org.junit.jupiter.api.Assertions.assertEquals(0D, findByName(loaded, "本番リリース").getPercentComplete(), 0.00001D);
+		org.junit.jupiter.api.Assertions.assertEquals(0D, loaded.getPercentComplete(), 0.00001D,
+			"the walkthrough must begin at the 0% / 0% fever-chart checkpoint");
+		org.junit.jupiter.api.Assertions.assertEquals(0D, findByName(loaded, "要件定義").getPercentComplete(), 0.00001D);
+		org.junit.jupiter.api.Assertions.assertEquals(0D, findByName(loaded, "基幹機能の実装").getPercentComplete(), 0.00001D);
+		org.junit.jupiter.api.Assertions.assertEquals(0D, findByName(loaded, "結合テスト").getPercentComplete(), 0.00001D);
 		for (java.util.Iterator<?> tasks = loaded.getTaskOutlineIterator(); tasks.hasNext();) {
 			com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) tasks.next();
 			org.junit.jupiter.api.Assertions.assertFalse(task.isManuallyScheduled(), task.getName());
