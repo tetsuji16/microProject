@@ -1,4 +1,4 @@
-name: Release and deploy Pages
+name: Release
 
 on:
   push:
@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: release-and-pages-${{ github.ref }}
@@ -96,22 +94,3 @@ jobs:
           generate_release_notes: true
           files: release-assets/*
 
-  deploy-pages:
-    name: Deploy GitHub Pages
-    needs: release
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
-
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
