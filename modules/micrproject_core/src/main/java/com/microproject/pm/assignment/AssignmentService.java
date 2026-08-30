@@ -128,7 +128,7 @@ public class AssignmentService {
 	}
 
 	private Set<Resource> getAssignedResources(NormalTask task) {
-		Set<Resource> assignedResources = new HashSet<Resource>();
+		Set<Resource> assignedResources = new HashSet<Resource>(task.getAssignments().size());
 		for (Object existing : task.getAssignments()) {
 			assignedResources.add(((Assignment) existing).getResource());
 		}
