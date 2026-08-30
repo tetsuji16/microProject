@@ -72,7 +72,7 @@ final class RibbonCommandCatalog {
 
 	static List<CommandDefinition> from(SwingRibbonModel model, ResourceBundle... bundles) {
 		Map<String, Set<String>> tabsByCommand = tabsByCommand(model);
-		List<CommandDefinition> result = new ArrayList<>();
+		List<CommandDefinition> result = new ArrayList<>(tabsByCommand.size());
 		for (String id : tabsByCommand.keySet()) {
 			Placement placement = PLACEMENTS.get(id);
 			if (placement == null) {

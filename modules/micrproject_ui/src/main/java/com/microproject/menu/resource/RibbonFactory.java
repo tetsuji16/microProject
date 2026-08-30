@@ -151,9 +151,9 @@ public class RibbonFactory extends ResourceManager {
 	 * Creates ribbon tasks
 	 */
 	public Collection<RibbonTask> createRibbon(String name, CustomRibbonBandGenerator customBandsGenerator) throws MissingResourceException, ResourceFormatException, MissingListenerException {
-		List<RibbonTask> ribbonTasks=new ArrayList<RibbonTask>();
 		@SuppressWarnings("unchecked")
 		List<String> taskNames = (List<String>)getStringList(name);
+		List<RibbonTask> ribbonTasks=new ArrayList<RibbonTask>(taskNames.size());
 		for (String taskName : taskNames){
 			RibbonTask task=createRibbonTask(taskName, customBandsGenerator);
 			ribbonTasks.add(task);
@@ -167,9 +167,9 @@ public class RibbonFactory extends ResourceManager {
 	public RibbonTask createRibbonTask(String name, CustomRibbonBandGenerator customBandsGenerator) throws MissingResourceException, ResourceFormatException, MissingListenerException {
 		String title=getString(name+".title");
 
-		List<AbstractRibbonBand<?>> ribbonBands=new ArrayList<AbstractRibbonBand<?>>();
 		@SuppressWarnings("unchecked")
 		List<String> bandNames = (List<String>)getStringList(name);
+		List<AbstractRibbonBand<?>> ribbonBands=new ArrayList<AbstractRibbonBand<?>>(bandNames.size());
 		for (String bandName : bandNames){
 			AbstractRibbonBand<?> band=createRibbonBand(bandName, customBandsGenerator);
 			if (band!=null) ribbonBands.add(band);
@@ -295,9 +295,9 @@ public class RibbonFactory extends ResourceManager {
 	 * Creates ribbon band
 	 */
 	public Collection<AbstractCommandButton> createTaskBar(String name) throws MissingResourceException, ResourceFormatException, MissingListenerException {
-		Collection<AbstractCommandButton> result=new ArrayList<AbstractCommandButton>();
 		@SuppressWarnings("unchecked")
 		List<String> buttons = (List<String>)getStringList(name+".TaskBar");
+		Collection<AbstractCommandButton> result=new ArrayList<AbstractCommandButton>(buttons.size());
 		for (String s : buttons){
 			AbstractCommandButton button =  createCommandButton(s);
 			result.add(button);
