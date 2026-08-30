@@ -367,7 +367,9 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	}
 
 	private boolean isCalEditable(WorkingCalendar cal) {
-    	boolean editable = projectCalendars.contains(cal);
+	    // form.getCalendar() is a scratch copy, so compare the original selected
+	    // calendar as well; otherwise project calendars become falsely read-only.
+	    boolean editable = projectCalendars.contains(cal) || projectCalendars.contains(editedCalendar);
     	if (GraphicManager.getInstance().isEditingMasterProject()) // always editable if master project
     		editable = true;
     	return editable;
