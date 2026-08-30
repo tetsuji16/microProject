@@ -328,7 +328,7 @@ public class ProjectMergeService {
 		}
 		boolean wasDirty = target.needsSaving();
 		boolean wasImporting = Environment.isImporting();
-		List<Node> changedNodes = new ArrayList<Node>();
+		List<Node> changedNodes = new ArrayList<Node>(external.getTaskList().size());
 		try {
 			Environment.setImporting(true);
 			applyExternalTaskUpdates(target, external, lockedTaskIds, result, changedNodes);

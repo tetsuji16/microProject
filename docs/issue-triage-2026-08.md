@@ -97,3 +97,7 @@ success、Release Run `33315015982` は pending（GitHub Actions のリリース
 協調ログの `OperationLog` でも、入力操作数／JSON配列長が既知のMap・一時リストを
 事前確保した。`OperationLogTest`（BUILD SUCCESSFUL、3秒）と
 `:micrproject_core:test` 全体（BUILD SUCCESSFUL、13秒）で回帰がないことを確認した。
+
+外部プロジェクト差分適用の `ProjectMergeService` でも、外部タスク件数が既知の変更
+ノード通知リストを事前確保した。`:micrproject_core:test` 全体（BUILD SUCCESSFUL、
+15秒）で回帰がないことを確認した。
