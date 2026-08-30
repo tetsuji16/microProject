@@ -236,9 +236,14 @@ public class Serializer {
 
 						if (flatAssignments==null) assignmentData.setTask(taskData);
 						else assignmentData.setTaskId(taskData.getUniqueId());
-						EnterpriseResourceData enterpriseResourceData=(r.isDefault())?
-						    	null:
-								resourceMap.get(Long.valueOf(r.getUniqueId())).getEnterpriseResource();
+						// An assignment can outlive its resource entry (for example after
+						// importing a file whose resource pool was edited).  Treat that
+						// orphan as an unresolved resource instead of failing the whole
+						// document save with a NullPointerException.
+						ResourceData resourceData = r.isDefault() ? null
+								: resourceMap.get(Long.valueOf(r.getUniqueId()));
+						EnterpriseResourceData enterpriseResourceData = resourceData == null ? null
+								: resourceData.getEnterpriseResource();
 						if (flatAssignments==null) assignmentData.setResource(enterpriseResourceData);
 						else assignmentData.setResourceId((enterpriseResourceData==null)?-1L:enterpriseResourceData.getUniqueId());
 						assignmentData.setSnapshotId(s);
