@@ -80,9 +80,10 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	}
 	
     private transient HashMap<Long,Resource> idMap = null;
-    public Resource findById(long id) {
-        if (idMap == null) {
-		    idMap = new HashMap<Long, Resource>();
+	public Resource findById(long id) {
+		if (idMap == null) {
+		    int resourceCount = getResourceList().size();
+		    idMap = new HashMap<Long, Resource>(resourceCount * 4 / 3 + 1);
 			for (Resource resource : getResourceList()) {
 				idMap.put(resource.getUniqueId(),resource);
 			}

@@ -227,4 +227,5 @@
 - #395 統合GUI再確認: 複数選択変換ヘルパー追加後にinstallDistを再生成し、全16クラス実Robot GUI受入スイートがBUILD SUCCESSFUL（40秒）となることを確認。
 - #395 相対パス境界回帰: 複数選択結果の先頭ファイルに親ディレクトリがない場合も最終アクセス先保存でNPEにならないガードを追加し、`SwingFileChooserProviderTest`を再実行（BUILD SUCCESSFUL、3秒）。
 - #395 UI回帰全体: 相対パスガード後に`:micrproject_ui:test`全体を実行し、BUILD SUCCESSFUL（52秒）。
+- #228 ResourcePool容量回帰: `ResourcePool.findById`の既知リソース件数を逆引きMapの初期容量へ反映し、`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、7秒）でID検索・未存在検索の挙動不変を確認。
 - #395後続GUI回帰: null結果ガード後にinstallDistを再生成し、全16クラスの実Robot GUI受入スイートを再実行（BUILD SUCCESSFUL、44秒）。
