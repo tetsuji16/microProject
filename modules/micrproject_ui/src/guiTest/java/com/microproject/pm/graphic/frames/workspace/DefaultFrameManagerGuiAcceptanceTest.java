@@ -74,6 +74,18 @@ class DefaultFrameManagerGuiAcceptanceTest {
 			assertTrue(first.isActive() && first.isVisible());
 			assertFalse(second.isActive() || second.isVisible());
 		});
+
+		click(robot, selector[0]);
+		robot.keyPress(KeyEvent.VK_END);
+		robot.keyRelease(KeyEvent.VK_END);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> manager[0].getSelectedFrame() == second, "Robot selection did not activate the second project");
+		SwingUtilities.invokeAndWait(() -> {
+			assertSame(second, container[0].getComponent(0));
+			assertTrue(second.isActive() && second.isVisible());
+			assertFalse(first.isActive() || first.isVisible());
+		});
 	}
 
 	private static void click(Robot robot, JComboBox<?> combo) throws Exception {
