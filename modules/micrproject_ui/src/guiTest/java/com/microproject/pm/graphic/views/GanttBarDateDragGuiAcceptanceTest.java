@@ -77,6 +77,18 @@ class GanttBarDateDragGuiAcceptanceTest {
 		dragBarAndAssertSuccessor(fixture);
 	}
 
+	@Test
+	void robotDragMovesBarAndRecalculatesSsSuccessor() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		dragBarAndAssertSuccessor(createFixture(DependencyType.SS));
+	}
+
+	@Test
+	void robotDragMovesBarAndRecalculatesSfSuccessor() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		dragBarAndAssertSuccessor(createFixture(DependencyType.SF));
+	}
+
 	private void dragBarAndAssertSuccessor(Fixture fixture) throws Exception {
 		long oldStart = fixture.predecessor.getStart();
 		showFixture(fixture);
@@ -110,6 +122,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 		if (fixture.dependency.getDependencyType() == DependencyType.FF) {
 			assertEquals(fixture.predecessor.getEnd(), fixture.successor.getEnd(),
 				"FF successor finish must match the dragged predecessor finish");
+		} else if (fixture.dependency.getDependencyType() == DependencyType.SF) {
+			assertEquals(fixture.predecessor.getStart(), fixture.successor.getEnd(),
+				"SF successor finish must match the dragged predecessor start");
 		} else {
 			long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 			assertEquals(expected, fixture.successor.getStart(), "Successor must match " + DependencyType.toLongString(fixture.dependency.getDependencyType())

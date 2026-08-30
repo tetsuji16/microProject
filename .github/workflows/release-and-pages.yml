@@ -66,7 +66,14 @@ jobs:
           # Locate the package produced by this clean build, then publish it
           # under the GitHub release version calculated above.
           $msi = Get-ChildItem -Path build/releases -Recurse -File -Filter 'microProject-*.msi' | Select-Object -First 1
-          $zip = Get-ChildItem -Path docs/downloads -File -Filter 'microProject-*-app-image.zip' | Select-Object -First 1
+          # packageWindowsZip normally writes to docs/downloads, but a clean
+          # checkout may not contain that ignored/empty directory. Fall back to
+          # the build tree so staging reports the real packaging failure instead
+          # of failing on directory enumeration (issue #430).
+          $zip = Get-ChildItem -Path docs/downloads -File -Filter 'microProject-*-app-image.zip' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $zip) {
+            $zip = Get-ChildItem -Path build -Recurse -File -Filter 'microProject-*-app-image.zip' -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
           if ($null -eq $msi) { throw 'The Windows MSI package was not produced.' }
           if ($null -eq $zip) { throw 'The Windows app-image ZIP was not produced.' }
           Copy-Item $msi.FullName "release-assets/microProject-$version.msi"
