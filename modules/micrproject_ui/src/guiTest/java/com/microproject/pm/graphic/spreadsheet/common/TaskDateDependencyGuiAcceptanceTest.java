@@ -6,6 +6,7 @@
 package com.microproject.pm.graphic.spreadsheet.common;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Dimension;
@@ -81,6 +82,11 @@ class TaskDateDependencyGuiAcceptanceTest {
 	@ValueSource(longs = { -1L, 1L, 2L })
 	void robotDateEditHonorsFsLag(long lagDays) throws Exception {
 		runRobotDateEdit(DependencyType.FS, lagDays);
+	}
+
+	@Test
+	void robotDateEditSkipsWeekendWhenSchedulingFsSuccessor() throws Exception {
+		runRobotDateEdit(DependencyType.FS, 0L, "2026/06/13");
 	}
 
 	@Test
@@ -167,8 +173,14 @@ class TaskDateDependencyGuiAcceptanceTest {
 	}
 
 	private void runRobotDateEdit(int type, long lagDays) throws Exception {
+		runRobotDateEdit(type, lagDays, "2026/06/09");
+	}
+
+	private void runRobotDateEdit(int type, long lagDays, String editedDate) throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Fixture fixture = createFixture(type, lagDays);
+		Fixture fixture = "2026/06/13".equals(editedDate)
+			? createFixture(type, lagDays, Calendar.JUNE, 8)
+			: createFixture(type, lagDays);
 		showFixture(fixture);
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
@@ -179,7 +191,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		assertEquals(fixture.startColumn, fixture.sheet.getEditingColumn(), "F2 must edit the start-date cell");
 		SwingUtilities.invokeAndWait(() -> {
 			DateEditor.ExtDateField editor = (DateEditor.ExtDateField) fixture.sheet.getEditorComponent();
-			editor.getTextField().setText("2026/06/09");
+			editor.getTextField().setText(editedDate);
 			assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "date editor rejected a valid date");
 		});
 		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "date edit did not commit");
@@ -187,7 +199,16 @@ class TaskDateDependencyGuiAcceptanceTest {
 		long expectedSuccessorStart = fixture.dependency.calcForwardDependencyDate(
 			fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 		assertTrue(fixture.predecessor.getStart() > fixture.originalStart, "predecessor start must move after GUI edit");
-		assertEquals(expectedSuccessorStart, fixture.successor.getStart(), "FS successor must match dependency date after GUI edit");
+		if ("2026/06/13".equals(editedDate)) {
+			Calendar moved = DateTime.calendarInstance();
+			moved.setTimeInMillis(fixture.predecessor.getStart());
+			assertNotEquals(Calendar.SATURDAY, moved.get(Calendar.DAY_OF_WEEK),
+				"calendar must not leave a task on Saturday (" + moved.getTime() + ")");
+			assertNotEquals(Calendar.SUNDAY, moved.get(Calendar.DAY_OF_WEEK),
+				"calendar must not leave a task on Sunday (" + moved.getTime() + ")");
+		}
+		assertEquals(expectedSuccessorStart, fixture.successor.getStart(),
+			"successor must match dependency date after GUI edit (" + dependencyTypeName(type) + ")");
 		capture(robot, type, lagDays);
 	}
 
@@ -267,13 +288,17 @@ class TaskDateDependencyGuiAcceptanceTest {
 	}
 
 	private static Fixture createFixture(int type, long lagDays) throws Exception {
+		return createFixture(type, lagDays, Calendar.JUNE, 6);
+	}
+
+	private static Fixture createFixture(int type, long lagDays, int month, int day) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-date-dependency", undo);
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
 		NormalTask predecessor = task(project, "GUI predecessor", 1L);
 		NormalTask successor = task(project, "GUI successor", 1L);
-		long originalStart = DateTime.calendarInstance(2026, Calendar.JUNE, 6).getTimeInMillis();
+		long originalStart = DateTime.calendarInstance(2026, month, day).getTimeInMillis();
 		predecessor.setStart(originalStart);
 		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, type,
 			lagDays * CalendarOption.getInstance().getMillisPerDay(), project);

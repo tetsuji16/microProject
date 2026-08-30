@@ -175,3 +175,4 @@
 - U-05/U-06: `YearlessDateInputParserTest` に数値時刻の範囲外（`25:00`）と、完全日付で `fallbackFormat == null` の異常系を追加し、いずれも `ParseException` で安全に拒否することを確認した。
 - 実行: `./gradlew.bat :micrproject_core:test --tests "com.microproject.util.YearlessDateInputParserTest" --console=plain`（BUILD SUCCESSFUL）。
 - B-02 / U-11: GitHub Actions の JDK 25 実行で `GanttWheelZoomTest.ctrlWheelKeepsTheCursorDateAnchored` がゼロサイズに近いテスト用 viewport のため不安定化した。テスト用 JScrollPane を実寸レイアウト（幅300px）で実体化し、実GUIと同じスクロール可能な幾何条件で再検証するよう修正した。UIモジュール全体（706 tests相当）をローカルで再実行し成功した。
+- U-12: `TaskDateDependencyGuiAcceptanceTest.robotDateEditSkipsWeekendWhenSchedulingFsSuccessor` で、タスク表から土曜日（2026/06/13）を入力した場合に稼働日に正規化され、FS後続タスクの日付も依存関係どおり更新されることを実マウス操作で確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.TaskDateDependencyGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
