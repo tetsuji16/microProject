@@ -15,6 +15,8 @@ import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.AWTEventListener;
 import java.awt.event.WindowEvent;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.CountDownLatch;
@@ -28,6 +30,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -71,6 +74,26 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 
 		assertDialogShows(project, CriticalChainStatusDialogBox.Surface.NETWORK, CriticalChainGraphPanel.class);
 		assertDialogShows(project, CriticalChainStatusDialogBox.Surface.BUFFER_STATUS, CriticalChainBufferChartPanel.class);
+	}
+
+	@Test
+	void reloadedMpoRetainsCcpmBaselineAndRendersBothStatusSurfaces() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for CCPM dialog coverage.");
+		Project project = newProjectWithTasks();
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Settings settings = service.settings(project);
+		settings.setEnabled(true);
+		service.apply(project, null, settings);
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, saved);
+		Project restored = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertTrue(service.findSettings(restored) != null && service.findSettings(restored).isEnabled(),
+			"reloaded MPO must retain enabled CCPM settings");
+		assertTrue(service.findBaseline(restored) != null, "reloaded MPO must retain the CCPM baseline");
+
+		assertDialogShows(restored, CriticalChainStatusDialogBox.Surface.NETWORK, CriticalChainGraphPanel.class);
+		assertDialogShows(restored, CriticalChainStatusDialogBox.Surface.BUFFER_STATUS, CriticalChainBufferChartPanel.class);
 	}
 
 	private void assertDialogShows(Project project, CriticalChainStatusDialogBox.Surface surface,
