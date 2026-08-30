@@ -687,6 +687,8 @@ public final class ModernRibbonPanel extends JPanel {
 		FlatUiSupport.styleRibbonSmallButton(overflow);
 		JPopupMenu popup = new JPopupMenu();
 		addTransientCommandButtons(popup, specifications, false);
+		// Keep the responsive overflow discoverable to accessibility and GUI automation.
+		overflow.putClientProperty(COLLAPSED_POPUP_PROPERTY, popup);
 		overflow.addActionListener(event -> popup.show(overflow, 0, overflow.getHeight()));
 		return overflow;
 	}
