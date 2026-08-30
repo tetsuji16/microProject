@@ -219,5 +219,6 @@
 - GUI受入ハング回帰: `TaskDateDependencyGuiAcceptanceTest`の警告ダイアログ監視をSwing Timerへ変更し、モーダルEDTと監視スレッドの競合を解消。不正先行入力focusedケース（5秒）と全16クラスGUIスイート（37秒）がBUILD SUCCESSFULとなることを確認した。テスト同期不備として#430へ記録。
 - GUI受入ダイアログ識別回帰: 警告／エラータイトルだけをSwing Timerの解除対象に限定し、他の表示ダイアログを誤って閉じないようにした。不正日付・不正先行入力focusedケース（6秒）と全16クラスGUIスイート（38秒）がBUILD SUCCESSFUL。
 - 配布レイアウト再確認: GUI受入テスト用installDist再生成後に`verifyPackagedFileImports`を実行し、MPP/POD（各145タスク）の実配布レイアウト読込と互換classpathを確認（BUILD SUCCESSFUL、5秒）。
+- clean build回帰（最新GUI同期修正後）: `./gradlew.bat --no-daemon clean build --console=plain`を全54タスク実行し、全モジュールのテスト・配布アーカイブ生成までBUILD SUCCESSFUL（2分37秒）。JDKのUnsafe/deprecation等の既存コンパイル警告のみで、失敗なし。
 - GUI-NC-11/#395: 開くダイアログを複数選択モードにし、選択された全プロジェクトを順に開く`FileChooserProvider.chooseFileNames`／`GraphicManager.openLocalProject`経路を追加。`SwingFileChooserProviderTest`でopen=true、save=falseの選択モードを確認し、focused UI testはBUILD SUCCESSFUL。ネイティブOSダイアログの実Robot選択は環境依存の残作業。
 - #395 API互換性回帰: `UiServicesFileChooserProviderTest`で、旧来の単一選択プロバイダが1件リストへ変換され、キャンセル（null）が空リストになることを確認（BUILD SUCCESSFUL）。
