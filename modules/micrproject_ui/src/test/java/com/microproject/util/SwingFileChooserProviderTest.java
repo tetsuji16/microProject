@@ -62,6 +62,7 @@ class SwingFileChooserProviderTest {
 			provider.configureFileChooser(chooser, false);
 			provider.selectOpenFileFilter(chooser);
 
+			assertTrue(chooser.isMultiSelectionEnabled(), "open dialogs must allow selecting multiple projects");
 			assertTrue(chooser.getFileFilter().getDescription().contains("*.mpo"));
 			assertArrayEquals(new String[] { "mpo" },
 				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
@@ -99,6 +100,7 @@ class SwingFileChooserProviderTest {
 
 			SystemFileChooser saveChooser = provider.prepareFileChooser(true, "C:\\projects\\imported.mpp");
 			assertEquals(new File("C:\\projects\\imported.mpo"), saveChooser.getSelectedFile());
+			assertTrue(!saveChooser.isMultiSelectionEnabled(), "save dialogs must remain single-selection");
 			assertTrue(saveChooser.getFileFilter().getDescription().contains("*.mpo"));
 		} finally {
 			Environment.setStandAlone(previousStandalone);
@@ -116,6 +118,7 @@ class SwingFileChooserProviderTest {
 			provider.selectOpenFileFilter(chooser);
 
 			assertEquals("Projects", chooser.getFileFilter().getDescription());
+			assertTrue(chooser.isMultiSelectionEnabled());
 			assertArrayEquals(new String[] { "mpo", "pod", "xml", "xlsx", "planner", "mpp", "mpx" },
 				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
 		} finally {

@@ -24,9 +24,20 @@
  *******************************************************************************/
 package com.microproject.util;
 
+import java.util.List;
+
 public final class UiServices {
 	public interface FileChooserProvider {
 		String chooseFileName(boolean save, String selectedFileName, Object parent);
+
+		/**
+		 * Select one or more project files. Providers that only support the legacy
+		 * single-file contract retain that behavior through this default method.
+		 */
+		default List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+			String selected = chooseFileName(save, selectedFileName, parent);
+			return selected == null ? List.of() : List.of(selected);
+		}
 	}
 
 	private static final FileChooserProvider NO_OP_FILE_CHOOSER_PROVIDER = new FileChooserProvider() {

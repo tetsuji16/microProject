@@ -455,6 +455,10 @@ public class LocalSession extends AbstractSession{
     public String chooseFileName(final boolean save,String selectedFileName){
     	return com.microproject.util.UiServices.getFileChooserProvider().chooseFileName(save, selectedFileName, getJobQueue().getComponent());
     }
+
+    public List<String> chooseFileNames(final boolean save, String selectedFileName) {
+		return com.microproject.util.UiServices.getFileChooserProvider().chooseFileNames(save, selectedFileName, getJobQueue().getComponent());
+    }
     
     public static String getImporter(int fileType){
     	switch (fileType) {

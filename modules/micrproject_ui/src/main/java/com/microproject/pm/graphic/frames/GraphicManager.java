@@ -2815,8 +2815,10 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	}
 
 	public void openLocalProject(){
-		String fileName=SessionFactory.getInstance().getLocalSession().chooseFileName(false,null);
-		if (fileName!=null) loadLocalDocument(fileName,!Environment.getStandAlone());
+		java.util.List<String> fileNames = SessionFactory.getInstance().getLocalSession().chooseFileNames(false, null);
+		for (String fileName : fileNames) {
+			if (fileName != null) loadLocalDocument(fileName,!Environment.getStandAlone());
+		}
 	}
 
 	public boolean saveLocalProject(boolean saveAs){

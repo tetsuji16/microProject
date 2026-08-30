@@ -27,6 +27,8 @@ package com.microproject.util;
 import java.awt.Component;
 import java.io.File;
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.prefs.Preferences;
 
@@ -106,6 +108,31 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		return fileName;
 	}
 
+	@Override
+	public synchronized List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+		if (save) {
+			String selected = chooseFileName(true, selectedFileName, parent);
+			return selected == null ? List.of() : List.of(selected);
+		}
+		SystemFileChooser chooser = prepareFileChooser(false, selectedFileName);
+		Component fileChooserParent = parent instanceof Component ? (Component) parent : null;
+		int result = chooser.showOpenDialog(fileChooserParent);
+		if (result != SystemFileChooser.APPROVE_OPTION) {
+			return List.of();
+		}
+		File[] files = chooser.getSelectedFiles();
+		if (files == null || files.length == 0) {
+			File single = chooser.getSelectedFile();
+			return single == null ? List.of() : List.of(single.toString());
+		}
+		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", files[0].getParent());
+		List<String> names = new ArrayList<>(files.length);
+		for (File file : files) {
+			if (file != null) names.add(file.toString());
+		}
+		return List.copyOf(names);
+	}
+
 	static String normalizeHostedSelectedFileName(String selectedFileName, boolean standalone) {
 		if (!standalone && LEGACY_POD_FILE_EXTENSION.equals(FileHelper.getFileExtension(selectedFileName))) {
 			return FileHelper.changeFileExtension(selectedFileName, "xml");
@@ -150,6 +177,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	}
 
 	void configureFileChooser(SystemFileChooser chooser, final boolean save) {
+		chooser.setMultiSelectionEnabled(!save);
 		projectlibreFilter = new FileNameExtensionFilter(
 			formatFilterLabel(Messages.getString("File.projectlibre"), "*." + DEFAULT_FILE_EXTENSION),
 			DEFAULT_FILE_EXTENSION);
