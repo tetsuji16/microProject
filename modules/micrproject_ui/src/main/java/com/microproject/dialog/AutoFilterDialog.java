@@ -142,9 +142,10 @@ public final class AutoFilterDialog extends AbstractDialog {
 	}
 
 	private List<Field> availableFields() {
-		List<Field> fields = new ArrayList<>();
-		if (spreadSheet != null && spreadSheet.getAvailableFields() != null)
-			fields.addAll(spreadSheet.getAvailableFields());
+		List<Field> available = spreadSheet == null ? null : spreadSheet.getAvailableFields();
+		List<Field> fields = new ArrayList<>(available == null ? 0 : available.size());
+		if (available != null)
+			fields.addAll(available);
 		Collections.sort(fields);
 		return fields;
 	}
@@ -191,7 +192,7 @@ public final class AutoFilterDialog extends AbstractDialog {
 	}
 
 	private void applyFilter() {
-		List<String> selected = new ArrayList<>();
+		List<String> selected = new ArrayList<>(checkBoxes.size());
 		for (JCheckBox box : checkBoxes)
 			if (box.isSelected())
 				selected.add(box.getText());

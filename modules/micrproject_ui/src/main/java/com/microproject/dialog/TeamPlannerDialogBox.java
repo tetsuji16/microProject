@@ -196,7 +196,7 @@ public final class TeamPlannerDialogBox extends JDialog {
 
 		void reload() {
 			slots = service.slots(project);
-			List<Resource> resources = new ArrayList<>();
+			List<Resource> resources = new ArrayList<>(project.getResourcePool().getResourceList().size() + 1);
 			resources.add(ResourceImpl.getUnassignedInstance());
 			for (Resource resource : project.getResourcePool().getResourceList()) {
 				if (resource.isLabor() && !resources.contains(resource)) {
