@@ -32,6 +32,7 @@ import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -104,7 +105,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		boolean previousClientSide = Environment.isClientSide();
 		Environment.setClientSide(true);
 		AtomicBoolean warningSeen = new AtomicBoolean();
-		Thread closer = new Thread(() -> dismissWarning(warningSeen), "gui-invalid-date-warning-closer");
+		Timer closer = scheduleWarningDismissal(warningSeen);
 		try {
 			closer.start();
 			SwingUtilities.invokeAndWait(() -> {
@@ -113,10 +114,10 @@ class TaskDateDependencyGuiAcceptanceTest {
 				assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "invalid date must be consumed with a warning");
 			});
 			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "invalid date edit did not cancel");
-			closer.join(3000);
 			assertTrue(warningSeen.get(), "invalid date must display a warning dialog");
 			assertEquals(originalStart, fixture.predecessor.getStart(), "invalid date must preserve the original value");
 		} finally {
+			closer.stop();
 			Environment.setClientSide(previousClientSide);
 		}
 	}
@@ -135,7 +136,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		boolean previousClientSide = Environment.isClientSide();
 		Environment.setClientSide(true);
 		AtomicBoolean warningSeen = new AtomicBoolean();
-		Thread closer = new Thread(() -> dismissWarning(warningSeen), "gui-invalid-predecessor-warning-closer");
+		Timer closer = scheduleWarningDismissal(warningSeen);
 		try {
 			closer.start();
 			SwingUtilities.invokeAndWait(() -> {
@@ -144,35 +145,28 @@ class TaskDateDependencyGuiAcceptanceTest {
 				assertTrue(!fixture.sheet.getCellEditor().stopCellEditing(), "invalid predecessor must keep the editor open for correction");
 			});
 			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "invalid predecessor edit did not finish after error handling");
-			closer.join(3000);
 			assertTrue(warningSeen.get(), "invalid predecessor must display an error dialog");
 			assertTrue(fixture.sheet.getLastException() != null, "spreadsheet must retain the parse failure for focus recovery");
 			assertEquals(1, fixture.successor.getPredecessorList().size(), "invalid predecessor must preserve the existing link");
 		} finally {
+			closer.stop();
 			Environment.setClientSide(previousClientSide);
 		}
 	}
 
-	private static void dismissWarning(AtomicBoolean warningSeen) {
-		long deadline = System.currentTimeMillis() + 3000;
-		while (System.currentTimeMillis() < deadline) {
-		for (Window window : Window.getWindows()) {
-			if (window instanceof Dialog dialog && dialog.isVisible()) {
-				warningSeen.set(true);
-				// Alert.showMessageDialog enters a nested modal event loop on the EDT.
-				// Dispose directly from this watcher so invokeAndWait callers cannot
-				// deadlock behind the dialog's event queue when the full GUI suite runs.
-				dialog.dispose();
-				return;
+	private static Timer scheduleWarningDismissal(AtomicBoolean warningSeen) {
+		Timer timer = new Timer(100, event -> {
+			for (Window window : Window.getWindows()) {
+				if (window instanceof Dialog dialog && dialog.isVisible()) {
+					warningSeen.set(true);
+					dialog.dispose();
+					((Timer) event.getSource()).stop();
+					return;
 				}
 			}
-			try {
-				Thread.sleep(20);
-			} catch (InterruptedException interrupted) {
-				Thread.currentThread().interrupt();
-				return;
-			}
-		}
+		});
+		timer.setRepeats(true);
+		return timer;
 	}
 
 	private void runRobotDateEdit(int type, long lagDays) throws Exception {
