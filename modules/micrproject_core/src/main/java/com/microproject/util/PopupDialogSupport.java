@@ -115,12 +115,29 @@ public final class PopupDialogSupport {
 		Icon icon, Object[] options, Object initialValue, int escapeResult) {
 		JOptionPane optionPane = new JOptionPane(message, messageType, optionType, icon, options, initialValue);
 		JDialog dialog = optionPane.createDialog(parentComponent, title);
+		bindOptionButtons(optionPane, options);
 		bindEscapeToOptionPane(dialog, optionPane, escapeResult);
 		bindConfirmationMnemonics(dialog.getRootPane(), options);
 		dialog.setVisible(true);
 		int result = normalizeOptionPaneValue(optionPane.getValue(), options, escapeResult);
 		dialog.dispose();
 		return result;
+	}
+
+	/**
+	 * JOptionPane normally wires custom option components itself.  Some
+	 * look-and-feels do not install that listener reliably, however, which leaves
+	 * a mouse-clicked confirmation button focused while the modal dialog remains
+	 * open.  Explicitly publishing the selected component keeps mouse and
+	 * keyboard activation consistent across look-and-feels.
+	 */
+	static void bindOptionButtons(JOptionPane optionPane, Object[] options) {
+		if (options == null) return;
+		for (Object option : options) {
+			if (!(option instanceof JButton)) continue;
+			JButton button = (JButton) option;
+			button.addActionListener(event -> optionPane.setValue(button));
+		}
 	}
 
 	/**

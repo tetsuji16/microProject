@@ -99,6 +99,17 @@ class PopupDialogSupportTest {
 		assertTrue(cancelClicked.get());
 	}
 
+	@Test
+	void optionButtonMouseActivationPublishesSelectedValue() {
+		JOptionPane optionPane = new JOptionPane();
+		JButton no = new JButton("No");
+		PopupDialogSupport.bindOptionButtons(optionPane, new Object[] { no });
+
+		no.doClick();
+
+		assertEquals(no, optionPane.getValue());
+	}
+
 	private static JButton button(int mnemonic, AtomicBoolean clicked) {
 		JButton button = new JButton();
 		button.setMnemonic(mnemonic);
