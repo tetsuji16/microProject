@@ -702,6 +702,26 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void checkedInTwentyTaskJapaneseCcpmSampleLoadsForVisualization() throws Exception {
+		Project loaded = load(findSample("CCPM 標準システム導入 20タスク.mpo"));
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Settings settings = service.findSettings(loaded);
+		org.junit.jupiter.api.Assertions.assertNotNull(settings);
+		org.junit.jupiter.api.Assertions.assertTrue(settings.isEnabled());
+		org.junit.jupiter.api.Assertions.assertNull(service.findBaseline(loaded));
+		org.junit.jupiter.api.Assertions.assertEquals(20, taskCount(loaded));
+		for (java.util.Iterator<?> tasks = loaded.getTaskOutlineIterator(); tasks.hasNext();) {
+			com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) tasks.next();
+			org.junit.jupiter.api.Assertions.assertFalse(task.isManuallyScheduled(), task.getName());
+			org.junit.jupiter.api.Assertions.assertFalse(ScheduleDiagnosticsService.hasDependencyConflict(task), task.getName());
+		}
+		CriticalChainService.Analysis analysis = service.preview(loaded,
+			new ArrayList<>(loaded.getResourcePool().getResourceList()), settings);
+		org.junit.jupiter.api.Assertions.assertFalse(analysis.criticalTaskIds().isEmpty());
+		org.junit.jupiter.api.Assertions.assertFalse(analysis.graphEdges().isEmpty());
+	}
+
+	@Test
 	void checkedInCcpmPathSamplesAreAutomaticallyScheduledAndHonorPredecessors() throws Exception {
 		for (String name : new String[] { "CCPM path comparison English.mpo", "CCPM path comparison 日本語.mpo" }) {
 			Project loaded = load(findSample(name));
