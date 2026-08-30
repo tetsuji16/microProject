@@ -49,13 +49,21 @@ public final class CriticalChainService {
 
 	/** Immutable reference captured when a CCPM plan is applied, and persisted only in mpo. */
 	public record Baseline(long projectFinishMillis, long projectBufferMillis, double bufferFraction,
-		List<Long> criticalTaskIds, Map<Long, Long> feedingTaskStartMillis, Map<Long, Long> feedingBufferMillis) {
+		List<Long> criticalTaskIds, Map<Long, Long> feedingTaskStartMillis, Map<Long, Long> feedingBufferMillis,
+		boolean allResources, List<Long> resourceIds) {
 		public Baseline {
 			if (projectFinishMillis < 0L || projectBufferMillis < 0L || Double.isNaN(bufferFraction)
 				|| bufferFraction < 0D || bufferFraction > 1D) throw new IllegalArgumentException("Invalid CCPM baseline");
 			criticalTaskIds = List.copyOf(criticalTaskIds);
 			feedingTaskStartMillis = Map.copyOf(feedingTaskStartMillis);
 			feedingBufferMillis = Map.copyOf(feedingBufferMillis);
+			resourceIds = List.copyOf(resourceIds);
+		}
+		/** Compatibility constructor for MPO files created before the scope was recorded. */
+		public Baseline(long projectFinishMillis, long projectBufferMillis, double bufferFraction,
+			List<Long> criticalTaskIds, Map<Long, Long> feedingTaskStartMillis, Map<Long, Long> feedingBufferMillis) {
+			this(projectFinishMillis, projectBufferMillis, bufferFraction, criticalTaskIds, feedingTaskStartMillis,
+				feedingBufferMillis, true, List.of());
 		}
 	}
 
@@ -143,6 +151,7 @@ public final class CriticalChainService {
 			project.removeTransientDocumentState(Settings.class);
 			project.removeTransientDocumentState(Baseline.class);
 			project.removeTransientDocumentState(AnalysisSnapshot.class);
+			project.removeTransientDocumentState(CriticalChainBufferHistory.class);
 		}
 	}
 
@@ -172,10 +181,9 @@ public final class CriticalChainService {
 	public Analysis analysis(Project project) {
 		Settings settings = findSettings(project);
 		if (settings == null || !settings.isEnabled() || findBaseline(project) == null) return null;
-		AnalysisSnapshot snapshot = project.findTransientDocumentState(AnalysisSnapshot.class);
-		long fingerprint = analysisFingerprint(project, settings);
-		if (snapshot != null && snapshot.fingerprint == fingerprint) return snapshot.analysis;
-		Analysis analysis = preview(project, null, settings);
+		// Rebuild every read surface. Dependencies, assignments, calendars, and
+		// resource availability can change without changing a task's own dates.
+		Analysis analysis = preview(project, resourcesForBaseline(project), settings);
 		rememberAnalysis(project, analysis);
 		return analysis;
 	}
@@ -230,8 +238,10 @@ public final class CriticalChainService {
 			ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 			plan.apply(editSupport);
 			Analysis analysis = analyze(project, plan, settings, resources);
+			boolean allResources = resources == null || resources.isEmpty();
 			Baseline baseline = new Baseline(project.getEnd(), analysis.projectBufferMillis(), settings.getBufferFraction(),
-				analysis.criticalTaskIds(), taskStarts(project, analysis.feedingBufferMillis().keySet()), analysis.feedingBufferMillis());
+				analysis.criticalTaskIds(), taskStarts(project, analysis.feedingBufferMillis().keySet()), analysis.feedingBufferMillis(),
+				allResources, allResources ? List.of() : resourceIds(resources));
 			project.removeTransientDocumentState(Baseline.class);
 			project.getOrCreateTransientDocumentState(Baseline.class, () -> baseline);
 			Analysis result = analyze(project, plan, settings, resources);
@@ -281,6 +291,27 @@ public final class CriticalChainService {
 		project.getOrCreateTransientDocumentState(AnalysisSnapshot.class,
 			() -> new AnalysisSnapshot(analysis, analysisFingerprint(project, project.findTransientDocumentState(Settings.class))));
 	}
+
+	private static List<Long> resourceIds(Collection<? extends Resource> resources) {
+		List<Long> ids = new ArrayList<>(resources.size());
+		for (Resource resource : resources) ids.add(Long.valueOf(resource.getUniqueId()));
+		return ids;
+	}
+
+	private static Collection<? extends Resource> resourcesForBaseline(Project project) {
+		Baseline baseline = findBaselineStatic(project);
+		if (baseline == null || baseline.allResources()) return null;
+		Map<Long, Resource> byId = new LinkedHashMap<>();
+		for (Resource resource : project.getResourcePool().getResourceList()) byId.put(Long.valueOf(resource.getUniqueId()), resource);
+		List<Resource> selected = new ArrayList<>(baseline.resourceIds().size());
+		for (Long id : baseline.resourceIds()) {
+			Resource resource = byId.get(id);
+			if (resource != null) selected.add(resource);
+		}
+		return selected;
+	}
+
+	private static Baseline findBaselineStatic(Project project) { return project == null ? null : project.findTransientDocumentState(Baseline.class); }
 
 	private static long analysisFingerprint(Project project, Settings settings) {
 		long result = 17L;

@@ -587,6 +587,9 @@ public final class MpoFileImporter extends FileImporter {
 			for (Long id : baseline.criticalTaskIds()) critical.add(id.longValue());
 			longMap(value.putObject("feedingTaskStartMillis"), baseline.feedingTaskStartMillis());
 			longMap(value.putObject("feedingBufferMillis"), baseline.feedingBufferMillis());
+			value.put("allResources", baseline.allResources());
+			com.fasterxml.jackson.databind.node.ArrayNode resources = value.putArray("resourceIds");
+			for (Long id : baseline.resourceIds()) resources.add(id.longValue());
 		}
 		return json(ccpm);
 	}
@@ -698,13 +701,15 @@ public final class MpoFileImporter extends FileImporter {
 				.append("\" allowTaskSplits=\"").append(settings.isAllowTaskSplits()).append("\">");
 			if (baseline != null) {
 				xml.append("<baseline projectFinishMillis=\"").append(baseline.projectFinishMillis()).append("\" projectBufferMillis=\"").append(baseline.projectBufferMillis())
-					.append("\" bufferFraction=\"").append(baseline.bufferFraction()).append("\"><criticalTaskIds>");
+					.append("\" bufferFraction=\"").append(baseline.bufferFraction()).append("\" allResources=\"").append(baseline.allResources()).append("\"><criticalTaskIds>");
 				for (Long id : baseline.criticalTaskIds()) xml.append("<id>").append(id).append("</id>");
 				xml.append("</criticalTaskIds><feedingTaskStartMillis>");
 				for (java.util.Map.Entry<Long, Long> entry : baseline.feedingTaskStartMillis().entrySet()) xml.append("<value taskId=\"").append(entry.getKey()).append("\">").append(entry.getValue()).append("</value>");
 				xml.append("</feedingTaskStartMillis><feedingBufferMillis>");
 				for (java.util.Map.Entry<Long, Long> entry : baseline.feedingBufferMillis().entrySet()) xml.append("<value taskId=\"").append(entry.getKey()).append("\">").append(entry.getValue()).append("</value>");
-				xml.append("</feedingBufferMillis></baseline>");
+				xml.append("</feedingBufferMillis><resourceIds>");
+				for (Long id : baseline.resourceIds()) xml.append("<id>").append(id).append("</id>");
+				xml.append("</resourceIds></baseline>");
 			}
 			xml.append("</ccpm>");
 		}
@@ -737,7 +742,9 @@ public final class MpoFileImporter extends FileImporter {
 				org.w3c.dom.Element baseline = (org.w3c.dom.Element) baselines.item(0);
 				java.util.List<Long> critical = new java.util.ArrayList<>(); org.w3c.dom.NodeList ids = baseline.getElementsByTagName("id");
 				for (int i = 0; i < ids.getLength(); i++) critical.add(Long.valueOf(ids.item(i).getTextContent()));
-				service.restoreBaseline(project, new CriticalChainService.Baseline(Long.parseLong(requiredAttribute(baseline, "projectFinishMillis")), Long.parseLong(requiredAttribute(baseline, "projectBufferMillis")), Double.parseDouble(requiredAttribute(baseline, "bufferFraction")), critical, xmlLongMap(baseline, "feedingTaskStartMillis"), xmlLongMap(baseline, "feedingBufferMillis")));
+				java.util.List<Long> resources = xmlLongList(baseline, "resourceIds");
+				boolean allResources = !baseline.hasAttribute("allResources") || Boolean.parseBoolean(requiredAttribute(baseline, "allResources"));
+				service.restoreBaseline(project, new CriticalChainService.Baseline(Long.parseLong(requiredAttribute(baseline, "projectFinishMillis")), Long.parseLong(requiredAttribute(baseline, "projectBufferMillis")), Double.parseDouble(requiredAttribute(baseline, "bufferFraction")), critical, xmlLongMap(baseline, "feedingTaskStartMillis"), xmlLongMap(baseline, "feedingBufferMillis"), allResources, resources));
 			}
 		} catch (Exception exception) { throw new IOException("Invalid settings.xml", exception); }
 	}
@@ -745,6 +752,13 @@ public final class MpoFileImporter extends FileImporter {
 	private static java.util.Map<Long, Long> xmlLongMap(org.w3c.dom.Element parent, String name) {
 		java.util.Map<Long, Long> result = new java.util.LinkedHashMap<>(); org.w3c.dom.NodeList values = ((org.w3c.dom.Element) parent.getElementsByTagName(name).item(0)).getElementsByTagName("value");
 		for (int i = 0; i < values.getLength(); i++) { org.w3c.dom.Element value = (org.w3c.dom.Element) values.item(i); result.put(Long.valueOf(value.getAttribute("taskId")), Long.valueOf(value.getTextContent())); }
+		return result;
+	}
+	private static java.util.List<Long> xmlLongList(org.w3c.dom.Element parent, String name) {
+		java.util.List<Long> result = new java.util.ArrayList<>(); org.w3c.dom.NodeList parents = parent.getElementsByTagName(name);
+		if (parents.getLength() == 0) return result;
+		org.w3c.dom.NodeList ids = ((org.w3c.dom.Element) parents.item(0)).getElementsByTagName("id");
+		for (int i = 0; i < ids.getLength(); i++) result.add(Long.valueOf(ids.item(i).getTextContent()));
 		return result;
 	}
 
@@ -761,8 +775,12 @@ public final class MpoFileImporter extends FileImporter {
 		if (!value.path("criticalTaskIds").isArray() || !value.path("feedingTaskStartMillis").isObject() || !value.path("feedingBufferMillis").isObject()) throw new IOException("Invalid CCPM baseline");
 		java.util.List<Long> critical = new java.util.ArrayList<Long>();
 		for (JsonNode id : value.path("criticalTaskIds")) critical.add(Long.valueOf(wholeNumber(id, "critical task ID")));
+		java.util.List<Long> resources = new java.util.ArrayList<>();
+		JsonNode resourceIds = value.get("resourceIds");
+		if (resourceIds != null) { if (!resourceIds.isArray()) throw new IOException("Invalid CCPM resource scope"); for (JsonNode id : resourceIds) resources.add(Long.valueOf(wholeNumber(id, "resource ID"))); }
+		boolean allResources = !value.has("allResources") || bool(value, "allResources");
 		return new CriticalChainService.Baseline(projectFinish, projectBuffer, fraction, critical,
-			longMap(value.path("feedingTaskStartMillis")), longMap(value.path("feedingBufferMillis")));
+			longMap(value.path("feedingTaskStartMillis")), longMap(value.path("feedingBufferMillis")), allResources, resources);
 	}
 
 	private static java.util.Map<Long, Long> longMap(JsonNode value) throws IOException {

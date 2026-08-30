@@ -15,7 +15,7 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.SwingWorker;
+import javax.swing.SwingUtilities;
 
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
@@ -63,14 +63,13 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 	}
 
 	private void loadAnalysis(CriticalChainService service, Project project, Surface surface, JPanel content) {
-		new SwingWorker<CriticalChainService.Analysis, Void>() {
-			@Override protected CriticalChainService.Analysis doInBackground() {
-				return service.analysis(project);
-			}
-			@Override protected void done() {
+		// The project model is edited on the EDT and is not safe to traverse while
+		// spreadsheet edits are in progress. Defer one event so the loading label
+		// paints, then analyze on the same thread that owns the model.
+		SwingUtilities.invokeLater(() -> {
 				if (content == null) return;
 				try {
-					CriticalChainService.Analysis analysis = get();
+					CriticalChainService.Analysis analysis = service.analysis(project);
 					content.removeAll();
 					if (analysis == null) content.add(new JLabel(UsabilityStrings.text("ccpm.noAppliedPlan")), BorderLayout.CENTER);
 					else if (surface == Surface.NETWORK) {
@@ -88,7 +87,6 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 				}
 				content.revalidate();
 				content.repaint();
-			}
-		}.execute();
+		});
 	}
 }

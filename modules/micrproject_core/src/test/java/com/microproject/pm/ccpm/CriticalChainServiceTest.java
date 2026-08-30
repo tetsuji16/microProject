@@ -80,6 +80,8 @@ class CriticalChainServiceTest {
 		assertEquals(CriticalChainService.BufferStatus.GREEN, result.projectBuffer().status());
 
 		CriticalChainService.Baseline baseline = service.findBaseline(fixture.project);
+		assertTrue(!baseline.allResources() && baseline.resourceIds().equals(List.of(Long.valueOf(fixture.resource.getUniqueId()))),
+			"an applied CCPM plan must retain its selected-resource scope for later status analysis");
 		service.restoreBaseline(fixture.project, new CriticalChainService.Baseline(
 			Math.max(0L, fixture.project.getEnd() - CalendarOption.getInstance().getMillisPerDay()), baseline.projectBufferMillis(),
 			baseline.bufferFraction(), baseline.criticalTaskIds(), baseline.feedingTaskStartMillis(), baseline.feedingBufferMillis()));
@@ -98,7 +100,8 @@ class CriticalChainServiceTest {
 		service.settings(fixture.project).setEnabled(true);
 
 		CriticalChainService.Analysis applied = service.apply(fixture.project, List.of(fixture.resource));
-		assertSame(applied, service.analysis(fixture.project));
+		assertTrue(service.analysis(fixture.project) != null,
+			"status surfaces must rebuild analysis so assignment and dependency edits cannot leave a stale chain");
 		assertTrue(second.getLevelingDelay() > 0L);
 
 		service.clear(fixture.project);
@@ -109,7 +112,7 @@ class CriticalChainServiceTest {
 		fixture.project.getUndoController().undo();
 		assertTrue(service.findSettings(fixture.project).isEnabled());
 		assertTrue(service.findBaseline(fixture.project) != null);
-		assertSame(applied, service.findAnalysis(fixture.project));
+		assertTrue(service.findAnalysis(fixture.project) != null);
 		assertTrue(second.getLevelingDelay() > 0L);
 
 		fixture.project.getUndoController().redo();

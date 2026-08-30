@@ -98,6 +98,26 @@ class DockableProjectToolViewTest {
 	}
 
 	@Test
+	void clearingCcpmAlsoDiscardsTheTransientBufferHistory() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("buffer-history-clear", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Settings settings = service.settings(project);
+		settings.setEnabled(true);
+		service.restoreBaseline(project, new CriticalChainService.Baseline(project.getEnd(), 100L, 0.5D, List.of(), java.util.Map.of(), java.util.Map.of()));
+		CriticalChainService.Buffer buffer = new CriticalChainService.Buffer(100L, 20L, 80L, 0.2D, CriticalChainService.BufferStatus.GREEN);
+		CriticalChainBufferChartPanel chart = new CriticalChainBufferChartPanel(project);
+		chart.setAnalysis(new CriticalChainService.Analysis(null, List.of(), 100L, java.util.Map.of(), buffer, java.util.Map.of(), java.util.Map.of(), List.of()), true);
+		assertEquals(1, CriticalChainBufferChartPanel.observationCount(chart));
+
+		service.clear(project);
+
+		assertEquals(0, CriticalChainBufferChartPanel.observationCount(new CriticalChainBufferChartPanel(project)));
+	}
+
+	@Test
 	void criticalChainGraphExpandsScrollableCanvasForLongChains() {
 		List<Long> ids = java.util.stream.LongStream.rangeClosed(1L, 8L).boxed().toList();
 		List<CriticalChainService.ChainEdge> edges = new java.util.ArrayList<>();

@@ -18,6 +18,7 @@ import java.util.List;
 import javax.swing.JPanel;
 
 import com.microproject.dialog.UsabilityStrings;
+import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.task.Project;
 
@@ -38,14 +39,14 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	private static final Color RED = new Color(240, 180, 185);
 	enum Zone { GREEN, AMBER, RED }
 	private final Project project;
-	private final List<ChartPoint> history = new ArrayList<>();
+	private final List<CriticalChainBufferHistory.Point> history = new ArrayList<>();
 	private CriticalChainService.Analysis analysis;
 	private boolean enabled;
 
 	public CriticalChainBufferChartPanel(Project project) {
 		this.project = project;
-		BufferHistoryState saved = project == null ? null : project.findTransientDocumentState(BufferHistoryState.class);
-		if (saved != null) history.addAll(saved.points);
+		CriticalChainBufferHistory saved = project == null ? null : project.findTransientDocumentState(CriticalChainBufferHistory.class);
+		if (saved != null) history.addAll(saved.points());
 		setBackground(Color.WHITE);
 		setPreferredSize(new Dimension(620, 420));
 		getAccessibleContext().setAccessibleName(UsabilityStrings.text("ccpm.bufferChartAccessible"));
@@ -143,13 +144,13 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		if (history.isEmpty()) return;
 		g.setColor(new Color(34, 94, 168));
 		g.setStroke(new BasicStroke(2f));
-		ChartPoint previous = null;
-		for (ChartPoint point : history) {
+		CriticalChainBufferHistory.Point previous = null;
+		for (CriticalChainBufferHistory.Point point : history) {
 			if (previous != null) g.drawLine(xFor(previous.progressPercent(), width), yFor(previous.consumptionPercent(), height),
 				xFor(point.progressPercent(), width), yFor(point.consumptionPercent(), height));
 			previous = point;
 		}
-		for (ChartPoint point : history) {
+		for (CriticalChainBufferHistory.Point point : history) {
 			int x = xFor(point.progressPercent(), width);
 			int y = yFor(point.consumptionPercent(), height);
 			g.setColor(new Color(20, 75, 145));
@@ -176,37 +177,32 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		g.drawString(label, x + 18, y);
 	}
 
-	private static ChartPoint pointFor(Project project, CriticalChainService.Buffer buffer) {
+	private static CriticalChainBufferHistory.Point pointFor(Project project, CriticalChainService.Buffer buffer) {
 		double progress = project == null ? 0D : clamp(project.getPercentComplete() * 100D);
-		return new ChartPoint(progress, clamp(buffer.consumptionRatio() * 100D));
+		return new CriticalChainBufferHistory.Point(progress, clamp(buffer.consumptionRatio() * 100D));
 	}
 
-	static Zone zoneFor(ChartPoint point) {
+	static Zone zoneFor(CriticalChainBufferHistory.Point point) {
 		double progress = point.progressPercent();
 		double consumption = point.consumptionPercent();
 		if (consumption <= GREEN_INTERCEPT + GREEN_SLOPE * progress) return Zone.GREEN;
 		return consumption <= AMBER_INTERCEPT + AMBER_SLOPE * progress ? Zone.AMBER : Zone.RED;
 	}
 
-	private void addObservation(ChartPoint point) {
+	private void addObservation(CriticalChainBufferHistory.Point point) {
 		if (!history.isEmpty() && history.get(history.size() - 1).equals(point)) return;
 		if (history.size() == MAX_HISTORY) history.remove(0);
 		history.add(point);
 		if (project != null) {
-			BufferHistoryState saved = project.getOrCreateTransientDocumentState(BufferHistoryState.class, BufferHistoryState::new);
-			saved.points.clear();
-			saved.points.addAll(history);
+			CriticalChainBufferHistory saved = project.getOrCreateTransientDocumentState(CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+			saved.points().clear();
+			saved.points().addAll(history);
 		}
 	}
 
 	private void clearHistory() {
 		history.clear();
-		if (project != null) project.removeTransientDocumentState(BufferHistoryState.class);
-	}
-
-	/** Session-only observations retained while a user closes and reopens the status dialog. */
-	private static final class BufferHistoryState {
-		private final List<ChartPoint> points = new ArrayList<>();
+		if (project != null) project.removeTransientDocumentState(CriticalChainBufferHistory.class);
 	}
 
 	private static int xFor(double percent, int width) { return LEFT + (int) Math.round(clamp(percent) * width / 100D); }
@@ -214,6 +210,5 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	private static double clamp(double value) { return Double.isFinite(value) ? Math.max(0D, Math.min(100D, value)) : 0D; }
 
 	static int observationCount(CriticalChainBufferChartPanel panel) { return panel.history.size(); }
-	static ChartPoint currentPoint(Project project, CriticalChainService.Buffer buffer) { return pointFor(project, buffer); }
-	static record ChartPoint(double progressPercent, double consumptionPercent) { }
+	static CriticalChainBufferHistory.Point currentPoint(Project project, CriticalChainService.Buffer buffer) { return pointFor(project, buffer); }
 }
