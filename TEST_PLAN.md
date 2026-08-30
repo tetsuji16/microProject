@@ -224,4 +224,5 @@
 - #395 API互換性回帰: `UiServicesFileChooserProviderTest`で、旧来の単一選択プロバイダが1件リストへ変換され、キャンセル（null）が空リストになることを確認（BUILD SUCCESSFUL）。
 - #395 nullプロバイダ回帰: カスタムchooserがnullリストを返しても`GraphicManager.openLocalProject`がキャンセルとして安全に終了するガードを追加。core/UI focusedテスト（20 actionable tasks、13秒）がBUILD SUCCESSFUL。
 - #395 複数選択順序回帰: `SwingFileChooserProvider.selectedFileNames`で複数選択の全ファイルを順序どおり返し、null要素と空配列を安全に扱うことを確認（UI focused test BUILD SUCCESSFUL、6秒）。
+- #395 統合GUI再確認: 複数選択変換ヘルパー追加後にinstallDistを再生成し、全16クラス実Robot GUI受入スイートがBUILD SUCCESSFUL（40秒）となることを確認。
 - #395後続GUI回帰: null結果ガード後にinstallDistを再生成し、全16クラスの実Robot GUI受入スイートを再実行（BUILD SUCCESSFUL、44秒）。
