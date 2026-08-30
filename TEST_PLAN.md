@@ -202,3 +202,4 @@
 - CI節目確認: Release Run `33306149733`（commit `fbff56043`）のBuild/package、release staging、GitHub Release、Pages deployがすべてsuccess。`actions/checkout@v5`／`actions/setup-java@v5`更新後の配布経路も継続して正常であることを確認した。
 - GUI-NC-03/08: `TaskTableGanttGridGuiAcceptanceTest.twentyMixedTasksRemainAccessibleAfterMouseScrollbarClick` を追加し、FSで連続する10タスク＋独立10タスク（計20タスク）を生成した実GUIで、20行の存在と縦スクロールバーのマウス操作を確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
 - GUI受入回帰: 20タスクケース追加後の全体実行で、不正先行入力ケースの警告ダイアログがEDTを待たせる問題をスレッドダンプで検出。GUIテストの警告解除 watcher をモーダルループに依存しない直接disposeへ変更し、`./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain`（BUILD SUCCESSFUL、33秒）で15クラスの完走を確認した。
+- 最新コミット再検証: `./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain` を`1c97aa0d5`上で再実行し、20タスクケースを含む全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
