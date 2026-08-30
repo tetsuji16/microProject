@@ -50,4 +50,17 @@ class YearlessDateInputParserTest {
 
 		assertEquals(DateTime.calendarInstance(2020, Calendar.DECEMBER, 2).getTime(), parsed);
 	}
+
+	@Test
+	void fullDateInputUsesTheRequestedDateWithoutLenientRollover() throws Exception {
+		Date parsed = YearlessDateInputParser.parse("2026/09/02", new SimpleDateFormat("yyyy/MM/dd"), null);
+
+		assertEquals("2026/09/02", new SimpleDateFormat("yyyy/MM/dd").format(parsed));
+	}
+
+	@Test
+	void malformedFullDateIsRejectedInsteadOfNormalized() {
+		org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+				() -> YearlessDateInputParser.parse("2026/99/99", new SimpleDateFormat("yyyy/MM/dd"), null));
+	}
 }

@@ -25,6 +25,7 @@
 package com.microproject.util;
 
 import java.text.DateFormat;
+import java.text.ParsePosition;
 import java.text.ParseException;
 import java.util.Date;
 import java.time.DateTimeException;
@@ -61,13 +62,34 @@ public final class YearlessDateInputParser {
 		}
 
 		try {
-			return fallbackFormat.parse(trimmed);
+			return parseStrict(fallbackFormat, trimmed);
 		} catch (ParseException e) {
 			if (!YEAR_PATTERN.matcher(trimmed).find()) {
 				throw e;
 			}
 		}
 		throw new ParseException(trimmed, 0);
+	}
+
+	/**
+	 * DateFormat.parse(String) accepts a valid prefix and silently normalizes
+	 * impossible dates (for example a swapped year/month).  That is dangerous
+	 * in a spreadsheet editor because a typo can move a task to an unrelated
+	 * date.  Require the complete input to parse and disable lenient rollover.
+	 */
+	private static Date parseStrict(DateFormat format, String text) throws ParseException {
+		if (format == null) {
+			throw new ParseException(text, 0);
+		}
+		DateFormat strict = (DateFormat) format.clone();
+		strict.setLenient(false);
+		ParsePosition position = new ParsePosition(0);
+		Date result = strict.parse(text, position);
+		if (result == null || position.getIndex() != text.length()) {
+			int error = position.getErrorIndex() >= 0 ? position.getErrorIndex() : position.getIndex();
+			throw new ParseException(text, error);
+		}
+		return result;
 	}
 
 	private static Date buildDate(Date referenceDate, int month, int day, String remainder) throws ParseException {
