@@ -217,3 +217,4 @@
 - #438 ロギング診断改善: MPXJ/POIのLog4j API向け`log4j-to-slf4j:2.24.3`ブリッジをexchangeへ追加。`verifyPackagedFileImports`実行時の「could not find a logging provider」警告が消え、MPP/POD（各145タスク）読込、`:micrproject_exchange:test`（BUILD SUCCESSFUL、15秒）、`TaskDateDependencyGuiAcceptanceTest`（11秒）、`:micrproject_ui:test`（53秒）を再確認した。
 - リボン狭幅回帰: `RibbonTabGuiAcceptanceTest.narrowRibbonExposesCollapsedCommandsThroughMousePopup` で900px幅の折りたたみポップアップ生成と`RibbonHideSelectedTasks`配送を確認（focused BUILD SUCCESSFUL）。同じ画面の折りたたみボタンを`Robot`実座標でクリックするとイベントが発火しない環境差を再現し、画面座標・サイズを#430へ記録。ポップアップ生成自体は`doClick`で回帰防止し、実マウス経路は追加調査対象とした。
 - GUI-NC-11/#395: 開くダイアログを複数選択モードにし、選択された全プロジェクトを順に開く`FileChooserProvider.chooseFileNames`／`GraphicManager.openLocalProject`経路を追加。`SwingFileChooserProviderTest`でopen=true、save=falseの選択モードを確認し、focused UI testはBUILD SUCCESSFUL。ネイティブOSダイアログの実Robot選択は環境依存の残作業。
+- #395 API互換性回帰: `UiServicesFileChooserProviderTest`で、旧来の単一選択プロバイダが1件リストへ変換され、キャンセル（null）が空リストになることを確認（BUILD SUCCESSFUL）。
