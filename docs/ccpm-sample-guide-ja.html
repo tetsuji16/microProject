@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>20タスクCCPMサンプルの使い方 | microProject</title>
+  <style>
+    :root { --ink:#17212b; --muted:#556575; --line:#dce3eb; --paper:#fff; --bg:#f4f7fa; --blue:#1f5eff; --soft:#eaf0ff; --green:#0f766e; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:Aptos,"Segoe UI","Yu Gothic UI",sans-serif; line-height:1.7; }
+    main { width:min(960px,calc(100% - 32px)); margin:0 auto; padding:28px 0 72px; }
+    header, section { background:var(--paper); border:1px solid var(--line); border-radius:18px; padding:28px; box-shadow:0 12px 28px rgba(20,32,54,.05); }
+    section { margin-top:18px; }
+    .crumb { color:var(--muted); font-size:14px; }
+    .crumb a { color:inherit; }
+    h1 { margin:12px 0 10px; font-size:clamp(30px,6vw,48px); line-height:1.15; letter-spacing:-.04em; }
+    h2 { margin:0 0 14px; font-size:24px; letter-spacing:-.02em; }
+    h3 { margin:20px 0 8px; font-size:18px; }
+    p { margin:0; color:var(--muted); }
+    p + p { margin-top:10px; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:22px; }
+    .button { display:inline-flex; align-items:center; min-height:44px; padding:10px 16px; border-radius:10px; background:var(--blue); color:#fff; font-weight:700; text-decoration:none; }
+    .button.secondary { background:var(--paper); color:var(--ink); border:1px solid var(--line); }
+    .notice { margin-top:18px; padding:14px 16px; border-left:4px solid var(--green); background:#ecfdf5; color:#14532d; border-radius:8px; }
+    ol { margin:12px 0 0; padding-left:24px; }
+    li + li { margin-top:10px; }
+    code { padding:2px 5px; border-radius:5px; background:#edf2f7; color:#243447; }
+    table { width:100%; border-collapse:collapse; margin-top:14px; font-size:14px; }
+    th, td { padding:10px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#f7f9fc; }
+    .route { margin-top:14px; padding:15px; border-radius:10px; background:var(--soft); color:#173a92; font-weight:600; }
+    .check { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+    .check div { padding:14px; border:1px solid var(--line); border-radius:10px; color:var(--muted); }
+    @media (max-width:680px) { main { width:min(100% - 20px,960px); padding-top:10px; } header,section { padding:20px; } .check { grid-template-columns:1fr; } table { font-size:13px; } th,td { padding:8px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="crumb"><a href="index.html">microProject</a> / <a href="usage-guide-ja.html">オンライン ヘルプ</a> / CCPMサンプル</div>
+      <h1>20タスクCCPMサンプルの使い方</h1>
+      <p>一般的なシステム導入プロジェクトを題材に、依存関係、クリティカルチェーン、プロジェクト・バッファを確認するための短い実習です。サンプルは未開始・自動スケジュールで、CCPM設定は有効ですがベースラインは未作成です。</p>
+      <div class="actions">
+        <a class="button" href="https://github.com/tetsuji16/ProjectLibre/raw/master/samples/CCPM%20%E6%A8%99%E6%BA%96%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E5%B0%8E%E5%85%A5%2020%E3%82%BF%E3%82%B9%E3%82%AF.mpo">サンプル（.mpo）をダウンロード</a>
+        <a class="button secondary" href="usage-guide-ja.html#ccpm">CCPMの基本説明へ戻る</a>
+      </div>
+      <div class="notice">このページはスクリーンショットを使用していません。したがって、デスクトップ、スタートバー、またはmicroProject以外のアプリケーション画面は掲載していません。</div>
+    </header>
+
+    <section>
+      <h2>サンプルに含まれる構成</h2>
+      <p>タスク数は20件です。単純な一本道ではなく、設計・実装・テスト・運用準備が合流する、日常的なプロジェクト構成にしています。</p>
+      <div class="route">主経路: プロジェクト開始 → 現状ヒアリング → 要件定義 → 要件レビュー → 基本設計 → アーキテクチャレビュー → 基幹機能の実装 → 単体テスト → 結合テスト → システムテスト → 利用部門受入テスト → 本番リリース → プロジェクト完了</div>
+      <table>
+        <thead><tr><th>工程</th><th>タスク</th><th>確認できる点</th></tr></thead>
+        <tbody>
+          <tr><td>立上げ・要件</td><td>プロジェクト開始、現状ヒアリング、要件定義、要件レビュー</td><td>主経路の開始とFS依存</td></tr>
+          <tr><td>設計・準備</td><td>基本設計、アーキテクチャレビュー、画面設計、開発環境準備</td><td>設計後に複数の作業が分岐する構造</td></tr>
+          <tr><td>開発・テスト</td><td>基幹機能の実装、画面機能の実装、単体テスト、結合テスト、テストデータ準備、システムテスト</td><td>並行実装とテストデータ準備の合流</td></tr>
+          <tr><td>展開</td><td>操作マニュアル作成、利用部門受入テスト、リリース準備、利用者トレーニング準備、本番リリース、プロジェクト完了</td><td>テスト、運用準備、教育準備がリリースへ合流</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>CCPMを適用して確認する</h2>
+      <ol>
+        <li>ダウンロードした <code>CCPM 標準システム導入 20タスク.mpo</code> をmicroProjectの<strong>ファイル → 開く</strong>で開きます。</li>
+        <li>タスク表の<strong>先行</strong>列を確認します。実装、テスト、リリースの各工程で複数の先行タスクが合流します。</li>
+        <li><strong>プロジェクト → CCPM 設定</strong>を開き、CCPMが有効になっていることを確認します。必要ならプロジェクトバッファの割合を調整します。</li>
+        <li><strong>プレビュー</strong>を実行します。候補のクリティカルチェーン、競合、プロジェクト・バッファ、フィーディングバッファを確認します。プレビューだけでは予定は変更されません。</li>
+        <li>内容を確認して<strong>平準化を適用</strong>します。これでCCPMのベースラインが作成されます。</li>
+        <li><code>Ctrl+Shift+N</code>で<strong>CCPM ネットワーク</strong>、<code>Ctrl+Shift+K</code>で<strong>CCPM バッファ状況</strong>を開きます。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>確認チェックリスト</h2>
+      <div class="check">
+        <div>ネットワーク図で、主経路と画面設計・テストデータ・操作マニュアルの分岐／合流が表示される。</div>
+        <div>バッファ状況で、プロジェクト・バッファとフィーディングバッファの候補を確認できる。</div>
+        <div>CCPM適用後も、タスク表とGanttの開始日・終了日・先行関係が整合している。</div>
+        <div><strong>名前を付けて保存</strong>で <code>.mpo</code> を選び、再読込後もCCPMベースラインが残る。</div>
+      </div>
+      <h3>リソース競合も試す場合</h3>
+      <p>このサンプルは依存関係の確認を優先し、初期状態ではリソースを割り当てていません。CCPMのリソース平準化も試すには、同じ担当者を「基幹機能の実装」と「画面機能の実装」に100%で割り当て、もう一度プレビューしてから適用してください。</p>
+    </section>
+
+    <section>
+      <h2>困ったとき</h2>
+      <p>ネットワーク図が表示されない場合は、先にCCPM設定で<strong>平準化を適用</strong>してベースラインを作成してください。CCPMの設定やベースラインを保持する用途では、従来形式の <code>.pod</code> ではなく <code>.mpo</code> で保存します。</p>
+    </section>
+  </main>
+</body>
+</html>
