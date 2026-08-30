@@ -21,4 +21,6 @@ EXIT /B 1
 
 :execute
 "%JAVA_EXE%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
-ENDLOCAL
+REM Preserve Gradle's exit code for PowerShell and CI callers. Without this
+REM explicit propagation, ENDLOCAL can make a failed build appear successful.
+ENDLOCAL & EXIT /B %ERRORLEVEL%

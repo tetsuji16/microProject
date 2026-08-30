@@ -210,3 +210,4 @@
 - 日付連動・20タスク再検証: `TaskDateDependencyGuiAcceptanceTest`（FS/SS/FF/SF、ラグ、Robot日付編集）と`TaskTableGanttGridGuiAcceptanceTest`（20タスク、連続/独立、実マウスのスクロール、Ganttノード描画）を同時実行し、BUILD SUCCESSFUL（11秒、22 actionable tasks）を確認した。MS Project本体との直接比較は実行環境待ち。
 - MSPDI依存関係出力回帰: `MsProjectTaskMoveCompatibilityTest.xmlExportPreservesAllMicrosoftDependencyTypesAndDayLag` を追加し、FS/SS/FF/SFの4種類と1営業日ラグ（MSPDI `LinkLag=4800`）の型・先行UID・ラグ出力を検証した。期待値の単位誤りをテスト実行で検出・修正後、focused exchange testがBUILD SUCCESSFUL（4秒）。
 - CI回帰確認: `983e7df15` のRelease Run `33309446480` では、負のnative UniqueIdがMSPDI正UIDへ再マッピングされる仕様をテストが直接期待していたため、交換テスト1件が失敗した。XML内の出力Predecessor UIDと比較するよう修正し、`:micrproject_exchange:test` 全体（106 tests）がBUILD SUCCESSFUL（16秒）。製品不具合ではなく追加テストの期待値バグとして#430へ記録。
+- CI失敗伝播修正: `gradlew.bat` がGradle失敗後に終了コード0を返し、CIで`BUILD FAILED`後もrelease stagingへ進むことをローカル再現。`ENDLOCAL & EXIT /B %ERRORLEVEL%`を追加し、意図的な存在しないテスト指定で`BUILD FAILED`かつ`EXIT=1`となることを確認した。
