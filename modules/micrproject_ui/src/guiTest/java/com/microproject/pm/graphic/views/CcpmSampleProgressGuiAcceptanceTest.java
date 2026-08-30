@@ -28,6 +28,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.imageio.ImageIO;
@@ -75,8 +77,9 @@ class CcpmSampleProgressGuiAcceptanceTest {
 	private Gantt gantt;
 	private SpreadSheet sheet;
 	private Project project;
-	private int completionRow;
+	private final Map<String, Integer> taskRows = new LinkedHashMap<>();
 	private int durationColumn;
+	private int percentCompleteColumn;
 	private DialogObserver observer;
 
 	@AfterEach
@@ -95,10 +98,6 @@ class CcpmSampleProgressGuiAcceptanceTest {
 	void mixedProgressSampleRendersInGanttAndCcpmStatusDialogs() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Project project = loadSample();
-		assertEquals(1D, task(project, "要件定義").getPercentComplete(), 0.00001D);
-		assertEquals(0.75D, task(project, "基幹機能の実装").getPercentComplete(), 0.00001D);
-		assertEquals(0D, task(project, "本番リリース").getPercentComplete(), 0.00001D);
-
 		showGantt(project);
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
@@ -106,13 +105,16 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		assertTrue(hasRenderedGanttNode(), "the sample Gantt must render task bars");
 		capture(robot, frame, "ccpm-sample-progress-gantt.png");
 
+		// The checked-in sample begins at a realistic mixed-progress checkpoint.
+		// Rewind it through the visible tracking sheet for this new-project scenario.
+		setAllLeafTaskProgressThroughVisibleSpreadsheet(robot, 0D);
+		assertEquals(0D, project.getPercentComplete(), 0.00001D);
+
 		CriticalChainService service = new CriticalChainService();
 		CriticalChainService.Settings settings = service.settings(project);
 		settings.setEnabled(true);
 		service.apply(project, null, settings);
 		assertNotNull(service.findBaseline(project), "CCPM apply must establish a baseline before opening status dialogs");
-		assertTrue(project.getPercentComplete() > 0D && project.getPercentComplete() < 1D,
-			"mixed task progress must produce an in-progress project percentage");
 		showAndCapture(robot, project, CriticalChainStatusDialogBox.Surface.NETWORK,
 			CriticalChainGraphPanel.class, "ccpm-sample-progress-network.png");
 		showBufferTransitionScenario(robot, project, service);
@@ -126,10 +128,16 @@ class CcpmSampleProgressGuiAcceptanceTest {
 			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
 				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()), "ccpm-sample-progress", null);
 			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory,
-				"Spreadsheet.Task.entry", true);
-			Node completionNode = (Node) cache.getModel().search(task(project, "プロジェクト完了"));
-			completionRow = ((SpreadSheetModel) sheet.getModel()).findGraphicNodeRow(cache.getGraphicNode(completionNode));
-			durationColumn = findDurationColumn(sheet);
+				"Spreadsheet.Task.summary", true);
+			for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+				Task task = (Task) iterator.next();
+				if (!task.isSummary()) {
+					Node node = (Node) cache.getModel().search(task);
+					taskRows.put(task.getName(), ((SpreadSheetModel) sheet.getModel()).findGraphicNodeRow(cache.getGraphicNode(node)));
+				}
+			}
+			durationColumn = findColumn(sheet, "Field.duration");
+			percentCompleteColumn = findColumn(sheet, "Field.percentComplete");
 			gantt = new Gantt(project, "Gantt");
 			gantt.setCache(cache);
 			gantt.setCoord(new CoordinatesConverter(project));
@@ -175,28 +183,44 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		CriticalChainBufferChartPanel chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
 		assertNotNull(chart, "CCPM buffer chart is missing");
 		assertEquals(1, CriticalChainBufferChartPanel.observationCount(chart), "the initial safe observation must be visible");
+		assertEquals(0D, project.getPercentComplete(), 0.00001D, "the first chart point must be 0% / 0%");
 		closeDialog(robot, dialog);
 
 		Task completion = task(project, "プロジェクト完了");
 		long originalDuration = completion.getDuration();
 		int originalDays = (int) (originalDuration / CalendarOption.getInstance().getMillisPerDay());
-		editDurationThroughVisibleSpreadsheet(robot, originalDays + 30);
-		CriticalChainService.Analysis red = service.preview(project, null, service.findSettings(project));
-		assertEquals(CriticalChainService.BufferStatus.RED, red.projectBuffer().status(),
-			() -> "a large remaining-duration increase must consume the project buffer into the action-required zone: " + red.projectBuffer());
+
+		setAllLeafTaskProgressThroughVisibleSpreadsheet(robot, 0.25D);
+		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 1);
+		CriticalChainService.Analysis earlyDelay = service.analysis(project);
+		assertTrue(project.getPercentComplete() > 0D && earlyDelay.projectBuffer().consumptionRatio() > 0D,
+			"an early delivery checkpoint must move right and consume a small part of the buffer");
 		dialog = openBufferDialog(project);
 		chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
-		assertEquals(2, CriticalChainBufferChartPanel.observationCount(chart), "the action-required observation must follow the safe one");
+		assertEquals(2, CriticalChainBufferChartPanel.observationCount(chart), "the early checkpoint must follow 0% / 0%");
 		closeDialog(robot, dialog);
 
-		editDurationThroughVisibleSpreadsheet(robot, originalDays);
-		CriticalChainService.Analysis recovered = service.preview(project, null, service.findSettings(project));
-		assertEquals(CriticalChainService.BufferStatus.GREEN, recovered.projectBuffer().status(),
-			"restoring the validated remaining-duration estimate must return the buffer to the safe zone");
+		setAllLeafTaskProgressThroughVisibleSpreadsheet(robot, 0.50D);
+		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 2);
+		CriticalChainService.Analysis midDelay = service.analysis(project);
+		assertTrue(project.getPercentComplete() > 0.40D && midDelay.projectBuffer().consumptionRatio() > earlyDelay.projectBuffer().consumptionRatio(),
+			"a mid-project integration delay must visibly increase buffer use");
 		dialog = openBufferDialog(project);
 		chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
-		assertEquals(3, CriticalChainBufferChartPanel.observationCount(chart),
-			"the visible chart must retain the safe, action-required, and recovered observations");
+		assertEquals(3, CriticalChainBufferChartPanel.observationCount(chart), "the mid-project checkpoint must be retained");
+		closeDialog(robot, dialog);
+
+		setAllLeafTaskProgressThroughVisibleSpreadsheet(robot, 0.75D);
+		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 1);
+		CriticalChainService.Analysis recovery = service.analysis(project);
+		assertTrue(project.getPercentComplete() > 0.65D && recovery.projectBuffer().consumptionRatio() < midDelay.projectBuffer().consumptionRatio(),
+			() -> "resolving part of the integration delay must reduce buffer use while delivery keeps progressing: early="
+				+ earlyDelay.projectBuffer().consumptionRatio() + ", mid=" + midDelay.projectBuffer().consumptionRatio()
+				+ ", recovery=" + recovery.projectBuffer().consumptionRatio());
+		dialog = openBufferDialog(project);
+		chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
+		assertEquals(4, CriticalChainBufferChartPanel.observationCount(chart),
+			"the chart must retain the initial, early, mid-project, and recovery checkpoints");
 		capture(robot, dialog, "ccpm-sample-progress-buffer-transition.png");
 		closeDialog(robot, dialog);
 	}
@@ -215,12 +239,25 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		observer.close(); observer = null;
 	}
 
-	private void editDurationThroughVisibleSpreadsheet(Robot robot, int days) throws Exception {
+	private void setAllLeafTaskProgressThroughVisibleSpreadsheet(Robot robot, double progress) throws Exception {
+		for (String taskName : taskRows.keySet()) {
+			editThroughVisibleSpreadsheet(robot, taskName, percentCompleteColumn, Math.round(progress * 100D) + "%");
+		}
+	}
+
+	private void editDurationThroughVisibleSpreadsheet(Robot robot, String taskName, int days) throws Exception {
+		editThroughVisibleSpreadsheet(robot, taskName, durationColumn, String.valueOf(days));
+		assertEquals(days * CalendarOption.getInstance().getMillisPerDay(), task(project, taskName).getDuration());
+	}
+
+	private void editThroughVisibleSpreadsheet(Robot robot, String taskName, int column, String value) throws Exception {
 		Rectangle cell = new Rectangle();
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront(); frame.requestFocus(); sheet.requestFocusInWindow();
-			sheet.changeSelection(completionRow, durationColumn, false, false);
-			Rectangle bounds = sheet.getCellRect(completionRow, durationColumn, true);
+			Integer row = taskRows.get(taskName);
+			assertNotNull(row, "missing visible task row: " + taskName);
+			sheet.changeSelection(row.intValue(), column, false, false);
+			Rectangle bounds = sheet.getCellRect(row.intValue(), column, true);
 			java.awt.Point point = sheet.getLocationOnScreen();
 			cell.setBounds(point.x + bounds.x, point.y + bounds.y, bounds.width, bounds.height);
 		});
@@ -231,20 +268,19 @@ class CcpmSampleProgressGuiAcceptanceTest {
 			new KeyEvent(sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_F2, KeyEvent.CHAR_UNDEFINED)));
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not start visible duration editing");
 		SwingUtilities.invokeAndWait(() -> {
-			((JTextComponent) sheet.getEditorComponent()).setText(String.valueOf(days));
-			assertTrue(sheet.getCellEditor().stopCellEditing(), "duration editor rejected the scenario value");
+			((JTextComponent) sheet.getEditorComponent()).setText(value);
+			assertTrue(sheet.getCellEditor().stopCellEditing(), "visible scenario editor rejected: " + value);
 		});
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "duration edit did not commit");
-		assertEquals(days * CalendarOption.getInstance().getMillisPerDay(), task(project, "プロジェクト完了").getDuration());
 	}
 
-	private static int findDurationColumn(SpreadSheet sheet) {
+	private static int findColumn(SpreadSheet sheet, String fieldId) {
 		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
 		for (int modelColumn = 0; modelColumn < model.getColumnCount(); modelColumn++) {
 			Field field = model.getFieldInColumn(modelColumn);
-			if (field != null && "Field.duration".equals(field.getId())) return sheet.convertColumnIndexToView(modelColumn);
+			if (field != null && fieldId.equals(field.getId())) return sheet.convertColumnIndexToView(modelColumn);
 		}
-		throw new IllegalArgumentException("Sample task table has no duration column");
+		throw new IllegalArgumentException("Sample task table has no " + fieldId + " column");
 	}
 
 	private boolean hasRenderedGanttNode() throws Exception {
