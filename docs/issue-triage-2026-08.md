@@ -72,3 +72,11 @@ installed distribution for the entries marked “Focused GUI verified”. A real
 Microsoft Project comparison and the real file-dialog multi-project open flow
 remain unavailable/pending and are tracked by issues #430 and #395; those
 scenarios must not be described as complete until that environment is provided.
+
+最新の節目確認（commit `6cbb74127`）では Pages Run `33315015452` が
+success、Release Run `33315015982` は pending（GitHub Actions のリリース処理待ち）
+で、Release の完了結果は未確定である。
+
+#228 では、プロジェクト追加時に件数が既知のリソース／タスク索引 Map を事前容量で
+生成する改善を追加した。`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、3秒）と
+`:micrproject_core:test` 全体（BUILD SUCCESSFUL、13秒）で挙動不変を確認した。

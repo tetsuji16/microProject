@@ -230,3 +230,5 @@
 - #228 ResourcePool容量回帰: `ResourcePool.findById`の既知リソース件数を逆引きMapの初期容量へ反映し、`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、7秒）でID検索・未存在検索の挙動不変を確認。
 - #228 core全体回帰: ResourcePool逆引きMap容量改善後に`:micrproject_core:test`全体を再実行し、スケジューリング・依存関係・リソース処理を含めBUILD SUCCESSFUL（14秒）。
 - #395後続GUI回帰: null結果ガード後にinstallDistを再生成し、全16クラスの実Robot GUI受入スイートを再実行（BUILD SUCCESSFUL、44秒）。
+- #228 MutableNodeHierarchy容量回帰: 既知件数を使ってリソース／タスク索引Mapを事前確保し、`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、3秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
+- CI節目確認: commit `6cbb74127` のPages Run `33315015452` はsuccess、Release Run `33315015982` はpendingのため完了待ち。

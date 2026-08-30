@@ -204,13 +204,14 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	ArrayList<Node> insertedNodes = new ArrayList<Node>(descendants.length);
 
     	if (project!=null){
-    		HashMap<Long, Resource> resourceMap = new HashMap<Long, Resource>();
-    		for (Resource r : project.getResourcePool().getResourceList())
+			int resourceCount = project.getResourcePool().getResourceList().size();
+			HashMap<Long, Resource> resourceMap = new HashMap<Long, Resource>(resourceCount * 4 / 3 + 1);
+			for (Resource r : project.getResourcePool().getResourceList())
     			resourceMap.put(r.getUniqueId(),r);
 
     		HashMap<Long, Task> taskMap = null;
     		if (Environment.isKeepExternalLinks()){
-    			taskMap=new HashMap<Long, Task>();
+				taskMap=new HashMap<Long, Task>(project.getTaskList().size() * 4 / 3 + 1);
     			for (Task t: project.getTaskList()) //use model instead?
     				taskMap.put(t.getUniqueId(),t);
     		}
