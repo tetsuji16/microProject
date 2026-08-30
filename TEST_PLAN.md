@@ -211,4 +211,5 @@
 - MSPDI依存関係出力回帰: `MsProjectTaskMoveCompatibilityTest.xmlExportPreservesAllMicrosoftDependencyTypesAndDayLag` を追加し、FS/SS/FF/SFの4種類と1営業日ラグ（MSPDI `LinkLag=4800`）の型・先行UID・ラグ出力を検証した。期待値の単位誤りをテスト実行で検出・修正後、focused exchange testがBUILD SUCCESSFUL（4秒）。
 - CI回帰確認: `983e7df15` のRelease Run `33309446480` では、負のnative UniqueIdがMSPDI正UIDへ再マッピングされる仕様をテストが直接期待していたため、交換テスト1件が失敗した。XML内の出力Predecessor UIDと比較するよう修正し、`:micrproject_exchange:test` 全体（106 tests）がBUILD SUCCESSFUL（16秒）。製品不具合ではなく追加テストの期待値バグとして#430へ記録。
 - CI失敗伝播修正: `gradlew.bat` がGradle失敗後に終了コード0を返し、CIで`BUILD FAILED`後もrelease stagingへ進むことをローカル再現。`ENDLOCAL & EXIT /B %ERRORLEVEL%`を追加し、意図的な存在しないテスト指定で`BUILD FAILED`かつ`EXIT=1`となることを確認した。
+- リポジトリclean build回帰: `./gradlew.bat --no-daemon clean build --console=plain` を実行して全モジュールのclean再コンパイル・テストを完走させ、続く `./gradlew.bat build --console=plain` で`BUILD SUCCESSFUL`かつ`EXIT=0`を確認した。
 - リボン狭幅回帰: `RibbonTabGuiAcceptanceTest.narrowRibbonExposesCollapsedCommandsThroughMousePopup` で900px幅の折りたたみポップアップ生成と`RibbonHideSelectedTasks`配送を確認（focused BUILD SUCCESSFUL）。同じ画面の折りたたみボタンを`Robot`実座標でクリックするとイベントが発火しない環境差を再現し、画面座標・サイズを#430へ記録。ポップアップ生成自体は`doClick`で回帰防止し、実マウス経路は追加調査対象とした。
