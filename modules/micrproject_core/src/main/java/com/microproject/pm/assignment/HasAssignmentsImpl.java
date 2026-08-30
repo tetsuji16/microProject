@@ -379,7 +379,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 
     public static List<Object> extractOppositeList(List<?> list, boolean leftObject) {
 		Iterator<?> i = list.iterator();
-		ArrayList<Assignment> assignments = new ArrayList<>();
+		ArrayList<Assignment> assignments = new ArrayList<>(list.size());
     	while (i.hasNext()) { // go thru tasks or resources
     		Object object = i.next();
 			if (! (object instanceof HasAssignments))
