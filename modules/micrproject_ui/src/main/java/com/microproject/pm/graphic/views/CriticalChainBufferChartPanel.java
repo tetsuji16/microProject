@@ -44,6 +44,8 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 
 	public CriticalChainBufferChartPanel(Project project) {
 		this.project = project;
+		BufferHistoryState saved = project == null ? null : project.findTransientDocumentState(BufferHistoryState.class);
+		if (saved != null) history.addAll(saved.points);
 		setBackground(Color.WHITE);
 		setPreferredSize(new Dimension(620, 420));
 		getAccessibleContext().setAccessibleName(UsabilityStrings.text("ccpm.bufferChartAccessible"));
@@ -53,7 +55,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	/** Updates the current point and retains distinct observations made during this dialog session. */
 	public void setAnalysis(CriticalChainService.Analysis analysis, boolean enabled) {
 		this.analysis = analysis;
-		if (!enabled && this.enabled) history.clear();
+		if (!enabled && this.enabled) clearHistory();
 		this.enabled = enabled;
 		if (enabled && analysis != null) addObservation(pointFor(project, analysis.projectBuffer()));
 		repaint();
@@ -147,15 +149,16 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 				xFor(point.progressPercent(), width), yFor(point.consumptionPercent(), height));
 			previous = point;
 		}
-		ChartPoint current = history.get(history.size() - 1);
-		int x = xFor(current.progressPercent(), width);
-		int y = yFor(current.consumptionPercent(), height);
-		g.setColor(new Color(20, 75, 145));
-		g.fillOval(x - 5, y - 5, 10, 10);
-		g.setColor(Color.WHITE);
-		g.drawOval(x - 3, y - 3, 6, 6);
-		g.setColor(Color.DARK_GRAY);
-		g.drawString(Math.round(current.progressPercent()) + "% / " + Math.round(current.consumptionPercent()) + "%", x + 8, y - 8);
+		for (ChartPoint point : history) {
+			int x = xFor(point.progressPercent(), width);
+			int y = yFor(point.consumptionPercent(), height);
+			g.setColor(new Color(20, 75, 145));
+			g.fillOval(x - 5, y - 5, 10, 10);
+			g.setColor(Color.WHITE);
+			g.drawOval(x - 3, y - 3, 6, 6);
+			g.setColor(Color.DARK_GRAY);
+			g.drawString(Math.round(point.progressPercent()) + "% / " + Math.round(point.consumptionPercent()) + "%", x + 8, y - 8);
+		}
 	}
 
 	private void drawLegend(Graphics2D g, int width) {
@@ -189,6 +192,21 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		if (!history.isEmpty() && history.get(history.size() - 1).equals(point)) return;
 		if (history.size() == MAX_HISTORY) history.remove(0);
 		history.add(point);
+		if (project != null) {
+			BufferHistoryState saved = project.getOrCreateTransientDocumentState(BufferHistoryState.class, BufferHistoryState::new);
+			saved.points.clear();
+			saved.points.addAll(history);
+		}
+	}
+
+	private void clearHistory() {
+		history.clear();
+		if (project != null) project.removeTransientDocumentState(BufferHistoryState.class);
+	}
+
+	/** Session-only observations retained while a user closes and reopens the status dialog. */
+	private static final class BufferHistoryState {
+		private final List<ChartPoint> points = new ArrayList<>();
 	}
 
 	private static int xFor(double percent, int width) { return LEFT + (int) Math.round(clamp(percent) * width / 100D); }

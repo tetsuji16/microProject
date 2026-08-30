@@ -116,7 +116,8 @@ public final class CriticalChainService {
 	 */
 	private static final class AnalysisSnapshot {
 		private final Analysis analysis;
-		private AnalysisSnapshot(Analysis analysis) { this.analysis = analysis; }
+		private final long fingerprint;
+		private AnalysisSnapshot(Analysis analysis, long fingerprint) { this.analysis = analysis; this.fingerprint = fingerprint; }
 	}
 
 	private record State(Settings settings, Baseline baseline, Analysis analysis) { }
@@ -157,21 +158,23 @@ public final class CriticalChainService {
 		return project == null ? null : project.findTransientDocumentState(Baseline.class);
 	}
 
-	/** Returns the display snapshot when a CCPM plan has already been analyzed. */
+	/** Returns the last display snapshot without recalculating it. */
 	public Analysis findAnalysis(Project project) {
 		AnalysisSnapshot snapshot = project == null ? null : project.findTransientDocumentState(AnalysisSnapshot.class);
 		return snapshot == null ? null : snapshot.analysis;
 	}
 
 	/**
-	 * Gets the analysis used by every read-only CCPM surface.  The first caller
-	 * after reload creates it; later callers reuse precisely the same snapshot.
+	 * Gets a current analysis for every read-only CCPM surface.  The user may
+	 * edit duration, remaining work, or progress between two openings of a
+	 * status dialog, so reusing an old snapshot would show a stale buffer value.
 	 */
 	public Analysis analysis(Project project) {
-		Analysis existing = findAnalysis(project);
-		if (existing != null) return existing;
 		Settings settings = findSettings(project);
 		if (settings == null || !settings.isEnabled() || findBaseline(project) == null) return null;
+		AnalysisSnapshot snapshot = project.findTransientDocumentState(AnalysisSnapshot.class);
+		long fingerprint = analysisFingerprint(project, settings);
+		if (snapshot != null && snapshot.fingerprint == fingerprint) return snapshot.analysis;
 		Analysis analysis = preview(project, null, settings);
 		rememberAnalysis(project, analysis);
 		return analysis;
@@ -270,12 +273,34 @@ public final class CriticalChainService {
 		if (state.settings != null) project.getOrCreateTransientDocumentState(Settings.class, state.settings::copy);
 		if (state.baseline != null) project.getOrCreateTransientDocumentState(Baseline.class, () -> state.baseline);
 		if (state.analysis != null) project.getOrCreateTransientDocumentState(AnalysisSnapshot.class,
-			() -> new AnalysisSnapshot(state.analysis));
+			() -> new AnalysisSnapshot(state.analysis, analysisFingerprint(project, project.findTransientDocumentState(Settings.class))));
 	}
 
 	private static void rememberAnalysis(Project project, Analysis analysis) {
 		project.removeTransientDocumentState(AnalysisSnapshot.class);
-		project.getOrCreateTransientDocumentState(AnalysisSnapshot.class, () -> new AnalysisSnapshot(analysis));
+		project.getOrCreateTransientDocumentState(AnalysisSnapshot.class,
+			() -> new AnalysisSnapshot(analysis, analysisFingerprint(project, project.findTransientDocumentState(Settings.class))));
+	}
+
+	private static long analysisFingerprint(Project project, Settings settings) {
+		long result = 17L;
+		if (settings != null) {
+			result = 31L * result + (settings.isEnabled() ? 1L : 0L);
+			result = 31L * result + Double.doubleToLongBits(settings.getBufferFraction());
+			result = 31L * result + settings.getLevelingOrder().ordinal();
+			result = 31L * result + (settings.isOnlyWithinAvailableSlack() ? 1L : 0L);
+			result = 31L * result + (settings.isAllowTaskSplits() ? 1L : 0L);
+		}
+		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Task task = (Task) iterator.next();
+			result = 31L * result + task.getUniqueId();
+			result = 31L * result + task.getStart();
+			result = 31L * result + task.getEnd();
+			result = 31L * result + task.getDuration();
+			result = 31L * result + Double.doubleToLongBits(task.getPercentComplete());
+			result = 31L * result + task.getLevelingDelay();
+		}
+		return result;
 	}
 
 	private static void postStateEdit(Project project, UndoableEditSupport editSupport, State before, State after) {
