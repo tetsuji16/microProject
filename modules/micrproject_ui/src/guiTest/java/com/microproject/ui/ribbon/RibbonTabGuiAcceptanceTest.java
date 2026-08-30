@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
@@ -19,13 +20,18 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JFrame;
+import javax.swing.JPopupMenu;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
@@ -35,6 +41,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
+import com.microproject.menu.ProjectMenuActionMap;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -86,15 +93,79 @@ class RibbonTabGuiAcceptanceTest {
 		}
 	}
 
+	@Test
+	void robotClicksEveryStandardRibbonCommandOnce() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		RecordingActionMap actions = new RecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		// Keep the fixture above the compact breakpoint so every command is a
+		// direct hit target; the overflow path is covered separately by the
+		// responsive ribbon tests.
+		show(host, 1500, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		List<String> unavailable = new ArrayList<>();
+		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
+			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
+			AbstractButton tab = findButton(host, title);
+			click(robot, tab);
+			GuiAcceptanceSupport.await(tab::isSelected, "Robot click did not select ribbon tab " + title);
+			// The selection model and the command-panel replacement are separate EDT
+			// listeners; drain the queue before looking up the newly attached buttons.
+			SwingUtilities.invokeAndWait(() -> { });
+			for (String bandId : MenuDefinitionSupport.ribbonBandIds(tabId)) {
+				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
+					AbstractButton button = findAttachedButtonByCommandOrNull(host, buttonId);
+					JPopupMenu popup = null;
+					if (button == null) {
+						OverflowCommand overflow = findOverflowCommand(host, buttonId);
+						if (overflow == null) {
+							unavailable.add(buttonId);
+							continue;
+						}
+						click(robot, overflow.trigger());
+						popup = overflow.popup();
+						JPopupMenu openedPopup = popup;
+						GuiAcceptanceSupport.await(openedPopup::isVisible,
+							"Overflow popup did not open for " + buttonId);
+						button = overflow.command();
+					}
+					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
+					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
+					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
+					int before = actions.count(actionId);
+					clickCommand(robot, button);
+					GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+						"Robot click did not dispatch " + buttonId + " (" + actionId + ")");
+					if (popup != null) {
+						JPopupMenu openedPopup = popup;
+						SwingUtilities.invokeAndWait(() -> openedPopup.setVisible(false));
+					}
+				}
+			}
+		}
+		assertTrue(unavailable.isEmpty(), () -> "Commands missing from the visible ribbon: " + unavailable);
+	}
+
 	private void show(JPanel host) throws Exception {
+		show(host, 1200, false);
+	}
+
+	private void show(JPanel host, int width, boolean center) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Ribbon tab GUI acceptance");
 			// MainRibbonFrame docks the production shell in BorderLayout.NORTH.  Keep
 			// the acceptance fixture identical so the capture reflects the actual
 			// ribbon height rather than stretching it through the whole test window.
-			frame.add(host, BorderLayout.NORTH);
-			frame.add(new JPanel(), BorderLayout.CENTER);
-			frame.setPreferredSize(new Dimension(1200, 360));
+			frame.add(host, center ? BorderLayout.CENTER : BorderLayout.NORTH);
+			if (!center) {
+				frame.add(new JPanel(), BorderLayout.CENTER);
+			}
+			frame.setPreferredSize(new Dimension(width, 360));
 			frame.pack();
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
@@ -111,6 +182,39 @@ class RibbonTabGuiAcceptanceTest {
 			.orElseThrow(() -> new AssertionError("Ribbon tab not found: " + text));
 	}
 
+	private static AbstractButton findAttachedButtonByCommandOrNull(JPanel host, String command) {
+		return UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> command.equals(button.getActionCommand()))
+			.findFirst()
+			.orElse(null);
+	}
+
+	private static OverflowCommand findOverflowCommand(JPanel host, String command) {
+		for (Component component : UiComponentWalker.flatten(host)) {
+			if (!(component instanceof AbstractButton trigger)) {
+				continue;
+			}
+			Object value = trigger.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+			if (!(value instanceof JPopupMenu popup)) {
+				continue;
+			}
+			AbstractButton popupCommand = UiComponentWalker.flatten(popup).stream()
+				.filter(AbstractButton.class::isInstance)
+				.map(AbstractButton.class::cast)
+				.filter(button -> command.equals(button.getActionCommand()))
+				.findFirst().orElse(null);
+			if (popupCommand != null) {
+				return new OverflowCommand(trigger, popup, popupCommand);
+			}
+		}
+		return null;
+	}
+
+	private record OverflowCommand(AbstractButton trigger, JPopupMenu popup, AbstractButton command) {
+	}
+
 	private static void click(Robot robot, AbstractButton button) throws Exception {
 		Point[] center = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
@@ -118,6 +222,20 @@ class RibbonTabGuiAcceptanceTest {
 			center[0] = new Point(location.x + button.getWidth() / 2, location.y + button.getHeight() / 2);
 		});
 		robot.mouseMove(center[0].x, center[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static void clickCommand(Robot robot, AbstractButton button) throws Exception {
+		Point[] location = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Point topLeft = button.getLocationOnScreen();
+			// Split/dropdown buttons reserve their right edge for the arrow; the
+			// left third is the command surface used by a normal mouse click.
+			location[0] = new Point(topLeft.x + Math.max(2, button.getWidth() / 3),
+				topLeft.y + button.getHeight() / 2);
+		});
+		robot.mouseMove(location[0].x, location[0].y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 	}
@@ -130,5 +248,30 @@ class RibbonTabGuiAcceptanceTest {
 		Files.createDirectories(directory);
 		ImageIO.write(screenshot, "png", directory.resolve(fileName).toFile());
 		assertTrue(screenshot.getWidth() > 900 && screenshot.getHeight() > 200, "captured ribbon is unexpectedly small");
+	}
+
+	private static final class RecordingActionMap implements ProjectMenuActionMap {
+		private final Map<String, Integer> counts = new HashMap<>();
+		private final Map<String, Action> actions = new HashMap<>();
+
+		@Override
+		public Action getAction(String key) {
+			return actions.computeIfAbsent(key, actionId -> new AbstractAction(actionId) {
+				@Override
+				public void actionPerformed(java.awt.event.ActionEvent event) {
+					counts.merge(actionId, 1, Integer::sum);
+				}
+			});
+		}
+
+		@Override
+		public String getStringFromAction(Action action) {
+			Object value = action.getValue(Action.NAME);
+			return value == null ? "" : value.toString();
+		}
+
+		int count(String actionId) {
+			return counts.getOrDefault(actionId, 0);
+		}
 	}
 }
