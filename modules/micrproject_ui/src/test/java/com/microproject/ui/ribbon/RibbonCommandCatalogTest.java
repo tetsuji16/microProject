@@ -27,11 +27,15 @@ package com.microproject.ui.ribbon;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
@@ -84,6 +88,22 @@ class RibbonCommandCatalogTest {
 		};
 		assertThrows(IllegalStateException.class,
 			() -> RibbonCommandCatalog.validate(missingMetadata, emptyBundle));
+	}
+
+	@Test
+	void documentedGuiUseCasesCoverEveryStandardRibbonCommand() throws Exception {
+		SwingRibbonModel model = validate(Locale.ROOT);
+		Path documentPath = Path.of("docs", "RIBBON_COMMAND_GUI_TEST_CASES_JA.md");
+		Path directory = Path.of("").toAbsolutePath();
+		while (!Files.exists(documentPath) && directory.getParent() != null) {
+			directory = directory.getParent();
+			documentPath = directory.resolve("docs").resolve("RIBBON_COMMAND_GUI_TEST_CASES_JA.md");
+		}
+		assertTrue(Files.exists(documentPath), "Ribbon GUI use-case document was not found from " + Path.of("").toAbsolutePath());
+		String document = Files.readString(documentPath, StandardCharsets.UTF_8);
+		for (RibbonCommandCatalog.CommandDefinition command : RibbonCommandCatalog.from(model)) {
+			assertTrue(document.contains(command.id()), "Missing ribbon GUI use case for " + command.id());
+		}
 	}
 
 	@Test
