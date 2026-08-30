@@ -71,7 +71,7 @@ public abstract class ServerFileImporter extends FileImporter{
 		form.setResources(projectlibreResources);
 		
 		//imported resources
-		List<Object> resourcesToMap=new ArrayList<>();
+		List<Object> resourcesToMap=new ArrayList<>(srcResources == null ? 0 : srcResources.size());
 		if (srcResources!=null)
 			for (Object resource:srcResources){
 				if (resourceFilter==null||resourceFilter.test(resource))

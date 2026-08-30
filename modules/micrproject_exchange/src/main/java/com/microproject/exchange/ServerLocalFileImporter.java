@@ -174,8 +174,8 @@ public class ServerLocalFileImporter extends ServerFileImporter {
 				return true;
 			}
 
-			List<ResourceData> resources=new ArrayList<ResourceData>();
-			Map<Long,ResourceData> resourceMap=new HashMap<Long, ResourceData>();
+			List<ResourceData> resources=new ArrayList<ResourceData>(form.getResources().size());
+			Map<Long,ResourceData> resourceMap=new HashMap<Long, ResourceData>(form.getResources().size());
 
 			for (EnterpriseResourceData enterpriseResource:(List<EnterpriseResourceData>)(List<?>)form.getResources()){
 				if (enterpriseResource.getUniqueId()!=EnterpriseResource.UNASSIGNED_ID){
@@ -188,7 +188,7 @@ public class ServerLocalFileImporter extends ServerFileImporter {
 			projectData.setResources(resources);
 
 
-			Map<Long,ResourceData> idMap=new HashMap<Long, ResourceData>();
+			Map<Long,ResourceData> idMap=new HashMap<Long, ResourceData>(form.getImportedResources().size());
 			for (int i = 0; i < form.getImportedResources().size(); i++) {
 				EnterpriseResourceData enterpriseSrc = (EnterpriseResourceData) form.getImportedResources().get(i);
 				EnterpriseResourceData enterpriseDest = (EnterpriseResourceData) form.getSelectedResources().get(i);
@@ -238,8 +238,8 @@ public class ServerLocalFileImporter extends ServerFileImporter {
 		if (form==null) return;
 
 
-		ArrayList<Object> projectlibre1Resources = new ArrayList<>();
-        _localResourceMap = new HashMap<Long, com.microproject.pm.resource.Resource>();
+		ArrayList<Object> projectlibre1Resources = new ArrayList<>(existingProject.getResourcePool().getResourceList().size() + 1);
+        _localResourceMap = new HashMap<Long, com.microproject.pm.resource.Resource>(existingProject.getResourcePool().getResourceList().size());
 
 		EnterpriseResourceData unassigned=new EnterpriseResourceData();
 		unassigned.setUniqueId(EnterpriseResource.UNASSIGNED_ID);
@@ -273,7 +273,7 @@ public class ServerLocalFileImporter extends ServerFileImporter {
 	@SuppressWarnings("unchecked")
 	protected void renumberProject() throws Exception{
 		Session session=SessionFactory.getInstance().getSession(false);
-		Map<Long,Long> idMap=new HashMap<Long, Long>();
+		Map<Long,Long> idMap=new HashMap<Long, Long>(projectData.getTasks().size());
 		Collection<? extends DataObject> tasks=projectData.getTasks();
 		for (DataObject value: tasks){
 			TaskData task=(TaskData)value;
