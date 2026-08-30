@@ -82,6 +82,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(), "task table or Gantt was not visible");
 		robot.delay(500);
+		assertTrue(hasRenderedGanttNode(fixture.gantt), "Gantt must render at least one task node");
 		captureVisibleLayout(robot);
 
 		SwingUtilities.invokeAndWait(() -> {
@@ -100,6 +101,18 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertTrue(fixture.sheet.getRowHeader().getShowHorizontalLines());
 			assertTrue(fixture.gantt.isGridLinesVisible());
 		});
+	}
+
+	private static boolean hasRenderedGanttNode(Gantt chart) throws Exception {
+		boolean[] rendered = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (int y = 0; y < Math.min(chart.getHeight(), chart.getRowHeight() * 20) && !rendered[0]; y += 2) {
+				for (int x = 0; x < Math.min(chart.getWidth(), 1200) && !rendered[0]; x += 2) {
+					rendered[0] = chart.getUI().getNodeAt(x, y) != null;
+				}
+			}
+		});
+		return rendered[0];
 	}
 
 	@Test
