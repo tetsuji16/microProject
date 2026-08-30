@@ -541,8 +541,20 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isEnabled());
 		org.junit.jupiter.api.Assertions.assertEquals(0.5D, restored.getBufferFraction());
 		org.junit.jupiter.api.Assertions.assertNotNull(loadedService.findBaseline(loaded));
-		Resource loadedResource = loaded.getResourcePool().getResourceList().stream()
-			.filter(value -> !value.getAssignments().isEmpty()).findFirst().orElseThrow();
+		// The importer rebuilds task-side assignments first; resource-side
+		// assignment indexes are populated lazily for some MPO snapshots.  Use
+		// the authoritative assignment reference from the restored task rather
+		// than requiring that optional reverse index to be eagerly populated.
+		Resource loadedResource = null;
+		for (java.util.Iterator<?> tasks = loaded.getTaskOutlineIterator(); tasks.hasNext() && loadedResource == null;) {
+			Object value = tasks.next();
+			if (value instanceof NormalTask task && !task.getAssignments().isEmpty()) {
+				Object assignment = task.getAssignments().get(0);
+				if (assignment instanceof com.microproject.pm.assignment.Assignment a)
+					loadedResource = a.getResource();
+			}
+		}
+		org.junit.jupiter.api.Assertions.assertNotNull(loadedResource, "restored task assignment must reference a resource");
 		CriticalChainService.Analysis reanalyzed = loadedService.preview(loaded, java.util.List.of(loadedResource), restored);
 		org.junit.jupiter.api.Assertions.assertFalse(reanalyzed.criticalTaskIds().isEmpty());
 		org.junit.jupiter.api.Assertions.assertTrue(reanalyzed.projectBuffer().plannedMillis() >= 0L);
