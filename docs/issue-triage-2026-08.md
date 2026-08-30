@@ -93,3 +93,7 @@ success、Release Run `33315015982` は pending（GitHub Actions のリリース
 収集と `DefaultNodeModel` の移動候補を事前確保した。`DefaultNodeModelTest`
 （BUILD SUCCESSFUL、5秒）と `:micrproject_core:test` 全体（BUILD SUCCESSFUL、14秒）
 で回帰がないことを確認した。
+
+協調ログの `OperationLog` でも、入力操作数／JSON配列長が既知のMap・一時リストを
+事前確保した。`OperationLogTest`（BUILD SUCCESSFUL、3秒）と
+`:micrproject_core:test` 全体（BUILD SUCCESSFUL、13秒）で回帰がないことを確認した。

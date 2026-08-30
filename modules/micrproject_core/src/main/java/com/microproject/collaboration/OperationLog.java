@@ -61,7 +61,8 @@ public final class OperationLog {
 	private static final int MAX_PENDING = 1024;
 
 	public MergeResult merge(Collection<Operation> operations) {
-		Map<String, Operation> unique = new LinkedHashMap<>();
+		int operationCount = operations == null ? 0 : operations.size();
+		Map<String, Operation> unique = new LinkedHashMap<>(operationCount * 4 / 3 + 1);
 		for (Operation operation : operations == null ? List.<Operation>of() : operations) {
 			Operation existing = unique.putIfAbsent(operation.id(), operation);
 			if (existing != null && !existing.equals(operation)) throw new IllegalArgumentException("Operation ID collision: " + operation.id());
@@ -69,7 +70,7 @@ public final class OperationLog {
 		List<Operation> ordered = new ArrayList<>(unique.values());
 		ordered.sort(Comparator.comparingLong(Operation::sequence).thenComparing(Operation::actorId).thenComparing(Operation::id));
 		Set<String> applied = new LinkedHashSet<>();
-		List<Operation> ready = new ArrayList<>();
+		List<Operation> ready = new ArrayList<>(ordered.size());
 		boolean advanced;
 		do {
 			advanced = false;
@@ -77,7 +78,7 @@ public final class OperationLog {
 				applied.add(operation.id()); ready.add(operation); advanced = true;
 			}
 		} while (advanced);
-		List<Operation> pending = new ArrayList<>();
+		List<Operation> pending = new ArrayList<>(ordered.size());
 		for (Operation operation : ordered) if (!applied.contains(operation.id())) pending.add(operation);
 		if (pending.size() > MAX_PENDING) throw new IllegalArgumentException("Too many pending mpo operations");
 		List<Conflict> conflicts = detectConflicts(ordered);
@@ -85,8 +86,8 @@ public final class OperationLog {
 	}
 
 	private static List<Conflict> detectConflicts(List<Operation> operations) {
-		List<Conflict> conflicts = new ArrayList<>();
-		Map<String, Operation> byId = new LinkedHashMap<>();
+		List<Conflict> conflicts = new ArrayList<>(operations.size());
+		Map<String, Operation> byId = new LinkedHashMap<>(operations.size() * 4 / 3 + 1);
 		for (Operation operation : operations) byId.put(operation.id(), operation);
 		Map<String, Set<String>> ancestorCache = new LinkedHashMap<>();
 		for (int i = 0; i < operations.size(); i++) for (int j = i + 1; j < operations.size(); j++) {
@@ -154,7 +155,7 @@ public final class OperationLog {
 		if (header == null || !header.isObject() || !"header".equals(text(header, "type")) || header.path("schemaVersion").asInt(-1) != 1) throw new java.io.IOException("Invalid JSONL operation log header");
 		String documentId = text(header, "documentId");
 		try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
-		List<Operation> operations = new ArrayList<>();
+		List<Operation> operations = new ArrayList<>(Math.max(0, lines.length - 2));
 		for (int i = 1; i < lines.length - 1; i++) {
 			if (lines[i].isBlank()) throw new java.io.IOException("Invalid blank JSONL operation record");
 			JsonNode value = JSON.readTree(lines[i]);
@@ -190,7 +191,7 @@ public final class OperationLog {
 		}
 		String documentId = text(root, "documentId");
 		try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
-		List<Operation> result = new ArrayList<>(); for (JsonNode value : root.path("operations")) {
+		List<Operation> result = new ArrayList<>(root.path("operations").size()); for (JsonNode value : root.path("operations")) {
 			if (!value.isObject() || !value.path("parents").isArray() || !value.path("sequence").isIntegralNumber() || !value.path("sequence").canConvertToLong() || !value.path("payload").isObject()) throw new java.io.IOException("Invalid operation");
 			Set<String> parents = new LinkedHashSet<>(); for (JsonNode parent : value.path("parents")) { if (!parent.isTextual() || !parents.add(parent.textValue())) throw new java.io.IOException("Invalid operation parent"); }
 			@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
