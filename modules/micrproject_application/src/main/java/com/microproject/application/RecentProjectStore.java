@@ -78,7 +78,7 @@ public final class RecentProjectStore {
 	public void remove(Path path) { Path normalized = normalize(path == null ? null : path.toString()); if (normalized == null) return; try { root.node("items").node(nodeKey(normalized)).removeNode(); } catch (BackingStoreException ignored) { } }
 
 	public void saveSession(List<String> fileNames) {
-		List<String> encoded = new ArrayList<>();
+		List<String> encoded = new ArrayList<>(fileNames.size());
 		for (String name : fileNames) { Path path = normalize(name); if (path != null && Files.isRegularFile(path)) encoded.add(encodePath(path)); }
 		root.put("session", String.join(",", encoded));
 	}
