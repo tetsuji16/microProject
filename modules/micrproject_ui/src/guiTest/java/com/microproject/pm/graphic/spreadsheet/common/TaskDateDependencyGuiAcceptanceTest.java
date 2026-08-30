@@ -56,6 +56,7 @@ import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
@@ -157,7 +158,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 	private static Timer scheduleWarningDismissal(AtomicBoolean warningSeen) {
 		Timer timer = new Timer(100, event -> {
 			for (Window window : Window.getWindows()) {
-				if (window instanceof Dialog dialog && dialog.isVisible()) {
+				if (window instanceof Dialog dialog && dialog.isVisible() && isAlertDialog(dialog)) {
 					warningSeen.set(true);
 					dialog.dispose();
 					((Timer) event.getSource()).stop();
@@ -167,6 +168,12 @@ class TaskDateDependencyGuiAcceptanceTest {
 		});
 		timer.setRepeats(true);
 		return timer;
+	}
+
+	private static boolean isAlertDialog(Dialog dialog) {
+		String title = dialog.getTitle();
+		return Messages.getContextString("Title.ProjectLibreWarning").equals(title)
+			|| Messages.getContextString("Title.ProjectLibreError").equals(title);
 	}
 
 	private void runRobotDateEdit(int type, long lagDays) throws Exception {
