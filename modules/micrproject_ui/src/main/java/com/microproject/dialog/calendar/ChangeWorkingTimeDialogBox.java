@@ -296,14 +296,16 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 
 	    nonWorking.addActionListener(new ActionListener(){
 		    public void actionPerformed(ActionEvent e){
+			    Intervals selectedIntervals = sdCalendar.getSelectedFixedIntervals();
+			    boolean[] selectedWeekDays = sdCalendar.getSelectedWeekDays().clone();
 		        setWorkingHours(null);
 			    CalendarService service=CalendarService.getInstance();
 			    WorkingCalendar wc=form.getCalendar();
 			    WorkingCalendar copy = wc.makeScratchCopy();
 			    try {
 			    	// try on copy first
-					service.setDaysNonWorking(copy,sdCalendar.getSelectedFixedIntervals(), sdCalendar.getSelectedWeekDays());
-				    service.setDaysNonWorking(wc,sdCalendar.getSelectedFixedIntervals(), sdCalendar.getSelectedWeekDays());
+					service.setDaysNonWorking(copy,selectedIntervals, selectedWeekDays);
+				    service.setDaysNonWorking(wc,selectedIntervals, selectedWeekDays);
 				} catch (InvalidCalendarException e1) {
 					Alert.error(e1.getMessage(),ChangeWorkingTimeDialogBox.this);
 					return;
@@ -626,10 +628,10 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
             setWorkingHours(day.getWorkingHours());
         }
         // Re-arm the text-field dirty flag: setWorkingHours() programmatically updates the
-        // fields and the DocumentListener then marks calendarEdited; reset it so a pure
-        // selection change (no user edit) is not treated as an edit.
+        // fields and the DocumentListener then marks calendarEdited. Do not clear
+        // calendarEdited here: radio-button actions have already changed the scratch
+        // calendar and must remain eligible for saveIfNeeded() (issue #430).
         dirtyWorkingHours = false;
-        calendarEdited = false;
 	}
 
 	private JComponent createSettingsPanel() {
