@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
@@ -31,7 +30,6 @@ import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JFrame;
-import javax.swing.JPopupMenu;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
@@ -108,7 +106,6 @@ class RibbonTabGuiAcceptanceTest {
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
-		List<String> unavailable = new ArrayList<>();
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
 			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
 			AbstractButton tab = findButton(host, title);
@@ -119,21 +116,7 @@ class RibbonTabGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> { });
 			for (String bandId : MenuDefinitionSupport.ribbonBandIds(tabId)) {
 				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
-					AbstractButton button = findAttachedButtonByCommandOrNull(host, buttonId);
-					JPopupMenu popup = null;
-					if (button == null) {
-						OverflowCommand overflow = findOverflowCommand(host, buttonId);
-						if (overflow == null) {
-							unavailable.add(buttonId);
-							continue;
-						}
-						click(robot, overflow.trigger());
-						popup = overflow.popup();
-						JPopupMenu openedPopup = popup;
-						GuiAcceptanceSupport.await(openedPopup::isVisible,
-							"Overflow popup did not open for " + buttonId);
-						button = overflow.command();
-					}
+					AbstractButton button = findAttachedButtonByCommand(host, buttonId);
 					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
 					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
 					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
@@ -141,14 +124,9 @@ class RibbonTabGuiAcceptanceTest {
 					clickCommand(robot, button);
 					GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 						"Robot click did not dispatch " + buttonId + " (" + actionId + ")");
-					if (popup != null) {
-						JPopupMenu openedPopup = popup;
-						SwingUtilities.invokeAndWait(() -> openedPopup.setVisible(false));
-					}
 				}
 			}
 		}
-		assertTrue(unavailable.isEmpty(), () -> "Commands missing from the visible ribbon: " + unavailable);
 	}
 
 	private void show(JPanel host) throws Exception {
@@ -182,37 +160,13 @@ class RibbonTabGuiAcceptanceTest {
 			.orElseThrow(() -> new AssertionError("Ribbon tab not found: " + text));
 	}
 
-	private static AbstractButton findAttachedButtonByCommandOrNull(JPanel host, String command) {
+	private static AbstractButton findAttachedButtonByCommand(JPanel host, String command) {
 		return UiComponentWalker.flatten(host).stream()
 			.filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast)
 			.filter(button -> command.equals(button.getActionCommand()))
 			.findFirst()
-			.orElse(null);
-	}
-
-	private static OverflowCommand findOverflowCommand(JPanel host, String command) {
-		for (Component component : UiComponentWalker.flatten(host)) {
-			if (!(component instanceof AbstractButton trigger)) {
-				continue;
-			}
-			Object value = trigger.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
-			if (!(value instanceof JPopupMenu popup)) {
-				continue;
-			}
-			AbstractButton popupCommand = UiComponentWalker.flatten(popup).stream()
-				.filter(AbstractButton.class::isInstance)
-				.map(AbstractButton.class::cast)
-				.filter(button -> command.equals(button.getActionCommand()))
-				.findFirst().orElse(null);
-			if (popupCommand != null) {
-				return new OverflowCommand(trigger, popup, popupCommand);
-			}
-		}
-		return null;
-	}
-
-	private record OverflowCommand(AbstractButton trigger, JPopupMenu popup, AbstractButton command) {
+			.orElseThrow(() -> new AssertionError("Ribbon command not found: " + command));
 	}
 
 	private static void click(Robot robot, AbstractButton button) throws Exception {
