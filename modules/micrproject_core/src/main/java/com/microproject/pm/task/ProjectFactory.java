@@ -271,7 +271,7 @@ public class ProjectFactory {
 		completeProjectClosings(java.util.Collections.singleton(Long.valueOf(id)));
 	}
 	void completeProjectClosings(Collection<Long> ids) {
-		List<Runnable> callbacks = new ArrayList<>();
+		List<Runnable> callbacks = new ArrayList<>(ids.size());
 		synchronized (this) {
 			for (Long id : ids) {
 				closingProjects.remove(id);

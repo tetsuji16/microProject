@@ -788,7 +788,7 @@ public class DefaultNodeModel implements NodeModel {
 		}
 
 		static RemovalSnapshot capture(List roots) {
-			List<Entry> entries = new ArrayList<Entry>();
+			List<Entry> entries = new ArrayList<Entry>(roots.size());
 			List<SubprojectState> subprojects = new ArrayList<SubprojectState>();
 			for (Iterator i = roots.iterator(); i.hasNext();) {
 				Node node = (Node) i.next();

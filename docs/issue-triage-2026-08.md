@@ -101,3 +101,8 @@ success、Release Run `33315015982` は pending（GitHub Actions のリリース
 外部プロジェクト差分適用の `ProjectMergeService` でも、外部タスク件数が既知の変更
 ノード通知リストを事前確保した。`:micrproject_core:test` 全体（BUILD SUCCESSFUL、
 15秒）で回帰がないことを確認した。
+
+さらに `DefaultNodeModel.RemovalSnapshot` のルート件数既知のエントリ一覧と、
+`ProjectFactory` の終了コールバック通知一覧を入力件数で事前確保した。
+focusedテスト（BUILD SUCCESSFUL、4秒）と `:micrproject_core:test` 全体（BUILD
+SUCCESSFUL、13秒）で回帰がないことを確認した。
