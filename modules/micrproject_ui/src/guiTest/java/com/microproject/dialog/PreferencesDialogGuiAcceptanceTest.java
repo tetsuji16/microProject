@@ -79,7 +79,7 @@ class PreferencesDialogGuiAcceptanceTest {
 
 	private static void capture(Robot robot, JDialog dialog) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> bounds[0] = dialog.getBounds());
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(dialog.getRootPane().getLocationOnScreen(), dialog.getRootPane().getSize()));
 		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
 		javax.imageio.ImageIO.write(robot.createScreenCapture(bounds[0]), "png",

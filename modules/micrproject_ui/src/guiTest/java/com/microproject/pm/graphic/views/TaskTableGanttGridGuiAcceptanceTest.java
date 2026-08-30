@@ -92,7 +92,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 
 	private void captureVisibleLayout(Robot robot) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getLocationOnScreen(), frame.getSize()));
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
