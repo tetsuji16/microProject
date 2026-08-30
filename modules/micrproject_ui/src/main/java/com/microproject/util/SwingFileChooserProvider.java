@@ -125,7 +125,10 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			File single = chooser.getSelectedFile();
 			return single == null ? List.of() : List.of(single.toString());
 		}
-		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", files[0].getParent());
+		String parentDirectory = files[0].getParent();
+		if (parentDirectory != null) {
+			Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", parentDirectory);
+		}
 		return selectedFileNames(files);
 	}
 
