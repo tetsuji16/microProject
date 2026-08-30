@@ -30,3 +30,8 @@ GUI-NC-01〜02でプロジェクトを準備し、03〜08を同一プロジェ�
 - 保存・再読込後に編集内容が失われない。
 - 不正入力は明示的に拒否され、プロジェクトが破損しない。
 - デスクトップ、タスクバー、他アプリを含む画面キャプチャは証跡に使用しない。
+
+## 実施記録（2026-08-30）
+
+- GUI-NC-12は`TaskTextInputGuiAcceptanceTest`で実Robot操作を実施。タスク名セルをマウスクリック後、F2編集経路で空文字・null相当・日本語を含む長文を入力し、対象タスクだけが更新され隣接タスク（Untouched）が変更されないことを確認した。
+- 実行コマンド: `.\gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskTextInputGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL、3ケース）。
