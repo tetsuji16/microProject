@@ -84,6 +84,8 @@ c414_tmp.txt
 c425_tmp.txt
 c414b_tmp.txt
 evidence_*.png
+verify_*.png
+crop_tasktable.png
 app_launch.log
 app_sample.log
 mp_run*.log
