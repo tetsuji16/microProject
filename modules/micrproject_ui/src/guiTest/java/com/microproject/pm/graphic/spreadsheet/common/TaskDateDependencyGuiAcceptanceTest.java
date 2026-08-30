@@ -91,7 +91,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		activate(fixture);
-		clickCell(robot, fixture);
+		clickCell(robot, fixture.sheet, fixture.predecessorRow, fixture.startColumn);
 		dispatchF2(fixture.sheet);
 		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start date editing");
 		long originalStart = fixture.predecessor.getStart();
@@ -110,6 +110,38 @@ class TaskDateDependencyGuiAcceptanceTest {
 			closer.join(3000);
 			assertTrue(warningSeen.get(), "invalid date must display a warning dialog");
 			assertEquals(originalStart, fixture.predecessor.getStart(), "invalid date must preserve the original value");
+		} finally {
+			Environment.setClientSide(previousClientSide);
+		}
+	}
+
+	@Test
+	void robotInvalidPredecessorRejectsInputAndPreservesExistingLink() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(DependencyType.FS, 0L);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activate(fixture);
+		clickCell(robot, fixture.sheet, fixture.successorRow, fixture.predecessorsColumn);
+		dispatchF2(fixture.sheet);
+		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start predecessor editing");
+		boolean previousClientSide = Environment.isClientSide();
+		Environment.setClientSide(true);
+		AtomicBoolean warningSeen = new AtomicBoolean();
+		Thread closer = new Thread(() -> dismissWarning(warningSeen), "gui-invalid-predecessor-warning-closer");
+		try {
+			closer.start();
+			SwingUtilities.invokeAndWait(() -> {
+				javax.swing.text.JTextComponent editor = (javax.swing.text.JTextComponent) fixture.sheet.getEditorComponent();
+				editor.setText("999999");
+				assertTrue(!fixture.sheet.getCellEditor().stopCellEditing(), "invalid predecessor must keep the editor open for correction");
+			});
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "invalid predecessor edit did not finish after error handling");
+			closer.join(3000);
+			assertTrue(warningSeen.get(), "invalid predecessor must display an error dialog");
+			assertTrue(fixture.sheet.getLastException() != null, "spreadsheet must retain the parse failure for focus recovery");
+			assertEquals(1, fixture.successor.getPredecessorList().size(), "invalid predecessor must preserve the existing link");
 		} finally {
 			Environment.setClientSide(previousClientSide);
 		}
@@ -141,7 +173,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		activate(fixture);
-		clickCell(robot, fixture);
+		clickCell(robot, fixture.sheet, fixture.predecessorRow, fixture.startColumn);
 		dispatchF2(fixture.sheet);
 		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start date editing");
 		assertEquals(fixture.startColumn, fixture.sheet.getEditingColumn(), "F2 must edit the start-date cell");
@@ -188,8 +220,8 @@ class TaskDateDependencyGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not receive focus");
 	}
 
-	private static void clickCell(Robot robot, Fixture fixture) throws Exception {
-		Rectangle cell = cellOnScreen(fixture.sheet, fixture.predecessorRow, fixture.startColumn);
+	private static void clickCell(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
+		Rectangle cell = cellOnScreen(sheet, row, column);
 		robot.mouseMove(cell.x + cell.width / 2, cell.y + cell.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
@@ -255,7 +287,10 @@ class TaskDateDependencyGuiAcceptanceTest {
 			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry", true);
 			Node node = (Node) cache.getModel().search(predecessor);
 			int row = ((SpreadSheetModel) sheet.getModel()).findGraphicNodeRow(cache.getGraphicNode(node));
-			result[0] = new Fixture(project, sheet, predecessor, successor, dependency, originalStart, row, findStartColumn(sheet));
+			Node successorNode = (Node) cache.getModel().search(successor);
+			int successorRow = ((SpreadSheetModel) sheet.getModel()).findGraphicNodeRow(cache.getGraphicNode(successorNode));
+			result[0] = new Fixture(project, sheet, predecessor, successor, dependency, originalStart, row, successorRow,
+				findStartColumn(sheet), findPredecessorsColumn(sheet));
 		});
 		return result[0];
 	}
@@ -279,6 +314,15 @@ class TaskDateDependencyGuiAcceptanceTest {
 		throw new IllegalArgumentException("Missing start field");
 	}
 
+	private static int findPredecessorsColumn(SpreadSheet sheet) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int column = 0; column < model.getColumnCount(); column++) {
+			Field field = model.getFieldInColumn(column);
+			if (field != null && "Field.predecessors".equals(field.getId())) return sheet.convertColumnIndexToView(column);
+		}
+		throw new IllegalArgumentException("Missing predecessors field");
+	}
+
 	private record Fixture(Project project, SpreadSheet sheet, NormalTask predecessor, NormalTask successor,
-		Dependency dependency, long originalStart, int predecessorRow, int startColumn) { }
+		Dependency dependency, long originalStart, int predecessorRow, int successorRow, int startColumn, int predecessorsColumn) { }
 }
