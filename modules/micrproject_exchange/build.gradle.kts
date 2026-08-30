@@ -2,6 +2,9 @@ dependencies {
     implementation(project(":micrproject_contrib"))
     implementation(project(":micrproject_core"))
     implementation(libs.mpxj)
+    // Route MPXJ/POI's Log4j API calls to the existing SLF4J backend instead
+    // of emitting "could not find a logging provider" on packaged imports.
+    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("junit:junit:4.13.2")
