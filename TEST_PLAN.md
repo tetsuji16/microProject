@@ -190,6 +190,7 @@
 - B-03/B-05: `./gradlew.bat --no-daemon clean build installDist -x test --console=plain` でclean成果物と `modules/micrproject_ui/build/install/micrproject_ui` を再生成し、その後 `TaskDurationGuiAcceptanceTest` を実行して配布レイアウト経路を確認した（BUILD SUCCESSFUL）。全テスト込みのRelease検証はGitHub Actionsで成功済み。
 - B-02: clean成果物再生成後に `./gradlew.bat :micrproject_ui:test --console=plain` を実行し、UIユニットテスト（BUILD SUCCESSFUL、53秒）を確認した。
 - GUI-NC-10: `TaskDateDependencyGuiAcceptanceTest.robotInvalidDateRejectsInputAndPreservesOriginalValue` を実GUIで再実行し、不正日付入力時の警告表示、編集キャンセル、元データ保持を確認した。focused GUIテストはBUILD SUCCESSFUL。
+- GUI-NC-10: `TaskDateDependencyGuiAcceptanceTest.robotInvalidPredecessorRejectsInputAndPreservesExistingLink` を実GUIで再実行し、不正先行タスクID入力時のエラー表示、既存リンク保持、編集終了を確認した。focused GUIテストはBUILD SUCCESSFUL。
 - GUI-NC-08: `OfficeChromeSearchGuiAcceptanceTest` を実GUIで再実行し、リボン／Office Chromeの検索入力と結果表示経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.ui.shell.OfficeChromeSearchGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
 - GUI-NC-04: `TaskDurationGuiAcceptanceTest` を実GUIで再実行し、期間セル入力によるタスク期間更新とガント表示反映を確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.TaskDurationGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
 - GUI-NC-12: `TaskTextInputGuiAcceptanceTest` を実GUIで再実行し、日本語・長文・空文字のテキスト入力で対象セルのみが更新されることを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskTextInputGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
