@@ -52,6 +52,7 @@ public class MicrosoftImporterTest extends TestCase {
 		MicrosoftImporter importer = new MicrosoftImporter();
 		importer.setFileName(mppFileName);
 		importer.setProject(ProjectFactory.getInstance().createProject());
+		assertNotNull("project creation must succeed when optional resource-session APIs are unavailable", importer.getProject());
 		Job job=importer.getImportFileJob();
 		SessionFactory.getInstance().getJobQueue().schedule(job);
 	}

@@ -130,16 +130,22 @@ public class ProjectFactory {
 		if (opt.isAddResources() &&!project.isLocal()){
 			try {
 				Session session=SessionFactory.getInstance().getSession(false);
+				Object localAccess = hasSessionMethod(session, "isLocalAccess")
+					? SessionFactory.callNoEx(session,"isLocalAccess",null,null) : null;
 				List resources;
-				if (((Boolean)SessionFactory.callNoEx(session,"isLocalAccess",null,null)).booleanValue())
+				if (Boolean.TRUE.equals(localAccess))
 					resources=(List)SessionFactory.call(session,"retrieveResourceHierarchy",null,null);
-				else{
+				else if (hasSessionMethod(session, "getLoadResourceHierarchyJob", boolean.class, List.class)){
 					resources=new ArrayList();
 
 					Job job=(Job)SessionFactory.callNoEx(session,"getLoadResourceHierarchyJob", new Class[]{boolean.class,List.class},new Object[]{true,resources});
-					job.addSync();
-					session.schedule(job);
+					if (job != null) {
+						job.addSync();
+						session.schedule(job);
+					}
 					//job.waitResult();
+				} else {
+					resources=new ArrayList();
 				}
 				DataUtil.setEnterpriseResources(resources,resourcePool);
 			} catch (Exception e) {
@@ -153,6 +159,16 @@ public class ProjectFactory {
 		addProject(project,!opt.isSync(),opt.isVerify());
 		logger.fine("Project returned");
 		return project;
+	}
+
+	private static boolean hasSessionMethod(Session session, String methodName, Class<?>... parameterTypes) {
+		if (session == null) return false;
+		try {
+			session.getClass().getMethod(methodName, parameterTypes);
+			return true;
+		} catch (NoSuchMethodException | SecurityException ignored) {
+			return false;
+		}
 	}
 	public Project createProject(final CreateOptions opt) {
 		JobRunnable runnable=new JobRunnable("Local: create Project"){
