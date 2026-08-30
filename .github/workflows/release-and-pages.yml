@@ -56,6 +56,7 @@ jobs:
           .\gradlew.bat clean build packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
 
       - name: Stage release assets
+        if: ${{ success() }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -86,6 +87,7 @@ jobs:
           Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
 
       - name: Create GitHub release
+        if: ${{ success() }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.release_version }}

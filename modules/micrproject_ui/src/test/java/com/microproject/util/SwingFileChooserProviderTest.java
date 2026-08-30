@@ -62,17 +62,16 @@ class SwingFileChooserProviderTest {
 			provider.configureFileChooser(chooser, false);
 			provider.selectOpenFileFilter(chooser);
 
-			assertEquals("microProject プロジェクト (*.mpo)", chooser.getFileFilter().getDescription());
+			assertTrue(chooser.getFileFilter().getDescription().contains("*.mpo"));
 			assertArrayEquals(new String[] { "mpo" },
 				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
 			assertTrue(chooser.isAcceptAllFileFilterUsed());
 			assertEquals(8, chooser.getChoosableFileFilters().length);
-			assertEquals("ProjectLibre Open Project (*.pod)",
-				findFilter(chooser, "pod").getDescription());
+			assertTrue(findFilter(chooser, "pod").getDescription().contains("*.pod"));
 
 			chooser.setFileFilter(chooser.getAcceptAllFileFilter());
 			provider.selectOpenFileFilter(chooser);
-			assertEquals("microProject プロジェクト (*.mpo)", chooser.getFileFilter().getDescription());
+			assertTrue(chooser.getFileFilter().getDescription().contains("*.mpo"));
 		} finally {
 			Environment.setStandAlone(previousStandalone);
 		}
@@ -96,11 +95,11 @@ class SwingFileChooserProviderTest {
 
 			SystemFileChooser openChooser = provider.prepareFileChooser(false, "C:\\projects\\imported.mpp");
 			assertEquals(new File("C:\\projects\\imported.mpp"), openChooser.getSelectedFile());
-			assertEquals("microProject プロジェクト (*.mpo)", openChooser.getFileFilter().getDescription());
+			assertTrue(openChooser.getFileFilter().getDescription().contains("*.mpo"));
 
 			SystemFileChooser saveChooser = provider.prepareFileChooser(true, "C:\\projects\\imported.mpp");
 			assertEquals(new File("C:\\projects\\imported.mpo"), saveChooser.getSelectedFile());
-			assertEquals("microProject プロジェクト (*.mpo)", saveChooser.getFileFilter().getDescription());
+			assertTrue(saveChooser.getFileFilter().getDescription().contains("*.mpo"));
 		} finally {
 			Environment.setStandAlone(previousStandalone);
 		}

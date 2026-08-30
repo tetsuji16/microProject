@@ -37,7 +37,11 @@ class WelcomeDialogRecentProjectRendererTest {
 			DefaultListCellRenderer renderer = WelcomeDialog.recentProjectRenderer();
 			JLabel label = (JLabel) renderer.getListCellRendererComponent(new JList<>(), entry, 0, false, false);
 
-			assertFalse(label.getText().contains(UsabilityStrings.text("welcome.missing")));
+			// The filename itself is "missing.pod"; check for the legacy decoration
+			// as a distinct suffix rather than rejecting that legitimate filename.
+			String marker = UsabilityStrings.text("welcome.missing");
+			assertFalse(label.getText().contains("(" + marker + ")"));
+			assertFalse(label.getText().contains("（" + marker + "）"));
 			assertTrue(label.getText().contains("missing.pod"));
 		});
 	}
