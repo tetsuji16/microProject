@@ -199,3 +199,4 @@
 - GUI-NC-08: `OfficeChromeSearchGuiAcceptanceTest` を実GUIで再実行し、リボン／Office Chromeの検索入力と結果表示経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.ui.shell.OfficeChromeSearchGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
 - GUI-NC-04: `TaskDurationGuiAcceptanceTest` を実GUIで再実行し、期間セル入力によるタスク期間更新とガント表示反映を確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.TaskDurationGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
 - GUI-NC-12: `TaskTextInputGuiAcceptanceTest` を実GUIで再実行し、日本語・長文・空文字のテキスト入力で対象セルのみが更新されることを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskTextInputGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- CI節目確認: Release Run `33306149733`（commit `fbff56043`）のBuild/package、release staging、GitHub Release、Pages deployがすべてsuccess。`actions/checkout@v5`／`actions/setup-java@v5`更新後の配布経路も継続して正常であることを確認した。
