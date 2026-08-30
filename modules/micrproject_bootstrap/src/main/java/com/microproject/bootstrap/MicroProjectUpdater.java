@@ -66,18 +66,31 @@ public final class MicroProjectUpdater {
     private MicroProjectUpdater() {
     }
 
+    static boolean isLaunchOnly(String[] args) {
+        if (args == null) return false;
+        for (String arg : args) {
+            if ("--launch-only".equals(arg)) return true;
+        }
+        return false;
+    }
+
     public static void main(String[] args) throws IOException {
         URI configUri = DEFAULT_CONFIG_URI;
-        boolean launchOnly = false;
+        boolean launchOnly = isLaunchOnly(args);
         boolean forceCheck = false;
         for (String arg : args) {
-            if ("--launch-only".equals(arg)) {
-                launchOnly = true;
-            } else if ("--force-check".equals(arg)) {
+            if ("--force-check".equals(arg)) {
                 forceCheck = true;
             } else if (!arg.isEmpty() && !arg.startsWith("-")) {
                 configUri = URI.create(arg);
             }
+        }
+
+        // Explicit launch-only mode must not contact the update feed. This is
+        // used by recovery/diagnostic launchers and must remain usable offline.
+        if (launchOnly) {
+            launchInstalledApp();
+            return;
         }
 
         PublicKey publicKey = loadBundledPublicKey();

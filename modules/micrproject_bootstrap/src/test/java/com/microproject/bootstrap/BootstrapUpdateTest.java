@@ -247,6 +247,16 @@ class BootstrapUpdateTest {
     }
 
     @Test
+    void launchOnlyModeIsAnExplicitOfflinePath() {
+        assertTrue(MicroProjectUpdater.isLaunchOnly(new String[] {"--launch-only"}),
+                "launch-only invocation must be recognized without consulting a feed");
+        assertFalse(MicroProjectUpdater.isLaunchOnly(new String[] {"--force-check"}),
+                "other flags must not accidentally select offline launch mode");
+        assertFalse(MicroProjectUpdater.isLaunchOnly(null),
+                "null arguments must remain safe for a launcher wrapper");
+    }
+
+    @Test
     void launchInvokesConfiguredLauncherInProcess(@TempDir Path temp) throws Exception {
         KeyPair kp = generateRsa();
         Path dir = Files.createTempDirectory("launch");
