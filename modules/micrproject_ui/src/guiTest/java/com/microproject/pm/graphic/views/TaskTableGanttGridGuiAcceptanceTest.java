@@ -5,6 +5,7 @@
  ******************************************************************************/
 package com.microproject.pm.graphic.views;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -112,6 +113,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(), "20-task table or Gantt was not visible");
 		int initialRows = ((com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) fixture.sheet.getModel()).getRowCount();
 		assertTrue(initialRows >= 20, "all 20 task rows must be present before scrolling");
+		assertEquals(20, fixture.taskCount, "fixture must contain exactly 20 tasks");
+		assertEquals(9, fixture.sequentialDependencyCount, "first ten tasks must form one FS chain");
+		assertEquals(10, fixture.independentTaskCount, "last ten tasks must remain independent");
 		JScrollPane tableScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
 		assertTrue(tableScroll != null, "20-task table must be hosted by a scroll pane");
 		assertTrue(tableScroll.getVerticalScrollBar().getMaximum() > tableScroll.getVerticalScrollBar().getVisibleAmount(),
@@ -175,6 +179,10 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			}
 		}
 		project.recalculate();
+		int sequentialDependencyCount = (int) tasks.subList(1, Math.min(10, tasks.size())).stream()
+			.filter(task -> task.getPredecessorList().size() == 1).count();
+		int independentTaskCount = (int) tasks.subList(Math.min(10, tasks.size()), tasks.size()).stream()
+			.filter(task -> task.getPredecessorList().isEmpty()).count();
 		Fixture[] fixture = new Fixture[1];
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();
@@ -184,10 +192,11 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry", true);
 			gantt = new Gantt(project, "Gantt");
 			gantt.setCache(cache);
-			fixture[0] = new Fixture(sheet, gantt);
+			fixture[0] = new Fixture(sheet, gantt, tasks.size(), sequentialDependencyCount, independentTaskCount);
 		});
 		return fixture[0];
 	}
 
-	private record Fixture(SpreadSheet sheet, Gantt gantt) { }
+	private record Fixture(SpreadSheet sheet, Gantt gantt, int taskCount, int sequentialDependencyCount,
+		int independentTaskCount) { }
 }
