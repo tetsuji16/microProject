@@ -14,7 +14,6 @@ import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
-import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
@@ -78,6 +77,27 @@ class TaskDateDependencyGuiAcceptanceTest {
 	@ValueSource(longs = { -1L, 1L, 2L })
 	void robotDateEditHonorsFsLag(long lagDays) throws Exception {
 		runRobotDateEdit(DependencyType.FS, lagDays);
+	}
+
+	@Test
+	void robotInvalidDateRejectsInputAndPreservesOriginalValue() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(DependencyType.FS, 0L);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activate(fixture);
+		clickCell(robot, fixture);
+		dispatchF2(fixture.sheet);
+		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start date editing");
+		long originalStart = fixture.predecessor.getStart();
+		SwingUtilities.invokeAndWait(() -> {
+			DateEditor.ExtDateField editor = (DateEditor.ExtDateField) fixture.sheet.getEditorComponent();
+			editor.getTextField().setText("not-a-date");
+			assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "invalid date must be consumed with a warning");
+		});
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "invalid date edit did not cancel");
+		assertEquals(originalStart, fixture.predecessor.getStart(), "invalid date must preserve the original value");
 	}
 
 	private void runRobotDateEdit(int type, long lagDays) throws Exception {
