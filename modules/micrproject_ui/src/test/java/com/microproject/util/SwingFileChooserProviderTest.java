@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -148,5 +149,14 @@ class SwingFileChooserProviderTest {
 		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("imported.mpp", true));
 		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("project.mpo", false));
 		assertEquals("xml", SwingFileChooserProvider.preferredSaveExtension("project.pod", false));
+	}
+
+	@Test
+	void openSelectionPreservesEveryNonNullFileInOrder() {
+		assertEquals(List.of("C:\\projects\\first.mpo", "C:\\projects\\second.mpp"),
+			SwingFileChooserProvider.selectedFileNames(new File[] {
+				new File("C:\\projects\\first.mpo"), null, new File("C:\\projects\\second.mpp")
+			}));
+		assertTrue(SwingFileChooserProvider.selectedFileNames(new File[0]).isEmpty());
 	}
 }

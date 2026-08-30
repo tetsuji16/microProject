@@ -223,4 +223,5 @@
 - GUI-NC-11/#395: 開くダイアログを複数選択モードにし、選択された全プロジェクトを順に開く`FileChooserProvider.chooseFileNames`／`GraphicManager.openLocalProject`経路を追加。`SwingFileChooserProviderTest`でopen=true、save=falseの選択モードを確認し、focused UI testはBUILD SUCCESSFUL。ネイティブOSダイアログの実Robot選択は環境依存の残作業。
 - #395 API互換性回帰: `UiServicesFileChooserProviderTest`で、旧来の単一選択プロバイダが1件リストへ変換され、キャンセル（null）が空リストになることを確認（BUILD SUCCESSFUL）。
 - #395 nullプロバイダ回帰: カスタムchooserがnullリストを返しても`GraphicManager.openLocalProject`がキャンセルとして安全に終了するガードを追加。core/UI focusedテスト（20 actionable tasks、13秒）がBUILD SUCCESSFUL。
+- #395 複数選択順序回帰: `SwingFileChooserProvider.selectedFileNames`で複数選択の全ファイルを順序どおり返し、null要素と空配列を安全に扱うことを確認（UI focused test BUILD SUCCESSFUL、6秒）。
 - #395後続GUI回帰: null結果ガード後にinstallDistを再生成し、全16クラスの実Robot GUI受入スイートを再実行（BUILD SUCCESSFUL、44秒）。
