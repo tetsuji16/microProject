@@ -33,6 +33,8 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
@@ -66,10 +68,11 @@ class TaskDateDependencyGuiAcceptanceTest {
 		});
 	}
 
-	@Test
-	void robotDateEditRecalculatesFsSuccessor() throws Exception {
+	@ParameterizedTest(name = "{0} dependency")
+	@ValueSource(ints = { DependencyType.FS, DependencyType.SS, DependencyType.FF, DependencyType.SF })
+	void robotDateEditRecalculatesSuccessor(int type) throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Fixture fixture = createFixture();
+		Fixture fixture = createFixture(type);
 		showFixture(fixture);
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
@@ -89,7 +92,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 			fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 		assertTrue(fixture.predecessor.getStart() > fixture.originalStart, "predecessor start must move after GUI edit");
 		assertEquals(expectedSuccessorStart, fixture.successor.getStart(), "FS successor must match dependency date after GUI edit");
-		capture(robot);
+		capture(robot, type);
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {
@@ -143,16 +146,26 @@ class TaskDateDependencyGuiAcceptanceTest {
 		return result[0];
 	}
 
-	private void capture(Robot robot) throws Exception {
+	private void capture(Robot robot, int type) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
-		javax.imageio.ImageIO.write(screenshot, "png", directory.resolve("task-date-dependency-edit.png").toFile());
+		javax.imageio.ImageIO.write(screenshot, "png", directory.resolve("task-date-dependency-edit-" + dependencyTypeName(type) + ".png").toFile());
 	}
 
-	private static Fixture createFixture() throws Exception {
+	private static String dependencyTypeName(int type) {
+		return switch (type) {
+			case DependencyType.FS -> "FS";
+			case DependencyType.SS -> "SS";
+			case DependencyType.FF -> "FF";
+			case DependencyType.SF -> "SF";
+			default -> "unknown";
+		};
+	}
+
+	private static Fixture createFixture(int type) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-date-dependency", undo);
 		Project project = Project.createProject(pool, undo);
@@ -161,7 +174,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		NormalTask successor = task(project, "GUI successor", 1L);
 		long originalStart = DateTime.calendarInstance(2026, Calendar.JUNE, 6).getTimeInMillis();
 		predecessor.setStart(originalStart);
-		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, project);
+		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, type, 0L, project);
 		project.recalculate();
 		final Fixture[] result = new Fixture[1];
 		SwingUtilities.invokeAndWait(() -> {
