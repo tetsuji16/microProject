@@ -505,7 +505,6 @@ public final class ModernRibbonPanel extends JPanel {
 
 		int tallestContent = 0;
 		int tallestBand = 0;
-		List<RibbonBandPanel> bandPanels = new ArrayList<>();
 		GridBagConstraints bandConstraints = new GridBagConstraints();
 		bandConstraints.gridx = 0;
 		bandConstraints.gridy = 0;
@@ -515,6 +514,7 @@ public final class ModernRibbonPanel extends JPanel {
 		List<SwingRibbonModel.RibbonBand> visibleBands = density == RibbonDensity.COLLAPSED
 			? List.of(collapsedTabBand(tab))
 			: tab.getBands();
+		List<RibbonBandPanel> bandPanels = new ArrayList<>(visibleBands.size());
 		for (SwingRibbonModel.RibbonBand band : visibleBands) {
 			RibbonBandPanel bandComponent = buildBand(band, density);
 			tallestContent = Math.max(tallestContent, bandComponent.getContentPreferredHeight());
@@ -593,9 +593,10 @@ public final class ModernRibbonPanel extends JPanel {
 		content.setOpaque(false);
 		content.setLayout(new GridBagLayout());
 
-		List<AbstractButton> smallButtonList = new ArrayList<>();
-		List<AbstractButton> largeButtonList = new ArrayList<>();
-		List<SwingRibbonModel.RibbonButton> overflowButtonSpecs = new ArrayList<>();
+		int buttonCount = band.getButtons().size();
+		List<AbstractButton> smallButtonList = new ArrayList<>(buttonCount);
+		List<AbstractButton> largeButtonList = new ArrayList<>(buttonCount);
+		List<SwingRibbonModel.RibbonButton> overflowButtonSpecs = new ArrayList<>(buttonCount);
 		for (SwingRibbonModel.RibbonButton buttonSpec : band.getButtons()) {
 			if (ribbonDensity == RibbonDensity.COMPACT && buttonSpec.getCollapsePriority() <= 0) {
 				overflowButtonSpecs.add(buttonSpec);
