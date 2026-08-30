@@ -35,4 +35,4 @@ GUI-NC-01〜02でプロジェクトを準備し、03〜08を同一プロジェ�
 
 - GUI-NC-12は`TaskTextInputGuiAcceptanceTest`で実Robot操作を実施。タスク名セルをマウスクリック後、F2編集経路で空文字・null相当・日本語を含む長文を入力し、対象タスクだけが更新され隣接タスク（Untouched）が変更されないことを確認した。
 - 実行コマンド: `.\gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskTextInputGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL、3ケース）。
-- GUI-NC-10は`TaskDateDependencyGuiAcceptanceTest`で不正日付（`not-a-date`）を実Robot入力。編集をキャンセルして元の日付を保持することを確認した。GUIテストランナーはバッチモードのため警告ポップアップは抑制され、表示確認は別途実アプリ操作が必要。
+- GUI-NC-10は`TaskDateDependencyGuiAcceptanceTest`で不正日付（`not-a-date`）を実Robot入力。警告ダイアログの表示を検出し、編集をキャンセルして元の日付を保持することを確認した（テスト内でクライアントモードを明示してダイアログを安全に閉じる）。

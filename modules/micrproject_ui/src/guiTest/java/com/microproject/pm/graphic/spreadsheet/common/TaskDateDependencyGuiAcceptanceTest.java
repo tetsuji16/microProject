@@ -9,16 +9,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Dimension;
+import java.awt.Dialog;
 import java.awt.GraphicsEnvironment;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Calendar;
 
 import javax.swing.AbstractAction;
@@ -53,6 +56,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.Environment;
 import com.microproject.util.DateTime;
 
 /** Robot coverage for editing a predecessor start date through the visible task table. */
@@ -91,13 +95,43 @@ class TaskDateDependencyGuiAcceptanceTest {
 		dispatchF2(fixture.sheet);
 		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start date editing");
 		long originalStart = fixture.predecessor.getStart();
-		SwingUtilities.invokeAndWait(() -> {
-			DateEditor.ExtDateField editor = (DateEditor.ExtDateField) fixture.sheet.getEditorComponent();
-			editor.getTextField().setText("not-a-date");
-			assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "invalid date must be consumed with a warning");
-		});
-		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "invalid date edit did not cancel");
-		assertEquals(originalStart, fixture.predecessor.getStart(), "invalid date must preserve the original value");
+		boolean previousClientSide = Environment.isClientSide();
+		Environment.setClientSide(true);
+		AtomicBoolean warningSeen = new AtomicBoolean();
+		Thread closer = new Thread(() -> dismissWarning(warningSeen), "gui-invalid-date-warning-closer");
+		try {
+			closer.start();
+			SwingUtilities.invokeAndWait(() -> {
+				DateEditor.ExtDateField editor = (DateEditor.ExtDateField) fixture.sheet.getEditorComponent();
+				editor.getTextField().setText("not-a-date");
+				assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "invalid date must be consumed with a warning");
+			});
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "invalid date edit did not cancel");
+			closer.join(3000);
+			assertTrue(warningSeen.get(), "invalid date must display a warning dialog");
+			assertEquals(originalStart, fixture.predecessor.getStart(), "invalid date must preserve the original value");
+		} finally {
+			Environment.setClientSide(previousClientSide);
+		}
+	}
+
+	private static void dismissWarning(AtomicBoolean warningSeen) {
+		long deadline = System.currentTimeMillis() + 3000;
+		while (System.currentTimeMillis() < deadline) {
+			for (Window window : Window.getWindows()) {
+				if (window instanceof Dialog dialog && dialog.isVisible()) {
+					warningSeen.set(true);
+					SwingUtilities.invokeLater(dialog::dispose);
+					return;
+				}
+			}
+			try {
+				Thread.sleep(20);
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				return;
+			}
+		}
 	}
 
 	private void runRobotDateEdit(int type, long lagDays) throws Exception {
