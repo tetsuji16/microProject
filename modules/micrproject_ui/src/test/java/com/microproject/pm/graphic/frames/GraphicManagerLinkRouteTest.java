@@ -41,6 +41,12 @@ import sun.misc.Unsafe;
 
 class GraphicManagerLinkRouteTest {
 	@Test
+	void isEditingMasterProjectIsSafeBeforeAnyDocumentIsSelected() {
+		GraphicManager graphicManager = new GraphicManager(new JPanel());
+		assertFalse(graphicManager.isEditingMasterProject());
+	}
+
+	@Test
 	void linkAndUnlinkActionsUseActionRouteGuardsAfterTaskSelectionValidation() throws Exception {
 		List<String> routedActions = new ArrayList<>();
 		TestDocumentFrame documentFrame = allocateWithoutConstructor(TestDocumentFrame.class);

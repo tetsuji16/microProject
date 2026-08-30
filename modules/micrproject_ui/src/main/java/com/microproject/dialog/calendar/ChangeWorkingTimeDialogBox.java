@@ -633,8 +633,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	}
 
 	private JComponent createSettingsPanel() {
-		FormLayout settingsLayout = new FormLayout("100dlu", //$NON-NLS-1$
-		"p,0dlu ,p,3dlu ,p,3dlu p,3dlu,p,0dlu ,p,0dlu ,p,3dlu ,p,3dlu ,p,3dlu ,p,3dlu ,p,3dlu ,p,3dlu ,p,3dlu ,p,3dlu ,p"); //$NON-NLS-1$
+		FormLayout settingsLayout = new FormLayout("100dlu,3dlu,100dlu", //$NON-NLS-1$
+		"pref,0dlu,p,3dlu,p,3dlu,p,3dlu,p,0dlu,p,0dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p"); //$NON-NLS-1$
 		DefaultFormBuilder settingBuilder = new DefaultFormBuilder(settingsLayout);
 
 		settingBuilder.addLabel(Messages.getString("ChangeWorkingTimeDialogBox.For")); //$NON-NLS-1$
@@ -677,7 +677,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 
 		FormLayout layout = new FormLayout(
 		        "300dlu:grow", //$NON-NLS-1$
-	    		  "p,p,fill:260dlu:grow"); //$NON-NLS-1$
+			"pref,pref,fill:260dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();

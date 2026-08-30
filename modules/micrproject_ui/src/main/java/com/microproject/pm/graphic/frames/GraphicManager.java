@@ -3899,6 +3899,8 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	}
 
 	public boolean isEditingMasterProject() {
+		if (currentFrame == null)
+			return false;
 		Project currentProject=currentFrame.getProject();
 		if (currentProject == null)
 			return false;

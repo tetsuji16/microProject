@@ -37,3 +37,4 @@ GUI-NC-01〜02でプロジェクトを準備し、03〜08を同一プロジェ�
 - 実行コマンド: `.\gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskTextInputGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL、3ケース）。
 - GUI-NC-10は`TaskDateDependencyGuiAcceptanceTest`で不正日付（`not-a-date`）を実Robot入力。警告ダイアログの表示を検出し、編集をキャンセルして元の日付を保持することを確認した（テスト内でクライアントモードを明示してダイアログを安全に閉じる）。
 - 同ケースで不正な先行タスクID（`999999`）も実Robot入力し、エラーダイアログ、既存リンク保持、編集終了を確認した。
+- GUI-NC-07は`ChangeWorkingTimeDialogGuiAcceptanceTest`で実Robotによる稼働時間ダイアログ表示とCancel操作を確認し、キャンセル時にカレンダーがコミットされずプロジェクト画面へ戻ることを確認した。ダイアログのカレンダー日付選択・非稼働日保存は既存の保存契約／モデル回帰で補完している。
