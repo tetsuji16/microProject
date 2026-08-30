@@ -17,6 +17,9 @@ import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Calendar;
 
 import javax.swing.AbstractAction;
@@ -86,6 +89,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 			fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 		assertTrue(fixture.predecessor.getStart() > fixture.originalStart, "predecessor start must move after GUI edit");
 		assertEquals(expectedSuccessorStart, fixture.successor.getStart(), "FS successor must match dependency date after GUI edit");
+		capture(robot);
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {
@@ -137,6 +141,15 @@ class TaskDateDependencyGuiAcceptanceTest {
 			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
 		return result[0];
+	}
+
+	private void capture(Robot robot) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
+		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
+		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		javax.imageio.ImageIO.write(screenshot, "png", directory.resolve("task-date-dependency-edit.png").toFile());
 	}
 
 	private static Fixture createFixture() throws Exception {
