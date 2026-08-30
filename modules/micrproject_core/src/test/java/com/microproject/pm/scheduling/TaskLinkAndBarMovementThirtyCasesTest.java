@@ -162,9 +162,9 @@ class TaskLinkAndBarMovementThirtyCasesTest {
 
 		long requiredSuccessorStart = dependency.calcForwardDependencyDate(
 			predecessor.getStart(), predecessor.getEnd(), successor.getDuration() != 0L);
-		assertTrue(successor.getStart() >= requiredSuccessorStart,
+		assertEquals(requiredSuccessorStart, successor.getStart(),
 			"link type=" + c.type + " lagDays=" + c.lagDays
-				+ " successor must not start before the moved predecessor permits");
+				+ " successor must match the MSP dependency date after the predecessor moves");
 	}
 
 	private void verifyCircularLinkIsRejected() throws Exception {
