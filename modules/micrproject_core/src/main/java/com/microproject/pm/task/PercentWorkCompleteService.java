@@ -60,7 +60,7 @@ final class PercentWorkCompleteService {
 		List<NormalTask> leaves = new ArrayList<NormalTask>();
 		collectLeafTasks(parent, leaves);
 
-		List<LeafTaskProgress> activeLeaves = new ArrayList<LeafTaskProgress>();
+		List<LeafTaskProgress> activeLeaves = new ArrayList<LeafTaskProgress>(leaves.size());
 		long totalWork = 0L;
 		for (NormalTask leaf : leaves) {
 			long duration = leaf.getDurationMillis();
@@ -214,7 +214,7 @@ final class PercentWorkCompleteService {
 			return;
 		}
 
-		List<NormalTask> childTasks = new ArrayList<NormalTask>();
+		List<NormalTask> childTasks = new ArrayList<NormalTask>(children.size());
 		for (Object childNode : children) {
 			if (!(childNode instanceof Node))
 				continue;

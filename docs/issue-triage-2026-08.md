@@ -80,3 +80,7 @@ success、Release Run `33315015982` は pending（GitHub Actions のリリース
 #228 では、プロジェクト追加時に件数が既知のリソース／タスク索引 Map を事前容量で
 生成する改善を追加した。`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、3秒）と
 `:micrproject_core:test` 全体（BUILD SUCCESSFUL、13秒）で挙動不変を確認した。
+
+さらに `PercentWorkCompleteService` の収集済み葉タスク数／子ノード数が既知の一時
+リストを事前確保した。`NormalTaskPercentCompleteTest`（BUILD SUCCESSFUL、4秒）と
+`:micrproject_core:test` 全体（BUILD SUCCESSFUL、12秒）で回帰がないことを確認した。
