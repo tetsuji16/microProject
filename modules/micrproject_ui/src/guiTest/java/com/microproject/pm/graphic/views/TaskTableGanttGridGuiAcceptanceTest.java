@@ -12,9 +12,12 @@ import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -33,7 +36,10 @@ import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.NormalTask;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.FlatUiSupport;
@@ -90,6 +96,41 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 	}
 
+	@Test
+	void twentyMixedTasksRemainAccessibleAfterMouseScroll() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(20);
+		showFixture(fixture);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			fixture.sheet.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(), "20-task table or Gantt was not visible");
+		int initialRows = ((com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) fixture.sheet.getModel()).getRowCount();
+		assertTrue(initialRows >= 20, "all 20 task rows must be present before scrolling");
+		JScrollPane tableScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+		assertTrue(tableScroll != null, "20-task table must be hosted by a scroll pane");
+		assertTrue(tableScroll.getVerticalScrollBar().getMaximum() > tableScroll.getVerticalScrollBar().getVisibleAmount(),
+			"20-task table must have a scrollable vertical range");
+		Rectangle scrollBounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle bounds = tableScroll.getVerticalScrollBar().getBounds();
+			java.awt.Point location = tableScroll.getVerticalScrollBar().getLocationOnScreen();
+			scrollBounds.setBounds(location.x, location.y, bounds.width, bounds.height);
+		});
+		robot.mouseMove(scrollBounds.x + scrollBounds.width / 2, scrollBounds.y + scrollBounds.height - 8);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(300);
+		GuiAcceptanceSupport.await(() -> tableScroll.getVerticalScrollBar().getValue() > 0,
+			"mouse wheel must scroll the 20-task table");
+		assertTrue(tableScroll.getVerticalScrollBar().getValue() > 0, "table must remain scrollable with 20 tasks");
+	}
+
 	private void captureVisibleLayout(Robot robot) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
@@ -116,11 +157,24 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	private Fixture createFixture() throws Exception {
+		return createFixture(1);
+	}
+
+	private Fixture createFixture(int taskCount) throws Exception {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("gui-task-gantt-grid-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
 		project.initialize(false, false);
-		project.createScriptedTask().setName("Visible task");
+		List<NormalTask> tasks = new ArrayList<>();
+		for (int index = 1; index <= taskCount; index++) {
+			NormalTask task = project.createScriptedTask();
+			task.setName(index <= 10 ? "Sequential " + index : "Independent " + index);
+			tasks.add(task);
+			if (index > 1 && index <= 10) {
+				DependencyService.getInstance().newDependency(tasks.get(index - 2), task, DependencyType.FS, 0L, project);
+			}
+		}
+		project.recalculate();
 		Fixture[] fixture = new Fixture[1];
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();
