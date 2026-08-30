@@ -66,7 +66,18 @@ class GanttBarDateDragGuiAcceptanceTest {
 	@Test
 	void robotDragMovesBarAndRecalculatesFsSuccessor() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Fixture fixture = createFixture();
+		Fixture fixture = createFixture(DependencyType.FS);
+		dragBarAndAssertSuccessor(fixture);
+	}
+
+	@Test
+	void robotDragMovesBarAndRecalculatesFfSuccessor() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(DependencyType.FF);
+		dragBarAndAssertSuccessor(fixture);
+	}
+
+	private void dragBarAndAssertSuccessor(Fixture fixture) throws Exception {
 		long oldStart = fixture.predecessor.getStart();
 		showFixture(fixture);
 		Robot robot = new Robot();
@@ -96,8 +107,14 @@ class GanttBarDateDragGuiAcceptanceTest {
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() > oldStart, "Gantt bar drag did not move the predecessor");
 		SwingUtilities.invokeAndWait(fixture.project::recalculate);
-		long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
-		assertEquals(expected, fixture.successor.getStart(), "FS successor must match the date implied by the dragged bar");
+		if (fixture.dependency.getDependencyType() == DependencyType.FF) {
+			assertEquals(fixture.predecessor.getEnd(), fixture.successor.getEnd(),
+				"FF successor finish must match the dragged predecessor finish");
+		} else {
+			long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
+			assertEquals(expected, fixture.successor.getStart(), "Successor must match " + DependencyType.toLongString(fixture.dependency.getDependencyType())
+				+ " date implied by the dragged bar (expected=" + expected + ", actual=" + fixture.successor.getStart() + ")");
+		}
 		capture(robot);
 	}
 
@@ -140,7 +157,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		javax.imageio.ImageIO.write(image, "png", directory.resolve("gantt-bar-date-drag.png").toFile());
 	}
 
-	private Fixture createFixture() throws Exception {
+	private Fixture createFixture(int dependencyType) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-gantt-date-drag", undo);
 		Project project = Project.createProject(pool, undo);
@@ -148,7 +165,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		NormalTask predecessor = task(project, "Drag predecessor", 1L);
 		NormalTask successor = task(project, "Drag successor", 1L);
 		predecessor.setStart(DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis());
-		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, project);
+		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, dependencyType, 0L, project);
 		project.recalculate();
 		final Fixture[] result = new Fixture[1];
 		SwingUtilities.invokeAndWait(() -> {
