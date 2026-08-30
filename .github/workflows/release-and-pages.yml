@@ -65,7 +65,11 @@ jobs:
           # so its output filename may not retain the CI run-number suffix.
           # Locate the package produced by this clean build, then publish it
           # under the GitHub release version calculated above.
-          $msi = Get-ChildItem -Path build/releases -Recurse -File -Filter 'microProject-*.msi' | Select-Object -First 1
+          # jpackage may emit either microProject.msi or a versioned name.
+          $msi = Get-ChildItem -Path build/releases -Recurse -File -Filter 'microProject*.msi' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $msi) {
+            $msi = Get-ChildItem -Path build/releases -Recurse -File -Filter '*.msi' -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
           # packageWindowsZip normally writes to docs/downloads, but a clean
           # checkout may not contain that ignored/empty directory. Fall back to
           # the build tree so staging reports the real packaging failure instead
