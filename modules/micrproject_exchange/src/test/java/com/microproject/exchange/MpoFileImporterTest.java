@@ -24,6 +24,7 @@ import java.util.zip.ZipOutputStream;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.ccpm.CriticalChainService;
+import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.OperationLog;
 import com.microproject.pm.task.NormalTask;
@@ -747,6 +748,16 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertNotNull(completedTask);
 		org.junit.jupiter.api.Assertions.assertEquals(0D, completedTask.getPercentComplete(), 0.00001D);
 		org.junit.jupiter.api.Assertions.assertEquals(0D, ((NormalTask) completedTask).getPercentWorkComplete(), 0.00001D);
+	}
+
+	@Test
+	void historySampleRestoresFourCcpmObservations() throws Exception {
+		Project loaded = load(findSample("CCPM 標準システム導入 20タスク（履歴付き）.mpo"));
+		CriticalChainBufferHistory history = loaded.findTransientDocumentState(CriticalChainBufferHistory.class);
+		org.junit.jupiter.api.Assertions.assertNotNull(history);
+		org.junit.jupiter.api.Assertions.assertEquals(4, history.points().size());
+		org.junit.jupiter.api.Assertions.assertEquals(50D, history.points().get(2).progressPercent(), 0.00001D);
+		org.junit.jupiter.api.Assertions.assertEquals(55D, history.points().get(2).consumptionPercent(), 0.00001D);
 	}
 
 	private static Project loadFromBytes(byte[] mpo) throws Exception {
