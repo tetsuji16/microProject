@@ -102,11 +102,15 @@ public class MsProjectTaskMoveCompatibilityTest {
 		org.w3c.dom.Document xml = DocumentBuilderFactory.newInstance().newDocumentBuilder()
 				.parse(new ByteArrayInputStream(output.toByteArray()));
 		NodeList tasks = xml.getElementsByTagName("Task");
+		Element exportedPredecessor = taskByName(tasks, "Predecessor");
+		String exportedPredecessorUid = childText(exportedPredecessor, "UID");
 		for (int type : types) {
 			Element successor = taskByName(tasks, "Successor-" + type);
 			Element link = (Element) successor.getElementsByTagName("PredecessorLink").item(0);
 			assertEquals(String.valueOf(type), childText(link, "Type"));
-			assertEquals(String.valueOf(predecessor.getUniqueId()), childText(link, "PredecessorUID"));
+			// MSPDI remaps negative native IDs to positive UIDs; compare against
+			// the predecessor's UID in the emitted document, not the native ID.
+			assertEquals(exportedPredecessorUid, childText(link, "PredecessorUID"));
 			// MSPDI LinkLag is expressed in tenths of a working minute: one
 			// standard eight-hour working day is 8 * 60 * 10 = 4800.
 			assertEquals("4800", childText(link, "LinkLag"));
