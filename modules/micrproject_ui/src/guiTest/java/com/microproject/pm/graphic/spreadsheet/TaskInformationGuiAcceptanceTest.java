@@ -95,6 +95,14 @@ class TaskInformationGuiAcceptanceTest {
 				assertTrue(tab.getPreferredSize().height <= tabs.getHeight() || tab instanceof JScrollPane,
 					"tab " + tabs.getTitleAt(index) + " is clipped without a scrollable viewport");
 			}
+			JScrollPane general = (JScrollPane)tabs.getComponentAt(0);
+			java.awt.Container view = (java.awt.Container)general.getViewport().getView();
+			for (java.awt.Component child : view.getComponents()) {
+				if (!child.isVisible())
+					continue;
+				assertTrue(child.getHeight() >= child.getPreferredSize().height,
+					"general tab component is vertically clipped: " + child.getClass().getSimpleName());
+			}
 		});
 	}
 
@@ -119,6 +127,9 @@ class TaskInformationGuiAcceptanceTest {
 			((JScrollPane)tabs.getComponentAt(0)).getVerticalScrollBar().setValue(0);
 			bounds[0] = new Rectangle(dialog.getRootPane().getLocationOnScreen(), dialog.getRootPane().getSize());
 		});
+		// Let the tab selection and scrollbar update paint before capturing; an
+		// immediate capture can otherwise retain the previously selected tab.
+		robot.waitForIdle();
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);

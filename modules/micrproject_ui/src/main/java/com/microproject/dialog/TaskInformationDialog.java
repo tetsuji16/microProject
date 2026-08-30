@@ -359,7 +359,12 @@ public class TaskInformationDialog extends InformationDialog {
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridx = x;
 		constraints.gridy = y;
-		constraints.insets = new Insets(4, 4, 4, 8);
+		// Keep a full line of vertical breathing room around every label and
+		// editor.  The old four-pixel tracks let the Japanese baseline touch the
+		// neighbouring row at the minimum dialog size, which made glyphs appear
+		// half clipped on some L&F/DPI combinations.
+		constraints.insets = new Insets(6, 4, 6, 8);
+		constraints.ipady = 2;
 		return constraints;
 	}
 
