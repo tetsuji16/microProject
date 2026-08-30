@@ -101,7 +101,7 @@ public class DictionaryAdapter<T> extends XmlAdapter<DictionaryAdapterList<T>, M
     
    @Override
     public Map<String, T> unmarshal(DictionaryAdapterList<T> list) throws Exception {
-        HashMap<String, T> map = new HashMap<String, T>(list.getEntry().size()); 
+        HashMap<String, T> map = new HashMap<String, T>(list.getEntry().size());
     	for (T element : list.getEntry()) {
             map.put(((HasStringId)element).getId(), element); //T must implement HasName
         }
