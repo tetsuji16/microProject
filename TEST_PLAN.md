@@ -213,4 +213,5 @@
 - CI失敗伝播修正: `gradlew.bat` がGradle失敗後に終了コード0を返し、CIで`BUILD FAILED`後もrelease stagingへ進むことをローカル再現。`ENDLOCAL & EXIT /B %ERRORLEVEL%`を追加し、意図的な存在しないテスト指定で`BUILD FAILED`かつ`EXIT=1`となることを確認した。
 - リポジトリclean build回帰: `./gradlew.bat --no-daemon clean build --console=plain` を実行して全モジュールのclean再コンパイル・テストを完走させ、続く `./gradlew.bat build --console=plain` で`BUILD SUCCESSFUL`かつ`EXIT=0`を確認した。
 - clean成果物GUI回帰: clean build後に`./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain`を実行し、installDist再生成を含む16 GUIテストクラスがBUILD SUCCESSFUL（41秒）となることを確認した。
+- 配布物ファイル互換性回帰: `./gradlew.bat verifyPackagedFileImports --console=plain` を実行し、installDistのclasspath検証、`Commercial construction project plan.mpp`（145 tasks）および`.pod`（145 tasks）の実配布レイアウト読込がBUILD SUCCESSFUL（5秒）となることを確認した。
 - リボン狭幅回帰: `RibbonTabGuiAcceptanceTest.narrowRibbonExposesCollapsedCommandsThroughMousePopup` で900px幅の折りたたみポップアップ生成と`RibbonHideSelectedTasks`配送を確認（focused BUILD SUCCESSFUL）。同じ画面の折りたたみボタンを`Robot`実座標でクリックするとイベントが発火しない環境差を再現し、画面座標・サイズを#430へ記録。ポップアップ生成自体は`doClick`で回帰防止し、実マウス経路は追加調査対象とした。
