@@ -15,6 +15,7 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.KeyboardFocusManager;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -70,11 +71,12 @@ class TaskTextInputGuiAcceptanceTest {
 		clickCell(robot, fixture);
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isFocusOwner(), "spreadsheet did not receive focus");
 
-		// Use the same root-pane F2 route as the production shortcut, then commit through the visible editor.
+		// Use the same focused-window F2 route as the production shortcut, then commit through the visible editor.
+		SwingUtilities.invokeAndWait(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().dispatchEvent(
+				new KeyEvent(fixture.sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_F2, KeyEvent.CHAR_UNDEFINED)));
+		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 must start task-name editing");
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.getRootPane().getActionMap().get("EditField").actionPerformed(null);
 			JTextComponent editor = (JTextComponent) ((NameCellComponent) fixture.sheet.getEditorComponent()).getTextComponent();
-			assertTrue(fixture.sheet.isEditing(), "F2 must start task-name editing");
 			editor.setText(input == null ? "" : input);
 			assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "task-name editor rejected input");
 		});
