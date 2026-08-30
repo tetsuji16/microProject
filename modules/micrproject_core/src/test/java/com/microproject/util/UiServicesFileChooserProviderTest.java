@@ -26,4 +26,22 @@ class UiServicesFileChooserProviderTest {
 
 		assertTrue(provider.chooseFileNames(false, null, null).isEmpty());
 	}
+
+	@Test
+	void providersMayReturnNullWithoutChangingLegacyCancellationSemantics() {
+		UiServices.FileChooserProvider provider = new UiServices.FileChooserProvider() {
+			@Override
+			public String chooseFileName(boolean save, String selected, Object parent) {
+				return null;
+			}
+
+			@Override
+			public List<String> chooseFileNames(boolean save, String selected, Object parent) {
+				return null;
+			}
+		};
+
+		assertTrue(provider.chooseFileNames(false, null, null) == null,
+			"custom providers may return null; callers must treat it as cancellation");
+	}
 }

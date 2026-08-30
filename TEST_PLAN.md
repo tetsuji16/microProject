@@ -222,3 +222,4 @@
 - clean build回帰（最新GUI同期修正後）: `./gradlew.bat --no-daemon clean build --console=plain`を全54タスク実行し、全モジュールのテスト・配布アーカイブ生成までBUILD SUCCESSFUL（2分37秒）。JDKのUnsafe/deprecation等の既存コンパイル警告のみで、失敗なし。
 - GUI-NC-11/#395: 開くダイアログを複数選択モードにし、選択された全プロジェクトを順に開く`FileChooserProvider.chooseFileNames`／`GraphicManager.openLocalProject`経路を追加。`SwingFileChooserProviderTest`でopen=true、save=falseの選択モードを確認し、focused UI testはBUILD SUCCESSFUL。ネイティブOSダイアログの実Robot選択は環境依存の残作業。
 - #395 API互換性回帰: `UiServicesFileChooserProviderTest`で、旧来の単一選択プロバイダが1件リストへ変換され、キャンセル（null）が空リストになることを確認（BUILD SUCCESSFUL）。
+- #395 nullプロバイダ回帰: カスタムchooserがnullリストを返しても`GraphicManager.openLocalProject`がキャンセルとして安全に終了するガードを追加。core/UI focusedテスト（20 actionable tasks、13秒）がBUILD SUCCESSFUL。

@@ -2816,6 +2816,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 
 	public void openLocalProject(){
 		java.util.List<String> fileNames = SessionFactory.getInstance().getLocalSession().chooseFileNames(false, null);
+		if (fileNames == null) return;
 		for (String fileName : fileNames) {
 			if (fileName != null) loadLocalDocument(fileName,!Environment.getStandAlone());
 		}
