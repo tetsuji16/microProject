@@ -534,7 +534,7 @@ public class TaskInformationDialog extends InformationDialog {
 		List<Task> candidates = getLinkableTasks(task, predecessors);
 		if (candidates.isEmpty())
 			return;
-		List<DependencyTaskChoice> choices = new ArrayList<>();
+		List<DependencyTaskChoice> choices = new ArrayList<>(candidates.size());
 		for (Task candidate : candidates)
 			choices.add(new DependencyTaskChoice(candidate));
 		DependencyTaskChoice selected = (DependencyTaskChoice) JOptionPane.showInputDialog(this,

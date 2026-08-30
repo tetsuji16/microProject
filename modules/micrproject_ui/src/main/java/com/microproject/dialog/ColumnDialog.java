@@ -101,7 +101,7 @@ public final class ColumnDialog extends AbstractDialog {
 
 	static List<Field> filterFields(List<Field> fields, List<Field> currentFields, String query) {
 		String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT); //$NON-NLS-1$
-		List<Field> result = new ArrayList<>();
+		List<Field> result = new ArrayList<>(fields.size());
 		for (Field candidate : fields) {
 			if (candidate == null || isCurrentField(candidate, currentFields)) continue;
 			String searchable = (candidate.getName() + " " + candidate.getId()).toLowerCase(Locale.ROOT); //$NON-NLS-1$

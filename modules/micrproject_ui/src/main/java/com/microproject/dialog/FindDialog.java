@@ -34,6 +34,7 @@ import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -97,8 +98,9 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		context = searchable.createSearchContext();
 		if (field != null)
 			context.setField(field);
-		ArrayList<Field> l = new ArrayList<>();
-		l.addAll(searchable.getAvailableFields());
+		Collection<Field> availableFields = searchable.getAvailableFields();
+		ArrayList<Field> l = new ArrayList<>(availableFields.size());
+		l.addAll(availableFields);
 		Collections.sort(l);
 		ComboBoxModel m = new DefaultComboBoxModel(l.toArray());
 		if (combo == null)

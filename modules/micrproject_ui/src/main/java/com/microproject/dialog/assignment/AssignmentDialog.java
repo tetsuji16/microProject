@@ -167,7 +167,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	void assign(List<?> resourceList, double units) {
 		if (selectedTasks == null) // if no selection, do nothing
 			return;
-		List<NormalTask> taskList = new ArrayList<>();
+		List<NormalTask> taskList = new ArrayList<>(selectedTasks.size());
 		for (NormalTask task : selectedTasks) { // go thru all selected tasks
 			if (!task.isAssignable())
 				continue;
@@ -178,7 +178,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	}
 	
 	public void assign(Resource resource, double units) {
-		ArrayList<Resource> list = new ArrayList<>();
+		ArrayList<Resource> list = new ArrayList<>(1);
 		list.add(resource);
 		assign(list,units);
 	}
@@ -388,7 +388,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	@SuppressWarnings("unchecked")
 	private List<NormalTask> toSelectedTasks(List<?> selectedNodes) {
 		List<?> objects = NodeList.nodeListToImplList(selectedNodes, filter);
-		List<NormalTask> tasks = new ArrayList<>();
+		List<NormalTask> tasks = new ArrayList<>(objects.size());
 		for (Object current : objects) {
 			if (current instanceof NormalTask task && task.isAssignable()) {
 				tasks.add(task);
