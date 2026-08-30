@@ -205,3 +205,4 @@
 - 最新コミット再検証: `./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain` を`1c97aa0d5`上で再実行し、20タスクケースを含む全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
 - 20タスク構造回帰: 同ケースにタスク総数20、FSリンク数9、独立タスク数10の明示アサーションを追加し、focused実Robot GUIテストがBUILD SUCCESSFUL（8秒）となることを確認した。
 - 20タスク構造回帰（全体）: 構造アサーション追加後の`4d02db9d4`で`./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain`を再実行し、全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
+- Gantt表示証跡: `TaskTableGanttGridGuiAcceptanceTest`のfixtureに実GUIと同じ座標変換・標準バー形式・サイズ更新・描画待ちを設定し、Gantt表示の初期化不足を是正。focused実RobotテストはBUILD SUCCESSFUL（5秒）。空白キャプチャを製品不具合と誤登録しないよう、fixture起因として整理した。

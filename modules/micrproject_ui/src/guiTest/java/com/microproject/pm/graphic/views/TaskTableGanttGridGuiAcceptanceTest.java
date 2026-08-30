@@ -31,14 +31,18 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.configuration.Dictionary;
+import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.options.CalendarOption;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -77,6 +81,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			frame.requestFocus();
 		});
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(), "task table or Gantt was not visible");
+		robot.delay(500);
 		captureVisibleLayout(robot);
 
 		SwingUtilities.invokeAndWait(() -> {
@@ -157,6 +162,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
+			gantt.updateSize();
 		});
 	}
 
@@ -173,6 +179,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		for (int index = 1; index <= taskCount; index++) {
 			NormalTask task = project.createScriptedTask();
 			task.setName(index <= 10 ? "Sequential " + index : "Independent " + index);
+			task.getCurrentSchedule().setStart(project.getStart());
+			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
 			tasks.add(task);
 			if (index > 1 && index <= 10) {
 				DependencyService.getInstance().newDependency(tasks.get(index - 2), task, DependencyType.FS, 0L, project);
@@ -192,6 +200,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry", true);
 			gantt = new Gantt(project, "Gantt");
 			gantt.setCache(cache);
+			gantt.setCoord(new CoordinatesConverter(project));
+			gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, "standard"));
+			gantt.updateSize();
 			fixture[0] = new Fixture(sheet, gantt, tasks.size(), sequentialDependencyCount, independentTaskCount);
 		});
 		return fixture[0];
