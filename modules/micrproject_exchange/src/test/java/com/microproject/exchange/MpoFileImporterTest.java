@@ -420,6 +420,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("meta.xml"));
 		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("content.xml"));
 		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("settings.xml"));
+		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("ccpm/history.jsonl"));
 		org.junit.jupiter.api.Assertions.assertTrue(entries.containsKey("operations/log.jsonl"));
 		org.junit.jupiter.api.Assertions.assertTrue(new String(entries.get("meta.xml"), StandardCharsets.UTF_8).contains("<meta "));
 		String manifest = new String(entries.get("META-INF/manifest.xml"), StandardCharsets.UTF_8);

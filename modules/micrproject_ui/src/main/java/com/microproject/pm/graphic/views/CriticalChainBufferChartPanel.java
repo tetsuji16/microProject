@@ -12,6 +12,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -179,7 +180,13 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 
 	private static CriticalChainBufferHistory.Point pointFor(Project project, CriticalChainService.Buffer buffer) {
 		double progress = project == null ? 0D : clamp(project.getPercentComplete() * 100D);
-		return new CriticalChainBufferHistory.Point(progress, clamp(buffer.consumptionRatio() * 100D));
+		return new CriticalChainBufferHistory.Point(Instant.now(), "unknown", "unknown", progress,
+				clamp(buffer.consumptionRatio() * 100D), zoneForValues(progress, clamp(buffer.consumptionRatio() * 100D)).name(), "");
+	}
+
+	private static Zone zoneForValues(double progress, double consumption) {
+		if (consumption <= GREEN_INTERCEPT + GREEN_SLOPE * progress) return Zone.GREEN;
+		return consumption <= AMBER_INTERCEPT + AMBER_SLOPE * progress ? Zone.AMBER : Zone.RED;
 	}
 
 	static Zone zoneFor(CriticalChainBufferHistory.Point point) {
@@ -195,8 +202,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		history.add(point);
 		if (project != null) {
 			CriticalChainBufferHistory saved = project.getOrCreateTransientDocumentState(CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
-			saved.points().clear();
-			saved.points().addAll(history);
+			saved.add(point);
 		}
 	}
 

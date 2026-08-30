@@ -22,6 +22,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -39,6 +40,7 @@ import com.microproject.collaboration.OperationLog;
 import com.microproject.collaboration.MpoTaskOperationService;
 import com.microproject.job.JobRunnable;
 import com.microproject.pm.ccpm.CriticalChainService;
+import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
@@ -63,6 +65,7 @@ public final class MpoFileImporter extends FileImporter {
 	static final String PROJECT_ENTRY = "content.xml";
 	static final String META_ENTRY = "meta.xml";
 	static final String SETTINGS_ENTRY = "settings.xml";
+	static final String CCPM_HISTORY_ENTRY = "ccpm/history.jsonl";
 	static final String LAYOUT_ENTRY = "layout.json";
 	/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
@@ -106,6 +109,7 @@ public final class MpoFileImporter extends FileImporter {
 		byte[] projectXml = null;
 		byte[] meta = null;
 		byte[] settings = null;
+		byte[] ccpmHistory = null;
 		byte[] layout = null;
 		byte[] draftCcpm = null;
 		byte[] operations = null;
@@ -138,6 +142,9 @@ public final class MpoFileImporter extends FileImporter {
 				} else if (SETTINGS_ENTRY.equals(entry.getName())) {
 					if (settings != null) throw new IOException("Duplicate mpo entry: " + SETTINGS_ENTRY);
 					settings = readEntry(zip, totalBytes);
+				} else if (CCPM_HISTORY_ENTRY.equals(entry.getName())) {
+					if (ccpmHistory != null) throw new IOException("Duplicate mpo entry: " + CCPM_HISTORY_ENTRY);
+					ccpmHistory = readEntry(zip, totalBytes);
 				} else if (LAYOUT_ENTRY.equals(entry.getName())) {
 					if (layout != null) throw new IOException("Duplicate mpo entry: " + LAYOUT_ENTRY);
 					layout = readEntry(zip, totalBytes);
@@ -180,6 +187,7 @@ public final class MpoFileImporter extends FileImporter {
 		} else if (draftCcpm != null) {
 			restoreCcpm(project, new String(draftCcpm, StandardCharsets.UTF_8));
 		}
+		if (ccpmHistory != null) restoreCcpmHistory(project, ccpmHistory);
 		if (layout != null) restoreLayout(project, layout);
 		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
 		if (operations == null) operations = draftOperations;
@@ -213,13 +221,13 @@ public final class MpoFileImporter extends FileImporter {
 	private void exportFileLocked(File target) throws Exception {
 		MpoOperationState operationState = operationStateFor(project);
 		operationState.appendChanges(project);
-		byte[] snapshot = mspdiSnapshot(project);
+		byte[] snapshot = serializeProjectXml(project);
 		operationState.remapTaskIds(readTaskIdentities(taskIdentitiesFor(project, snapshot).getBytes(StandardCharsets.UTF_8)));
 		if (target.isFile() && target.length() > 0L) mergeExternalOperations(target, project, operationState);
 		File temporary = File.createTempFile(target.getName() + ".", ".tmp", target.getAbsoluteFile().getParentFile());
 		boolean completed = false;
 		try (OutputStream out = new FileOutputStream(temporary)) {
-			saveProject(project, out);
+			writeMpo(project, out, snapshot, operationState);
 			completed = true;
 		} finally {
 			if (!completed) {
@@ -235,16 +243,14 @@ public final class MpoFileImporter extends FileImporter {
 
 	@Override
 	public boolean saveProject(Project project, OutputStream out) throws Exception {
-		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		MicrosoftImporter delegate = new MicrosoftImporter();
-		delegate.setFileName(PROJECT_ENTRY);
-		if (!delegate.saveProject(project, xml)) {
-			return false;
-		}
-		byte[] projectXml = xml.toByteArray();
+		byte[] projectXml = serializeProjectXml(project);
 		MpoOperationState operationState = operationStateFor(project);
 		operationState.appendChanges(project);
 		operationState.remapTaskIds(readTaskIdentities(taskIdentitiesFor(project, projectXml).getBytes(StandardCharsets.UTF_8)));
+		return writeMpo(project, out, projectXml, operationState);
+	}
+
+	private boolean writeMpo(Project project, OutputStream out, byte[] projectXml, MpoOperationState operationState) throws Exception {
 		try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
 			writeMimetypeEntry(zip);
 			writeEntry(zip, META_ENTRY, metaXml().getBytes(StandardCharsets.UTF_8));
@@ -259,9 +265,10 @@ public final class MpoFileImporter extends FileImporter {
 			if (layout != null) writeEntry(zip, LAYOUT_ENTRY, layout);
 			writeEntry(zip, OPERATIONS_ENTRY, operationState.json);
 			writeEntry(zip, TASK_IDENTITIES_ENTRY, taskIdentitiesFor(project, projectXml).getBytes(StandardCharsets.UTF_8));
+			writeEntry(zip, CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 			MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 			if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-				if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey())) continue;
+				if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey())) continue;
 				writeEntry(zip, extension.getKey(), extension.getValue());
 			}
 		}
@@ -318,7 +325,7 @@ public final class MpoFileImporter extends FileImporter {
 		project.setFieldArray(fields);
 	}
 
-	private static byte[] mspdiSnapshot(Project project) throws IOException {
+	private static byte[] serializeProjectXml(Project project) throws IOException {
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
@@ -766,6 +773,38 @@ public final class MpoFileImporter extends FileImporter {
 		String value = element.getAttribute(name); if (value == null || value.isBlank()) throw new IOException("Missing settings.xml attribute: " + name); return value;
 	}
 	private static String xmlEscape(String value) { return value.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;"); }
+
+	private static byte[] ccpmHistoryJson(Project project) throws IOException {
+		CriticalChainBufferHistory history = project.findTransientDocumentState(CriticalChainBufferHistory.class);
+		if (history == null || history.points().isEmpty()) return new byte[0];
+		StringBuilder jsonl = new StringBuilder();
+		for (CriticalChainBufferHistory.Point point : history.points()) {
+			ObjectNode value = JSON.createObjectNode();
+			value.put("observedAt", point.observedAt().toString());
+			value.put("actorId", point.actorId()); value.put("actorName", point.actorName());
+			value.put("progressPercent", point.progressPercent()); value.put("consumptionPercent", point.consumptionPercent());
+			value.put("zone", point.zone()); value.put("baselineId", point.baselineId());
+			jsonl.append(JSON.writeValueAsString(value)).append('\n');
+		}
+		return jsonl.toString().getBytes(StandardCharsets.UTF_8);
+	}
+
+	private static void restoreCcpmHistory(Project project, byte[] bytes) throws IOException {
+		CriticalChainBufferHistory history = project.getOrCreateTransientDocumentState(CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+		String content = new String(bytes, StandardCharsets.UTF_8);
+		for (String line : content.split("\\R")) {
+			if (line.isBlank()) continue;
+			try {
+				JsonNode value = JSON.readTree(line);
+				history.add(new CriticalChainBufferHistory.Point(Instant.parse(value.path("observedAt").asText()),
+					value.path("actorId").asText("unknown"), value.path("actorName").asText("unknown"),
+					value.path("progressPercent").asDouble(), value.path("consumptionPercent").asDouble(),
+					value.path("zone").asText("UNKNOWN"), value.path("baselineId").asText("")));
+			} catch (RuntimeException | IOException exception) {
+				throw new IOException("Invalid CCPM history entry", exception);
+			}
+		}
+	}
 
 	private static CriticalChainService.Baseline baseline(JsonNode value) throws IOException {
 		if (!value.isObject()) throw new IOException("Invalid CCPM baseline");
