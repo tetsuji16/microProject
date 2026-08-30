@@ -400,7 +400,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     //warning: modify nodes list
     private static Node[] addDescendants(List<Node> nodes){
-    	ArrayList<Node> descendants = new ArrayList<Node>();
+    	ArrayList<Node> descendants = new ArrayList<Node>(nodes.size());
        	for (ListIterator<Node> i=nodes.listIterator();i.hasNext();){
        		Node node=i.next();
        		extractSameProjectBranch(node,descendants);

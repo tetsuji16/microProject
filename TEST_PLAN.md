@@ -234,3 +234,4 @@
 - CI節目確認: commit `6cbb74127` のPages Run `33315015452` はsuccess、Release Run `33315015982` はpendingのため完了待ち。
 - #228 PercentWorkCompleteService容量回帰: 収集済み葉タスク数／子ノード数が既知の一時リストを事前確保し、`NormalTaskPercentCompleteTest`（BUILD SUCCESSFUL、4秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、12秒）を再実行。
 - #228 ProjectFactory容量回帰: `getCloseProjectsOnServerJob(Collection)` の入力プロジェクト数をローカル／サーバー別リストの事前容量へ反映し、`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、12秒）を再実行。
+- #228 階層操作容量回帰: `MutableNodeHierarchy` の子孫収集と `DefaultNodeModel` の移動候補を入力ノード数で事前確保し、`DefaultNodeModelTest`（BUILD SUCCESSFUL、5秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、14秒）を再実行。

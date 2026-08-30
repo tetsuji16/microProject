@@ -294,7 +294,7 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	private ArrayList<Node> collectRelocationRoots(List nodes){
-		ArrayList<Node> branches=new ArrayList<Node>();
+		ArrayList<Node> branches=new ArrayList<Node>(nodes == null ? 0 : nodes.size());
 		if (nodes==null) return branches;
 		HierarchyUtils.extractParents(nodes,branches);
 		if (branches.isEmpty()) return branches;

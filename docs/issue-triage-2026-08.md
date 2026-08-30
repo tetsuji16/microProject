@@ -88,3 +88,8 @@ success、Release Run `33315015982` は pending（GitHub Actions のリリース
 `ProjectFactory.getCloseProjectsOnServerJob(Collection)` でも入力プロジェクト数を
 事前容量に反映した。`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と
 `:micrproject_core:test` 全体（BUILD SUCCESSFUL、12秒）で回帰がないことを確認した。
+
+階層操作の一時リストでも、入力ノード数が取得できる `MutableNodeHierarchy` の子孫
+収集と `DefaultNodeModel` の移動候補を事前確保した。`DefaultNodeModelTest`
+（BUILD SUCCESSFUL、5秒）と `:micrproject_core:test` 全体（BUILD SUCCESSFUL、14秒）
+で回帰がないことを確認した。
