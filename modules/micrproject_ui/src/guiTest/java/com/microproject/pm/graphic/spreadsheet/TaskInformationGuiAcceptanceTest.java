@@ -15,10 +15,16 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
+import javax.imageio.ImageIO;
 import javax.swing.JFrame;
+import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.JTabbedPane;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -75,6 +81,48 @@ class TaskInformationGuiAcceptanceTest {
 		TaskInformationDialog dialog = findTaskInformationDialog();
 		assertTrue(dialog.isVisible());
 		assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + fixture.task.getId(), dialog.getTitle());
+		assertAllTabsFitTheirViewport(dialog);
+		captureDialog(robot, dialog);
+	}
+
+	private static void assertAllTabsFitTheirViewport(TaskInformationDialog dialog) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JTabbedPane tabs = findTabbedPane(dialog.getContentPane());
+			assertTrue(tabs != null, "Task Information must expose its tabbed form");
+			for (int index = 0; index < tabs.getTabCount(); index++) {
+				tabs.setSelectedIndex(index);
+				JComponent tab = (JComponent)tabs.getComponentAt(index);
+				assertTrue(tab.getPreferredSize().height <= tabs.getHeight() || tab instanceof JScrollPane,
+					"tab " + tabs.getTitleAt(index) + " is clipped without a scrollable viewport");
+			}
+		});
+	}
+
+	private static JTabbedPane findTabbedPane(java.awt.Container container) {
+		for (java.awt.Component child : container.getComponents()) {
+			if (child instanceof JTabbedPane tabs)
+				return tabs;
+			if (child instanceof java.awt.Container nested) {
+				JTabbedPane tabs = findTabbedPane(nested);
+				if (tabs != null)
+					return tabs;
+			}
+		}
+		return null;
+	}
+
+	private static void captureDialog(Robot robot, TaskInformationDialog dialog) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JTabbedPane tabs = findTabbedPane(dialog.getContentPane());
+			tabs.setSelectedIndex(0);
+			((JScrollPane)tabs.getComponentAt(0)).getVerticalScrollBar().setValue(0);
+			bounds[0] = new Rectangle(dialog.getRootPane().getLocationOnScreen(), dialog.getRootPane().getSize());
+		});
+		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
+		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		ImageIO.write(screenshot, "png", directory.resolve("task-information-all-tabs.png").toFile());
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {

@@ -2848,7 +2848,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		NormalTask newStandaloneNormalTaskInstance() {
 			NormalTask newOne = new NormalTask(Project.this);
 			newOne.initializeManualScheduling();
-			newOne.getCurrentSchedule().setStart(getWorkCalendar().adjustInsideCalendar(newOne.getCurrentSchedule().getStart(), false));
+			// A task created from the spreadsheet's final empty row has not yet
+			// entered the scheduling algorithm.  Its schedule therefore starts at
+			// zero unless we seed it from the project.  Editing Duration immediately
+			// after entering a name then produced a non-zero duration with identical
+			// visible Start and Finish dates.  Seed the same project start used by
+			// regular task creation before aligning it to the work calendar.
+			long initialStart = getWorkCalendar().adjustInsideCalendar(getStart(), false);
+			newOne.setManualDates(initialStart, initialStart);
 			initializeId(newOne);
 			return newOne;
 		}

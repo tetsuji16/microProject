@@ -1215,6 +1215,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			handleTableMousePressed(e);
 		} else if (e.getID() == MouseEvent.MOUSE_RELEASED) {
 			endCellRangeSelection();
+			// BasicTableUI can update the lead selection while handling mouse
+			// release, after the press route has selected the complete task row.
+			// Restore the task-table selection contract here as well as on click so
+			// the visible highlight, active-cell border and F2 target cannot diverge
+			// depending on whether the user is selecting or editing a cell.
+			if (SwingUtilities.isLeftMouseButton(e) && !e.isControlDown()
+					&& !e.isMetaDown() && !e.isShiftDown())
+				restoreTaskRowSelection(rowAtPoint(e.getPoint()), columnAtPoint(e.getPoint()));
 			handleTablePopupTrigger(e);
 		} else if (e.getID() == MouseEvent.MOUSE_CLICKED
 				&& SwingUtilities.isLeftMouseButton(e) && !e.isControlDown()

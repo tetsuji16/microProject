@@ -138,9 +138,8 @@ public final class TaskSheetScheduleWorkflow {
 		long normalizedStart = calendar.adjustInsideCalendar(start, false);
 		long duration = Duration.millis(task.getDuration());
 		long normalizedEnd = (duration == 0L) ? normalizedStart : calendar.add(normalizedStart, duration, false);
-		if (!normalTask.hasRealAssignments()) {
-			normalTask.setCurrentScheduleStart(normalizedStart);
-			normalTask.setCurrentScheduleFinish(normalizedEnd);
+		if (!hasAssignedWork(normalTask)) {
+			normalTask.setManualDates(normalizedStart, normalizedEnd);
 			normalTask.setRawDuration(Duration.setAsEstimated(duration, normalTask.isEstimated()));
 			normalTask.markAllDependentTasksAsNeedingRecalculation(true);
 			normalTask.assignParentActualDatesFromChildren();
@@ -162,9 +161,8 @@ public final class TaskSheetScheduleWorkflow {
 		long normalizedFinish = DateTime.closestDate(finish);
 		long duration = Duration.millis(task.getDuration());
 		long normalizedStart = (duration == 0L) ? normalizedFinish : calculateStartFromFinish(calendar, normalizedFinish, duration);
-		if (!normalTask.hasRealAssignments()) {
-			normalTask.setCurrentScheduleStart(normalizedStart);
-			normalTask.setCurrentScheduleFinish(normalizedFinish);
+		if (!hasAssignedWork(normalTask)) {
+			normalTask.setManualDates(normalizedStart, normalizedFinish);
 			normalTask.setRawDuration(Duration.setAsEstimated(duration, normalTask.isEstimated()));
 			normalTask.markAllDependentTasksAsNeedingRecalculation(true);
 			normalTask.assignParentActualDatesFromChildren();
@@ -180,6 +178,26 @@ public final class TaskSheetScheduleWorkflow {
 			return;
 		}
 		task.setDuration(duration);
+		// A newly entered manual task has no real assignments.  Its raw duration
+		// is updated by setDuration(), but the manual schedule can subsequently
+		// retain its old zero-length interval.  Keep the task-table fields as one
+		// atomic schedule edit: Duration changes Finish from the current Start.
+		if (!hasAssignedWork(task)) {
+			WorkCalendar calendar = task.getEffectiveWorkCalendar();
+			long start = task.getCurrentSchedule().getStart();
+			if (start == 0L)
+				start = task.getProject().getStart();
+			start = calendar.adjustInsideCalendar(start, false);
+			long normalizedDuration = Duration.millis(duration);
+			task.setManualDates(start, normalizedDuration == 0L ? start : calendar.add(start, normalizedDuration, false));
+			task.markAllDependentTasksAsNeedingRecalculation(true);
+			task.assignParentActualDatesFromChildren();
+		}
+	}
+
+	/** A task without assignments is as directly editable as one with only the unassigned placeholder. */
+	private static boolean hasAssignedWork(NormalTask task) {
+		return !task.getAssignments().isEmpty() && task.hasRealAssignments();
 	}
 
 	static void applyProjectStart(Project project, long start) {

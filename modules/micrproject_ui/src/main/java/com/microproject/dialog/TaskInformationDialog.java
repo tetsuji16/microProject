@@ -25,8 +25,12 @@
 package com.microproject.dialog;
 
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,10 +39,12 @@ import java.util.Set;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
@@ -48,6 +54,7 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.dialog.util.FieldComponentMap;
+import com.microproject.dialog.util.ComponentFactory;
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.frames.DocumentFrame;
@@ -169,26 +176,29 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 	public JComponent createContentPanel() {	
 	    	
-		FormLayout layout = new FormLayout("350dlu:grow","fill:250dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		// Keep the dialog within a normal desktop viewport.  Every tab receives a
+		// real scroll viewport, so locale/DPI-specific preferred heights do not
+		// overlap controls or push the dialog beyond the screen.
+		FormLayout layout = new FormLayout("350dlu:grow", "fill:200dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
 		
 		taskTabbedPane= new JTabbedPane();
 		FlatUiSupport.styleTabbedPane(taskTabbedPane);
-		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.General"),createGeneralPanel()); //$NON-NLS-1$
-		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.TextStyle"),createTextStylePanel()); //$NON-NLS-1$
-		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Predecessors"),createPredecessorsPanel()); //$NON-NLS-1$
-		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Successors"),createSuccessorsPanel()); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.General"),scrollableTab(createGeneralPanel())); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.TextStyle"),scrollableTab(createTextStylePanel())); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Predecessors"),scrollableTab(createPredecessorsPanel())); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Successors"),scrollableTab(createSuccessorsPanel())); //$NON-NLS-1$
 		String resources = Messages.getString("TaskInformationDialog.Resources"); //$NON-NLS-1$
-		taskTabbedPane.addTab(resources,createResourcesPanel());
+		taskTabbedPane.addTab(resources,scrollableTab(createResourcesPanel()));
 		resourcesTabIndex = taskTabbedPane.indexOfTab(resources);
 
-		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Advanced"),createAdvancedPanel()); //$NON-NLS-1$
-		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Diagnostics"), createDiagnosticsPanel()); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Advanced"),scrollableTab(createAdvancedPanel())); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Diagnostics"), scrollableTab(createDiagnosticsPanel())); //$NON-NLS-1$
 		
 		String notes = Messages.getString("TaskInformationDialog.Notes"); //$NON-NLS-1$
-		taskTabbedPane.addTab(notes,createNotesPanel());
+		taskTabbedPane.addTab(notes,scrollableTab(createNotesPanel()));
 		notesTabIndex = taskTabbedPane.indexOfTab(notes);
 		builder.add(taskTabbedPane);
 		mainComponent = taskTabbedPane;
@@ -196,9 +206,21 @@ public class TaskInformationDialog extends InformationDialog {
 		return builder.getPanel();
 	}
 
+	private JComponent scrollableTab(JComponent contents) {
+		JScrollPane scrollPane = new JScrollPane(contents,
+				JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		scrollPane.setBorder(null);
+		// JScrollPane otherwise reports the entire form as its preferred viewport
+		// height and can make the dialog taller than the desktop.  Keep a stable
+		// viewport; the complete form remains reachable through the scrollbar.
+		scrollPane.setPreferredSize(new Dimension(700, 360));
+		scrollPane.setMinimumSize(new Dimension(480, 240));
+		return scrollPane;
+	}
+
 	private JComponent createTextStylePanel() {
 		FieldComponentMap map = createMap();
-		FormLayout layout = new FormLayout("p,3dlu,130dlu,12dlu,p,3dlu,80dlu", "p,3dlu,p,3dlu,p,3dlu,p,3dlu,p");
+		FormLayout layout = new FormLayout("p,3dlu,130dlu,12dlu,p,3dlu,80dlu", "max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref)");
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		builder.addSeparator(Messages.getString("TaskInformationDialog.TextStyle"));
@@ -264,46 +286,25 @@ public class TaskInformationDialog extends InformationDialog {
 
 	private JComponent createGeneralPanel(){
 		FieldComponentMap map = createMap();
-		FormLayout layout = new FormLayout(
-		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,90dlu,60dlu", // extra padding on right is for estimated field //$NON-NLS-1$
-				// The builder advances one row after each separator.  Keep the
-				// growing row at the end so the Bar Color controls (rows 20-25)
-				// are within the grid instead of aborting dialog construction.
-				"p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,p,3dlu,3dlu,3dlu,p,3dlu,3dlu,p,3dlu,fill:50dlu:grow"); //$NON-NLS-1$
-
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		CellConstraints cc = new CellConstraints();
-		builder.setDefaultDialogBorder();
-		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
-				.getRow(), 8));
-		
-		
-		builder.nextLine(2);
-		map.appendSometimesReadOnly(builder,"Field.duration"); //$NON-NLS-1$
-		map.append(builder,"Field.estimated"); //$NON-NLS-1$
-		builder.nextLine(2);
-		map.appendSometimesReadOnly(builder,"Field.percentComplete"); //$NON-NLS-1$
-		map.append(builder,"Field.priority"); //$NON-NLS-1$
-		builder.nextLine(2);
-		map.append(builder,"Field.manuallyScheduled"); //$NON-NLS-1$
-		map.append(builder,"Field.inactiveTask"); //$NON-NLS-1$
-		builder.nextLine(2);
-		map.append(builder,"Field.hiddenTask"); //$NON-NLS-1$
-
-		builder.nextLine(2);
-		map.append(builder,"Field.cost"); //$NON-NLS-1$
-		map.append(builder,"Field.work"); //$NON-NLS-1$
-		builder.nextLine(4);
-		builder.addSeparator(Messages.getString("TaskInformationDialog.Dates")); //$NON-NLS-1$
-		builder.nextLine(2);
-		map.append(builder,"Field.start"); //$NON-NLS-1$
-		map.append(builder,"Field.finish"); //$NON-NLS-1$
-		builder.nextLine(2);
-		map.append(builder,"Field.baselineStart"); //$NON-NLS-1$
-		map.append(builder,"Field.baselineFinish"); //$NON-NLS-1$
-		builder.nextLine(4);
-		builder.addSeparator(Messages.getString("TaskInformationDialog.BarColor")); //$NON-NLS-1$
-		builder.nextLine(2);
+		JPanel panel = new JPanel(new GridBagLayout());
+		panel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 12, 10, 12));
+		int row = 0;
+		addGeneralField(panel, map, "Field.name", 0, row++, 0, 4); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.duration", ComponentFactory.SOMETIMES_READ_ONLY, row, 0, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.estimated", 0, row++, 2, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.percentComplete", ComponentFactory.SOMETIMES_READ_ONLY, row, 0, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.priority", 0, row++, 2, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.manuallyScheduled", 0, row, 0, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.inactiveTask", 0, row++, 2, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.hiddenTask", 0, row++, 0, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.cost", 0, row, 0, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.work", 0, row++, 2, 2); //$NON-NLS-1$
+		addGeneralSection(panel, Messages.getString("TaskInformationDialog.Dates"), row++); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.start", 0, row, 0, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.finish", 0, row++, 2, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.baselineStart", 0, row, 0, 2); //$NON-NLS-1$
+		addGeneralField(panel, map, "Field.baselineFinish", 0, row++, 2, 2); //$NON-NLS-1$
+		addGeneralSection(panel, Messages.getString("TaskInformationDialog.BarColor"), row++); //$NON-NLS-1$
 		Task task = (Task) getObject();
 		Gantt gantt = getGantt();
 		barColorEditor = new BarColorEditorPanel(this, currentBarFormat(task),
@@ -315,16 +316,58 @@ public class TaskInformationDialog extends InformationDialog {
 		barStartColor = barColorEditor.getStart();
 		barMiddleColor = barColorEditor.getMiddle();
 		barEndColor = barColorEditor.getEnd();
-		builder.add(barColorEditor,
-				cc.xyw(builder.getColumn(), builder.getRow(), 8));
-		return builder.getPanel();
+		GridBagConstraints constraints = generalConstraints(0, row);
+		constraints.gridwidth = 4;
+		constraints.weightx = 1.0;
+		constraints.fill = GridBagConstraints.HORIZONTAL;
+		panel.add(barColorEditor, constraints);
+		return panel;
+	}
+
+	private void addGeneralField(JPanel panel, FieldComponentMap map, String fieldId, int flag, int row, int column, int width) {
+		JComponent component = map.getComponent(fieldId, flag);
+		if (component instanceof JCheckBox) {
+			GridBagConstraints constraints = generalConstraints(column, row);
+			constraints.gridwidth = width;
+			constraints.anchor = GridBagConstraints.WEST;
+			panel.add(component, constraints);
+			return;
+		}
+		GridBagConstraints label = generalConstraints(column, row);
+		label.anchor = GridBagConstraints.EAST;
+		panel.add(new JLabel(map.getLabel(fieldId) + ":"), label);
+		GridBagConstraints value = generalConstraints(column + 1, row);
+		value.gridwidth = Math.max(1, width - 1);
+		value.weightx = 1.0;
+		value.fill = GridBagConstraints.HORIZONTAL;
+		panel.add(component, value);
+	}
+
+	private void addGeneralSection(JPanel panel, String text, int row) {
+		GridBagConstraints label = generalConstraints(0, row);
+		label.gridwidth = 1;
+		label.anchor = GridBagConstraints.WEST;
+		panel.add(new JLabel(text), label);
+		GridBagConstraints line = generalConstraints(1, row);
+		line.gridwidth = 3;
+		line.weightx = 1.0;
+		line.fill = GridBagConstraints.HORIZONTAL;
+		panel.add(new JSeparator(), line);
+	}
+
+	private GridBagConstraints generalConstraints(int x, int y) {
+		GridBagConstraints constraints = new GridBagConstraints();
+		constraints.gridx = x;
+		constraints.gridy = y;
+		constraints.insets = new Insets(4, 4, 4, 8);
+		return constraints;
 	}
 
 	private JComponent createAdvancedPanel(){
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
 		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,90dlu,30dlu", // extra padding on right is for estimated field //$NON-NLS-1$
-	    		  "p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu, fill:50dlu:grow"); //$NON-NLS-1$
+				"max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();

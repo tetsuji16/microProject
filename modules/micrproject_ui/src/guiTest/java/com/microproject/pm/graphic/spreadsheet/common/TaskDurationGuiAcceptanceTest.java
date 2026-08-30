@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.spreadsheet.common;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -53,11 +55,13 @@ import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.util.DateTime;
 
 /** Non-headless regression coverage for the visible task duration edit flow. */
 class TaskDurationGuiAcceptanceTest {
@@ -129,7 +133,59 @@ class TaskDurationGuiAcceptanceTest {
 		}
 	}
 
+	@Test
+	void newTaskNameAndDurationEditsKeepTheVisibleDatesAndActiveCellInSync() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		NewTaskFixture fixture = createEmptyFixture();
+		showSheet(fixture.sheet);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		try {
+			activateFixtureWindow(fixture.sheet);
+			clickCell(robot, fixture.sheet, fixture.newTaskRow, fixture.nameColumn);
+			dispatchF2(fixture.sheet);
+			GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start name editing on the new-task row");
+			SwingUtilities.invokeAndWait(() -> {
+				NameCellComponent editor = (NameCellComponent)fixture.sheet.getEditorComponent();
+				((JTextComponent)editor.getTextComponent()).setText("GUI added task");
+				assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "name editor rejected a new task name");
+			});
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "new task name did not commit");
+
+			NormalTask task = taskAt(fixture.sheet, fixture.newTaskRow);
+			assertEquals("GUI added task", task.getName());
+			clickCell(robot, fixture.sheet, fixture.newTaskRow, fixture.durationColumn);
+			assertEquals(fixture.durationColumn, fixture.sheet.getSelection().getActiveColumn(),
+				"clicking Duration must retain Duration as the active view column before editing");
+			dispatchF2(fixture.sheet);
+			GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start duration editing on the added task");
+			assertEquals(fixture.durationColumn, fixture.sheet.getEditingColumn(),
+				"the active view column and editor column diverged");
+			SwingUtilities.invokeAndWait(() -> {
+				JTextComponent editor = (JTextComponent)fixture.sheet.getEditorComponent();
+				editor.setText("5");
+				assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "duration editor rejected valid text");
+			});
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "new task duration did not commit");
+
+			assertEquals(5L * CalendarOption.getInstance().getMillisPerDay(), task.getRawDuration());
+			assertTrue(task.getEnd() > task.getStart(), "duration edit must move Finish after Start for a newly added task: start="
+				+ task.getStart() + ", finish=" + task.getEnd());
+			assertNotEquals(fixture.sheet.getValueAt(fixture.newTaskRow, fixture.startColumn),
+				fixture.sheet.getValueAt(fixture.newTaskRow, fixture.finishColumn),
+				"visible Start and Finish cells must refresh after the duration edit");
+			captureNewTaskScenario(robot);
+		} catch (AssertionError | RuntimeException failure) {
+			captureFailure(robot, failure);
+			throw failure;
+		}
+	}
+
 	private void showFixture(Fixture fixture) throws Exception {
+		showSheet(fixture.sheet);
+	}
+
+	private void showSheet(SpreadSheet sheet) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Task duration GUI acceptance");
 			JComponent rootPane = frame.getRootPane();
@@ -137,10 +193,10 @@ class TaskDurationGuiAcceptanceTest {
 			ActionMap actions = rootPane.getActionMap();
 			actions.put("EditField", new AbstractAction() {
 				@Override public void actionPerformed(java.awt.event.ActionEvent event) {
-					fixture.sheet.putClientProperty("gui.edit.started", fixture.sheet.editActiveCell());
+					sheet.putClientProperty("gui.edit.started", sheet.editActiveCell());
 				}
 			});
-			frame.add(new JScrollPane(fixture.sheet));
+			frame.add(new JScrollPane(sheet));
 			frame.setPreferredSize(new Dimension(900, 420));
 			frame.pack();
 			frame.setLocationByPlatform(true);
@@ -150,12 +206,16 @@ class TaskDurationGuiAcceptanceTest {
 	}
 
 	private void activateFixtureWindow(Fixture fixture) throws Exception {
+		activateFixtureWindow(fixture.sheet);
+	}
+
+	private void activateFixtureWindow(SpreadSheet sheet) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
 			frame.requestFocus();
-			fixture.sheet.requestFocusInWindow();
+			sheet.requestFocusInWindow();
 		});
-		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "spreadsheet did not receive focus");
+		GuiAcceptanceSupport.await(sheet::isFocusOwner, "spreadsheet did not receive focus");
 	}
 
 	private static Fixture createFixture() throws Exception {
@@ -191,12 +251,16 @@ class TaskDurationGuiAcceptanceTest {
 	}
 
 	private static void clickCell(Robot robot, Fixture fixture) throws Exception {
+		clickCell(robot, fixture.sheet, fixture.taskRow, fixture.durationColumn);
+	}
+
+	private static void clickCell(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
 		final Rectangle[] cell = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			int otherColumn = fixture.durationColumn == 0 ? 1 : fixture.durationColumn - 1;
-			fixture.sheet.changeSelection(fixture.taskRow, otherColumn, false, false);
-			Rectangle bounds = fixture.sheet.getCellRect(fixture.taskRow, fixture.durationColumn, true);
-			Point location = fixture.sheet.getLocationOnScreen();
+			int otherColumn = column == 0 ? 1 : column - 1;
+			sheet.changeSelection(row, otherColumn, false, false);
+			Rectangle bounds = sheet.getCellRect(row, column, true);
+			Point location = sheet.getLocationOnScreen();
 			cell[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
 		robot.mouseMove(cell[0].x + cell[0].width / 2, cell[0].y + cell[0].height / 2);
@@ -209,19 +273,83 @@ class TaskDurationGuiAcceptanceTest {
 			new KeyEvent(sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_F2, KeyEvent.CHAR_UNDEFINED)));
 	}
 
-	private static void captureFailure(Robot robot, Throwable failure) {
+	private void captureFailure(Robot robot, Throwable failure) {
 		try {
+			if (frame == null)
+				return;
 			Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 			Files.createDirectories(directory);
-			Rectangle bounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+			Rectangle bounds = rootPaneBounds();
 			BufferedImage screenshot = robot.createScreenCapture(bounds);
 			ImageIO.write(screenshot, "png", directory.resolve("task-duration-edit-failure.png").toFile());
-		} catch (IOException captureFailure) {
+		} catch (Exception captureFailure) {
 			failure.addSuppressed(captureFailure);
 		}
 	}
 
+	private void captureNewTaskScenario(Robot robot) throws Exception {
+		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		ImageIO.write(robot.createScreenCapture(rootPaneBounds()), "png", directory.resolve("new-task-duration-date-sync.png").toFile());
+	}
+
+	private Rectangle rootPaneBounds() throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
+		return bounds[0];
+	}
+
+	private static NewTaskFixture createEmptyFixture() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("gui-new-task-date-sync", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		project.setStart(DateTime.calendarInstance(2026, Calendar.SEPTEMBER, 1).getTimeInMillis());
+		final NewTaskFixture[] fixture = new NewTaskFixture[1];
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = new SpreadSheet();
+			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()), "gui-new-task-date-sync", null);
+			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry", true);
+			int nameColumn = findColumn(sheet, "Field.name");
+			int durationColumn = findColumn(sheet, "Field.duration");
+			int startColumn = findColumn(sheet, "Field.start");
+			int finishColumn = findColumn(sheet, "Field.finish");
+			setColumnWidth(sheet, nameColumn, 210);
+			setColumnWidth(sheet, durationColumn, 90);
+			setColumnWidth(sheet, startColumn, 120);
+			setColumnWidth(sheet, finishColumn, 120);
+			fixture[0] = new NewTaskFixture(project, sheet, 0, nameColumn, durationColumn, startColumn, finishColumn);
+		});
+		return fixture[0];
+	}
+
+	private static NormalTask taskAt(SpreadSheet sheet, int row) throws Exception {
+		final NormalTask[] task = new NormalTask[1];
+		SwingUtilities.invokeAndWait(() -> task[0] = (NormalTask)((SpreadSheetModel)sheet.getModel()).getNodeInRow(row).getImpl());
+		return task[0];
+	}
+
+	private static int findColumn(SpreadSheet sheet, String fieldId) {
+		SpreadSheetModel model = (SpreadSheetModel)sheet.getModel();
+		for (int modelColumn = 0; modelColumn < model.getColumnCount(); modelColumn++) {
+			Field field = model.getFieldInColumn(modelColumn);
+			if (field != null && fieldId.equals(field.getId()))
+				return sheet.convertColumnIndexToView(modelColumn);
+		}
+		throw new IllegalArgumentException("Missing " + fieldId + " column");
+	}
+
+	private static void setColumnWidth(SpreadSheet sheet, int column, int width) {
+		var tableColumn = sheet.getColumnModel().getColumn(column);
+		tableColumn.setPreferredWidth(width);
+		tableColumn.setWidth(width);
+	}
+
 	private record Fixture(SpreadSheet sheet, NormalTask task, int taskRow, int durationColumn) { }
+	private record NewTaskFixture(Project project, SpreadSheet sheet, int newTaskRow, int nameColumn, int durationColumn,
+			int startColumn, int finishColumn) { }
 
 	private static final class DialogCapture implements AWTEventListener {
 		private final List<String> messages = new ArrayList<>();
