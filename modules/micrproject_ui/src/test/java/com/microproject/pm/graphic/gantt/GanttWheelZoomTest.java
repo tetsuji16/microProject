@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Dimension;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -48,7 +49,7 @@ class GanttWheelZoomTest {
 			gantt.setCoord(coord);
 			assertTrue(coord.canZoomOut(), "default scale must allow zooming out for the test to be meaningful");
 
-			JScrollPane chartPane = new JScrollPane(gantt);
+			JScrollPane chartPane = chartPaneForTest(gantt);
 			JScrollPane otherPane = new JScrollPane(new JPanel());
 			Synchronizer synchronizer = new Synchronizer();
 			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
@@ -70,7 +71,7 @@ class GanttWheelZoomTest {
 			CoordinatesConverter coord = new CoordinatesConverter(gantt.getProject());
 			gantt.setCoord(coord);
 
-			JScrollPane chartPane = new JScrollPane(gantt);
+			JScrollPane chartPane = chartPaneForTest(gantt);
 			JScrollPane otherPane = new JScrollPane(new JPanel());
 			Synchronizer synchronizer = new Synchronizer();
 			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
@@ -105,7 +106,7 @@ class GanttWheelZoomTest {
 			gantt.setCoord(coord);
 			assertTrue(coord.canZoomOut(), "default scale must allow zooming out for the test to be meaningful");
 
-			JScrollPane chartPane = new JScrollPane(gantt);
+			JScrollPane chartPane = chartPaneForTest(gantt);
 			JScrollPane otherPane = new JScrollPane(new JPanel());
 			Synchronizer synchronizer = new Synchronizer();
 			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
@@ -121,11 +122,26 @@ class GanttWheelZoomTest {
 		} finally {
 			gantt.cleanUp();
 		}
-	}	private static Gantt newGantt() {
+	}
+
+	private static Gantt newGantt() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("wheel-zoom-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
 		return new Gantt(project, "Gantt");
+	}
+
+	private static JScrollPane chartPaneForTest(Gantt gantt) {
+		JScrollPane chartPane = new JScrollPane(gantt);
+		// Realize a non-zero viewport so zoom anchoring is tested against the same
+		// geometry as the production Gantt view. Without this, a zero-sized
+		// viewport makes the result depend on JDK layout timing.
+		chartPane.setSize(300, 400);
+		chartPane.doLayout();
+		gantt.synchronizeViewportSize();
+		gantt.setSize(4000, 300);
+		chartPane.getViewport().setViewSize(new Dimension(4000, 300));
+		return chartPane;
 	}
 
 	private static void dispatchCtrlWheel(Gantt gantt, int x, int rotation) {
