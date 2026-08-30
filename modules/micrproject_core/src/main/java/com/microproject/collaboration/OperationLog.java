@@ -202,7 +202,7 @@ public final class OperationLog {
 		for (Conflict conflict : merged.conflicts()) expectedConflicts.add(conflictKey(conflict));
 		Set<String> declaredConflicts = new LinkedHashSet<>();
 		for (JsonNode conflict : root.path("conflicts")) {
-			List<String> ids = new ArrayList<>();
+			List<String> ids = new ArrayList<>(conflict.path("operationIds").size());
 			for (JsonNode id : conflict.path("operationIds")) ids.add(id.textValue());
 			ids.sort(String::compareTo);
 			declaredConflicts.add(conflict.path("entityId").textValue() + "|" + conflict.path("kind").textValue() + "|" + String.join(",", ids));
