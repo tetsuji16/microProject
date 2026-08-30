@@ -28,6 +28,18 @@ class UiServicesFileChooserProviderTest {
 	}
 
 	@Test
+	void legacyProviderSaveSelectionIsWrappedAsOnePath() {
+		UiServices.FileChooserProvider provider = (save, selected, parent) -> {
+			assertTrue(save, "save flow must preserve the save flag for legacy providers");
+			assertEquals("existing.mpo", selected);
+			return "C:\\projects\\saved.mpo";
+		};
+
+		assertEquals(List.of("C:\\projects\\saved.mpo"),
+			provider.chooseFileNames(true, "existing.mpo", null));
+	}
+
+	@Test
 	void providersMayReturnNullWithoutChangingLegacyCancellationSemantics() {
 		UiServices.FileChooserProvider provider = new UiServices.FileChooserProvider() {
 			@Override
