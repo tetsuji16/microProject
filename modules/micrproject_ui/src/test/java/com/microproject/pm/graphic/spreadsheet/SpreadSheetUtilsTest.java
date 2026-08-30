@@ -136,6 +136,15 @@ class SpreadSheetUtilsTest {
 		assertSame(firstDisplayed, columns.getFieldInViewColumn(1));
 	}
 
+	@Test
+	void taskColumnMinimumWidthsProtectReadableValues() {
+		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.name") >= 140);
+		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.duration") >= 60);
+		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.start") >= 100);
+		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.finish") >= 100);
+	}
+
+
 	private static int indexOf(SpreadSheetFieldArray fieldArray, String fieldId) {
 		int index = 0;
 		for (Iterator i = fieldArray.iterator(); i.hasNext(); index++) {

@@ -100,6 +100,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			while (a.hasNext()&&s.hasNext()){
 				String f=a.next().getId();
 				int size=s.next();
+				size = Math.max(size, minimumReadableWidth(f));
 				if (!colWidthMap.containsKey(f)) {
 					colWidthMap.put(f, size);
 					if (size > 0 && sa.isManualWidth(column)) configuredWidthFields.add(f);
@@ -207,7 +208,8 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			}
 			Integer size=colWidthMap.get(field.getId());
 			if (size==null||size<=0) colWidthMap.put(field.getId(),tc.getPreferredWidth());
-			else tc.setPreferredWidth(size);
+			else tc.setPreferredWidth(Math.max(size, minimumReadableWidth(field.getId())));
+			tc.setWidth(Math.max(tc.getWidth(), tc.getPreferredWidth()));
 			colWidth += tc.getPreferredWidth();
 			tc.addPropertyChangeListener(event -> {
 				if ("width".equals(event.getPropertyName()) && event.getNewValue() instanceof Number number
@@ -217,6 +219,13 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			});
 		}
 		columnIndex++;
+	}
+
+	static int minimumReadableWidth(String fieldId) {
+		if ("Field.name".equals(fieldId)) return 140;
+		if ("Field.start".equals(fieldId) || "Field.finish".equals(fieldId)) return 100;
+		if ("Field.duration".equals(fieldId)) return 60;
+		return 1;
 	}
 
 	public void removeColumn(TableColumn column) {

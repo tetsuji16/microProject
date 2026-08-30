@@ -36,6 +36,7 @@ import java.util.TreeSet;
 
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 import javax.swing.JViewport;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -212,6 +213,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		spreadSheet.setCache(cache, fields, fields.getCellStyle(), fields.getActionList());
 		if (project.getFieldArray() != null) {
 			spreadSheet.setFieldArrayWithWidths(fields);
+			ensureTaskColumnsReadable();
 		}
 		((SpreadSheetModel) spreadSheet.getModel()).setFieldContext(fieldContext);
 		project.removeScheduleListener(this); // in case was already attached and recreating (applet)
@@ -220,8 +222,27 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			spreadSheet.setReadOnly(true);
 		}
 		applySpreadsheetGridStyle();
+		SwingUtilities.invokeLater(this::ensureTaskColumnsReadable);
 		return SpreadSheetUtils.makeSpreadsheetScrollPane(spreadSheet);
    }
+
+	private void ensureTaskColumnsReadable() {
+		var columns = spreadSheet.getColumnModel();
+		for (int index = 0; index < columns.getColumnCount(); index++) {
+			var column = columns.getColumn(index);
+			if (!(column.getIdentifier() instanceof com.microproject.field.Field field)) continue;
+			int minimum = switch (field.getId()) {
+				case "Field.name" -> 140;
+				case "Field.start", "Field.finish" -> 100;
+				case "Field.duration" -> 60;
+				default -> 0;
+			};
+			if (minimum > 0 && column.getWidth() < minimum) {
+				column.setPreferredWidth(minimum);
+				column.setWidth(minimum);
+			}
+		}
+	}
    protected JScrollPane createRightScrollPane() {
 		gantt = new Gantt(project, "Gantt");
 		gantt.setCache(cache);
