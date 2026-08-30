@@ -95,6 +95,18 @@ class TaskLinkAndBarMovementThirtyCasesTest {
 		return Stream.of(moveCases, resizeCases, durationCases, dateCases).flatMap(stream -> stream);
 	}
 
+	@TestFactory
+	Stream<DynamicTest> movedPredecessorPropagatesToSuccessorCases() {
+		List<LinkCase> links = List.of(
+			new LinkCase(DependencyType.FS, 0),
+			new LinkCase(DependencyType.SS, 1),
+			new LinkCase(DependencyType.FF, -1),
+			new LinkCase(DependencyType.SF, 0));
+		return IntStream.range(0, links.size()).mapToObj(index ->
+			DynamicTest.dynamicTest("TLBM-MSP-" + String.format("%02d", index + 1),
+				() -> verifyMovedPredecessorPropagatesToSuccessor(links.get(index))));
+	}
+
 	private void verifyLinkAndRecalculation(LinkCase c) throws Exception {
 		Fixture fixture = createFixture();
 		NormalTask predecessor = createTask(fixture.project, "predecessor", 2);
@@ -134,6 +146,25 @@ class TaskLinkAndBarMovementThirtyCasesTest {
 		assertTrue(third.getStart() > oldThirdStart);
 		assertTrue(second.getStart() >= first.getEnd());
 		assertTrue(third.getStart() >= second.getEnd());
+	}
+
+	private void verifyMovedPredecessorPropagatesToSuccessor(LinkCase c) throws Exception {
+		Fixture fixture = createFixture();
+		NormalTask predecessor = createTask(fixture.project, "moved-predecessor", 2);
+		NormalTask successor = createTask(fixture.project, "linked-successor", 2);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, c.type, c.lagDays * day(), this);
+		fixture.project.recalculate();
+
+		long movedStart = predecessor.getEffectiveWorkCalendar().add(predecessor.getStart(), 3L * day(), false);
+		predecessor.setStart(movedStart, taskSheetContext());
+		fixture.project.recalculate();
+
+		long requiredSuccessorStart = dependency.calcForwardDependencyDate(
+			predecessor.getStart(), predecessor.getEnd(), successor.getDuration() != 0L);
+		assertTrue(successor.getStart() >= requiredSuccessorStart,
+			"link type=" + c.type + " lagDays=" + c.lagDays
+				+ " successor must not start before the moved predecessor permits");
 	}
 
 	private void verifyCircularLinkIsRejected() throws Exception {
