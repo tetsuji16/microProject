@@ -156,11 +156,14 @@ class TaskDateDependencyGuiAcceptanceTest {
 	private static void dismissWarning(AtomicBoolean warningSeen) {
 		long deadline = System.currentTimeMillis() + 3000;
 		while (System.currentTimeMillis() < deadline) {
-			for (Window window : Window.getWindows()) {
-				if (window instanceof Dialog dialog && dialog.isVisible()) {
-					warningSeen.set(true);
-					SwingUtilities.invokeLater(dialog::dispose);
-					return;
+		for (Window window : Window.getWindows()) {
+			if (window instanceof Dialog dialog && dialog.isVisible()) {
+				warningSeen.set(true);
+				// Alert.showMessageDialog enters a nested modal event loop on the EDT.
+				// Dispose directly from this watcher so invokeAndWait callers cannot
+				// deadlock behind the dialog's event queue when the full GUI suite runs.
+				dialog.dispose();
+				return;
 				}
 			}
 			try {
