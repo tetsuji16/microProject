@@ -11,6 +11,7 @@ import java.awt.FlowLayout;
 import java.awt.Frame;
 
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -18,6 +19,8 @@ import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
 import com.microproject.pm.ccpm.CriticalChainService;
+import com.microproject.pm.ccpm.CriticalChainBufferHistory;
+import com.microproject.pm.ccpm.CriticalChainReportService;
 import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
 import com.microproject.pm.graphic.views.CriticalChainGraphPanel;
 import com.microproject.pm.task.Project;
@@ -55,6 +58,13 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 		JButton close = new JButton(UsabilityStrings.text("common.close"));
 		close.addActionListener(event -> dispose());
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+		if (settings != null && settings.isEnabled() && service.findBaseline(project) != null) {
+			JButton csv = new JButton("CSV");
+			csv.addActionListener(event -> exportReport(project, false));
+			JButton html = new JButton("HTML");
+			html.addActionListener(event -> exportReport(project, true));
+			buttons.add(csv); buttons.add(html);
+		}
 		buttons.add(close);
 		add(buttons, BorderLayout.SOUTH);
 		setPreferredSize(new Dimension(820, 510));
@@ -88,5 +98,19 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 				content.revalidate();
 				content.repaint();
 		});
+	}
+
+	private void exportReport(Project project, boolean html) {
+		JFileChooser chooser = new JFileChooser();
+		chooser.setSelectedFile(new java.io.File(html ? "ccpm-report.html" : "ccpm-report.csv"));
+		if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+		try {
+			CriticalChainBufferHistory history = project.findTransientDocumentState(CriticalChainBufferHistory.class);
+			CriticalChainReportService reports = new CriticalChainReportService();
+			if (html) reports.writeHtml(chooser.getSelectedFile().toPath(), project.getName(), history);
+			else reports.writeCsv(chooser.getSelectedFile().toPath(), history);
+		} catch (java.io.IOException exception) {
+			javax.swing.JOptionPane.showMessageDialog(this, exception.getMessage(), "CCPM report", javax.swing.JOptionPane.ERROR_MESSAGE);
+		}
 	}
 }
