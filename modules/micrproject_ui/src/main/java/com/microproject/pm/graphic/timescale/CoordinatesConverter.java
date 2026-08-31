@@ -160,6 +160,33 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 		//CalendarUtil.roundTime(calendar);
 		return calendar;
 	}
+
+	/**
+	 * Extends the scrollable view before the current origin without changing
+	 * any project scheduling dates.  This is used when the user reaches the
+	 * leading edge of a Gantt/timesheet view, matching Microsoft Project's
+	 * ability to browse empty time before the first task.
+	 */
+	public void extendViewBefore(int days) {
+		if (days <= 0 || origin == 0) return;
+		Calendar calendar = DateTime.calendarInstance();
+		calendar.setTimeInMillis(origin);
+		calendar.add(Calendar.DAY_OF_MONTH, -days);
+		adaptOrigin(calendar, true);
+	}
+
+	/**
+	 * Extends the scrollable view after the current end without changing
+	 * project scheduling dates.  This permits browsing empty time after the
+	 * last task, as in Microsoft Project.
+	 */
+	public void extendViewAfter(int days) {
+		if (days <= 0 || end == 0) return;
+		Calendar calendar = DateTime.calendarInstance();
+		calendar.setTimeInMillis(end);
+		calendar.add(Calendar.DAY_OF_MONTH, days);
+		adaptEnd(calendar, true);
+	}
 	
     protected void updateLargeInterval(boolean event){
     	adaptInterval(getLargeStart(),getLargeEnd(),event);

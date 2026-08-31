@@ -55,6 +55,9 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	protected ScaledComponent main;
 	protected DocumentFrame documentFrame;
 	private Point lastViewportPosition = new Point();
+	private boolean extendingHorizontalRange;
+	private static final int EDGE_TRIGGER_PIXELS = 24;
+	private static final int RANGE_EXTENSION_DAYS = 30;
 
 	
 	
@@ -72,7 +75,38 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		coord.addTimeScaleListener(this);
 		this.getVerticalScrollBar().setUnitIncrement(verticalIncrement);
 		updateHorizontalScrollIncrement();
+		getHorizontalScrollBar().addAdjustmentListener(event -> extendRangeAtEdge());
 		
+	}
+
+	/**
+	 * MSP-style browsing: reaching either edge grows only the view range. The
+	 * project schedule itself remains unchanged; this also avoids requiring a
+	 * dummy task merely to inspect an empty period.
+	 */
+	private void extendRangeAtEdge() {
+		if (extendingHorizontalRange || coord == null) return;
+		JViewport viewport = getViewport();
+		int value = getHorizontalScrollBar().getValue();
+		int extent = getHorizontalScrollBar().getVisibleAmount();
+		int maximum = getHorizontalScrollBar().getMaximum();
+		boolean atStart = value <= EDGE_TRIGGER_PIXELS;
+		boolean atEnd = value + extent >= maximum - EDGE_TRIGGER_PIXELS;
+		if (!atStart && !atEnd) return;
+
+		extendingHorizontalRange = true;
+		try {
+			Point before = viewport.getViewPosition();
+			long oldOrigin = coord.getOrigin();
+			if (atStart) coord.extendViewBefore(RANGE_EXTENSION_DAYS);
+			if (atEnd) coord.extendViewAfter(RANGE_EXTENSION_DAYS);
+			if (atStart && coord.getOrigin() != oldOrigin) {
+				int shift = (int) Math.round(coord.toX(oldOrigin));
+				viewport.setViewPosition(new Point(Math.max(0, before.x + shift), before.y));
+			}
+		} finally {
+			extendingHorizontalRange = false;
+		}
 	}
 
 	public void createLayout(){
@@ -213,4 +247,3 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 
 	}
 }
-
