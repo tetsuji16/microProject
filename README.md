@@ -1,6 +1,6 @@
 # microProject
 
-microProject is an independent Windows desktop planning application based on the OpenProj and ProjectLibre code history. It lets teams plan a project in a hierarchical task table beside its Gantt chart, so task dates, dependencies, progress, and the overall schedule remain visible together.
+microProject is a Windows desktop planning application aiming for compatibility with Microsoft Project (MSP). It lets teams organize tasks, schedules, dependencies, resources, and progress in one workspace, with a hierarchical task table beside its Gantt chart so the overall schedule remains visible together.
 
 Current release in this fork:
 
