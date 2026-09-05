@@ -4103,7 +4103,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		lastNode=currentNode;
 	}
 
-	private static void traceUi(String message) {
+	static void traceUi(String message) {
 		if (Boolean.getBoolean(UI_DEBUG_PROPERTY))
 			logger.fine("UI_DEBUG " + message);
 	}

@@ -482,40 +482,62 @@ public class DocumentFrame extends NamedFrame implements
 		// editor can clear the JTable selection, which previously made the
 		// ribbon command silently return even though it was enabled.
 		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
+		getGraphicManager().traceUi("link start selectedTasks=" + taskNodes.size()
+				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
 		try {
-			if (taskNodes.size() < 2)
+			if (taskNodes.size() < 2) {
+				getGraphicManager().traceUi("link rejected reason=selection-too-small selectedTasks=" + taskNodes.size());
 				return;
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "link"))
+			}
+			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "link")) {
+				getGraphicManager().traceUi("link rejected reason=lock-failed selectedTasks=" + taskNodes.size());
 				return;
+			}
 			List list = NodeList.nodeListToImplList(taskNodes, NotAssignmentFilter.getInstance());
-			if (list.size() < 2)
+			if (list.size() < 2) {
+				getGraphicManager().traceUi("link rejected reason=task-filter selectedTasks=" + list.size());
 				return;
+			}
 			DependencyService.getInstance().connect(list,this,null);
 			getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
+			getGraphicManager().traceUi("link complete selectedTasks=" + taskNodes.size()
+				+ " dependencies=" + dependencyCount(list) + " undo=" + canUndoState() + " redo=" + canRedoState());
 			//DependencyService.getInstance().connect(list,this);
 		} catch (InvalidAssociationException e) {
+			getGraphicManager().traceUi("link rejected reason=invalid-association message=" + e.getMessage());
 			Alert.error(e.getMessage(),this);
 		}
 	}
 	public void doUnlinkTasks() {
 		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
+		getGraphicManager().traceUi("unlink start selectedTasks=" + taskNodes.size()
+				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
-		if (taskNodes.isEmpty())
+		if (taskNodes.isEmpty()) {
+			getGraphicManager().traceUi("unlink rejected reason=no-selection");
 			return;
-		if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "unlink"))
+		}
+		if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "unlink")) {
+			getGraphicManager().traceUi("unlink rejected reason=lock-failed selectedTasks=" + taskNodes.size());
 			return;
+		}
 		List list = NodeList.nodeListToImplList(taskNodes, NotAssignmentFilter.getInstance());
-		if (list.isEmpty())
+		if (list.isEmpty()) {
+			getGraphicManager().traceUi("unlink rejected reason=task-filter");
 			return;
+		}
 
 
 		DependencyService.getInstance().removeAnyDependencies(list,this);
 		getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
+		getGraphicManager().traceUi("unlink complete selectedTasks=" + taskNodes.size()
+				+ " dependencies=" + dependencyCount(list) + " undo=" + canUndoState() + " redo=" + canRedoState());
 	}
 	public void doUndoRedo(boolean isUndo) {
 		if (!isActive())
 			return;
+		getGraphicManager().traceUi((isUndo ? "undo" : "redo") + " start canUndo=" + canUndoState() + " canRedo=" + canRedoState());
 		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet());
 		finishAnyOperations();
 		UndoController undoController=getUndoController();
@@ -526,7 +548,28 @@ public class DocumentFrame extends NamedFrame implements
 				undoController.redo();
 			refreshUndoButtons();
 			selectionSnapshot.restore();
+			getGraphicManager().traceUi((isUndo ? "undo" : "redo") + " complete canUndo=" + canUndoState() + " canRedo=" + canRedoState()
+					+ " selectedTasks=" + getSelectedTaskNodes(false, true).size());
 		}
+	}
+
+	private static int dependencyCount(List<?> tasks) {
+		int count = 0;
+		for (Object value : tasks) {
+			if (value instanceof Task task)
+				count += task.getPredecessorList().size();
+		}
+		return count;
+	}
+
+	private boolean canUndoState() {
+		UndoController controller = getUndoController();
+		return controller != null && controller.canUndo();
+	}
+
+	private boolean canRedoState() {
+		UndoController controller = getUndoController();
+		return controller != null && controller.canRedo();
 	}
 
 	private static final class SelectionSnapshot {
@@ -642,13 +685,21 @@ public class DocumentFrame extends NamedFrame implements
 		if (ss !=null) {
 			int[] selectedRows = ss.getSelectedRows();
 			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
+			getGraphicManager().traceUi("outdent start selectedTasks=" + taskNodes.size()
+					+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
 			finishAnyOperations();
-			if (taskNodes.isEmpty())
+			if (taskNodes.isEmpty()) {
+				getGraphicManager().traceUi("outdent rejected reason=no-selection");
 				return;
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "outdent"))
+			}
+			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "outdent")) {
+				getGraphicManager().traceUi("outdent rejected reason=lock-failed selectedTasks=" + taskNodes.size());
 				return;
+			}
 			ss.executeAction(MenuActionConstants.ACTION_OUTDENT, selectedRows);
 			ss.restoreTaskRowSelection(taskNodes);
+			getGraphicManager().traceUi("outdent complete selectedTasks=" + taskNodes.size()
+					+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		}
 	}
 	public void doExpand() {
@@ -675,13 +726,21 @@ public class DocumentFrame extends NamedFrame implements
 		if (ss !=null) {
 			int[] selectedRows = ss.getSelectedRows();
 			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
+			getGraphicManager().traceUi("indent start selectedTasks=" + taskNodes.size()
+					+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
 			finishAnyOperations();
-			if (taskNodes.isEmpty())
+			if (taskNodes.isEmpty()) {
+				getGraphicManager().traceUi("indent rejected reason=no-selection");
 				return;
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "indent"))
+			}
+			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "indent")) {
+				getGraphicManager().traceUi("indent rejected reason=lock-failed selectedTasks=" + taskNodes.size());
 				return;
+			}
 			ss.executeAction(MenuActionConstants.ACTION_INDENT, selectedRows);
 			ss.restoreTaskRowSelection(taskNodes);
+			getGraphicManager().traceUi("indent complete selectedTasks=" + taskNodes.size()
+					+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		}
 	}
 	public boolean canMoveSelectedTasks(int direction) {
