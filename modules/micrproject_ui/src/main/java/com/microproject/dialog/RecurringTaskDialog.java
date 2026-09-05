@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.dialog;
 
+import java.awt.Dimension;
 import java.awt.Frame;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -41,6 +42,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -119,7 +121,12 @@ public final class RecurringTaskDialog extends AbstractDialog {
 		builder.append(Messages.getString("RecurringTaskDialog.End"), createRangePanel());
 		builder.nextLine(2);
 		builder.append("", monthlyHint);
-		return builder.getPanel();
+		JScrollPane scrollPane = new JScrollPane(builder.getPanel(),
+				JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		scrollPane.setBorder(null);
+		scrollPane.setPreferredSize(new Dimension(520, 280));
+		scrollPane.setMinimumSize(new Dimension(420, 180));
+		return scrollPane;
 	}
 
 	@Override
