@@ -39,6 +39,7 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceType;
 import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.undo.DataFactoryUndoController;
@@ -282,6 +283,7 @@ class MpoFileImporterTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("shared-pool", undo);
 		Resource resource = pool.newResourceInstance();
+		((com.microproject.pm.resource.ResourceImpl) resource).setResourceType(ResourceType.WORK);
 		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(88001L);
 		Project poolProject = Project.createProject(pool, undo);
 		File poolFile = File.createTempFile("mpo-shared-pool-", ".mpo");
