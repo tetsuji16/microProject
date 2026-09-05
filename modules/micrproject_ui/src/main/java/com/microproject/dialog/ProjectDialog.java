@@ -70,6 +70,7 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		String name;
 		long startDate = CalendarOption.getInstance().makeValidStart(DateTime.gmt(new Date()), true);
 		ResourcePool resourcePool = null;
+		boolean resourcePoolProject;
 		boolean forward = true;
 		boolean local=Environment.getStandAlone();
 		int projectType;
@@ -143,6 +144,12 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		 */
 		public void setResourcePool(ResourcePool resourcePool) {
 			this.resourcePool = resourcePool;
+		}
+		public boolean isResourcePoolProject() {
+			return resourcePoolProject;
+		}
+		public void setResourcePoolProject(boolean resourcePoolProject) {
+			this.resourcePoolProject = resourcePoolProject;
 		}
 		/**
 		 * @return Returns the forward.

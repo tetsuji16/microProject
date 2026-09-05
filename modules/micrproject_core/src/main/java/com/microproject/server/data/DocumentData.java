@@ -32,6 +32,7 @@ public class DocumentData extends SerializedDataObject {
 	static final long serialVersionUID = 722537477222L;
     protected boolean master;
     protected boolean local;
+    protected boolean resourcePoolProject;
 	public boolean isMaster() {
 		return master;
 	}
@@ -43,6 +44,12 @@ public class DocumentData extends SerializedDataObject {
 	}
 	public void setLocal(boolean local) {
 		this.local = local;
+	}
+	public boolean isResourcePoolProject() {
+		return resourcePoolProject;
+	}
+	public void setResourcePoolProject(boolean resourcePoolProject) {
+		this.resourcePoolProject = resourcePoolProject;
 	}
 
 }

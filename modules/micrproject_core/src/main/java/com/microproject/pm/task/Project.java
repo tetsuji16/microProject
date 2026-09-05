@@ -1896,12 +1896,21 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 
 	protected boolean master=false;
+	protected boolean resourcePoolProject;
 	public boolean isMaster() {
 		return master;
 	}
 
 	public void setMaster(boolean master) {
 		this.master = master;
+	}
+
+	public boolean isResourcePoolProject() {
+		return resourcePoolProject;
+	}
+
+	public void setResourcePoolProject(boolean resourcePoolProject) {
+		this.resourcePoolProject = resourcePoolProject;
 	}
 
 	public boolean isLocal() {

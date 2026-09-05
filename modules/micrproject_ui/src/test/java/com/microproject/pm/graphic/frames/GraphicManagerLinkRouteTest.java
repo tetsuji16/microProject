@@ -68,6 +68,16 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
+	void resourcePoolCreationFormCarriesAnExplicitPoolMarker() {
+		ProjectDialog.Form form = new ProjectDialog.Form();
+
+		assertFalse(form.isResourcePoolProject());
+		form.setResourcePoolProject(true);
+
+		assertTrue(form.isResourcePoolProject());
+	}
+
+	@Test
 	void linkAndUnlinkActionsUseActionRouteGuardsAfterTaskSelectionValidation() throws Exception {
 		List<String> routedActions = new ArrayList<>();
 		TestDocumentFrame documentFrame = allocateWithoutConstructor(TestDocumentFrame.class);

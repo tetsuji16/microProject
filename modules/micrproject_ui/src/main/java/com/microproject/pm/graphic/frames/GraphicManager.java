@@ -1281,6 +1281,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (form.isLocal())
 				project.setLocal(true);
 			else project.setTemporaryLocal(true);
+			if (form.isResourcePoolProject()) {
+				project.setResourcePoolProject(true);
+				project.getResourcePool().setMaster(true);
+			}
 			if (resourcePool != null) {
 				for (Project poolProject : resourcePool.getProjects()) {
 					if (poolProject != project && poolProject.getFileName() != null) {
@@ -3435,6 +3439,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			ProjectDialog.Form form = doNewProjectNoDialog1();
 			form.setName("Resource Pool " + project_suffix_count++);
+			form.setResourcePoolProject(true);
 			doNewProjectDialog2(form);
 			Alert.warn("Save the new resource-pool project, then choose Use Resource Pool from each sharer project.");
 		}

@@ -482,7 +482,8 @@ public class Serializer {
         //if (globalIdsOnly) makeGLobal(project);
         ProjectData projectData=(ProjectData)serialize(project,ProjectData.FACTORY,projectCount);
         if (project.isForceNonIncremental()) projectData.setVersion(0);
-        projectData.setMaster(project.isMaster());
+		projectData.setMaster(project.isMaster());
+		projectData.setResourcePoolProject(project.isResourcePoolProject());
 //        projectData.setExternalId(project.getExternalId());
 
         //exposed attributes
@@ -796,6 +797,7 @@ public class Serializer {
     	}
     	project.setUndoController(undoController);
     	project.setMaster(projectData.isMaster()); //not necessary
+		project.setResourcePoolProject(projectData.isResourcePoolProject());
     	project.setLocal(projectData.isLocal());
     	project.setReadOnly(!projectData.canBeUsed());
     	project.setCreationDate(projectData.getCreationDate());
