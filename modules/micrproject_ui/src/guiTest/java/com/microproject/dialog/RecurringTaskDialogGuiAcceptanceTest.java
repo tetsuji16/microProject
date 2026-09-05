@@ -12,6 +12,7 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.AbstractButton;
 import javax.swing.JScrollPane;
@@ -41,22 +42,37 @@ class RecurringTaskDialogGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		SwingUtilities.invokeAndWait(() -> {
 			dialog = RecurringTaskDialog.getInstance(null);
+			dialog.setAlwaysOnTop(true);
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isShowing(),
 				"recurring-task dialog did not become visible");
+		SwingUtilities.invokeAndWait(() -> {
+			dialog.toFront();
+			dialog.requestFocusInWindow();
+			dialog.setAlwaysOnTop(true);
+		});
 		assertTrue(findScrollPane(dialog) != null, "recurring-task form must use a scrollable content viewport");
 		assertTrue(dialog.getButtonPanel().getHeight() > 0, "recurring-task buttons must remain laid out");
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
+		Rectangle dialogBounds = new Rectangle(dialog.getLocationOnScreen(), dialog.getSize());
+		robot.mouseMove(dialogBounds.x + Math.min(40, dialogBounds.width / 2), dialogBounds.y + 12);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 		AbstractButton cancel = cancelButton(dialog);
+		AtomicBoolean clicked = new AtomicBoolean();
+		cancel.addActionListener(event -> clicked.set(true));
 		Rectangle bounds = new Rectangle(cancel.getLocationOnScreen(), cancel.getSize());
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Cancel did not close recurring-task dialog");
+		robot.delay(150);
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(),
+			"Cancel did not close recurring-task dialog; actionEvent=" + clicked.get() + " bounds=" + bounds);
 	}
 
 	private static JScrollPane findScrollPane(java.awt.Container root) {
