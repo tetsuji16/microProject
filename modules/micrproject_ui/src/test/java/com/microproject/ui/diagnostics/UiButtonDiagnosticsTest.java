@@ -10,6 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.AbstractAction;
@@ -36,20 +40,36 @@ class UiButtonDiagnosticsTest {
 	@Test
 	void delegatesSuccessfulAndFailingButtonActionsInDebugMode() {
 		System.setProperty("microproject.ui.debug", "true");
-		AtomicBoolean invoked = new AtomicBoolean();
-		Action successful = new AbstractAction() {
-			@Override public void actionPerformed(ActionEvent event) { invoked.set(true); }
+		Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+		StringBuilder messages = new StringBuilder();
+		Handler handler = new Handler() {
+			@Override public void publish(LogRecord record) { messages.append(record.getMessage()).append('\n'); }
+			@Override public void flush() { }
+			@Override public void close() { }
 		};
+		logger.addHandler(handler);
+		logger.setLevel(Level.FINE);
+		try {
+			AtomicBoolean invoked = new AtomicBoolean();
+			Action successful = new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) { invoked.set(true); }
+			};
 
-		Action traced = UiButtonDiagnostics.wrapAction("TestButton", successful);
-		assertNotSame(successful, traced);
-		traced.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "TestButton"));
-		assertTrue(invoked.get());
+			Action traced = UiButtonDiagnostics.wrapAction("TestButton", successful);
+			assertNotSame(successful, traced);
+			traced.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "TestButton"));
+			assertTrue(invoked.get());
 
-		Action failing = new AbstractAction() {
-			@Override public void actionPerformed(ActionEvent event) { throw new IllegalStateException("expected"); }
-		};
-		assertThrows(IllegalStateException.class, () -> UiButtonDiagnostics.wrapAction("FailingButton", failing)
-			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "FailingButton")));
+			Action failing = new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) { throw new IllegalStateException("expected"); }
+			};
+			assertThrows(IllegalStateException.class, () -> UiButtonDiagnostics.wrapAction("FailingButton", failing)
+				.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "FailingButton")));
+			assertTrue(messages.toString().contains("UI_BUTTON action-start id=TestButton"));
+			assertTrue(messages.toString().contains("command=TestButton"));
+			assertTrue(messages.toString().contains("stateChanged=false"));
+		} finally {
+			logger.removeHandler(handler);
+		}
 	}
 }

@@ -5,6 +5,7 @@
  *******************************************************************************/
 package com.microproject.ui.diagnostics;
 
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,11 +59,28 @@ public final class UiButtonDiagnostics {
 
 		@Override
 		public void actionPerformed(ActionEvent event) {
+			Component source = event != null && event.getSource() instanceof Component component ? component : null;
+			boolean enabledBefore = source == null || source.isEnabled();
+			boolean visibleBefore = source == null || source.isShowing();
+			boolean selectedBefore = source instanceof javax.swing.AbstractButton button && button.isSelected();
 			logger.fine("UI_BUTTON action-start id=" + buttonId
-				+ " delegate=" + delegate.getClass().getSimpleName());
+				+ " delegate=" + delegate.getClass().getSimpleName()
+				+ " command=" + (event == null ? "null" : event.getActionCommand())
+				+ " source=" + (source == null ? "null" : source.getClass().getSimpleName())
+				+ " enabled=" + enabledBefore
+				+ " visible=" + visibleBefore
+				+ " selected=" + selectedBefore);
 			try {
 				delegate.actionPerformed(event);
-				logger.fine("UI_BUTTON action-complete id=" + buttonId);
+				boolean enabledAfter = source == null || source.isEnabled();
+				boolean visibleAfter = source == null || source.isShowing();
+				boolean selectedAfter = source instanceof javax.swing.AbstractButton button && button.isSelected();
+				logger.fine("UI_BUTTON action-complete id=" + buttonId
+					+ " enabled=" + enabledAfter
+					+ " visible=" + visibleAfter
+					+ " selected=" + selectedAfter
+					+ " stateChanged=" + (enabledBefore != enabledAfter
+						|| visibleBefore != visibleAfter || selectedBefore != selectedAfter));
 			} catch (RuntimeException | Error e) {
 				logger.log(Level.WARNING, "UI_BUTTON_FAILURE id=" + buttonId
 					+ " reason=action-threw delegate=" + delegate.getClass().getName(), e);
