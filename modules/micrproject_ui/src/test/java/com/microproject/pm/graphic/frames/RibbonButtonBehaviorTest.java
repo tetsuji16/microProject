@@ -258,6 +258,7 @@ class RibbonButtonBehaviorTest {
 		assertExternal(harness, "RibbonSaveProject", "saveProject");
 		assertExternal(harness, "RibbonTopBarSaveProject", "saveProject");
 		assertExternal(harness, "RibbonSaveProjectAs", "saveAsProject");
+		assertExternal(harness, "RibbonSaveMpoAs", "saveMpoAs");
 		assertExternal(harness, "RibbonExportProject", "saveAsProject");
 		assertExternal(harness, "RibbonCloseProject", "closeProject");
 		assertExternal(harness, "RibbonPrint", "print");
@@ -475,6 +476,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonSaveProject",
 			"RibbonTopBarSaveProject",
 			"RibbonSaveProjectAs",
+			"RibbonSaveMpoAs",
 			"RibbonExportProject",
 			"RibbonCloseProject",
 			"RibbonPrint",

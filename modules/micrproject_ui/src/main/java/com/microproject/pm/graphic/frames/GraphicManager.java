@@ -1791,6 +1791,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertTaskAction()); // will do resource
 		actionsMap.addHandler(ACTION_SAVE_PROJECT, new SaveProjectAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT_AS, new SaveProjectAsAction());
+		actionsMap.addHandler(ACTION_SAVE_MPO_AS, new SaveMpoAsAction());
 		actionsMap.addHandler(ACTION_PRINT, new PrintAction());
 		actionsMap.addHandler(ACTION_PRINT_PREVIEW, new PrintPreviewAction());
 		actionsMap.addHandler(ACTION_PDF, new PDFAction());
@@ -3073,6 +3074,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	protected boolean loadLocalDocument(String fileName,boolean merge){ //uses server to merge
 		return loadLocalDocument(fileName, merge, null);
 	}
+
+	/** Saves a master through the portable MPO workflow required by issue #395. */
+	public class SaveMpoAsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("saveMpoAs")) return;
+			if (isDocumentActive()) saveMasterAsMpo();
+		}
+		@Override protected boolean allowed(boolean enable) {
+			if (!enable) return true;
+			DocumentFrame frame = getCurrentFrame();
+			return frame != null && frame.getProject() != null && frame.getProject().isMaster()
+				&& frame.getProject().isSavable();
+		}
+	}
 	/**
 	 * Opens one local file and invokes {@code afterLoad} on the EDT after its load
 	 * job has reached a terminal state.  Callers that expand a multiple-file
@@ -3471,6 +3488,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return true;
 		}
 		return false;
+	}
+
+	/** Shows the local save chooser and forces the master portable format. */
+	public boolean saveMasterAsMpo() {
+		DocumentFrame frame = getCurrentFrame();
+		Project project = frame == null ? null : frame.getProject();
+		if (project == null || !project.isMaster()) return false;
+		String suggested = project.getFileName();
+		if (suggested == null || suggested.isBlank()) suggested = project.getGuessedFileName();
+		if (suggested == null || suggested.isBlank()) suggested = "master.mpo";
+		if (!suggested.toLowerCase(java.util.Locale.ROOT).endsWith(".mpo")) suggested += ".mpo";
+		String selected = SessionFactory.getInstance().getLocalSession().chooseFileName(true, suggested);
+		if (selected == null || selected.isBlank()) return false;
+		if (!selected.toLowerCase(java.util.Locale.ROOT).endsWith(".mpo")) selected += ".mpo";
+		saveLocalDocument(selected, true);
+		return true;
 	}
 
 	public class ArrangeAllAction extends MenuActionsMap.GlobalMenuAction {

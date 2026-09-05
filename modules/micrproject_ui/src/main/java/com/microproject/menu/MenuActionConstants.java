@@ -34,6 +34,7 @@ public interface MenuActionConstants {
 	public static final String ACTION_CLOSE_PROJECT           = "CloseProject";
 	public static final String ACTION_SAVE_PROJECT            = "SaveProject";
 	public static final String ACTION_SAVE_PROJECT_AS         = "SaveProjectAs";
+	public static final String ACTION_SAVE_MPO_AS             = "SaveMpoAs";
 	public static final String ACTION_PRINT                   = "Print";
 	public static final String ACTION_PRINT_PREVIEW           = "PrintPreview";
 	public static final String ACTION_PDF         			  = "PDF";

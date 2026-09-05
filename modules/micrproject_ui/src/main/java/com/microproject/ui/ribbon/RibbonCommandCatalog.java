@@ -123,7 +123,7 @@ final class RibbonCommandCatalog {
 			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject",
 			"RibbonLocale", "RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre");
 		register(result, CommandScope.DOCUMENT, FILE,
-			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonCloseProject", "RibbonExportProject",
+			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject", "RibbonExportProject",
 			"RibbonPrint", "RibbonPrintPreview", "RibbonPDF");
 		register(result, CommandScope.TASK, TASK,
 			"RibbonInsert", "RibbonInsertRecurring", "RibbonInsertProject", "RibbonIndent", "RibbonOutdent",

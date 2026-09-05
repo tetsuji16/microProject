@@ -274,6 +274,7 @@ class RibbonAndToolbarButtonTest {
 				Map.entry("RibbonRecentProjects", "openProject"),
 				Map.entry("RibbonSaveProject", "saveProject"),
 				Map.entry("RibbonSaveProjectAs", "saveAsProject"),
+				Map.entry("RibbonSaveMpoAs", "saveMpoAs"),
 				Map.entry("RibbonCloseProject", "closeProject"),
 				Map.entry("RibbonImportProject", "openProject"),
 				Map.entry("RibbonExportProject", "saveAsProject"),

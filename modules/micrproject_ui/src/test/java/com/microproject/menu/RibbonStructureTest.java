@@ -62,7 +62,7 @@ class RibbonStructureTest {
 	void issue37FileTabExposesRecentProjectsBesideOpen() {
 		assertEquals(List.of(
 			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects",
-			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonCloseProject"),
+			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject"),
 			ribbonButtonIds("FileRibbonBand"));
 		assertEquals("RecentProjectsAction",
 			menuInternalBundle().getString("RibbonRecentProjects.action"));
