@@ -3170,12 +3170,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
 			DocumentFrame frame = getCurrentFrame();
-			if (frame == null || !resourceType || frame.getProject() == null || frame.getProject().isReadOnly())
+			if (frame == null || !(frame.getActiveTopView() instanceof ResourceView)
+					|| frame.getProject() == null || frame.getProject().isReadOnly())
 				return;
+			ResourceView resourceView = (ResourceView) frame.getActiveTopView();
+			int[] selectedRows = resourceView.getSpreadSheet().getSelectedRows();
 			finishAnyOperations();
-			ResourceView resourceView = frame.getResourceView();
-			if (resourceView != null && resourceView.getSpreadSheet() != null)
-				resourceView.getSpreadSheet().performAction(MenuActionConstants.ACTION_INSERT_RESOURCE, event);
+			resourceView.getSpreadSheet().executeAction(MenuActionConstants.ACTION_INSERT_RESOURCE, selectedRows);
 		}
 
 		@Override

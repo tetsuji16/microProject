@@ -57,4 +57,18 @@ class ResourcePoolIdentityTest {
         pool.remove(resource);
         assertNull(pool.findById(8123L));
     }
+
+    @Test
+    void changingPoolScopeUpdatesAlreadyCreatedOutlines() {
+        ResourcePool pool = ResourcePool.createRourcePool("test", new DataFactoryUndoController());
+
+        assertEquals(false, pool.getResourceOutline().isLocal());
+        assertEquals(false, pool.getResourceOutline().isMaster());
+
+        pool.setLocal(true);
+        pool.setMaster(true);
+
+        assertEquals(true, pool.getResourceOutline().isLocal());
+        assertEquals(true, pool.getResourceOutline().isMaster());
+    }
 }

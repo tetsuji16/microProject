@@ -672,7 +672,6 @@ class RibbonButtonBehaviorTest {
 			undoController = new DataFactoryUndoController();
 			ResourcePool pool = ResourcePool.createRourcePool("Ribbon Test Pool", undoController);
 			pool.setLocal(true);
-			pool.getResourceOutline().setLocal(true);
 			project = Project.createProject(pool, undoController);
 			project.setName("Ribbon Test Project");
 			task = project.createScriptedTask();

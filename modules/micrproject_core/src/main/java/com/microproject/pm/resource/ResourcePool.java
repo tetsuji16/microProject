@@ -341,6 +341,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 
 	public void setMaster(boolean master) {
 		this.master = master;
+		updateOutlineTypes();
 	}
 	protected boolean local;
 	public boolean isLocal() {
@@ -349,6 +350,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 
 	public void setLocal(boolean local) {
 		this.local = local;
+		updateOutlineTypes();
 	}
 	
 	
