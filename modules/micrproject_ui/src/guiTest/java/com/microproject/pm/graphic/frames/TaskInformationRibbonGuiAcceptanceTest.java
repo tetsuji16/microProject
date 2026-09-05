@@ -71,8 +71,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			}
 			if (manager != null)
 				manager.cleanUp();
-			if (window != null)
-				window.dispose();
+			for (Window candidate : Window.getWindows()) {
+				if (candidate instanceof MainRibbonFrame)
+					candidate.dispose();
+			}
 		});
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
