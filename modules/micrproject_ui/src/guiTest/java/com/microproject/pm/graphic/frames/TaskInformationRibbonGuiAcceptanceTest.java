@@ -227,6 +227,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Ctrl+Y did not reapply task visibility");
 
 		AbstractButton show = findShowingButtonByCommand("RibbonShowAllTasks");
+		assertTrue(show.isShowing(), "Show All Tasks must remain discoverable beside Hide Selected Tasks after hiding");
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
