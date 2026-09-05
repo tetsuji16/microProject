@@ -45,6 +45,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	private Path secondFile;
 	private UiServices.FileChooserProvider previousChooser;
 	private boolean previousStandalone;
+	private boolean previousClientSide;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 
@@ -58,6 +59,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		if (firstFile != null) Files.deleteIfExists(firstFile);
 		if (secondFile != null) Files.deleteIfExists(secondFile);
 		Environment.setStandAlone(previousStandalone);
+		Environment.setClientSide(previousClientSide);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 	}
@@ -67,9 +69,11 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousChooser = UiServices.getFileChooserProvider();
 		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		firstFile = Files.createTempFile("msp-open-alpha-", ".mpo");
@@ -112,9 +116,11 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousChooser = UiServices.getFileChooserProvider();
 		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		firstFile = Files.createTempFile("msp-command-line-alpha-", ".mpo");
@@ -132,7 +138,9 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 			window.setLocationByPlatform(true);
 			window.setAlwaysOnTop(true);
 			window.setVisible(true);
-			manager.openLocalProjectsSequentially(new String[] { firstFile.toString(), secondFile.toString() });
+			ApplicationStartupFactory startup = new ApplicationStartupFactory(new String[] {
+				"--fileNames", firstFile.toString(), secondFile.toString() });
+			startup.doStartupAction(manager, 0L, startup.projectUrls, false, false);
 		});
 		FrameManager frames = manager.getFrameManager();
 		GuiAcceptanceSupport.await(() -> frames.getAllFrames().size() == 2,
