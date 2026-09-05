@@ -73,6 +73,8 @@ public class MpoFileImporter extends FileImporter {
 	static final String SETTINGS_ENTRY = "settings.xml";
 	static final String CCPM_HISTORY_ENTRY = "ccpm/history.jsonl";
 	static final String LAYOUT_ENTRY = "layout.json";
+	/** Native task-view state that MSPDI does not represent. */
+	static final String VISIBILITY_ENTRY = "microproject/visibility.json";
 	/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
 	/** Container version this build writes; every save rewrites the file at this version. */
@@ -156,6 +158,7 @@ public class MpoFileImporter extends FileImporter {
 		byte[] settings = null;
 		byte[] ccpmHistory = null;
 		byte[] layout = null;
+		byte[] visibility = null;
 		byte[] draftCcpm = null;
 		byte[] operations = null;
 		byte[] draftOperations = null;
@@ -195,6 +198,9 @@ public class MpoFileImporter extends FileImporter {
 				} else if (LAYOUT_ENTRY.equals(entry.getName())) {
 					if (layout != null) throw new IOException("Duplicate mpo entry: " + LAYOUT_ENTRY);
 					layout = readEntry(zip, totalBytes);
+				} else if (VISIBILITY_ENTRY.equals(entry.getName())) {
+					if (visibility != null) throw new IOException("Duplicate mpo entry: " + VISIBILITY_ENTRY);
+					visibility = readEntry(zip, totalBytes);
 				} else if (DRAFT_CCPM_ENTRY.equals(entry.getName())) {
 					if (draftCcpm != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_CCPM_ENTRY);
 					draftCcpm = readEntry(zip, totalBytes);
@@ -224,7 +230,7 @@ public class MpoFileImporter extends FileImporter {
 		boolean legacyMicroprojectLevelingDelay = meta != null && isLegacyMicroprojectLevelingDelay(meta);
 		if (meta != null) validateMeta(meta);
 		ManifestData manifestData = readManifest(manifest, projectXml);
-		validateArchiveChecksums(manifestData, mimetype, meta, settings, ccpmHistory, layout,
+		validateArchiveChecksums(manifestData, mimetype, meta, settings, ccpmHistory, layout, visibility,
 				draftCcpm, operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		java.util.Map<String, SubProj.LoadStatus> embeddedProjectFailures = validateEmbeddedProjects(manifestData, extensions.entries);
 		if (legacyMicroprojectLevelingDelay) projectXml = migrateLegacyLevelingDelays(projectXml);
@@ -250,6 +256,7 @@ public class MpoFileImporter extends FileImporter {
 		}
 		if (ccpmHistory != null) restoreCcpmHistory(project, ccpmHistory);
 		if (layout != null) restoreLayout(project, layout);
+		if (visibility != null) restoreVisibility(project, visibility);
 		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
 		if (operations == null) operations = draftOperations;
 		if (operations != null) {
@@ -326,7 +333,8 @@ public class MpoFileImporter extends FileImporter {
 		byte[] projectXml = serializeProjectXml(project);
 		MpoOperationState operationState = operationStateFor(project);
 		operationState.appendChanges(project);
-		operationState.remapTaskIds(readTaskIdentities(taskIdentitiesFor(project, projectXml).getBytes(StandardCharsets.UTF_8)));
+		String taskIdentities = taskIdentitiesFor(project, projectXml);
+		operationState.remapTaskIds(readTaskIdentities(taskIdentities.getBytes(StandardCharsets.UTF_8)));
 		return writeMpo(project, out, projectXml, operationState);
 	}
 
@@ -343,11 +351,13 @@ public class MpoFileImporter extends FileImporter {
 		byte[] layout = layoutJson(project);
 		if (layout != null) archiveEntries.put(LAYOUT_ENTRY, layout);
 		archiveEntries.put(OPERATIONS_ENTRY, operationState.json);
-		archiveEntries.put(TASK_IDENTITIES_ENTRY, taskIdentitiesFor(project, projectXml).getBytes(StandardCharsets.UTF_8));
+		String taskIdentities = taskIdentitiesFor(project, projectXml);
+		archiveEntries.put(TASK_IDENTITIES_ENTRY, taskIdentities.getBytes(StandardCharsets.UTF_8));
+		archiveEntries.put(VISIBILITY_ENTRY, visibilityJson(project, taskIdentities));
 		archiveEntries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			archiveEntries.put(extension.getKey(), extension.getValue());
 		}
 		try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
@@ -456,6 +466,39 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
+	private static byte[] visibilityJson(Project project, String taskIdentities) throws IOException {
+		try {
+			JsonNode identities = JSON.readTree(taskIdentities);
+			if (!identities.isObject()) throw new IOException("Invalid mpo task identity map");
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			com.fasterxml.jackson.databind.node.ArrayNode hidden = root.putArray("hiddenTaskUniqueIds");
+			java.util.Iterator<java.util.Map.Entry<String, JsonNode>> fields = identities.fields();
+			while (fields.hasNext()) {
+				java.util.Map.Entry<String, JsonNode> entry = fields.next();
+				long sourceId = Long.parseLong(entry.getKey());
+				if (project.findByUniqueId(sourceId) instanceof Task task && task.isHiddenTask())
+					hidden.add(entry.getValue().longValue());
+			}
+			return JSON.writeValueAsBytes(root);
+		} catch (NumberFormatException exception) {
+			throw new IOException("Invalid mpo task identity", exception);
+		}
+	}
+
+	private static void restoreVisibility(Project project, byte[] bytes) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		JsonNode hidden = root.path("hiddenTaskUniqueIds");
+		if (!root.path("version").canConvertToInt() || root.path("version").intValue() != 1 || !hidden.isArray())
+			throw new IOException("Invalid mpo visibility state");
+		for (JsonNode entry : hidden) {
+			if (!entry.canConvertToLong()) throw new IOException("Invalid mpo hidden task identity");
+			long serializedId = entry.longValue();
+			Task task = project.findByUniqueId(serializedId);
+			if (task != null) task.setHiddenTask(true);
+		}
+	}
+
 	private static java.util.Map<Long, Long> readTaskIdentities(byte[] json) throws IOException {
 		JsonNode root = JSON.readTree(json);
 		if (!root.isObject()) throw new IOException("Invalid mpo task identity map");
@@ -524,7 +567,7 @@ public class MpoFileImporter extends FileImporter {
 
 	private static ExternalMpo externalOperations(File target) throws IOException {
 		byte[] mimetype = null; byte[] meta = null; byte[] settings = null; byte[] history = null;
-		byte[] layout = null; byte[] draftCcpm = null; byte[] operations = null; byte[] draftOperations = null;
+		byte[] layout = null; byte[] visibility = null; byte[] draftCcpm = null; byte[] operations = null; byte[] draftOperations = null;
 		byte[] manifest = null; byte[] projectXml = null; byte[] taskIdentities = null;
 		int[] totalBytes = new int[] { 0 }; int entryCount = 0; MpoExtensions extensions = new MpoExtensions();
 		try (InputStream in = new FileInputStream(target); ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
@@ -536,6 +579,7 @@ public class MpoFileImporter extends FileImporter {
 				else if (!entry.isDirectory() && SETTINGS_ENTRY.equals(entry.getName())) { if (settings != null) throw new IOException("Duplicate mpo entry: " + SETTINGS_ENTRY); settings = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && CCPM_HISTORY_ENTRY.equals(entry.getName())) { if (history != null) throw new IOException("Duplicate mpo entry: " + CCPM_HISTORY_ENTRY); history = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && LAYOUT_ENTRY.equals(entry.getName())) { if (layout != null) throw new IOException("Duplicate mpo entry: " + LAYOUT_ENTRY); layout = readEntry(zip, totalBytes); }
+				else if (!entry.isDirectory() && VISIBILITY_ENTRY.equals(entry.getName())) { if (visibility != null) throw new IOException("Duplicate mpo entry: " + VISIBILITY_ENTRY); visibility = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && DRAFT_CCPM_ENTRY.equals(entry.getName())) { if (draftCcpm != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_CCPM_ENTRY); draftCcpm = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && OPERATIONS_ENTRY.equals(entry.getName())) { if (operations != null) throw new IOException("Duplicate mpo entry: " + OPERATIONS_ENTRY); operations = readEntry(zip, totalBytes); }
 				else if (!entry.isDirectory() && DRAFT_OPERATIONS_ENTRY.equals(entry.getName())) { if (draftOperations != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_OPERATIONS_ENTRY); draftOperations = readEntry(zip, totalBytes); }
@@ -551,7 +595,7 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("Invalid MPOF mimetype entry");
 		ManifestData manifestData = readManifest(manifest, projectXml);
 		if (meta != null) validateMeta(meta);
-		validateArchiveChecksums(manifestData, mimetype, meta, settings, history, layout, draftCcpm,
+		validateArchiveChecksums(manifestData, mimetype, meta, settings, history, layout, visibility, draftCcpm,
 				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		if (settings != null && draftCcpm != null) throw new IOException("MPOF contains both current and draft CCPM settings");
 		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
@@ -770,7 +814,7 @@ public class MpoFileImporter extends FileImporter {
 
 	private static void validateEmbeddedProjectPayload(byte[] contents) throws IOException {
 		byte[] mimetype = null; byte[] manifest = null; byte[] projectXml = null; byte[] meta = null;
-		byte[] settings = null; byte[] history = null; byte[] layout = null; byte[] draftCcpm = null;
+		byte[] settings = null; byte[] history = null; byte[] layout = null; byte[] visibility = null; byte[] draftCcpm = null;
 		byte[] operations = null; byte[] draftOperations = null; byte[] taskIdentities = null;
 		MpoExtensions extensions = new MpoExtensions();
 		try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(contents), StandardCharsets.UTF_8)) {
@@ -786,6 +830,7 @@ public class MpoFileImporter extends FileImporter {
 				else if (SETTINGS_ENTRY.equals(entry.getName())) { if (settings != null) throw new IOException("Embedded MPOF has duplicate settings"); settings = readEntry(zip, totalBytes); }
 				else if (CCPM_HISTORY_ENTRY.equals(entry.getName())) { if (history != null) throw new IOException("Embedded MPOF has duplicate CCPM history"); history = readEntry(zip, totalBytes); }
 				else if (LAYOUT_ENTRY.equals(entry.getName())) { if (layout != null) throw new IOException("Embedded MPOF has duplicate layout"); layout = readEntry(zip, totalBytes); }
+				else if (VISIBILITY_ENTRY.equals(entry.getName())) { if (visibility != null) throw new IOException("Embedded MPOF has duplicate visibility"); visibility = readEntry(zip, totalBytes); }
 				else if (DRAFT_CCPM_ENTRY.equals(entry.getName())) { if (draftCcpm != null) throw new IOException("Embedded MPOF has duplicate draft CCPM settings"); draftCcpm = readEntry(zip, totalBytes); }
 				else if (OPERATIONS_ENTRY.equals(entry.getName())) { if (operations != null) throw new IOException("Embedded MPOF has duplicate operations"); operations = readEntry(zip, totalBytes); }
 				else if (DRAFT_OPERATIONS_ENTRY.equals(entry.getName())) { if (draftOperations != null) throw new IOException("Embedded MPOF has duplicate draft operations"); draftOperations = readEntry(zip, totalBytes); }
@@ -799,7 +844,7 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("Embedded MPOF has an invalid mimetype");
 		ManifestData embeddedManifest = readManifest(manifest, projectXml);
 		if (meta != null) validateMeta(meta);
-		validateArchiveChecksums(embeddedManifest, mimetype, meta, settings, history, layout, draftCcpm,
+		validateArchiveChecksums(embeddedManifest, mimetype, meta, settings, history, layout, visibility, draftCcpm,
 				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		if (settings != null && draftCcpm != null) throw new IOException("Embedded MPOF has both current and draft CCPM settings");
 		if (operations != null && draftOperations != null) throw new IOException("Embedded MPOF has both current and draft operations");
@@ -1149,7 +1194,7 @@ public class MpoFileImporter extends FileImporter {
 
 	/** Validates checksums for the complete archive when written by a checksum-aware MPOF writer. */
 	private static void validateArchiveChecksums(ManifestData manifest, byte[] mimetype, byte[] meta,
-			byte[] settings, byte[] history, byte[] layout, byte[] draftCcpm, byte[] operations,
+			byte[] settings, byte[] history, byte[] layout, byte[] visibility, byte[] draftCcpm, byte[] operations,
 			byte[] draftOperations, byte[] taskIdentities, byte[] projectXml,
 			java.util.Map<String, byte[]> extensions) throws IOException {
 		if (manifest.checksums().isEmpty()) return; // Older MPOF versions only checksum content.xml and children.
@@ -1159,6 +1204,7 @@ public class MpoFileImporter extends FileImporter {
 		if (settings != null) actual.put(SETTINGS_ENTRY, settings);
 		if (history != null) actual.put(CCPM_HISTORY_ENTRY, history);
 		if (layout != null) actual.put(LAYOUT_ENTRY, layout);
+		if (visibility != null) actual.put(VISIBILITY_ENTRY, visibility);
 		if (draftCcpm != null) actual.put(DRAFT_CCPM_ENTRY, draftCcpm);
 		if (operations != null) actual.put(OPERATIONS_ENTRY, operations);
 		if (draftOperations != null) actual.put(DRAFT_OPERATIONS_ENTRY, draftOperations);

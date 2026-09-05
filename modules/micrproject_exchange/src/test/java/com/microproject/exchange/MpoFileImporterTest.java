@@ -49,6 +49,20 @@ import org.junit.jupiter.api.Test;
 
 class MpoFileImporterTest {
 	@Test
+	void hiddenTaskVisibilitySurvivesMpoSaveAndReload() throws Exception {
+		Project original = projectForRoundTrip();
+		Task task = firstTask(original);
+		task.setHiddenTask(true);
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Project reopened = loadFromBytes(archive.toByteArray());
+
+		Task restored = firstTask(reopened);
+		assertTrue(restored.isHiddenTask(), "MPO reload must preserve hidden task visibility");
+	}
+
+	@Test
 	void mpoDocumentIdentitySurvivesSaveReloadSave() throws Exception {
 		Project original = projectForRoundTrip();
 		ByteArrayOutputStream first = new ByteArrayOutputStream();

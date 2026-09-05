@@ -208,6 +208,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Hide Selected Tasks did not update the task model");
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task),
 				"hidden task remained visible in the task sheet");
+		ByteArrayOutputStream hiddenSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(task.getOwningProject(), hiddenSnapshot),
+				"MPO save did not accept the hidden task state");
+		Project hiddenReload = new MpoFileImporter().loadProject(
+				new ByteArrayInputStream(hiddenSnapshot.toByteArray()));
+		assertTrue(taskNamed(hiddenReload, task.getName()).isHiddenTask(),
+				"MPO reload lost the hidden task state");
 
 		robot.keyPress(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_Z);
