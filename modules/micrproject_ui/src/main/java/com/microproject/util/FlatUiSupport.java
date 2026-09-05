@@ -56,35 +56,36 @@ import javax.swing.plaf.FontUIResource;
  * Small FlatLaf-friendly UI helpers for shared Swing styling.
  */
 public final class FlatUiSupport {
-	public static final String BUTTON_STYLE_ROLE_PROPERTY = "ProjectLibre.buttonStyleRole";
+	public static final String BUTTON_STYLE_ROLE_PROPERTY = "MicroProject.buttonStyleRole";
 	public static final String BUTTON_STYLE_ROLE_TOOLBAR = "toolbar";
 	public static final String BUTTON_STYLE_ROLE_RIBBON_LARGE = "ribbonLarge";
 	public static final String BUTTON_STYLE_ROLE_RIBBON_SMALL = "ribbonSmall";
 	public static final String BUTTON_STYLE_ROLE_RIBBON_TAB = "ribbonTab";
-	private static final String RIBBON_CHROME_BACKGROUND_KEY = "ProjectLibre.ribbonChromeBackground";
-	private static final String RIBBON_SURFACE_BACKGROUND_KEY = "ProjectLibre.ribbonSurfaceBackground";
-	private static final String RIBBON_ACCENT_COLOR_KEY = "ProjectLibre.ribbonAccentColor";
-	private static final String RIBBON_CHROME_HEIGHT_KEY = "ProjectLibre.ribbonChromeHeight";
-	private static final String RIBBON_CHROME_VERTICAL_INSET_KEY = "ProjectLibre.ribbonChromeVerticalInset";
-	private static final String RIBBON_HORIZONTAL_INSET_KEY = "ProjectLibre.ribbonHorizontalInset";
-	private static final String RIBBON_TAB_HEIGHT_KEY = "ProjectLibre.ribbonTabHeight";
-	private static final String RIBBON_TAB_HORIZONTAL_PADDING_KEY = "ProjectLibre.ribbonTabHorizontalPadding";
-	private static final String RIBBON_TAB_VERTICAL_PADDING_KEY = "ProjectLibre.ribbonTabVerticalPadding";
-	private static final String RIBBON_SURFACE_HEIGHT_KEY = "ProjectLibre.ribbonSurfaceHeight";
-	private static final String RIBBON_BAND_VERTICAL_INSET_KEY = "ProjectLibre.ribbonBandVerticalInset";
-	private static final String RIBBON_BUTTON_VERTICAL_INSET_KEY = "ProjectLibre.ribbonButtonVerticalInset";
-	private static final String RIBBON_SEARCH_HEIGHT_KEY = "ProjectLibre.ribbonSearchHeight";
-	private static final String RIBBON_SEARCH_PREFERRED_WIDTH_KEY = "ProjectLibre.ribbonSearchPreferredWidth";
-	private static final String RIBBON_SEARCH_MAX_WIDTH_KEY = "ProjectLibre.ribbonSearchMaxWidth";
-	private static final String RIBBON_CORNER_RADIUS_KEY = "ProjectLibre.ribbonCornerRadius";
-	private static final String RIBBON_BUTTON_ARC_KEY = "ProjectLibre.ribbonButtonArc";
-	private static final String RIBBON_QUICK_ACCESS_BUTTON_SIZE_KEY = "ProjectLibre.ribbonQuickAccessButtonSize";
-	private static final String RIBBON_LARGE_BUTTON_HEIGHT_KEY = "ProjectLibre.ribbonLargeButtonHeight";
-	private static final String RIBBON_LARGE_BUTTON_MIN_WIDTH_KEY = "ProjectLibre.ribbonLargeButtonMinWidth";
-	private static final String RIBBON_INLINE_BUTTON_HEIGHT_KEY = "ProjectLibre.ribbonInlineButtonHeight";
-	private static final String RIBBON_INLINE_BUTTON_MEDIUM_MIN_WIDTH_KEY = "ProjectLibre.ribbonInlineButtonMediumMinWidth";
-	private static final String RIBBON_INLINE_BUTTON_SMALL_MIN_WIDTH_KEY = "ProjectLibre.ribbonInlineButtonSmallMinWidth";
-	private static final String RIBBON_BAND_TITLE_HEIGHT_KEY = "ProjectLibre.ribbonBandTitleHeight";
+	private static final String THEME_KEY_PREFIX = "MicroProject.";
+	private static final String RIBBON_CHROME_BACKGROUND_KEY = THEME_KEY_PREFIX + "ribbonChromeBackground";
+	private static final String RIBBON_SURFACE_BACKGROUND_KEY = THEME_KEY_PREFIX + "ribbonSurfaceBackground";
+	private static final String RIBBON_ACCENT_COLOR_KEY = THEME_KEY_PREFIX + "ribbonAccentColor";
+	private static final String RIBBON_CHROME_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonChromeHeight";
+	private static final String RIBBON_CHROME_VERTICAL_INSET_KEY = THEME_KEY_PREFIX + "ribbonChromeVerticalInset";
+	private static final String RIBBON_HORIZONTAL_INSET_KEY = THEME_KEY_PREFIX + "ribbonHorizontalInset";
+	private static final String RIBBON_TAB_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonTabHeight";
+	private static final String RIBBON_TAB_HORIZONTAL_PADDING_KEY = THEME_KEY_PREFIX + "ribbonTabHorizontalPadding";
+	private static final String RIBBON_TAB_VERTICAL_PADDING_KEY = THEME_KEY_PREFIX + "ribbonTabVerticalPadding";
+	private static final String RIBBON_SURFACE_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonSurfaceHeight";
+	private static final String RIBBON_BAND_VERTICAL_INSET_KEY = THEME_KEY_PREFIX + "ribbonBandVerticalInset";
+	private static final String RIBBON_BUTTON_VERTICAL_INSET_KEY = THEME_KEY_PREFIX + "ribbonButtonVerticalInset";
+	private static final String RIBBON_SEARCH_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonSearchHeight";
+	private static final String RIBBON_SEARCH_PREFERRED_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonSearchPreferredWidth";
+	private static final String RIBBON_SEARCH_MAX_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonSearchMaxWidth";
+	private static final String RIBBON_CORNER_RADIUS_KEY = THEME_KEY_PREFIX + "ribbonCornerRadius";
+	private static final String RIBBON_BUTTON_ARC_KEY = THEME_KEY_PREFIX + "ribbonButtonArc";
+	private static final String RIBBON_QUICK_ACCESS_BUTTON_SIZE_KEY = THEME_KEY_PREFIX + "ribbonQuickAccessButtonSize";
+	private static final String RIBBON_LARGE_BUTTON_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonLargeButtonHeight";
+	private static final String RIBBON_LARGE_BUTTON_MIN_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonLargeButtonMinWidth";
+	private static final String RIBBON_INLINE_BUTTON_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonInlineButtonHeight";
+	private static final String RIBBON_INLINE_BUTTON_MEDIUM_MIN_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonInlineButtonMediumMinWidth";
+	private static final String RIBBON_INLINE_BUTTON_SMALL_MIN_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonInlineButtonSmallMinWidth";
+	private static final String RIBBON_BAND_TITLE_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonBandTitleHeight";
 
 	private FlatUiSupport() {
 	}
@@ -153,15 +154,15 @@ public final class FlatUiSupport {
 	}
 
 	public static Color workspaceBackground() {
-		return color("ProjectLibre.workspaceBackground", FlatUiTheme.APP_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "workspaceBackground", FlatUiTheme.APP_BACKGROUND);
 	}
 
 	public static Color dialogBackground() {
-		return color("ProjectLibre.dialogBackground", FlatUiTheme.APP_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "dialogBackground", FlatUiTheme.APP_BACKGROUND);
 	}
 
 	public static Color dialogSurfaceBackground() {
-		return color("ProjectLibre.dialogSurfaceBackground", Color.WHITE);
+		return color(THEME_KEY_PREFIX + "dialogSurfaceBackground", Color.WHITE);
 	}
 
 	public static Color dataSurfaceBackground() {
@@ -291,31 +292,31 @@ public final class FlatUiSupport {
 	}
 
 	public static Color spreadsheetBodyBackground() {
-		return color("ProjectLibre.spreadsheetBodyBackground", FlatUiTheme.SPREADSHEET_BODY_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetBodyBackground", FlatUiTheme.SPREADSHEET_BODY_BACKGROUND);
 	}
 
 	public static Color spreadsheetReadOnlyForeground() {
-		return color("ProjectLibre.spreadsheetReadOnlyForeground", FlatUiTheme.SPREADSHEET_READ_ONLY_FOREGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetReadOnlyForeground", FlatUiTheme.SPREADSHEET_READ_ONLY_FOREGROUND);
 	}
 
 	public static Color spreadsheetHeaderBackground() {
-		return color("ProjectLibre.spreadsheetHeaderBackground", FlatUiTheme.SPREADSHEET_HEADER_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetHeaderBackground", FlatUiTheme.SPREADSHEET_HEADER_BACKGROUND);
 	}
 
 	public static Color spreadsheetHeaderSelectedBackground() {
-		return color("ProjectLibre.spreadsheetHeaderSelectedBackground", FlatUiTheme.SPREADSHEET_HEADER_SELECTED_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetHeaderSelectedBackground", FlatUiTheme.SPREADSHEET_HEADER_SELECTED_BACKGROUND);
 	}
 
 	public static Color spreadsheetRangeSelectionBackground() {
-		return color("ProjectLibre.spreadsheetRangeSelectionBackground", FlatUiTheme.SPREADSHEET_RANGE_SELECTION_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetRangeSelectionBackground", FlatUiTheme.SPREADSHEET_RANGE_SELECTION_BACKGROUND);
 	}
 
 	public static Color spreadsheetActiveCellBorderColor() {
-		return color("ProjectLibre.spreadsheetActiveCellBorder", FlatUiTheme.SPREADSHEET_ACTIVE_CELL_BORDER);
+		return color(THEME_KEY_PREFIX + "spreadsheetActiveCellBorder", FlatUiTheme.SPREADSHEET_ACTIVE_CELL_BORDER);
 	}
 
 	public static Color spreadsheetGridColor() {
-		return color("ProjectLibre.spreadsheetGridColor", FlatUiTheme.SPREADSHEET_GRID);
+		return color(THEME_KEY_PREFIX + "spreadsheetGridColor", FlatUiTheme.SPREADSHEET_GRID);
 	}
 
 	public static Color ribbonBandSeparatorColor() {
@@ -385,13 +386,13 @@ public final class FlatUiSupport {
 	 * paint the background first, then let the icon and label paint normally.
 	 */
 	private static void installRibbonCommandStatePainting(AbstractButton button) {
-		if (button.getClientProperty("ProjectLibre.ribbonStateChangeListener") != null) {
+		if (button.getClientProperty("MicroProject.ribbonStateChangeListener") != null) {
 			updateRibbonCommandStatePainting(button);
 			return;
 		}
 		ChangeListener listener = event -> updateRibbonCommandStatePainting(button);
 		button.getModel().addChangeListener(listener);
-		button.putClientProperty("ProjectLibre.ribbonStateChangeListener", listener);
+		button.putClientProperty("MicroProject.ribbonStateChangeListener", listener);
 		button.addPropertyChangeListener("enabled", event -> updateRibbonCommandStatePainting(button));
 		updateRibbonCommandStatePainting(button);
 	}
@@ -597,17 +598,17 @@ public final class FlatUiSupport {
 	}
 
 	public static int compactSpacing() {
-		Object value = UIManager.get("ProjectLibre.contentSpacing");
+		Object value = UIManager.get(THEME_KEY_PREFIX + "contentSpacing");
 		return value instanceof Integer ? ((Integer) value).intValue() : 10;
 	}
 
 	public static int sectionSpacing() {
-		Object value = UIManager.get("ProjectLibre.sectionSpacing");
+		Object value = UIManager.get(THEME_KEY_PREFIX + "sectionSpacing");
 		return value instanceof Integer ? ((Integer) value).intValue() : 16;
 	}
 
 	public static int dialogButtonHeight() {
-		Object value = UIManager.get("ProjectLibre.dialogButtonHeight");
+		Object value = UIManager.get(THEME_KEY_PREFIX + "dialogButtonHeight");
 		return value instanceof Integer ? ((Integer) value).intValue() : 30;
 	}
 
@@ -678,13 +679,13 @@ public final class FlatUiSupport {
 	 * {@link RibbonTabBorder} would cover the label while the tab is hovered.
 	 */
 	private static void installRibbonTabStatePainting(AbstractButton button) {
-		if (button.getClientProperty("ProjectLibre.ribbonTabStateChangeListener") != null) {
+		if (button.getClientProperty("MicroProject.ribbonTabStateChangeListener") != null) {
 			updateRibbonTabStatePainting(button);
 			return;
 		}
 		ChangeListener listener = event -> updateRibbonTabStatePainting(button);
 		button.getModel().addChangeListener(listener);
-		button.putClientProperty("ProjectLibre.ribbonTabStateChangeListener", listener);
+		button.putClientProperty("MicroProject.ribbonTabStateChangeListener", listener);
 		button.addPropertyChangeListener("enabled", event -> updateRibbonTabStatePainting(button));
 		updateRibbonTabStatePainting(button);
 	}
@@ -1005,7 +1006,7 @@ public final class FlatUiSupport {
 
 		private boolean isRibbonSplit(Component component) {
 			return component instanceof JComponent jc
-				&& Boolean.TRUE.equals(jc.getClientProperty("ProjectLibre.ribbonSplit"));
+				&& Boolean.TRUE.equals(jc.getClientProperty("MicroProject.ribbonSplit"));
 		}
 	}
 

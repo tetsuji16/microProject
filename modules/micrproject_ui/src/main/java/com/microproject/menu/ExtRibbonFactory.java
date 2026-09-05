@@ -62,7 +62,7 @@ public class ExtRibbonFactory extends RibbonFactory {
 	ResourceFormatException, MissingListenerException {
 		AbstractCommandButton button = super.createCommandButton(name);
 		button.setName(name);
-		button.putClientProperty("ProjectLibre.ribbonActionId", name);
+		button.putClientProperty("MicroProject.ribbonActionId", name);
 		registerButton(name, button);
 		return button;
 	}

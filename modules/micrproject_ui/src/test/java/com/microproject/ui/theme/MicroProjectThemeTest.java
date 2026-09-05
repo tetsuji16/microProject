@@ -33,35 +33,35 @@ import javax.swing.UIManager;
 
 import org.junit.jupiter.api.Test;
 
-class ProjectLibreThemeTest {
+class MicroProjectThemeTest {
 	@Test
 	void installLightPublishesSemanticColorsAndSpacing() {
-		ProjectLibreTheme.installLight();
+		MicroProjectTheme.installLight();
 
-		assertEquals(ProjectLibreTheme.tokens().ribbonChromeBackground(), UIManager.getColor("ProjectLibre.ribbonChromeBackground"));
-		assertEquals(ProjectLibreTheme.tokens().ribbonSurfaceBackground(), UIManager.getColor("ProjectLibre.ribbonSurfaceBackground"));
-		assertEquals(ProjectLibreTheme.tokens().headerBackground(), UIManager.getColor("TableHeader.background"));
-		assertEquals(ProjectLibreTheme.tokens().spreadsheetHeaderSelectedBackground(), UIManager.getColor("ProjectLibre.spreadsheetHeaderSelectedBackground"));
-		assertEquals(ProjectLibreTheme.tokens().spreadsheetGridColor(), UIManager.getColor("ProjectLibre.spreadsheetGridColor"));
-		assertEquals(ProjectLibreTheme.tokens().tableSelectionBackground(), UIManager.getColor("Table.selectionBackground"));
-		assertEquals(ProjectLibreTheme.tokens().tableSelectionForeground(), UIManager.getColor("Table.selectionForeground"));
-		assertEquals(ProjectLibreTheme.tokens().accentColor(), UIManager.getColor("Component.focusColor"));
-		assertTrue(((Integer) UIManager.get("ProjectLibre.dialogButtonHeight")).intValue() >= 30);
-		assertEquals(ProjectLibreTheme.tokens().ribbonChromeHeight(), ((Integer) UIManager.get("ProjectLibre.ribbonChromeHeight")).intValue());
-		assertEquals(ProjectLibreTheme.tokens().ribbonSearchPreferredWidth(), ((Integer) UIManager.get("ProjectLibre.ribbonSearchPreferredWidth")).intValue());
-		assertEquals(ProjectLibreTheme.tokens().ribbonLargeButtonHeight(), ((Integer) UIManager.get("ProjectLibre.ribbonLargeButtonHeight")).intValue());
+		assertEquals(MicroProjectTheme.tokens().ribbonChromeBackground(), UIManager.getColor("MicroProject.ribbonChromeBackground"));
+		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), UIManager.getColor("MicroProject.ribbonSurfaceBackground"));
+		assertEquals(MicroProjectTheme.tokens().headerBackground(), UIManager.getColor("TableHeader.background"));
+		assertEquals(MicroProjectTheme.tokens().spreadsheetHeaderSelectedBackground(), UIManager.getColor("MicroProject.spreadsheetHeaderSelectedBackground"));
+		assertEquals(MicroProjectTheme.tokens().spreadsheetGridColor(), UIManager.getColor("MicroProject.spreadsheetGridColor"));
+		assertEquals(MicroProjectTheme.tokens().tableSelectionBackground(), UIManager.getColor("Table.selectionBackground"));
+		assertEquals(MicroProjectTheme.tokens().tableSelectionForeground(), UIManager.getColor("Table.selectionForeground"));
+		assertEquals(MicroProjectTheme.tokens().accentColor(), UIManager.getColor("Component.focusColor"));
+		assertTrue(((Integer) UIManager.get("MicroProject.dialogButtonHeight")).intValue() >= 30);
+		assertEquals(MicroProjectTheme.tokens().ribbonChromeHeight(), ((Integer) UIManager.get("MicroProject.ribbonChromeHeight")).intValue());
+		assertEquals(MicroProjectTheme.tokens().ribbonSearchPreferredWidth(), ((Integer) UIManager.get("MicroProject.ribbonSearchPreferredWidth")).intValue());
+		assertEquals(MicroProjectTheme.tokens().ribbonLargeButtonHeight(), ((Integer) UIManager.get("MicroProject.ribbonLargeButtonHeight")).intValue());
 	}
 
 	@Test
 	void lightTokensKeepHeaderAndSelectionPaletteAligned() {
-		assertEquals(ProjectLibreTheme.tokens().headerBackground(), ProjectLibreTheme.tokens().spreadsheetHeaderBackground());
-		assertEquals(ProjectLibreTheme.tokens().tableGridColor(), ProjectLibreTheme.tokens().spreadsheetGridColor());
-		assertEquals(ProjectLibreTheme.tokens().tableSelectionBackground(), ProjectLibreTheme.tokens().spreadsheetRangeSelectionBackground());
+		assertEquals(MicroProjectTheme.tokens().headerBackground(), MicroProjectTheme.tokens().spreadsheetHeaderBackground());
+		assertEquals(MicroProjectTheme.tokens().tableGridColor(), MicroProjectTheme.tokens().spreadsheetGridColor());
+		assertEquals(MicroProjectTheme.tokens().tableSelectionBackground(), MicroProjectTheme.tokens().spreadsheetRangeSelectionBackground());
 	}
 
 	@Test
 	void taskTableUsesTheMicrosoftProjectPalette() {
-		ProjectLibreThemeTokens tokens = ProjectLibreThemeTokens.light();
+		MicroProjectThemeTokens tokens = MicroProjectThemeTokens.light();
 
 		assertEquals(new Color(0xF2F2F2), tokens.spreadsheetHeaderBackground());
 		assertEquals(new Color(0xD9EAF7), tokens.spreadsheetHeaderSelectedBackground());
@@ -72,6 +72,6 @@ class ProjectLibreThemeTest {
 
 	@Test
 	void ribbonChromeMatchesTheWindowsTitleBarGray() {
-		assertEquals(new Color(0xF2F2F2), ProjectLibreThemeTokens.light().ribbonChromeBackground());
+		assertEquals(new Color(0xF2F2F2), MicroProjectThemeTokens.light().ribbonChromeBackground());
 	}
 }

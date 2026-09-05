@@ -74,6 +74,11 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		createLayout();
 		coord.addTimeScaleListener(this);
 		this.getVerticalScrollBar().setUnitIncrement(verticalIncrement);
+		// Match Microsoft Project's time-axis scrollbar: expose explicit
+		// decrease/increase buttons for precise horizontal navigation.  Keep this
+		// scoped to the time-scaled scrollbar instead of changing the application
+		// wide FlatLaf defaults or unrelated vertical scrollbars.
+		this.getHorizontalScrollBar().putClientProperty("JScrollBar.showButtons", Boolean.TRUE);
 		updateHorizontalScrollIncrement();
 		getHorizontalScrollBar().addAdjustmentListener(event -> extendRangeAtEdge());
 		

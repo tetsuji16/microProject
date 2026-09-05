@@ -35,7 +35,7 @@ import javax.swing.UIManager;
 import javax.swing.plaf.FontUIResource;
 
 import com.formdev.flatlaf.FlatLightLaf;
-import com.microproject.ui.theme.ProjectLibreTheme;
+import com.microproject.ui.theme.MicroProjectTheme;
 
 /**
  * Centralized FlatLaf bootstrap for the desktop application.
@@ -69,8 +69,7 @@ public final class FlatLafSupport {
 				applyUIFontDefaults(defaultFont);
 				applyEnvironmentFonts(defaultFont);
 			}
-			ProjectLibreTheme.installLight();
-			FlatUiTheme.installIntoUIManager();
+			MicroProjectTheme.installLight();
 			// Office-style command descriptions should appear deliberately, not while
 			// the pointer merely crosses the ribbon.
 			UIManager.put("ToolTip.initialDelay", Integer.valueOf(500));

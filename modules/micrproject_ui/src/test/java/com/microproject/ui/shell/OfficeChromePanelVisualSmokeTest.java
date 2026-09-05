@@ -41,7 +41,7 @@ import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.ribbon.SwingRibbonFactory;
-import com.microproject.ui.theme.ProjectLibreTheme;
+import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
@@ -51,7 +51,7 @@ import com.microproject.menu.testsupport.UiComponentWalker;
 class OfficeChromePanelVisualSmokeTest {
 	@Test
 	void rendersOfficeChromeRibbonSnapshot() throws IOException {
-		ProjectLibreTheme.installLight();
+		MicroProjectTheme.installLight();
 		MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		ExtToolBarFactory buttonFactory = new ExtToolBarFactory(
 			MenuActionMapSupport.noopActionMap(),

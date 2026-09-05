@@ -41,14 +41,14 @@ import javax.swing.JToolBar;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.ui.theme.ProjectLibreTheme;
+import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 
 class ProjectLibreShellTest {
 	@BeforeAll
-	static void installProjectLibreTheme() {
-		ProjectLibreTheme.installLight();
+	static void installMicroProjectTheme() {
+		MicroProjectTheme.installLight();
 	}
 
 	@Test
