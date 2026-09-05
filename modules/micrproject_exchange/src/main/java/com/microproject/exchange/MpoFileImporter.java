@@ -239,6 +239,8 @@ public class MpoFileImporter extends FileImporter {
 		}
 		if (manifestData.projectUniqueId() != null && manifestData.projectUniqueId().longValue() > 0L)
 			project.setUniqueId(manifestData.projectUniqueId().longValue());
+		if (manifestData.sharedResourcePoolPath() != null && !manifestData.sharedResourcePoolPath().isBlank())
+			project.setSharedResourcePoolFile(manifestData.sharedResourcePoolPath());
 		if (manifestData.sharedResourcePoolProjectId() != null && manifestData.sharedResourcePoolProjectId().longValue() > 0L)
 			project.setSharedResourcePoolProjectId(manifestData.sharedResourcePoolProjectId().longValue());
 		if (settings != null) {
@@ -873,6 +875,19 @@ public class MpoFileImporter extends FileImporter {
 		for (java.util.Map.Entry<String, String> extracted : extractedBySource.entrySet())
 			embeddedProjectIdsBySource.put(extracted.getKey(),
 					rewriteExtractedProjectReferences(Path.of(extracted.getValue()), extractedBySource));
+		// The master snapshot also contains external-task placeholders.  Those
+		// references do not belong to an embedded child archive, so rewrite them
+		// on the already-loaded master model as well.
+		for (java.util.Iterator<?> tasks = master.getTaskOutlineIterator(); tasks.hasNext();) {
+			Object value = tasks.next();
+			if (!(value instanceof Task task) || task.getExternalProjectFile() == null)
+				continue;
+			for (java.util.Map.Entry<String, String> extracted : extractedBySource.entrySet())
+				if (sameCanonicalPath(task.getExternalProjectFile(), extracted.getKey())) {
+					task.setExternalProjectFile(extracted.getValue());
+					break;
+				}
+		}
 		for (java.util.Iterator<?> tasks = master.getTaskOutlineIterator(); tasks.hasNext();) {
 			Object value = tasks.next();
 			if (!(value instanceof DefaultSubProj reference))
@@ -922,6 +937,18 @@ public class MpoFileImporter extends FileImporter {
 		if (java.util.Arrays.equals(projectXml, rewrittenProject) && java.util.Arrays.equals(manifestXml, rewrittenManifest))
 			return originalManifest.projectUniqueId() == null ? 0L : originalManifest.projectUniqueId().longValue();
 		String manifestText = new String(rewrittenManifest, StandardCharsets.UTF_8);
+		// A master archive owns the canonical extracted copy of every linked
+		// project.  Do not leave nested embedded copies inside a child archive:
+		// reopening that child would extract a second copy and its links would no
+		// longer point at the master's shared project instance.
+		for (EmbeddedProjectReference nested : originalManifest.embeddedProjects()) {
+			entries.remove(nested.entryName());
+			String escapedEntry = java.util.regex.Pattern.quote(xmlEscape(nested.entryName()));
+			manifestText = manifestText.replaceAll("(?m)^\\s*<embeddedProject\\b[^>]*entry=\\\""
+					+ escapedEntry + "\\\"[^>]*/>\\s*\\r?\\n?", "");
+			manifestText = manifestText.replaceAll("(?m)^\\s*<entry\\s+path=\\\"" + escapedEntry
+					+ "\\\"[^>]*/>\\s*\\r?\\n?", "");
+		}
 		manifestText = manifestText.replaceFirst("projectSha256=\\\"[^\\\"]*\\\"",
 				"projectSha256=\\\"" + sha256(rewrittenProject) + "\\\"");
 		// New MPOF manifests also checksum every payload entry.  Keep the
@@ -946,8 +973,40 @@ public class MpoFileImporter extends FileImporter {
 
 	private static byte[] rewriteEmbeddedXml(byte[] xml, java.util.Map<String, String> extractedBySource) {
 		String rewritten = new String(xml, StandardCharsets.UTF_8);
-		for (java.util.Map.Entry<String, String> entry : extractedBySource.entrySet())
-			rewritten = rewritten.replace(xmlEscape(entry.getKey()), xmlEscape(entry.getValue()));
+		for (java.util.Map.Entry<String, String> entry : extractedBySource.entrySet()) {
+			String source = entry.getKey();
+			String target = xmlEscape(entry.getValue());
+			// XML produced by different Windows/JDK combinations can use either
+			// slash direction and may normalize drive/path casing differently.
+			// Match the complete escaped path case-insensitively while accepting
+			// both separator forms, so portable extraction never leaves a link
+			// pointing back to the original machine.
+			java.util.Set<String> pathVariants = new java.util.LinkedHashSet<String>();
+			pathVariants.add(source);
+			pathVariants.add(source.replace('\\', '/'));
+			pathVariants.add(source.replace('/', '\\'));
+			pathVariants.add(source.replace("\\", "&#92;"));
+			pathVariants.add(source.replace("\\", "&#x5c;"));
+			pathVariants.add(source.replace(":", "%3A").replace("\\", "%5C"));
+			pathVariants.add(source.replace(":", "%3a").replace("\\", "%5c"));
+			try {
+				String uri = new File(source).toURI().toString();
+				pathVariants.add(uri);
+				if (uri.startsWith("file:/")) {
+					pathVariants.add("file:///" + uri.substring("file:/".length()));
+					pathVariants.add("file://" + uri.substring("file:/".length()));
+				}
+			} catch (RuntimeException ignored) {
+				// Keep the raw forms above when a malformed legacy path is encountered.
+			}
+			for (String path : pathVariants) {
+				String escaped = xmlEscape(path);
+				rewritten = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(escaped),
+						java.util.regex.Pattern.CASE_INSENSITIVE)
+					.matcher(rewritten)
+					.replaceAll(java.util.regex.Matcher.quoteReplacement(target));
+			}
+		}
 		return rewritten.getBytes(StandardCharsets.UTF_8);
 	}
 

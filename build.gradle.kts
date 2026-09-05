@@ -7,6 +7,7 @@ import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import java.io.File
+import java.util.zip.ZipFile
 
 val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
@@ -157,6 +158,7 @@ val windowsAppImageDir = windowsReleaseRoot.map { it.dir("app-image") }
 val windowsMsiDir = windowsReleaseRoot.map { it.dir("msi") }
 val windowsExeDir = windowsReleaseRoot.map { it.dir("exe") }
 val docsDownloadsDir = layout.projectDirectory.dir("docs/downloads")
+val windowsPortableLauncher = layout.projectDirectory.file("packaging/windows/launchers/microProject.cmd")
 val windowsFileAssociationsDir = layout.projectDirectory.dir("packaging/windows/file-associations")
 val windowsInstallerResourcesDir = layout.projectDirectory.dir("packaging/windows/installer-resources")
 val jpackageJavaHomeProvider = providers.environmentVariable("JAVA_HOME")
@@ -342,11 +344,24 @@ tasks.register<Zip>("packageWindowsZip") {
     dependsOn("packageWindowsAppImage")
 
     from(windowsAppImageDir.map { it.dir("microProject") })
+    from(windowsPortableLauncher)
     archiveFileName.set("microProject-$releaseVersion-app-image.zip")
     destinationDirectory.set(docsDownloadsDir)
 
     doFirst {
         delete(docsDownloadsDir.file("microProject-$releaseVersion-app-image.zip"))
+    }
+
+    doLast {
+        val archive = archiveFile.get().asFile
+        ZipFile(archive).use { zip ->
+            require(zip.getEntry("microProject.exe") != null) {
+                "Portable ZIP is missing microProject.exe: $archive"
+            }
+            require(zip.getEntry("microProject.cmd") != null) {
+                "Portable ZIP is missing microProject.cmd: $archive"
+            }
+        }
     }
 }
 

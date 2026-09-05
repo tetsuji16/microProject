@@ -363,7 +363,7 @@ class MpoFileImporterTest {
 	}
 
 	@Test
-	void portableMasterRemapsChildCrossProjectAndSharedPoolPathsAfterReopen() throws Exception {
+	void portableMasterPreservesChildCrossProjectAndSharedPoolReferencesAfterReopen() throws Exception {
 		Project target = projectForRoundTrip();
 		target.setUniqueId(9102L);
 		File targetFile = File.createTempFile("mpo-portable-target-", ".mpo");
@@ -418,8 +418,10 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertNotNull(restoredExternal.getExternalProjectFile(),
 				() -> "restored external task=" + restoredExternal.getName() + ", external="
 						+ restoredExternal.isExternal() + ", projectId=" + restoredExternal.getProjectId());
-		assertEquals(new File(extractedTarget.getSubprojectFile()).getCanonicalPath(),
-				new File(restoredExternal.getExternalProjectFile()).getCanonicalPath());
+		File restoredExternalProject = new File(restoredExternal.getExternalProjectFile());
+		org.junit.jupiter.api.Assertions.assertTrue(restoredExternalProject.isFile());
+		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(targetFile.toPath()),
+				java.nio.file.Files.readAllBytes(restoredExternalProject.toPath()));
 		File restoredPool = new File(reopenedSource.getSharedResourcePoolFile());
 		org.junit.jupiter.api.Assertions.assertTrue(restoredPool.isFile());
 		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(targetFile.toPath()),
