@@ -49,6 +49,10 @@ public final class UiButtonDiagnostics {
 		private TracedAction(String buttonId, Action delegate) {
 			this.buttonId = buttonId;
 			this.delegate = delegate;
+			delegate.addPropertyChangeListener(event -> {
+				if ("enabled".equals(event.getPropertyName()))
+					setEnabled(delegate.isEnabled());
+			});
 			copyValue(Action.NAME);
 			copyValue(Action.SHORT_DESCRIPTION);
 			copyValue(Action.LONG_DESCRIPTION);

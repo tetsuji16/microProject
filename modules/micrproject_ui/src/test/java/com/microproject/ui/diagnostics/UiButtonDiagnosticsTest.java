@@ -95,4 +95,18 @@ class UiButtonDiagnosticsTest {
 			.actionPerformed(new ActionEvent(button, ActionEvent.ACTION_PERFORMED, "DisabledButton"));
 		assertFalse(invoked.get());
 	}
+
+	@Test
+	void mirrorsDelegateEnablementChanges() {
+		System.setProperty("microproject.ui.debug", "true");
+		AbstractAction delegate = new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) { }
+		};
+		Action traced = UiButtonDiagnostics.wrapAction("ChangingButton", delegate);
+		assertTrue(traced.isEnabled());
+		delegate.setEnabled(false);
+		assertFalse(traced.isEnabled());
+		delegate.setEnabled(true);
+		assertTrue(traced.isEnabled());
+	}
 }
