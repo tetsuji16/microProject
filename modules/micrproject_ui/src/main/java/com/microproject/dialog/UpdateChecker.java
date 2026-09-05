@@ -4,12 +4,14 @@
  *******************************************************************************/
 package com.microproject.dialog;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -39,6 +41,7 @@ public final class UpdateChecker {
 	static final String RELEASES_URL = "https://github.com/tetsuji16/ProjectLibre/releases/latest";
 	private static final String API_URL = "https://api.github.com/repos/tetsuji16/ProjectLibre/releases/latest";
 	private static final int TIMEOUT_MILLIS = 5000;
+	private static final int MAX_RELEASE_JSON_BYTES = 1024 * 1024;
 	private static final Object STAGED_UPDATE_LOCK = new Object();
 	private static Path stagedInstaller;
 	private static String stagedVersion;
@@ -147,20 +150,47 @@ public final class UpdateChecker {
 		return fallback;
 	}
 
-	private static String fetchLatestReleaseJson() throws IOException {
-		HttpURLConnection connection = (HttpURLConnection) URI.create(API_URL).toURL().openConnection();
+	static String fetchLatestReleaseJson() throws IOException {
+		return fetchLatestReleaseJson(URI.create(API_URL).toURL(), TIMEOUT_MILLIS);
+	}
+
+	static String fetchLatestReleaseJson(URL endpoint, int timeoutMillis) throws IOException {
+		HttpURLConnection connection = openReleaseConnection(endpoint, timeoutMillis);
 		try {
-			connection.setConnectTimeout(TIMEOUT_MILLIS);
-			connection.setReadTimeout(TIMEOUT_MILLIS);
-			connection.setRequestProperty("Accept", "application/vnd.github+json");
-			connection.setRequestProperty("User-Agent", "microProject-update-checker");
-			if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) return "";
+			int responseCode = connection.getResponseCode();
+			if (responseCode != HttpURLConnection.HTTP_OK) {
+				throw new IOException("GitHub Releases API returned HTTP " + responseCode);
+			}
 			try (InputStream in = connection.getInputStream()) {
-				return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+				return readReleaseJson(in);
 			}
 		} finally {
 			connection.disconnect();
 		}
+	}
+
+	private static HttpURLConnection openReleaseConnection(URL endpoint, int timeoutMillis) throws IOException {
+		HttpURLConnection connection = (HttpURLConnection) endpoint.openConnection();
+		connection.setConnectTimeout(timeoutMillis);
+		connection.setReadTimeout(timeoutMillis);
+		connection.setRequestProperty("Accept", "application/vnd.github+json");
+		connection.setRequestProperty("User-Agent", "microProject-update-checker");
+		return connection;
+	}
+
+	private static String readReleaseJson(InputStream input) throws IOException {
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		byte[] buffer = new byte[8192];
+		int total = 0;
+		int count;
+		while ((count = input.read(buffer)) != -1) {
+			if (count > MAX_RELEASE_JSON_BYTES - total) {
+				throw new IOException("GitHub Releases API response exceeds " + MAX_RELEASE_JSON_BYTES + " bytes");
+			}
+			output.write(buffer, 0, count);
+			total += count;
+		}
+		return output.toString(StandardCharsets.UTF_8);
 	}
 
 	private static Path stageInstaller(MsiAsset asset, String version) throws IOException {
@@ -219,19 +249,7 @@ public final class UpdateChecker {
 
 	/** Returns the tag_name of the latest GitHub release, or null. */
 	static String fetchLatestVersion() throws IOException {
-		HttpURLConnection connection = (HttpURLConnection) URI.create(API_URL).toURL().openConnection();
-		try {
-			connection.setConnectTimeout(TIMEOUT_MILLIS);
-			connection.setReadTimeout(TIMEOUT_MILLIS);
-			connection.setRequestProperty("Accept", "application/vnd.github+json");
-			connection.setRequestProperty("User-Agent", "microProject-update-checker");
-			if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) return null;
-			try (InputStream in = connection.getInputStream()) {
-				return extractTagName(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
-			}
-		} finally {
-			connection.disconnect();
-		}
+		return extractTagName(fetchLatestReleaseJson());
 	}
 
 	static String extractTagName(String json) {

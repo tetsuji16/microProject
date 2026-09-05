@@ -23,6 +23,7 @@ import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JSplitPane;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
@@ -153,21 +154,49 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertTrue(tableScroll.getVerticalScrollBar().getValue() > 0, "table must remain scrollable with 20 tasks");
 	}
 
+	@Test
+	void emptyTaskBetweenTasksKeepsGanttRowsSeparated() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixtureWithEmptyMiddle();
+		showFixture(fixture);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(), "task table or Gantt was not visible");
+		robot.delay(500);
+		captureVisibleLayout(robot, "task-table-gantt-grid-empty-middle.png");
+	}
+
 	private void captureVisibleLayout(Robot robot) throws Exception {
+		captureVisibleLayout(robot, "task-table-gantt-grid.png");
+	}
+
+	private void captureVisibleLayout(Robot robot, String fileName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
-		ImageIO.write(screenshot, "png", directory.resolve("task-table-gantt-grid.png").toFile());
+		ImageIO.write(screenshot, "png", directory.resolve(fileName).toFile());
 		assertTrue(screenshot.getWidth() > 400 && screenshot.getHeight() > 300, "captured layout is unexpectedly small");
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Task table and Gantt GUI acceptance");
+			JScrollPane ganttPane = new JScrollPane(fixture.gantt);
+			// The production GanttView puts a time-scale header above the chart.
+			// Keep this lightweight fixture's row origin aligned with the table.
+			int headerHeight = fixture.sheet.getTableHeader().getPreferredSize().height;
+			JPanel header = new JPanel();
+			header.setPreferredSize(new Dimension(980, headerHeight));
+			ganttPane.setColumnHeaderView(header);
 			JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-				new JScrollPane(fixture.sheet), new JScrollPane(fixture.gantt));
+				new JScrollPane(fixture.sheet), ganttPane);
 			splitPane.setResizeWeight(0.45);
 			frame.add(splitPane);
 			frame.setPreferredSize(new Dimension(1100, 520));
@@ -181,6 +210,37 @@ class TaskTableGanttGridGuiAcceptanceTest {
 
 	private Fixture createFixture() throws Exception {
 		return createFixture(1);
+	}
+
+	private Fixture createFixtureWithEmptyMiddle() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("gui-task-gantt-empty-middle-test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		List<NormalTask> tasks = new ArrayList<>();
+		for (int index = 1; index <= 3; index++) {
+			NormalTask task = project.createScriptedTask();
+			task.setName(index == 2 ? "" : "Task " + (index == 1 ? "A" : "B"));
+			task.getCurrentSchedule().setStart(project.getStart());
+			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+			tasks.add(task);
+		}
+		project.recalculate();
+		Fixture[] fixture = new Fixture[1];
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = new SpreadSheet();
+			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()), "gui-task-gantt-empty-middle-test", null);
+			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry", true);
+			gantt = new Gantt(project, "Gantt");
+			gantt.setCache(cache);
+			gantt.setCoord(new CoordinatesConverter(project));
+			gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, "standard"));
+			gantt.updateSize();
+			fixture[0] = new Fixture(sheet, gantt, tasks.size(), 0, 0);
+		});
+		return fixture[0];
 	}
 
 	private Fixture createFixture(int taskCount) throws Exception {

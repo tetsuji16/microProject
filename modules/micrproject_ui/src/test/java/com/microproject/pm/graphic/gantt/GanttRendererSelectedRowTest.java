@@ -86,6 +86,29 @@ class GanttRendererSelectedRowTest {
 	}
 
 	@Test
+	void horizontalGridLineIsPaintedForAnEmptyRow() {
+		Gantt gantt = newGantt();
+		try {
+			GanttRenderer renderer = new GanttRenderer(gantt);
+			BufferedImage image = new BufferedImage(200, ROW_HEIGHT * 2, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				graphics.setClip(new Rectangle(0, 0, image.getWidth(), image.getHeight()));
+				graphics.setColor(Color.WHITE);
+				graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+				renderer.paintHorizontalLine(graphics, 0);
+			} finally {
+				graphics.dispose();
+			}
+
+			assertEquals(gantt.getGridLineColor().getRGB(), image.getRGB(100, ROW_HEIGHT - 1),
+				"an empty row must still have its horizontal separator");
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
 	void highlightedRowsStateStoresAndNormalizesItsInput() {
 		Gantt gantt = newGantt();
 		try {

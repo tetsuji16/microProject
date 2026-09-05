@@ -90,3 +90,6 @@ app_launch.log
 app_sample.log
 mp_run*.log
 mp_clean_run.log
+
+# Playwright CLI browser snapshots
+.playwright-cli/

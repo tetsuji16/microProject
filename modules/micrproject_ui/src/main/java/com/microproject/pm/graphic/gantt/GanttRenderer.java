@@ -115,7 +115,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	private static final int PROGRESS_LINE_POINT_SIZE = 6;
 	protected NodeRenderer nodeRenderer = new NodeRenderer();
 	protected LinkRenderer linkRenderer = new LinkRenderer();
-	protected HorizontalLineRenderer horizontalLineRenderer = new HorizontalLineRenderer();
 	protected AnnotationRenderer annotationRenderer = new AnnotationRenderer();
 	private transient CriticalChainService ccpmService;
 	private transient Project ccpmProject;
@@ -821,38 +820,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 	}
 
-	private class HorizontalLineRenderer implements Consumer<Object>, Serializable {
-		private static final long serialVersionUID = -6350307720624037262L;
-		protected BarFormat format;
-		GraphicNode node;
-		Graphics2D g2;
-		protected int yrow;
-
-		public void initialize(Graphics2D g2, GraphicNode node) {
-			this.g2 = g2;
-			this.node = node;
-			int rowHeight=((GanttParams)graphInfo).getRowHeight();
-			config=((GanttParams)graphInfo).getConfiguration();
-			yrow=(node.getRow()+1)*rowHeight -1; // draws under each row
-
-		}
-
-		public void accept(Object arg0) {
-			format = (BarFormat)arg0;
-			if (!((GanttParams)graphInfo).isGridLinesVisible()) {
-				return;
-			}
-			Rectangle bounds = g2.getClipBounds();
-			Stroke oldStroke = g2.getStroke();
-			Color oldColor = g2.getColor();
-			enablePaintHints(g2);
-			g2.setColor(graphInfo instanceof Gantt gantt ? gantt.getGridLineColor() : palette.getGridLine());
-			g2.drawLine(bounds.x,yrow,bounds.x+bounds.width,yrow);
-			g2.setColor(oldColor);
-			g2.setStroke(oldStroke);
-		}
-	}
-
 
 	private class LinkRenderer implements Consumer<Object>, Serializable {
 		private static final long serialVersionUID = -2031158189787837110L;
@@ -1016,11 +983,25 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	public void paintHorizontalLine(Graphics2D g2,GraphicNode node){
-		BarStyles barStyles = graphInfo.getBarStyles();
-		if (barStyles == null) return;
-		enablePaintHints(g2);
-		horizontalLineRenderer.initialize(g2,node);
-		barStyles.apply(node.getNode().getImpl(),horizontalLineRenderer,false,false,false, true);
+		if (node == null) return;
+		paintHorizontalLine(g2, node.getRow());
+	}
+
+	/** Paints the Gantt-row separator independently of task/bar formatting. */
+	void paintHorizontalLine(Graphics2D g2, int row) {
+		if (g2 == null || row < 0 || !(graphInfo instanceof GanttParams params)
+				|| !params.isGridLinesVisible()) return;
+		Rectangle bounds = g2.getClipBounds();
+		if (bounds == null) return;
+		Color oldColor = g2.getColor();
+		try {
+			enablePaintHints(g2);
+			g2.setColor(graphInfo instanceof Gantt gantt ? gantt.getGridLineColor() : palette.getGridLine());
+			int y = (row + 1) * params.getRowHeight() - 1;
+			g2.drawLine(bounds.x, y, bounds.x + bounds.width, y);
+		} finally {
+			g2.setColor(oldColor);
+		}
 	}
 
 	public void paintLink(Graphics2D g2, GraphicDependency dependency){
@@ -1337,10 +1318,12 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			int row=i.nextIndex();
 			node=i.next();
 			node.setRow(row);
+			// Gantt row separators belong to the row grid, not to a bar style.
+			// Paint them for empty and non-scheduled rows as well (issue #451).
+			paintHorizontalLine(g2, row);
 			if (!node.isSchedule()) continue;
 			nodeList.add(node);
 			paintNode(g2,node,true);
-			paintHorizontalLine(g2,node);
 		}
 
 		GraphicDependency dependency;

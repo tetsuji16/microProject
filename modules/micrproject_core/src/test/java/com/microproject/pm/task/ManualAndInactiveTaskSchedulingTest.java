@@ -38,12 +38,12 @@ import com.microproject.undo.DataFactoryUndoController;
 
 class ManualAndInactiveTaskSchedulingTest {
 	@Test
-	void userCreatedTasksDefaultToManualButImportConstructionCanRemainAutomatic() {
+	void newTasksDefaultToAutomaticSchedulingLikeMicrosoftProject() {
 		Project project = project();
 
-		assertTrue(project.newNormalTaskInstance().isManuallyScheduled());
+		assertFalse(project.newNormalTaskInstance().isManuallyScheduled());
 		assertFalse(project.newNormalTaskInstance(false).isManuallyScheduled());
-		assertTrue(((Task) project.createLocalTaskNode(null).getImpl()).isManuallyScheduled());
+		assertFalse(((Task) project.createLocalTaskNode(null).getImpl()).isManuallyScheduled());
 		assertFalse(((Task) project.createLocalTaskNode(null, false).getImpl()).isManuallyScheduled());
 	}
 
