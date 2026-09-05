@@ -37,6 +37,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.NodeFactory;
@@ -272,6 +273,39 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(new File(reopened.getSharedResourcePoolFile()).isFile());
 		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(poolFile.toPath()),
 				java.nio.file.Files.readAllBytes(new File(reopened.getSharedResourcePoolFile()).toPath()));
+	}
+
+	@Test
+	void sharedPoolSharerRoundTripPreservesResourceIdentityAndAssignmentUnits() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("shared-pool", undo);
+		Resource resource = pool.newResourceInstance();
+		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(88001L);
+		Project poolProject = Project.createProject(pool, undo);
+		File poolFile = File.createTempFile("mpo-shared-pool-", ".mpo");
+		poolFile.deleteOnExit();
+		poolProject.setFileName(poolFile.getAbsolutePath());
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(poolFile)) {
+			new MpoFileImporter().saveProject(poolProject, output);
+		}
+		Project sharer = Project.createProject(pool, new DataFactoryUndoController());
+		sharer.initialize(false, false);
+		sharer.setSharedResourcePoolFile(poolFile.getAbsolutePath());
+		NormalTask task = (NormalTask) sharer.createLocalTaskNode(null).getImpl();
+		AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(sharer, archive);
+		Project reopened = loadFromBytes(archive.toByteArray());
+		Assignment assignment = null;
+		for (java.util.Iterator<?> tasks = reopened.getTaskOutlineIterator(); tasks.hasNext();) {
+			Object value = tasks.next();
+			if (value instanceof NormalTask restored)
+				for (Object candidate : restored.getAssignments())
+					if (candidate instanceof Assignment real && !real.isDefault()) assignment = real;
+		}
+		org.junit.jupiter.api.Assertions.assertNotNull(assignment);
+		assertEquals(88001L, assignment.getResource().getUniqueId());
+		assertEquals(1D, assignment.getUnits(), 0.0001D);
 	}
 
 	@Test

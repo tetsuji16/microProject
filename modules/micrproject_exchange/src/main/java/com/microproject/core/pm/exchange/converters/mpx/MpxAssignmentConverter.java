@@ -49,6 +49,11 @@ public class MpxAssignmentConverter {
 			throw new IllegalStateException("Unable to resolve resource for assignment " + mpxAssignment.getResourceUniqueID());
 		}
 		assignment.setTaskAndResource(task, resource);
+		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
+		// microProject model). Restore this explicitly before work is applied;
+		// otherwise a round trip can leave the assignment at the default 0 units.
+		if (mpxAssignment.getUnits() != null)
+			assignment.forceUnits(mpxAssignment.getUnits().doubleValue() / 100.0D);
 
 		// main snapshot only (snapshotId handling for baselines is skipped, see #154)
 		long assignmentStart = toLong(mpxAssignment.getStart());
