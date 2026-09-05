@@ -24,13 +24,12 @@
  *******************************************************************************/
 package com.microproject.collaboration;
 
-import java.io.ByteArrayInputStream;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.AccessDeniedException;
 import java.util.zip.ZipException;
@@ -287,16 +286,15 @@ public class ProjectMergeService {
 	}
 
 	private Project loadPodProject(String fileName) throws Exception {
-		InputStream embeddedXml = openEmbeddedPodXml(fileName);
-		if (embeddedXml != null) {
-			try {
+		try (InputStream embeddedXml = openEmbeddedPodXml(fileName)) {
+			if (embeddedXml != null) {
 				Project project = loadMicrosoftProject(fileName, embeddedXml);
 				if (project != null) {
 					return project;
 				}
-			} catch (Exception e) {
-				// Fall through to the serialized POD reader for files without usable XML.
 			}
+		} catch (Exception e) {
+			// Fall through to the serialized POD reader for files without usable XML.
 		}
 		return loadSerializedPodProject(fileName);
 	}
@@ -321,37 +319,129 @@ public class ProjectMergeService {
 		return importer.loadProject(in);
 	}
 
-	private InputStream openEmbeddedPodXml(String fileName) throws Exception {
-		byte[] bytes = Files.readAllBytes(new File(fileName).toPath());
-		byte[] separator = PROJECT_LIBRE_FILE_SEPARATOR.getBytes(StandardCharsets.UTF_8);
-		int start = indexOf(bytes, separator);
-		if (start < 0) {
+	InputStream openEmbeddedPodXml(String fileName) throws Exception {
+		long fileSize = new File(fileName).length();
+		long startedAt = System.nanoTime();
+		EmbeddedPodXmlInputStream stream = new EmbeddedPodXmlInputStream(
+			new BufferedInputStream(new FileInputStream(fileName), EmbeddedPodXmlInputStream.BUFFER_SIZE),
+			PROJECT_LIBRE_FILE_SEPARATOR.getBytes(StandardCharsets.UTF_8));
+		if (!stream.locateSeparator()) {
+			stream.close();
+			logger.log(Level.FINE, "POD XML separator not found: {0} bytes scanned in {1} ms",
+				new Object[] { Long.valueOf(stream.getBytesScanned()), Long.valueOf(elapsedMillis(startedAt)) });
 			return null;
 		}
-		start += separator.length;
-		if (start < 0 || start >= bytes.length) {
-			return null;
-		}
-		return new ByteArrayInputStream(bytes, start, bytes.length - start);
+		logger.log(Level.FINE, "POD XML separator found: {0} byte file scanned in {1} ms",
+			new Object[] { Long.valueOf(fileSize), Long.valueOf(elapsedMillis(startedAt)) });
+		return stream;
 	}
 
-	private int indexOf(byte[] bytes, byte[] pattern) {
-		if (pattern.length == 0 || bytes.length < pattern.length) {
-			return -1;
+	private static long elapsedMillis(long startedAt) {
+		return (System.nanoTime() - startedAt) / 1_000_000L;
+	}
+
+	/** Streams the bytes after the embedded XML separator without copying the POD. */
+	private static final class EmbeddedPodXmlInputStream extends InputStream {
+		private static final int BUFFER_SIZE = 64 * 1024;
+		private final InputStream source;
+		private final byte[] separator;
+		private final int[] failureTable;
+		private final byte[] buffer = new byte[BUFFER_SIZE];
+		private int bufferPosition;
+		private int bufferLimit;
+		private int separatorPosition;
+		private long bytesScanned;
+		private boolean located;
+
+		private EmbeddedPodXmlInputStream(InputStream source, byte[] separator) {
+			this.source = source;
+			this.separator = separator;
+			this.failureTable = buildFailureTable(separator);
 		}
-		for (int i = 0; i <= bytes.length - pattern.length; i++) {
-			boolean found = true;
-			for (int j = 0; j < pattern.length; j++) {
-				if (bytes[i + j] != pattern[j]) {
-					found = false;
-					break;
+
+		private boolean locateSeparator() throws java.io.IOException {
+			if (located) {
+				return true;
+			}
+			while (true) {
+				int value = readSourceByte();
+				if (value < 0) {
+					return false;
+				}
+				bytesScanned++;
+				while (separatorPosition > 0 && (byte) value != separator[separatorPosition]) {
+					separatorPosition = failureTable[separatorPosition - 1];
+				}
+				if ((byte) value == separator[separatorPosition]) {
+					separatorPosition++;
+					if (separatorPosition == separator.length) {
+						located = true;
+						return true;
+					}
 				}
 			}
-			if (found) {
-				return i;
-			}
 		}
-		return -1;
+
+		private int readSourceByte() throws java.io.IOException {
+			if (bufferPosition >= bufferLimit) {
+				bufferLimit = source.read(buffer);
+				bufferPosition = 0;
+				if (bufferLimit < 0) {
+					return -1;
+				}
+			}
+			return buffer[bufferPosition++] & 0xff;
+		}
+
+		private long getBytesScanned() {
+			return bytesScanned;
+		}
+
+		@Override
+		public int read() throws java.io.IOException {
+			if (!located && !locateSeparator()) {
+				return -1;
+			}
+			return readSourceByte();
+		}
+
+		@Override
+		public int read(byte[] target, int offset, int length) throws java.io.IOException {
+			if (!located && !locateSeparator()) {
+				return -1;
+			}
+			if (length == 0) {
+				return 0;
+			}
+			int count = 0;
+			while (count < length) {
+				int value = readSourceByte();
+				if (value < 0) {
+					return count == 0 ? -1 : count;
+				}
+				target[offset + count++] = (byte) value;
+			}
+			return count;
+		}
+
+		@Override
+		public void close() throws java.io.IOException {
+			source.close();
+		}
+
+		private static int[] buildFailureTable(byte[] pattern) {
+			int[] table = new int[pattern.length];
+			for (int i = 1, prefix = 0; i < pattern.length;) {
+				if (pattern[i] == pattern[prefix]) {
+					table[i++] = ++prefix;
+				} else if (prefix > 0) {
+					prefix = table[prefix - 1];
+				} else {
+					i++;
+				}
+			}
+			return table;
+		}
 	}
 
 	public Map<Long, TaskState> captureTaskStates(Iterable<Task> tasks) {
