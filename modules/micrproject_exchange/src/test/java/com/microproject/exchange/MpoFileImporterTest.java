@@ -8,6 +8,7 @@ package com.microproject.exchange;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.ByteArrayInputStream;
@@ -731,6 +732,35 @@ class MpoFileImporterTest {
 		MpoFileImporter writer = new MpoFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor);
 		assertThrows(IOException.class, writer::exportFile);
 		org.junit.jupiter.api.Assertions.assertArrayEquals(tampered, java.nio.file.Files.readAllBytes(shared.toPath()));
+	}
+
+	@Test
+	void mpoAtomicMoveFailureKeepsOriginalArchiveAndInMemoryProject() throws Exception {
+		Project initial = projectForRoundTrip();
+		File target = File.createTempFile("mpo-atomic-failure-", ".mpo");
+		target.deleteOnExit();
+		MpoFileImporter initialWriter = new MpoFileImporter();
+		initialWriter.setFileName(target.getAbsolutePath());
+		initialWriter.setProject(initial);
+		initialWriter.exportFile();
+		byte[] originalBytes = java.nio.file.Files.readAllBytes(target.toPath());
+		Project edited = load(target);
+		firstTask(edited).setName("Edit retained after failed replacement");
+		assertTrue(edited.needsSaving(), "fixture edit must remain dirty before the injected move failure");
+
+		MpoFileImporter failingWriter = new MpoFileImporter() {
+			@Override
+			protected void moveTemporary(java.nio.file.Path temporary, java.nio.file.Path destination) throws IOException {
+				throw new IOException("injected atomic move failure");
+			}
+		};
+		failingWriter.setFileName(target.getAbsolutePath());
+		failingWriter.setProject(edited);
+		assertThrows(IOException.class, failingWriter::exportFile);
+		org.junit.jupiter.api.Assertions.assertArrayEquals(originalBytes,
+				java.nio.file.Files.readAllBytes(target.toPath()), "failed replacement must preserve original MPO bytes");
+		assertTrue(edited.needsSaving(), "failed replacement must retain the dirty in-memory project");
+		assertEquals("Edit retained after failed replacement", firstTask(edited).getName());
 	}
 
 	@Test

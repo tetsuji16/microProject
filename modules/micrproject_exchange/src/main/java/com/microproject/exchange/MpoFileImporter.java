@@ -64,7 +64,7 @@ import com.microproject.strings.Messages;
  * UTF-8 manifest and a standards-based MSPDI XML snapshot; it never embeds a
  * Java serialized object.
  */
-public final class MpoFileImporter extends FileImporter {
+public class MpoFileImporter extends FileImporter {
 	private static final Object EXPORT_LOCK_GUARD = new Object();
 	static final String MIMETYPE_ENTRY = "mimetype";
 	static final String MANIFEST_ENTRY = "META-INF/manifest.xml";
@@ -290,7 +290,7 @@ public final class MpoFileImporter extends FileImporter {
 		// after that merge so content.xml and the journal describe the same state.
 		byte[] snapshot = serializeProjectXml(project);
 		operationState.remapTaskIds(readTaskIdentities(taskIdentitiesFor(project, snapshot).getBytes(StandardCharsets.UTF_8)));
-		File temporary = File.createTempFile(target.getName() + ".", ".tmp", target.getAbsoluteFile().getParentFile());
+		File temporary = createTemporaryFile(target);
 		boolean completed = false;
 		try (OutputStream out = new FileOutputStream(temporary)) {
 			writeMpo(project, out, snapshot, operationState);
@@ -300,10 +300,20 @@ public final class MpoFileImporter extends FileImporter {
 				Files.deleteIfExists(temporary.toPath());
 			}
 		}
+		moveTemporary(temporary.toPath(), target.toPath());
+	}
+
+	/** Test seam for proving that a failed atomic replacement is non-destructive. */
+	protected File createTemporaryFile(File target) throws IOException {
+		return File.createTempFile(target.getName() + ".", ".tmp", target.getAbsoluteFile().getParentFile());
+	}
+
+	/** Replaces the destination only after the complete archive has been written. */
+	protected void moveTemporary(Path temporary, Path target) throws IOException {
 		try {
-			Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		} catch (java.nio.file.AtomicMoveNotSupportedException e) {
-			Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
 		}
 	}
 
