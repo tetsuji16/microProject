@@ -650,8 +650,9 @@ public class ProjectFactory {
 			// master and several children.  In either case each member must retain
 			// its own file location; applying the master's requested path would
 			// overwrite the wrong project file.
-			if (projects.size() != 1 || projects.get(0) != project)
-				o.setFileName(null);
+			// Keep the explicit Save As target for the root document. Linked
+			// children retain their own persisted file names; LocalSession assigns
+			// the requested name only to the first project in this branch.
 			o.setPostSaving(new Consumer<Object>() { public void accept(Object obj) {
 					Project p = (Project)obj;
 					if (!opt.isRecoverySnapshot()) {

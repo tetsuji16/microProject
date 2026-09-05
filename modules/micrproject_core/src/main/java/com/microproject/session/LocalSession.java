@@ -380,7 +380,7 @@ public class LocalSession extends AbstractSession{
 		int i=0;
 		for (final Project project : projs) {
 			//if projs.size()>1 opt.getFileName() must be null
-			String fileN=(requestedFileName==null)?project.getGuessedFileName():requestedFileName;//+(count>1?("("+i+")"):""));
+			String fileN=(requestedFileName!=null && i == 0) ? requestedFileName : project.getGuessedFileName();
 			if (!FileHelper.isFileNameAllowed(fileN, true)){
 				fileN=SessionFactory.getInstance().getLocalSession().chooseFileName(true,FileHelper.changeFileExtension(fileN, FileHelper.MPO_FILE_TYPE));
 			}
@@ -430,8 +430,8 @@ public class LocalSession extends AbstractSession{
 				}
 			});
 
-
-        	//setProgress(((float)++i)/((float)count));
+			i++;
+			//setProgress(((float)++i)/((float)count));
 		}
 		job.addExceptionRunnable(new JobRunnable("Local: exception"){
 			public Object run() throws Exception{

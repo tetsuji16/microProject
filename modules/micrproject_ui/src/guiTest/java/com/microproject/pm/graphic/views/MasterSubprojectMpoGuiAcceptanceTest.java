@@ -65,6 +65,7 @@ import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
+import com.microproject.util.UiServices;
 
 /**
  * GUI-MSP-01: loads a real MPO child, persists the master link, and renders the
@@ -80,6 +81,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	private boolean previousStandalone;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private UiServices.FileChooserProvider previousChooser;
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -95,6 +97,66 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		Environment.setStandAlone(previousStandalone);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+		UiServices.setFileChooserProvider(previousChooser);
+	}
+
+	/** GUI-MSP-SAVE-02: the explicit Save as MPO command writes and reopens a portable master. */
+	@Test
+	void explicitSaveAsMpoCommandPersistsAndReloadsMasterChildren() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousChooser = UiServices.getFileChooserProvider();
+		previousClientSide = Environment.isClientSide();
+		previousStandalone = Environment.getStandAlone();
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setClientSide(true);
+		Environment.setStandAlone(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project child = newProject("Explicit MPO save child");
+		Task childTask = (Task) child.createLocalTaskNode(null).getImpl();
+		childTask.setName("Child survives explicit MPO save");
+		File childFile = File.createTempFile("msp-explicit-save-child-", ".mpo");
+		childFile.deleteOnExit();
+		persist(child, childFile);
+		child.setFileName(childFile.getAbsolutePath());
+		Project master = newProject("Explicit MPO save master");
+		master.setMaster(true);
+		master.setLocal(true);
+		File sourceMaster = File.createTempFile("msp-explicit-save-source-", ".mpo");
+		sourceMaster.deleteOnExit();
+		master.setFileName(sourceMaster.getAbsolutePath());
+		DefaultSubProj reference = new DefaultSubProj(master, child.getUniqueId());
+		reference.setName("Child link");
+		reference.setSubprojectFile(childFile.getAbsolutePath());
+		Node referenceNode = NodeFactory.getInstance().createNode(reference);
+		master.addToDefaultOutline(null, referenceNode);
+		new DefaultSubprojectHandler(master).addSubproject(child, referenceNode, true, false);
+		persist(master, sourceMaster);
+		File selectedWithoutExtension = File.createTempFile("msp-explicit-save-target-", "");
+		selectedWithoutExtension.delete();
+		File target = new File(selectedWithoutExtension.getAbsolutePath() + ".mpo");
+		target.deleteOnExit();
+		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
+			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) {
+				return save ? selectedWithoutExtension.getAbsolutePath() : null;
+			}
+		});
+		showRuntimeMaster(sourceMaster);
+		GuiAcceptanceSupport.await(() -> graphicManager.findFrameForProjectFile(sourceMaster.getAbsolutePath()) != null,
+				"the source master did not open before Save as MPO");
+		Project runtimeMaster = graphicManager.findFrameForProjectFile(sourceMaster.getAbsolutePath()).getProject();
+		GuiAcceptanceSupport.await(() -> hasTaskNamed(runtimeMaster, "Child survives explicit MPO save"),
+				"the source master did not materialize its child before Save as MPO");
+		SwingUtilities.invokeAndWait(() -> assertTrue(graphicManager.saveMasterAsMpo(),
+				"the explicit MPO save route did not accept the selected target"));
+		GuiAcceptanceSupport.await(target::isFile, "Save as MPO did not create the .mpo target");
+		Project reloaded = load(target);
+		SubProj reloadedChild = findSubproject(reloaded);
+		assertNotNull(reloadedChild, "the explicitly saved MPO did not retain the child reference");
+		assertTrue(reloadedChild.getSubprojectFile() != null && new File(reloadedChild.getSubprojectFile()).isFile(),
+				"the explicitly saved MPO did not restore the embedded child archive");
+		capture(new Robot(), "master-explicit-save-as-mpo.png");
 	}
 
 	@Test
