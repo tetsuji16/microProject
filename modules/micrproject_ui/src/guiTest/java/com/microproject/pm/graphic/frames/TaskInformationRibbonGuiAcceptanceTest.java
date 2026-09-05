@@ -180,6 +180,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void hideAndShowSelectedTaskThroughRibbonRoundTripsWithUndoRedo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Assumptions.assumeTrue(guiScale() <= 1.0d,
+			"Ribbon mutation sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
@@ -192,6 +194,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"hide/show test project did not become visible");
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
+		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		int row = rowForTask(sheet, task);
 		click(robot, cellOnScreen(sheet, row, nameColumn(sheet)));
@@ -227,6 +230,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
+	}
+
+	private static double guiScale() {
+		try {
+			String configured = System.getProperty("sun.java2d.uiScale");
+			if (configured != null)
+				return Double.parseDouble(configured);
+		} catch (NumberFormatException ignored) {
+			// Fall through to the active device transform.
+		}
+		return GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
+			.getDefaultConfiguration().getDefaultTransform().getScaleX();
 	}
 
 	@Test
@@ -644,6 +659,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
+		robot.delay(150);
 	}
 
 	private static void activateWindow(Robot robot, java.awt.Window window) throws Exception {

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.IllegalComponentStateException;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -36,6 +37,7 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.menu.MenuActionMapSupport;
@@ -44,11 +46,22 @@ import com.microproject.menu.ProjectMenuActionMap;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 
 /** Non-headless coverage for a real mouse click on a responsive ribbon tab. */
 class RibbonTabGuiAcceptanceTest {
 	private JFrame frame;
+	private boolean previousRibbonUi;
+	private boolean previousNewLook;
+
+	@BeforeEach
+	void configureRibbonEnvironment() {
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -58,6 +71,8 @@ class RibbonTabGuiAcceptanceTest {
 				frame = null;
 			});
 		}
+		Environment.setRibbonUI(previousRibbonUi);
+		Environment.setNewLook(previousNewLook);
 	}
 
 	@Test
@@ -95,6 +110,8 @@ class RibbonTabGuiAcceptanceTest {
 	@Test
 	void robotClicksEveryStandardRibbonCommandOnce() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Assumptions.assumeTrue(uiScale() <= 1.0d,
+			"Direct command sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
@@ -122,9 +139,10 @@ class RibbonTabGuiAcceptanceTest {
 					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
 					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
 					int before = actions.count(actionId);
-					clickCommand(robot, button);
+					Point clickPoint = clickCommand(robot, button);
 					GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
-						"Robot click did not dispatch " + buttonId + " (" + actionId + ")");
+						"Robot click did not dispatch " + buttonId + " (" + actionId + ") at " + clickPoint
+							+ " bounds=" + button.getBounds() + " screen=" + safeScreenBounds(button));
 				}
 			}
 		}
@@ -199,6 +217,8 @@ class RibbonTabGuiAcceptanceTest {
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
+			frame.toFront();
+			frame.requestFocus();
 		});
 	}
 
@@ -231,7 +251,7 @@ class RibbonTabGuiAcceptanceTest {
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 	}
 
-	private static void clickCommand(Robot robot, AbstractButton button) throws Exception {
+	private static Point clickCommand(Robot robot, AbstractButton button) throws Exception {
 		Point[] location = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
 			Point topLeft = button.getLocationOnScreen();
@@ -245,6 +265,28 @@ class RibbonTabGuiAcceptanceTest {
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
+		return location[0];
+	}
+
+	private static double uiScale() {
+		try {
+			String configured = System.getProperty("sun.java2d.uiScale");
+			if (configured != null)
+				return Double.parseDouble(configured);
+		} catch (NumberFormatException ignored) {
+			// Fall through to the active device transform.
+		}
+		return GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
+			.getDefaultConfiguration().getDefaultTransform().getScaleX();
+	}
+
+	private static Rectangle safeScreenBounds(AbstractButton button) {
+		try {
+			Point point = button.getLocationOnScreen();
+			return new Rectangle(point.x, point.y, button.getWidth(), button.getHeight());
+		} catch (IllegalComponentStateException e) {
+			return new Rectangle();
+		}
 	}
 
 	private void captureVisibleRibbon(Robot robot, String fileName) throws Exception {

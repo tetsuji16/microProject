@@ -34,8 +34,11 @@ import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.gantt.GanttUI;
+import com.microproject.pm.graphic.graph.GraphZone;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
@@ -100,6 +103,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 			gantt.requestFocusInWindow();
 		});
 		GuiAcceptanceSupport.await(gantt::isShowing, "Gantt was not visible");
+		activateWindow(robot);
 		Rectangle bar = barBounds(fixture);
 		capture(robot);
 		SwingUtilities.invokeAndWait(() -> assertTrue(gantt.getUI().getNodeAt(
@@ -117,7 +121,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 		for (int step = 1; step <= 8; step++)
 			robot.mouseMove(startX + (targetX - startX) * step / 8, targetY);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() > oldStart, "Gantt bar drag did not move the predecessor");
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() > oldStart,
+			"Gantt bar drag did not move the predecessor: oldStart=" + oldStart
+				+ " actual=" + fixture.predecessor.getStart() + " delta=" + delta
+				+ " bar=" + bar + " gantt=" + gantt.getBounds());
 		SwingUtilities.invokeAndWait(fixture.project::recalculate);
 		if (fixture.dependency.getDependencyType() == DependencyType.FF) {
 			assertEquals(fixture.predecessor.getEnd(), fixture.successor.getEnd(),
@@ -134,6 +141,14 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " date implied by the dragged bar (expected=" + expected + ", actual=" + fixture.successor.getStart() + ")");
 		}
 		capture(robot);
+	}
+
+	private void activateWindow(Robot robot) throws Exception {
+		Rectangle bounds = new Rectangle(frame.getLocationOnScreen(), frame.getSize());
+		robot.mouseMove(bounds.x + Math.min(40, bounds.width / 2), bounds.y + 12);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {
@@ -154,22 +169,17 @@ class GanttBarDateDragGuiAcceptanceTest {
 			int rowHeight = gantt.getRowHeight();
 			Point location = gantt.getLocationOnScreen();
 			for (int y = 0; y < Math.min(gantt.getHeight(), rowHeight * 10) && result[0] == null; y += 2) {
-				int firstHit = -1;
-				int lastHit = -1;
 				for (int x = 0; x < Math.min(gantt.getWidth(), 1200) && result[0] == null; x += 2) {
-					if (gantt.getUI().getNodeAt(x, y) != null)
-						firstHit = firstHit < 0 ? x : firstHit;
-					if (gantt.getUI().getNodeAt(x, y) != null)
-						lastHit = x;
-				}
-				if (firstHit >= 0) {
-					// getNodeAt reports the selection square at a bar edge. Use the
-					// date-derived midpoint for the actual drag origin so a one-day
-					// bar is not mistaken for a resize handle.
-					int barCenter = (int) Math.round((gantt.getCoord().toX(fixture.predecessor.getStart())
-						+ gantt.getCoord().toX(fixture.predecessor.getEnd())) / 2.0d);
-					result[0] = new Rectangle(location.x + barCenter - 4,
-						location.y + y - 4, 8, 8);
+					GraphZone zone = gantt.getUI().getNodeAt(x, y);
+					if (zone != null && zone.getObject() instanceof GraphicNode node
+							&& node.getNode().getImpl() == fixture.predecessor) {
+						int barY = (int) Math.round(((GanttUI) gantt.getUI()).getBarY(node.getRow())
+							+ node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d);
+						int barCenter = (int) Math.round((gantt.getCoord().toX(fixture.predecessor.getStart())
+							+ gantt.getCoord().toX(fixture.predecessor.getEnd())) / 2.0d);
+						result[0] = new Rectangle(location.x + barCenter - 4,
+							location.y + barY - 4, 8, 8);
+					}
 				}
 			}
 			if (result[0] == null)
