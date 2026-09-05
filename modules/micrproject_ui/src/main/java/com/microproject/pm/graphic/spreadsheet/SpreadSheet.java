@@ -129,8 +129,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private static final long serialVersionUID = 5958334223191182318L;
 	public static final String NAME_COLUMN_INDENT_ACTION = "spreadsheet.nameColumnIndent";
 	public static final String NAME_COLUMN_OUTDENT_ACTION = "spreadsheet.nameColumnOutdent";
-	private static final String NAME_COLUMN_JUMP_PREVIOUS_ACTION = "spreadsheet.nameColumnJumpPrevious";
-	private static final String NAME_COLUMN_JUMP_NEXT_ACTION = "spreadsheet.nameColumnJumpNext";
+	private static final String NAME_COLUMN_JUMP_FIRST_ACTION = "spreadsheet.nameColumnJumpFirst";
+	private static final String NAME_COLUMN_JUMP_LAST_ACTION = "spreadsheet.nameColumnJumpLast";
 	private static final String CLIPBOARD_PASTE_VALUES_ACTION = "spreadsheet.clipboardPasteValues";
 	public static final String MOVE_TASK_UP_ACTION = "spreadsheet.moveTaskUp";
 	public static final String MOVE_TASK_DOWN_ACTION = "spreadsheet.moveTaskDown";
@@ -863,20 +863,13 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 	}
 
-	public void executeNameCellHierarchyJump(boolean forward) {
+	/** Moves the active name cell to the first or last visible task row, matching MSP sheet navigation. */
+	public void executeNameCellBoundaryJump(boolean last) {
 		if (hierarchyActionInProgress || !isNameCellTabActionEnabled())
 			return;
-		if (!(getModel() instanceof SpreadSheetModel model))
+		if (!(getModel() instanceof SpreadSheetModel model) || getRowCount() == 0)
 			return;
-		var rowToFocus = getCurrentRow();
-		if (rowToFocus < 0)
-			rowToFocus = getSelectionModel().getAnchorSelectionIndex();
-		if (rowToFocus < 0 || rowToFocus >= getRowCount())
-			return;
-		var sourceNode = model.getNode(rowToFocus);
-		if (sourceNode == null)
-			return;
-		var targetRow = findSameLevelVisibleRow(model, rowToFocus, forward);
+		var targetRow = findBoundaryVisibleRow(model, last);
 		if (targetRow < 0)
 			return;
 		var targetNode = model.getNode(targetRow);
@@ -897,8 +890,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		var actionMap = getActionMap();
 		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, KeyEvent.CTRL_DOWN_MASK), "spreadsheet.nameColumnCollapseExpandLeft");
 		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, KeyEvent.CTRL_DOWN_MASK), "spreadsheet.nameColumnCollapseExpandRight");
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK), NAME_COLUMN_JUMP_PREVIOUS_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK), NAME_COLUMN_JUMP_NEXT_ACTION);
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK), NAME_COLUMN_JUMP_FIRST_ACTION);
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK), NAME_COLUMN_JUMP_LAST_ACTION);
 		actionMap.put("spreadsheet.nameColumnCollapseExpandLeft", new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			@Override
@@ -913,18 +906,18 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				executeNameCellCollapseExpand(true);
 			}
 		});
-		actionMap.put(NAME_COLUMN_JUMP_PREVIOUS_ACTION, new AbstractAction() {
+		actionMap.put(NAME_COLUMN_JUMP_FIRST_ACTION, new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				executeNameCellHierarchyJump(false);
+				executeNameCellBoundaryJump(false);
 			}
 		});
-		actionMap.put(NAME_COLUMN_JUMP_NEXT_ACTION, new AbstractAction() {
+		actionMap.put(NAME_COLUMN_JUMP_LAST_ACTION, new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				executeNameCellHierarchyJump(true);
+				executeNameCellBoundaryJump(true);
 			}
 		});
 	}
@@ -975,22 +968,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return -1;
 	}
 
-	private int findSameLevelVisibleRow(SpreadSheetModel model, int startRow, boolean forward) {
-		if (model == null || startRow < 0 || startRow >= getRowCount())
+	private int findBoundaryVisibleRow(SpreadSheetModel model, boolean last) {
+		if (model == null)
 			return -1;
-		var cache = model.getCache();
-		if (cache == null)
-			return -1;
-		var sourceNode = model.getNode(startRow);
-		if (sourceNode == null)
-			return -1;
-		var sourceLevel = cache.getLevel(sourceNode);
-		int step = forward ? 1 : -1;
-		for (int row = startRow + step; row >= 0 && row < getRowCount(); row += step) {
+		int step = last ? -1 : 1;
+		int start = last ? getRowCount() - 1 : 0;
+		for (int row = start; row >= 0 && row < getRowCount(); row += step) {
 			var candidate = model.getNode(row);
-			if (candidate == null || candidate.isVoid())
-				continue;
-			if (cache.getLevel(candidate) == sourceLevel)
+			if (candidate != null && !candidate.isVoid())
 				return row;
 		}
 		return -1;
@@ -1046,11 +1031,11 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				yield true;
 			}
 			case KeyEvent.VK_UP -> {
-				executeNameCellHierarchyJump(false);
+				executeNameCellBoundaryJump(false);
 				yield true;
 			}
 			case KeyEvent.VK_DOWN -> {
-				executeNameCellHierarchyJump(true);
+				executeNameCellBoundaryJump(true);
 				yield true;
 			}
 			default -> false;
@@ -1231,6 +1216,12 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			// row semantics after that final UI-delegate callback.
 			restoreTaskRowSelection(rowAtPoint(e.getPoint()), columnAtPoint(e.getPoint()));
 		}
+	}
+
+	/** Compatibility name for callers compiled against the earlier navigation helper. */
+	@Deprecated
+	public void executeNameCellHierarchyJump(boolean forward) {
+		executeNameCellBoundaryJump(forward);
 	}
 
 	@Override

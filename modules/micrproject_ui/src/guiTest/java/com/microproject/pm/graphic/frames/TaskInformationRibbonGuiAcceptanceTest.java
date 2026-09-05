@@ -375,7 +375,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
-	void robotNameCellShortcutsFollowMicrosoftHierarchySemantics() throws Exception {
+	void robotNameCellShortcutsFollowMicrosoftSheetNavigationSemantics() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -425,17 +425,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> outdentTarget.getWbsParentTask() == null,
 				"Robot Shift+Tab did not outdent the selected name row");
 
-		// Ctrl+Up/Down navigates to the adjacent visible task at the same level.
+		// Ctrl+Up/Down navigates to the first/last visible task row, matching MSP.
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, predecessor), nameColumn));
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "navigation name-cell click did not give focus to the spreadsheet");
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter the navigation name-cell edit");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_DOWN);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(outdentTarget),
-				"Robot Ctrl+Down did not move to the next same-level task");
+				"Robot Ctrl+Down did not move to the last visible task row");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_UP);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
-				"Robot Ctrl+Up did not move to the previous same-level task");
+				"Robot Ctrl+Up did not move to the first visible task row");
 	}
 
 	@Test

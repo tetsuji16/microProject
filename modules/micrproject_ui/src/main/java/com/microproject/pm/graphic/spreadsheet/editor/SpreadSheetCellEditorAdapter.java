@@ -60,8 +60,8 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	private static final String NAME_TAB_INSTALL_PROPERTY = "projectlibre.nameTabActionsInstalled";
 	private static final String NAME_COLLAPSE_ACTION = "spreadsheet.nameColumnCollapse";
 	private static final String NAME_EXPAND_ACTION = "spreadsheet.nameColumnExpand";
-	private static final String NAME_PREVIOUS_ACTION = "spreadsheet.nameColumnPrevious";
-	private static final String NAME_NEXT_ACTION = "spreadsheet.nameColumnNext";
+	private static final String NAME_FIRST_ACTION = "spreadsheet.nameColumnFirst";
+	private static final String NAME_LAST_ACTION = "spreadsheet.nameColumnLast";
 	private static final String NAME_UNDO_ACTION = "spreadsheet.nameColumnUndo";
 	private static final String NAME_REDO_ACTION = "spreadsheet.nameColumnRedo";
 	private static final String RECONVERT_ACTION = "spreadsheet.imeReconvert";
@@ -198,24 +198,24 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 				spreadSheet.executeNameCellCollapseExpand(true);
 			}
 		});
-		actionMap.put(NAME_PREVIOUS_ACTION, new AbstractAction() {
+		actionMap.put(NAME_FIRST_ACTION, new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			public void actionPerformed(ActionEvent e) {
-				spreadSheet.executeNameCellHierarchyJump(false);
+				spreadSheet.executeNameCellBoundaryJump(false);
 			}
 		});
-		actionMap.put(NAME_NEXT_ACTION, new AbstractAction() {
+		actionMap.put(NAME_LAST_ACTION, new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			public void actionPerformed(ActionEvent e) {
-				spreadSheet.executeNameCellHierarchyJump(true);
+				spreadSheet.executeNameCellBoundaryJump(true);
 			}
 		});
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK), NAME_PREVIOUS_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK), NAME_NEXT_ACTION);
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK), NAME_FIRST_ACTION);
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK), NAME_LAST_ACTION);
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY, actionMap.get(NAME_COLLAPSE_ACTION));
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY, actionMap.get(NAME_EXPAND_ACTION));
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY, actionMap.get(NAME_PREVIOUS_ACTION));
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_NEXT_ACTION_PROPERTY, actionMap.get(NAME_NEXT_ACTION));
+		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY, actionMap.get(NAME_FIRST_ACTION));
+		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_NEXT_ACTION_PROPERTY, actionMap.get(NAME_LAST_ACTION));
 	}
 
 	protected void resetNameFieldTabActions(JComponent edit) {
@@ -230,8 +230,8 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		actionMap.remove(SpreadSheet.NAME_COLUMN_OUTDENT_ACTION);
 		actionMap.remove(NAME_COLLAPSE_ACTION);
 		actionMap.remove(NAME_EXPAND_ACTION);
-		actionMap.remove(NAME_PREVIOUS_ACTION);
-		actionMap.remove(NAME_NEXT_ACTION);
+		actionMap.remove(NAME_FIRST_ACTION);
+		actionMap.remove(NAME_LAST_ACTION);
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY, null);
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY, null);
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY, null);

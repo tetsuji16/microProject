@@ -80,8 +80,8 @@ have a separate Entry Bar, so an editable selected cell is edited in place.
    their shortcut binding; they must never open an editor or insert a character.
 2. When the name field has focus, this rule also applies *while editing*: `Tab` and
    `Shift+Tab` indent/outdent; `Ctrl+Left`/`Ctrl+Right` collapse/expand; and
-   `Ctrl+Up`/`Ctrl+Down` move to the previous/next visible task at the same outline
-   level.  The active edit is finished before a hierarchy operation is performed.
+   `Ctrl+Up`/`Ctrl+Down` move to the first/last visible task row, matching MSP sheet
+   navigation.  The active edit is finished before navigation.
 3. In a non-editing editable cell, a printable character starts in-place editing and
    replaces the existing value with that character.  The first IME composition starts
    the same in-place edit and replaces the existing value with the composed text.
