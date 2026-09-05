@@ -100,6 +100,8 @@ tasks.register<Test>("guiTest") {
 	systemProperty("java.awt.headless", "false")
     val guiTestLocale = providers.gradleProperty("guiTestLocale").orElse("ja").get()
     val guiTestUiScale = providers.gradleProperty("guiTestUiScale").orNull
+    inputs.property("guiTestLocale", guiTestLocale)
+    inputs.property("guiTestUiScale", guiTestUiScale ?: "default")
     systemProperty("user.language", guiTestLocale)
     systemProperty("user.country", if (guiTestLocale == "ja") "JP" else "US")
     if (guiTestUiScale != null)
