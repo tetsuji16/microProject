@@ -360,6 +360,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"Indent did not make the selected task a child of its predecessor");
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(second),
 				"Indent did not preserve the selected task after hierarchy refresh");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
+				"Ctrl+Z did not restore the selected task to the top level after Indent");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == first,
+				"Ctrl+Y did not reapply the selected task hierarchy after Indent");
 
 		AbstractButton outdent = findShowingButtonByCommand("RibbonOutdent");
 		GuiAcceptanceSupport.await(outdent::isEnabled, "Outdent became disabled after Indent");
