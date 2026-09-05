@@ -333,6 +333,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		// MSP: Tab indents the current name row; Shift+Tab outdents it.
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, target), nameColumn));
+		GuiAcceptanceSupport.await(sheet::isFocusOwner, "name-cell click did not give focus to the spreadsheet");
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter name-cell editing");
 		press(robot, KeyEvent.VK_TAB);
@@ -341,6 +342,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(target),
 				"Robot Tab lost the selected task");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, outdentTarget), nameColumn));
+		GuiAcceptanceSupport.await(sheet::isFocusOwner, "second name-cell click did not give focus to the spreadsheet");
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter the second name-cell edit");
 		press(robot, KeyEvent.VK_SHIFT, KeyEvent.VK_TAB);
@@ -349,6 +351,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		// Ctrl+Up/Down navigates to the adjacent visible task at the same level.
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, predecessor), nameColumn));
+		GuiAcceptanceSupport.await(sheet::isFocusOwner, "navigation name-cell click did not give focus to the spreadsheet");
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter the navigation name-cell edit");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_DOWN);
