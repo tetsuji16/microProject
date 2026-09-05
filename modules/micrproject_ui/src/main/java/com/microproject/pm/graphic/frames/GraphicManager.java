@@ -170,6 +170,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.pm.graphic.views.ProjectsDialog;
+import com.microproject.pm.graphic.views.ResourceView;
 import com.microproject.pm.graphic.views.Searchable;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
@@ -1869,7 +1870,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_FIND, new FindAction());
 		actionsMap.addHandler(ACTION_GOTO, new GoToAction());
 		actionsMap.addHandler(ACTION_INSERT_TASK, new InsertTaskAction());
-		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertTaskAction()); // will do resource
+		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertResourceAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT, new SaveProjectAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT_AS, new SaveProjectAsAction());
 		actionsMap.addHandler(ACTION_SAVE_MPO_AS, new SaveMpoAsAction());
@@ -3159,6 +3160,28 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 	protected boolean loadLocalDocument(String fileName,boolean merge){ //uses server to merge
 		return loadLocalDocument(fileName, merge, null);
+	}
+
+	/** Routes the Resource ribbon command to the resource sheet's canonical New action. */
+	public class InsertResourceAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame == null || !resourceType || frame.getProject() == null || frame.getProject().isReadOnly())
+				return;
+			finishAnyOperations();
+			ResourceView resourceView = frame.getResourceView();
+			if (resourceView != null && resourceView.getSpreadSheet() != null)
+				resourceView.getSpreadSheet().performAction(MenuActionConstants.ACTION_INSERT_RESOURCE, event);
+		}
+
+		@Override
+		protected boolean allowed(boolean enable) {
+			return !enable || resourceType && isDocumentWritable();
+		}
 	}
 
 	/** Saves a master through the portable MPO workflow required by issue #395. */

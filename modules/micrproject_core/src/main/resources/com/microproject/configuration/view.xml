@@ -982,7 +982,7 @@
 		<actionList id="ActionList.resource" type="nodeModel">
 			<formulaText>
 				<![CDATA[
-				return (Environment.standAlone||nodeModel.local||nodeModel.master)?"Indent,Outdent,InsertTask,Delete,Copy,Cut,Paste,Expand,Collapse":"Copy";
+				return (Environment.standAlone||nodeModel.local||nodeModel.master)?"Indent,Outdent,InsertTask,InsertResource,Delete,Copy,Cut,Paste,Expand,Collapse":"Copy";
 				]]>
 			</formulaText>
 		</actionList>

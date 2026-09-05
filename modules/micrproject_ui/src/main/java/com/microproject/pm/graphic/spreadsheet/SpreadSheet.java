@@ -1726,6 +1726,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				addAction(action,MenuActionConstants.ACTION_INDENT,indentAction);
 				addAction(action,MenuActionConstants.ACTION_OUTDENT,outdentAction);
 				addAction(action,MenuActionConstants.ACTION_NEW,newAction);
+				addAction(action,MenuActionConstants.ACTION_INSERT_RESOURCE,newAction);
 				addAction(action,MenuActionConstants.ACTION_DELETE,deleteAction);
 				if (handler!=null){
 					addAction(action,MenuActionConstants.ACTION_COPY,handler.getNodeListCopyAction());

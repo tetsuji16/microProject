@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -225,6 +226,42 @@ class RibbonButtonBehaviorTest {
 			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert"));
 
 		assertEquals(1, harness.frame.insertTaskCallCount());
+	}
+
+	@Test
+	void insertResourceRouteUsesTheResourceSheetNewCommand() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(false, true);
+		harness.undoController.clear();
+		int taskCountBefore = count(harness.project.getTaskOutlineIterator());
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.activateView(MenuActionConstants.ACTION_RESOURCES);
+			assertNotNull(harness.frame.getResourceView().getSpreadSheet());
+			assertTrue(Arrays.asList(harness.frame.getResourceView().getSpreadSheet().getActionList())
+				.contains(MenuActionConstants.ACTION_INSERT_RESOURCE));
+			assertNotNull(harness.frame.getResourceView().getSpreadSheet()
+				.prepareAction(MenuActionConstants.ACTION_INSERT_RESOURCE));
+			harness.frame.getResourceView().getSpreadSheet().setRowSelectionInterval(0, 0);
+			harness.manager.setButtonState(harness.resource, harness.project);
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_INSERT_RESOURCE).isEnabled(),
+				"Insert Resource must be enabled for a writable resource pool");
+		});
+
+		harness.invoke("RibbonInsertResource");
+
+		assertTrue(harness.undoController.canUndo(),
+			"Insert Resource must create an undoable resource-sheet row");
+		assertEquals(taskCountBefore, count(harness.project.getTaskOutlineIterator()),
+			"Insert Resource must not insert a task row");
+	}
+
+	private static int count(Iterator<?> iterator) {
+		int count = 0;
+		while (iterator.hasNext()) {
+			iterator.next();
+			count++;
+		}
+		return count;
 	}
 
 	@Test
@@ -627,13 +664,15 @@ class RibbonButtonBehaviorTest {
 		final Node projectNode;
 		final Node assignmentNode;
 		final List<Call> calls = new ArrayList<>();
+		final DataFactoryUndoController undoController;
 
 		Harness() {
 			manager = new RecordingGraphicManager(new JPanel(), calls);
 			manager.getMenuManager().createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			undoController = new DataFactoryUndoController();
 			ResourcePool pool = ResourcePool.createRourcePool("Ribbon Test Pool", undoController);
 			pool.setLocal(true);
+			pool.getResourceOutline().setLocal(true);
 			project = Project.createProject(pool, undoController);
 			project.setName("Ribbon Test Project");
 			task = project.createScriptedTask();
