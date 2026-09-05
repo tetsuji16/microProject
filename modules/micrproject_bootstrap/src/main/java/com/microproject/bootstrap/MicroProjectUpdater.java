@@ -12,7 +12,6 @@ import java.io.Reader;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyFactory;
@@ -245,27 +244,19 @@ public final class MicroProjectUpdater {
     }
 
     static void launchInstalledApp(String[] applicationArguments) {
-        String javaBin = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
-        Path runtimeHome = Paths.get(System.getProperty("java.home"));
-        Path appRoot = runtimeHome.getParent();
-        String defaultClasspath = appRoot == null
-                ? "*"
-                : appRoot.resolve("app/*").toString();
-        String classpath = System.getProperty("microproject.classpath", defaultClasspath);
         String mainClass = System.getProperty("microproject.mainClass",
                 "com.microproject.main.Main");
-        java.util.List<String> command = new java.util.ArrayList<>();
-        command.add(javaBin);
-        command.add("-cp");
-        command.add(classpath);
-        command.add(mainClass);
-        if (applicationArguments != null) {
-            command.addAll(java.util.Arrays.asList(applicationArguments));
-        }
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.inheritIO();
         try {
-            pb.start().waitFor();
+            // jpackage deliberately strips native launchers such as java.exe
+            // from the bundled runtime. The bootstrap itself already runs
+            // with the application class path, so invoke the business main
+            // directly instead of starting a second JVM from a nonexistent
+            // runtime/bin/java executable.
+            Class<?> application = Class.forName(mainClass);
+            application.getMethod("main", String[].class)
+                    .invoke(null, (Object) (applicationArguments == null
+                            ? new String[0]
+                            : applicationArguments));
         } catch (Exception e) {
             System.err.println("update4j: fallback launch failed: " + e);
             System.exit(1);
