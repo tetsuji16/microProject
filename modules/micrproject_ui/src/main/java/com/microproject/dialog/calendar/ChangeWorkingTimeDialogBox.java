@@ -91,6 +91,7 @@ import com.microproject.undo.CalendarEdit;
 import com.microproject.undo.UndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
+import com.microproject.util.FlatUiSupport;
 
 
 /**
@@ -702,6 +703,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		JPanel buttonPanel=new JPanel();
 		buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
 		JButton backButton=new JButton(IconManager.getIcon("calendar.back")); //$NON-NLS-1$
+		FlatUiSupport.styleToolBarButton(backButton);
 		backButton.addActionListener(new ActionListener(){
 	        public void actionPerformed(ActionEvent e) {
 	            long first=sdCalendar.getFirstDisplayedDate();
@@ -718,6 +720,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	        }
         });
 		JButton todayButton=new JButton(IconManager.getIcon("calendar.today")); //$NON-NLS-1$
+		FlatUiSupport.styleToolBarButton(todayButton);
 		todayButton.addActionListener(new ActionListener(){
 	        public void actionPerformed(ActionEvent e) {
 	            Calendar calendar=DateTime.calendarInstance();
@@ -727,6 +730,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	        }
         });
 		JButton forwardButton=new JButton(IconManager.getIcon("calendar.forward")); //$NON-NLS-1$
+		FlatUiSupport.styleToolBarButton(forwardButton);
 		forwardButton.addActionListener(new ActionListener(){
 	        public void actionPerformed(ActionEvent e) {
 	            Calendar calendar=DateTime.calendarInstance();
