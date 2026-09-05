@@ -95,6 +95,8 @@ class DefaultFrameManagerGuiAcceptanceTest {
 			assertTrue(window.getTitle().contains("Desktop Alpha"),
 					"The primary window title must continue to identify the document it contains");
 			assertTrue(secondary.getTitle().contains("Desktop Beta"));
+			assertFalse(secondary.getTitle().startsWith("●"),
+					"selection marker belongs in the project selector, not the OS title bar");
 			assertFalse(secondary.getTitle().contains("desktop-beta.projectlibre"),
 					"window titles must not expose the absolute project path");
 			desktopWindowManager.activateFrame(frames[0]);

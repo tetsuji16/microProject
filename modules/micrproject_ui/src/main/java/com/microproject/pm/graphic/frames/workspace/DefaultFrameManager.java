@@ -192,7 +192,8 @@ public class DefaultFrameManager implements FrameManager {
 			setBackground(selected ? list.getSelectionBackground() : list.getBackground());
 			setForeground(selected ? list.getSelectionForeground() : list.getForeground());
 			NamedFrame frame = value instanceof NamedFrame namedFrame ? namedFrame : null;
-			setText(describeWindow(frame));
+			String title = describeWindow(frame);
+			setText(frame == previous ? "● " + title : title);
 			setToolTipText(describeWindowTooltip(frame));
 			return this;
 		}
@@ -202,8 +203,6 @@ public class DefaultFrameManager implements FrameManager {
 		if (frame == null)
 			return "";
 		StringBuilder description = new StringBuilder();
-		if (frame == previous)
-			description.append("● ");
 		if (frame instanceof DocumentFrame documentFrame && documentFrame.getProject() != null) {
 			Project project = documentFrame.getProject();
 			String name = project.getName();
