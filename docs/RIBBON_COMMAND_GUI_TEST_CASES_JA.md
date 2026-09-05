@@ -138,6 +138,6 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 
 ### 自動化検証（2026-08-30）
 
-`RibbonTabGuiAcceptanceTest.robotClicksEveryStandardRibbonCommandOnce` は、実ウィンドウ上で標準リボンの各タブを Robot で選択し、全コマンドを実マウスクリックして Action dispatch が一回だけ発生することを確認する。分割ボタンは主コマンド領域をクリックし、1500px幅の実ウィンドウで全コマンド（`RibbonHideSelectedTasks` を含む）が直接表示されることも確認した。レスポンシブなオーバーフローは既存のリボン構造テストと個別の表示検証で追跡する。
+`RibbonTabGuiAcceptanceTest.robotClicksEveryStandardRibbonCommandOnce` は、実ウィンドウ上で標準リボンの各タブを Robot で選択し、全コマンドの物理的な到達性と一回の Action dispatch をスモーク確認する。これはコマンドの成功証拠ではない。各選択依存・モデル変更・表示更新・Undo/Redo・保存再読込の合否は、コマンド契約テストと対象別Robot受入テストで検証する。分割ボタンは主コマンド領域をクリックし、1500px幅の実ウィンドウで全コマンド（`RibbonHideSelectedTasks` を含む）が直接表示されることも確認した。レスポンシブなオーバーフローは既存のリボン構造テストと個別の表示検証で追跡する。
 
 900px幅でのオーバーフロー受入試行では、タスクタブ切替後に `RibbonHideSelectedTasks` を含むポップアップトリガーを取得できなかった。これは幅計算／密度切替の実GUI課題候補として Issue #430 に記載し、実アプリのウィンドウ幅で追加確認するまで未解決として扱う。
