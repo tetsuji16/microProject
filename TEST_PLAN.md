@@ -252,3 +252,4 @@
 - #464 Hide/Show保存回帰（2026-09-06）: 上記RobotシナリオにMPO保存→再読込を追加し、従来は`hiddenTask`が失われる実欠陥を検出。MPOFの予約エントリ`microproject/visibility.json`へシリアライズ済みタスクIDを保存し、読込・外部MPO・埋め込みMPOのチェックサム検証まで接続。交換層の`hiddenTaskVisibilitySurvivesMpoSaveAndReload`および全`:micrproject_exchange:test`、focused GUIでモデル・表示・永続化を確認する。
 - #395 ウィンドウシェル回帰（2026-09-06）: `DefaultFrameManagerGuiAcceptanceTest`で実ファイル名を持つ2プロジェクトを開き、独立ウィンドウのリボン、切替、タイトル規則（絶対パスを含めない）、右上×を物理Robotで確認。`:micrproject_ui:guiTest --tests=com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest --max-workers=1`成功。
 - U-24診断回帰（2026-09-06）: `UiButtonDiagnostics`のモデル署名にResource PoolのリソースID・名称を追加し、リソース系操作のモデル未変化を検出可能にした。`UiButtonDiagnosticsTest`、`:micrproject_ui:test`、日本語100%全GUIスイート成功。
+- U-20ビュー内容回帰（2026-09-06）: `TaskInformationRibbonGuiAcceptanceTest`でTask／Resource Usageの左右スプレッドシートと各モデル、Timesheetの専用スプレッドシートモデルを明示的に検査。対象GUIクラス全体と`:micrproject_ui:test`全体がBUILD SUCCESSFUL。
