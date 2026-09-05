@@ -831,8 +831,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		DocumentFrame dframe = getCurrentFrame();
 		String title=Messages.getContextString("Text.ApplicationTitle"); //$NON-NLS-1$
 		if (dframe != null && dframe.getProject() != null) {
-			if (Environment.getStandAlone()) title=dframe.getProject().getTitle();
-			else title += " - " + dframe.getProject().getName(); //$NON-NLS-1$
+			Project project = dframe.getProject();
+			String name = project.getName();
+			if (name == null || name.isBlank())
+				name = project.getTitle();
+			title += " - " + (name == null || name.isBlank() ? "(unnamed project)" : name); //$NON-NLS-1$
+			if (project.isMaster())
+				title += " [Master]"; //$NON-NLS-1$
+			if (project.isReadOnly())
+				title += " [Read-only]"; //$NON-NLS-1$
 			if (!isSaving && dframe.getProject().needsSaving())
 				title += " *"; // modified; //$NON-NLS-1$
 		}
