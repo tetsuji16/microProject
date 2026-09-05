@@ -772,6 +772,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 			 });
 
 	    options = new JButton(Messages.getString("ChangeWorkingTimeDialogBox.Options")); //$NON-NLS-1$
+		FlatUiSupport.styleDialogButton(options, false);
 	    options.addActionListener(new ActionListener(){
 			    public void actionPerformed(ActionEvent e){
 			    	CalendarOption option = project.getCalendarOption();
@@ -787,6 +788,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 			 }
 		 });
 		importNonWorkingDays = new JButton(Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays")); //$NON-NLS-1$
+		FlatUiSupport.styleDialogButton(newCalendar, false);
+		FlatUiSupport.styleDialogButton(importNonWorkingDays, false);
 		importNonWorkingDays.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent e){
 					importNonWorkingDays();

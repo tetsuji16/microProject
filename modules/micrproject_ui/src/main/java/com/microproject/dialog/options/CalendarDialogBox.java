@@ -44,6 +44,7 @@ import com.microproject.dialog.AbstractDialog;
 import com.microproject.configuration.Settings;
 import com.microproject.options.CalendarOption;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.TimeInputParser;
 
 /**
@@ -205,6 +206,7 @@ public class CalendarDialogBox extends AbstractDialog{
     		daysPerMonth.setEditor(editor3);
     		
             setAsDefault= new JButton(Messages.getString("CalendarDialogBox.SetAsDefault")); //$NON-NLS-1$
+            FlatUiSupport.styleDialogButton(setAsDefault, false);
             setAsDefault.addActionListener(new ActionListener(){
                 public void actionPerformed(ActionEvent e) {
                     if (!bind(false)) {
@@ -344,4 +346,3 @@ public class CalendarDialogBox extends AbstractDialog{
 			return form;
 		}
 }
-
