@@ -53,6 +53,9 @@ public class Main {
 //		System.setProperty("file.encoding", "UTF-8");
 
 		Environment.setStandAlone(true);
+		// Desktop startup uses the local-document path in StartupFactory.  Keep
+		// client-side mode explicit; its default is false for server/plugin hosts.
+		Environment.setClientSide(true);
 		String[] formatedArgs;
 		if (args!=null && args.length>0){
 			ArrayList<String> nonEmptyArgs = new ArrayList<String>(args.length);
