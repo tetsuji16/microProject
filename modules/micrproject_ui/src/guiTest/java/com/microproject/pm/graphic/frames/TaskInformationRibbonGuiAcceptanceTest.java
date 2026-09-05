@@ -302,6 +302,64 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotNameCellShortcutsFollowMicrosoftHierarchySemantics() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("robot-shortcut-acceptance", undo), undo);
+		project.initialize(false, false);
+		Node predecessorNode = project.createLocalTaskNode(null);
+		NormalTask predecessor = (NormalTask) predecessorNode.getImpl();
+		predecessor.setName("Shortcut predecessor");
+		Node targetNode = project.createLocalTaskNode(null);
+		NormalTask target = (NormalTask) targetNode.getImpl();
+		target.setName("Shortcut target");
+		Node outdentNode = project.createLocalTaskNode(predecessorNode);
+		NormalTask outdentTarget = (NormalTask) outdentNode.getImpl();
+		outdentTarget.setName("Shortcut outdent target");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"shortcut test project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		int nameColumn = nameColumn(sheet);
+
+		// MSP: Tab indents the current name row; Shift+Tab outdents it.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, target), nameColumn));
+		press(robot, KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter name-cell editing");
+		press(robot, KeyEvent.VK_TAB);
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == predecessor,
+				"Robot Tab did not indent the selected name row");
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(target),
+				"Robot Tab lost the selected task");
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, outdentTarget), nameColumn));
+		press(robot, KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter the second name-cell edit");
+		press(robot, KeyEvent.VK_SHIFT, KeyEvent.VK_TAB);
+		GuiAcceptanceSupport.await(() -> outdentTarget.getWbsParentTask() == null,
+				"Robot Shift+Tab did not outdent the selected name row");
+
+		// Ctrl+Up/Down navigates to the adjacent visible task at the same level.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, predecessor), nameColumn));
+		press(robot, KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter the navigation name-cell edit");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_DOWN);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(outdentTarget),
+				"Robot Ctrl+Down did not move to the next same-level task");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_UP);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
+				"Robot Ctrl+Up did not move to the previous same-level task");
+	}
+
+	@Test
 	void linkAndUnlinkSelectedTasksThroughRibbonRoundTripsDependency() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -496,6 +554,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private static void press(Robot robot, int... keys) {
+		for (int key : keys)
+			robot.keyPress(key);
+		for (int index = keys.length - 1; index >= 0; index--)
+			robot.keyRelease(keys[index]);
 		robot.waitForIdle();
 	}
 
