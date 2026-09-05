@@ -45,6 +45,7 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 
 /**
  *
@@ -62,6 +63,7 @@ public abstract class InformationDialog extends FieldDialog {
 			changeWorkingTimeButton.setToolTipText(Messages.getString("InformationDialog.ChangeWorkingTime")); //$NON-NLS-1$
 			ImageIcon icon = IconManager.getIcon("menu.changeWorkingTime"); //$NON-NLS-1$
 			changeWorkingTimeButton.setIcon(icon);
+			FlatUiSupport.styleToolBarButton(changeWorkingTimeButton);
 			changeWorkingTimeButton.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent arg0) {
 					//route message to main frame
@@ -76,6 +78,7 @@ public abstract class InformationDialog extends FieldDialog {
 			assignResourceButton.setToolTipText(Messages.getString("InformationDialog.AssignResources")); //$NON-NLS-1$
 			ImageIcon icon = IconManager.getIcon("menu24.assignResources"); //$NON-NLS-1$
 			assignResourceButton.setIcon(icon);
+			FlatUiSupport.styleToolBarButton(assignResourceButton);
 			assignResourceButton.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent arg0) {
 					//route message to main frame
@@ -127,4 +130,3 @@ public abstract class InformationDialog extends FieldDialog {
 	}
 	
 }
-
