@@ -25,6 +25,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonAboutProjectLibre | バージョン情報を開く | Aboutダイアログが表示される |
 | RibbonSaveProject | 現在のプロジェクトを保存 | 保存完了後に保存エラーが表示されない |
 | RibbonSaveProjectAs | 名前を付けて保存 | 指定名で保存できる |
+| RibbonSaveMpoAs | MPOとして保存 | マスターをMPOアーカイブとして保存できる |
 | RibbonCloseProject | 現在のプロジェクトを閉じる | 確認後にドキュメントが閉じる |
 | RibbonExportProject | プロジェクトを外部形式へ出力 | 出力処理が完了し、元の画面へ戻れる |
 | RibbonPrint | 印刷を実行 | 印刷設定または印刷処理が表示される |
