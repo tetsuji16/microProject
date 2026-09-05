@@ -101,6 +101,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
+		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		int row = rowForTask(sheet, task);
 		int column = nameColumn(sheet);
@@ -328,6 +329,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"shortcut test project did not become visible");
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
+		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		int nameColumn = nameColumn(sheet);
 
@@ -557,6 +559,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static void click(Robot robot, Rectangle bounds) {
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private static void activateWindow(Robot robot, java.awt.Window window) throws Exception {
+		Rectangle bounds = boundsOnScreen(window);
+		robot.mouseMove(bounds.x + Math.min(40, bounds.width / 2), bounds.y + 12);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
