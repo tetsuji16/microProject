@@ -253,3 +253,4 @@
 - #395 ウィンドウシェル回帰（2026-09-06）: `DefaultFrameManagerGuiAcceptanceTest`で実ファイル名を持つ2プロジェクトを開き、独立ウィンドウのリボン、切替、タイトル規則（絶対パスを含めない）、右上×を物理Robotで確認。`:micrproject_ui:guiTest --tests=com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest --max-workers=1`成功。
 - U-24診断回帰（2026-09-06）: `UiButtonDiagnostics`のモデル署名にResource PoolのリソースID・名称を追加し、リソース系操作のモデル未変化を検出可能にした。`UiButtonDiagnosticsTest`、`:micrproject_ui:test`、日本語100%全GUIスイート成功。
 - U-20ビュー内容回帰（2026-09-06）: `TaskInformationRibbonGuiAcceptanceTest`でTask／Resource Usageの左右スプレッドシートと各モデル、Timesheetの専用スプレッドシートモデルを明示的に検査。対象GUIクラス全体と`:micrproject_ui:test`全体がBUILD SUCCESSFUL。
+- #464 ダイアログレイアウト回帰（2026-09-06）: Task Informationの全タブを実Robotで巡回し、スクロール不可領域の全可視コンポーネントがpreferredサイズ以上であることを検査。Text Style、依存関係、リソース、詳細、メモで実際に検出した5px行への配置を修正し、対象GUIテストと`:micrproject_ui:test`がBUILD SUCCESSFUL。U-21の日本語100%実GUI経路を更新。
