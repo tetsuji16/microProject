@@ -65,7 +65,7 @@ public class Main {
 			if (nonEmptyArgs.size()>0){
 				ArrayList<String> formatedList = new ArrayList<String>();
 				if (nonEmptyArgs.get(0).startsWith("--")) {
-					formatedArgs = nonEmptyArgs.toArray(new String[]{});
+					formatedArgs = normalizeFileNameArguments(nonEmptyArgs).toArray(new String[]{});
 					startApplication(formatedArgs);
 					return;
 				}
@@ -111,6 +111,38 @@ public class Main {
 		for (String fileName : args)
 			if (fileName == null || !new File(fileName).isFile()) return false;
 		return true;
+	}
+
+	/**
+	 * Windows batch launchers can pass an unquoted path with spaces as several
+	 * Java arguments.  Reassemble the documented --fileNames values at the
+	 * application boundary, using a native project-file suffix as the end of a
+	 * path.  Properly quoted arguments remain unchanged.
+	 */
+	private static ArrayList<String> normalizeFileNameArguments(ArrayList<String> args) {
+		if (args.size() < 2 || !"--fileNames".equals(args.get(0)))
+			return args;
+		ArrayList<String> normalized = new ArrayList<>();
+		normalized.add(args.get(0));
+		StringBuilder path = new StringBuilder();
+		for (int i = 1; i < args.size(); i++) {
+			String value = args.get(i);
+			if (value.startsWith("--")) {
+				if (path.length() > 0) normalized.add(path.toString());
+				path.setLength(0);
+				normalized.add(value);
+				continue;
+			}
+			if (path.length() > 0) path.append(' ');
+			path.append(value);
+			String lower = path.toString().toLowerCase(java.util.Locale.ROOT);
+			if (lower.endsWith(".mpo") || lower.endsWith(".pod") || lower.endsWith(".xml")) {
+				normalized.add(path.toString());
+				path.setLength(0);
+			}
+		}
+		if (path.length() > 0) normalized.add(path.toString());
+		return normalized;
 	}
 	public static int getRunNumber() {
 		return Preferences.userNodeForPackage(Main.class).getInt("projectlibreRunNumber",0);
