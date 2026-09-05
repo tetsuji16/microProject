@@ -167,7 +167,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		UsageDetailView taskUsage = (UsageDetailView)manager.getCurrentFrame().getActiveTopView();
 		assertNotNull(taskUsage.getSpreadSheet(), "task usage left spreadsheet was not initialized");
 		assertNotNull(taskUsage.getTimeSpreadSheet(), "task usage time spreadsheet was not initialized");
-		assertTrue(taskUsage.getSpreadSheet().getModel().getRowCount() >= 0);
+		assertTrue(taskUsage.getSpreadSheet().getModel().getRowCount() > 0,
+			"task usage spreadsheet did not expose the fixture task");
 
 		AbstractButton resourceUsageButton = findShowingButtonByCommand("RibbonResourceUsageDetail");
 		click(robot, boundsOnScreen(resourceUsageButton));
@@ -176,7 +177,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		UsageDetailView resourceUsage = (UsageDetailView)manager.getCurrentFrame().getActiveTopView();
 		assertNotNull(resourceUsage.getSpreadSheet(), "resource usage left spreadsheet was not initialized");
 		assertNotNull(resourceUsage.getTimeSpreadSheet(), "resource usage time spreadsheet was not initialized");
-		assertTrue(resourceUsage.getSpreadSheet().getModel().getRowCount() >= 0);
+		assertTrue(resourceUsage.getSpreadSheet().getModel().getRowCount() > 0,
+			"resource usage spreadsheet did not expose the fixture resource");
 	}
 
 	@Test
@@ -611,6 +613,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		project.initialize(false, false);
 		NormalTask task = project.createScriptedTask();
 		task.setName("Ribbon information acceptance");
+		project.getResourcePool().createScriptedResource().setName("Ribbon resource acceptance");
 		return task;
 	}
 
