@@ -102,6 +102,7 @@ import javax.swing.KeyStroke;
 
 import com.microproject.menu.ExtButtonFactory;
 import com.microproject.menu.HyperLinkToolTip;
+import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 import com.microproject.util.ClassLoaderUtils;
 
 /**
@@ -423,7 +424,7 @@ public class MenuFactory extends ResourceManager {
 		throw new MissingListenerException("", "Action",
                                                    name+ACTION_SUFFIX);
 	    }
-	    item.setAction(a);
+	    item.setAction(UiButtonDiagnostics.wrapAction(name, a));
             item.setText(getString(name+TEXT_SUFFIX));
 	    if (a instanceof JComponentModifier) {
 		((JComponentModifier)a).addJComponent(item);

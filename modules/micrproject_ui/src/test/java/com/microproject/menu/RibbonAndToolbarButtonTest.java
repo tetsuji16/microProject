@@ -570,6 +570,29 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void menuItemUsesTheSameDebugActionContract() throws Exception {
+		String previous = System.getProperty("microproject.ui.debug");
+		System.setProperty("microproject.ui.debug", "true");
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				com.microproject.menu.resource.ActionMap actionMap = new com.microproject.menu.resource.ActionMap() {
+					@Override public Action getAction(String key) { return new AbstractAction() {
+						@Override public void actionPerformed(java.awt.event.ActionEvent event) { }
+					}; }
+					@Override public String getStringFromAction(Action action) { return "LinkAction"; }
+				};
+				com.microproject.menu.resource.MenuFactory factory =
+					new com.microproject.menu.resource.MenuFactory(actionMap, ribbonBundles(Locale.ROOT));
+				assertTrue(factory.createJMenuItem("RibbonLink").getAction().getClass().getName()
+					.contains("UiButtonDiagnostics"));
+			});
+		} finally {
+			if (previous == null) System.clearProperty("microproject.ui.debug");
+			else System.setProperty("microproject.ui.debug", previous);
+		}
+	}
+
+	@Test
 	void everyVisibleRibbonGroupCommandDispatchesExactlyOnceDuringProgrammaticScreening() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ClickRecordingActionMap actionMap = new ClickRecordingActionMap();
