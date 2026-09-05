@@ -102,10 +102,19 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		});
 		captureDesktopWindows(robot, window, secondary, "msp-independent-project-windows-tiled.png");
 		SwingUtilities.invokeAndWait(() -> {
-			desktopWindowManager.removeFrame(frames[0]);
+			secondary.toFront();
+			secondary.requestFocus();
+		});
+		Rectangle secondaryBounds = secondary.getBounds();
+		robot.mouseMove(secondaryBounds.x + secondaryBounds.width - 22, secondaryBounds.y + 15);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> desktopWindowManager.getIndependentWindowCount() == 0,
+			"physical secondary window title-bar close did not remove the document window");
+		SwingUtilities.invokeAndWait(() -> {
 			assertEquals(0, desktopWindowManager.getIndependentWindowCount());
-			assertSame(frames[1], desktopWindowManager.getSelectedFrame());
-			assertTrue(frames[1].isShowing());
+			assertSame(frames[0], desktopWindowManager.getSelectedFrame());
+			assertFalse(secondary.isShowing(), "the closed secondary window must no longer be visible");
 		});
 	}
 
@@ -113,7 +122,10 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool(name + " pool", undo), undo);
 		project.setName(name);
-		return new TestDocumentFrame(graphicManager, project, name.toLowerCase().replace(' ', '-'));
+		TestDocumentFrame frame = new TestDocumentFrame(graphicManager, project, name.toLowerCase().replace(' ', '-'));
+		project.setDirty(false);
+		project.setGroupDirty(false);
+		return frame;
 	}
 
 	private static final class DesktopWindowGraphicManager extends GraphicManager {

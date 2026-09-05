@@ -438,7 +438,6 @@ public class DefaultFrameManager implements FrameManager {
 		window.getContentPane().add(frame, java.awt.BorderLayout.CENTER);
 		window.addWindowFocusListener(new WindowAdapter() {
 			@Override public void windowGainedFocus(WindowEvent event) { graphicManager.activateDocumentWindow((DocumentFrame)frame); }
-			@Override public void windowClosing(WindowEvent event) { graphicManager.closeDocumentWindow((DocumentFrame)frame); }
 		});
 		documentWindows.put(frame, window);
 		window.setVisible(true);

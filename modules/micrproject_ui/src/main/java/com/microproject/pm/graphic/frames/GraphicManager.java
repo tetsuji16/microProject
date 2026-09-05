@@ -1455,6 +1455,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public void closeDocumentWindow(DocumentFrame frame) {
 		if (frame == null || frame.getProject() == null)
 			return;
+		// A secondary title-bar close can be the first command received by a
+		// manager created through an alternate startup path.  Establish the same
+		// session/job-queue context used by ribbon and menu commands before the
+		// asynchronous project-removal job is built.
+		getJobQueue();
+		setMeAsLastGraphicManager();
 		Project project = frame.getProject();
 		boolean needsSaving = project.needsSaving();
 		closeProject(project);
