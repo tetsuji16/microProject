@@ -61,10 +61,14 @@ public class Main {
 			}
 			if (nonEmptyArgs.size()>0){
 				ArrayList<String> formatedList = new ArrayList<String>();
-				String joinedFileName = joinExistingFileName(nonEmptyArgs);
-				if (joinedFileName != null) {
+				if (nonEmptyArgs.get(0).startsWith("--")) {
+					formatedArgs = nonEmptyArgs.toArray(new String[]{});
+					startApplication(formatedArgs);
+					return;
+				}
+				if (allExistingFiles(nonEmptyArgs)) {
 					formatedList.add("--fileNames");
-					formatedList.add(joinedFileName);
+					formatedList.addAll(nonEmptyArgs);
 					formatedArgs=formatedList.toArray(new String[]{});
 					startApplication(formatedArgs);
 					return;
@@ -97,23 +101,13 @@ public class Main {
 		});
 	}
 
-	private static String joinExistingFileName(ArrayList<String> args) {
+	private static boolean allExistingFiles(ArrayList<String> args) {
 		if (args == null || args.size() == 0) {
-			return null;
+			return false;
 		}
-		String first = args.get(0);
-		if (first == null || first.startsWith("--")) {
-			return null;
-		}
-		StringBuilder joined = new StringBuilder();
-		for (Iterator<String> i = args.iterator(); i.hasNext();) {
-			if (joined.length() > 0) {
-				joined.append(' ');
-			}
-			joined.append(i.next());
-		}
-		String fileName = joined.toString();
-		return new File(fileName).exists() ? fileName : null;
+		for (String fileName : args)
+			if (fileName == null || !new File(fileName).isFile()) return false;
+		return true;
 	}
 	public static int getRunNumber() {
 		return Preferences.userNodeForPackage(Main.class).getInt("projectlibreRunNumber",0);
@@ -129,4 +123,3 @@ public class Main {
 	}
 
 }
-
