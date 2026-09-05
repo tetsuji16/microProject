@@ -34,6 +34,8 @@ import java.util.TreeSet;
  * @author Laurent Chretienneau
  *
  */
+/** @deprecated Use {@link com.microproject.pm.time.MutableInterval} for a single range. */
+@Deprecated(forRemoval = false)
 public class DefaultTimeIntervals implements TimeIntervals {
 	protected static long EMPTY_START=-1L;
 	protected static long EMPTY_END=-1L;

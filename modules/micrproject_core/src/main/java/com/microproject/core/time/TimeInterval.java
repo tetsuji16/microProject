@@ -28,7 +28,13 @@ package com.microproject.core.time;
  * @author Laurent Chretienneau
  *
  */
-public interface TimeInterval extends Comparable<TimeInterval>{
+/**
+ * @deprecated Use {@link com.microproject.pm.time.Interval} or
+ * {@link com.microproject.pm.time.MutableInterval}. This interface remains
+ * only as a source-compatible bridge for the legacy time-phased API.
+ */
+@Deprecated(forRemoval = false)
+public interface TimeInterval extends com.microproject.pm.time.HasStartAndEnd {
 
 	public long getStart();
 	public void setStart(long start);

@@ -30,6 +30,8 @@ import java.util.Collection;
  * @author Laurent Chretienneau
  *
  */
+/** @deprecated Use the interval collection API in the owning feature area. */
+@Deprecated(forRemoval = false)
 public interface TimeIntervals extends Iterable<TimeInterval>{
 	public long getStart();
 	public void setStart(long start);

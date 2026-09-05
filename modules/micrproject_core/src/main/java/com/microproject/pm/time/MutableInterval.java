@@ -37,6 +37,32 @@ public class MutableInterval extends Interval {
 	public MutableInterval(long start, long end) {
 		super(start, end);
 	}
+
+	/** Clears this interval using the legacy empty-interval sentinel. */
+	public void clear() {
+		start = -1L;
+		end = -1L;
+	}
+
+	public boolean isEmpty() {
+		return start == -1L || end == -1L;
+	}
+
+	public void union(HasStartAndEnd interval) {
+		if (start > interval.getStart())
+			start = interval.getStart();
+		if (end < interval.getEnd())
+			end = interval.getEnd();
+	}
+
+	public void inter(HasStartAndEnd interval) {
+		if (start < interval.getStart())
+			start = interval.getStart();
+		if (end > interval.getEnd())
+			end = interval.getEnd();
+		if (start > end)
+			clear();
+	}
 	/**
 	 * @param end The end to set.
 	 */
