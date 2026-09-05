@@ -5,11 +5,13 @@
 package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
+import java.awt.Component;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.image.BufferedImage;
@@ -21,12 +23,14 @@ import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
+import javax.swing.JList;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.exchange.MpoFileImporter;
+import com.microproject.application.RecentProjectStore;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.frames.workspace.FrameManager.WindowArrangement;
 import com.microproject.pm.resource.ResourcePool;
@@ -151,6 +155,88 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 				"command-line projects were not presented as separate desktop windows");
 		SwingUtilities.invokeAndWait(() -> frames.arrangeAll(WindowArrangement.TILE));
 		capture(new Robot(), "msp-command-line-multiple-project-open.png");
+	}
+
+	/** GUI-MSP-OPEN-04: selecting a recent project adds it without replacing a dirty document. */
+	@Test
+	void recentProjectSelectionKeepsExistingDirtyDocumentOpen() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousChooser = UiServices.getFileChooserProvider();
+		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		firstFile = Files.createTempFile("msp-recent-existing-", ".mpo");
+		secondFile = Files.createTempFile("msp-recent-selected-", ".mpo");
+		writeProject(firstFile, "Recent Existing A");
+		writeProject(secondFile, "Recent Selected B");
+		new RecentProjectStore().recordOpened(secondFile.toString());
+
+		SwingUtilities.invokeAndWait(() -> {
+			window = new MainRibbonFrame("microProject — Recent project GUI acceptance", null, null);
+			manager = new GraphicManager(window);
+			window.setGraphicManager(manager);
+			manager.initView();
+			SessionFactory.getInstance().setJobQueue(manager.getJobQueue());
+			window.setSize(1020, 620);
+			window.setLocationByPlatform(true);
+			window.setAlwaysOnTop(true);
+			window.setVisible(true);
+			manager.openLocalProjectsSequentially(new String[] { firstFile.toString() });
+		});
+		FrameManager frames = manager.getFrameManager();
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(firstFile.toString()) != null,
+				"the existing project did not open before Recent selection");
+		DocumentFrame existing = manager.findFrameForProjectFile(firstFile.toString());
+		Project existingProject = existing.getProject();
+		existingProject.setDirty(true);
+
+		SwingUtilities.invokeLater(() -> manager.new RecentProjectsAction().actionPerformed(null));
+		GuiAcceptanceSupport.await(() -> findVisibleListForPath(secondFile) != null,
+				"Recent Projects did not show the recorded project");
+		JList<?> recentList = findVisibleListForPath(secondFile);
+		SwingUtilities.invokeAndWait(() -> {
+			recentList.setSelectedValue(new RecentProjectStore().entries().stream()
+				.filter(entry -> entry.path().equals(secondFile.toAbsolutePath())).findFirst().orElseThrow(), true);
+			recentList.dispatchEvent(new java.awt.event.KeyEvent(recentList,
+				java.awt.event.KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0,
+				java.awt.event.KeyEvent.VK_ENTER, '\n'));
+		});
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(secondFile.toString()) != null,
+				"Recent selection did not open the selected project");
+		assertTrue(manager.findFrameForProjectFile(firstFile.toString()) != null,
+				"Recent selection must not close the existing project");
+		assertTrue(existingProject.needsSaving(), "Recent selection must preserve the existing dirty state");
+		assertEquals(2, frames.getAllFrames().size(), "Recent selection must add a document frame");
+		SwingUtilities.invokeAndWait(() -> frames.arrangeAll(WindowArrangement.TILE));
+		capture(new Robot(), "msp-recent-project-keeps-existing-document.png");
+	}
+
+	private static JList<?> findVisibleListForPath(Path path) {
+		for (Window window : Window.getWindows()) {
+			if (!window.isShowing()) continue;
+			JList<?> list = findList(window);
+			if (list != null) for (int i = 0; i < list.getModel().getSize(); i++) {
+				Object value = list.getModel().getElementAt(i);
+				if (value instanceof RecentProjectStore.Entry entry && entry.path().equals(path.toAbsolutePath())) return list;
+			}
+		}
+		return null;
+	}
+
+	private static JList<?> findList(java.awt.Container container) {
+		for (Component component : container.getComponents()) {
+			if (component instanceof JList<?> list) return list;
+			if (component instanceof java.awt.Container child) {
+				JList<?> list = findList(child);
+				if (list != null) return list;
+			}
+		}
+		return null;
 	}
 
 	/** GUI-MSP-OPEN-03: desktop file drops use the same independent-document registration route. */
