@@ -288,24 +288,46 @@ class MpoFileImporterTest {
 		try (java.io.FileOutputStream output = new java.io.FileOutputStream(poolFile)) {
 			new MpoFileImporter().saveProject(poolProject, output);
 		}
-		Project sharer = Project.createProject(pool, new DataFactoryUndoController());
-		sharer.initialize(false, false);
-		sharer.setSharedResourcePoolFile(poolFile.getAbsolutePath());
-		NormalTask task = (NormalTask) sharer.createLocalTaskNode(null).getImpl();
-		AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
-		ByteArrayOutputStream archive = new ByteArrayOutputStream();
-		new MpoFileImporter().saveProject(sharer, archive);
-		Project reopened = loadFromBytes(archive.toByteArray());
-		Assignment assignment = null;
-		for (java.util.Iterator<?> tasks = reopened.getTaskOutlineIterator(); tasks.hasNext();) {
-			Object value = tasks.next();
-			if (value instanceof NormalTask restored)
-				for (Object candidate : restored.getAssignments())
-					if (candidate instanceof Assignment real && !real.isDefault()) assignment = real;
+		Project first = sharedSharer(pool, poolFile, resource, "First sharer task");
+		Project second = sharedSharer(pool, poolFile, resource, "Second sharer task");
+		Project reopenedFirst = loadFromBytes(saveProjectBytes(first));
+		Project reopenedSecond = loadFromBytes(saveProjectBytes(second));
+		Assignment firstAssignment = firstRealAssignment(reopenedFirst);
+		Assignment secondAssignment = firstRealAssignment(reopenedSecond);
+		assertEquals(88001L, firstAssignment.getResource().getUniqueId());
+		assertEquals(firstAssignment.getResource().getUniqueId(), secondAssignment.getResource().getUniqueId());
+		assertEquals(1D, firstAssignment.getUnits(), 0.0001D);
+		assertEquals(1D, secondAssignment.getUnits(), 0.0001D);
+		assertTrue(new File(reopenedFirst.getSharedResourcePoolFile()).isFile());
+		assertTrue(new File(reopenedSecond.getSharedResourcePoolFile()).isFile());
+	}
+
+	private static Project sharedSharer(ResourcePool pool, File poolFile, Resource resource, String taskName) {
+		Project project = Project.createProject(pool, new DataFactoryUndoController());
+		project.initialize(false, false);
+		project.setSharedResourcePoolFile(poolFile.getAbsolutePath());
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName(taskName);
+		AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, MpoFileImporterTest.class);
+		return project;
+	}
+
+	private static byte[] saveProjectBytes(Project project) throws Exception {
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, output);
+		return output.toByteArray();
+	}
+
+	private static Assignment firstRealAssignment(Project project) {
+		for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Object value = iterator.next();
+			if (value instanceof NormalTask task)
+				for (Object candidate : task.getAssignments()) {
+					Assignment assignment = (Assignment) candidate;
+					if (!assignment.isDefault()) return assignment;
+				}
 		}
-		org.junit.jupiter.api.Assertions.assertNotNull(assignment);
-		assertEquals(88001L, assignment.getResource().getUniqueId());
-		assertEquals(1D, assignment.getUnits(), 0.0001D);
+		throw new AssertionError("No real assignment was restored");
 	}
 
 	@Test
