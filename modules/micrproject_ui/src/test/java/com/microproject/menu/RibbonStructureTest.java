@@ -61,7 +61,7 @@ class RibbonStructureTest {
 	@Test
 	void issue37FileTabExposesRecentProjectsBesideOpen() {
 		assertEquals(List.of(
-			"RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects",
+			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects",
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonCloseProject"),
 			ribbonButtonIds("FileRibbonBand"));
 		assertEquals("RecentProjectsAction",
@@ -87,9 +87,10 @@ class RibbonStructureTest {
 		assertEquals(List.of("RibbonUpdateTasks"), ribbonButtonIds("TaskTrackingRibbonBand"));
 		assertEquals(List.of(
 			"ClipboardRibbonBand", "ResourceInsertRibbonBand", "ResourcePropertiesRibbonBand",
-			"ResourceAssignmentsRibbonBand", "ResourceLevelRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
+			"ResourceAssignmentsRibbonBand", "ResourceLevelRibbonBand", "ResourcePoolRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
 		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
-		assertEquals(List.of("RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate"),
+		assertEquals(List.of("RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool"), ribbonButtonIds("ResourcePoolRibbonBand"));
+		assertEquals(List.of("RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
 			ribbonButtonIds("ProjectScheduleRibbonBand"));
 	}
 

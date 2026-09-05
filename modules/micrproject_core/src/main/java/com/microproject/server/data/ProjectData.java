@@ -72,6 +72,10 @@ public class ProjectData extends DocumentData implements HasName,DelegatesFields
     protected Map<String, Object> extraFields;
     /** Project-scoped custom report presets persisted with native files. */
     protected Map<String, String> customReportPresets;
+	/** Stable document UUID, distinct from legacy numeric project/task identifiers. */
+	protected String documentId;
+	protected String sharedResourcePoolFile;
+	protected boolean resourcePoolTakesPrecedence = true;
     protected Collection<? extends DataObject> referringSubprojectTasks;
     protected long availableImages=GANTT_SVG|GANTT_PNG|NETWORK_SVG|NETWORK_PNG;
     protected String group;
@@ -207,6 +211,20 @@ public class ProjectData extends DocumentData implements HasName,DelegatesFields
 	}
 	public final void setCustomReportPresets(Map<String, String> customReportPresets) {
 		this.customReportPresets = customReportPresets;
+	}
+	public final String getDocumentId() { return documentId; }
+	public final void setDocumentId(String documentId) { this.documentId = documentId; }
+	public final String getSharedResourcePoolFile() {
+		return sharedResourcePoolFile;
+	}
+	public final void setSharedResourcePoolFile(String sharedResourcePoolFile) {
+		this.sharedResourcePoolFile = sharedResourcePoolFile;
+	}
+	public final boolean isResourcePoolTakesPrecedence() {
+		return resourcePoolTakesPrecedence;
+	}
+	public final void setResourcePoolTakesPrecedence(boolean resourcePoolTakesPrecedence) {
+		this.resourcePoolTakesPrecedence = resourcePoolTakesPrecedence;
 	}
     public final Collection<? extends DataObject> getReferringSubprojectTasks() {
         return referringSubprojectTasks;

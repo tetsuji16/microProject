@@ -328,7 +328,10 @@ public final class TeamPlannerDialogBox extends JDialog {
 			if (slot == null) {
 				return null;
 			}
+			Project sourceProject = slot.task().getOwningProject();
+			String source = sourceProject == null ? null : sourceProject.getName();
 			return "<html><b>" + escape(slot.task().getName()) + "</b><br>"
+				+ (source == null || source.isBlank() ? "" : "Project: " + escape(source) + "<br>")
 				+ dateFormat.format(Instant.ofEpochMilli(slot.start())) + " – "
 				+ dateFormat.format(Instant.ofEpochMilli(slot.end())) + "<br>"
 				+ Math.round(slot.units() * 100D) + "% units"

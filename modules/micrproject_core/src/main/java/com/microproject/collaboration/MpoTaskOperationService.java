@@ -12,6 +12,7 @@ import java.util.Map;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.SubProj;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.assignment.Assignment;
@@ -101,6 +102,11 @@ public final class MpoTaskOperationService {
 		Object parentId = payload.get("parentLegacyUniqueId");
 		Task parent = parentId == null ? null : project.findByUniqueId(number(parentId, "parentLegacyUniqueId"));
 		if (parentId != null && parent == null) throw new IOException("task.move references an unknown parent");
+		// MPO snapshots already retain the outline below a linked subproject.  The
+		// child document is deliberately opened later by ProjectFactory, so replaying
+		// a historical move here would try to validate against a not-yet-loaded owner.
+		if (parent instanceof SubProj subproject && subproject.getSubproject() == null)
+			return;
 		com.microproject.grouping.core.Node childNode = project.getTaskModel().search(task);
 		com.microproject.grouping.core.Node parentNode = parent == null ? null : project.getTaskModel().search(parent);
 		if (childNode == null || (parent != null && parentNode == null)) throw new IOException("task.move cannot resolve task hierarchy");

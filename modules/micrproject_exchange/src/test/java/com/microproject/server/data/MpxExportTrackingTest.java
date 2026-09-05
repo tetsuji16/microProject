@@ -203,6 +203,34 @@ public class MpxExportTrackingTest extends TestCase {
 		assertEquals(DependencyType.Kind.SS.code(), incoming.getDependencyType());
 	}
 
+	public void testMicrosoftXmlPreservesExternalProjectFileWhenUidIsAlsoPresent() throws Exception {
+		Project local = createProject();
+		Project external = createProject();
+		NormalTask localSuccessor = (NormalTask) local.createLocalTaskNode(null).getImpl();
+		localSuccessor.setName("Local successor");
+		NormalTask externalPredecessor = (NormalTask) external.createLocalTaskNode(null).getImpl();
+		externalPredecessor.setName("External predecessor");
+		externalPredecessor.setExternalProjectFile("C:/plans/external-project.xml");
+		DependencyService.getInstance().newDependency(externalPredecessor, localSuccessor,
+			DependencyType.Kind.FS.code(), 0L, this);
+
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("external-project-path.xml");
+		assertTrue(exporter.saveProject(local, output));
+		ProjectFile exported = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(output.toByteArray()));
+		net.sf.mpxj.Task externalTask = exported.getTasks().stream()
+			.filter(net.sf.mpxj.Task::getExternalTask).findFirst().orElseThrow();
+		assertEquals("C:/plans/external-project.xml", externalTask.getExternalTaskProject());
+		assertEquals("C:/plans/external-project.xml", externalTask.getSubprojectFile());
+		Project reloaded = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(output.toByteArray()), "xml", (progress, label) -> {});
+		Dependency reloadedLink = (Dependency) taskNamed(reloaded, "Local successor").getPredecessorList().iterator().next();
+		assertEquals("C:/plans/external-project.xml",
+			((Task) reloadedLink.getPredecessor()).getExternalProjectFile());
+	}
+
 	private NormalTask taskNamed(Project project, String name) {
 		for (Task task : project.getTaskList()) {
 			if (name.equals(task.getName())) return (NormalTask) task;

@@ -69,6 +69,7 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 
 	public void setGraphicManager(GraphicManager graphicManager) {
 		this.graphicManager = graphicManager;
+		getRootPane().setTransferHandler(new ProjectFileDropTransferHandler(graphicManager));
 	}
 
 	public JPanel getRibbonPanel() {

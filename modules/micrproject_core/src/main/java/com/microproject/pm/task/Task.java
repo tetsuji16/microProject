@@ -139,6 +139,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected Date created = new Date();
 	protected transient boolean external = false;
 	protected transient long projectId = 0;
+	/** External project path used when an MSP link has no numeric project id. */
+	protected String externalProjectFile;
 	double physicalPercentComplete = 0.0;
 
 	protected long windowEarlyStart = 0;
@@ -1858,6 +1860,19 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return true;
 	}
 
+	/**
+	 * The master-project spreadsheet includes this column for every task row.
+	 * Ordinary tasks have no linked-project state, so keep the cell empty and
+	 * hidden while allowing {@link DefaultSubProj} to expose its load state.
+	 */
+	public String getSubprojectStatus() {
+		return null;
+	}
+
+	public boolean fieldHideSubprojectStatus(FieldContext fieldContext) {
+		return true;
+	}
+
 	public void setSubprojectFile(String sub) {
 	}
 
@@ -2078,6 +2093,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final void setProjectId(long projectId) {
 		this.projectId = projectId;
 	}
+	public final String getExternalProjectFile() {
+		return externalProjectFile;
+	}
+	public final void setExternalProjectFile(String externalProjectFile) {
+		this.externalProjectFile = externalProjectFile;
+	}
 
 	public Project getRootProject() {
 		Task parent = getWbsParentTask();
@@ -2129,6 +2150,15 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 	public final Project getOwningProject() {
 		return owningProject;
+	}
+	/**
+	 * Returns the document that owns this task rather than the document whose
+	 * outline is currently displaying it.  A master project projects child
+	 * tasks into its outline, so this value is the stable, user-visible source
+	 * of a projected row.
+	 */
+	public final String getSourceProject() {
+		return owningProject == null ? null : owningProject.getName();
 	}
 	public final void setOwningProject(Project owningProject) {
 		this.owningProject = owningProject;

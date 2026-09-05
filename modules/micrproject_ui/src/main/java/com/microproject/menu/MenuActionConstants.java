@@ -26,6 +26,7 @@ package com.microproject.menu;
 
 public interface MenuActionConstants {
 	public static final String ACTION_NEW_PROJECT             = "NewProject";
+	public static final String ACTION_NEW_MASTER_PROJECT      = "NewMasterProject";
 	public static final String ACTION_OPEN_PROJECT            = "OpenProject";
 	public static final String ACTION_RECENT_PROJECTS         = "RecentProjects";
 	public static final String ACTION_IMPORT_MSPROJECT        = "ImportMSProject";
@@ -99,6 +100,9 @@ public interface MenuActionConstants {
 	public static final String ACTION_INSERT_RESOURCE         = "InsertResource";
 	public static final String ACTION_INSERT_RECURRING        = "InsertRecurring";
 	public static final String ACTION_INSERT_PROJECT          = "InsertProject";
+	public static final String ACTION_REFRESH_SUBPROJECTS     = "RefreshSubprojects";
+	public static final String ACTION_OPEN_SUBPROJECT          = "OpenSubproject";
+	public static final String ACTION_REMOVE_SUBPROJECT        = "RemoveSubproject";
 	public static final String ACTION_INSERT_COLUMN           = "InsertColumn";
 	public static final String ACTION_INSERT_HYPERLINK        = "InsertHyperlink";
 	public static final String ACTION_NEW             	      = ACTION_INSERT_TASK;
@@ -115,6 +119,9 @@ public interface MenuActionConstants {
 	public static final String ACTION_ASSIGN_RESOURCES        = "AssignResources";
 	public static final String ACTION_TIMESHEET               = "Timesheet";
 	public static final String ACTION_LEVEL_RESOURCES         = "LevelResources";
+	public static final String ACTION_USE_RESOURCE_POOL       = "UseResourcePool";
+	public static final String ACTION_CREATE_RESOURCE_POOL    = "CreateResourcePool";
+	public static final String ACTION_REFRESH_RESOURCE_POOL   = "RefreshResourcePool";
 	public static final String ACTION_CCPM_SETTINGS           = "CCPMSettings";
 	public static final String ACTION_CCPM_CLEAR              = "CCPMClear";
 	public static final String ACTION_CCPM_BUFFER_STATUS      = "CCPMBufferStatus";

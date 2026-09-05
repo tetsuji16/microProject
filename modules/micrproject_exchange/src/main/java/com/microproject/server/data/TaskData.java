@@ -47,8 +47,18 @@ public class TaskData extends SerializedDataObject {
     protected long calendarId=-1;
     protected boolean external = false;
     protected long projectId = 0L;
+    protected String externalProjectFile;
     protected long subprojectId = 0L; // for subproject tasks, what project they represent
     protected Map<String, Object> subprojectFieldValues = null;
+	/** Linked child filename and insertion read-only mode for local master projects. */
+	protected String subprojectFile;
+	protected boolean subprojectReadOnly;
+	/** Master-local stable identity of a linked subproject reference. */
+	protected String subprojectReferenceId;
+	protected String storedSubprojectPath;
+	protected String canonicalSubprojectPath;
+	protected String lastKnownSubprojectProjectId;
+	protected long lastKnownSubprojectModifiedTime;
     protected boolean timesheetCreated = false;
     protected String notes;
     protected transient Map<String, Object> attributes;
@@ -170,6 +180,12 @@ public class TaskData extends SerializedDataObject {
 	public final void setProjectId(long projectId) {
 		this.projectId = projectId;
 	}
+	public final String getExternalProjectFile() {
+		return externalProjectFile;
+	}
+	public final void setExternalProjectFile(String externalProjectFile) {
+		this.externalProjectFile = externalProjectFile;
+	}
 	public String toString() {
 		return ToStringBuilder.reflectionToString(this);
 	}
@@ -188,6 +204,32 @@ public class TaskData extends SerializedDataObject {
 	public final void setSubprojectFieldValues(Map<String, Object> subprojectFieldValues) {
 		this.subprojectFieldValues = subprojectFieldValues;
 	}
+	public final String getSubprojectFile() {
+		return subprojectFile;
+	}
+	public final void setSubprojectFile(String subprojectFile) {
+		this.subprojectFile = subprojectFile;
+	}
+	public final boolean isSubprojectReadOnly() {
+		return subprojectReadOnly;
+	}
+	public final void setSubprojectReadOnly(boolean subprojectReadOnly) {
+		this.subprojectReadOnly = subprojectReadOnly;
+	}
+	public final String getSubprojectReferenceId() {
+		return subprojectReferenceId;
+	}
+	public final void setSubprojectReferenceId(String subprojectReferenceId) {
+		this.subprojectReferenceId = subprojectReferenceId;
+	}
+	public final String getStoredSubprojectPath() { return storedSubprojectPath; }
+	public final void setStoredSubprojectPath(String value) { storedSubprojectPath = value; }
+	public final String getCanonicalSubprojectPath() { return canonicalSubprojectPath; }
+	public final void setCanonicalSubprojectPath(String value) { canonicalSubprojectPath = value; }
+	public final String getLastKnownSubprojectProjectId() { return lastKnownSubprojectProjectId; }
+	public final void setLastKnownSubprojectProjectId(String value) { lastKnownSubprojectProjectId = value; }
+	public final long getLastKnownSubprojectModifiedTime() { return lastKnownSubprojectModifiedTime; }
+	public final void setLastKnownSubprojectModifiedTime(long value) { lastKnownSubprojectModifiedTime = value; }
 	public boolean isTimesheetCreated() {
 		return timesheetCreated;
 	}

@@ -39,6 +39,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.Node;
@@ -57,6 +59,32 @@ import com.microproject.util.Environment;
 
 public class ProjectMergeService {
 	private static final String PROJECT_LIBRE_FILE_SEPARATOR = "@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@";
+	private static final Logger logger = Logger.getLogger(ProjectMergeService.class.getName());
+
+	public enum LoadStatus {
+		SUCCESS,
+		NOT_FOUND,
+		ACCESS_DENIED,
+		TRANSIENT_FAILURE,
+		INVALID_FILE
+	}
+
+	public static class ExternalProjectLoadResult {
+		private final LoadStatus status;
+		private final Project project;
+		private final Exception cause;
+
+		private ExternalProjectLoadResult(LoadStatus status, Project project, Exception cause) {
+			this.status = status;
+			this.project = project;
+			this.cause = cause;
+		}
+
+		public LoadStatus getStatus() { return status; }
+		public Project getProject() { return project; }
+		public Exception getCause() { return cause; }
+		public boolean isSuccess() { return status == LoadStatus.SUCCESS && project != null; }
+	}
 
 	public static class TaskState {
 		private final long taskId;
@@ -122,6 +150,8 @@ public class ProjectMergeService {
 	public static class ConflictResult {
 		private final Set<Long> deletedTaskIds = new LinkedHashSet<Long>();
 		private final Set<Long> changedTaskIds = new LinkedHashSet<Long>();
+		private LoadStatus loadStatus = LoadStatus.SUCCESS;
+		private Exception loadFailure;
 
 		public boolean hasConflicts() {
 			return !deletedTaskIds.isEmpty() || !changedTaskIds.isEmpty();
@@ -134,11 +164,17 @@ public class ProjectMergeService {
 		public Set<Long> getChangedTaskIds() {
 			return changedTaskIds;
 		}
+
+		public LoadStatus getLoadStatus() { return loadStatus; }
+		public Exception getLoadFailure() { return loadFailure; }
+		public boolean hasLoadFailure() { return loadStatus != LoadStatus.SUCCESS; }
 	}
 
 	public static class ApplyResult {
 		private int updatedTaskCount;
 		private final Set<Long> skippedLockedTaskIds = new LinkedHashSet<Long>();
+		private LoadStatus loadStatus = LoadStatus.SUCCESS;
+		private Exception loadFailure;
 
 		public int getUpdatedTaskCount() {
 			return updatedTaskCount;
@@ -151,25 +187,82 @@ public class ProjectMergeService {
 		public boolean hasChanges() {
 			return updatedTaskCount > 0 || !skippedLockedTaskIds.isEmpty();
 		}
+
+		public LoadStatus getLoadStatus() { return loadStatus; }
+		public Exception getLoadFailure() { return loadFailure; }
+		public boolean hasLoadFailure() { return loadStatus != LoadStatus.SUCCESS; }
 	}
 
+	/** Creates a load failure result for callers that need to preserve a recoverable UI state. */
+	public static ApplyResult failedLoad(LoadStatus status, Exception cause) {
+		ApplyResult result = new ApplyResult();
+		result.loadStatus = status == null ? LoadStatus.INVALID_FILE : status;
+		result.loadFailure = cause;
+		return result;
+	}
+
+	/**
+	 * Loads an external project while preserving the historical Project-returning
+	 * API used by exchange and collaboration callers.  Detailed failure
+	 * information is available from {@link #loadExternalProjectResult(String)}.
+	 */
 	public Project loadExternalProject(String fileName) {
+		ExternalProjectLoadResult result = loadExternalProjectResult(fileName);
+		return result.isSuccess() ? result.getProject() : null;
+	}
+
+	/** Loads an external project and reports a stable status for UI/recovery code. */
+	public ExternalProjectLoadResult loadExternalProjectResult(String fileName) {
 		if (fileName == null) {
-			return null;
+			return new ExternalProjectLoadResult(LoadStatus.NOT_FOUND, null, null);
 		}
 		try {
+			File file = new File(fileName);
+			if (!file.isFile()) {
+				return new ExternalProjectLoadResult(LoadStatus.NOT_FOUND, null, null);
+			}
+			Project project;
 			if (fileName.toLowerCase(Locale.ROOT).endsWith(".pod")) {
-				return loadPodProject(fileName);
+				project = loadPodProject(fileName);
+			} else if (fileName.toLowerCase(Locale.ROOT).endsWith(".mpo")) {
+				project = loadMpoProject(fileName);
+			} else {
+				try (InputStream in = new FileInputStream(fileName)) {
+					project = loadMicrosoftProject(fileName, in);
+				}
 			}
-			if (fileName.toLowerCase(Locale.ROOT).endsWith(".mpo")) {
-				return loadMpoProject(fileName);
+			if (project == null) {
+				IllegalStateException cause = new IllegalStateException("Importer returned no project");
+				logger.log(Level.WARNING, "Invalid external project " + fileName, cause);
+				return new ExternalProjectLoadResult(LoadStatus.INVALID_FILE, null, cause);
 			}
-			try (InputStream in = new FileInputStream(fileName)) {
-				return loadMicrosoftProject(fileName, in);
+			return new ExternalProjectLoadResult(LoadStatus.SUCCESS, project, null);
+		} catch (java.io.IOException e) {
+			if (loadFailureStatus(e) == LoadStatus.ACCESS_DENIED) {
+				logger.log(Level.WARNING, "Unable to access external project " + fileName, e);
+				return new ExternalProjectLoadResult(LoadStatus.ACCESS_DENIED, null, e);
 			}
+			// The input is a local project file.  Once isFile() has succeeded, an
+			// I/O failure while parsing its container (for example ZipException for
+			// a broken MPOF) is actionable invalid-file recovery, not a transient
+			// collaboration failure.  Keeping this distinction lets a master retain
+			// a repairable INVALID reference instead of obscuring the parser error.
+			logger.log(Level.WARNING, "Invalid external project " + fileName, e);
+			return new ExternalProjectLoadResult(LoadStatus.INVALID_FILE, null, e);
+		} catch (SecurityException e) {
+			logger.log(Level.WARNING, "Unable to access external project " + fileName, e);
+			return new ExternalProjectLoadResult(LoadStatus.ACCESS_DENIED, null, e);
 		} catch (Exception e) {
-			return null;
+			logger.log(Level.WARNING, "Invalid external project " + fileName, e);
+			return new ExternalProjectLoadResult(LoadStatus.INVALID_FILE, null, e);
 		}
+	}
+
+	/** Maps filesystem access failures separately from malformed project content. */
+	static LoadStatus loadFailureStatus(Exception failure) {
+		if (failure instanceof SecurityException || failure instanceof java.nio.file.AccessDeniedException)
+			return LoadStatus.ACCESS_DENIED;
+		return LoadStatus.INVALID_FILE;
 	}
 
 	private Project loadMpoProject(String fileName) throws Exception {
@@ -268,10 +361,11 @@ public class ProjectMergeService {
 		if (lockedTaskIds == null || lockedTaskIds.isEmpty()) {
 			return deleted;
 		}
-		Project external = loadExternalProject(fileName);
-		if (external == null) {
+		ExternalProjectLoadResult load = loadExternalProjectResult(fileName);
+		if (!load.isSuccess()) {
 			return deleted;
 		}
+		Project external = load.getProject();
 		for (Long taskId : lockedTaskIds) {
 			Task task = external.findByUniqueId(taskId.longValue());
 			if (task == null) {
@@ -286,10 +380,13 @@ public class ProjectMergeService {
 		if (baselineStates == null || baselineStates.isEmpty()) {
 			return result;
 		}
-		Project external = loadExternalProject(fileName);
-		if (external == null) {
+		ExternalProjectLoadResult load = loadExternalProjectResult(fileName);
+		result.loadStatus = load.getStatus();
+		result.loadFailure = load.getCause();
+		if (!load.isSuccess()) {
 			return result;
 		}
+		Project external = load.getProject();
 		for (Map.Entry<Long, TaskState> entry : baselineStates.entrySet()) {
 			Long taskId = entry.getKey();
 			TaskState baseline = entry.getValue();
@@ -322,10 +419,13 @@ public class ProjectMergeService {
 		if (target == null || fileName == null) {
 			return result;
 		}
-		Project external = loadExternalProject(fileName);
-		if (external == null) {
+		ExternalProjectLoadResult load = loadExternalProjectResult(fileName);
+		result.loadStatus = load.getStatus();
+		result.loadFailure = load.getCause();
+		if (!load.isSuccess()) {
 			return result;
 		}
+		Project external = load.getProject();
 		boolean wasDirty = target.needsSaving();
 		boolean wasImporting = Environment.isImporting();
 		List<Node> changedNodes = new ArrayList<Node>(external.getTaskList().size());

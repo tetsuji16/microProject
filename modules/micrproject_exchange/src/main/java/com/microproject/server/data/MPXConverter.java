@@ -76,6 +76,7 @@ import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.SubProj;
 import com.microproject.util.DateTime;
 import com.microproject.util.MathUtils;
 /**
@@ -395,6 +396,16 @@ private static int autoId = 0;
 
 		if (cal != null)
 			mpxTask.setCalendar(ImportedCalendarService.getInstance().findExportedCalendar(cal));
+		if (projectlibreTask instanceof SubProj subproject) {
+			net.sf.mpxj.SubProject mpxSubproject = new net.sf.mpxj.SubProject();
+			mpxSubproject.setFileName(projectlibreTask.getSubprojectFile());
+			mpxSubproject.setFullPath(projectlibreTask.getSubprojectFile());
+			mpxSubproject.setTaskUniqueID(Integer.valueOf((int) projectlibreTask.getUniqueId()));
+			mpxTask.setSubProject(mpxSubproject);
+			mpxTask.setSubprojectFile(projectlibreTask.getSubprojectFile());
+			mpxTask.setSubprojectTaskID(Integer.valueOf((int) projectlibreTask.getId()));
+			mpxTask.setSubprojectReadOnly(projectlibreTask.isSubprojectReadOnly());
+		}
 
 //	Not needed - it will be set when hierarchy is done		mpxTask.setOutlineLevel(new Integer(projectlibreTask.getOutlineLevel()));
 

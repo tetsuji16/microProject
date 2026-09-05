@@ -74,6 +74,8 @@ import com.microproject.options.EditOption;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.BelongsToDocument;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.SubProj;
+import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSheetScheduleWorkflow;
 import com.microproject.pm.time.Interval;
 import com.microproject.scripting.ScriptedFormula;
@@ -1106,6 +1108,15 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 	public boolean isReadOnly(Object object, FieldContext context) {
 		if (context == null)
 			context = specialFieldContext;
+		// A task projected below a read-only subproject belongs to the master
+		// outline for rendering, so Project.isReadOnly() alone cannot protect it.
+		// Keep the child editable in its own writable document, but reject every
+		// field edit made through the master projection.
+		if (object instanceof Task task) {
+			SubProj enclosingSubproject = task.getEnclosingSubproject();
+			if (enclosingSubproject != null && ((Task) enclosingSubproject).isSubprojectReadOnly())
+				return true;
+		}
 		boolean taskSheetSummaryScheduleEdit = FieldContext.isTaskSheetUpdate(context)
 				&& TaskSheetScheduleWorkflow.isScheduleField(id)
 				&& (object instanceof Project || (object instanceof BelongsToHierarchy && ((BelongsToHierarchy) object).isParent()));

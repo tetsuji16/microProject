@@ -27,6 +27,15 @@ package com.microproject.pm.task;
 import java.util.Map;
 
 public interface SubProj {
+	enum LoadStatus {
+		NOT_LOADED,
+		OPEN,
+		MISSING,
+		INVALID,
+		ACCESS_DENIED,
+		UNAVAILABLE,
+		CYCLE
+	}
 	Project getSubproject();
 
 	boolean isSubprojectOpen();
@@ -37,6 +46,31 @@ public interface SubProj {
 
 	long getSubprojectUniqueId();
 
+	/** Stable identity of this reference inside its master project. */
+	default String getReferenceId() {
+		return null;
+	}
+
+	default void setReferenceId(String referenceId) {
+	}
+
+	/** Portable persisted path, relative to the master where that is possible. */
+	default String getStoredSubprojectPath() { return getSubprojectFile(); }
+	default void setStoredSubprojectPath(String storedSubprojectPath) { }
+	/** Canonical absolute path observed when the child was last successfully loaded. */
+	default String getCanonicalSubprojectPath() { return getSubprojectFile(); }
+	default void setCanonicalSubprojectPath(String canonicalSubprojectPath) { }
+	/** Stable identity reported by the child when it was last successfully loaded. */
+	default String getLastKnownProjectId() { return null; }
+	default void setLastKnownProjectId(String lastKnownProjectId) { }
+	default long getLastKnownModifiedTime() { return 0L; }
+	default void setLastKnownModifiedTime(long lastKnownModifiedTime) { }
+
+	/** Persisted source path, when the subproject has not been opened yet. */
+	default String getSubprojectFile() {
+		return null;
+	}
+
 	void setFetching(boolean b);
 
 	boolean isValid();
@@ -44,6 +78,17 @@ public interface SubProj {
 	void setSubprojectFieldValues(Map subprojectFieldValues);
 
 	void setSubprojectUniqueId(long subprojectId);
+
+	default void setSubprojectReadOnly(boolean subprojectReadOnly) {
+	}
+
+	/** A persisted-reference recovery state suitable for displaying in the master outline. */
+	default LoadStatus getLoadStatus() {
+		return LoadStatus.NOT_LOADED;
+	}
+
+	default void setLoadStatus(LoadStatus loadStatus) {
+	}
 
 	void setSchedulesFromSubprojectFieldValues();
 

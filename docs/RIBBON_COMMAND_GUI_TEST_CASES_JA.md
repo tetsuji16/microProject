@@ -16,6 +16,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | ID | 操作ユースケース | 合格条件 |
 |---|---|---|
 | RibbonNewProject | 新規プロジェクトを作成 | 新規ドキュメントが表示される |
+| RibbonNewMasterProject | 新規マスタープロジェクトを作成 | ローカルのマスター文書が作成され、サブプロジェクトを挿入できる |
 | RibbonOpenProject | 保存済みプロジェクトを開く | 選択したプロジェクト名・タスクが表示される |
 | RibbonRecentProjects | 最近使ったプロジェクトを開く | 最近使った一覧から選択したプロジェクトへ切り替わる |
 | RibbonImportProject | MSP等の外部プロジェクトをインポート | インポート結果が表示され、エラー時は説明が出る |
@@ -62,6 +63,9 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonTimesheet | タイムシートを表示 | タイムシート画面が表示される |
 | RibbonTeamFilter | チームリソース表示を切り替える | 選択状態と一覧が切り替わる |
 | RibbonLevelResources | リソースを平準化 | 平準化候補が表示され、プレビュー／取消が可能 |
+| RibbonUseResourcePool | 共有リソースプールを使用 | 保存済みで開いているプールを選択し、競合時の優先元を選択して共有できる |
+| RibbonCreateResourcePool | リソースプールを作成 | 独立したリソースプール文書が作成され、保存後に共有元として選択できる |
+| RibbonRefreshResourcePool | 共有リソースプールを更新 | 参照先プールを開いた状態で、未保存変更を失わずに再解決できる |
 
 ### レポート（ReportRibbonTask）
 
@@ -84,6 +88,9 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonCalendarOptions | カレンダーオプションを開く | オプションを表示できる |
 | RibbonUpdateProject | プロジェクトを更新 | 更新結果がタスク表へ反映される |
 | RibbonRecalculate | スケジュールを再計算 | 依存タスクとガントバーが再計算される |
+| RibbonRefreshSubprojects | マスターのサブプロジェクトを更新 | 各リンクが安全に再読み込みされ、未保存の子プロジェクトでは保存・破棄・キャンセルを選べる |
+| RibbonOpenSubproject | 選択したサブプロジェクトを開く | 選択したリンク先を正規化された既存ウィンドウで開き、既に開いている場合はそのウィンドウを前面に表示する |
+| RibbonRemoveSubproject | 選択したサブプロジェクトを削除する | マスターからのリンクのみを安全に削除し、子プロジェクトのファイルおよび独立した文書は変更しない |
 | RibbonSaveBaseline / RibbonClearBaseline | ベースラインを保存／消去 | 保存または確認後の消去結果が表示される |
 | RibbonCCPMSettings | CCPM設定を開く | CCPM設定ダイアログが表示される |
 | RibbonCCPMClear | CCPM計画を消去 | 確認後にCCPM状態が消去される |

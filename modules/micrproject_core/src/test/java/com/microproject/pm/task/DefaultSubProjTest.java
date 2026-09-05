@@ -25,6 +25,7 @@
 package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -59,5 +60,27 @@ class DefaultSubProjTest {
 		assertTrue(subproject instanceof NormalTask);
 		assertTrue(subproject.isSubproject());
 		assertSame(project, subproject.getProject());
+	}
+
+	@Test
+	void reportsPersistedReferenceRecoveryStateWithoutChangingTheReference() {
+		DefaultSubProj subproject = new DefaultSubProj(null, 42L);
+		subproject.setSubprojectFile("C:/plans/missing-child.mpo");
+		subproject.setLoadStatus(SubProj.LoadStatus.MISSING);
+
+		assertEquals(SubProj.LoadStatus.MISSING, subproject.getLoadStatus());
+		assertEquals("MISSING", subproject.getSubprojectStatus());
+		assertEquals("C:/plans/missing-child.mpo", subproject.getSubprojectFile());
+		assertEquals("missing-child.mpo [Missing subproject]", subproject.getName());
+	}
+
+	@Test
+	void distinguishesInvalidAndAccessDeniedReferencesForRecovery() {
+		DefaultSubProj subproject = new DefaultSubProj(null, 42L);
+		subproject.setSubprojectFile("C:/plans/child.mpo");
+		subproject.setLoadStatus(SubProj.LoadStatus.INVALID);
+		assertEquals("child.mpo [Invalid subproject]", subproject.getName());
+		subproject.setLoadStatus(SubProj.LoadStatus.ACCESS_DENIED);
+		assertEquals("child.mpo [Access denied]", subproject.getName());
 	}
 }

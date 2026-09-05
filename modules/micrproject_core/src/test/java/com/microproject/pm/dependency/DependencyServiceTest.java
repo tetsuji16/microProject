@@ -89,6 +89,24 @@ class DependencyServiceTest {
 	}
 
 	@Test
+	void rejectsACycleThatCrossesProjectBoundariesWithoutAddingAPartialLink() throws InvalidAssociationException {
+		Project firstProject = createProject("first-project");
+		Project secondProject = createProject("second-project");
+		NormalTask first = new NormalTask(firstProject);
+		NormalTask second = new NormalTask(secondProject);
+		firstProject.connectTask(first);
+		secondProject.connectTask(second);
+		DependencyService.getInstance().newDependency(first, second, DependencyType.FS, 0L, this);
+
+		assertThrows(InvalidAssociationException.class,
+				() -> DependencyService.getInstance().newDependency(second, first, DependencyType.FS, 0L, this));
+		assertEquals(1, first.getSuccessorList().size());
+		assertEquals(1, second.getPredecessorList().size());
+		assertEquals(0, first.getPredecessorList().size());
+		assertEquals(0, second.getSuccessorList().size());
+	}
+
+	@Test
 	void dependencyDataObjectHasStableIdentityAndName() throws InvalidAssociationException {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

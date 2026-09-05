@@ -224,6 +224,29 @@ class NormalTaskDurationTest {
 	}
 
 	@Test
+	void crossProjectDependenciesUseTheSameSchedulingRulesForAllFourLinkTypes() throws InvalidAssociationException {
+		for (int type : new int[] { DependencyType.FS, DependencyType.SS, DependencyType.FF, DependencyType.SF }) {
+			Project predecessorProject = createProject();
+			Project successorProject = createProject();
+			NormalTask predecessor = createTask(predecessorProject);
+			NormalTask successor = createTask(successorProject);
+			predecessor.setDuration(2L * day());
+			successor.setDuration(day());
+			DependencyService.getInstance().newDependency(predecessor, successor, type, 0L, this);
+			predecessorProject.recalculate();
+			successorProject.recalculate();
+
+			switch (type) {
+			case DependencyType.FS -> assertTrue(successor.getStart() >= predecessor.getEnd());
+			case DependencyType.SS -> assertEquals(predecessor.getStart(), successor.getStart());
+			case DependencyType.FF -> assertEquals(predecessor.getEnd(), successor.getEnd());
+			case DependencyType.SF -> assertTrue(successor.getEnd() <= predecessor.getStart());
+			default -> throw new AssertionError("Unexpected dependency type: " + type);
+			}
+		}
+	}
+
+	@Test
 	void summaryDurationInputDoesNotResizeChildren() {
 		Project project = createProject();
 		NormalTask parent = createTask(project);

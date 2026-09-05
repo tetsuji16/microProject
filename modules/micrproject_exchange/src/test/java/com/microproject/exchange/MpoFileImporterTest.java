@@ -6,6 +6,7 @@
 package com.microproject.exchange;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
@@ -28,6 +29,8 @@ import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.OperationLog;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
@@ -35,10 +38,304 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.Resource;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.grouping.core.NodeFactory;
 
 import org.junit.jupiter.api.Test;
 
 class MpoFileImporterTest {
+	@Test
+	void mpoDocumentIdentitySurvivesSaveReloadSave() throws Exception {
+		Project original = projectForRoundTrip();
+		ByteArrayOutputStream first = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, first);
+		String firstManifest = new String(readEntries(first.toByteArray()).get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		String firstDocumentId = firstManifest.replaceFirst("(?s).*documentId=\\\"([0-9a-f-]{36})\\\".*", "$1");
+		org.junit.jupiter.api.Assertions.assertNotEquals(firstManifest, firstDocumentId, "MPO must contain a UUID document identity");
+
+		Project reopened = loadFromBytes(first.toByteArray());
+		org.junit.jupiter.api.Assertions.assertEquals(firstDocumentId, reopened.getDocumentId());
+		ByteArrayOutputStream second = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(reopened, second);
+		String secondManifest = new String(readEntries(second.toByteArray()).get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		String secondDocumentId = secondManifest.replaceFirst("(?s).*documentId=\\\"([0-9a-f-]{36})\\\".*", "$1");
+		org.junit.jupiter.api.Assertions.assertEquals(firstDocumentId, secondDocumentId);
+	}
+
+	@Test
+	void repeatedMpoSaveUsesDeterministicArchiveEntryOrder() throws Exception {
+		Project project = projectForRoundTrip();
+		ByteArrayOutputStream first = new ByteArrayOutputStream();
+		ByteArrayOutputStream second = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, first);
+		new MpoFileImporter().saveProject(project, second);
+		Map<String, byte[]> firstEntries = readEntries(first.toByteArray());
+		Map<String, byte[]> secondEntries = readEntries(second.toByteArray());
+		assertEquals(firstEntries.keySet(), secondEntries.keySet());
+	}
+
+	@Test
+	void masterMpoEmbedsLinkedProjectAndRestoresAUsableReference() throws Exception {
+		Project child = projectForRoundTrip();
+		File childFile = File.createTempFile("mpo-linked-child-", ".mpo");
+		childFile.deleteOnExit();
+		child.setFileName(childFile.getAbsolutePath());
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(childFile)) {
+			new MpoFileImporter().saveProject(child, output);
+		}
+
+		Project master = projectForRoundTrip();
+		master.setMaster(true);
+		DefaultSubProj reference = new DefaultSubProj(master, child.getUniqueId());
+		reference.setReferenceId("00000000-0000-0000-0000-000000000081");
+		reference.setName("Embedded child");
+		reference.setSubprojectFile(childFile.getAbsolutePath());
+		master.connectTask(reference);
+		master.addToDefaultOutline(null, NodeFactory.getInstance().createNode(reference));
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(master, archive);
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		String embeddedEntry = entries.keySet().stream()
+				.filter(name -> name.startsWith(MpoFileImporter.EMBEDDED_PROJECT_PREFIX)).findFirst().orElseThrow();
+		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(childFile.toPath()), entries.get(embeddedEntry));
+
+		Project reopened = loadFromBytes(archive.toByteArray());
+		DefaultSubProj restored = null;
+		for (java.util.Iterator<?> tasks = reopened.getTaskOutlineIterator(); tasks.hasNext();) {
+			Object task = tasks.next();
+			if (task instanceof DefaultSubProj value) { restored = value; break; }
+		}
+		org.junit.jupiter.api.Assertions.assertNotNull(restored);
+		org.junit.jupiter.api.Assertions.assertEquals(reference.getReferenceId(), restored.getReferenceId());
+		org.junit.jupiter.api.Assertions.assertTrue(new File(restored.getSubprojectFile()).isFile());
+		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(childFile.toPath()),
+				java.nio.file.Files.readAllBytes(new File(restored.getSubprojectFile()).toPath()));
+	}
+
+	@Test
+	void masterMpoKeepsTheMasterOpenWhenAnEmbeddedProjectIsTampered() throws Exception {
+		Project child = projectForRoundTrip();
+		File childFile = File.createTempFile("mpo-linked-child-", ".mpo");
+		childFile.deleteOnExit();
+		child.setFileName(childFile.getAbsolutePath());
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(childFile)) {
+			new MpoFileImporter().saveProject(child, output);
+		}
+		Project master = projectForRoundTrip();
+		master.setMaster(true);
+		DefaultSubProj reference = new DefaultSubProj(master, child.getUniqueId());
+		reference.setSubprojectFile(childFile.getAbsolutePath());
+		master.connectTask(reference);
+		master.addToDefaultOutline(null, NodeFactory.getInstance().createNode(reference));
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(master, archive);
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		String embeddedEntry = entries.keySet().stream()
+				.filter(name -> name.startsWith(MpoFileImporter.EMBEDDED_PROJECT_PREFIX)).findFirst().orElseThrow();
+		entries.put(embeddedEntry, new byte[] { 1, 2, 3 });
+		Project reopened = loadFromBytes(zip(entries).toByteArray());
+		DefaultSubProj restored = findSubproject(reopened);
+		org.junit.jupiter.api.Assertions.assertNotNull(restored);
+		assertEquals(com.microproject.pm.task.SubProj.LoadStatus.INVALID, restored.getLoadStatus());
+	}
+
+	@Test
+	void masterMpoKeepsTheMasterOpenWhenAnEmbeddedProjectEntryIsMissing() throws Exception {
+		Project child = projectForRoundTrip();
+		File childFile = File.createTempFile("mpo-missing-child-", ".mpo");
+		childFile.deleteOnExit();
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(childFile)) {
+			new MpoFileImporter().saveProject(child, output);
+		}
+		Project master = projectForRoundTrip();
+		master.setMaster(true);
+		addEmbeddedReference(master, child, childFile);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(master, archive);
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		entries.keySet().removeIf(name -> name.startsWith(MpoFileImporter.EMBEDDED_PROJECT_PREFIX));
+		Project reopened = loadFromBytes(zip(entries).toByteArray());
+		assertEquals(com.microproject.pm.task.SubProj.LoadStatus.MISSING, findSubproject(reopened).getLoadStatus());
+	}
+
+	@Test
+	void masterMpoRestoresAValidChildWhenAnotherEmbeddedChildIsTampered() throws Exception {
+		Project validChild = projectForRoundTrip();
+		File validChildFile = File.createTempFile("mpo-valid-child-", ".mpo");
+		validChildFile.deleteOnExit();
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(validChildFile)) {
+			new MpoFileImporter().saveProject(validChild, output);
+		}
+		Project invalidChild = projectForRoundTrip();
+		File invalidChildFile = File.createTempFile("mpo-invalid-child-", ".mpo");
+		invalidChildFile.deleteOnExit();
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(invalidChildFile)) {
+			new MpoFileImporter().saveProject(invalidChild, output);
+		}
+		Project master = projectForRoundTrip();
+		master.setMaster(true);
+		addEmbeddedReference(master, validChild, validChildFile);
+		addEmbeddedReference(master, invalidChild, invalidChildFile);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(master, archive);
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		String invalidEntry = entries.keySet().stream()
+				.filter(name -> name.startsWith(MpoFileImporter.EMBEDDED_PROJECT_PREFIX + "2-")).findFirst().orElseThrow();
+		entries.put(invalidEntry, new byte[] { 1, 2, 3 });
+		Project reopened = loadFromBytes(zip(entries).toByteArray());
+		java.util.List<DefaultSubProj> references = new java.util.ArrayList<>();
+		for (java.util.Iterator<?> tasks = reopened.getTaskOutlineIterator(); tasks.hasNext();) {
+			Object task = tasks.next();
+			if (task instanceof DefaultSubProj reference) references.add(reference);
+		}
+		assertEquals(2, references.size());
+		org.junit.jupiter.api.Assertions.assertTrue(references.stream().anyMatch(reference -> reference.getLoadStatus() == com.microproject.pm.task.SubProj.LoadStatus.INVALID));
+		org.junit.jupiter.api.Assertions.assertTrue(references.stream().anyMatch(reference -> reference.getLoadStatus() == com.microproject.pm.task.SubProj.LoadStatus.NOT_LOADED
+				&& new File(reference.getSubprojectFile()).isFile()));
+	}
+
+	@Test
+	void masterMpoMarksAWellChecksummedButMalformedChildInvalid() throws Exception {
+		Project child = projectForRoundTrip();
+		File childFile = File.createTempFile("mpo-malformed-child-", ".mpo");
+		childFile.deleteOnExit();
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(childFile)) {
+			new MpoFileImporter().saveProject(child, output);
+		}
+		Project master = projectForRoundTrip();
+		master.setMaster(true);
+		addEmbeddedReference(master, child, childFile);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(master, archive);
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		String embeddedEntry = entries.keySet().stream()
+				.filter(name -> name.startsWith(MpoFileImporter.EMBEDDED_PROJECT_PREFIX)).findFirst().orElseThrow();
+		Map<String, byte[]> malformed = readEntries(entries.get(embeddedEntry));
+		byte[] malformedXml = "<Project>".getBytes(StandardCharsets.UTF_8);
+		malformed.put(MpoFileImporter.PROJECT_ENTRY, malformedXml);
+		malformed.put(MpoFileImporter.MANIFEST_ENTRY,
+				MpoFileImporter.manifestFor(malformedXml).getBytes(StandardCharsets.UTF_8));
+		byte[] malformedArchive = zip(malformed).toByteArray();
+		String outerManifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		outerManifest = outerManifest.replace(sha256(childFile), sha256(malformedArchive));
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, outerManifest.getBytes(StandardCharsets.UTF_8));
+		entries.put(embeddedEntry, malformedArchive);
+
+		Project reopened = loadFromBytes(zip(entries).toByteArray());
+		assertEquals(com.microproject.pm.task.SubProj.LoadStatus.INVALID, findSubproject(reopened).getLoadStatus());
+	}
+
+	@Test
+	void masterMpoMarksAChildWithTamperedStandardMetadataInvalid() throws Exception {
+		Project child = projectForRoundTrip();
+		File childFile = File.createTempFile("mpo-child-metadata-", ".mpo");
+		childFile.deleteOnExit();
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(childFile)) {
+			new MpoFileImporter().saveProject(child, output);
+		}
+		Project master = projectForRoundTrip();
+		master.setMaster(true);
+		addEmbeddedReference(master, child, childFile);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(master, archive);
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		String embeddedEntry = entries.keySet().stream()
+				.filter(name -> name.startsWith(MpoFileImporter.EMBEDDED_PROJECT_PREFIX)).findFirst().orElseThrow();
+		Map<String, byte[]> altered = readEntries(entries.get(embeddedEntry));
+		altered.put("meta.xml", "<meta formatVersion=\"1.0\" tampered=\"true\"/>".getBytes(StandardCharsets.UTF_8));
+		byte[] alteredArchive = zip(altered).toByteArray();
+		String outerManifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8)
+				.replace(sha256(childFile), sha256(alteredArchive));
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, outerManifest.getBytes(StandardCharsets.UTF_8));
+		entries.put(embeddedEntry, alteredArchive);
+
+		Project reopened = loadFromBytes(zip(entries).toByteArray());
+		assertEquals(com.microproject.pm.task.SubProj.LoadStatus.INVALID, findSubproject(reopened).getLoadStatus());
+	}
+
+	@Test
+	void mpoEmbedsAndRestoresTheReferencedSharedResourcePoolFile() throws Exception {
+		Project pool = projectForRoundTrip();
+		File poolFile = File.createTempFile("mpo-resource-pool-", ".mpo");
+		poolFile.deleteOnExit();
+		pool.setFileName(poolFile.getAbsolutePath());
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(poolFile)) {
+			new MpoFileImporter().saveProject(pool, output);
+		}
+		Project sharer = projectForRoundTrip();
+		sharer.setSharedResourcePoolFile(poolFile.getAbsolutePath());
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(sharer, archive);
+
+		Project reopened = loadFromBytes(archive.toByteArray());
+		org.junit.jupiter.api.Assertions.assertTrue(new File(reopened.getSharedResourcePoolFile()).isFile());
+		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(poolFile.toPath()),
+				java.nio.file.Files.readAllBytes(new File(reopened.getSharedResourcePoolFile()).toPath()));
+	}
+
+	@Test
+	void portableMasterRemapsChildCrossProjectAndSharedPoolPathsAfterReopen() throws Exception {
+		Project target = projectForRoundTrip();
+		target.setUniqueId(9102L);
+		File targetFile = File.createTempFile("mpo-portable-target-", ".mpo");
+		targetFile.deleteOnExit();
+		target.setFileName(targetFile.getAbsolutePath());
+		NormalTask targetTask = (NormalTask) target.createLocalTaskNode(null).getImpl();
+		targetTask.setName("External dependency endpoint");
+		targetTask.setExternalProjectFile(targetFile.getAbsolutePath());
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(targetFile)) {
+			new MpoFileImporter().saveProject(target, output);
+		}
+
+		Project source = projectForRoundTrip();
+		source.setUniqueId(9101L);
+		NormalTask sourceTask = (NormalTask) source.createLocalTaskNode(null).getImpl();
+		sourceTask.setName("Local cross-project successor");
+		DependencyService.getInstance().newDependency(targetTask, sourceTask,
+				com.microproject.pm.dependency.DependencyType.Kind.FS.code(), 0L, this);
+		source.setSharedResourcePoolFile(targetFile.getAbsolutePath());
+		File sourceFile = File.createTempFile("mpo-portable-source-", ".mpo");
+		sourceFile.deleteOnExit();
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(sourceFile)) {
+			new MpoFileImporter().saveProject(source, output);
+		}
+
+		Project master = projectForRoundTrip();
+		master.setUniqueId(9100L);
+		master.setMaster(true);
+		addEmbeddedReference(master, source, sourceFile);
+		addEmbeddedReference(master, target, targetFile);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(master, archive);
+		Project reopened = loadFromBytes(archive.toByteArray());
+		DefaultSubProj extractedSource = findSubprojectForId(reopened, source.getUniqueId());
+		DefaultSubProj extractedTarget = findSubprojectForId(reopened, target.getUniqueId());
+		Project reopenedSource;
+		try (java.io.FileInputStream input = new java.io.FileInputStream(extractedSource.getSubprojectFile())) {
+			reopenedSource = new MpoFileImporter().loadProject(input);
+		}
+		NormalTask restoredTask = null;
+		for (java.util.Iterator<?> tasks = reopenedSource.getTaskOutlineIterator(); tasks.hasNext();) {
+			Object value = tasks.next();
+			if (value instanceof NormalTask task && "Local cross-project successor".equals(task.getName())) {
+				restoredTask = task;
+				break;
+			}
+		}
+		org.junit.jupiter.api.Assertions.assertNotNull(restoredTask);
+		org.junit.jupiter.api.Assertions.assertEquals(1, restoredTask.getPredecessorList().size());
+		Task restoredExternal = (Task) ((com.microproject.pm.dependency.Dependency)
+				restoredTask.getPredecessorList().iterator().next()).getPredecessor();
+		org.junit.jupiter.api.Assertions.assertNotNull(restoredExternal.getExternalProjectFile(),
+				() -> "restored external task=" + restoredExternal.getName() + ", external="
+						+ restoredExternal.isExternal() + ", projectId=" + restoredExternal.getProjectId());
+		assertEquals(new File(extractedTarget.getSubprojectFile()).getCanonicalPath(),
+				new File(restoredExternal.getExternalProjectFile()).getCanonicalPath());
+		File restoredPool = new File(reopenedSource.getSharedResourcePoolFile());
+		org.junit.jupiter.api.Assertions.assertTrue(restoredPool.isFile());
+		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(targetFile.toPath()),
+				java.nio.file.Files.readAllBytes(restoredPool.toPath()));
+	}
 	@Test
 	void manifestValidatesTheExactProjectPayload() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
@@ -50,6 +347,15 @@ class MpoFileImporterTest {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
 		byte[] changedXml = "<Project><Name>changed</Name></Project>".getBytes(StandardCharsets.UTF_8);
 		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(MpoFileImporter.manifestFor(projectXml), changedXml));
+	}
+
+	@Test
+	void mpoRejectsTamperedStandardArchiveEntry() throws Exception {
+		ByteArrayOutputStream generated = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(projectForRoundTrip(), generated);
+		Map<String, byte[]> entries = readEntries(generated.toByteArray());
+		entries.put("meta.xml", "<meta formatVersion=\"1.0\" tampered=\"true\"/>".getBytes(StandardCharsets.UTF_8));
+		assertThrows(IOException.class, () -> loadFromBytes(zip(entries).toByteArray()));
 	}
 
 	@Test
@@ -106,12 +412,16 @@ class MpoFileImporterTest {
 		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		String meta = new String(entries.get("meta.xml"), StandardCharsets.UTF_8);
-		entries.put("meta.xml", meta.replace("formatVersion=\"1.0\"", "formatVersion=\"1.4\"").getBytes(StandardCharsets.UTF_8));
+		byte[] minorMeta = meta.replace("formatVersion=\"1.0\"", "formatVersion=\"1.4\"").getBytes(StandardCharsets.UTF_8);
+		entries.put("meta.xml", minorMeta);
+		updateManifestChecksum(entries, "meta.xml", minorMeta);
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		org.junit.jupiter.api.Assertions.assertNotNull(reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray())));
 
-		entries.put("meta.xml", meta.replace("formatVersion=\"1.0\"", "formatVersion=\"9.0\"").getBytes(StandardCharsets.UTF_8));
+		byte[] majorMeta = meta.replace("formatVersion=\"1.0\"", "formatVersion=\"9.0\"").getBytes(StandardCharsets.UTF_8);
+		entries.put("meta.xml", majorMeta);
+		updateManifestChecksum(entries, "meta.xml", majorMeta);
 		MpoFileImporter rejecting = new MpoFileImporter();
 		rejecting.setProjectFactory(ProjectFactory.getInstance());
 		assertThrows(IOException.class, () -> rejecting.loadProject(new ByteArrayInputStream(zip(entries).toByteArray())));
@@ -198,48 +508,60 @@ class MpoFileImporterTest {
 	}
 
 	@Test
-	void mpoAppliesValidatedTaskUpdateOperationsToItsSnapshot() throws Exception {
+	void mpoDoesNotReplayTaskUpdatesOverItsMaterializedSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(project);
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation update = new OperationLog.Operation("00000000-0000-0000-0000-000000000011", "00000000-0000-0000-0000-000000000012", 1, java.util.Set.of(), "task.update", "00000000-0000-0000-0000-000000000013", Map.of("legacyUniqueId", Long.valueOf(task.getUniqueId()), "name", "Merged task"));
-		entries.put("operations/log.jsonl", new OperationLog().writeJsonl("00000000-0000-0000-0000-000000000014", java.util.List.of(update)));
+		byte[] operations = new OperationLog().writeJsonl(manifestDocumentId(entries), java.util.List.of(update));
+		entries.put("operations/log.jsonl", operations);
+		updateManifestChecksum(entries, "operations/log.jsonl", operations);
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
-		org.junit.jupiter.api.Assertions.assertEquals("Merged task", findByName(loaded, "Merged task").getName());
+		org.junit.jupiter.api.Assertions.assertEquals(task.getName(), firstTask(loaded).getName());
+		ByteArrayOutputStream resaved = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(loaded, resaved);
+		java.util.List<OperationLog.Operation> retained = new OperationLog().readJsonl(
+				readEntries(resaved.toByteArray()).get("operations/log.jsonl")).operations();
+		org.junit.jupiter.api.Assertions.assertEquals(1, retained.size());
+		org.junit.jupiter.api.Assertions.assertEquals("task.update", retained.get(0).kind());
 	}
 
 	@Test
-	void mpoAppliesTaskCreateOperationsIdempotently() throws Exception {
+	void mpoDoesNotReplayTaskCreatesOverItsMaterializedSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation create = new OperationLog.Operation("00000000-0000-0000-0000-000000000021", "00000000-0000-0000-0000-000000000022", 1, java.util.Set.of(), "task.create", "00000000-0000-0000-0000-000000000023", Map.of("legacyUniqueId", Long.valueOf(9001L), "name", "Created task"));
-		entries.put("operations/log.jsonl", new OperationLog().writeJsonl("00000000-0000-0000-0000-000000000024", java.util.List.of(create, create)));
+		byte[] operations = new OperationLog().writeJsonl(manifestDocumentId(entries), java.util.List.of(create, create));
+		entries.put("operations/log.jsonl", operations);
+		updateManifestChecksum(entries, "operations/log.jsonl", operations);
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
-		org.junit.jupiter.api.Assertions.assertEquals("Created task", loaded.findByUniqueId(9001L).getName());
-		org.junit.jupiter.api.Assertions.assertEquals(2, taskCount(loaded));
+		org.junit.jupiter.api.Assertions.assertNull(loaded.findByUniqueId(9001L));
+		org.junit.jupiter.api.Assertions.assertEquals(taskCount(project), taskCount(loaded));
 	}
 
 	@Test
-	void mpoAppliesTaskDeleteOperationsIdempotently() throws Exception {
+	void mpoDoesNotReplayTaskDeletesOverItsMaterializedSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
 		long taskId = firstTask(project).getUniqueId();
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation delete = new OperationLog.Operation("00000000-0000-0000-0000-000000000031", "00000000-0000-0000-0000-000000000032", 1, java.util.Set.of(), "task.delete", "00000000-0000-0000-0000-000000000033", Map.of("legacyUniqueId", Long.valueOf(taskId)));
-		entries.put("operations/log.jsonl", new OperationLog().writeJsonl("00000000-0000-0000-0000-000000000034", java.util.List.of(delete, delete)));
+		byte[] operations = new OperationLog().writeJsonl(manifestDocumentId(entries), java.util.List.of(delete, delete));
+		entries.put("operations/log.jsonl", operations);
+		updateManifestChecksum(entries, "operations/log.jsonl", operations);
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
-		org.junit.jupiter.api.Assertions.assertNull(loaded.findByUniqueId(taskId));
+		org.junit.jupiter.api.Assertions.assertEquals(taskCount(project), taskCount(loaded));
 	}
 
 	@Test
@@ -265,7 +587,7 @@ class MpoFileImporterTest {
 	}
 
 	@Test
-	void mpoAppliesTaskMoveOperations() throws Exception {
+	void mpoDoesNotReplayTaskMovesOverItsMaterializedSnapshot() throws Exception {
 		Project project = projectForRoundTrip();
 		NormalTask child = (NormalTask) firstTask(project);
 		NormalTask parent = (NormalTask) project.createLocalTaskNode(null).getImpl(); parent.setName("Parent");
@@ -273,10 +595,13 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream generated = new ByteArrayOutputStream(); new MpoFileImporter().saveProject(project, generated);
 		Map<String, byte[]> entries = readEntries(generated.toByteArray());
 		OperationLog.Operation move = new OperationLog.Operation("00000000-0000-0000-0000-000000000041", "00000000-0000-0000-0000-000000000042", 1, java.util.Set.of(), "task.move", "00000000-0000-0000-0000-000000000043", Map.of("legacyUniqueId", Long.valueOf(child.getUniqueId()), "parentLegacyUniqueId", Long.valueOf(parent.getUniqueId())));
-		entries.put("operations/log.jsonl", new OperationLog().writeJsonl("00000000-0000-0000-0000-000000000044", java.util.List.of(move)));
+		byte[] operations = new OperationLog().writeJsonl(manifestDocumentId(entries), java.util.List.of(move));
+		entries.put("operations/log.jsonl", operations);
+		updateManifestChecksum(entries, "operations/log.jsonl", operations);
 		MpoFileImporter reader = new MpoFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
-		org.junit.jupiter.api.Assertions.assertEquals(parent.getUniqueId(), loaded.findByUniqueId(child.getUniqueId()).getWbsParentTask().getUniqueId());
+		org.junit.jupiter.api.Assertions.assertNotSame(loaded.findByUniqueId(parent.getUniqueId()),
+				loaded.findByUniqueId(child.getUniqueId()).getWbsParentTask());
 	}
 
 	@Test
@@ -391,6 +716,21 @@ class MpoFileImporterTest {
 		firstTask(editor).setName("Edited locally");
 		MpoFileImporter writer = new MpoFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor); writer.exportFile();
 		org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[] { 7, 8, 9 }, readEntries(java.nio.file.Files.readAllBytes(shared.toPath())).get("vendor/remote.bin"));
+	}
+
+	@Test
+	void mpoSharedFolderSaveRejectsATamperedExistingArchiveBeforeReplacingIt() throws Exception {
+		Project initial = projectForRoundTrip();
+		File shared = File.createTempFile("mpo-checksum-merge", ".mpo"); shared.deleteOnExit();
+		MpoFileImporter initialWriter = new MpoFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
+		Project editor = load(shared);
+		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(shared.toPath()));
+		entries.put("meta.xml", "<meta formatVersion=\"1.0\" tampered=\"true\"/>".getBytes(StandardCharsets.UTF_8));
+		byte[] tampered = zip(entries).toByteArray();
+		java.nio.file.Files.write(shared.toPath(), tampered);
+		MpoFileImporter writer = new MpoFileImporter(); writer.setFileName(shared.getAbsolutePath()); writer.setProject(editor);
+		assertThrows(IOException.class, writer::exportFile);
+		org.junit.jupiter.api.Assertions.assertArrayEquals(tampered, java.nio.file.Files.readAllBytes(shared.toPath()));
 	}
 
 	@Test
@@ -704,6 +1044,13 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void checkedInDataDescriptorMpoLoadsThroughTheFileImportPath() throws Exception {
+		Project loaded = load(findSample("CCPM sample English.mpo"));
+		org.junit.jupiter.api.Assertions.assertTrue(taskCount(loaded) > 0);
+		org.junit.jupiter.api.Assertions.assertTrue(new CriticalChainService().findSettings(loaded).isEnabled());
+	}
+
+	@Test
 	void checkedInTwentyTaskJapaneseCcpmSampleLoadsForVisualization() throws Exception {
 		Project loaded = load(findSample("CCPM 標準システム導入 20タスク.mpo"));
 		CriticalChainService service = new CriticalChainService();
@@ -766,6 +1113,34 @@ class MpoFileImporterTest {
 		return reader.loadProject(new ByteArrayInputStream(mpo));
 	}
 
+	private static DefaultSubProj findSubproject(Project project) {
+		for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+			Object task = tasks.next();
+			if (task instanceof DefaultSubProj reference) return reference;
+		}
+		throw new AssertionError("Expected a subproject reference");
+	}
+
+	private static DefaultSubProj findSubprojectForId(Project project, long projectId) {
+		java.util.List<Long> availableIds = new java.util.ArrayList<>();
+		for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+			Object task = tasks.next();
+			if (task instanceof DefaultSubProj reference) {
+				availableIds.add(reference.getSubprojectUniqueId());
+				if (reference.getSubprojectUniqueId() == projectId)
+					return reference;
+			}
+		}
+		throw new AssertionError("Expected extracted subproject " + projectId + "; found " + availableIds);
+	}
+
+	private static void addEmbeddedReference(Project master, Project child, File childFile) {
+		DefaultSubProj reference = new DefaultSubProj(master, child.getUniqueId());
+		reference.setSubprojectFile(childFile.getAbsolutePath());
+		master.connectTask(reference);
+		master.addToDefaultOutline(null, NodeFactory.getInstance().createNode(reference));
+	}
+
 	private static Project loadPod(File pod) throws Exception {
 		LocalFileImporter reader = new LocalFileImporter();
 		reader.setFileName(pod.getAbsolutePath());
@@ -822,5 +1197,35 @@ class MpoFileImporterTest {
 			for (Map.Entry<String, byte[]> entry : entries.entrySet()) write(zip, entry.getKey(), entry.getValue());
 		}
 		return archive;
+	}
+
+	private static String sha256(File file) throws IOException {
+		try {
+			byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+					.digest(java.nio.file.Files.readAllBytes(file.toPath()));
+			return java.util.HexFormat.of().formatHex(digest);
+		} catch (java.security.NoSuchAlgorithmException impossible) {
+			throw new AssertionError(impossible);
+		}
+	}
+
+	private static String sha256(byte[] bytes) {
+		try {
+			return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+		} catch (java.security.NoSuchAlgorithmException impossible) {
+			throw new AssertionError(impossible);
+		}
+	}
+
+	private static void updateManifestChecksum(Map<String, byte[]> entries, String path, byte[] content) {
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		String pattern = "(path=\\\"" + java.util.regex.Pattern.quote(path) + "\\\" sha256=\\\")[^\\\"]*(\\\")";
+		manifest = manifest.replaceFirst(pattern, "$1" + sha256(content) + "$2");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private static String manifestDocumentId(Map<String, byte[]> entries) {
+		return new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8)
+				.replaceFirst("(?s).*documentId=\\\"([0-9a-f-]{36})\\\".*", "$1");
 	}
 }

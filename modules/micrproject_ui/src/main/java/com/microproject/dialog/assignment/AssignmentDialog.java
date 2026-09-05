@@ -100,7 +100,8 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
         taskNames = new JLabel();
         Project project=documentFrame.getProject();
 		spreadSheetPane.setProject(project); //init content of spreadsheet
-		setSelectedTasks(mf.getCurrentFrame().getTopSpreadSheet().getSelectedNodes()); //update
+		SpreadSheet activeSpreadSheet = mf.getCurrentFrame() == null ? null : mf.getCurrentFrame().getTopSpreadSheet();
+		setSelectedTasks(activeSpreadSheet == null ? emptyList : activeSpreadSheet.getSelectedNodes()); //update
         
 //        projectName.setAlignmentX(JLabel.LEFT_ALIGNMENT);
 //        projectName.setText(project == null ? "" : "Resources from: " + project.getName());
@@ -111,6 +112,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
     		}
     	};
         assignButton = new JButton(assignAction);
+		assignButton.setName("assignResources");
     	
         AbstractAction removeAction  = new AbstractAction(Messages.getString("Text.Remove")) { //$NON-NLS-1$
     		private static final long serialVersionUID = 1L;
@@ -119,6 +121,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
     		}
     	};
         removeButton = new JButton(removeAction);
+		removeButton.setName("removeResources");
         
         AbstractAction replaceAction  = new AbstractAction(Messages.format("Format.ellipsis", Messages.getString("Text.Replace"))) { //$NON-NLS-1$
     		private static final long serialVersionUID = 1L;
@@ -127,6 +130,8 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
     		}
     	};
         replaceButton = new JButton(replaceAction);
+		replaceButton.setName("replaceResources");
+		updateSharedPoolAvailability();
     	
         stopEditorButton = new JButton(new AbstractAction(null,IconManager.getIcon("dialog.ok")){ //$NON-NLS-1$
     		private static final long serialVersionUID = 1L;
@@ -155,6 +160,25 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
         stopEditorButton.setEnabled(visible);
         cancelEditorButton.setEnabled(visible);
 	}
+
+	/** A saved-but-unavailable pool must not look editable in the assignment UI. */
+	private void updateSharedPoolAvailability() {
+		boolean available = documentFrame == null || documentFrame.getProject() == null
+				|| !documentFrame.getProject().isSharedResourcePoolUnresolved();
+		String explanation = available ? null : Messages.getString("SharedResourcePool.poolNotOpen");
+		if (assignButton != null) {
+			assignButton.setEnabled(available);
+			assignButton.setToolTipText(explanation);
+		}
+		if (removeButton != null) {
+			removeButton.setEnabled(available);
+			removeButton.setToolTipText(explanation);
+		}
+		if (replaceButton != null) {
+			replaceButton.setEnabled(available);
+			replaceButton.setToolTipText(explanation);
+		}
+	}
 	
 	
 	void assign() {
@@ -165,6 +189,8 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	}
 	
 	void assign(List<?> resourceList, double units) {
+		if (documentFrame.getProject().isSharedResourcePoolUnresolved())
+			return;
 		if (selectedTasks == null) // if no selection, do nothing
 			return;
 		List<NormalTask> taskList = new ArrayList<>(selectedTasks.size());
@@ -205,6 +231,8 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
  * @param resource
  * @param selectedTasks
  */	void remove(Resource resource) {
+		if (documentFrame.getProject().isSharedResourcePoolUnresolved())
+			return;
 		if (selectedTasks == null)
 			return;
 		Assignment assignment;
@@ -216,6 +244,8 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	}	
 	
 	void replace() {
+		if (documentFrame.getProject().isSharedResourcePoolUnresolved())
+			return;
 		List<Resource> list = spreadSheetPane.getSelectedResources(true);
 		if (list.size() > 1) {
 			Alert.warn(Messages.getString("Message.onlyReplaceOneResourceAtATime"),this); //$NON-NLS-1$
@@ -357,6 +387,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		if (getDocumentFrame() != null) {
 			spreadSheetPane.setProject(getDocumentFrame().getProject());
 		}
+		updateSharedPoolAvailability();
 		setSelectedTasks(emptyList);
 	}
 
@@ -376,7 +407,10 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		else
 			names = DataUtils.stringListWithMaxAndMessage(selectedTasks,Settings.STRING_LIST_LIMIT,Messages.getString("Message.tooManyTasksSelectedToList")); //$NON-NLS-1$
 
-		taskNames.setText(Messages.format("Format.labelValue", Messages.getString("Text.Tasks"), names)); //$NON-NLS-1$
+		String label = Messages.format("Format.labelValue", Messages.getString("Text.Tasks"), names); //$NON-NLS-1$
+		if (documentFrame.getProject().isSharedResourcePoolUnresolved())
+			label += " — " + Messages.getString("SharedResourcePool.poolNotOpen");
+		taskNames.setText(label);
 		spreadSheetPane.setSelectedTasks(selectedTasks);
 //		setEnabled(!selectedTasks.isEmpty());
 	}

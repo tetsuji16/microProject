@@ -419,7 +419,10 @@ public abstract class StartupFactory {
 				});
 			}
 			else if (projectUrls!=null && projectUrls.length > 0) {
-				gm.loadLocalDocument(projectUrls[0],!Environment.getStandAlone());
+				// A desktop invocation may contain several file names.  Route all of
+				// them through the same serial local-file flow as File/Open so every
+				// requested project obtains its own registered document window.
+				gm.openLocalProjectsSequentially(projectUrls);
 			}else{
 				SwingUtilities.invokeLater(new Runnable() {
 					public void run() {

@@ -35,6 +35,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.ProgressMonitor;
+import javax.swing.SwingUtilities;
 import javax.swing.event.EventListenerList;
 
 
@@ -84,8 +85,21 @@ public class JobQueue extends ThreadGroup{
 	}
 
 	public void schedule(Job job){
-		if (executingJobs.contains(job.getName())) return;//to avoid double click
-		job.execute();
+		synchronized (executingJobs) {
+			if (!executingJobs.add(job.getName())) return; // avoid double click
+		}
+		// A queued load can own the critical section while a user presses Save.
+		// Starting the save synchronously from the EDT would then wait for that
+		// load and freeze the document window.  Defer only the queue admission;
+		// Job still serializes its work through the same critical section and
+		// retains the ordinary Swing completion callbacks.
+		if (SwingUtilities.isEventDispatchThread()) {
+			Thread scheduler = new Thread(job::execute, job.getName() + "_scheduler");
+			scheduler.setDaemon(job.isDaemon());
+			scheduler.start();
+		} else {
+			job.execute();
+		}
 	}
 
 

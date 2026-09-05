@@ -186,6 +186,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private double risk = 0.0D;
 	private double netPresentValue = 0.0D;
 	private int benefit = 0;
+	/** Canonical file path of the resource-pool project used by this sharer. */
+	private String sharedResourcePoolFile;
+	/** True while the persisted shared-pool reference cannot be resolved. */
+	private boolean sharedResourcePoolUnresolved;
+	/** MSP-compatible conflict policy: true means the resource pool wins. */
+	private boolean resourcePoolTakesPrecedence = true;
 	transient int projectStatus = ProjectStatus.PLANNING; // exposed in database
 	transient int projectType = ProjectType.OTHER; // exposed in database
 	transient int expenseType = ExpenseType.NONE;// exposed in database
@@ -211,6 +217,13 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * identityFacade) so it survives load/save round-trips. See com.microproject.pm.task.Task#created.
 	 */
 	protected Date created = new Date();
+	/**
+	 * Stable document identity for cross-project references and MPOF manifests.
+	 * It is deliberately separate from the legacy numeric unique id, which can
+	 * be reassigned by importers.  Older serialized projects lazily receive an
+	 * identity the first time they participate in a multi-project workflow.
+	 */
+	private String documentId = java.util.UUID.randomUUID().toString();
 	private transient BaselineFacade baselineFacade = new BaselineFacade();
 	private transient SubprojectFacade subprojectFacade = new SubprojectFacade();
 	private transient ScheduleFacade scheduleFacade = new ScheduleFacade();
@@ -541,6 +554,31 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
         this.resourcePool = resourcePool;
     }
 
+	public String getSharedResourcePoolFile() {
+		return sharedResourcePoolFile;
+	}
+
+	public void setSharedResourcePoolFile(String sharedResourcePoolFile) {
+		this.sharedResourcePoolFile = sharedResourcePoolFile;
+		this.sharedResourcePoolUnresolved = sharedResourcePoolFile != null && !sharedResourcePoolFile.isBlank();
+	}
+
+	public boolean isSharedResourcePoolUnresolved() {
+		return sharedResourcePoolUnresolved;
+	}
+
+	public void setSharedResourcePoolUnresolved(boolean unresolved) {
+		this.sharedResourcePoolUnresolved = unresolved;
+	}
+
+	public boolean isResourcePoolTakesPrecedence() {
+		return resourcePoolTakesPrecedence;
+	}
+
+	public void setResourcePoolTakesPrecedence(boolean resourcePoolTakesPrecedence) {
+		this.resourcePoolTakesPrecedence = resourcePoolTakesPrecedence;
+	}
+
 	public void accept(NodeVisitor visitor) {
 		visitor.accept(this);
 	}
@@ -728,6 +766,18 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 */
 	public Date getCreated() {
 		return created;
+	}
+	public synchronized String getDocumentId() {
+		if (documentId == null || documentId.isBlank())
+			documentId = java.util.UUID.randomUUID().toString();
+		return documentId;
+	}
+	public synchronized void setDocumentId(String documentId) {
+		if (documentId == null || documentId.isBlank()) {
+			this.documentId = java.util.UUID.randomUUID().toString();
+			return;
+		}
+		this.documentId = java.util.UUID.fromString(documentId).toString();
 	}
 	/**
 	 * @return
@@ -2248,6 +2298,18 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		this.fileName=fileName;
 		if (fileName!=null){
 			setFileType(FileHelper.getFileType(fileName));
+			refreshSubprojectReferenceMetadata();
+		}
+	}
+
+	/** Rebase portable child paths once a formerly untitled master receives its save target. */
+	private void refreshSubprojectReferenceMetadata() {
+		if (getTaskOutline() == null)
+			return;
+		for (Iterator<?> tasks = getTaskOutlineIterator(); tasks.hasNext();) {
+			Object value = tasks.next();
+			if (value instanceof SubProj reference)
+				SubprojectReferenceMetadata.record(this, reference, reference.getSubproject());
 		}
 	}
 	public String getTitle(){
@@ -2288,9 +2350,29 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public void setAllTasksInSubproject(boolean b, Project masterProject) {
+		if (masterProject == null)
+			return;
+		for (Task task : new ArrayList<Task>(tasks)) {
+			task.setInSubproject(b);
+			if (b) {
+				task.setProject(masterProject);
+				if (!masterProject.getTasks().contains(task))
+					masterProject.add(task);
+			} else {
+				masterProject.getTasks().remove(task);
+				task.setProject(this);
+			}
+		}
 	}
 
 	public void setAllNodesInSubproject(boolean b) {
+		for (int outline = 0; outline < Settings.numHierarchies(); outline++) {
+			NodeModel nodeModel = getTaskOutline(outline);
+			if (nodeModel == null)
+				continue;
+			for (Iterator<Node> iterator = nodeModel.iterator(); iterator.hasNext();)
+				iterator.next().setSubprojectLevel(b ? 1 : 0);
+		}
 	}
 
 	public SubprojectHandler getSubprojectHandler() {

@@ -31,12 +31,21 @@ import java.util.AbstractList;
 import com.microproject.workspace.SavableToWorkspace;
 
 public interface FrameManager extends Serializable, SavableToWorkspace {
+	enum WindowArrangement {
+		TILE,
+		HORIZONTAL,
+		VERTICAL,
+		CASCADE,
+		SINGLE
+	}
+
 	public void showFrame(NamedFrame frame);
 	void addFrame(NamedFrame frame);
 	void removeFrame(NamedFrame frame);
 	Workspace getWorkspace();
 	void activateFrame(NamedFrame frame);
-	default void arrangeAll() { }
+	default void arrangeAll() { arrangeAll(WindowArrangement.TILE); }
+	default void arrangeAll(WindowArrangement arrangement) { }
 	Component getSelectedFrame();
 	AbstractList getAllFrames();
 	void setTabTitle(NamedFrame frame, String tabTitle);

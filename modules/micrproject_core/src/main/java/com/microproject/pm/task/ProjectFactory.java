@@ -25,7 +25,9 @@
 package com.microproject.pm.task;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.AccessDeniedException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.function.Consumer;
@@ -313,9 +315,19 @@ public class ProjectFactory {
 			public Object run() throws Exception{
 				Project project=(Project)getPreviousResult();
 				if (!recover){
-					if (project!=null) addProject(project,false,true);
+					if (project!=null) {
+						// A child belongs to the master outline; it must not create a
+						// separate top-level document frame while loading.
+						if (opt.isSubproject()) project.setOpenedAsSubproject(true);
+						addProject(project,false,true);
+					}
 					if (opt.getId()>0) removeLoadingProject(opt.getId());
 				}
+				// A canonical local file can be recovered from the portfolio instead
+				// of imported again.  Both that recovery route and a first import must
+				// reattach a master's persisted child references.
+				if (project != null && !opt.isSubproject())
+					restoreLinkedLocalSubprojects(project);
 				if (opt.getEndSwingClosure()!=null) opt.getEndSwingClosure().accept(project);
 
 
@@ -329,6 +341,23 @@ public class ProjectFactory {
 				return project;
 			}
 		},false);
+		// Local file import failures occur on the job before the project can be
+		// registered.  Without an exception handler they were only logged, leaving
+		// an asynchronous open with neither a visible explanation nor a cleared
+		// loading identity.  Keep existing documents untouched and report the
+		// failing path directly to the user.
+		job.addExceptionRunnable(new JobRunnable("Local: report project load failure") {
+			public Object run() throws Exception {
+				if (!recover && opt.getId() > 0)
+					removeLoadingProject(opt.getId());
+				Exception failure = job.getFailureException();
+				logger.log(Level.WARNING, "Project could not be opened: " + opt.getFileName(), failure);
+				Alert.error(projectLoadFailureMessage(opt.getFileName(), failure));
+				if (opt.getEndSwingClosure() != null)
+					opt.getEndSwingClosure().accept(null);
+				return null;
+			}
+		});
 		if (opt.isSync()) job.addSync();
 		session.schedule(job);
 		try {
@@ -338,31 +367,96 @@ public class ProjectFactory {
 		}
 	}
 
+	/** Produces an actionable standalone-file error without exposing importer internals as the primary message. */
+	static String projectLoadFailureMessage(String fileName, Throwable cause) {
+		SubProj.LoadStatus status = subprojectLoadFailureStatus(cause);
+		String file = fileName == null || fileName.isBlank() ? "The selected project" : "The project file '" + fileName + "'";
+		String message = switch (status) {
+		case ACCESS_DENIED -> file + " could not be opened because access was denied.";
+		case MISSING -> file + " could not be found.";
+		default -> file + " is invalid or could not be imported.";
+		};
+		return message + failureDetail(cause) + " Projects that are already open were not changed.";
+	}
+
+	/** Reattaches path-persisted child references after a local master has loaded. */
+	public void restoreLinkedLocalSubprojects(Project master) {
+		if (master == null || master.isOpenedAsSubproject())
+			return;
+		LocalSession localSession = SessionFactory.getInstance().getLocalSession();
+		// Loading a child attaches its nodes below the reference.  Do not iterate the
+		// live master outline while those asynchronous loads are allowed to mutate it,
+		// otherwise a later sibling reference can be skipped during master reopen.
+		List<Node> references = new ArrayList<>();
+		for (Iterator<Node> iterator = master.getTaskOutline().iterator(master.getTaskOutlineRoot()); iterator.hasNext();) {
+			Node node = iterator.next();
+			if (node.getImpl() instanceof SubProj subproject && !subproject.isSubprojectOpen()
+					&& subproject.getLoadStatus() == SubProj.LoadStatus.NOT_LOADED)
+				references.add(node);
+		}
+		for (Node node : references) {
+			SubProj subproject = (SubProj) node.getImpl();
+			Task task = (Task) subproject;
+			String linkedFile = task.getSubprojectFile();
+			if (linkedFile == null || linkedFile.isBlank())
+				continue;
+			if (!new File(linkedFile).isFile()) {
+				subproject.setLoadStatus(SubProj.LoadStatus.MISSING);
+				Alert.warn(MessageFormat.format(Messages.getString("Message.subprojectMissing"), linkedFile));
+				continue;
+			}
+			// A path-persisted child is a local project even when the legacy POD
+			// identity did not retain its local flag.
+			master.setLocal(true);
+			long localId = localSession.registerProjectFile(linkedFile);
+			if (localId <= 0L) {
+				subproject.setLoadStatus(SubProj.LoadStatus.UNAVAILABLE);
+				continue;
+			}
+			subproject.setSubprojectUniqueId(localId);
+			openSubproject(master, node, false);
+			// Local jobs share a critical section.  Starting another child from this
+			// master-load callback would block the EDT until the first child ends.
+			// The child completion callback below resumes this scan; if the child was
+			// already open, continue immediately for the next reference.
+			if (!subproject.isSubprojectOpen())
+				return;
+		}
+	}
+
 	public Project findFromId(long id) {
 		return portfolio.findByUniqueId(id);
 	}
 
 	public Project openSubproject(final Project parent, final Node subprojectNode, final boolean creating) {
 		final SubProj subprojectTask = (SubProj)subprojectNode.getImpl();
+		final boolean requestedReadOnly = ((Task)subprojectTask).isSubprojectReadOnly();
 		final long id = subprojectTask.getSubprojectUniqueId();
 		Project openSubproject = portfolio.findByUniqueId(id);
 		if (openSubproject != null) {
+			if (parent.getSubprojectHandler().wouldCreateCircularReference(openSubproject)) {
+				subprojectTask.setLoadStatus(SubProj.LoadStatus.CYCLE);
+				Alert.error(circularSubprojectReferenceMessage(parent, openSubproject));
+				return null;
+			}
+			if (subprojectTask.getSubprojectFile() != null && !subprojectTask.getSubprojectFile().isBlank())
+				openSubproject.setFileName(subprojectTask.getSubprojectFile());
 			parent.getSubprojectHandler().addSubproject(openSubproject, subprojectNode,creating, true);
+			parent.fireUpdateEvent(this, subprojectTask);
 			portfolio.handleExternalTasks(openSubproject,true, false);  // resolve external links if any
 			return openSubproject;
 		}
 
-		final Session session=SessionFactory.getInstance().getSession(false); // never local
+		final Session session=SessionFactory.getInstance().getSession(parent.isLocal());
 		if (!session.projectExists(id)) {
+			subprojectTask.setLoadStatus(SubProj.LoadStatus.MISSING);
 			Alert.error(Messages.getString("Error.projectDoesNotExist"));
 			return null;
 		}
 
 		addLoadingProject(id);
 
-		LoadOptions opt=new LoadOptions();
-		opt.setSubproject(true);
-		opt.setId(id);
+		LoadOptions opt=subprojectLoadOptions(parent, id);
 		Job job=session.getLoadProjectJob(opt);
 		subprojectTask.setFetching(true);
 
@@ -376,7 +470,28 @@ public class ProjectFactory {
 					parentModel.addAssignments(parentModel.iterator()); // assignments
 
 					if (subproject != null) {// is it possible it can be null?
+						// A local linked child is saved back to the file named by its
+						// master reference.  The importer only knows the loading id, so
+						// preserve that concrete path before any later master Save.
+						if (subprojectTask.getSubprojectFile() != null
+								&& !subprojectTask.getSubprojectFile().isBlank())
+							subproject.setFileName(subprojectTask.getSubprojectFile());
+						if (parent.getSubprojectHandler().wouldCreateCircularReference(subproject)) {
+							subprojectTask.setLoadStatus(SubProj.LoadStatus.CYCLE);
+							Alert.error(circularSubprojectReferenceMessage(parent, subproject));
+							return null;
+						}
+						if (requestedReadOnly)
+							subproject.setReadOnly(true);
 						parent.getSubprojectHandler().addSubproject(subproject, subprojectNode,creating, false);
+						parent.fireUpdateEvent(ProjectFactory.this, subprojectTask);
+						// Local and server importers only construct the Project.  Register
+						// the child after marking it as a subproject so its tasks resolve
+						// through the master placeholder without opening a document frame.
+						if (portfolio.findByUniqueId(subproject.getUniqueId()) == null)
+							addProject(subproject, false, true);
+						portfolio.handleExternalTasks(subproject, true, false);
+						subprojectTask.setLoadStatus(SubProj.LoadStatus.OPEN);
 						if (subproject.isReadOnly()){
 							Alert.warn(MessageFormat.format(Messages.getString("Message.readOnlySubproject"),new Object[]{subproject.getName()}));
 						}
@@ -385,11 +500,18 @@ public class ProjectFactory {
 //						//TODO something more precise here
 					}
 				} catch (Exception e) {
-					logger.log(Level.SEVERE, "Unexpected error", e);
-					throw e;
+					SubProj.LoadStatus status = subprojectLoadFailureStatus(e);
+					subprojectTask.setLoadStatus(status);
+					logger.log(Level.WARNING, "Linked subproject could not be loaded (" + status + ")", e);
+					Alert.warn(subprojectLoadFailureMessage(status, e));
 				} finally {
 					subprojectTask.setFetching(false);
 					removeLoadingProject(id);
+					// Resume a master reopen one child at a time after this job releases
+					// the queue's critical section.  This is also safe after a failed
+					// child: only NOT_LOADED references are eligible for the next scan.
+					if (!parent.isOpenedAsSubproject())
+						SwingUtilities.invokeLater(() -> restoreLinkedLocalSubprojects(parent));
 
 				}
     	    	return null; //return not used anyway
@@ -398,6 +520,78 @@ public class ProjectFactory {
 
 		session.schedule(job);
 		return ((Task)subprojectTask).getProject();
+	}
+
+	/** Maps loader failures onto stable, repairable master-reference states. */
+	static SubProj.LoadStatus subprojectLoadFailureStatus(Throwable failure) {
+		for (Throwable current = failure; current != null && current.getCause() != current; current = current.getCause()) {
+			if (current instanceof AccessDeniedException || current instanceof SecurityException)
+				return SubProj.LoadStatus.ACCESS_DENIED;
+			if (current instanceof FileNotFoundException)
+				return SubProj.LoadStatus.MISSING;
+		}
+		// A file that exists but cannot be parsed/imported is not an unavailable
+		// project.  Preserve the master reference as INVALID so the user can
+		// locate a repaired file or remove only the reference.
+		return SubProj.LoadStatus.INVALID;
+	}
+
+	private static String subprojectLoadFailureMessage(SubProj.LoadStatus status, Throwable cause) {
+		String message = switch (status) {
+		case ACCESS_DENIED -> "The linked project could not be opened because access was denied.";
+		case MISSING -> "The linked project file is missing.";
+		default -> "The linked project file is invalid or could not be imported.";
+		};
+		return message + failureDetail(cause) + " The master reference was kept so it can be repaired or removed.";
+	}
+
+	static String failureDetail(Throwable cause) {
+		if (cause == null || cause.getMessage() == null || cause.getMessage().isBlank())
+			return "";
+		return " Details: " + cause.getMessage().replaceAll("[\\r\\n]+", " ").trim() + ".";
+	}
+
+	private static String circularSubprojectReferenceMessage(Project parent, Project candidate) {
+		String chain = parent == null ? "" : parent.getSubprojectHandler().describeCircularReference(candidate);
+		return chain == null || chain.isBlank()
+				? "The selected subproject would create a circular master/subproject reference."
+				: "The selected subproject would create a circular master/subproject reference: " + chain;
+	}
+
+	/**
+	 * Installs a freshly loaded child in place of a dirty linked child after the
+	 * user explicitly chose Discard.  This is intentionally separate from the
+	 * best-effort refresh merge: discard must also remove local-only task rows
+	 * and hierarchy edits.
+	 */
+	public boolean replaceOpenSubproject(Project parent, SubProj reference, Project replacement) {
+		if (parent == null || reference == null || replacement == null)
+			return false;
+		Project previous = reference.getSubproject();
+		Node referenceNode = parent.getTaskOutline().search(reference);
+		if (previous == null || referenceNode == null)
+			return false;
+		replacement.setUniqueId(previous.getUniqueId());
+		replacement.setLocal(previous.isLocal());
+		replacement.setFileName(previous.getFileName());
+		replacement.setReadOnly(previous.isReadOnly());
+		parent.getSubprojectHandler().replaceSubproject(previous, replacement, referenceNode);
+		if (!portfolio.replaceProject(previous, replacement)) {
+			parent.getSubprojectHandler().replaceSubproject(replacement, previous, referenceNode);
+			return false;
+		}
+		portfolio.handleExternalTasks(replacement, true, false);
+		reference.setLoadStatus(SubProj.LoadStatus.OPEN);
+		parent.fireUpdateEvent(this, reference);
+		return true;
+	}
+
+	static LoadOptions subprojectLoadOptions(Project parent, long id) {
+		LoadOptions options = new LoadOptions();
+		options.setSubproject(true);
+		options.setLocal(parent != null && parent.isLocal());
+		options.setId(id);
+		return options;
 	}
 
 
@@ -429,23 +623,35 @@ public class ProjectFactory {
 		// Save the project and all of its subprojects
 		final List<Project> projects=new ArrayList<>();
 		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() {
-			boolean dirty=false;
 			public void accept(Object arg0) {
 				Node n=(Node)arg0;
 				Object impl = n.getImpl();
 				if (impl instanceof Project){
 					Project p=(Project)impl;
-					if (((Node)n.getParent()).isRoot()) dirty=p.needsSaving(); //&& !p.isReadOnly();
-					if (dirty||opt.isSaveAs()||opt.getImporter()!=null) {
+					// A child may be modified while the master's own document stays
+					// clean.  Save each dirty member of the branch independently;
+					// inheriting only the root's dirty flag silently lost that child.
+					if (shouldIncludeInBranchSave(p, opt)) {
 						p.setEarliestAndLatestDatesFromSchedule();  // we want subprojects to have their dates set by external constraints if any
 						projects.add(p);
 					}
 				}
 			}
 		});
+		// A locally reopened linked child can be materialized beneath its SubProj
+		// reference before it is represented as a portfolio branch.  Include that
+		// real master hierarchy as well, otherwise Save on a clean master loses a
+		// dirty child that is visible in the consolidated Gantt.
+		collectLinkedProjectsForSave(project, opt, projects, new HashSet<Project>());
 		if (projects.size()>0){
 			Session session=SessionFactory.getInstance().getSession(opt.isLocal());
 			final SaveOptions o=(SaveOptions)opt.clone();
+			// A master-save job can contain only a dirty child, or both the
+			// master and several children.  In either case each member must retain
+			// its own file location; applying the master's requested path would
+			// overwrite the wrong project file.
+			if (projects.size() != 1 || projects.get(0) != project)
+				o.setFileName(null);
 			o.setPostSaving(new Consumer<Object>() { public void accept(Object obj) {
 					Project p = (Project)obj;
 					if (!opt.isRecoverySnapshot()) {
@@ -460,6 +666,26 @@ public class ProjectFactory {
 			return job;
 		}
 		return null;
+	}
+
+	/** Determines whether one project in a master-save branch must be persisted. */
+	static boolean shouldIncludeInBranchSave(Project project, SaveOptions options) {
+		return project != null && (project.needsSaving() || options.isSaveAs() || options.getImporter() != null);
+	}
+
+	private static void collectLinkedProjectsForSave(Project project, SaveOptions options,
+			List<Project> projects, Set<Project> visited) {
+		if (project == null || !visited.add(project))
+			return;
+		if (shouldIncludeInBranchSave(project, options) && !projects.contains(project)) {
+			project.setEarliestAndLatestDatesFromSchedule();
+			projects.add(project);
+		}
+		for (Iterator<Task> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Task task = iterator.next();
+			if (task instanceof SubProj reference)
+				collectLinkedProjectsForSave(reference.getSubproject(), options, projects, visited);
+		}
 	}
 
 

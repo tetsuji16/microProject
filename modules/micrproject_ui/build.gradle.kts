@@ -96,8 +96,8 @@ tasks.register<Test>("guiTest") {
 	// Keep the GUI acceptance runtime in that same order; otherwise dialog tests
 	// exercise the incompatible library class rather than the shipped application.
 	classpath = files(tasks.jar).plus(guiTestSourceSet.runtimeClasspath)
-    useJUnitPlatform()
-    systemProperty("java.awt.headless", "false")
+	useJUnitPlatform()
+	systemProperty("java.awt.headless", "false")
     systemProperty("micrproject.gui.artifacts.dir", layout.buildDirectory.dir("reports/guiTest-artifacts").get().asFile.absolutePath)
     mustRunAfter(tasks.test)
 }

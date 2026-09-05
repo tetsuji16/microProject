@@ -227,7 +227,7 @@ public class LocalSession extends AbstractSession{
     		descriptor.setName(lastDot <= 0 ? fileName : fileName.substring(0, lastDot));
     	}
     	if (descriptor.getUniqueId() <= 0) {
-    		descriptor.setUniqueId(Math.abs(file.getCanonicalPath().hashCode()));
+			descriptor.setUniqueId(localProjectId(file.getCanonicalPath()));
     	}
     	descriptor.setMaster(true);
     	descriptor.setLocal(true);
@@ -284,7 +284,7 @@ public class LocalSession extends AbstractSession{
     			opt.setImporter(MICROSOFT_PROJECT_IMPORTER);
     		}
     	}
-    final Job job=new Job(jobQueue,"loadProject","Loading...",true);
+	    final Job job=new Job(jobQueue,"loadProject","Loading...",true);
         job.setCancelMonitorClosure(new Consumer<Object>() { public void accept(Object o) {
 				logger.fine("Monitor Canceled");
 				jobQueue.endCriticalSection(job);
@@ -323,7 +323,12 @@ public class LocalSession extends AbstractSession{
 	    	    		setProgress(1.0f);
 	    	    		return null;
 	    	    	}
-	    	    	project.setFileName(opt.getFileName()); //overrides project name
+				project.setFileName(opt.getFileName()); //overrides project name
+				// The importer keeps the file's embedded project ID.  Local files need
+				// their canonical-path ID instead, otherwise two separately opened MPO
+				// files replace one another in the shared portfolio and cannot be linked.
+				if (opt.getId() > 0L)
+					project.setUniqueId(opt.getId());
 	    			if (MICROSOFT_PROJECT_IMPORTER.equals(opt.getImporter()))
 	    				project.getResourcePool().setName(project.getName());
 	    			if (Environment.getStandAlone()){ //force local in this case
@@ -354,9 +359,14 @@ public class LocalSession extends AbstractSession{
     }
     
     
-    public Job getSaveProjectJob(final List<Project> projs,final SaveOptions opt){
-    	final String title="Saving";
+	public Job getSaveProjectJob(final List<Project> projs,final SaveOptions opt){
+		final String title="Saving";
 		final Job job=new Job(jobQueue,"saveProject",title+"...",true);
+		// The options object is shared by all child jobs below and is updated with
+		// the importer selected for the project currently being written.  Keep the
+		// caller's requested target separately: otherwise writing the master first
+		// makes its file name the implicit target for every linked child.
+		final String requestedFileName = opt.getFileName();
         job.setCancelMonitorClosure(new Consumer<Object>() { public void accept(Object o) {
 				logger.fine("Monitor Canceled");
 				jobQueue.endCriticalSection(job);
@@ -370,7 +380,7 @@ public class LocalSession extends AbstractSession{
 		int i=0;
 		for (final Project project : projs) {
 			//if projs.size()>1 opt.getFileName() must be null
-			String fileN=(opt.getFileName()==null)?project.getGuessedFileName():opt.getFileName();//+(count>1?("("+i+")"):""));
+			String fileN=(requestedFileName==null)?project.getGuessedFileName():requestedFileName;//+(count>1?("("+i+")"):""));
 			if (!FileHelper.isFileNameAllowed(fileN, true)){
 				fileN=SessionFactory.getInstance().getLocalSession().chooseFileName(true,FileHelper.changeFileExtension(fileN, FileHelper.MPO_FILE_TYPE));
 			}
@@ -455,6 +465,38 @@ public class LocalSession extends AbstractSession{
     public String chooseFileName(final boolean save,String selectedFileName){
     	return com.microproject.util.UiServices.getFileChooserProvider().chooseFileName(save, selectedFileName, getJobQueue().getComponent());
     }
+
+    /**
+     * Registers a local project file so a master can reference it before the
+     * child has been opened.  The canonical path is the stable local identity
+     * used by the local project descriptor workflow.
+     *
+     * @return the linked project id, or {@code -1} when the file is unsupported
+     *         or unavailable
+     */
+	public long registerProjectFile(String fileName) {
+		if (fileName == null || !FileHelper.isFileNameAllowed(fileName, false))
+			return -1L;
+		File file = new File(fileName);
+		if (!file.isFile())
+			return -1L;
+		try {
+			String canonicalPath = file.getCanonicalPath();
+			long id = localProjectId(canonicalPath);
+			synchronized (descriptorFiles) {
+				descriptorFiles.put(Long.valueOf(id), canonicalPath);
+			}
+			return id;
+		} catch (Exception e) {
+			logger.log(Level.WARNING, "Failed to register local project file " + fileName, e);
+			return -1L;
+		}
+	}
+
+	private static long localProjectId(String canonicalPath) {
+		long id = Math.abs((long) canonicalPath.hashCode());
+		return id == 0L ? 1L : id;
+	}
 
     public List<String> chooseFileNames(final boolean save, String selectedFileName) {
 		return com.microproject.util.UiServices.getFileChooserProvider().chooseFileNames(save, selectedFileName, getJobQueue().getComponent());

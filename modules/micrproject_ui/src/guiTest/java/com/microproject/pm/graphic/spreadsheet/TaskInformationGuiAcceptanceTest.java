@@ -50,6 +50,7 @@ import com.microproject.undo.DataFactoryUndoController;
 /** Non-headless coverage for the task-information dialog opened from a task-table double-click. */
 class TaskInformationGuiAcceptanceTest {
 	private TestFrame frame;
+	private GraphicManager previousGraphicManager;
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -59,9 +60,11 @@ class TaskInformationGuiAcceptanceTest {
 					if (window instanceof TaskInformationDialog)
 						window.dispose();
 				}
+				GraphicManager.getGraphicManagers().remove(frame.manager);
 				frame.dispose();
 				frame = null;
 			});
+			restoreLastGraphicManager(previousGraphicManager);
 		}
 	}
 
@@ -138,6 +141,7 @@ class TaskInformationGuiAcceptanceTest {
 
 	private void showFixture(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
+			previousGraphicManager = lastGraphicManager();
 			frame = new TestFrame();
 			frame.manager.setDocumentFrame(new DocumentFrame(frame.manager, fixture.task.getOwningProject(), "gui-task-information-test"));
 			frame.add(new JScrollPane(fixture.sheet));
@@ -147,6 +151,26 @@ class TaskInformationGuiAcceptanceTest {
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 		});
+	}
+
+	private static GraphicManager lastGraphicManager() {
+		try {
+			java.lang.reflect.Field field = GraphicManager.class.getDeclaredField("lastGraphicManager");
+			field.setAccessible(true);
+			return (GraphicManager) field.get(null);
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError("could not preserve the prior graphic manager", e);
+		}
+	}
+
+	private static void restoreLastGraphicManager(GraphicManager manager) {
+		try {
+			java.lang.reflect.Field field = GraphicManager.class.getDeclaredField("lastGraphicManager");
+			field.setAccessible(true);
+			field.set(null, manager);
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError("could not restore the prior graphic manager", e);
+		}
 	}
 
 	private void activateFixtureWindow(Fixture fixture) throws Exception {

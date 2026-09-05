@@ -907,6 +907,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				Color linkColor = dep.isCrossProject() ? palette.getExternalLinkColor() : palette.getDependencyLinkColor();
 				g2.setColor(linkColor);
 				g2.draw(path);
+				paintCrossProjectLinkLabel(dep, path, linkColor);
 
 			//}
 			try {
@@ -937,6 +938,29 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			shape.setPaint(oldPaint);
 			shape.setColor(oldEndColor);
 		}
+
+		/** Labels external connectors so equal task names stay understandable in the Gantt itself. */
+		private void paintCrossProjectLinkLabel(Dependency dep, GeneralPath path, Color linkColor) {
+			String label = crossProjectLinkLabel(dep);
+			if (label.isEmpty()) return;
+			Rectangle bounds = path.getBounds();
+			Font oldFont = g2.getFont();
+			Font labelFont = oldFont.deriveFont(Math.max(9F, oldFont.getSize2D() - 1F));
+			g2.setFont(labelFont);
+			FontMetrics metrics = g2.getFontMetrics(labelFont);
+			g2.setColor(linkColor.darker());
+			g2.drawString(label, bounds.x + 3, Math.max(metrics.getAscent(), bounds.y - 3));
+			g2.setFont(oldFont);
+		}
+	}
+
+	static String crossProjectLinkLabel(Dependency dependency) {
+		if (dependency == null || !dependency.isCrossProject()) return "";
+		Task predecessor = (Task) dependency.getPredecessor();
+		Project project = predecessor.getOwningProject() == null ? predecessor.getProject() : predecessor.getOwningProject();
+		String projectName = project == null || project.getName() == null ? "" : project.getName();
+		String taskName = predecessor.getName() == null ? "" : predecessor.getName();
+		return projectName.isBlank() ? taskName : projectName + ": " + taskName;
 	}
 
 

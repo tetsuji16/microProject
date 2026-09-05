@@ -27,6 +27,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
 import java.lang.reflect.Field;
@@ -37,13 +38,33 @@ import javax.swing.JPanel;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.dialog.ProjectDialog;
+import com.microproject.pm.task.DefaultSubProj;
+import com.microproject.pm.task.Project;
+
 import sun.misc.Unsafe;
 
 class GraphicManagerLinkRouteTest {
 	@Test
+	void externalLoadFailureDetailPreservesTheImporterReasonOnOneLine() {
+		assertEquals(" Details: malformed MPO archive.",
+			GraphicManager.externalLoadFailureDetail(new java.io.IOException("malformed\nMPO archive")));
+	}
+
+	@Test
 	void isEditingMasterProjectIsSafeBeforeAnyDocumentIsSelected() {
 		GraphicManager graphicManager = new GraphicManager(new JPanel());
 		assertFalse(graphicManager.isEditingMasterProject());
+	}
+
+	@Test
+	void masterProjectCommandForcesTheLocalMasterCreationMode() {
+		ProjectDialog.Form form = new ProjectDialog.Form();
+		form.setLocal(false);
+
+		GraphicManager.configureMasterProjectForm(form);
+
+		assertEquals(true, form.isLocal());
 	}
 
 	@Test
@@ -78,6 +99,59 @@ class GraphicManagerLinkRouteTest {
 		assertFalse(documentFrame.unlinkInvoked);
 	}
 
+	@Test
+	void subprojectRibbonActionsDelegateOnlyForTheSelectedLinkedReference() throws Exception {
+		TestDocumentFrame documentFrame = allocateWithoutConstructor(TestDocumentFrame.class);
+		DefaultSubProj reference = allocateWithoutConstructor(DefaultSubProj.class);
+		documentFrame.setSelectedImpl(reference);
+		List<DefaultSubProj> opened = new ArrayList<>();
+		List<DefaultSubProj> removed = new ArrayList<>();
+		GraphicManager graphicManager = new GraphicManager(new JPanel()) {
+			@Override public boolean isDocumentWritable() { return true; }
+			@Override public DocumentFrame getCurrentFrame() { return documentFrame; }
+			@Override public boolean activateSubproject(com.microproject.pm.task.SubProj value) {
+				opened.add((DefaultSubProj) value);
+				return true;
+			}
+			@Override public boolean removeLinkedSubproject(com.microproject.pm.task.SubProj value) {
+				removed.add((DefaultSubProj) value);
+				return true;
+			}
+		};
+
+		graphicManager.new OpenSubprojectAction().actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "open"));
+		graphicManager.new RemoveSubprojectAction().actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "remove"));
+
+		assertEquals(List.of(reference), opened);
+		assertEquals(List.of(reference), removed);
+	}
+
+	@Test
+	void activatingAClosedLinkedChildCreatesAndSelectsExactlyOneDocumentFrame() throws Exception {
+		Project child = allocateWithoutConstructor(Project.class);
+		DefaultSubProj reference = new DefaultSubProj() {
+			private static final long serialVersionUID = 1L;
+			@Override public Project getSubproject() { return child; }
+		};
+		TestDocumentFrame childFrame = allocateWithoutConstructor(TestDocumentFrame.class);
+		List<Project> addedProjects = new ArrayList<>();
+		List<DocumentFrame> selectedFrames = new ArrayList<>();
+		GraphicManager graphicManager = new GraphicManager(new JPanel()) {
+			@Override public DocumentFrame getFrameForProject(Project project) { return null; }
+			@Override public DocumentFrame addProjectFrame(Project project) {
+				addedProjects.add(project);
+				return childFrame;
+			}
+			@Override protected void setCurrentFrame(DocumentFrame frame) {
+				selectedFrames.add(frame);
+			}
+		};
+
+		assertTrue(graphicManager.activateSubproject(reference));
+		assertEquals(List.of(child), addedProjects);
+		assertEquals(List.of(childFrame), selectedFrames);
+	}
+
 	private static <T> T allocateWithoutConstructor(Class<T> type) throws Exception {
 		Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
 		unsafeField.setAccessible(true);
@@ -91,6 +165,7 @@ class GraphicManagerLinkRouteTest {
 		private int taskSelectionCount;
 		private boolean linkInvoked;
 		private boolean unlinkInvoked;
+		private Object selectedImpl;
 
 		private TestDocumentFrame() {
 			super(null, null, "test");
@@ -114,6 +189,15 @@ class GraphicManagerLinkRouteTest {
 		@Override
 		public void doUnlinkTasks() {
 			unlinkInvoked = true;
+		}
+
+		private void setSelectedImpl(Object selectedImpl) {
+			this.selectedImpl = selectedImpl;
+		}
+
+		@Override
+		Object getSelectedImpl() {
+			return selectedImpl;
 		}
 	}
 }

@@ -172,7 +172,9 @@ import com.microproject.pm.graphic.views.ProjectsDialog;
 import com.microproject.pm.graphic.views.Searchable;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.SubProj;
@@ -217,7 +219,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static final boolean BINARY_WORKSPACE = true;
 	private static GraphicManager lastGraphicManager = null; // used when displaying a popup but the frame isn't known
     private DocumentFrame currentFrame = null;
-    private List frameList=new ArrayList();
+	private List frameList=new ArrayList();
+
+	/** Returns a snapshot of projects currently open in this desktop window. */
+	public List<Project> getOpenProjects() {
+		List<Project> projects = new ArrayList<Project>();
+		for (Object value : frameList) {
+			if (value instanceof DocumentFrame frame && frame.getProject() != null)
+				projects.add(frame.getProject());
+		}
+		return projects;
+	}
     private HashMap<Project,NamedFrame> frameMap = new HashMap<Project, NamedFrame>();
 //    private JFileChooser fileChooser = null;
 
@@ -364,7 +376,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //		I have submitted a bug report: https://substance.dev.java.net/issues/show_bug.cgi?id=155 with a proposed fix
 
 		projectFactory.getPortfolio().removeObjectListener(this);
-		((DefaultFrameManager)frameManager).cleanUp();
+		if (frameManager != null)
+			((DefaultFrameManager)frameManager).cleanUp();
+		// Portfolio events may already be queued on the EDT when a window closes.
+		// Mark this manager inactive before they are delivered; objectChanged()
+		// must never route a later project-open event into an emptied workspace.
+		frameManager = null;
 		graphicManagers.remove(this);
 		if (graphicManagers.isEmpty())
 			getLafManager().clean();
@@ -428,6 +445,319 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public DocumentFrame getFrameForProject(Project project) {
 		return (DocumentFrame) frameMap.get(project);
 	}
+	/** Finds an already-open document by canonical file identity. */
+	public DocumentFrame findFrameForProjectFile(String fileName) {
+		if (fileName == null || fileName.isBlank())
+			return null;
+		// The workspace owns the authoritative set while a document is being
+		// constructed.  frameList is updated later in addProjectFrame(), so using
+		// it here could miss the next document in one multiple-file Open command.
+		for (Object value : getFrameManager().getAllFrames()) {
+			if (!(value instanceof DocumentFrame frame) || frame.getProject() == null)
+				continue;
+			if (sameLocalProject(frame.getProject().getFileName(), fileName))
+				return frame;
+		}
+		return null;
+	}
+
+	/** Activates a linked subproject in its own document view without duplicating its model. */
+	public boolean activateSubproject(SubProj reference) {
+		if (reference == null)
+			return false;
+		Project subproject = reference.getSubproject();
+		if (subproject == null && reference.getSubprojectFile() != null
+				&& !reference.getSubprojectFile().isBlank()) {
+			String linkedFile = reference.getSubprojectFile();
+			if (currentFrame != null && currentFrame.getProject() != null
+					&& sameLocalProject(currentFrame.getProject().getFileName(), linkedFile))
+				return false;
+			boolean loadRequested = loadLocalDocument(linkedFile, false);
+			subproject = reference.getSubproject();
+			if (subproject == null) {
+				DocumentFrame loaded = findFrameForProjectFile(linkedFile);
+				if (loaded != null)
+					subproject = loaded.getProject();
+				else if (loadRequested)
+					return true; // The asynchronous load callback will create and activate the frame.
+			}
+		}
+		if (subproject == null)
+			return false;
+		DocumentFrame frame = getFrameForProject(subproject);
+		if (frame == null)
+			frame = addProjectFrame(subproject);
+		if (frame == null)
+			return false;
+		setCurrentFrame(frame);
+		return true;
+	}
+
+	/**
+	 * Removes a linked subproject from the current master without deleting the
+	 * linked file.  The model removal also detaches the materialized projection
+	 * and unregisters an in-memory child project, so a later insertion starts
+	 * from a clean reference rather than leaving orphaned projected tasks.
+	 */
+	public boolean removeLinkedSubproject(SubProj reference) {
+		if (reference == null || currentFrame == null || currentFrame.getProject() == null)
+			return false;
+		Project master = currentFrame.getProject();
+		Node node = master.getTaskOutline().search(reference);
+		if (node == null)
+			return false;
+		master.getTaskOutline().remove(node, NodeModel.EVENT, true);
+		master.setGroupDirty(true);
+		repaintProject(master);
+		return true;
+	}
+
+	/**
+	 * Refreshes one linked child only when doing so cannot discard in-memory
+	 * edits.  A closed reference is opened through the established asynchronous
+	 * loader; an open clean child receives the same safe external-file merge used
+	 * by collaboration refreshes.
+	 */
+	public boolean refreshLinkedSubproject(SubProj reference) {
+		if (reference == null || currentFrame == null || currentFrame.getProject() == null)
+			return false;
+		Project master = currentFrame.getProject();
+		Project child = reference.getSubproject();
+		if (child == null) {
+			String linkedFile = reference.getSubprojectFile();
+			if (linkedFile == null || linkedFile.isBlank() || !new File(linkedFile).isFile()) {
+				reference.setLoadStatus(SubProj.LoadStatus.MISSING);
+				Alert.warn("The linked project file is missing. The master reference was kept so it can be repaired or removed.");
+				return false;
+			}
+			Node node = master.getTaskOutline().search(reference);
+			if (node == null)
+				return false;
+			ProjectFactory.getInstance().openSubproject(master, node, false);
+			return true;
+		}
+		if (child.needsSaving()) {
+			UnsavedSubprojectRefreshDecision decision = chooseUnsavedSubprojectRefreshDecision(child);
+			if (decision == UnsavedSubprojectRefreshDecision.CANCEL)
+				return false;
+			if (decision == UnsavedSubprojectRefreshDecision.SAVE) {
+				if (!saveLinkedSubproject(child))
+					return false;
+			} else if (!discardLinkedSubproject(master, reference, child)) {
+				return false;
+			}
+			child = reference.getSubproject();
+			if (child == null)
+				return false;
+		}
+		String fileName = child.getFileName();
+		if (fileName == null || fileName.isBlank()) {
+			Alert.warn("The linked project has no file location to refresh.");
+			return false;
+		}
+		ProjectMergeService.ApplyResult result = projectMergeService()
+				.applyExternalTaskUpdates(child, fileName, java.util.Collections.emptySet());
+		if (result.hasLoadFailure()) {
+			reference.setLoadStatus(subprojectLoadStatus(result.getLoadStatus()));
+			Alert.warn("The linked project could not be refreshed (" + result.getLoadStatus()
+					+ ")." + externalLoadFailureDetail(result.getLoadFailure())
+					+ " Its existing master projection remains available.");
+			return false;
+		}
+		if (result.hasChanges()) {
+			master.fireUpdateEvent(this, reference);
+			repaintProject(master);
+		}
+		reference.setLoadStatus(SubProj.LoadStatus.OPEN);
+		return true;
+	}
+
+	/** Factory seam for refresh recovery; production always uses the normal merge service. */
+	protected ProjectMergeService projectMergeService() {
+		return new ProjectMergeService();
+	}
+
+	/**
+	 * Refreshes each linked project of the active master.  References are
+	 * captured before refreshing because a Discard refresh can replace a child
+	 * project and its document frame.  Every iteration restores the master as
+	 * the active document, so a child frame can never redirect later refreshes.
+	 */
+	public boolean refreshLinkedSubprojects() {
+		if (currentFrame == null || currentFrame.getProject() == null)
+			return false;
+		Project master = currentFrame.getProject();
+		java.util.List<SubProj> references = new java.util.ArrayList<>();
+		for (Object task : master.getTasks())
+			if (task instanceof SubProj reference)
+				references.add(reference);
+		if (references.isEmpty())
+			return false;
+		DocumentFrame masterFrame = getFrameForProject(master);
+		boolean allRefreshed = true;
+		for (SubProj reference : references) {
+			if (masterFrame != null)
+				setCurrentFrame(masterFrame);
+			if (!refreshLinkedSubproject(reference))
+				allRefreshed = false;
+		}
+		if (masterFrame != null)
+			setCurrentFrame(masterFrame);
+		return allRefreshed;
+	}
+
+	private enum UnsavedSubprojectRefreshDecision { SAVE, DISCARD, CANCEL }
+
+	/** The safe default (including Escape) is Cancel; refresh must never discard edits implicitly. */
+	private UnsavedSubprojectRefreshDecision chooseUnsavedSubprojectRefreshDecision(Project child) {
+		if (GraphicsEnvironment.isHeadless())
+			return UnsavedSubprojectRefreshDecision.CANCEL;
+		Object[] options = { "Save", "Discard", "Cancel" };
+		int choice = PopupDialogSupport.showOptionDialog(getFrame(),
+				"The linked project '" + linkedProjectDisplayName(child)
+						+ "' has unsaved changes. Save them, discard them and reload from disk, or cancel refresh.",
+				"Refresh Linked Project", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+				null, options, options[2], JOptionPane.CLOSED_OPTION);
+		if (choice == 0)
+			return UnsavedSubprojectRefreshDecision.SAVE;
+		if (choice == 1)
+			return UnsavedSubprojectRefreshDecision.DISCARD;
+		return UnsavedSubprojectRefreshDecision.CANCEL;
+	}
+
+	private static String linkedProjectDisplayName(Project project) {
+		if (project == null)
+			return "";
+		if (project.getName() != null && !project.getName().isBlank())
+			return project.getName();
+		if (project.getFileName() != null && !project.getFileName().isBlank())
+			return new File(project.getFileName()).getName();
+		return "Untitled";
+	}
+
+	private boolean saveLinkedSubproject(Project child) {
+		String fileName = child.getFileName();
+		if (fileName == null || fileName.isBlank()) {
+			Alert.warn("The linked project has no file location to save.");
+			return false;
+		}
+		SaveOptions options = new SaveOptions();
+		options.setLocal(child.isLocal());
+		options.setFileName(fileName);
+		options.setSync(true);
+		ProjectFactory.getInstance().saveProject(child, options);
+		if (child.needsSaving()) {
+			Alert.warn("The linked project could not be saved. Refresh was cancelled and its in-memory edits were retained.");
+			return false;
+		}
+		return true;
+	}
+
+	/** Replaces the complete child model, rather than merging fields, after an explicit Discard. */
+	private boolean discardLinkedSubproject(Project master, SubProj reference, Project child) {
+		String fileName = child.getFileName();
+		ProjectMergeService.ExternalProjectLoadResult load = new ProjectMergeService().loadExternalProjectResult(fileName);
+		if (!load.isSuccess()) {
+			reference.setLoadStatus(subprojectLoadStatus(load.getStatus()));
+			Alert.warn("The linked project could not be reloaded (" + load.getStatus()
+					+ ")." + externalLoadFailureDetail(load.getCause())
+					+ " Its unsaved edits and master projection were retained.");
+			return false;
+		}
+		DocumentFrame sourceFrame = getFrameForProject(child);
+		if (!ProjectFactory.getInstance().replaceOpenSubproject(master, reference, load.getProject())) {
+			Alert.warn("The linked project could not be replaced safely. Its unsaved edits were retained.");
+			return false;
+		}
+		if (sourceFrame != null) {
+			// The replacement succeeded; now discard the old view and build one bound
+			// to the newly loaded child.  Keeping the old view until this point makes
+			// a failed replacement non-destructive.
+			closeProjectFrame(child);
+			addProjectFrame(reference.getSubproject());
+		}
+		master.setGroupDirty(true);
+		repaintProject(master);
+		return true;
+	}
+
+	private static SubProj.LoadStatus subprojectLoadStatus(ProjectMergeService.LoadStatus status) {
+		if (status == ProjectMergeService.LoadStatus.NOT_FOUND)
+			return SubProj.LoadStatus.MISSING;
+		if (status == ProjectMergeService.LoadStatus.INVALID_FILE)
+			return SubProj.LoadStatus.INVALID;
+		if (status == ProjectMergeService.LoadStatus.ACCESS_DENIED)
+			return SubProj.LoadStatus.ACCESS_DENIED;
+		return SubProj.LoadStatus.UNAVAILABLE;
+	}
+
+	static String externalLoadFailureDetail(Throwable cause) {
+		if (cause == null || cause.getMessage() == null || cause.getMessage().isBlank())
+			return "";
+		return " Details: " + cause.getMessage().replaceAll("[\\r\\n]+", " ").trim() + ".";
+	}
+
+	/** Prompts for a replacement file and repairs a missing master reference. */
+	public boolean locateLinkedSubproject(SubProj reference) {
+		if (reference == null)
+			return false;
+		String replacement = SessionFactory.getInstance().getLocalSession()
+				.chooseFileName(false, reference.getSubprojectFile());
+		return relinkMissingSubproject(reference, replacement);
+	}
+
+	/**
+	 * Replaces only the persisted path of an unloaded subproject reference.  This
+	 * leaves the master hierarchy intact, so a failed replacement can always be
+	 * retried or removed without losing other subprojects.
+	 */
+	public boolean relinkMissingSubproject(SubProj reference, String replacementFile) {
+		if (reference == null || currentFrame == null || currentFrame.getProject() == null
+				|| reference.getSubproject() != null || replacementFile == null || replacementFile.isBlank())
+			return false;
+		Project master = currentFrame.getProject();
+		File replacement;
+		try {
+			replacement = new File(replacementFile).getCanonicalFile();
+		} catch (java.io.IOException exception) {
+			Alert.error("The selected replacement project path is invalid.");
+			return false;
+		}
+		if (!replacement.isFile()) {
+			Alert.error("The selected replacement project file does not exist.");
+			return false;
+		}
+		String canonicalPath = replacement.getPath();
+		if (sameLocalProject(master.getFileName(), canonicalPath)
+				|| (!sameLocalProject(reference.getSubprojectFile(), canonicalPath)
+						&& master.getSubprojectHandler().hasSubprojectReference(canonicalPath))) {
+			Alert.error("The selected project is already referenced by this master project.");
+			return false;
+		}
+		long localId = SessionFactory.getInstance().getLocalSession().registerProjectFile(canonicalPath);
+		if (localId <= 0L) {
+			Alert.error(Messages.getString("Error.projectDoesNotExist"));
+			return false;
+		}
+		Task task = (Task) reference;
+		task.setSubprojectFile(canonicalPath);
+		task.setName(replacement.getName());
+		reference.setSubprojectUniqueId(localId);
+		reference.setLoadStatus(SubProj.LoadStatus.NOT_LOADED);
+		master.setDirty(true);
+		return refreshLinkedSubproject(reference);
+	}
+
+	private static boolean sameLocalProject(String first, String second) {
+		if (first == null || second == null || first.isBlank() || second.isBlank())
+			return false;
+		try {
+			return new java.io.File(first).getCanonicalFile().equals(new java.io.File(second).getCanonicalFile());
+		} catch (java.io.IOException e) {
+			return new java.io.File(first).getAbsoluteFile().equals(new java.io.File(second).getAbsoluteFile());
+		}
+	}
+
 	protected void setCurrentFrame(DocumentFrame frame){
 		if (frame instanceof DocumentFrame) {
 			if (currentFrame != null && projectListMenu != null&&!Environment.isPlugin()) {
@@ -495,9 +825,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 */
 
 	public DocumentFrame addProjectFrame(final Project project) {
-		String tabId = getTabIdForProject(project);
 		if (project == null) // in case of out of memory error
 			return null;
+		DocumentFrame existing = getFrameForProject(project);
+		if (existing == null)
+			existing = findFrameForProjectFile(project.getFileName());
+		if (existing != null) {
+			setCurrentFrame(existing);
+			return existing;
+		}
+		String tabId = getTabIdForProject(project);
 		final DocumentFrame frame = new DocumentFrame(this,project,tabId);
 		if (frame == null) // in case of out memory error
 			return null;
@@ -612,8 +949,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		String fileName = project.getFileName();
 		ProjectMergeService.ApplyResult result = new ProjectMergeService().applyExternalTaskUpdates(project, fileName,
 			session == null ? null : session.getLocalLocks());
-		if (session != null) {
+		if (session != null && !result.hasLoadFailure()) {
 			session.afterExternalProjectRefresh();
+		}
+		if (result.hasLoadFailure()) {
+			if (session != null) {
+				session.afterExternalProjectRefreshFailure();
+			}
+			logger.log(Level.WARNING, "External project refresh failed for " + fileName + " ("
+				+ result.getLoadStatus() + ")", result.getLoadFailure());
+			Alert.warn("The external project could not be refreshed (" + result.getLoadStatus()
+				+ "). The change remains pending; retry or save a copy.");
+			return;
 		}
 		if (result.hasChanges()) {
 			repaintProject(project);
@@ -823,6 +1170,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (form==null) return false;
 		else return doNewProjectDialog2(form);
 	}
+	/** Creates a local master shell for linked subprojects. */
+	public boolean doNewMasterProjectDialog() {
+		ProjectDialog.Form form = doNewProjectDialog1();
+		if (form == null) return false;
+		configureMasterProjectForm(form);
+		return doNewProjectDialog2(form);
+	}
+
+	static void configureMasterProjectForm(ProjectDialog.Form form) {
+		if (form != null) form.setLocal(true);
+	}
 	public boolean doNewProjectNoDialog(HashMap opts) {
 		ProjectDialog.Form form=doNewProjectNoDialog1();
 		if (form==null) return false;
@@ -890,6 +1248,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (form.isLocal())
 				project.setLocal(true);
 			else project.setTemporaryLocal(true);
+			if (resourcePool != null) {
+				for (Project poolProject : resourcePool.getProjects()) {
+					if (poolProject != project && poolProject.getFileName() != null) {
+						project.setSharedResourcePoolFile(poolProject.getFileName());
+						project.setResourcePoolTakesPrecedence(true);
+						break;
+					}
+				}
+			}
 			if (form.isForward())
 				project.setStartDate(form.getStartDate());
 			else
@@ -961,6 +1328,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		final Project project;
 		project= getCurrentFrame().getProject();
+		if (project.isLocal()) {
+			insertLocalSubprojects(project);
+			doingOpenDialog = false;
+			return;
+		}
 
 //		List nodes=getCurrentFrame().getSelectedNodes();
 //		if (nodes==null||nodes.size()==0) return;
@@ -1034,6 +1406,26 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 	public void insertSubproject(final Project project, final long subprojectUniqueId,final boolean undo) {
+		insertSubproject(project, subprojectUniqueId, undo, false, null);
+	}
+
+	/** Called by an independent project window when it receives desktop focus. */
+	public void activateDocumentWindow(DocumentFrame frame) {
+		if (frame != null) setCurrentFrame(frame);
+	}
+
+	/** Routes a secondary desktop window close request through normal project close handling. */
+	public void closeDocumentWindow(DocumentFrame frame) {
+		if (frame != null && frame.getProject() != null) closeProject(frame.getProject());
+	}
+
+	private void insertSubproject(final Project project, final long subprojectUniqueId, final boolean undo,
+			boolean readOnly) {
+		insertSubproject(project, subprojectUniqueId, undo, readOnly, null);
+	}
+
+	private void insertSubproject(final Project project, final long subprojectUniqueId, final boolean undo,
+			boolean readOnly, String linkedFileName) {
 		addHistory("insertSubproject", new Object[]{project.getName(),project.getUniqueId(),subprojectUniqueId});
 		Project openedAlready = ProjectFactory.getInstance().findFromId(subprojectUniqueId);
 
@@ -1046,6 +1438,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		}
 		SubProj subprojectTask = project.getSubprojectHandler().createSubProj(subprojectUniqueId);
+		((Task)subprojectTask).setDirty(true);
+		project.connectTask((Task)subprojectTask);
+		if (subprojectTask instanceof DefaultSubProj localSubproject) {
+			localSubproject.setSubprojectReadOnly(readOnly);
+			if (linkedFileName != null && !linkedFileName.isBlank()) {
+				localSubproject.setSubprojectFile(linkedFileName);
+				localSubproject.setName(new java.io.File(linkedFileName).getName());
+			}
+		}
 		Node subprojectNode = getCurrentFrame().addNodeForImpl(subprojectTask,NodeModel.EVENT);
 		ProjectFactory.getInstance().openSubproject(project, subprojectNode, true);
 
@@ -1359,9 +1760,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			menuManager = MenuManager.getInstance(this);
 		actionsMap = new MenuActionsMap(menuManager);
 		actionsMap.addHandler(ACTION_NEW_PROJECT, new NewProjectAction());
+		actionsMap.addHandler(ACTION_NEW_MASTER_PROJECT, new NewMasterProjectAction());
 		actionsMap.addHandler(ACTION_OPEN_PROJECT, new OpenProjectAction());
 		actionsMap.addHandler(ACTION_RECENT_PROJECTS, new RecentProjectsAction());
 		actionsMap.addHandler(ACTION_INSERT_PROJECT, new InsertProjectAction());
+		actionsMap.addHandler(ACTION_REFRESH_SUBPROJECTS, new RefreshSubprojectsAction());
+		actionsMap.addHandler(ACTION_OPEN_SUBPROJECT, new OpenSubprojectAction());
+		actionsMap.addHandler(ACTION_REMOVE_SUBPROJECT, new RemoveSubprojectAction());
 		actionsMap.addHandler(ACTION_EXIT, new ExitAction());
 		actionsMap.addHandler(ACTION_IMPORT_MSPROJECT, new ImportMSProjectAction());
 		actionsMap.addHandler(ACTION_EXPORT_MSPROJECT, new ExportMSProjectAction());
@@ -1395,6 +1800,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //		actionsMap.addHandler(ACTION_ENTERPRISE_RESOURCES, new EnterpriseResourcesAction());
 		actionsMap.addHandler(ACTION_CHANGE_WORKING_TIME, new ChangeWorkingTimeAction());
 		actionsMap.addHandler(ACTION_LEVEL_RESOURCES, new LevelResourcesAction());
+		actionsMap.addHandler(ACTION_USE_RESOURCE_POOL, new UseResourcePoolAction());
+		actionsMap.addHandler(ACTION_CREATE_RESOURCE_POOL, new CreateResourcePoolAction());
+		actionsMap.addHandler(ACTION_REFRESH_RESOURCE_POOL, new RefreshResourcePoolAction());
 		actionsMap.addHandler(ACTION_CCPM_SETTINGS, new CCPMSettingsAction());
 		actionsMap.addHandler(ACTION_CCPM_CLEAR, new CCPMClearAction());
 		actionsMap.addHandler(ACTION_CCPM_BUFFER_STATUS, new CCPMBufferStatusAction());
@@ -1496,6 +1904,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			doNewProjectDialog();
 		}
 		protected boolean allowed(boolean enable){
+			DocumentFrame dframe = getCurrentFrame();
+			return dframe == null || !dframe.isEditingResourcePool();
+		}
+	}
+
+	/** Explicit MSP-style entry point for creating a master project. */
+	public class NewMasterProjectAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeExternalRoute("newMasterProject")) return;
+			doNewMasterProjectDialog();
+		}
+		protected boolean allowed(boolean enable) {
 			DocumentFrame dframe = getCurrentFrame();
 			return dframe == null || !dframe.isEditingResourcePool();
 		}
@@ -2648,9 +3070,25 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		//showWaitCursor(false);
 		return result;
 	}
-protected boolean loadLocalDocument(String fileName,boolean merge){ //uses server to merge
+	protected boolean loadLocalDocument(String fileName,boolean merge){ //uses server to merge
+		return loadLocalDocument(fileName, merge, null);
+	}
+	/**
+	 * Opens one local file and invokes {@code afterLoad} on the EDT after its load
+	 * job has reached a terminal state.  Callers that expand a multiple-file
+	 * chooser selection use this to submit the next file only after the local
+	 * loader has released its single-load critical section.
+	 */
+	private boolean loadLocalDocument(String fileName, boolean merge, Consumer<Object> afterLoad){
 	addHistory("loadLocalDocument",new Object[]{fileName,merge});
 		//showWaitCursor(true);
+		if (fileName != null && !merge) {
+			DocumentFrame existing = findFrameForProjectFile(fileName);
+			if (existing != null) {
+				setCurrentFrame(existing);
+				return true;
+			}
+		}
 		Project project;
 		if (fileName==null) {
 			//System.out.println("creating empty project");
@@ -2658,10 +3096,20 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 
 		} else {
 			LoadOptions opt=ProjectLoadWorkflow.prepareLoadOptions(fileName, Environment.getStandAlone() || Environment.getUser() == null, getCollaborationUserKey());
+			if (Environment.getStandAlone())
+				opt.setId(SessionFactory.getInstance().getLocalSession().registerProjectFile(fileName));
 			opt.setEndSwingClosure(new Consumer<Object>() { public void accept(Object arg0) {
 					if (arg0 instanceof Project) {
-						initializeCollaboration((Project)arg0);
+						Project loadedProject = (Project)arg0;
+						// The portfolio normally creates the document frame.  Keep the
+						// standalone multi-file path resilient when that notification is
+						// delivered before the frame listener is ready.
+						if (!loadedProject.isOpenedAsSubproject() && getFrameForProject(loadedProject) == null)
+							addProjectFrame(loadedProject);
+						initializeCollaboration(loadedProject);
 					}
+					if (afterLoad != null)
+						SwingUtilities.invokeLater(() -> afterLoad.accept(arg0));
 				}
 			});
 
@@ -2816,9 +3264,197 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 
 	public void openLocalProject(){
 		java.util.List<String> fileNames = SessionFactory.getInstance().getLocalSession().chooseFileNames(false, null);
-		if (fileNames == null) return;
+		if (fileNames == null || fileNames.isEmpty()) return;
+		openLocalProjectsSequentially(fileNames, 0);
+	}
+
+	/**
+	 * Opens every project supplied by desktop startup.  Startup arguments use the
+	 * same serial loader as File/Open because the local importer has a single-load
+	 * critical section.  In particular, do not open only the first command-line
+	 * project: every successfully parsed path is an independent document.
+	 */
+	void openLocalProjectsSequentially(String[] fileNames) {
+		if (fileNames == null || fileNames.length == 0)
+			return;
+		openLocalProjectsSequentially(java.util.Arrays.asList(fileNames), 0);
+	}
+
+	/** Opens every entry selected by the native multiple-file chooser in order. */
+	private void openLocalProjectsSequentially(List<String> fileNames, int index) {
+		for (int current = index; current < fileNames.size(); current++) {
+			String fileName = fileNames.get(current);
+			if (fileName == null || fileName.isBlank())
+				continue;
+			if (!Environment.getStandAlone() || findFrameForProjectFile(fileName) == null) {
+				final int next = current + 1;
+				loadLocalDocument(fileName, !Environment.getStandAlone(),
+					ignored -> openLocalProjectsSequentially(fileNames, next));
+				return;
+			}
+			setCurrentFrame(findFrameForProjectFile(fileName));
+		}
+	}
+
+	/**
+	 * Makes the active project a sharer of another saved project already open in
+	 * this desktop.  Requiring both documents to be saved prevents a reference
+	 * that cannot be restored after reopening either project.
+	 */
+	public class UseResourcePoolAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || !isDocumentWritable()) return;
+			Project sharer = getCurrentFrame().getProject();
+			List<Project> candidates = getOpenProjects().stream()
+				.filter(project -> project != sharer && project.getFileName() != null && !project.getFileName().isBlank())
+				.toList();
+			if (candidates.isEmpty()) {
+				Alert.warn(Messages.getString("SharedResourcePool.noSavedPool"));
+				return;
+			}
+			List<PoolChoice> choices = candidates.stream().map(PoolChoice::new).toList();
+			PoolChoice selected = (PoolChoice) JOptionPane.showInputDialog(getFrame(),
+				Messages.getString("SharedResourcePool.choosePool"), Messages.getString("SharedResourcePool.title"),
+				JOptionPane.PLAIN_MESSAGE, null, choices.toArray(), choices.get(0));
+			if (selected == null) return;
+			Project poolProject = selected.project();
+			if (sharer.isDirty() || poolProject.isDirty()) {
+				Alert.warn(Messages.getString("SharedResourcePool.saveBeforeUse"));
+				return;
+			}
+			Object policy = JOptionPane.showInputDialog(getFrame(), Messages.getString("SharedResourcePool.choosePrecedence"),
+				Messages.getString("SharedResourcePool.title"), JOptionPane.PLAIN_MESSAGE, null,
+				new String[] { Messages.getString("SharedResourcePool.poolPrecedence"), Messages.getString("SharedResourcePool.sharerPrecedence") },
+				Messages.getString("SharedResourcePool.poolPrecedence"));
+			if (policy == null) return;
+			SharedResourcePoolService.ConflictPolicy conflictPolicy = Messages.getString("SharedResourcePool.sharerPrecedence").equals(policy)
+				? SharedResourcePoolService.ConflictPolicy.SHARER_TAKES_PRECEDENCE : SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE;
+			SharedResourcePoolService.getInstance().share(sharer, poolProject, conflictPolicy);
+			sharer.setDirty(true);
+			getCurrentFrame().repaint();
+		}
+	}
+
+	/** Creates the independent document that will become a saved shared resource pool. */
+	public class CreateResourcePoolAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			ProjectDialog.Form form = doNewProjectNoDialog1();
+			form.setName("Resource Pool " + project_suffix_count++);
+			doNewProjectDialog2(form);
+			Alert.warn("Save the new resource-pool project, then choose Use Resource Pool from each sharer project.");
+		}
+	}
+
+	private record PoolChoice(Project project) {
+		@Override public String toString() {
+			String name = project.getName();
+			return (name == null || name.isBlank() ? "(unnamed resource pool)" : name)
+				+ " — " + new File(project.getFileName()).getName();
+		}
+	}
+
+	/** Resolves a persisted pool link only after both open documents are saved. */
+	public class RefreshResourcePoolAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || !isDocumentWritable()) return;
+			Project sharer = getCurrentFrame().getProject();
+			if (sharer.getSharedResourcePoolFile() == null) {
+				Alert.warn(Messages.getString("SharedResourcePool.noReference"));
+				return;
+			}
+			Project poolProject = getOpenProjects().stream().filter(project -> project != sharer)
+				.filter(project -> SharedResourcePoolService.getInstance().isPoolReference(sharer, project)).findFirst().orElse(null);
+			if (poolProject == null) {
+				Alert.warn(Messages.getString("SharedResourcePool.poolNotOpen"));
+				return;
+			}
+			if (sharer.isDirty() || poolProject.isDirty()) {
+				Alert.warn(Messages.getString("SharedResourcePool.saveBeforeRefresh"));
+				return;
+			}
+			SharedResourcePoolService.getInstance().share(sharer, poolProject, sharer.isResourcePoolTakesPrecedence()
+				? SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE : SharedResourcePoolService.ConflictPolicy.SHARER_TAKES_PRECEDENCE);
+			getCurrentFrame().repaint();
+		}
+	}
+
+	/** Refreshes all links in the active master without changing the active document. */
+	public class RefreshSubprojectsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				refreshLinkedSubprojects();
+		}
+	}
+
+	/** Opens the selected master-project reference as its own document, if needed. */
+	public class OpenSubprojectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			SubProj reference = selectedSubprojectReference();
+			if (reference != null) activateSubproject(reference);
+		}
+	}
+
+	/** Removes only the selected reference; the linked project file is never deleted. */
+	public class RemoveSubprojectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentWritable()) return;
+			SubProj reference = selectedSubprojectReference();
+			if (reference != null) removeLinkedSubproject(reference);
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+
+	private SubProj selectedSubprojectReference() {
+		DocumentFrame frame = getCurrentFrame();
+		return frame != null && frame.getSelectedImpl() instanceof SubProj reference ? reference : null;
+	}
+
+	private void insertLocalSubprojects(Project masterProject) {
+		java.util.List<String> fileNames = SessionFactory.getInstance().getLocalSession()
+			.chooseFileNames(false, masterProject.getFileName());
+		if (fileNames == null)
+			return;
+		JCheckBox readOnly = new JCheckBox(Messages.getString("Field.subprojectReadOnly"));
+		if (PopupDialogSupport.showConfirmDialog(getFrame(), readOnly, Messages.getString("Text.insertProject"),
+				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION) != JOptionPane.OK_OPTION)
+			return;
+		com.microproject.session.LocalSession session = SessionFactory.getInstance().getLocalSession();
 		for (String fileName : fileNames) {
-			if (fileName != null) loadLocalDocument(fileName,!Environment.getStandAlone());
+			if (isSameLocalProject(masterProject.getFileName(), fileName)
+					|| masterProject.getSubprojectHandler().hasSubprojectReference(fileName)) {
+				Alert.error(Messages.getString("GraphicManager.SelectedProjectAlreadySubproject"));
+				continue;
+			}
+			long id = session.registerProjectFile(fileName);
+			if (id <= 0L) {
+				Alert.error(Messages.getString("Error.projectDoesNotExist"));
+				continue;
+			}
+			insertSubproject(masterProject, id, true, readOnly.isSelected(), fileName);
+		}
+	}
+
+	private static boolean isSameLocalProject(String first, String second) {
+		if (first == null || second == null)
+			return false;
+		try {
+			return new java.io.File(first).getCanonicalFile().equals(new java.io.File(second).getCanonicalFile());
+		} catch (java.io.IOException e) {
+			return first.equals(second);
 		}
 	}
 
@@ -3218,6 +3854,7 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && (actions==null||actions.contains(ACTION_DELETE)));
 		boolean isTask = currentImpl != null && currentImpl instanceof Task;
 		boolean isResource = currentImpl != null && currentImpl instanceof Resource;
+		boolean isLinkedSubproject = currentImpl instanceof SubProj;
 		boolean isHasStartAndEnd = currentImpl != null && currentImpl instanceof HasStartAndEnd;
 		boolean writable = (currentImpl != null && !ClassUtils.isObjectReadOnly(currentImpl));
 		getMenuManager().setActionEnabled(ACTION_INDENT,!readOnly &&(isTask || isResource)&&(actions==null||actions.contains(ACTION_INDENT)));
@@ -3249,6 +3886,10 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 
 //			taskType && (!notVoid || currentImpl == null || ((Task)currentImpl).getOwningProject() == null || ((Task)currentImpl).getOwningProject() == project);
 		getMenuManager().setActionEnabled(ACTION_INSERT_PROJECT,!readOnly &&insertProject);
+		getMenuManager().setActionEnabled(ACTION_REFRESH_SUBPROJECTS, project != null
+				&& project.getTasks().stream().anyMatch(SubProj.class::isInstance));
+		getMenuManager().setActionEnabled(ACTION_OPEN_SUBPROJECT, isLinkedSubproject);
+		getMenuManager().setActionEnabled(ACTION_REMOVE_SUBPROJECT, !readOnly && isLinkedSubproject);
 
 		BaseView view=null;
 		DocumentFrame frame=getCurrentFrame();
@@ -3355,6 +3996,12 @@ protected boolean loadLocalDocument(String fileName,boolean merge){ //uses serve
 	}
 
 	public void objectChanged(ObjectEvent objectEvent) {
+		// A manager can receive a queued portfolio event while its enclosing test
+		// or application window is being disposed.  It is no longer a valid frame
+		// owner at that point; ignore the event rather than preventing the active
+		// desktop manager from opening its document.
+		if (frameManager == null || (frameManager instanceof DefaultFrameManager manager && !manager.isActive()))
+			return;
 
 		if (objectEvent.getObject() instanceof Project) {
 			Project project = (Project)objectEvent.getObject();

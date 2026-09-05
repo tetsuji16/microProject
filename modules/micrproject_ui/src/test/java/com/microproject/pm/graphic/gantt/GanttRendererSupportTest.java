@@ -37,7 +37,14 @@ import java.awt.image.BufferedImage;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
 import com.microproject.preference.GlobalPreferences;
+import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.MicrosoftProjectGanttPalette;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -133,6 +140,27 @@ class GanttRendererSupportTest {
 	void ganttRendererDefaultsToMicrosoftProjectPalette() {
 		GanttRenderer renderer = new GanttRenderer();
 		assertTrue(renderer.getPalette() instanceof MicrosoftProjectGanttPalette);
+	}
+
+	@Test
+	void crossProjectLinkLabelUsesThePredecessorSourceProject() throws Exception {
+		Project source = project("Source project");
+		Project target = project("Target project");
+		NormalTask predecessor = (NormalTask) source.createLocalTaskNode(null).getImpl();
+		predecessor.setName("Design");
+		NormalTask successor = (NormalTask) target.createLocalTaskNode(null).getImpl();
+		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor,
+				DependencyType.Kind.FS.code(), 0L, this);
+
+		assertEquals("Source project: Design", GanttRenderer.crossProjectLinkLabel(dependency));
+	}
+
+	private static Project project(String name) {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool(name, undo), undo);
+		project.initialize(false, false);
+		project.setName(name);
+		return project;
 	}
 
 	private static FontMetrics createMetrics() {

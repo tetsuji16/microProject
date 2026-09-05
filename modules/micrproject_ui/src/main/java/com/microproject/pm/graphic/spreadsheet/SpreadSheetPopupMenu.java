@@ -37,6 +37,8 @@ import com.microproject.menu.MenuActionConstants;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.task.SubProj;
+import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.util.Environment;
 
@@ -47,6 +49,10 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 	   protected int row;
 	    protected int col;
 	    protected final SpreadSheet spreadSheet;
+	    private JMenuItem openLinkedProject;
+	    private JMenuItem refreshLinkedProject;
+	    private JMenuItem locateLinkedProject;
+	    private JMenuItem removeLinkedProject;
 	    /**
 	     * 
 	     */
@@ -69,6 +75,42 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				}, Environment.isNewLook() ? "menu24.taskInformation" : "menu.taskInformation");
 				addGraphicManagerAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS, "ribbon.hideSelectedTasks");
 				addGraphicManagerAction(MenuActionConstants.ACTION_SHOW_ALL_TASKS, "ribbon.showAllTasks");
+				openLinkedProject = new JMenuItem("Open Linked Project");
+				openLinkedProject.setName("openLinkedProject");
+				openLinkedProject.addActionListener(event -> {
+					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
+					if (manager != null && spreadSheet.getTaskAtRow(row) instanceof SubProj subproject)
+						manager.activateSubproject(subproject);
+				});
+				openLinkedProject.setVisible(false);
+				add(openLinkedProject);
+				refreshLinkedProject = new JMenuItem("Refresh Linked Project");
+				refreshLinkedProject.setName("refreshLinkedProject");
+				refreshLinkedProject.addActionListener(event -> {
+					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
+					if (manager != null && spreadSheet.getTaskAtRow(row) instanceof SubProj subproject)
+						manager.refreshLinkedSubproject(subproject);
+				});
+				refreshLinkedProject.setVisible(false);
+				add(refreshLinkedProject);
+				locateLinkedProject = new JMenuItem("Locate Linked Project...");
+				locateLinkedProject.setName("locateLinkedProject");
+				locateLinkedProject.addActionListener(event -> {
+					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
+					if (manager != null && spreadSheet.getTaskAtRow(row) instanceof SubProj subproject)
+						manager.locateLinkedSubproject(subproject);
+				});
+				locateLinkedProject.setVisible(false);
+				add(locateLinkedProject);
+				removeLinkedProject = new JMenuItem("Remove Subproject");
+				removeLinkedProject.setName("removeLinkedProject");
+				removeLinkedProject.addActionListener(event -> {
+					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
+					if (manager != null && spreadSheet.getTaskAtRow(row) instanceof SubProj subproject)
+						manager.removeLinkedSubproject(subproject);
+				});
+				removeLinkedProject.setVisible(false);
+				add(removeLinkedProject);
 				if (actions != null && actions.length > 0) {
 					addSeparator();
 				}
@@ -158,6 +200,29 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 	     */
 	    public void setRow(int row) {
 	        this.row = row;
+	        if (openLinkedProject != null) {
+	        Task task = spreadSheet.getTaskAtRow(row);
+	        openLinkedProject.setVisible(task instanceof SubProj);
+	        openLinkedProject.setEnabled(task instanceof SubProj subproject
+                && (subproject.getSubproject() != null
+                        || (subproject.getSubprojectFile() != null && !subproject.getSubprojectFile().isBlank())));
+			if (refreshLinkedProject != null) {
+				refreshLinkedProject.setVisible(task instanceof SubProj);
+				refreshLinkedProject.setEnabled(task instanceof SubProj subproject
+						&& (subproject.getSubproject() != null
+								|| (subproject.getSubprojectFile() != null && !subproject.getSubprojectFile().isBlank())));
+			}
+			if (removeLinkedProject != null) {
+				removeLinkedProject.setVisible(task instanceof SubProj);
+				removeLinkedProject.setEnabled(task instanceof SubProj);
+			}
+			if (locateLinkedProject != null) {
+				locateLinkedProject.setVisible(task instanceof SubProj subproject
+						&& subproject.getSubproject() == null);
+				locateLinkedProject.setEnabled(task instanceof SubProj subproject
+						&& subproject.getSubproject() == null);
+			}
+	        }
 	    }
     
     

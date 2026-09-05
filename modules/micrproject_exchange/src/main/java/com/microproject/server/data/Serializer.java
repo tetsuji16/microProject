@@ -219,9 +219,18 @@ public class Serializer {
 	        // set the status of the task using dirty flag
 	        taskData.setStatus(taskDirty ? SerializedDataObject.UPDATE : 0);
 
-        	taskData.setProjectId(task.getProjectId());
+        taskData.setProjectId(task.getProjectId());
+		taskData.setExternalProjectFile(task.getExternalProjectFile());
 	        if (task.isSubproject()) {
-	        	taskData.setSubprojectId(((SubProj)task).getSubprojectUniqueId());
+			SubProj subproject = (SubProj)task;
+			taskData.setSubprojectId(subproject.getSubprojectUniqueId());
+			taskData.setSubprojectFile(task.getSubprojectFile());
+			taskData.setSubprojectReadOnly(task.isSubprojectReadOnly());
+			taskData.setSubprojectReferenceId(subproject.getReferenceId());
+			taskData.setStoredSubprojectPath(subproject.getStoredSubprojectPath());
+			taskData.setCanonicalSubprojectPath(subproject.getCanonicalSubprojectPath());
+			taskData.setLastKnownSubprojectProjectId(subproject.getLastKnownProjectId());
+			taskData.setLastKnownSubprojectModifiedTime(subproject.getLastKnownModifiedTime());
 	        }
 
 
@@ -573,6 +582,9 @@ public class Serializer {
         projectData.setProjectStatus(project.getProjectStatus());
         projectData.setExtraFields(project.getExtraFields());
         projectData.setCustomReportPresets(project.getCustomReportPresets());
+		projectData.setDocumentId(project.getDocumentId());
+		projectData.setSharedResourcePoolFile(project.getSharedResourcePoolFile());
+		projectData.setResourcePoolTakesPrecedence(project.isResourcePoolTakesPrecedence());
         projectData.setAccessControlPolicy(project.getAccessControlPolicy());
         projectData.setCreationDate(project.getCreationDate());
         projectData.setLastModificationDate(project.getLastModificationDate());
@@ -821,6 +833,10 @@ public class Serializer {
 		project.getCustomReportPresets().clear();
 		if (projectData.getCustomReportPresets() != null)
 			project.getCustomReportPresets().putAll(projectData.getCustomReportPresets());
+		project.setSharedResourcePoolFile(projectData.getSharedResourcePoolFile());
+		project.setResourcePoolTakesPrecedence(projectData.isResourcePoolTakesPrecedence());
+		if (projectData.getDocumentId() != null && !projectData.getDocumentId().isBlank())
+			project.setDocumentId(projectData.getDocumentId());
 
     	project.postDeserialization();
 
@@ -936,9 +952,10 @@ public class Serializer {
      						}
 
 //  						task=new Subproject(project,taskData.getSubprojectId());
-    						task.setUniqueId(taskData.getUniqueId());
-    						task.setName(taskData.getName());
-    						((SubProj)task).setSubprojectFieldValues(taskData.getSubprojectFieldValues());
+						task.setUniqueId(taskData.getUniqueId());
+						task.setName(taskData.getName());
+						((SubProj)task).setSubprojectFieldValues(taskData.getSubprojectFieldValues());
+						((SubProj)task).setReferenceId(taskData.getSubprojectReferenceId());
     					}
      					else{
     						logger.log(Level.WARNING, "Failed to deserialize task", e);
@@ -952,17 +969,28 @@ public class Serializer {
     			project.add(task);
     			if (taskData.isExternal()) {
     				task.setExternal(true);
-    				task.setProjectId(taskData.getProjectId());
+					task.setProjectId(taskData.getProjectId());
+					task.setExternalProjectFile(taskData.getExternalProjectFile());
     				task.setAllSchedulesToCurrentDates();
     				project.addExternalTask(task);
     			} else {
     				task.setOwningProject(project);
     				task.setProjectId(projectId);
     			}
-    			if (taskData.isSubproject()) {
-    				SubProj sub = (SubProj)task;
-    				sub.setSubprojectUniqueId(taskData.getSubprojectId());
-    				sub.setSubprojectFieldValues(taskData.getSubprojectFieldValues());
+			if (taskData.isSubproject()) {
+				SubProj sub = (SubProj)task;
+				// Negative IDs are retained only for legacy unresolved placeholders;
+				// the public setter deliberately rejects newly assigned negative IDs.
+				if (taskData.getSubprojectId() >= 0L)
+					sub.setSubprojectUniqueId(taskData.getSubprojectId());
+					task.setSubprojectFile(taskData.getSubprojectFile());
+					sub.setSubprojectReadOnly(taskData.isSubprojectReadOnly());
+					sub.setReferenceId(taskData.getSubprojectReferenceId());
+					sub.setStoredSubprojectPath(taskData.getStoredSubprojectPath());
+					sub.setCanonicalSubprojectPath(taskData.getCanonicalSubprojectPath());
+					sub.setLastKnownProjectId(taskData.getLastKnownSubprojectProjectId());
+					sub.setLastKnownModifiedTime(taskData.getLastKnownSubprojectModifiedTime());
+				sub.setSubprojectFieldValues(taskData.getSubprojectFieldValues());
     				sub.setSchedulesFromSubprojectFieldValues();
     			}
 //    			if (task.isRoot()){ //claur
@@ -1213,6 +1241,7 @@ public class Serializer {
 						referringTask.setUniqueId(taskData.getUniqueId());
 						referringTask.setName(taskData.getName());
 						((SubProj)referringTask).setSubprojectFieldValues(taskData.getSubprojectFieldValues());
+						((SubProj)referringTask).setReferenceId(taskData.getSubprojectReferenceId());
 					}
 					else throw new IOException("Subproject:"+e);
 				}

@@ -37,6 +37,22 @@ public interface SubprojectHandler {
 	long getReferringSubprojectTaskDependencyDate();
 	String getSubprojectOf();
 	void addSubproject(Project subproject, Node subprojectNode, boolean creating, boolean currentlyOpen);
+	/**
+	 * Replaces the loaded child behind an existing master placeholder.  The
+	 * placeholder itself is deliberately retained so its persisted path,
+	 * read-only setting and any master-level dependencies continue to refer to
+	 * the same linked project.
+	 */
+	void replaceSubproject(Project previous, Project replacement, Node subprojectNode);
 	SubProj createSubProj(long subprojectUniqueId);
 	boolean canInsertProject(long projectId);
+	/** True when attaching the candidate below this master would close a reference cycle. */
+	default boolean wouldCreateCircularReference(Project candidate) {
+		return false;
+	}
+	/** A user-visible master → child → … → master path when a circular insertion is rejected. */
+	default String describeCircularReference(Project candidate) {
+		return "";
+	}
+	boolean hasSubprojectReference(String fileName);
 }

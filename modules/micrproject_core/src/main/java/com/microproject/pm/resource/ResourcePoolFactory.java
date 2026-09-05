@@ -59,6 +59,12 @@ public class ResourcePoolFactory {
 	public ArrayList getResourcePools() {
 		return resourcePools;
 	}
+
+	/** Makes an already-open project's pool available to the new-project dialog. */
+	public void registerPool(ResourcePool pool) {
+		if (pool != null && !resourcePools.contains(pool))
+			addPool(pool);
+	}
 	
 	private void addPool(ResourcePool pool) {
 		resourcePools.add(pool);

@@ -120,7 +120,7 @@ final class RibbonCommandCatalog {
 	private static Map<String, Placement> placements() {
 		Map<String, Placement> result = new LinkedHashMap<>();
 		register(result, CommandScope.GLOBAL, FILE,
-			"RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject",
+			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject",
 			"RibbonLocale", "RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre");
 		register(result, CommandScope.DOCUMENT, FILE,
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonCloseProject", "RibbonExportProject",
@@ -132,12 +132,13 @@ final class RibbonCommandCatalog {
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonNotes", "RibbonUpdateTasks", "RibbonDelete",
 			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
-			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter", "RibbonLevelResources");
+			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter", "RibbonLevelResources",
+			"RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool");
 		register(result, CommandScope.REPORT, REPORT,
 			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");
 		register(result, CommandScope.PROJECT, PROJECT,
 			"RibbonProjectInformation", "RibbonProjectsDialog", "RibbonChangeWorkingTime",
-			"RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate", "RibbonSaveBaseline", "RibbonClearBaseline",
+			"RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
 			"RibbonCCPMSettings", "RibbonCCPMClear");
 		register(result, CommandScope.VIEW, VIEW,
 			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",

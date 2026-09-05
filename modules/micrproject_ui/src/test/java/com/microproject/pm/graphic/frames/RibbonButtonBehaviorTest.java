@@ -251,6 +251,7 @@ class RibbonButtonBehaviorTest {
 		Harness harness = newHarness();
 
 		assertExternal(harness, "RibbonNewProject", "newProject");
+		assertExternal(harness, "RibbonNewMasterProject", "newMasterProject");
 		assertExternal(harness, "RibbonOpenProject", "openProject");
 		assertExternal(harness, "RibbonRecentProjects", "openProject");
 		assertExternal(harness, "RibbonImportProject", "openProject");
@@ -467,6 +468,7 @@ class RibbonButtonBehaviorTest {
 		LinkedHashMap<String, Strategy> map = new LinkedHashMap<>();
 		add(map, Strategy.ROUTE_EXTERNAL,
 			"RibbonNewProject",
+			"RibbonNewMasterProject",
 			"RibbonOpenProject",
 			"RibbonRecentProjects",
 			"RibbonImportProject",
@@ -552,6 +554,12 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertRecurring",
 			"RibbonArrangeAll",
 			"RibbonLevelResources",
+			"RibbonUseResourcePool",
+			"RibbonCreateResourcePool",
+			"RibbonRefreshResourcePool",
+			"RibbonRefreshSubprojects",
+			"RibbonOpenSubproject",
+			"RibbonRemoveSubproject",
 			"RibbonCCPMSettings",
 			"RibbonCCPMClear",
 			"RibbonScrollToTask",

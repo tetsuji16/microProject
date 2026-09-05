@@ -100,6 +100,30 @@ class DefaultFrameManagerTest {
 		});
 	}
 
+	@Test
+	void supportsAllPublishedProjectWindowArrangements() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			container.setLayout(new BorderLayout());
+			DefaultFrameManager manager = new DefaultFrameManager(container, new JPanel(), new GraphicManager(container));
+			manager.addFrame(new TestNamedFrame("one", "One"));
+			manager.addFrame(new TestNamedFrame("two", "Two"));
+
+			for (FrameManager.WindowArrangement arrangement : new FrameManager.WindowArrangement[] {
+					FrameManager.WindowArrangement.TILE, FrameManager.WindowArrangement.HORIZONTAL,
+					FrameManager.WindowArrangement.VERTICAL, FrameManager.WindowArrangement.CASCADE }) {
+				manager.arrangeAll(arrangement);
+				assertEquals(arrangement, manager.getCurrentArrangement());
+				assertTrue(container.getComponent(0) instanceof JPanel);
+				assertEquals(2, ((JPanel) container.getComponent(0)).getComponentCount());
+			}
+
+			manager.arrangeAll(FrameManager.WindowArrangement.SINGLE);
+			assertEquals(FrameManager.WindowArrangement.SINGLE, manager.getCurrentArrangement());
+			assertTrue(container.getComponent(0) instanceof NamedFrame);
+		});
+	}
+
 	private static final class TrackingPanel extends JPanel {
 		private int repaintCount;
 

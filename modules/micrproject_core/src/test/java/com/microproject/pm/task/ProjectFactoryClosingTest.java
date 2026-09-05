@@ -28,6 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -35,9 +38,31 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.session.SaveOptions;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ProjectFactoryClosingTest {
+	@Test
+	void loaderFailuresKeepInvalidFilesDistinctFromMissingAndAccessDeniedReferences() throws Exception {
+		assertEquals(SubProj.LoadStatus.INVALID, ProjectFactory.subprojectLoadFailureStatus(new IOException("invalid archive")));
+		assertEquals(SubProj.LoadStatus.MISSING, ProjectFactory.subprojectLoadFailureStatus(new FileNotFoundException("moved.mpo")));
+		assertEquals(SubProj.LoadStatus.ACCESS_DENIED,
+			ProjectFactory.subprojectLoadFailureStatus(new AccessDeniedException("locked.mpo")));
+	}
+
+	@Test
+	void loaderFailureDetailsAreSafeForOneLineWarnings() {
+		assertEquals(" Details: broken archive.", ProjectFactory.failureDetail(new IOException("broken\narchive")));
+	}
+
+	@Test
+	void standaloneLoadFailuresNameTheFileAndPreserveExistingDocuments() {
+		String message = ProjectFactory.projectLoadFailureMessage("C:/plans/broken.mpo", new IOException("bad archive"));
+		assertTrue(message.contains("C:/plans/broken.mpo"));
+		assertTrue(message.contains("invalid or could not be imported"));
+		assertTrue(message.contains("already open were not changed"));
+	}
+
 	@Test
 	void savePromptUsesTheExistingFileNameBeforeTheProjectInternalName() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -55,6 +80,24 @@ class ProjectFactoryClosingTest {
 		project.setName("New project");
 
 		assertEquals("New project", ProjectFactory.getDisplayNameForSavePrompt(project));
+	}
+
+	@Test
+	void masterSaveIncludesADirtyChildEvenWhenTheMasterItselfIsClean() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project master = Project.createProject(ResourcePool.createRourcePool("master pool", undo), undo);
+		Project child = Project.createProject(ResourcePool.createRourcePool("child pool", undo), undo);
+		master.setLocal(false);
+		child.setLocal(false);
+		master.setDirty(false);
+		master.setGroupDirty(false);
+		child.setDirty(true);
+		SaveOptions options = new SaveOptions();
+
+		assertFalse(master.needsSaving());
+		assertTrue(child.needsSaving());
+		assertFalse(ProjectFactory.shouldIncludeInBranchSave(master, options));
+		assertTrue(ProjectFactory.shouldIncludeInBranchSave(child, options));
 	}
 
 	@Test

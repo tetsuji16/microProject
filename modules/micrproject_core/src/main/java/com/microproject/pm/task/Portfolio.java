@@ -52,6 +52,7 @@ import com.microproject.job.JobRunnable;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
@@ -154,10 +155,41 @@ public class Portfolio implements Document, NodeModelDataFactory {
 
 	private void _addProject(Project project){
     	nodeModel.add(NodeFactory.getInstance().createNode(project),NodeModel.SILENT);
+		com.microproject.pm.resource.ResourcePoolFactory.getInstance().registerPool(project.getResourcePool());
     	handleExternalTasks(project,true, false); 		// external link handling
 
     	objectEventManager.fireCreateEvent(this,project);
     	project.getResourcePool().addProject(project);
+		resolveSharedResourcePools();
+	}
+
+	/**
+	 * Atomically replaces an already-open linked child while retaining its
+	 * portfolio node.  Keeping the node (and therefore its position below the
+	 * master) prevents a discard/reload from becoming a second standalone
+	 * document or from invalidating the master reference.
+	 */
+	boolean replaceProject(Project previous, Project replacement) {
+		if (previous == null || replacement == null)
+			return false;
+		Node node = nodeModel.search(previous, comparator);
+		if (node == null)
+			return false;
+		previous.getResourcePool().removeProject(previous);
+		nodeModel.replaceImpl(node, replacement, this, NodeModel.SILENT);
+		com.microproject.pm.resource.ResourcePoolFactory.getInstance().registerPool(replacement.getResourcePool());
+		replacement.getResourcePool().addProject(replacement);
+		handleExternalTasks(replacement, true, false);
+		resolveSharedResourcePools();
+		objectEventManager.fireUpdateEvent(this, replacement);
+		return true;
+	}
+
+	private void resolveSharedResourcePools() {
+		List<Project> projects = new ArrayList<Project>();
+		forProjects(value -> projects.add((Project)value));
+		for (Project project : projects)
+			SharedResourcePoolService.getInstance().resolve(project, projects);
 	}
 
 	void handleExternalTasks(final Project project, final boolean opening, final boolean saving) {

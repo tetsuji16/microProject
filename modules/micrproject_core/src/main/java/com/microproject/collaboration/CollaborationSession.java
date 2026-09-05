@@ -416,6 +416,20 @@ public class CollaborationSession {
 		resetExternalChangeState(true);
 	}
 
+	/** Keeps the external-change guard armed so the next poll can retry the load. */
+	public void afterExternalProjectRefreshFailure() {
+		long modified = projectFile != null && projectFile.exists() ? projectFile.lastModified() : 0L;
+		long length = projectFile != null && projectFile.exists() ? projectFile.length() : 0L;
+		synchronized (stateLock) {
+			externalChangePending = true;
+			externalReloadRequested = false;
+			pendingExternalReload = true;
+			pendingExternalReloadModified = modified;
+			pendingExternalReloadLength = length;
+			pendingExternalReloadDetectedAt = System.currentTimeMillis();
+		}
+	}
+
 	private void resetExternalChangeState(boolean clearReloadRequest) {
 		synchronized (stateLock) {
 			externalChangePending = false;

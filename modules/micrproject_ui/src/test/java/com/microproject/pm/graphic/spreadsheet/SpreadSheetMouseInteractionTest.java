@@ -43,12 +43,15 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.DefaultSubProj;
+import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -230,6 +233,38 @@ class SpreadSheetMouseInteractionTest {
 			assertEquals(Messages.getString("TaskInformationDialog.TaskInformation"), information.getText());
 			information.doClick();
 			assertEquals(1, sheet.informationOpenCount);
+		});
+	}
+
+	@Test
+	void linkedSubprojectPopupExposesRecoveryActionsForAnUnloadedReference() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			Project master = Project.createProject(ResourcePool.createRourcePool("popup-master", undoController), undoController);
+			master.initialize(false, false);
+			master.setMaster(true);
+			DefaultSubProj reference = new DefaultSubProj(master, 99101L);
+			reference.setName("Missing child");
+			reference.setSubprojectFile("C:/plans/missing-child.mpo");
+			master.connectTask(reference);
+			master.addToDefaultOutline(null, NodeFactory.getInstance().createNode(reference));
+
+			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+				NodeModelCacheFactory.createTaskNodeModelCache(master, master.getTaskModel()), "popup-master", null);
+			RecordingSpreadSheet sheet = new RecordingSpreadSheet();
+			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory,
+				"Spreadsheet.Task.entry", true);
+			cache.update();
+			SpreadSheetPopupMenu popup = sheet.getPopup();
+			int row = findRow(sheet, reference);
+			popup.setRow(row);
+
+			assertTrue(menuItem(popup, "openLinkedProject").isVisible());
+			assertTrue(menuItem(popup, "refreshLinkedProject").isVisible());
+			assertTrue(menuItem(popup, "locateLinkedProject").isVisible());
+			assertTrue(menuItem(popup, "removeLinkedProject").isVisible());
+			assertTrue(menuItem(popup, "locateLinkedProject").isEnabled());
 		});
 	}
 
@@ -566,9 +601,20 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	private int findRow(SpreadSheet sheet, NormalTask task) {
+		return findRow(sheet, (Task) task);
+	}
+
+	private int findRow(SpreadSheet sheet, Task task) {
 		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
 		Node node = (Node) sheet.getCache().getModel().search(task);
 		return model.findGraphicNodeRow(sheet.getCache().getGraphicNode(node));
+	}
+
+	private JMenuItem menuItem(SpreadSheetPopupMenu popup, String name) {
+		for (java.awt.Component component : popup.getComponents())
+			if (component instanceof JMenuItem item && name.equals(item.getName()))
+				return item;
+		throw new AssertionError("Missing popup item " + name);
 	}
 
 	private MouseEvent mousePress(SpreadSheet sheet, int row, int column, int button, int clickCount) {

@@ -26,6 +26,8 @@ package com.microproject.pm.task;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.io.File;
+import java.io.IOException;
 
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.dependency.Dependency;
@@ -45,23 +47,29 @@ public class ExternalTaskManager {
 		while (i.hasNext()) {
 			externalTask = (Task) i.next();
 			
-			if (externalTask.getProjectId() == project.getUniqueId()) {
+			if (externalTask.getProjectId() == project.getUniqueId()
+					|| sameProjectFile(externalTask.getExternalProjectFile(), project.getFileName())) {
 				Task realTask = project.findByUniqueId(externalTask.getUniqueId());
-				
-				
-				
-				if (externalTask.getProjectId() == realTask.getProjectId()) {
-					treatOpenedTask(externalTask,realTask,opening);
-					if (opening)
-						i.remove();
-				} else {
-					realTask.copyScheduleTo(externalTask);
-					externalTask.setName(realTask.getName());
-//					System.out.println("marking dep tasks of  " + externalTask + " it is external=" + externalTask.isExternal());
-					externalTask.markAllDependentTasksAsNeedingRecalculation(true);
-					externalTask.recalculate(this);
+				if (realTask == null) {
+					// The external task can refer to a task UID that was removed or
+					// remapped in the target project. Keep the unresolved placeholder;
+					// never dereference null during a project-open broadcast.
+					continue;
 				}
+				treatOpenedTask(externalTask,realTask,opening);
+				if (opening)
+					i.remove();
 			}
+		}
+	}
+
+	private static boolean sameProjectFile(String first, String second) {
+		if (first == null || second == null || first.isBlank() || second.isBlank())
+			return false;
+		try {
+			return new File(first).getCanonicalFile().equals(new File(second).getCanonicalFile());
+		} catch (IOException e) {
+			return first.equalsIgnoreCase(second);
 		}
 	}
 	
@@ -87,6 +95,24 @@ public class ExternalTaskManager {
 //				successor.invalidateSchedules();
 //				successor.markTaskAsDirty();
 
+				dep.fireCreateEvent(this);
+			}
+			// The historical resolver only replaced an unloaded task used as a
+			// predecessor.  A persisted cross-project link may just as validly use
+			// the unloaded task as its successor; keep the graph symmetric so both
+			// directions resolve when the referenced project is opened.
+			i = externalTask.getPredecessorList().iterator();
+			while (i.hasNext()) {
+				dep = (Dependency)i.next();
+				dep.fireDeleteEvent(this);
+				dep.replace(realTask, false);
+				try {
+					dep.testValid(false);
+				} catch (InvalidAssociationException e) {
+					dep.setDisabled(true);
+					DependencyService.warnCircularCrossProjectLinkMessage(dep.getPredecessor(), dep.getSuccessor());
+				}
+				realTask.getPredecessorList().add(dep);
 				dep.fireCreateEvent(this);
 			}
 //			System.out.println("removing external task " + externalTask + " from project " + externalTask.getProject());

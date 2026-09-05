@@ -622,6 +622,8 @@
 
 
 		<class name="com.microproject.pm.task.Task">
+			<field property="sourceProject" id="Field.sourceProject"
+				readOnly="true" />
 			<field property="manuallyScheduled" id="Field.manuallyScheduled" />
 			<field property="inactiveTask" id="Field.inactiveTask" />
 			<field property="hiddenTask" id="Field.hiddenTask" />
@@ -650,6 +652,10 @@
 		<!-- 
 			<field property="predecessorOrder" id="Field.predecessorOrder" readOnly="true" />
  		-->
+		</class>
+		<class name="com.microproject.pm.task.Task">
+			<field property="subprojectFile" id="Field.subprojectFile" readOnly="true" />
+			<field property="subprojectStatus" id="Field.subprojectStatus" readOnly="true" />
 		</class>
 		<class name="com.microproject.pm.task.ProjectSpecificFields">
 			<field property="statusDate" id="Field.statusDate"

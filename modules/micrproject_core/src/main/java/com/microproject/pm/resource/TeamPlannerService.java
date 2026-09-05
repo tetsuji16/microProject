@@ -26,8 +26,10 @@ package com.microproject.pm.resource;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
@@ -46,22 +48,45 @@ public final class TeamPlannerService {
 	public List<Slot> slots(Project project) {
 		Objects.requireNonNull(project, "project");
 		List<Slot> slots = new ArrayList<>();
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = (Task) iterator.next();
-			if (!(task instanceof NormalTask normalTask) || task.isSummary()) {
-				continue;
-			}
-			for (Object value : normalTask.getAssignments()) {
-				Assignment assignment = (Assignment) value;
-				Resource resource = assignment.getResource();
-				boolean overloaded = isOverallocated(resource, assignment);
-				slots.add(new Slot(task, resource, assignment, assignment.getStart(), assignment.getEnd(),
-					assignment.getUnits(), overloaded));
+		Set<Task> seenTasks = java.util.Collections.newSetFromMap(new IdentityHashMap<Task, Boolean>());
+		for (Project sourceProject : projectsFor(project)) {
+			for (var iterator = sourceProject.getTaskOutlineIterator(); iterator.hasNext();) {
+				Task task = (Task) iterator.next();
+				if (!seenTasks.add(task) || !(task instanceof NormalTask normalTask) || task.isSummary()) {
+					continue;
+				}
+				for (Object value : normalTask.getAssignments()) {
+					Assignment assignment = (Assignment) value;
+					Resource resource = assignment.getResource();
+					boolean overloaded = isOverallocated(resource, assignment);
+					slots.add(new Slot(task, resource, assignment, assignment.getStart(), assignment.getEnd(),
+						assignment.getUnits(), overloaded));
+				}
 			}
 		}
 		slots.sort(Comparator.comparing((Slot value) -> displayName(value.resource()))
 			.thenComparingLong(Slot::start).thenComparingLong(value -> value.task().getId()));
 		return List.copyOf(slots);
+	}
+
+	/** Returns the current project plus every document connected to its resource pool. */
+	private static List<Project> projectsFor(Project project) {
+		ResourcePool pool = project.getResourcePool();
+		if (pool == null || pool.getProjects().isEmpty())
+			return List.of(project);
+		List<Project> projects = new ArrayList<Project>(pool.getProjects().size() + 1);
+		projects.add(project);
+		for (Project candidate : pool.getProjects())
+			if (candidate != null && !containsIdentity(projects, candidate))
+				projects.add(candidate);
+		return projects;
+	}
+
+	private static boolean containsIdentity(Iterable<Project> projects, Project expected) {
+		for (Project project : projects)
+			if (project == expected)
+				return true;
+		return false;
 	}
 
 	public void reschedule(Task task, long newStart, Object eventSource) {

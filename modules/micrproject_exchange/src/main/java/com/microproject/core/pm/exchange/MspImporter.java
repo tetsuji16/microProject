@@ -73,6 +73,8 @@ import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.SubProj;
+import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**
@@ -358,6 +360,7 @@ public class MspImporter {
 		if (mpxTask.getExternalTask()) {
 			task.setExternal(true);
 			task.setProjectId(externalProjectId(mpxTask));
+			task.setExternalProjectFile(externalProjectFile(mpxTask));
 			project.addExternalTask(task);
 		}
 		updateEarliestTaskStart(task);
@@ -386,11 +389,43 @@ public class MspImporter {
 		}
 	}
 
+	private String externalProjectFile(net.sf.mpxj.Task mpxTask) {
+		String externalProject = mpxTask.getExternalTaskProject();
+		if (isFileReference(externalProject))
+			return externalProject;
+		String subprojectFile = mpxTask.getSubprojectFile();
+		return isFileReference(subprojectFile) ? subprojectFile : null;
+	}
+
+	private boolean isFileReference(String value) {
+		if (value == null || value.isBlank())
+			return false;
+		try {
+			Long.parseLong(value);
+			return false;
+		} catch (NumberFormatException e) {
+			return true;
+		}
+	}
+
 	private Task createTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {
 		MpxTaskConverter converter=new MpxTaskConverter();
 		Node parentNode = parentTask == null ? null : project.getTaskModel().search(parentTask);
-		Task task = (Task) project.createLocalTaskNode(parentNode, false).getImpl();
+		Node node = project.createLocalTaskNode(parentNode, false);
+		Task task = (Task) node.getImpl();
+		if (mpxTask.getSubProject() != null) {
+			project.getTasks().remove(task);
+			SubProj subproject = project.getSubprojectHandler().createSubProj(0L);
+			task = (Task) subproject;
+			node.setImpl(task);
+			project.connectTask(task);
+			task.setWbsParent(parentTask);
+		}
 		converter.from(mpxTask, task, state);
+		if (task instanceof SubProj subproject) {
+			task.setSubprojectFile(mpxTask.getSubprojectFile());
+			((DefaultSubProj) subproject).setSubprojectReadOnly(mpxTask.getSubprojectReadOnly());
+		}
 		return task;
 	}
 

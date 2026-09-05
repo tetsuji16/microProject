@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.dialog;
 
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -31,6 +32,7 @@ import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -73,6 +75,8 @@ import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.association.AssociationList;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.configuration.Configuration;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationFormat;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.graphic.configuration.shape.Colors;
@@ -86,6 +90,7 @@ import com.microproject.pm.key.HasId;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
+import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.strings.Messages;
@@ -179,7 +184,7 @@ public class TaskInformationDialog extends InformationDialog {
 		// Keep the dialog within a normal desktop viewport.  Every tab receives a
 		// real scroll viewport, so locale/DPI-specific preferred heights do not
 		// overlap controls or push the dialog beyond the screen.
-		FormLayout layout = new FormLayout("350dlu:grow", "fill:200dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		FormLayout layout = new FormLayout("430dlu:grow", "fill:300dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
@@ -213,8 +218,11 @@ public class TaskInformationDialog extends InformationDialog {
 		// JScrollPane otherwise reports the entire form as its preferred viewport
 		// height and can make the dialog taller than the desktop.  Keep a stable
 		// viewport; the complete form remains reachable through the scrollbar.
-		scrollPane.setPreferredSize(new Dimension(700, 360));
-		scrollPane.setMinimumSize(new Dimension(480, 240));
+		// Dependency tabs have an action row (New/Remove) above their grids.  A
+		// 360px viewport lets the growing grid consume that row on normal Windows
+		// DPI settings, leaving no way to create a cross-project link from the UI.
+		scrollPane.setPreferredSize(new Dimension(700, 460));
+		scrollPane.setMinimumSize(new Dimension(480, 300));
 		return scrollPane;
 	}
 
@@ -408,22 +416,25 @@ public class TaskInformationDialog extends InformationDialog {
 	}	
 	
 	public JComponent createPredecessorsPanel() {
-		FieldComponentMap map = createMap();		
-		FormLayout layout = new FormLayout("p:grow,3dlu,right:p","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		return createDependencyPanel(true);
+	}
 
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		builder.setDefaultDialogBorder();
-		CellConstraints cc = new CellConstraints();
-		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
-			.getRow(), 3));
-		builder.nextLine(2);
-		builder.append(Messages.format("Format.label", Messages.getString("Spreadsheet.Dependency.predecessors")),
-				getDependencyButtons(true)); //$NON-NLS-1$
-		builder.nextLine(2);
-		builder.add(createPredecessorsSpreadsheet(),cc.xyw(builder.getColumn(), builder.getRow(), 3));
-		JComponent pred = builder.getPanel();
-		HelpUtil.addDocHelp(pred,"Linking");
-		return pred;	
+	private JComponent createDependencyPanel(boolean predecessors) {
+		FieldComponentMap map = createMap();
+		JPanel panel = new JPanel(new BorderLayout(0, 4));
+		JPanel header = new JPanel(new BorderLayout(0, 4));
+		header.add(createHeaderFieldsPanel(map), BorderLayout.NORTH);
+		JPanel actions = new JPanel(new BorderLayout(8, 0));
+		actions.setOpaque(false);
+		actions.add(new JLabel(Messages.format("Format.label", Messages.getString(
+				predecessors ? "Spreadsheet.Dependency.predecessors" : "Spreadsheet.Dependency.successors"))), //$NON-NLS-1$ //$NON-NLS-2$
+				BorderLayout.WEST);
+		actions.add(getDependencyButtons(predecessors), BorderLayout.EAST);
+		header.add(actions, BorderLayout.SOUTH);
+		panel.add(header, BorderLayout.NORTH);
+		panel.add(predecessors ? createPredecessorsSpreadsheet() : createSuccessorsSpreadsheet(), BorderLayout.CENTER);
+		HelpUtil.addDocHelp(panel, "Linking"); //$NON-NLS-1$
+		return panel;
 	}
 	
 	private class DependencySpreadSheet extends SpreadSheet {
@@ -455,7 +466,10 @@ public class TaskInformationDialog extends InformationDialog {
 			Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column+1);
 			if (field == clickField) {
 				JLabel l = (JLabel)component;
-				l.setText("<html><a href=\"\">" + l.getText() + "</a></html>");
+				Object rowObject = ((SpreadSheetModel)getModel()).getObjectInRow(row);
+				Task endpoint = rowObject instanceof Dependency link
+					? (Task)(predecessor ? link.getLeft() : link.getRight()) : null;
+				l.setText("<html><a href=\"\">" + dependencyDisplayName((Task)getObject(), endpoint) + "</a></html>");
 			}
 			return component;
 		}
@@ -498,22 +512,7 @@ public class TaskInformationDialog extends InformationDialog {
     }
 
 	public JComponent createSuccessorsPanel() {
-		FieldComponentMap map = createMap();		
-		FormLayout layout = new FormLayout("p:grow,3dlu,right:p","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
-
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		builder.setDefaultDialogBorder();
-		CellConstraints cc = new CellConstraints();
-		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
-			.getRow(), 3));
-		builder.nextLine(2);
-		builder.append(Messages.format("Format.label", Messages.getString("Spreadsheet.Dependency.successors")),
-				getDependencyButtons(false)); //$NON-NLS-1$
-		builder.nextLine(2);
-		builder.add(createSuccessorsSpreadsheet(),cc.xyw(builder.getColumn(), builder.getRow(), 3));
-		JComponent succ = builder.getPanel();
-		HelpUtil.addDocHelp(succ,"Linking");
-		return succ;	
+		return createDependencyPanel(false);
 	}
 	
 	protected SpreadSheet successorsSpreadSheet;
@@ -596,8 +595,11 @@ public class TaskInformationDialog extends InformationDialog {
 				JOptionPane.PLAIN_MESSAGE, null, dependencyTypeChoices(), dependencyTypeChoices()[0]);
 		if (type == null)
 			return;
+		Long lag = chooseDependencyLag();
+		if (lag == null)
+			return;
 		try {
-			createDependency(task, selected.task, predecessors, type.kind.code(), this);
+			createDependency(task, selected.task, predecessors, type.kind.code(), lag.longValue(), this);
 			updateAll();
 		} catch (InvalidAssociationException e) {
 			Alert.warn(e.getMessage(), this);
@@ -609,12 +611,35 @@ public class TaskInformationDialog extends InformationDialog {
 		return createDependency(task, selectedTask, predecessors, DependencyType.Kind.FS.code(), eventSource);
 	}
 
+	/** Collect lag/lead while the user creates a link, rather than requiring a later edit. */
+	private Long chooseDependencyLag() {
+		String value = (String) JOptionPane.showInputDialog(this,
+				Messages.getString("Text.Lag"), Messages.getString("Text.TaskDependency"),
+				JOptionPane.PLAIN_MESSAGE, null, null, "0");
+		if (value == null)
+			return null;
+		try {
+			Duration duration = (Duration) DurationFormat.getSignedInstance().parseObject(value.trim());
+			if (duration == null)
+				throw new ParseException(value, 0);
+			return Long.valueOf(duration.getEncodedMillis());
+		} catch (ParseException e) {
+			Alert.warn(Messages.getString("Message.invalidDuration"), this);
+			return null;
+		}
+	}
+
 	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors, int dependencyType,
+			Object eventSource) throws InvalidAssociationException {
+		return createDependency(task, selectedTask, predecessors, dependencyType, 0L, eventSource);
+	}
+
+	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors, int dependencyType, long lag,
 			Object eventSource) throws InvalidAssociationException {
 		return DependencyService.getInstance().newDependency(
 				predecessors ? selectedTask : task,
 				predecessors ? task : selectedTask,
-				dependencyType, 0, eventSource);
+				dependencyType, lag, eventSource);
 	}
 
 	static DependencyTypeChoice[] dependencyTypeChoices() {
@@ -623,14 +648,40 @@ public class TaskInformationDialog extends InformationDialog {
 			new DependencyTypeChoice(DependencyType.Kind.FF), new DependencyTypeChoice(DependencyType.Kind.SF) };
 	}
 
+	/** Labels persisted cross-project endpoints without making same-project grids noisy. */
+	static String dependencyDisplayName(Task current, Task endpoint) {
+		if (endpoint == null)
+			return "";
+		Project endpointProject = endpoint.getOwningProject() == null ? endpoint.getProject() : endpoint.getOwningProject();
+		Project currentProject = current == null ? null
+			: current.getOwningProject() == null ? current.getProject() : current.getOwningProject();
+		String taskName = endpoint.getName() == null ? "" : endpoint.getName();
+		if (endpointProject == null || endpointProject == currentProject)
+			return taskName;
+		String projectName = endpointProject.getName();
+		return projectName == null || projectName.isBlank() ? taskName : projectName + ": " + taskName;
+	}
+
 	private List<Task> getLinkableTasks(Task task, boolean predecessors) {
 		List<Project> projects = new ArrayList<>();
 		if (task.getProject() != null)
 			projects.add(task.getProject());
+		for (Task candidate : task.getProject() == null ? List.<Task>of() : task.getProject().getTaskList()) {
+			if (candidate instanceof SubProj subproject && subproject.getSubproject() != null
+					&& !projects.contains(subproject.getSubproject()))
+				projects.add(subproject.getSubproject());
+		}
 		ProjectFactory.getInstance().getPortfolio().forProjects(value -> {
 			if (value instanceof Project project && !projects.contains(project))
 				projects.add(project);
 		});
+		GraphicManager manager = GraphicManager.getInstance(this);
+		if (manager != null) {
+			for (Project project : manager.getOpenProjects()) {
+				if (!projects.contains(project))
+					projects.add(project);
+			}
+		}
 		return getLinkableTasks(task, predecessors, projects);
 	}
 
@@ -640,7 +691,7 @@ public class TaskInformationDialog extends InformationDialog {
 			if (project == null)
 				continue;
 			for (Task candidate : project.getTaskList()) {
-				if (candidate != task && !candidate.isReadOnly() && !candidate.isExternal()
+				if (candidate != task && !candidate.isExternal()
 						&& !isAlreadyLinked(task, candidate, predecessors))
 					candidates.add(candidate);
 			}
@@ -663,10 +714,18 @@ public class TaskInformationDialog extends InformationDialog {
 
 		@Override
 		public String toString() {
-			Project project = task.getProject();
-			String projectName = project == null ? "" : project.getName();
-			return projectName + ": " + task.getName();
+			return dependencyChoiceDisplayName(task);
 		}
+	}
+
+	/** Keeps chooser grouping labels aligned with persisted dependency endpoint labels. */
+	static String dependencyChoiceDisplayName(Task task) {
+		if (task == null)
+			return "";
+		Project project = task.getOwningProject() == null ? task.getProject() : task.getOwningProject();
+		String projectName = project == null || project.getName() == null ? "" : project.getName();
+		String taskName = task.getName() == null ? "" : task.getName();
+		return projectName.isBlank() ? taskName : projectName + ": " + taskName;
 	}
 
 	static final class DependencyTypeChoice {

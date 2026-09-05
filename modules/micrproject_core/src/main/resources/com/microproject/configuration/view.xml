@@ -531,6 +531,10 @@
 		<columns>
 			<column>Field.id</column>
 			<column>Field.name</column>
+			<column>Field.subprojectFile</column>
+			<column>Field.subprojectStatus</column>
+			<column>Field.sourceProject</column>
+			<column>Field.uniqueId</column>
 			<column>Field.duration</column>
 			<column>Field.start</column>
 			<column>Field.finish</column>

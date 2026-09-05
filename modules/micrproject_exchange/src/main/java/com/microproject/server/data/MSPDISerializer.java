@@ -106,6 +106,10 @@ public class MSPDISerializer implements ProjectSerializer {
     		Project project=(Project)parent;
     		ProjectFile projectFile=(ProjectFile)transformedParent;
     		NormalTask task=(NormalTask)child;
+			// A linked child project owns these tasks, but the master MPO stores
+			// only its SubProject placeholder and reloads the child from its file.
+			if (task.isInSubproject() && !project.isOpenedAsSubproject())
+				return null;
     		
     		net.sf.mpxj.Task taskData=projectFile.addTask();
     		MPXConverter.toMPXTask(task,taskData);
@@ -138,8 +142,17 @@ public class MSPDISerializer implements ProjectSerializer {
     	public boolean addOutlineElement(Object outlineChild,Object outlineParent,long position){
     		if (outlineChild instanceof VoidNodeImpl) // skip void nodes
     			return false;
+			Project project = (Project) parent;
+			if (project.isOpenedAsSubproject() && project.getTaskOutlineRoot() != null
+					&& outlineChild == project.getTaskOutlineRoot().getImpl())
+				return false;
+			if (outlineChild instanceof Task && ((Task) outlineChild).isInSubproject()
+					&& !project.isOpenedAsSubproject())
+				return false;
     		net.sf.mpxj.Task taskData=(net.sf.mpxj.Task)getTransformationMap().get(outlineChild);
     		net.sf.mpxj.Task parentData=(outlineParent==null)?null:((net.sf.mpxj.Task)getTransformationMap().get(outlineParent));
+			if (taskData == null || (outlineParent != null && parentData == null))
+				return false;
    			taskData.setOutlineLevel(Integer.valueOf(((parentData==null)?1:(parentData.getOutlineLevel().intValue()+1)))); // outline levels start at 1
    			//fix from vitaliff
    			//setSummary is normally done in mpxj post processing
@@ -184,7 +197,7 @@ public class MSPDISerializer implements ProjectSerializer {
     	taskLinker.setArgs(new Object[]{resourceMap});
     	taskLinker.init();
     	taskLinker.addTransformedObjects();
-    	taskLinker.addOutline(null);
+		taskLinker.addOutline(project.getTaskOutlineRoot());
 
     	//dependencies
 		// mpxj uses default options when importing link leads and lags
@@ -194,8 +207,15 @@ public class MSPDISerializer implements ProjectSerializer {
 		int taskCount = 0;
 		Map<Task, net.sf.mpxj.Task> externalTasks=new HashMap<Task, net.sf.mpxj.Task>();
 		LinkedList<Object> voidTasksQueue=new LinkedList<>(); // we do not want to export nulls lines at end, so once all tasks done, stop
-    	for (Iterator i=project.getTaskOutline().iterator();i.hasNext();){
-    		Object obj = ((Node)i.next()).getImpl();
+		// An opened subproject shares the master's outline so it can appear in the
+		// consolidated Gantt.  Exporting the whole outline loses its own tasks
+		// (they are marked inSubproject) and can accidentally serialize siblings.
+		// Start at this project's enclosing SubProj node instead; omit that
+		// structural reference itself and retain its concrete child tasks.
+		Node exportRoot = project.getTaskOutlineRoot();
+		boolean savingOpenedSubproject = exportRoot != null;
+		for (Iterator i=project.getTaskOutline().iterator(exportRoot);i.hasNext();){
+			Object obj = ((Node)i.next()).getImpl();
     		if (voidTasksQueue.size()>0 && !(obj instanceof VoidNodeImpl)){
     			//insert voids
     			for (Object voidTask:voidTasksQueue){
@@ -210,8 +230,12 @@ public class MSPDISerializer implements ProjectSerializer {
     			if (taskCount == 0)
     				continue;
     			voidTasksQueue.add(obj);
-    		} else {
+		} else {
 	            Task task=(Task)obj; //ResourceImpl to have the EnterpriseResource link
+			if (savingOpenedSubproject && task == exportRoot.getImpl())
+				continue;
+			if (task.isInSubproject() && !savingOpenedSubproject)
+				continue;
 //	            task.setUniqueId(task.getId()); // set unique id and id to the same thing on export. Ensures unique id is unique
 	            net.sf.mpxj.Task taskData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(task);
 		        
@@ -241,8 +265,10 @@ public class MSPDISerializer implements ProjectSerializer {
 		taskData.setUniqueID(nextMpxTaskIdentifier(projectFile,true));
 		taskData.setOutlineLevel(Integer.valueOf(1));
 		taskData.setExternalTask(true);
+		String externalProjectReference = task.getExternalProjectFile();
 		taskData.setExternalTaskProject(Long.toString(task.getProjectId()));
-		taskData.setSubprojectFile(Long.toString(task.getProjectId()));
+		taskData.setSubprojectFile(externalProjectReference == null || externalProjectReference.isBlank()
+			? Long.toString(task.getProjectId()) : externalProjectReference);
 		taskData.setSubprojectTaskID(Integer.valueOf((int)task.getId()));
 		externalTasks.put(task,taskData);
 		return taskData;

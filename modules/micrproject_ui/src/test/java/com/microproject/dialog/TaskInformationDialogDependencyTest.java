@@ -76,10 +76,12 @@ class TaskInformationDialogDependencyTest {
 		assertTrue(candidates.contains(localCandidate));
 		assertTrue(candidates.contains(crossProjectCandidate));
 		for (DependencyType.Kind kind : DependencyType.Kind.values()) {
-			Dependency dependency = TaskInformationDialog.createDependency(current, crossProjectCandidate, true, kind.code(), this);
+			long lag = kind.code() * 1000L;
+			Dependency dependency = TaskInformationDialog.createDependency(current, crossProjectCandidate, true, kind.code(), lag, this);
 			assertSame(crossProjectCandidate, dependency.getPredecessor());
 			assertSame(current, dependency.getSuccessor());
 			assertEquals(kind.code(), dependency.getDependencyType());
+			assertEquals(lag, dependency.getLag());
 			DependencyService.getInstance().remove(dependency, this, false);
 		}
 	}
@@ -94,9 +96,37 @@ class TaskInformationDialogDependencyTest {
 		assertTrue(choices[3].toString().contains("SF"));
 	}
 
+	@Test
+	void persistedCrossProjectEndpointDisplayIncludesItsSourceProject() {
+		Project first = newProject("First project");
+		Project second = newProject("Second project");
+		NormalTask current = addTask(first);
+		NormalTask external = addTask(second);
+		current.setName("Same task name");
+		external.setName("Same task name");
+		current.setOwningProject(first);
+		external.setOwningProject(second);
+
+		assertEquals("Second project: Same task name", TaskInformationDialog.dependencyDisplayName(current, external));
+		assertEquals("Same task name", TaskInformationDialog.dependencyDisplayName(current, current));
+	}
+
+	@Test
+	void crossProjectChooserUsesOwningSourceProjectForProjectedTaskLabels() {
+		Project master = newProject("Master");
+		Project source = newProject("Source plan");
+		NormalTask projected = addTask(master);
+		projected.setName("Design");
+		projected.setOwningProject(source);
+
+		assertEquals("Source plan: Design", TaskInformationDialog.dependencyChoiceDisplayName(projected));
+	}
+
 	private Project newProject(String name) {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
-		return Project.createProject(ResourcePool.createRourcePool(name, undoController), undoController);
+		Project project = Project.createProject(ResourcePool.createRourcePool(name, undoController), undoController);
+		project.setName(name);
+		return project;
 	}
 
 	private NormalTask addTask(Project project) {

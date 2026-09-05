@@ -58,9 +58,29 @@ class TeamPlannerServiceTest {
 		assertEquals(fixture.second, replacement.getResource());
 	}
 
+	@Test void sharedPoolOverloadIncludesAssignmentsFromAnotherProject() {
+		Fixture owner = fixture();
+		Fixture sharer = fixture();
+		owner.first.setUniqueId(9001L);
+		sharer.first.setUniqueId(9001L);
+		NormalTask ownerTask = task(owner.project, "Owner task");
+		NormalTask sharerTask = task(sharer.project, "Sharer task");
+		AssignmentService.getInstance().newAssignment(ownerTask, owner.first, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(sharerTask, sharer.first, 1D, 0L, this);
+
+		SharedResourcePoolService.getInstance().share(sharer.project, owner.project,
+			SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE);
+
+		var slots = new TeamPlannerService().slots(owner.project);
+		assertEquals(2, slots.size(), "The pool view must include each connected client's assignment");
+		assertTrue(slots.stream().allMatch(TeamPlannerService.Slot::overallocated));
+		assertTrue(slots.stream().anyMatch(slot -> slot.task() == ownerTask));
+		assertTrue(slots.stream().anyMatch(slot -> slot.task() == sharerTask));
+	}
+
 	private Fixture fixture() {
 		DataFactoryUndoController undo = new DataFactoryUndoController(); ResourcePool pool = ResourcePool.createRourcePool("team-test", undo);
-		Project project = Project.createProject(pool, undo); project.initialize(false, false);
+		Project project = Project.createProject(pool, undo); project.initialize(false, false); project.setFileName("C:/team-planner-fixtures/" + System.nanoTime() + ".mpo");
 		ResourceImpl first = pool.newResourceInstance(); first.setName("Engineer A"); ResourceImpl second = pool.newResourceInstance(); second.setName("Engineer B");
 		return new Fixture(project, first, second);
 	}
