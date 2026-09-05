@@ -237,6 +237,31 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void parentSummaryAggregatesChildSpanWorkCostAndProgress() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask first = createTask(project);
+		NormalTask second = createTask(project);
+		long start = project.getStart();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		configureTask(first, start, 2L * day);
+		configureTask(second, project.getEffectiveWorkCalendar().add(start, 3L * day, false), 3L * day);
+		assignWork(project, first, 2L * day);
+		assignWork(project, second, 3L * day);
+		first.setFixedCost(100D);
+		second.setFixedCost(250D);
+		first.setPercentWorkComplete(1D);
+		second.setPercentWorkComplete(0.5D);
+		attachChildren(parent, first, second);
+		RollupSpan span = parent.calculateRollupSpan();
+		assertEquals(first.getStart(), span.getStart());
+		assertEquals(second.getEnd(), span.getFinish());
+		assertEquals(first.work(span.getStart(), span.getFinish()) + second.work(span.getStart(), span.getFinish()), parent.work(span.getStart(), span.getFinish()));
+		assertEquals(350D, parent.fixedCost(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(0.7D, parent.getPercentWorkComplete(), 0.001D);
+	}
+
+	@Test
 	void parentPercentWorkCompleteIgnoresZeroWorkLeaves() {
 		Project project = createProject();
 		NormalTask parent = createTask(project);

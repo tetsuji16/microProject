@@ -1210,13 +1210,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	public double cost(long start, long end) {
 		if (isParentWithoutAssignments())
-			return 0.0D;
+			return rollupCost(start, end);
 		return ((TaskSnapshot) getCurrentSnapshot()).cost(start, end);
 	}
 
 	public long work(long start, long end) {
 		if (isParentWithoutAssignments())
-			return 0L;
+			return rollupWork(start, end);
 		return ((TaskSnapshot) getCurrentSnapshot()).work(start, end);
 	}
 
@@ -1388,6 +1388,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	/** Calculate the fixed cost for the task given its accrual type and percent complete
 	 */
 	public double fixedCost(long start, long end) {
+		if (isParentWithoutAssignments()) {
+			double result = 0.0D;
+			for (Object child : childrenToRollup()) result += ((Task) child).fixedCost(start, end);
+			return result;
+		}
 		long taskStart = getStart();
 		long taskEnd = getEnd();
 		double fixed = 0.0;
@@ -1693,8 +1698,28 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public Collection childrenToRollup() {
-		return ((TaskSnapshot) getCurrentSnapshot()).getHasAssignments()
-				.childrenToRollup();
+		Collection assignments = ((TaskSnapshot) getCurrentSnapshot()).getHasAssignments().childrenToRollup();
+		if (assignments != null)
+			for (Object value : assignments)
+				if (value instanceof Assignment assignment && !assignment.isDefault()) return assignments;
+		Collection nodes = getWbsChildrenNodes();
+		if (nodes == null || nodes.isEmpty()) return java.util.Collections.emptyList();
+		java.util.ArrayList<Task> children = new java.util.ArrayList<>(nodes.size());
+		for (Object value : nodes)
+			if (value instanceof Node node && node.getImpl() instanceof Task child) children.add(child);
+		return children;
+	}
+
+	private long rollupWork(long start, long end) {
+		long result = 0L;
+		for (Object child : childrenToRollup()) result += ((Task) child).work(start, end);
+		return result;
+	}
+
+	private double rollupCost(long start, long end) {
+		double result = 0.0D;
+		for (Object child : childrenToRollup()) result += ((Task) child).cost(start, end);
+		return result;
 	}
 
 	// some functions useful for API
