@@ -334,6 +334,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		int nameColumn = nameColumn(sheet);
+		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
+		GuiAcceptanceSupport.await(sheet::isFocusOwner, "shortcut spreadsheet did not accept focus before Robot input");
 
 		// MSP: Tab indents the current name row; Shift+Tab outdents it.
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, target), nameColumn));
