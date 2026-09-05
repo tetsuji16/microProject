@@ -150,23 +150,33 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		NormalTask task = createTask();
 		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"usage-detail window did not become visible");
-		SwingUtilities.invokeAndWait(() -> {
-			DocumentFrame frame = manager.getCurrentFrame();
-			assertTrue(frame.activateView(GraphicManager.ACTION_TASK_USAGE_DETAIL));
-			assertTrue(frame.getActiveTopView() instanceof UsageDetailView);
-			UsageDetailView taskUsage = frame.getTaskUsageDetailView();
-			assertNotNull(taskUsage.getSpreadSheet(), "task usage left spreadsheet was not initialized");
-			assertNotNull(taskUsage.getTimeSpreadSheet(), "task usage time spreadsheet was not initialized");
-			assertTrue(taskUsage.getSpreadSheet().getModel().getRowCount() >= 0);
-			assertTrue(frame.activateView(GraphicManager.ACTION_RESOURCE_USAGE_DETAIL));
-			assertTrue(frame.getActiveTopView() instanceof UsageDetailView);
-			UsageDetailView resourceUsage = frame.getResourceUsageDetailView();
-			assertNotNull(resourceUsage.getSpreadSheet(), "resource usage left spreadsheet was not initialized");
-			assertNotNull(resourceUsage.getTimeSpreadSheet(), "resource usage time spreadsheet was not initialized");
-			assertTrue(resourceUsage.getSpreadSheet().getModel().getRowCount() >= 0);
-		});
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ViewRibbonTask.title"));
+		click(robot, boundsOnScreen(viewTab));
+		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		AbstractButton taskUsageButton = findShowingButtonByCommand("RibbonTaskUsageDetail");
+		click(robot, boundsOnScreen(taskUsageButton));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
+			"Task Usage did not become the active view after a Robot click");
+		UsageDetailView taskUsage = (UsageDetailView)manager.getCurrentFrame().getActiveTopView();
+		assertNotNull(taskUsage.getSpreadSheet(), "task usage left spreadsheet was not initialized");
+		assertNotNull(taskUsage.getTimeSpreadSheet(), "task usage time spreadsheet was not initialized");
+		assertTrue(taskUsage.getSpreadSheet().getModel().getRowCount() >= 0);
+
+		AbstractButton resourceUsageButton = findShowingButtonByCommand("RibbonResourceUsageDetail");
+		click(robot, boundsOnScreen(resourceUsageButton));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
+			"Resource Usage did not remain a usable active view after a Robot click");
+		UsageDetailView resourceUsage = (UsageDetailView)manager.getCurrentFrame().getActiveTopView();
+		assertNotNull(resourceUsage.getSpreadSheet(), "resource usage left spreadsheet was not initialized");
+		assertNotNull(resourceUsage.getTimeSpreadSheet(), "resource usage time spreadsheet was not initialized");
+		assertTrue(resourceUsage.getSpreadSheet().getModel().getRowCount() >= 0);
 	}
 
 	@Test
@@ -178,10 +188,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		NormalTask task = createTask();
 		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"timesheet test project did not become active");
-		SwingUtilities.invokeAndWait(() -> manager.showTimesheetDialog(manager.getCurrentFrame()));
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ResourceRibbonTask.title"));
+		click(robot, boundsOnScreen(resourceTab));
+		GuiAcceptanceSupport.await(resourceTab::isSelected, "Robot click did not select the Resource ribbon tab");
+		AbstractButton timesheet = findShowingButtonByCommand("RibbonTimesheet");
+		GuiAcceptanceSupport.await(timesheet::isEnabled, "Timesheet remained disabled on the Resource ribbon");
+		click(robot, boundsOnScreen(timesheet));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.filter(TimesheetDialog.class::isInstance)
 				.map(TimesheetDialog.class::cast)

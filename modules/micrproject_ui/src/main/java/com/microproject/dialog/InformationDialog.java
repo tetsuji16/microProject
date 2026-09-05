@@ -93,7 +93,9 @@ public abstract class InformationDialog extends FieldDialog {
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
 		        "p:grow", // extra padding on right is for estimated field //$NON-NLS-1$
-				"p, 3dlu,p, 3dlu, fill:50dlu:grow"); //$NON-NLS-1$
+				// The builder advances by two rows between sections.  A 3dlu track
+				// at those positions can receive a label and collapse its glyphs.
+				"p,p,p,p, fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();

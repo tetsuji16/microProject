@@ -228,7 +228,11 @@ public class TaskInformationDialog extends InformationDialog {
 
 	private JComponent createTextStylePanel() {
 		FieldComponentMap map = createMap();
-		FormLayout layout = new FormLayout("p,3dlu,130dlu,12dlu,p,3dlu,80dlu", "max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref)");
+		// FlatLaf checkbox borders and Japanese font metrics can exceed the
+		// legacy 24dlu rows, leaving the control painted outside its row.
+		// Give every field row a real minimum and keep the tab scrollable.
+		FormLayout layout = new FormLayout("p,3dlu,130dlu,12dlu,p,3dlu,80dlu",
+				"max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref)");
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		builder.addSeparator(Messages.getString("TaskInformationDialog.TextStyle"));
@@ -284,10 +288,9 @@ public class TaskInformationDialog extends InformationDialog {
 		// Repeat of fields from general tab 
 		FormLayout layout = new FormLayout(
 		        "p,3dlu,300dlu" //$NON-NLS-1$
-				,"p,3dlu"); //$NON-NLS-1$
+				,"p"); //$NON-NLS-1$
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		map.append(builder,"Field.name"); //$NON-NLS-1$
-		builder.nextLine(); // border at bottom
 		return builder.getPanel();
 	}
 	
@@ -380,7 +383,7 @@ public class TaskInformationDialog extends InformationDialog {
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
 		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,90dlu,30dlu", // extra padding on right is for estimated field //$NON-NLS-1$
-				"max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),3dlu,max(24dlu;pref),fill:50dlu:grow"); //$NON-NLS-1$
+				"max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
@@ -433,6 +436,11 @@ public class TaskInformationDialog extends InformationDialog {
 		header.add(actions, BorderLayout.SOUTH);
 		panel.add(header, BorderLayout.NORTH);
 		panel.add(predecessors ? createPredecessorsSpreadsheet() : createSuccessorsSpreadsheet(), BorderLayout.CENTER);
+		// Empty dependency tables report a zero preferred width.  Without a
+		// minimum content width the outer scroll pane lays out the header at
+		// width 0, making New/Remove buttons disappear or paint clipped.
+		panel.setPreferredSize(new Dimension(700, 420));
+		panel.setMinimumSize(new Dimension(480, 300));
 		HelpUtil.addDocHelp(panel, "Linking"); //$NON-NLS-1$
 		return panel;
 	}
@@ -784,7 +792,10 @@ public class TaskInformationDialog extends InformationDialog {
 	public JComponent createResourcesPanel() {
 		FieldComponentMap map = createMap();
 		
-		FormLayout layout = new FormLayout("p:grow,0dlu,right:p","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		// The builder advances by two rows after each section.  Spacer tracks
+		// in those positions used to receive the labels at runtime, reducing
+		// them to a few pixels and clipping their text.
+		FormLayout layout = new FormLayout("p:grow,0dlu,right:p","p,p,p,p,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();

@@ -95,18 +95,42 @@ class TaskInformationGuiAcceptanceTest {
 			for (int index = 0; index < tabs.getTabCount(); index++) {
 				tabs.setSelectedIndex(index);
 				JComponent tab = (JComponent)tabs.getComponentAt(index);
+				tabs.revalidate();
+				tabs.doLayout();
+				tab.revalidate();
+				tab.doLayout();
 				assertTrue(tab.getPreferredSize().height <= tabs.getHeight() || tab instanceof JScrollPane,
 					"tab " + tabs.getTitleAt(index) + " is clipped without a scrollable viewport");
-			}
-			JScrollPane general = (JScrollPane)tabs.getComponentAt(0);
-			java.awt.Container view = (java.awt.Container)general.getViewport().getView();
-			for (java.awt.Component child : view.getComponents()) {
-				if (!child.isVisible())
-					continue;
-				assertTrue(child.getHeight() >= child.getPreferredSize().height,
-					"general tab component is vertically clipped: " + child.getClass().getSimpleName());
+				if (tab instanceof JScrollPane scroll) {
+					java.awt.Component view = scroll.getViewport().getView();
+					assertVisibleChildrenFit(view, tabs.getTitleAt(index),
+						scroll.getHorizontalScrollBarPolicy() == JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+				}
 			}
 		});
+	}
+
+	private static void assertVisibleChildrenFit(java.awt.Component component, String tabTitle,
+			boolean horizontalClippingIsForbidden) {
+		if (!(component instanceof java.awt.Container container))
+			return;
+		container.doLayout();
+		for (java.awt.Component child : container.getComponents()) {
+			if (!child.isVisible())
+				continue;
+			if (child instanceof javax.swing.JScrollBar || child instanceof javax.swing.JScrollPane
+					|| child instanceof javax.swing.plaf.basic.BasicArrowButton)
+				continue;
+			Dimension preferred = child.getPreferredSize();
+			assertTrue(child.getHeight() >= preferred.height,
+				"tab " + tabTitle + " component is vertically clipped: " + child.getClass().getSimpleName()
+					+ " bounds=" + child.getBounds() + " preferred=" + preferred);
+			if (horizontalClippingIsForbidden)
+				assertTrue(child.getWidth() >= preferred.width,
+					"tab " + tabTitle + " component is horizontally clipped: " + child.getClass().getSimpleName()
+						+ " bounds=" + child.getBounds() + " preferred=" + preferred);
+			assertVisibleChildrenFit(child, tabTitle, horizontalClippingIsForbidden);
+		}
 	}
 
 	private static JTabbedPane findTabbedPane(java.awt.Container container) {
