@@ -27,6 +27,7 @@ package com.microproject.pm.graphic.spreadsheet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -265,6 +266,39 @@ class SpreadSheetMouseInteractionTest {
 			assertTrue(menuItem(popup, "locateLinkedProject").isVisible());
 			assertTrue(menuItem(popup, "removeLinkedProject").isVisible());
 			assertTrue(menuItem(popup, "locateLinkedProject").isEnabled());
+		});
+	}
+
+	@Test
+	void linkedSubprojectPopupUsesLocalizedRibbonLabelsAndIcons() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			Project master = Project.createProject(ResourcePool.createRourcePool("popup-style-master", undoController), undoController);
+			master.initialize(false, false);
+			master.setMaster(true);
+			DefaultSubProj reference = new DefaultSubProj(master, 99102L);
+			reference.setName("Missing child");
+			reference.setSubprojectFile("C:/plans/missing-child.mpo");
+			master.connectTask(reference);
+			master.addToDefaultOutline(null, NodeFactory.getInstance().createNode(reference));
+
+			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+				NodeModelCacheFactory.createTaskNodeModelCache(master, master.getTaskModel()), "popup-style-master", null);
+			RecordingSpreadSheet sheet = new RecordingSpreadSheet();
+			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory,
+				"Spreadsheet.Task.entry", true);
+			cache.update();
+			SpreadSheetPopupMenu popup = sheet.getPopup();
+			popup.setRow(findRow(sheet, reference));
+
+			assertEquals(Messages.getString("RibbonOpenSubproject.text"), menuItem(popup, "openLinkedProject").getText());
+			assertEquals(Messages.getString("RibbonRefreshSubprojects.text"), menuItem(popup, "refreshLinkedProject").getText());
+			assertEquals(Messages.getString("RibbonLocateLinkedProject.text"), menuItem(popup, "locateLinkedProject").getText());
+			assertNotNull(menuItem(popup, "openLinkedProject").getIcon());
+			assertNotNull(menuItem(popup, "refreshLinkedProject").getIcon());
+			assertNotNull(menuItem(popup, "locateLinkedProject").getIcon());
+			assertNotNull(menuItem(popup, "removeLinkedProject").getIcon());
 		});
 	}
 

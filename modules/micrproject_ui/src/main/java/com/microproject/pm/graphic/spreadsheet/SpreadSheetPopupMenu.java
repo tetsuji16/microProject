@@ -75,7 +75,9 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				}, Environment.isNewLook() ? "menu24.taskInformation" : "menu.taskInformation");
 				addGraphicManagerAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS, "ribbon.hideSelectedTasks");
 				addGraphicManagerAction(MenuActionConstants.ACTION_SHOW_ALL_TASKS, "ribbon.showAllTasks");
-				openLinkedProject = new JMenuItem("Open Linked Project");
+				openLinkedProject = new JMenuItem(Messages.getString("RibbonOpenSubproject.text"));
+				openLinkedProject.setIcon(IconManager.getIcon("ribbon.openSubproject"));
+				openLinkedProject.setToolTipText(Messages.getString("RibbonOpenSubproject.tooltip"));
 				openLinkedProject.setName("openLinkedProject");
 				openLinkedProject.addActionListener(event -> {
 					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
@@ -84,7 +86,9 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				});
 				openLinkedProject.setVisible(false);
 				add(openLinkedProject);
-				refreshLinkedProject = new JMenuItem("Refresh Linked Project");
+				refreshLinkedProject = new JMenuItem(Messages.getString("RibbonRefreshSubprojects.text"));
+				refreshLinkedProject.setIcon(IconManager.getIcon("ribbon.refreshSubprojects"));
+				refreshLinkedProject.setToolTipText(Messages.getString("RibbonRefreshSubprojects.tooltip"));
 				refreshLinkedProject.setName("refreshLinkedProject");
 				refreshLinkedProject.addActionListener(event -> {
 					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
@@ -93,7 +97,9 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				});
 				refreshLinkedProject.setVisible(false);
 				add(refreshLinkedProject);
-				locateLinkedProject = new JMenuItem("Locate Linked Project...");
+				locateLinkedProject = new JMenuItem(Messages.getString("RibbonLocateLinkedProject.text"));
+				locateLinkedProject.setIcon(IconManager.getIcon("ribbon.open"));
+				locateLinkedProject.setToolTipText(Messages.getString("RibbonLocateLinkedProject.tooltip"));
 				locateLinkedProject.setName("locateLinkedProject");
 				locateLinkedProject.addActionListener(event -> {
 					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
@@ -102,7 +108,9 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				});
 				locateLinkedProject.setVisible(false);
 				add(locateLinkedProject);
-				removeLinkedProject = new JMenuItem("Remove Subproject");
+				removeLinkedProject = new JMenuItem(Messages.getString("RibbonRemoveSubproject.text"));
+				removeLinkedProject.setIcon(IconManager.getIcon("ribbon.delete"));
+				removeLinkedProject.setToolTipText(Messages.getString("RibbonRemoveSubproject.tooltip"));
 				removeLinkedProject.setName("removeLinkedProject");
 				removeLinkedProject.addActionListener(event -> {
 					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
