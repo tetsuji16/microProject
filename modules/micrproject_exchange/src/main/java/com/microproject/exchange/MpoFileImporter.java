@@ -239,6 +239,8 @@ public class MpoFileImporter extends FileImporter {
 		}
 		if (manifestData.projectUniqueId() != null && manifestData.projectUniqueId().longValue() > 0L)
 			project.setUniqueId(manifestData.projectUniqueId().longValue());
+		if (manifestData.sharedResourcePoolProjectId() != null && manifestData.sharedResourcePoolProjectId().longValue() > 0L)
+			project.setSharedResourcePoolProjectId(manifestData.sharedResourcePoolProjectId().longValue());
 		if (settings != null) {
 			restoreSettings(project, settings);
 		} else if (draftCcpm != null) {
@@ -349,7 +351,8 @@ public class MpoFileImporter extends FileImporter {
 		try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
 			writeMimetypeEntry(zip);
 			writeEntry(zip, MANIFEST_ENTRY, manifestFor(projectXml, project.getDocumentId(), project.getUniqueId(),
-					project.getSharedResourcePoolFile(), embeddedProjects, archiveEntries).getBytes(StandardCharsets.UTF_8));
+					project.getSharedResourcePoolFile(), embeddedProjects, archiveEntries,
+					project.getSharedResourcePoolProjectId()).getBytes(StandardCharsets.UTF_8));
 			for (java.util.Map.Entry<String, byte[]> entry : archiveEntries.entrySet()) {
 				if (!MANIFEST_ENTRY.equals(entry.getKey()) && !MIMETYPE_ENTRY.equals(entry.getKey()))
 					writeEntry(zip, entry.getKey(), entry.getValue());
@@ -560,7 +563,7 @@ public class MpoFileImporter extends FileImporter {
 
 	private record EmbeddedProject(String sourcePath, String entryName, byte[] contents, String referenceId) { }
 	private record EmbeddedProjectReference(String sourcePath, String entryName, String sha256, String referenceId) { }
-	private record ManifestData(String documentId, Long projectUniqueId, String sharedResourcePoolPath,
+	private record ManifestData(String documentId, Long projectUniqueId, Long sharedResourcePoolProjectId, String sharedResourcePoolPath,
 			java.util.List<EmbeddedProjectReference> embeddedProjects, java.util.Map<String, String> checksums) { }
 	private record ExternalMpo(OperationLog.DocumentLog document, MpoExtensions extensions, String manifestDocumentId, Long manifestProjectId, byte[] taskIdentities) { }
 
@@ -642,12 +645,21 @@ public class MpoFileImporter extends FileImporter {
 	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
 			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects,
 			java.util.Map<String, byte[]> archiveEntries) {
+		return manifestFor(projectXml, documentId, projectUniqueId, sharedResourcePoolPath, embeddedProjects,
+				archiveEntries, 0L);
+	}
+
+	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
+			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects,
+			java.util.Map<String, byte[]> archiveEntries, long sharedResourcePoolProjectId) {
 		StringBuilder manifest = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<manifest format=\"mpof\" formatVersion=\"")
 			.append(FORMAT_VERSION).append("\" projectEntry=\"").append(PROJECT_ENTRY).append("\" projectSha256=\"").append(sha256(projectXml)).append("\"");
 		if (documentId != null) manifest.append(" documentId=\"").append(xmlEscape(documentId)).append("\"");
 		if (documentId != null && projectUniqueId != null) manifest.append(" projectUniqueId=\"").append(projectUniqueId.longValue()).append("\"");
 		if (sharedResourcePoolPath != null && !sharedResourcePoolPath.isBlank())
 			manifest.append(" sharedResourcePoolPath=\"").append(xmlEscape(sharedResourcePoolPath)).append("\"");
+		if (sharedResourcePoolProjectId > 0L)
+			manifest.append(" sharedResourcePoolProjectId=\"").append(sharedResourcePoolProjectId).append("\"");
 		boolean hasArchiveChecksums = archiveEntries != null && !archiveEntries.isEmpty();
 		if ((embeddedProjects == null || embeddedProjects.isEmpty()) && !hasArchiveChecksums) return manifest.append("/>\n").toString();
 		manifest.append(">\n");
@@ -978,6 +990,8 @@ public class MpoFileImporter extends FileImporter {
 			if (!sha256(projectXml).equals(requiredAttribute(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its MPOF manifest");
 			String documentId = root.getAttribute("documentId");
 			Long projectUniqueId = root.hasAttribute("projectUniqueId") ? Long.valueOf(root.getAttribute("projectUniqueId")) : null;
+			Long sharedResourcePoolProjectId = root.hasAttribute("sharedResourcePoolProjectId")
+					? Long.valueOf(root.getAttribute("sharedResourcePoolProjectId")) : null;
 			java.util.List<EmbeddedProjectReference> embeddedProjects = new java.util.ArrayList<EmbeddedProjectReference>();
 			java.util.Map<String, String> checksums = new java.util.LinkedHashMap<>();
 			org.w3c.dom.NodeList children = root.getChildNodes();
@@ -999,6 +1013,7 @@ public class MpoFileImporter extends FileImporter {
 			}
 			String sharedResourcePoolPath = root.getAttribute("sharedResourcePoolPath");
 			return new ManifestData(documentId.isBlank() ? null : documentId, projectUniqueId,
+				sharedResourcePoolProjectId,
 				sharedResourcePoolPath.isBlank() ? null : sharedResourcePoolPath, embeddedProjects, checksums);
 		} catch (IOException exception) { throw exception; }
 		catch (Exception exception) { throw new IOException("Invalid MPOF manifest", exception); }
@@ -1070,7 +1085,7 @@ public class MpoFileImporter extends FileImporter {
 		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its draft MPOF manifest");
 		String documentId = root.path("documentId").isTextual() ? root.path("documentId").textValue() : null;
 		Long projectUniqueId = root.path("projectUniqueId").canConvertToLong() ? Long.valueOf(root.path("projectUniqueId").longValue()) : null;
-		return new ManifestData(documentId, projectUniqueId, null, java.util.List.of(), java.util.Map.of());
+		return new ManifestData(documentId, projectUniqueId, null, null, java.util.List.of(), java.util.Map.of());
 	}
 
 	/** Validates checksums for the complete archive when written by a checksum-aware MPOF writer. */

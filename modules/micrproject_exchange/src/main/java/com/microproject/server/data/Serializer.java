@@ -584,6 +584,7 @@ public class Serializer {
         projectData.setCustomReportPresets(project.getCustomReportPresets());
 		projectData.setDocumentId(project.getDocumentId());
 		projectData.setSharedResourcePoolFile(project.getSharedResourcePoolFile());
+		projectData.setSharedResourcePoolProjectId(project.getSharedResourcePoolProjectId());
 		projectData.setResourcePoolTakesPrecedence(project.isResourcePoolTakesPrecedence());
         projectData.setAccessControlPolicy(project.getAccessControlPolicy());
         projectData.setCreationDate(project.getCreationDate());
@@ -834,6 +835,7 @@ public class Serializer {
 		if (projectData.getCustomReportPresets() != null)
 			project.getCustomReportPresets().putAll(projectData.getCustomReportPresets());
 		project.setSharedResourcePoolFile(projectData.getSharedResourcePoolFile());
+		project.setSharedResourcePoolProjectId(projectData.getSharedResourcePoolProjectId());
 		project.setResourcePoolTakesPrecedence(projectData.isResourcePoolTakesPrecedence());
 		if (projectData.getDocumentId() != null && !projectData.getDocumentId().isBlank())
 			project.setDocumentId(projectData.getDocumentId());

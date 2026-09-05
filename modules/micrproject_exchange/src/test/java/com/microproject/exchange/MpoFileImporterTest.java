@@ -39,6 +39,8 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.SharedResourcePoolService;
+import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.NodeFactory;
 
@@ -290,8 +292,26 @@ class MpoFileImporterTest {
 		}
 		Project first = sharedSharer(pool, poolFile, resource, "First sharer task");
 		Project second = sharedSharer(pool, poolFile, resource, "Second sharer task");
-		Project reopenedFirst = loadFromBytes(saveProjectBytes(first));
-		Project reopenedSecond = loadFromBytes(saveProjectBytes(second));
+		SharedResourcePoolService.getInstance().share(first, poolProject,
+				SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE);
+		SharedResourcePoolService.getInstance().share(second, poolProject,
+				SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE);
+		File firstFile = File.createTempFile("mpo-shared-first-", ".mpo");
+		File secondFile = File.createTempFile("mpo-shared-second-", ".mpo");
+		firstFile.deleteOnExit();
+		secondFile.deleteOnExit();
+		first.setFileName(firstFile.getAbsolutePath());
+		second.setFileName(secondFile.getAbsolutePath());
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(firstFile)) {
+			new MpoFileImporter().saveProject(first, output);
+		}
+		try (java.io.FileOutputStream output = new java.io.FileOutputStream(secondFile)) {
+			new MpoFileImporter().saveProject(second, output);
+		}
+		Project reopenedPool = load(poolFile);
+		reopenedPool.setFileName(poolFile.getAbsolutePath());
+		Project reopenedFirst = load(firstFile);
+		Project reopenedSecond = load(secondFile);
 		Assignment firstAssignment = firstRealAssignment(reopenedFirst);
 		Assignment secondAssignment = firstRealAssignment(reopenedSecond);
 		assertEquals(88001L, firstAssignment.getResource().getUniqueId());
@@ -300,6 +320,14 @@ class MpoFileImporterTest {
 		assertEquals(1D, secondAssignment.getUnits(), 0.0001D);
 		assertTrue(new File(reopenedFirst.getSharedResourcePoolFile()).isFile());
 		assertTrue(new File(reopenedSecond.getSharedResourcePoolFile()).isFile());
+		assertEquals(reopenedPool.getUniqueId(), reopenedFirst.getSharedResourcePoolProjectId());
+		assertEquals(reopenedPool.getUniqueId(), reopenedSecond.getSharedResourcePoolProjectId());
+		assertTrue(SharedResourcePoolService.getInstance().resolve(reopenedFirst,
+				List.of(reopenedPool, reopenedSecond)));
+		assertTrue(SharedResourcePoolService.getInstance().resolve(reopenedSecond,
+				List.of(reopenedPool, reopenedFirst)));
+		List<TeamPlannerService.Slot> slots = new TeamPlannerService().slots(reopenedPool);
+		assertEquals(2, slots.size(), "restarted pool must aggregate both sharer assignments");
 	}
 
 	private static Project sharedSharer(ResourcePool pool, File poolFile, Resource resource, String taskName) {
@@ -308,6 +336,8 @@ class MpoFileImporterTest {
 		project.setSharedResourcePoolFile(poolFile.getAbsolutePath());
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName(taskName);
+		task.getCurrentSchedule().setStart(project.getStart());
+		task.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, MpoFileImporterTest.class);
 		return project;
 	}

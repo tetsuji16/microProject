@@ -56,6 +56,7 @@ public final class SharedResourcePoolService {
 		if (!containsIdentity(pool.getProjects(), sharer))
 			pool.addProject(sharer);
 		sharer.setSharedResourcePoolFile(canonicalFileName(poolProject.getFileName()));
+		sharer.setSharedResourcePoolProjectId(poolProject.getUniqueId());
 		sharer.setResourcePoolTakesPrecedence(effectivePolicy != ConflictPolicy.SHARER_TAKES_PRECEDENCE);
 		sharer.setSharedResourcePoolUnresolved(false);
 	}
@@ -75,7 +76,9 @@ public final class SharedResourcePoolService {
 			return false;
 		}
 		for (Project project : openProjects) {
-			if (project != null && project != candidate && expected.equals(canonicalFileName(project.getFileName()))) {
+			if (project != null && project != candidate && (expected.equals(canonicalFileName(project.getFileName()))
+					|| candidate.getSharedResourcePoolProjectId() > 0L
+							&& candidate.getSharedResourcePoolProjectId() == project.getUniqueId())) {
 				share(candidate, project, candidate.isResourcePoolTakesPrecedence()
 						? ConflictPolicy.POOL_TAKES_PRECEDENCE : ConflictPolicy.SHARER_TAKES_PRECEDENCE);
 				return true;

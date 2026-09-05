@@ -75,6 +75,7 @@ public class ProjectData extends DocumentData implements HasName,DelegatesFields
 	/** Stable document UUID, distinct from legacy numeric project/task identifiers. */
 	protected String documentId;
 	protected String sharedResourcePoolFile;
+	protected long sharedResourcePoolProjectId;
 	protected boolean resourcePoolTakesPrecedence = true;
     protected Collection<? extends DataObject> referringSubprojectTasks;
     protected long availableImages=GANTT_SVG|GANTT_PNG|NETWORK_SVG|NETWORK_PNG;
@@ -219,6 +220,10 @@ public class ProjectData extends DocumentData implements HasName,DelegatesFields
 	}
 	public final void setSharedResourcePoolFile(String sharedResourcePoolFile) {
 		this.sharedResourcePoolFile = sharedResourcePoolFile;
+	}
+	public final long getSharedResourcePoolProjectId() { return sharedResourcePoolProjectId; }
+	public final void setSharedResourcePoolProjectId(long sharedResourcePoolProjectId) {
+		this.sharedResourcePoolProjectId = sharedResourcePoolProjectId;
 	}
 	public final boolean isResourcePoolTakesPrecedence() {
 		return resourcePoolTakesPrecedence;

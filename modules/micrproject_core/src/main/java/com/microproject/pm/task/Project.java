@@ -188,6 +188,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private int benefit = 0;
 	/** Canonical file path of the resource-pool project used by this sharer. */
 	private String sharedResourcePoolFile;
+	/** Stable numeric identity of the persisted resource-pool project. */
+	private long sharedResourcePoolProjectId;
 	/** True while the persisted shared-pool reference cannot be resolved. */
 	private boolean sharedResourcePoolUnresolved;
 	/** MSP-compatible conflict policy: true means the resource pool wins. */
@@ -561,6 +563,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public void setSharedResourcePoolFile(String sharedResourcePoolFile) {
 		this.sharedResourcePoolFile = sharedResourcePoolFile;
 		this.sharedResourcePoolUnresolved = sharedResourcePoolFile != null && !sharedResourcePoolFile.isBlank();
+	}
+	public long getSharedResourcePoolProjectId() { return sharedResourcePoolProjectId; }
+	public void setSharedResourcePoolProjectId(long sharedResourcePoolProjectId) {
+		this.sharedResourcePoolProjectId = sharedResourcePoolProjectId;
 	}
 
 	public boolean isSharedResourcePoolUnresolved() {
