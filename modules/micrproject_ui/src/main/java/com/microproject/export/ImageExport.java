@@ -16,7 +16,8 @@ public class ImageExport {
 		new ImageExport().exportWithChooser(pageable, parentComponent);
 	}
 	void exportWithChooser(GraphPageable pageable, Component parentComponent) {
-		fileChooser.choose(pageable.getRenderer().getProject().getName(), parentComponent)
-				.ifPresent(target -> PageableExportJob.schedule(pageable, parentComponent, target, "Image Export"));
+		ExportJobScheduler.scheduleIfSelected(
+				fileChooser.choose(pageable.getRenderer().getProject().getName(), parentComponent),
+				target -> PageableExportJob.schedule(pageable, parentComponent, target, "Image Export"));
 	}
 }
