@@ -91,6 +91,9 @@ U-21の視覚検査では次のように別プロセスで実行する。
 
 各実行で画面キャプチャとコンポーネント境界を確認し、倍率指定だけで成功扱いにしない。
 標準リボンの全コマンド実クリック掃引は、全ボタンを同時に画面内へ置ける日本語100%で実施する。高DPI実行では画面端を越える試験ウィンドウを無理にクリックせず、同掃引はスキップされ、ダイアログ／タブの視覚レイアウト検査を行う。
+この2つの画面幅依存 skip は、`docs/gui-quality-gate.md` の期限付き
+`W-464-DPI-FULLWIDTH` waiver の範囲内に限る。高DPIの視覚検査・対象別
+Robot操作・モデル／Undo検査は省略しない。
 
 Use `run_projectlibre.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_micrproject_clean.bat` when you want the safest one-step clean rebuild and launch.
 

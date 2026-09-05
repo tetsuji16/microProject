@@ -167,3 +167,15 @@ and stable task IDs, never only object identity or a blank event source.
 The mandatory matrix is maintained in `TEST_PLAN.md` as U-18 through U-24.
 Every newly reported GUI defect is assigned a row or added to an existing row
 before implementation begins.
+
+## Active environmental waiver
+
+`W-464-DPI-FULLWIDTH` is the only active desktop-test waiver.  It is linked to
+open issue [#464](https://github.com/tetsuji16/ProjectLibre/issues/464), owned by
+`tetsuji16`, and expires on 2026-10-31.  Its scope is limited to the direct
+physical all-command ribbon sweep and the full-width Hide/Show mutation journey
+when `guiTestUiScale > 1.0`; the fixed desktop runner cannot place every scaled
+control inside one screen.  The 100% Robot journeys remain mandatory, and the
+125/150% runs must still pass the dedicated visual, targeted-command, and
+model/Undo checks.  This waiver does not cover any functional, persistence, or
+layout failure.
