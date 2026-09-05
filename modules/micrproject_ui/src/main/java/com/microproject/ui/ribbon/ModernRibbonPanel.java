@@ -76,7 +76,7 @@ public final class ModernRibbonPanel extends JPanel {
 	public static final String CONTEXTUAL_TABS_PROPERTY = "microproject.ribbon.contextualTabs";
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
-	static final String COLLAPSED_POPUP_PROPERTY = "ProjectLibre.ribbonCollapsedPopup";
+	static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
 	private static final int BAND_MIN_WIDTH = 72;
 	private static final int BAND_INNER_GAP = 4;
 	private static final int BAND_SIDE_PADDING = 4;
@@ -819,7 +819,7 @@ public final class ModernRibbonPanel extends JPanel {
 		if (specification.getPresentation() == SwingRibbonModel.ButtonPresentation.SPLIT && text != null) {
 			// The action already opens its chooser.  Painting the chevron in its own
 			// hit-area keeps the label clean and matches Office split-button geometry.
-			button.putClientProperty("ProjectLibre.ribbonSplit", Boolean.TRUE);
+			button.putClientProperty("MicroProject.ribbonSplit", Boolean.TRUE);
 		}
 		String tooltip = getStringOrNull(buttonId + ".tooltip");
 		String accelerator = getStringOrNull(buttonId + ".accelerator");
@@ -834,7 +834,7 @@ public final class ModernRibbonPanel extends JPanel {
 		if (specification.getIconKey() != null) {
 			button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, specification.getIconKey());
 		}
-		button.putClientProperty("ProjectLibre.ribbonToggle", specification.isToggle());
+		button.putClientProperty("MicroProject.ribbonToggle", specification.isToggle());
 		button.getAccessibleContext().setAccessibleName(button.getText() == null ? buttonId : button.getText());
 		return button;
 	}

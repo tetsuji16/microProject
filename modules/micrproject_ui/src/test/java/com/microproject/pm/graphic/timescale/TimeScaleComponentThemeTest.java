@@ -32,14 +32,14 @@ import javax.swing.border.Border;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.ui.theme.ProjectLibreTheme;
+import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.pm.graphic.gantt.GanttParamsImpl;
 import com.microproject.util.FlatUiSupport;
 
 class TimeScaleComponentThemeTest {
 	@Test
 	void timeScaleHeaderUsesSharedHeaderPaletteAndFont() {
-		ProjectLibreTheme.installLight();
+		MicroProjectTheme.installLight();
 		TimeScaleComponent component = new TimeScaleComponent(null);
 
 		assertEquals(FlatUiSupport.spreadsheetHeaderBackground(), component.getBackground());

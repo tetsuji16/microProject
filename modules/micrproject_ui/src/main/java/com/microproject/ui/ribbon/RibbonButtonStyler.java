@@ -41,8 +41,8 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.util.FlatUiSupport;
 
 final class RibbonButtonStyler {
-	static final String SIZE_PROPERTY = "ProjectLibre.ribbonButtonSize";
-	static final String ICON_KEY_PROPERTY = "ProjectLibre.ribbonIconKey";
+	static final String SIZE_PROPERTY = "MicroProject.ribbonButtonSize";
+	static final String ICON_KEY_PROPERTY = "MicroProject.ribbonIconKey";
 	private static final int LARGE_ICON_SIZE = 32;
 	private static final int MEDIUM_ICON_SIZE = 20;
 	private static final int SMALL_ICON_SIZE = 16;
@@ -269,7 +269,7 @@ final class RibbonButtonStyler {
 		}
 
 		private static int splitButtonExtraWidth(AbstractButton button) {
-			return Boolean.TRUE.equals(button.getClientProperty("ProjectLibre.ribbonSplit"))
+			return Boolean.TRUE.equals(button.getClientProperty("MicroProject.ribbonSplit"))
 				? SPLIT_BUTTON_EXTRA_WIDTH
 				: 0;
 		}

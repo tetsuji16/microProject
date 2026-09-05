@@ -134,7 +134,7 @@ class RibbonButtonStylerTest {
 		RibbonButtonStyler styler = new RibbonButtonStyler();
 		JButton regular = new JButton("フィルター");
 		JButton split = new JButton("フィルター");
-		split.putClientProperty("ProjectLibre.ribbonSplit", Boolean.TRUE);
+		split.putClientProperty("MicroProject.ribbonSplit", Boolean.TRUE);
 
 		styler.styleActionButton(regular, "large");
 		styler.styleActionButton(split, "large");

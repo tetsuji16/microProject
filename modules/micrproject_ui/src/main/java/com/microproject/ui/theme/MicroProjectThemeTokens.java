@@ -29,7 +29,7 @@ import java.awt.Color;
 /**
  * Semantic design tokens for the modernized desktop UI.
  */
-public final class ProjectLibreThemeTokens {
+public final class MicroProjectThemeTokens {
 	private final Color appBackground;
 	private final Color workspaceBackground;
 	private final Color panelBackground;
@@ -84,7 +84,7 @@ public final class ProjectLibreThemeTokens {
 	private final int ribbonInlineButtonSmallMinWidth;
 	private final int ribbonBandTitleHeight;
 
-	private ProjectLibreThemeTokens(
+	private MicroProjectThemeTokens(
 		Color appBackground,
 		Color workspaceBackground,
 		Color panelBackground,
@@ -193,8 +193,8 @@ public final class ProjectLibreThemeTokens {
 		this.ribbonBandTitleHeight = ribbonBandTitleHeight;
 	}
 
-	public static ProjectLibreThemeTokens light() {
-		return new ProjectLibreThemeTokens(
+	public static MicroProjectThemeTokens light() {
+		return new MicroProjectThemeTokens(
 			new Color(0xF1F5F9),
 			new Color(0xEDF2F7),
 			new Color(0xF8FAFC),
