@@ -291,7 +291,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 	}
 
-	private void restoreTaskRowSelection(List<Node> nodes) {
+	public void restoreTaskRowSelection(List<Node> nodes) {
 		if (!(getModel() instanceof SpreadSheetModel model) || nodes == null || nodes.isEmpty())
 			return;
 		clearSelection();
@@ -1656,13 +1656,23 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		performAction(actionId, null);
 	}
 
+	public void executeAction(String actionId, int[] selectedRows) {
+		performAction(actionId, null, selectedRows);
+	}
+
 	/** Executes a configured spreadsheet action without exposing nullable lookup results to callers. */
 	public boolean performAction(String actionId, ActionEvent event) {
+		return performAction(actionId, event, null);
+	}
+
+	private boolean performAction(String actionId, ActionEvent event, int[] selectedRows) {
 		var action = prepareAction(actionId);
 		if (action == null) {
 			logger.log(Level.FINE, "No action for {0}", actionId);
 			return false;
 		}
+		if (action instanceof SpreadSheetAction spreadSheetAction)
+			spreadSheetAction.setCommandRows(selectedRows);
 		action.actionPerformed(event == null
 				? new ActionEvent(this, ActionEvent.ACTION_PERFORMED, actionId)
 				: event);
@@ -1820,6 +1830,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 		public void setSpreadSheet(CommonSpreadSheet spreadSheet) {
 			this.spreadSheet = (SpreadSheet)spreadSheet;
+		}
+
+		public void setCommandRows(int[] rows) {
+			this.rows = rows;
 		}
 
 		public NodeModelCache getCache() {

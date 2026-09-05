@@ -258,6 +258,50 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void indentAndOutdentSelectedTaskThroughRibbonRoundTripsHierarchy() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("ribbon-indent-acceptance", undo), undo);
+		project.initialize(false, false);
+		Node firstNode = project.createLocalTaskNode(null);
+		NormalTask first = (NormalTask) firstNode.getImpl();
+		first.setName("Indent predecessor");
+		Node secondNode = project.createLocalTaskNode(null);
+		NormalTask second = (NormalTask) secondNode.getImpl();
+		second.setName("Indent target");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"indent test project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), nameColumn(sheet)));
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title"));
+		click(robot, boundsOnScreen(taskTab));
+		AbstractButton indent = findShowingButtonByCommand("RibbonIndent");
+		GuiAcceptanceSupport.await(indent::isEnabled, "Indent remained disabled for the selected task");
+		click(robot, boundsOnScreen(indent));
+		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == first,
+				"Indent did not make the selected task a child of its predecessor");
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(second),
+				"Indent did not preserve the selected task after hierarchy refresh");
+
+		AbstractButton outdent = findShowingButtonByCommand("RibbonOutdent");
+		GuiAcceptanceSupport.await(outdent::isEnabled, "Outdent became disabled after Indent");
+		click(robot, boundsOnScreen(outdent));
+		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
+				"Outdent did not restore the selected task to the top level");
+	}
+
+	@Test
 	void secondaryDocumentWindowUsesTheSameRibbonShell() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for window coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

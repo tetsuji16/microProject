@@ -630,13 +630,15 @@ public class DocumentFrame extends NamedFrame implements
 	public void doOutdent() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
+			int[] selectedRows = ss.getSelectedRows();
 			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
 			finishAnyOperations();
 			if (taskNodes.isEmpty())
 				return;
 			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "outdent"))
 				return;
-			ss.executeAction(MenuActionConstants.ACTION_OUTDENT);
+			ss.executeAction(MenuActionConstants.ACTION_OUTDENT, selectedRows);
+			ss.restoreTaskRowSelection(taskNodes);
 		}
 	}
 	public void doExpand() {
@@ -661,13 +663,15 @@ public class DocumentFrame extends NamedFrame implements
 	public void doIndent() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
+			int[] selectedRows = ss.getSelectedRows();
 			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
 			finishAnyOperations();
 			if (taskNodes.isEmpty())
 				return;
 			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "indent"))
 				return;
-			ss.executeAction(MenuActionConstants.ACTION_INDENT);
+			ss.executeAction(MenuActionConstants.ACTION_INDENT, selectedRows);
+			ss.restoreTaskRowSelection(taskNodes);
 		}
 	}
 	public boolean canMoveSelectedTasks(int direction) {
