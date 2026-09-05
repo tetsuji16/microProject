@@ -191,9 +191,9 @@ public class DefaultFrameManager implements FrameManager {
 			setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 4, 2, 4));
 			setBackground(selected ? list.getSelectionBackground() : list.getBackground());
 			setForeground(selected ? list.getSelectionForeground() : list.getForeground());
-			String description = describeWindow(value instanceof NamedFrame frame ? frame : null);
-			setText(description);
-			setToolTipText(description);
+			NamedFrame frame = value instanceof NamedFrame namedFrame ? namedFrame : null;
+			setText(describeWindow(frame));
+			setToolTipText(describeWindowTooltip(frame));
 			return this;
 		}
 	}
@@ -209,9 +209,8 @@ public class DefaultFrameManager implements FrameManager {
 			String name = project.getName();
 			if (name == null || name.isBlank())
 				name = documentFrame.getTitle();
-			description.append(name == null ? "(unnamed project)" : name);
-			if (project.getFileName() != null && !project.getFileName().isBlank())
-				description.append(" — ").append(canonicalWindowPath(project.getFileName()));
+			description.append(Messages.getContextString("Text.ApplicationTitle"));
+			description.append(" - ").append(name == null ? "(unnamed project)" : name);
 			if (project.isMaster())
 				description.append(" [Master]");
 			if (project.isReadOnly())
@@ -222,6 +221,16 @@ public class DefaultFrameManager implements FrameManager {
 			description.append(frame.getTitle() == null ? frame.getId() : frame.getTitle());
 		}
 		return description.toString();
+	}
+
+	private String describeWindowTooltip(NamedFrame frame) {
+		String title = describeWindow(frame);
+		if (frame instanceof DocumentFrame documentFrame && documentFrame.getProject() != null) {
+			String fileName = documentFrame.getProject().getFileName();
+			if (fileName != null && !fileName.isBlank())
+				return title + " — " + canonicalWindowPath(fileName);
+		}
+		return title;
 	}
 
 	private static String canonicalWindowPath(String fileName) {
@@ -399,7 +408,7 @@ public class DefaultFrameManager implements FrameManager {
 		if (container != null)
 			container.repaint();
 		if (projectComboBox != null)
-			projectComboBox.setToolTipText(describeWindow((NamedFrame) projectComboBox.getSelectedItem()));
+			projectComboBox.setToolTipText(describeWindowTooltip((NamedFrame) projectComboBox.getSelectedItem()));
 	}
 	public NamedFrame getFrame(String id) {
 		for (int i = 0; i < getProjectComboBox().getItemCount(); i++) {

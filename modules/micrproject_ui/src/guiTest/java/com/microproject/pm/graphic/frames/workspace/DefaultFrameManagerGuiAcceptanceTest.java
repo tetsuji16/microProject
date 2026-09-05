@@ -93,8 +93,10 @@ class DefaultFrameManagerGuiAcceptanceTest {
 			assertTrue(frames[1].isActive());
 			assertFalse(frames[0].isActive());
 			assertTrue(window.getTitle().contains("Desktop Alpha"),
-				"The primary window title must continue to identify the document it contains");
+					"The primary window title must continue to identify the document it contains");
 			assertTrue(secondary.getTitle().contains("Desktop Beta"));
+			assertFalse(secondary.getTitle().contains("desktop-beta.projectlibre"),
+					"window titles must not expose the absolute project path");
 			desktopWindowManager.activateFrame(frames[0]);
 			assertTrue(frames[1].isShowing(), "switching back must not blank or hide the secondary window");
 			desktopWindowManager.arrangeAll(FrameManager.WindowArrangement.TILE);
@@ -122,6 +124,7 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool(name + " pool", undo), undo);
 		project.setName(name);
+		project.setFileName("C:/fixtures/" + name.toLowerCase().replace(' ', '-') + ".projectlibre");
 		TestDocumentFrame frame = new TestDocumentFrame(graphicManager, project, name.toLowerCase().replace(' ', '-'));
 		project.setDirty(false);
 		project.setGroupDirty(false);
