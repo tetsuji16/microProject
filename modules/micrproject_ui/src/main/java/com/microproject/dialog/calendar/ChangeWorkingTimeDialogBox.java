@@ -646,23 +646,23 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		settingBuilder.nextLine(2);
 		settingBuilder.add(calendarType);
 		settingBuilder.nextLine(2);
-		settingBuilder.add(basedOnText);
+		settingBuilder.add(basedOnText, new CellConstraints().xyw(1, settingBuilder.getRow(), 3));
 		settingBuilder.nextLine(2);
 		settingBuilder.add(notEditable);
 		settingBuilder.add(caution);
 		settingBuilder.nextLine(2);
-		settingBuilder.add(defaultWorkingTime);
+		settingBuilder.add(defaultWorkingTime, new CellConstraints().xyw(1, settingBuilder.getRow(), 3));
 		settingBuilder.nextLine(2);
-		settingBuilder.add(nonWorking);
+		settingBuilder.add(nonWorking, new CellConstraints().xyw(1, settingBuilder.getRow(), 3));
 		settingBuilder.nextLine(2);
-		settingBuilder.add(working);
+		settingBuilder.add(working, new CellConstraints().xyw(1, settingBuilder.getRow(), 3));
 		settingBuilder.nextLine(2);
 
 		JPanel time = new JPanel();
 		time.setLayout(new GridLayout(1,2));
 		time.add(new JLabel(Messages.getString("ChangeWorkingTimeDialogBox.From"))); //$NON-NLS-1$
 		time.add(new JLabel(Messages.getString("ChangeWorkingTimeDialogBox.To"))); //$NON-NLS-1$
-		settingBuilder.add(time);
+		settingBuilder.add(time, new CellConstraints().xyw(1, settingBuilder.getRow(), 3));
 
 
 		for (int i=0;i<timeStart.length;i++){
@@ -671,7 +671,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 			timePanel.add(timeStart[i]);
 			timePanel.add(timeEnd[i]);
 			settingBuilder.nextLine(2);
-			settingBuilder.add(timePanel);
+			settingBuilder.add(timePanel, new CellConstraints().xyw(1, settingBuilder.getRow(), 3));
 		}
 		return settingBuilder.getPanel();
 }
