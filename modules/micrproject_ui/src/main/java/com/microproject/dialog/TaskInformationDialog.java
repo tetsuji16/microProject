@@ -382,7 +382,7 @@ public class TaskInformationDialog extends InformationDialog {
 	private JComponent createAdvancedPanel(){
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
-		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,90dlu,30dlu", // extra padding on right is for estimated field //$NON-NLS-1$
+		        "max(50dlu;pref), 3dlu, max(90dlu;pref), 10dlu, p, 3dlu,max(90dlu;pref),30dlu", // extra padding on right is for estimated field //$NON-NLS-1$
 				"max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);

@@ -1357,7 +1357,8 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public void setComboBoxesViewName(String view) {
-		if (!Environment.isPlugin()) filterToolBarManager.setComboBoxesViewName(view);
+		if (!Environment.isPlugin() && filterToolBarManager != null)
+			filterToolBarManager.setComboBoxesViewName(view);
 	}
 
 	public void showWaitCursor(boolean show) {
