@@ -38,6 +38,7 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -114,6 +115,21 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 		assertEquals(kind.code(), dependency.getDependencyType());
 		assertTrue(dependency.getLag() != 0L, "the visible lag prompt must persist the selected lead/lag");
 		SwingUtilities.invokeAndWait(() -> dialog.updateAll());
+		SpreadSheet predecessors = dialog.predecessorsSpreadSheet;
+		GuiAcceptanceSupport.await(() -> predecessors != null && predecessors.getRowCount() == 1,
+			"Task Information did not refresh the created predecessor link");
+		assertTrue(predecessors.getColumnCount() > 1,
+			"Task Information dependency grid must expose a selectable non-link column");
+		// The first column is an endpoint hyperlink and intentionally navigates to
+		// the linked task. Select a non-link column to operate on the dependency row.
+		clickCell(robot, predecessors, 0, Math.max(0, predecessors.getColumnCount() - 1));
+		AbstractButton removePredecessor = findVisibleButton(dialog, "removePredecessorLink");
+		assertTrue(removePredecessor != null && removePredecessor.isEnabled(),
+			"Task Information predecessor Remove button must enable for a selected link; selectedRows="
+				+ predecessors.getSelectedRowCount());
+		click(robot, removePredecessor);
+		GuiAcceptanceSupport.await(() -> fixture.current.getPredecessorList().isEmpty(),
+			"Task Information predecessor Remove did not remove the selected dependency");
 		Path artifact = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"),
 				"cross-project-link-" + kind.name().toLowerCase(java.util.Locale.ROOT) + ".png");
 		Files.createDirectories(artifact.getParent());
@@ -134,6 +150,19 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static void clickCell(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
+		Rectangle bounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getCellRect(row, column, true);
+			java.awt.Point location = sheet.getLocationOnScreen();
+			bounds.setBounds(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
+		});
+		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 	}
 
 	private static JComboBox<?> awaitComboContaining(String text) throws Exception {
