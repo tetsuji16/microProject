@@ -79,6 +79,18 @@ selection changes, the Information ribbon command, action enablement, and task-d
 creation/visibility. Use it to determine whether a reported click failed to dispatch,
 lost its selection, was rejected by routing, or reached the dialog.
 
+GUI受入は同じRobotケースをlocale／DPI軸でも実行できる。標準は日本語・100%で、
+U-21の視覚検査では次のように別プロセスで実行する。
+
+```powershell
+.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1.25' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1.5' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1.25' --max-workers=1 --no-daemon --console=plain
+```
+
+各実行で画面キャプチャとコンポーネント境界を確認し、倍率指定だけで成功扱いにしない。
+
 Use `run_projectlibre.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_micrproject_clean.bat` when you want the safest one-step clean rebuild and launch.
 
 ## Quick Checks

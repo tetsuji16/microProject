@@ -98,6 +98,12 @@ tasks.register<Test>("guiTest") {
 	classpath = files(tasks.jar).plus(guiTestSourceSet.runtimeClasspath)
 	useJUnitPlatform()
 	systemProperty("java.awt.headless", "false")
+    val guiTestLocale = providers.gradleProperty("guiTestLocale").orElse("ja").get()
+    val guiTestUiScale = providers.gradleProperty("guiTestUiScale").orNull
+    systemProperty("user.language", guiTestLocale)
+    systemProperty("user.country", if (guiTestLocale == "ja") "JP" else "US")
+    if (guiTestUiScale != null)
+        systemProperty("sun.java2d.uiScale", guiTestUiScale)
     systemProperty("micrproject.gui.artifacts.dir", layout.buildDirectory.dir("reports/guiTest-artifacts").get().asFile.absolutePath)
     mustRunAfter(tasks.test)
 }
