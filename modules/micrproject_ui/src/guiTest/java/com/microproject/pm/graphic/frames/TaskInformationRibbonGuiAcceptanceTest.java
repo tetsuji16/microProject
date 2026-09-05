@@ -105,6 +105,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		NormalTask task = createTask();
 		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"full ribbon task window did not become visible");

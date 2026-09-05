@@ -523,6 +523,23 @@ public final class ModernRibbonPanel extends JPanel {
 			bandRow.add(bandComponent, bandConstraints);
 			bandConstraints.gridx++;
 		}
+		if (density == RibbonDensity.COMPACT && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
+			// Compact buttons can still leave their containing bands wider than the
+			// viewport.  Do not let GridBagLayout place those bands off-screen: use
+			// the same single-tab popup as the explicit collapsed density.
+			for (RibbonBandPanel bandPanel : bandPanels) {
+				unregisterButtons(bandPanel, buttonFactory);
+			}
+			bandRow.removeAll();
+			bandPanels.clear();
+			tallestContent = 0;
+			tallestBand = 0;
+			bandConstraints.gridx = 0;
+			RibbonBandPanel collapsedPanel = buildBand(collapsedTabBand(tab), RibbonDensity.COLLAPSED);
+			bandPanels.add(collapsedPanel);
+			bandRow.add(collapsedPanel, bandConstraints);
+			bandConstraints.gridx = 1;
+		}
 		for (RibbonBandPanel bandPanel : bandPanels) {
 			bandPanel.applyContentHeight(tallestContent);
 			tallestBand = Math.max(tallestBand, bandPanel.getPreferredSize().height);
@@ -542,6 +559,15 @@ public final class ModernRibbonPanel extends JPanel {
 		shell.add(bandRow, BorderLayout.CENTER);
 		shell.setPreferredSize(new Dimension(0, shellHeight));
 		return shell;
+	}
+
+	private static boolean fitsInWidth(List<RibbonBandPanel> bandPanels, int availableWidth, Container container) {
+		int requiredWidth = container.getInsets().left + container.getInsets().right;
+		for (int index = 0; index < bandPanels.size(); index++) {
+			requiredWidth += bandPanels.get(index).getPreferredSize().width;
+			if (index > 0) requiredWidth += BAND_GAP;
+		}
+		return requiredWidth <= availableWidth;
 	}
 
 	private SwingRibbonModel.RibbonBand collapsedTabBand(SwingRibbonModel.RibbonTab tab) {

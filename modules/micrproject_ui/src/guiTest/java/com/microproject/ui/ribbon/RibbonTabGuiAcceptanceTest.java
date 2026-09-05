@@ -31,6 +31,7 @@ import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JFrame;
+import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
@@ -174,23 +175,33 @@ class RibbonTabGuiAcceptanceTest {
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("narrow ribbon did not expose an overflow popup"));
 		JPopupMenu popup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
-		AbstractButton hiddenCommand = UiComponentWalker.flatten(popup).stream()
-			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
-			.filter(button -> "RibbonHideSelectedTasks".equals(button.getActionCommand()))
-			.findFirst()
-			.orElseThrow(() -> new AssertionError("overflow popup did not retain RibbonHideSelectedTasks"));
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
 			frame.requestFocusInWindow();
 		});
 		robot.delay(150);
-		// Dispatch the trigger action directly after the Robot attempt is
-		// recorded in #430; this keeps the popup/action regression covered while
-		// the environment-specific narrow-target mouse issue remains tracked.
-		SwingUtilities.invokeAndWait(overflow::doClick);
-		robot.delay(250);
-		assertTrue(popup.getInvoker() == overflow, "overflow trigger did not invoke its popup");
+		Point overflowScreen = overflow.getLocationOnScreen();
+		Rectangle frameBounds = frame.getBounds();
+		assertTrue(new Rectangle(frameBounds.x, frameBounds.y, frameBounds.width, frameBounds.height)
+				.contains(overflowScreen.x + overflow.getWidth() / 2, overflowScreen.y + overflow.getHeight() / 2),
+			"responsive overflow trigger must remain inside the host window");
+		clickCommand(robot, overflow);
 		GuiAcceptanceSupport.await(popup::isVisible, "overflow popup did not open by mouse click");
+		JMenu bandMenu = UiComponentWalker.flatten(popup).stream()
+			.filter(JMenu.class::isInstance).map(JMenu.class::cast)
+			.filter(menu -> UiComponentWalker.flatten(menu.getPopupMenu()).stream()
+					.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+					.anyMatch(button -> "RibbonHideSelectedTasks".equals(button.getActionCommand())))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("collapsed popup did not expose the Hide Selected Tasks band submenu"));
+		clickCommand(robot, bandMenu);
+		GuiAcceptanceSupport.await(() -> bandMenu.getPopupMenu().isVisible(),
+			"collapsed popup band submenu did not open by mouse click");
+		AbstractButton hiddenCommand = UiComponentWalker.flatten(bandMenu.getPopupMenu()).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> "RibbonHideSelectedTasks".equals(button.getActionCommand()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("collapsed band popup did not retain RibbonHideSelectedTasks"));
 		String actionId = manager.getToolBarFactory().getActionStringFromId(hiddenCommand.getActionCommand());
 		int before = actions.count(actionId);
 		clickCommand(robot, hiddenCommand);
