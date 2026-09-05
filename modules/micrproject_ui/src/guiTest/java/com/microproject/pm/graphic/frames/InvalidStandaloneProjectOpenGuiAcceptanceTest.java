@@ -105,6 +105,47 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		assertEquals(1, frameManager[0].getAllFrames().size());
 	}
 
+	@Test
+	void robotReportsMissingStandaloneFileAndLeavesExistingDocumentUntouched() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI acceptance coverage.");
+		previousClientSide = Environment.isClientSide();
+		previousStandalone = Environment.getStandAlone();
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setClientSide(true);
+		Environment.setStandAlone(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		invalidFile = Path.of(System.getProperty("java.io.tmpdir"), "missing-standalone-project-" + System.nanoTime() + ".mpo");
+		DocumentFrame[] original = new DocumentFrame[1];
+		FrameManager[] frameManager = new FrameManager[1];
+		SwingUtilities.invokeAndWait(() -> {
+			window = new MainRibbonFrame("microProject — Missing standalone-file GUI acceptance", null, null);
+			InvalidStandaloneGraphicManager manager = new InvalidStandaloneGraphicManager(window);
+			graphicManager = manager;
+			window.setGraphicManager(manager);
+			manager.initView();
+			SessionFactory.getInstance().setJobQueue(manager.getJobQueue());
+			frameManager[0] = manager.getFrameManager();
+			original[0] = manager.addProjectFrame(project("Existing independent project for missing-file test"));
+			window.setSize(960, 600);
+			window.setLocationByPlatform(true);
+			window.setAlwaysOnTop(true);
+			window.setVisible(true);
+			manager.openForTest(invalidFile.toString());
+		});
+		GuiAcceptanceSupport.await(() -> findErrorDialog() != null, "missing standalone project did not show an error dialog");
+		Dialog dialog = findErrorDialog();
+		assertTrue(dialogText(dialog).contains(invalidFile.toString()), dialogText(dialog));
+		assertSame(original[0], graphicManager.getCurrentFrame());
+		assertEquals(1, frameManager[0].getAllFrames().size());
+		Robot robot = new Robot();
+		clickDismissButton(robot, dialog);
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "OK did not dismiss the missing-file error");
+		assertSame(original[0], graphicManager.getCurrentFrame());
+		assertEquals(1, frameManager[0].getAllFrames().size());
+	}
+
 	private static Project project(String name) {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool(name, undo), undo);
