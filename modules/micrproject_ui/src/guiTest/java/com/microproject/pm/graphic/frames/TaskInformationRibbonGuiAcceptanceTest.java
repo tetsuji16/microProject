@@ -17,6 +17,8 @@ import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ResourceBundle;
@@ -31,16 +33,19 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.job.JobQueue;
 import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -407,6 +412,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(link));
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
 				"Link did not create a dependency between the selected tasks");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved),
+				"MPO save did not accept the project after the physical Link command");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedPredecessor = taskNamed(reloaded, "Link predecessor");
+		NormalTask reloadedSuccessor = taskNamed(reloaded, "Link successor");
+		assertEquals(1, reloadedSuccessor.getPredecessorList().size(),
+				"MPO reload lost the dependency created through the ribbon");
+		Dependency reloadedDependency = (Dependency) reloadedSuccessor.getPredecessorList().iterator().next();
+		assertEquals("Link predecessor", ((Task) reloadedDependency.getPredecessor()).getName(),
+				"MPO reload connected the successor to the wrong predecessor");
+		assertTrue(reloadedSuccessor.getWbsParentTask() == null && reloadedPredecessor.getWbsParentTask() == null,
+				"MPO reload changed the top-level hierarchy of linked tasks");
 
 		robot.keyPress(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_Z);
@@ -481,6 +499,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask task = project.createScriptedTask();
 		task.setName("Ribbon information acceptance");
 		return task;
+	}
+
+	private static NormalTask taskNamed(Project project, String name) {
+		for (Task task : project.getTaskList()) {
+			if (name.equals(task.getName()))
+				return (NormalTask) task;
+		}
+		throw new AssertionError("Reloaded task is absent: " + name);
 	}
 
 	private void showProject(Project project) throws Exception {
