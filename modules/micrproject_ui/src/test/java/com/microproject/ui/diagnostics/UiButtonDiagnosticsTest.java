@@ -68,6 +68,11 @@ class UiButtonDiagnosticsTest {
 			assertTrue(messages.toString().contains("UI_BUTTON action-start id=TestButton"));
 			assertTrue(messages.toString().contains("command=TestButton"));
 			assertTrue(messages.toString().contains("stateChanged=false"));
+			assertTrue(messages.toString().contains("UI_COMMAND id=TestButton"));
+			assertTrue(messages.toString().contains("modelBefore="));
+			assertTrue(messages.toString().contains("viewAfter="));
+			assertTrue(messages.toString().contains("UI_COMMAND_FAILURE id=TestButton reason=no-observable-state-change"));
+			assertTrue(messages.toString().contains("UI_BUTTON_FAILURE id=FailingButton"));
 		} finally {
 			logger.removeHandler(handler);
 		}

@@ -19,6 +19,7 @@ import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
@@ -80,6 +81,7 @@ class DockableProjectToolViewTest {
 		panel.setAnalysis(analysis, true);
 		panel.setAnalysis(analysis, true);
 		assertEquals(1, CriticalChainBufferChartPanel.observationCount(panel));
+		assertEquals(1, project.findTransientDocumentState(CriticalChainBufferHistory.class).points().size());
 		assertEquals(50D, CriticalChainBufferChartPanel.currentPoint(project, buffer).consumptionPercent());
 		assertEquals(CriticalChainBufferChartPanel.Zone.GREEN, CriticalChainBufferChartPanel.zoneFor(
 			CriticalChainBufferChartPanel.currentPoint(project, new CriticalChainService.Buffer(100L, 5L, 95L, 0.05D,

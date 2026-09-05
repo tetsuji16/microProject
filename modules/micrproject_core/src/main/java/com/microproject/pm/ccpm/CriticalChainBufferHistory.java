@@ -18,7 +18,7 @@ public final class CriticalChainBufferHistory {
 
 	public void add(Point point) {
 		if (point == null) return;
-		if (!points.isEmpty() && points.get(points.size() - 1).equals(point)) return;
+		if (!points.isEmpty() && points.get(points.size() - 1).sameObservation(point)) return;
 		points.add(point);
 		points.sort(Comparator.comparing(Point::observedAt));
 		while (points.size() > 10000) points.remove(0);
@@ -26,6 +26,17 @@ public final class CriticalChainBufferHistory {
 
 	public record Point(Instant observedAt, String actorId, String actorName,
 			double progressPercent, double consumptionPercent, String zone, String baselineId) {
+		/** Returns whether two points represent the same measurement, ignoring sampling time. */
+		public boolean sameObservation(Point other) {
+			return other != null
+				&& actorId.equals(other.actorId)
+				&& actorName.equals(other.actorName)
+				&& Double.compare(progressPercent, other.progressPercent) == 0
+				&& Double.compare(consumptionPercent, other.consumptionPercent) == 0
+				&& zone.equals(other.zone)
+				&& baselineId.equals(other.baselineId);
+		}
+
 		public Point {
 			if (observedAt == null) throw new IllegalArgumentException("observedAt is required");
 			if (actorId == null || actorId.isBlank()) actorId = "unknown";

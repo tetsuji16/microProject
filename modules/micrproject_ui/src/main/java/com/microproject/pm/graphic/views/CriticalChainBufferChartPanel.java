@@ -197,7 +197,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	}
 
 	private void addObservation(CriticalChainBufferHistory.Point point) {
-		if (!history.isEmpty() && history.get(history.size() - 1).equals(point)) return;
+		if (!history.isEmpty() && history.get(history.size() - 1).sameObservation(point)) return;
 		if (history.size() == MAX_HISTORY) history.remove(0);
 		history.add(point);
 		if (project != null) {
