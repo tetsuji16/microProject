@@ -20,6 +20,8 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.util.VersionUtils;
+
 class UpdateCheckerTest {
 	private HttpServer server;
 
@@ -65,6 +67,11 @@ class UpdateCheckerTest {
 	void unparsableVersionsNeverTriggerUpgrade() {
 		assertFalse(UpdateChecker.isNewer("snapshot", "0.0.23"));
 		assertFalse(UpdateChecker.isNewer("0.0.24", "dev-build"));
+	}
+
+	@Test
+	void enablesReleaseChecksOnlyForReleaseBuilds() {
+		assertEquals(!VersionUtils.isDevelopmentBuild(), UpdateChecker.isUpdateCheckEnabled());
 	}
 
 	@Test

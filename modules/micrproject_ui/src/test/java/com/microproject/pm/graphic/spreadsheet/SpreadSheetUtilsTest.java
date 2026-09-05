@@ -137,6 +137,34 @@ class SpreadSheetUtilsTest {
 	}
 
 	@Test
+	void usageSpreadsheetsStillResolve() {
+		assertNotNull(SpreadSheetFieldArray.getFromId(
+			SpreadSheetCategories.taskAssignmentSpreadsheetCategory,
+			"Spreadsheet.Assignment.taskUsage"));
+		assertNotNull(SpreadSheetFieldArray.getFromId(
+			SpreadSheetCategories.resourceAssignmentSpreadsheetCategory,
+			"Spreadsheet.Assignment.resourceUsage"));
+		assertNotNull(SpreadSheetFieldArray.getFromId(
+			SpreadSheetCategories.timeSpreadsheetCategory,
+			"Spreadsheet.TaskUsage.default"));
+		assertNotNull(SpreadSheetFieldArray.getFromId(
+			SpreadSheetCategories.timeSpreadsheetCategory,
+			"Spreadsheet.ResourceUsage.default"));
+	}
+
+	@Test
+	void clearingAnUninitializedSpreadsheetDoesNotAssumeACommonModel() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = new SpreadSheet();
+			try {
+				sheet.clearActions();
+			} finally {
+				sheet.cleanUp();
+			}
+		});
+	}
+
+	@Test
 	void taskColumnMinimumWidthsProtectReadableValues() {
 		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.name") >= 140);
 		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.duration") >= 60);

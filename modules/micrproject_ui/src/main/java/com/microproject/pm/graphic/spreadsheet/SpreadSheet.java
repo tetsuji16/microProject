@@ -1743,7 +1743,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		actionMap=null;
 		actionList=null;
 		popup=null;
-		((CommonSpreadSheetModel)getModel()).clearActions();
+		if (getModel() instanceof CommonSpreadSheetModel commonSpreadSheetModel)
+			commonSpreadSheetModel.clearActions();
 	}
 //	private static String dumpActions(String[] actions){
 //		if (actions==null) return null;

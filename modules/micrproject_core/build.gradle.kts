@@ -10,15 +10,19 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+val developmentBuild = !providers.gradleProperty("releaseVersion").isPresent
+
 tasks.test {
     enabled = true
     useJUnitPlatform()
     systemProperty("projectlibre.test.releaseVersion", rootProject.version.toString())
+    systemProperty("projectlibre.test.developmentBuild", developmentBuild)
 }
 
 tasks.processResources {
     inputs.property("releaseVersion", rootProject.version.toString())
+    inputs.property("developmentBuild", developmentBuild)
     filesMatching("com/microproject/version/version.properties") {
-        expand("version" to rootProject.version.toString())
+        expand("version" to rootProject.version.toString(), "developmentBuild" to developmentBuild)
     }
 }

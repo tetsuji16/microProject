@@ -273,6 +273,15 @@ public class ProjectMergeService {
 			return LoadStatus.NOT_FOUND;
 		if (failure instanceof ZipException)
 			return LoadStatus.INVALID_FILE;
+		String message = failure.getMessage();
+		if (message != null) {
+			String normalized = message.toLowerCase(Locale.ROOT);
+			if (normalized.contains("must contain meta-inf/manifest.xml")
+					|| normalized.contains("must contain content.xml")
+					|| normalized.contains("not a zip archive")
+					|| normalized.contains("mpof"))
+				return LoadStatus.INVALID_FILE;
+		}
 		return failure instanceof java.io.IOException ? LoadStatus.TRANSIENT_FAILURE : LoadStatus.INVALID_FILE;
 	}
 

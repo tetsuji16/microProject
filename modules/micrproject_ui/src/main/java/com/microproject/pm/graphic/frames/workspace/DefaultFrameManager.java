@@ -62,6 +62,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.session.LoadOptions;
 import com.microproject.strings.Messages;
+import com.microproject.ui.shell.ProjectLibreShell;
 import com.microproject.util.Environment;
 import com.microproject.workspace.WorkspaceSetting;
 
@@ -428,8 +429,10 @@ public class DefaultFrameManager implements FrameManager {
 	}
 
 	private void createDocumentWindow(NamedFrame frame) {
-		JFrame window = new JFrame(describeWindow(frame));
-		window.setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
+		MainRibbonFrame window = new MainRibbonFrame(describeWindow(frame), null, null);
+		window.setGraphicManager(graphicManager);
+		window.setWindowCloseAction(() -> graphicManager.closeDocumentWindow((DocumentFrame) frame));
+		ProjectLibreShell.installRibbonShell(window, graphicManager.getMenuManager(), graphicManager::showHelpDialog);
 		window.setSize(900, 650);
 		window.setLocationByPlatform(true);
 		window.getContentPane().add(frame, java.awt.BorderLayout.CENTER);

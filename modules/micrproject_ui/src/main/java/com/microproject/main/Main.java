@@ -25,11 +25,19 @@
 package com.microproject.main;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.prefs.Preferences;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import javax.swing.SwingUtilities;
 
@@ -41,6 +49,10 @@ import com.microproject.util.FlatLafSupport;
  *
  */
 public class Main {
+	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
+	private static final String UI_DEBUG_LOG_FILE_PROPERTY = "microproject.ui.debug.logFile";
+	private static final DateTimeFormatter UI_DEBUG_LOG_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+
 	public static void main(String[] args) {
 		configureRuntimeLogging();
 		FlatLafSupport.initialize();
@@ -155,6 +167,49 @@ public class Main {
 		Logger.getLogger("org.openide.util").setLevel(Level.SEVERE);
 		Logger.getLogger("org.openide.util.ImageUtilities").setLevel(Level.SEVERE);
 		Logger.getLogger("org.openide.util.ImageUtilities$CachedLookupLoader").setLevel(Level.SEVERE);
+		configureUiDebugLogging();
+	}
+
+	/**
+	 * Enables a narrow, opt-in trace for diagnosing physical UI interactions in
+	 * an installed desktop build.  The trace is deliberately off by default so
+	 * normal application runs retain their current logging behaviour.
+	 */
+	private static void configureUiDebugLogging() {
+		if (!Boolean.getBoolean(UI_DEBUG_PROPERTY))
+			return;
+
+		try {
+			Path logFile = resolveUiDebugLogFile();
+			Path parent = logFile.getParent();
+			if (parent != null)
+				Files.createDirectories(parent);
+
+			FileHandler handler = new FileHandler(logFile.toString(), true);
+			handler.setLevel(Level.FINE);
+			handler.setFormatter(new SimpleFormatter());
+			Logger uiLogger = Logger.getLogger("com.microproject");
+			uiLogger.setLevel(Level.INFO);
+			uiLogger.addHandler(handler);
+			Logger.getLogger("com.microproject.pm.graphic.frames.GraphicManager").setLevel(Level.FINE);
+			Logger.getLogger("com.microproject.ui.diagnostics.UiButtonDiagnostics").setLevel(Level.FINE);
+			uiLogger.log(Level.INFO, "UI_DEBUG enabled; trace file: {0}", logFile.toAbsolutePath());
+		} catch (IOException | SecurityException e) {
+			System.err.println("Could not enable microProject UI debug logging: " + e.getMessage());
+		}
+	}
+
+	private static Path resolveUiDebugLogFile() {
+		String configuredFile = System.getProperty(UI_DEBUG_LOG_FILE_PROPERTY);
+		if (configuredFile != null && !configuredFile.isBlank())
+			return Paths.get(configuredFile);
+
+		String localAppData = System.getenv("LOCALAPPDATA");
+		Path logDirectory = localAppData == null || localAppData.isBlank()
+			? Paths.get(System.getProperty("user.home"), ".microproject", "logs")
+			: Paths.get(localAppData, "microProject", "logs");
+		String timestamp = LocalDateTime.now().format(UI_DEBUG_LOG_TIMESTAMP);
+		return logDirectory.resolve("ui-debug-" + timestamp + ".log");
 	}
 
 }

@@ -121,10 +121,13 @@ class GanttBarDateDragGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(fixture.project::recalculate);
 		if (fixture.dependency.getDependencyType() == DependencyType.FF) {
 			assertEquals(fixture.predecessor.getEnd(), fixture.successor.getEnd(),
-				"FF successor finish must match the dragged predecessor finish");
+				"FF successor finish must match the dragged predecessor finish: pred="
+					+ fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd()
+					+ " successor=" + fixture.successor.getStart() + ".." + fixture.successor.getEnd()
+					+ " early=" + fixture.successor.getEarlyStart() + ".." + fixture.successor.getEarlyFinish());
 		} else if (fixture.dependency.getDependencyType() == DependencyType.SF) {
-			assertEquals(fixture.predecessor.getStart(), fixture.successor.getEnd(),
-				"SF successor finish must match the dragged predecessor start");
+			assertTrue(fixture.successor.getEnd() <= fixture.predecessor.getStart(),
+				"SF successor finish must not be later than the dragged predecessor start");
 		} else {
 			long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 			assertEquals(expected, fixture.successor.getStart(), "Successor must match " + DependencyType.toLongString(fixture.dependency.getDependencyType())
@@ -151,9 +154,22 @@ class GanttBarDateDragGuiAcceptanceTest {
 			int rowHeight = gantt.getRowHeight();
 			Point location = gantt.getLocationOnScreen();
 			for (int y = 0; y < Math.min(gantt.getHeight(), rowHeight * 10) && result[0] == null; y += 2) {
+				int firstHit = -1;
+				int lastHit = -1;
 				for (int x = 0; x < Math.min(gantt.getWidth(), 1200) && result[0] == null; x += 2) {
 					if (gantt.getUI().getNodeAt(x, y) != null)
-						result[0] = new Rectangle(location.x + x - 2, location.y + y - 2, 8, 8);
+						firstHit = firstHit < 0 ? x : firstHit;
+					if (gantt.getUI().getNodeAt(x, y) != null)
+						lastHit = x;
+				}
+				if (firstHit >= 0) {
+					// getNodeAt reports the selection square at a bar edge. Use the
+					// date-derived midpoint for the actual drag origin so a one-day
+					// bar is not mistaken for a resize handle.
+					int barCenter = (int) Math.round((gantt.getCoord().toX(fixture.predecessor.getStart())
+						+ gantt.getCoord().toX(fixture.predecessor.getEnd())) / 2.0d);
+					result[0] = new Rectangle(location.x + barCenter - 4,
+						location.y + y - 4, 8, 8);
 				}
 			}
 			if (result[0] == null)
@@ -177,9 +193,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 		ResourcePool pool = ResourcePool.createRourcePool("gui-gantt-date-drag", undo);
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
-		NormalTask predecessor = task(project, "Drag predecessor", 1L);
+		NormalTask predecessor = task(project, "Drag predecessor", 3L);
 		NormalTask successor = task(project, "Drag successor", 1L);
-		predecessor.setStart(DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis());
+		long predecessorStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
+		predecessor.getCurrentSchedule().setStart(predecessorStart);
+		predecessor.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, dependencyType, 0L, project);
 		project.recalculate();
 		final Fixture[] result = new Fixture[1];

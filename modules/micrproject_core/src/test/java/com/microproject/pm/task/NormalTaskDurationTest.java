@@ -49,6 +49,7 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ConstraintType;
+import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskDurationTest {
@@ -221,6 +222,29 @@ class NormalTaskDurationTest {
 
 		assertTrue(successor.getEnd() <= predecessor.getStart(),
 				"successorEnd=" + successor.getEnd() + " predecessorStart=" + predecessor.getStart());
+	}
+
+	@Test
+	void directMoveKeepsFinishBasedDependenciesAlignedWithoutAssignments() throws InvalidAssociationException {
+		for (int type : new int[] { DependencyType.FF, DependencyType.SF }) {
+			Project project = createProject();
+			NormalTask predecessor = createTask(project);
+			NormalTask successor = createTask(project);
+			predecessor.setDuration(day());
+			successor.setDuration(day());
+			DependencyService.getInstance().newDependency(predecessor, successor, type, 0L, this);
+			project.recalculate();
+			long oldStart = predecessor.getStart();
+			long oldEnd = predecessor.getEnd();
+			long shift = 2L * day();
+			predecessor.moveInterval(this, oldStart + shift, oldEnd + shift,
+				new ScheduleInterval(oldStart, oldEnd), false);
+			project.recalculate();
+			if (type == DependencyType.FF)
+				assertEquals(predecessor.getEnd(), successor.getEnd());
+			else
+				assertTrue(successor.getEnd() <= predecessor.getStart());
+		}
 	}
 
 	@Test

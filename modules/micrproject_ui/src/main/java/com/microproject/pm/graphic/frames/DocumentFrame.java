@@ -478,9 +478,12 @@ public class DocumentFrame extends NamedFrame implements
 
 
 	public void doLinkTasks() {
+		// Capture the selection before finishing an editor.  Stopping a cell
+		// editor can clear the JTable selection, which previously made the
+		// ribbon command silently return even though it was enabled.
+		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
 		finishAnyOperations();
 		try {
-			List<Node> taskNodes = getSelectedTaskNodes(false, true);
 			if (taskNodes.size() < 2)
 				return;
 			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "link"))
@@ -495,8 +498,8 @@ public class DocumentFrame extends NamedFrame implements
 		}
 	}
 	public void doUnlinkTasks() {
+		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
 		finishAnyOperations();
-		List<Node> taskNodes = getSelectedTaskNodes(false, true);
 		if (taskNodes.isEmpty())
 			return;
 		if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "unlink"))
@@ -627,7 +630,8 @@ public class DocumentFrame extends NamedFrame implements
 	public void doOutdent() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
-			List<Node> taskNodes = getSelectedTaskNodes(false, false);
+			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
+			finishAnyOperations();
 			if (taskNodes.isEmpty())
 				return;
 			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "outdent"))
@@ -657,7 +661,8 @@ public class DocumentFrame extends NamedFrame implements
 	public void doIndent() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
-			List<Node> taskNodes = getSelectedTaskNodes(false, false);
+			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
+			finishAnyOperations();
 			if (taskNodes.isEmpty())
 				return;
 			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "indent"))

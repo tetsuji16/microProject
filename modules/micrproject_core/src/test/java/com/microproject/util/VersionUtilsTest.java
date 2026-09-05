@@ -51,4 +51,10 @@ class VersionUtilsTest {
 	void reportsTheGradleReleaseVersionFromTheProcessedResource() {
 		assertEquals(System.getProperty("projectlibre.test.releaseVersion"), VersionUtils.getVersion());
 	}
+
+	@Test
+	void reportsWhetherTheProcessedResourceIsADevelopmentBuild() {
+		assertEquals(Boolean.parseBoolean(System.getProperty("projectlibre.test.developmentBuild")),
+			VersionUtils.isDevelopmentBuild());
+	}
 }

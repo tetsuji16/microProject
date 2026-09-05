@@ -191,11 +191,23 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 	private SpreadSheetFieldArray getFields() {
 		String spreadsheetId = getUsageAssignmentSpreadsheetId(taskUsage);
 		String category = taskUsage ? taskAssignmentSpreadsheetCategory : resourceAssignmentSpreadsheetCategory;
-		return (SpreadSheetFieldArray) Dictionary.get(category, spreadsheetId);
+		SpreadSheetFieldArray fields = (SpreadSheetFieldArray) Dictionary.get(category, spreadsheetId);
+		if (fields != null)
+			return fields;
+		// A partially loaded/old configuration must not make the entire view
+		// impossible to construct.  Reuse the canonical category fields as a
+		// safe fallback; the normal configured array is still preferred.
+		SpreadSheetFieldArray fallback = new SpreadSheetFieldArray();
+		Collection<?> categoryFields = SpreadSheetUtils.getFieldsForCategory(category);
+		if (categoryFields != null)
+			fallback.addAll((Collection) categoryFields);
+		return fallback;
 	}
 
 	private SpreadSheetFieldArray getDistributionFields() {
-		return (SpreadSheetFieldArray) Dictionary.get(timeSpreadsheetCategory, getUsageDistributionSpreadsheetId(taskUsage));
+		SpreadSheetFieldArray fields = (SpreadSheetFieldArray) Dictionary.get(timeSpreadsheetCategory,
+				getUsageDistributionSpreadsheetId(taskUsage));
+		return fields != null ? fields : new SpreadSheetFieldArray();
 	}
 
 	/**
@@ -388,4 +400,3 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 	
 
 }
-

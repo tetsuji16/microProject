@@ -52,6 +52,10 @@ public final class UpdateChecker {
 	/** Fire an asynchronous check; returns immediately. */
 	public static void checkInBackground(GlobalPreferences preferences) {
 		if (preferences == null || !preferences.isCheckForUpdates()) return;
+		if (!isUpdateCheckEnabled()) {
+			logger.fine("Skipping update check for a local development build");
+			return;
+		}
 		if (java.awt.GraphicsEnvironment.isHeadless()) return;
 		Thread thread = new Thread("update-check") {
 			@Override
@@ -79,6 +83,12 @@ public final class UpdateChecker {
 	 */
 	public static void checkAndStageInBackground(Consumer<UpdateResult> callback) {
 		if (callback == null || java.awt.GraphicsEnvironment.isHeadless()) return;
+		if (!isUpdateCheckEnabled()) {
+			logger.fine("Skipping update staging for a local development build");
+			String current = VersionUtils.getVersion();
+			SwingUtilities.invokeLater(() -> callback.accept(new UpdateResult(current, null, null)));
+			return;
+		}
 		Thread thread = new Thread("about-update-check") {
 			@Override
 			public void run() {
@@ -255,6 +265,10 @@ public final class UpdateChecker {
 	static String extractTagName(String json) {
 		Matcher matcher = Pattern.compile("\"tag_name\"\\s*:\\s*\"([^\"]+)\"").matcher(json);
 		return matcher.find() ? matcher.group(1) : null;
+	}
+
+	static boolean isUpdateCheckEnabled() {
+		return !VersionUtils.isDevelopmentBuild();
 	}
 
 	/**

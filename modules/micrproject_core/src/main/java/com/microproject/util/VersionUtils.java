@@ -65,6 +65,22 @@ public class VersionUtils {
 	}
 
 	/**
+	 * Returns whether this runtime was assembled without an explicit release
+	 * version.  Such installDist outputs are for local development and must not
+	 * be mistaken for an installed public release by the update checker.
+	 */
+	public static boolean isDevelopmentBuild() {
+		try {
+			ResourceBundle bundle = ResourceBundle.getBundle("com.microproject.version.version", Locale.ENGLISH,
+				ClassLoaderUtils.getLocalClassLoader());
+			return Boolean.parseBoolean(bundle.getString("microproject.developmentBuild"));
+		} catch (Exception e) {
+			logger.log(Level.FINE, "Failed to load development-build marker", e);
+			return false;
+		}
+	}
+
+	/**
 	 * Compares dotted numeric application versions. A leading {@code v} is
 	 * ignored, missing trailing components are treated as zero, and a hyphen
 	 * is accepted as a component separator for release tags. Non-numeric or

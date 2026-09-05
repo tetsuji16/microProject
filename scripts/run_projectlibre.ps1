@@ -10,11 +10,13 @@
 #   .\scripts\run_projectlibre.ps1
 #   .\scripts\run_projectlibre.ps1 -SkipBuild
 #   .\scripts\run_projectlibre.ps1 -Clean
+#   .\scripts\run_projectlibre.ps1 -UiDebug
 
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
     [switch]$Clean,
+    [switch]$UiDebug,
     [string]$LogRoot = ".\build\logs\projectlibre"
 )
 
@@ -120,6 +122,17 @@ if (-not (Test-Path -LiteralPath $launcherPath)) {
 }
 
 Stop-ExistingProjectLibre
+
+if ($UiDebug) {
+    $uiDebugLog = Join-Path $sessionLogDir "ui-debug.log"
+    $debugOptions = "-Dmicroproject.ui.debug=true -Dmicroproject.ui.debug.logFile=`"$uiDebugLog`""
+    $env:MICRPROJECT_UI_OPTS = if ($env:MICRPROJECT_UI_OPTS) {
+        "$($env:MICRPROJECT_UI_OPTS) $debugOptions"
+    } else {
+        $debugOptions
+    }
+    Write-Status "UI debug tracing enabled: $uiDebugLog" "Cyan"
+}
 
 Write-Status "Launching ProjectLibre from installDist." "Cyan"
 $process = Start-Process `

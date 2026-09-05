@@ -63,6 +63,7 @@ Use `scripts\run_projectlibre.ps1` when you want a logged incremental run instea
 .\scripts\run_projectlibre.ps1
 .\scripts\run_projectlibre.ps1 -SkipBuild
 .\scripts\run_projectlibre.ps1 -Clean
+.\scripts\run_projectlibre.ps1 -UiDebug
 ```
 
 It writes per-run logs under:
@@ -72,6 +73,11 @@ It writes per-run logs under:
 - `launcher.log`
 - `app.stdout.log`
 - `app.stderr.log`
+
+`-UiDebug` also enables a focused UI interaction trace at `ui-debug.log`. It records
+selection changes, the Information ribbon command, action enablement, and task-dialog
+creation/visibility. Use it to determine whether a reported click failed to dispatch,
+lost its selection, was rejected by routing, or reached the dialog.
 
 Use `run_projectlibre.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_micrproject_clean.bat` when you want the safest one-step clean rebuild and launch.
 

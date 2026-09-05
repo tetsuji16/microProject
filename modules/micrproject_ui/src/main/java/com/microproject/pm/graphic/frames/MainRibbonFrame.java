@@ -43,6 +43,7 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 	private static final long serialVersionUID = -5161903673269959353L;
 	protected GraphicManager graphicManager;
 	private JPanel ribbonPanel;
+	private Runnable windowCloseAction;
 
 	public MainRibbonFrame(String name, String projectUrl, String server) throws HeadlessException {
 		super(name);
@@ -62,9 +63,17 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE/*DISPOSE_ON_CLOSE*/);
 		addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
-				graphicManager.closeApplication();
+				if (windowCloseAction != null)
+					windowCloseAction.run();
+				else if (graphicManager != null)
+					graphicManager.closeApplication();
 			}
 		});
+	}
+
+	/** Installs a document-scoped close action for secondary windows. */
+	public void setWindowCloseAction(Runnable windowCloseAction) {
+		this.windowCloseAction = windowCloseAction;
 	}
 
 	public void setGraphicManager(GraphicManager graphicManager) {

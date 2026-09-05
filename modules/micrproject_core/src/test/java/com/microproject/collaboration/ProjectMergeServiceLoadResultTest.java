@@ -70,6 +70,13 @@ class ProjectMergeServiceLoadResultTest {
 	}
 
 	@Test
+	void importerFormatErrorsWrappedAsIoExceptionAreInvalidFiles() {
+		assertEquals(ProjectMergeService.LoadStatus.INVALID_FILE,
+			ProjectMergeService.loadFailureStatus(new IOException(
+				"An MPOF file must contain META-INF/manifest.xml and content.xml.")));
+	}
+
+	@Test
 	void brokenMpoContainerIsReportedAsAnInvalidProjectFile() throws Exception {
 		Path file = Files.createTempFile("invalid-external-project-", ".mpo");
 		try {

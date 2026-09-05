@@ -194,7 +194,8 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 1);
 		CriticalChainService.Analysis earlyDelay = service.analysis(project);
 		assertTrue(project.getPercentComplete() > 0D && earlyDelay.projectBuffer().consumptionRatio() > 0D,
-			"an early delivery checkpoint must move right and consume a small part of the buffer");
+			() -> "an early delivery checkpoint must move right and consume a small part of the buffer: percent="
+				+ project.getPercentComplete() + " consumption=" + earlyDelay.projectBuffer().consumptionRatio());
 		dialog = openBufferDialog(project);
 		chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
 		assertEquals(2, CriticalChainBufferChartPanel.observationCount(chart), "the early checkpoint must follow 0% / 0%");

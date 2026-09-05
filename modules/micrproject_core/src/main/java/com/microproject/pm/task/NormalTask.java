@@ -1773,6 +1773,15 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				d = -d;
 			return getEffectiveWorkCalendar().add(startDate,d,useSooner);
 		}
+		// A task without assignments is scheduled directly from its task
+		// duration. Returning the empty-assignment sentinel (0/Long.MAX_VALUE)
+		// makes finish-based dependencies retain stale successor dates.
+		if (!hasRealAssignments()) {
+			long d = remainingOnly ? Duration.millis(getRemainingDuration()) : getDurationMillis();
+			if (!ahead)
+				d = -d;
+			return getEffectiveWorkCalendar().add(startDate, d, useSooner);
+		}
 //
 //
 //		This is an assignment based implementation
@@ -1855,7 +1864,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			setCurrentScheduleStart(newStart);
 			setDuration(Duration.setAsEstimated(cal.compare(newEnd, newStart, false), estimated));
 			setCurrentScheduleFinish(newEnd);
-			markTaskAsNeedingRecalculation();
+			// A direct Gantt move changes the predecessor without going through
+			// the field-edit path. Invalidate every dependent task so FF/SF
+			// successors are recalculated from the new finish/start boundary.
+			markAllDependentTasksAsNeedingRecalculation(true);
 			assignParentActualDatesFromChildren();
 			return;
 		}

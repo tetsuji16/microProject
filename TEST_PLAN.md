@@ -132,6 +132,13 @@
 | U-15 | 異常 | 0 page printable | export | 空/破損 PDF を作らない、job complete |
 | U-16 | 大量 | 多ページ Gantt PDF | export | page count 分出力、progress 1.0、stream close |
 | U-17 | 受入 | 実 JFrame、タスク 1 件、期間列を選択 | `:micrproject_ui:guiTest` で Robot click → root-pane EditField → `3` を commit | F2 に対応する root-pane の一経路で期間だけが更新され、想定外モーダルなし |
+| U-18 | 受入 | 選択依存の全リボン／メニュー操作 | 実 Robot でタスクを選択後、情報・リンク・インデント／アウトデント・展開／折り畳み・非表示を操作 | 押下時にも同じタスク選択が保持され、モデル変更と表示変更が一致。必要タスク数不足は明示的に無効化または通知 |
+| U-19 | 回帰 | 階層、依存関係、非表示の各変更 | 実キーボード／リボンで変更 → Ctrl+Z → Ctrl+Y | 一操作が一つの Undo edit となり、前状態／後状態を完全に復元。選択・表示・ガントも一致 |
+| U-20 | 回帰 | タスク／リソース使用状況、タイムシート | 各リボンボタンを実 Robot click で開く | 例外なしではなく、専用ビュー／ダイアログの内容モデルが初期化され、表示・閉じる操作まで完了 |
+| U-21 | 視覚 | 全ダイアログと各タブ、日本語・英語、100/125/150% DPI | 実GUIの画面キャプチャとコンポーネント境界検査 | 全ラベル、入力欄、ボタン、タブが viewport 内で非重複。クリップ、ゼロ高さ、タイトルのみウィンドウは fail |
+| U-22 | 回帰 | 変更可能なプロジェクト操作 | 操作 → 保存 → 再読込 → Undo/Redo可能な範囲を確認 | 保存後もモデル／表示が一致し、操作対象外のデータや Undo 履歴を破壊しない |
+| U-23 | 異常 | 選択なし、複数不足、read-only、ロック済み、非対応 view | リボン、メニュー、ショートカットの各入口を実行 | 入口間で有効条件とエラー表示が一致し、silent no-op と例外漏出がない |
+| U-24 | 診断 | UI debug mode | 成功・前提不成立・例外・表示未更新の各操作を実行 | ログに command ID、選択、モデル前後、表示前後、Undo 状態、失敗理由が記録される |
 
 ### Build / Packaging / Regression
 
@@ -152,6 +159,7 @@
 - OS: Windows、JDK 25+、Gradle Wrapper 使用。
 - Headless unit test: `java.awt.headless=true`。Swing/EDT 系は `SwingUtilities.invokeAndWait` を使う。
 - GUI acceptance test: Windows のデスクトップセッションで `:micrproject_ui:guiTest` を実行する。`installDist` を依存に含み、Robot 操作の失敗時は `micrproject_ui/build/reports/guiTest-artifacts/` に画面を保存する。
+- GUI quality gate: `docs/gui-quality-gate.md` を正本とする。GUI の修正は、物理操作・モデル／表示・Undo/Redo・保存再読込・視覚レイアウトの必要な層をすべて満たすまで完了扱いにしない。
 - Sample data: `samples/sampledata.mpp`, `samples/Commercial construction project plan.{mpp,pod,xlsx,xml,json}`。
 - 一時ファイル: JUnit の temp directory を使い、POD/XLSX/sidecar を毎回隔離。
 - 並行性: thread pool で sidecar lock、`Timer` poll、UI thread 操作を重ねる。

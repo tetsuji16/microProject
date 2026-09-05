@@ -99,6 +99,7 @@ import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 
 import com.microproject.menu.HyperLinkToolTip;
 import com.microproject.pm.graphic.IconManager;
+import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 import com.microproject.util.ClassLoaderUtils;
 
 /**
@@ -292,7 +293,7 @@ public class ButtonFactory extends ResourceManager {
 					throw new MissingListenerException("", "Action", name
 							+ ACTION_SUFFIX);
 				}
-				b.addActionListener(a);
+				b.addActionListener(UiButtonDiagnostics.wrapAction(name, a));
 				b.setText(getString(name + TEXT_SUFFIX));
 				if (a instanceof JComponentModifier) {
 					((JComponentModifier) a).addJComponent(b);
@@ -413,7 +414,7 @@ public class ButtonFactory extends ResourceManager {
 				throw new MissingListenerException("", "Action", name
 						+ ACTION_SUFFIX);
 			}
-			b.setAction(a);
+			b.setAction(UiButtonDiagnostics.wrapAction(name, a));
 			b.setText(getString(name + TEXT_SUFFIX));
 			if (a instanceof JComponentModifier) {
 				((JComponentModifier) a).addJComponent(b);

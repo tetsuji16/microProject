@@ -217,6 +217,7 @@ import com.microproject.workspace.WorkspaceSetting;
  */
 public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowStateListener,  SelectionNodeListener, ObjectEvent.Listener, ProjectMenuActionMap, MenuActionConstants, SavableToWorkspace {
 	private static final Logger logger = Logger.getLogger(GraphicManager.class.getName());
+	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private static final boolean BINARY_WORKSPACE = true;
 	private static GraphicManager lastGraphicManager = null; // used when displaying a popup but the frame isn't known
     private DocumentFrame currentFrame = null;
@@ -1448,7 +1449,21 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	/** Routes a secondary desktop window close request through normal project close handling. */
 	public void closeDocumentWindow(DocumentFrame frame) {
-		if (frame != null && frame.getProject() != null) closeProject(frame.getProject());
+		if (frame == null || frame.getProject() == null)
+			return;
+		Project project = frame.getProject();
+		boolean needsSaving = project.needsSaving();
+		closeProject(project);
+		// A freshly constructed secondary document may not yet be registered in
+		// the portfolio.  In that case removeProject has no delete event to drive
+		// the normal frame listener, but a clean document is safe to close now.
+		if (!needsSaving) {
+			Runnable removeFrame = () -> getFrameManager().removeFrame(frame);
+			if (SwingUtilities.isEventDispatchThread())
+				removeFrame.run();
+			else
+				SwingUtilities.invokeLater(removeFrame);
+		}
 	}
 
 	private void insertSubproject(final Project project, final long subprojectUniqueId, final boolean undo,
@@ -1621,6 +1636,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * instance instead of retrying construction.
 	 */
 	private void showTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
+		traceUi("task-information.dialog requested taskId=" + task.getId()
+			+ " existingDialog=" + (taskInformationDialog != null)
+			+ " notes=" + notes + " resourcesTab=" + resourcesTab);
 		if (taskInformationDialog == null) {
 			TaskInformationDialog dialog = TaskInformationDialog.getInstance(getFrame(), task, notes);
 			try {
@@ -1641,35 +1659,56 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		else if (resourcesTab)
 			taskInformationDialog.showResources();
 		taskInformationDialog.setVisible(true);
+		if (taskInformationDialog.isVisible()) {
+			traceUi("task-information.dialog visible taskId=" + task.getId());
+		} else {
+			logger.warning("UI_BUTTON_FAILURE id=RibbonTaskInformation reason=dialog-not-visible taskId=" + task.getId());
+		}
 	}
 
 	private Object getSingleSelectedImpl() {
-		if (!isDocumentActive())
+		if (!isDocumentActive()) {
+			traceUi("task-information.selection rejected: document is not active");
 			return null;
+		}
 
-		finishAnyOperations();
 		List nodes = getCurrentFrame().getSelectedNodes(false);
-		if (nodes == null || nodes.isEmpty())
+		// Finish editing only after taking the model-node snapshot.  The editor
+		// teardown may clear the table selection, while the command was enabled
+		// from that same selection.
+		finishAnyOperations();
+		if (nodes == null || nodes.isEmpty()) {
+			traceUi("task-information.selection rejected: no selected nodes");
 			return null;
+		}
 		if (nodes.size() > 1) {
+			traceUi("task-information.selection rejected: selectedNodes=" + nodes.size());
 			Alert.warn(Messages.getString("Message.onlySelectOneElement"), getContainer()); //$NON-NLS-1$
 			return null;
 		}
-		return ((Node) nodes.get(0)).getImpl();
+		Object selected = ((Node) nodes.get(0)).getImpl();
+		traceUi("task-information.selection accepted impl=" + describeUiObject(selected));
+		return selected;
 	}
 
 	private void showTaskInformationForSelection(boolean notes) {
+		traceUi("task-information.command received notes=" + notes);
 		Object impl = getSingleSelectedImpl();
 		if (impl == null)
 			return;
 		if (impl instanceof Assignment)
 			impl = ((Assignment) impl).getTask();
-		if (!(impl instanceof Task))
+		if (!(impl instanceof Task)) {
+			traceUi("task-information.selection rejected: impl is not a task (" + describeUiObject(impl) + ")");
 			return;
+		}
 
 		Task task = (Task) impl;
-		if (!beforeTaskInformationRoute(task, notes, false))
+		if (!beforeTaskInformationRoute(task, notes, false)) {
+			traceUi("task-information.route rejected taskId=" + task.getId());
 			return;
+		}
+		traceUi("task-information.route accepted taskId=" + task.getId());
 		openTaskInformation(task, notes, false);
 	}
 
@@ -2148,6 +2187,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public class RibbonTaskInformationAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
+			traceUi("task-information.ribbon actionPerformed source=" + describeUiObject(arg0.getSource()));
 			setMeAsLastGraphicManager();
 			showTaskInformationForSelection(false);
 		}
@@ -2814,8 +2854,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!isDocumentActive())
 				return;
 			DocumentFrame frame = getCurrentFrame();
-			TaskVisibilityService.hideSelected(frame.getProject(), frame.getSelectedTaskNodes(true, true),
-					frame.getUndoController());
+			int changed = TaskVisibilityService.hideSelected(frame.getProject(),
+					frame.getSelectedTaskNodes(true, true), frame.getUndoController());
+			traceUi("hide-selected result changedTasks=" + changed);
 		}
 		protected boolean allowed(boolean enable) {
 			return !enable || isDocumentWritable();
@@ -2828,7 +2869,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!isDocumentActive())
 				return;
 			DocumentFrame frame = getCurrentFrame();
-			TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
+			int changed = TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
+			traceUi("show-all result changedTasks=" + changed);
 		}
 		protected boolean allowed(boolean enable) {
 			return !enable || isDocumentWritable();
@@ -3904,6 +3946,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean taskInfoEnabled = currentImpl != null && (currentImpl instanceof Task || (currentImpl instanceof Assignment && taskType));
 		boolean resourceInfoEnabled = currentImpl != null && (currentImpl instanceof Resource || (currentImpl instanceof Assignment && resourceType));
 		boolean notVoid = currentImpl != null && !(currentImpl instanceof VoidNodeImpl);
+		traceUi("button-state impl=" + describeUiObject(currentImpl)
+			+ " taskInformationEnabled=" + taskInfoEnabled
+			+ " documentActive=" + isDocumentActive());
 
 		boolean readOnly = !isDocumentWritable();
 		getMenuManager().setActionEnabled(ACTION_INFORMATION,infoEnabled);
@@ -4035,6 +4080,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		Node currentNode=e.getCurrentNode();
 		Object currentImpl=currentNode.getImpl();
+		traceUi("selection changed impl=" + describeUiObject(currentImpl));
 		setButtonState(currentImpl,currentFrame.getProject());
 		// if on resource view, hide task info and vice versa.  Otherwise just show it
 		if (lastNode!=null&&taskInformationDialog!=null&&(lastNode.getImpl() instanceof Task||lastNode.getImpl() instanceof Assignment)&&currentNode.getImpl() instanceof Resource){
@@ -4050,6 +4096,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				resourceInformationDialog.selectionChanged(e);
 		}
 		lastNode=currentNode;
+	}
+
+	private static void traceUi(String message) {
+		if (Boolean.getBoolean(UI_DEBUG_PROPERTY))
+			logger.fine("UI_DEBUG " + message);
+	}
+
+	private static String describeUiObject(Object object) {
+		return object == null ? "null" : object.getClass().getSimpleName();
 	}
 
 	void refreshSaveStatus(boolean isSaving) {

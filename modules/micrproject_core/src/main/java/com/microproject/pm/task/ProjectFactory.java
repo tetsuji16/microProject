@@ -807,6 +807,8 @@ public class ProjectFactory {
 		final ArrayList projects = new ArrayList();
 		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() { public void accept(Object arg0) {
 				Node node = (Node)arg0;
+				if (node == null)
+					return;
 				Object impl = node.getImpl();
 				if (!(impl instanceof Project))
 					return;
@@ -888,6 +890,8 @@ public class ProjectFactory {
 		ids.add(Long.valueOf(project.getUniqueId()));
 		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, new Consumer<Object>() { public void accept(Object value) {
 				Node node = (Node) value;
+				if (node == null)
+					return;
 				if (node.getImpl() instanceof Project descendant)
 					ids.add(Long.valueOf(descendant.getUniqueId()));
 			}

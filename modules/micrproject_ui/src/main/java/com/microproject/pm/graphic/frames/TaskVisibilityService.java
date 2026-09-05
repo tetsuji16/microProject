@@ -22,7 +22,7 @@ final class TaskVisibilityService {
 	private TaskVisibilityService() {
 	}
 
-	static void hideSelected(Project project, Collection<Node> selectedNodes, UndoController undoController) {
+	static int hideSelected(Project project, Collection<Node> selectedNodes, UndoController undoController) {
 		Map<Task, Boolean> changes = new LinkedHashMap<>();
 		if (selectedNodes != null) {
 			for (Node node : selectedNodes) {
@@ -31,10 +31,10 @@ final class TaskVisibilityService {
 				}
 			}
 		}
-		apply(project, changes, undoController, "Hide Tasks");
+		return apply(project, changes, undoController, "Hide Tasks");
 	}
 
-	static void showAll(Project project, UndoController undoController) {
+	static int showAll(Project project, UndoController undoController) {
 		Map<Task, Boolean> changes = new LinkedHashMap<>();
 		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
 			Task task = iterator.next();
@@ -42,7 +42,7 @@ final class TaskVisibilityService {
 				changes.put(task, Boolean.FALSE);
 			}
 		}
-		apply(project, changes, undoController, "Show All Tasks");
+		return apply(project, changes, undoController, "Show All Tasks");
 	}
 
 	private static void collectTaskAndDescendants(Task task, boolean hidden, Map<Task, Boolean> changes,
@@ -64,9 +64,9 @@ final class TaskVisibilityService {
 		}
 	}
 
-	private static void apply(Project project, Map<Task, Boolean> after, UndoController undoController, String name) {
+	private static int apply(Project project, Map<Task, Boolean> after, UndoController undoController, String name) {
 		if (project == null || after.isEmpty()) {
-			return;
+			return 0;
 		}
 		Map<Task, Boolean> before = new LinkedHashMap<>();
 		for (Task task : after.keySet()) {
@@ -76,6 +76,7 @@ final class TaskVisibilityService {
 		if (undoController != null) {
 			undoController.getEditSupport().postEdit(new TaskVisibilityEdit(project, before, after, name));
 		}
+		return after.size();
 	}
 
 	private static void applyStates(Project project, Map<Task, Boolean> states) {
