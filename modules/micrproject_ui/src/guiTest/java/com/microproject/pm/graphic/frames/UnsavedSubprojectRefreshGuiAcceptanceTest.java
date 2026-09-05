@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 import java.awt.BorderLayout;
 import java.awt.Dialog;
@@ -19,6 +20,7 @@ import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.File;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -28,6 +30,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.JButton;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -35,12 +38,14 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.graphic.frames.workspace.DefaultFrameManager;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.DefaultSubprojectHandler;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -92,6 +97,55 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		assertTrue(fixture.childTask.getName().contains("unsaved"), "Cancel must retain the edited child task");
 	}
 
+	@Test
+	void robotSavesDirtyChildDuringRefreshAndPersistsTheEdit() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture();
+		show(fixture);
+		GuiAcceptanceSupport.await(() -> window.isShowing(), "master document window was not visible");
+		fixture.manager.selectForTest(fixture.document);
+		fixture.child.setDirty(true);
+		fixture.child.setGroupDirty(true);
+		AtomicBoolean completed = new AtomicBoolean();
+		AtomicReference<Boolean> result = new AtomicReference<>();
+		SwingUtilities.invokeLater(() -> { result.set(fixture.manager.refreshLinkedSubproject(fixture.reference)); completed.set(true); });
+		GuiAcceptanceSupport.await(() -> findRefreshDialog() != null || completed.get(),
+				"refresh did not show its decision dialog or complete");
+		assertTrue(!completed.get(), "Save refresh returned before prompting; child dirty=" + fixture.child.needsSaving());
+		clickRefreshChoice("Save");
+		awaitCompletion(completed, "Save did not complete the refresh decision");
+		assertTrue(Boolean.TRUE.equals(result.get()), "Save refresh must succeed");
+		assertTrue(!fixture.child.needsSaving(), "Save refresh must clear the dirty child state");
+		Project persisted = loadProject(new File(fixture.child.getFileName()));
+		assertTrue(hasTaskNamed(persisted, "unsaved child edit"),
+				"Save refresh must persist the edited child task");
+	}
+
+	@Test
+	void robotDiscardsDirtyChildDuringRefreshAndRestoresDiskProjection() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture();
+		show(fixture);
+		GuiAcceptanceSupport.await(() -> window.isShowing(), "master document window was not visible");
+		fixture.manager.selectForTest(fixture.document);
+		fixture.child.setDirty(true);
+		fixture.child.setGroupDirty(true);
+		AtomicBoolean completed = new AtomicBoolean();
+		AtomicReference<Boolean> result = new AtomicReference<>();
+		SwingUtilities.invokeLater(() -> { result.set(fixture.manager.refreshLinkedSubproject(fixture.reference)); completed.set(true); });
+		GuiAcceptanceSupport.await(() -> findRefreshDialog() != null || completed.get(),
+				"refresh did not show its decision dialog or complete");
+		assertTrue(!completed.get(), "Discard refresh returned before prompting; child dirty=" + fixture.child.needsSaving());
+		clickRefreshChoice("Discard");
+		awaitCompletion(completed, "Discard did not complete the refresh decision");
+		assertTrue(Boolean.TRUE.equals(result.get()), "Discard refresh must succeed; status="
+				+ fixture.reference.getLoadStatus() + ", file=" + fixture.reference.getSubprojectFile());
+		assertNotSame(fixture.child, fixture.reference.getSubproject(), "Discard must replace the in-memory child model");
+		assertTrue(hasTaskNamed(fixture.reference.getSubproject(), "persisted child"),
+				"Discard refresh must restore the task name from disk");
+		assertTrue(!fixture.reference.getSubproject().needsSaving(), "Discard refresh must clear the replaced child dirty state");
+	}
+
 	private Fixture createFixture() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project master = Project.createProject(ResourcePool.createRourcePool("refresh-master-pool", undo), undo);
@@ -101,18 +155,77 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		Project child = Project.createProject(ResourcePool.createRourcePool("refresh-child-pool", undo), undo);
 		child.initialize(false, false);
 		child.setName("Dirty linked child");
-		child.setFileName("C:/plans/dirty-linked-child.mpo");
 		child.setLocal(false);
 		NormalTask childTask = child.createScriptedTask();
+		childTask.setName("persisted child");
+		File childFile = File.createTempFile("msp-refresh-child-", ".mpo");
+		childFile.deleteOnExit();
+		child.setFileName(childFile.getAbsolutePath());
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(childFile.getAbsolutePath());
+		writer.setProject(child);
+		writer.exportFile();
 		childTask.setName("unsaved child edit");
-		FixtureSubProj reference = new FixtureSubProj(master, child.getUniqueId(), child);
+		DefaultSubProj reference = new DefaultSubProj(master, child.getUniqueId());
 		reference.setName("Dirty linked child");
 		reference.setSubprojectFile(child.getFileName());
 		Node referenceNode = NodeFactory.getInstance().createNode(reference);
 		master.addToDefaultOutline(null, referenceNode);
 		new DefaultSubprojectHandler(master).addSubproject(child, referenceNode, true, false);
+		ProjectFactory.getInstance().addProject(child, false, true);
+		child.setDirty(true);
 		child.setGroupDirty(true);
 		return new Fixture(master, child, childTask, reference);
+	}
+
+	private static void clickRefreshChoice(String text) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Dialog dialog = findRefreshDialog();
+			if (dialog == null) throw new AssertionError("Refresh decision dialog disappeared");
+			JButton button = findButton(dialog, text);
+			if (button == null) throw new AssertionError("Refresh decision has no " + text + " button");
+			button.doClick();
+		});
+	}
+
+	private static void awaitCompletion(AtomicBoolean completed, String message) throws Exception {
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
+		while (!completed.get() && System.nanoTime() < deadline) Thread.sleep(25);
+		assertTrue(completed.get(), message);
+	}
+
+	private static JButton findButton(java.awt.Container container, String text) {
+		for (java.awt.Component component : container.getComponents()) {
+			if (component instanceof JButton button && text.equals(button.getText())) return button;
+			if (component instanceof java.awt.Container child) {
+				JButton button = findButton(child, text);
+				if (button != null) return button;
+			}
+		}
+		return null;
+	}
+
+	private static Project loadProject(File file) throws Exception {
+		MpoFileImporter importer = new MpoFileImporter();
+		importer.setFileName(file.getAbsolutePath());
+		importer.importFile();
+		return importer.getProject();
+	}
+
+	private static String firstTaskName(Project project) {
+		for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Object value = iterator.next();
+			if (value instanceof NormalTask task) return task.getName();
+		}
+		return "";
+	}
+
+	private static boolean hasTaskNamed(Project project, String name) {
+		for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Object value = iterator.next();
+			if (value instanceof NormalTask task && name.equals(task.getName())) return true;
+		}
+		return false;
 	}
 
 	private void show(Fixture fixture) throws Exception {
@@ -176,25 +289,14 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		@Override public void activateGanttView() { }
 	}
 
-	/** Keeps this GUI fixture independent of the process-wide open-project registry. */
-	private static final class FixtureSubProj extends DefaultSubProj {
-		private static final long serialVersionUID = 1L;
-		private final Project child;
-		FixtureSubProj(Project master, long childId, Project child) {
-			super(master, childId);
-			this.child = child;
-		}
-		@Override public Project getSubproject() { return child; }
-	}
-
 	private static final class Fixture {
 		private final Project master;
 		private final Project child;
 		private final NormalTask childTask;
-		private final FixtureSubProj reference;
+		private final DefaultSubProj reference;
 		private RefreshGraphicManager manager;
 		private DocumentFrame document;
-		Fixture(Project master, Project child, NormalTask childTask, FixtureSubProj reference) {
+		Fixture(Project master, Project child, NormalTask childTask, DefaultSubProj reference) {
 			this.master = master;
 			this.child = child;
 			this.childTask = childTask;

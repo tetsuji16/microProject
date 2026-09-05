@@ -132,6 +132,7 @@ import com.microproject.dialog.options.CalendarDialogBox;
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
 import com.microproject.exchange.ResourceMappingForm;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
@@ -641,6 +642,23 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			Alert.warn("The linked project has no file location to save.");
 			return false;
 		}
+		// Refresh is initiated on the EDT.  The generic synchronous save job
+		// waits for Swing callbacks and therefore deadlocks here.  MPO children
+		// can be written atomically without scheduling a nested Swing job.
+		if (fileName.toLowerCase(Locale.ROOT).endsWith(".mpo")) {
+			try {
+				MpoFileImporter writer = new MpoFileImporter();
+				writer.setFileName(fileName);
+				writer.setProject(child);
+				writer.exportFile();
+				child.setDirty(false);
+				child.setGroupDirty(false);
+				return true;
+			} catch (Exception failure) {
+				Alert.warn("The linked project could not be saved. Refresh was cancelled and its in-memory edits were retained.");
+				return false;
+			}
+		}
 		SaveOptions options = new SaveOptions();
 		options.setLocal(child.isLocal());
 		options.setFileName(fileName);
@@ -669,6 +687,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			Alert.warn("The linked project could not be replaced safely. Its unsaved edits were retained.");
 			return false;
 		}
+		load.getProject().setDirty(false);
+		load.getProject().setGroupDirty(false);
 		if (sourceFrame != null) {
 			// The replacement succeeded; now discard the old view and build one bound
 			// to the newly loaded child.  Keeping the old view until this point makes
