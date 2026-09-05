@@ -302,6 +302,68 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void linkAndUnlinkSelectedTasksThroughRibbonRoundTripsDependency() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("ribbon-link-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask predecessor = project.createScriptedTask();
+		predecessor.setName("Link predecessor");
+		NormalTask successor = project.createScriptedTask();
+		successor.setName("Link successor");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"link test project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, predecessor), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, successor), nameColumn(sheet)));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
+			"Shift-click did not preserve both selected tasks");
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title"));
+		click(robot, boundsOnScreen(taskTab));
+		AbstractButton link = findShowingButtonByCommand("RibbonLink");
+		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for two selected tasks");
+		click(robot, boundsOnScreen(link));
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
+				"Link did not create a dependency between the selected tasks");
+
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty(), "Ctrl+Z did not undo the link");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1, "Ctrl+Y did not redo the link");
+
+		AbstractButton unlink = findShowingButtonByCommand("RibbonUnlink");
+		GuiAcceptanceSupport.await(unlink::isEnabled, "Unlink became disabled after link creation");
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
+			"Undo/Redo did not preserve both selected tasks for Unlink");
+		click(robot, boundsOnScreen(unlink));
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty(),
+				"Unlink did not remove the dependency between the selected tasks");
+	}
+
+	@Test
 	void secondaryDocumentWindowUsesTheSameRibbonShell() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for window coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

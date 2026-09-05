@@ -492,6 +492,7 @@ public class DocumentFrame extends NamedFrame implements
 			if (list.size() < 2)
 				return;
 			DependencyService.getInstance().connect(list,this,null);
+			getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
 			//DependencyService.getInstance().connect(list,this);
 		} catch (InvalidAssociationException e) {
 			Alert.error(e.getMessage(),this);
@@ -510,6 +511,7 @@ public class DocumentFrame extends NamedFrame implements
 
 
 		DependencyService.getInstance().removeAnyDependencies(list,this);
+		getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
 	}
 	public void doUndoRedo(boolean isUndo) {
 		if (!isActive())
@@ -529,34 +531,37 @@ public class DocumentFrame extends NamedFrame implements
 
 	private static final class SelectionSnapshot {
 		private final CommonSpreadSheet spreadSheet;
+		private final List<Node> selectedNodes;
 		private final Node node;
 		private final Object impl;
 		private final int row;
 		private final int column;
 
-		private SelectionSnapshot(CommonSpreadSheet spreadSheet, Node node, Object impl, int row, int column) {
+		private SelectionSnapshot(CommonSpreadSheet spreadSheet, Node node, Object impl, int row, int column,
+				List<Node> selectedNodes) {
 			this.spreadSheet = spreadSheet;
 			this.node = node;
 			this.impl = impl;
 			this.row = row;
 			this.column = column;
+			this.selectedNodes = selectedNodes;
 		}
 
 		private static SelectionSnapshot capture(CommonSpreadSheet spreadSheet) {
 			if (spreadSheet == null)
-				return new SelectionSnapshot(null, null, null, -1, -1);
+				return new SelectionSnapshot(null, null, null, -1, -1, Collections.emptyList());
 			int row = spreadSheet.getCurrentRow();
 			if (row < 0)
-				return new SelectionSnapshot(spreadSheet, null, null, -1, -1);
+				return new SelectionSnapshot(spreadSheet, null, null, -1, -1, spreadSheet.getSelectedNodes());
 			int column = spreadSheet.isEditing() ? spreadSheet.getEditingColumn() : spreadSheet.getSelectedColumn();
 			CommonSpreadSheet.PendingUndoSelection pendingUndoSelection = spreadSheet.consumePendingUndoSelection(row, column);
 			if (pendingUndoSelection != null) {
 				return new SelectionSnapshot(spreadSheet, pendingUndoSelection.node(), pendingUndoSelection.impl(),
-						pendingUndoSelection.row(), pendingUndoSelection.column());
+						pendingUndoSelection.row(), pendingUndoSelection.column(), spreadSheet.getSelectedNodes());
 			}
 			Node node = spreadSheet.getCurrentRowNode();
 			Object impl = (node == null) ? null : node.getImpl();
-			return new SelectionSnapshot(spreadSheet, node, impl, row, column);
+			return new SelectionSnapshot(spreadSheet, node, impl, row, column, spreadSheet.getSelectedNodes());
 		}
 
 		private void restore() {
@@ -564,6 +569,11 @@ public class DocumentFrame extends NamedFrame implements
 				return;
 			SwingUtilities.invokeLater(new Runnable() {
 				public void run() {
+					if (spreadSheet instanceof SpreadSheet taskSheet && selectedNodes != null && selectedNodes.size() > 1) {
+						taskSheet.requestFocusInWindow();
+						taskSheet.restoreTaskRowSelection(selectedNodes);
+						return;
+					}
 					int targetRow = resolveRow();
 					if (targetRow < 0 || targetRow >= spreadSheet.getRowCount() || column >= spreadSheet.getColumnCount())
 						return;
