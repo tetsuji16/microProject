@@ -68,6 +68,7 @@ import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.ClassLoaderUtils;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.VersionUtils;
 
 public final class FindDialog extends AbstractDialog implements ObjectEvent.Listener,DocumentSelectedEvent.Listener{
@@ -193,6 +194,8 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		ButtonPanel buttonPanel = new ButtonPanel();
 		next = new JButton(Messages.getString("LookupDialog.Find"),IconManager.getIcon("image.down"));
 		previous = new JButton(Messages.getString("LookupDialog.Find"),IconManager.getIcon("image.up"));
+		FlatUiSupport.styleDialogButton(next, false);
+		FlatUiSupport.styleDialogButton(previous, false);
 		buttonPanel.add(next);
 		buttonPanel.add(previous);
 		updateFindButtonState();
