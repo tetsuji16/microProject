@@ -49,6 +49,7 @@ import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.dependency.Dependency;
@@ -229,6 +230,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> hasTaskNamed(runtimeMaster, writableTask.getName()),
 				"the normal local-file route did not materialize the writable embedded child after dismissing the read-only notice: "
 						+ "states=" + subprojectStates(runtimeMaster));
+		assertExpandCollapseKeepsMasterRowsStable(writablePlaceholder.getName(), writableTask.getName());
 		capture(robot, "master-subproject-consolidated-gantt.png");
 		capture(robot, "master-subproject-cross-project-gantt.png");
 
@@ -244,6 +246,50 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		assertTrue(((Task) reloadedPlaceholder).isSubprojectReadOnly(), "read-only insertion mode must survive save/reopen");
 		assertTrue(hasExtractedSubproject(reloaded, writableChildFile),
 				"writable child MPO must be embedded and extracted on reopen");
+	}
+
+	private void assertExpandCollapseKeepsMasterRowsStable(String parentName, String childName) throws Exception {
+		final int[] counts = new int[2];
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet visibleSheet = graphicManager.getCurrentFrame().getTopSpreadSheet();
+			assertNotNull(visibleSheet, "the opened master must expose a task spreadsheet");
+			assertTrue(visibleSheet.getModel() instanceof SpreadSheetModel,
+					"the opened master spreadsheet must use the outline model");
+			SpreadSheetModel model = (SpreadSheetModel) visibleSheet.getModel();
+			int nameColumn = -1;
+			for (int column = 0; column < visibleSheet.getColumnCount(); column++) {
+				if (visibleSheet.isNameFieldColumn(column)) {
+					nameColumn = column;
+					break;
+				}
+			}
+			assertTrue(nameColumn >= 0, "the master spreadsheet must expose a task-name column");
+			int parentRow = -1;
+			for (int row = 0; row < model.getRowCount(); row++) {
+				Object value = model.getNode(row).getNode().getImpl();
+				if (value instanceof Task task && parentName.equals(task.getName())) {
+					parentRow = row;
+					break;
+				}
+			}
+			assertTrue(parentRow >= 0, "the embedded child placeholder must be visible before collapse");
+			visibleSheet.changeSelection(parentRow, nameColumn, false, false);
+			counts[0] = model.getRowCount();
+			visibleSheet.executeNameCellCollapseExpand(false);
+			counts[1] = model.getRowCount();
+			assertTrue(counts[1] < counts[0], "collapsing the embedded child must hide its projected task rows");
+			visibleSheet.executeNameCellCollapseExpand(true);
+			assertEquals(counts[0], model.getRowCount(), "re-expanding must restore the original row count");
+			boolean childVisible = false;
+			for (int row = 0; row < model.getRowCount(); row++) {
+				Object value = model.getNode(row).getNode().getImpl();
+				if (value instanceof Task task && childName.equals(task.getName())) {
+					childVisible = true;
+					break;
+				}
+			}
+			assertTrue(childVisible, "re-expanding must restore the embedded child task row");
+		});
 	}
 
 	/** GUI-MSP-WINDOW-04: master, two independent files, and an opened child are all navigable documents. */
