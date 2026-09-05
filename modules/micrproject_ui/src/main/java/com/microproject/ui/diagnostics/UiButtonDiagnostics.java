@@ -22,6 +22,8 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.key.HasKey;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 
 /**
  * Adds opt-in action lifecycle diagnostics to command buttons. It is used
@@ -144,9 +146,10 @@ public final class UiButtonDiagnostics {
 		private final boolean canUndo;
 		private final boolean canRedo;
 		private final int visibleWindows;
+		private final String modelSignature;
 
 		private UiState(String selection, String activeView, int rows, boolean dirty,
-				boolean canUndo, boolean canRedo, int visibleWindows) {
+				boolean canUndo, boolean canRedo, int visibleWindows, String modelSignature) {
 			this.selection = selection;
 			this.activeView = activeView;
 			this.rows = rows;
@@ -154,6 +157,7 @@ public final class UiButtonDiagnostics {
 			this.canUndo = canUndo;
 			this.canRedo = canRedo;
 			this.visibleWindows = visibleWindows;
+			this.modelSignature = modelSignature;
 		}
 
 		private static UiState capture(Component source) {
@@ -181,20 +185,39 @@ public final class UiButtonDiagnostics {
 				if (frame != null && frame.getActiveTopView() != null && frame.getActiveTopView().getViewName() != null)
 					activeView = frame.getActiveTopView().getViewName();
 				boolean dirty = frame != null && frame.getProject() != null && frame.getProject().needsSaving();
+				String modelSignature = modelSignature(frame == null ? null : frame.getProject());
 				boolean canUndo = frame != null && frame.getUndoController() != null && frame.getUndoController().canUndo();
 				boolean canRedo = frame != null && frame.getUndoController() != null && frame.getUndoController().canRedo();
 				int visibleWindows = 0;
 				for (Window window : Window.getWindows())
 					if (window.isShowing()) visibleWindows++;
 				return new UiState(selected.toString(), activeView, sheet == null ? -1 : sheet.getRowCount(), dirty,
-					canUndo, canRedo, visibleWindows);
+					canUndo, canRedo, visibleWindows, modelSignature);
 			} catch (RuntimeException | Error ignored) {
-				return new UiState("unavailable", "unavailable", -1, false, false, false, -1);
+				return new UiState("unavailable", "unavailable", -1, false, false, false, -1, "unavailable");
 			}
 		}
 
+		private static String modelSignature(Project project) {
+			if (project == null || project.getTaskOutline() == null)
+				return "none";
+			StringBuilder snapshot = new StringBuilder();
+			for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+				Object value = iterator.next();
+				if (!(value instanceof Task task))
+					continue;
+				snapshot.append(task.getUniqueId()).append(':')
+					.append(task.getStart()).append(':').append(task.getEnd()).append(':')
+					.append(task.getDuration()).append(':').append(task.getPercentComplete()).append(':')
+					.append(task.isSummary()).append(':').append(task.isHiddenTask()).append(':')
+					.append(task.getUniqueIdPredecessors()).append(':')
+					.append(task.getUniqueIdSuccessors()).append(';');
+			}
+			return Integer.toHexString(snapshot.toString().hashCode());
+		}
+
 		private String modelSummary() {
-			return "dirty=" + dirty + ",selection=" + selection;
+			return "signature=" + modelSignature + ",dirty=" + dirty + ",selection=" + selection;
 		}
 
 		private String viewSummary() {
@@ -206,7 +229,7 @@ public final class UiButtonDiagnostics {
 		}
 
 		private boolean modelChanged(UiState other) {
-			return dirty != other.dirty || !selection.equals(other.selection);
+			return !modelSignature.equals(other.modelSignature) || dirty != other.dirty;
 		}
 
 		private boolean viewChanged(UiState other) {
@@ -223,12 +246,14 @@ public final class UiButtonDiagnostics {
 			if (!(other instanceof UiState state)) return false;
 			return rows == state.rows && dirty == state.dirty && canUndo == state.canUndo
 				&& canRedo == state.canRedo && visibleWindows == state.visibleWindows
-				&& selection.equals(state.selection) && activeView.equals(state.activeView);
+				&& selection.equals(state.selection) && activeView.equals(state.activeView)
+				&& modelSignature.equals(state.modelSignature);
 		}
 
 		@Override
 		public int hashCode() {
-			return java.util.Objects.hash(selection, activeView, rows, dirty, canUndo, canRedo, visibleWindows);
+			return java.util.Objects.hash(selection, activeView, rows, dirty, canUndo, canRedo, visibleWindows,
+				modelSignature);
 		}
 	}
 }
