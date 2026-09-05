@@ -13,6 +13,7 @@ import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Point;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
@@ -169,6 +170,64 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(), "task table or Gantt was not visible");
 		robot.delay(500);
 		captureVisibleLayout(robot, "task-table-gantt-grid-empty-middle.png");
+	}
+
+	@Test
+	void physicalCellAndColumnHeaderClicksKeepSelectionHighlightCoordinatesAligned() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			fixture.sheet.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getRowCount() >= 3,
+			"task table was not ready for physical selection verification");
+		robot.delay(300);
+
+		final int row = 1;
+		final int column = Math.min(1, fixture.sheet.getColumnCount() - 1);
+		Point cellPoint = screenCenter(fixture.sheet, fixture.sheet.getCellRect(row, column, true));
+		robot.mouseMove(cellPoint.x, cellPoint.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(150);
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(row, fixture.sheet.getSelectedRow(), "physical cell click selected a different row");
+			assertEquals(column, fixture.sheet.getSelection().getActiveColumn(),
+				"active cell column must match the physically clicked column");
+			assertTrue(fixture.sheet.getSelection().isActiveCell(row, column),
+				"active cell must match the physically clicked cell");
+			assertTrue(fixture.sheet.isRowFullySelected(row), "physical task-cell click must select the full task row");
+			assertFalse(fixture.sheet.isHeaderColumnSelectionActive(),
+				"a task-cell click must not be rendered as a column-header selection");
+		});
+
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(150);
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(column, fixture.sheet.getSelectedColumn(),
+				"physical column-header click selected a different column");
+			assertTrue(fixture.sheet.isColumnFullySelected(column),
+				"physical column-header click must select the complete column");
+			assertTrue(fixture.sheet.isHeaderColumnSelectionActive(),
+				"column-header selection must use the column-header rendering state");
+			assertFalse(fixture.sheet.getSelection().isActiveCell(row, column),
+				"a full column selection must not retain a misleading active-cell highlight");
+		});
+	}
+
+	private static Point screenCenter(javax.swing.JComponent component, Rectangle bounds) throws Exception {
+		Point location = new Point();
+		SwingUtilities.invokeAndWait(() -> location.setLocation(component.getLocationOnScreen()));
+		return new Point(location.x + bounds.x + bounds.width / 2, location.y + bounds.y + bounds.height / 2);
 	}
 
 	private void captureVisibleLayout(Robot robot) throws Exception {
