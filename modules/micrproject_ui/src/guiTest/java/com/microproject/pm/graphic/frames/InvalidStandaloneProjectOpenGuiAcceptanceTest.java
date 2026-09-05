@@ -141,6 +141,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		assertSame(original[0], graphicManager.getCurrentFrame());
 		assertEquals(1, frameManager[0].getAllFrames().size());
 		Robot robot = new Robot();
+		capture(robot, dialog, "missing-standalone-project-open-error.png");
 		clickDismissButton(robot, dialog);
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "OK did not dismiss the missing-file error");
 		assertSame(original[0], graphicManager.getCurrentFrame());
@@ -187,8 +188,9 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 			assertTrue(text.contains(invalidFile.toString()), text);
 			assertSame(original[0], graphicManager.getCurrentFrame());
 			assertEquals(1, frameManager[0].getAllFrames().size());
-			Robot robot = new Robot();
-			clickDismissButton(robot, dialog);
+		Robot robot = new Robot();
+		capture(robot, dialog, "access-denied-standalone-project-open-error.png");
+		clickDismissButton(robot, dialog);
 			GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "OK did not dismiss the access-denied error");
 		} finally {
 			setAcl(invalidFile, user, "/reset", null);
@@ -228,10 +230,14 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 	}
 
 	private void capture(Robot robot, Dialog dialog) throws Exception {
+		capture(robot, dialog, "invalid-standalone-project-open-error.png");
+	}
+
+	private void capture(Robot robot, Dialog dialog, String fileName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(window.getBounds()).union(dialog.getBounds()));
 		robot.waitForIdle();
-		Path artifact = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"), "invalid-standalone-project-open-error.png");
+		Path artifact = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"), fileName);
 		Files.createDirectories(artifact.getParent());
 		BufferedImage image = robot.createScreenCapture(bounds[0]);
 		ImageIO.write(image, "png", artifact.toFile());
