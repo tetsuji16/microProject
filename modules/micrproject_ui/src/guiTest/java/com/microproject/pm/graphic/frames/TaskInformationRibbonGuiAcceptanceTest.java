@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
+import com.microproject.dialog.assignment.TimesheetEntryPane;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
@@ -44,6 +46,7 @@ import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -150,10 +153,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"usage-detail window did not become visible");
 		SwingUtilities.invokeAndWait(() -> {
-			assertTrue(manager.getCurrentFrame().activateView(GraphicManager.ACTION_TASK_USAGE_DETAIL));
-			assertTrue(manager.getCurrentFrame().getActiveTopView() != null);
-			assertTrue(manager.getCurrentFrame().activateView(GraphicManager.ACTION_RESOURCE_USAGE_DETAIL));
-			assertTrue(manager.getCurrentFrame().getActiveTopView() != null);
+			DocumentFrame frame = manager.getCurrentFrame();
+			assertTrue(frame.activateView(GraphicManager.ACTION_TASK_USAGE_DETAIL));
+			assertTrue(frame.getActiveTopView() instanceof UsageDetailView);
+			UsageDetailView taskUsage = frame.getTaskUsageDetailView();
+			assertNotNull(taskUsage.getSpreadSheet(), "task usage left spreadsheet was not initialized");
+			assertNotNull(taskUsage.getTimeSpreadSheet(), "task usage time spreadsheet was not initialized");
+			assertTrue(taskUsage.getSpreadSheet().getModel().getRowCount() >= 0);
+			assertTrue(frame.activateView(GraphicManager.ACTION_RESOURCE_USAGE_DETAIL));
+			assertTrue(frame.getActiveTopView() instanceof UsageDetailView);
+			UsageDetailView resourceUsage = frame.getResourceUsageDetailView();
+			assertNotNull(resourceUsage.getSpreadSheet(), "resource usage left spreadsheet was not initialized");
+			assertNotNull(resourceUsage.getTimeSpreadSheet(), "resource usage time spreadsheet was not initialized");
+			assertTrue(resourceUsage.getSpreadSheet().getModel().getRowCount() >= 0);
 		});
 	}
 
@@ -176,6 +188,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				.anyMatch(dialog -> dialog.isShowing() && dialog.getSpreadSheetPane() != null
 						&& dialog.getSpreadSheetPane().getSpreadSheet() != null),
 			"RibbonTimesheet did not construct its dedicated spreadsheet");
+		TimesheetDialog dialog = java.util.Arrays.stream(Window.getWindows())
+			.filter(TimesheetDialog.class::isInstance)
+			.map(TimesheetDialog.class::cast)
+			.filter(TimesheetDialog::isShowing)
+			.findFirst().orElseThrow();
+		TimesheetEntryPane pane = dialog.getSpreadSheetPane();
+		assertNotNull(pane.getSpreadSheet().getModel(), "timesheet spreadsheet model was not initialized");
 	}
 
 	@Test
