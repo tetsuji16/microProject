@@ -293,7 +293,14 @@ public class ButtonFactory extends ResourceManager {
 					throw new MissingListenerException("", "Action", name
 							+ ACTION_SUFFIX);
 				}
-				b.addActionListener(UiButtonDiagnostics.wrapAction(name, a));
+				Action tracedAction = UiButtonDiagnostics.wrapAction(name, a);
+				AbstractCommandButton commandButton = b;
+				b.addActionListener(tracedAction);
+				b.setEnabled(tracedAction.isEnabled());
+				tracedAction.addPropertyChangeListener(event -> {
+					if ("enabled".equals(event.getPropertyName()))
+						commandButton.setEnabled(tracedAction.isEnabled());
+				});
 				b.setText(getString(name + TEXT_SUFFIX));
 				if (a instanceof JComponentModifier) {
 					((JComponentModifier) a).addJComponent(b);
