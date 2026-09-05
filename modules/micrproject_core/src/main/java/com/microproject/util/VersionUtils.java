@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.util;
 
+import java.math.BigInteger;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.logging.Level;
@@ -36,6 +37,7 @@ import javax.swing.SwingUtilities;
 import com.microproject.strings.Messages;
 
 public class VersionUtils {
+	private static final BigInteger ZERO = BigInteger.ZERO;
 	private static final Logger logger = Logger.getLogger(VersionUtils.class.getName());
 	public static String getVersion(){
 		String version=null;
@@ -60,6 +62,38 @@ public class VersionUtils {
 	}
 	public static String getJnlpVersion(){
 		return System.getProperty("microproject.version");
+	}
+
+	/**
+	 * Compares dotted numeric application versions. A leading {@code v} is
+	 * ignored, missing trailing components are treated as zero, and a hyphen
+	 * is accepted as a component separator for release tags. Non-numeric or
+	 * empty versions are rejected instead of silently triggering an update.
+	 */
+	public static int compareVersions(String first, String second) {
+		String[] left = versionParts(first);
+		String[] right = versionParts(second);
+		if (left == null || right == null) return 0;
+		int length = Math.max(left.length, right.length);
+		for (int i = 0; i < length; i++) {
+			BigInteger leftPart = i < left.length ? new BigInteger(left[i]) : ZERO;
+			BigInteger rightPart = i < right.length ? new BigInteger(right[i]) : ZERO;
+			int comparison = leftPart.compareTo(rightPart);
+			if (comparison != 0) return comparison;
+		}
+		return 0;
+	}
+
+	private static String[] versionParts(String version) {
+		if (version == null) return null;
+		String normalized = version.trim().toLowerCase(Locale.ROOT);
+		if (normalized.startsWith("v")) normalized = normalized.substring(1);
+		if (normalized.isEmpty()) return null;
+		String[] parts = normalized.split("[.\\-]", -1);
+		for (String part : parts) {
+			if (part.isEmpty() || !part.chars().allMatch(Character::isDigit)) return null;
+		}
+		return parts;
 	}
 
 	public static String toAppletVersion(String v){

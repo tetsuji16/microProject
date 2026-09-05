@@ -244,31 +244,7 @@ public final class UpdateChecker {
 	 * e.g. v0.0.23 > 0.0.9, 0.0.23.140 > 0.0.23.
 	 */
 	static boolean isNewer(String candidate, String current) {
-		int[] a = parse(candidate);
-		int[] b = parse(current);
-		if (a == null || b == null) return false;
-		for (int i = 0; i < Math.max(a.length, b.length); i++) {
-			int left = i < a.length ? a[i] : 0;
-			int right = i < b.length ? b[i] : 0;
-			if (left != right) return left > right;
-		}
-		return false;
-	}
-
-	private static int[] parse(String version) {
-		if (version == null) return null;
-		String normalized = version.trim().toLowerCase(Locale.ROOT);
-		if (normalized.startsWith("v")) normalized = normalized.substring(1);
-		String[] parts = normalized.split("[.\\-]");
-		int[] numbers = new int[parts.length];
-		for (int i = 0; i < parts.length; i++) {
-			try {
-				numbers[i] = Integer.parseInt(parts[i]);
-			} catch (NumberFormatException e) {
-				return null;
-			}
-		}
-		return numbers;
+		return VersionUtils.compareVersions(candidate, current) > 0;
 	}
 
 	private static void offerUpgrade(String current, String latest) {

@@ -30,6 +30,24 @@ import org.junit.jupiter.api.Test;
 
 class VersionUtilsTest {
 	@Test
+	void comparesReleaseVersionsByNumericComponentsRegardlessOfComponentCount() {
+		assertEquals(1, VersionUtils.compareVersions("v0.0.23.395", "0.0.23"));
+		assertEquals(1, VersionUtils.compareVersions("0.0.10", "0.0.9"));
+		assertEquals(0, VersionUtils.compareVersions("0.0.23", "v0.0.23.0"));
+	}
+
+	@Test
+	void comparesLargeBuildNumbersWithoutIntegerOverflow() {
+		assertEquals(1, VersionUtils.compareVersions("0.0.23.2147483648", "0.0.23.999"));
+	}
+
+	@Test
+	void rejectsMalformedVersions() {
+		assertEquals(0, VersionUtils.compareVersions("snapshot", "0.0.23"));
+		assertEquals(0, VersionUtils.compareVersions("0.0.23.", "0.0.23"));
+	}
+
+	@Test
 	void reportsTheGradleReleaseVersionFromTheProcessedResource() {
 		assertEquals(System.getProperty("projectlibre.test.releaseVersion"), VersionUtils.getVersion());
 	}
