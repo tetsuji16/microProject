@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.TaskInformationDialog;
+import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.field.Field;
 import com.microproject.job.JobQueue;
 import com.microproject.menu.testsupport.UiComponentWalker;
@@ -63,7 +64,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	void closeWindow() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window candidate : Window.getWindows()) {
-				if (candidate instanceof TaskInformationDialog)
+				if (candidate instanceof TaskInformationDialog || candidate instanceof TimesheetDialog)
 					candidate.dispose();
 			}
 			if (manager != null)
@@ -140,6 +141,27 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertTrue(manager.getCurrentFrame().activateView(GraphicManager.ACTION_RESOURCE_USAGE_DETAIL));
 			assertTrue(manager.getCurrentFrame().getActiveTopView() != null);
 		});
+	}
+
+	@Test
+	void timesheetRouteConstructsItsDedicatedSpreadsheet() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"timesheet test project did not become active");
+		SwingUtilities.invokeAndWait(() -> manager.showTimesheetDialog(manager.getCurrentFrame()));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.filter(TimesheetDialog.class::isInstance)
+				.map(TimesheetDialog.class::cast)
+				.anyMatch(dialog -> dialog.isShowing() && dialog.getSpreadSheetPane() != null
+						&& dialog.getSpreadSheetPane().getSpreadSheet() != null),
+			"RibbonTimesheet did not construct its dedicated spreadsheet");
 	}
 
 	@Test

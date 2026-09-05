@@ -136,7 +136,7 @@ public class TimesheetEntryPane extends JScrollPane {
 		}
 
 		rebuildTimesheetAssignments();
-		if (spreadSheet.getModel() == null) {
+		if (spreadSheet.getModel() == null || spreadSheet.getCache() == null) {
 			SpreadSheetUtils.createCollectionSpreadSheet(
 				spreadSheet,
 				timesheetAssignments,

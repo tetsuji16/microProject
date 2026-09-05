@@ -62,6 +62,10 @@ public class TimesheetDialog extends AbstractDialog implements CommonAssignmentD
 		this.selectedResources = selectedResources;
 	}
 
+	public TimesheetEntryPane getSpreadSheetPane() {
+		return spreadSheetPane;
+	}
+
 	protected void initControls() {
 		spreadSheetPane = new TimesheetEntryPane(this, documentFrame.getProject());
 		resourceNames = new JLabel();

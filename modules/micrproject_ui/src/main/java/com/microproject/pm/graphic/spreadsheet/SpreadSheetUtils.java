@@ -68,6 +68,12 @@ public class SpreadSheetUtils {
 			,String spreadSheetId
 			,boolean leftAssociation) {
 		SpreadSheetFieldArray fields = (SpreadSheetFieldArray) Dictionary.get(spreadSheetCategory, Messages.getString(spreadSheetId));
+		if (fields == null) {
+			fields = new SpreadSheetFieldArray();
+			List<?> fallback = getFieldsForCategory(spreadSheetCategory);
+			if (fallback != null)
+				fields.addAll((Collection) fallback);
+		}
 		ss.setCache(cache, fields, fields.getCellStyle(), fields.getActionList());
 		FieldContext fieldContext = new FieldContext();
 		fieldContext.setLeftAssociation(leftAssociation);
