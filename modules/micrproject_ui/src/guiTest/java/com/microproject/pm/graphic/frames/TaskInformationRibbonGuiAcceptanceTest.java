@@ -6,6 +6,7 @@
 package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
@@ -22,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
@@ -225,6 +227,45 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
+	}
+
+	@Test
+	void mutationCommandsAreDisabledWithoutTaskSelection() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"no-selection test project did not become visible");
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		SwingUtilities.invokeAndWait(sheet::clearSelection);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).isEmpty(),
+			"test fixture did not reach the no-selection state");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title"));
+		click(robot, boundsOnScreen(taskTab));
+		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
+		assertFalse(findShowingButtonByCommand("RibbonLink").isEnabled(),
+			"Link must be disabled without two selected tasks");
+		assertFalse(findShowingButtonByCommand("RibbonUnlink").isEnabled(),
+			"Unlink must be disabled without a selected task");
+		assertFalse(findShowingButtonByCommand("RibbonIndent").isEnabled(),
+			"Indent must be disabled without a selected task");
+		assertFalse(findShowingButtonByCommand("RibbonOutdent").isEnabled(),
+			"Outdent must be disabled without a selected task");
+		assertFalse(findShowingButtonByCommand("RibbonCollapse").isEnabled(),
+			"Collapse must be disabled without a selected task");
+		assertFalse(findShowingButtonByCommand("RibbonHideSelectedTasks").isEnabled(),
+			"Hide Selected Tasks must be disabled without a selected task");
 	}
 
 	@Test
@@ -545,7 +586,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
 			.filter(AbstractButton::isShowing).filter(button -> command.equals(button.getActionCommand()))
-			.findFirst().orElseThrow(() -> new AssertionError("Visible ribbon command not found: " + command)));
+			.findFirst().orElseThrow(() -> new AssertionError("Visible ribbon command not found: " + command
+				+ " visibleCommands=" + UiComponentWalker.flatten(window).stream()
+					.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+					.filter(AbstractButton::isShowing).map(AbstractButton::getActionCommand)
+					.filter(java.util.Objects::nonNull).collect(Collectors.joining(",")))));
 		return result[0];
 	}
 

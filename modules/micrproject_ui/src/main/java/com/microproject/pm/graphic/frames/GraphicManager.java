@@ -3978,8 +3978,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && currentFrame != null && currentFrame.canMoveSelectedTasks(1));
 		getMenuManager().setActionEnabled(ACTION_EXPAND,!readOnly && notVoid && (actions==null||actions.contains(ACTION_EXPAND)));
 		getMenuManager().setActionEnabled(ACTION_COLLAPSE,!readOnly && notVoid && (actions==null||actions.contains(ACTION_COLLAPSE)));
-		getMenuManager().setActionEnabled(ACTION_LINK,isTask);
-		getMenuManager().setActionEnabled(ACTION_UNLINK,isTask);
+		boolean hasOneTaskSelection = currentFrame != null && currentFrame.hasTaskSelection(false, 1, true);
+		boolean hasLinkSelection = currentFrame != null && currentFrame.hasTaskSelection(false, 2, true);
+		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && hasLinkSelection);
+		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasOneTaskSelection);
+		getMenuManager().setActionEnabled(ACTION_HIDE_SELECTED_TASKS,
+				!readOnly && currentFrame != null && currentFrame.hasTaskSelection(true, 1, true));
 		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES,isTask && writable);
 		getMenuManager().setActionEnabled(ACTION_TIMESHEET,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
