@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.Dialog;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -485,6 +486,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private void showProject(Project project) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window candidate : Window.getWindows()) {
+				if (candidate instanceof Dialog && candidate.isShowing())
+					candidate.dispose();
 				if (candidate instanceof MainRibbonFrame)
 					candidate.dispose();
 			}
