@@ -16,12 +16,11 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
-import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -70,13 +69,14 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		Fixture fixture = createFixture();
 		show(fixture);
 		GuiAcceptanceSupport.await(() -> window.isShowing(), "master document window was not visible");
-		fixture.manager.selectForTest(fixture.document);
 		assertSame(fixture.document, fixture.manager.getCurrentFrame(), "master fixture must be the active document");
 		assertTrue(fixture.child.needsSaving(), "fixture must represent a savable dirty child");
 
 		AtomicBoolean completed = new AtomicBoolean();
 		AtomicReference<Boolean> refreshResult = new AtomicReference<Boolean>();
 		SwingUtilities.invokeLater(() -> {
+			restoreFixtureChild(fixture);
+			fixture.manager.selectForTest(fixture.document);
 			refreshResult.set(fixture.manager.refreshLinkedSubproject(fixture.reference));
 			completed.set(true);
 		});
@@ -89,9 +89,8 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		capture(robot, dialog);
-		robot.keyPress(KeyEvent.VK_ESCAPE);
-		robot.keyRelease(KeyEvent.VK_ESCAPE);
-		GuiAcceptanceSupport.await(completed::get, "Escape did not complete the refresh decision");
+		clickRefreshChoice("Cancel");
+		GuiAcceptanceSupport.await(completed::get, "Cancel did not complete the refresh decision");
 
 		assertFalse(Boolean.TRUE.equals(refreshResult.get()), "Cancel must reject refresh");
 		assertSame(fixture.child, fixture.reference.getSubproject(), "Cancel must retain the in-memory child model");
@@ -105,12 +104,17 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		Fixture fixture = createFixture();
 		show(fixture);
 		GuiAcceptanceSupport.await(() -> window.isShowing(), "master document window was not visible");
-		fixture.manager.selectForTest(fixture.document);
 		fixture.child.setDirty(true);
 		fixture.child.setGroupDirty(true);
+		assertSame(fixture.child, fixture.reference.getSubproject(), "save fixture must retain its open child");
 		AtomicBoolean completed = new AtomicBoolean();
 		AtomicReference<Boolean> result = new AtomicReference<>();
-		SwingUtilities.invokeLater(() -> { result.set(fixture.manager.refreshLinkedSubproject(fixture.reference)); completed.set(true); });
+		SwingUtilities.invokeLater(() -> {
+			restoreFixtureChild(fixture);
+			fixture.manager.selectForTest(fixture.document);
+			result.set(fixture.manager.refreshLinkedSubproject(fixture.reference));
+			completed.set(true);
+		});
 		GuiAcceptanceSupport.await(() -> findRefreshDialog() != null || completed.get(),
 				"refresh did not show its decision dialog or complete");
 		assertTrue(!completed.get(), "Save refresh returned before prompting; child dirty=" + fixture.child.needsSaving());
@@ -129,12 +133,16 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		Fixture fixture = createFixture();
 		show(fixture);
 		GuiAcceptanceSupport.await(() -> window.isShowing(), "master document window was not visible");
-		fixture.manager.selectForTest(fixture.document);
 		fixture.child.setDirty(true);
 		fixture.child.setGroupDirty(true);
 		AtomicBoolean completed = new AtomicBoolean();
 		AtomicReference<Boolean> result = new AtomicReference<>();
-		SwingUtilities.invokeLater(() -> { result.set(fixture.manager.refreshLinkedSubproject(fixture.reference)); completed.set(true); });
+		SwingUtilities.invokeLater(() -> {
+			restoreFixtureChild(fixture);
+			fixture.manager.selectForTest(fixture.document);
+			result.set(fixture.manager.refreshLinkedSubproject(fixture.reference));
+			completed.set(true);
+		});
 		GuiAcceptanceSupport.await(() -> findRefreshDialog() != null || completed.get(),
 				"refresh did not show its decision dialog or complete");
 		assertTrue(!completed.get(), "Discard refresh returned before prompting; child dirty=" + fixture.child.needsSaving());
@@ -207,7 +215,7 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		Node referenceNode = NodeFactory.getInstance().createNode(reference);
 		master.addToDefaultOutline(null, referenceNode);
 		new DefaultSubprojectHandler(master).addSubproject(child, referenceNode, true, false);
-		ProjectFactory.getInstance().addProject(child, false, true);
+		ProjectFactory.getInstance().addProject(child, false, false);
 		child.setDirty(true);
 		child.setGroupDirty(true);
 		return new Fixture(master, child, childTask, reference);
@@ -227,6 +235,11 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
 		while (!completed.get() && System.nanoTime() < deadline) Thread.sleep(25);
 		assertTrue(completed.get(), message);
+	}
+
+	private static void restoreFixtureChild(Fixture fixture) {
+		ProjectFactory.getInstance().addProject(fixture.child, false, false);
+		fixture.reference.setSubprojectUniqueId(fixture.child.getUniqueId());
 	}
 
 	private static JButton findButton(java.awt.Container container, String text) {
