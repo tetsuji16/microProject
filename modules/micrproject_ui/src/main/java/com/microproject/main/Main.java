@@ -119,7 +119,7 @@ public class Main {
 	 * application boundary, using a native project-file suffix as the end of a
 	 * path.  Properly quoted arguments remain unchanged.
 	 */
-	private static ArrayList<String> normalizeFileNameArguments(ArrayList<String> args) {
+	static ArrayList<String> normalizeFileNameArguments(ArrayList<String> args) {
 		if (args.size() < 2 || !"--fileNames".equals(args.get(0)))
 			return args;
 		ArrayList<String> normalized = new ArrayList<>();
