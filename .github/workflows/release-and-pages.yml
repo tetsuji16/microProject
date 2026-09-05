@@ -48,18 +48,23 @@ jobs:
           "release_version=$releaseVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Prepare update signing key
-        if: ${{ secrets.UPDATE4J_PRIVATE_KEY != '' && secrets.UPDATE4J_PUBLIC_KEY != '' }}
+        id: signing
         shell: pwsh
         env:
           UPDATE4J_PRIVATE_KEY: ${{ secrets.UPDATE4J_PRIVATE_KEY }}
           UPDATE4J_PUBLIC_KEY: ${{ secrets.UPDATE4J_PUBLIC_KEY }}
         run: |
           $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:UPDATE4J_PRIVATE_KEY) -or [string]::IsNullOrWhiteSpace($env:UPDATE4J_PUBLIC_KEY)) {
+            'configured=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
           $keyFile = Join-Path $env:RUNNER_TEMP 'microproject-update-private.pem'
           $publicFile = 'modules/micrproject_bootstrap/src/main/resources/com/microproject/bootstrap/public.key'
           [IO.File]::WriteAllText($keyFile, $env:UPDATE4J_PRIVATE_KEY)
           [IO.File]::WriteAllText($publicFile, $env:UPDATE4J_PUBLIC_KEY)
           "UPDATE4J_PRIVATE_KEY_FILE=$keyFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          'configured=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Build, package, and verify
         shell: pwsh
@@ -106,7 +111,7 @@ jobs:
           }
 
       - name: Generate signed update configuration
-        if: ${{ secrets.UPDATE4J_PRIVATE_KEY != '' && secrets.UPDATE4J_PUBLIC_KEY != '' }}
+        if: ${{ steps.signing.outputs.configured == 'true' }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -118,7 +123,7 @@ jobs:
           Copy-Item $manifest.FullName 'release-assets/configuration.xml'
 
       - name: Report update signing configuration
-        if: ${{ secrets.UPDATE4J_PRIVATE_KEY == '' || secrets.UPDATE4J_PUBLIC_KEY == '' }}
+        if: ${{ steps.signing.outputs.configured != 'true' }}
         shell: pwsh
         run: Write-Host 'UPDATE4J_PRIVATE_KEY and UPDATE4J_PUBLIC_KEY are not configured; publishing without auto-update manifest. Bootstrap will safely fall back.'
 
