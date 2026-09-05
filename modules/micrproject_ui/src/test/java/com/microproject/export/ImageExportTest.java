@@ -35,6 +35,45 @@ import com.microproject.util.PdfExportUtil;
 
 public class ImageExportTest {
 	@Test
+	public void appendsPngExtensionWithoutDroppingParentDirectory() {
+		File input = new File("C:\\temp\\report");
+
+		File output = ExportFormat.PNG.appendExtensionIfMissing(input);
+
+		assertEquals(new File("C:\\temp\\report.png"), output);
+	}
+
+	@Test
+	public void keepsPngExtensionRegardlessOfCase() {
+		File input = new File("C:\\temp\\report.PNG");
+
+		assertEquals(input, ExportFormat.PNG.appendExtensionIfMissing(input));
+	}
+
+	@Test
+	public void formatDetectionIsCaseInsensitive() {
+		assertEquals(ExportFormat.PNG, ExportFormat.fromFileName(new File("report.PNG")));
+		assertEquals(ExportFormat.PDF, ExportFormat.fromFileName(new File("report.PdF")));
+	}
+
+	@Test
+	public void selectedFormatWinsOverTypedExtension() {
+		File typedPng = new File("C:\\temp\\report.png");
+
+		ExportTarget target = SwingExportFileChooser.resolveTarget(typedPng, ExportFormat.PDF);
+
+		assertEquals(new File("C:\\temp\\report.png.pdf"), target.file());
+		assertEquals(ExportFormat.PDF, target.format());
+	}
+
+	@Test
+	public void acceptAllUsesTypedPngExtensionCaseInsensitively() {
+		ExportTarget target = SwingExportFileChooser.resolveTarget(new File("C:\\temp\\report.PNG"), null);
+
+		assertEquals(new File("C:\\temp\\report.PNG"), target.file());
+		assertEquals(ExportFormat.PNG, target.format());
+	}
+	@Test
 	public void keepsExistingPdfExtension() {
 		File input = new File("C:\\temp\\report.pdf");
 
