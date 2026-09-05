@@ -14,6 +14,7 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.field.Field;
+import com.microproject.grouping.core.Node;
 import com.microproject.job.JobQueue;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
@@ -165,6 +167,97 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void hideAndShowSelectedTaskThroughRibbonRoundTripsWithUndoRedo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"hide/show test project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		int row = rowForTask(sheet, task);
+		click(robot, cellOnScreen(sheet, row, nameColumn(sheet)));
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title"));
+		click(robot, boundsOnScreen(taskTab));
+		AbstractButton hide = findShowingButtonByCommand("RibbonHideSelectedTasks");
+		GuiAcceptanceSupport.await(hide::isEnabled, "Hide Selected Tasks remained disabled after selection");
+		click(robot, boundsOnScreen(hide));
+		GuiAcceptanceSupport.await(task::isHiddenTask, "Hide Selected Tasks did not update the task model");
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task),
+				"hidden task remained visible in the task sheet");
+
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Ctrl+Z did not restore task visibility");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Ctrl+Z did not restore the visible task row");
+
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
+		click(robot, boundsOnScreen(hide));
+		GuiAcceptanceSupport.await(task::isHiddenTask, "second hide did not update the task model");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(task::isHiddenTask, "Ctrl+Y did not reapply task visibility");
+
+		AbstractButton show = findShowingButtonByCommand("RibbonShowAllTasks");
+		click(robot, boundsOnScreen(show));
+		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
+	}
+
+	@Test
+	void collapseAndExpandSelectedSummaryChangesVisibleRows() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("ribbon-outline-acceptance", undo), undo);
+		project.initialize(false, false);
+		Node parentNode = project.createLocalTaskNode(null);
+		NormalTask parent = (NormalTask) parentNode.getImpl();
+		parent.setName("Outline parent");
+		Node childNode = project.createLocalTaskNode(parentNode);
+		NormalTask child = (NormalTask) childNode.getImpl();
+		child.setName("Outline child");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"outline test project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, parent), nameColumn(sheet)));
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title"));
+		click(robot, boundsOnScreen(taskTab));
+		AbstractButton collapse = findShowingButtonByCommand("RibbonCollapse");
+		GuiAcceptanceSupport.await(collapse::isEnabled, "Collapse remained disabled for a selected summary");
+		click(robot, boundsOnScreen(collapse));
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, child), "Collapse did not hide the child row");
+
+		AbstractButton expand = findShowingButtonByCommand("RibbonExpand");
+		click(robot, boundsOnScreen(expand));
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, child), "Expand did not restore the child row");
+	}
+
+	@Test
 	void secondaryDocumentWindowUsesTheSameRibbonShell() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for window coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -255,6 +348,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return row;
 		}
 		throw new AssertionError("Task is absent from the visible spreadsheet");
+	}
+
+	private static boolean isTaskVisible(SpreadSheet sheet, NormalTask task) {
+		CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
+		for (int row = 0; row < sheet.getRowCount(); row++) {
+			if (model.getNode(row) != null && model.getNode(row).getNode() != null
+					&& model.getNode(row).getNode().getImpl() == task)
+				return true;
+		}
+		return false;
 	}
 
 	private static int nameColumn(SpreadSheet sheet) {
