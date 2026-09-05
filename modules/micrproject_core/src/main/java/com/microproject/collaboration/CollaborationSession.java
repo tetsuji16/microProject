@@ -82,6 +82,7 @@ public class CollaborationSession {
 	private volatile long lastKnownProjectLength;
 	private volatile KnownMetadataState lastKnownMetadataState;
 	private volatile boolean externalChangePending;
+	private boolean externalRefreshFailureWarned;
 	private volatile boolean externalChangeWarned;
 	private volatile boolean externalReloadRequested;
 	private volatile boolean pendingExternalReload;
@@ -416,6 +417,17 @@ public class CollaborationSession {
 		resetExternalChangeState(true);
 	}
 
+	/** Returns true only for the first warning in one failed-refresh period. */
+	public boolean shouldWarnExternalProjectRefreshFailure() {
+		synchronized (stateLock) {
+			if (externalRefreshFailureWarned) {
+				return false;
+			}
+			externalRefreshFailureWarned = true;
+			return true;
+		}
+	}
+
 	/** Keeps the external-change guard armed so the next poll can retry the load. */
 	public void afterExternalProjectRefreshFailure() {
 		long modified = projectFile != null && projectFile.exists() ? projectFile.lastModified() : 0L;
@@ -434,6 +446,7 @@ public class CollaborationSession {
 		synchronized (stateLock) {
 			externalChangePending = false;
 			externalChangeWarned = false;
+			externalRefreshFailureWarned = false;
 			if (clearReloadRequest) {
 				externalReloadRequested = false;
 			}

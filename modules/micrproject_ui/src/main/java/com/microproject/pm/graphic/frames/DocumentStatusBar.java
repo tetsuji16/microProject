@@ -60,6 +60,11 @@ public class DocumentStatusBar extends JPanel {
 		modeLabel.setText(Messages.getString(modeKey));
 	}
 
+	/** Shows a short non-modal document warning without interrupting editing. */
+	public void setMessage(String message) {
+		modeLabel.setText(message == null || message.isBlank() ? Messages.getString("StatusBar.Ready") : message);
+	}
+
 	public void setZoom(int scaleIndex, int scaleCount) {
 		zoomLabel.setText(formatZoom(scaleIndex, scaleCount));
 	}

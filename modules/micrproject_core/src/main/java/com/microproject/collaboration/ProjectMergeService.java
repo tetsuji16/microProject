@@ -27,9 +27,13 @@ package com.microproject.collaboration;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.AccessDeniedException;
+import java.util.zip.ZipException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -193,6 +197,18 @@ public class ProjectMergeService {
 		public boolean hasLoadFailure() { return loadStatus != LoadStatus.SUCCESS; }
 	}
 
+	/** Result of checking for deleted locked tasks without turning a load failure into an empty set. */
+	public static class DeletedTasksResult {
+		private final Set<Long> deletedTaskIds = new LinkedHashSet<Long>();
+		private LoadStatus loadStatus = LoadStatus.SUCCESS;
+		private Exception loadFailure;
+
+		public Set<Long> getDeletedTaskIds() { return deletedTaskIds; }
+		public LoadStatus getLoadStatus() { return loadStatus; }
+		public Exception getLoadFailure() { return loadFailure; }
+		public boolean hasLoadFailure() { return loadStatus != LoadStatus.SUCCESS; }
+	}
+
 	/** Creates a load failure result for callers that need to preserve a recoverable UI state. */
 	public static ApplyResult failedLoad(LoadStatus status, Exception cause) {
 		ApplyResult result = new ApplyResult();
@@ -238,17 +254,9 @@ public class ProjectMergeService {
 			}
 			return new ExternalProjectLoadResult(LoadStatus.SUCCESS, project, null);
 		} catch (java.io.IOException e) {
-			if (loadFailureStatus(e) == LoadStatus.ACCESS_DENIED) {
-				logger.log(Level.WARNING, "Unable to access external project " + fileName, e);
-				return new ExternalProjectLoadResult(LoadStatus.ACCESS_DENIED, null, e);
-			}
-			// The input is a local project file.  Once isFile() has succeeded, an
-			// I/O failure while parsing its container (for example ZipException for
-			// a broken MPOF) is actionable invalid-file recovery, not a transient
-			// collaboration failure.  Keeping this distinction lets a master retain
-			// a repairable INVALID reference instead of obscuring the parser error.
-			logger.log(Level.WARNING, "Invalid external project " + fileName, e);
-			return new ExternalProjectLoadResult(LoadStatus.INVALID_FILE, null, e);
+			LoadStatus status = loadFailureStatus(e);
+			logger.log(Level.WARNING, "Unable to load external project " + fileName + " (" + status + ")", e);
+			return new ExternalProjectLoadResult(status, null, e);
 		} catch (SecurityException e) {
 			logger.log(Level.WARNING, "Unable to access external project " + fileName, e);
 			return new ExternalProjectLoadResult(LoadStatus.ACCESS_DENIED, null, e);
@@ -260,9 +268,13 @@ public class ProjectMergeService {
 
 	/** Maps filesystem access failures separately from malformed project content. */
 	static LoadStatus loadFailureStatus(Exception failure) {
-		if (failure instanceof SecurityException || failure instanceof java.nio.file.AccessDeniedException)
+		if (failure instanceof SecurityException || failure instanceof AccessDeniedException)
 			return LoadStatus.ACCESS_DENIED;
-		return LoadStatus.INVALID_FILE;
+		if (failure instanceof NoSuchFileException || failure instanceof FileNotFoundException)
+			return LoadStatus.NOT_FOUND;
+		if (failure instanceof ZipException)
+			return LoadStatus.INVALID_FILE;
+		return failure instanceof java.io.IOException ? LoadStatus.TRANSIENT_FAILURE : LoadStatus.INVALID_FILE;
 	}
 
 	private Project loadMpoProject(String fileName) throws Exception {
@@ -357,22 +369,28 @@ public class ProjectMergeService {
 	}
 
 	public Set<Long> findDeletedTasks(String fileName, Set<Long> lockedTaskIds) {
-		Set<Long> deleted = new LinkedHashSet<Long>();
+		return findDeletedTasksResult(fileName, lockedTaskIds).getDeletedTaskIds();
+	}
+
+	public DeletedTasksResult findDeletedTasksResult(String fileName, Set<Long> lockedTaskIds) {
+		DeletedTasksResult result = new DeletedTasksResult();
 		if (lockedTaskIds == null || lockedTaskIds.isEmpty()) {
-			return deleted;
+			return result;
 		}
 		ExternalProjectLoadResult load = loadExternalProjectResult(fileName);
+		result.loadStatus = load.getStatus();
+		result.loadFailure = load.getCause();
 		if (!load.isSuccess()) {
-			return deleted;
+			return result;
 		}
 		Project external = load.getProject();
 		for (Long taskId : lockedTaskIds) {
 			Task task = external.findByUniqueId(taskId.longValue());
 			if (task == null) {
-				deleted.add(taskId);
+				result.deletedTaskIds.add(taskId);
 			}
 		}
-		return deleted;
+		return result;
 	}
 
 	public ConflictResult findTaskConflicts(String fileName, Map<Long, TaskState> baselineStates) {

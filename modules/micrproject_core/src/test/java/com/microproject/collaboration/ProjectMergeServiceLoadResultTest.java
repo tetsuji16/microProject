@@ -6,10 +6,14 @@ package com.microproject.collaboration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.NoSuchFileException;
+import java.io.IOException;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +22,14 @@ class ProjectMergeServiceLoadResultTest {
 	void accessDeniedFilesystemFailuresRemainDistinctFromInvalidProjectContent() {
 		assertEquals(ProjectMergeService.LoadStatus.ACCESS_DENIED,
 			ProjectMergeService.loadFailureStatus(new AccessDeniedException("locked.mpo")));
+	}
+
+	@Test
+	void filesystemFailureClassificationKeepsMissingAndTransientFailuresDistinct() {
+		assertEquals(ProjectMergeService.LoadStatus.NOT_FOUND,
+			ProjectMergeService.loadFailureStatus(new NoSuchFileException("disappeared.mpo")));
+		assertEquals(ProjectMergeService.LoadStatus.TRANSIENT_FAILURE,
+			ProjectMergeService.loadFailureStatus(new IOException("file is still being written")));
 	}
 
 	@Test
@@ -59,5 +71,15 @@ class ProjectMergeServiceLoadResultTest {
 		} finally {
 			Files.deleteIfExists(file);
 		}
+	}
+
+	@Test
+	void deletedTaskCheckExposesLoadFailureInsteadOfReturningAnAmbiguousEmptySet() throws Exception {
+		ProjectMergeService.DeletedTasksResult result = new ProjectMergeService().findDeletedTasksResult(
+			"missing-external-project-" + System.nanoTime() + ".xml", Set.of(1L));
+
+		assertEquals(ProjectMergeService.LoadStatus.NOT_FOUND, result.getLoadStatus());
+		assertFalse(result.getDeletedTaskIds().contains(1L));
+		assertTrue(result.hasLoadFailure());
 	}
 }

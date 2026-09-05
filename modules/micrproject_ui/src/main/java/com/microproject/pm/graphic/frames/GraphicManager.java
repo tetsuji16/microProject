@@ -978,12 +978,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}
 			logger.log(Level.WARNING, "External project refresh failed for " + fileName + " ("
 				+ result.getLoadStatus() + ")", result.getLoadFailure());
-			Alert.warn("The external project could not be refreshed (" + result.getLoadStatus()
-				+ "). The change remains pending; retry or save a copy.");
+			if (session == null || session.shouldWarnExternalProjectRefreshFailure()) {
+				String message = "External refresh failed (" + result.getLoadStatus() + "); change remains pending.";
+				DocumentFrame frame = getFrameForProject(project);
+				if (result.getLoadStatus() == ProjectMergeService.LoadStatus.TRANSIENT_FAILURE && frame != null) {
+					frame.statusBar.setMessage(message + " Retrying.");
+				} else {
+					Alert.warn("The external project could not be refreshed (" + result.getLoadStatus()
+						+ "). The change remains pending; retry or save a copy.");
+				}
+			}
 			return;
 		}
 		if (result.hasChanges()) {
 			repaintProject(project);
+		}
+		DocumentFrame frame = getFrameForProject(project);
+		if (frame != null) {
+			frame.statusBar.setMessage(null);
 		}
 	}
 
