@@ -50,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>The actual fork-into-the-real-app launch path is covered by manual
  * verification (the bootstrap runs the business application via
- * {@link Configuration#launch()} once updates are applied).
+ * the installed application's main class once updates are applied).
  */
 class BootstrapUpdateTest {
 

@@ -161,6 +161,7 @@ val docsDownloadsDir = layout.projectDirectory.dir("docs/downloads")
 val windowsPortableLauncher = layout.projectDirectory.file("packaging/windows/launchers/microProject.cmd")
 val windowsFileAssociationsDir = layout.projectDirectory.dir("packaging/windows/file-associations")
 val windowsInstallerResourcesDir = layout.projectDirectory.dir("packaging/windows/installer-resources")
+val update4jPrivateKeyFile = providers.environmentVariable("UPDATE4J_PRIVATE_KEY_FILE")
 val jpackageJavaHomeProvider = providers.environmentVariable("JAVA_HOME")
     .orElse(providers.systemProperty("java.home"))
     .orElse("C:\\Program Files\\Java\\latest")
@@ -182,13 +183,15 @@ val windowsRuntimeModules = listOf(
 tasks.register<Sync>("prepareWindowsReleaseInput") {
     group = "distribution"
     description = "Prepares jpackage input files from the Gradle installDist output."
-    dependsOn(":micrproject_ui:installDist")
+    dependsOn(":micrproject_ui:installDist", ":micrproject_bootstrap:jar")
 
     val installLibDir = project(":micrproject_ui").layout.buildDirectory.dir("install/micrproject_ui/lib")
     val iconFile = layout.projectDirectory.file("packaging/windows/icons/microproject.ico")
     val licenseFile = layout.projectDirectory.file("packaging/licenses/license.txt")
 
     from(installLibDir)
+    from(project(":micrproject_bootstrap").tasks.named<Jar>("jar"))
+    from(project(":micrproject_bootstrap").configurations.named("runtimeClasspath"))
     from(iconFile) {
         rename { "microproject.ico" }
     }
@@ -229,8 +232,8 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "micrproject_ui.jar",
-            "--main-class", "com.microproject.main.Main",
+            "--main-jar", "micrproject_bootstrap.jar",
+            "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--dest", windowsAppImageDir.get().asFile.absolutePath,
@@ -261,8 +264,8 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "micrproject_ui.jar",
-            "--main-class", "com.microproject.main.Main",
+            "--main-jar", "micrproject_bootstrap.jar",
+            "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
             "--resource-dir", windowsInstallerResourcesDir.asFile.absolutePath,
@@ -362,6 +365,32 @@ tasks.register<Zip>("packageWindowsZip") {
                 "Portable ZIP is missing microProject.cmd: $archive"
             }
         }
+    }
+}
+
+tasks.register<JavaExec>("generateUpdateConfiguration") {
+    group = "distribution"
+    description = "Generates a signed update4j configuration for the staged Windows app image."
+    dependsOn("packageWindowsAppImage", ":micrproject_bootstrap:classes")
+
+    val bootstrapSourceSet = project(":micrproject_bootstrap")
+        .extensions.getByType<SourceSetContainer>().named("main")
+    classpath = bootstrapSourceSet.get().runtimeClasspath
+    mainClass.set("com.microproject.bootstrap.ConfigurationGenerator")
+    onlyIf {
+        val keyFile = update4jPrivateKeyFile.orNull
+        keyFile != null && File(keyFile).isFile
+    }
+    doFirst {
+        val keyFile = update4jPrivateKeyFile.orNull
+            ?: throw GradleException("UPDATE4J_PRIVATE_KEY_FILE is required to sign the update manifest")
+        args(
+            "--app-dir", windowsAppImageDir.get().dir("microProject/app").asFile.absolutePath,
+            "--output", windowsReleaseRoot.get().file("release-assets/configuration.xml").asFile.absolutePath,
+            "--private-key", keyFile,
+            "--version", releaseVersion,
+            "--asset-base", "https://github.com/tetsuji16/ProjectLibre/releases/download/$releaseLabel/"
+        )
     }
 }
 

@@ -12,6 +12,7 @@ import java.io.Reader;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyFactory;
@@ -89,7 +90,12 @@ public final class MicroProjectUpdater {
         // Explicit launch-only mode must not contact the update feed. This is
         // used by recovery/diagnostic launchers and must remain usable offline.
         if (launchOnly) {
-            launchInstalledApp();
+            launchInstalledApp(applicationArguments(args));
+            return;
+        }
+
+        if (!shouldCheckNow(forceCheck)) {
+            launchInstalledApp(applicationArguments(args));
             return;
         }
 
@@ -100,23 +106,25 @@ public final class MicroProjectUpdater {
             // Unreachable or unverifiable feed: run the installed app as-is.
             System.err.println("update4j: configuration unavailable at " + configUri
                     + "; launching installed application without update.");
-            launchInstalledApp();
+            launchInstalledApp(applicationArguments(args));
             return;
         }
 
-        if (!launchOnly && shouldCheckNow(forceCheck)) {
-            try {
-                applyUpdate(config, publicKey);
-            } catch (Exception e) {
-                // Verification/network failure must never prevent startup.
-                System.err.println("update4j: update skipped (" + e + "); "
-                        + "launching installed application.");
-            } finally {
-                recordCheckTime();
-            }
+        try {
+            applyUpdate(config, publicKey);
+        } catch (Exception e) {
+            // Verification/network failure must never prevent startup.
+            System.err.println("update4j: update skipped (" + e + "); "
+                    + "launching installed application.");
+        } finally {
+            recordCheckTime();
         }
 
-        config.launch();
+        // The configuration is used as a signed update manifest. Launch the
+        // installed application explicitly so command-line file arguments and
+        // the jpackage layout are preserved independently of update4j's
+        // optional Launcher service.
+        launchInstalledApp(applicationArguments(args));
     }
 
     /**
@@ -228,12 +236,33 @@ public final class MicroProjectUpdater {
      * configuration is available. Mirrors the classpath/entry point the packaged
      * application would use.
      */
-    static void launchInstalledApp() {
+    private static String[] applicationArguments(String[] args) {
+        if (args == null) return new String[0];
+        return java.util.Arrays.stream(args)
+                .filter(arg -> !"--launch-only".equals(arg) && !"--force-check".equals(arg))
+                .filter(arg -> !arg.startsWith("http://") && !arg.startsWith("https://") && !arg.startsWith("file:"))
+                .toArray(String[]::new);
+    }
+
+    static void launchInstalledApp(String[] applicationArguments) {
         String javaBin = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
-        String classpath = System.getProperty("microproject.classpath", "lib/*");
+        Path runtimeHome = Paths.get(System.getProperty("java.home"));
+        Path appRoot = runtimeHome.getParent();
+        String defaultClasspath = appRoot == null
+                ? "*"
+                : appRoot.resolve("app/*").toString();
+        String classpath = System.getProperty("microproject.classpath", defaultClasspath);
         String mainClass = System.getProperty("microproject.mainClass",
                 "com.microproject.main.Main");
-        ProcessBuilder pb = new ProcessBuilder(javaBin, "-cp", classpath, mainClass);
+        java.util.List<String> command = new java.util.ArrayList<>();
+        command.add(javaBin);
+        command.add("-cp");
+        command.add(classpath);
+        command.add(mainClass);
+        if (applicationArguments != null) {
+            command.addAll(java.util.Arrays.asList(applicationArguments));
+        }
+        ProcessBuilder pb = new ProcessBuilder(command);
         pb.inheritIO();
         try {
             pb.start().waitFor();

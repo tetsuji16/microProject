@@ -47,6 +47,20 @@ jobs:
           $releaseVersion = "$baseVersion.$env:GITHUB_RUN_NUMBER"
           "release_version=$releaseVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
+      - name: Prepare update signing key
+        if: ${{ secrets.UPDATE4J_PRIVATE_KEY != '' && secrets.UPDATE4J_PUBLIC_KEY != '' }}
+        shell: pwsh
+        env:
+          UPDATE4J_PRIVATE_KEY: ${{ secrets.UPDATE4J_PRIVATE_KEY }}
+          UPDATE4J_PUBLIC_KEY: ${{ secrets.UPDATE4J_PUBLIC_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $keyFile = Join-Path $env:RUNNER_TEMP 'microproject-update-private.pem'
+          $publicFile = 'modules/micrproject_bootstrap/src/main/resources/com/microproject/bootstrap/public.key'
+          [IO.File]::WriteAllText($keyFile, $env:UPDATE4J_PRIVATE_KEY)
+          [IO.File]::WriteAllText($publicFile, $env:UPDATE4J_PUBLIC_KEY)
+          "UPDATE4J_PRIVATE_KEY_FILE=$keyFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Build, package, and verify
         shell: pwsh
         run: |
@@ -84,6 +98,29 @@ jobs:
           Copy-Item $zip.FullName "release-assets/microProject-$version-app-image.zip"
           Copy-Item "release-assets/microProject-$version.msi" "release-assets/microProject-latest.msi"
           Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
+
+          $appLib = Get-ChildItem -Path build/releases -Recurse -Directory -Filter app | Select-Object -First 1
+          if ($null -eq $appLib) { throw 'The staged app directory was not found.' }
+          Get-ChildItem -Path $appLib.FullName -File -Filter '*.jar' | ForEach-Object {
+            Copy-Item $_.FullName "release-assets/microProject-$version-$($_.Name)"
+          }
+
+      - name: Generate signed update configuration
+        if: ${{ secrets.UPDATE4J_PRIVATE_KEY != '' && secrets.UPDATE4J_PUBLIC_KEY != '' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\gradlew.bat generateUpdateConfiguration --console=plain
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = '${{ steps.version.outputs.release_version }}'
+          $manifest = Get-ChildItem -Path build/releases -Recurse -File -Filter configuration.xml | Select-Object -First 1
+          if ($null -eq $manifest) { throw 'The signed update configuration was not produced.' }
+          Copy-Item $manifest.FullName 'release-assets/configuration.xml'
+
+      - name: Report update signing configuration
+        if: ${{ secrets.UPDATE4J_PRIVATE_KEY == '' || secrets.UPDATE4J_PUBLIC_KEY == '' }}
+        shell: pwsh
+        run: Write-Host 'UPDATE4J_PRIVATE_KEY and UPDATE4J_PUBLIC_KEY are not configured; publishing without auto-update manifest. Bootstrap will safely fall back.'
 
       - name: Create GitHub release
         if: ${{ success() }}
