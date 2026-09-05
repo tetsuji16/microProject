@@ -29,7 +29,7 @@ import java.awt.event.MouseEvent;
 
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
+import com.microproject.util.FlatUiSupport;
 
 import com.microproject.pm.graphic.spreadsheet.common.GradientCorner;
 
@@ -45,8 +45,7 @@ public class ChartCorner extends GradientCorner {
 	public ChartCorner(TimeChartPanel chart) {
 		super();
 		this.chart=chart;
-		setBackground(UIManager.getColor("TableHeader.cellBackground"));
-		setBorder (UIManager.getBorder ("TableHeader.cellBorder"));
+		FlatUiSupport.applyTableHeaderStyle(this);
 		addMouseListener(new MouseAdapter(){
 			public void mousePressed(MouseEvent e){
 				TimeChartPanel chart=ChartCorner.this.chart;
@@ -62,4 +61,3 @@ public class ChartCorner extends GradientCorner {
 	}
 
 }
-

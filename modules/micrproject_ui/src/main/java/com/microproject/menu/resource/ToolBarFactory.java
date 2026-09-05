@@ -85,11 +85,10 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToolBar;
-import javax.swing.border.EmptyBorder;
-
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.ExtButtonFactory;
 import com.microproject.menu.ProjectMenuActionMap;
+import com.microproject.util.FlatUiSupport;
 
 /**
  * This class represents a tool bar factory which builds tool bars from the
@@ -154,6 +153,7 @@ public class ToolBarFactory extends ResourceManager {
 	 */
 	public JToolBar createJToolBar(String name){
 		JToolBar result = new JToolBar();
+		FlatUiSupport.styleToolBar(result);
 		initJComponent(name, result);
 		return result;
 	}
@@ -170,7 +170,6 @@ public class ToolBarFactory extends ResourceManager {
 			    component.add(new JToolbarSeparator());
 			} else {
 				AbstractButton button =  createJButton(s);
-				button.setBorder(new EmptyBorder(0,0,0,0)); //projectlibre
 				boolean visible = true;
 				try {
 					visible = getBoolean(s + ExtButtonFactory.VISIBLE_SUFFIX);
@@ -198,6 +197,7 @@ public class ToolBarFactory extends ResourceManager {
 	public AbstractButton createJButton(String name) throws MissingResourceException,
 			ResourceFormatException, MissingListenerException {
 		AbstractButton result = buttonFactory.createJToolbarButton(name);
+		FlatUiSupport.styleToolBarButton(result);
 		String type = null;
 		try {
 			type = getString(name + ExtButtonFactory.TYPE_SUFFIX);

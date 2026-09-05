@@ -131,6 +131,8 @@ class GanttBarFormatDialogTest {
 		JPanel panel = GanttBarFormatDialog.createPanelForTest(new BarFormat(null, null, null), true, false);
 		JTabbedPane tabs = findComponents(panel, JTabbedPane.class).get(0);
 		assertEquals(2, tabs.getTabCount());
+		assertEquals("underlined", tabs.getClientProperty("JTabbedPane.tabType"));
+		assertEquals(Boolean.TRUE, tabs.getClientProperty("JTabbedPane.showTabSeparators"));
 		assertEquals(1, countComponents(panel, JComboBox.class));
 		JComboBox<?> choices = findComponents(panel, JComboBox.class).get(0);
 		assertEquals(5, choices.getItemCount());

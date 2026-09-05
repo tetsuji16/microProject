@@ -175,6 +175,7 @@ public final class ResourceLevelingDialogBox extends JDialog {
 		buttons.add(close);
 
 		JTabbedPane tabs = new JTabbedPane();
+		FlatUiSupport.styleTabbedPane(tabs);
 		tabs.addTab(UsabilityStrings.text("leveling.title"), split);
 		tabs.addTab(UsabilityStrings.text("ccpm.networkTab"), new JScrollPane(criticalChainGraph));
 		tabs.addTab(UsabilityStrings.text("ccpm.bufferChartTab"), criticalChainBufferChart);

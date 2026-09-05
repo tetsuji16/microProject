@@ -382,6 +382,8 @@ class RibbonAndToolbarButtonTest {
 					() -> id + " is missing the shared toolbar command-button style");
 			}
 			JToolBar toolBar = factory.createJToolBar(toolbarId);
+			assertFalse(toolBar.isFloatable());
+			assertTrue(toolBar.isRollover());
 			assertAttachedButtonsAreVisible(toolBar, toolbarId);
 		});
 	}

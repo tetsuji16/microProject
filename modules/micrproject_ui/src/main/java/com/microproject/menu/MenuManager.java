@@ -192,7 +192,6 @@ public class MenuManager {
 	}
 	public JToolBar getToolBar(String name) {
 		JToolBar toolBar = toolBarFactory.createJToolBar(name);
-		FlatUiSupport.styleToolBar(toolBar);
 		return toolBar;
 	}
 	public void initComponent(String name, JComponent component) {

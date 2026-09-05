@@ -12,6 +12,7 @@ import java.awt.Component;
 import java.util.Date;
 
 import javax.swing.JPopupMenu;
+import javax.swing.JButton;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,5 +46,19 @@ class ProjectLibreDateFieldTest {
 		assertTrue(dayOne != null);
 		dayOne.doClick();
 		assertTrue(field.getDateValue() != null);
+	}
+
+	@Test
+	void calendarButtonsUseFlatLafToolbarButtonStyle() {
+		ProjectLibreDateField field = new ProjectLibreDateField();
+		java.awt.Container panel = field.createCalendarPanel(new JPopupMenu());
+		java.awt.Container header = (java.awt.Container) panel.getComponent(0);
+		for (Component component : header.getComponents()) {
+			if (component instanceof JButton button) {
+				assertEquals("toolBarButton", button.getClientProperty("JButton.buttonType"));
+				assertTrue(button.getToolTipText() != null);
+				assertTrue(button.getAccessibleContext().getAccessibleName() != null);
+			}
+		}
 	}
 }

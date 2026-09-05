@@ -39,7 +39,6 @@ import com.microproject.menu.resource.ResourceFormatException;
 import com.microproject.menu.resource.ToolBarFactory;
 
 import com.microproject.pm.graphic.IconManager;
-import com.microproject.util.FlatUiSupport;
 
 /**
  *
@@ -82,7 +81,6 @@ public class ExtToolBarFactory extends ToolBarFactory {
 	}
 
 	private void configureButton(AbstractButton button, String name) {
-		FlatUiSupport.styleToolBarButton(button);
 		try {
 			String iconName = getString(name + ExtMenuFactory.ICON_SUFFIX);
 			ImageIcon icon = IconManager.getIcon(iconName);
@@ -126,4 +124,3 @@ public class ExtToolBarFactory extends ToolBarFactory {
    }
 
 }
-

@@ -40,6 +40,7 @@ import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.util.PopupDialogSupport;
+import com.microproject.util.FlatUiSupport;
 
 /**
  * Individual Gantt bar formatting, corresponding to Microsoft Project's
@@ -106,6 +107,7 @@ final class GanttBarFormatDialog {
 				milestoneShape.setSelectedItem(MilestoneShape.forName(format.getMilestoneShapeName()));
 
 			JTabbedPane tabs = new JTabbedPane();
+			FlatUiSupport.styleTabbedPane(tabs);
 			tabs.addTab(Messages.getString("Gantt.FormatBar.barColor"), editor);
 			if (milestoneShape != null) {
 				JPanel shapePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));

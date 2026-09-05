@@ -30,8 +30,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 
 import javax.swing.JPanel;
-import javax.swing.UIManager;
-
 import org.jfree.chart.axis.ValueAxis;
 import org.jfree.chart.ui.RectangleEdge;
 
@@ -48,8 +46,7 @@ public class AxisPanel extends JPanel {
 	private ChartInfo chartInfo;
 	AxisPanel(ChartInfo chartInfo) {
 		this.chartInfo = chartInfo;
-		setBorder (UIManager.getBorder ("TableHeader.cellBorder"));
-		setBackground(FlatUiSupport.panelBackground());
+		FlatUiSupport.applyTableHeaderStyle(this);
 	}
 	/**
 	 * @param axis The axis to set.
@@ -85,4 +82,3 @@ public class AxisPanel extends JPanel {
 		axis.setVisible(false);	//now make it invisible so chart doesn't show it
 	}
 }
-

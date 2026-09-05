@@ -48,6 +48,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.text.DateFormatter;
 
 import com.microproject.options.EditOption;
+import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.DateFieldSupport;
 
 /**
@@ -81,6 +82,7 @@ public class ProjectLibreDateField extends JPanel {
 		this.dateFormat = dateFormat;
 		this.textField = new JFormattedTextField(new DateFormatter(dateFormat));
 		this.popupButton = new JButton("...");
+		styleCalendarButton(popupButton);
 		initialize();
 	}
 
@@ -119,6 +121,14 @@ public class ProjectLibreDateField extends JPanel {
 		JPanel header = new JPanel(new BorderLayout(2, 2));
 		JButton previous = new JButton("‹");
 		JButton next = new JButton("›");
+		styleCalendarButton(previous);
+		styleCalendarButton(next);
+		String previousText = UsabilityStrings.text("common.previous");
+		String nextText = UsabilityStrings.text("common.next");
+		previous.setToolTipText(previousText);
+		previous.getAccessibleContext().setAccessibleName(previousText);
+		next.setToolTipText(nextText);
+		next.getAccessibleContext().setAccessibleName(nextText);
 		JLabel month = new JLabel("", JLabel.CENTER);
 		header.add(previous, BorderLayout.WEST);
 		header.add(month, BorderLayout.CENTER);
@@ -144,8 +154,8 @@ public class ProjectLibreDateField extends JPanel {
 			for (int day = 1; day <= visible[0].lengthOfMonth(); day++) {
 				LocalDate date = visible[0].atDay(day);
 				JButton button = new JButton(Integer.toString(day));
+				styleCalendarButton(button);
 				button.setMargin(new java.awt.Insets(1, 2, 1, 2));
-				button.setFocusable(false);
 				if (date.equals(selected)) button.putClientProperty("dateField.selected", Boolean.TRUE);
 				button.addActionListener(event -> {
 					setValue(Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
@@ -162,6 +172,11 @@ public class ProjectLibreDateField extends JPanel {
 		next.addActionListener(event -> { visible[0] = visible[0].plusMonths(1); redraw.run(); });
 		redraw.run();
 		return panel;
+	}
+
+	private static void styleCalendarButton(JButton button) {
+		button.putClientProperty("JButton.buttonType", "toolBarButton");
+		button.setFocusable(false);
 	}
 
 	private Date coerceDateValue() {
