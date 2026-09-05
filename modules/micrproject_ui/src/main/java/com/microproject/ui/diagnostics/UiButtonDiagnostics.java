@@ -92,6 +92,7 @@ public final class UiButtonDiagnostics {
 				logger.warning("UI_COMMAND_FAILURE id=" + buttonId
 					+ " reason=precondition-fail activeView=" + stateBefore.activeView
 					+ " selection=" + stateBefore.selection);
+				return;
 			}
 			try {
 				delegate.actionPerformed(event);
@@ -111,12 +112,17 @@ public final class UiButtonDiagnostics {
 					+ " activeView=" + stateAfter.activeView
 					+ " modelAfter=" + stateAfter.modelSummary()
 					+ " viewAfter=" + stateAfter.viewSummary()
-					+ " undo=" + stateAfter.undoSummary());
+					+ " undo=" + stateAfter.undoSummary()
+					+ " modelChanged=" + stateBefore.modelChanged(stateAfter)
+					+ " viewChanged=" + stateBefore.viewChanged(stateAfter)
+					+ " undoChanged=" + stateBefore.undoChanged(stateAfter));
 				if (stateBefore.equals(stateAfter) && selectedBefore == selectedAfter
 						&& enabledBefore == enabledAfter && visibleBefore == visibleAfter) {
 					logger.warning("UI_COMMAND_FAILURE id=" + buttonId
 						+ " reason=no-observable-state-change activeView=" + stateAfter.activeView
 						+ " selection=" + stateAfter.selection);
+				} else {
+					logger.fine("UI_COMMAND_RESULT id=" + buttonId + " reason=observable-state-change");
 				}
 			} catch (RuntimeException | Error e) {
 				logger.log(Level.WARNING, "UI_BUTTON_FAILURE id=" + buttonId
@@ -193,6 +199,19 @@ public final class UiButtonDiagnostics {
 
 		private String undoSummary() {
 			return "canUndo=" + canUndo + ",canRedo=" + canRedo;
+		}
+
+		private boolean modelChanged(UiState other) {
+			return dirty != other.dirty || !selection.equals(other.selection);
+		}
+
+		private boolean viewChanged(UiState other) {
+			return rows != other.rows || !activeView.equals(other.activeView)
+				|| visibleWindows != other.visibleWindows;
+		}
+
+		private boolean undoChanged(UiState other) {
+			return canUndo != other.canUndo || canRedo != other.canRedo;
 		}
 
 		@Override

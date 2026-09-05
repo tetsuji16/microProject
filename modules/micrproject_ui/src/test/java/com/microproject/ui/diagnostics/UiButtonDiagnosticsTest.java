@@ -5,6 +5,7 @@
 package com.microproject.ui.diagnostics;
 
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -71,10 +72,27 @@ class UiButtonDiagnosticsTest {
 			assertTrue(messages.toString().contains("UI_COMMAND id=TestButton"));
 			assertTrue(messages.toString().contains("modelBefore="));
 			assertTrue(messages.toString().contains("viewAfter="));
+			assertTrue(messages.toString().contains("modelChanged=false"));
+			assertTrue(messages.toString().contains("viewChanged=false"));
+			assertTrue(messages.toString().contains("undoChanged=false"));
 			assertTrue(messages.toString().contains("UI_COMMAND_FAILURE id=TestButton reason=no-observable-state-change"));
 			assertTrue(messages.toString().contains("UI_BUTTON_FAILURE id=FailingButton"));
 		} finally {
 			logger.removeHandler(handler);
 		}
+	}
+
+	@Test
+	void doesNotDelegateWhenThePhysicalSourceIsDisabled() {
+		System.setProperty("microproject.ui.debug", "true");
+		AtomicBoolean invoked = new AtomicBoolean();
+		Action delegate = new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) { invoked.set(true); }
+		};
+		javax.swing.JButton button = new javax.swing.JButton();
+		button.setEnabled(false);
+		UiButtonDiagnostics.wrapAction("DisabledButton", delegate)
+			.actionPerformed(new ActionEvent(button, ActionEvent.ACTION_PERFORMED, "DisabledButton"));
+		assertFalse(invoked.get());
 	}
 }
