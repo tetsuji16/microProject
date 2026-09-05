@@ -6,6 +6,7 @@
 package com.microproject.ui.diagnostics;
 
 import java.awt.Component;
+import java.awt.EventQueue;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
@@ -102,6 +103,23 @@ public final class UiButtonDiagnostics {
 			}
 			try {
 				delegate.actionPerformed(event);
+				// Model listeners and repaint/revalidation commonly enqueue their work.
+				// Reading immediately here produces false no-op diagnostics and hides the
+				// very timing bug this facility is meant to expose.  Settle one EDT turn,
+				// then take the semantic after-snapshot without changing the user action.
+				Runnable observeAfter = () -> observeAfterAction(source, stateBefore,
+					enabledBefore, visibleBefore, selectedBefore);
+				EventQueue.invokeLater(observeAfter);
+			} catch (RuntimeException | Error e) {
+				logger.log(Level.WARNING, "UI_BUTTON_FAILURE id=" + buttonId
+					+ " reason=action-threw delegate=" + delegate.getClass().getName(), e);
+				throw e;
+			}
+		}
+
+		private void observeAfterAction(Component source, UiState stateBefore,
+				boolean enabledBefore, boolean visibleBefore, boolean selectedBefore) {
+			try {
 				UiState stateAfter = UiState.capture(source);
 				boolean enabledAfter = source == null || source.isEnabled();
 				boolean visibleAfter = source == null || source.isShowing();
@@ -132,8 +150,7 @@ public final class UiButtonDiagnostics {
 				}
 			} catch (RuntimeException | Error e) {
 				logger.log(Level.WARNING, "UI_BUTTON_FAILURE id=" + buttonId
-					+ " reason=action-threw delegate=" + delegate.getClass().getName(), e);
-				throw e;
+					+ " reason=diagnostic-observation-failed", e);
 			}
 		}
 	}

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
+import java.awt.EventQueue;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -39,7 +40,7 @@ class UiButtonDiagnosticsTest {
 	}
 
 	@Test
-	void delegatesSuccessfulAndFailingButtonActionsInDebugMode() {
+	void delegatesSuccessfulAndFailingButtonActionsInDebugMode() throws Exception {
 		System.setProperty("microproject.ui.debug", "true");
 		Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
 		StringBuilder messages = new StringBuilder();
@@ -59,6 +60,7 @@ class UiButtonDiagnosticsTest {
 			Action traced = UiButtonDiagnostics.wrapAction("TestButton", successful);
 			assertNotSame(successful, traced);
 			traced.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "TestButton"));
+			EventQueue.invokeAndWait(() -> { });
 			assertTrue(invoked.get());
 
 			Action failing = new AbstractAction() {
@@ -108,5 +110,36 @@ class UiButtonDiagnosticsTest {
 		assertFalse(traced.isEnabled());
 		delegate.setEnabled(true);
 		assertTrue(traced.isEnabled());
+	}
+
+	@Test
+	void observesStateChangedByTheDelegateOnTheNextEdtTurn() throws Exception {
+		System.setProperty("microproject.ui.debug", "true");
+		Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+		StringBuilder messages = new StringBuilder();
+		Handler handler = new Handler() {
+			@Override public void publish(LogRecord record) { messages.append(record.getMessage()).append('\n'); }
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
+		logger.addHandler(handler);
+		logger.setLevel(Level.FINE);
+		try {
+			javax.swing.JButton button = new javax.swing.JButton();
+			Action delegate = new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) {
+					EventQueue.invokeLater(() -> button.setSelected(true));
+				}
+			};
+			Action traced = UiButtonDiagnostics.wrapAction("DeferredButton", delegate);
+			traced.actionPerformed(new ActionEvent(button, ActionEvent.ACTION_PERFORMED, "DeferredButton"));
+			EventQueue.invokeAndWait(() -> { });
+			assertTrue(messages.toString().contains("UI_BUTTON action-complete id=DeferredButton"));
+			assertTrue(messages.toString().contains("stateChanged=true"), messages.toString());
+			assertTrue(messages.toString().contains("UI_COMMAND_RESULT id=DeferredButton"), messages.toString());
+			assertFalse(messages.toString().contains("UI_COMMAND_FAILURE id=DeferredButton"), messages.toString());
+		} finally {
+			logger.removeHandler(handler);
+		}
 	}
 }
