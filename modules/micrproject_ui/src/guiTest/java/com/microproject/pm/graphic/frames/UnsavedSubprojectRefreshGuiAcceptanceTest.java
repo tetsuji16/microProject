@@ -5,6 +5,7 @@
 package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -41,6 +42,7 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.graphic.frames.workspace.DefaultFrameManager;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.DefaultSubprojectHandler;
 import com.microproject.pm.task.NormalTask;
@@ -146,6 +148,27 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		assertTrue(!fixture.reference.getSubproject().needsSaving(), "Discard refresh must clear the replaced child dirty state");
 	}
 
+	@Test
+	void robotShowsMpoReloadedMasterSummaryValuesForAllChildTasks() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI acceptance coverage.");
+		Fixture fixture = createFixture();
+		show(fixture);
+		GuiAcceptanceSupport.await(() -> window.isShowing(), "master document window was not visible");
+		Project reloadedChild = loadProject(new File(fixture.child.getFileName()));
+		NormalTask first = findTask(reloadedChild, "persisted child");
+		NormalTask second = findTask(reloadedChild, "second persisted child");
+		assertTrue(first != null && second != null, "both persisted child tasks must be present after MPO reload");
+		long start = Math.min(first.getStart(), second.getStart());
+		long finish = Math.max(first.getEnd(), second.getEnd());
+		assertEquals(first.getStart(), reloadedChild.calculateRollupSpan().getStart());
+		assertEquals(second.getEnd(), reloadedChild.calculateRollupSpan().getFinish());
+		assertEquals(first.work(start, finish) + second.work(start, finish), reloadedChild.work(start, finish));
+		assertEquals(350D, reloadedChild.fixedCost(start, finish), 0.001D);
+		assertEquals(0.7D, fixture.reference.getPercentWorkComplete(), 0.001D);
+		Robot robot = new Robot();
+		captureSummary(robot, "msp-master-summary-values-after-mpo-reload.png");
+	}
+
 	private Fixture createFixture() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project master = Project.createProject(ResourcePool.createRourcePool("refresh-master-pool", undo), undo);
@@ -158,6 +181,18 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		child.setLocal(false);
 		NormalTask childTask = child.createScriptedTask();
 		childTask.setName("persisted child");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		childTask.setDuration(2L * day);
+		AssignmentService.getInstance().newAssignment(childTask, child.getResourcePool().newResourceInstance(), 1D, 0L, this);
+		childTask.setFixedCost(100D);
+		childTask.setPercentWorkComplete(1D);
+		NormalTask secondTask = child.createScriptedTask();
+		secondTask.setName("second persisted child");
+		secondTask.setStart(child.getEffectiveWorkCalendar().add(childTask.getStart(), 3L * day, false));
+		secondTask.setDuration(3L * day);
+		AssignmentService.getInstance().newAssignment(secondTask, child.getResourcePool().newResourceInstance(), 1D, 0L, this);
+		secondTask.setFixedCost(250D);
+		secondTask.setPercentWorkComplete(0.5D);
 		File childFile = File.createTempFile("msp-refresh-child-", ".mpo");
 		childFile.deleteOnExit();
 		child.setFileName(childFile.getAbsolutePath());
@@ -218,6 +253,22 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 			if (value instanceof NormalTask task) return task.getName();
 		}
 		return "";
+	}
+
+	private static NormalTask findTask(Project project, String name) {
+		for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Object value = iterator.next();
+			if (value instanceof NormalTask task && name.equals(task.getName())) return task;
+		}
+		return null;
+	}
+
+	private void captureSummary(Robot robot, String fileName) throws Exception {
+		robot.waitForIdle();
+		Rectangle bounds = new Rectangle(window.getBounds());
+		Path artifact = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"), fileName);
+		Files.createDirectories(artifact.getParent());
+		ImageIO.write(robot.createScreenCapture(bounds), "png", artifact.toFile());
 	}
 
 	private static boolean hasTaskNamed(Project project, String name) {
