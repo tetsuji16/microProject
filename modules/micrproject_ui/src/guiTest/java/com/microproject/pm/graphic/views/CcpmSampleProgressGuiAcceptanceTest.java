@@ -67,6 +67,7 @@ import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.options.CalendarOption;
 import com.microproject.grouping.core.Node;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -187,13 +188,17 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		closeDialog(robot, dialog);
 
 		Task completion = task(project, "プロジェクト完了");
+		// The scenario deliberately measures duration-driven delivery delay;
+		// remove a finish constraint that would legally move the start instead.
+		completion.setScheduleConstraint(ConstraintType.ASAP, 0L);
 		long originalDuration = completion.getDuration();
 		int originalDays = (int) (originalDuration / CalendarOption.getInstance().getMillisPerDay());
 
 		setAllLeafTaskProgressThroughVisibleSpreadsheet(robot, 0.25D);
-		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 1);
+		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 20);
 		CriticalChainService.Analysis earlyDelay = service.analysis(project);
-		assertTrue(project.getPercentComplete() > 0D && earlyDelay.projectBuffer().consumptionRatio() > 0D,
+		double earlyProgress = project.getPercentComplete();
+		assertTrue(earlyProgress > 0D && earlyDelay.projectBuffer().consumedMillis() > 0L,
 			() -> "an early delivery checkpoint must move right and consume a small part of the buffer: percent="
 				+ project.getPercentComplete() + " consumption=" + earlyDelay.projectBuffer().consumptionRatio());
 		dialog = openBufferDialog(project);
@@ -202,22 +207,24 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		closeDialog(robot, dialog);
 
 		setAllLeafTaskProgressThroughVisibleSpreadsheet(robot, 0.50D);
-		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 2);
+		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 21);
 		CriticalChainService.Analysis midDelay = service.analysis(project);
-		assertTrue(project.getPercentComplete() > 0.40D && midDelay.projectBuffer().consumptionRatio() > earlyDelay.projectBuffer().consumptionRatio(),
-			"a mid-project integration delay must visibly increase buffer use");
+		double midProgress = project.getPercentComplete();
+		assertTrue(midProgress > earlyProgress && midDelay.projectBuffer().consumedMillis() > earlyDelay.projectBuffer().consumedMillis(),
+			() -> "a mid-project integration delay must visibly increase buffer use: early="
+				+ earlyDelay.projectBuffer().consumedMillis() + ", mid=" + midDelay.projectBuffer().consumedMillis());
 		dialog = openBufferDialog(project);
 		chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
 		assertEquals(3, CriticalChainBufferChartPanel.observationCount(chart), "the mid-project checkpoint must be retained");
 		closeDialog(robot, dialog);
 
 		setAllLeafTaskProgressThroughVisibleSpreadsheet(robot, 0.75D);
-		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 1);
+		editDurationThroughVisibleSpreadsheet(robot, "プロジェクト完了", originalDays + 19);
 		CriticalChainService.Analysis recovery = service.analysis(project);
-		assertTrue(project.getPercentComplete() > 0.65D && recovery.projectBuffer().consumptionRatio() < midDelay.projectBuffer().consumptionRatio(),
+		assertTrue(project.getPercentComplete() > midProgress && recovery.projectBuffer().consumedMillis() < midDelay.projectBuffer().consumedMillis(),
 			() -> "resolving part of the integration delay must reduce buffer use while delivery keeps progressing: early="
-				+ earlyDelay.projectBuffer().consumptionRatio() + ", mid=" + midDelay.projectBuffer().consumptionRatio()
-				+ ", recovery=" + recovery.projectBuffer().consumptionRatio());
+				+ earlyDelay.projectBuffer().consumedMillis() + ", mid=" + midDelay.projectBuffer().consumedMillis()
+				+ ", recovery=" + recovery.projectBuffer().consumedMillis() + ", percent=" + project.getPercentComplete());
 		dialog = openBufferDialog(project);
 		chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
 		assertEquals(4, CriticalChainBufferChartPanel.observationCount(chart),
