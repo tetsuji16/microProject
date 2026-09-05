@@ -27,13 +27,18 @@ package com.microproject.collaboration;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,13 +49,16 @@ public class CollaborationMetadataStore {
 	private static final int MAX_METADATA_BYTES = 1024 * 1024; // 1 MB safety limit
 	public static final int SCHEMA_VERSION = 1;
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+	private static final ConcurrentHashMap<String, Object> JVM_LOCKS = new ConcurrentHashMap<String, Object>();
 
 	private final File projectFile;
 	private final File sidecarFile;
+	private final File lockFile;
 
 	public CollaborationMetadataStore(File projectFile) {
 		this.projectFile = projectFile;
 		this.sidecarFile = buildSidecarFile(projectFile);
+		this.lockFile = buildLockFile(sidecarFile);
 	}
 
 	public static boolean isCollaborationCandidate(String fileName) {
@@ -73,6 +81,14 @@ public class CollaborationMetadataStore {
 		return sidecarFile;
 	}
 
+	static File buildLockFile(File sidecarFile) {
+		String name = sidecarFile.getName();
+		String suffix = ".json";
+		String base = name.endsWith(suffix) ? name.substring(0, name.length() - suffix.length()) : name;
+		File parent = sidecarFile.getParentFile();
+		return parent != null ? new File(parent, base + ".lock") : new File(base + ".lock");
+	}
+
 	public Metadata load() {
 		return withLockedMetadata(new MetadataCallback<Metadata>() {
 			public Metadata execute(Metadata metadata) {
@@ -91,18 +107,29 @@ public class CollaborationMetadataStore {
 	}
 
 	public <T> T withLockedMetadata(MetadataCallback<T> callback) {
-		RandomAccessFile raf = null;
+		String lockKey;
+		try {
+			lockKey = lockFile.getCanonicalPath();
+		} catch (IOException e) {
+			lockKey = lockFile.getAbsolutePath();
+		}
+		Object jvmLock = JVM_LOCKS.computeIfAbsent(lockKey, key -> new Object());
+		synchronized (jvmLock) {
+			return withLockedMetadataUnderJvmLock(callback);
+		}
+	}
+
+	private <T> T withLockedMetadataUnderJvmLock(MetadataCallback<T> callback) {
 		FileChannel channel = null;
 		FileLock lock = null;
 		try {
 			File parent = sidecarFile.getParentFile();
-			if (parent != null && !parent.exists()) {
-				parent.mkdirs();
+			if (parent != null) {
+				Files.createDirectories(parent.toPath());
 			}
-			raf = new RandomAccessFile(sidecarFile, "rw");
-			channel = raf.getChannel();
+			channel = FileChannel.open(lockFile.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 			lock = channel.lock();
-			byte[] originalBytes = readAllBytes(raf);
+			byte[] originalBytes = readAllBytes();
 			Metadata metadata;
 			try {
 				metadata = originalBytes.length == 0 ? createDefaultMetadata() : parseMetadata(originalBytes);
@@ -115,7 +142,7 @@ public class CollaborationMetadataStore {
 			}
 			normalize(metadata);
 			T result = callback.execute(metadata);
-			writeMetadataIfChanged(raf, originalBytes, metadata);
+			writeMetadataIfChanged(originalBytes, metadata);
 			return result;
 		} catch (Exception e) {
 			return callback.onError(e);
@@ -134,40 +161,61 @@ public class CollaborationMetadataStore {
 			} catch (IOException e) {
 				logger.log(Level.FINE, "Failed to close file channel on {0}", sidecarFile);
 			}
-			try {
-				if (raf != null) {
-					raf.close();
-				}
-			} catch (IOException e) {
-				logger.log(Level.FINE, "Failed to close RandomAccessFile on {0}", sidecarFile);
-			}
 		}
 	}
 
-	private byte[] readAllBytes(RandomAccessFile raf) throws IOException {
-		raf.seek(0L);
+	private byte[] readAllBytes() throws IOException {
+		if (!sidecarFile.exists()) {
+			return new byte[0];
+		}
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		byte[] buf = new byte[4096];
-		int read;
-		int total = 0;
-		while ((read = raf.read(buf)) != -1) {
-			total += read;
-			if (total > MAX_METADATA_BYTES) {
-				throw new IOException("Metadata file exceeds maximum allowed size of " + MAX_METADATA_BYTES + " bytes");
+		try (java.io.InputStream input = Files.newInputStream(sidecarFile.toPath())) {
+			byte[] buf = new byte[4096];
+			int read;
+			int total = 0;
+			while ((read = input.read(buf)) != -1) {
+				total += read;
+				if (total > MAX_METADATA_BYTES) {
+					throw new IOException("Metadata file exceeds maximum allowed size of " + MAX_METADATA_BYTES + " bytes");
+				}
+				out.write(buf, 0, read);
 			}
-			out.write(buf, 0, read);
 		}
 		return out.toByteArray();
 	}
 
-	private void writeMetadataIfChanged(RandomAccessFile raf, byte[] originalBytes, Metadata metadata) throws IOException {
+	private void writeMetadataIfChanged(byte[] originalBytes, Metadata metadata) throws IOException {
 		byte[] bytes = OBJECT_MAPPER.writeValueAsBytes(metadata);
 		if (Arrays.equals(originalBytes, bytes)) {
 			return;
 		}
-		raf.setLength(0L);
-		raf.seek(0L);
-		raf.write(bytes);
+		if (bytes.length > MAX_METADATA_BYTES) {
+			throw new IOException("Metadata file exceeds maximum allowed size of " + MAX_METADATA_BYTES + " bytes");
+		}
+		Path parent = sidecarFile.toPath().toAbsolutePath().getParent();
+		Path temporary = Files.createTempFile(parent, sidecarFile.getName() + ".", ".tmp");
+		try {
+			writeTempFile(temporary, bytes);
+			try {
+				Files.move(temporary, sidecarFile.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+			} catch (AtomicMoveNotSupportedException e) {
+				logger.log(Level.WARNING, "Atomic move is not supported for collaboration metadata {0}; using replace move", sidecarFile);
+				Files.move(temporary, sidecarFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			}
+		} finally {
+			Files.deleteIfExists(temporary);
+		}
+	}
+
+	/** Hook for fault-injection tests; the sidecar is not touched until this succeeds. */
+	protected void writeTempFile(Path temporary, byte[] bytes) throws IOException {
+		try (FileChannel output = FileChannel.open(temporary, StandardOpenOption.WRITE)) {
+			java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(bytes);
+			while (buffer.hasRemaining()) {
+				output.write(buffer);
+			}
+			output.force(true);
+		}
 	}
 
 	private Metadata createDefaultMetadata() {
