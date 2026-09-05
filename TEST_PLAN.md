@@ -256,3 +256,4 @@
 - #464 ダイアログレイアウト回帰（2026-09-06）: Task Informationの全タブを実Robotで巡回し、スクロール不可領域の全可視コンポーネントがpreferredサイズ以上であることを検査。Text Style、依存関係、リソース、詳細、メモで実際に検出した5px行への配置を修正し、対象GUIテストと`:micrproject_ui:test`がBUILD SUCCESSFUL。U-21の日本語100%実GUI経路を更新。
 - #464 Task Information DPI回帰（2026-09-06）: 同じ全タブ検査とView/Resourceの物理リボン経路を日本語・英語の125%／150%で再実行し、各ケースBUILD SUCCESSFUL。全GUIスイートの高DPI実行は別ゲートとして未完了扱いを維持する。
 - #464 全GUI高DPI回帰（2026-09-06）: 共通ダイアログ修正後、日本語125%／150%の`:micrproject_ui:guiTest --max-workers=1`全体（各BUILD SUCCESSFUL、約2分）を実行。高DPIの日本語全体では新たな失敗なし。英語全体および残るコマンド固有の意味論監査は継続。
+- #464 英語全GUI高DPI回帰（2026-09-06）: 英語125%／150%の`:micrproject_ui:guiTest --max-workers=1`全体（各BUILD SUCCESSFUL、約2分）を実行。今回のダイアログ共通レイアウト変更について日英100/125/150%の全体GUI回帰が成功。コマンド固有の意味論監査は継続。
