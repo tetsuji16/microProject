@@ -216,19 +216,27 @@ public final class UiButtonDiagnostics {
 		}
 
 		private static String modelSignature(Project project) {
-			if (project == null || project.getTaskOutline() == null)
+			if (project == null)
 				return "none";
 			StringBuilder snapshot = new StringBuilder();
-			for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-				Object value = iterator.next();
-				if (!(value instanceof Task task))
-					continue;
-				snapshot.append(task.getUniqueId()).append(':')
-					.append(task.getStart()).append(':').append(task.getEnd()).append(':')
-					.append(task.getDuration()).append(':').append(task.getPercentComplete()).append(':')
-					.append(task.isSummary()).append(':').append(task.isHiddenTask()).append(':')
-					.append(task.getUniqueIdPredecessors()).append(':')
-					.append(task.getUniqueIdSuccessors()).append(';');
+			if (project.getTaskOutline() != null) {
+				for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+					Object value = iterator.next();
+					if (!(value instanceof Task task))
+						continue;
+					snapshot.append("task:").append(task.getUniqueId()).append(':')
+						.append(task.getStart()).append(':').append(task.getEnd()).append(':')
+						.append(task.getDuration()).append(':').append(task.getPercentComplete()).append(':')
+						.append(task.isSummary()).append(':').append(task.isHiddenTask()).append(':')
+						.append(task.getUniqueIdPredecessors()).append(':')
+						.append(task.getUniqueIdSuccessors()).append(';');
+				}
+			}
+			if (project.getResourcePool() != null) {
+				for (var resource : project.getResourcePool().getResourceList()) {
+					snapshot.append("resource:").append(resource.getUniqueId()).append(':')
+						.append(resource.getName()).append(';');
+				}
 			}
 			return Integer.toHexString(snapshot.toString().hashCode());
 		}
