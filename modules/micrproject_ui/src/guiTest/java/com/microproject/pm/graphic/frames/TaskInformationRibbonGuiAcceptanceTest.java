@@ -484,6 +484,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private void showProject(Project project) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
+			for (Window candidate : Window.getWindows()) {
+				if (candidate instanceof MainRibbonFrame)
+					candidate.dispose();
+			}
 			window = new MainRibbonFrame("microProject — Task Information ribbon acceptance", null, null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
