@@ -122,7 +122,7 @@ public final class NewBaseCalendarDialog extends AbstractDialog {
 
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
-		FormLayout layout = new FormLayout("p, 3dlu, 100dlu", // cols //$NON-NLS-1$
+		FormLayout layout = new FormLayout("p, 3dlu, max(160dlu;pref):grow", // cols //$NON-NLS-1$
 				"p, 3dlu,p, 3dlu, p, 3dlu, p, 3dlu, p"); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
@@ -132,10 +132,10 @@ public final class NewBaseCalendarDialog extends AbstractDialog {
 		CellConstraints cc = new CellConstraints();
 		builder.append(Messages.getString("NewBaseCalendarDialog.Name"), name); //$NON-NLS-1$
 		builder.nextLine(2);
-		builder.append(createNewBase);
+		builder.add(createNewBase, cc.xyw(builder.getColumn(), builder.getRow(), 3));
 		builder.nextLine(2);
-		builder.append(makeACopy);
-		builder.append(calendarToCopy);
+		builder.add(makeACopy, cc.xy(builder.getColumn(), builder.getRow()));
+		builder.add(calendarToCopy, cc.xy(3, builder.getRow()));
 		return builder.getPanel();
 	}
 
@@ -143,4 +143,3 @@ public final class NewBaseCalendarDialog extends AbstractDialog {
 		return newCalendar;
 	}
 }
-
