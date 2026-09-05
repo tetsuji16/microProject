@@ -484,6 +484,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			window.setLocationByPlatform(true);
 			window.setAlwaysOnTop(true);
 			window.setVisible(true);
+			window.toFront();
+			window.requestFocus();
 		});
 	}
 
