@@ -59,12 +59,15 @@ class TaskVisibilityServiceTest {
 		Project project = createProject();
 		Node taskNode = project.createLocalTaskNode(null);
 		Task task = (Task) taskNode.getImpl();
+		assertFalse(TaskVisibilityService.hasHiddenTasks(project));
 		task.setHiddenTask(true);
+		assertTrue(TaskVisibilityService.hasHiddenTasks(project));
 		project.getUndoController().clear();
 
 		TaskVisibilityService.showAll(project, project.getUndoController());
 
 		assertFalse(task.isHiddenTask());
+		assertFalse(TaskVisibilityService.hasHiddenTasks(project));
 		project.getUndoController().undo();
 		assertTrue(task.isHiddenTask());
 	}

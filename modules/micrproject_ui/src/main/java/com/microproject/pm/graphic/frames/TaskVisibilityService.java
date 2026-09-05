@@ -45,6 +45,16 @@ final class TaskVisibilityService {
 		return apply(project, changes, undoController, "Show All Tasks");
 	}
 
+	static boolean hasHiddenTasks(Project project) {
+		if (project == null)
+			return false;
+		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			if (iterator.next().isHiddenTask())
+				return true;
+		}
+		return false;
+	}
+
 	private static void collectTaskAndDescendants(Task task, boolean hidden, Map<Task, Boolean> changes,
 			IdentityHashMap<Task, Boolean> visited) {
 		if (visited.put(task, Boolean.TRUE) != null) {

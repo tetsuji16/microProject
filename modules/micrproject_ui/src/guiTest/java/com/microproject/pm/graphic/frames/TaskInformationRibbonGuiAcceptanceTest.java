@@ -229,6 +229,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		AbstractButton show = findShowingButtonByCommand("RibbonShowAllTasks");
 		assertTrue(show.isShowing(), "Show All Tasks must remain discoverable beside Hide Selected Tasks after hiding");
+		assertTrue(show.isEnabled(), "Show All Tasks must become enabled after a task is hidden");
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
@@ -283,6 +284,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Collapse must be disabled without a selected task");
 		assertFalse(findShowingButtonByCommand("RibbonHideSelectedTasks").isEnabled(),
 			"Hide Selected Tasks must be disabled without a selected task");
+		assertFalse(findShowingButtonByCommand("RibbonShowAllTasks").isEnabled(),
+			"Show All Tasks must be disabled when no task is hidden");
 	}
 
 	@Test

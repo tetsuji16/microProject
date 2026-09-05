@@ -2866,6 +2866,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			DocumentFrame frame = getCurrentFrame();
 			int changed = TaskVisibilityService.hideSelected(frame.getProject(),
 					frame.getSelectedTaskNodes(true, true), frame.getUndoController());
+			setButtonState(frame.getSelectedImpl(), frame.getProject());
 			traceUi("hide-selected result changedTasks=" + changed);
 		}
 		protected boolean allowed(boolean enable) {
@@ -2880,6 +2881,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				return;
 			DocumentFrame frame = getCurrentFrame();
 			int changed = TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
+			setButtonState(frame.getSelectedImpl(), frame.getProject());
 			traceUi("show-all result changedTasks=" + changed);
 		}
 		protected boolean allowed(boolean enable) {
@@ -3990,6 +3992,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasOneTaskSelection);
 		getMenuManager().setActionEnabled(ACTION_HIDE_SELECTED_TASKS,
 				!readOnly && currentFrame != null && currentFrame.hasTaskSelection(true, 1, true));
+		getMenuManager().setActionEnabled(ACTION_SHOW_ALL_TASKS,
+				!readOnly && TaskVisibilityService.hasHiddenTasks(project));
 		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES,isTask && writable);
 		getMenuManager().setActionEnabled(ACTION_TIMESHEET,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
