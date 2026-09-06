@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -67,6 +68,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.pm.graphic.views.Searchable;
+import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.util.Environment;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.frames.workspace.NamedFrame;
@@ -364,6 +366,57 @@ class RibbonButtonBehaviorTest {
 		assertToggle(harness, "RibbonLabelResourceNames", true);
 		assertToggle(harness, "RibbonLabelTaskName", true);
 		assertToggle(harness, "RibbonGridlines", true);
+	}
+
+	@Test
+	void bottomViewTransitionsKeepComponentAndRibbonStateInSync() throws Exception {
+		Harness harness = newHarness();
+
+		activateView(harness, MenuActionConstants.ACTION_HISTOGRAM);
+		assertBottomView(harness, MenuActionConstants.ACTION_HISTOGRAM, harness.frame.getHistogramView());
+
+		// Re-selecting the active view is idempotent: it must not hide or replace it.
+		activateView(harness, MenuActionConstants.ACTION_HISTOGRAM);
+		assertBottomView(harness, MenuActionConstants.ACTION_HISTOGRAM, harness.frame.getHistogramView());
+
+		activateView(harness, MenuActionConstants.ACTION_CHARTS);
+		assertBottomView(harness, MenuActionConstants.ACTION_CHARTS, harness.frame.getChartView());
+
+		// Switching the top view must not leave the selected bottom view detached.
+		activateView(harness, MenuActionConstants.ACTION_GANTT);
+		assertBottomView(harness, MenuActionConstants.ACTION_CHARTS, harness.frame.getChartView());
+
+		activateView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW);
+		assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+		activateView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW);
+		assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+
+		activateView(harness, MenuActionConstants.ACTION_TASK_USAGE);
+		WorkspaceSetting workspace = harness.frame.createWorkspace(0);
+		assertEquals(MenuActionConstants.ACTION_TASK_USAGE,
+			((DocumentFrame.Workspace) workspace).getBottomViewName());
+		harness.frame.restoreWorkspace(workspace, 0);
+		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+	}
+
+	private static void assertBottomView(Harness harness, String actionId, BaseView view) {
+		assertSame(view, harness.frame.getActiveBottomView());
+		assertSame(view, harness.frame.getMainView().getBottomComponent());
+		assertEquals(actionId, harness.frame.lastBottomButton);
+		for (String bottomAction : List.of(
+			MenuActionConstants.ACTION_HISTOGRAM,
+			MenuActionConstants.ACTION_CHARTS,
+			MenuActionConstants.ACTION_TASK_USAGE,
+			MenuActionConstants.ACTION_RESOURCE_USAGE,
+			MenuActionConstants.ACTION_NO_SUB_WINDOW)) {
+			assertEquals(bottomAction.equals(actionId),
+				harness.manager.getAction(bottomAction).getValue(Action.SELECTED_KEY),
+				() -> bottomAction + " selection state is inconsistent");
+		}
+	}
+
+	private static void activateView(Harness harness, String viewName) throws Exception {
+		SwingUtilities.invokeAndWait(() -> harness.frame.activateView(viewName));
 	}
 
 	@Test

@@ -156,10 +156,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
-		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		AbstractButton reportTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ReportRibbonTask.title"));
+		click(robot, boundsOnScreen(reportTab));
+		GuiAcceptanceSupport.await(reportTab::isSelected, "Robot click did not select the Report ribbon tab");
 		AbstractButton taskUsageButton = findShowingButtonByCommand("RibbonTaskUsageDetail");
 		click(robot, boundsOnScreen(taskUsageButton));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
@@ -179,6 +179,41 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertNotNull(resourceUsage.getTimeSpreadSheet(), "resource usage time spreadsheet was not initialized");
 		assertTrue(resourceUsage.getSpreadSheet().getModel().getRowCount() > 0,
 			"resource usage spreadsheet did not expose the fixture resource");
+	}
+
+	@Test
+	void robotBottomViewSelectionRemainsVisibleUntilExplicitNoSubWindow() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
+			"bottom-view test window did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ViewRibbonTask.title"));
+		click(robot, boundsOnScreen(viewTab));
+		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+
+		SwingUtilities.invokeAndWait(() -> manager.getCurrentFrame().activateView(com.microproject.menu.MenuActionConstants.ACTION_HISTOGRAM));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() != null
+			&& manager.getCurrentFrame().getMainView().getBottomComponent() != null,
+			"Histogram bottom view did not become visible");
+		assertTrue(manager.getCurrentFrame().getMainView().getBottomComponent().isShowing(),
+			"Histogram bottom component must be physically visible");
+
+		AbstractButton noSubWindow = findShowingButtonByCommand("RibbonNoTextNoSubWindow");
+		click(robot, boundsOnScreen(noSubWindow));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() == null
+			&& manager.getCurrentFrame().getMainView().getBottomComponent() == null,
+			"No Subwindow did not close the bottom view after a Robot click");
 	}
 
 	@Test

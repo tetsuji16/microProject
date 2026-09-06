@@ -163,6 +163,12 @@ public class DocumentFrame extends NamedFrame implements
 	// keep state of pushed buttons so i can reset them when a view is reactivated
 	String lastTopButton = null;
 	String lastBottomButton = ACTION_NO_SUB_WINDOW;
+	private static final String[] BOTTOM_VIEW_ACTIONS = {
+		ACTION_HISTOGRAM,
+		ACTION_CHARTS,
+		ACTION_TASK_USAGE,
+		ACTION_RESOURCE_USAGE
+	};
 	Workspace workspace;
 	FilterToolBarManager filterToolBarManager = null;
 	JobQueue jobQueue = null;
@@ -988,12 +994,8 @@ public class DocumentFrame extends NamedFrame implements
 			topView = getTimelineView();
 		else if (viewName.equals(ACTION_DELEGATE_TASKS))
 			topView = getTeamPlannerView();
-		else if (viewName.equals(ACTION_HISTOGRAM)) {
-//			if (activeBottomView != getHistogramView())
-				 bottomView = getHistogramView();
-//			else
-//				deactivateBottomView();
-		}
+		else if (viewName.equals(ACTION_HISTOGRAM))
+			bottomView = getHistogramView();
 		else if (viewName.equals(ACTION_CHARTS))
 			bottomView = getChartView();
 		else if (viewName.equals(ACTION_TASK_USAGE))
@@ -1008,13 +1010,7 @@ public class DocumentFrame extends NamedFrame implements
 		}
 
 		if (bottomView != null) {
-			boolean clickNew = true;
-			if (!Environment.isNewLook()) {
-				clickNew = bottomView != activeBottomView; // if clicked on a non pressed button
-				deactivateBottomView();
-			}
-			if (clickNew)
-				activateBottomView(bottomView,viewName);
+			activateBottomView(bottomView,viewName);
 			top = false;
 		}
 		return top;
@@ -1089,20 +1085,30 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public void activateBottomView(BaseView view,String viewName) {
-		boolean same = viewName.equals(lastBottomButton);
-		if (same)
-			return;
-		if (ACTION_NO_SUB_WINDOW.equals(viewName))
+		if (view == null || ACTION_NO_SUB_WINDOW.equals(viewName)) {
 			deactivateBottomView();
-		else {
+			return;
+		}
+
+		boolean sameView = activeBottomView == view
+				&& mainView.getBottomComponent() == view
+				&& viewName.equals(lastBottomButton);
+		if (sameView) {
+			setBottomActionSelected(viewName);
+			return;
+		}
+
+		if (activeBottomView != null && activeBottomView != view)
+			activeBottomView.onActivate(false);
+		if (mainView.getBottomComponent() != view) {
 			mainView.removeBottom();
+			mainView.setBottom((Component) view);
 		}
 		activeBottomView = view;
 		view.onActivate(true);
 		lastBottomButton = viewName;
-		mainView.setBottom((Component) view);
+		setBottomActionSelected(viewName);
 		toggleMinWidth();
-		menuManager.setActionSelected(viewName,true);
 		refreshUndoButtons();
 
 		if (view instanceof SelectionNodeListener selectionListener)
@@ -1128,17 +1134,22 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public void deactivateBottomView() {
-		if (activeBottomView == null)
-			return;
-		menuManager.setActionSelected(ACTION_NO_SUB_WINDOW,true);
-		if (lastBottomButton != null)
-			menuManager.setActionSelected(lastBottomButton,false);
-		activeBottomView.onActivate(false);
+		if (activeBottomView != null)
+			activeBottomView.onActivate(false);
+		if (mainView.getBottomComponent() != null)
+			mainView.removeBottom();
 		lastBottomButton = ACTION_NO_SUB_WINDOW;
-		mainView.removeBottom();
 		activeBottomView = null;
+		setBottomActionSelected(ACTION_NO_SUB_WINDOW);
 		toggleMinWidth();
 		refreshUndoButtons();
+	}
+
+	private void setBottomActionSelected(String selectedAction) {
+		for (String action : BOTTOM_VIEW_ACTIONS)
+			menuManager.setActionSelected(action, action.equals(selectedAction));
+		menuManager.setActionSelected(ACTION_NO_SUB_WINDOW,
+			ACTION_NO_SUB_WINDOW.equals(selectedAction));
 	}
 
 
@@ -1267,8 +1278,7 @@ public class DocumentFrame extends NamedFrame implements
 			refreshUndoButtons();
 		if (lastTopButton != null)
 			menuManager.setActionSelected(lastTopButton,enable);
-		if (lastBottomButton != null)
-			menuManager.setActionSelected(lastBottomButton,enable);
+		setBottomActionSelected(enable ? lastBottomButton : null);
 
 	}
 	public void refreshUndoButtons() {
@@ -1487,6 +1497,7 @@ public class DocumentFrame extends NamedFrame implements
 		reportView = null;
 		activeTopView = null;
 		activeBottomView = null;
+		lastBottomButton = ACTION_NO_SUB_WINDOW;
 	}
 	private void forAllViews(Consumer<Object> c) {
 		Object[] views = {

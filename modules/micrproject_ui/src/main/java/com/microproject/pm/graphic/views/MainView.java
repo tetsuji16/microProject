@@ -129,8 +129,8 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
     		JComponent topComponent=(JComponent)topViewport.getComponent(0);
     		adjustSizes();
     		((ScaledComponent)topComponent).getCoord().addTimeScaleListener(this); // listener removed in DocumentFrame
-    		synchronizer.addSynchro(top.getRightScrollPane(), bottom.getRightScrollPane(),
-    				ScrollPaneSynchronizer.VERTICAL,bottom.isNeedVoidBar(),false);
+			getSynchronizer().addSynchro(top.getRightScrollPane(), bottom.getRightScrollPane(),
+					ScrollPaneSynchronizer.VERTICAL,bottom.isNeedVoidBar(),false);
     	}
     }
     
@@ -143,7 +143,7 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
     //		JComponent bottomComponent=(JComponent)bottomViewport.getComponent(0);
     		JComponent topComponent=(JComponent)topViewport.getComponent(0);
     		((ScaledComponent)topComponent).getCoord().removeTimeScaleListener(this);
-    		synchronizer.removeSynchro(top.getRightScrollPane(), bottom == null ? null : bottom.getRightScrollPane(),
+			getSynchronizer().removeSynchro(top.getRightScrollPane(), bottom == null ? null : bottom.getRightScrollPane(),
     				ScrollPaneSynchronizer.VERTICAL);
     	}
     }
@@ -240,4 +240,3 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
 		}
 	}	
 }
-
