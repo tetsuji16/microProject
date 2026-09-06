@@ -137,7 +137,8 @@ class OfficeChromePanelVisualSmokeTest {
 	private static void layoutRecursively(java.awt.Component component) {
 		component.doLayout();
 		if (component instanceof java.awt.Container container) {
-			for (java.awt.Component child : container.getComponents()) {
+			java.awt.Component[] children = container.getComponents();
+			for (java.awt.Component child : children) {
 				layoutRecursively(child);
 			}
 		}
