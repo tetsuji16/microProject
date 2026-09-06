@@ -56,6 +56,10 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 	}
 
 	public void init() {
+		// The Office chrome is the single visible title/QAT row. Native decorations
+		// are unavailable in the supported fallback environment, so avoid a second
+		// platform title row above it.
+		setUndecorated(true);
 		if (Environment.isWindows()) // in windows, this is needed otherwise initial display has no frame
 		   setSize(1024, 768);
 		if (Environment.isMac()) setPreferredSize(new Dimension(1280, 768));

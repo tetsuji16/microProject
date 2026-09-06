@@ -27,12 +27,14 @@ package com.microproject.ui.shell;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowEvent;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 
@@ -78,6 +80,7 @@ final class OfficeChromePanel extends JPanel {
 	private static final int QUICK_ACCESS_ICON_SIZE = 16;
 
 	private final MenuManager menuManager;
+	private final JFrame frame;
 	private final Runnable helpAction;
 	private final JTextField searchField;
 	private final JLabel documentTitleLabel;
@@ -96,6 +99,7 @@ final class OfficeChromePanel extends JPanel {
 		AutoSaveControl autoSaveControl) {
 		super(new BorderLayout());
 		this.menuManager = menuManager;
+		this.frame = frame;
 		this.helpAction = helpAction;
 		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
 		this.searchField = new JTextField(28);
@@ -231,8 +235,33 @@ final class OfficeChromePanel extends JPanel {
 		cluster.add(createHelpButton(), constraints);
 		constraints.gridx = 1;
 		constraints.insets = new Insets(0, 0, 0, 0);
-		cluster.add(createWindowButtonsPlaceholder(), constraints);
+		cluster.add(frame == null ? createWindowButtonsPlaceholder() : createWindowButtons(), constraints);
 		return cluster;
+	}
+
+	private JComponent createWindowButtons() {
+		JPanel buttons = new JPanel(new GridBagLayout());
+		buttons.setOpaque(false);
+		buttons.setName(WINDOW_BUTTONS_PLACEHOLDER_NAME);
+		buttons.add(createWindowButton("—", "Minimize", () -> frame.setState(Frame.ICONIFIED)));
+		buttons.add(createWindowButton("□", "Maximize", () -> {
+			int state = frame.getExtendedState();
+			frame.setExtendedState((state & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH
+				? Frame.NORMAL : Frame.MAXIMIZED_BOTH);
+		}));
+		buttons.add(createWindowButton("×", "Close", () -> frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING))));
+		return buttons;
+	}
+
+	private JButton createWindowButton(String text, String tooltip, Runnable action) {
+		JButton button = new JButton(text);
+		button.setToolTipText(tooltip);
+		button.setFocusable(false);
+		button.setBorderPainted(false);
+		button.setContentAreaFilled(false);
+		button.setPreferredSize(new Dimension(28, 24));
+		button.addActionListener(event -> action.run());
+		return button;
 	}
 
 	private JComponent createWindowButtonsPlaceholder() {
