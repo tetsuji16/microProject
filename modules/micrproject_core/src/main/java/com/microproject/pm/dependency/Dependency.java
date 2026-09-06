@@ -68,6 +68,11 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 		return new Dependency(predecessor, successor, dependencyType, lead);
 	}
 
+	public static Dependency getInstance(HasDependencies predecessor,
+			HasDependencies successor, DependencyType.Kind dependencyType, long lead) {
+		return getInstance(predecessor, successor, dependencyType.code(), lead);
+	}
+
 	private Dependency(HasDependencies predecessor, HasDependencies successor,
 			int dependencyType, long lead) {
 		this.predecessor = predecessor;
@@ -136,6 +141,11 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 		return dependencyType;
 	}
 
+	/** Returns the type-safe view of the persisted dependency code. */
+	public DependencyType.Kind getDependencyKind() {
+		return DependencyType.Kind.fromCode(dependencyType);
+	}
+
 	/**
 	 * @param dependencyType
 	 *            The dependencyType to set.
@@ -150,6 +160,11 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 		}
 
 		this.dependencyType = dependencyType;
+	}
+
+	/** Sets the dependency type while keeping the persisted integer representation. */
+	public void setDependencyKind(DependencyType.Kind dependencyType) throws InvalidAssociationException {
+		setDependencyType(java.util.Objects.requireNonNull(dependencyType, "dependencyType").code());
 	}
 
 	boolean isCircular() {

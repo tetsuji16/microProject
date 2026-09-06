@@ -71,6 +71,24 @@ class DependencyServiceTest {
 	}
 
 	@Test
+	void kindApiRoundTripsThroughThePersistedIntegerBoundary() throws InvalidAssociationException {
+		Project project = createProject("kind-api-project");
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+
+		Dependency dependency = DependencyService.getInstance().newDependency(
+				predecessor, successor, DependencyType.Kind.SS, 0L, this);
+		assertEquals(DependencyType.Kind.SS, dependency.getDependencyKind());
+		assertEquals(DependencyType.Kind.SS.code(), dependency.getDependencyType());
+
+		dependency.setDependencyKind(DependencyType.Kind.FF);
+		assertEquals(DependencyType.Kind.FF, dependency.getDependencyKind());
+		assertEquals(DependencyType.Kind.FF.code(), dependency.getDependencyType());
+	}
+
+	@Test
 	void crossProjectLinksSupportEveryMicrosoftProjectDependencyType() throws InvalidAssociationException {
 		Project predecessorProject = createProject("predecessor-project");
 		Project successorProject = createProject("successor-project");

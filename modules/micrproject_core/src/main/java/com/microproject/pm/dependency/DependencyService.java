@@ -81,6 +81,13 @@ public class DependencyService {
 		dependency.setDirty(true);
 		return dependency;
 	}
+
+	/** Type-safe entry point; the integer overload remains the persistence boundary. */
+	public Dependency newDependency(HasDependencies predecessor, HasDependencies successor,
+			DependencyType.Kind dependencyType, long lead, Object eventSource) throws InvalidAssociationException {
+		return newDependency(predecessor, successor,
+				java.util.Objects.requireNonNull(dependencyType, "dependencyType").code(), lead, eventSource);
+	}
 	//for deserialization
 	public void initDependency(Dependency dependency,HasDependencies predecessor, HasDependencies successor, Object eventSource) throws InvalidAssociationException {
 		dependency.setPredecessor(predecessor);
@@ -91,12 +98,12 @@ public class DependencyService {
 	}
 
 	public void addStartSentinelDependency(HasDependencies sentinel, HasDependencies successor) {
-		Dependency dependency = Dependency.getInstance(sentinel, successor, DependencyType.SS,0);
+		Dependency dependency = Dependency.getInstance(sentinel, successor, DependencyType.Kind.SS,0);
 		sentinel.getSuccessorList().add(dependency);
 		//		System.out.println("adding start sentinel dependency task is " + successor);
 	}
 	public void addEndSentinelDependency(HasDependencies sentinel, HasDependencies predecessor) {
-		Dependency dependency = Dependency.getInstance(predecessor, sentinel, DependencyType.FS,0);
+		Dependency dependency = Dependency.getInstance(predecessor, sentinel, DependencyType.Kind.FS,0);
 		sentinel.getPredecessorList().add(dependency);
 	//	System.out.println("adding end sentinel dependency task is " + predecessor);
 	}
