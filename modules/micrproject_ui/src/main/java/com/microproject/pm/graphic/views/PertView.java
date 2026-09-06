@@ -34,7 +34,7 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
-import com.microproject.pm.graphic.pert.Pert;
+import com.microproject.pm.graphic.pert.PertChart;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.configuration.Dictionary;
 import com.microproject.graphic.configuration.BarStyles;
@@ -48,7 +48,7 @@ import com.microproject.workspace.WorkspaceSetting;
  */
 public class PertView extends JScrollPane implements BaseView {
 	private static final long serialVersionUID = 1493530627188782732L;
-	protected Pert pert;
+	protected PertChart pert;
 	protected NodeModel model;
 	protected Project project;
 	DocumentFrame documentFrame;
@@ -64,7 +64,7 @@ public class PertView extends JScrollPane implements BaseView {
 		this.project = documentFrame.getProject();
 	}
 	public void init(ReferenceNodeModelCache cache, NodeModel model){
-		pert=new Pert(project,"Network");
+		pert=new PertChart(project,"Network");
 		this.cache=NodeModelCacheFactory.getInstance().createAntiAssignmentFilteredCache((ReferenceNodeModelCache)cache,getViewName(),null);
 		pert.setCache(this.cache);
 		pert.setBarStyles((BarStyles) Dictionary.get(BarStyles.category,"pert"));
@@ -163,4 +163,3 @@ public class PertView extends JScrollPane implements BaseView {
 	
 	
 }
-

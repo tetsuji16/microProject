@@ -29,37 +29,23 @@ import com.microproject.pm.graphic.network.NetworkModel;
 import com.microproject.pm.graphic.network.NetworkRenderer;
 import com.microproject.pm.task.Project;
 
-/**
- *
- */
-/**
- * PERT chart view component. This is distinct from
- * {@link com.microproject.pm.scheduling.pert.Pert} which is the core calculation interface.
- */
-public class Pert extends Network {
+/** Swing PERT chart view; the scheduling PERT model lives in the core module. */
+public class PertChart extends Network {
 
-	/**
-	 * @param project
-	 * @param viewName
-	 */
-	public Pert(Project project, String viewName) {
+	public PertChart(Project project, String viewName) {
 		super(project, viewName);
 		((NetworkModel)getModel()).setNetworkLayout(new PertLayout(this));
 		((NetworkRenderer)getUI().getGraphRenderer()).setVertical(false);
 	}
 
-	/**
-	 * @param model
-	 * @param project
-	 */
-	public Pert(NetworkModel model, Project project) {
+	public PertChart(NetworkModel model, Project project) {
 		super(model, project);
 		((NetworkRenderer)getUI().getGraphRenderer()).setVertical(false);
 	}
+
+	@Override
 	public void updateUI() {
 		setUI(new PertUI(this));
 		invalidate();
 	}
-
 }
-
