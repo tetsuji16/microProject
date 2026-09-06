@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.company.ApplicationUser;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
@@ -83,6 +84,17 @@ class ResourceImplTest {
 		assignment.setPercentComplete(1.0D);
 
 		assertTrue(resource.isComplete());
+	}
+
+	@Test
+	void accrualKindApiPreservesThePersistedCode() {
+		DelegatingEnterpriseResource global = new DelegatingEnterpriseResource();
+		ResourceImpl resource = new ResourceImpl(global);
+
+		resource.setAccrueAtKind(Accrual.Kind.START);
+
+		assertEquals(Accrual.Kind.START, resource.getAccrueAtKind());
+		assertEquals(Accrual.Kind.START.code(), resource.getAccrueAt());
 	}
 
 	private Project createProject() {

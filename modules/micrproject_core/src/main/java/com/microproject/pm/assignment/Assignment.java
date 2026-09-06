@@ -610,7 +610,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 				clause.select(costF);
 				return costF;
 			} else { // accrue start or end
-				long triggerDate = (detail.getResource().getAccrueAt() == Accrual.START) ? getStart() : getFinish();// use start or end
+				long triggerDate = (detail.getResource().getAccrueAt() == Accrual.Kind.START.code()) ? getStart() : getFinish();// use start or end
 				AssignmentFieldFunctor constantCost = ValueAtInstant.getInstance(triggerDate, calcAll(COST));
 				clause.select(constantCost).from(InstantIntervalGenerator.getInstance(triggerDate)); // just one instant
 				return constantCost;
@@ -619,7 +619,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	public boolean isProratedCost() {
-		return detail.getResource().getAccrueAt() == Accrual.PRORATED;
+		return detail.getResource().getAccrueAt() == Accrual.Kind.PRORATED.code();
 	}
 
 	public AssignmentFieldFunctor getDataSelect(Object type, SelectFrom clause, boolean all) {

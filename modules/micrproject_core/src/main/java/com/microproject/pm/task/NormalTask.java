@@ -671,11 +671,20 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public final int getFixedCostAccrual() {
 		return ((TaskSnapshot) getCurrentSnapshot()).getFixedCostAccrual();
 	}
+	/** Type-safe view of the persisted fixed-cost accrual code. */
+	public final Accrual.Kind getFixedCostAccrualKind() {
+		return Accrual.Kind.fromCode(getFixedCostAccrual());
+	}
 	/**
 	 * @param fixedCostAccrual The fixedCostAccrual to set.
 	 */
 	public final void setFixedCostAccrual(int fixedCostAccrual) {
 		((TaskSnapshot) getCurrentSnapshot()).setFixedCostAccrual(fixedCostAccrual);
+	}
+	/** Stores the enum's stable compatibility code. */
+	public final void setFixedCostAccrual(Accrual.Kind fixedCostAccrual) {
+		if (fixedCostAccrual == null) throw new IllegalArgumentException("fixedCostAccrual must not be null");
+		setFixedCostAccrual(fixedCostAccrual.code());
 	}
 
 	public int getPriority() {
@@ -1397,10 +1406,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		long taskEnd = getEnd();
 		double fixed = 0.0;
 		double fixedCost = getFixedCost();
-		if (getFixedCostAccrual() == Accrual.START) {
+		if (getFixedCostAccrual() == Accrual.Kind.START.code()) {
 			if (taskStart >= start && taskStart <= end) // if task starts in this range
 				fixed = fixedCost;
-		} else if (getFixedCostAccrual() == Accrual.PRORATED) {
+		} else if (getFixedCostAccrual() == Accrual.Kind.PRORATED.code()) {
 			// find overlapping actual time
 			start = Math.max(start,taskStart);
 			end = Math.min(end,taskEnd);

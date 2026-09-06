@@ -37,6 +37,7 @@ import com.microproject.pm.availability.AvailabilityTable;
 import com.microproject.pm.calendar.HasBaseCalendar;
 import com.microproject.pm.calendar.HasCalendar;
 import com.microproject.pm.costing.Cost;
+import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.costing.CostRateTable;
 import com.microproject.pm.costing.EarnedValueFields;
 import com.microproject.pm.costing.EarnedValueValues;
@@ -57,6 +58,15 @@ public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, 
     public void setResourceType(int resourceType);
     public int getAccrueAt();
     public void setAccrueAt(int accrueAt);
+    /** Type-safe view of the persisted accrual code. */
+    default Accrual.Kind getAccrueAtKind() {
+        return Accrual.Kind.fromCode(getAccrueAt());
+    }
+    /** Stores the enum's stable compatibility code. */
+    default void setAccrueAtKind(Accrual.Kind accrueAt) {
+        if (accrueAt == null) throw new IllegalArgumentException("accrueAt must not be null");
+        setAccrueAt(accrueAt.code());
+    }
     
     public CostRateTable getCostRateTable(int costRateIndex);
     public void addAssignment(Assignment assignment);

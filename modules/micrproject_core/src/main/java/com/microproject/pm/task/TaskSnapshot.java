@@ -53,7 +53,7 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	TaskSchedule currentSchedule;
 	HasAssignments hasAssignments = null;
 	double fixedCost = 0;
-	int fixedCostAccrual = Accrual.END;
+	int fixedCostAccrual = Accrual.Kind.END.code();
 	boolean ignoreResourceCalendar = false;
 
 

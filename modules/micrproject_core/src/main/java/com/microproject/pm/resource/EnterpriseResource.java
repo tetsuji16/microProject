@@ -231,7 +231,7 @@ public class EnterpriseResource implements Resource {
 	}
 
 
-	protected int accrueAt = Accrual.PRORATED;
+	protected int accrueAt = Accrual.Kind.PRORATED.code();
 	public int getAccrueAt() {
 		return accrueAt;
 	}
