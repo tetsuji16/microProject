@@ -31,11 +31,16 @@ public final class PreferencesDialogBox extends JDialog {
 	private static final long serialVersionUID = 1L;
 
 	public static void showDialog(Frame owner, GlobalPreferences preferences) {
-		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences);
+		showDialog(owner, preferences, null);
+	}
+
+	/** Opens preferences and optionally exposes the application-wide locale action. */
+	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction) {
+		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, localeAction);
 		dialog.setVisible(true);
 	}
 
-	private PreferencesDialogBox(Frame owner, GlobalPreferences preferences) {
+	private PreferencesDialogBox(Frame owner, GlobalPreferences preferences, Runnable localeAction) {
 		super(owner, UsabilityStrings.text("preferences.title"), true);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		PopupDialogSupport.bindEscapeToDispose(this);
@@ -94,6 +99,11 @@ public final class PreferencesDialogBox extends JDialog {
 		JPanel gridColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); gridColorControls.add(gridColor); gridColorControls.add(resetGridColor); form.add(gridColorControls);
 		form.add(new JLabel()); form.add(rowLines);
 		form.add(new JLabel()); form.add(checkUpdates);
+		if (localeAction != null) {
+			JButton locale = new JButton(UsabilityStrings.text("preferences.locale"));
+			locale.addActionListener(event -> { dispose(); localeAction.run(); });
+			form.add(new JLabel()); form.add(locale);
+		}
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {

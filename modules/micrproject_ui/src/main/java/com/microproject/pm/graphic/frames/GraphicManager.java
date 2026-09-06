@@ -2190,7 +2190,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			PreferencesDialogBox.showDialog(getFrame(), getPreferences());
+			PreferencesDialogBox.showDialog(getFrame(), getPreferences(), GraphicManager.this::showLocaleDialog);
 		}
 	}
 
@@ -2769,23 +2769,27 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("locale")) return;
-			Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
-			String previousLocale = pref.get("locale", "default");
-			LocaleDialog localeDialog = LocaleDialog.getInstance(getGraphicManager());
-			if (!localeDialog.doModal()) {
-				return;
-			}
-			String currentLocale = pref.get("locale", "default");
-			if (Objects.equals(previousLocale, currentLocale)) {
-				return;
-			}
-			Locale.setDefault(ConfigurationFile.getLocale(currentLocale));
-			Messages.reset();
-			StartupFactory startupFactory = getStartupFactory();
-			if (startupFactory != null) {
-				startupFactory.restart(GraphicManager.this);
-			}
+			showLocaleDialog();
+		}
+	}
+
+	private void showLocaleDialog() {
+		if (!beforeExternalRoute("locale")) return;
+		Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
+		String previousLocale = pref.get("locale", "default");
+		LocaleDialog localeDialog = LocaleDialog.getInstance(getGraphicManager());
+		if (!localeDialog.doModal()) {
+			return;
+		}
+		String currentLocale = pref.get("locale", "default");
+		if (Objects.equals(previousLocale, currentLocale)) {
+			return;
+		}
+		Locale.setDefault(ConfigurationFile.getLocale(currentLocale));
+		Messages.reset();
+		StartupFactory startupFactory = getStartupFactory();
+		if (startupFactory != null) {
+			startupFactory.restart(GraphicManager.this);
 		}
 	}
 
