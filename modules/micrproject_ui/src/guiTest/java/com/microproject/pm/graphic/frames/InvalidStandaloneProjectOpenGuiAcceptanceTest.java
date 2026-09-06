@@ -44,6 +44,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 	private boolean previousStandalone;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private boolean previousBatchMode;
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -54,6 +55,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		Environment.setStandAlone(previousStandalone);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+		Environment.setBatchMode(previousBatchMode);
 	}
 
 	@Test
@@ -63,10 +65,12 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		previousBatchMode = Environment.isBatchMode();
 		Environment.setClientSide(true);
 		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		Environment.setBatchMode(false);
 		invalidFile = Files.createTempFile("invalid-standalone-project-", ".mpo");
 		Files.writeString(invalidFile, "not a MPOF ZIP archive");
 
@@ -113,10 +117,12 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		previousBatchMode = Environment.isBatchMode();
 		Environment.setClientSide(true);
 		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		Environment.setBatchMode(false);
 		invalidFile = Path.of(System.getProperty("java.io.tmpdir"), "missing-standalone-project-" + System.nanoTime() + ".mpo");
 		DocumentFrame[] original = new DocumentFrame[1];
 		FrameManager[] frameManager = new FrameManager[1];
@@ -156,10 +162,12 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		previousBatchMode = Environment.isBatchMode();
 		Environment.setClientSide(true);
 		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		Environment.setBatchMode(false);
 		invalidFile = Files.createTempFile("access-denied-standalone-project-", ".mpo");
 		Files.writeString(invalidFile, "placeholder");
 		String user = System.getProperty("user.name");

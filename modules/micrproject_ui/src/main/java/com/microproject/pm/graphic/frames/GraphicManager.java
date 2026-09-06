@@ -46,6 +46,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.NoSuchFileException;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipException;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Collection;
@@ -3211,6 +3216,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * loader has released its single-load critical section.
 	 */
 	private boolean loadLocalDocument(String fileName, boolean merge, Consumer<Object> afterLoad){
+		// A background load reports failures through Alert, whose default parent is
+		// the last active manager.  Make this manager current before scheduling the
+		// job so repeated opens from different desktop windows cannot route the
+		// error dialog to a disposed window.
+		setMeAsLastGraphicManager();
 	addHistory("loadLocalDocument",new Object[]{fileName,merge});
 		//showWaitCursor(true);
 		if (fileName != null && !merge) {
@@ -3230,6 +3240,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (Environment.getStandAlone())
 				opt.setId(SessionFactory.getInstance().getLocalSession().registerProjectFile(fileName));
 			opt.setEndSwingClosure(new Consumer<Object>() { public void accept(Object arg0) {
+				setMeAsLastGraphicManager();
 					if (arg0 instanceof Project) {
 						Project loadedProject = (Project)arg0;
 						// The portfolio normally creates the document frame.  Keep the
@@ -3259,12 +3270,34 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					return resourceMappingDialog.getDialogResult()==JOptionPane.OK_OPTION;
 				}
 			});
+			if (Environment.getStandAlone()) {
+				Exception preflightFailure = standaloneFilePreflight(fileName);
+				if (preflightFailure != null) {
+					String message = ProjectFactory.projectLoadFailureMessage(fileName, preflightFailure);
+					SwingUtilities.invokeLater(() -> Alert.error(message));
+					return false;
+				}
+			}
 
 			project=projectFactory.openProject(opt);
 
 		}
 		//showWaitCursor(false);
 		return project != null;
+	}
+
+	private static Exception standaloneFilePreflight(String fileName) {
+		try {
+			Path path = Path.of(fileName);
+			if (!Files.exists(path)) return new NoSuchFileException(fileName);
+			try (ZipFile ignored = new ZipFile(path.toFile())) {
+				return null;
+			}
+		} catch (ZipException | java.io.FileNotFoundException e) {
+			return e;
+		} catch (IOException e) {
+			return e;
+		}
 	}
 	protected void saveLocalDocument(String fileName,final boolean saveAs){
 		addHistory("saveLocalDocument",new Object[]{fileName,saveAs});

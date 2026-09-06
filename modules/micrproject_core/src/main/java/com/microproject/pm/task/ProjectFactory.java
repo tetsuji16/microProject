@@ -352,9 +352,9 @@ public class ProjectFactory {
 					removeLoadingProject(opt.getId());
 				Exception failure = job.getFailureException();
 				logger.log(Level.WARNING, "Project could not be opened: " + opt.getFileName(), failure);
-				Alert.error(projectLoadFailureMessage(opt.getFileName(), failure));
 				if (opt.getEndSwingClosure() != null)
 					opt.getEndSwingClosure().accept(null);
+				Alert.error(projectLoadFailureMessage(opt.getFileName(), failure));
 				return null;
 			}
 		});
@@ -368,7 +368,7 @@ public class ProjectFactory {
 	}
 
 	/** Produces an actionable standalone-file error without exposing importer internals as the primary message. */
-	static String projectLoadFailureMessage(String fileName, Throwable cause) {
+	public static String projectLoadFailureMessage(String fileName, Throwable cause) {
 		SubProj.LoadStatus status = subprojectLoadFailureStatus(cause);
 		String file = fileName == null || fileName.isBlank() ? "The selected project" : "The project file '" + fileName + "'";
 		String message = switch (status) {

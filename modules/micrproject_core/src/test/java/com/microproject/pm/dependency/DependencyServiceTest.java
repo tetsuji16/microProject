@@ -37,6 +37,7 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.association.InvalidAssociationException;
+import com.microproject.field.FieldParseException;
 import com.microproject.options.CalendarOption;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.Node;
@@ -49,6 +50,23 @@ import com.microproject.pm.task.SubProj;
 import com.microproject.undo.DataFactoryUndoController;
 
 class DependencyServiceTest {
+	@Test
+	void unknownTaskReferenceDoesNotCreateTaskOrReplaceExistingLink() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		int taskCount = project.getTaskList().size();
+
+		assertThrows(FieldParseException.class, () -> successor.setPredecessors("999999"));
+		assertEquals(taskCount, project.getTaskList().size());
+		assertEquals(1, successor.getPredecessorList().size());
+	}
+
 	@Test
 	void unknownDependencyTypeFailsExplicitlyWhenFormatted() {
 		assertThrows(IllegalArgumentException.class, () -> DependencyType.toLongString(99));

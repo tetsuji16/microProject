@@ -36,8 +36,6 @@ import com.microproject.association.AssociationFormatParameters;
 import com.microproject.configuration.Settings;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
-import com.microproject.field.FieldParseException;
-import com.microproject.options.GeneralOption;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 
@@ -70,18 +68,12 @@ public class DependencyFormat extends AssociationFormat {
 		if (container != null)
 			found = parameters.getIdField().find(number,container);
 
-		if (found == null) { //TODO this should probably be moved to finder
-
-			if (GeneralOption.getInstance().isAutomaticallyAddNewResourcesAndTasks()) {
-				found = createNewObject(parameters.isLeftAssociation());
-				try {
-					parameters.getIdField().setText(found,number.toString(),null);
-				} catch (FieldParseException e) {
-					throw new ParseException(e.getMessage(), pos.getIndex());
-				}
-			} else {
-				throw new ParseException(getErrorMessage(string), pos.getIndex());
-			}
+		if (found == null) {
+			// A dependency entry is a reference to an existing task.  Creating a
+			// task while parsing a failed link input changes the document before the
+			// user can correct the error and can make the edit appear successful.
+			// The automatic-create option remains applicable to resource names.
+			throw new ParseException(getErrorMessage(string), pos.getIndex());
 		}
 		Integer type = (Integer) DependencyType.Format.getInstance().parseObject(string, pos);
 		
@@ -143,9 +135,11 @@ public class DependencyFormat extends AssociationFormat {
 	protected Collection<Task> getContainer(boolean left) {
 		return ((Task) parameters.getThisObject()).getProject().getTaskList();
 	}
+
+\t@Override
 	protected Object createNewObject(boolean left) {
-		return ((Task) parameters.getThisObject()).getProject().newNormalTaskInstance(); //TODO this should not search only in current
+		// Dependency parsing is intentionally strict; unresolved task references
+		// must be reported instead of creating a task as a side effect.
+		return null;
 	}
-
-
 }
