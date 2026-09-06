@@ -27,17 +27,12 @@ package com.microproject.ui.shell;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.Point;
 import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.WindowEvent;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 
@@ -48,23 +43,19 @@ import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
+import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
-import javax.swing.SwingUtilities;
 import javax.swing.SwingConstants;
-import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 
-import com.formdev.flatlaf.icons.FlatWindowCloseIcon;
-import com.formdev.flatlaf.icons.FlatWindowIconifyIcon;
-import com.formdev.flatlaf.icons.FlatWindowMaximizeIcon;
-import com.formdev.flatlaf.icons.FlatWindowRestoreIcon;
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.Environment;
 
 final class OfficeChromePanel extends JPanel {
 	static final String NAME = "officeChromePanel";
@@ -76,9 +67,7 @@ final class OfficeChromePanel extends JPanel {
 	static final String RIGHT_ACTIONS_NAME = "officeChromeRightActions";
 	static final String HELP_BUTTON_NAME = "officeChromeHelpButton";
 	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
-	static final String MINIMIZE_BUTTON_NAME = "officeChromeMinimizeButton";
-	static final String MAXIMIZE_BUTTON_NAME = "officeChromeMaximizeButton";
-	static final String CLOSE_BUTTON_NAME = "officeChromeCloseButton";
+	static final String BRAND_ICON_NAME = "officeChromeBrandIcon";
 
 	private static final Color CHROME_BACKGROUND = FlatUiSupport.ribbonChromeBackground();
 	private static final Color BORDER_COLOR = FlatUiSupport.ribbonSurfaceBorderColor();
@@ -92,15 +81,12 @@ final class OfficeChromePanel extends JPanel {
 	private static final int QUICK_ACCESS_ICON_SIZE = 16;
 
 	private final MenuManager menuManager;
-	private final JFrame frame;
+	private final boolean officeWindow;
 	private final Runnable helpAction;
 	private final JTextField searchField;
 	private final JLabel documentTitleLabel;
 	private final AutoSaveControl autoSaveControl;
 	private final OfficeChromeTitleBinding titleBinding;
-	private JButton minimizeButton;
-	private JButton maximizeButton;
-	private JButton closeButton;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
 		this(null, menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
@@ -114,7 +100,7 @@ final class OfficeChromePanel extends JPanel {
 		AutoSaveControl autoSaveControl) {
 		super(new BorderLayout());
 		this.menuManager = menuManager;
-		this.frame = frame;
+		this.officeWindow = frame != null && Environment.isWindows();
 		this.helpAction = helpAction;
 		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
 		this.searchField = new JTextField(28);
@@ -134,42 +120,11 @@ final class OfficeChromePanel extends JPanel {
 		header.setPreferredSize(new Dimension(0, FlatUiSupport.ribbonChromeHeight()));
 		header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, FlatUiSupport.ribbonTopLineColor()));
 		JComponent content = buildHeaderContent();
+		// FlatLaf owns caption dragging. Child controls continue to receive their
+		// normal mouse events; only the unhandled header surface is draggable.
+		header.putClientProperty("JComponent.titleBarCaption", Boolean.TRUE);
 		header.add(content, BorderLayout.CENTER);
-		installWindowDragHandler(content);
 		return header;
-	}
-
-	/** Makes the non-interactive portion of the custom title row move the frame. */
-	private void installWindowDragHandler(JComponent content) {
-		if (frame == null) return;
-		MouseAdapter dragHandler = new MouseAdapter() {
-			private Point pressPoint;
-			private Point framePoint;
-
-			@Override public void mousePressed(MouseEvent event) {
-				if (!SwingUtilities.isLeftMouseButton(event)) return;
-				pressPoint = event.getLocationOnScreen();
-				framePoint = frame.getLocation();
-			}
-
-			@Override public void mouseDragged(MouseEvent event) {
-				if (pressPoint == null || framePoint == null) return;
-				Point currentPoint = event.getLocationOnScreen();
-				frame.setLocation(framePoint.x + currentPoint.x - pressPoint.x,
-					framePoint.y + currentPoint.y - pressPoint.y);
-			}
-
-			@Override public void mouseReleased(MouseEvent event) {
-				pressPoint = null;
-				framePoint = null;
-			}
-		};
-		content.addMouseListener(dragHandler);
-		content.addMouseMotionListener(dragHandler);
-		// The document title is a child label, so parent mouse listeners do not
-		// receive events when the user starts dragging directly on the title.
-		documentTitleLabel.addMouseListener(dragHandler);
-		documentTitleLabel.addMouseMotionListener(dragHandler);
 	}
 
 	private JComponent buildHeaderContent() {
@@ -223,7 +178,10 @@ final class OfficeChromePanel extends JPanel {
 		constraints.gridy = 0;
 		constraints.anchor = GridBagConstraints.WEST;
 		constraints.insets = new Insets(0, 0, 0, 6);
-		constraints.gridx = 0;
+		if (officeWindow) {
+			cluster.add(createBrandIcon(), constraints);
+			constraints.gridx++;
+		}
 		constraints.insets = new Insets(0, 0, 0, 4);
 		cluster.add(createLabel(UsabilityStrings.text("chrome.autoSave"), TEXT_COLOR), constraints);
 		constraints.gridx++;
@@ -244,6 +202,18 @@ final class OfficeChromePanel extends JPanel {
 		return cluster;
 	}
 
+	private JLabel createBrandIcon() {
+		ImageIcon icon = new ImageIcon(IconManager.getImage("application.icon.small"));
+		JLabel label = new JLabel(icon);
+		label.setName(BRAND_ICON_NAME);
+		label.setToolTipText("microProject");
+		label.setPreferredSize(new Dimension(18, 18));
+		label.setMinimumSize(new Dimension(18, 18));
+		label.setMaximumSize(new Dimension(18, 18));
+		label.putClientProperty("JComponent.titleBarCaption", Boolean.TRUE);
+		return label;
+	}
+
 	private JLabel createDocumentTitleLabel(String title) {
 		JLabel label = createLabel(OfficeChromeTitleBinding.compactDocumentTitle(title), TEXT_COLOR);
 		label.setName(DOCUMENT_TITLE_NAME);
@@ -251,6 +221,7 @@ final class OfficeChromePanel extends JPanel {
 		label.setPreferredSize(new Dimension(220, 22));
 		label.setMinimumSize(new Dimension(80, 22));
 		label.setMaximumSize(new Dimension(240, 22));
+		label.putClientProperty("JComponent.titleBarCaption", Boolean.TRUE);
 		return label;
 	}
 
@@ -285,86 +256,8 @@ final class OfficeChromePanel extends JPanel {
 		cluster.add(createHelpButton(), constraints);
 		constraints.gridx = 1;
 		constraints.insets = new Insets(0, 0, 0, 0);
-		cluster.add(frame == null ? createWindowButtonsPlaceholder() : createWindowButtons(), constraints);
+		cluster.add(createWindowButtonsPlaceholder(), constraints);
 		return cluster;
-	}
-
-	private JComponent createWindowButtons() {
-		JPanel buttons = new JPanel(null);
-		buttons.setOpaque(false);
-		buttons.setName(WINDOW_BUTTONS_PLACEHOLDER_NAME);
-		Dimension windowButtonsSize = new Dimension(84, 24);
-		buttons.setMinimumSize(windowButtonsSize);
-		buttons.setPreferredSize(windowButtonsSize);
-		buttons.setMaximumSize(windowButtonsSize);
-		minimizeButton = createWindowButton("TitlePane.iconifyIcon", MINIMIZE_BUTTON_NAME, "Minimize",
-			() -> frame.setState(Frame.ICONIFIED));
-		maximizeButton = createWindowButton("TitlePane.maximizeIcon", MAXIMIZE_BUTTON_NAME, "Maximize", () -> {
-			int state = frame.getExtendedState();
-			boolean maximized = (state & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
-			frame.setExtendedState(maximized ? Frame.NORMAL : Frame.MAXIMIZED_BOTH);
-		});
-		maximizeButton.addActionListener(event -> {
-			boolean maximizedNow = (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
-			maximizeButton.setIcon(resolveWindowIcon(maximizedNow ? "TitlePane.restoreIcon" : "TitlePane.maximizeIcon"));
-			maximizeButton.setToolTipText(maximizedNow ? "Restore" : "Maximize");
-		});
-		closeButton = createWindowButton("TitlePane.closeIcon", CLOSE_BUTTON_NAME, "Close",
-			() -> frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING)));
-		buttons.add(minimizeButton);
-		buttons.add(maximizeButton);
-		buttons.add(closeButton);
-		minimizeButton.setBounds(0, 0, 28, 24);
-		maximizeButton.setBounds(28, 0, 28, 24);
-		closeButton.setBounds(56, 0, 28, 24);
-		return buttons;
-	}
-
-	@Override
-	public void addNotify() {
-		super.addNotify();
-		if (frame != null) {
-			SwingUtilities.invokeLater(this::refreshWindowButtonIcons);
-			Timer iconRefresh = new Timer(250, event -> refreshWindowButtonIcons());
-			iconRefresh.setRepeats(false);
-			iconRefresh.start();
-		}
-	}
-
-	private void refreshWindowButtonIcons() {
-		if (minimizeButton == null) {
-			return;
-		}
-		minimizeButton.setIcon(resolveWindowIcon("TitlePane.iconifyIcon"));
-		boolean maximized = (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
-		maximizeButton.setIcon(resolveWindowIcon(maximized ? "TitlePane.restoreIcon" : "TitlePane.maximizeIcon"));
-		maximizeButton.setToolTipText(maximized ? "Restore" : "Maximize");
-		closeButton.setIcon(resolveWindowIcon("TitlePane.closeIcon"));
-	}
-
-	private Icon resolveWindowIcon(String iconKey) {
-		return switch (iconKey) {
-			case "TitlePane.iconifyIcon" -> new FlatWindowIconifyIcon();
-			case "TitlePane.maximizeIcon" -> new FlatWindowMaximizeIcon();
-			case "TitlePane.restoreIcon" -> new FlatWindowRestoreIcon();
-			case "TitlePane.closeIcon" -> new FlatWindowCloseIcon();
-			default -> null;
-		};
-	}
-
-	private JButton createWindowButton(String iconKey, String name, String tooltip, Runnable action) {
-		JButton button = new JButton();
-		button.setName(name);
-		button.setToolTipText(tooltip);
-		button.getAccessibleContext().setAccessibleName(tooltip);
-		button.setFocusable(false);
-		button.setBorderPainted(false);
-		button.setContentAreaFilled(false);
-		button.setPreferredSize(new Dimension(28, 24));
-		button.setMinimumSize(new Dimension(28, 24));
-		button.setMaximumSize(new Dimension(28, 24));
-		button.addActionListener(event -> action.run());
-		return button;
 	}
 
 

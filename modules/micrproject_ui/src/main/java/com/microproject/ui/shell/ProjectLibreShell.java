@@ -90,11 +90,7 @@ public final class ProjectLibreShell {
 
 	public static ShellHandles installRibbonShell(MainRibbonFrame frame, MenuManager menuManager, Runnable helpAction,
 		AutoSaveControl autoSaveControl) {
-		frame.getRootPane().putClientProperty("FlatLaf.fullWindowContent", Boolean.TRUE);
-		frame.getRootPane().putClientProperty("JRootPane.titleBarShowTitle", Boolean.FALSE);
-		frame.getRootPane().putClientProperty("JRootPane.titleBarShowIcon", Boolean.FALSE);
-		// The custom Office chrome owns the single title/QAT row.
-		frame.getRootPane().putClientProperty("JRootPane.titleBarHeight", Integer.valueOf(0));
+		WindowShellInstaller.installOfficeRibbonShell(frame);
 		JPanel ribbonPanel = menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, helpAction);
 		if (ribbonPanel == null) {
 			ribbonPanel = new JPanel(new BorderLayout());

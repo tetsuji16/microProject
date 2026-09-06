@@ -37,6 +37,7 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.shell.WindowShellInstaller;
 import com.microproject.util.Environment;
 
 public class MainRibbonFrame extends JFrame implements FrameHolder{
@@ -56,12 +57,9 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 	}
 
 	public void init() {
-		// The Office chrome is the single visible title/QAT row. Native decorations
-		// are unavailable in the supported fallback environment, so avoid a second
-		// platform title row above it.
-		setUndecorated(true);
-		if (Environment.isWindows()) // in windows, this is needed otherwise initial display has no frame
-		   setSize(1024, 768);
+		// Install before the frame becomes displayable. FlatLaf then delegates the
+		// border, caption drag, system menu, and window controls to Windows.
+		WindowShellInstaller.installOfficeRibbonShell(this);
 		if (Environment.isMac()) setPreferredSize(new Dimension(1280, 768));
 		else setPreferredSize(new Dimension(1024, 768));
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE/*DISPOSE_ON_CLOSE*/);
