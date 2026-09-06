@@ -89,6 +89,15 @@ public final class MicroProjectTheme {
 		UIManager.put("TitlePane.inactiveBackground", tokens.ribbonChromeBackground());
 		UIManager.put("TitlePane.foreground", tokens.tableForeground());
 		UIManager.put("TitlePane.inactiveForeground", tokens.tableForeground());
+		// Keep the custom Office chrome's iconify/maximize buttons visibly
+		// interactive.  FlatLaf gives the close button a dedicated red hover
+		// state, while the other title-pane buttons otherwise inherit a
+		// look-and-feel default that is not guaranteed to be present after the
+		// title-bar background is replaced by the MSP-style ribbon chrome.
+		UIManager.put("TitlePane.buttonHoverBackground", new java.awt.Color(0xE5F1FB));
+		UIManager.put("TitlePane.buttonPressedBackground", new java.awt.Color(0xCCE4F7));
+		UIManager.put("TitlePane.buttonHoverForeground", tokens.tableForeground());
+		UIManager.put("TitlePane.buttonPressedForeground", tokens.tableForeground());
 		UIManager.put("TitlePane.unifiedBackground", Boolean.TRUE);
 		UIManager.put("MenuBar.background", tokens.ribbonChromeBackground());
 		UIManager.put("MenuBar.borderColor", tokens.ribbonChromeBackground());

@@ -40,4 +40,14 @@ class FlatLafSupportTest {
 		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("MenuBar.background"));
 		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("Menu.background"));
 	}
+
+	@Test
+	void titlePaneWindowButtonsUseOfficeHoverStates() {
+		FlatLafSupport.initialize();
+
+		assertEquals(new java.awt.Color(0xE5F1FB), UIManager.getColor("TitlePane.buttonHoverBackground"));
+		assertEquals(new java.awt.Color(0xCCE4F7), UIManager.getColor("TitlePane.buttonPressedBackground"));
+		assertEquals(UIManager.getColor("TitlePane.foreground"), UIManager.getColor("TitlePane.buttonHoverForeground"));
+		assertEquals(UIManager.getColor("TitlePane.foreground"), UIManager.getColor("TitlePane.buttonPressedForeground"));
+	}
 }
