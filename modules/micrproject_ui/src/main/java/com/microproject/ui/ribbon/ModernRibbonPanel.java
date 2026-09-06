@@ -30,6 +30,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
@@ -47,6 +48,7 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.Set;
 
 import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
@@ -608,6 +610,31 @@ public final class ModernRibbonPanel extends JPanel {
 			}
 		}
 		if (getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
+			if (effectiveDensity == RibbonDensity.TIGHT) {
+				// Preserve the task's primary commands before using the single-tab
+				// launcher.  The File tab's five core commands are the minimum useful
+				// surface for a default desktop constrained by high-DPI scaling.
+				for (RibbonBandPanel bandPanel : bandPanels) {
+					unregisterButtons(bandPanel, buttonFactory);
+				}
+				bandRow.removeAll();
+				bandPanels.clear();
+				tallestContent = 0;
+				tallestBand = 0;
+				bandConstraints.gridx = 0;
+				bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
+				visibleBands = primaryTightBands(tab);
+				for (SwingRibbonModel.RibbonBand band : visibleBands) {
+					RibbonBandPanel bandComponent = buildBand(band, effectiveDensity);
+					tallestContent = Math.max(tallestContent, bandComponent.getContentPreferredHeight());
+					tallestBand = Math.max(tallestBand, bandComponent.getPreferredSize().height);
+					bandPanels.add(bandComponent);
+					bandRow.add(bandComponent, bandConstraints);
+					bandConstraints.gridx++;
+				}
+			}
+		}
+		if (getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
 			// Compact buttons can still leave their containing bands wider than the
 			// viewport.  Do not let GridBagLayout place those bands off-screen: use
 			// the same single-tab popup as the explicit collapsed density.
@@ -660,6 +687,28 @@ public final class ModernRibbonPanel extends JPanel {
 			if (index > 0) requiredWidth += BAND_GAP;
 		}
 		return requiredWidth <= availableWidth;
+	}
+
+	private List<SwingRibbonModel.RibbonBand> primaryTightBands(SwingRibbonModel.RibbonTab tab) {
+		if (!"FileRibbonTask".equals(tab.getId())) {
+			return tab.getBands();
+		}
+		Set<String> primaryIds = Set.of(
+			"RibbonNewProject",
+			"RibbonOpenProject",
+			"RibbonRecentProjects",
+			"RibbonImportProject",
+			"RibbonPrint");
+		List<SwingRibbonModel.RibbonBand> result = new ArrayList<>();
+		for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
+			List<SwingRibbonModel.RibbonButton> buttons = band.getButtons().stream()
+				.filter(button -> primaryIds.contains(button.getId()))
+				.toList();
+			if (!buttons.isEmpty()) {
+				result.add(new SwingRibbonModel.RibbonBand(band.getId(), band.getTitle(), buttons));
+			}
+		}
+		return result;
 	}
 
 	private SwingRibbonModel.RibbonBand collapsedTabBand(SwingRibbonModel.RibbonTab tab) {
@@ -716,9 +765,11 @@ public final class ModernRibbonPanel extends JPanel {
 			return buildCustomBand(panel, band);
 		}
 
-		RibbonBandContentPanel content = new RibbonBandContentPanel();
+		// The band's content occupies BorderLayout.CENTER and must expand with
+		// the band.  A preferred-size-capped content panel would center the whole
+		// command group when the band is widened.
+		JPanel content = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
 		content.setOpaque(false);
-		content.setLayout(new GridBagLayout());
 
 		int buttonCount = band.getButtons().size();
 		List<AbstractButton> smallButtonList = new ArrayList<>(buttonCount);
@@ -780,9 +831,8 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	private RibbonBandPanel buildCustomBand(RibbonBandPanel panel, SwingRibbonModel.RibbonBand band) {
-		RibbonBandContentPanel content = new RibbonBandContentPanel();
+		JPanel content = new JPanel(new BorderLayout());
 		content.setOpaque(false);
-		content.setLayout(new BorderLayout());
 		JComponent customComponent = band.getCustomBandProvider() == null ? null : band.getCustomBandProvider().createComponent();
 		if (customComponent != null) {
 			content.add(customComponent, BorderLayout.CENTER);
@@ -852,9 +902,12 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	private JComponent buildSmallButtonColumns(List<AbstractButton> buttons, int referenceHeight) {
-		JPanel wrapper = new RibbonBandContentPanel();
+		// This wrapper is placed in the band BorderLayout.CENTER.  It must be
+		// allowed to expand so GridBagLayout's WEST anchor can keep the command
+		// columns at the band's left edge instead of BorderLayout centering the
+		// preferred-size wrapper.
+		JPanel wrapper = new JPanel(new GridBagLayout());
 		wrapper.setOpaque(false);
-		wrapper.setLayout(new GridBagLayout());
 
 		JPanel columns = new RibbonBandContentPanel();
 		columns.setOpaque(false);
@@ -876,7 +929,10 @@ public final class ModernRibbonPanel extends JPanel {
 		GridBagConstraints wrapperConstraints = new GridBagConstraints();
 		wrapperConstraints.gridx = 0;
 		wrapperConstraints.gridy = 0;
-		wrapperConstraints.anchor = GridBagConstraints.CENTER;
+		// Bands may expand to consume the ribbon width, but their command columns
+		// must remain left-aligned.  Centering here makes a sparse ribbon look as
+		// if the commands were detached from the left-aligned ribbon origin.
+		wrapperConstraints.anchor = GridBagConstraints.WEST;
 		wrapper.add(columns, wrapperConstraints);
 		if (preferredHeight > 0) {
 			wrapper.setPreferredSize(new Dimension(columns.getPreferredSize().width, preferredHeight));

@@ -64,6 +64,7 @@ class OfficeChromePanelVisualSmokeTest {
 		panel.doLayout();
 		layoutRecursively(panel);
 		assertRibbonBandsUseTheAvailableWidth(panel);
+		assertRibbonCommandsAreLeftAligned(panel);
 
 		BufferedImage image = new BufferedImage(1024, 160, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D graphics = image.createGraphics();
@@ -98,6 +99,26 @@ class OfficeChromePanelVisualSmokeTest {
 		assertTrue(rightEdge >= Math.ceil(surface.getWidth() * 0.70d),
 			() -> "ribbon leaves more than 30% unused on the right: surface=" + surface.getWidth()
 				+ " rightEdge=" + rightEdge);
+	}
+
+	private static void assertRibbonCommandsAreLeftAligned(JPanel panel) {
+		UiComponentWalker.flatten(panel).stream()
+			.filter(JComponent.class::isInstance)
+			.map(JComponent.class::cast)
+			.filter(component -> "projectLibreRibbonBand".equals(component.getName()))
+			.forEach(band -> {
+				int leftmostCommand = UiComponentWalker.flatten(band).stream()
+					.filter(AbstractButton.class::isInstance)
+					.map(AbstractButton.class::cast)
+					.mapToInt(button -> javax.swing.SwingUtilities.convertPoint(button, 0, 0, band).x)
+					.min()
+					.orElse(-1);
+				if (leftmostCommand >= 0) {
+					assertTrue(leftmostCommand <= 16,
+						() -> "ribbon commands are centered inside their band: band=" + band.getWidth()
+							+ " leftmostCommand=" + leftmostCommand);
+				}
+			});
 	}
 
 	@Test

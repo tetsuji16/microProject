@@ -279,7 +279,9 @@ class RibbonTabGuiAcceptanceTest {
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
-		show(host, 700, true);
+		// 672 logical px is approximately a 1008px physical client area at 150%
+		// Windows scaling, matching the reported production screenshot.
+		show(host, 672, true);
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
@@ -292,10 +294,11 @@ class RibbonTabGuiAcceptanceTest {
 		for (String commandId : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects",
 			"RibbonImportProject", "RibbonPrint")) {
 			AbstractButton command = findAttachedButtonByCommand(host, commandId);
-			assertTrue(command.isShowing(), () -> commandId + " must remain a visible primary File command at 700 logical px");
+			assertTrue(command.isShowing(), () -> commandId + " must remain a visible primary File command at 672 logical px");
 			assertTrue(command.getIcon() != null && command.getIcon().getIconWidth() > 0,
-				() -> commandId + " must retain a visible icon at 700 logical px");
+				() -> commandId + " must retain a visible icon at 672 logical px");
 		}
+		captureVisibleRibbon(robot, "ribbon-default-high-dpi-primary-commands.png", 600);
 	}
 
 	private void show(JPanel host) throws Exception {
@@ -412,13 +415,18 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	private void captureVisibleRibbon(Robot robot, String fileName) throws Exception {
+		captureVisibleRibbon(robot, fileName, 900);
+	}
+
+	private void captureVisibleRibbon(Robot robot, String fileName, int minimumWidth) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("micrproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
 		ImageIO.write(screenshot, "png", directory.resolve(fileName).toFile());
-		assertTrue(screenshot.getWidth() > 900 && screenshot.getHeight() > 200, "captured ribbon is unexpectedly small");
+		assertTrue(screenshot.getWidth() >= minimumWidth && screenshot.getHeight() > 120,
+			"captured ribbon is unexpectedly small: " + screenshot.getWidth() + "x" + screenshot.getHeight());
 	}
 
 	private static final class RecordingActionMap implements ProjectMenuActionMap {
