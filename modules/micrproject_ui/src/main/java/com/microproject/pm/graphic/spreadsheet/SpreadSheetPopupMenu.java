@@ -40,7 +40,6 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
-import com.microproject.util.Environment;
 
 /**
  *
@@ -72,11 +71,11 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 					public void actionPerformed(ActionEvent e) {
 						spreadSheet.doDoubleClick(row, col);
 					}
-				}, Environment.isNewLook() ? "menu24.taskInformation" : "menu.taskInformation");
+				}, "ribbon.information", MenuActionConstants.ACTION_INFORMATION);
 				addGraphicManagerAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS, "ribbon.hideSelectedTasks");
 				addGraphicManagerAction(MenuActionConstants.ACTION_SHOW_ALL_TASKS, "ribbon.showAllTasks");
 				openLinkedProject = new JMenuItem(Messages.getString("RibbonOpenSubproject.text"));
-				openLinkedProject.setIcon(IconManager.getIcon("ribbon.openSubproject"));
+				openLinkedProject.setIcon(getPopupIcon("ribbon.openSubproject"));
 				openLinkedProject.setToolTipText(Messages.getString("RibbonOpenSubproject.tooltip"));
 				openLinkedProject.setName("openLinkedProject");
 				openLinkedProject.addActionListener(event -> {
@@ -87,7 +86,7 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				openLinkedProject.setVisible(false);
 				add(openLinkedProject);
 				refreshLinkedProject = new JMenuItem(Messages.getString("RibbonRefreshSubprojects.text"));
-				refreshLinkedProject.setIcon(IconManager.getIcon("ribbon.refreshSubprojects"));
+				refreshLinkedProject.setIcon(getPopupIcon("ribbon.refreshSubprojects"));
 				refreshLinkedProject.setToolTipText(Messages.getString("RibbonRefreshSubprojects.tooltip"));
 				refreshLinkedProject.setName("refreshLinkedProject");
 				refreshLinkedProject.addActionListener(event -> {
@@ -98,7 +97,7 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				refreshLinkedProject.setVisible(false);
 				add(refreshLinkedProject);
 				locateLinkedProject = new JMenuItem(Messages.getString("RibbonLocateLinkedProject.text"));
-				locateLinkedProject.setIcon(IconManager.getIcon("ribbon.open"));
+				locateLinkedProject.setIcon(getPopupIcon("ribbon.open"));
 				locateLinkedProject.setToolTipText(Messages.getString("RibbonLocateLinkedProject.tooltip"));
 				locateLinkedProject.setName("locateLinkedProject");
 				locateLinkedProject.addActionListener(event -> {
@@ -109,7 +108,7 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				locateLinkedProject.setVisible(false);
 				add(locateLinkedProject);
 				removeLinkedProject = new JMenuItem(Messages.getString("RibbonRemoveSubproject.text"));
-				removeLinkedProject.setIcon(IconManager.getIcon("ribbon.delete"));
+				removeLinkedProject.setIcon(getPopupIcon("ribbon.delete"));
 				removeLinkedProject.setToolTipText(Messages.getString("RibbonRemoveSubproject.tooltip"));
 				removeLinkedProject.setName("removeLinkedProject");
 				removeLinkedProject.addActionListener(event -> {
@@ -129,9 +128,10 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 			if (actions!=null)
 			for (int i=0;i<actions.length;i++){
 				String actionId = actions[i];
-				add(spreadSheet.prepareAction(actionId),getMenuAction(actionId));
+				add(spreadSheet.prepareAction(actionId), getMenuAction(actionId), actionId);
 				if (MenuActionConstants.ACTION_PASTE.equals(actionId)) {
-					add(spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT), getInsertPasteMenuIcon());
+					add(spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT), getInsertPasteMenuIcon(),
+						MenuActionConstants.ACTION_PASTE_INSERT);
 				}
 			}
 		}
@@ -142,7 +142,7 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 		if (manager == null)
 			return;
 		try {
-			add(manager.getAction(actionId), iconName);
+			add(manager.getAction(actionId), iconName, actionId);
 		} catch (com.microproject.menu.resource.MissingListenerException ignored) {
 			// A spreadsheet can be constructed outside a document frame in tests.
 		}
@@ -150,39 +150,40 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 	    protected String getMenuAction(String action){
 	    	if (menuActionMap==null){
                 menuActionMap = new HashMap<>();
-	    		if (Environment.isNewLook()) {
-		    		menuActionMap.put(MenuActionConstants.ACTION_NEW,"menu24.insertTask");
-		    		menuActionMap.put(MenuActionConstants.ACTION_DELETE,"menu24.delete");
-		    		menuActionMap.put(MenuActionConstants.ACTION_INDENT,"menu24.indent");
-		    		menuActionMap.put(MenuActionConstants.ACTION_OUTDENT,"menu24.outdent");
-		    		menuActionMap.put(MenuActionConstants.ACTION_CUT,"menu24.cut");
-		    		menuActionMap.put(MenuActionConstants.ACTION_COPY,"menu24.copy");
-		    		menuActionMap.put(MenuActionConstants.ACTION_PASTE,"menu24.paste");
-		    		menuActionMap.put(MenuActionConstants.ACTION_EXPAND,"menu24.expand");
-		    		menuActionMap.put(MenuActionConstants.ACTION_COLLAPSE,"menu24.collapse");
-	    		} else {
-		    		menuActionMap.put(MenuActionConstants.ACTION_NEW,"menu.insertTask");
-		    		menuActionMap.put(MenuActionConstants.ACTION_DELETE,"menu.delete");
-		    		menuActionMap.put(MenuActionConstants.ACTION_INDENT,"menu.rightArrow");
-		    		menuActionMap.put(MenuActionConstants.ACTION_OUTDENT,"menu.leftArrow");
-		    		menuActionMap.put(MenuActionConstants.ACTION_CUT,"menu.cut");
-		    		menuActionMap.put(MenuActionConstants.ACTION_COPY,"menu.copy");
-		    		menuActionMap.put(MenuActionConstants.ACTION_PASTE,"menu.paste");
-		    		menuActionMap.put(MenuActionConstants.ACTION_EXPAND,"menu.expand");
-		    		menuActionMap.put(MenuActionConstants.ACTION_COLLAPSE,"menu.collapse");
-	    		}
+				menuActionMap.put(MenuActionConstants.ACTION_NEW, "ribbon.insert");
+				menuActionMap.put(MenuActionConstants.ACTION_DELETE, "ribbon.delete");
+				menuActionMap.put(MenuActionConstants.ACTION_INDENT, "ribbon.indent");
+				menuActionMap.put(MenuActionConstants.ACTION_OUTDENT, "ribbon.outdent");
+				menuActionMap.put(MenuActionConstants.ACTION_CUT, "ribbon.cut");
+				menuActionMap.put(MenuActionConstants.ACTION_COPY, "ribbon.copy");
+				menuActionMap.put(MenuActionConstants.ACTION_PASTE, "ribbon.paste");
+				menuActionMap.put(MenuActionConstants.ACTION_EXPAND, "ribbon.expand");
+				menuActionMap.put(MenuActionConstants.ACTION_COLLAPSE, "ribbon.collapse");
 	    	}
             return menuActionMap.get(action);
         }
 
-	    protected String getInsertPasteMenuIcon() {
-	    	return Environment.isNewLook() ? "menu24.insertTask" : "menu.insertTask";
+	protected String getInsertPasteMenuIcon() {
+		return "ribbon.insert";
 	    }
 	    
-	    private void add(Action action, String iconName) {
-	    	JMenuItem menuItem = new JMenuItem(action);
-	    	menuItem.setIcon(IconManager.getIcon(iconName));
-	    	add(menuItem);
+	private void add(Action action, String iconName, String actionId) {
+		if (action == null) {
+			// Do not put a visible dead item in the popup when a spreadsheet does
+			// not expose that operation. The action list is the capability contract.
+			return;
+		}
+		JMenuItem menuItem = new JMenuItem(action);
+		menuItem.setName("popup." + actionId);
+		menuItem.setIcon(getPopupIcon(iconName));
+		add(menuItem);
+	    }
+
+	private javax.swing.Icon getPopupIcon(String iconName) {
+		if (iconName == null)
+			return null;
+		javax.swing.Icon icon = IconManager.getRibbonIcon(iconName, 16, 16);
+		return icon != null ? icon : IconManager.getIcon(iconName);
 	    }
 
 	    /**

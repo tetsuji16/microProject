@@ -238,6 +238,23 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void taskPopupUsesLiveActionsAndFlatSvgIconsForEveryCommandItem() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			SpreadSheetPopupMenu popup = fixture.sheet().getPopup();
+
+			for (java.awt.Component component : popup.getComponents()) {
+				if (!(component instanceof JMenuItem item) || !item.getName().startsWith("popup."))
+					continue;
+				assertNotNull(item.getAction(), "popup item must have a live Swing action");
+				assertNotNull(item.getIcon(), "popup item must have a FlatLaf SVG icon");
+				assertEquals(16, item.getIcon().getIconWidth());
+				assertEquals(16, item.getIcon().getIconHeight());
+			}
+		});
+	}
+
+	@Test
 	void linkedSubprojectPopupExposesRecoveryActionsForAnUnloadedReference() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			DataFactoryUndoController undoController = new DataFactoryUndoController();
