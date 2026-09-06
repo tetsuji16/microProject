@@ -87,6 +87,7 @@ class ProjectLibreShellTest {
 		assertTrue(hasComponent(panel, OfficeChromePanel.APPLICATION_ICON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME));
 	}
 
@@ -109,6 +110,13 @@ class ProjectLibreShellTest {
 		assertEquals(32, header.getPreferredSize().height);
 		assertEquals(24, search.getPreferredSize().height);
 		assertEquals(18, autoSave.getPreferredSize().height);
+	}
+
+	@Test
+	void compactDocumentTitleKeepsOnlyTheFileName() {
+		assertEquals("Commercial construction project plan2.pod *",
+			OfficeChromePanel.compactDocumentTitle("microProject - C:\\projects\\Commercial construction project plan2.pod *"));
+		assertEquals("microProject", OfficeChromePanel.compactDocumentTitle(""));
 	}
 
 	@Test
