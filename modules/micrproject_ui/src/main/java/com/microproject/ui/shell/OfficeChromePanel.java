@@ -35,7 +35,6 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
-import java.beans.PropertyChangeListener;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
@@ -83,8 +82,8 @@ final class OfficeChromePanel extends JPanel {
 	private final Runnable helpAction;
 	private final JTextField searchField;
 	private final JLabel documentTitleLabel;
-	private boolean synchronizingNativeTitle;
 	private final AutoSaveControl autoSaveControl;
+	private final OfficeChromeTitleBinding titleBinding;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
 		this(null, menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
@@ -102,32 +101,12 @@ final class OfficeChromePanel extends JPanel {
 		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
 		this.searchField = new JTextField(28);
 		this.documentTitleLabel = createDocumentTitleLabel(frame == null ? "" : frame.getTitle());
+		this.titleBinding = frame == null ? null : OfficeChromeTitleBinding.attach(frame, this::updateDocumentTitle);
 		setName(NAME);
 		setOpaque(true);
 		setBackground(CHROME_BACKGROUND);
 		add(buildHeader(), BorderLayout.NORTH);
 		add(ribbonPanel, BorderLayout.CENTER);
-		if (frame != null) {
-			PropertyChangeListener titleListener = event -> {
-				if (synchronizingNativeTitle) return;
-				String title = (String) event.getNewValue();
-				updateDocumentTitle(title);
-				synchronizingNativeTitle = true;
-				try {
-					frame.setTitle(applicationTitle(title));
-				} finally {
-					synchronizingNativeTitle = false;
-				}
-			};
-			frame.addPropertyChangeListener("title", titleListener);
-			String title = frame.getTitle();
-			synchronizingNativeTitle = true;
-			try {
-				frame.setTitle(applicationTitle(title));
-			} finally {
-				synchronizingNativeTitle = false;
-			}
-		}
 	}
 
 	private JComponent buildHeader() {
@@ -214,7 +193,7 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private JLabel createDocumentTitleLabel(String title) {
-		JLabel label = createLabel(compactDocumentTitle(title), TEXT_COLOR);
+		JLabel label = createLabel(OfficeChromeTitleBinding.compactDocumentTitle(title), TEXT_COLOR);
 		label.setName(DOCUMENT_TITLE_NAME);
 		label.setToolTipText(title);
 		label.setPreferredSize(new Dimension(220, 22));
@@ -224,22 +203,12 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private void updateDocumentTitle(String title) {
-		documentTitleLabel.setText(compactDocumentTitle(title));
+		documentTitleLabel.setText(OfficeChromeTitleBinding.compactDocumentTitle(title));
 		documentTitleLabel.setToolTipText(title);
 	}
 
 	static String compactDocumentTitle(String title) {
-		if (title == null || title.isBlank()) return "microProject";
-		int appSeparator = title.indexOf(" - ");
-		if (appSeparator >= 0 && appSeparator + 3 < title.length()) title = title.substring(appSeparator + 3);
-		int separator = Math.max(title.lastIndexOf('\\'), title.lastIndexOf('/'));
-		return separator >= 0 ? title.substring(separator + 1) : title;
-	}
-
-	private static String applicationTitle(String title) {
-		if (title == null || title.isBlank()) return "microProject";
-		int separator = title.indexOf(" - ");
-		return separator > 0 ? title.substring(0, separator) : title;
+		return OfficeChromeTitleBinding.compactDocumentTitle(title);
 	}
 
 	private JComponent createApplicationIcon() {
