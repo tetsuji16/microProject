@@ -44,6 +44,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
+import java.awt.Container;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -662,6 +665,34 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void largeGanttButtonFitsInsideItsRibbonBandContentArea() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			host.setSize(1200, host.getPreferredSize().height);
+			layoutRecursively(host);
+
+			ResourceBundle labels = menuBundle(Locale.JAPANESE);
+			findButtonByText(host, labels.getString("ViewRibbonTask.title")).doClick();
+			host.setSize(1200, host.getPreferredSize().height);
+			layoutRecursively(host);
+
+			AbstractButton gantt = findAttachedButtonByCommand(host, "RibbonGantt");
+			Component band = findRibbonBand(gantt);
+			Rectangle ganttBounds = SwingUtilities.convertRectangle(gantt.getParent(), gantt.getBounds(), band);
+			Insets insets = ((JComponent) band).getInsets();
+			Rectangle contentBounds = new Rectangle(
+				insets.left,
+				insets.top,
+				band.getWidth() - insets.left - insets.right,
+				band.getHeight() - insets.top - insets.bottom);
+
+			assertTrue(contentBounds.contains(ganttBounds),
+				() -> "RibbonGantt is clipped by its band: button=" + ganttBounds + " content=" + contentBounds);
+		});
+	}
+
+	@Test
 	void teamResourcesRibbonButtonTracksItsFilterState() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
@@ -746,6 +777,25 @@ class RibbonAndToolbarButtonTest {
 			}
 		}
 		throw new AssertionError("Visible ribbon button not found: " + command);
+	}
+
+	private static Component findRibbonBand(Component component) {
+		for (Component current = component; current != null; current = current.getParent()) {
+			if ("projectLibreRibbonBand".equals(current.getName())) {
+				return current;
+			}
+		}
+		throw new AssertionError("Ribbon band not found for " + component);
+	}
+
+	private static void layoutRecursively(Component component) {
+		if (!(component instanceof Container container)) {
+			return;
+		}
+		container.doLayout();
+		for (Component child : container.getComponents()) {
+			layoutRecursively(child);
+		}
 	}
 
 	private static JLabel findLabelByText(JComponent root, String text) {

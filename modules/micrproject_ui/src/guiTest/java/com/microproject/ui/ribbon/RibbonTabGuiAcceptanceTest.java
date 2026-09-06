@@ -9,9 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.IllegalComponentStateException;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -31,6 +33,7 @@ import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JFrame;
+import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -121,7 +124,7 @@ class RibbonTabGuiAcceptanceTest {
 		// Keep the fixture above the compact breakpoint so every command is a
 		// direct hit target; the overflow path is covered separately by the
 		// responsive ribbon tests.
-		show(host, 1500, true);
+		show(host, 1600, true);
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
@@ -207,6 +210,39 @@ class RibbonTabGuiAcceptanceTest {
 		clickCommand(robot, hiddenCommand);
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 			"collapsed RibbonHideSelectedTasks did not dispatch");
+	}
+
+	@Test
+	void viewRibbonKeepsTheLargeGanttButtonVisibleAndDispatchesItOnce() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		RecordingActionMap actions = new RecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		show(host, 1200, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		String viewTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("ViewRibbonTask.title");
+		AbstractButton viewTab = findButton(host, viewTitle);
+		click(robot, viewTab);
+		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		SwingUtilities.invokeAndWait(() -> { });
+
+		AbstractButton gantt = findAttachedButtonByCommand(host, "RibbonGantt");
+		SwingUtilities.invokeAndWait(() -> assertContainedInRibbonBand(gantt));
+		Rectangle ganttScreenBounds = safeScreenBounds(gantt);
+		Rectangle windowBounds = frame.getBounds();
+		assertTrue(windowBounds.contains(ganttScreenBounds),
+			() -> "RibbonGantt must be fully visible in the Robot window: button=" + ganttScreenBounds + " window=" + windowBounds);
+		captureVisibleRibbon(robot, "ribbon-view-gantt-layout.png");
+
+		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonGantt");
+		int before = actions.count(actionId);
+		click(robot, gantt);
+		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+			"Robot click did not dispatch RibbonGantt exactly once");
 	}
 
 	@Test
@@ -325,6 +361,28 @@ class RibbonTabGuiAcceptanceTest {
 		} catch (IllegalComponentStateException e) {
 			return new Rectangle();
 		}
+	}
+
+	private static void assertContainedInRibbonBand(AbstractButton button) {
+		Component band = findRibbonBand(button);
+		Rectangle buttonBounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), band);
+		Insets insets = ((JComponent) band).getInsets();
+		Rectangle contentBounds = new Rectangle(
+			insets.left,
+			insets.top,
+			band.getWidth() - insets.left - insets.right,
+			band.getHeight() - insets.top - insets.bottom);
+		assertTrue(contentBounds.contains(buttonBounds),
+			() -> "Ribbon button is clipped by its band: button=" + buttonBounds + " content=" + contentBounds);
+	}
+
+	private static Component findRibbonBand(Component component) {
+		for (Component current = component; current != null; current = current.getParent()) {
+			if ("projectLibreRibbonBand".equals(current.getName())) {
+				return current;
+			}
+		}
+		throw new AssertionError("Ribbon band not found for " + component);
 	}
 
 	private void captureVisibleRibbon(Robot robot, String fileName) throws Exception {
