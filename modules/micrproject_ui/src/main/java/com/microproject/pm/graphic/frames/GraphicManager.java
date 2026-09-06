@@ -885,6 +885,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			projectListMenu.add(mi);
 		}
 		setCurrentFrame(frame);
+		showDocumentRibbon();
 
 		frameList.add(frame);
 		frameMap.put(project, frame);
@@ -1089,6 +1090,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private void showWelcomeDialog(boolean focusRecentProjects) {
+		showDocumentRibbon();
 		WelcomeDialog instance = focusRecentProjects
 			? WelcomeDialog.getRecentProjectsInstance(getFrame(),getMenuManager())
 			: WelcomeDialog.getInstance(getFrame(),getMenuManager());
@@ -1190,11 +1192,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (!recentProjectStore.isRestoreSessionEnabled()) return false;
 		List<java.nio.file.Path> files = recentProjectStore.session();
 		if (files.isEmpty()) return false;
+		showDocumentRibbon();
 		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), java.text.MessageFormat.format(UsabilityStrings.text("session.prompt"), files.size()), UsabilityStrings.text("session.title"), JOptionPane.YES_NO_OPTION);
 		if (choice != JOptionPane.YES_OPTION) return false;
 		boolean opened = false;
 		for (java.nio.file.Path file : files) opened |= loadLocalDocument(file.toString(), false);
 		return opened;
+	}
+
+	/**
+	 * Keeps startup and document-open dialogs above the normal ribbon. The File
+	 * tab uses the same ribbon surface as every other tab.
+	 */
+	private void showDocumentRibbon() {
+		if (container instanceof MainRibbonFrame ribbonFrame) ribbonFrame.showProjectRibbon();
 	}
 
 	private void updateStoredSession() {

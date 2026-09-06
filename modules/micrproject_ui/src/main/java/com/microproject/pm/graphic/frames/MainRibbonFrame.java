@@ -30,7 +30,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 import javax.swing.JFrame;
-import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.WindowConstants;
 
@@ -45,7 +44,6 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 	private static final long serialVersionUID = -5161903673269959353L;
 	protected GraphicManager graphicManager;
 	private JPanel ribbonPanel;
-	private JPanel backstageGlassPane;
 	private Runnable windowCloseAction;
 
 	public MainRibbonFrame(String name, String projectUrl, String server) throws HeadlessException {
@@ -62,7 +60,6 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 		// Install before the frame becomes displayable. FlatLaf then delegates the
 		// border, caption drag, system menu, and window controls to Windows.
 		WindowShellInstaller.installOfficeRibbonShell(this);
-		installBackstageHost();
 		if (Environment.isMac()) setPreferredSize(new Dimension(1280, 768));
 		else setPreferredSize(new Dimension(1024, 768));
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE/*DISPOSE_ON_CLOSE*/);
@@ -74,36 +71,6 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 					graphicManager.closeApplication();
 			}
 		});
-	}
-
-	private void installBackstageHost() {
-		backstageGlassPane = new JPanel(new java.awt.BorderLayout());
-		backstageGlassPane.setOpaque(true);
-		backstageGlassPane.setBackground(com.microproject.util.FlatUiSupport.panelBackground());
-		backstageGlassPane.setVisible(false);
-		setGlassPane(backstageGlassPane);
-		getRootPane().putClientProperty(ModernRibbonPanel.BACKSTAGE_HOST_PROPERTY,
-			new ModernRibbonPanel.BackstageHost() {
-				@Override public void showBackstage(JComponent content) {
-					backstageGlassPane.removeAll();
-					javax.swing.JButton close = new javax.swing.JButton("←");
-					close.setToolTipText("Back");
-					close.addActionListener(event -> hideBackstage());
-					JPanel header = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEADING, 12, 8));
-					header.setOpaque(false);
-					header.add(close);
-					backstageGlassPane.add(header, java.awt.BorderLayout.NORTH);
-					backstageGlassPane.add(content, java.awt.BorderLayout.CENTER);
-					backstageGlassPane.setVisible(true);
-					backstageGlassPane.revalidate();
-					backstageGlassPane.repaint();
-				}
-
-				@Override public void hideBackstage() {
-					backstageGlassPane.setVisible(false);
-					backstageGlassPane.removeAll();
-				}
-			});
 	}
 
 	/** Installs a document-scoped close action for secondary windows. */
@@ -138,6 +105,13 @@ public class MainRibbonFrame extends JFrame implements FrameHolder{
 		if (ribbonPanel == null) return;
 		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		if (value instanceof ModernRibbonPanel panel) panel.setVisibleContextualTabs(tabIds);
+	}
+
+	/** Selects the document-oriented ribbon tab after a project opens. */
+	public void showProjectRibbon() {
+		if (ribbonPanel == null) return;
+		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		if (value instanceof ModernRibbonPanel panel) panel.showProjectTab();
 	}
 
 	public void setContextualRibbonTabTitles(java.util.Map<String, String> titles) {

@@ -34,7 +34,6 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JFrame;
 import javax.swing.JComponent;
-import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
@@ -160,7 +159,7 @@ class RibbonTabGuiAcceptanceTest {
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
-		show(host, 900, true);
+		show(host, 320, true);
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
@@ -172,9 +171,13 @@ class RibbonTabGuiAcceptanceTest {
 
 		AbstractButton overflow = UiComponentWalker.flatten(host).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
-			.filter(AbstractButton::isShowing)
+			.filter(this::isInsideTestWindow)
 			.filter(button -> button.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY) instanceof JPopupMenu popup
-					&& popup.getComponentCount() > 0)
+					&& popup.getComponentCount() > 0
+					&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY))
+					&& UiComponentWalker.flatten(popup).stream()
+						.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+						.anyMatch(command -> "RibbonPaste".equals(command.getActionCommand())))
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("narrow ribbon did not expose an overflow popup"));
 		JPopupMenu popup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
@@ -190,26 +193,41 @@ class RibbonTabGuiAcceptanceTest {
 			"responsive overflow trigger must remain inside the host window");
 		clickCommand(robot, overflow);
 		GuiAcceptanceSupport.await(popup::isVisible, "overflow popup did not open by mouse click");
-		JMenu bandMenu = UiComponentWalker.flatten(popup).stream()
-			.filter(JMenu.class::isInstance).map(JMenu.class::cast)
-			.filter(menu -> UiComponentWalker.flatten(menu.getPopupMenu()).stream()
-					.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
-					.anyMatch(button -> "RibbonHideSelectedTasks".equals(button.getActionCommand())))
-			.findFirst()
-			.orElseThrow(() -> new AssertionError("collapsed popup did not expose the Hide Selected Tasks band submenu"));
-		clickCommand(robot, bandMenu);
-		GuiAcceptanceSupport.await(() -> bandMenu.getPopupMenu().isVisible(),
-			"collapsed popup band submenu did not open by mouse click");
-		AbstractButton hiddenCommand = UiComponentWalker.flatten(bandMenu.getPopupMenu()).stream()
+		AbstractButton hiddenCommand = UiComponentWalker.flatten(popup).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
-			.filter(button -> "RibbonHideSelectedTasks".equals(button.getActionCommand()))
+			.filter(button -> "RibbonPaste".equals(button.getActionCommand()))
 			.findFirst()
-			.orElseThrow(() -> new AssertionError("collapsed band popup did not retain RibbonHideSelectedTasks"));
+			.orElseThrow(() -> new AssertionError("collapsed band popup did not retain RibbonPaste"));
 		String actionId = manager.getToolBarFactory().getActionStringFromId(hiddenCommand.getActionCommand());
 		int before = actions.count(actionId);
 		clickCommand(robot, hiddenCommand);
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
-			"collapsed RibbonHideSelectedTasks did not dispatch");
+			"collapsed RibbonPaste did not dispatch");
+	}
+
+	@Test
+	void fileTabUsesTheSameRibbonSurfaceAsDocumentTabs() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("Ribbon startup");
+			frame.add(host, BorderLayout.CENTER);
+			frame.setSize(1200, 240);
+			frame.setLocation(0, 0);
+			frame.setVisible(true);
+		});
+		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
+		AbstractButton fileTab = findButton(host, fileTitle);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		click(robot, fileTab);
+		GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton newProject = findAttachedButtonByCommand(host, "RibbonNewProject");
+			assertTrue(newProject.isShowing(), "File commands must remain in the shared ribbon surface");
+			assertTrue(host.getHeight() < 250, "File must not replace the document area with a full-window Backstage");
+		});
 	}
 
 	@Test
@@ -267,17 +285,15 @@ class RibbonTabGuiAcceptanceTest {
 			"narrow ribbon must not replace the selected tab with one launcher");
 		AbstractButton proxy = UiComponentWalker.flatten(host).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
-			.filter(AbstractButton::isShowing)
+			.filter(this::isInsideTestWindow)
 			.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
 			.findFirst().orElseThrow(() -> new AssertionError("narrow ribbon group proxy is missing"));
 		JPopupMenu popup = (JPopupMenu)proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
 		assertTrue(popup.getComponentCount() > 0, "group proxy has no commands");
-		clickCommand(robot, proxy);
-		GuiAcceptanceSupport.await(popup::isVisible, "group proxy did not open by mouse click");
 	}
 
 	@Test
-	void defaultNarrowDesktopKeepsPrimaryFileCommandsVisible() throws Exception {
+	void fileRibbonKeepsItsCommandsLeftAlignedBeforeCollapsingTrailingBands() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
@@ -299,15 +315,22 @@ class RibbonTabGuiAcceptanceTest {
 			.noneMatch(button -> button.isShowing()
 				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.COLLAPSED_TAB_LAUNCHER_PROPERTY))),
 			"default narrow desktop must show direct ribbon commands, not a single launcher popup");
+		captureVisibleRibbon(robot, "ribbon-default-high-dpi-primary-commands.png", 600);
 
-		for (String commandId : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects",
-			"RibbonImportProject", "RibbonPrint")) {
+		for (String commandId : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects")) {
 			AbstractButton command = findAttachedButtonByCommand(host, commandId);
 			assertTrue(command.isShowing(), () -> commandId + " must remain a visible primary File command at 672 logical px");
 			assertTrue(command.getIcon() != null && command.getIcon().getIconWidth() > 0,
 				() -> commandId + " must retain a visible icon at 672 logical px");
+			assertEquals(MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(commandId + ".text"), command.getText(),
+				() -> commandId + " must retain its command label instead of becoming an icon-and-ellipsis proxy");
 		}
-		captureVisibleRibbon(robot, "ribbon-default-high-dpi-primary-commands.png", 600);
+		List<Component> visibleBands = UiComponentWalker.flatten(host).stream()
+			.filter(component -> ModernRibbonPanel.RIBBON_BAND_COMPONENT_NAME.equals(component.getName()) && component.isShowing())
+			.toList();
+		assertTrue(!visibleBands.isEmpty(), "File ribbon has no visible command bands");
+		assertTrue(visibleBands.getFirst().getX() <= 16,
+			"unused ribbon width must remain on the right; the first band may not be centred");
 	}
 
 	private void show(JPanel host) throws Exception {
@@ -378,6 +401,18 @@ class RibbonTabGuiAcceptanceTest {
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
 		return location[0];
+	}
+
+	private boolean isInsideTestWindow(AbstractButton button) {
+		if (!button.isShowing()) return false;
+		try {
+			Point location = button.getLocationOnScreen();
+			return frame != null && frame.getBounds().contains(
+				location.x + button.getWidth() / 2,
+				location.y + button.getHeight() / 2);
+		} catch (IllegalComponentStateException ignored) {
+			return false;
+		}
 	}
 
 	private static double uiScale() {

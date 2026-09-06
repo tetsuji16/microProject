@@ -29,7 +29,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -38,7 +37,6 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -75,13 +73,6 @@ import com.microproject.util.FlatUiSupport;
 public final class ModernRibbonPanel extends JPanel {
 	/** Client-property key on the ribbon host for view-context coordination. */
 	public static final String CONTEXTUAL_TABS_PROPERTY = "microproject.ribbon.contextualTabs";
-	/** Root-pane property used by the desktop frame to display File as Backstage. */
-	public static final String BACKSTAGE_HOST_PROPERTY = "microproject.ribbon.backstageHost";
-
-	public interface BackstageHost {
-		void showBackstage(JComponent content);
-		void hideBackstage();
-	}
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
 	static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
@@ -107,8 +98,9 @@ public final class ModernRibbonPanel extends JPanel {
 	// work areas and let the measured band widths handle the final fit decision.
 	private enum RibbonDensity {
 		FULL(Integer.MIN_VALUE, false),
-		COMPACT(0, true),
-		TIGHT(50, true),
+		COMPACT(Integer.MIN_VALUE, true),
+		/** Keeps primary commands direct while moving secondary commands into one band overflow. */
+		PRIORITY_COMPACT(50, true),
 		/** A proxy represents one command group; it never represents a whole tab. */
 		COLLAPSED(Integer.MAX_VALUE, false);
 
@@ -132,8 +124,9 @@ public final class ModernRibbonPanel extends JPanel {
 		}
 
 		boolean collapses(int priority) {
-			return compacted && priority <= collapsedPriority;
+			return priority <= collapsedPriority;
 		}
+
 	}
 	private final SwingRibbonModel model;
 	private final ExtToolBarFactory buttonFactory;
@@ -152,7 +145,6 @@ public final class ModernRibbonPanel extends JPanel {
 	private String activeTabId;
 	private boolean rebuildingDensity;
 	private JRootPane shortcutRoot;
-	private final Map<KeyStroke, String> fileAccessBindings = new LinkedHashMap<>();
 
 	ModernRibbonPanel(SwingRibbonModel model, ExtToolBarFactory buttonFactory, ResourceBundle[] bundles, Runnable helpAction) {
 		super(new BorderLayout());
@@ -192,6 +184,15 @@ public final class ModernRibbonPanel extends JPanel {
 			}
 		});
 		updateResponsiveMode();
+	}
+
+	/** Selects the first document-oriented ribbon tab. */
+	public void showProjectTab() {
+		model.getTabs().stream()
+			.filter(tab -> !"FileRibbonTask".equals(tab.getId()))
+			.map(SwingRibbonModel.RibbonTab::getId)
+			.findFirst()
+			.ifPresent(this::showTab);
 	}
 
 	/**
@@ -258,7 +259,6 @@ public final class ModernRibbonPanel extends JPanel {
 				actionMap.put(actionId, new AbstractAction() {
 				@Override public void actionPerformed(ActionEvent event) {
 					showTab(tab.getId());
-					if ("FileRibbonTask".equals(tab.getId())) installFileAccessKeys();
 				}
 			});
 		}
@@ -266,7 +266,6 @@ public final class ModernRibbonPanel extends JPanel {
 
 	private void uninstallTabAccessKeys() {
 		if (shortcutRoot == null) return;
-		uninstallFileAccessKeys();
 		InputMap inputMap = shortcutRoot.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
 		ActionMap actionMap = shortcutRoot.getActionMap();
 		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
@@ -276,42 +275,6 @@ public final class ModernRibbonPanel extends JPanel {
 			actionMap.remove(accessActionId(tab.getId()));
 		}
 		shortcutRoot = null;
-	}
-
-	private void installFileAccessKeys() {
-		if (shortcutRoot == null) return;
-		uninstallFileAccessKeys();
-		registerFileAccessKey(KeyEvent.VK_E, "RibbonExportProject");
-		registerFileAccessKey(KeyEvent.VK_V, "RibbonPrintPreview");
-		registerFileAccessKey(KeyEvent.VK_L, "RibbonLocale");
-		registerFileAccessKey(KeyEvent.VK_H, "RibbonProjectLibreDocumentation");
-		registerFileAccessKey(KeyEvent.VK_I, "RibbonAboutProjectLibre");
-	}
-
-	private void registerFileAccessKey(int keyCode, String commandId) {
-		javax.swing.Action command = commandActions.get(commandId);
-		if (command == null) return;
-		KeyStroke keyStroke = KeyStroke.getKeyStroke(keyCode, 0);
-		String actionId = "microproject.ribbon.file." + commandId;
-		shortcutRoot.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStroke, actionId);
-		shortcutRoot.getActionMap().put(actionId, new AbstractAction() {
-			@Override public void actionPerformed(ActionEvent event) {
-				uninstallFileAccessKeys();
-				command.actionPerformed(new ActionEvent(ModernRibbonPanel.this, ActionEvent.ACTION_PERFORMED, commandId));
-			}
-		});
-		fileAccessBindings.put(keyStroke, actionId);
-	}
-
-	private void uninstallFileAccessKeys() {
-		if (shortcutRoot == null) return;
-		InputMap inputMap = shortcutRoot.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-		ActionMap actionMap = shortcutRoot.getActionMap();
-		for (Map.Entry<KeyStroke, String> binding : fileAccessBindings.entrySet()) {
-			inputMap.remove(binding.getKey());
-			actionMap.remove(binding.getValue());
-		}
-		fileAccessBindings.clear();
 	}
 
 	private static String accessActionId(String tabId) { return "microproject.ribbon.select." + tabId; }
@@ -421,15 +384,6 @@ public final class ModernRibbonPanel extends JPanel {
 	private void showTab(String tabId) {
 		if (!isTabVisible(tabId)) return;
 		activeTabId = tabId;
-		BackstageHost backstageHost = backstageHost();
-		if ("FileRibbonTask".equals(tabId) && backstageHost != null) {
-			JToggleButton tabButton = tabButtons.get(tabId);
-			if (tabButton != null) tabButton.setSelected(true);
-			backstageHost.showBackstage(createBackstagePanel());
-			installFileAccessKeys();
-			return;
-		}
-		if (backstageHost != null) backstageHost.hideBackstage();
 		JPanel tabBody = tabBodies.get(tabId);
 		if (tabBody == null || needsWidthAwareRebuild(tabId)) {
 			if (tabBody != null) {
@@ -447,59 +401,6 @@ public final class ModernRibbonPanel extends JPanel {
 		cards.revalidate();
 		cards.repaint();
 		updatePreferredHeight();
-	}
-
-	private BackstageHost backstageHost() {
-		JRootPane root = SwingUtilities.getRootPane(this);
-		Object value = root == null ? null : root.getClientProperty(BACKSTAGE_HOST_PROPERTY);
-		return value instanceof BackstageHost host ? host : null;
-	}
-
-	private JComponent createBackstagePanel() {
-		SwingRibbonModel.RibbonTab fileTab = model.getTabs().stream()
-			.filter(tab -> "FileRibbonTask".equals(tab.getId())).findFirst().orElseThrow();
-		JPanel backstage = new JPanel(new BorderLayout(20, 0));
-		backstage.setOpaque(true);
-		backstage.setBackground(FlatUiSupport.panelBackground());
-		backstage.setBorder(BorderFactory.createEmptyBorder(28, 28, 28, 28));
-		JPanel navigation = new JPanel();
-		navigation.setOpaque(false);
-		navigation.setLayout(new javax.swing.BoxLayout(navigation, javax.swing.BoxLayout.Y_AXIS));
-		JPanel commandArea = new JPanel();
-		commandArea.setOpaque(false);
-		commandArea.setLayout(new javax.swing.BoxLayout(commandArea, javax.swing.BoxLayout.Y_AXIS));
-		for (SwingRibbonModel.RibbonBand band : fileTab.getBands()) {
-			JButton group = new JButton(band.getTitle());
-			group.setHorizontalAlignment(SwingConstants.LEFT);
-			group.setMaximumSize(new Dimension(220, FlatUiSupport.ribbonInlineButtonHeight()));
-			group.addActionListener(event -> populateBackstageCommands(commandArea, band));
-			navigation.add(group);
-		}
-		if (!fileTab.getBands().isEmpty()) populateBackstageCommands(commandArea, fileTab.getBands().get(0));
-		backstage.add(navigation, BorderLayout.WEST);
-		backstage.add(commandArea, BorderLayout.CENTER);
-		return backstage;
-	}
-
-	private void populateBackstageCommands(JPanel target, SwingRibbonModel.RibbonBand band) {
-		target.removeAll();
-		JLabel heading = new JLabel(band.getTitle());
-		heading.setFont(heading.getFont().deriveFont(Font.BOLD, heading.getFont().getSize2D() + 4f));
-		target.add(heading);
-		target.add(Box.createVerticalStrut(12));
-		if (band.isCustomBand()) {
-			JComponent custom = band.getCustomBandProvider() == null ? null : band.getCustomBandProvider().createComponent();
-			if (custom != null) target.add(custom);
-		} else {
-			for (SwingRibbonModel.RibbonButton specification : band.getButtons()) {
-				AbstractButton command = createButton(specification, false);
-				buttonStyler.styleActionButton(command, "medium");
-				command.setMaximumSize(new Dimension(360, command.getPreferredSize().height));
-				target.add(command);
-			}
-		}
-		target.revalidate();
-		target.repaint();
 	}
 
 	private boolean isTabVisible(String tabId) {
@@ -608,15 +509,39 @@ public final class ModernRibbonPanel extends JPanel {
 		bandConstraints.fill = GridBagConstraints.NONE;
 		bandConstraints.weightx = 0.0;
 		bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
-		RibbonDensity effectiveDensity = RibbonDensity.FULL;
-		List<RibbonBandPanel> bandPanels = addBands(bandRow, bandConstraints, tab.getBands(), effectiveDensity);
-		for (RibbonDensity candidate : List.of(RibbonDensity.COMPACT, RibbonDensity.TIGHT, RibbonDensity.COLLAPSED)) {
+		List<RibbonDensity> presentations = uniformPresentation(tab.getBands().size(), RibbonDensity.FULL);
+		List<RibbonBandPanel> bandPanels = addBands(bandRow, bandConstraints, tab.getBands(), presentations);
+		for (RibbonDensity candidate : List.of(RibbonDensity.COMPACT)) {
 			if (getWidth() <= 0 || fitsInWidth(bandPanels, getWidth(), bandRow)) break;
-			unregisterButtons(bandPanels);
-			bandRow.removeAll();
-			bandConstraints.gridx = 0;
-			effectiveDensity = candidate;
-			bandPanels = addBands(bandRow, bandConstraints, tab.getBands(), effectiveDensity);
+			presentations = uniformPresentation(tab.getBands().size(), candidate);
+			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
+		}
+		// Office collapses only as many command groups as necessary.  Replacing
+		// every group with a proxy wasted the available ribbon width and could leave
+		// a single lonely button visible.  Preserve the left-hand groups and replace
+		// trailing groups one at a time until the row fits.
+		for (int index = tab.getBands().size() - 1;
+			index > 0 && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow);
+			index--) {
+			presentations.set(index, RibbonDensity.COLLAPSED);
+			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
+		}
+		// If a remaining primary group is still too wide, reduce only that group's
+		// secondary commands.  Never apply this to every group at once: that was
+		// the source of the row of icon-and-ellipsis placeholders.
+		for (int index = tab.getBands().size() - 1;
+			index >= 0 && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow);
+			index--) {
+			if (presentations.get(index) == RibbonDensity.COLLAPSED) continue;
+			presentations.set(index, RibbonDensity.PRIORITY_COMPACT);
+			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
+		}
+		// At an extremely narrow width no direct group can remain usable.  Collapse
+		// the left-most group only as the final fallback; RibbonBandViewport keeps
+		// the resulting group menus reachable from the visible left edge.
+		if (!tab.getBands().isEmpty() && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
+			presentations.set(0, RibbonDensity.COLLAPSED);
+			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
 		}
 		for (RibbonBandPanel bandPanel : bandPanels) {
 			tallestContent = Math.max(tallestContent, bandPanel.getContentPreferredHeight());
@@ -667,15 +592,38 @@ public final class ModernRibbonPanel extends JPanel {
 		return result;
 	}
 
+	private static List<RibbonDensity> uniformPresentation(int bandCount, RibbonDensity presentation) {
+		List<RibbonDensity> result = new ArrayList<>(bandCount);
+		for (int index = 0; index < bandCount; index++) result.add(presentation);
+		return result;
+	}
+
+	private List<RibbonBandPanel> rebuildBands(JPanel row, GridBagConstraints constraints,
+		List<SwingRibbonModel.RibbonBand> bands, List<RibbonDensity> presentations, List<RibbonBandPanel> previous) {
+		unregisterButtons(previous);
+		row.removeAll();
+		constraints.gridx = 0;
+		return addBands(row, constraints, bands, presentations);
+	}
+
 	private List<RibbonBandPanel> addBands(Container row, GridBagConstraints constraints,
-		List<SwingRibbonModel.RibbonBand> bands, RibbonDensity presentation) {
+		List<SwingRibbonModel.RibbonBand> bands, List<RibbonDensity> presentations) {
 		List<RibbonBandPanel> result = new ArrayList<>(bands.size());
-		for (SwingRibbonModel.RibbonBand band : bands) {
-			RibbonBandPanel panel = buildBand(band, presentation);
+		for (int index = 0; index < bands.size(); index++) {
+			SwingRibbonModel.RibbonBand band = bands.get(index);
+			RibbonBandPanel panel = buildBand(band, presentations.get(index));
 			result.add(panel);
 			row.add(panel, constraints);
 			constraints.gridx++;
 		}
+		// GridBagLayout centres a grid with no weighted column.  A trailing glue
+		// column consumes the unused width and keeps the complete band sequence at
+		// the Office-style left origin as the window grows.
+		GridBagConstraints glueConstraints = (GridBagConstraints)constraints.clone();
+		glueConstraints.weightx = 1.0;
+		glueConstraints.fill = GridBagConstraints.HORIZONTAL;
+		glueConstraints.insets = new Insets(0, 0, 0, 0);
+		row.add(Box.createHorizontalGlue(), glueConstraints);
 		return result;
 	}
 
@@ -707,11 +655,11 @@ public final class ModernRibbonPanel extends JPanel {
 				continue;
 			}
 			AbstractButton button = createButton(buttonSpec, true);
-			if (ribbonDensity == RibbonDensity.TIGHT) {
-				makeTightIconButton(button);
-			}
+			// The compact presentation keeps every command's label and target.  Only
+			// its geometry changes: primary commands become inline controls before a
+			// whole trailing group is replaced by a proxy.
 			boolean keepLargePresentation = buttonSpec.getButtonSize() == SwingRibbonModel.ButtonSize.LARGE
-				&& ribbonDensity != RibbonDensity.TIGHT;
+				&& ribbonDensity == RibbonDensity.FULL;
 			if (keepLargePresentation) {
 				// Office keeps the primary command prominent while secondary commands
 				// compress first.  At TIGHT density the same primary commands remain
@@ -727,7 +675,6 @@ public final class ModernRibbonPanel extends JPanel {
 		if (!overflowButtonSpecs.isEmpty()) {
 			smallButtonList.add(buildOverflowButton(band, overflowButtonSpecs));
 		}
-
 		GridBagConstraints contentConstraints = new GridBagConstraints();
 		contentConstraints.gridx = 0;
 		contentConstraints.gridy = 0;
@@ -825,20 +772,6 @@ public final class ModernRibbonPanel extends JPanel {
 		return Math.max(BAND_MIN_WIDTH, Math.max(
 			contentWidth + BAND_HORIZONTAL_INSETS,
 			titleWidth + BAND_HORIZONTAL_INSETS));
-	}
-
-	private AbstractButton buildOverflowButton(SwingRibbonModel.RibbonBand band, List<SwingRibbonModel.RibbonButton> specifications) {
-		JButton overflow = new JButton("…");
-		overflow.setFocusable(false);
-		overflow.setToolTipText(band.getTitle());
-		overflow.getAccessibleContext().setAccessibleName(band.getTitle());
-		FlatUiSupport.styleRibbonSmallButton(overflow);
-		JPopupMenu popup = new JPopupMenu();
-		addTransientCommandButtons(popup, specifications, false);
-		// Keep the responsive overflow discoverable to accessibility and GUI automation.
-		overflow.putClientProperty(COLLAPSED_POPUP_PROPERTY, popup);
-		overflow.addActionListener(event -> popup.show(overflow, 0, overflow.getHeight()));
-		return overflow;
 	}
 
 	/**
@@ -953,19 +886,17 @@ public final class ModernRibbonPanel extends JPanel {
 		buttonStyler.styleActionButton(button, "medium");
 	}
 
-	private void makeTightIconButton(AbstractButton button) {
-		String label = button.getAccessibleContext().getAccessibleName();
-		if (label == null || label.isBlank()) {
-			label = button.getText();
-		}
-		if (button.getToolTipText() == null || button.getToolTipText().isBlank()) {
-			button.setToolTipText(label);
-		}
-		if (label != null && !label.isBlank()) {
-			button.getAccessibleContext().setAccessibleName(label);
-		}
-		button.setText(null);
-		button.putClientProperty("MicroProject.ribbonTightIconOnly", Boolean.TRUE);
+	private AbstractButton buildOverflowButton(SwingRibbonModel.RibbonBand band, List<SwingRibbonModel.RibbonButton> specifications) {
+		JButton overflow = new JButton("…");
+		overflow.setFocusable(false);
+		overflow.setToolTipText(band.getTitle());
+		overflow.getAccessibleContext().setAccessibleName(band.getTitle());
+		FlatUiSupport.styleRibbonSmallButton(overflow);
+		JPopupMenu popup = new JPopupMenu();
+		addTransientCommandButtons(popup, specifications, false);
+		overflow.putClientProperty(COLLAPSED_POPUP_PROPERTY, popup);
+		overflow.addActionListener(event -> popup.show(overflow, 0, overflow.getHeight()));
+		return overflow;
 	}
 
 	private AbstractButton createButton(SwingRibbonModel.RibbonButton specification, boolean register) {
