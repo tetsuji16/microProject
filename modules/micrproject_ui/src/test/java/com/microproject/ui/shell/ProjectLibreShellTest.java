@@ -25,7 +25,6 @@
 package com.microproject.ui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -84,7 +83,6 @@ class ProjectLibreShellTest {
 		assertSame(ribbonBody, ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER));
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_FIELD_NAME));
-		assertTrue(hasComponent(panel, OfficeChromePanel.APPLICATION_ICON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
