@@ -196,7 +196,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private boolean resourcePoolTakesPrecedence = true;
 	transient int projectStatus = ProjectStatus.PLANNING; // exposed in database
 	transient int projectType = ProjectType.OTHER; // exposed in database
-	transient int expenseType = ExpenseType.NONE;// exposed in database
+	transient int expenseType = ExpenseType.Kind.NONE.code();// exposed in database
 	transient String group;// exposed in database
 	transient String division;// exposed in database
 

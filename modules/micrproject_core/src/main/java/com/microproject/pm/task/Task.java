@@ -176,7 +176,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	protected int constraintType = ConstraintType.ASAP;
 	protected long deadline = 0;
-	protected int expenseType = ExpenseType.NONE;
+	protected int expenseType = ExpenseType.Kind.NONE.code();
 	protected transient boolean inSubproject = false;
 	protected transient long lastSavedStart = 0L;
 	protected transient long lastSavedFinish = 0L;
@@ -2226,12 +2226,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	public int getEffectiveExpenseType() {
 		int result = expenseType;
-		if (result == ExpenseType.NONE) {
+		if (result == ExpenseType.Kind.NONE.code()) {
 			Task parent = getWbsParentTask();
 			if (parent != null)
 				result = parent.getEffectiveExpenseType();
 		}
-		if (result == ExpenseType.NONE)
+		if (result == ExpenseType.Kind.NONE.code())
 			result = getOwningProject().getEffectiveExpenseType();
 		return result;
 	}
