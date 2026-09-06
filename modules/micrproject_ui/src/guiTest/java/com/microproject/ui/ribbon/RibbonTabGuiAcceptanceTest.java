@@ -246,30 +246,34 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	@Test
-	void fullyCollapsedRibbonKeepsLauncherIconAndCommandsReachable() throws Exception {
+	void narrowRibbonUsesReachableGroupProxiesInsteadOfATabLauncher() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
-		show(host, 620, true);
+		show(host, 320, true);
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
 		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
-			.getString("FileRibbonTask.title"));
+			.getString("TaskRibbonTask.title"));
 		click(robot, tab);
-		GuiAcceptanceSupport.await(tab::isSelected, "File ribbon tab was not selected at collapsed width");
-		AbstractButton launcher = UiComponentWalker.flatten(host).stream()
+		GuiAcceptanceSupport.await(tab::isSelected, "Task ribbon tab was not selected at narrow width");
+		assertTrue(UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.noneMatch(button -> button.isShowing()
+				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.COLLAPSED_TAB_LAUNCHER_PROPERTY))),
+			"narrow ribbon must not replace the selected tab with one launcher");
+		AbstractButton proxy = UiComponentWalker.flatten(host).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
 			.filter(AbstractButton::isShowing)
-			.filter(button -> button.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY) instanceof JPopupMenu)
-			.findFirst().orElseThrow(() -> new AssertionError("fully collapsed ribbon launcher is missing"));
-		assertTrue(launcher.getIcon() != null, "fully collapsed ribbon launcher lost its identifying icon");
-		JPopupMenu popup = (JPopupMenu)launcher.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
-		assertTrue(popup.getComponentCount() > 0, "fully collapsed ribbon launcher has no commands");
-		clickCommand(robot, launcher);
-		GuiAcceptanceSupport.await(popup::isVisible, "fully collapsed ribbon launcher did not open by mouse click");
+			.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
+			.findFirst().orElseThrow(() -> new AssertionError("narrow ribbon group proxy is missing"));
+		JPopupMenu popup = (JPopupMenu)proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+		assertTrue(popup.getComponentCount() > 0, "group proxy has no commands");
+		clickCommand(robot, proxy);
+		GuiAcceptanceSupport.await(popup::isVisible, "group proxy did not open by mouse click");
 	}
 
 	@Test

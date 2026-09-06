@@ -48,7 +48,6 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
-import java.util.Set;
 
 import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
@@ -59,10 +58,10 @@ import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRootPane;
+import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import javax.swing.InputMap;
 import javax.swing.KeyStroke;
@@ -76,10 +75,20 @@ import com.microproject.util.FlatUiSupport;
 public final class ModernRibbonPanel extends JPanel {
 	/** Client-property key on the ribbon host for view-context coordination. */
 	public static final String CONTEXTUAL_TABS_PROPERTY = "microproject.ribbon.contextualTabs";
+	/** Root-pane property used by the desktop frame to display File as Backstage. */
+	public static final String BACKSTAGE_HOST_PROPERTY = "microproject.ribbon.backstageHost";
+
+	public interface BackstageHost {
+		void showBackstage(JComponent content);
+		void hideBackstage();
+	}
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
 	static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
-	static final String COLLAPSED_TAB_LAUNCHER_PROPERTY = "MicroProject.ribbonCollapsedTabLauncher";
+	public static final String COLLAPSED_TAB_LAUNCHER_PROPERTY = "MicroProject.ribbonCollapsedTabLauncher";
+	public static final String BAND_PROXY_PROPERTY = "MicroProject.ribbonBandProxy";
+	public static final String SCROLL_PREVIOUS_PROPERTY = "MicroProject.ribbonScrollPrevious";
+	public static final String SCROLL_NEXT_PROPERTY = "MicroProject.ribbonScrollNext";
 	private static final int BAND_MIN_WIDTH = 72;
 	private static final int BAND_INNER_GAP = 4;
 	private static final int BAND_SIDE_PADDING = 4;
@@ -97,34 +106,25 @@ public final class ModernRibbonPanel extends JPanel {
 	// full band set still fits.  Reserve compact density for genuinely narrow
 	// work areas and let the measured band widths handle the final fit decision.
 	private enum RibbonDensity {
-		FULL(1024, Integer.MIN_VALUE, false),
-		COMPACT(840, 0, true),
-		// Keep the primary-command layout available for a 1024px logical default
-		// window constrained by a 125/150% desktop.  The old 760px cutoff turned
-		// that normal desktop case into a single tab launcher.
-		TIGHT(640, 50, true),
-		COLLAPSED(0, Integer.MAX_VALUE, false);
+		FULL(Integer.MIN_VALUE, false),
+		COMPACT(0, true),
+		TIGHT(50, true),
+		/** A proxy represents one command group; it never represents a whole tab. */
+		COLLAPSED(Integer.MAX_VALUE, false);
 
-		private final int minimumWidth;
 		private final int collapsedPriority;
 		private final boolean compacted;
 
-		RibbonDensity(int minimumWidth, int collapsedPriority, boolean compacted) {
-			this.minimumWidth = minimumWidth;
+		RibbonDensity(int collapsedPriority, boolean compacted) {
 			this.collapsedPriority = collapsedPriority;
 			this.compacted = compacted;
 		}
 
 		static RibbonDensity forWidth(int width) {
-			if (width <= 0) {
-				return FULL;
-			}
-			for (RibbonDensity candidate : values()) {
-				if (width >= candidate.minimumWidth) {
-					return candidate;
-				}
-			}
-			return COLLAPSED;
+			// Width buckets are not an Office ribbon policy.  Locale, DPI and the
+			// actual command set determine the required width, so buildTabBody()
+			// selects the first presentation that measures within the client area.
+			return FULL;
 		}
 
 		boolean isCompacted() {
@@ -421,6 +421,15 @@ public final class ModernRibbonPanel extends JPanel {
 	private void showTab(String tabId) {
 		if (!isTabVisible(tabId)) return;
 		activeTabId = tabId;
+		BackstageHost backstageHost = backstageHost();
+		if ("FileRibbonTask".equals(tabId) && backstageHost != null) {
+			JToggleButton tabButton = tabButtons.get(tabId);
+			if (tabButton != null) tabButton.setSelected(true);
+			backstageHost.showBackstage(createBackstagePanel());
+			installFileAccessKeys();
+			return;
+		}
+		if (backstageHost != null) backstageHost.hideBackstage();
 		JPanel tabBody = tabBodies.get(tabId);
 		if (tabBody == null || needsWidthAwareRebuild(tabId)) {
 			if (tabBody != null) {
@@ -438,6 +447,59 @@ public final class ModernRibbonPanel extends JPanel {
 		cards.revalidate();
 		cards.repaint();
 		updatePreferredHeight();
+	}
+
+	private BackstageHost backstageHost() {
+		JRootPane root = SwingUtilities.getRootPane(this);
+		Object value = root == null ? null : root.getClientProperty(BACKSTAGE_HOST_PROPERTY);
+		return value instanceof BackstageHost host ? host : null;
+	}
+
+	private JComponent createBackstagePanel() {
+		SwingRibbonModel.RibbonTab fileTab = model.getTabs().stream()
+			.filter(tab -> "FileRibbonTask".equals(tab.getId())).findFirst().orElseThrow();
+		JPanel backstage = new JPanel(new BorderLayout(20, 0));
+		backstage.setOpaque(true);
+		backstage.setBackground(FlatUiSupport.panelBackground());
+		backstage.setBorder(BorderFactory.createEmptyBorder(28, 28, 28, 28));
+		JPanel navigation = new JPanel();
+		navigation.setOpaque(false);
+		navigation.setLayout(new javax.swing.BoxLayout(navigation, javax.swing.BoxLayout.Y_AXIS));
+		JPanel commandArea = new JPanel();
+		commandArea.setOpaque(false);
+		commandArea.setLayout(new javax.swing.BoxLayout(commandArea, javax.swing.BoxLayout.Y_AXIS));
+		for (SwingRibbonModel.RibbonBand band : fileTab.getBands()) {
+			JButton group = new JButton(band.getTitle());
+			group.setHorizontalAlignment(SwingConstants.LEFT);
+			group.setMaximumSize(new Dimension(220, FlatUiSupport.ribbonInlineButtonHeight()));
+			group.addActionListener(event -> populateBackstageCommands(commandArea, band));
+			navigation.add(group);
+		}
+		if (!fileTab.getBands().isEmpty()) populateBackstageCommands(commandArea, fileTab.getBands().get(0));
+		backstage.add(navigation, BorderLayout.WEST);
+		backstage.add(commandArea, BorderLayout.CENTER);
+		return backstage;
+	}
+
+	private void populateBackstageCommands(JPanel target, SwingRibbonModel.RibbonBand band) {
+		target.removeAll();
+		JLabel heading = new JLabel(band.getTitle());
+		heading.setFont(heading.getFont().deriveFont(Font.BOLD, heading.getFont().getSize2D() + 4f));
+		target.add(heading);
+		target.add(Box.createVerticalStrut(12));
+		if (band.isCustomBand()) {
+			JComponent custom = band.getCustomBandProvider() == null ? null : band.getCustomBandProvider().createComponent();
+			if (custom != null) target.add(custom);
+		} else {
+			for (SwingRibbonModel.RibbonButton specification : band.getButtons()) {
+				AbstractButton command = createButton(specification, false);
+				buttonStyler.styleActionButton(command, "medium");
+				command.setMaximumSize(new Dimension(360, command.getPreferredSize().height));
+				target.add(command);
+			}
+		}
+		target.revalidate();
+		target.repaint();
 	}
 
 	private boolean isTabVisible(String tabId) {
@@ -484,12 +546,12 @@ public final class ModernRibbonPanel extends JPanel {
 		}
 	}
 
-	private void unregisterButtons(Iterable<JPanel> bodies) {
+	private void unregisterButtons(Iterable<? extends Component> bodies) {
 		if (!(buttonFactory instanceof com.microproject.menu.ExtToolBarFactory extFactory)) {
 			return;
 		}
 		List<AbstractButton> buttons = new ArrayList<>();
-		for (JPanel body : bodies) {
+		for (Component body : bodies) {
 			collectButtons(body, buttons);
 		}
 		extFactory.unregisterButtons(buttons);
@@ -541,117 +603,24 @@ public final class ModernRibbonPanel extends JPanel {
 		bandConstraints.gridx = 0;
 		bandConstraints.gridy = 0;
 		bandConstraints.anchor = GridBagConstraints.NORTHWEST;
-		// Use the full available ribbon width.  A left-packed row made a sparse
-		// tab look broken even when all commands were present, leaving a large
-		// empty tail on the right of the ribbon.
-		bandConstraints.fill = GridBagConstraints.HORIZONTAL;
-		bandConstraints.weightx = 1.0;
+		// A ribbon is a left-to-right sequence of groups.  Do not give each group
+		// elastic width: that was the source of the centred single-launcher cheat.
+		bandConstraints.fill = GridBagConstraints.NONE;
+		bandConstraints.weightx = 0.0;
 		bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
-		RibbonDensity effectiveDensity = density;
-		boolean compactedFromFullDensity = false;
-		List<SwingRibbonModel.RibbonBand> visibleBands = effectiveDensity == RibbonDensity.COLLAPSED
-			? List.of(collapsedTabBand(tab))
-			: tab.getBands();
-		List<RibbonBandPanel> bandPanels = new ArrayList<>(visibleBands.size());
-		for (SwingRibbonModel.RibbonBand band : visibleBands) {
-			RibbonBandPanel bandComponent = buildBand(band, effectiveDensity);
-			tallestContent = Math.max(tallestContent, bandComponent.getContentPreferredHeight());
-			tallestBand = Math.max(tallestBand, bandComponent.getPreferredSize().height);
-			bandPanels.add(bandComponent);
-			bandRow.add(bandComponent, bandConstraints);
-			bandConstraints.gridx++;
-		}
-		if (effectiveDensity == RibbonDensity.FULL && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
-			// A normal-width window can still be a few pixels narrower than a full
-			// tab (especially in Japanese).  GridBagLayout centers oversized rows,
-			// which clips both edge commands.  Try compact commands before hiding a
-			// whole tab behind the existing popup.
-			for (RibbonBandPanel bandPanel : bandPanels) {
-				unregisterButtons(bandPanel, buttonFactory);
-			}
+		RibbonDensity effectiveDensity = RibbonDensity.FULL;
+		List<RibbonBandPanel> bandPanels = addBands(bandRow, bandConstraints, tab.getBands(), effectiveDensity);
+		for (RibbonDensity candidate : List.of(RibbonDensity.COMPACT, RibbonDensity.TIGHT, RibbonDensity.COLLAPSED)) {
+			if (getWidth() <= 0 || fitsInWidth(bandPanels, getWidth(), bandRow)) break;
+			unregisterButtons(bandPanels);
 			bandRow.removeAll();
-			bandPanels.clear();
-			tallestContent = 0;
-			tallestBand = 0;
 			bandConstraints.gridx = 0;
-			bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
-			effectiveDensity = RibbonDensity.COMPACT;
-			compactedFromFullDensity = true;
-			visibleBands = tab.getBands();
-			for (SwingRibbonModel.RibbonBand band : visibleBands) {
-				RibbonBandPanel bandComponent = buildBand(band, effectiveDensity);
-				tallestContent = Math.max(tallestContent, bandComponent.getContentPreferredHeight());
-				tallestBand = Math.max(tallestBand, bandComponent.getPreferredSize().height);
-				bandPanels.add(bandComponent);
-				bandRow.add(bandComponent, bandConstraints);
-				bandConstraints.gridx++;
-			}
+			effectiveDensity = candidate;
+			bandPanels = addBands(bandRow, bandConstraints, tab.getBands(), effectiveDensity);
 		}
-		if (compactedFromFullDensity && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
-			// If compact labels still do not fit, retain only the highest-priority
-			// commands (including Gantt) before falling back to a tab launcher.
-			for (RibbonBandPanel bandPanel : bandPanels) {
-				unregisterButtons(bandPanel, buttonFactory);
-			}
-			bandRow.removeAll();
-			bandPanels.clear();
-			tallestContent = 0;
-			tallestBand = 0;
-			bandConstraints.gridx = 0;
-			bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
-			effectiveDensity = RibbonDensity.TIGHT;
-			visibleBands = tab.getBands();
-			for (SwingRibbonModel.RibbonBand band : visibleBands) {
-				RibbonBandPanel bandComponent = buildBand(band, effectiveDensity);
-				tallestContent = Math.max(tallestContent, bandComponent.getContentPreferredHeight());
-				tallestBand = Math.max(tallestBand, bandComponent.getPreferredSize().height);
-				bandPanels.add(bandComponent);
-				bandRow.add(bandComponent, bandConstraints);
-				bandConstraints.gridx++;
-			}
-		}
-		if (getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
-			if (effectiveDensity == RibbonDensity.TIGHT) {
-				// Preserve the task's primary commands before using the single-tab
-				// launcher.  The File tab's five core commands are the minimum useful
-				// surface for a default desktop constrained by high-DPI scaling.
-				for (RibbonBandPanel bandPanel : bandPanels) {
-					unregisterButtons(bandPanel, buttonFactory);
-				}
-				bandRow.removeAll();
-				bandPanels.clear();
-				tallestContent = 0;
-				tallestBand = 0;
-				bandConstraints.gridx = 0;
-				bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
-				visibleBands = primaryTightBands(tab);
-				for (SwingRibbonModel.RibbonBand band : visibleBands) {
-					RibbonBandPanel bandComponent = buildBand(band, effectiveDensity);
-					tallestContent = Math.max(tallestContent, bandComponent.getContentPreferredHeight());
-					tallestBand = Math.max(tallestBand, bandComponent.getPreferredSize().height);
-					bandPanels.add(bandComponent);
-					bandRow.add(bandComponent, bandConstraints);
-					bandConstraints.gridx++;
-				}
-			}
-		}
-		if (getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
-			// Compact buttons can still leave their containing bands wider than the
-			// viewport.  Do not let GridBagLayout place those bands off-screen: use
-			// the same single-tab popup as the explicit collapsed density.
-			for (RibbonBandPanel bandPanel : bandPanels) {
-				unregisterButtons(bandPanel, buttonFactory);
-			}
-			bandRow.removeAll();
-			bandPanels.clear();
-			tallestContent = 0;
-			tallestBand = 0;
-			bandConstraints.gridx = 0;
-			bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
-			RibbonBandPanel collapsedPanel = buildBand(collapsedTabBand(tab), RibbonDensity.COLLAPSED);
-			bandPanels.add(collapsedPanel);
-			bandRow.add(collapsedPanel, bandConstraints);
-			bandConstraints.gridx = 1;
+		for (RibbonBandPanel bandPanel : bandPanels) {
+			tallestContent = Math.max(tallestContent, bandPanel.getContentPreferredHeight());
+			tallestBand = Math.max(tallestBand, bandPanel.getPreferredSize().height);
 		}
 		for (RibbonBandPanel bandPanel : bandPanels) {
 			bandPanel.applyContentHeight(tallestContent);
@@ -665,8 +634,12 @@ public final class ModernRibbonPanel extends JPanel {
 			tallestBand + 6);
 		int shellHeight = bandRowHeight + 3;
 		bandHeights.put(tabId, shellHeight);
-		bandRow.setPreferredSize(new Dimension(0, bandRowHeight));
-		shell.add(bandRow, BorderLayout.CENTER);
+		int requiredWidth = requiredWidth(bandPanels, bandRow);
+		bandRow.setPreferredSize(new Dimension(requiredWidth, bandRowHeight));
+		JComponent commandSurface = getWidth() > 0 && requiredWidth > getWidth()
+			? new RibbonBandViewport(bandRow)
+			: bandRow;
+		shell.add(commandSurface, BorderLayout.CENTER);
 		shell.setPreferredSize(new Dimension(0, shellHeight));
 		return shell;
 	}
@@ -682,86 +655,37 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	private static boolean fitsInWidth(List<RibbonBandPanel> bandPanels, int availableWidth, Container container) {
-		int requiredWidth = container.getInsets().left + container.getInsets().right;
-		for (int index = 0; index < bandPanels.size(); index++) {
-			requiredWidth += bandPanels.get(index).getPreferredSize().width;
-			if (index > 0) requiredWidth += BAND_GAP;
-		}
-		return requiredWidth <= availableWidth;
+		return requiredWidth(bandPanels, container) <= availableWidth;
 	}
 
-	private List<SwingRibbonModel.RibbonBand> primaryTightBands(SwingRibbonModel.RibbonTab tab) {
-		if (!"FileRibbonTask".equals(tab.getId())) {
-			return tab.getBands();
-		}
-		Set<String> primaryIds = Set.of(
-			"RibbonNewProject",
-			"RibbonOpenProject",
-			"RibbonRecentProjects",
-			"RibbonImportProject",
-			"RibbonPrint");
-		List<SwingRibbonModel.RibbonBand> result = new ArrayList<>();
-		for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
-			List<SwingRibbonModel.RibbonButton> buttons = band.getButtons().stream()
-				.filter(button -> primaryIds.contains(button.getId()))
-				.toList();
-			if (!buttons.isEmpty()) {
-				result.add(new SwingRibbonModel.RibbonBand(band.getId(), band.getTitle(), buttons));
-			}
+	private static int requiredWidth(List<RibbonBandPanel> bandPanels, Container container) {
+		int result = container.getInsets().left + container.getInsets().right;
+		for (int index = 0; index < bandPanels.size(); index++) {
+			result += bandPanels.get(index).getPreferredSize().width;
+			if (index > 0) result += BAND_GAP;
 		}
 		return result;
 	}
 
-	private SwingRibbonModel.RibbonBand collapsedTabBand(SwingRibbonModel.RibbonTab tab) {
-		return new SwingRibbonModel.RibbonBand(
-			tab.getId() + ".Collapsed",
-			tabTitle(tab),
-			() -> buildCollapsedTabMenu(tab));
-	}
-
-	private JComponent buildCollapsedTabMenu(SwingRibbonModel.RibbonTab tab) {
-		JButton trigger = new JButton(tabTitle(tab) + " …");
-		trigger.setFocusable(false);
-		trigger.setToolTipText(tabTitle(tab));
-		// The collapsed tab is the only visible command surface below the compact
-		// breakpoint.  Keep it identifiable as a ribbon launcher instead of
-		// presenting a text-only button in a large blank surface.
-		tab.getBands().stream()
-			.flatMap(band -> band.getButtons().stream())
-			.map(SwingRibbonModel.RibbonButton::getIconKey)
-			.filter(iconKey -> iconKey != null && !iconKey.isBlank())
-			.findFirst()
-			.ifPresent(iconKey -> trigger.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, iconKey));
-		buttonStyler.styleActionButton(trigger, "small");
-		trigger.setHorizontalAlignment(SwingConstants.CENTER);
-		trigger.setPreferredSize(new Dimension(160, FlatUiSupport.ribbonInlineButtonHeight()));
-		JPopupMenu popup = new JPopupMenu();
-		for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
-			JMenu bandMenu = new JMenu(band.getTitle());
-			if (band.isCustomBand()) {
-				JComponent custom = band.getCustomBandProvider() == null
-					? null
-					: band.getCustomBandProvider().createComponent();
-				if (custom != null) {
-					bandMenu.add(custom);
-				}
-			} else {
-				addTransientCommandButtons(bandMenu, band.getButtons(), true);
-			}
-			if (bandMenu.getMenuComponentCount() > 0) {
-				popup.add(bandMenu);
-			}
+	private List<RibbonBandPanel> addBands(Container row, GridBagConstraints constraints,
+		List<SwingRibbonModel.RibbonBand> bands, RibbonDensity presentation) {
+		List<RibbonBandPanel> result = new ArrayList<>(bands.size());
+		for (SwingRibbonModel.RibbonBand band : bands) {
+			RibbonBandPanel panel = buildBand(band, presentation);
+			result.add(panel);
+			row.add(panel, constraints);
+			constraints.gridx++;
 		}
-		trigger.putClientProperty(COLLAPSED_POPUP_PROPERTY, popup);
-		trigger.putClientProperty(COLLAPSED_TAB_LAUNCHER_PROPERTY, Boolean.TRUE);
-		trigger.addActionListener(event -> popup.show(trigger, 0, trigger.getHeight()));
-		return trigger;
+		return result;
 	}
 
 	private RibbonBandPanel buildBand(SwingRibbonModel.RibbonBand band, RibbonDensity ribbonDensity) {
 		RibbonBandPanel panel = new RibbonBandPanel();
 		panel.setOpaque(false);
 		panel.setBorder(BorderFactory.createEmptyBorder(1, BAND_HORIZONTAL_INSET, 0, BAND_HORIZONTAL_INSET));
+		if (ribbonDensity == RibbonDensity.COLLAPSED) {
+			return buildBandProxy(panel, band);
+		}
 
 		if (band.isCustomBand()) {
 			return buildCustomBand(panel, band);
@@ -857,6 +781,41 @@ public final class ModernRibbonPanel extends JPanel {
 		}
 		preferredWidth = Math.max(preferredWidth, title.getPreferredSize().width + 6);
 		panel.bind(content, title, Math.max(BAND_MIN_WIDTH, preferredWidth + BAND_HORIZONTAL_INSETS));
+		return panel;
+	}
+
+	/**
+	 * The final responsive representation is deliberately a proxy for one band,
+	 * never for the selected tab.  All commands remain reachable from its popup.
+	 */
+	private RibbonBandPanel buildBandProxy(RibbonBandPanel panel, SwingRibbonModel.RibbonBand band) {
+		JButton trigger = new JButton(band.getTitle() + " …");
+		trigger.setFocusable(false);
+		trigger.setToolTipText(band.getTitle());
+		trigger.getAccessibleContext().setAccessibleName(band.getTitle());
+		band.getButtons().stream()
+			.map(SwingRibbonModel.RibbonButton::getIconKey)
+			.filter(iconKey -> iconKey != null && !iconKey.isBlank())
+			.findFirst().ifPresent(iconKey -> trigger.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, iconKey));
+		buttonStyler.styleActionButton(trigger, "small");
+		JPopupMenu popup = new JPopupMenu();
+		if (band.isCustomBand()) {
+			JComponent custom = band.getCustomBandProvider() == null ? null : band.getCustomBandProvider().createComponent();
+			if (custom != null) popup.add(custom);
+		} else {
+			addTransientCommandButtons(popup, band.getButtons(), true);
+		}
+		trigger.putClientProperty(COLLAPSED_POPUP_PROPERTY, popup);
+		trigger.putClientProperty(BAND_PROXY_PROPERTY, Boolean.TRUE);
+		trigger.addActionListener(event -> popup.show(trigger, 0, trigger.getHeight()));
+		JPanel content = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
+		content.setOpaque(false);
+		content.add(trigger);
+		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
+		title.setForeground(FlatUiSupport.ribbonBandTitleForeground());
+		title.setFont(FlatUiSupport.ribbonBandTitleFont());
+		panel.bind(content, title, Math.max(BAND_MIN_WIDTH,
+			Math.max(content.getPreferredSize().width, title.getPreferredSize().width) + BAND_HORIZONTAL_INSETS));
 		return panel;
 	}
 
@@ -1089,6 +1048,39 @@ public final class ModernRibbonPanel extends JPanel {
 			} finally {
 				g2.dispose();
 			}
+		}
+	}
+
+	/** Keeps the final group-proxy row reachable instead of clipping it or replacing it with a tab launcher. */
+	private static final class RibbonBandViewport extends JPanel {
+		private final JScrollPane scrollPane;
+
+		private RibbonBandViewport(JComponent contents) {
+			super(new BorderLayout(2, 0));
+			setOpaque(false);
+			scrollPane = new JScrollPane(contents, JScrollPane.VERTICAL_SCROLLBAR_NEVER,
+				JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+			scrollPane.setBorder(BorderFactory.createEmptyBorder());
+			scrollPane.getViewport().setOpaque(false);
+			JButton previous = scrollButton("‹", -1, SCROLL_PREVIOUS_PROPERTY);
+			JButton next = scrollButton("›", 1, SCROLL_NEXT_PROPERTY);
+			add(previous, BorderLayout.WEST);
+			add(scrollPane, BorderLayout.CENTER);
+			add(next, BorderLayout.EAST);
+		}
+
+		private JButton scrollButton(String label, int direction, String property) {
+			JButton button = new JButton(label);
+			button.setFocusable(false);
+			button.putClientProperty(property, Boolean.TRUE);
+			FlatUiSupport.styleRibbonSmallButton(button);
+			button.addActionListener(event -> {
+				int extent = scrollPane.getViewport().getExtentSize().width;
+				java.awt.Point position = scrollPane.getViewport().getViewPosition();
+				position.x = Math.max(0, position.x + direction * Math.max(48, extent * 3 / 4));
+				scrollPane.getViewport().setViewPosition(position);
+			});
+			return button;
 		}
 	}
 

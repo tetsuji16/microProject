@@ -42,6 +42,7 @@ import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.ribbon.SwingRibbonFactory;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.menu.MenuActionMapSupport;
@@ -124,7 +125,7 @@ class OfficeChromePanelVisualSmokeTest {
 	@Test
 	void rendersEveryTabAtOfficeReferenceWidthsInEnglishAndJapanese() throws IOException {
 		for (Locale locale : List.of(Locale.ROOT, Locale.JAPAN)) {
-			for (int width : List.of(720, 760, 1024, 1200, 1440)) {
+			for (int width : List.of(320, 480, 720, 760, 1024, 1200, 1440)) {
 				renderTabContactSheet(locale, width);
 			}
 		}
@@ -149,6 +150,8 @@ class OfficeChromePanelVisualSmokeTest {
 				panel.setSize(width, rowHeight);
 				panel.doLayout();
 				layoutRecursively(panel);
+				assertNoVisibleCollapsedTabLauncher(panel);
+				assertResponsiveGroupsRemainReachable(panel, tab.getId(), width);
 				Graphics2D rowGraphics = (Graphics2D) sheetGraphics.create(0, index * rowHeight, width, rowHeight);
 				try {
 					panel.printAll(rowGraphics);
@@ -165,6 +168,42 @@ class OfficeChromePanelVisualSmokeTest {
 		Files.createDirectories(output.getParent());
 		ImageIO.write(sheet, "png", output.toFile());
 		assertTrue(hasVisibleInk(sheet));
+	}
+
+	private static void assertNoVisibleCollapsedTabLauncher(JPanel panel) {
+		boolean launcherVisible = UiComponentWalker.flatten(panel).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.anyMatch(button -> Boolean.TRUE.equals(
+				button.getClientProperty(ModernRibbonPanel.COLLAPSED_TAB_LAUNCHER_PROPERTY))
+				&& isVisibleInHierarchy(button));
+		assertTrue(!launcherVisible,
+			"a standard ribbon tab must not hide its entire command surface behind one launcher");
+	}
+
+	private static void assertResponsiveGroupsRemainReachable(JPanel panel, String tabId, int width) {
+		if (width > 320 || !"TaskRibbonTask".equals(tabId)) return;
+		long proxies = UiComponentWalker.flatten(panel).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
+			.count();
+		assertTrue(proxies >= 2,
+			"narrow ribbon must expose multiple group proxies rather than a tab-level launcher");
+		if (width <= 320) {
+			boolean canScroll = UiComponentWalker.flatten(panel).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.anyMatch(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.SCROLL_NEXT_PROPERTY)));
+			assertTrue(canScroll, "group proxies wider than the client area must have a horizontal scroll control");
+		}
+	}
+
+	private static boolean isVisibleInHierarchy(java.awt.Component component) {
+		for (java.awt.Component current = component; current != null; current = current.getParent()) {
+			if (!current.isVisible()) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private static AbstractButton findButton(java.awt.Component root, String text) {
