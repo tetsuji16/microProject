@@ -41,11 +41,11 @@ class FinderTest {
 		HasKey second = key("second", 2L, 20L);
 		List<HasKey> keys = List.of(first, second);
 
-		assertSame(first, Finder.findByName(null, keys));
-		assertSame(second, Finder.findByName("second", keys));
-		assertSame(second, Finder.findById(Long.valueOf(2L), keys));
-		assertSame(first, Finder.findByUniqueId(Integer.valueOf(10), keys));
-		assertNull(Finder.findByUniqueId(Long.valueOf(99L), keys));
+		assertSame(first, TaskFinder.findByName(null, keys));
+		assertSame(second, TaskFinder.findByName("second", keys));
+		assertSame(second, TaskFinder.findById(Long.valueOf(2L), keys));
+		assertSame(first, TaskFinder.findByUniqueId(Integer.valueOf(10), keys));
+		assertNull(TaskFinder.findByUniqueId(Long.valueOf(99L), keys));
 	}
 
 	private static HasKey key(String name, long id, long uniqueId) {

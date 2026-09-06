@@ -29,35 +29,32 @@ import java.util.Objects;
 
 import com.microproject.pm.key.HasKey;
 
+/** Search helpers for task-like objects; distinct from the field finder contract. */
+public final class TaskFinder {
+	private TaskFinder() {
+	}
 
-
-/**
- *
- */
-public class Finder {
 	public static <T extends HasKey> T findByName(Object find, Collection<T> container) {
-		String name = (String)find;
+		String name = (String) find;
 		for (T current : container) {
-			if (Objects.equals(current.getName(), name))
-				return current;
-		}
-		return null;
-	}
-	public static <T extends HasKey> T findById(Object find, Collection<T> container) {
-		long id = ((Number)find).longValue();
-		for (T current : container) {
-			if (current.getId() == id)
-				return current;
-		}
-		return null;
-	}
-	public static <T extends HasKey> T findByUniqueId(Object find, Collection<T> container) {
-		long uniqueId = ((Number)find).longValue();
-		for (T current : container) {
-			if (current.getUniqueId() == uniqueId)
-				return current;
+			if (Objects.equals(current.getName(), name)) return current;
 		}
 		return null;
 	}
 
+	public static <T extends HasKey> T findById(Object find, Collection<T> container) {
+		long id = ((Number) find).longValue();
+		for (T current : container) {
+			if (current.getId() == id) return current;
+		}
+		return null;
+	}
+
+	public static <T extends HasKey> T findByUniqueId(Object find, Collection<T> container) {
+		long uniqueId = ((Number) find).longValue();
+		for (T current : container) {
+			if (current.getUniqueId() == uniqueId) return current;
+		}
+		return null;
+	}
 }
