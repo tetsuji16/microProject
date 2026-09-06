@@ -145,7 +145,7 @@ public class DefaultNodeModel implements NodeModel {
 		add(parent,child,-1,actionType);
 	}
 	public void add(Node parent,Node child,int position,int actionType){
-		ArrayList children = new ArrayList();
+		ArrayList children = new ArrayList(1);
 		children.add(child);
 		add(parent,children,position,actionType);
 		//hierarchy.add(parent,child,position,actionType);
@@ -353,7 +353,7 @@ public class DefaultNodeModel implements NodeModel {
 		remove(node, actionType, true,removeDependencies);
 	}
 	public void remove(Node node,int actionType,boolean filterAssignments,boolean removeDependencies){
-		ArrayList nodes = new ArrayList();
+		ArrayList nodes = new ArrayList(1);
 		nodes.add(node);
 		remove(nodes,actionType,filterAssignments,removeDependencies);
 		//hierarchy.remove(node,this,actionType);
@@ -764,7 +764,7 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	private ArrayList collectRemovalRoots(List nodes, boolean filterAssignments) {
-		ArrayList roots = new ArrayList();
+		ArrayList roots = new ArrayList(nodes == null ? 0 : nodes.size());
 		HierarchyUtils.extractParents(nodes, roots);
 		if (filterAssignments){
 			for (Iterator i=roots.iterator();i.hasNext();){
