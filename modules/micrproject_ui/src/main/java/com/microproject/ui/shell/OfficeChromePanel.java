@@ -320,10 +320,16 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private AbstractButton createActionButton(String actionId) {
-		OfficeIconButton button = new OfficeIconButton(resolveActionIcon(actionId, QUICK_ACCESS_ICON_SIZE), actionId, false);
+		Icon icon = resolveActionIcon(actionId, QUICK_ACCESS_ICON_SIZE);
+		OfficeIconButton button = new OfficeIconButton(icon, actionId, false);
 		Action action = menuManager == null ? null : menuManager.getActionFromId(actionId);
 		if (action != null) {
 			button.setAction(action);
+			// AbstractButton#setAction copies the Action's icon property and may
+			// clear the QAT icon when the command action has no icon of its own.
+			// The Office title-bar QAT owns this presentation, so restore it after
+			// wiring the shared action.
+			button.setIcon(icon);
 		}
 		button.setText("");
 		button.setName(actionId);

@@ -137,6 +137,26 @@ class ProjectLibreShellTest {
 	}
 
 	@Test
+	void officeChromeQuickAccessButtonsRetainVisibleIconsAndHitAreas() {
+		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
+		panel.setSize(900, 160);
+		layoutRecursively(panel);
+
+		JComponent quickAccess = findComponent(panel, OfficeChromePanel.QUICK_ACCESS_NAME);
+		int previousX = -1;
+		for (java.awt.Component component : quickAccess.getComponents()) {
+			if (component instanceof javax.swing.AbstractButton button
+				&& button.getName() != null && button.getName().startsWith("RibbonTopBar")) {
+				assertTrue(button.isVisible());
+				assertTrue(button.getIcon() != null, button.getName() + " must retain its QAT icon");
+				assertEquals(24, button.getWidth());
+				assertTrue(button.getX() > previousX);
+				previousX = button.getX();
+			}
+		}
+	}
+
+	@Test
 	void officeChromeRightActionsStayAnchoredToTheWindowEdge() {
 		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
 		panel.setSize(292, 160);
