@@ -32,6 +32,7 @@ import java.util.ArrayList;
 
 import javax.swing.SwingUtilities;
 import javax.swing.DefaultListSelectionModel;
+import javax.swing.JComponent;
 import javax.swing.table.TableColumn;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumnModel;
@@ -39,6 +40,7 @@ import javax.swing.table.TableColumnModel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetSelectionModel;
+import com.microproject.util.FlatUiSupport;
 
 class CommonSpreadSheetSelectionStateTest {
 	@Test
@@ -98,6 +100,52 @@ class CommonSpreadSheetSelectionStateTest {
 			assertTrue(sheet.recordingRowHeader.repaintCount > 0,
 				"the old active row header must not remain highlighted");
 		});
+	}
+
+	@Test
+	void headerHighlightUsesClickedActiveColumnAfterWholeRowSelection() throws Exception {
+		final TestSpreadSheet[] sheetRef = new TestSpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> sheetRef[0] = new TestSpreadSheet(2));
+		TestSpreadSheet sheet = sheetRef[0];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.selectRowAndAllColumns(1);
+			sheet.setRowHeaderSelectionActive(false);
+			sheet.getSelection().setActiveCell(1, 1);
+		});
+
+		assertEquals(1, sheet.getActiveHeaderColumn(),
+			"a task-cell row selection must highlight the clicked view column");
+		assertEquals(0, sheet.getSelectedColumn(),
+			"the regression must cover JTable's collapsed lead column");
+
+		SwingUtilities.invokeAndWait(() -> sheet.selectColumnAndAllRows(0));
+		assertEquals(0, sheet.getActiveHeaderColumn(),
+			"an explicit column-header selection must highlight its selected column");
+
+		SwingUtilities.invokeAndWait(() -> sheet.selectEntireSpreadsheet());
+		assertEquals(-1, sheet.getActiveHeaderColumn(),
+			"an entire-sheet selection must not claim a single active column");
+	}
+
+	@Test
+	void commonHeaderRendererUsesTheSameActiveColumnResolver() throws Exception {
+		final TestSpreadSheet[] sheetRef = new TestSpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> sheetRef[0] = new TestSpreadSheet(2));
+		TestSpreadSheet sheet = sheetRef[0];
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.selectRowAndAllColumns(1);
+			sheet.setRowHeaderSelectionActive(false);
+			sheet.getSelection().setActiveCell(1, 1);
+		});
+
+		CommonTableHeader header = new CommonTableHeader(sheet.getColumnModel());
+		javax.swing.table.TableCellRenderer renderer = header.getDefaultRenderer();
+		JComponent active = (JComponent) renderer.getTableCellRendererComponent(sheet, null, false, false, -1, 1);
+		java.awt.Color activeBackground = active.getBackground();
+		JComponent first = (JComponent) renderer.getTableCellRendererComponent(sheet, null, false, false, -1, 0);
+		assertEquals(FlatUiSupport.spreadsheetHeaderSelectedBackground(), activeBackground);
+		assertEquals(FlatUiSupport.spreadsheetHeaderBackground(), first.getBackground());
 	}
 
 	private static final class TestSpreadSheet extends CommonSpreadSheet {

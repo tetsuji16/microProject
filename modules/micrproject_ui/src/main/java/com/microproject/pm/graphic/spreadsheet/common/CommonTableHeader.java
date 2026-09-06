@@ -57,10 +57,12 @@ public class CommonTableHeader extends JTableHeader {
     	private static final long serialVersionUID = 1L;
 
     	@Override
-    	public Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected,
-    			boolean hasFocus, int row, int column) {
-    		JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-			boolean active = table != null && table.getSelectedColumn() == column;
+		public Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected,
+				boolean hasFocus, int row, int column) {
+			JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+			boolean active = table instanceof CommonSpreadSheet spreadSheet
+					? spreadSheet.getActiveHeaderColumn() == column
+					: table != null && table.getSelectedColumn() == column;
     		FlatUiSupport.applyTableHeaderCellStyle(label, isSelected, active);
     		label.setHorizontalAlignment(CENTER);
     		return label;
@@ -68,4 +70,3 @@ public class CommonTableHeader extends JTableHeader {
     }
 
 }
-

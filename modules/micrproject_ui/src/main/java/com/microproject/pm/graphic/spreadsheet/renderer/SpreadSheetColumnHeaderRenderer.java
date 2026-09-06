@@ -33,6 +33,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
+import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.field.Field;
 import com.microproject.util.FlatUiSupport;
 /**
@@ -65,7 +66,9 @@ public class SpreadSheetColumnHeaderRenderer extends DefaultTableCellRenderer im
 
 
 		if (table!=null){
-			active = table.getSelectedColumn() == column;
+			active = table instanceof CommonSpreadSheet spreadSheet
+					? spreadSheet.getActiveHeaderColumn() == column
+					: table.getSelectedColumn() == column;
 			FlatUiSupport.applyTableHeaderCellStyle(component, isSelected, active);
 			Border border = active ? FlatUiSupport.spreadsheetActiveCellBorder() : FlatUiSupport.tableHeaderBorder();
 			component.setBorder(border);
@@ -86,4 +89,3 @@ public class SpreadSheetColumnHeaderRenderer extends DefaultTableCellRenderer im
 	}
 
 }
-

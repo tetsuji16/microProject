@@ -212,6 +212,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	public void setFieldArray(ArrayList<Field> fieldArray){
 		clearHeaderColumnSelectionState();
+		if (hasSelectionModel())
+			getSelection().clearActiveCell();
 		((SpreadSheetColumnModel)getColumnModel()).setFieldArray(fieldArray);
 //
 //		((CommonSpreadSheetModel)getModel()).setFieldArray(fieldArray);
@@ -1289,6 +1291,31 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	public boolean isRowHeaderSelectionActive() {
 		return rowHeaderSelectionActive;
+	}
+
+	/**
+	 * Returns the view column that the table header should highlight.
+	 *
+	 * A normal task-cell click selects the complete row, so JTable's lead
+	 * column is not the clicked column anymore (it normally collapses to zero).
+	 * The selection model's active cell is the authoritative coordinate for
+	 * that case.  An explicit column-header selection is the one case where
+	 * JTable's selected column is authoritative.
+	 *
+	 * @return the active view column, or {@code -1} when no column header should
+	 *         be highlighted
+	 */
+	public int getActiveHeaderColumn() {
+		if (headerColumnSelectionActive)
+			return getSelectedColumn();
+		if (rowHeaderSelectionActive)
+			return -1;
+		if (hasSelectionModel()) {
+			int activeColumn = getSelection().getActiveColumn();
+			if (activeColumn >= 0 && activeColumn < getColumnCount())
+				return activeColumn;
+		}
+		return -1;
 	}
 
 	public void setRowHeaderSelectionActive(boolean active) {

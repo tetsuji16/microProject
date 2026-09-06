@@ -1052,6 +1052,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	public void setFieldArray(ArrayList fieldArray) {
 		clearHeaderColumnSelectionState();
+		if (getSelection() != null)
+			getSelection().clearActiveCell();
 		((SpreadSheetColumnModel) getColumnModel()).setFieldArray(fieldArray);
 		createDefaultColumnsFromModel(fieldArray);
 		resizeAndRepaintHeader();

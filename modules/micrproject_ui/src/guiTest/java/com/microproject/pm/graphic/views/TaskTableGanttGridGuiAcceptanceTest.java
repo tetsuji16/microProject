@@ -14,6 +14,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Point;
+import java.awt.Component;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
@@ -27,6 +28,8 @@ import javax.swing.JSplitPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.border.LineBorder;
+import javax.swing.table.TableCellRenderer;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -205,6 +208,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertTrue(fixture.sheet.isRowFullySelected(row), "physical task-cell click must select the full task row");
 			assertFalse(fixture.sheet.isHeaderColumnSelectionActive(),
 				"a task-cell click must not be rendered as a column-header selection");
+			assertHeaderHighlight(fixture.sheet, column);
 		});
 
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
@@ -222,6 +226,21 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertFalse(fixture.sheet.getSelection().isActiveCell(row, column),
 				"a full column selection must not retain a misleading active-cell highlight");
 		});
+	}
+
+	private static void assertHeaderHighlight(SpreadSheet sheet, int activeColumn) {
+		for (int column = 0; column < sheet.getColumnCount(); column++) {
+			TableCellRenderer renderer = sheet.getColumnModel().getColumn(column).getHeaderRenderer();
+			Component component = renderer.getTableCellRendererComponent(sheet, null, false, false, -1, column);
+			assertTrue(component instanceof javax.swing.JComponent, "header renderer must return a Swing component");
+			assertTrue(component.getBackground().equals(column == activeColumn
+					? FlatUiSupport.spreadsheetHeaderSelectedBackground()
+					: FlatUiSupport.spreadsheetHeaderBackground()),
+				"header renderer must highlight only the clicked view column");
+			if (column == activeColumn)
+				assertTrue(((javax.swing.JComponent) component).getBorder() instanceof LineBorder,
+					"active header must retain its visible focus border");
+		}
 	}
 
 	private static Point screenCenter(javax.swing.JComponent component, Rectangle bounds) throws Exception {
