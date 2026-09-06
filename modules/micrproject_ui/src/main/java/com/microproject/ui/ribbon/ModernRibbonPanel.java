@@ -482,18 +482,26 @@ public final class ModernRibbonPanel extends JPanel {
 		if (!(buttonFactory instanceof com.microproject.menu.ExtToolBarFactory extFactory)) {
 			return;
 		}
+		List<AbstractButton> buttons = new ArrayList<>();
 		for (JPanel body : bodies) {
-			unregisterButtons(body, extFactory);
+			collectButtons(body, buttons);
 		}
+		extFactory.unregisterButtons(buttons);
 	}
 
 	private void unregisterButtons(Component component, com.microproject.menu.ExtToolBarFactory factory) {
+		List<AbstractButton> buttons = new ArrayList<>();
+		collectButtons(component, buttons);
+		factory.unregisterButtons(buttons);
+	}
+
+	private void collectButtons(Component component, List<AbstractButton> buttons) {
 		if (component instanceof AbstractButton button) {
-			factory.unregisterButton(button);
+			buttons.add(button);
 		}
 		if (component instanceof Container container) {
 			for (Component child : container.getComponents()) {
-				unregisterButtons(child, factory);
+				collectButtons(child, buttons);
 			}
 		}
 	}

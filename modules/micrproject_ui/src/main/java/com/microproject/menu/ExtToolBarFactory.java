@@ -25,6 +25,9 @@
 package com.microproject.menu;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.MissingResourceException;
@@ -54,13 +57,19 @@ public class ExtToolBarFactory extends ToolBarFactory {
 	}
 	
 	
-	public AbstractButton createJButton(String name) throws MissingResourceException,
+	public synchronized AbstractButton createJButton(String name) throws MissingResourceException,
 	ResourceFormatException, MissingListenerException {
 		AbstractButton button = super.createJButton(name);
 		configureButton(button, name);
     	String actionName = getActionStringFromId(name);
-		if (actionName != null)
-			toolButtons.computeIfAbsent(actionName, ignored -> new ArrayList<>()).add(button);
+		if (actionName != null) {
+			List<AbstractButton> buttons = toolButtons.get(actionName);
+			if (buttons == null) {
+				buttons = new ArrayList<>();
+				toolButtons.put(actionName, buttons);
+			}
+			buttons.add(button);
+		}
 		return button;
 	}
 
@@ -68,7 +77,7 @@ public class ExtToolBarFactory extends ToolBarFactory {
 	 * Creates a command button for transient ribbon popups without registering
 	 * another instance in the toolbar lookup map.
 	 */
-	public AbstractButton createUnregisteredJButton(String name) throws MissingResourceException,
+	public synchronized AbstractButton createUnregisteredJButton(String name) throws MissingResourceException,
 	ResourceFormatException, MissingListenerException {
 		AbstractButton button = super.createJButton(name);
 		String actionName = getActionStringFromId(name);
@@ -93,7 +102,7 @@ public class ExtToolBarFactory extends ToolBarFactory {
 	}
 	
 
-	public List<AbstractButton> getButtonsFromId(String id) {
+	public synchronized List<AbstractButton> getButtonsFromId(String id) {
     	String buttonId = getActionStringFromId(id);
     	List<AbstractButton> result = null;
     	if (buttonId != null)
@@ -106,11 +115,27 @@ public class ExtToolBarFactory extends ToolBarFactory {
 	public synchronized void unregisterButton(AbstractButton button) {
 		if (button == null)
 			return;
+		unregisterButtons(Collections.singleton(button));
+	}
+
+	/**
+	 * Removes a batch of transient ribbon buttons in one pass.
+	 *
+	 * Ribbon density changes can discard an entire band while the same action is
+	 * represented by several button instances.  Updating the registration map
+	 * once per component made that lifecycle unnecessarily re-entrant and could
+	 * invalidate an iterator while the old entries were being pruned.
+	 */
+	public synchronized void unregisterButtons(Collection<? extends AbstractButton> buttons) {
+		if (buttons == null || buttons.isEmpty())
+			return;
+		var removed = Collections.newSetFromMap(new IdentityHashMap<AbstractButton, Boolean>());
+		removed.addAll(buttons);
 		var iterator = toolButtons.entrySet().iterator();
 		while (iterator.hasNext()) {
 			var entry = iterator.next();
 			List<AbstractButton> remaining = entry.getValue().stream()
-				.filter(candidate -> candidate != button)
+				.filter(candidate -> !removed.contains(candidate))
 				.collect(java.util.stream.Collectors.toCollection(ArrayList::new));
 			if (remaining.isEmpty()) {
 				iterator.remove();
