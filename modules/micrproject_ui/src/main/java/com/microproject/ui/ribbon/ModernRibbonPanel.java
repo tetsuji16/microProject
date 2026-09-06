@@ -89,7 +89,7 @@ public final class ModernRibbonPanel extends JPanel {
 	// work areas and let the measured band widths handle the final fit decision.
 	private static final int COMPACT_RIBBON_WIDTH = 1024;
 	private static final int COLLAPSED_RIBBON_WIDTH = 760;
-	private enum RibbonDensity { FULL, COMPACT, COLLAPSED }
+	private enum RibbonDensity { FULL, COMPACT, TIGHT, COLLAPSED }
 	private final SwingRibbonModel model;
 	private final ExtToolBarFactory buttonFactory;
 	private final ResourceBundle[] bundles;
@@ -411,9 +411,16 @@ public final class ModernRibbonPanel extends JPanel {
 		if (rebuildingDensity) {
 			return;
 		}
-		RibbonDensity nextDensity = getWidth() <= 0 || getWidth() >= COMPACT_RIBBON_WIDTH
-			? RibbonDensity.FULL
-			: getWidth() < COLLAPSED_RIBBON_WIDTH ? RibbonDensity.COLLAPSED : RibbonDensity.COMPACT;
+		RibbonDensity nextDensity;
+		if (getWidth() <= 0 || getWidth() >= COMPACT_RIBBON_WIDTH) {
+			nextDensity = RibbonDensity.FULL;
+		} else if (getWidth() < COLLAPSED_RIBBON_WIDTH) {
+			nextDensity = RibbonDensity.COLLAPSED;
+		} else if (getWidth() < 840) {
+			nextDensity = RibbonDensity.TIGHT;
+		} else {
+			nextDensity = RibbonDensity.COMPACT;
+		}
 		if (nextDensity == density || activeTabId == null) {
 			return;
 		}
@@ -492,7 +499,7 @@ public final class ModernRibbonPanel extends JPanel {
 			bandRow.add(bandComponent, bandConstraints);
 			bandConstraints.gridx++;
 		}
-		if (density == RibbonDensity.COMPACT && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
+		if (isCompacted(density) && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
 			// Compact buttons can still leave their containing bands wider than the
 			// viewport.  Do not let GridBagLayout place those bands off-screen: use
 			// the same single-tab popup as the explicit collapsed density.
@@ -537,6 +544,10 @@ public final class ModernRibbonPanel extends JPanel {
 			if (index > 0) requiredWidth += BAND_GAP;
 		}
 		return requiredWidth <= availableWidth;
+	}
+
+	private static boolean isCompacted(RibbonDensity ribbonDensity) {
+		return ribbonDensity == RibbonDensity.COMPACT || ribbonDensity == RibbonDensity.TIGHT;
 	}
 
 	private SwingRibbonModel.RibbonBand collapsedTabBand(SwingRibbonModel.RibbonTab tab) {
@@ -602,7 +613,8 @@ public final class ModernRibbonPanel extends JPanel {
 		List<AbstractButton> largeButtonList = new ArrayList<>(buttonCount);
 		List<SwingRibbonModel.RibbonButton> overflowButtonSpecs = new ArrayList<>(buttonCount);
 		for (SwingRibbonModel.RibbonButton buttonSpec : band.getButtons()) {
-			if (ribbonDensity == RibbonDensity.COMPACT && buttonSpec.getCollapsePriority() <= 0) {
+			if (isCompacted(ribbonDensity)
+				&& buttonSpec.getCollapsePriority() <= (ribbonDensity == RibbonDensity.TIGHT ? 50 : 0)) {
 				overflowButtonSpecs.add(buttonSpec);
 				continue;
 			}
@@ -611,7 +623,7 @@ public final class ModernRibbonPanel extends JPanel {
 				// Office keeps the primary command prominent while secondary commands
 				// compress first (for example, Paste remains large on a narrow ribbon).
 				largeButtonList.add(buttonStyler.styleActionButton(button, "large"));
-			} else if (ribbonDensity == RibbonDensity.COMPACT || buttonSpec.getButtonSize() == SwingRibbonModel.ButtonSize.SMALL) {
+			} else if (isCompacted(ribbonDensity) || buttonSpec.getButtonSize() == SwingRibbonModel.ButtonSize.SMALL) {
 				smallButtonList.add(buttonStyler.styleActionButton(button, "small"));
 			} else {
 				smallButtonList.add(buttonStyler.styleActionButton(button, "medium"));
