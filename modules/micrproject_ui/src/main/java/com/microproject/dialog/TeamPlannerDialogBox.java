@@ -109,6 +109,7 @@ public final class TeamPlannerDialogBox extends JDialog {
 		add(toolbar, BorderLayout.NORTH);
 		add(scrollPane, BorderLayout.CENTER);
 		add(footer, BorderLayout.SOUTH);
+		FlatUiSupport.styleDialogComponents(getContentPane());
 		setPreferredSize(new Dimension(1120, 680));
 		pack();
 		setLocationRelativeTo(getOwner());
@@ -151,7 +152,7 @@ public final class TeamPlannerDialogBox extends JDialog {
 		TeamPlannerCanvas(Project project) {
 			this.project = project;
 			setOpaque(true);
-			setBackground(Color.WHITE);
+		setBackground(FlatUiSupport.dataSurfaceBackground());
 			setToolTipText("");
 			ToolTipManager.sharedInstance().registerComponent(this);
 			MouseAdapter mouse = new MouseAdapter() {
@@ -239,27 +240,27 @@ public final class TeamPlannerDialogBox extends JDialog {
 		}
 
 		private void paintGrid(Graphics2D g2) {
-			g2.setColor(new Color(0xF4F6F8));
+			g2.setColor(FlatUiSupport.panelBackground());
 			g2.fillRect(0, 0, getWidth(), HEADER_HEIGHT);
 			for (int row = 0; row < rows.size(); row++) {
 				int y = HEADER_HEIGHT + row * ROW_HEIGHT;
-				g2.setColor(row % 2 == 0 ? Color.WHITE : new Color(0xFAFAFA));
+				g2.setColor(row % 2 == 0 ? FlatUiSupport.dataSurfaceBackground() : FlatUiSupport.panelBackground());
 				g2.fillRect(0, y, getWidth(), ROW_HEIGHT);
-				g2.setColor(new Color(0xDDE1E6));
+				g2.setColor(FlatUiSupport.borderColor());
 				g2.drawLine(0, y + ROW_HEIGHT - 1, getWidth(), y + ROW_HEIGHT - 1);
-				g2.setColor(new Color(0x202124));
+				g2.setColor(FlatUiSupport.tableForeground());
 				g2.drawString(TeamPlannerService.displayName(rows.get(row)), 10, y + 31);
 			}
 			for (long date = timelineStart; date <= timelineEnd; date += DAY) {
 				int x = dateToX(date);
-				g2.setColor(new Color(0xE5E8EB));
+				g2.setColor(FlatUiSupport.separatorColor());
 				g2.drawLine(x, HEADER_HEIGHT, x, getHeight());
 				if (((date - timelineStart) / DAY) % 7L == 0L) {
-					g2.setColor(new Color(0x4A4D50));
+					g2.setColor(FlatUiSupport.labelForeground());
 					g2.drawString(dateFormat.format(Instant.ofEpochMilli(date)), x + 3, 26);
 				}
 			}
-			g2.setColor(new Color(0xC8CDD2));
+			g2.setColor(FlatUiSupport.borderColor());
 			g2.drawLine(LABEL_WIDTH, 0, LABEL_WIDTH, getHeight());
 		}
 
@@ -275,9 +276,9 @@ public final class TeamPlannerDialogBox extends JDialog {
 				int y = HEADER_HEIGHT + row * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2;
 				Rectangle rectangle = new Rectangle(x, y, width, BAR_HEIGHT);
 				hitAreas.put(rectangle, slot);
-				g2.setColor(slot.overallocated() ? new Color(0xD93025) : new Color(0x3B78C8));
+				g2.setColor(slot.overallocated() ? FlatUiSupport.errorForeground() : FlatUiSupport.ribbonAccentColor());
 				g2.fillRoundRect(x, y, width, BAR_HEIGHT, 8, 8);
-				g2.setColor(Color.WHITE);
+				g2.setColor(FlatUiSupport.tableSelectionForeground());
 				FontMetrics metrics = g2.getFontMetrics();
 				String text = ellipsize(slot.task().getName(), metrics, width - 10);
 				g2.drawString(text, x + 5, y + 19);
@@ -296,7 +297,8 @@ public final class TeamPlannerDialogBox extends JDialog {
 			int targetRow = targetRow(dragPoint.y);
 			int y = targetRow < 0 ? original.y : HEADER_HEIGHT + targetRow * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2;
 			int x = original.x + dragPoint.x - dragOrigin.x;
-			g2.setColor(new Color(0x13, 0x67, 0xD1, 180));
+			Color accent = FlatUiSupport.accentColor();
+			g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 180));
 			g2.setStroke(new BasicStroke(2F));
 			g2.drawRoundRect(x, y, original.width, original.height, 8, 8);
 		}

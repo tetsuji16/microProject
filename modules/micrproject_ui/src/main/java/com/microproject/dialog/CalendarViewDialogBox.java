@@ -65,6 +65,7 @@ import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
+import com.microproject.util.FlatUiSupport;
 
 /** Month calendar with task cards and drag-to-reschedule support. */
 public final class CalendarViewDialogBox extends JDialog {
@@ -98,6 +99,8 @@ public final class CalendarViewDialogBox extends JDialog {
 		setMinimumSize(new Dimension(900, 600));
 		setSize(1100, 760);
 		setLocationRelativeTo(owner);
+		FlatUiSupport.styleDialogRoot(getRootPane());
+		FlatUiSupport.styleDialogComponents(getContentPane());
 	}
 
 	private void setMonth(YearMonth value) {
@@ -136,7 +139,7 @@ public final class CalendarViewDialogBox extends JDialog {
 
 		CalendarCanvas(Project project) {
 			this.project = project;
-			setBackground(Color.WHITE);
+			setBackground(FlatUiSupport.dataSurfaceBackground());
 			setPreferredSize(new Dimension(980, HEADER + CELL_HEIGHT * 6));
 			MouseAdapter mouse = new MouseAdapter() {
 				@Override public void mousePressed(MouseEvent event) {
@@ -167,16 +170,17 @@ public final class CalendarViewDialogBox extends JDialog {
 				int width = Math.max(1, getWidth() / 7);
 				for (int column = 0; column < 7; column++) {
 					DayOfWeek day = DayOfWeek.of(column + 1);
-					g.setColor(new Color(0x455A64));
+					g.setColor(FlatUiSupport.headerForeground());
 					g.drawString(day.getDisplayName(TextStyle.SHORT, Locale.getDefault()), column * width + 8, 22);
 				}
 				LocalDate first = month.atDay(1);
 				LocalDate gridStart = first.minusDays(first.getDayOfWeek().getValue() - 1L);
 				for (int index = 0; index < 42; index++) paintDay(g, gridStart.plusDays(index), index, width);
 				if (draggedTask != null && dragPoint != null) {
-					g.setColor(new Color(0x15, 0x65, 0xC0, 160));
+					Color accent = FlatUiSupport.accentColor();
+					g.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 160));
 					g.fillRoundRect(dragPoint.x - 55, dragPoint.y - 10, 110, 20, 8, 8);
-					g.setColor(Color.WHITE); g.drawString(draggedTask.getName(), dragPoint.x - 50, dragPoint.y + 5);
+					g.setColor(FlatUiSupport.tableSelectionForeground()); g.drawString(draggedTask.getName(), dragPoint.x - 50, dragPoint.y + 5);
 				}
 			} finally { g.dispose(); }
 		}
@@ -184,27 +188,27 @@ public final class CalendarViewDialogBox extends JDialog {
 		private void paintDay(Graphics2D g, LocalDate day, int index, int width) {
 			int column = index % 7, row = index / 7, x = column * width, y = HEADER + row * CELL_HEIGHT;
 			boolean currentMonth = YearMonth.from(day).equals(month);
-			g.setColor(currentMonth ? Color.WHITE : new Color(0xF4F5F7)); g.fillRect(x, y, width, CELL_HEIGHT);
-			g.setColor(new Color(0xD6DADE)); g.drawRect(x, y, width, CELL_HEIGHT);
-			if (day.equals(LocalDate.now())) { g.setColor(new Color(0xD32F2F)); g.setStroke(new BasicStroke(2F)); g.drawRect(x + 1, y + 1, width - 2, CELL_HEIGHT - 2); }
-			g.setColor(currentMonth ? new Color(0x263238) : Color.GRAY); g.drawString(Integer.toString(day.getDayOfMonth()), x + 7, y + 17);
+			g.setColor(currentMonth ? FlatUiSupport.dataSurfaceBackground() : FlatUiSupport.panelBackground()); g.fillRect(x, y, width, CELL_HEIGHT);
+			g.setColor(FlatUiSupport.borderColor()); g.drawRect(x, y, width, CELL_HEIGHT);
+			if (day.equals(LocalDate.now())) { g.setColor(FlatUiSupport.errorForeground()); g.setStroke(new BasicStroke(2F)); g.drawRect(x + 1, y + 1, width - 2, CELL_HEIGHT - 2); }
+			g.setColor(currentMonth ? FlatUiSupport.tableForeground() : FlatUiSupport.disabledForeground()); g.drawString(Integer.toString(day.getDayOfMonth()), x + 7, y + 17);
 			List<Task> onDay = tasksOn(day);
 			int visible = Math.min(3, onDay.size());
 			for (int i = 0; i < visible; i++) {
 				Task task = onDay.get(i); Rectangle bounds = new Rectangle(x + 5, y + 23 + i * 23, Math.max(20, width - 10), 19);
-				g.setColor(task.isInactiveTask() ? new Color(0x9E9E9E) : task.isManuallyScheduled() ? new Color(0x2E7D32) : new Color(0x1565C0));
+				g.setColor(task.isInactiveTask() ? FlatUiSupport.disabledForeground() : task.isManuallyScheduled() ? FlatUiSupport.accentColor().darker() : FlatUiSupport.ribbonAccentColor());
 				g.fillRoundRect(bounds.x, bounds.y, bounds.width, bounds.height, 7, 7);
-				g.setColor(Color.WHITE); String name = task.getName();
+				g.setColor(FlatUiSupport.tableSelectionForeground()); String name = task.getName();
 				while (name.length() > 2 && g.getFontMetrics().stringWidth(name) > bounds.width - 8) name = name.substring(0, name.length() - 2) + "…";
 				g.drawString(name, bounds.x + 4, bounds.y + 14); cards.add(new Card(task, bounds));
 				if (hasDependencies(task)) {
-					g.setColor(new Color(0xFF, 0xD5, 0x4F));
+					g.setColor(FlatUiSupport.ribbonTabHoverColor());
 					g.drawString("↗", bounds.x + bounds.width - 15, bounds.y + 14);
 					cards.set(cards.size() - 1, new Card(task, bounds,
 						new Rectangle(bounds.x + bounds.width - 22, bounds.y, 22, bounds.height)));
 				}
 			}
-			if (onDay.size() > visible) { g.setColor(Color.DARK_GRAY); g.drawString("+" + (onDay.size() - visible) + " more", x + 7, y + 96); }
+			if (onDay.size() > visible) { g.setColor(FlatUiSupport.disabledForeground()); g.drawString("+" + (onDay.size() - visible) + " more", x + 7, y + 96); }
 		}
 
 		private List<Task> tasksOn(LocalDate day) {

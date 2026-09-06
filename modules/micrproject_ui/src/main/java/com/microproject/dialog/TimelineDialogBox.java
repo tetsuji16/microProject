@@ -52,6 +52,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
+import com.microproject.util.FlatUiSupport;
 
 /** Concise, selectable project timeline suitable for status communication. */
 public final class TimelineDialogBox extends JDialog {
@@ -99,6 +100,8 @@ public final class TimelineDialogBox extends JDialog {
 		setMinimumSize(new Dimension(900, 480));
 		setSize(1100, 620);
 		setLocationRelativeTo(owner);
+		FlatUiSupport.styleDialogRoot(getRootPane());
+		FlatUiSupport.styleDialogComponents(getContentPane());
 	}
 
 	/** Creates the same timeline UI for embedding in a document view. */
@@ -143,7 +146,7 @@ public final class TimelineDialogBox extends JDialog {
 
 	private final class TimelineCanvas extends JPanel {
 		private static final long serialVersionUID = 1L;
-		TimelineCanvas() { setBackground(Color.WHITE); setPreferredSize(new Dimension(900, 520)); }
+		TimelineCanvas() { setBackground(FlatUiSupport.dataSurfaceBackground()); setPreferredSize(new Dimension(900, 520)); }
 		void refresh() { revalidate(); repaint(); }
 		@Override protected void paintComponent(Graphics graphics) {
 			super.paintComponent(graphics);
@@ -151,12 +154,12 @@ public final class TimelineDialogBox extends JDialog {
 			try {
 				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				List<Task> selected = tasks.stream().filter(Task::isDisplayOnTimeline).toList();
-				if (selected.isEmpty()) { g.setColor(Color.GRAY); g.drawString(UsabilityStrings.text("timeline.empty"), 24, 40); return; }
+				if (selected.isEmpty()) { g.setColor(FlatUiSupport.disabledForeground()); g.drawString(UsabilityStrings.text("timeline.empty"), 24, 40); return; }
 				long min = selected.stream().mapToLong(Task::getStart).min().orElse(project.getStart());
 				long max = selected.stream().mapToLong(Task::getEnd).max().orElse(project.getEnd());
 				if (max <= min) max = min + 1L;
 				int left = 80, right = Math.max(left + 1, getWidth() - 40), axisY = 65;
-				g.setColor(new Color(0x455A64)); g.setStroke(new BasicStroke(2F)); g.drawLine(left, axisY, right, axisY);
+				g.setColor(FlatUiSupport.headerForeground()); g.setStroke(new BasicStroke(2F)); g.drawLine(left, axisY, right, axisY);
 				g.drawString(DateFormat.getDateInstance(DateFormat.MEDIUM).format(new Date(min)), left, 42);
 				String finish = DateFormat.getDateInstance(DateFormat.MEDIUM).format(new Date(max));
 				FontMetrics fm = g.getFontMetrics(); g.drawString(finish, right - fm.stringWidth(finish), 42);
@@ -165,19 +168,19 @@ public final class TimelineDialogBox extends JDialog {
 					int y = axisY + 35 + lane++ * 42;
 					int x1 = position(task.getStart(), min, max, left, right);
 					int x2 = Math.max(x1 + 8, position(task.getEnd(), min, max, left, right));
-					Color color = task.isInactiveTask() ? new Color(0x9E9E9E)
-						: task.isManuallyScheduled() ? new Color(0x2E7D32) : new Color(0x1565C0);
+					Color color = task.isInactiveTask() ? FlatUiSupport.disabledForeground()
+						: task.isManuallyScheduled() ? FlatUiSupport.accentColor().darker() : FlatUiSupport.ribbonAccentColor();
 					g.setColor(color);
 					if (task.isMilestone()) {
 						int[] xs = { x1, x1 + 8, x1, x1 - 8 }, ys = { y - 8, y, y + 8, y };
 						g.fillPolygon(xs, ys, 4);
 					} else g.fillRoundRect(x1, y - 8, x2 - x1, 16, 8, 8);
-					g.setColor(new Color(0x263238)); g.drawString(task.getName(), Math.min(x2 + 8, right - 160), y + 5);
+					g.setColor(FlatUiSupport.tableForeground()); g.drawString(task.getName(), Math.min(x2 + 8, right - 160), y + 5);
 				}
 				long now = System.currentTimeMillis();
 				if (now >= min && now <= max) {
 					int today = position(now, min, max, left, right);
-					g.setColor(new Color(0xD32F2F)); g.setStroke(new BasicStroke(1.5F));
+					g.setColor(FlatUiSupport.errorForeground()); g.setStroke(new BasicStroke(1.5F));
 					g.drawLine(today, axisY - 15, today, Math.max(axisY + 10, getHeight() - 20)); g.drawString(UsabilityStrings.text("common.today"), today + 4, axisY - 18);
 				}
 				setPreferredSize(new Dimension(Math.max(900, getWidth()), Math.max(520, axisY + selected.size() * 42 + 50)));

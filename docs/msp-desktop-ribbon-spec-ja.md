@@ -139,6 +139,45 @@ Gantt の表示トグルはモデル値ではなくビュー設定として保�
 `Late Tasks`、`Task Path`、`Baseline`、`Slippage` がバー・描画・凡例に正しく反映されることを
 確認する。
 
+### #473 の決定: Task と Gantt Chart Format は統合しない
+
+**決定:** MSP 互換の通常面では `Task` の配下に `Gantt Chart Format` をサブメニュー又は
+セクションとして入れない。Gantt Chart 又は Tracking Gantt がアクティブな間だけ、通常タブの
+右側に **`Gantt Chart Tools — Format`**（現行 UI の表示名は `Gantt Chart Format`）を
+コンテキスト・タブとして表示する。別ビューへ切り替えた時点でこのタブとそのコマンドは
+利用不可にし、以前の Format 状態を通常タブとして残してはならない。
+
+これは Task の混雑を緩和するためだけの決定ではない。両者は操作対象、適用範囲、保存先が
+異なるためである。
+
+| 区分 | Task | Gantt Chart Tools — Format |
+|---|---|---|
+| 操作対象 | 選択したタスク、その依存関係、割当、スケジュール | 現在表示している Gantt/Tracking Gantt のチャート面 |
+| 主な結果 | タスク・プロジェクトのデータ、日程、進捗を変更する | バー、リンク線、グリッド、ラベル、レイアウトなどの見え方を変更する |
+| 表示条件 | 通常タブとして常時表示 | 対象 Gantt ビューがアクティブなときだけ表示 |
+| 状態の保存 | タスク／プロジェクトのデータと Undo トランザクション | ビュー設定。タスク・スケジュール値を変更しない |
+
+したがって、`Link`、`Unlink`、`Indent`、進捗、タスク情報のように計画データを変える操作は
+Task に置く。`Bar Styles`、`Gantt Chart Style`、`Layout`、`Gridlines`、`Critical Tasks`、
+`Slack`、`Late Tasks`、`Task Path`、`Baseline`、`Slippage`、表示ラベルのようにチャートの
+見え方を変える操作は Gantt Chart Format に置く。Task 内に同じ機能への別入口を追加して二重の
+Action 又は異なる状態を作ってはならない。
+
+例外として、単一タスクのバー書式はタスクを選んだときの `Task Information`（又はバーの
+直接操作）から開いてよい。この場合も対象はそのタスクだけであり、Gantt 全体の表示書式を
+変える Format コマンドへ混在させない。適用／取消、Undo、保存・再読込の境界を明確にする。
+
+実装上は `FormatRibbonTask` を Gantt/Tracking Gantt 専用のコンテキスト・タブとして扱う。
+Timeline、Network Diagram、Calendar、Report はそれぞれ固有の Format/Design タブを持つため、
+同じ `FormatRibbonTask` のコマンド群を流用して誤ったビューに表示してはならない。幅不足時は
+タブを消すのではなく、既定どおりグループ単位で畳み、畳まれたメニューからも同一 Action を
+一度だけ実行できなければならない。
+
+受入では、(1) Gantt/Tracking Gantt でのみ当該タブが見えること、(2) View で別ビューに切り
+替えると消えること、(3) Format の操作が開始日・終了日・依存関係・進捗を変えないこと、
+(4) ビュー設定が保存・再読込後に復元すること、(5) Task 操作と Format 操作の Undo が混ざら
+ないことを、実 GUI で確認する。
+
 ## 5. 独自機能の置き方
 
 互換を維持するため、独自機能は通常タブの MSP コマンドの間へ挿入しない。標準タブの右、

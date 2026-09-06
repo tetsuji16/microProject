@@ -50,6 +50,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
+import com.microproject.util.FlatUiSupport;
 
 /** Central editor for task custom-field names, values, and optional lookup validation. */
 public final class CustomFieldsDialogBox extends JDialog {
@@ -94,6 +95,9 @@ public final class CustomFieldsDialogBox extends JDialog {
 		restrictValues.addActionListener(event -> lookupValues.setEnabled(restrictValues.isSelected()));
 		loadLookup();
 		setMinimumSize(new Dimension(760, 480)); setSize(900, 620); setLocationRelativeTo(owner);
+		FlatUiSupport.styleDialogRoot(getRootPane());
+		FlatUiSupport.styleDialogComponents(getContentPane());
+		FlatUiSupport.styleDialogButton(apply, true);
 	}
 
 	private static List<Task> allTasks(Project project) {

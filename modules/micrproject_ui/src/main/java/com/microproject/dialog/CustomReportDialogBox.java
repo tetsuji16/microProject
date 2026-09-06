@@ -86,6 +86,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
+import com.microproject.util.FlatUiSupport;
 
 /** User-configurable task report with reusable presets, preview, print, and CSV export. */
 public final class CustomReportDialogBox extends JDialog implements ScheduleEventListener {
@@ -164,6 +165,8 @@ public final class CustomReportDialogBox extends JDialog implements ScheduleEven
 		preview.getAccessibleContext().setAccessibleName(t("report.accessible"));
 		refreshPresetNames(); generate();
 		setMinimumSize(new Dimension(950, 600)); setSize(1200, 760); setLocationRelativeTo(owner);
+		FlatUiSupport.styleDialogRoot(getRootPane());
+		FlatUiSupport.styleDialogComponents(getContentPane());
 	}
 
 	@Override
@@ -198,7 +201,7 @@ public final class CustomReportDialogBox extends JDialog implements ScheduleEven
 
 	private JPanel buildButtons() {
 		JPanel result = new JPanel(new BorderLayout()); result.add(summary, BorderLayout.WEST);
-		JPanel buttons = new JPanel(); JButton generate = new JButton(t("report.generate")); generate.addActionListener(event -> generate());
+		JPanel buttons = new JPanel(); JButton generate = new JButton(t("report.generate")); FlatUiSupport.styleDialogButton(generate, true); generate.addActionListener(event -> generate());
 		JButton export = new JButton(t("report.export")); export.addActionListener(event -> exportCsv());
 		JButton print = new JButton(t("report.print")); print.addActionListener(event -> print());
 		JButton close = new JButton(t("common.close")); close.addActionListener(event -> dispose());

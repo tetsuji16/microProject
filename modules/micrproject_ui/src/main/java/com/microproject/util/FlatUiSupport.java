@@ -26,6 +26,7 @@ package com.microproject.util;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -42,7 +43,10 @@ import javax.swing.JToggleButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JDialog;
+import javax.swing.JButton;
 import javax.swing.JRootPane;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
@@ -891,6 +895,39 @@ public final class FlatUiSupport {
 		component.setOpaque(true);
 		component.setBackground(dialogBackground());
 		component.setForeground(labelForeground());
+	}
+
+	/**
+	 * Applies the shared FlatLaf dialog contract to a dialog assembled from
+	 * ordinary Swing components.  Legacy dialogs cannot all extend
+	 * {@link com.microproject.dialog.AbstractDialog}, so this is the single
+	 * migration path for their component tree.
+	 */
+	public static void styleDialogComponents(Component component) {
+		if (component == null)
+			return;
+		if (component instanceof JTable table)
+			applySpreadsheetTableStyle(table);
+		else if (component instanceof JTabbedPane tabs)
+			styleTabbedPane(tabs);
+		else if (component instanceof JScrollPane scrollPane) {
+			applyPanelSurface(scrollPane);
+			applyViewportSurface(scrollPane.getViewport());
+		}
+		else if (component instanceof JSplitPane splitPane) {
+			applyPanelSurface(splitPane);
+			splitPane.setBorder(BorderFactory.createEmptyBorder());
+		}
+		else if (component instanceof JButton button)
+			styleDialogButton(button, false);
+		else if (component instanceof JPanel panel)
+			applyPanelSurface(panel);
+
+		if (component instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				styleDialogComponents(child);
+			}
+		}
 	}
 
 	public static void styleButtonPanel(JPanel panel) {

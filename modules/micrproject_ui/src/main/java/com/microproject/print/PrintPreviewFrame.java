@@ -126,10 +126,13 @@ public class PrintPreviewFrame extends JFrame implements  ProjectMenuActionMap, 
          pagePanel=new PagePanel();
          //pagePanel.setPreferredSize(new Dimension((int)Math.floor(document.getPageFormat().getWidth()),(int)Math.floor(document.getPageFormat().getHeight())));
          updateSize();
-         pageScrollPane=new JScrollPane(pagePanel,ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-         getContentPane().add(pageScrollPane,BorderLayout.CENTER);
+		pageScrollPane=new JScrollPane(pagePanel,ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+		FlatUiSupport.applyViewportSurface(pageScrollPane.getViewport());
+		FlatUiSupport.applyPanelSurface(pageScrollPane);
+		getContentPane().add(pageScrollPane,BorderLayout.CENTER);
 
-         addFormatPanel();
+		addFormatPanel();
+		FlatUiSupport.applyWorkspaceSurface((JComponent) getContentPane());
 	}
 
 

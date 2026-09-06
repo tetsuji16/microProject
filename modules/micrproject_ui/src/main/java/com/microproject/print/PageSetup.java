@@ -66,6 +66,7 @@ import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatUiSupport;
 /**
  *
  */
@@ -116,7 +117,8 @@ public class PageSetup{
 	protected PageSizes.MediaSizeNameModel sizesModel;
 
 	protected void initFont(JComponent c){
-		c.setFont(c.getFont().deriveFont(8));
+		if (c != null)
+			c.setFont(FlatUiSupport.compactFont());
 	}
 
 	protected int updating;
@@ -921,8 +923,9 @@ public class PageSetup{
 
 	public JComponent createContentPanel(boolean bar) {
 		initControls();
-		if (bar) return createVerticalPanel();
-		else return createDialogPanel();
+		JComponent panel = bar ? createVerticalPanel() : createDialogPanel();
+		FlatUiSupport.styleDialogComponents(panel);
+		return panel;
 //		FormLayout layout = new FormLayout("350dlu:grow","fill:250dlu:grow");
 //		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 //		builder.setDefaultDialogBorder();

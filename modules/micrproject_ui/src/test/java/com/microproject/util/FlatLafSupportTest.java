@@ -26,6 +26,12 @@ package com.microproject.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.awt.BorderLayout;
+
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.UIManager;
 
 import org.junit.jupiter.api.Test;
@@ -49,5 +55,23 @@ class FlatLafSupportTest {
 		assertEquals(new java.awt.Color(0xCCE4F7), UIManager.getColor("TitlePane.buttonPressedBackground"));
 		assertEquals(UIManager.getColor("TitlePane.foreground"), UIManager.getColor("TitlePane.buttonHoverForeground"));
 		assertEquals(UIManager.getColor("TitlePane.foreground"), UIManager.getColor("TitlePane.buttonPressedForeground"));
+	}
+
+	@Test
+	void dialogComponentStylingCoversLegacySwingTree() {
+		FlatLafSupport.initialize();
+		JPanel content = new JPanel(new BorderLayout());
+		JButton button = new JButton("Close");
+		JTable table = new JTable(2, 2);
+		content.add(button, BorderLayout.SOUTH);
+		content.add(new JScrollPane(table), BorderLayout.CENTER);
+
+		FlatUiSupport.styleDialogComponents(content);
+
+		assertEquals(FlatUiSupport.dialogSurfaceBackground(), button.getBackground());
+		assertEquals(FlatUiSupport.spreadsheetBodyBackground(), table.getBackground());
+		assertEquals(FlatUiSupport.spreadsheetGridColor(), table.getGridColor());
+		assertEquals(FlatUiSupport.dialogButtonHeight(), button.getMinimumSize().height);
+		assertEquals(FlatUiSupport.viewportBackground(), table.getParent().getBackground());
 	}
 }
