@@ -120,6 +120,23 @@ class ProjectLibreShellTest {
 	}
 
 	@Test
+	void officeChromeQuickAccessUsesMicrosoftProjectOrder() {
+		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
+		panel.setSize(900, 160);
+		layoutRecursively(panel);
+
+		JComponent quickAccess = findComponent(panel, OfficeChromePanel.QUICK_ACCESS_NAME);
+		java.util.List<String> actionIds = new java.util.ArrayList<>();
+		for (java.awt.Component component : quickAccess.getComponents()) {
+			if (component instanceof JComponent child && child.getName() != null
+				&& child.getName().startsWith("RibbonTopBar")) {
+				actionIds.add(child.getName());
+			}
+		}
+		assertEquals(java.util.List.of("RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo"), actionIds);
+	}
+
+	@Test
 	void officeChromeRightActionsStayAnchoredToTheWindowEdge() {
 		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
 		panel.setSize(292, 160);

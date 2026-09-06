@@ -293,59 +293,24 @@ public final class ModernRibbonPanel extends JPanel {
 		rowConstraints.fill = GridBagConstraints.HORIZONTAL;
 		rowConstraints.anchor = GridBagConstraints.WEST;
 		row.add(tabs, rowConstraints);
-
-		JPanel quickAccess = buildQuickAccessToolbar();
-		GridBagConstraints quickAccessConstraints = new GridBagConstraints();
-		quickAccessConstraints.gridx = 1;
-		quickAccessConstraints.gridy = 0;
-		quickAccessConstraints.anchor = GridBagConstraints.EAST;
-		quickAccessConstraints.insets = new Insets(0, 8, 0, 0);
-		row.add(quickAccess, quickAccessConstraints);
+		// Keep the command registrations owned by the ribbon factory for legacy
+		// action-map consumers, but do not render a second QAT here.  The visible
+		// QAT is owned by OfficeChromePanel, matching the MSP/Office title-bar
+		// convention and preventing two competing locations.
+		registerQuickAccessActions();
 
 		return row;
 	}
 
-	/**
-	 * The Quick Access Toolbar is deliberately outside every ribbon tab.  This
-	 * prevents Save, Undo and Redo from being duplicated in File while keeping
-	 * the three document-wide commands available when any tab is active.
-	 */
-	private JPanel buildQuickAccessToolbar() {
-		JPanel quickAccess = new JPanel(new GridBagLayout());
-		quickAccess.setOpaque(false);
-		GridBagConstraints constraints = new GridBagConstraints();
-		constraints.gridx = 0;
-		constraints.gridy = 0;
-		constraints.insets = new Insets(0, 0, 0, 2);
+	private void registerQuickAccessActions() {
 		for (String buttonId : model.getTaskBarButtons()) {
 			SwingRibbonModel.RibbonButton specification = new SwingRibbonModel.RibbonButton(
 				buttonId,
 				SwingRibbonModel.ButtonPriority.LOW);
-			AbstractButton button = createButton(specification, true);
-			styleQuickAccessButton(button);
-			button.setText("");
-			quickAccess.add(button, constraints);
-			constraints.gridx++;
+			// Keep the registered proxy styled like a ribbon command so shared
+			// action-state tests and enablement propagation see the same contract.
+			buttonStyler.styleActionButton(createButton(specification, true), "small");
 		}
-		return quickAccess;
-	}
-
-	/**
-	 * Quick Access buttons are icon-only commands in the tab row. They follow
-	 * the Microsoft Project QAT convention: a compact square hit area around
-	 * the icon (24px), not the 84px minimum width of ribbon inline buttons —
-	 * that width is meant for labelled commands and left huge empty clickable
-	 * gaps between the icons (#346 layout report).
-	 */
-	private void styleQuickAccessButton(AbstractButton button) {
-		FlatUiSupport.styleRibbonSmallButton(button);
-		buttonStyler.applyRibbonIcon(button, FlatUiSupport.ribbonQuickAccessIconSize());
-		Dimension size = new Dimension(
-			FlatUiSupport.ribbonQuickAccessButtonSize(),
-			FlatUiSupport.ribbonQuickAccessButtonSize());
-		button.setMinimumSize(size);
-		button.setPreferredSize(size);
-		button.setMaximumSize(size);
 	}
 
 	private JPanel buildTabsStrip() {

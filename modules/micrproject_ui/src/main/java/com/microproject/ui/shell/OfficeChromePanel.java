@@ -184,11 +184,11 @@ final class OfficeChromePanel extends JPanel {
 		cluster.add(new VerticalDivider(), constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 2);
+		cluster.add(createActionButton("RibbonTopBarSaveProject"), constraints);
+		constraints.gridx++;
 		cluster.add(createActionButton("RibbonTopBarUndo"), constraints);
 		constraints.gridx++;
 		cluster.add(createActionButton("RibbonTopBarRedo"), constraints);
-		constraints.gridx++;
-		cluster.add(createActionButton("RibbonTopBarSaveProject"), constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, 12, 0, 0);
 		cluster.add(documentTitleLabel, constraints);
