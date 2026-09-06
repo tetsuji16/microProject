@@ -409,6 +409,19 @@ class RibbonButtonBehaviorTest {
 		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
 	}
 
+	@Test
+	void detailsSelectionClearsWhenTheDocumentLosesCommandFocus() throws Exception {
+		Harness harness = newHarness();
+		activateView(harness, MenuActionConstants.ACTION_TASK_USAGE);
+		assertTrue((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+			.getValue(Action.SELECTED_KEY));
+
+		harness.frame.refreshViewButtons(false);
+
+		assertFalse((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+			.getValue(Action.SELECTED_KEY));
+	}
+
 	private static void assertBottomView(Harness harness, String actionId, BaseView view) {
 		assertSame(view, harness.frame.getActiveBottomView());
 		assertSame(view, harness.frame.getMainView().getBottomComponent());

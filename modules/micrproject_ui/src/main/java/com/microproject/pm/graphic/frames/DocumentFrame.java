@@ -1220,7 +1220,7 @@ public class DocumentFrame extends NamedFrame implements
 		menuManager.setActionSelected(ACTION_NO_SUB_WINDOW,
 			ACTION_NO_SUB_WINDOW.equals(selectedAction));
 		menuManager.setActionSelected(ACTION_DETAILS,
-			!ACTION_NO_SUB_WINDOW.equals(selectedAction));
+			selectedAction != null && !ACTION_NO_SUB_WINDOW.equals(selectedAction));
 	}
 
 	private BaseView getBottomViewForRestore() {
