@@ -184,7 +184,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 	public JComponent createContentPanel() {
 		initControls();
 		FormLayout layout = new FormLayout("400dlu:grow", // cols //$NON-NLS-1$
-				"p,3dlu,p,2dlu"); // rows //$NON-NLS-1$
+				"p,p,p,2dlu"); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.

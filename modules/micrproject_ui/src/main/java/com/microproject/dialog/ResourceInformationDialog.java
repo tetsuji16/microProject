@@ -115,7 +115,7 @@ public class ResourceInformationDialog extends InformationDialog {
 
 		FormLayout layout = new FormLayout(
         "p, 3dlu, 160dlu, 3dlu, p, 3dlu, p:grow", //$NON-NLS-1$
-		  "p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,0dlu,p"); //$NON-NLS-1$
+		  "p,p,p,p,p,p,p,p,p,p,p"); //$NON-NLS-1$
 	
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
@@ -144,7 +144,7 @@ public class ResourceInformationDialog extends InformationDialog {
 	public JComponent createAvailabilityPanel() {
 		FieldComponentMap map = createMap();
 		
-		FormLayout layout = new FormLayout("p:grow","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		FormLayout layout = new FormLayout("p:grow","p,p,p,p,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
@@ -161,7 +161,7 @@ public class ResourceInformationDialog extends InformationDialog {
 	public JComponent createTasksPanel() {
 		FieldComponentMap map = createMap();
 		
-		FormLayout layout = new FormLayout("p:grow","p,3dlu,p,3dlu,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		FormLayout layout = new FormLayout("p:grow","p,p,p,p,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
@@ -316,7 +316,7 @@ public class ResourceInformationDialog extends InformationDialog {
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
 		        "50dlu,3dlu,50dlu,3dlu,p:grow", //$NON-NLS-1$
-	    		  "p,3dlu,p,3dlu,fill:p:grow,3dlu,p,3dlu,p"); //$NON-NLS-1$
+			  "p,p,p,p,fill:p:grow,p,p,p"); //$NON-NLS-1$
 	
 	
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);

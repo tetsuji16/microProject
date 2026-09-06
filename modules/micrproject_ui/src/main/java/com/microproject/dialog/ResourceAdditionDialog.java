@@ -37,6 +37,7 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 
 public final class ResourceAdditionDialog extends AbstractDialog {
 	private static final long serialVersionUID = -2638004002538054771L;
@@ -101,7 +102,7 @@ public final class ResourceAdditionDialog extends AbstractDialog {
 	public JComponent createContentPanel() {
 		initControls();
 		FormLayout layout = new FormLayout("200dlu:grow", // cols //$NON-NLS-1$
-				"p,3dlu,p,3dlu,p"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(5)); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
@@ -138,4 +139,3 @@ public final class ResourceAdditionDialog extends AbstractDialog {
 	
 
 }
-

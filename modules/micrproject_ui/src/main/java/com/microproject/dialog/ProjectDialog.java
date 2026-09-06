@@ -60,6 +60,7 @@ import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatUiSupport;
 
 public final class ProjectDialog extends FieldDialog { // extends FieldDialog for extra fields handling
 	private static final long serialVersionUID = 1L;
@@ -364,7 +365,7 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("default, 3dlu, 220dlu, 3dlu, default:grow", // cols //$NON-NLS-1$
-				"p, 3dlu,p, 3dlu,p, 3dlu, p, 3dlu, p, 3dlu,p, 3dlu, p, 3dlu, fill:50dlu:grow"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(14) + ",fill:50dlu:grow"); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.

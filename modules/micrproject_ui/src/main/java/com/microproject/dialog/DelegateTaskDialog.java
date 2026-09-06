@@ -37,6 +37,7 @@ import com.microproject.dialog.util.FieldComponentMap;
 import com.microproject.configuration.Settings;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.DataUtils;
 
 /**
@@ -72,7 +73,7 @@ public final class DelegateTaskDialog extends FieldDialog {
 		
 		FormLayout layout = new FormLayout(
 		        "p, 3dlu, p" //$NON-NLS-1$
-	    		 ,"p,3dlu,p"); //$NON-NLS-1$
+				,FlatUiSupport.preferredFormRows(3)); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();

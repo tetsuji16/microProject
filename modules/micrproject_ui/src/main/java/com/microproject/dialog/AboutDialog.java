@@ -41,6 +41,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.BrowserControl;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.util.UiLinkTargets;
 import com.microproject.util.VersionUtils;
@@ -89,7 +90,7 @@ public final class AboutDialog extends AbstractDialog {
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		FormLayout layout = new FormLayout("default", // cols //$NON-NLS-1$
-				"p, 3dlu,p, 3dlu, p, 3dlu, p, 10dlu,p"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(7) + ",10dlu,p"); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.

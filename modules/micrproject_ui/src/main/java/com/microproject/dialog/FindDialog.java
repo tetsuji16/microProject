@@ -64,10 +64,10 @@ import com.microproject.configuration.Configuration;
 import com.microproject.document.ObjectEvent;
 import com.microproject.field.Field;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.ClassLoaderUtils;
-import com.microproject.util.FlatUiSupport;
 import com.microproject.util.VersionUtils;
 
 public final class FindDialog extends AbstractDialog implements ObjectEvent.Listener,DocumentSelectedEvent.Listener{
@@ -150,7 +150,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		FormLayout layout = new FormLayout("default, 3dlu, default, 3dlu, default", // cols //$NON-NLS-1$
-				"p, 3dlu, p, 3dlu, p"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(5)); // rows //$NON-NLS-1$
 
 
 

@@ -95,7 +95,7 @@ public abstract class InformationDialog extends FieldDialog {
 		        "p:grow", // extra padding on right is for estimated field //$NON-NLS-1$
 				// The builder advances by two rows between sections.  A 3dlu track
 				// at those positions can receive a label and collapse its glyphs.
-				"p,p,p,p, fill:50dlu:grow"); //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(4) + ",fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();

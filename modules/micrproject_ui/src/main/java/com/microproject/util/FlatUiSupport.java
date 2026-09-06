@@ -616,6 +616,28 @@ public final class FlatUiSupport {
 		return value instanceof Integer ? ((Integer) value).intValue() : 30;
 	}
 
+	/**
+	 * Returns preferred-height tracks for a form built with
+	 * {@code DefaultFormBuilder.nextLine(2)}.
+	 *
+	 * That builder movement keeps the historical spacer tracks in the row
+	 * cursor, so declaring {@code 3dlu} spacer rows makes the next component
+	 * inherit a height that is smaller than many fonts.  Keep the track count
+	 * and replace every track with {@code p}; spacing belongs in the builder
+	 * border/gaps, not in a fixed-height component row.
+	 */
+	public static String preferredFormRows(int rowCount) {
+		if (rowCount < 1)
+			throw new IllegalArgumentException("rowCount must be positive");
+		StringBuilder rows = new StringBuilder(rowCount * 2 - 1);
+		for (int row = 0; row < rowCount; row++) {
+			if (row > 0)
+				rows.append(',');
+			rows.append('p');
+		}
+		return rows.toString();
+	}
+
 	public static Color blend(Color first, Color second, float firstWeight) {
 		float weight = Math.max(0f, Math.min(1f, firstWeight));
 		float secondWeight = 1f - weight;

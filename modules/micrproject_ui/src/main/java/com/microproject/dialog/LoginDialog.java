@@ -46,6 +46,7 @@ import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.util.SafeObjectInput;
 
@@ -199,7 +200,7 @@ public final class LoginDialog extends AbstractDialog {
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("default, 3dlu, 120dlu:grow", // cols //$NON-NLS-1$
-				"p, 3dlu,p,3dlu,p,3dlu,p"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(7)); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
@@ -232,4 +233,3 @@ public final class LoginDialog extends AbstractDialog {
 	
 
 }
-

@@ -49,6 +49,7 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Alert;
 
 /**
@@ -136,7 +137,7 @@ public class DependencyDialog extends AbstractDialog {
 		initControls();
 		FormLayout layout = new FormLayout(
 			"50dlu,3dlu,50dlu,3dlu,50dlu,3dlu,50dlu,3dlu,50dlu", // cols; the lag field is placed in the ninth column
-				"p,3dlu,p,3dlu,p,3dlu,p,3dlu"); // rows
+				FlatUiSupport.preferredFormRows(8)); // rows
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.

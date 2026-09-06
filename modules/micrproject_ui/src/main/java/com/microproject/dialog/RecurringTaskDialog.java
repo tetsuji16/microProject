@@ -56,6 +56,7 @@ import com.microproject.dialog.util.ExtDateField;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.task.RecurringTaskSpec;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
 
@@ -105,7 +106,7 @@ public final class RecurringTaskDialog extends AbstractDialog {
 	public JComponent createContentPanel() {
 		FormLayout layout = new FormLayout(
 			"max(70dlu;pref), 3dlu, 180dlu:grow",
-			"p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p");
+			FlatUiSupport.preferredFormRows(7));
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		builder.append(Messages.getString("RecurringTaskDialog.Name"), nameField);

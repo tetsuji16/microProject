@@ -275,7 +275,7 @@ public class CalendarDialogBox extends AbstractDialog{
     		
     		FormLayout layout = new FormLayout(
     		        "p,3dlu,p,p:grow", //$NON-NLS-1$
-    	    		  "p,3dlu,p,3dlu,p,3dlu,p"); //$NON-NLS-1$
+			  "p,p,p,p,p,p,p"); //$NON-NLS-1$
 
     		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
     		builder.setDefaultDialogBorder();

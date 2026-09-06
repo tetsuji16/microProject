@@ -179,7 +179,7 @@ public final class ResourceMappingDialog extends AbstractDialog {
 	public JComponent createContentPanel() {
 		initControls();
 		FormLayout layout = new FormLayout("310dlu:grow", // cols //$NON-NLS-1$
-				(masterProject==null)?"p,3dlu,p,3dlu,p,3dlu,p":"p,3dlu,p,3dlu,p,3dlu,p,3dlu,p"); // rows //$NON-NLS-1$ //$NON-NLS-2$
+				(masterProject==null)?FlatUiSupport.preferredFormRows(7):FlatUiSupport.preferredFormRows(9)); // rows //$NON-NLS-1$ //$NON-NLS-2$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
@@ -408,4 +408,3 @@ public final class ResourceMappingDialog extends AbstractDialog {
 
 
 }
-

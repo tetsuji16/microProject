@@ -36,6 +36,7 @@ import com.microproject.dialog.AbstractDialog;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.resource.Resource;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 
 public final class ReplaceAssignmentDialog extends AbstractDialog implements CommonAssignmentDialog{
 	DocumentFrame documentFrame;
@@ -86,7 +87,7 @@ public final class ReplaceAssignmentDialog extends AbstractDialog implements Com
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("140dlu:grow", // cols
-				"p, 3dlu, p, 3dlu, fill:200dlu:grow"); // rows
+				FlatUiSupport.preferredFormRows(4) + ",fill:200dlu:grow"); // rows
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.

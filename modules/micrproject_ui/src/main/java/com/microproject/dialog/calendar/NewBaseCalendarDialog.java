@@ -46,6 +46,7 @@ import com.microproject.document.Document;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 
 public final class NewBaseCalendarDialog extends AbstractDialog {
 
@@ -123,7 +124,7 @@ public final class NewBaseCalendarDialog extends AbstractDialog {
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		FormLayout layout = new FormLayout("p, 3dlu, max(160dlu;pref):grow", // cols //$NON-NLS-1$
-				"p, 3dlu,p, 3dlu, p, 3dlu, p, 3dlu, p"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(9)); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.

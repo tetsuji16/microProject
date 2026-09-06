@@ -42,6 +42,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.key.HasName;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 
 /**
  *  
@@ -104,7 +105,7 @@ public class XbsDependencyDialog extends AbstractDialog {
 		initControls();
 		FormLayout layout = new FormLayout(
 				"50dlu,3dlu,50dlu,3dlu,50dlu,3dlu,50dlu", // cols
-				"p,3dlu,p,3dlu,p,3dlu"); // rows
+				FlatUiSupport.preferredFormRows(6)); // rows
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.

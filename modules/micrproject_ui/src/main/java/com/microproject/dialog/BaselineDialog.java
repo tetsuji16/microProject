@@ -40,6 +40,7 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.configuration.Settings;
 import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 
 public final class BaselineDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
@@ -172,7 +173,7 @@ public final class BaselineDialog extends AbstractDialog {
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("default, 3dlu, fill:80dlu:grow", // cols //$NON-NLS-1$
-				"p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, p"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(5)); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
@@ -203,4 +204,3 @@ public final class BaselineDialog extends AbstractDialog {
 		return form;
 	}
 }
-

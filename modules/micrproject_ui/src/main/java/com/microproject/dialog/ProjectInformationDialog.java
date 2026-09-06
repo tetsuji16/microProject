@@ -87,7 +87,7 @@ public class ProjectInformationDialog extends InformationDialog {
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
 		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,max(90dlu;pref),60dlu", // extra padding on right is for estimated field //$NON-NLS-1$
-				"p,3dlu,p, 3dlu,p, 3dlu, p, 3dlu, p, 3dlu,p, 3dlu,p,3dlu,p,3dlu,p, 3dlu,p,3dlu,p, 6dlu, fill:50dlu:grow"); //$NON-NLS-1$
+				"p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p, 6dlu, fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
@@ -143,7 +143,7 @@ public class ProjectInformationDialog extends InformationDialog {
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
 		        "p, 3dlu, 50dlu, 20dlu, p, 3dlu, 50dlu:grow", //$NON-NLS-1$
-		"p, 3dlu, p, 3dlu,p, 3dlu, p, 10dlu, p,3dlu,p, 10dlu, p, 3dlu, p, 10dlu, p, 3dlu, p"); //$NON-NLS-1$
+		"p,p,p,p,p, 10dlu, p,p,p, 10dlu, p,p,p, 10dlu, p,p,p"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();

@@ -37,6 +37,7 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.NamedItem;
 import com.microproject.field.Field;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Alert;
 
 public final class FieldAliasDialog extends AbstractDialog {
@@ -119,7 +120,7 @@ public final class FieldAliasDialog extends AbstractDialog {
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("default, 3dlu, 120dlu:grow", // cols //$NON-NLS-1$
-				"p, 3dlu,p,3dlu,p,3dlu,p"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(7)); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
@@ -134,4 +135,3 @@ public final class FieldAliasDialog extends AbstractDialog {
 	}
 
 }
-

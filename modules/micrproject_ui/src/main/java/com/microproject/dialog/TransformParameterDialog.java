@@ -41,6 +41,7 @@ import com.microproject.dialog.util.ExtDateField;
 import com.microproject.grouping.core.transform.CommonTransform;
 import com.microproject.grouping.core.transform.TransformParameter;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.DateTime;
 
 public final class TransformParameterDialog extends AbstractDialog implements Consumer<Object>{
@@ -112,7 +113,7 @@ public final class TransformParameterDialog extends AbstractDialog implements Co
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("default, 3dlu, default", // cols
-				"p, 3dlu,p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu"); // rows
+				FlatUiSupport.preferredFormRows(10)); // rows
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
@@ -132,4 +133,3 @@ public final class TransformParameterDialog extends AbstractDialog implements Co
 	}
 
 }
-

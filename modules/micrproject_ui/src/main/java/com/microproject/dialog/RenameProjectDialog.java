@@ -36,6 +36,7 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.strings.Messages;
+import com.microproject.util.FlatUiSupport;
 
 public final class RenameProjectDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
@@ -139,7 +140,7 @@ public final class RenameProjectDialog extends AbstractDialog {
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("250dlu:grow", // cols //$NON-NLS-1$
-				"p, 3dlu,p, 3dlu"); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(4)); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
