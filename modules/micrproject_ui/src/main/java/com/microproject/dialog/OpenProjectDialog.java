@@ -74,9 +74,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 	private Set<Long> currentProjectIds;
 	private boolean allowMaster = true;
 	private boolean allowOpenAs;
-	//private User user;
 
-	//ActionJList list;
 	OpenProjectTable table;
 	JScrollPane scrollPane;
 	JLabel resourcePoolMessage;
@@ -107,15 +105,6 @@ public final class OpenProjectDialog extends AbstractDialog {
 	}
 
 	protected void initControls() {
-//		ArrayList v =new Vector();
-//		v.addAll(projects);
-//		list=new ActionJList(v);
-//		  list.addActionListener(
-//	  	    new ActionListener() {
-//	  	       public void actionPerformed(ActionEvent ae) {
-//	  	      OpenProjectDialog.this.onOk();
-//	  	        }
-//	  	    });
 		table=new OpenProjectTable(this);
 		bind(true);
 		if (!loading) {
@@ -348,7 +337,6 @@ public final class OpenProjectDialog extends AbstractDialog {
 
 		public Object getValueAt(int rowIndex, int columnIndex) {
 			ProjectData project=(ProjectData)projects.get(rowIndex);
-//			try {
 			switch (columnIndex) {
 			case 0:
 				return project.getName();
@@ -356,11 +344,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 			case 1:
 				return project.getLockerInfo();
 			case 2:
-//				try {
-						return FieldConverter.toString(project.getLastModificationDate());
-//					} catch (FieldParseException e) {
-//						return null;
-//					}
+				return FieldConverter.toString(project.getLastModificationDate());
 
 			case 3:
 				if (project.isMaster()) return null;
@@ -374,7 +358,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 		}
 
 		public boolean isCellEditable(int rowIndex, int columnIndex) {
-			return false;//columnIndex==0;
+			return false;
 		}
 
 		public void setValueAt(Object value, int rowIndex, int columnIndex) {
@@ -417,11 +401,9 @@ public final class OpenProjectDialog extends AbstractDialog {
 				break;
 			}
 			tc.setCellRenderer(new DefaultTableCellRenderer(){
-				//protected Color defaultColor;
 				public Component getTableCellRendererComponent(JTable table, Object value, boolean selected, boolean focused, int row, int column){
 					ProjectData project=(ProjectData)projects.get(row);
 					setEnabled(table == null || table.isEnabled());
-					//if (defaultColor==null) defaultColor=getForeground();
 					setForeground((canBeUsed(project))?FlatUiSupport.tableForeground():FlatUiSupport.disabledForeground());
 					super.getTableCellRendererComponent(table, value, selected, focused, row, column);
 					return this;
