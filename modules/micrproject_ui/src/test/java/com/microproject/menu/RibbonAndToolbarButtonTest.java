@@ -551,6 +551,19 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void buttonLookupReturnsStableSnapshotDuringRibbonRebuild() throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(
+			MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));
+		AbstractButton first = factory.createJButton("RibbonScrollToTask");
+		List<AbstractButton> snapshot = factory.getButtonsFromId("RibbonScrollToTask");
+		factory.createJButton("RibbonScrollToTask");
+		factory.unregisterButton(first);
+
+		assertEquals(1, snapshot.size(), "lookup must be a stable snapshot");
+		assertEquals(1, factory.getButtonsFromId("RibbonScrollToTask").size());
+	}
+
+	@Test
 	void ribbonButtonMirrorsLiveActionEnablement() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			AbstractAction liveAction = new AbstractAction() {

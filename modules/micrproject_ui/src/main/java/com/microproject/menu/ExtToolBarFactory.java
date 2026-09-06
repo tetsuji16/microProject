@@ -107,9 +107,11 @@ public class ExtToolBarFactory extends ToolBarFactory {
     	List<AbstractButton> result = null;
     	if (buttonId != null)
     		result = toolButtons.get(buttonId);
-    	if (result == null)
-    		result = toolButtons.get(id);
-    	return result;
+	if (result == null)
+		result = toolButtons.get(id);
+		// Return a snapshot so responsive ribbon rebuilds cannot invalidate a
+		// caller's iterator while the registry is being updated.
+		return result == null ? null : new ArrayList<>(result);
     }
 
 	public synchronized void unregisterButton(AbstractButton button) {
