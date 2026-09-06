@@ -54,6 +54,16 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	protected int rowHeight;
 	protected boolean gridLinesVisible = Gantt.DEFAULT_GRID_LINES_VISIBLE;
 	protected Color gridLineColor = FlatUiSupport.tableGridColor();
+	protected boolean timescaleMajorLineVisible;
+	protected boolean timescaleMinorLineVisible;
+	protected boolean nonWorkingBoundaryVisible;
+	protected int timescaleMajorLineStyle;
+	protected int timescaleMinorLineStyle = 7;
+	protected int nonWorkingBoundaryStyle = 7;
+	protected int currentDateLineStyle = 7;
+	protected Color timescaleMajorLineColor;
+	protected Color timescaleMinorLineColor;
+	protected Color nonWorkingBoundaryColor;
 
 	public GanttParamsImpl(){
 		configuration = GraphicConfiguration.getInstance();
@@ -174,6 +184,26 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	public void setGridLineColor(Color color) {
 		this.gridLineColor = color == null ? FlatUiSupport.tableGridColor() : color;
 	}
+	public int getCurrentDateLineStyle() { return currentDateLineStyle; }
+	public void setCurrentDateLineStyle(int style) { currentDateLineStyle = style; }
+	public boolean isTimescaleMajorLineVisible() { return timescaleMajorLineVisible; }
+	public void setTimescaleMajorLineVisible(boolean visible) { timescaleMajorLineVisible = visible; }
+	public boolean isTimescaleMinorLineVisible() { return timescaleMinorLineVisible; }
+	public void setTimescaleMinorLineVisible(boolean visible) { timescaleMinorLineVisible = visible; }
+	public boolean isNonWorkingBoundaryVisible() { return nonWorkingBoundaryVisible; }
+	public void setNonWorkingBoundaryVisible(boolean visible) { nonWorkingBoundaryVisible = visible; }
+	public int getTimescaleMajorLineStyle() { return timescaleMajorLineStyle; }
+	public void setTimescaleMajorLineStyle(int style) { timescaleMajorLineStyle = style; }
+	public int getTimescaleMinorLineStyle() { return timescaleMinorLineStyle; }
+	public void setTimescaleMinorLineStyle(int style) { timescaleMinorLineStyle = style; }
+	public int getNonWorkingBoundaryStyle() { return nonWorkingBoundaryStyle; }
+	public void setNonWorkingBoundaryStyle(int style) { nonWorkingBoundaryStyle = style; }
+	public Color getTimescaleMajorLineColor() { return timescaleMajorLineColor; }
+	public void setTimescaleMajorLineColor(Color color) { timescaleMajorLineColor = color; }
+	public Color getTimescaleMinorLineColor() { return timescaleMinorLineColor; }
+	public void setTimescaleMinorLineColor(Color color) { timescaleMinorLineColor = color; }
+	public Color getNonWorkingBoundaryColor() { return nonWorkingBoundaryColor; }
+	public void setNonWorkingBoundaryColor(Color color) { nonWorkingBoundaryColor = color; }
 
 	public Object clone(){
 		try {

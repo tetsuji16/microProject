@@ -59,4 +59,24 @@ public interface GanttParams extends GraphParams{
 	default void setStatusDateLineColor(Color color) { }
 	default Color getCurrentDateLineColor() { return null; }
 	default void setCurrentDateLineColor(Color color) { }
+	default int getCurrentDateLineStyle() { return 7; }
+	default void setCurrentDateLineStyle(int style) { }
+	default boolean isTimescaleMajorLineVisible() { return false; }
+	default void setTimescaleMajorLineVisible(boolean visible) { }
+	default boolean isTimescaleMinorLineVisible() { return false; }
+	default void setTimescaleMinorLineVisible(boolean visible) { }
+	default boolean isNonWorkingBoundaryVisible() { return false; }
+	default void setNonWorkingBoundaryVisible(boolean visible) { }
+	default int getTimescaleMajorLineStyle() { return 0; }
+	default void setTimescaleMajorLineStyle(int style) { }
+	default int getTimescaleMinorLineStyle() { return 7; }
+	default void setTimescaleMinorLineStyle(int style) { }
+	default int getNonWorkingBoundaryStyle() { return 7; }
+	default void setNonWorkingBoundaryStyle(int style) { }
+	default Color getTimescaleMajorLineColor() { return null; }
+	default void setTimescaleMajorLineColor(Color color) { }
+	default Color getTimescaleMinorLineColor() { return null; }
+	default void setTimescaleMinorLineColor(Color color) { }
+	default Color getNonWorkingBoundaryColor() { return null; }
+	default void setNonWorkingBoundaryColor(Color color) { }
 }

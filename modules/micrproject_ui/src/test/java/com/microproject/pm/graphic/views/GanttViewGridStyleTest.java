@@ -115,6 +115,24 @@ class GanttViewGridStyleTest {
 			assertFalse(gantt.isCurrentDateLineVisible());
 			assertEquals(0, gantt.getProjectLineStyle());
 			assertEquals(5, gantt.getStatusDateLineStyle());
+			gantt.setTimescaleMajorLineVisible(true);
+			gantt.setTimescaleMinorLineVisible(true);
+			gantt.setNonWorkingBoundaryVisible(true);
+			gantt.setTimescaleMajorLineStyle(5);
+			gantt.setTimescaleMinorLineStyle(7);
+			gantt.setNonWorkingBoundaryStyle(6);
+			gantt.setTimescaleMajorLineColor(Color.RED);
+			gantt.setTimescaleMinorLineColor(Color.BLUE);
+			gantt.setNonWorkingBoundaryColor(Color.GREEN);
+			assertTrue(gantt.isTimescaleMajorLineVisible());
+			assertTrue(gantt.isTimescaleMinorLineVisible());
+			assertTrue(gantt.isNonWorkingBoundaryVisible());
+			assertEquals(5, gantt.getTimescaleMajorLineStyle());
+			assertEquals(7, gantt.getTimescaleMinorLineStyle());
+			assertEquals(6, gantt.getNonWorkingBoundaryStyle());
+			assertEquals(Color.RED, gantt.getTimescaleMajorLineColor());
+			assertEquals(Color.BLUE, gantt.getTimescaleMinorLineColor());
+			assertEquals(Color.GREEN, gantt.getNonWorkingBoundaryColor());
 		} finally {
 			gantt.cleanUp();
 		}

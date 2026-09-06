@@ -29,7 +29,7 @@ import com.microproject.util.PopupDialogSupport;
 /** MSP-style line-specific formatting for the active Gantt chart. */
 public final class GridlinesDialogBox extends JDialog {
 	private static final long serialVersionUID = 1L;
-	private enum Target { TASK_ROWS, PROJECT_START, CURRENT_DATE, STATUS_DATE }
+	private enum Target { TASK_ROWS, PROJECT_START, CURRENT_DATE, STATUS_DATE, TIMESCALE_MAJOR, TIMESCALE_MINOR, NONWORKING_BOUNDARY }
 
 	public static void show(Frame owner, GanttView view) {
 		if (view == null || java.awt.GraphicsEnvironment.isHeadless()) return;
@@ -48,7 +48,10 @@ public final class GridlinesDialogBox extends JDialog {
 				return super.getListCellRendererComponent(list, value == Target.TASK_ROWS ? UsabilityStrings.text("gridlines.taskRows")
 					: value == Target.PROJECT_START ? UsabilityStrings.text("gridlines.projectStart")
 					: value == Target.CURRENT_DATE ? UsabilityStrings.text("gridlines.currentDate")
-					: UsabilityStrings.text("gridlines.statusDate"), index, selected, focused);
+					: value == Target.STATUS_DATE ? UsabilityStrings.text("gridlines.statusDate")
+					: value == Target.TIMESCALE_MAJOR ? UsabilityStrings.text("gridlines.timescaleMajor")
+					: value == Target.TIMESCALE_MINOR ? UsabilityStrings.text("gridlines.timescaleMinor")
+					: UsabilityStrings.text("gridlines.nonWorkingBoundary"), index, selected, focused);
 			}
 		});
 		JCheckBox visible = new JCheckBox();
@@ -66,8 +69,11 @@ public final class GridlinesDialogBox extends JDialog {
 			Target value = (Target) target.getSelectedItem();
 			visible.setSelected(value == Target.TASK_ROWS ? view.isSpreadsheetGridVisible()
 				: value == Target.PROJECT_START ? gantt.isProjectStartLineVisible()
-				: value == Target.CURRENT_DATE ? gantt.isCurrentDateLineVisible() : gantt.isStatusDateLineVisible());
-			style.setSelectedIndex(value == Target.PROJECT_START ? styleIndex(gantt.getProjectLineStyle()) : styleIndex(gantt.getStatusDateLineStyle()));
+				: value == Target.CURRENT_DATE ? gantt.isCurrentDateLineVisible()
+				: value == Target.STATUS_DATE ? gantt.isStatusDateLineVisible()
+				: value == Target.TIMESCALE_MAJOR ? gantt.isTimescaleMajorLineVisible()
+				: value == Target.TIMESCALE_MINOR ? gantt.isTimescaleMinorLineVisible() : gantt.isNonWorkingBoundaryVisible());
+			style.setSelectedIndex(styleIndex(styleValue(gantt, value)));
 			selectedColor[0] = gColor(gantt, value);
 			color.setBackground(selectedColor[0]);
 		};
@@ -97,16 +103,30 @@ public final class GridlinesDialogBox extends JDialog {
 	private static Color gColor(Gantt gantt, Target target) {
 		Color color = target == Target.PROJECT_START ? gantt.getProjectLineColor()
 			: target == Target.STATUS_DATE ? gantt.getStatusDateLineColor()
-				: target == Target.CURRENT_DATE ? gantt.getCurrentDateLineColor() : gantt.getGridLineColor();
+			: target == Target.CURRENT_DATE ? gantt.getCurrentDateLineColor()
+				: target == Target.TIMESCALE_MAJOR ? gantt.getTimescaleMajorLineColor()
+				: target == Target.TIMESCALE_MINOR ? gantt.getTimescaleMinorLineColor()
+				: target == Target.NONWORKING_BOUNDARY ? gantt.getNonWorkingBoundaryColor() : gantt.getGridLineColor();
 		return color == null ? gantt.getGridLineColor() : color;
 	}
 	private static int styleIndex(int style) { return style == 6 ? 2 : style == 7 ? 2 : style == 5 ? 1 : 0; }
 	private static int styleValue(int index) { return index == 1 ? 5 : index == 2 ? 7 : 0; }
+	private static int styleValue(Gantt gantt, Target target) {
+		return target == Target.PROJECT_START ? gantt.getProjectLineStyle()
+			: target == Target.CURRENT_DATE ? gantt.getCurrentDateLineStyle()
+			: target == Target.STATUS_DATE ? gantt.getStatusDateLineStyle()
+			: target == Target.TIMESCALE_MAJOR ? gantt.getTimescaleMajorLineStyle()
+			: target == Target.TIMESCALE_MINOR ? gantt.getTimescaleMinorLineStyle()
+			: target == Target.NONWORKING_BOUNDARY ? gantt.getNonWorkingBoundaryStyle() : 0;
+	}
 	private static void apply(GanttView view, Gantt gantt, Target target, boolean visible, int styleIndex, Color color) {
 		if (target == Target.TASK_ROWS) view.setSpreadsheetGridVisible(visible);
 		else if (target == Target.PROJECT_START) { gantt.setProjectStartLineVisible(visible); gantt.setProjectLineStyle(styleValue(styleIndex)); }
-		else if (target == Target.CURRENT_DATE) { gantt.setCurrentDateLineVisible(visible); gantt.setCurrentDateLineColor(color); }
-		else { gantt.setStatusDateLineVisible(visible); gantt.setStatusDateLineStyle(styleValue(styleIndex)); gantt.setStatusDateLineColor(color); }
+		else if (target == Target.CURRENT_DATE) { gantt.setCurrentDateLineVisible(visible); gantt.setCurrentDateLineStyle(styleValue(styleIndex)); gantt.setCurrentDateLineColor(color); }
+		else if (target == Target.STATUS_DATE) { gantt.setStatusDateLineVisible(visible); gantt.setStatusDateLineStyle(styleValue(styleIndex)); gantt.setStatusDateLineColor(color); }
+		else if (target == Target.TIMESCALE_MAJOR) { gantt.setTimescaleMajorLineVisible(visible); gantt.setTimescaleMajorLineStyle(styleValue(styleIndex)); gantt.setTimescaleMajorLineColor(color); }
+		else if (target == Target.TIMESCALE_MINOR) { gantt.setTimescaleMinorLineVisible(visible); gantt.setTimescaleMinorLineStyle(styleValue(styleIndex)); gantt.setTimescaleMinorLineColor(color); }
+		else { gantt.setNonWorkingBoundaryVisible(visible); gantt.setNonWorkingBoundaryStyle(styleValue(styleIndex)); gantt.setNonWorkingBoundaryColor(color); }
 		if (target == Target.PROJECT_START) gantt.setProjectLineColor(color);
 		if (target == Target.TASK_ROWS) gantt.setGridLineColor(color);
 		gantt.repaint();

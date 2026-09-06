@@ -91,6 +91,16 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private boolean projectStartLineVisible = true;
 	private boolean statusDateLineVisible = true;
 	private boolean currentDateLineVisible = true;
+	private boolean timescaleMajorLineVisible;
+	private boolean timescaleMinorLineVisible;
+	private boolean nonWorkingBoundaryVisible;
+	private int timescaleMajorLineStyle;
+	private int timescaleMinorLineStyle = 7;
+	private int nonWorkingBoundaryStyle = 7;
+	private int currentDateLineStyle = 7;
+	private Color timescaleMajorLineColor;
+	private Color timescaleMinorLineColor;
+	private Color nonWorkingBoundaryColor;
 	private int projectLineStyle = 5;
 	private int statusDateLineStyle = 7;
 	private Color projectLineColor;
@@ -313,6 +323,26 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	@Override public void setStatusDateLineColor(Color color) { statusDateLineColor = color; repaint(); }
 	@Override public Color getCurrentDateLineColor() { return currentDateLineColor; }
 	@Override public void setCurrentDateLineColor(Color color) { currentDateLineColor = color; repaint(); }
+	@Override public int getCurrentDateLineStyle() { return currentDateLineStyle; }
+	@Override public void setCurrentDateLineStyle(int style) { currentDateLineStyle = style; repaint(); }
+	@Override public boolean isTimescaleMajorLineVisible() { return timescaleMajorLineVisible; }
+	@Override public void setTimescaleMajorLineVisible(boolean visible) { timescaleMajorLineVisible = visible; repaint(); }
+	@Override public boolean isTimescaleMinorLineVisible() { return timescaleMinorLineVisible; }
+	@Override public void setTimescaleMinorLineVisible(boolean visible) { timescaleMinorLineVisible = visible; repaint(); }
+	@Override public boolean isNonWorkingBoundaryVisible() { return nonWorkingBoundaryVisible; }
+	@Override public void setNonWorkingBoundaryVisible(boolean visible) { nonWorkingBoundaryVisible = visible; repaint(); }
+	@Override public int getTimescaleMajorLineStyle() { return timescaleMajorLineStyle; }
+	@Override public void setTimescaleMajorLineStyle(int style) { timescaleMajorLineStyle = style; repaint(); }
+	@Override public int getTimescaleMinorLineStyle() { return timescaleMinorLineStyle; }
+	@Override public void setTimescaleMinorLineStyle(int style) { timescaleMinorLineStyle = style; repaint(); }
+	@Override public int getNonWorkingBoundaryStyle() { return nonWorkingBoundaryStyle; }
+	@Override public void setNonWorkingBoundaryStyle(int style) { nonWorkingBoundaryStyle = style; repaint(); }
+	@Override public Color getTimescaleMajorLineColor() { return timescaleMajorLineColor; }
+	@Override public void setTimescaleMajorLineColor(Color color) { timescaleMajorLineColor = color; repaint(); }
+	@Override public Color getTimescaleMinorLineColor() { return timescaleMinorLineColor; }
+	@Override public void setTimescaleMinorLineColor(Color color) { timescaleMinorLineColor = color; repaint(); }
+	@Override public Color getNonWorkingBoundaryColor() { return nonWorkingBoundaryColor; }
+	@Override public void setNonWorkingBoundaryColor(Color color) { nonWorkingBoundaryColor = color; repaint(); }
 
 	public String getFormatViewName() {
 		return formatViewName;

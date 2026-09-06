@@ -1250,6 +1250,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 					linePattern(lineParams == null ? 5 : lineParams.getProjectLineStyle(),
 						lineParams != null && lineParams.getProjectLineColor() != null ? lineParams.getProjectLineColor() : palette.getProjectLineColor(), g2.getBackground()));
 			}
+			paintTimescaleGridLines(g2, bounds, coord);
 
 			//project start
 			long statusDate = project.getStatusDate();
@@ -1263,7 +1264,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			if (currentDate != 0 && (lineParams == null || lineParams.isCurrentDateLineVisible())) {
 				int currentDateX = (int)Math.round(coord.toX(currentDate));
 				paintVerticalMarkerLine(g2, bounds, currentDateX,
-					linePattern(7, lineParams != null && lineParams.getCurrentDateLineColor() != null ? lineParams.getCurrentDateLineColor() : palette.getProjectLineColor(), g2.getBackground()));
+					linePattern(lineParams == null ? 7 : lineParams.getCurrentDateLineStyle(), lineParams != null && lineParams.getCurrentDateLineColor() != null ? lineParams.getCurrentDateLineColor() : palette.getProjectLineColor(), g2.getBackground()));
 			}
 
 
@@ -1274,11 +1275,41 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	private void drawNonWorking(Graphics2D g2,long startNonworking,long endNonWorking, Calendar cal,CoordinatesConverter coord, Rectangle bounds,boolean userScale2){
+		GanttParams params = graphInfo instanceof GanttParams ? (GanttParams) graphInfo : null;
 		cal.setTimeInMillis(endNonWorking);
 		if (userScale2) coord.getTimescaleManager().getScale().increment2(cal);
 		else coord.getTimescaleManager().getScale().increment1(cal);
 		endNonWorking=cal.getTimeInMillis();
 		g2.fillRect((int)Math.round(coord.toX(startNonworking)), bounds.y, (int)Math.round(coord.toW(endNonWorking-startNonworking)), bounds.height);
+		if (params != null && params.isNonWorkingBoundaryVisible()) {
+			Color color = params.getNonWorkingBoundaryColor() == null ? palette.getGridLine() : params.getNonWorkingBoundaryColor();
+			PredefinedPaint paint = linePattern(params.getNonWorkingBoundaryStyle(), color, g2.getBackground());
+			paintVerticalMarkerLine(g2, bounds, (int)Math.round(coord.toX(startNonworking)), paint);
+			paintVerticalMarkerLine(g2, bounds, (int)Math.round(coord.toX(endNonWorking)), paint);
+		}
+	}
+
+	/** Draws the two independent MSP timescale grid layers. */
+	private void paintTimescaleGridLines(Graphics2D g2, Rectangle bounds, CoordinatesConverter coord) {
+		if (!(graphInfo instanceof GanttParams params) || coord == null) return;
+		if (params.isTimescaleMajorLineVisible()) {
+			paintTimescaleLayer(g2, bounds, coord, true, params.getTimescaleMajorLineStyle(),
+				params.getTimescaleMajorLineColor() == null ? palette.getGridLine() : params.getTimescaleMajorLineColor());
+		}
+		if (params.isTimescaleMinorLineVisible()) {
+			paintTimescaleLayer(g2, bounds, coord, false, params.getTimescaleMinorLineStyle(),
+				params.getTimescaleMinorLineColor() == null ? palette.getGridLine() : params.getTimescaleMinorLineColor());
+		}
+	}
+
+	private void paintTimescaleLayer(Graphics2D g2, Rectangle bounds, CoordinatesConverter coord, boolean major,
+			int style, Color color) {
+		TimeIterator iterator = coord.getTimeIterator(bounds.getX(), bounds.getMaxX(), major);
+		PredefinedPaint paint = linePattern(style, color, g2.getBackground());
+		while (iterator.hasNext()) {
+			TimeInterval interval = iterator.next();
+			paintVerticalMarkerLine(g2, bounds, (int)Math.round(coord.toX(interval.getStart())), paint);
+		}
 	}
 
 
