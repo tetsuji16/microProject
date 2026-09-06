@@ -28,6 +28,7 @@ import com.microproject.pm.graphic.graph.GraphUI;
 import com.microproject.pm.graphic.graph.GraphZone;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
+import com.microproject.pm.task.Task;
 
 /**
  *
@@ -70,9 +71,17 @@ public class GanttUI extends GraphUI{
 		CoordinatesConverter coord=getCoord();
 		double t=coord.toTime(x);
 		double deltat=coord.toDuration(delta);
+		GanttRenderer renderer = getGanttRenderer();
+		GraphZone zone = new GraphZone();
+		if (((Gantt) graph).isProgressLineEnabled()
+				&& renderer.shouldIncludeInProgressLine(node)
+				&& isWithinProgressLineHitTarget(renderer, node, x, y)) {
+			zone.setObject(node);
+			zone.setZoneId(PROGRESS_BAR_ZONE_ID);
+			return zone;
+		}
 		if  (node.contains(t,deltat,deltat,coord)==null) return null;
 		double progessH=config.getGanttProgressBarHeight();
-		GraphZone zone=new GraphZone();
 		zone.setObject(node);
 		if (y>=y0+h/2-progessH/2&&y<y0+h/2+progessH/2) zone.setZoneId(PROGRESS_BAR_ZONE_ID);
 		return zone;
@@ -84,6 +93,19 @@ public class GanttUI extends GraphUI{
 
 	public CoordinatesConverter getCoord() {
 		return ((GanttParams)graphRenderer.getGraphInfo()).getCoord();
+	}
+
+	private boolean isWithinProgressLineHitTarget(GanttRenderer renderer, GraphicNode node, double x, double y) {
+		Task task = (Task) node.getNode().getImpl();
+		double radius = Math.max(config.getSelectionSquare(),
+			Math.max(config.getGanttProgressBarHeight() / 2.0d, 4.0d));
+		return isWithinProgressLineHitTarget(x, y,
+			renderer.getProgressLineX(getCoord(), task), renderer.getProgressLineY(node), radius);
+	}
+
+	static boolean isWithinProgressLineHitTarget(double x, double y,
+			double progressX, double progressY, double radius) {
+		return Math.abs(x - progressX) <= radius && Math.abs(y - progressY) <= radius;
 	}
 }
 

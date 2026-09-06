@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -39,6 +40,8 @@ import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.configuration.Dictionary;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.gantt.GanttUI;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
@@ -53,6 +56,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.GanttProgress;
 
 /** Verifies that the visible task-table/Gantt pair shares one grid-style path. */
 class TaskTableGanttGridGuiAcceptanceTest {
@@ -226,6 +230,46 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertFalse(fixture.sheet.getSelection().isActiveCell(row, column),
 				"a full column selection must not retain a misleading active-cell highlight");
 		});
+	}
+
+	@Test
+	void zeroPercentProgressLinePointSelectsTaskWithoutPanningTimescale() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(1);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		AtomicReference<Gantt.BarClick> click = new AtomicReference<>();
+		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
+		com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) node.getNode().getImpl();
+		SwingUtilities.invokeAndWait(() -> {
+			task.setPercentComplete(0.0d);
+			fixture.gantt.setProgressLineEnabled(true);
+			fixture.gantt.setBarSelectionListener(click::set);
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.gantt.isShowing(), "Gantt was not visible for progress-line hit testing");
+		robot.delay(250);
+
+		GanttUI ui = (GanttUI) fixture.gantt.getUI();
+		int x = (int) Math.round(fixture.gantt.getCoord().toX(
+			GanttProgress.progressLineDate(task, task.getProject().getStatusDate())));
+		int y = (int) Math.round(ui.getBarY(node.getRow()) + node.getGanttShapeOffset()
+			+ node.getGanttShapeHeight() / 2.0d);
+		JScrollPane pane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.gantt);
+		assertTrue(pane != null, "Gantt must be hosted by a scroll pane");
+		Point before = pane.getViewport().getViewPosition();
+		Point location = new Point();
+		SwingUtilities.invokeAndWait(() -> location.setLocation(fixture.gantt.getLocationOnScreen()));
+		robot.mouseMove(location.x + x, location.y + y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> click.get() != null,
+			"clicking the zero-percent progress point must select a task instead of starting a pan");
+		assertEquals(node, click.get().node(), "progress-line click must select the rendered task node");
+		Point after = pane.getViewport().getViewPosition();
+		assertEquals(before, after, "progress-line click must not move the timescale viewport");
 	}
 
 	private static void assertHeaderHighlight(SpreadSheet sheet, int activeColumn) {

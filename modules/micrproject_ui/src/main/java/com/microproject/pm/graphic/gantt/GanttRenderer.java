@@ -1132,7 +1132,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return path;
 	}
 
-	private boolean shouldIncludeInProgressLine(GraphicNode node) {
+	boolean shouldIncludeInProgressLine(GraphicNode node) {
 		if (node == null || !node.isSchedule() || node.isAssignment() || node.getNode() == null)
 			return false;
 
@@ -1151,7 +1151,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return start != 0L && end > start;
 	}
 
-	private double getProgressLineX(CoordinatesConverter coord, Task task) {
+	double getProgressLineX(CoordinatesConverter coord, Task task) {
 		long today = getProgressReferenceDate(task);
 		long progressDate = GanttProgress.progressLineDate(task, today);
 		return coord.toX(progressDate);
@@ -1162,7 +1162,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return project == null ? 0L : project.getStatusDate();
 	}
 
-	private double getProgressLineY(GraphicNode node) {
+	double getProgressLineY(GraphicNode node) {
 		int rowHeight=((GanttParams)graphInfo).getRowHeight();
 		int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
 		return rowHeight*node.getRow()+yOffset;
