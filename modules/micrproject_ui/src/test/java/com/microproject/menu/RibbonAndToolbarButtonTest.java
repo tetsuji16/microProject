@@ -685,7 +685,10 @@ class RibbonAndToolbarButtonTest {
 			host.setSize(1200, host.getPreferredSize().height);
 			layoutRecursively(host);
 
-			ResourceBundle labels = menuBundle(Locale.JAPANESE);
+			// Use the same locale as the ribbon factory.  The unit-test task does not
+			// force Japanese (CI uses English), so a fixed Japanese lookup can fail
+			// before the layout invariant is even exercised.
+			ResourceBundle labels = menuBundle(Locale.getDefault());
 			findButtonByText(host, labels.getString("ViewRibbonTask.title")).doClick();
 			host.setSize(1200, host.getPreferredSize().height);
 			layoutRecursively(host);
