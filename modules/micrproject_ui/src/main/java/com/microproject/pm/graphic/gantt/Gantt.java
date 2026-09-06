@@ -88,6 +88,14 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	/** A view-local annotation field value that suppresses all task labels. */
 	public static final String ANNOTATION_FIELD_HIDDEN = "Gantt.Annotation.Hidden";
 	private boolean progressLineEnabled = false;
+	private boolean projectStartLineVisible = true;
+	private boolean statusDateLineVisible = true;
+	private boolean currentDateLineVisible = true;
+	private int projectLineStyle = 5;
+	private int statusDateLineStyle = 7;
+	private Color projectLineColor;
+	private Color statusDateLineColor;
+	private Color currentDateLineColor;
 	private boolean gridLinesVisible = DEFAULT_GRID_LINES_VISIBLE;
 	private Color customGridLineColor;
 	private String annotationFieldId;
@@ -289,6 +297,22 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		customGridLineColor = color;
 		repaint();
 	}
+	@Override public boolean isProjectStartLineVisible() { return projectStartLineVisible; }
+	@Override public void setProjectStartLineVisible(boolean visible) { projectStartLineVisible = visible; repaint(); }
+	@Override public boolean isStatusDateLineVisible() { return statusDateLineVisible; }
+	@Override public void setStatusDateLineVisible(boolean visible) { statusDateLineVisible = visible; repaint(); }
+	@Override public boolean isCurrentDateLineVisible() { return currentDateLineVisible; }
+	@Override public void setCurrentDateLineVisible(boolean visible) { currentDateLineVisible = visible; repaint(); }
+	@Override public int getProjectLineStyle() { return projectLineStyle; }
+	@Override public void setProjectLineStyle(int style) { projectLineStyle = style; repaint(); }
+	@Override public int getStatusDateLineStyle() { return statusDateLineStyle; }
+	@Override public void setStatusDateLineStyle(int style) { statusDateLineStyle = style; repaint(); }
+	@Override public Color getProjectLineColor() { return projectLineColor; }
+	@Override public void setProjectLineColor(Color color) { projectLineColor = color; repaint(); }
+	@Override public Color getStatusDateLineColor() { return statusDateLineColor; }
+	@Override public void setStatusDateLineColor(Color color) { statusDateLineColor = color; repaint(); }
+	@Override public Color getCurrentDateLineColor() { return currentDateLineColor; }
+	@Override public void setCurrentDateLineColor(Color color) { currentDateLineColor = color; repaint(); }
 
 	public String getFormatViewName() {
 		return formatViewName;

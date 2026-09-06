@@ -94,4 +94,29 @@ class GanttViewGridStyleTest {
 		});
 		gantt.cleanUp();
 	}
+
+	@Test
+	void ganttLineTypesHaveIndependentVisibilityAndStyleState() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("gantt-line-types-test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		Gantt gantt = new Gantt(project, "Gantt");
+		try {
+			assertTrue(gantt.isProjectStartLineVisible());
+			assertTrue(gantt.isStatusDateLineVisible());
+			assertTrue(gantt.isCurrentDateLineVisible());
+			gantt.setProjectStartLineVisible(false);
+			gantt.setStatusDateLineVisible(false);
+			gantt.setCurrentDateLineVisible(false);
+			gantt.setProjectLineStyle(0);
+			gantt.setStatusDateLineStyle(5);
+			assertFalse(gantt.isProjectStartLineVisible());
+			assertFalse(gantt.isStatusDateLineVisible());
+			assertFalse(gantt.isCurrentDateLineVisible());
+			assertEquals(0, gantt.getProjectLineStyle());
+			assertEquals(5, gantt.getStatusDateLineStyle());
+		} finally {
+			gantt.cleanUp();
+		}
+	}
 }

@@ -521,8 +521,7 @@ class RibbonAndToolbarButtonTest {
 				"RibbonToggleProgressLine", "ToggleProgressLine",
 				"RibbonLabelResourceNames", "LabelResourceNames",
 				"RibbonLabelTaskName", "LabelTaskName",
-				"RibbonGridlines", "Gridlines",
-				"RibbonToggleCriticalChain", "ToggleCriticalChain").entrySet()) {
+					"RibbonToggleCriticalChain", "ToggleCriticalChain").entrySet()) {
 				AbstractButton toggle = firstButton(manager.getToolButtonsFromId(entry.getKey()));
 				assertTrue(toggle instanceof JToggleButton, entry.getKey() + " must expose persistent selection");
 				assertFalse(toggle.isSelected());

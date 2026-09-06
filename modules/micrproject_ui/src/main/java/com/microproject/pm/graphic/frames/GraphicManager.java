@@ -2647,8 +2647,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeToggleRoute(ACTION_GRIDLINES)) return;
-			toggleGridlines();
+			if (!beforeChooserRoute(ACTION_GRIDLINES)) return;
+			if (!GraphicsEnvironment.isHeadless())
+				com.microproject.dialog.GridlinesDialogBox.show(getFrame(), getActiveGanttView());
 		}
 	}
 	public class TextStylesAction extends MenuActionsMap.DocumentMenuAction {

@@ -43,5 +43,20 @@ public interface GanttParams extends GraphParams{
 	public void setGridLinesVisible(boolean visible);
 	public Color getGridLineColor();
 	public void setGridLineColor(Color color);
+	default boolean isProjectStartLineVisible() { return true; }
+	default void setProjectStartLineVisible(boolean visible) { }
+	default boolean isStatusDateLineVisible() { return true; }
+	default void setStatusDateLineVisible(boolean visible) { }
+	default boolean isCurrentDateLineVisible() { return true; }
+	default void setCurrentDateLineVisible(boolean visible) { }
+	default int getProjectLineStyle() { return 5; }
+	default void setProjectLineStyle(int style) { }
+	default int getStatusDateLineStyle() { return 7; }
+	default void setStatusDateLineStyle(int style) { }
+	default Color getProjectLineColor() { return null; }
+	default void setProjectLineColor(Color color) { }
+	default Color getStatusDateLineColor() { return null; }
+	default void setStatusDateLineColor(Color color) { }
+	default Color getCurrentDateLineColor() { return null; }
+	default void setCurrentDateLineColor(Color color) { }
 }
-

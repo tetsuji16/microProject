@@ -921,6 +921,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 	}
 
+	private PredefinedPaint linePattern(int style, Color foreground, Color background) {
+		PredefinedPaint pattern = style == 7 ? PredefinedPaint.DOT_LINE2
+			: style == 6 ? PredefinedPaint.DOT_LINE : style == 5 ? PredefinedPaint.DASH_LINE
+			: PredefinedPaint.SOLID;
+		return new PredefinedPaint(pattern, foreground, background);
+	}
+
 	static String crossProjectLinkLabel(Dependency dependency) {
 		if (dependency == null || !dependency.isCrossProject()) return "";
 		Task predecessor = (Task) dependency.getPredecessor();
@@ -1237,15 +1244,26 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 			//project start
 			int projectStartX=(int)Math.round(coord.toX(project.getStart()));
-			paintVerticalMarkerLine(g2, bounds, projectStartX,
-					new PredefinedPaint(PredefinedPaint.DASH_LINE, palette.getProjectLineColor(), g2.getBackground()));
+			GanttParams lineParams = graphInfo instanceof GanttParams ? (GanttParams) graphInfo : null;
+			if (lineParams == null || lineParams.isProjectStartLineVisible()) {
+				paintVerticalMarkerLine(g2, bounds, projectStartX,
+					linePattern(lineParams == null ? 5 : lineParams.getProjectLineStyle(),
+						lineParams != null && lineParams.getProjectLineColor() != null ? lineParams.getProjectLineColor() : palette.getProjectLineColor(), g2.getBackground()));
+			}
 
 			//project start
 			long statusDate = project.getStatusDate();
-			if (statusDate != 0) {
+			if (statusDate != 0 && (lineParams == null || lineParams.isStatusDateLineVisible())) {
 				int statusDateX=(int)Math.round(coord.toX(statusDate));
 				paintVerticalMarkerLine(g2, bounds, statusDateX,
-						new PredefinedPaint(PredefinedPaint.DOT_LINE2, palette.getStatusDateLineColor(), g2.getBackground()));
+						linePattern(lineParams == null ? 7 : lineParams.getStatusDateLineStyle(),
+							lineParams != null && lineParams.getStatusDateLineColor() != null ? lineParams.getStatusDateLineColor() : palette.getStatusDateLineColor(), g2.getBackground()));
+			}
+			long currentDate = project.getCurrentDate();
+			if (currentDate != 0 && (lineParams == null || lineParams.isCurrentDateLineVisible())) {
+				int currentDateX = (int)Math.round(coord.toX(currentDate));
+				paintVerticalMarkerLine(g2, bounds, currentDateX,
+					linePattern(7, lineParams != null && lineParams.getCurrentDateLineColor() != null ? lineParams.getCurrentDateLineColor() : palette.getProjectLineColor(), g2.getBackground()));
 			}
 
 

@@ -458,6 +458,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		Workspace ws = (Workspace) w;
 		spreadSheet.restoreWorkspace(ws.spreadSheet, context);
 		setSpreadsheetGridVisible(gridLinesVisibleFromWorkspace(ws));
+		gantt.setProjectStartLineVisible(ws == null || ws.projectStartLineVisible == null ? true : ws.projectStartLineVisible.booleanValue());
+		gantt.setStatusDateLineVisible(ws == null || ws.statusDateLineVisible == null ? true : ws.statusDateLineVisible.booleanValue());
+		gantt.setCurrentDateLineVisible(ws == null || ws.currentDateLineVisible == null ? true : ws.currentDateLineVisible.booleanValue());
+		if (ws != null && ws.projectLineStyle != null) gantt.setProjectLineStyle(ws.projectLineStyle.intValue());
+		if (ws != null && ws.statusDateLineStyle != null) gantt.setStatusDateLineStyle(ws.statusDateLineStyle.intValue());
+		if (ws != null && ws.projectLineColor != null) gantt.setProjectLineColor(new java.awt.Color(ws.projectLineColor.intValue(), true));
+		if (ws != null && ws.statusDateLineColor != null) gantt.setStatusDateLineColor(new java.awt.Color(ws.statusDateLineColor.intValue(), true));
+		if (ws != null && ws.currentDateLineColor != null) gantt.setCurrentDateLineColor(new java.awt.Color(ws.currentDateLineColor.intValue(), true));
 		setCurrentAnnotationFieldId(ws.annotationFieldId);
 		gantt.setProgressLineEnabled(ws.progressLineEnabled);
 		if (tracking)
@@ -473,6 +481,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		ws.scrollPane = ganttScrollPane.createWorkspace(context);
 		ws.progressLineEnabled = gantt.isProgressLineEnabled();
 		ws.gridLinesVisible = spreadsheetGridVisible;
+		ws.projectStartLineVisible = Boolean.valueOf(gantt.isProjectStartLineVisible());
+		ws.statusDateLineVisible = Boolean.valueOf(gantt.isStatusDateLineVisible());
+		ws.currentDateLineVisible = Boolean.valueOf(gantt.isCurrentDateLineVisible());
+		ws.projectLineStyle = Integer.valueOf(gantt.getProjectLineStyle());
+		ws.statusDateLineStyle = Integer.valueOf(gantt.getStatusDateLineStyle());
+		if (gantt.getProjectLineColor() != null) ws.projectLineColor = Integer.valueOf(gantt.getProjectLineColor().getRGB());
+		if (gantt.getStatusDateLineColor() != null) ws.statusDateLineColor = Integer.valueOf(gantt.getStatusDateLineColor().getRGB());
+		if (gantt.getCurrentDateLineColor() != null) ws.currentDateLineColor = Integer.valueOf(gantt.getCurrentDateLineColor().getRGB());
 		ws.annotationFieldId = currentAnnotationFieldId;
 		ws.dividerLocation = getDividerLocation();
 		return ws;
@@ -491,6 +507,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		WorkspaceSetting scrollPane;
 		boolean progressLineEnabled;
 		Boolean gridLinesVisible;
+		Boolean projectStartLineVisible;
+		Boolean statusDateLineVisible;
+		Boolean currentDateLineVisible;
+		Integer projectLineStyle;
+		Integer statusDateLineStyle;
+		Integer projectLineColor;
+		Integer statusDateLineColor;
+		Integer currentDateLineColor;
 		String annotationFieldId = ANNOTATION_FIELD_RESOURCE_NAMES;
 		int dividerLocation;
 		public WorkspaceSetting getSpreadSheet() {

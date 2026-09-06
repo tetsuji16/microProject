@@ -365,7 +365,7 @@ class RibbonButtonBehaviorTest {
 		assertToggle(harness, "RibbonToggleProgressLine", true);
 		assertToggle(harness, "RibbonLabelResourceNames", true);
 		assertToggle(harness, "RibbonLabelTaskName", true);
-		assertToggle(harness, "RibbonGridlines", true);
+		assertChooser(harness, "RibbonGridlines", MenuActionConstants.ACTION_GRIDLINES);
 	}
 
 	@Test
@@ -625,15 +625,14 @@ class RibbonButtonBehaviorTest {
 			"RibbonBar",
 			"RibbonBarStyles",
 			"RibbonTextStyles",
-			"RibbonLayout");
+				"RibbonLayout", "RibbonGridlines");
 		add(map, Strategy.STATE_TOGGLE,
 			"RibbonZoomIn",
 			"RibbonZoomOut",
 			"RibbonToggleProgressLine",
 			"RibbonLabelResourceNames",
 			"RibbonLabelTaskName",
-			"RibbonGridlines",
-			"RibbonToggleCriticalChain");
+				"RibbonToggleCriticalChain");
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonTopBarUndo",
 			"RibbonTopBarRedo",
