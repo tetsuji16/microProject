@@ -4414,7 +4414,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				new SpreadSheetDispatchAction("SelectColumn") {
 					private static final long serialVersionUID = 1L;
 					@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
-						sheet.selectColumnAndAllRows(sheet.getSelectedColumn());
+						int column = sheet.getCurrentViewColumn();
+						if (column >= 0)
+							sheet.selectColumnAndAllRows(column);
 					}
 				});
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), "SelectAll",

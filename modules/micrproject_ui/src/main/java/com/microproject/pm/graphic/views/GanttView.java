@@ -756,7 +756,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (row < 0 || row >= spreadSheet.getRowCount()) {
 			return;
 		}
-		int column = spreadSheet.getSelectedColumn();
+		int column = spreadSheet.getCurrentViewColumn();
 		if (column < 0) {
 			column = 0;
 		}

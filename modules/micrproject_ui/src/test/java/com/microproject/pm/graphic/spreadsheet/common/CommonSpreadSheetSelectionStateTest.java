@@ -129,6 +129,32 @@ class CommonSpreadSheetSelectionStateTest {
 	}
 
 	@Test
+	void currentViewColumnDoesNotUseTheRightmostLeadOfAWholeRowSelection() throws Exception {
+		final TestSpreadSheet[] sheetRef = new TestSpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> sheetRef[0] = new TestSpreadSheet(2));
+		TestSpreadSheet sheet = sheetRef[0];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.selectRowAndAllColumns(1);
+			sheet.setRowHeaderSelectionActive(false);
+			sheet.getSelection().setActiveCell(1, 1);
+		});
+		assertEquals(1, sheet.getCurrentViewColumn());
+
+		SwingUtilities.invokeAndWait(() -> sheet.getSelection().clearActiveCell());
+		assertEquals(0, sheet.getCurrentViewColumn(),
+			"a one-row selection must use the stable first cell, not JTable's lead column");
+
+		SwingUtilities.invokeAndWait(() -> sheet.getColumnModel().getSelectionModel().setSelectionInterval(1, 1));
+		assertEquals(1, sheet.getCurrentViewColumn(),
+			"an explicit single-column selection remains a valid current column");
+
+		SwingUtilities.invokeAndWait(() -> sheet.selectEntireSpreadsheet());
+		assertEquals(-1, sheet.getCurrentViewColumn(),
+			"an entire-sheet selection must not invent a current cell column");
+	}
+
+	@Test
 	void commonHeaderRendererUsesTheSameActiveColumnResolver() throws Exception {
 		final TestSpreadSheet[] sheetRef = new TestSpreadSheet[1];
 		SwingUtilities.invokeAndWait(() -> sheetRef[0] = new TestSpreadSheet(2));

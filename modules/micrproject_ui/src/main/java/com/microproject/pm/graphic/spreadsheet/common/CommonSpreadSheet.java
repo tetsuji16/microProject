@@ -594,11 +594,9 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	private EditableCellTarget resolveEditableCellTarget() {
 		int row = hasSelectionModel() ? getSelection().getActiveRow() : -1;
-		int column = hasSelectionModel() ? getSelection().getActiveColumn() : -1;
+		int column = getCurrentViewColumn();
 		if (row < 0)
 			row = getCurrentRow();
-		if (column < 0)
-			column = getSelectedColumn();
 		if (row < 0 && getRowCount() > 0) {
 			row = 0;
 		}
@@ -1318,6 +1316,41 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		return -1;
 	}
 
+	/**
+	 * Resolves the view column belonging to the current cell.  A task-cell
+	 * click selects the complete row, so JTable's selected-column lead is not a
+	 * reliable current-cell coordinate in that state.  The active cell is the
+	 * authoritative value; a single explicit column selection is the only safe
+	 * fallback.  Ambiguous multi-column selections deliberately return -1
+	 * instead of allowing the lead (often the rightmost column) to move the
+	 * viewport or edit the wrong field.
+	 */
+	public int getCurrentViewColumn() {
+		if (isEditing()) {
+			int editingColumn = getEditingColumn();
+			if (editingColumn >= 0 && editingColumn < getColumnCount())
+				return editingColumn;
+		}
+		if (hasSelectionModel()) {
+			int activeColumn = getSelection().getActiveColumn();
+			if (activeColumn >= 0 && activeColumn < getColumnCount())
+				return activeColumn;
+		}
+		if (getSelectedColumnCount() == 1) {
+			int selectedColumn = getSelectedColumn();
+			if (selectedColumn >= 0 && selectedColumn < getColumnCount())
+				return selectedColumn;
+		}
+		// Ctrl+Space and a row-header click intentionally select every column,
+		// but still leave one task row as the current row.  Keep the historical
+		// first-cell fallback for that unambiguous one-row state; returning -1
+		// here would make Shift+Space and Undo/Redo silently do nothing.
+		if (getSelectedRowCount() == 1
+				&& getSelectedColumnCount() == getColumnCount() && getColumnCount() > 0)
+			return 0;
+		return -1;
+	}
+
 	public void setRowHeaderSelectionActive(boolean active) {
 		rowHeaderSelectionActive = active;
 		if (active) {
@@ -1559,7 +1592,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		int row = ((CommonSpreadSheetModel)getModel()).findObjectRow(object);
 		if (row != -1) {
 			finishCurrentOperations();
-			changeSelection(row, getSelectedColumn(), false, false);
+			int column = getCurrentViewColumn();
+			changeSelection(row, column < 0 ? 0 : column, false, false);
 		}
 
 	}

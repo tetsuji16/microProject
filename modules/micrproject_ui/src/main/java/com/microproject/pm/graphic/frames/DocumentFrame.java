@@ -658,7 +658,7 @@ public class DocumentFrame extends NamedFrame implements
 			int row = spreadSheet.getCurrentRow();
 			if (row < 0)
 				return new SelectionSnapshot(spreadSheet, null, null, -1, -1, spreadSheet.getSelectedNodes());
-			int column = spreadSheet.isEditing() ? spreadSheet.getEditingColumn() : spreadSheet.getSelectedColumn();
+			int column = spreadSheet.getCurrentViewColumn();
 			CommonSpreadSheet.PendingUndoSelection pendingUndoSelection = spreadSheet.consumePendingUndoSelection(row, column);
 			if (pendingUndoSelection != null) {
 				return new SelectionSnapshot(spreadSheet, pendingUndoSelection.node(), pendingUndoSelection.impl(),
@@ -1332,7 +1332,7 @@ public class DocumentFrame extends NamedFrame implements
 		int row = spreadSheet.getCurrentRow();
 		if (row < 0 || row >= spreadSheet.getRowCount())
 			return;
-		int column = spreadSheet.isEditing() ? spreadSheet.getEditingColumn() : spreadSheet.getSelectedColumn();
+		int column = spreadSheet.getCurrentViewColumn();
 		if (column < 0)
 			column = 0;
 		if (column >= spreadSheet.getColumnCount())

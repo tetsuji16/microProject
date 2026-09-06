@@ -763,7 +763,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean isNameCellTabActionEnabled() {
-		int column = isEditing() ? getEditingColumn() : getSelectedColumn();
+		int column = getCurrentViewColumn();
 		return isNameFieldColumn(column);
 	}
 
@@ -841,7 +841,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return;
 		if (!(getModel() instanceof SpreadSheetModel model))
 			return;
-		var column = isEditing() ? getEditingColumn() : getSelectedColumn();
+		var column = getCurrentViewColumn();
 		if (!isNameFieldColumn(column))
 			return;
 		var rowToFocus = getCurrentRow();
@@ -1016,7 +1016,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	protected boolean handleHierarchyNavigationKeyEvent(KeyEvent e) {
 		if (e == null || e.getID() != KeyEvent.KEY_PRESSED)
 			return false;
-		var column = getSelectedColumn();
+		var column = getCurrentViewColumn();
 		if (!isNameFieldColumn(column))
 			return false;
 		if ((e.getModifiersEx() & (KeyEvent.CTRL_DOWN_MASK | KeyEvent.ALT_DOWN_MASK | KeyEvent.META_DOWN_MASK)) != KeyEvent.CTRL_DOWN_MASK)
@@ -1339,7 +1339,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	 */
 	@Override
 	protected boolean handleClearCellKey(KeyEvent e) {
-		int column = getSelectedColumn();
+		int column = getCurrentViewColumn();
 		if (!isColumnFullySelected(column)) {
 			return false;
 		}
