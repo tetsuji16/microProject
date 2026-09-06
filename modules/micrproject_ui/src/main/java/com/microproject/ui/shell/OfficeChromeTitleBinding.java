@@ -57,6 +57,10 @@ final class OfficeChromeTitleBinding {
 	private static String applicationTitle(String title) {
 		if (title == null || title.isBlank()) return APPLICATION_NAME;
 		int separator = title.indexOf(" - ");
-		return separator > 0 ? title.substring(0, separator) : title;
+		if (separator <= 0)
+			return title;
+		// Keep native window titles document-specific for task switching, while
+		// applying the same path-free compacting rule used by the Office chrome.
+		return APPLICATION_NAME + " - " + compactDocumentTitle(title);
 	}
 }

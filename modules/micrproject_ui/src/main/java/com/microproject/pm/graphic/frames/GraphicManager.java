@@ -889,6 +889,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		frameList.add(frame);
 		frameMap.put(project, frame);
+		// A secondary MainRibbonFrame is created while addFrame() is running,
+		// before the project is attached to the DocumentFrame.  Refresh all
+		// native window titles after the frame is fully registered so the
+		// secondary ribbon shell identifies the document it actually contains.
+		getFrameManager().update();
 		if (project.getFileName() != null) recentProjectStore.recordOpened(project.getFileName());
 
 		// clear filter/grouping/sort for newly opened or created project

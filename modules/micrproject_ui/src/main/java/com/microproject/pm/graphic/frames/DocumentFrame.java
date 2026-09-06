@@ -69,6 +69,7 @@ import com.microproject.pm.graphic.frames.workspace.NamedFrame;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
@@ -511,6 +512,8 @@ public class DocumentFrame extends NamedFrame implements
 		// editor can clear the JTable selection, which previously made the
 		// ribbon command silently return even though it was enabled.
 		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
+		if (taskNodes.size() > 1)
+			undoRedoSelection = new ArrayList<>(taskNodes);
 		getGraphicManager().traceUi("link start selectedTasks=" + taskNodes.size()
 				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
@@ -540,6 +543,8 @@ public class DocumentFrame extends NamedFrame implements
 	}
 	public void doUnlinkTasks() {
 		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
+		if (taskNodes.size() > 1)
+			undoRedoSelection = new ArrayList<>(taskNodes);
 		getGraphicManager().traceUi("unlink start selectedTasks=" + taskNodes.size()
 				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
@@ -599,7 +604,9 @@ public class DocumentFrame extends NamedFrame implements
 		if (!isActive())
 			return;
 		getGraphicManager().traceUi((isUndo ? "undo" : "redo") + " start canUndo=" + canUndoState() + " canRedo=" + canRedoState());
-		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet());
+		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet(), undoRedoSelection);
+		if (selectionSnapshot.selectedNodes.size() > 1)
+			undoRedoSelection = new ArrayList<>(selectionSnapshot.selectedNodes);
 		finishAnyOperations();
 		UndoController undoController=getUndoController();
 		if (undoController!=null){
@@ -651,33 +658,41 @@ public class DocumentFrame extends NamedFrame implements
 			this.selectedNodes = selectedNodes;
 		}
 
-		private static SelectionSnapshot capture(CommonSpreadSheet spreadSheet) {
+		private static SelectionSnapshot capture(CommonSpreadSheet spreadSheet, List<Node> fallbackSelection) {
 			if (spreadSheet == null)
 				return new SelectionSnapshot(null, null, null, -1, -1, Collections.emptyList());
 			int row = spreadSheet.getCurrentRow();
 			if (row < 0)
-				return new SelectionSnapshot(spreadSheet, null, null, -1, -1, spreadSheet.getSelectedNodes());
+				return new SelectionSnapshot(spreadSheet, null, null, -1, -1,
+						selectedOrFallback(spreadSheet.getSelectedNodes(), fallbackSelection));
 			int column = spreadSheet.getCurrentViewColumn();
 			CommonSpreadSheet.PendingUndoSelection pendingUndoSelection = spreadSheet.consumePendingUndoSelection(row, column);
 			if (pendingUndoSelection != null) {
 				return new SelectionSnapshot(spreadSheet, pendingUndoSelection.node(), pendingUndoSelection.impl(),
-						pendingUndoSelection.row(), pendingUndoSelection.column(), spreadSheet.getSelectedNodes());
+						pendingUndoSelection.row(), pendingUndoSelection.column(),
+						selectedOrFallback(spreadSheet.getSelectedNodes(), fallbackSelection));
 			}
 			Node node = spreadSheet.getCurrentRowNode();
 			Object impl = (node == null) ? null : node.getImpl();
-			return new SelectionSnapshot(spreadSheet, node, impl, row, column, spreadSheet.getSelectedNodes());
+			return new SelectionSnapshot(spreadSheet, node, impl, row, column,
+					selectedOrFallback(spreadSheet.getSelectedNodes(), fallbackSelection));
+		}
+
+		private static List<Node> selectedOrFallback(List<Node> selected, List<Node> fallback) {
+			return selected == null || selected.isEmpty() ? new ArrayList<>(fallback) : selected;
 		}
 
 		private void restore() {
-			if (spreadSheet == null || column < 0)
+			if (spreadSheet == null)
+				return;
+			if (spreadSheet instanceof SpreadSheet taskSheet && selectedNodes != null && selectedNodes.size() > 1) {
+				restoreMultiSelectionWhenRowsAreReady(taskSheet, 0);
+				return;
+			}
+			if (column < 0)
 				return;
 			SwingUtilities.invokeLater(new Runnable() {
 				public void run() {
-					if (spreadSheet instanceof SpreadSheet taskSheet && selectedNodes != null && selectedNodes.size() > 1) {
-						taskSheet.requestFocusInWindow();
-						taskSheet.restoreTaskRowSelection(selectedNodes);
-						return;
-					}
 					int targetRow = resolveRow();
 					if (targetRow < 0 || targetRow >= spreadSheet.getRowCount() || column >= spreadSheet.getColumnCount())
 						return;
@@ -686,6 +701,51 @@ public class DocumentFrame extends NamedFrame implements
 					spreadSheet.scrollRectToVisible(spreadSheet.getCellRect(targetRow, column, true));
 				}
 			});
+		}
+
+		private void restoreMultiSelectionWhenRowsAreReady(SpreadSheet taskSheet, int attempt) {
+			if (selectedNodes == null || selectedNodes.isEmpty())
+				return;
+			if (taskSheet.getModel() instanceof SpreadSheetModel model) {
+				List<Integer> rows = new ArrayList<>(selectedNodes.size());
+				for (Node selectedNode : selectedNodes) {
+					int row = -1;
+					for (int currentRow = 0; currentRow < taskSheet.getRowCount(); currentRow++) {
+						GraphicNode rowNode = model.getNode(currentRow);
+						if (rowNode != null && rowNode.getNode().getImpl() == selectedNode.getImpl()) {
+							row = currentRow;
+							break;
+						}
+					}
+					if (row < 0) {
+						retryMultiSelection(taskSheet, attempt);
+						return;
+					}
+					rows.add(row);
+				}
+				taskSheet.requestFocusInWindow();
+				taskSheet.clearSelection();
+				taskSheet.setRowHeaderSelectionActive(true);
+				taskSheet.getSelectionModel().setSelectionInterval(rows.getFirst(), rows.getFirst());
+				for (int index = 1; index < rows.size(); index++)
+					taskSheet.getSelectionModel().addSelectionInterval(rows.get(index), rows.get(index));
+				if (taskSheet.getColumnCount() > 0)
+					taskSheet.getColumnModel().getSelectionModel().setSelectionInterval(0, taskSheet.getColumnCount() - 1);
+				return;
+			}
+			retryMultiSelection(taskSheet, attempt);
+		}
+
+		private void retryMultiSelection(SpreadSheet taskSheet, int attempt) {
+			// Undo/redo fires the model event synchronously, but the spreadsheet cache
+			// is rebuilt by a later EDT event.  Restoring immediately can therefore
+			// clear a valid multi-selection and leave the ribbon command disabled.
+			if (attempt >= 40)
+				return;
+			javax.swing.Timer retry = new javax.swing.Timer(25,
+				event -> restoreMultiSelectionWhenRowsAreReady(taskSheet, attempt + 1));
+			retry.setRepeats(false);
+			retry.start();
 		}
 
 		private int resolveRow() {
@@ -1344,6 +1404,8 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	protected UndoController currentUndoController=null;
+	/** Stable task selection carried across the asynchronous undo/redo projection. */
+	private List<Node> undoRedoSelection = Collections.emptyList();
 	public UndoController getUndoController(){
 		return currentUndoController;
 	}

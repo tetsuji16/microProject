@@ -30,6 +30,7 @@ import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
@@ -163,10 +164,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton reportTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString("ReportRibbonTask.title"));
-		click(robot, boundsOnScreen(reportTab));
-		GuiAcceptanceSupport.await(reportTab::isSelected, "Robot click did not select the Report ribbon tab");
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ViewRibbonTask.title"));
+		click(robot, boundsOnScreen(viewTab));
+		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
 		AbstractButton taskUsageButton = findShowingButtonByCommand("RibbonTaskUsageDetail");
 		click(robot, boundsOnScreen(taskUsageButton));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
@@ -820,7 +821,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.filter(candidate -> candidate instanceof MainRibbonFrame && candidate != window)
 			.map(MainRibbonFrame.class::cast)
 			.anyMatch(candidate -> candidate.isShowing() && candidate.getRibbonPanel() != null
-				&& candidate.getTitle().contains("secondary-window-second")),
+				&& documentTitleContains(candidate, "secondary-window-second")),
 			"secondary document window did not install the ribbon shell");
 		second.getOwningProject().setDirty(false);
 		second.getOwningProject().setGroupDirty(false);
@@ -830,12 +831,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		MainRibbonFrame secondary = java.util.Arrays.stream(Window.getWindows())
 			.filter(candidate -> candidate instanceof MainRibbonFrame && candidate != window)
 			.map(MainRibbonFrame.class::cast)
-			.filter(candidate -> candidate.isShowing() && candidate.getTitle().contains("secondary-window-second"))
+			.filter(candidate -> candidate.isShowing() && documentTitleContains(candidate, "secondary-window-second"))
 			.findFirst().orElseThrow(() -> new AssertionError("secondary window disappeared"));
 		secondary.dispatchEvent(new java.awt.event.WindowEvent(secondary,
 			java.awt.event.WindowEvent.WINDOW_CLOSING));
 		GuiAcceptanceSupport.await(() -> !secondary.isShowing(),
 			"secondary document window did not close from its title-bar close action");
+	}
+
+	private static boolean documentTitleContains(MainRibbonFrame frame, String expected) {
+		return frame.getRibbonPanel() != null && UiComponentWalker.flatten(frame.getRibbonPanel()).stream()
+			.filter(JLabel.class::isInstance).map(JLabel.class::cast)
+			.anyMatch(label -> "officeChromeDocumentTitle".equals(label.getName())
+				&& label.getText() != null && label.getText().contains(expected));
 	}
 
 	private static NormalTask createTask() {
