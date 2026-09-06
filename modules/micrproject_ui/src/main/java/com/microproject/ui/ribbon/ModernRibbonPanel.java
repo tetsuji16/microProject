@@ -83,7 +83,11 @@ public final class ModernRibbonPanel extends JPanel {
 	private static final int INLINE_COLUMN_GAP = 4;
 	private static final int LARGE_BUTTON_GAP = 2;
 	private static final int BAND_GAP = 8;
-	private static final int COMPACT_RIBBON_WIDTH = 1200;
+	// The standard desktop window is typically 1024-1200 px wide.  Treating
+	// every width below 1200 as compact hides too many commands even when the
+	// full band set still fits.  Reserve compact density for genuinely narrow
+	// work areas and let the measured band widths handle the final fit decision.
+	private static final int COMPACT_RIBBON_WIDTH = 1024;
 	private static final int COLLAPSED_RIBBON_WIDTH = 760;
 	private enum RibbonDensity { FULL, COMPACT, COLLAPSED }
 	private final SwingRibbonModel model;
