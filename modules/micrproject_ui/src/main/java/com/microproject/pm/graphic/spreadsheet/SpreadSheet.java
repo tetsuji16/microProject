@@ -1886,7 +1886,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 					};
 					final Consumer<Object> getter = new Consumer<Object>() { public void accept(Object obj) {
 							ResourceAdditionDialog.Form form = (ResourceAdditionDialog.Form) obj;
-							List<Node> nodes = new ArrayList<>();
+							List<Node> nodes = new ArrayList<>(form.getSelectedResources().size());
 							for (Object selectedResource : form.getSelectedResources()){
 								try {
 									nodes.add(NodeFactory.getInstance().createNode(Serializer.deserializeResourceAndAddToPool((EnterpriseResourceData) selectedResource, resourcePool, null)));
@@ -1903,7 +1903,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 					ResourceAdditionDialog.Form form = new ResourceAdditionDialog.Form();
 					try{
 						List<EnterpriseResourceData> resources = (List<EnterpriseResourceData>) SessionFactory.call(SessionFactory.getInstance().getSession(false), "retrieveResourceDescriptors", null, null);
-						HashMap<Long, EnterpriseResourceData> resourceMap = new HashMap<>();
+						HashMap<Long, EnterpriseResourceData> resourceMap = new HashMap<>(resources.size());
 						for (EnterpriseResourceData data : resources){
 							resourceMap.put(Long.valueOf(data.getUniqueId()), data);
 						}
