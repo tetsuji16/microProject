@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.AWTEvent;
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
+import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.AWTEventListener;
@@ -24,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.SwingUtilities;
+import javax.swing.AbstractButton;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -56,7 +59,8 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 	void closeDialogs() throws Exception {
 		if (observer != null) observer.close();
 		for (Window window : Window.getWindows()) {
-			if (window instanceof CriticalChainStatusDialogBox && window.isDisplayable()) {
+			if ((window instanceof CriticalChainStatusDialogBox || window instanceof ResourceLevelingDialogBox)
+				&& window.isDisplayable()) {
 				SwingUtilities.invokeAndWait(window::dispose);
 			}
 		}
@@ -94,6 +98,41 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 
 		assertDialogShows(restored, CriticalChainStatusDialogBox.Surface.NETWORK, CriticalChainGraphPanel.class);
 		assertDialogShows(restored, CriticalChainStatusDialogBox.Surface.BUFFER_STATUS, CriticalChainBufferChartPanel.class);
+	}
+
+	@Test
+	void unconfiguredNetworkOffersPhysicalRouteToCcpmSettings() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for CCPM dialog coverage.");
+		Project project = newProjectWithTasks();
+		observer = new DialogObserver();
+		observer.open();
+		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(null, project,
+			CriticalChainStatusDialogBox.Surface.NETWORK));
+		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
+		AbstractButton configure = findButton(dialog, UsabilityStrings.text("ccpm.configure"));
+		assertTrue(configure != null && configure.isShowing(),
+			"An unconfigured CCPM view must expose a visible settings/apply button");
+
+		Rectangle bounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			java.awt.Point location = configure.getLocationOnScreen();
+			bounds.setBounds(location.x, location.y, configure.getWidth(), configure.getHeight());
+		});
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> findResourceLevelingDialog() != null,
+			"CCPM settings must open from the empty network view");
+		assertTrue(findResourceLevelingDialog().isVisible(), "CCPM settings dialog must be visible after the physical click");
+		SwingUtilities.invokeAndWait(() -> findResourceLevelingDialog().dispose());
+		GuiAcceptanceSupport.await(() -> findVisibleStatusDialogCount() > 0,
+			"The original CCPM result surface must return after settings are closed");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Window window : Window.getWindows())
+				if (window instanceof CriticalChainStatusDialogBox) window.dispose();
+		});
 	}
 
 	private void assertDialogShows(Project project, CriticalChainStatusDialogBox.Surface surface,
@@ -146,6 +185,30 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 			throw new IllegalStateException("Could not inspect CCPM dialog visibility", exception);
 		}
 		return result.get().booleanValue();
+	}
+
+	private static ResourceLevelingDialogBox findResourceLevelingDialog() {
+		for (Window window : Window.getWindows())
+			if (window instanceof ResourceLevelingDialogBox dialog && dialog.isVisible()) return dialog;
+		return null;
+	}
+
+	private static int findVisibleStatusDialogCount() {
+		int count = 0;
+		for (Window window : Window.getWindows())
+			if (window instanceof CriticalChainStatusDialogBox && window.isVisible()) count++;
+		return count;
+	}
+
+	private static AbstractButton findButton(java.awt.Container container, String text) {
+		for (Component child : container.getComponents()) {
+			if (child instanceof AbstractButton button && text.equals(button.getText())) return button;
+			if (child instanceof java.awt.Container nested) {
+				AbstractButton button = findButton(nested, text);
+				if (button != null) return button;
+			}
+		}
+		return null;
 	}
 
 	private static Project newProjectWithTasks() throws Exception {

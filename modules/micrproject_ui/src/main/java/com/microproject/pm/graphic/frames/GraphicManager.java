@@ -4034,6 +4034,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_CCPM_BUFFER_STATUS,project != null);
 		getMenuManager().setActionEnabled(ACTION_CCPM_NETWORK,project != null);
 		getMenuManager().setActionEnabled(ACTION_TOGGLE_CRITICAL_CHAIN,hasCcpmPlan && isActiveGanttView());
+		Action criticalChainAction = getMenuManager().getActionFromId(ACTION_TOGGLE_CRITICAL_CHAIN);
+		if (criticalChainAction != null) {
+			String criticalChainTip = hasCcpmPlan
+				? getMenuManager().getFullTipText(ACTION_TOGGLE_CRITICAL_CHAIN)
+				: com.microproject.dialog.UsabilityStrings.text("ccpm.toggleUnavailable");
+			criticalChainAction.putValue(Action.SHORT_DESCRIPTION, criticalChainTip);
+			criticalChainAction.putValue(Action.LONG_DESCRIPTION, criticalChainTip);
+		}
 		getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN,
 			hasCcpmPlan && com.microproject.pm.graphic.gantt.CriticalChainDisplayState.isVisible(project));
 		getMenuManager().setActionEnabled(ACTION_DELEGATE_TASKS,isTask && writable);

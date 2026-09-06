@@ -58,7 +58,16 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 		JButton close = new JButton(UsabilityStrings.text("common.close"));
 		close.addActionListener(event -> dispose());
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-		if (settings != null && settings.isEnabled() && service.findBaseline(project) != null) {
+		boolean hasAppliedPlan = settings != null && settings.isEnabled() && service.findBaseline(project) != null;
+		if (!hasAppliedPlan) {
+			JButton configure = new JButton(UsabilityStrings.text("ccpm.configure"));
+			configure.setToolTipText(UsabilityStrings.text("ccpm.configureTooltip"));
+			configure.getAccessibleContext().setAccessibleDescription(
+				UsabilityStrings.text("ccpm.configureTooltip"));
+			configure.addActionListener(event -> openSettingsAndReturn(owner, project, surface));
+			buttons.add(configure);
+		}
+		if (hasAppliedPlan) {
 			JButton csv = new JButton("CSV");
 			csv.addActionListener(event -> exportReport(project, false));
 			JButton html = new JButton("HTML");
@@ -70,6 +79,14 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 		setPreferredSize(new Dimension(820, 510));
 		pack();
 		setLocationRelativeTo(owner);
+	}
+
+	private void openSettingsAndReturn(Frame owner, Project project, Surface surface) {
+		dispose();
+		ResourceLevelingDialogBox.getCriticalChainInstance(owner, project).setVisible(true);
+		if (project != null) {
+			new CriticalChainStatusDialogBox(owner, project, surface).setVisible(true);
+		}
 	}
 
 	private void loadAnalysis(CriticalChainService service, Project project, Surface surface, JPanel content) {
