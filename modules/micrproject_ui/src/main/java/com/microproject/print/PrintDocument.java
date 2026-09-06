@@ -74,8 +74,6 @@ public abstract class PrintDocument implements Pageable{
 	 */
 	public PrintDocument(Project project,boolean pdfOnly,boolean printOnly, boolean pdfAsDefault,boolean localSettings) {
 		printSettings=PrintSettingsManager.getSettings(localSettings?null:project);
-		//if (printSettings==null) System.out.println("PrintSettings: null");
-		//else System.out.println("PrintSettings: "+printSettings.getPrintServiceName()+", "+printSettings.getPageFormat().getSizeName()+", "+printSettings.getPageFormat().getOrientation()+", "+printSettings.getPageFormat().getSize()+", "+printSettings.getPageFormat().getPrintableArea());
 		pdfPrintService=new PDFPrintService(); //Don't want to define a printService for PDF
 		if (pdfOnly){
 			realPrintServices=new PrintService[]{};
@@ -360,4 +358,3 @@ public abstract class PrintDocument implements Pageable{
 
 
 }
-

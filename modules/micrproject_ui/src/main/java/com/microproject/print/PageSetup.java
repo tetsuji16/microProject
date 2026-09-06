@@ -109,7 +109,7 @@ public class PageSetup{
 	protected JLabel fitToWidthLabel,fitToHeightLabel,scaleToWidthLabel,scaleToHeightLabel,scaleToProportions,scaleToProportions2;
 	protected JCheckBox constrainProportions;
 
-	protected JButton saveSettings;//,saveWebPDFSettings;
+	protected JButton saveSettings;
 
 	protected double svgPaperWidth,svgPaperHeight;
 
@@ -553,21 +553,6 @@ public class PageSetup{
 		});
 		saveSettings.setToolTipText(Messages.getString("PageSetupDialog.SaveSettings.ToolTip"));
 		initFont(saveSettings);
-
-//		saveWebPDFSettings=new JButton(Messages.getString("PageSetupDialog.SaveWebPDFSettings"));
-//		saveWebPDFSettings.addActionListener(new ActionListener(){
-//			public void actionPerformed(ActionEvent e) {
-//				if (!(document.getPrintService() instanceof PDFPrintService)){
-//					Alert.warnWithOnceOption(Messages.getString("PageSetupDialog.NotPDFPrintServiceForWebDefault"),"NotPDFPrintServiceForWebDefaultWarned");
-//				}
-//
-//				saveSettings(false,true);
-//			}
-//		});
-//		saveWebPDFSettings.setToolTipText(Messages.getString("PageSetupDialog.SaveWebPDFSettings.ToolTip"));
-//		initFont(saveWebPDFSettings);
-
-
 		updatePageSize(true);
 		updateOrientation();
 		updateFitTo();
@@ -969,8 +954,6 @@ public class PageSetup{
 		FormLayout layout = new FormLayout("p",printSpreadSheet==null?"p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu":"p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu");
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
-//		builder.append(createFlowSettingsPanel());
-//		builder.nextLine(2);
 		builder.append(createFlowPrinterPanel());
 		builder.nextLine(2);
 		builder.append(createFlowOrientationPanel());
@@ -986,8 +969,6 @@ public class PageSetup{
 		builder.append(createFlowScalingPanel());
 		builder.nextLine(2);
 		builder.append(saveSettings);
-//		builder.nextLine(2);
-//		builder.append(saveWebPDFSettings);
 		return builder.getPanel();
 	}
 
@@ -1000,16 +981,6 @@ public class PageSetup{
 		panel.setBorder(new TitledBorder(Messages.getString("PageSetupDialog.Printers")));
 		return panel;
 	}
-//	private JComponent createFlowSettingsPanel(){
-//		FormLayout layout = new FormLayout("1dlu,p:grow,1dlu","p, 3dlu");
-//		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-//		builder.nextColumn();
-//		builder.append(settings);
-//		JPanel panel=builder.getPanel();
-//		panel.setBorder(new TitledBorder(Messages.getString("PageSetupDialog.Settings.Label")));
-//		return panel;
-//	}
-
 
 	private JComponent createPaperPanel(){
 		FormLayout layout = new FormLayout(
