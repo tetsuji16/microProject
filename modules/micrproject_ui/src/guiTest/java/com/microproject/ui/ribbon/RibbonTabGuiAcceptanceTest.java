@@ -290,6 +290,11 @@ class RibbonTabGuiAcceptanceTest {
 		click(robot, tab);
 		GuiAcceptanceSupport.await(tab::isSelected, "File ribbon tab was not selected at the default narrow desktop width");
 		SwingUtilities.invokeAndWait(() -> { });
+		assertTrue(UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.noneMatch(button -> button.isShowing()
+				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.COLLAPSED_TAB_LAUNCHER_PROPERTY))),
+			"default narrow desktop must show direct ribbon commands, not a single launcher popup");
 
 		for (String commandId : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects",
 			"RibbonImportProject", "RibbonPrint")) {

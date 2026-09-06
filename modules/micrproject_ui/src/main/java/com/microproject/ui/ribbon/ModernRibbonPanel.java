@@ -79,6 +79,7 @@ public final class ModernRibbonPanel extends JPanel {
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
 	static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
+	static final String COLLAPSED_TAB_LAUNCHER_PROPERTY = "MicroProject.ribbonCollapsedTabLauncher";
 	private static final int BAND_MIN_WIDTH = 72;
 	private static final int BAND_INNER_GAP = 4;
 	private static final int BAND_SIDE_PADDING = 4;
@@ -752,6 +753,7 @@ public final class ModernRibbonPanel extends JPanel {
 			}
 		}
 		trigger.putClientProperty(COLLAPSED_POPUP_PROPERTY, popup);
+		trigger.putClientProperty(COLLAPSED_TAB_LAUNCHER_PROPERTY, Boolean.TRUE);
 		trigger.addActionListener(event -> popup.show(trigger, 0, trigger.getHeight()));
 		return trigger;
 	}
@@ -781,6 +783,9 @@ public final class ModernRibbonPanel extends JPanel {
 				continue;
 			}
 			AbstractButton button = createButton(buttonSpec, true);
+			if (ribbonDensity == RibbonDensity.TIGHT) {
+				makeTightIconButton(button);
+			}
 			boolean keepLargePresentation = buttonSpec.getButtonSize() == SwingRibbonModel.ButtonSize.LARGE
 				&& ribbonDensity != RibbonDensity.TIGHT;
 			if (keepLargePresentation) {
@@ -987,6 +992,21 @@ public final class ModernRibbonPanel extends JPanel {
 			return;
 		}
 		buttonStyler.styleActionButton(button, "medium");
+	}
+
+	private void makeTightIconButton(AbstractButton button) {
+		String label = button.getAccessibleContext().getAccessibleName();
+		if (label == null || label.isBlank()) {
+			label = button.getText();
+		}
+		if (button.getToolTipText() == null || button.getToolTipText().isBlank()) {
+			button.setToolTipText(label);
+		}
+		if (label != null && !label.isBlank()) {
+			button.getAccessibleContext().setAccessibleName(label);
+		}
+		button.setText(null);
+		button.putClientProperty("MicroProject.ribbonTightIconOnly", Boolean.TRUE);
 	}
 
 	private AbstractButton createButton(SwingRibbonModel.RibbonButton specification, boolean register) {
