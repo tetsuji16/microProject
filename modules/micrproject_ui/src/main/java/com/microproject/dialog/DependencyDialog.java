@@ -161,16 +161,6 @@ public class DependencyDialog extends AbstractDialog {
 		return builder.getPanel();
 	}
 
-//	void ok() {
-//		Integer type = DependencyType.mapStringToValue((String) typeCombo
-//				.getSelectedItem());
-//		model.modifyEdge(edge, type.intValue(), -1);
-//		edge = null;
-//		setDialogResult(RESULT_AFFIRMED);
-//		setVisible(false);
-//	}
-//
-
 	void delete() {
 		remove = true;
 		setDialogResult(JOptionPane.OK_OPTION);
@@ -197,8 +187,6 @@ public class DependencyDialog extends AbstractDialog {
 				int type = ((Number)DependencyType.mapStringToValue(typeCombo.getSelectedItem().toString())).intValue();
 				
 				
-//				dependency.setLag(duration.getEncodedMillis());
-//				dependency.setDependencyType(type);
 				DependencyService.getInstance().setFields(dependency,duration.getEncodedMillis(),type,this);
 			} catch (ParseException e) {
 				Alert.warn(Messages.getString("Message.invalidDuration"),this);
@@ -213,19 +201,6 @@ public class DependencyDialog extends AbstractDialog {
 	private boolean isReadOnly() {
 		return ((NormalTask)dependency.getPredecessor()).isReadOnly();
 	}
-//	public void init(GanttModel model, GanttEdge edge) {
-//		this.edge = edge;
-//		this.model = model;
-//		Dependency dep = edge.getDependency();
-//		Task preTask = (Task) dep.getPredecessor();
-//		preLabel.setText(preTask.getName());
-//		Task sucTask = (Task) dep.getSuccessor();
-//		sucLabel.setText(sucTask.getName());
-//		int type = dep.getDependencyType();
-//		String stype = DependencyType.mapValueToString(new Integer(type));
-//		typeCombo.setSelectedItem(stype);
-//	}
-
 	/**
 	 * @return Returns the remove.
 	 */

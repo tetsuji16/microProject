@@ -71,7 +71,6 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	DocumentFrame documentFrame;
 	AssignmentEntryPane spreadSheetPane;
 	JLabel taskNames;
-//	JLabel projectName;
 	JButton assignButton;
 	JButton removeButton;
 	JButton replaceButton;
@@ -86,7 +85,6 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		setDocumentFrame(documentFrame);
 		DocumentSelectedEvent.addListener(this);
 		addDocHelp("Assign_Resources");
-		//createContentPanel();
 	}
 
 	/**
@@ -96,15 +94,12 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	protected void initControls() {
         GraphicManager mf = documentFrame.getGraphicManager();
         spreadSheetPane = new AssignmentEntryPane(this,documentFrame.getProject(),this,false,mf.setAssignmentDialogTransformerInitializationClosure());
-//        projectName = new JLabel();
         taskNames = new JLabel();
         Project project=documentFrame.getProject();
 		spreadSheetPane.setProject(project); //init content of spreadsheet
 		SpreadSheet activeSpreadSheet = mf.getCurrentFrame() == null ? null : mf.getCurrentFrame().getTopSpreadSheet();
 		setSelectedTasks(activeSpreadSheet == null ? emptyList : activeSpreadSheet.getSelectedNodes()); //update
         
-//        projectName.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-//        projectName.setText(project == null ? "" : "Resources from: " + project.getName());
         AbstractAction assignAction = new AbstractAction(Messages.getString("Text.Assign")) { //$NON-NLS-1$
     		private static final long serialVersionUID = 1L;
   			public void actionPerformed(ActionEvent e) {
@@ -312,9 +307,6 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 			builder.nextLine(2);
 		}
 
-//		builder.append(projectName);
-//		builder.nextLine(2);
-
 		builder.append(spreadSheetPane, createEditorsButtons(), createButtons());
 		return builder.getPanel();
 	}
@@ -363,8 +355,6 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		detachDocumentFrame(this.documentFrame);
 		this.documentFrame = documentFrame;
 		attachDocumentFrame(documentFrame);
-//		if (projectName != null)
-//			projectName.setText(project == null ? "" : "Resources from: " + project.getName());
 	}
 
 	private void detachDocumentFrame(DocumentFrame frame) {

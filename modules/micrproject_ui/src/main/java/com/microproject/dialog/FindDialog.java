@@ -63,7 +63,6 @@ import com.microproject.pm.graphic.views.Searchable;
 import com.microproject.configuration.Configuration;
 import com.microproject.document.ObjectEvent;
 import com.microproject.field.Field;
-import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
@@ -112,8 +111,6 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		bind(true);
 		updateFindButtonState();
 		search.requestFocus();
-		//combo.invalidate();
-
 	}
 
 	public void onOk() {
@@ -150,7 +147,6 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	 */
 
 	public JComponent createContentPanel() {
-//		initControls();
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		FormLayout layout = new FormLayout("default, 3dlu, default, 3dlu, default", // cols //$NON-NLS-1$
@@ -185,8 +181,6 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		setVisible(false);
 	}
 	public void objectChanged(ObjectEvent objectEvent) {
-//		if (objectEvent.getObject() instanceof Project)
-//			setVisible(false);
 	}
 
 	@Override
