@@ -38,12 +38,10 @@ import javax.swing.SwingUtilities;
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
-import com.microproject.main.Main;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.ClassLoaderUtils;
-import com.microproject.util.Environment;
 import com.microproject.util.UiLinkTargets;
 import com.microproject.util.VersionUtils;
 import com.microproject.util.Alert;
@@ -112,10 +110,6 @@ public final class AboutDialog extends AbstractDialog {
 		builder.append("Version "+(version==null?"Unknown":version)); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$		
 		builder.nextLine(2);
 		builder.append(Messages.getString("AboutDialog.copyright")); //$NON-NLS-1$
-//		if (Environment.isProjectLibre()) {
-//			builder.nextLine(2);
-//			builder.append(Main.getRunSinceMessage()); //$NON-NLS-1$
-//		}
 		return builder.getPanel();
 	}
 	protected boolean hasCloseButton() {

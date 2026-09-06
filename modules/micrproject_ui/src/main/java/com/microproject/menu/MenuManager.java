@@ -79,7 +79,6 @@ public class MenuManager {
 
 	public static final String STANDARD_RIBBON = "StandardRibbon";
 
-	//private static MenuManager instance = null;
 	static ResourceBundle[] bundles;
 	/*static*/ ExtMenuFactory menuFactory;
 	ExtToolBarFactory toolBarFactory;
@@ -109,9 +108,6 @@ public class MenuManager {
 	}
 
 	public static MenuManager getInstance(ProjectMenuActionMap rootActionMap) {
-//		if (instance == null)
-//			instance = new MenuManager(rootActionMap);
-//		return instance;
 		return new MenuManager(rootActionMap);
 	}
 
