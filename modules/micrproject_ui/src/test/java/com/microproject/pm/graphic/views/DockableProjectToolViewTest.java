@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import java.awt.BorderLayout;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.time.Instant;
 import java.util.List;
 
 import javax.swing.JLabel;
@@ -97,6 +98,33 @@ class DockableProjectToolViewTest {
 			Graphics2D graphics = image.createGraphics();
 			try { panel.paint(graphics); } finally { graphics.dispose(); }
 		});
+	}
+
+	@Test
+	void bufferChartRendersOnlyAdjacentChronologicalObservations() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("buffer-chart-render-order", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		CriticalChainBufferHistory history = project.getOrCreateTransientDocumentState(
+			CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+		history.add(point("2026-08-20T09:00:00Z", 75D, 30D));
+		history.add(point("2026-07-01T09:00:00Z", 0D, 0D));
+		history.add(point("2026-08-01T09:00:00Z", 50D, 55D));
+		history.add(point("2026-07-15T09:00:00Z", 25D, 20D));
+		// Opening the status surface may sample the current 75/30 value again.
+		history.add(point("2026-09-06T09:00:00Z", 75D, 30D));
+
+		List<CriticalChainBufferHistory.Point> rendered = CriticalChainBufferChartPanel.renderPoints(history.points());
+		assertEquals(List.of(0D, 25D, 50D, 75D), rendered.stream()
+			.map(CriticalChainBufferHistory.Point::progressPercent).toList());
+		assertEquals(List.of(0D, 20D, 55D, 30D), rendered.stream()
+			.map(CriticalChainBufferHistory.Point::consumptionPercent).toList());
+	}
+
+	private static CriticalChainBufferHistory.Point point(String observedAt, double progress, double consumption) {
+		return new CriticalChainBufferHistory.Point(Instant.parse(observedAt), "test", "test", progress,
+			consumption, "GREEN", "baseline");
 	}
 
 	@Test

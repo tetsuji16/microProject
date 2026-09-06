@@ -14,6 +14,7 @@ import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.swing.JPanel;
@@ -142,16 +143,17 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	}
 
 	private void drawHistory(Graphics2D g, int width, int height) {
-		if (history.isEmpty()) return;
+		List<CriticalChainBufferHistory.Point> points = renderPoints(history);
+		if (points.isEmpty()) return;
 		g.setColor(new Color(34, 94, 168));
 		g.setStroke(new BasicStroke(2f));
 		CriticalChainBufferHistory.Point previous = null;
-		for (CriticalChainBufferHistory.Point point : history) {
+		for (CriticalChainBufferHistory.Point point : points) {
 			if (previous != null) g.drawLine(xFor(previous.progressPercent(), width), yFor(previous.consumptionPercent(), height),
 				xFor(point.progressPercent(), width), yFor(point.consumptionPercent(), height));
 			previous = point;
 		}
-		for (CriticalChainBufferHistory.Point point : history) {
+		for (CriticalChainBufferHistory.Point point : points) {
 			int x = xFor(point.progressPercent(), width);
 			int y = yFor(point.consumptionPercent(), height);
 			g.setColor(new Color(20, 75, 145));
@@ -182,6 +184,28 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		double progress = project == null ? 0D : clamp(project.getPercentComplete() * 100D);
 		return new CriticalChainBufferHistory.Point(Instant.now(), "unknown", "unknown", progress,
 				clamp(buffer.consumptionRatio() * 100D), zoneForValues(progress, clamp(buffer.consumptionRatio() * 100D)).name(), "");
+	}
+
+	/**
+	 * Returns the stable point sequence used for rendering.  A project can be
+	 * opened in a new chart instance after a persisted history was loaded, and
+	 * the current analysis can then add the same coordinate with a new sample
+	 * timestamp.  Rendering must not let that lifecycle detail create an
+	 * apparent jump or a line to a non-adjacent observation.
+	 */
+	static List<CriticalChainBufferHistory.Point> renderPoints(List<CriticalChainBufferHistory.Point> source) {
+		List<CriticalChainBufferHistory.Point> sorted = new ArrayList<>(source == null ? List.of() : source);
+		sorted.sort(Comparator.comparing(CriticalChainBufferHistory.Point::observedAt));
+		List<CriticalChainBufferHistory.Point> result = new ArrayList<>(sorted.size());
+		for (CriticalChainBufferHistory.Point point : sorted) {
+			if (result.isEmpty() || !samePosition(result.get(result.size() - 1), point)) result.add(point);
+		}
+		return result;
+	}
+
+	private static boolean samePosition(CriticalChainBufferHistory.Point first, CriticalChainBufferHistory.Point second) {
+		return Double.compare(first.progressPercent(), second.progressPercent()) == 0
+			&& Double.compare(first.consumptionPercent(), second.consumptionPercent()) == 0;
 	}
 
 	private static Zone zoneForValues(double progress, double consumption) {
