@@ -171,6 +171,7 @@ public class DocumentFrame extends NamedFrame implements
 	// keep state of pushed buttons so i can reset them when a view is reactivated
 	String lastTopButton = null;
 	String lastBottomButton = ACTION_NO_SUB_WINDOW;
+	private String lastBottomViewName;
 	private static final String[] BOTTOM_VIEW_ACTIONS = {
 		ACTION_HISTOGRAM,
 		ACTION_CHARTS,
@@ -259,6 +260,7 @@ public class DocumentFrame extends NamedFrame implements
 		if (mainView != null)
 			remove(mainView); // any previous
 		mainView = new MainView();
+		mainView.setDividerDoubleClickHandler(this::deactivateBottomView);
 		mainView.setBorder(null);
 		setLayout(new BorderLayout()); // main view fills the center, status bar below
 		add(mainView, BorderLayout.CENTER);
@@ -1056,6 +1058,16 @@ public class DocumentFrame extends NamedFrame implements
 			bottomView = getTaskUsageView();
 		else if (viewName.equals(ACTION_RESOURCE_USAGE))
 			bottomView = getResourceUsageView();
+		else if (viewName.equals(ACTION_DETAILS)) {
+			if (activeBottomView != null)
+				deactivateBottomView();
+			else {
+				String restoreName = lastBottomViewName;
+				if (restoreName == null || ACTION_NO_SUB_WINDOW.equals(restoreName))
+					restoreName = ACTION_TASK_USAGE;
+				activateBottomView(getBottomViewForRestore(), restoreName);
+			}
+		}
 		else if (viewName.equals(ACTION_NO_SUB_WINDOW))
 			deactivateBottomView();
 
@@ -1161,6 +1173,7 @@ public class DocumentFrame extends NamedFrame implements
 		activeBottomView = view;
 		view.onActivate(true);
 		lastBottomButton = viewName;
+		lastBottomViewName = viewName;
 		setBottomActionSelected(viewName);
 		toggleMinWidth();
 		refreshUndoButtons();
@@ -1189,6 +1202,8 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void deactivateBottomView() {
 		if (activeBottomView != null)
+			lastBottomViewName = lastBottomButton;
+		if (activeBottomView != null)
 			activeBottomView.onActivate(false);
 		if (mainView.getBottomComponent() != null)
 			mainView.removeBottom();
@@ -1204,6 +1219,20 @@ public class DocumentFrame extends NamedFrame implements
 			menuManager.setActionSelected(action, action.equals(selectedAction));
 		menuManager.setActionSelected(ACTION_NO_SUB_WINDOW,
 			ACTION_NO_SUB_WINDOW.equals(selectedAction));
+		menuManager.setActionSelected(ACTION_DETAILS,
+			!ACTION_NO_SUB_WINDOW.equals(selectedAction));
+	}
+
+	private BaseView getBottomViewForRestore() {
+		String viewName = lastBottomViewName;
+		if (viewName == null || ACTION_NO_SUB_WINDOW.equals(viewName))
+			viewName = ACTION_TASK_USAGE;
+		return switch (viewName) {
+			case ACTION_HISTOGRAM -> getHistogramView();
+			case ACTION_CHARTS -> getChartView();
+			case ACTION_RESOURCE_USAGE -> getResourceUsageView();
+			default -> getTaskUsageView();
+		};
 	}
 
 
@@ -1556,6 +1585,7 @@ public class DocumentFrame extends NamedFrame implements
 		activeTopView = null;
 		activeBottomView = null;
 		lastBottomButton = ACTION_NO_SUB_WINDOW;
+		lastBottomViewName = null;
 	}
 	private void forAllViews(Consumer<Object> c) {
 		Object[] views = {

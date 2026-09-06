@@ -216,11 +216,25 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(manager.getCurrentFrame().getMainView().getBottomComponent().isShowing(),
 			"Histogram bottom component must be physically visible");
 
-		AbstractButton noSubWindow = findShowingButtonByCommand("RibbonNoTextNoSubWindow");
-		click(robot, boundsOnScreen(noSubWindow));
+		AbstractButton details = findShowingButtonByCommand("RibbonDetails");
+		click(robot, boundsOnScreen(details));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() == null
 			&& manager.getCurrentFrame().getMainView().getBottomComponent() == null,
-			"No Subwindow did not close the bottom view after a Robot click");
+			"Details did not close the bottom view after a Robot click");
+		GuiAcceptanceSupport.await(() -> !details.isSelected(),
+			"Details remained selected after closing the bottom view");
+
+		click(robot, boundsOnScreen(details));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() != null
+			&& manager.getCurrentFrame().getMainView().getBottomComponent() != null,
+			"Details did not restore the last bottom view after a Robot click");
+		GuiAcceptanceSupport.await(details::isSelected,
+			"Details was not selected after restoring the bottom view");
+
+		click(robot, boundsOnScreen(details));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() == null
+			&& manager.getCurrentFrame().getMainView().getBottomComponent() == null,
+			"Details did not close the restored bottom view after a Robot click");
 	}
 
 	@Test

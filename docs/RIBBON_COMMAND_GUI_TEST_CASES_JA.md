@@ -107,6 +107,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonProjects | プロジェクトビューを表示 | プロジェクト一覧ビューが表示される |
 | RibbonTaskUsageDetail / RibbonResourceUsageDetail | 詳細使用状況を表示 | 詳細ビューが表示される |
 | RibbonNoTextNoSubWindow | サブウィンドウ表示を切り替える | 表示モードが切り替わる |
+| RibbonDetails | 詳細ペインを表示／非表示 | 下部ビューの表示状態が切り替わる |
 | RibbonArrangeAll | 全ウィンドウを整列 | 開いているプロジェクトが整列される |
 | RibbonChooseFilter / RibbonChooseSort / RibbonChooseGroup | フィルター・ソート・グループを変更 | 選択条件が一覧へ反映される |
 | RibbonZoomIn / RibbonZoomOut | 時間軸を拡大／縮小 | ガントの時間スケールが変わる |

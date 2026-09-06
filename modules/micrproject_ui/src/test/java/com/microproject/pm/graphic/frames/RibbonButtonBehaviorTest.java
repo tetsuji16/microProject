@@ -357,6 +357,7 @@ class RibbonButtonBehaviorTest {
 		assertView(harness, "RibbonHistogram", MenuActionConstants.ACTION_HISTOGRAM);
 		assertView(harness, "RibbonCharts", MenuActionConstants.ACTION_CHARTS);
 		assertView(harness, "RibbonTaskUsage", MenuActionConstants.ACTION_TASK_USAGE);
+		assertView(harness, "RibbonDetails", MenuActionConstants.ACTION_DETAILS);
 		assertView(harness, "RibbonResourceUsage", MenuActionConstants.ACTION_RESOURCE_USAGE);
 		assertView(harness, "RibbonNoTextNoSubWindow", MenuActionConstants.ACTION_NO_SUB_WINDOW);
 
@@ -392,6 +393,15 @@ class RibbonButtonBehaviorTest {
 		assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
 
 		activateView(harness, MenuActionConstants.ACTION_TASK_USAGE);
+		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+		assertFalse((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+			.getValue(Action.SELECTED_KEY));
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+		assertTrue((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+			.getValue(Action.SELECTED_KEY));
 		WorkspaceSetting workspace = harness.frame.createWorkspace(0);
 		assertEquals(MenuActionConstants.ACTION_TASK_USAGE,
 			((DocumentFrame.Workspace) workspace).getBottomViewName());
@@ -413,6 +423,8 @@ class RibbonButtonBehaviorTest {
 				harness.manager.getAction(bottomAction).getValue(Action.SELECTED_KEY),
 				() -> bottomAction + " selection state is inconsistent");
 		}
+		assertEquals(!MenuActionConstants.ACTION_NO_SUB_WINDOW.equals(actionId),
+			harness.manager.getAction(MenuActionConstants.ACTION_DETAILS).getValue(Action.SELECTED_KEY));
 	}
 
 	private static void activateView(Harness harness, String viewName) throws Exception {
@@ -615,6 +627,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonHistogram",
 			"RibbonCharts",
 			"RibbonTaskUsage",
+			"RibbonDetails",
 			"RibbonResourceUsage",
 			"RibbonNoTextNoSubWindow");
 		add(map, Strategy.ROUTE_CHOOSER,

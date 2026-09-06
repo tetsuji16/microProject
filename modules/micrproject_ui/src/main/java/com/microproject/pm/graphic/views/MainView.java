@@ -26,10 +26,15 @@ package com.microproject.pm.graphic.views;
 
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 
 import javax.swing.JComponent;
 import javax.swing.JSplitPane;
 import javax.swing.JViewport;
+import javax.swing.plaf.basic.BasicSplitPaneDivider;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 
 import com.microproject.pm.graphic.timescale.ScaledComponent;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
@@ -49,6 +54,8 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
 
     protected double defaultDividerLocation=0.7;
     private Synchronizer synchronizer;
+    private Runnable dividerDoubleClickHandler;
+    private MouseListener dividerMouseListener;
     /**
      *  
      */
@@ -105,6 +112,37 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
     	removeScaledComponentsSynchro();
         setTopComponent(null);
         setDividerSize(0);
+        installDividerMouseHandler();
+    }
+
+    @Override
+    public void updateUI() {
+        super.updateUI();
+        installDividerMouseHandler();
+    }
+
+    public void setDividerDoubleClickHandler(Runnable handler) {
+        dividerDoubleClickHandler = handler;
+        installDividerMouseHandler();
+    }
+
+    private void installDividerMouseHandler() {
+        if (!(getUI() instanceof BasicSplitPaneUI ui))
+            return;
+        BasicSplitPaneDivider divider = ui.getDivider();
+        if (divider == null)
+            return;
+        if (dividerMouseListener != null)
+            divider.removeMouseListener(dividerMouseListener);
+        dividerMouseListener = new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                if (event.getClickCount() == 2 && event.getButton() == MouseEvent.BUTTON1
+                        && dividerDoubleClickHandler != null)
+                    dividerDoubleClickHandler.run();
+            }
+        };
+        divider.addMouseListener(dividerMouseListener);
     }
 
     public void removeBottom() {

@@ -1957,6 +1957,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_CHARTS, new ViewAction(ACTION_CHARTS));
 		actionsMap.addHandler(ACTION_TASK_USAGE, new ViewAction(ACTION_TASK_USAGE));
 		actionsMap.addHandler(ACTION_RESOURCE_USAGE, new ViewAction(ACTION_RESOURCE_USAGE));
+		actionsMap.addHandler(ACTION_DETAILS, new ViewAction(ACTION_DETAILS));
 		actionsMap.addHandler(ACTION_NO_SUB_WINDOW, new ViewAction(ACTION_NO_SUB_WINDOW));
 		actionsMap.addHandler(ACTION_ARRANGE_ALL, new ArrangeAllAction());
 
