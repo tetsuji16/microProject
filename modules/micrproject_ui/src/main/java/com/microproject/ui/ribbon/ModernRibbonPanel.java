@@ -96,7 +96,10 @@ public final class ModernRibbonPanel extends JPanel {
 	private enum RibbonDensity {
 		FULL(1024, Integer.MIN_VALUE, false),
 		COMPACT(840, 0, true),
-		TIGHT(760, 50, true),
+		// Keep the primary-command layout available for a 1024px logical default
+		// window constrained by a 125/150% desktop.  The old 760px cutoff turned
+		// that normal desktop case into a single tab launcher.
+		TIGHT(640, 50, true),
 		COLLAPSED(0, Integer.MAX_VALUE, false);
 
 		private final int minimumWidth;
@@ -535,7 +538,11 @@ public final class ModernRibbonPanel extends JPanel {
 		bandConstraints.gridx = 0;
 		bandConstraints.gridy = 0;
 		bandConstraints.anchor = GridBagConstraints.NORTHWEST;
-		bandConstraints.fill = GridBagConstraints.NONE;
+		// Use the full available ribbon width.  A left-packed row made a sparse
+		// tab look broken even when all commands were present, leaving a large
+		// empty tail on the right of the ribbon.
+		bandConstraints.fill = GridBagConstraints.HORIZONTAL;
+		bandConstraints.weightx = 1.0;
 		bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
 		RibbonDensity effectiveDensity = density;
 		boolean compactedFromFullDensity = false;
@@ -625,9 +632,6 @@ public final class ModernRibbonPanel extends JPanel {
 		for (int index = 0; index < bandPanels.size(); index++) {
 			bandPanels.get(index).setShowSeparator(index < bandPanels.size() - 1);
 		}
-		bandConstraints.weightx = 1.0;
-		bandConstraints.fill = GridBagConstraints.HORIZONTAL;
-		bandRow.add(Box.createHorizontalGlue(), bandConstraints);
 		int bandRowHeight = Math.max(
 			FlatUiSupport.ribbonSurfaceHeight(),
 			tallestBand + 6);
@@ -726,9 +730,13 @@ public final class ModernRibbonPanel extends JPanel {
 				continue;
 			}
 			AbstractButton button = createButton(buttonSpec, true);
-			if (buttonSpec.getButtonSize() == SwingRibbonModel.ButtonSize.LARGE) {
+			boolean keepLargePresentation = buttonSpec.getButtonSize() == SwingRibbonModel.ButtonSize.LARGE
+				&& ribbonDensity != RibbonDensity.TIGHT;
+			if (keepLargePresentation) {
 				// Office keeps the primary command prominent while secondary commands
-				// compress first (for example, Paste remains large on a narrow ribbon).
+				// compress first.  At TIGHT density the same primary commands remain
+				// direct targets, but use inline icons so the default desktop does not
+				// collapse into a single tab launcher at high DPI.
 				largeButtonList.add(buttonStyler.styleActionButton(button, "large"));
 			} else if (ribbonDensity.isCompacted() || buttonSpec.getButtonSize() == SwingRibbonModel.ButtonSize.SMALL) {
 				smallButtonList.add(buttonStyler.styleActionButton(button, "small"));

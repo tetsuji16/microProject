@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 
 import javax.swing.AbstractButton;
+import javax.swing.JComponent;
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
@@ -62,6 +63,7 @@ class OfficeChromePanelVisualSmokeTest {
 		panel.setSize(1024, 160);
 		panel.doLayout();
 		layoutRecursively(panel);
+		assertRibbonBandsUseTheAvailableWidth(panel);
 
 		BufferedImage image = new BufferedImage(1024, 160, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D graphics = image.createGraphics();
@@ -77,6 +79,25 @@ class OfficeChromePanelVisualSmokeTest {
 
 		assertTrue(Files.exists(output));
 		assertTrue(hasVisibleInk(image));
+	}
+
+	private static void assertRibbonBandsUseTheAvailableWidth(JPanel panel) {
+		JComponent surface = UiComponentWalker.flatten(panel).stream()
+			.filter(JComponent.class::isInstance)
+			.map(JComponent.class::cast)
+			.filter(component -> "projectLibreRibbonSurface".equals(component.getName()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("ribbon surface was not created"));
+		int rightEdge = UiComponentWalker.flatten(surface).stream()
+			.filter(JComponent.class::isInstance)
+			.map(JComponent.class::cast)
+			.filter(component -> "projectLibreRibbonBand".equals(component.getName()))
+			.mapToInt(component -> component.getX() + component.getWidth())
+			.max()
+			.orElse(0);
+		assertTrue(rightEdge >= Math.ceil(surface.getWidth() * 0.70d),
+			() -> "ribbon leaves more than 30% unused on the right: surface=" + surface.getWidth()
+				+ " rightEdge=" + rightEdge);
 	}
 
 	@Test

@@ -252,7 +252,7 @@ class RibbonTabGuiAcceptanceTest {
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
-		show(host, 700, true);
+		show(host, 620, true);
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
@@ -270,6 +270,32 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(popup.getComponentCount() > 0, "fully collapsed ribbon launcher has no commands");
 		clickCommand(robot, launcher);
 		GuiAcceptanceSupport.await(popup::isVisible, "fully collapsed ribbon launcher did not open by mouse click");
+	}
+
+	@Test
+	void defaultNarrowDesktopKeepsPrimaryFileCommandsVisible() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		show(host, 700, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
+			.getString("FileRibbonTask.title"));
+		click(robot, tab);
+		GuiAcceptanceSupport.await(tab::isSelected, "File ribbon tab was not selected at the default narrow desktop width");
+		SwingUtilities.invokeAndWait(() -> { });
+
+		for (String commandId : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects",
+			"RibbonImportProject", "RibbonPrint")) {
+			AbstractButton command = findAttachedButtonByCommand(host, commandId);
+			assertTrue(command.isShowing(), () -> commandId + " must remain a visible primary File command at 700 logical px");
+			assertTrue(command.getIcon() != null && command.getIcon().getIconWidth() > 0,
+				() -> commandId + " must retain a visible icon at 700 logical px");
+		}
 	}
 
 	private void show(JPanel host) throws Exception {
