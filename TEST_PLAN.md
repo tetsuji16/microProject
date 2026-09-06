@@ -58,12 +58,12 @@
 
 | ID | 種別 | 入力/条件 | 手順 | 期待結果 / Assertion |
 |---|---|---|---|---|
-| C-01 | 正常 | `.pod/.xml/.xlsx` | `isCollaborationCandidate` | true |
-| C-02 | 正常 | `.mpp/.mpx/.planner` | 同上 | false |
+| C-01 | 正常 | `.mpo` / `.MPO` | `isMpoCollaborationCandidate` | true |
+| C-02 | 正常 | `.pod/.podx/.xml/.xlsx/.mpp/.mpx/.planner` | 同上 | false |
 | C-03 | 境界 | project path に拡張子なし、親なし相対パス | `buildSidecarFile` | `<base>.projectlibre-sync.json` を生成 |
 | C-04 | 異常 | `CollaborationSession.create(null/非候補/null file)` | create | null を返し sidecar を作らない |
 | C-05 | 正常 | 新規 sidecar | `load/mutate` | schema/user/locks/workspace が初期化 |
-| C-06 | 異常 | 壊れた JSON, 配列 JSON, 巨大 JSON >1MB | `load` | 既定値復旧または RuntimeException。破損を silent success しない |
+| C-06 | 異常 | 壊れた JSON, 配列 JSON, 巨大 JSON >1MB | `load` | RuntimeException。破損したメタデータを既定値で上書きせず、silent success しない |
 | C-07 | 境界 | JSON に制御文字、引用符、Unicode user | save/load | エスケープ復元一致 |
 | C-08 | 並行 | 2 セッション同時 `mutate` | thread pool で 100 回更新 | JSON が壊れず全更新が整合 |
 | C-09 | 正常 | alice が task 1 acquire | `TaskLockManager.acquire` | true、sidecar に owner/lease/user |

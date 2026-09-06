@@ -45,6 +45,16 @@ class CollaborationMetadataStoreTest {
 	}
 
 	@Test
+	void lockFileUsesTheStableCompatibilityName() throws Exception {
+		Path project = Files.createTempFile("mpo-collaboration", ".mpo");
+		Path sidecar = CollaborationMetadataStore.buildSidecarFile(project.toFile()).toPath();
+
+		assertTrue(sidecar.getFileName().toString().endsWith(".projectlibre-sync.json"));
+		assertTrue(CollaborationMetadataStore.buildLockFile(sidecar.toFile()).getName()
+				.endsWith(".projectlibre-sync.lock"));
+	}
+
+	@Test
 	void failedTemporaryWriteLeavesExistingSidecarByteForByteUnchanged() throws Exception {
 		Path project = Files.createTempFile("mpo-collaboration", ".mpo");
 		CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
