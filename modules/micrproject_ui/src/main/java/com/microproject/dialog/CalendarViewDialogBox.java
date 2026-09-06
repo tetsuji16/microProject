@@ -49,6 +49,7 @@ import java.util.Locale;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JOptionPane;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -56,6 +57,11 @@ import javax.swing.JScrollPane;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.HasDependencies;
+import com.microproject.pm.dependency.DependencyType;
+import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
@@ -110,6 +116,14 @@ public final class CalendarViewDialogBox extends JDialog {
 		return monthLabel.getText();
 	}
 
+	/** Returns the on-canvas link marker bounds for Robot/accessibility verification. */
+	public Rectangle getDependencyMarkerBounds(Task task) {
+		if (task == null || canvas == null) return null;
+		for (Card card : canvas.cards)
+			if (card.task() == task && card.linkBounds() != null) return new Rectangle(card.linkBounds());
+		return null;
+	}
+
 	private final class CalendarCanvas extends JPanel {
 		private static final long serialVersionUID = 1L;
 		private static final int HEADER = 34;
@@ -126,7 +140,13 @@ public final class CalendarViewDialogBox extends JDialog {
 			setPreferredSize(new Dimension(980, HEADER + CELL_HEIGHT * 6));
 			MouseAdapter mouse = new MouseAdapter() {
 				@Override public void mousePressed(MouseEvent event) {
-					for (Card card : cards) if (card.bounds().contains(event.getPoint())) { draggedTask = card.task(); dragPoint = event.getPoint(); break; }
+					for (Card card : cards) {
+						if (card.linkBounds() != null && card.linkBounds().contains(event.getPoint())) {
+							showDependencyEditor(card.task());
+							return;
+						}
+						if (card.bounds().contains(event.getPoint())) { draggedTask = card.task(); dragPoint = event.getPoint(); break; }
+					}
 				}
 				@Override public void mouseDragged(MouseEvent event) { if (draggedTask != null) { dragPoint = event.getPoint(); repaint(); } }
 				@Override public void mouseReleased(MouseEvent event) {
@@ -177,6 +197,12 @@ public final class CalendarViewDialogBox extends JDialog {
 				g.setColor(Color.WHITE); String name = task.getName();
 				while (name.length() > 2 && g.getFontMetrics().stringWidth(name) > bounds.width - 8) name = name.substring(0, name.length() - 2) + "…";
 				g.drawString(name, bounds.x + 4, bounds.y + 14); cards.add(new Card(task, bounds));
+				if (hasDependencies(task)) {
+					g.setColor(new Color(0xFF, 0xD5, 0x4F));
+					g.drawString("↗", bounds.x + bounds.width - 15, bounds.y + 14);
+					cards.set(cards.size() - 1, new Card(task, bounds,
+						new Rectangle(bounds.x + bounds.width - 22, bounds.y, 22, bounds.height)));
+				}
 			}
 			if (onDay.size() > visible) { g.setColor(Color.DARK_GRAY); g.drawString("+" + (onDay.size() - visible) + " more", x + 7, y + 96); }
 		}
@@ -211,7 +237,43 @@ public final class CalendarViewDialogBox extends JDialog {
 				project.recalculate();
 			} catch (RuntimeException exception) { Alert.error(exception.getMessage()); }
 		}
+
+		private boolean hasDependencies(Task task) {
+			return task instanceof HasDependencies
+				&& !DependencyService.getInstance().getIncidentDependencies((HasDependencies) task).isEmpty();
+		}
+
+		private void showDependencyEditor(Task task) {
+			if (!(task instanceof HasDependencies)) return;
+			List<Dependency> dependencies = DependencyService.getInstance()
+				.getIncidentDependencies((HasDependencies) task);
+			if (dependencies.isEmpty()) return;
+			Dependency dependency = dependencies.size() == 1 ? dependencies.get(0) : chooseDependency(dependencies);
+			if (dependency == null) return;
+			java.awt.Frame owner = getOwner() instanceof java.awt.Frame frame ? frame : null;
+			DependencyDialog.doDialog(new DependencyDialog(owner, dependency), dependency);
+			project.recalculate();
+			repaint();
+		}
+
+		private Dependency chooseDependency(List<Dependency> dependencies) {
+			Object[] choices = new Object[dependencies.size()];
+			for (int i = 0; i < dependencies.size(); i++) {
+				Dependency dependency = dependencies.get(i);
+				choices[i] = dependency.getQualifiedPredecessorName() + " → "
+					+ dependency.getQualifiedSuccessorName() + " ("
+					+ DependencyType.toLongString(dependency.getDependencyType()) + ")";
+			}
+			Object selected = JOptionPane.showInputDialog(CalendarViewDialogBox.this,
+				Messages.getString("UnlinkDialog.SelectDependency"), Messages.getString("UnlinkDialog.Title"),
+				JOptionPane.PLAIN_MESSAGE, null, choices, choices[0]);
+			if (selected == null) return null;
+			for (int i = 0; i < choices.length; i++) if (choices[i].equals(selected)) return dependencies.get(i);
+			return null;
+		}
 	}
 
-	private record Card(Task task, Rectangle bounds) { }
+	private record Card(Task task, Rectangle bounds, Rectangle linkBounds) {
+		Card(Task task, Rectangle bounds) { this(task, bounds, null); }
+	}
 }

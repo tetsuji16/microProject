@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
+import javax.swing.JComboBox;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.CalendarViewDialogBox;
+import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.assignment.TimesheetEntryPane;
 import com.microproject.exchange.MpoFileImporter;
@@ -46,6 +48,8 @@ import com.microproject.grouping.core.Node;
 import com.microproject.job.JobQueue;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
@@ -268,6 +272,51 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(navigation[0]));
 		GuiAcceptanceSupport.await(() -> dialog.isShowing() && !displayedMonth[0].equals(readDisplayedMonth(dialog)),
 			"previous-month navigation must keep the calendar dialog visible and change its month");
+	}
+
+	@Test
+	void calendarDependencyMarkerOpensTheLinkDialogAndCanRemoveTheLink() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("calendar-link-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask predecessor = project.createScriptedTask(); predecessor.setName("Calendar link predecessor");
+		NormalTask successor = project.createScriptedTask(); successor.setName("Calendar link successor");
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null, "calendar link project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ViewRibbonTask.title"));
+		click(robot, boundsOnScreen(viewTab));
+		click(robot, boundsOnScreen(findShowingButtonByCommand("RibbonCalendarView")));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
+			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "calendar link dialog did not open");
+		CalendarViewDialogBox calendar = manager.getCurrentFrame().getCalendarViewDialog();
+		JScrollPane scrollPane = UiComponentWalker.flatten(calendar).stream()
+			.filter(JScrollPane.class::isInstance).map(JScrollPane.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("calendar canvas scroll pane is missing"));
+		JComponent canvas = (JComponent) scrollPane.getViewport().getView();
+		GuiAcceptanceSupport.await(() -> calendar.getDependencyMarkerBounds(predecessor) != null,
+			"calendar dependency marker did not render");
+		Rectangle marker = new Rectangle(calendar.getDependencyMarkerBounds(predecessor));
+		Point canvasLocation = canvas.getLocationOnScreen();
+		click(robot, new Rectangle(canvasLocation.x + marker.x, canvasLocation.y + marker.y, marker.width, marker.height));
+		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null, "calendar marker did not open dependency dialog");
+		DependencyDialog dependencyDialog = findDependencyDialog();
+		AbstractButton remove = findVisibleButton(dependencyDialog, Messages.getString("Text.Remove"));
+		assertNotNull(remove, "dependency dialog must expose Remove");
+		click(robot, boundsOnScreen(remove));
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty(),
+			"removing the dependency from the calendar link dialog did not update the model");
 	}
 
 	private static String readDisplayedMonth(CalendarViewDialogBox dialog) {
@@ -664,6 +713,76 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void unlinkingOneTaskWithMultipleLinksPromptsAndRemovesOnlyTheChosenLink() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("ribbon-unlink-choice", undo), undo);
+		project.initialize(false, false);
+		NormalTask predecessor = project.createScriptedTask(); predecessor.setName("Choice predecessor");
+		NormalTask selected = project.createScriptedTask(); selected.setName("Choice selected");
+		NormalTask successor = project.createScriptedTask(); successor.setName("Choice successor");
+		Dependency incoming = DependencyService.getInstance().newDependency(predecessor, selected, DependencyType.FS, 0L, this);
+		Dependency outgoing = DependencyService.getInstance().newDependency(selected, successor, DependencyType.SS, 0L, this);
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null && manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"unlink-choice project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
+			"single task selection was not retained for unlink choice");
+		SwingUtilities.invokeLater(() -> manager.getCurrentFrame().doUnlinkTasks());
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate instanceof java.awt.Dialog && candidate.isShowing()),
+			"unlink choice dialog did not open");
+		JComboBox<?> dependencyChoices = awaitVisibleCombo();
+		SwingUtilities.invokeAndWait(() -> {
+			dependencyChoices.setSelectedIndex(1);
+			dependencyChoices.requestFocusInWindow();
+		});
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> selected.getPredecessorList().size() + selected.getSuccessorList().size() == 1,
+			"unlink choice did not remove exactly one incident dependency");
+		assertEquals(1, selected.getPredecessorList().size() + selected.getSuccessorList().size());
+		assertTrue(selected.getPredecessorList().iterator().hasNext() ? selected.getPredecessorList().iterator().next() == incoming
+			: selected.getSuccessorList().iterator().next() == outgoing,
+			"the unselected link must remain after the choice");
+	}
+
+	private static JComboBox<?> awaitVisibleCombo() throws Exception {
+		final JComboBox<?>[] result = new JComboBox<?>[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (Window window : Window.getWindows()) {
+				if (window.isShowing() && window instanceof java.awt.Container container) {
+					result[0] = findCombo(container);
+					if (result[0] != null) return true;
+				}
+			}
+			return false;
+		}, "unlink choice combo did not become visible");
+		return result[0];
+	}
+
+	private static JComboBox<?> findCombo(java.awt.Container container) {
+		for (java.awt.Component child : container.getComponents()) {
+			if (child instanceof JComboBox<?> combo && combo.isShowing()) return combo;
+			if (child instanceof java.awt.Container nested) {
+				JComboBox<?> found = findCombo(nested);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
+	@Test
 	void secondaryDocumentWindowUsesTheSameRibbonShell() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for window coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -841,6 +960,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		for (Window candidate : Window.getWindows()) {
 			if (candidate instanceof TaskInformationDialog dialog && dialog.isVisible())
 				return dialog;
+		}
+		return null;
+	}
+
+	private static DependencyDialog findDependencyDialog() {
+		for (Window candidate : Window.getWindows())
+			if (candidate instanceof DependencyDialog dialog && dialog.isVisible()) return dialog;
+		return null;
+	}
+
+	private static AbstractButton findVisibleButton(java.awt.Container container, String text) {
+		for (java.awt.Component child : container.getComponents()) {
+			if (child instanceof AbstractButton button && button.isShowing() && text.equals(button.getText())) return button;
+			if (child instanceof java.awt.Container nested) {
+				AbstractButton found = findVisibleButton(nested, text);
+				if (found != null) return found;
+			}
 		}
 		return null;
 	}

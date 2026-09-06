@@ -328,6 +328,27 @@ class DependencyServiceTest {
 		assertFalse(successor.getPredecessorList().iterator().hasNext());
 	}
 
+	@Test
+	void incidentDependencySnapshotSupportsRemovingOnlyTheChosenLink() throws InvalidAssociationException {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("unlink-choice-test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask selected = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(selected);
+		project.connectTask(successor);
+		Dependency incoming = DependencyService.getInstance().newDependency(predecessor, selected, DependencyType.FS, 0L, this);
+		Dependency outgoing = DependencyService.getInstance().newDependency(selected, successor, DependencyType.SS, 0L, this);
+
+		assertEquals(Arrays.asList(incoming, outgoing), DependencyService.getInstance().getIncidentDependencies(selected));
+		DependencyService.getInstance().remove(incoming, this, true);
+		assertEquals(0, selected.getPredecessorList().size());
+		assertEquals(1, selected.getSuccessorList().size());
+		assertSame(outgoing, selected.getSuccessorList().iterator().next());
+	}
+
 	private static Project createProject(String name) {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool(name, undoController);

@@ -280,15 +280,20 @@ public class DependencyService {
 				continue;
 			if (ClassUtils.isObjectReadOnly(temp))
 				continue;
-			HasDependencies task = (HasDependencies) temp;
-			java.util.List<Dependency> incident = new java.util.ArrayList<Dependency>();
-			for (java.util.Iterator<?> it = task.getPredecessorList().iterator(); it.hasNext(); )
-				incident.add((Dependency) it.next());
-			for (java.util.Iterator<?> it = task.getSuccessorList().iterator(); it.hasNext(); )
-				incident.add((Dependency) it.next());
-			for (Dependency d : incident)
+			for (Dependency d : getIncidentDependencies((HasDependencies) temp))
 				remove(d, eventSource, true);
 		}
+	}
+
+	/** Returns a stable snapshot of every dependency touching the supplied task. */
+	public java.util.List<Dependency> getIncidentDependencies(HasDependencies task) {
+		java.util.List<Dependency> incident = new java.util.ArrayList<Dependency>();
+		if (task == null) return incident;
+		for (java.util.Iterator<?> it = task.getPredecessorList().iterator(); it.hasNext(); )
+			incident.add((Dependency) it.next());
+		for (java.util.Iterator<?> it = task.getSuccessorList().iterator(); it.hasNext(); )
+			incident.add((Dependency) it.next());
+		return incident;
 	}
 	public void removeAnyDependencies(HasDependencies first, HasDependencies second, Object eventSource) {
 		Dependency dependency;

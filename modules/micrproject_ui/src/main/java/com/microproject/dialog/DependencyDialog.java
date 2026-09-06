@@ -135,7 +135,7 @@ public class DependencyDialog extends AbstractDialog {
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout(
-				"50dlu,3dlu,50dlu,3dlu,50dlu,3dlu,50dlu", // cols
+			"50dlu,3dlu,50dlu,3dlu,50dlu,3dlu,50dlu,3dlu,50dlu", // cols; the lag field is placed in the ninth column
 				"p,3dlu,p,3dlu,p,3dlu,p,3dlu"); // rows
 
 		// Create a builder that assists in adding components to the container.

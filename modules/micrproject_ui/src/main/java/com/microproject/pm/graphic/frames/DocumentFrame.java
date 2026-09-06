@@ -40,6 +40,8 @@ import java.util.ListIterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.swing.JOptionPane;
+
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.SwingUtilities;
 import javax.swing.event.UndoableEditEvent;
@@ -106,6 +108,9 @@ import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.HasCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.HasDependencies;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Portfolio;
 import com.microproject.pm.task.Project;
@@ -113,6 +118,7 @@ import com.microproject.pm.task.ProjectEvent;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.ProjectListener;
 import com.microproject.pm.task.Task;
+import com.microproject.strings.Messages;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.session.LoadOptions;
 import com.microproject.undo.UndoController;
@@ -551,10 +557,42 @@ public class DocumentFrame extends NamedFrame implements
 		}
 
 
-		DependencyService.getInstance().removeAnyDependencies(list,this);
+		if (list.size() == 1 && list.get(0) instanceof HasDependencies && !java.awt.GraphicsEnvironment.isHeadless()) {
+			List<Dependency> incident = DependencyService.getInstance()
+				.getIncidentDependencies((HasDependencies) list.get(0));
+			if (incident.size() > 1) {
+				Dependency selected = chooseDependencyToUnlink(incident);
+				if (selected == null) {
+					getGraphicManager().traceUi("unlink cancelled reason=dependency-not-selected");
+					return;
+				}
+				DependencyService.getInstance().remove(selected, this, true);
+			} else {
+				DependencyService.getInstance().removeAnyDependencies(list, this);
+			}
+		} else {
+			DependencyService.getInstance().removeAnyDependencies(list,this);
+		}
 		getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
 		getGraphicManager().traceUi("unlink complete selectedTasks=" + taskNodes.size()
 				+ " dependencies=" + dependencyCount(list) + " undo=" + canUndoState() + " redo=" + canRedoState());
+	}
+
+	private Dependency chooseDependencyToUnlink(List<Dependency> dependencies) {
+		Object[] choices = new Object[dependencies.size()];
+		for (int i = 0; i < dependencies.size(); i++) {
+			Dependency dependency = dependencies.get(i);
+			choices[i] = dependency.getQualifiedPredecessorName() + " → "
+				+ dependency.getQualifiedSuccessorName() + " ("
+				+ DependencyType.toLongString(dependency.getDependencyType()) + ")";
+		}
+		Object selected = JOptionPane.showInputDialog(this,
+			Messages.getString("UnlinkDialog.SelectDependency"),
+			Messages.getString("UnlinkDialog.Title"), JOptionPane.PLAIN_MESSAGE, null, choices, choices[0]);
+		if (selected == null) return null;
+		for (int i = 0; i < choices.length; i++)
+			if (choices[i].equals(selected)) return dependencies.get(i);
+		return null;
 	}
 	public void doUndoRedo(boolean isUndo) {
 		if (!isActive())
