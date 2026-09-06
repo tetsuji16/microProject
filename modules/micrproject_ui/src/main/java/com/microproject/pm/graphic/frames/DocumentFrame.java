@@ -37,6 +37,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.JRadioButtonMenuItem;
@@ -159,6 +160,7 @@ public class DocumentFrame extends NamedFrame implements
 	MenuActionsMap actionsMap = null;
 	BaseView activeTopView = null;
 	BaseView activeBottomView = null;
+	private CalendarViewDialogBox calendarViewDialog;
 
 	// keep state of pushed buttons so i can reset them when a view is reactivated
 	String lastTopButton = null;
@@ -458,8 +460,22 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	void doCalendarViewDialog() {
+		if (!SwingUtilities.isEventDispatchThread()) {
+			SwingUtilities.invokeLater(this::doCalendarViewDialog);
+			return;
+		}
 		finishAnyOperations();
-		new CalendarViewDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
+		try {
+			if (calendarViewDialog == null || !calendarViewDialog.isDisplayable())
+				calendarViewDialog = new CalendarViewDialogBox(getGraphicManager().getFrame(), project);
+			calendarViewDialog.setLocationRelativeTo(getGraphicManager().getFrame());
+			calendarViewDialog.setVisible(true);
+			calendarViewDialog.toFront();
+			calendarViewDialog.requestFocus();
+		} catch (RuntimeException exception) {
+			logger.log(Level.WARNING, "Calendar view could not be displayed", exception);
+			Alert.error(exception.getMessage(), this);
+		}
 	}
 
 	void doCustomReportDialog() {
@@ -1457,6 +1473,10 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void cleanUp() {
 		logger.fine("Document Frame Cleanup");
+		if (calendarViewDialog != null) {
+			calendarViewDialog.dispose();
+			calendarViewDialog = null;
+		}
 		if (project != null) {
 			project.removeProjectListener(this);
 			project.removeObjectListener(this);
@@ -1653,6 +1673,10 @@ public class DocumentFrame extends NamedFrame implements
 
 	public BaseView getActiveBottomView() {
 		return activeBottomView;
+	}
+
+	CalendarViewDialogBox getCalendarViewDialog() {
+		return calendarViewDialog;
 	}
 
 	public BaseView getActiveTopView() {

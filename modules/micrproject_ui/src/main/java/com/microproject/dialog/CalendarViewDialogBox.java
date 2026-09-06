@@ -100,6 +100,16 @@ public final class CalendarViewDialogBox extends JDialog {
 		canvas.repaint();
 	}
 
+	/** Returns the number of task cards rendered during the latest repaint. */
+	public int getVisibleTaskCardCount() {
+		return canvas.cards.size();
+	}
+
+	/** Returns the month currently shown by the calendar navigation. */
+	public String getDisplayedMonth() {
+		return monthLabel.getText();
+	}
+
 	private final class CalendarCanvas extends JPanel {
 		private static final long serialVersionUID = 1L;
 		private static final int HEADER = 34;

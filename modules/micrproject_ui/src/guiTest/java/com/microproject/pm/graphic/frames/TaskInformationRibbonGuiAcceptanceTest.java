@@ -28,6 +28,8 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.JComponent;
+import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +37,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.TaskInformationDialog;
+import com.microproject.dialog.CalendarViewDialogBox;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.assignment.TimesheetEntryPane;
 import com.microproject.exchange.MpoFileImporter;
@@ -214,6 +217,67 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() == null
 			&& manager.getCurrentFrame().getMainView().getBottomComponent() == null,
 			"No Subwindow did not close the bottom view after a Robot click");
+	}
+
+	@Test
+	void robotCalendarCommandOpensUsableCalendarDialog() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
+			"calendar test window did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ViewRibbonTask.title"));
+		click(robot, boundsOnScreen(viewTab));
+		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		AbstractButton calendarButton = findShowingButtonByCommand("RibbonCalendarView");
+		click(robot, boundsOnScreen(calendarButton));
+
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
+			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(),
+			"Calendar command did not show CalendarViewDialogBox");
+		CalendarViewDialogBox dialog = manager.getCurrentFrame().getCalendarViewDialog();
+		assertTrue(dialog.getWidth() >= 900 && dialog.getHeight() >= 600,
+			"calendar dialog must honor its minimum usable size");
+		JScrollPane scrollPane = UiComponentWalker.flatten(dialog).stream()
+			.filter(JScrollPane.class::isInstance).map(JScrollPane.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("calendar canvas scroll pane is missing"));
+		JComponent canvas = (JComponent) scrollPane.getViewport().getView();
+		assertTrue(canvas.getWidth() > 0 && canvas.getHeight() > 0,
+			"calendar canvas must have positive display bounds");
+		int[] cardCount = new int[1];
+		String[] displayedMonth = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			cardCount[0] = dialog.getVisibleTaskCardCount();
+			displayedMonth[0] = dialog.getDisplayedMonth();
+		});
+		assertTrue(cardCount[0] > 0, "task fixture must render at least one calendar card");
+		AbstractButton[] navigation = UiComponentWalker.flatten(dialog).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(AbstractButton::isShowing).toArray(AbstractButton[]::new);
+		assertTrue(navigation.length >= 3, "calendar must show previous, today, and next controls");
+		click(robot, boundsOnScreen(navigation[0]));
+		GuiAcceptanceSupport.await(() -> dialog.isShowing() && !displayedMonth[0].equals(readDisplayedMonth(dialog)),
+			"previous-month navigation must keep the calendar dialog visible and change its month");
+	}
+
+	private static String readDisplayedMonth(CalendarViewDialogBox dialog) {
+		String[] value = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> value[0] = dialog.getDisplayedMonth());
+		} catch (Exception exception) {
+			throw new AssertionError("could not read calendar month", exception);
+		}
+		return value[0];
 	}
 
 	@Test
