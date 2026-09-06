@@ -25,6 +25,7 @@
 package com.microproject.dialog;
 
 import java.awt.Frame;
+import java.awt.Dimension;
 import java.util.Collection;
 
 import javax.swing.JComponent;
@@ -73,6 +74,7 @@ public class ProjectInformationDialog extends InformationDialog {
 		
 		tabbedPane= new JTabbedPane();
 		FlatUiSupport.styleTabbedPane(tabbedPane);
+		tabbedPane.setMinimumSize(new Dimension(700, 420));
 		tabbedPane.addTab(Messages.getString("ProjectInformationDialog.General"),createGeneralPanel()); //$NON-NLS-1$
 		tabbedPane.addTab(Messages.getString("ProjectInformationDialog.Statistics"),createStatisticsPanel()); //$NON-NLS-1$
 		tabbedPane.addTab(Messages.getString("ProjectInformationDialog.Notes"), createNotesPanel()); //$NON-NLS-1$
@@ -237,4 +239,3 @@ public class ProjectInformationDialog extends InformationDialog {
 	}
 
 }
-

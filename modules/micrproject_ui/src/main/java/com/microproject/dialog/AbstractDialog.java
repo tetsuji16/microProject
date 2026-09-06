@@ -181,6 +181,12 @@ public abstract class AbstractDialog extends JDialog {
 	}
 
 	protected void initComponents() {
+		// pack() can be requested again after a dialog is reused or resized.  Do
+		// not leave the previous content/button panels installed: duplicate
+		// BorderLayout children are silently replaced or collapsed by Swing, which
+		// presents as an empty dialog on the second display.
+		if (contentPanel != null || buttonPanel != null)
+			clearComponents();
 		contentPanel = createContentPanel();
 		buttonPanel = createButtonPanel();
         getContentPane().setLayout(new BorderLayout());
@@ -230,9 +236,17 @@ public abstract class AbstractDialog extends JDialog {
 		});
     }
     
-		protected JComponent getHelpButton() {
+	protected JComponent getHelpButton() {
 	    	if (help  == null) {
-				help= new JButton(MenuManager.getMenuString("Help.text"));//,IconManager.getIcon("menu24.help"));
+				String helpText;
+				try {
+					helpText = MenuManager.getMenuString("Help.text");
+				} catch (RuntimeException unavailableMenuResources) {
+					// Dialogs are also created by isolated tests and startup recovery
+					// before the ribbon menu bundles are initialized.
+					helpText = Messages.getString("ButtonText.Help");
+				}
+				help= new JButton(helpText);//,IconManager.getIcon("menu24.help"));
 				FlatUiSupport.styleDialogButton((JButton) help, false);
 
 				help.addMouseListener(new MouseAdapter() {
