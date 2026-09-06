@@ -33,7 +33,10 @@ import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
@@ -130,8 +133,43 @@ final class OfficeChromePanel extends JPanel {
 		header.setBackground(CHROME_BACKGROUND);
 		header.setPreferredSize(new Dimension(0, FlatUiSupport.ribbonChromeHeight()));
 		header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, FlatUiSupport.ribbonTopLineColor()));
-		header.add(buildHeaderContent(), BorderLayout.CENTER);
+		JComponent content = buildHeaderContent();
+		header.add(content, BorderLayout.CENTER);
+		installWindowDragHandler(content);
 		return header;
+	}
+
+	/** Makes the non-interactive portion of the custom title row move the frame. */
+	private void installWindowDragHandler(JComponent content) {
+		if (frame == null) return;
+		MouseAdapter dragHandler = new MouseAdapter() {
+			private Point pressPoint;
+			private Point framePoint;
+
+			@Override public void mousePressed(MouseEvent event) {
+				if (!SwingUtilities.isLeftMouseButton(event)) return;
+				pressPoint = event.getLocationOnScreen();
+				framePoint = frame.getLocation();
+			}
+
+			@Override public void mouseDragged(MouseEvent event) {
+				if (pressPoint == null || framePoint == null) return;
+				Point currentPoint = event.getLocationOnScreen();
+				frame.setLocation(framePoint.x + currentPoint.x - pressPoint.x,
+					framePoint.y + currentPoint.y - pressPoint.y);
+			}
+
+			@Override public void mouseReleased(MouseEvent event) {
+				pressPoint = null;
+				framePoint = null;
+			}
+		};
+		content.addMouseListener(dragHandler);
+		content.addMouseMotionListener(dragHandler);
+		// The document title is a child label, so parent mouse listeners do not
+		// receive events when the user starts dragging directly on the title.
+		documentTitleLabel.addMouseListener(dragHandler);
+		documentTitleLabel.addMouseMotionListener(dragHandler);
 	}
 
 	private JComponent buildHeaderContent() {
