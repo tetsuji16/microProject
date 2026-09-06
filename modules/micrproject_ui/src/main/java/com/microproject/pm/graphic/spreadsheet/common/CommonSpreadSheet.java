@@ -25,9 +25,12 @@
 package com.microproject.pm.graphic.spreadsheet.common;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.InputMethodEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -53,6 +56,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JComponent;
 import javax.swing.JTextField;
+import javax.swing.Timer;
 import javax.swing.JViewport;
 import javax.swing.InputMap;
 import javax.swing.KeyStroke;
@@ -118,6 +122,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	public static final String TASK_CATEGORY="taskSpreadsheet";
 	private static final String COMMIT_AND_MOVE_DOWN_ACTION = "spreadsheet.commitAndMoveDown";
 	private static final String COMPOSITION_PROPERTY = "projectlibre.input.composing";
+	private static final int RECONVERSION_FOCUS_TIMEOUT_MILLIS = 1000;
 
 	protected SpreadSheetSelectionModel selection;
 	protected String spreadSheetCategory = null;
@@ -129,6 +134,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	private PendingUndoSelection pendingUndoSelection;
 	private boolean inputMethodEditingSessionActive;
 	private final StringBuilder pendingReceivedText = new StringBuilder();
+	private long editingGeneration;
 	private boolean headerColumnSelectionActive;
 	private boolean rowHeaderSelectionActive;
 
@@ -386,7 +392,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return;
 		startEditingAtTarget(target, new StartEditEvent(this, false, null, false, false), text -> {
 			text.selectAll();
-			requestReconversion(text);
+			requestReconversion(text, editingGeneration);
 		});
 	}
 
@@ -514,7 +520,42 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	// Text initialization helpers
 	// ---------------------------------------------------------------------
 
-	private void requestReconversion(JTextComponent text) {
+	private void requestReconversion(JTextComponent text, long generation) {
+		if (text == null)
+			return;
+		requestEditorFocus();
+		if (isCurrentReconversionTarget(text, generation)
+				&& KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == text) {
+			reconvert(text);
+			return;
+		}
+
+		final Timer[] timeout = new Timer[1];
+		FocusAdapter focusListener = new FocusAdapter() {
+			@Override
+			public void focusGained(FocusEvent event) {
+				text.removeFocusListener(this);
+				if (timeout[0] != null)
+					timeout[0].stop();
+				if (isCurrentReconversionTarget(text, generation))
+					reconvert(text);
+			}
+		};
+		timeout[0] = new Timer(RECONVERSION_FOCUS_TIMEOUT_MILLIS, event -> {
+			text.removeFocusListener(focusListener);
+			((Timer) event.getSource()).stop();
+		});
+		text.addFocusListener(focusListener);
+		timeout[0].setRepeats(false);
+		timeout[0].start();
+		text.requestFocusInWindow();
+	}
+
+	private boolean isCurrentReconversionTarget(JTextComponent text, long generation) {
+		return generation == editingGeneration && isEditing() && getEditorTextComponent() == text;
+	}
+
+	private void reconvert(JTextComponent text) {
 		try {
 			InputContext inputContext = text.getInputContext();
 			if (inputContext != null)
@@ -1020,14 +1061,21 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			if (node != null && !CollaborationHelper.tryLockObject(null, node, this, "edit")) {
 				return false;
     		}
-    	}
+		}
+		editingGeneration++;
 		var editingStarted = super.editCellAt(row, column, e);
     	if (editingStarted && editorComp != null) {
 //    		System.out.println("editing cell at " + row + " " + column);
     		configureEditorComponentAfterStart(row, column, e);
     	}
-    	return editingStarted;
-    }
+		return editingStarted;
+	}
+
+	@Override
+	public void removeEditor() {
+		editingGeneration++;
+		super.removeEditor();
+	}
 
 	private void configureEditorComponentAfterStart(int row, int column, EventObject e) {
 		Component component;
