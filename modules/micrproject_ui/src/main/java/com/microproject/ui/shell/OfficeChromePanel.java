@@ -35,7 +35,6 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
-import java.beans.PropertyChangeListener;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
@@ -62,7 +61,6 @@ final class OfficeChromePanel extends JPanel {
 	static final String AUTO_SAVE_NAME = "officeChromeAutoSave";
 	static final String SEARCH_BOX_NAME = "officeChromeSearchBox";
 	static final String SEARCH_FIELD_NAME = "officeChromeSearchField";
-	static final String DOCUMENT_TITLE_NAME = "officeChromeDocumentTitle";
 	static final String QUICK_ACCESS_NAME = "officeChromeQuickAccess";
 	static final String RIGHT_ACTIONS_NAME = "officeChromeRightActions";
 	static final String HELP_BUTTON_NAME = "officeChromeHelpButton";
@@ -82,7 +80,6 @@ final class OfficeChromePanel extends JPanel {
 	private final MenuManager menuManager;
 	private final Runnable helpAction;
 	private final JTextField searchField;
-	private final JLabel documentTitleLabel;
 	private final AutoSaveControl autoSaveControl;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
@@ -100,16 +97,11 @@ final class OfficeChromePanel extends JPanel {
 		this.helpAction = helpAction;
 		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
 		this.searchField = new JTextField(28);
-		this.documentTitleLabel = createDocumentTitleLabel(frame == null ? "" : frame.getTitle());
 		setName(NAME);
 		setOpaque(true);
 		setBackground(CHROME_BACKGROUND);
 		add(buildHeader(), BorderLayout.NORTH);
 		add(ribbonPanel, BorderLayout.CENTER);
-		if (frame != null) {
-			PropertyChangeListener titleListener = event -> updateDocumentTitle((String) event.getNewValue());
-			frame.addPropertyChangeListener("title", titleListener);
-		}
 	}
 
 	private JComponent buildHeader() {
@@ -131,7 +123,6 @@ final class OfficeChromePanel extends JPanel {
 				// the window, making the right buttons unreachable.
 				boolean compact = getWidth() < 640;
 				if (getComponentCount() > 1) getComponent(1).setVisible(!compact);
-				documentTitleLabel.setVisible(!compact);
 				super.doLayout();
 			}
 		};
@@ -189,9 +180,6 @@ final class OfficeChromePanel extends JPanel {
 		cluster.add(createActionButton("RibbonTopBarUndo"), constraints);
 		constraints.gridx++;
 		cluster.add(createActionButton("RibbonTopBarRedo"), constraints);
-		constraints.gridx++;
-		constraints.insets = new Insets(0, 12, 0, 0);
-		cluster.add(documentTitleLabel, constraints);
 		return cluster;
 	}
 
@@ -229,29 +217,6 @@ final class OfficeChromePanel extends JPanel {
 		constraints.insets = new Insets(0, 0, 0, 0);
 		cluster.add(createWindowButtonsPlaceholder(), constraints);
 		return cluster;
-	}
-
-	private JLabel createDocumentTitleLabel(String title) {
-		JLabel label = createLabel(compactDocumentTitle(title), TEXT_COLOR);
-		label.setName(DOCUMENT_TITLE_NAME);
-		label.setToolTipText(title);
-		label.setPreferredSize(new Dimension(220, 22));
-		label.setMinimumSize(new Dimension(80, 22));
-		label.setMaximumSize(new Dimension(240, 22));
-		return label;
-	}
-
-	private void updateDocumentTitle(String title) {
-		documentTitleLabel.setText(compactDocumentTitle(title));
-		documentTitleLabel.setToolTipText(title);
-	}
-
-	static String compactDocumentTitle(String title) {
-		if (title == null || title.isBlank()) {
-			return "ProjectLibre";
-		}
-		int separator = Math.max(title.lastIndexOf('\\'), title.lastIndexOf('/'));
-		return separator >= 0 ? title.substring(separator + 1) : title;
 	}
 
 	private JComponent createWindowButtonsPlaceholder() {

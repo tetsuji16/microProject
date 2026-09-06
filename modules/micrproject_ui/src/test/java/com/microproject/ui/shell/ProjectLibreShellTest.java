@@ -87,15 +87,7 @@ class ProjectLibreShellTest {
 		assertTrue(hasComponent(panel, OfficeChromePanel.APPLICATION_ICON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
-		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME));
-	}
-
-	@Test
-	void compactDocumentTitleKeepsTheFileNameAndModifiedMarker() {
-		assertEquals("Commercial construction project plan2.pod *",
-			OfficeChromePanel.compactDocumentTitle("C:\\projects\\Commercial construction project plan2.pod *"));
-		assertEquals("ProjectLibre", OfficeChromePanel.compactDocumentTitle(""));
 	}
 
 	@Test
