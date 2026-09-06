@@ -68,7 +68,7 @@ public class XlsxSupportTest extends TestCase {
 	}
 
 	public void testCollaborationDoesNotRecognizeMpp() {
-		assertFalse(CollaborationMetadataStore.isCollaborationCandidate("plan.mpp"));
+		assertFalse(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.mpp"));
 	}
 
 	public void testMspImporterCanReadMpp() throws Exception {
@@ -95,8 +95,8 @@ public class XlsxSupportTest extends TestCase {
 		assertEquals(FileHelper.MSP_FILE_TYPE, FileHelper.getFileType("plan.xlsx"));
 	}
 
-	public void testCollaborationRecognizesXlsx() {
-		assertTrue(CollaborationMetadataStore.isCollaborationCandidate("plan.xlsx"));
+	public void testCollaborationDoesNotRecognizeXlsx() {
+		assertFalse(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.xlsx"));
 	}
 
 	public void testProjectWriterFactorySupportsXlsx() throws Exception {

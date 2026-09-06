@@ -38,7 +38,7 @@ public final class ProjectLoadWorkflow {
 		options.setFileName(fileName);
 		options.setLocal(true);
 		options.setSync(false);
-		options.setCollaborationEnabled(CollaborationMetadataStore.isCollaborationCandidate(fileName));
+		options.setCollaborationEnabled(CollaborationMetadataStore.isMpoCollaborationCandidate(fileName));
 		options.setCollaborationUserKey(collaborationUserKey);
 		if (options.isCollaborationEnabled()) {
 			options.setSidecarFileName(CollaborationMetadataStore.buildSidecarFile(new File(fileName)).getAbsolutePath());

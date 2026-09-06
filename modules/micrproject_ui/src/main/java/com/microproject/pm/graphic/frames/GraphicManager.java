@@ -914,7 +914,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		}
 		String fileName = project.getFileName();
-		if (!CollaborationMetadataStore.isCollaborationCandidate(fileName)) {
+		if (!CollaborationMetadataStore.isMpoCollaborationCandidate(fileName)) {
 			return;
 		}
 		if (project.getCollaborationSession() != null) {

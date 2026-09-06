@@ -103,7 +103,7 @@ public class CollaborationSession {
 	}
 
 	public static CollaborationSession create(Project project, String fileName, String userKey) {
-		if (project == null || fileName == null || !CollaborationMetadataStore.isCollaborationCandidate(fileName)) {
+		if (project == null || fileName == null || !CollaborationMetadataStore.isMpoCollaborationCandidate(fileName)) {
 			return null;
 		}
 		File sidecarFile = CollaborationMetadataStore.buildSidecarFile(new File(fileName));

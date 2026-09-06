@@ -61,12 +61,21 @@ public class CollaborationMetadataStore {
 		this.lockFile = buildLockFile(sidecarFile);
 	}
 
-	public static boolean isCollaborationCandidate(String fileName) {
+	public static boolean isMpoCollaborationCandidate(String fileName) {
 		if (fileName == null) {
 			return false;
 		}
 		String lower = fileName.toLowerCase(Locale.ROOT);
-		return lower.endsWith(".pod") || lower.endsWith(".mpo") || lower.endsWith(".xml") || lower.endsWith(".xlsx");
+		return lower.endsWith(".mpo");
+	}
+
+	/**
+	 * Compatibility alias for callers compiled against the previous API.  The
+	 * collaboration policy itself is defined only by the MPO predicate above.
+	 */
+	@Deprecated
+	public static boolean isCollaborationCandidate(String fileName) {
+		return isMpoCollaborationCandidate(fileName);
 	}
 
 	public static File buildSidecarFile(File projectFile) {

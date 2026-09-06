@@ -7,7 +7,9 @@ package com.microproject.collaboration;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -21,6 +23,15 @@ import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 
 class CollaborationMetadataStoreTest {
+	@Test
+	void onlyMpoFilesAreCollaborationCandidates() {
+		assertTrue(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.mpo"));
+		assertTrue(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.MPO"));
+		assertFalse(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.pod"));
+		assertFalse(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.xml"));
+		assertFalse(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.xlsx"));
+	}
+
 	@Test
 	void malformedSidecarIsNeverReplacedDuringCloudSync() throws Exception {
 		Path project = Files.createTempFile("mpo-collaboration", ".mpo");

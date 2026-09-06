@@ -35,14 +35,23 @@ import com.microproject.session.LoadOptions;
 
 class ProjectLoadWorkflowTest {
 	@Test
-	void preparesLoadOptionsForProjectLibreCollaborationFile() {
-		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions("sample.pod", true, "alice");
+	void preparesLoadOptionsForMpoCollaborationFile() {
+		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions("sample.MPO", true, "alice");
 
-		assertEquals("sample.pod", options.getFileName());
-		assertEquals(LocalSession.LOCAL_PROJECT_IMPORTER, options.getImporter());
+		assertEquals("sample.MPO", options.getFileName());
+		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
 		assertTrue(options.isCollaborationEnabled());
 		assertEquals("alice", options.getCollaborationUserKey());
 		assertTrue(options.getSidecarFileName().endsWith(".projectlibre-sync.json"));
+	}
+
+	@Test
+	void legacyAndExchangeFormatsDoNotEnableCollaboration() {
+		for (String fileName : new String[] { "sample.pod", "sample.POD", "sample.xml", "sample.xlsx" }) {
+			LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions(fileName, true, "alice");
+			assertFalse(options.isCollaborationEnabled(), fileName);
+			assertEquals(null, options.getSidecarFileName(), fileName);
+		}
 	}
 
 	@Test
