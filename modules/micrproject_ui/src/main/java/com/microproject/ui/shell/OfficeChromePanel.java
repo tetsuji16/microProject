@@ -49,9 +49,15 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingConstants;
+import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 
+import com.formdev.flatlaf.icons.FlatWindowCloseIcon;
+import com.formdev.flatlaf.icons.FlatWindowIconifyIcon;
+import com.formdev.flatlaf.icons.FlatWindowMaximizeIcon;
+import com.formdev.flatlaf.icons.FlatWindowRestoreIcon;
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.dialog.UsabilityStrings;
@@ -67,6 +73,9 @@ final class OfficeChromePanel extends JPanel {
 	static final String RIGHT_ACTIONS_NAME = "officeChromeRightActions";
 	static final String HELP_BUTTON_NAME = "officeChromeHelpButton";
 	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
+	static final String MINIMIZE_BUTTON_NAME = "officeChromeMinimizeButton";
+	static final String MAXIMIZE_BUTTON_NAME = "officeChromeMaximizeButton";
+	static final String CLOSE_BUTTON_NAME = "officeChromeCloseButton";
 
 	private static final Color CHROME_BACKGROUND = FlatUiSupport.ribbonChromeBackground();
 	private static final Color BORDER_COLOR = FlatUiSupport.ribbonSurfaceBorderColor();
@@ -86,6 +95,9 @@ final class OfficeChromePanel extends JPanel {
 	private final JLabel documentTitleLabel;
 	private final AutoSaveControl autoSaveControl;
 	private final OfficeChromeTitleBinding titleBinding;
+	private JButton minimizeButton;
+	private JButton maximizeButton;
+	private JButton closeButton;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
 		this(null, menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
@@ -240,29 +252,83 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private JComponent createWindowButtons() {
-		JPanel buttons = new JPanel(new GridBagLayout());
+		JPanel buttons = new JPanel(null);
 		buttons.setOpaque(false);
 		buttons.setName(WINDOW_BUTTONS_PLACEHOLDER_NAME);
-		buttons.add(createWindowButton("—", "Minimize", () -> frame.setState(Frame.ICONIFIED)));
-		buttons.add(createWindowButton("□", "Maximize", () -> {
+		Dimension windowButtonsSize = new Dimension(84, 24);
+		buttons.setMinimumSize(windowButtonsSize);
+		buttons.setPreferredSize(windowButtonsSize);
+		buttons.setMaximumSize(windowButtonsSize);
+		minimizeButton = createWindowButton("TitlePane.iconifyIcon", MINIMIZE_BUTTON_NAME, "Minimize",
+			() -> frame.setState(Frame.ICONIFIED));
+		maximizeButton = createWindowButton("TitlePane.maximizeIcon", MAXIMIZE_BUTTON_NAME, "Maximize", () -> {
 			int state = frame.getExtendedState();
-			frame.setExtendedState((state & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH
-				? Frame.NORMAL : Frame.MAXIMIZED_BOTH);
-		}));
-		buttons.add(createWindowButton("×", "Close", () -> frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING))));
+			boolean maximized = (state & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+			frame.setExtendedState(maximized ? Frame.NORMAL : Frame.MAXIMIZED_BOTH);
+		});
+		maximizeButton.addActionListener(event -> {
+			boolean maximizedNow = (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+			maximizeButton.setIcon(resolveWindowIcon(maximizedNow ? "TitlePane.restoreIcon" : "TitlePane.maximizeIcon"));
+			maximizeButton.setToolTipText(maximizedNow ? "Restore" : "Maximize");
+		});
+		closeButton = createWindowButton("TitlePane.closeIcon", CLOSE_BUTTON_NAME, "Close",
+			() -> frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING)));
+		buttons.add(minimizeButton);
+		buttons.add(maximizeButton);
+		buttons.add(closeButton);
+		minimizeButton.setBounds(0, 0, 28, 24);
+		maximizeButton.setBounds(28, 0, 28, 24);
+		closeButton.setBounds(56, 0, 28, 24);
 		return buttons;
 	}
 
-	private JButton createWindowButton(String text, String tooltip, Runnable action) {
-		JButton button = new JButton(text);
+	@Override
+	public void addNotify() {
+		super.addNotify();
+		if (frame != null) {
+			SwingUtilities.invokeLater(this::refreshWindowButtonIcons);
+			Timer iconRefresh = new Timer(250, event -> refreshWindowButtonIcons());
+			iconRefresh.setRepeats(false);
+			iconRefresh.start();
+		}
+	}
+
+	private void refreshWindowButtonIcons() {
+		if (minimizeButton == null) {
+			return;
+		}
+		minimizeButton.setIcon(resolveWindowIcon("TitlePane.iconifyIcon"));
+		boolean maximized = (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+		maximizeButton.setIcon(resolveWindowIcon(maximized ? "TitlePane.restoreIcon" : "TitlePane.maximizeIcon"));
+		maximizeButton.setToolTipText(maximized ? "Restore" : "Maximize");
+		closeButton.setIcon(resolveWindowIcon("TitlePane.closeIcon"));
+	}
+
+	private Icon resolveWindowIcon(String iconKey) {
+		return switch (iconKey) {
+			case "TitlePane.iconifyIcon" -> new FlatWindowIconifyIcon();
+			case "TitlePane.maximizeIcon" -> new FlatWindowMaximizeIcon();
+			case "TitlePane.restoreIcon" -> new FlatWindowRestoreIcon();
+			case "TitlePane.closeIcon" -> new FlatWindowCloseIcon();
+			default -> null;
+		};
+	}
+
+	private JButton createWindowButton(String iconKey, String name, String tooltip, Runnable action) {
+		JButton button = new JButton();
+		button.setName(name);
 		button.setToolTipText(tooltip);
+		button.getAccessibleContext().setAccessibleName(tooltip);
 		button.setFocusable(false);
 		button.setBorderPainted(false);
 		button.setContentAreaFilled(false);
 		button.setPreferredSize(new Dimension(28, 24));
+		button.setMinimumSize(new Dimension(28, 24));
+		button.setMaximumSize(new Dimension(28, 24));
 		button.addActionListener(event -> action.run());
 		return button;
 	}
+
 
 	private JComponent createWindowButtonsPlaceholder() {
 		JPanel placeholder = new JPanel();
