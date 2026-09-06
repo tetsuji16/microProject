@@ -209,6 +209,33 @@ class RibbonTabGuiAcceptanceTest {
 			"collapsed RibbonHideSelectedTasks did not dispatch");
 	}
 
+	@Test
+	void fullyCollapsedRibbonKeepsLauncherIconAndCommandsReachable() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		show(host, 700, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
+			.getString("FileRibbonTask.title"));
+		click(robot, tab);
+		GuiAcceptanceSupport.await(tab::isSelected, "File ribbon tab was not selected at collapsed width");
+		AbstractButton launcher = UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(AbstractButton::isShowing)
+			.filter(button -> button.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY) instanceof JPopupMenu)
+			.findFirst().orElseThrow(() -> new AssertionError("fully collapsed ribbon launcher is missing"));
+		assertTrue(launcher.getIcon() != null, "fully collapsed ribbon launcher lost its identifying icon");
+		JPopupMenu popup = (JPopupMenu)launcher.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+		assertTrue(popup.getComponentCount() > 0, "fully collapsed ribbon launcher has no commands");
+		clickCommand(robot, launcher);
+		GuiAcceptanceSupport.await(popup::isVisible, "fully collapsed ribbon launcher did not open by mouse click");
+	}
+
 	private void show(JPanel host) throws Exception {
 		show(host, 1200, false);
 	}

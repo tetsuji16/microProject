@@ -259,4 +259,5 @@
 - #464 英語全GUI高DPI回帰（2026-09-06）: 英語125%／150%の`:micrproject_ui:guiTest --max-workers=1`全体（各BUILD SUCCESSFUL、約2分）を実行。今回のダイアログ共通レイアウト変更について日英100/125/150%の全体GUI回帰が成功。コマンド固有の意味論監査は継続。
 - #464 初期化順序・詳細タブ回帰（2026-09-06）: 全体GUI実行ログで`DocumentFrame.setComboBoxesViewName`の未初期化`FilterToolBarManager` NPEと、詳細タブの固定90dlu列によるJComboBox横切れ（160px割当／preferred 192px）を実検出。null初期化経路を安全化し、詳細列を`max(90dlu;pref)`へ変更。Task Information／クロスプロジェクト依存関係の同時実Robot 16ケースがBUILD SUCCESSFUL。全GUIスイートは後続ケースの完走確認を継続。
 - #464 GUI環境入力回帰（2026-09-06）: `guiTestLocale`／`guiTestUiScale`をGradle `guiTest`の入力プロパティとして宣言。英語150%実行後に日本語150%を実行してもUP-TO-DATEでスキップされず、Task Information実Robotケースが両方BUILD SUCCESSFUL。
+- #464 縮退リボン表示回帰（2026-09-06）: 700px相当の狭幅Robotケースを追加し、全体縮退時も「ファイル …」ランチャーへ先頭コマンドのアイコンが表示され、物理クリックでコマンドポップアップを開けることを確認。日本語100%／150%の新ケースがBUILD SUCCESSFUL。150%の既存1200px全タブ直接クリックケースは画面幅前提のため別テスト基盤課題として扱う。
 - U-20内容不変条件強化（2026-09-06）: usage viewの受入fixtureに実リソースを追加し、物理Ribbonクリック後のTask/Resource Usageモデル行数を `> 0` と検査。従来の常に真となる `>= 0` 判定を除去し、focused U-20 GUIと`:micrproject_ui:test`がBUILD SUCCESSFUL。

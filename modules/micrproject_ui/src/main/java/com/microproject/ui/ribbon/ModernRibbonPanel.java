@@ -581,7 +581,16 @@ public final class ModernRibbonPanel extends JPanel {
 		JButton trigger = new JButton(tabTitle(tab) + " …");
 		trigger.setFocusable(false);
 		trigger.setToolTipText(tabTitle(tab));
-		FlatUiSupport.styleRibbonSmallButton(trigger);
+		// The collapsed tab is the only visible command surface below the compact
+		// breakpoint.  Keep it identifiable as a ribbon launcher instead of
+		// presenting a text-only button in a large blank surface.
+		tab.getBands().stream()
+			.flatMap(band -> band.getButtons().stream())
+			.map(SwingRibbonModel.RibbonButton::getIconKey)
+			.filter(iconKey -> iconKey != null && !iconKey.isBlank())
+			.findFirst()
+			.ifPresent(iconKey -> trigger.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, iconKey));
+		buttonStyler.styleActionButton(trigger, "small");
 		trigger.setHorizontalAlignment(SwingConstants.CENTER);
 		trigger.setPreferredSize(new Dimension(160, FlatUiSupport.ribbonInlineButtonHeight()));
 		JPopupMenu popup = new JPopupMenu();
