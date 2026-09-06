@@ -28,4 +28,14 @@ public interface HasExpenseType {
 	int getExpenseType();
 	void setExpenseType(int expenseType);
 	int getEffectiveExpenseType(); // for inheriting
+
+	/** Type-safe view of the persisted expense type code. */
+	default ExpenseType.Kind getExpenseKind() {
+		return ExpenseType.Kind.fromCode(getExpenseType());
+	}
+
+	/** Updates the persisted expense type using a type-safe enum value. */
+	default void setExpenseKind(ExpenseType.Kind expenseType) {
+		setExpenseType(java.util.Objects.requireNonNull(expenseType, "expenseType").code());
+	}
 }

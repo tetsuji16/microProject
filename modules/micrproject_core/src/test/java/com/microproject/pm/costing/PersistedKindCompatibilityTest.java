@@ -53,4 +53,18 @@ class PersistedKindCompatibilityTest {
 		assertThrows(IllegalArgumentException.class, () -> DependencyType.Kind.fromCode(99));
 		assertThrows(IllegalArgumentException.class, () -> ConstraintType.Kind.fromCode(99));
 	}
+
+	@Test
+	void expenseTypeOwnerExposesTypeSafeCompatibilityMethods() {
+		int[] stored = { ExpenseType.Kind.NONE.code() };
+		HasExpenseType owner = new HasExpenseType() {
+			@Override public int getExpenseType() { return stored[0]; }
+			@Override public void setExpenseType(int expenseType) { stored[0] = expenseType; }
+			@Override public int getEffectiveExpenseType() { return stored[0]; }
+		};
+
+		owner.setExpenseKind(ExpenseType.Kind.INDIRECT);
+		assertEquals(ExpenseType.Kind.INDIRECT, owner.getExpenseKind());
+		assertEquals(ExpenseType.Kind.INDIRECT.code(), owner.getExpenseType());
+	}
 }
