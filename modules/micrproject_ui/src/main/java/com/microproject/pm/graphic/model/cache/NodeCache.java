@@ -48,7 +48,7 @@ public class NodeCache extends CellCache {
 	public void updateVisibleElements(Set updates){
 	    //dumpVoids();
 	    VisibleNodes v;
-	    HashSet u=new HashSet();
+	    HashSet u=new HashSet(updates == null ? 0 : updates.size());
 	    for (Iterator i=visibleElements.iterator();i.hasNext();){
 	        v=(VisibleNodes)i.next();
 	        u.clear();

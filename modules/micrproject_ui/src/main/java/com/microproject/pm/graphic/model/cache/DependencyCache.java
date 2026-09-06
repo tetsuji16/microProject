@@ -70,9 +70,9 @@ public class DependencyCache extends CellCache {
 	}
 	public void updateVisibleElements(VisibleDependencies v,Set change){
 	    ArrayList visibleNodes =v.getVisibleNodes().getElements();
-	    ArrayList removed = new ArrayList();
+		ArrayList removed = new ArrayList();
 		ArrayList inserted = new ArrayList();
-		ArrayList changed = new ArrayList();
+		ArrayList changed = new ArrayList(change == null ? 0 : change.size());
 		changed.addAll(change);
         updateVisibleElements(v.getElements(),visibleNodes,removed,inserted,changed);
 		if (removed.size()>0) v.addEvent(new CacheEvent(this,CacheEvent.NODES_REMOVED,removed,null));
@@ -148,4 +148,3 @@ public class DependencyCache extends CellCache {
 	
 	
 }
-
