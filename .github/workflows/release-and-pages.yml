@@ -115,11 +115,18 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\gradlew.bat generateUpdateConfiguration --console=plain
+          .\gradlew.bat generateUpdateConfiguration "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $version = '${{ steps.version.outputs.release_version }}'
           $manifest = Get-ChildItem -Path build/releases -Recurse -File -Filter configuration.xml | Select-Object -First 1
           if ($null -eq $manifest) { throw 'The signed update configuration was not produced.' }
+          $manifestText = Get-Content -Raw -Path $manifest.FullName
+          if ($manifestText -notmatch [regex]::Escape("releases/download/v$version/")) {
+            throw "The signed update configuration does not target release v$version."
+          }
+          if ($manifestText -notmatch [regex]::Escape("microProject-$version-")) {
+            throw "The signed update configuration does not contain assets for release v$version."
+          }
           Copy-Item $manifest.FullName 'release-assets/configuration.xml'
 
       - name: Report update signing configuration
