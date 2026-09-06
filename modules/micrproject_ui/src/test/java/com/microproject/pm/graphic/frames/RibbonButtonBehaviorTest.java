@@ -370,6 +370,24 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void trackingGanttSwitchPreservesTheTaskTableColumns() throws Exception {
+		Harness harness = newHarness();
+		ArrayList columnsBefore = harness.frame.getGanttView().getSpreadSheet().getFieldArray();
+
+		activateView(harness, MenuActionConstants.ACTION_TRACKING_GANTT);
+
+		assertSame(columnsBefore, harness.frame.getGanttView().getSpreadSheet().getFieldArray(),
+			"Tracking Gantt must not replace the task table column layout");
+		assertTrue(harness.frame.getGanttView().isTracking());
+
+		activateView(harness, MenuActionConstants.ACTION_GANTT);
+
+		assertSame(columnsBefore, harness.frame.getGanttView().getSpreadSheet().getFieldArray(),
+			"Returning to Gantt must keep the task table column layout");
+		assertFalse(harness.frame.getGanttView().isTracking());
+	}
+
+	@Test
 	void bottomViewTransitionsKeepComponentAndRibbonStateInSync() throws Exception {
 		Harness harness = newHarness();
 

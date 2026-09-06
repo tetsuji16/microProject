@@ -4808,7 +4808,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * @return
 	 */
 	public static SpreadSheetFieldArray getCurrentFieldArray() {
-		return (SpreadSheetFieldArray) getDocumentFrameInstance().getGanttView().getSpreadSheet().getFieldArrayWithWidths(getDocumentFrameInstance().getGanttColumns());
+		return (SpreadSheetFieldArray) getDocumentFrameInstance().getGanttView().getSpreadSheet().getFieldArrayWithWidths(null);
 	}
 	public static void setCurrentFieldArray(Object fieldArray) {
 		getDocumentFrameInstance().getGanttView().getSpreadSheet().setFieldArrayWithWidths((SpreadSheetFieldArray)fieldArray);

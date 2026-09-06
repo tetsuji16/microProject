@@ -157,7 +157,6 @@ public class DocumentFrame extends NamedFrame implements
 	protected BaseView reportView;
 	// Column selection belongs to this document frame.  Keeping it static leaks
 	// one document's tracking layout into every other open document.
-	private ArrayList ganttColumns;
 	private FindDialog findDialog = null;
 	protected CoordinatesConverter coord;
 	protected Project project;
@@ -1133,20 +1132,13 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public void activateGanttView() {
-		if (ganttColumns != null)
-			getGanttView().setColumns(ganttColumns);
 		getGanttView().setBarStyles("standard");
 		getGanttView().setTracking(false);
 		activateTopView(getGanttView(),ACTION_GANTT);
 	}
-
-	public ArrayList getGanttColumns() {
-		return ganttColumns;
-	}
 	public void activateTrackingGanttView() {
 		getGanttView().setBarStyles("Tracking");
 		getGanttView().setTracking(true);
-		ganttColumns = getGanttView().setColumns("Spreadsheet.Task.tracking");
 		activateTopView(getGanttView(),ACTION_TRACKING_GANTT);
 	}
 
