@@ -1856,15 +1856,26 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	protected SpreadSheetAction newAction=new SpreadSheetAction("Spreadsheet.Action.new",this){
 		public void execute(){
+			// Capture the node identity before finishing an editor.  Finishing the
+			// editor and inserting a row can shift JTable row indices; using the
+			// post-insert selected row makes repeated Insert commands drift.
+			List<Node> selectedNodes = new ArrayList<>(getSelectedNodes());
+			Node currentRowAnchor = selectedNodes.isEmpty() ? getCurrentRowNode() : null;
 			finishCurrentOperations();
-			List<GraphicNode> nodes = getSelected();
-			if (nodes == null || nodes.isEmpty()) {
-				int row = getCurrentRow();
-				if (row == -1)
+			for (int i = selectedNodes.size() - 1; i >= 0; i--) {
+				Node anchor = selectedNodes.get(i);
+				if (anchor == null)
+					continue;
+				Node inserted = getCache().newNodeBefore(anchor);
+				if (inserted != null) {
+					restoreTaskRowSelection(List.of(anchor));
 					return;
-				getCache().newNode((GraphicNode) getCache().getElementAt(row));
-			} else {
-				getCache().newNode(nodes);
+				}
+			}
+			if (currentRowAnchor != null) {
+				Node inserted = getCache().newNodeBefore(currentRowAnchor);
+				if (inserted != null)
+					restoreTaskRowSelection(List.of(currentRowAnchor));
 			}
 		}
 	};

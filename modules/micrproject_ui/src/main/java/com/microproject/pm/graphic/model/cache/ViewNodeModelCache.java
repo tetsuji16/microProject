@@ -293,6 +293,16 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		getModel().newNode(parent,index,NodeModel.NORMAL);
 	}
 
+	@Override
+	public Node newNodeBefore(Node node) {
+		if (!isNodeEligibleForNew(node) || !isAllowedAction(node, false))
+			return null;
+		Node parent = getModel().getParent(node);
+		if (parent == null)
+			return null;
+		return getModel().newNode(parent, parent.getIndex(node), NodeModel.NORMAL);
+	}
+
 	public void newNode(List nodes) {
 		if (nodes == null || nodes.isEmpty()) {
 			return;

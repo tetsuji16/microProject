@@ -83,6 +83,8 @@ public interface NodeModelCache extends TreeModel{
 	public void expandNodes(List nodes, boolean expand);
 	
 	public void newNode(GraphicNode node);
+	/** Inserts and returns a new empty node immediately before the stable task node. */
+	public Node newNodeBefore(Node node);
 	public void newNode(List nodes);
 	
 	public void deleteNodes(List nodes);

@@ -29,6 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Enumeration;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
@@ -84,6 +88,40 @@ class CommonSpreadSheetAddNodeCommitTest {
 		SwingUtilities.invokeAndWait(undoController::undo);
 
 		assertEquals(taskCountBefore[0], project.getTasks().size());
+	}
+
+	@Test
+	void repeatedInsertUsesTheStableSelectedTaskAsAnchor() throws Exception {
+		final DataFactoryUndoController undoController = new DataFactoryUndoController();
+		final Project project = createProject(undoController);
+		NormalTask[] tasks = new NormalTask[4];
+		for (int i = 0; i < tasks.length; i++)
+			tasks[i] = createTask(project, String.valueOf((char) ('A' + i)));
+
+		SwingUtilities.invokeAndWait(() -> {
+			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+				"repeated-insert-test", null);
+			Node anchor = (Node) project.getTaskModel().search(tasks[2]);
+			for (int i = 0; i < 3; i++)
+				assertNotNull(cache.newNodeBefore(anchor));
+		});
+
+		List<String> names = taskNames(project);
+		assertEquals(Arrays.asList("A", "B", "", "", "", "C", "D"), names.subList(0, 7));
+	}
+
+	private List<String> taskNames(Project project) {
+		List<String> names = new ArrayList<>();
+		Node root = (Node) project.getTaskModel().getRoot();
+		for (Enumeration<?> children = root.children(); children.hasMoreElements();) {
+			Node node = (Node) children.nextElement();
+			if (node.getImpl() instanceof com.microproject.pm.task.Task task)
+				names.add(task.getName());
+			else
+				names.add("");
+		}
+		return names;
 	}
 
 	private Project createProject(DataFactoryUndoController undoController) {

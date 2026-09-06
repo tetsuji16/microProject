@@ -2314,7 +2314,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			// its view is already visible.  Do not drop an Insert command during that
 			// activation transition; the project writability check remains authoritative.
 			if (frame != null && !frame.getProject().isReadOnly()) {
-				finishAnyOperations();
 				frame.addNodeForImpl(null);
 			}
 		}
