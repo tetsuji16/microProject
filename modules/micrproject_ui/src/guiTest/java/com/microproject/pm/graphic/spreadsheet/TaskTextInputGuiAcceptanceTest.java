@@ -28,6 +28,7 @@ import javax.swing.text.JTextComponent;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -35,6 +36,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
@@ -86,6 +88,34 @@ class TaskTextInputGuiAcceptanceTest {
 		assertEquals("Untouched", fixture.otherTask.getName(), "editing one row must not change its neighbor");
 	}
 
+	@Test
+	void robotResourceNameInputCreatesAndAssignsAnUnregisteredResource() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture();
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		activateWindow(fixture);
+		int resourceNamesColumn = findResourceNamesColumn(fixture.sheet);
+		clickCell(robot, fixture, resourceNamesColumn);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isFocusOwner(), "spreadsheet did not receive focus");
+
+		SwingUtilities.invokeAndWait(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().dispatchEvent(
+			new KeyEvent(fixture.sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_F2, KeyEvent.CHAR_UNDEFINED)));
+		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 must start Resource Names editing");
+		SwingUtilities.invokeAndWait(() -> {
+			JTextComponent editor = (JTextComponent) fixture.sheet.getEditorComponent();
+			editor.setText("Aiko");
+			assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "Resource Names editor rejected a new resource");
+		});
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing() && fixture.task.getAssignments().size() == 1,
+			"new Resource Names input did not create an assignment");
+
+		assertEquals("Aiko", fixture.task.getResourceNames());
+		assertEquals(1, fixture.pool.getResourceList().size());
+		assertEquals("Aiko", ((Assignment) fixture.task.getAssignments().getFirst()).getResource().getName());
+	}
+
 	private void showFixture(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Task text input GUI acceptance");
@@ -113,10 +143,14 @@ class TaskTextInputGuiAcceptanceTest {
 	}
 
 	private static void clickCell(Robot robot, Fixture fixture) throws Exception {
+		clickCell(robot, fixture, fixture.nameColumn);
+	}
+
+	private static void clickCell(Robot robot, Fixture fixture, int column) throws Exception {
 		final Rectangle[] cell = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.changeSelection(fixture.taskRow, fixture.nameColumn, false, false);
-			Rectangle bounds = fixture.sheet.getCellRect(fixture.taskRow, fixture.nameColumn, true);
+			fixture.sheet.changeSelection(fixture.taskRow, column, false, false);
+			Rectangle bounds = fixture.sheet.getCellRect(fixture.taskRow, column, true);
 			Point location = fixture.sheet.getLocationOnScreen();
 			cell[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
@@ -144,7 +178,7 @@ class TaskTextInputGuiAcceptanceTest {
 			Node taskNode = (Node) cache.getModel().search(task);
 			int taskRow = ((SpreadSheetModel) sheet.getModel()).findGraphicNodeRow(cache.getGraphicNode(taskNode));
 			int nameColumn = findNameColumn(sheet);
-			result[0] = new Fixture(sheet, task, otherTask, taskRow, nameColumn);
+			result[0] = new Fixture(sheet, task, otherTask, resourcePool, taskRow, nameColumn);
 		});
 		return result[0];
 	}
@@ -159,5 +193,15 @@ class TaskTextInputGuiAcceptanceTest {
 		throw new IllegalArgumentException("Missing task name column");
 	}
 
-	private record Fixture(SpreadSheet sheet, NormalTask task, NormalTask otherTask, int taskRow, int nameColumn) { }
+	private static int findResourceNamesColumn(SpreadSheet sheet) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int modelColumn = 0; modelColumn < model.getColumnCount(); modelColumn++) {
+			Field field = model.getFieldInColumn(modelColumn);
+			if (field != null && "Field.resourceNames".equals(field.getId()))
+				return sheet.convertColumnIndexToView(modelColumn);
+		}
+		throw new IllegalArgumentException("Missing Resource Names column");
+	}
+
+	private record Fixture(SpreadSheet sheet, NormalTask task, NormalTask otherTask, ResourcePool pool, int taskRow, int nameColumn) { }
 }

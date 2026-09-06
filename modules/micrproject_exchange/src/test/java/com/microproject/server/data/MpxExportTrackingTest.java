@@ -26,9 +26,15 @@ package com.microproject.server.data;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import com.microproject.exchange.MicrosoftImporter;
+import com.microproject.job.Job;
+import com.microproject.job.JobQueue;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.costing.Accrual;
@@ -41,6 +47,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.SchedulingType;
+import com.microproject.session.SessionFactory;
 import com.microproject.undo.DataFactoryUndoController;
 
 import junit.framework.TestCase;
@@ -49,6 +56,27 @@ import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.TaskMode;
 
 public class MpxExportTrackingTest extends TestCase {
+	public void testMicrosoftExportJobReportsCompletionForEmptyProject() throws Exception {
+		JobQueue queue = new JobQueue("microsoft-export-progress", false);
+		SessionFactory.getInstance().setJobQueue(queue);
+		Project project = createProject();
+		Path output = Files.createTempFile("microproject-empty-export-", ".xml");
+		Files.deleteIfExists(output);
+
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName(output.toString());
+		exporter.setProject(project);
+		Job job = exporter.getExportFileJob();
+		CountDownLatch completed = new CountDownLatch(1);
+		job.addCompletionRunnable(completed::countDown);
+		job.execute();
+
+		assertTrue("empty-project export job did not complete", completed.await(15, TimeUnit.SECONDS));
+		assertEquals(1.0f, job.getProgress(), 0.00001f);
+		assertTrue("empty-project export did not create a file", Files.size(output) > 0L);
+		Files.deleteIfExists(output);
+	}
+
 	public void testTaskTrackingModesAndActualsAreExported() {
 		NormalTask source = createTask();
 		source.setManuallyScheduled(true);

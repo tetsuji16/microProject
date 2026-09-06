@@ -480,6 +480,7 @@ public class MicrosoftImporter extends ServerFileImporter{
     	job.addRunnable(new JobRunnable("Local: export",1.0f){ //$NON-NLS-1$
     		public Object run() throws Exception{
 				exportFile();
+				setProgress(1.0f);
     			return null;
     		}
     	});

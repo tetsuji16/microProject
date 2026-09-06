@@ -96,6 +96,12 @@ public class AssignmentFormat extends AssociationFormat {
 					throw new ParseException(getErrorMessage(string), pos.getIndex());	
 				try {
 					parameters.getIdField().setText(found,matcher.group(1),null);
+					// A resource entered in the task-sheet Resource Names field is a
+					// real local work resource, not merely an assignment placeholder.
+					// The generic field setter does not populate Resource.name for a
+					// newly created resource, so preserve the typed name explicitly.
+					if (found instanceof Resource resource && "Field.name".equals(parameters.getIdField().getId()))
+						resource.setName(matcher.group(1));
 				} catch (FieldParseException e) {
 					throw new ParseException(e.getMessage(), pos.getIndex());
 				}
@@ -171,7 +177,7 @@ public class AssignmentFormat extends AssociationFormat {
 
 	protected Object createNewObject(boolean left) {
 		if (left)
-			return ((Task) parameters.getThisObject()).getProject().getResourcePool().newResourceInstance();
+			return ((Task) parameters.getThisObject()).getProject().getResourcePool().createScriptedResource();
 		throw new IllegalArgumentException("Assignment parsing for the right side is not supported");
 	}
 	

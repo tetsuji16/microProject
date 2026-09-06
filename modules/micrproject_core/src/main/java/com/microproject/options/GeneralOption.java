@@ -42,7 +42,14 @@ public class GeneralOption {
 		super();
 	}
 	
-	private boolean automaticallyAddNewResourcesAndTasks = false;
+	/*
+	 * Microsoft Project lets a user type a previously unseen person directly in
+	 * the task-sheet Resource Names field.  Keep that low-friction entry path
+	 * available by default; AssignmentFormat creates the local work resource and
+	 * assigns it as one user edit.  Users can still turn the legacy combined
+	 * option off when they need strict name validation.
+	 */
+	private boolean automaticallyAddNewResourcesAndTasks = true;
 	private double defaultStandardRate = 0.0D;
 	private double defaultOvertimeRate = 0.0D;
 	private boolean startWithBlankProject = false;
