@@ -100,7 +100,6 @@ public final class WelcomeDialog extends AbstractDialog {
 	JButton manageResources;
 	JList<RecentProjectStore.Entry> recentProjects;
 	JComboBox<String> templateChoice;
-	JCheckBox restoreSession;
 	private final RecentProjectStore recentStore = new RecentProjectStore();
 
 	protected boolean bind(boolean get) {
@@ -157,9 +156,6 @@ public final class WelcomeDialog extends AbstractDialog {
 			UsabilityStrings.text("welcome.template.software"),
 			UsabilityStrings.text("welcome.template.construction")
 		});
-		restoreSession = new JCheckBox(UsabilityStrings.text("welcome.restore"), recentStore.isRestoreSessionEnabled());
-		restoreSession.addActionListener(event -> recentStore.setRestoreSessionEnabled(restoreSession.isSelected()));
-		
 		HelpUtil.addDocHelp(createProject,"Creating_a_Project");
 		HelpUtil.addDocHelp(manageResources,"Managing_your_resource_pool");
 		
@@ -203,7 +199,7 @@ public final class WelcomeDialog extends AbstractDialog {
 		JPanel template = new JPanel(new BorderLayout(4, 4)); template.add(new JLabel(UsabilityStrings.text("welcome.template")), BorderLayout.NORTH); template.add(templateChoice, BorderLayout.CENTER);
 		JButton createTemplate = new JButton(UsabilityStrings.text("welcome.createTemplate"));
 		createTemplate.addActionListener(event -> { createProject.setSelected(false); openProject.setSelected(false); manageResources.setSelected(false); form.templateId = switch (templateChoice.getSelectedIndex()) { case 1 -> "software"; case 2 -> "construction"; default -> "basic"; }; onOk(); });
-		template.add(createTemplate, BorderLayout.SOUTH); start.add(template); start.add(restoreSession);
+		template.add(createTemplate, BorderLayout.SOUTH); start.add(template);
 		builder.add(start, BorderLayout.WEST);
 		JPanel recent = new JPanel(new BorderLayout(4, 4)); recent.add(new JLabel(UsabilityStrings.text("welcome.recent")), BorderLayout.NORTH);
 		recentProjects.setVisibleRowCount(9);

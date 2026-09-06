@@ -890,7 +890,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		frameList.add(frame);
 		frameMap.put(project, frame);
 		if (project.getFileName() != null) recentProjectStore.recordOpened(project.getFileName());
-		updateStoredSession();
 
 		// clear filter/grouping/sort for newly opened or created project
 		if (!Environment.isPlugin()) SwingUtilities.invokeLater( new Runnable() {
@@ -1058,7 +1057,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 		}
-		if (!quitting) updateStoredSession();
 		setAllButResourceDisabled(false);
 		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,true); // no matter what, you can open a project after closing, since if you closed resource pool you can open after
 		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,true);
@@ -1188,33 +1186,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
-	public boolean restorePreviousSessionAtStartup() {
-		if (!recentProjectStore.isRestoreSessionEnabled()) return false;
-		List<java.nio.file.Path> files = recentProjectStore.session();
-		if (files.isEmpty()) return false;
-		showDocumentRibbon();
-		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), java.text.MessageFormat.format(UsabilityStrings.text("session.prompt"), files.size()), UsabilityStrings.text("session.title"), JOptionPane.YES_NO_OPTION);
-		if (choice != JOptionPane.YES_OPTION) return false;
-		boolean opened = false;
-		for (java.nio.file.Path file : files) opened |= loadLocalDocument(file.toString(), false);
-		return opened;
-	}
-
 	/**
 	 * Keeps startup and document-open dialogs above the normal ribbon. The File
 	 * tab uses the same ribbon surface as every other tab.
 	 */
 	private void showDocumentRibbon() {
 		if (container instanceof MainRibbonFrame ribbonFrame) ribbonFrame.showProjectRibbon();
-	}
-
-	private void updateStoredSession() {
-		List<String> files = new ArrayList<>();
-		for (Object value : frameList) {
-			if (value instanceof DocumentFrame documentFrame && documentFrame.getProject().getFileName() != null)
-				files.add(documentFrame.getProject().getFileName());
-		}
-		recentProjectStore.saveSession(files);
 	}
 
 	public boolean doNewProjectDialog() {
@@ -3084,7 +3061,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	public void closeApplication(){
 		addHistory("closeApplication");
-		updateStoredSession();
 		quitting = true;
 //		if (Environment.getStandAlone()) {
 //			Frame frame=getFrame();
@@ -3314,7 +3290,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
 					autoRecoveryManager.discard(savedProject);
 					recentProjectStore.recordOpened(savedProject.getFileName());
-					updateStoredSession();
 					if (saveAsRequested) {
 						frame.setId(savedProject.getUniqueId()+""); //$NON-NLS-1$
 					}
@@ -3388,7 +3363,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
 					autoRecoveryManager.discard(savedProject);
 					recentProjectStore.recordOpened(savedProject.getFileName());
-					updateStoredSession();
 					if (collaborationEnabled && savedProject.getCollaborationSession() != null) {
 						savedProject.getCollaborationSession().afterSave();
 					}
@@ -4924,7 +4898,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public boolean quitApplication() throws Exception{
-		updateStoredSession();
 		quitting = true;
 		for (Object frameObj : new ArrayList(frameList)) {
 			if (frameObj instanceof DocumentFrame) {

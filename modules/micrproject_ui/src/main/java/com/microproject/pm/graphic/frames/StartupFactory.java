@@ -429,9 +429,6 @@ public abstract class StartupFactory {
 						if (gm.offerRecoveryAtStartup()) {
 							return;
 						}
-						if (gm.restorePreviousSessionAtStartup()) {
-							return;
-						}
 						if (welcome&&!Environment.isPlugin()) {
 							if (!Environment.isProjectLibre()) {
 								if (Environment.isNeedToRestart())
