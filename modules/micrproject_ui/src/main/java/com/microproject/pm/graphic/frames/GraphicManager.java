@@ -1786,6 +1786,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	/** Executes an external ribbon route and records its dispatch outcome. */
 	protected final RibbonCommandResult executeExternalRibbonCommand(String commandId, Runnable command) {
+		Objects.requireNonNull(command, "command");
 		if (!beforeExternalRoute(commandId)) {
 			RibbonCommandResult result = RibbonCommandResult.rejected(commandId, "route-rejected");
 			recordRibbonCommandResult(result);
@@ -2056,8 +2057,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("newMasterProject")) return;
-			doNewMasterProjectDialog();
+			executeExternalRibbonCommand("newMasterProject", GraphicManager.this::doNewMasterProjectDialog);
 		}
 		protected boolean allowed(boolean enable) {
 			DocumentFrame dframe = getCurrentFrame();
@@ -2070,9 +2070,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("openProject")) return;
-			if (Environment.getStandAlone()) openLocalProject();
-			else doOpenProjectDialog();
+			executeExternalRibbonCommand("openProject", () -> {
+				if (Environment.getStandAlone()) openLocalProject();
+				else doOpenProjectDialog();
+			});
 		}
 		protected boolean allowed(boolean enable){
 			DocumentFrame dframe = getCurrentFrame();
@@ -2104,8 +2105,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("insertProject")) return;
-			doInsertProjectDialog();
+			executeExternalRibbonCommand("insertProject", GraphicManager.this::doInsertProjectDialog);
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2125,16 +2125,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("openProject")) return;
-			openLocalProject();		}
+			executeExternalRibbonCommand("openProject", GraphicManager.this::openLocalProject);		}
 	}
 
 	public class ExportMSProjectAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("saveAsProject")) return;
-			saveLocalProject(true);		}
+			executeExternalRibbonCommand("saveAsProject", () -> saveLocalProject(true));		}
 	}
 
 	public class AboutAction extends MenuActionsMap.GlobalMenuAction {
@@ -2148,8 +2146,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("projectLibre")) return;
-			BrowserControl.displayURL(UiLinkTargets.PROJECT_HOME);
+			executeExternalRibbonCommand("projectLibre",
+				() -> BrowserControl.displayURL(UiLinkTargets.PROJECT_HOME));
 		}
 	}
 
@@ -2376,10 +2374,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("saveProject")) return;
-			if (Environment.getStandAlone()) saveLocalProject(false);
-			else{
-				if (isDocumentActive()) {
+			executeExternalRibbonCommand("saveProject", () -> {
+				if (Environment.getStandAlone()) saveLocalProject(false);
+				else if (isDocumentActive()) {
 					final DocumentFrame frame=getCurrentFrame();
 					final Project project = frame.getProject();
 					SaveOptions opt=new SaveOptions();
@@ -2391,7 +2388,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					addHistory("saveProject", new Object[]{project.getName(),project.getUniqueId()});
 					projectFactory.saveProject(project,opt);
 				}
-			}
+			});
 
 		}
 		protected boolean allowed(boolean enable) {
@@ -2408,10 +2405,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("saveAsProject")) return;
-			if (Environment.getStandAlone()) saveLocalProject(true);
-			else{
-				if (isDocumentActive()) {
+			executeExternalRibbonCommand("saveAsProject", () -> {
+				if (Environment.getStandAlone()) saveLocalProject(true);
+				else if (isDocumentActive()) {
 					final DocumentFrame frame=getCurrentFrame();
 					final Project project = frame.getProject();
 					SaveOptions opt=new SaveOptions();
@@ -2424,7 +2420,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					opt.setPreSaving(getSavingClosure());
 					projectFactory.saveProject(project,opt);
 				}
-			}
+			});
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2444,25 +2440,25 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("print")) return;
-			if (isDocumentActive())
-				print();
+			executeExternalRibbonCommand("print", () -> {
+				if (isDocumentActive()) print();
+			});
 		}
 	}
 	public class PrintPreviewAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("printPreview")) return;
-			if (isDocumentActive()) {
-				Component c = (Component)arg0.getSource();
-				Cursor cur = c.getCursor();
-				c.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-				printPreview();
-				c.setCursor(cur);
-
-			}
-			}
+			executeExternalRibbonCommand("printPreview", () -> {
+				if (isDocumentActive()) {
+					Component c = (Component)arg0.getSource();
+					Cursor cur = c.getCursor();
+					c.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+					printPreview();
+					c.setCursor(cur);
+				}
+			});
+		}
 	}
 	public class PDFAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
@@ -2473,14 +2469,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //				return;
 //			}
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("pdf")) return;
-			if (isDocumentActive()) {
-				Component c = (Component)arg0.getSource();
-				Cursor cur = c.getCursor();
-				c.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-				savePDF();
-				c.setCursor(cur);
-			}
+			executeExternalRibbonCommand("pdf", () -> {
+				if (isDocumentActive()) {
+					Component c = (Component)arg0.getSource();
+					Cursor cur = c.getCursor();
+					c.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+					savePDF();
+					c.setCursor(cur);
+				}
+			});
 		}
 	}
 
@@ -2488,9 +2485,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("closeProject")) return;
-			if (isDocumentActive())
-				closeProject(getCurrentFrame().getProject());
+			executeExternalRibbonCommand("closeProject", () -> {
+				if (isDocumentActive()) closeProject(getCurrentFrame().getProject());
+			});
 		}
 	}
 
@@ -3248,8 +3245,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		@Override public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("saveMpoAs")) return;
-			if (isDocumentActive()) saveMasterAsMpo();
+			executeExternalRibbonCommand("saveMpoAs", () -> {
+				if (isDocumentActive()) saveMasterAsMpo();
+			});
 		}
 		@Override protected boolean allowed(boolean enable) {
 			if (!enable) return true;
@@ -4129,7 +4127,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,currentFrame != null);
 
 
-		boolean insertProject = getCurrentFrame().isCurrentRowInMainProject();
+		boolean insertProject = currentFrame != null && project != null && currentFrame.isCurrentRowInMainProject();
 
 
 //			taskType && (!notVoid || currentImpl == null || ((Task)currentImpl).getOwningProject() == null || ((Task)currentImpl).getOwningProject() == project);

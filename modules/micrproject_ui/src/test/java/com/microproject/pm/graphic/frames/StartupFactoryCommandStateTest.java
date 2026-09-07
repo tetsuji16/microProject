@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -37,6 +38,13 @@ import org.junit.jupiter.api.Test;
 import com.microproject.menu.MenuManager;
 
 class StartupFactoryCommandStateTest {
+	@Test
+	void buttonStateRefreshIsSafeBeforeTheFirstDocumentExists() {
+		GraphicManager graphicManager = new GraphicManager(new JPanel());
+
+		assertDoesNotThrow(() -> graphicManager.setButtonState(null, null));
+	}
+
 	@Test
 	void successfulLoginRestoresGlobalFileCommandsAfterStartupGate() {
 		GraphicManager graphicManager = new GraphicManager(new JPanel());

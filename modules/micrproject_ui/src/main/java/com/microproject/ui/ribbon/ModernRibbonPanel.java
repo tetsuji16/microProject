@@ -135,7 +135,6 @@ public final class ModernRibbonPanel extends JPanel {
 	private final Map<String, JPanel> tabBodies;
 	private final Map<String, Integer> tabBodyBuildWidths;
 	private final Map<String, JToggleButton> tabButtons;
-	private final Map<String, javax.swing.Action> commandActions = new LinkedHashMap<>();
 	private final RibbonButtonStyler buttonStyler;
 	private final Map<String, Integer> bandHeights;
 	private final java.util.Set<String> visibleContextualTabs = new LinkedHashSet<>();
@@ -925,7 +924,6 @@ public final class ModernRibbonPanel extends JPanel {
 		}
 		button.setAlignmentY(Component.TOP_ALIGNMENT);
 		button.setActionCommand(buttonId);
-		if (button.getAction() != null) commandActions.putIfAbsent(buttonId, button.getAction());
 		if (specification.getIconKey() != null) {
 			button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, specification.getIconKey());
 		}
