@@ -110,6 +110,11 @@ class RibbonTabGuiAcceptanceTest {
 		}
 	}
 
+	/**
+	 * Wiring-only sweep.  Production command semantics are covered separately by
+	 * RibbonExternalCommandGuiAcceptanceTest, which uses a real GraphicManager
+	 * instead of this recording ActionMap.
+	 */
 	@Test
 	void robotClicksEveryStandardRibbonCommandOnce() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
@@ -208,7 +213,8 @@ class RibbonTabGuiAcceptanceTest {
 	@Test
 	void fileTabUsesTheSameRibbonSurfaceAsDocumentTabs() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
-		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		RecordingActionMap actions = new RecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Ribbon startup");
@@ -226,8 +232,14 @@ class RibbonTabGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			AbstractButton newProject = findAttachedButtonByCommand(host, "RibbonNewProject");
 			assertTrue(newProject.isShowing(), "File commands must remain in the shared ribbon surface");
+			assertTrue(newProject.isEnabled(), "New must be enabled on the File ribbon without a document");
 			assertTrue(host.getHeight() < 250, "File must not replace the document area with a full-window Backstage");
 		});
+		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonNewProject");
+		int before = actions.count(actionId);
+		clickCommand(robot, findAttachedButtonByCommand(host, "RibbonNewProject"));
+		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+			"Robot click did not dispatch RibbonNewProject from the File ribbon");
 	}
 
 	@Test

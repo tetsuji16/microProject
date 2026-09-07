@@ -35,17 +35,16 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 
 import com.microproject.ui.ribbon.SwingRibbonModel.CustomBandProvider;
-import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.ui.ribbon.CustomRibbonBandGenerator;
 import com.microproject.util.FlatUiSupport;
 
 public final class SwingRibbonFactory {
-	private final ExtToolBarFactory buttonFactory;
+	private final RibbonCommandSource commandSource;
 	private final ResourceBundle[] bundles;
 	private final RibbonIconRegistry iconRegistry;
 
-	public SwingRibbonFactory(ExtToolBarFactory buttonFactory, ResourceBundle... bundles) {
-		this.buttonFactory = Objects.requireNonNull(buttonFactory);
+	public SwingRibbonFactory(RibbonCommandSource commandSource, ResourceBundle... bundles) {
+		this.commandSource = Objects.requireNonNull(commandSource);
 		this.bundles = Objects.requireNonNull(bundles);
 		this.iconRegistry = new RibbonIconRegistry(bundles);
 	}
@@ -76,7 +75,7 @@ public final class SwingRibbonFactory {
 
 	public JPanel createPanel(SwingRibbonModel model, Runnable helpAction) {
 		Objects.requireNonNull(model);
-		ModernRibbonPanel panel = new ModernRibbonPanel(model, buttonFactory, bundles, helpAction);
+		ModernRibbonPanel panel = new ModernRibbonPanel(model, commandSource, bundles, helpAction);
 		panel.build();
 		JPanel host = new JPanel(new BorderLayout());
 		host.setOpaque(true);
@@ -87,11 +86,11 @@ public final class SwingRibbonFactory {
 	}
 
 	public String getActionStringFromId(String id) {
-		return buttonFactory.getActionStringFromId(id);
+		return commandSource.getActionId(id);
 	}
 
 	public List<?> getButtonsFromId(String id) {
-		return buttonFactory.getButtonsFromId(id);
+		return commandSource.getButtons(id);
 	}
 
 	private SwingRibbonModel.RibbonTab createTab(String tabId, CustomRibbonBandGenerator customBandsGenerator) {

@@ -58,7 +58,9 @@ class OfficeChromePanelVisualSmokeTest {
 		ExtToolBarFactory buttonFactory = new ExtToolBarFactory(
 			MenuActionMapSupport.noopActionMap(),
 			MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
-		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(buttonFactory, MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
+		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(
+			new com.microproject.menu.LegacyRibbonCommandSourceAdapter(buttonFactory),
+			MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
 		JPanel ribbonPanel = ribbonFactory.createPanel(MenuManager.STANDARD_RIBBON, () -> {});
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
 		panel.setSize(1024, 160);
@@ -136,7 +138,9 @@ class OfficeChromePanelVisualSmokeTest {
 		ExtToolBarFactory buttonFactory = new ExtToolBarFactory(
 			MenuActionMapSupport.noopActionMap(),
 			MenuDefinitionSupport.ribbonBundles(locale));
-		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(buttonFactory, MenuDefinitionSupport.ribbonBundles(locale));
+		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(
+			new com.microproject.menu.LegacyRibbonCommandSourceAdapter(buttonFactory),
+			MenuDefinitionSupport.ribbonBundles(locale));
 		var model = ribbonFactory.createModel(MenuManager.STANDARD_RIBBON);
 		JPanel ribbonPanel = ribbonFactory.createPanel(model, () -> {});
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});

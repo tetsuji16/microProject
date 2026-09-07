@@ -116,7 +116,8 @@ class RibbonAndToolbarButtonTest {
 	void standardRibbonBuildsAStructuredMsProjectLikeModel() throws Exception {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		SwingUtilities.invokeAndWait(() -> {
-			SwingRibbonFactory factory = new SwingRibbonFactory(manager.getToolBarFactory(), ribbonBundles(Locale.getDefault()));
+			SwingRibbonFactory factory = new SwingRibbonFactory(
+				new LegacyRibbonCommandSourceAdapter(manager.getToolBarFactory()), ribbonBundles(Locale.getDefault()));
 			SwingRibbonModel model = factory.createModel(MenuManager.STANDARD_RIBBON);
 			assertEquals(ribbonTaskIds().size(), model.getTabs().size());
 
@@ -166,7 +167,9 @@ class RibbonAndToolbarButtonTest {
 
 	@Test
 	void japaneseRibbonBandsReserveEnoughWidthForBandTitles() throws Exception {
-		SwingRibbonFactory factory = new SwingRibbonFactory(new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.JAPANESE)), ribbonBundles(Locale.JAPANESE));
+			SwingRibbonFactory factory = new SwingRibbonFactory(
+				new LegacyRibbonCommandSourceAdapter(new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.JAPANESE))),
+				ribbonBundles(Locale.JAPANESE));
 		SwingUtilities.invokeAndWait(() -> {
 			SwingRibbonModel model = factory.createModel(MenuManager.STANDARD_RIBBON);
 			for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {

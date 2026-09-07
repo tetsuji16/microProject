@@ -104,7 +104,9 @@ public class MenuManager {
 		}
 	menuFactory = new ExtMenuFactory(rootActionMap,bundles);
 	toolBarFactory = new ExtToolBarFactory(rootActionMap,bundles);
-	if (Environment.isRibbonUI()) ribbonFactory = new SwingRibbonFactory(toolBarFactory, bundles);
+	if (Environment.isRibbonUI()) {
+		ribbonFactory = new SwingRibbonFactory(new LegacyRibbonCommandSourceAdapter(toolBarFactory), bundles);
+	}
 	}
 
 	public static MenuManager getInstance(ProjectMenuActionMap rootActionMap) {

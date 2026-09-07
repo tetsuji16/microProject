@@ -67,7 +67,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
-import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.util.FlatUiSupport;
 
 public final class ModernRibbonPanel extends JPanel {
@@ -129,7 +128,7 @@ public final class ModernRibbonPanel extends JPanel {
 
 	}
 	private final SwingRibbonModel model;
-	private final ExtToolBarFactory buttonFactory;
+	private final RibbonCommandSource commandSource;
 	private final ResourceBundle[] bundles;
 	private final JPanel cards;
 	private final ButtonGroup tabGroup;
@@ -146,10 +145,10 @@ public final class ModernRibbonPanel extends JPanel {
 	private boolean rebuildingDensity;
 	private JRootPane shortcutRoot;
 
-	ModernRibbonPanel(SwingRibbonModel model, ExtToolBarFactory buttonFactory, ResourceBundle[] bundles, Runnable helpAction) {
+	ModernRibbonPanel(SwingRibbonModel model, RibbonCommandSource commandSource, ResourceBundle[] bundles, Runnable helpAction) {
 		super(new BorderLayout());
 		this.model = Objects.requireNonNull(model);
-		this.buttonFactory = Objects.requireNonNull(buttonFactory);
+		this.commandSource = Objects.requireNonNull(commandSource);
 		this.bundles = Objects.requireNonNull(bundles);
 		this.cards = new JPanel(new BorderLayout());
 		this.tabGroup = new ButtonGroup();
@@ -387,7 +386,7 @@ public final class ModernRibbonPanel extends JPanel {
 		JPanel tabBody = tabBodies.get(tabId);
 		if (tabBody == null || needsWidthAwareRebuild(tabId)) {
 			if (tabBody != null) {
-				unregisterButtons(tabBody, buttonFactory);
+				unregisterButtons(tabBody, commandSource);
 			}
 			tabBody = createTabBody(tabId);
 			tabBodies.put(tabId, tabBody);
@@ -448,20 +447,17 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	private void unregisterButtons(Iterable<? extends Component> bodies) {
-		if (!(buttonFactory instanceof com.microproject.menu.ExtToolBarFactory extFactory)) {
-			return;
-		}
 		List<AbstractButton> buttons = new ArrayList<>();
 		for (Component body : bodies) {
 			collectButtons(body, buttons);
 		}
-		extFactory.unregisterButtons(buttons);
+		commandSource.unregisterButtons(buttons);
 	}
 
-	private void unregisterButtons(Component component, com.microproject.menu.ExtToolBarFactory factory) {
+	private void unregisterButtons(Component component, RibbonCommandSource source) {
 		List<AbstractButton> buttons = new ArrayList<>();
 		collectButtons(component, buttons);
-		factory.unregisterButtons(buttons);
+		source.unregisterButtons(buttons);
 	}
 
 	private void collectButtons(Component component, List<AbstractButton> buttons) {
@@ -903,9 +899,9 @@ public final class ModernRibbonPanel extends JPanel {
 		String buttonId = specification.getId();
 		AbstractButton button;
 		try {
-			button = register || !(buttonFactory instanceof com.microproject.menu.ExtToolBarFactory extFactory)
-				? buttonFactory.createJButton(buttonId)
-				: extFactory.createUnregisteredJButton(buttonId);
+			button = register
+				? commandSource.createButton(buttonId)
+				: commandSource.createTransientButton(buttonId);
 		} catch (RuntimeException ex) {
 			throw ex;
 		} catch (Exception ex) {

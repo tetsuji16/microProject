@@ -74,6 +74,7 @@ import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.frames.workspace.NamedFrame;
 import com.microproject.pm.graphic.frames.workspace.Workspace;
 import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.ui.ribbon.RibbonCommandResult;
 
 class RibbonButtonBehaviorTest {
 	private enum Strategy {
@@ -367,6 +368,18 @@ class RibbonButtonBehaviorTest {
 		assertToggle(harness, "RibbonLabelResourceNames", true);
 		assertToggle(harness, "RibbonLabelTaskName", true);
 		assertChooser(harness, "RibbonGridlines", MenuActionConstants.ACTION_GRIDLINES);
+	}
+
+	@Test
+	void primaryExternalRibbonRoutesRecordRejectedOutcomeWhenGuardBlocksThem() throws Exception {
+		Harness harness = newHarness();
+		for (String buttonId : List.of("RibbonNewProject", "RibbonRecentProjects", "RibbonLocale",
+			"RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre")) {
+			harness.resetCalls();
+			harness.invoke(buttonId);
+			assertEquals(RibbonCommandResult.Status.REJECTED,
+				harness.manager.getLastRibbonCommandResult().status(), buttonId);
+		}
 	}
 
 	@Test

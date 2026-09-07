@@ -215,6 +215,7 @@ import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.UiLinkTargets;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.ui.ribbon.RibbonCommandResult;
 
 
 
@@ -225,6 +226,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static final Logger logger = Logger.getLogger(GraphicManager.class.getName());
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private static final boolean BINARY_WORKSPACE = true;
+	private RibbonCommandResult lastRibbonCommandResult;
 	private static GraphicManager lastGraphicManager = null; // used when displaying a popup but the frame isn't known
     private DocumentFrame currentFrame = null;
 	private List frameList=new ArrayList();
@@ -1232,7 +1234,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		addHistory("doNewProjectDialog");
 		finishAnyOperations();
 		ProjectDialog projectDialog = ProjectDialog.getInstance(getFrame(),null);
-		projectDialog.getForm().setManager(Environment.getUser().getName());
+		// Local ribbon commands are valid before a server session has installed a
+		// user (and plugin/embedded hosts may intentionally have no user).  The
+		// old unconditional dereference made the physical New button appear to do
+		// nothing because the EDT exception happened before the dialog was shown.
+		var user = Environment.getUser();
+		if (user != null)
+			projectDialog.getForm().setManager(user.getName());
 		if (!projectDialog.doModal())
 			return null; // if cancelled
 		return projectDialog.getForm();
@@ -1776,6 +1784,36 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return true;
 	}
 
+	/** Executes an external ribbon route and records its dispatch outcome. */
+	protected final RibbonCommandResult executeExternalRibbonCommand(String commandId, Runnable command) {
+		if (!beforeExternalRoute(commandId)) {
+			RibbonCommandResult result = RibbonCommandResult.rejected(commandId, "route-rejected");
+			recordRibbonCommandResult(result);
+			return result;
+		}
+		try {
+			command.run();
+			RibbonCommandResult result = RibbonCommandResult.completed(commandId);
+			recordRibbonCommandResult(result);
+			return result;
+		} catch (RuntimeException | Error failure) {
+			RibbonCommandResult result = RibbonCommandResult.failed(commandId, failure);
+			recordRibbonCommandResult(result);
+			logger.log(Level.WARNING, "UI_COMMAND_FAILURE id=" + commandId + " reason=" + result.reason(), failure);
+			throw failure;
+		}
+	}
+
+	public RibbonCommandResult getLastRibbonCommandResult() {
+		return lastRibbonCommandResult;
+	}
+
+	private void recordRibbonCommandResult(RibbonCommandResult result) {
+		lastRibbonCommandResult = result;
+		logger.fine("UI_COMMAND_RESULT id=" + result.commandId() + " status=" + result.status()
+			+ (result.reason().isEmpty() ? "" : " reason=" + result.reason()));
+	}
+
 	protected boolean beforeViewSwitchRoute(String viewId) {
 		return true;
 	}
@@ -1989,22 +2027,23 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("newProject")) return;
-			DocumentFrame current = getCurrentFrame();
-			Project project = current == null ? null : current.getProject();
-			if (project != null && project.needsSaving()) {
-				int choice = PopupDialogSupport.showConfirmDialog(getFrame(),
-					Messages.getString("Message.unsavedProject"),
-					Messages.getString("ProjectDialog.NewProject"),
-					JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-				if (choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION) return;
-				if (choice == JOptionPane.YES_OPTION) {
-					afterSaveNewProject = GraphicManager.this::doNewProjectDialog;
-					if (!saveLocalProject(false)) afterSaveNewProject = null;
-					return;
+			executeExternalRibbonCommand("newProject", () -> {
+				DocumentFrame current = getCurrentFrame();
+				Project project = current == null ? null : current.getProject();
+				if (project != null && project.needsSaving()) {
+					int choice = PopupDialogSupport.showConfirmDialog(getFrame(),
+						Messages.getString("Message.unsavedProject"),
+						Messages.getString("ProjectDialog.NewProject"),
+						JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+					if (choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION) return;
+					if (choice == JOptionPane.YES_OPTION) {
+						afterSaveNewProject = GraphicManager.this::doNewProjectDialog;
+						if (!saveLocalProject(false)) afterSaveNewProject = null;
+						return;
+					}
 				}
-			}
-			doNewProjectDialog();
+				doNewProjectDialog();
+			});
 		}
 		protected boolean allowed(boolean enable){
 			DocumentFrame dframe = getCurrentFrame();
@@ -2050,8 +2089,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("openProject")) return;
-			doRecentProjectsDialog();
+			executeExternalRibbonCommand("openProject", GraphicManager.this::doRecentProjectsDialog);
 		}
 		protected boolean allowed(boolean enable){
 			DocumentFrame dframe = getCurrentFrame();
@@ -2103,8 +2141,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("about")) return;
-			showAboutDialog();		}
+			executeExternalRibbonCommand("about", GraphicManager.this::showAboutDialog);		}
 	}
 
 	public class ProjectLibreAction extends MenuActionsMap.GlobalMenuAction {
@@ -2120,8 +2157,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeExternalRoute("help")) return;
-			showHelpDialog();		}
+			executeExternalRibbonCommand("help", GraphicManager.this::showHelpDialog);		}
 	}
 
 	public class ProjectInformationAction extends MenuActionsMap.DocumentMenuAction {
@@ -2781,12 +2817,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			showLocaleDialog();
+			executeExternalRibbonCommand("locale", GraphicManager.this::showLocaleDialog);
 		}
 	}
 
 	private void showLocaleDialog() {
-		if (!beforeExternalRoute("locale")) return;
 		Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
 		String previousLocale = pref.get("locale", "default");
 		LocaleDialog localeDialog = LocaleDialog.getInstance(getGraphicManager());
