@@ -78,6 +78,21 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
+	void newProjectCreationRegistersItsDocumentFrameBeforePortfolioEventDelivery() throws Exception {
+		List<Project> addedProjects = new ArrayList<>();
+		GraphicManager graphicManager = new GraphicManager(new JPanel()) {
+			@Override public DocumentFrame addProjectFrame(Project project) {
+				addedProjects.add(project);
+				return null;
+			}
+		};
+		Project project = allocateWithoutConstructor(Project.class);
+		graphicManager.registerNewProjectFrame(project);
+		assertEquals(1, addedProjects.size(),
+			"New must register a visible document immediately; it cannot rely only on the asynchronous portfolio event");
+	}
+
+	@Test
 	void linkAndUnlinkActionsUseActionRouteGuardsAfterTaskSelectionValidation() throws Exception {
 		List<String> routedActions = new ArrayList<>();
 		TestDocumentFrame documentFrame = allocateWithoutConstructor(TestDocumentFrame.class);

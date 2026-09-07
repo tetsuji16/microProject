@@ -51,6 +51,24 @@ class StartupFactoryCommandStateTest {
 		assertCommandsEnabled(menuManager, true);
 	}
 
+	@Test
+	void externalFileTabCommandsRemainEnabledWithoutAnOpenDocument() {
+		GraphicManager graphicManager = new GraphicManager(new JPanel());
+		MenuManager menuManager = graphicManager.getMenuManager();
+		menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+
+		graphicManager.setConnected(true);
+		for (String id : List.of("RibbonNewProject", "RibbonLocale", "RibbonProjectLibreDocumentation",
+				"RibbonAboutProjectLibre")) {
+			AbstractButton button = menuManager.getToolButtonsFromId(id).stream()
+				.map(AbstractButton.class::cast)
+				.filter(candidate -> id.equals(candidate.getActionCommand()))
+				.findFirst()
+				.orElseThrow(() -> new AssertionError(id + " was not created"));
+			assertTrue(button.isEnabled(), () -> id + " must remain enabled without a document");
+		}
+	}
+
 	private static void assertCommandsEnabled(MenuManager menuManager, boolean expected) {
 		for (String id : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject")) {
 			AbstractButton button = menuManager.getToolButtonsFromId(id).stream()

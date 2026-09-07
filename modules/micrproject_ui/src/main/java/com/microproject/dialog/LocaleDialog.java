@@ -110,7 +110,6 @@ import com.microproject.util.Alert;
 public final class LocaleDialog extends AbstractDialog {
 	private static final Logger logger = Logger.getLogger(LocaleDialog.class.getName());
 	private static final long serialVersionUID = 1L;
-
 	JComboBox<String> languageCombo;
 	JComboBox<Country> countryCombo;
 	JCheckBox externalCheckbox=new JCheckBox(Messages.getString("Text.ExternalLocaleUse"));
@@ -380,14 +379,10 @@ public final class LocaleDialog extends AbstractDialog {
 	}
 	
 	public static LocaleDialog getInstance(GraphicManager graphicManager) {
-		LocaleDialog instance =null;
-		if (instance == null) {
-			instance = new LocaleDialog(graphicManager.getFrame());
-		} else
-			instance.setTitle(Messages.getString("Text.LocaleDialog"));
-			instance.addDocHelp("Locale_Dialog");
-		
-		return instance;
+		LocaleDialog dialog = new LocaleDialog(graphicManager.getFrame());
+		dialog.setTitle(Messages.getString("Text.LocaleDialog"));
+		dialog.addDocHelp("Locale_Dialog");
+		return dialog;
 	}
 
 	private LocaleDialog(Frame owner) {

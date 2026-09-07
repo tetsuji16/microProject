@@ -1098,7 +1098,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private void showWelcomeDialog(boolean focusRecentProjects) {
-		showDocumentRibbon();
 		WelcomeDialog instance = focusRecentProjects
 			? WelcomeDialog.getRecentProjectsInstance(getFrame(),getMenuManager())
 			: WelcomeDialog.getInstance(getFrame(),getMenuManager());
@@ -1264,6 +1263,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		opt.setName(form.getName());
 		opt.setAddResources(!local);
 		Project project = projectFactory.createProject(opt);
+		if (project == null) {
+			showWaitCursor(false);
+			return false;
+		}
 		try {
 			//createProject above might make a new resource pool, so make sur it is used when copying properties
 			//projectDialog.getForm().setResourcePool(project.getResourcePool());
@@ -1312,8 +1315,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			logger.log(Level.WARNING, "Failed to populate project from form", propertyException);
 		}
 		showWaitCursor(false);
+		// ProjectFactory registers the project asynchronously.  Do not make the
+		// visible document depend on that portfolio event: the event can arrive
+		// after this command returns (or be ignored while a secondary shell is
+		// being initialized).  addProjectFrame is idempotent and the later event
+		// will reuse the same frame.
+		registerNewProjectFrame(project);
 
 		return true;
+	}
+
+	/** Registers a freshly created project without waiting for Portfolio's event. */
+	void registerNewProjectFrame(Project project) {
+		if (project != null) addProjectFrame(project);
 	}
 
 	boolean doingOpenDialog = false;
@@ -3227,6 +3241,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			DocumentFrame existing = findFrameForProjectFile(fileName);
 			if (existing != null) {
 				setCurrentFrame(existing);
+				showDocumentRibbon();
+				if (afterLoad != null)
+					SwingUtilities.invokeLater(() -> afterLoad.accept(existing.getProject()));
 				return true;
 			}
 		}
@@ -4341,8 +4358,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		RootPaneContainer shortcutRoot = (RootPaneContainer)container;
 		applyDocumentShortcuts(
-				shortcutRoot.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
-				shortcutRoot.getRootPane().getActionMap());
+			shortcutRoot.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+			shortcutRoot.getRootPane().getActionMap());
     }
 
     /**
