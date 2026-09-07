@@ -136,7 +136,7 @@ public class DependencyFormat extends AssociationFormat {
 		return ((Task) parameters.getThisObject()).getProject().getTaskList();
 	}
 
-\t@Override
+	@Override
 	protected Object createNewObject(boolean left) {
 		// Dependency parsing is intentionally strict; unresolved task references
 		// must be reported instead of creating a task as a side effect.
