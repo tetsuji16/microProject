@@ -33,6 +33,7 @@ import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.task.Project;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
@@ -106,6 +107,44 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"File/Open rejected the selected legacy POD before its importer ran");
 		assertTrue(manager.findFrameForProjectFile(legacyPod.toString()).getProject() != null,
 			"File/Open registered a legacy POD frame without a project model");
+	}
+
+	/** GUI-RIBBON-FILE-03: a persisted CCPM fever-chart history survives the physical File/Open route. */
+	@Test
+	void robotOpensCcpmHistorySampleFromTheFileRibbon() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
+		previousChooser = UiServices.getFileChooserProvider();
+		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Path historySample = Path.of(System.getProperty("micrproject.project.dir"), "samples",
+			"CCPM 標準システム導入 20タスク（履歴付き）.mpo");
+		assertTrue(Files.isRegularFile(historySample), "checked-in CCPM history sample is missing");
+		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
+			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) { return null; }
+			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+				return save ? List.of() : List.of(historySample.toString());
+			}
+		});
+
+		createWindow("microProject — CCPM history File/Open acceptance");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		click(robot, findCommandButton(window, "RibbonOpenProject"));
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(historySample.toString()) != null,
+			"File/Open did not register the selected CCPM history sample");
+		Project loaded = manager.findFrameForProjectFile(historySample.toString()).getProject();
+		CriticalChainBufferHistory history = loaded.findTransientDocumentState(CriticalChainBufferHistory.class);
+		assertTrue(history != null && history.points().size() == 4,
+			"File/Open must restore all four persisted CCPM buffer observations");
+		assertEquals(50D, history.points().get(2).progressPercent(), 0.00001D,
+			"File/Open did not retain the intermediate CCPM history point");
 	}
 
 	@Test
