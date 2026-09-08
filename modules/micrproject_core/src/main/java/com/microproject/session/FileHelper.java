@@ -43,8 +43,23 @@ public class FileHelper {
 		return normalized.endsWith(suffix);
 	}
 
-	public static boolean isProjectLibreFile(String fileName) {
+	/**
+	 * Returns whether the name identifies the legacy native POD format.
+	 *
+	 * <p>The format is POD; it is not tied to the product name.  Keep this
+	 * distinction because {@link #isNativeFile(String)} also accepts MPO.</p>
+	 */
+	public static boolean isPodFile(String fileName) {
 		return hasExtension(fileName, POD_FILE_EXTENSION);
+	}
+
+	/**
+	 * @deprecated use {@link #isPodFile(String)}.  This name is retained for
+	 *             binary/source compatibility with older integrations.
+	 */
+	@Deprecated(forRemoval = false)
+	public static boolean isProjectLibreFile(String fileName) {
+		return isPodFile(fileName);
 	}
 
 	/**
@@ -55,7 +70,7 @@ public class FileHelper {
 	}
 
 	public static boolean isNativeFile(String fileName) {
-		return isProjectLibreFile(fileName) || isMpoFile(fileName);
+		return isPodFile(fileName) || isMpoFile(fileName);
 	}
 
 	public static boolean isMicrosoftProjectFile(String fileName) {
@@ -102,7 +117,7 @@ public class FileHelper {
 
     public static int getFileType(String fileName){
     	if (fileName==null) return 0;
-		if (isProjectLibreFile(fileName))
+		if (isPodFile(fileName))
 			return PROJECTLIBRE_FILE_TYPE;
 		if (isMpoFile(fileName))
 			return MPO_FILE_TYPE;

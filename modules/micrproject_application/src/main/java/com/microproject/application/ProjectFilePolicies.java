@@ -33,15 +33,24 @@ public final class ProjectFilePolicies {
 	private ProjectFilePolicies() {
 	}
 
+	public static boolean isPodFile(String fileName) {
+		return FileHelper.isPodFile(fileName);
+	}
+
+	/**
+	 * @deprecated use {@link #isPodFile(String)}.  Retained for callers of the
+	 *             pre-rename API.
+	 */
+	@Deprecated(forRemoval = false)
 	public static boolean isProjectLibreFile(String fileName) {
-		return FileHelper.isProjectLibreFile(fileName);
+		return isPodFile(fileName);
 	}
 
 	public static String resolveLoadImporter(String fileName, boolean localOnlySession) {
 		if (FileHelper.isMpoFile(fileName)) {
 			return LocalSession.MPO_PROJECT_IMPORTER;
 		}
-		if (isProjectLibreFile(fileName)) {
+		if (isPodFile(fileName)) {
 			return localOnlySession ? LocalSession.LOCAL_PROJECT_IMPORTER : LocalSession.SERVER_LOCAL_PROJECT_IMPORTER;
 		}
 		return LocalSession.MICROSOFT_PROJECT_IMPORTER;
@@ -51,7 +60,7 @@ public final class ProjectFilePolicies {
 		if (FileHelper.isMpoFile(fileName)) {
 			return LocalSession.MPO_PROJECT_IMPORTER;
 		}
-		return isProjectLibreFile(fileName) ? LocalSession.LOCAL_PROJECT_IMPORTER : LocalSession.MICROSOFT_PROJECT_IMPORTER;
+		return isPodFile(fileName) ? LocalSession.LOCAL_PROJECT_IMPORTER : LocalSession.MICROSOFT_PROJECT_IMPORTER;
 	}
 
 	public static void configureLoadOptions(LoadOptions options, String fileName, boolean localOnlySession) {

@@ -276,7 +276,7 @@ public class LocalSession extends AbstractSession{
     	}
     	opt.setFileName(resolvedFileName);
     	if (opt.getImporter() == null) {
-			if (FileHelper.isProjectLibreFile(resolvedFileName)) {
+			if (FileHelper.isPodFile(resolvedFileName)) {
 				opt.setImporter(LOCAL_PROJECT_IMPORTER);
 			} else if (FileHelper.isMpoFile(resolvedFileName)) {
 				opt.setImporter(MPO_PROJECT_IMPORTER);
@@ -387,14 +387,14 @@ public class LocalSession extends AbstractSession{
 			// POD remains byte-compatible with the legacy format and therefore
 			// intentionally has no CCPM payload. Keep CCPM projects lossless by
 			// choosing the open mpo container instead.
-			if (FileHelper.isProjectLibreFile(fileN) && new CriticalChainService().requiresMpo(project)) {
+			if (FileHelper.isPodFile(fileN) && new CriticalChainService().requiresMpo(project)) {
 				fileN = FileHelper.changeFileExtension(fileN, FileHelper.MPO_FILE_TYPE);
 			}
 			final String fileName=fileN;
 			if (fileName==null) continue;
 			
 			//claur saving mpp as pod was selecting xml exporter
-			if (FileHelper.isProjectLibreFile(fileName)){ //$NON-NLS-1$
+			if (FileHelper.isPodFile(fileName)){ //$NON-NLS-1$
 				opt.setFileName(fileName);
 				opt.setImporter(LocalSession.LOCAL_PROJECT_IMPORTER);
 			}

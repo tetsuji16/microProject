@@ -1165,6 +1165,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			previous = task;
 		}
 		project.setDirty(true); project.recalculate();
+		// Keep template creation on the same frame-registration path as the
+		// interactive New Project command.  ProjectFactory registers the project
+		// with Portfolio asynchronously, so relying on that notification here can
+		// leave the newly created project without a visible document frame.
+		registerNewProjectFrame(project);
 	}
 
 	/**
