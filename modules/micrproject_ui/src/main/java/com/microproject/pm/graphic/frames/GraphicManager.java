@@ -1794,7 +1794,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		try {
 			command.run();
-			RibbonCommandResult result = RibbonCommandResult.completed(commandId);
+			// Several File routes schedule work or show a modal dialog.  Returning
+			// from the listener only proves dispatch, not that a project was created,
+			// loaded, saved, or rendered; callers must record those semantic outcomes
+			// at their completion boundary.
+			RibbonCommandResult result = RibbonCommandResult.dispatched(commandId);
 			recordRibbonCommandResult(result);
 			return result;
 		} catch (RuntimeException | Error failure) {

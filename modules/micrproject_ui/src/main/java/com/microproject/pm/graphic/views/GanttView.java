@@ -227,6 +227,11 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
    }
 
 	private void ensureTaskColumnsReadable() {
+		// The deferred sizing pass can run after the containing document is
+		// closed.  cleanUp() deliberately releases the sheet first, so treating
+		// that queued pass as a no-op prevents an EDT exception during New/Open
+		// document replacement.
+		if (spreadSheet == null) return;
 		var columns = spreadSheet.getColumnModel();
 		for (int index = 0; index < columns.getColumnCount(); index++) {
 			var column = columns.getColumn(index);

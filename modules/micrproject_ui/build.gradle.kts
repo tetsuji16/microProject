@@ -107,5 +107,9 @@ tasks.register<Test>("guiTest") {
     if (guiTestUiScale != null)
         systemProperty("sun.java2d.uiScale", guiTestUiScale)
     systemProperty("micrproject.gui.artifacts.dir", layout.buildDirectory.dir("reports/guiTest-artifacts").get().asFile.absolutePath)
+	// GUI tests run from the generated install layout, not the repository root.
+	// Expose the fixture root explicitly so sample-file acceptance routes test
+	// the same release classpath without relying on a process working directory.
+	systemProperty("micrproject.project.dir", rootProject.projectDir.absolutePath)
     mustRunAfter(tasks.test)
 }

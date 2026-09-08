@@ -10,7 +10,8 @@ import java.util.Objects;
 /** Outcome recorded by the canonical ribbon command route. */
 public record RibbonCommandResult(String commandId, Status status, String reason) {
 	public enum Status {
-		COMPLETED,
+		/** The input route accepted the command; asynchronous work may still fail. */
+		DISPATCHED,
 		REJECTED,
 		FAILED
 	}
@@ -21,8 +22,8 @@ public record RibbonCommandResult(String commandId, Status status, String reason
 		reason = reason == null ? "" : reason;
 	}
 
-	public static RibbonCommandResult completed(String commandId) {
-		return new RibbonCommandResult(commandId, Status.COMPLETED, "");
+	public static RibbonCommandResult dispatched(String commandId) {
+		return new RibbonCommandResult(commandId, Status.DISPATCHED, "");
 	}
 
 	public static RibbonCommandResult rejected(String commandId, String reason) {
