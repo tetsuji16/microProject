@@ -35,6 +35,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleService;
@@ -50,8 +51,7 @@ public final class TeamPlannerService {
 		List<Slot> slots = new ArrayList<>();
 		Set<Task> seenTasks = java.util.Collections.newSetFromMap(new IdentityHashMap<Task, Boolean>());
 		for (Project sourceProject : projectsFor(project)) {
-			for (var iterator = sourceProject.getTaskOutlineIterator(); iterator.hasNext();) {
-				Task task = (Task) iterator.next();
+			for (Task task : ProjectHierarchyQueries.outline(sourceProject)) {
 				if (!seenTasks.add(task) || !(task instanceof NormalTask normalTask) || task.isSummary()) {
 					continue;
 				}

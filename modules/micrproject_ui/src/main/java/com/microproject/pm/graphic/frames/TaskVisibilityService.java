@@ -9,11 +9,13 @@ import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
 
 import javax.swing.undo.AbstractUndoableEdit;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.undo.UndoController;
 
@@ -34,10 +36,28 @@ final class TaskVisibilityService {
 		return apply(project, changes, undoController, "Hide Tasks");
 	}
 
+	/** Returns stable IDs for tasks that will transition to hidden state. */
+	static List<Long> affectedHiddenTaskIds(Collection<Node> selectedNodes) {
+		Map<Task, Boolean> changes = new LinkedHashMap<>();
+		if (selectedNodes != null) {
+			for (Node node : selectedNodes) {
+				if (node != null && node.getImpl() instanceof Task task) {
+					collectTaskAndDescendants(task, true, changes, new IdentityHashMap<>());
+				}
+			}
+		}
+		return changes.keySet().stream().map(Task::getUniqueId).filter(id -> id != null).toList();
+	}
+
+	/** Returns stable IDs for tasks that will transition to visible state. */
+	static List<Long> affectedShownTaskIds(Project project) {
+		return ProjectHierarchyQueries.outline(project).stream()
+				.filter(Task::isHiddenTask).map(Task::getUniqueId).filter(id -> id != null).toList();
+	}
+
 	static int showAll(Project project, UndoController undoController) {
 		Map<Task, Boolean> changes = new LinkedHashMap<>();
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = iterator.next();
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			if (task.isHiddenTask()) {
 				changes.put(task, Boolean.FALSE);
 			}
@@ -48,8 +68,8 @@ final class TaskVisibilityService {
 	static boolean hasHiddenTasks(Project project) {
 		if (project == null)
 			return false;
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			if (iterator.next().isHiddenTask())
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
+			if (task.isHiddenTask())
 				return true;
 		}
 		return false;

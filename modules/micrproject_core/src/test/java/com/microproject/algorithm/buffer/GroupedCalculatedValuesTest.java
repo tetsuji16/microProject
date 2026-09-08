@@ -70,6 +70,19 @@ class GroupedCalculatedValuesTest {
 		assertEquals(1.0, populated.getUnscaledValue(0));
 	}
 
+	@Test
+	void mergeInTreatsAnEmptySeriesAsAnIdentityOperation() {
+		GroupedCalculatedValues empty = new GroupedCalculatedValues();
+		GroupedCalculatedValues populated = values(point(10L, 1.0));
+
+		empty.mergeIn(populated);
+		populated.mergeIn(new GroupedCalculatedValues());
+
+		assertEquals(0, empty.size());
+		assertEquals(1, populated.size());
+		assertPoint(populated, 0, 10L, 1.0);
+	}
+
 	private static GroupedCalculatedValues values(Point... points) {
 		GroupedCalculatedValues values = new GroupedCalculatedValues();
 		for (int index = 0; index < points.length; index++) {

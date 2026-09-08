@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.frames;
 
 import java.awt.FlowLayout;
+import java.util.Calendar;
 import java.text.MessageFormat;
 
 import javax.swing.JLabel;
@@ -32,6 +33,7 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
 import com.microproject.strings.Messages;
+import com.microproject.timescale.TimeScale;
 
 /**
  * Slim status bar at the bottom of a document frame, mirroring the essential
@@ -68,6 +70,9 @@ public class DocumentStatusBar extends JPanel {
 	public void setZoom(int scaleIndex, int scaleCount) {
 		zoomLabel.setText(formatZoom(scaleIndex, scaleCount));
 	}
+	public void setZoom(int scaleIndex, int scaleCount, TimeScale scale) {
+		zoomLabel.setText(formatZoom(scaleIndex, scaleCount, scale));
+	}
 
 	public void setSelectedCount(int count) {
 		selectionLabel.setText(formatSelection(count));
@@ -77,6 +82,22 @@ public class DocumentStatusBar extends JPanel {
 		int clampedIndex = Math.max(0, scaleIndex);
 		int clampedCount = Math.max(1, scaleCount);
 		return MessageFormat.format(Messages.getString("StatusBar.Zoom"), clampedIndex + 1, clampedCount);
+	}
+	static String formatZoom(int scaleIndex, int scaleCount, TimeScale scale) {
+		if (scale == null) return formatZoom(scaleIndex, scaleCount);
+		return MessageFormat.format(Messages.getString("StatusBar.ZoomSemantic"),
+				formatInterval(scale.getCalendarField1(), scale.getNumber1()), Math.max(0, scaleIndex) + 1, Math.max(1, scaleCount));
+	}
+	private static String formatInterval(int field, int amount) {
+		int n = Math.max(1, amount);
+		return switch (field) {
+			case Calendar.HOUR_OF_DAY -> n + "h";
+			case Calendar.DAY_OF_WEEK, Calendar.DAY_OF_MONTH, Calendar.DAY_OF_YEAR -> n == 1 ? "day" : n + "d";
+			case Calendar.WEEK_OF_YEAR, Calendar.WEEK_OF_MONTH -> n == 1 ? "week" : n + "w";
+			case Calendar.MONTH -> n == 1 ? "month" : n == 3 ? "quarter" : n == 6 ? "half-year" : n + " months";
+			case Calendar.YEAR -> n == 1 ? "year" : n + " years";
+			default -> "custom";
+		};
 	}
 
 	static String formatSelection(int count) {

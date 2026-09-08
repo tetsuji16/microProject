@@ -74,7 +74,7 @@ import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.frames.workspace.NamedFrame;
 import com.microproject.pm.graphic.frames.workspace.Workspace;
 import com.microproject.workspace.WorkspaceSetting;
-import com.microproject.ui.ribbon.RibbonCommandResult;
+import com.microproject.ribbon.RibbonCommandResult;
 
 class RibbonButtonBehaviorTest {
 	private enum Strategy {
@@ -229,6 +229,15 @@ class RibbonButtonBehaviorTest {
 			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert"));
 
 		assertEquals(1, harness.frame.insertTaskCallCount());
+	}
+
+	@Test
+	void insertTaskAddsOneRowPerSelectedRow() throws Exception {
+		Harness harness = newHarness();
+		SwingUtilities.invokeAndWait(() -> harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 2));
+		harness.manager.getAction(MenuActionConstants.ACTION_INSERT_TASK)
+			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert"));
+		assertEquals(3, harness.frame.insertTaskCallCount());
 	}
 
 	@Test

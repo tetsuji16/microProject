@@ -82,6 +82,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
@@ -320,8 +321,8 @@ public final class CustomReportDialogBox extends JDialog implements ScheduleEven
 	private List<Task> filteredTasks() {
 		List<Task> result = new ArrayList<>(); String text = contains.getText().trim().toLowerCase(Locale.ROOT);
 		long lower = ((Date) from.getValue()).getTime(), upper = ((Date) to.getValue()).getTime();
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = (Task) iterator.next(); if (!includeSummary.isSelected() && task.isSummary()) continue;
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
+			if (!includeSummary.isSelected() && task.isSummary()) continue;
 			if (!text.isEmpty() && (task.getName() == null || !task.getName().toLowerCase(Locale.ROOT).contains(text))) continue;
 			if (useDateRange.isSelected() && (task.getStart() < lower || task.getStart() > upper)) continue;
 			String chosen = (String) filter.getSelectedItem();

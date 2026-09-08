@@ -43,6 +43,7 @@ import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ribbon.SwingRibbonModel;
 
 class RibbonCommandCatalogTest {
 	@Test

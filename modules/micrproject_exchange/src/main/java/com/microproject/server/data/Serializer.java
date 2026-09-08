@@ -82,6 +82,7 @@ import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
@@ -353,7 +354,7 @@ public class Serializer {
 		Map<Task, TaskData> externalTaskData=new HashMap<Task, TaskData>();
         //dependencies
         //Count depCount=new Count("Dependencies");
-        for (Iterator<?> i=project.getTaskOutlineIterator();i.hasNext();){
+        for (Iterator<Task> i=ProjectHierarchyQueries.outline(project).iterator();i.hasNext();){
             NormalTask task=(NormalTask)i.next(); //ResourceImpl to have the EnterpriseResource link
             if (task.getProjectId() != projectId||task.isExternal()) // skip if in another project, don't write externals to server
             	continue;
@@ -545,7 +546,7 @@ public class Serializer {
         	Set<Long> noChangeTaskIds=new HashSet<Long>();
 
 			Task task;
-			for(Iterator i = project.getTaskOutlineIterator();i.hasNext();) {
+			for(Iterator<Task> i = ProjectHierarchyQueries.outline(project).iterator();i.hasNext();) {
 				task = (Task)i.next();
 				if(incremental&&!task.isDirty()) noChangeTaskIds.add(task.getUniqueId());
 			}

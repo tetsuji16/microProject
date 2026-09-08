@@ -215,7 +215,8 @@ import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.UiLinkTargets;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
-import com.microproject.ui.ribbon.RibbonCommandResult;
+import com.microproject.ribbon.RibbonCommandResult;
+import com.microproject.ui.command.SelectionSnapshot;
 
 
 
@@ -2365,7 +2366,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			// its view is already visible.  Do not drop an Insert command during that
 			// activation transition; the project writability check remains authoritative.
 			if (frame != null && !frame.getProject().isReadOnly()) {
-				frame.addNodeForImpl(null);
+				SpreadSheet sheet = frame.getTopSpreadSheet();
+				SelectionSnapshot selection = new SelectionSnapshot(sheet == null ? null : sheet.getSelectedRows());
+				int insertionCount = selection.isEmpty() ? 1 : selection.size();
+				for (int i = 0; i < insertionCount; i++) {
+					frame.addNodeForImpl(null);
+				}
 			}
 		}
 		protected boolean allowed(boolean enable) {
@@ -2922,11 +2928,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
+			putValue("MicroProject.ribbonOutcome", RibbonCommandResult.Status.NO_CHANGE);
+			putValue("MicroProject.ribbonAffectedTaskIds", java.util.List.of());
 			if (!isDocumentActive())
 				return;
 			DocumentFrame frame = getCurrentFrame();
+			java.util.List<com.microproject.grouping.core.Node> selectedNodes = frame.getSelectedTaskNodes(true, true);
+			putValue("MicroProject.ribbonAffectedTaskIds", TaskVisibilityService.affectedHiddenTaskIds(selectedNodes));
 			int changed = TaskVisibilityService.hideSelected(frame.getProject(),
-					frame.getSelectedTaskNodes(true, true), frame.getUndoController());
+					selectedNodes, frame.getUndoController());
+			putValue("MicroProject.ribbonOutcome", changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE);
 			setButtonState(frame.getSelectedImpl(), frame.getProject());
 			traceUi("hide-selected result changedTasks=" + changed);
 		}
@@ -2938,10 +2949,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
+			putValue("MicroProject.ribbonOutcome", RibbonCommandResult.Status.NO_CHANGE);
+			putValue("MicroProject.ribbonAffectedTaskIds", java.util.List.of());
 			if (!isDocumentActive())
 				return;
 			DocumentFrame frame = getCurrentFrame();
+			putValue("MicroProject.ribbonAffectedTaskIds", TaskVisibilityService.affectedShownTaskIds(frame.getProject()));
 			int changed = TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
+			putValue("MicroProject.ribbonOutcome", changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE);
 			setButtonState(frame.getSelectedImpl(), frame.getProject());
 			traceUi("show-all result changedTasks=" + changed);
 		}
@@ -3220,6 +3235,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	protected boolean loadLocalDocument(String fileName,boolean merge){ //uses server to merge
 		return loadLocalDocument(fileName, merge, null);
 	}
+
 
 	/** Routes the Resource ribbon command to the resource sheet's canonical New action. */
 	public class InsertResourceAction extends MenuActionsMap.DocumentMenuAction {

@@ -67,7 +67,11 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ribbon.RibbonCommandSource;
+import com.microproject.ribbon.RibbonCommandInvocation;
+import com.microproject.ribbon.RibbonCommandResult;
+import com.microproject.ribbon.SwingRibbonModel;
+import com.microproject.ribbon.RibbonTheme;
 
 public final class ModernRibbonPanel extends JPanel {
 	/** Client-property key on the ribbon host for view-context coordination. */
@@ -136,6 +140,7 @@ public final class ModernRibbonPanel extends JPanel {
 	private final Map<String, Integer> tabBodyBuildWidths;
 	private final Map<String, JToggleButton> tabButtons;
 	private final RibbonButtonStyler buttonStyler;
+	private final RibbonTheme theme;
 	private final Map<String, Integer> bandHeights;
 	private final java.util.Set<String> visibleContextualTabs = new LinkedHashSet<>();
 	private final Map<String, String> contextualTabTitles = new LinkedHashMap<>();
@@ -154,14 +159,15 @@ public final class ModernRibbonPanel extends JPanel {
 		this.tabBodies = new LinkedHashMap<>();
 		this.tabBodyBuildWidths = new LinkedHashMap<>();
 		this.tabButtons = new LinkedHashMap<>();
-		this.buttonStyler = new RibbonButtonStyler();
+		this.theme = new FlatLafRibbonTheme();
+		this.buttonStyler = new RibbonButtonStyler(theme);
 		this.bandHeights = new LinkedHashMap<>();
 		setOpaque(true);
-		setBackground(FlatUiSupport.ribbonChromeBackground());
+		setBackground(theme.chromeBackground());
 		this.cards.setOpaque(true);
-		this.cards.setBackground(FlatUiSupport.ribbonChromeBackground());
-		setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, FlatUiSupport.ribbonTopLineColor()));
-		setPreferredSize(new Dimension(0, FlatUiSupport.ribbonTabHeight() + FlatUiSupport.ribbonSurfaceHeight() + 1));
+		this.cards.setBackground(theme.chromeBackground());
+		setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, theme.topLineColor()));
+		setPreferredSize(new Dimension(0, theme.tabHeight() + theme.surfaceHeight() + 1));
 	}
 
 	void build() {
@@ -182,6 +188,14 @@ public final class ModernRibbonPanel extends JPanel {
 			}
 		});
 		updateResponsiveMode();
+	}
+
+	/**
+	 * Public behavior entrance for an embedding host. It uses the same command
+	 * action as a physical ribbon button and never reaches into menu internals.
+	 */
+	public RibbonCommandResult dispatchCommand(String commandId, RibbonCommandInvocation.Origin origin, Object source) {
+		return commandSource.dispatch(new RibbonCommandInvocation(commandId, origin, source));
 	}
 
 	/** Selects the first document-oriented ribbon tab. */
@@ -289,13 +303,13 @@ public final class ModernRibbonPanel extends JPanel {
 	private JComponent buildTabRow() {
 		JPanel row = new JPanel(new GridBagLayout());
 		row.setOpaque(true);
-		row.setBackground(FlatUiSupport.ribbonChromeBackground());
-		row.setPreferredSize(new Dimension(0, FlatUiSupport.ribbonTabHeight()));
+		row.setBackground(theme.chromeBackground());
+		row.setPreferredSize(new Dimension(0, theme.tabHeight()));
 		row.setBorder(BorderFactory.createEmptyBorder(
 			0,
-			FlatUiSupport.ribbonHorizontalInset(),
+			theme.horizontalInset(),
 			0,
-			FlatUiSupport.ribbonHorizontalInset()));
+			theme.horizontalInset()));
 
 		JPanel tabs = buildTabsStrip();
 		GridBagConstraints rowConstraints = new GridBagConstraints();
@@ -360,7 +374,7 @@ public final class ModernRibbonPanel extends JPanel {
 		JToggleButton button = new JToggleButton(tabTitle(tab));
 		tabButtons.put(tab.getId(), button);
 		tabGroup.add(button);
-		FlatUiSupport.styleRibbonTabButton(button);
+		theme.styleTabButton(button);
 		button.setHorizontalAlignment(SwingConstants.LEFT);
 		button.getModel().addChangeListener(event -> updateTabButtonAppearance(button, button.isSelected()));
 		button.addActionListener(e -> showTab(tab.getId()));
@@ -373,9 +387,9 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	private void updateTabButtonAppearance(AbstractButton button, boolean selected) {
-		button.setBackground(FlatUiSupport.ribbonChromeBackground());
-		button.setForeground(selected ? FlatUiSupport.tabSelectedForeground() : FlatUiSupport.tabUnselectedForeground());
-		button.setFont(FlatUiSupport.ribbonTabFont());
+		button.setBackground(theme.chromeBackground());
+		button.setForeground(selected ? theme.tabSelectedForeground() : theme.tabUnselectedForeground());
+		button.setFont(theme.tabFont());
 		button.setHorizontalAlignment(SwingConstants.LEFT);
 	}
 
@@ -478,7 +492,7 @@ public final class ModernRibbonPanel extends JPanel {
 
 		JPanel shell = new JPanel(new BorderLayout());
 		shell.setOpaque(true);
-		shell.setBackground(FlatUiSupport.panelBackground());
+		shell.setBackground(theme.panelBackground());
 		// Keep the command surface visually compact.  The former asymmetric shell
 		// padding made the ribbon look tall even when every band contained only
 		// inline commands.
@@ -486,7 +500,7 @@ public final class ModernRibbonPanel extends JPanel {
 
 		JPanel bandRow = new OfficeRibbonSurfacePanel();
 		bandRow.setLayout(new GridBagLayout());
-		bandRow.setBackground(FlatUiSupport.ribbonSurfaceColor());
+		bandRow.setBackground(theme.surfaceColor());
 		bandRow.setBorder(BorderFactory.createEmptyBorder(
 			3,
 			8,
@@ -550,7 +564,7 @@ public final class ModernRibbonPanel extends JPanel {
 			bandPanels.get(index).setShowSeparator(index < bandPanels.size() - 1);
 		}
 		int bandRowHeight = Math.max(
-			FlatUiSupport.ribbonSurfaceHeight(),
+			theme.surfaceHeight(),
 			tallestBand + 6);
 		int shellHeight = bandRowHeight + 3;
 		bandHeights.put(tabId, shellHeight);
@@ -689,13 +703,13 @@ public final class ModernRibbonPanel extends JPanel {
 			content.add(buildSmallButtonColumns(smallButtonList, referenceContentHeight), contentConstraints);
 		}
 		if (largeButtonList.isEmpty() && smallButtonList.isEmpty()) {
-			content.add(Box.createRigidArea(new Dimension(8, FlatUiSupport.ribbonLargeButtonHeight())), contentConstraints);
+			content.add(Box.createRigidArea(new Dimension(8, theme.largeButtonHeight())), contentConstraints);
 		}
 
 		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
 		title.setOpaque(false);
-		title.setForeground(FlatUiSupport.ribbonBandTitleForeground());
-		title.setFont(FlatUiSupport.ribbonBandTitleFont());
+		title.setForeground(theme.bandTitleForeground());
+		title.setFont(theme.bandTitleFont());
 		title.setBorder(BorderFactory.createEmptyBorder(1, 0, 0, 0));
 		panel.bind(content, title, computeBandWidth(content, title));
 		return panel;
@@ -713,8 +727,8 @@ public final class ModernRibbonPanel extends JPanel {
 
 		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
 		title.setOpaque(false);
-		title.setForeground(FlatUiSupport.ribbonBandTitleForeground());
-		title.setFont(FlatUiSupport.ribbonBandTitleFont());
+		title.setForeground(theme.bandTitleForeground());
+		title.setFont(theme.bandTitleFont());
 		title.setBorder(BorderFactory.createEmptyBorder(1, 0, 0, 0));
 
 		int preferredWidth = content.getPreferredSize().width;
@@ -754,8 +768,8 @@ public final class ModernRibbonPanel extends JPanel {
 		content.setOpaque(false);
 		content.add(trigger);
 		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
-		title.setForeground(FlatUiSupport.ribbonBandTitleForeground());
-		title.setFont(FlatUiSupport.ribbonBandTitleFont());
+		title.setForeground(theme.bandTitleForeground());
+		title.setFont(theme.bandTitleFont());
 		panel.bind(content, title, Math.max(BAND_MIN_WIDTH,
 			Math.max(content.getPreferredSize().width, title.getPreferredSize().width) + BAND_HORIZONTAL_INSETS));
 		return panel;
@@ -788,9 +802,9 @@ public final class ModernRibbonPanel extends JPanel {
 
 	private int computeBandHeight(JComponent content, JLabel title) {
 		int contentHeight = content.getPreferredSize().height;
-		int titleHeight = Math.max(FlatUiSupport.ribbonBandTitleHeight(), title.getPreferredSize().height);
+		int titleHeight = Math.max(theme.bandTitleHeight(), title.getPreferredSize().height);
 		int computedHeight = contentHeight + titleHeight + 1;
-		return Math.max(FlatUiSupport.ribbonSurfaceHeight(), computedHeight);
+		return Math.max(theme.surfaceHeight(), computedHeight);
 	}
 
 	private JComponent buildSmallButtonColumns(List<AbstractButton> buttons, int referenceHeight) {
@@ -886,7 +900,7 @@ public final class ModernRibbonPanel extends JPanel {
 		overflow.setFocusable(false);
 		overflow.setToolTipText(band.getTitle());
 		overflow.getAccessibleContext().setAccessibleName(band.getTitle());
-		FlatUiSupport.styleRibbonSmallButton(overflow);
+		theme.styleSmallButton(overflow);
 		JPopupMenu popup = new JPopupMenu();
 		addTransientCommandButtons(popup, specifications, false);
 		overflow.putClientProperty(COLLAPSED_POPUP_PROPERTY, popup);
@@ -943,11 +957,11 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	private void updatePreferredHeight() {
-		int maxBodyHeight = bandHeights.values().stream().mapToInt(Integer::intValue).max().orElse(FlatUiSupport.ribbonSurfaceHeight());
-		setPreferredSize(new Dimension(0, FlatUiSupport.ribbonTabHeight() + maxBodyHeight + 1));
+		int maxBodyHeight = bandHeights.values().stream().mapToInt(Integer::intValue).max().orElse(theme.surfaceHeight());
+		setPreferredSize(new Dimension(0, theme.tabHeight() + maxBodyHeight + 1));
 	}
 
-	private static final class OfficeRibbonSurfacePanel extends JPanel {
+	private final class OfficeRibbonSurfacePanel extends JPanel {
 		private OfficeRibbonSurfacePanel() {
 			setOpaque(false);
 			setName(RIBBON_SURFACE_COMPONENT_NAME);
@@ -958,12 +972,12 @@ public final class ModernRibbonPanel extends JPanel {
 			super.paintComponent(graphics);
 			Graphics2D g2 = (Graphics2D) graphics.create();
 			try {
-				FlatUiSupport.enableAntialiasing(g2);
-				Color background = FlatUiSupport.ribbonSurfaceColor();
-				Color border = FlatUiSupport.ribbonSurfaceBorderColor();
+				theme.enableAntialiasing(g2);
+				Color background = theme.surfaceColor();
+				Color border = theme.surfaceBorderColor();
 				int width = Math.max(0, getWidth() - 1);
 				int height = Math.max(0, getHeight() - 3);
-				int arc = Math.max(6, FlatUiSupport.ribbonCornerRadius());
+				int arc = Math.max(6, theme.cornerRadius());
 				g2.setColor(new Color(0, 0, 0, 18));
 				g2.fillRoundRect(1, 2, width - 1, height, arc, arc);
 				g2.setColor(background);
@@ -977,7 +991,7 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	/** Keeps the final group-proxy row reachable instead of clipping it or replacing it with a tab launcher. */
-	private static final class RibbonBandViewport extends JPanel {
+	private final class RibbonBandViewport extends JPanel {
 		private final JScrollPane scrollPane;
 
 		private RibbonBandViewport(JComponent contents) {
@@ -998,7 +1012,7 @@ public final class ModernRibbonPanel extends JPanel {
 			JButton button = new JButton(label);
 			button.setFocusable(false);
 			button.putClientProperty(property, Boolean.TRUE);
-			FlatUiSupport.styleRibbonSmallButton(button);
+			theme.styleSmallButton(button);
 			button.addActionListener(event -> {
 				int extent = scrollPane.getViewport().getExtentSize().width;
 				java.awt.Point position = scrollPane.getViewport().getViewPosition();
@@ -1016,7 +1030,7 @@ public final class ModernRibbonPanel extends JPanel {
 		}
 	}
 
-	private static final class RibbonBandPanel extends JPanel {
+	private final class RibbonBandPanel extends JPanel {
 		private JComponent content;
 		private JLabel title;
 		private int targetWidth;
@@ -1035,7 +1049,7 @@ public final class ModernRibbonPanel extends JPanel {
 			if (!showSeparator) return;
 			Graphics2D g2 = (Graphics2D) graphics.create();
 			try {
-				g2.setColor(FlatUiSupport.ribbonBandSeparatorColor());
+				g2.setColor(theme.bandSeparatorColor());
 				int x = getWidth() - 1;
 				g2.drawLine(x, 5, x, Math.max(5, getHeight() - 18));
 			} finally {
@@ -1071,7 +1085,7 @@ public final class ModernRibbonPanel extends JPanel {
 		}
 
 		private void updatePreferredSize(int targetContentHeight) {
-			int titleHeight = Math.max(FlatUiSupport.ribbonBandTitleHeight(), title == null ? 0 : title.getPreferredSize().height);
+			int titleHeight = Math.max(theme.bandTitleHeight(), title == null ? 0 : title.getPreferredSize().height);
 			int width = Math.max(BAND_MIN_WIDTH, targetWidth);
 			// The outer ribbon owns the surface height.  A band only contributes its
 			// content and caption; giving every band the full surface height caused

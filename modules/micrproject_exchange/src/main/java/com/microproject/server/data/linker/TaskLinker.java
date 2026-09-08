@@ -39,6 +39,7 @@ import com.microproject.server.data.TypeSystemConverterFactory;
 import com.microproject.grouping.core.hierarchy.NodeHierarchy;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 
 /**
@@ -46,7 +47,7 @@ import com.microproject.pm.task.Task;
  */
 public abstract class TaskLinker extends Linker {
 	public void initIterator(){
-		iterator=((Project)getParent()).getTaskOutlineIterator();
+		iterator=ProjectHierarchyQueries.outline((Project)getParent()).iterator();
 	}
 	public Object executeNext(){
         Task task=(Task)iterator.next();

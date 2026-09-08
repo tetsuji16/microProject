@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Calendar;
 import java.util.List;
@@ -38,6 +39,8 @@ class TaskVisibilityServiceTest {
 		Task firstChild = (Task) ((Node) children.get(0)).getImpl();
 		Task secondChild = (Task) ((Node) children.get(1)).getImpl();
 		project.getUndoController().clear();
+		assertEquals(List.of(parent.getUniqueId(), firstChild.getUniqueId(), secondChild.getUniqueId()),
+				TaskVisibilityService.affectedHiddenTaskIds(List.of(summary)));
 
 		TaskVisibilityService.hideSelected(project, List.of(summary), project.getUndoController());
 
@@ -62,6 +65,7 @@ class TaskVisibilityServiceTest {
 		assertFalse(TaskVisibilityService.hasHiddenTasks(project));
 		task.setHiddenTask(true);
 		assertTrue(TaskVisibilityService.hasHiddenTasks(project));
+		assertEquals(List.of(task.getUniqueId()), TaskVisibilityService.affectedShownTaskIds(project));
 		project.getUndoController().clear();
 
 		TaskVisibilityService.showAll(project, project.getUndoController());

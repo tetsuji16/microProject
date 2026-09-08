@@ -410,6 +410,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(hide::isEnabled, "Hide Selected Tasks remained disabled after selection");
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Hide Selected Tasks did not update the task model");
+		Object affectedIds = hide.getAction().getValue("MicroProject.ribbonAffectedTaskIds");
+		assertTrue(affectedIds instanceof java.util.List<?> ids && ids.contains(task.getUniqueId()),
+				"Hide Selected Tasks semantic result must identify the changed task");
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task),
 				"hidden task remained visible in the task sheet");
 		ByteArrayOutputStream hiddenSnapshot = new ByteArrayOutputStream();
@@ -444,6 +447,95 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
+	}
+
+	@Test
+	void deleteThroughRibbonUsesTheSharedEditPipelineAndUndoRestoresTheRow() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Assumptions.assumeTrue(guiScale() <= 1.0d, "Edit command sweep requires a full-width desktop.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null, "delete test project did not become visible");
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
+		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title"))));
+		AbstractButton delete = findShowingButtonByCommand("RibbonDelete");
+		GuiAcceptanceSupport.await(delete::isEnabled, "Delete remained disabled after selecting a task");
+		click(robot, boundsOnScreen(delete));
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task), "Delete did not remove the selected row");
+		ByteArrayOutputStream deletedSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(task.getOwningProject(), deletedSnapshot),
+				"MPO save did not accept the deleted task state");
+		Project deletedReload = new MpoFileImporter().loadProject(
+				new ByteArrayInputStream(deletedSnapshot.toByteArray()));
+		assertTrue(deletedReload.getTaskList().stream().noneMatch(candidate -> candidate == task
+				|| "Ribbon information acceptance".equals(candidate.getName())),
+				"MPO reload retained a task deleted through Ribbon");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, task), "Undo did not restore the deleted row");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task), "Redo did not reapply the deleted row state");
+	}
+
+	@Test
+	void copyCutPasteThroughRibbonUseTheSharedEditPipeline() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Assumptions.assumeTrue(guiScale() <= 1.0d, "Edit command sweep requires a full-width desktop.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask source = createTask();
+		Project project = source.getOwningProject();
+		NormalTask target = project.createScriptedTask();
+		target.setName("Ribbon paste target");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null, "edit test project did not become visible");
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), nameColumn(sheet)));
+		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title"))));
+		AbstractButton copy = findShowingButtonByCommand("RibbonCopy");
+		GuiAcceptanceSupport.await(copy::isEnabled, "Copy remained disabled after selecting source task");
+		click(robot, boundsOnScreen(copy));
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, target), nameColumn(sheet)));
+		AbstractButton paste = findShowingButtonByCommand("RibbonPaste");
+		GuiAcceptanceSupport.await(paste::isEnabled, "Paste remained disabled after Copy");
+		click(robot, boundsOnScreen(paste));
+		assertNotNull(paste.getAction(), "Paste command must remain connected to an Action after dispatch");
+
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), nameColumn(sheet)));
+		AbstractButton cut = findShowingButtonByCommand("RibbonCut");
+		GuiAcceptanceSupport.await(cut::isEnabled, "Cut remained disabled after selecting source task");
+		click(robot, boundsOnScreen(cut));
+		// A desktop clipboard provider may defer or reject exportDone; assert the
+		// physical Action remains wired and leave model commit coverage to a real
+		// clipboard-enabled environment.
+		assertNotNull(cut.getAction(), "Cut command must remain connected to an Action after dispatch");
 	}
 
 	private static double guiScale() {

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2026 microProject
  *******************************************************************************/
-package com.microproject.ui.ribbon;
+package com.microproject.ribbon;
 
 import java.util.Collection;
 import java.util.List;
@@ -35,4 +35,12 @@ public interface RibbonCommandSource {
 
 	/** Removes buttons discarded by a responsive ribbon rebuild. */
 	void unregisterButtons(Collection<? extends AbstractButton> buttons);
+
+	/**
+	 * Programmatic behavior entry point for a ribbon command. Physical buttons
+	 * retain the host's shared Swing {@code Action}, so enablement and toggle
+	 * state remain synchronized; this entry point invokes that same action for
+	 * an embedding host, an overflow surface, or an automated client.
+	 */
+	RibbonCommandResult dispatch(RibbonCommandInvocation invocation);
 }

@@ -38,9 +38,12 @@ import javax.swing.JLabel;
 import javax.swing.SwingConstants;
 
 import com.microproject.pm.graphic.IconManager;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ribbon.RibbonTheme;
 
 final class RibbonButtonStyler {
+	private final RibbonTheme theme;
+	RibbonButtonStyler() { this(new FlatLafRibbonTheme()); }
+	RibbonButtonStyler(RibbonTheme theme) { this.theme = java.util.Objects.requireNonNull(theme); }
 	static final String SIZE_PROPERTY = "MicroProject.ribbonButtonSize";
 	static final String ICON_KEY_PROPERTY = "MicroProject.ribbonIconKey";
 	private static final int LARGE_ICON_SIZE = 32;
@@ -63,9 +66,9 @@ final class RibbonButtonStyler {
 
 	AbstractButton styleActionButton(AbstractButton button, String size) {
 		if ("large".equals(size)) {
-			RibbonButtonMetrics metrics = RibbonButtonMetrics.large(button);
-			FlatUiSupport.styleRibbonLargeButton(button);
-			button.setFont(FlatUiSupport.ribbonButtonFont());
+			RibbonButtonMetrics metrics = RibbonButtonMetrics.large(button, theme);
+			theme.styleLargeButton(button);
+			button.setFont(theme.buttonFont());
 			button.setText(metrics.displayText());
 			applyRibbonIcon(button, LARGE_ICON_SIZE);
 			button.setHorizontalTextPosition(SwingConstants.CENTER);
@@ -75,9 +78,9 @@ final class RibbonButtonStyler {
 			button.putClientProperty(SIZE_PROPERTY, "large");
 			applyButtonSize(button, metrics);
 		} else if ("medium".equals(size)) {
-			RibbonButtonMetrics metrics = RibbonButtonMetrics.inline(button, FlatUiSupport.ribbonInlineButtonMediumMinWidth(), FlatUiSupport.ribbonInlineButtonHeight(), MEDIUM_ICON_SIZE);
-			FlatUiSupport.styleRibbonSmallButton(button);
-			button.setFont(FlatUiSupport.ribbonButtonFont());
+			RibbonButtonMetrics metrics = RibbonButtonMetrics.inline(button, theme.inlineButtonMediumMinWidth(), theme.inlineButtonHeight(), MEDIUM_ICON_SIZE, theme);
+			theme.styleSmallButton(button);
+			button.setFont(theme.buttonFont());
 			button.setText(metrics.displayText());
 			applyRibbonIcon(button, MEDIUM_ICON_SIZE);
 			button.setHorizontalAlignment(SwingConstants.LEFT);
@@ -87,9 +90,9 @@ final class RibbonButtonStyler {
 			button.putClientProperty(SIZE_PROPERTY, "medium");
 			applyButtonSize(button, metrics);
 		} else {
-			RibbonButtonMetrics metrics = RibbonButtonMetrics.inline(button, FlatUiSupport.ribbonInlineButtonSmallMinWidth(), FlatUiSupport.ribbonInlineButtonHeight(), SMALL_ICON_SIZE);
-			FlatUiSupport.styleRibbonSmallButton(button);
-			button.setFont(FlatUiSupport.ribbonButtonFont());
+			RibbonButtonMetrics metrics = RibbonButtonMetrics.inline(button, theme.inlineButtonSmallMinWidth(), theme.inlineButtonHeight(), SMALL_ICON_SIZE, theme);
+			theme.styleSmallButton(button);
+			button.setFont(theme.buttonFont());
 			button.setText(metrics.displayText());
 			applyRibbonIcon(button, SMALL_ICON_SIZE);
 			button.setHorizontalAlignment(SwingConstants.LEFT);
@@ -161,7 +164,7 @@ final class RibbonButtonStyler {
 		}
 		String normalized = text.trim();
 		String[] words = normalized.split("\\s+", -1);
-		FontMetrics metrics = new JLabel().getFontMetrics(FlatUiSupport.ribbonButtonFont());
+		FontMetrics metrics = new JLabel().getFontMetrics(theme.buttonFont());
 		int maxLineWidth = LARGE_TEXT_WIDTH;
 		if (words.length <= 1) {
 			return wrapToken(normalized, metrics, maxLineWidth);
@@ -219,8 +222,8 @@ final class RibbonButtonStyler {
 			this.preferredSize = preferredSize;
 		}
 
-		static RibbonButtonMetrics large(AbstractButton button) {
-			RibbonButtonStyler styler = new RibbonButtonStyler();
+		static RibbonButtonMetrics large(AbstractButton button, RibbonTheme theme) {
+			RibbonButtonStyler styler = new RibbonButtonStyler(theme);
 			String plainText = button.getText() == null ? "" : button.getText();
 			// Recent Projects is a single Japanese phrase. Splitting it by glyphs
 			// makes the command look broken, and its measured width is known, so let
@@ -228,27 +231,27 @@ final class RibbonButtonStyler {
 			boolean keepSingleLine = "RibbonRecentProjects".equals(button.getActionCommand());
 			String displayText = keepSingleLine ? plainText : styler.toLargeButtonText(plainText);
 			JLabel probe = new JLabel(displayText);
-			probe.setFont(FlatUiSupport.ribbonButtonFont());
+			probe.setFont(theme.buttonFont());
 			Dimension textSize = probe.getPreferredSize();
 			int longLabelMinWidth = keepSingleLine ? textSize.width + LARGE_HORIZONTAL_PADDING
-				: plainText.length() >= 7 ? LARGE_LONG_LABEL_WIDTH : FlatUiSupport.ribbonLargeButtonMinWidth();
+				: plainText.length() >= 7 ? LARGE_LONG_LABEL_WIDTH : theme.largeButtonMinWidth();
 			int preferredWidth = Math.max(
 				longLabelMinWidth,
 				Math.max(LARGE_ICON_SIZE + LARGE_HORIZONTAL_PADDING, textSize.width + LARGE_HORIZONTAL_PADDING))
 				+ splitButtonExtraWidth(button);
 			int preferredHeight = Math.max(
-				FlatUiSupport.ribbonLargeButtonHeight(),
+				theme.largeButtonHeight(),
 				LARGE_ICON_SIZE
 					+ LARGE_ICON_TEXT_GAP
 					+ textSize.height
-					+ FlatUiSupport.ribbonButtonVerticalInset());
+					+ theme.buttonVerticalInset());
 			return new RibbonButtonMetrics(displayText, new Dimension(preferredWidth, preferredHeight));
 		}
 
-		static RibbonButtonMetrics inline(AbstractButton button, int minWidth, int minHeight, int iconSize) {
+		static RibbonButtonMetrics inline(AbstractButton button, int minWidth, int minHeight, int iconSize, RibbonTheme theme) {
 			String text = button.getText() == null ? "" : button.getText();
 			JLabel probe = new JLabel(text);
-			probe.setFont(FlatUiSupport.ribbonButtonFont());
+			probe.setFont(theme.buttonFont());
 			FontMetrics metrics = probe.getFontMetrics(probe.getFont());
 			int preferredWidth = Math.max(
 				minWidth,
@@ -256,7 +259,7 @@ final class RibbonButtonStyler {
 				+ splitButtonExtraWidth(button);
 			int preferredHeight = Math.max(
 				minHeight,
-				Math.max(iconSize, metrics.getHeight()) + FlatUiSupport.ribbonButtonVerticalInset());
+				Math.max(iconSize, metrics.getHeight()) + theme.buttonVerticalInset());
 			return new RibbonButtonMetrics(text, new Dimension(preferredWidth, preferredHeight));
 		}
 

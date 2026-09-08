@@ -24,6 +24,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 
 /**
@@ -322,8 +323,7 @@ public final class CriticalChainService {
 			result = 31L * result + (settings.isOnlyWithinAvailableSlack() ? 1L : 0L);
 			result = 31L * result + (settings.isAllowTaskSplits() ? 1L : 0L);
 		}
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = (Task) iterator.next();
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			result = 31L * result + task.getUniqueId();
 			result = 31L * result + task.getStart();
 			result = 31L * result + task.getEnd();
@@ -348,8 +348,7 @@ public final class CriticalChainService {
 		java.util.Set<Task> criticalSet = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Task, Boolean>());
 		int taskCapacity = Math.max(4, project.getTaskList().size() * 4 / 3 + 1);
 		Map<Long, Task> tasksById = new LinkedHashMap<>(taskCapacity);
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = (Task) iterator.next();
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			tasksById.put(Long.valueOf(task.getUniqueId()), task);
 			if (!task.isSummary() && task.isCritical()) {
 				criticalSet.add(task);
@@ -488,8 +487,7 @@ public final class CriticalChainService {
 		Map<Long, Long> result = new LinkedHashMap<>(Math.max(4, ids.size() * 4 / 3 + 1));
 		int taskCapacity = Math.max(4, project.getTaskList().size() * 4 / 3 + 1);
 		Map<Long, Task> tasksById = new LinkedHashMap<>(taskCapacity);
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = (Task) iterator.next();
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			tasksById.put(Long.valueOf(task.getUniqueId()), task);
 		}
 		for (Long id : ids) { Task task = tasksById.get(id); if (task != null) result.put(id, Long.valueOf(task.getStart())); }

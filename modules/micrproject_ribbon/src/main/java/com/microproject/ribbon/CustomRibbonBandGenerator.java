@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.ui.ribbon;
+package com.microproject.ribbon;
 
 import javax.swing.JComponent;
 
@@ -34,4 +34,3 @@ public interface CustomRibbonBandGenerator {
 	public JComponent createRibbonComponent(String ribbonBandName);
 
 }
-

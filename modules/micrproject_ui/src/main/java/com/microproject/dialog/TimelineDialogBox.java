@@ -49,6 +49,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
 
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
@@ -67,8 +68,7 @@ public final class TimelineDialogBox extends JDialog {
 		getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("timeline.hint"));
 		PopupDialogSupport.bindEscapeToDispose(this);
 		this.project = project;
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = (Task) iterator.next();
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			if (!task.isSummary()) tasks.add(task);
 		}
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);

@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.ui.ribbon;
+package com.microproject.ribbon;
 
 import java.util.MissingResourceException;
 import java.util.Objects;

@@ -196,6 +196,8 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
 	}
  	
  	public void mergeIn(GroupedCalculatedValues add){
+		if (values.isEmpty() || add.values.isEmpty())
+			return;
  		ListIterator<Point> baseIterator = values.listIterator();
 		ListIterator<Point> addIterator = add.values.listIterator();
  		Point basePoint = baseIterator.hasNext() ? baseIterator.next() : null;

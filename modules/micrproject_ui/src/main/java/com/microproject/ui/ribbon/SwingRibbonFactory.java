@@ -34,9 +34,11 @@ import java.util.ResourceBundle;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
-import com.microproject.ui.ribbon.SwingRibbonModel.CustomBandProvider;
-import com.microproject.ui.ribbon.CustomRibbonBandGenerator;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ribbon.RibbonCommandSource;
+import com.microproject.ribbon.RibbonIconRegistry;
+import com.microproject.ribbon.SwingRibbonModel;
+import com.microproject.ribbon.SwingRibbonModel.CustomBandProvider;
 
 public final class SwingRibbonFactory {
 	private final RibbonCommandSource commandSource;
@@ -79,7 +81,7 @@ public final class SwingRibbonFactory {
 		panel.build();
 		JPanel host = new JPanel(new BorderLayout());
 		host.setOpaque(true);
-		host.setBackground(FlatUiSupport.ribbonChromeBackground());
+		host.setBackground(new FlatLafRibbonTheme().chromeBackground());
 		host.add(panel, BorderLayout.CENTER);
 		host.putClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY, panel);
 		return host;

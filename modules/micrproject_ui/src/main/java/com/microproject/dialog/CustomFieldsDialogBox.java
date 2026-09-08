@@ -46,6 +46,7 @@ import javax.swing.table.AbstractTableModel;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
@@ -102,7 +103,7 @@ public final class CustomFieldsDialogBox extends JDialog {
 
 	private static List<Task> allTasks(Project project) {
 		List<Task> result = new ArrayList<>();
-		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) result.add((Task) iterator.next());
+		result.addAll(ProjectHierarchyQueries.outline(project));
 		return result;
 	}
 

@@ -4,46 +4,9 @@ import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.api.plugins.JavaPluginExtension
-import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import java.io.File
 import java.util.zip.ZipFile
-
-val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
-
-val projectLibreMavenDependencyAliases = listOf(
-    "commons-beanutils",
-    "commons-collections",
-    "commons-collections4",
-    "commons-digester",
-    "commons-lang",
-    "commons-lang3",
-    "jcl-over-slf4j",
-    "commons-pool",
-    "forms",
-    "flatlaf",
-    "flatlaf-extras",
-    "groovy",
-    "openpdf",
-    "jfreechart",
-    "org-netbeans-swing-outline",
-    "radiance-neon",
-    "radiance-trident",
-    "flamingo",
-    "javax-activation-api",
-    "javax-jaxb-api",
-    "jaxb-runtime",
-    "jackson-annotations",
-    "jackson-core",
-    "jackson-databind",
-    "log4j-core",
-    "logback-classic",
-    "pdfbox",
-    "poi",
-    "poi-ooxml",
-    "slf4j-api",
-    "slf4j-simple",
-)
 
 plugins {
     base
@@ -104,11 +67,6 @@ subprojects {
         enabled = false
     }
 
-    if (name != "micrproject_contrib" && name != "micrproject_bootstrap") {
-        projectLibreMavenDependencyAliases.forEach { alias ->
-            dependencies.add("implementation", versionCatalog.findLibrary(alias).get())
-        }
-    }
 }
 
 tasks.register("stageAppDist") {
@@ -117,14 +75,18 @@ tasks.register("stageAppDist") {
     dependsOn(":micrproject_ui:installDist")
 }
 
-tasks.register("verifyIndependentBoundaries") {
+tasks.register("verifyArchitectureBoundaries") {
     group = "verification"
-    description = "Verifies that reports and exchange remain independent of UI and application layers."
+    description = "Verifies the module dependency direction and legacy-namespace containment."
 
     doLast {
         val boundaryRules = mapOf(
-            "micrproject_reports" to listOf("com.microproject.exchange", "com.microproject.application", "com.projectlibre.ui"),
-            "micrproject_exchange" to listOf("com.microproject.reports", "com.microproject.application", "com.projectlibre.ui")
+            "micrproject_core" to listOf("com.microproject.application", "com.microproject.reports", "com.microproject.ui"),
+            "micrproject_application" to listOf("com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
+            "micrproject_reports" to listOf("com.microproject.application", "com.microproject.exchange", "com.microproject.ui"),
+            "micrproject_exchange" to listOf("com.microproject.application", "com.microproject.reports", "com.microproject.ui"),
+            "micrproject_bootstrap" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
+            "micrproject_ribbon" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.menu", "com.microproject.pm", "com.microproject.reports", "com.microproject.ui", "com.microproject.util")
         )
         boundaryRules.forEach { (module, forbiddenPackages) ->
             val sourceRoot = project(":$module").projectDir.resolve("src/main")
@@ -138,7 +100,28 @@ tasks.register("verifyIndependentBoundaries") {
                 }
             }
         }
+
+        val legacyNamespaceReferences = fileTree(layout.projectDirectory.dir("modules")) {
+            include("**/src/main/**/*.java", "**/src/main/**/*.kt")
+            exclude("**/build/**")
+        }.filter { sourceFile ->
+            sourceFile.relativeTo(layout.projectDirectory.asFile).invariantSeparatorsPath !=
+                "modules/micrproject_core/src/main/java/com/microproject/util/SafeObjectInput.java"
+        }.flatMap { sourceFile ->
+            sourceFile.readLines().mapIndexedNotNull { index, line ->
+                if (line.contains("com.projectlibre")) "${sourceFile}:${index + 1}: $line" else null
+            }
+        }
+        require(legacyNamespaceReferences.isEmpty()) {
+            "Legacy com.projectlibre namespace leaked outside SafeObjectInput:\n" + legacyNamespaceReferences.joinToString("\n")
+        }
     }
+}
+
+tasks.register("verifyIndependentBoundaries") {
+    group = "verification"
+    description = "Compatibility alias for verifyArchitectureBoundaries."
+    dependsOn("verifyArchitectureBoundaries")
 }
 
 tasks.register<Delete>("cleanLegacyPackagingArtifacts") {

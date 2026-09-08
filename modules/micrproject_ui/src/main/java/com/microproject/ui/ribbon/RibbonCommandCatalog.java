@@ -33,6 +33,8 @@ import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.Set;
 
+import com.microproject.ribbon.SwingRibbonModel;
+
 /**
  * Canonical information architecture for commands displayed by the desktop ribbon.
  *

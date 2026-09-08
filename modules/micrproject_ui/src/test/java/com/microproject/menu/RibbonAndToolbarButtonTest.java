@@ -73,9 +73,11 @@ import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.util.FlatUiSupport;
-import com.microproject.ui.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ribbon.RibbonCommandInvocation;
+import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ui.ribbon.SwingRibbonFactory;
-import com.microproject.ui.ribbon.SwingRibbonModel;
+import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
 
 class RibbonAndToolbarButtonTest {
@@ -634,6 +636,24 @@ class RibbonAndToolbarButtonTest {
 					}
 				}
 			}
+		});
+	}
+
+	@Test
+	void publicRibbonCommandEntranceUsesTheSameSharedActionAsItsButton() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ClickRecordingActionMap actionMap = new ClickRecordingActionMap();
+			MenuManager manager = MenuManager.getInstance(actionMap);
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonGantt");
+			int before = actionMap.clickCount(actionId);
+
+			RibbonCommandResult result = ribbon.dispatchCommand("RibbonGantt",
+				RibbonCommandInvocation.Origin.QUICK_ACCESS, host);
+
+			assertEquals(RibbonCommandResult.Status.DISPATCHED, result.status());
+			assertEquals(before + 1, actionMap.clickCount(actionId));
 		});
 	}
 

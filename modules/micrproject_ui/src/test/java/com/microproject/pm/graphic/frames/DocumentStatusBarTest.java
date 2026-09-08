@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.Calendar;
 
 import org.junit.jupiter.api.Test;
+import com.microproject.timescale.TimeScale;
 
 /**
  * Regression test for #202: the status bar exposes the current zoom level and
@@ -26,6 +28,16 @@ class DocumentStatusBarTest {
 	void zoomLabelClampsDegenerateInput() {
 		String clamped = DocumentStatusBar.formatZoom(-5, 0);
 		assertTrue(clamped.contains("1"), "clamped zoom missing 1/1 in: " + clamped);
+	}
+
+	@Test
+	void semanticZoomLabelIncludesConfiguredInterval() {
+		TimeScale scale = new TimeScale();
+		scale.setCalendarField1(Calendar.MONTH);
+		scale.setNumber1(3);
+		String text = DocumentStatusBar.formatZoom(5, 9, scale);
+		assertTrue(text.contains("quarter"));
+		assertTrue(text.contains("6/9"));
 	}
 
 	@Test
@@ -59,7 +71,7 @@ class DocumentStatusBarTest {
 	void japaneseStatusLabelsDescribeCountsAndZoomLevels() {
 		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
 		assertEquals("選択中のタスク数: {0}", japanese.getString("StatusBar.SelectedTasks"));
-		assertEquals("ズーム: {0} / {1} 段階", japanese.getString("StatusBar.Zoom"));
+		assertEquals("ズーム: {0} ({1}/{2} 段階)", japanese.getString("StatusBar.ZoomSemantic"));
 		assertEquals("microProject エラー", japanese.getString("Title.ProjectLibreError"));
 		assertTrue(japanese.getString("Message.invalidDuration").contains("3ed"));
 	}

@@ -24,6 +24,7 @@ import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.key.HasKey;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 
 /**
@@ -220,10 +221,7 @@ public final class UiButtonDiagnostics {
 				return "none";
 			StringBuilder snapshot = new StringBuilder();
 			if (project.getTaskOutline() != null) {
-				for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-					Object value = iterator.next();
-					if (!(value instanceof Task task))
-						continue;
+				for (Task task : ProjectHierarchyQueries.outline(project)) {
 					snapshot.append("task:").append(task.getUniqueId()).append(':')
 						.append(task.getStart()).append(':').append(task.getEnd()).append(':')
 						.append(task.getDuration()).append(':').append(task.getPercentComplete()).append(':')

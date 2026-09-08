@@ -109,6 +109,10 @@ public class MpoFileImporter extends FileImporter {
 	@Override
 	public void importFile() throws Exception {
 		if (fileInputStream == null) {
+			MpoValidationResult preflight = MpoArchiveValidator.validate(fileName == null ? null : Path.of(fileName));
+			if (!preflight.valid()) {
+				throw new IOException("MPO preflight validation failed: " + preflight.reason());
+			}
 			project = loadProject(new File(fileName));
 		} else {
 			try (InputStream in = fileInputStream) {

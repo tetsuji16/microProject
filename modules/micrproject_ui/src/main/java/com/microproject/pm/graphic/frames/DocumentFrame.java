@@ -253,7 +253,7 @@ public class DocumentFrame extends NamedFrame implements
 	}
 	private void updateStatusBarZoom() {
 		statusBar.setZoom(coord.getTimescaleManager().getCurrentScaleIndex(),
-				coord.getTimescaleManager().getScaleCount());
+				coord.getTimescaleManager().getScaleCount(), coord.getTimescaleManager().getScale());
 	}
 
 	private void setMainView(boolean activate) {
@@ -873,36 +873,26 @@ public class DocumentFrame extends NamedFrame implements
 		if (spreadSheet != null) spreadSheet.moveSelectedTaskRowsFromCommand(direction);
 	}
 	public void doDelete() {
-		SpreadSheet ss = getActiveSpreadSheet();
-		if (ss !=null)
-			ss.executeAction(MenuActionConstants.ACTION_DELETE);
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_DELETE);
 	}
 
 	public void doCut() {
-		SpreadSheet ss = getActiveSpreadSheet();
-		if (ss !=null)
-			ss.performAction(MenuActionConstants.ACTION_CUT, new ActionEvent(ss,0,null));
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_CUT);
 			//NodeListTransferHandler.getCutAction(ss).actionPerformed(new ActionEvent(this,0,null));
 			//ss.executeAction(SpreadSheet.CUT);
 	}
 	public void doCopy() {
-		SpreadSheet ss = getActiveSpreadSheet();
-		if (ss !=null)
-			ss.performAction(MenuActionConstants.ACTION_COPY, new ActionEvent(ss,0,null));
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_COPY);
 			//NodeListTransferHandler.getCopyAction(ss).actionPerformed(new ActionEvent(this,0,null));
 			//ss.executeAction(SpreadSheet.COPY);
 	}
 	public void doPaste() {
-		SpreadSheet ss = getActiveSpreadSheet();
-		if (ss !=null && canPasteIntoCurrentSelection())
-			ss.performAction(MenuActionConstants.ACTION_PASTE, new ActionEvent(ss,0,null));
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE);
 			//NodeListTransferHandler.getPasteAction(ss).actionPerformed(new ActionEvent(this,0,null));
 			//ss.executeAction(SpreadSheet.PASTE);
 	}
 	public void doPasteInsert() {
-		SpreadSheet ss = getActiveSpreadSheet();
-		if (ss !=null && canPasteIntoCurrentSelection())
-			ss.performAction(MenuActionConstants.ACTION_PASTE_INSERT, new ActionEvent(ss,0,null));
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE_INSERT);
 	}
 
 

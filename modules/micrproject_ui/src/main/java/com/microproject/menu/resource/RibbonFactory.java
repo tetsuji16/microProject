@@ -94,7 +94,7 @@ import org.pushingpixels.flamingo.api.ribbon.RibbonTask;
 import org.pushingpixels.flamingo.api.ribbon.resize.CoreRibbonResizePolicies;
 import org.pushingpixels.flamingo.api.ribbon.resize.RibbonBandResizePolicy;
 
-import com.microproject.ui.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ribbon.CustomRibbonBandGenerator;
 import com.microproject.menu.ExtButtonFactory;
 import com.microproject.menu.ProjectMenuActionMap;
 

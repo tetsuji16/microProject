@@ -79,6 +79,7 @@ detection so the counts are reproducible across machines and git versions.
 - `modules/micrproject_exchange`: file exchange, import/export, and format integration code
 - `modules/micrproject_reports`: report-related code and templates
 - `modules/micrproject_contrib`: shared third-party dependencies built into the app distribution
+- `modules/micrproject_ribbon`: reusable Swing ribbon API and extension SPI, independent of project-domain commands
 - `packaging`: active packaging assets, licenses, and Windows release icons
 - `samples`: sample project files for screenshots and manual verification
 - `scripts`: launch helpers for local verification
