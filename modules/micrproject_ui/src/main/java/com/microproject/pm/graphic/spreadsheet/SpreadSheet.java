@@ -1536,6 +1536,43 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		scrollRectToVisible(getCellRect(row, col, true));
 	}
 
+	/**
+	 * Applies the Microsoft Project whole-row selection used by the Gantt
+	 * calendar.  Keeping this in the spreadsheet makes a chart click use the
+	 * same row/column projection as a task-table click instead of leaving only
+	 * one table cell selected.
+	 */
+	public void selectTaskRowFromGantt(int row, boolean toggle, boolean extend) {
+		if (row < 0 || row >= getRowCount() || getColumnCount() == 0) {
+			return;
+		}
+		finishCurrentOperations();
+		if (!toggle && !extend) {
+			selectRowAndAllColumns(row);
+		} else if (toggle) {
+			if (getSelectionModel().isSelectedIndex(row)) {
+				getSelectionModel().removeSelectionInterval(row, row);
+			} else {
+				getSelectionModel().addSelectionInterval(row, row);
+			}
+			if (getSelectedRowCount() == 0) {
+				clearSelection();
+				return;
+			}
+			getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
+			setRowHeaderSelectionActive(true);
+		} else {
+			int anchor = getSelectionModel().getAnchorSelectionIndex();
+			if (anchor < 0) {
+				anchor = row;
+			}
+			getSelectionModel().setSelectionInterval(anchor, row);
+			getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
+			setRowHeaderSelectionActive(true);
+		}
+		scrollRectToVisible(getCellRect(row, 0, true));
+	}
+
 	private void restoreTaskRowSelection(int row, int col) {
 		if (row < 0 || row >= getRowCount() || col < 0 || col >= getColumnCount()
 				|| getSelection() == null)

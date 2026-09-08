@@ -59,7 +59,7 @@ public class GanttUI extends GraphUI{
     	return row*((Gantt)graph).getRowHeight()+config.getGanttBarYOffset();
     }
 
-    public GraphZone getNodeAt(double x,double y){
+	public GraphZone getNodeAt(double x,double y){
 		double rowHeight=((Gantt)graph).getRowHeight();
 		int row=(int)Math.floor(y/rowHeight);
 		if (row<0||row>=graph.getModel().getCache().getSize()) return null;
@@ -88,6 +88,22 @@ public class GanttUI extends GraphUI{
 
 
     }
+
+	/**
+	 * Returns the task represented by a visible Gantt row without requiring the
+	 * pointer to be over its bar.  Selection uses this row-level hit target;
+	 * editing gestures continue to use {@link #getNodeAt(double, double)} so a
+	 * click in calendar whitespace can never start moving a task bar.
+	 */
+	public GraphicNode getTaskRowAt(double y) {
+		double rowHeight = ((Gantt) graph).getRowHeight();
+		int row = (int) Math.floor(y / rowHeight);
+		if (row < 0 || graph.getModel().getCache() == null || row >= graph.getModel().getCache().getSize()) {
+			return null;
+		}
+		Object element = graph.getModel().getCache().getElementAt(row);
+		return element instanceof GraphicNode node ? node : null;
+	}
 
 
 

@@ -739,6 +739,11 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 
 	private void onGanttChartClick(Gantt.BarClick click) {
+		syncSpreadsheetSelection(click, spreadSheet);
+	}
+
+	/** One chart-to-table selection path for bar and calendar-row clicks. */
+	static void syncSpreadsheetSelection(Gantt.BarClick click, SpreadSheet spreadSheet) {
 		if (click == null) {
 			return;
 		}
@@ -748,10 +753,6 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			}
 			return;
 		}
-		selectSpreadsheetRowForGraphicNode(click);
-	}
-
-	private void selectSpreadsheetRowForGraphicNode(Gantt.BarClick click) {
 		GraphicNode node = click.node();
 		if (node == null || spreadSheet == null
 				|| !(spreadSheet.getModel() instanceof com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model)) {
@@ -761,14 +762,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (row < 0 || row >= spreadSheet.getRowCount()) {
 			return;
 		}
-		int column = spreadSheet.getCurrentViewColumn();
-		if (column < 0) {
-			column = 0;
-		}
-		if (column >= spreadSheet.getColumnCount()) {
-			column = Math.max(0, spreadSheet.getColumnCount() - 1);
-		}
-		spreadSheet.changeSelection(row, column, click.toggle(), click.extend());
+		spreadSheet.selectTaskRowFromGantt(row, click.toggle(), click.extend());
 	}
 
 	private void applySpreadsheetGridStyle() {

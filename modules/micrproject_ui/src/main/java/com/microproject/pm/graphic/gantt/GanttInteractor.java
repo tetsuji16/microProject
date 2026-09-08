@@ -221,10 +221,18 @@ public class GanttInteractor extends GraphInteractor{
     		return;
     	}
 
-    	select(e.getX(), e.getY());
-    	notifyBarSelection(e);
-    	if (selected == null) {
-    		startPan(e);
+		select(e.getX(), e.getY());
+		notifyBarSelection(e);
+		if (selected == null) {
+			// MSP selects the task row when the user clicks the calendar portion
+			// of that row, even when no task bar occupies that particular pixel.
+			// Do not pass this through GraphInteractor: its drag path treats a
+			// selected node as a bar-edit gesture.
+			if (getTaskRowAt(e.getY()) != null) {
+				notifyMode("StatusBar.Ready");
+				return;
+			}
+			startPan(e);
     		notifyMode("StatusBar.Panning");
     		return;
     	}
@@ -713,11 +721,18 @@ public class GanttInteractor extends GraphInteractor{
     	if (!(getGraph() instanceof Gantt gantt)) return;
     	GraphicNode node = selected instanceof GraphicNode graphicNode ? graphicNode : null;
     	boolean leftClick = e != null && SwingUtilities.isLeftMouseButton(e);
+		if (node == null && leftClick) {
+			node = getTaskRowAt(e.getY());
+		}
     	// A right click on empty space (or on a link) keeps the current
     	// selection; only left clicks on empty chart space clear it.
     	if (node == null && !(leftClick && selected == null)) return;
     	gantt.notifyBarSelection(new Gantt.BarClick(node, isToggleModifier(e), e != null && e.isShiftDown()));
     }
+
+	private GraphicNode getTaskRowAt(int y) {
+		return ui instanceof GanttUI ganttUi ? ganttUi.getTaskRowAt(y) : null;
+	}
 
     private static boolean isToggleModifier(MouseEvent e){
     	return e != null && (e.isControlDown() || e.isMetaDown());

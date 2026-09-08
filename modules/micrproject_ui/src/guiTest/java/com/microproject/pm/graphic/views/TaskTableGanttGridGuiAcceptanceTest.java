@@ -272,6 +272,66 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertEquals(before, after, "progress-line click must not move the timescale viewport");
 	}
 
+	@Test
+	void calendarRowWhitespaceClickSelectsTheMatchingTaskTableRow() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.getSelectionModel().addListSelectionListener(
+				GanttView.createGanttSelectionListener(fixture.gantt, fixture.sheet));
+			fixture.gantt.setBarSelectionListener(click -> GanttView.syncSpreadsheetSelection(click, fixture.sheet));
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
+			"task table or Gantt was not visible for calendar-row selection");
+
+		int row = 1;
+		Point chartLocation = new Point();
+		Rectangle visibleChart = new Rectangle();
+		int rowHeight = fixture.gantt.getRowHeight();
+		SwingUtilities.invokeAndWait(() -> {
+			chartLocation.setLocation(fixture.gantt.getLocationOnScreen());
+			visibleChart.setBounds(fixture.gantt.getVisibleRect());
+		});
+		// The far right edge is calendar whitespace for this one-day fixture;
+		// selecting there must not require a task-bar hit.
+		int x = chartLocation.x + visibleChart.x + visibleChart.width - 12;
+		int y = chartLocation.y + row * rowHeight + rowHeight - 3;
+		SwingUtilities.invokeAndWait(() -> assertTrue(((GanttUI) fixture.gantt.getUI()).getTaskRowAt(
+			row * rowHeight + rowHeight - 3) != null, "test click must target a visible task row"));
+		robot.mouseMove(x, y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRow() == row,
+			"calendar-row click did not select the corresponding task-table row");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(row, fixture.sheet.getSelectedRow(), "calendar row must select its table row");
+			assertTrue(fixture.sheet.isRowFullySelected(row), "calendar row selection must highlight the full table row");
+			assertTrue(fixture.gantt.getHighlightedRows().contains(row), "calendar row selection must retain the Gantt highlight");
+		});
+
+		int secondRow = 2;
+		int secondY = chartLocation.y + secondRow * rowHeight + rowHeight - 3;
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.mouseMove(x, secondY);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRowCount() == 2,
+			"Ctrl+calendar-row click did not retain a noncontiguous task selection");
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(fixture.sheet.getSelectionModel().isSelectedIndex(row), "first calendar row must remain selected");
+			assertTrue(fixture.sheet.getSelectionModel().isSelectedIndex(secondRow), "Ctrl click must add the second calendar row");
+			assertEquals(fixture.sheet.getColumnCount(), fixture.sheet.getSelectedColumnCount(),
+				"every selected Gantt row must highlight all task-table columns");
+		});
+	}
+
 	private static void assertHeaderHighlight(SpreadSheet sheet, int activeColumn) {
 		for (int column = 0; column < sheet.getColumnCount(); column++) {
 			TableCellRenderer renderer = sheet.getColumnModel().getColumn(column).getHeaderRenderer();
