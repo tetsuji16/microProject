@@ -17,6 +17,7 @@ import java.awt.event.InputEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.swing.AbstractButton;
@@ -161,7 +162,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 
-		createWindow("microProject — New project creation acceptance");
+		createStartedWindow("microProject — New project creation acceptance");
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		AbstractButton newButton = findCommandButton(window, "RibbonNewProject");
@@ -200,6 +201,26 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			window.setVisible(true);
 		});
 		GuiAcceptanceSupport.await(() -> window.isShowing(), "real ribbon window did not become visible");
+	}
+
+	/**
+	 * Starts the same standalone factory path as the desktop launcher.  Building
+	 * a GraphicManager directly cannot prove that startup restored the connected
+	 * command state before the File ribbon is shown.
+	 */
+	private void createStartedWindow(String title) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			window = new MainRibbonFrame(title, null, null);
+			manager = new ApplicationStartupFactory(new HashMap<>()).instanceFromNewSession(window, false);
+			window.setGraphicManager(manager);
+			if (!window.isShowing()) {
+				window.setSize(1200, 700);
+				window.setLocationByPlatform(true);
+				window.setAlwaysOnTop(true);
+				window.setVisible(true);
+			}
+		});
+		GuiAcceptanceSupport.await(() -> window.isShowing(), "startup ribbon window did not become visible");
 	}
 
 	private void clickAndClose(Robot robot, String commandId, Class<? extends Window> dialogType) throws Exception {
