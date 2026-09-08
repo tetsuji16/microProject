@@ -257,6 +257,15 @@ class BootstrapUpdateTest {
     }
 
     @Test
+    void windowsProjectPathsAreNotMisclassifiedAsUpdateUris() {
+        assertFalse(MicroProjectUpdater.isConfigurationUriArgument("C:\\Projects\\sample.mpo"),
+                "a file-association path must reach the application without URI parsing");
+        assertFalse(MicroProjectUpdater.isConfigurationUriArgument("C:\\Projects\\日本語.mpp"));
+        assertTrue(MicroProjectUpdater.isConfigurationUriArgument("https://example.test/configuration.xml"));
+        assertTrue(MicroProjectUpdater.isConfigurationUriArgument("file:///C:/updates/configuration.xml"));
+    }
+
+    @Test
     void launchInvokesConfiguredLauncherInProcess(@TempDir Path temp) throws Exception {
         KeyPair kp = generateRsa();
         Path dir = Files.createTempDirectory("launch");

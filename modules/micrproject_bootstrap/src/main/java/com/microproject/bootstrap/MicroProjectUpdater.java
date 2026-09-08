@@ -74,6 +74,19 @@ public final class MicroProjectUpdater {
         return false;
     }
 
+    /**
+     * A jpackage file association supplies an absolute Windows path such as
+     * {@code C:\\Projects\\plan.mpo}. It is an application argument, not an
+     * update-feed URI. Passing it to URI.create fails before the application
+     * starts and jpackage surfaces that failure as "Failed to launch JVM".
+     */
+    static boolean isConfigurationUriArgument(String argument) {
+        if (argument == null || argument.isBlank()) return false;
+        String normalized = argument.toLowerCase(java.util.Locale.ROOT);
+        return normalized.startsWith("https://") || normalized.startsWith("http://")
+                || normalized.startsWith("file:");
+    }
+
     public static void main(String[] args) throws IOException {
         URI configUri = DEFAULT_CONFIG_URI;
         boolean launchOnly = isLaunchOnly(args);
@@ -81,7 +94,7 @@ public final class MicroProjectUpdater {
         for (String arg : args) {
             if ("--force-check".equals(arg)) {
                 forceCheck = true;
-            } else if (!arg.isEmpty() && !arg.startsWith("-")) {
+            } else if (isConfigurationUriArgument(arg)) {
                 configUri = URI.create(arg);
             }
         }
