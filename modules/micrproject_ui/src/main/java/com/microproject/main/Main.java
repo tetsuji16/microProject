@@ -129,7 +129,9 @@ public class Main {
 	 * Windows batch launchers can pass an unquoted path with spaces as several
 	 * Java arguments.  Reassemble the documented --fileNames values at the
 	 * application boundary, using a native project-file suffix as the end of a
-	 * path.  Properly quoted arguments remain unchanged.
+	 * path.  Properly quoted arguments remain unchanged.  Include every project
+	 * format accepted by the desktop opener: an MPP supplied by Explorer is just
+	 * as likely to contain spaces as a native MPO file.
 	 */
 	static ArrayList<String> normalizeFileNameArguments(ArrayList<String> args) {
 		if (args.size() < 2 || !"--fileNames".equals(args.get(0)))
@@ -148,13 +150,18 @@ public class Main {
 			if (path.length() > 0) path.append(' ');
 			path.append(value);
 			String lower = path.toString().toLowerCase(java.util.Locale.ROOT);
-			if (lower.endsWith(".mpo") || lower.endsWith(".pod") || lower.endsWith(".xml")) {
+			if (isProjectFileName(lower)) {
 				normalized.add(path.toString());
 				path.setLength(0);
 			}
 		}
 		if (path.length() > 0) normalized.add(path.toString());
 		return normalized;
+	}
+
+	private static boolean isProjectFileName(String lowerCasePath) {
+		return lowerCasePath.endsWith(".mpo") || lowerCasePath.endsWith(".pod")
+			|| lowerCasePath.endsWith(".mpp") || lowerCasePath.endsWith(".xml");
 	}
 	public static int getRunNumber() {
 		return Preferences.userNodeForPackage(Main.class).getInt("projectlibreRunNumber",0);

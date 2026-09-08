@@ -33,6 +33,23 @@ class MainArgumentsTest {
 	}
 
 	@Test
+	void reassemblesUnquotedWindowsMppPathsForStartupImport() {
+		ArrayList<String> raw = new ArrayList<>(List.of(
+			"--fileNames",
+			"C:\\workspace\\CCPM",
+			"source",
+			"schedule.mpp",
+			"C:\\workspace\\native",
+			"follow-up.mpo"));
+
+		assertEquals(List.of(
+			"--fileNames",
+			"C:\\workspace\\CCPM source schedule.mpp",
+			"C:\\workspace\\native follow-up.mpo"),
+			Main.normalizeFileNameArguments(raw));
+	}
+
+	@Test
 	void leavesQuotedPathArgumentsUnchanged() {
 		ArrayList<String> raw = new ArrayList<>(List.of(
 			"--fileNames", "C:\\workspace\\one.mpo", "C:\\workspace\\two.mpo"));
