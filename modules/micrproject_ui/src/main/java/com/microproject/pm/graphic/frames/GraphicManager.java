@@ -3336,7 +3336,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return project != null;
 	}
 
-	private static Exception standaloneFilePreflight(String fileName) {
+	/**
+	 * Performs only the container check owned by the MPO importer.  POD, MPP,
+	 * XML, and XLSX files have different importer formats and must reach their
+	 * importer instead of being rejected as non-ZIP files here.
+	 */
+	static Exception standaloneFilePreflight(String fileName) {
+		if (!FileHelper.isMpoFile(fileName))
+			return null;
 		try {
 			Path path = Path.of(fileName);
 			if (!Files.exists(path)) return new NoSuchFileException(fileName);

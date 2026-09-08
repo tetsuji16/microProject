@@ -26,6 +26,7 @@ package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -43,6 +44,13 @@ class StartupFactoryCommandStateTest {
 		GraphicManager graphicManager = new GraphicManager(new JPanel());
 
 		assertDoesNotThrow(() -> graphicManager.setButtonState(null, null));
+	}
+
+	@Test
+	void standalonePreflightDoesNotRejectNonMpoImporterFormats() {
+		assertNull(GraphicManager.standaloneFilePreflight("sample.pod"));
+		assertNull(GraphicManager.standaloneFilePreflight("sample.mpp"));
+		assertNull(GraphicManager.standaloneFilePreflight("sample.xml"));
 	}
 
 	@Test
