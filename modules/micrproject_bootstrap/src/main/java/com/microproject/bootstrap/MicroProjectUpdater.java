@@ -248,11 +248,12 @@ public final class MicroProjectUpdater {
      * configuration is available. Mirrors the classpath/entry point the packaged
      * application would use.
      */
-    private static String[] applicationArguments(String[] args) {
+    static String[] applicationArguments(String[] args) {
         if (args == null) return new String[0];
         return java.util.Arrays.stream(args)
+                .filter(java.util.Objects::nonNull)
                 .filter(arg -> !"--launch-only".equals(arg) && !"--force-check".equals(arg))
-                .filter(arg -> !arg.startsWith("http://") && !arg.startsWith("https://") && !arg.startsWith("file:"))
+                .filter(arg -> !isConfigurationUriArgument(arg))
                 .toArray(String[]::new);
     }
 

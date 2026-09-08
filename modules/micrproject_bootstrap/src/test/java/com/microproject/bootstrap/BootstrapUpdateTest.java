@@ -266,6 +266,20 @@ class BootstrapUpdateTest {
     }
 
     @Test
+    void applicationArgumentsRetainProjectPathsAndRemoveConfigurationUris() {
+        assertArrayEquals(new String[] {"C:\\Projects\\sample.mpo", "C:\\Projects\\日本語.mpp"},
+                MicroProjectUpdater.applicationArguments(new String[] {
+                        "C:\\Projects\\sample.mpo",
+                        "HTTPS://example.test/configuration.xml",
+                        "FILE:///C:/updates/configuration.xml",
+                        "--force-check",
+                        null,
+                        "C:\\Projects\\日本語.mpp"
+                }),
+                "the app must receive project-file arguments but never an update configuration URI");
+    }
+
+    @Test
     void launchInvokesConfiguredLauncherInProcess(@TempDir Path temp) throws Exception {
         KeyPair kp = generateRsa();
         Path dir = Files.createTempDirectory("launch");
