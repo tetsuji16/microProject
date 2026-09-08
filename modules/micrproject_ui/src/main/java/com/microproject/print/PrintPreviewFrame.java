@@ -53,7 +53,6 @@ import java.util.logging.Logger;
 import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
@@ -71,10 +70,11 @@ import com.microproject.menu.ProjectMenuActionMap;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
+import com.microproject.util.FlatLafFrame;
 import com.microproject.util.FlatUiSupport;
 
 
-public class PrintPreviewFrame extends JFrame implements  ProjectMenuActionMap, MenuActionConstants{
+public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActionMap, MenuActionConstants{
    private static final Logger logger = Logger.getLogger(PrintPreviewFrame.class.getName());
 
    private PagePanel pagePanel;

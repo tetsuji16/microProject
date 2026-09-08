@@ -105,7 +105,7 @@ public class MenuManager {
 	menuFactory = new ExtMenuFactory(rootActionMap,bundles);
 	toolBarFactory = new ExtToolBarFactory(rootActionMap,bundles);
 	if (Environment.isRibbonUI()) {
-		ribbonFactory = new SwingRibbonFactory(new LegacyRibbonCommandSourceAdapter(toolBarFactory), bundles);
+		ribbonFactory = new SwingRibbonFactory(new MenuRibbonCommandSource(toolBarFactory), bundles);
 	}
 	}
 

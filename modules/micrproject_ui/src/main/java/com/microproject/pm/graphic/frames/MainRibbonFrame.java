@@ -29,7 +29,6 @@ import java.awt.HeadlessException;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
-import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.WindowConstants;
 
@@ -39,8 +38,9 @@ import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.ui.shell.WindowShellInstaller;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatLafFrame;
 
-public class MainRibbonFrame extends JFrame implements FrameHolder{
+public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 	private static final long serialVersionUID = -5161903673269959353L;
 	protected GraphicManager graphicManager;
 	private JPanel ribbonPanel;

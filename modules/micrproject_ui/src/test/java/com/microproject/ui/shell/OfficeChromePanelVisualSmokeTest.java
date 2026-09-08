@@ -59,7 +59,7 @@ class OfficeChromePanelVisualSmokeTest {
 			MenuActionMapSupport.noopActionMap(),
 			MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
 		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(
-			new com.microproject.menu.LegacyRibbonCommandSourceAdapter(buttonFactory),
+			new com.microproject.menu.MenuRibbonCommandSource(buttonFactory),
 			MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
 		JPanel ribbonPanel = ribbonFactory.createPanel(MenuManager.STANDARD_RIBBON, () -> {});
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
@@ -139,7 +139,7 @@ class OfficeChromePanelVisualSmokeTest {
 			MenuActionMapSupport.noopActionMap(),
 			MenuDefinitionSupport.ribbonBundles(locale));
 		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(
-			new com.microproject.menu.LegacyRibbonCommandSourceAdapter(buttonFactory),
+			new com.microproject.menu.MenuRibbonCommandSource(buttonFactory),
 			MenuDefinitionSupport.ribbonBundles(locale));
 		var model = ribbonFactory.createModel(MenuManager.STANDARD_RIBBON);
 		JPanel ribbonPanel = ribbonFactory.createPanel(model, () -> {});

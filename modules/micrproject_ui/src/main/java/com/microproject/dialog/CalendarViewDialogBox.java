@@ -48,7 +48,6 @@ import java.util.List;
 import java.util.Locale;
 
 import javax.swing.JButton;
-import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -66,9 +65,10 @@ import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 
 /** Month calendar with task cards and drag-to-reschedule support. */
-public final class CalendarViewDialogBox extends JDialog {
+public final class CalendarViewDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 	private final JLabel monthLabel = new JLabel();
 	private final CalendarCanvas canvas;

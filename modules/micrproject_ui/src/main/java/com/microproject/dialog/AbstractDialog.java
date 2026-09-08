@@ -69,11 +69,12 @@ import com.microproject.configuration.Settings;
 import com.microproject.strings.Messages;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 
 /**
  *
  */
-public abstract class AbstractDialog extends JDialog {
+public abstract class AbstractDialog extends FlatLafDialog {
 	private static final Logger logger = Logger.getLogger(AbstractDialog.class.getName());
 	protected JButton ok;
 

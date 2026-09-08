@@ -17,17 +17,17 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JColorChooser;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 import com.microproject.util.PopupDialogSupport;
 
 /** MSP-style line-specific formatting for the active Gantt chart. */
-public final class GridlinesDialogBox extends JDialog {
+public final class GridlinesDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 	private enum Target { TASK_ROWS, PROJECT_START, CURRENT_DATE, STATUS_DATE, TIMESCALE_MAJOR, TIMESCALE_MINOR, NONWORKING_BOUNDARY }
 

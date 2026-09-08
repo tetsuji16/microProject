@@ -129,7 +129,7 @@ class RibbonCommandCatalogTest {
 	private static SwingRibbonModel validate(Locale locale) {
 		ExtToolBarFactory buttons = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), MenuDefinitionSupport.ribbonBundles(locale));
 		SwingRibbonFactory factory = new SwingRibbonFactory(
-			new com.microproject.menu.LegacyRibbonCommandSourceAdapter(buttons),
+			new com.microproject.menu.MenuRibbonCommandSource(buttons),
 			MenuDefinitionSupport.ribbonBundles(locale));
 		return factory.createModel(MenuManager.STANDARD_RIBBON);
 	}

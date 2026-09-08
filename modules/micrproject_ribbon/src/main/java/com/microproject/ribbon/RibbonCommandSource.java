@@ -16,9 +16,9 @@ import javax.swing.AbstractButton;
  * commands are looked up, enabled, or registered with a legacy menu system.
  *
  * <p>An embedding application can implement this interface without depending
- * on the desktop menu package.  Implementations must return buttons backed by
- * the same action instance for a command, so enablement and diagnostics stay
- * consistent across ribbon rebuilds.</p>
+ * on the desktop menu package. Implementations own the one command-dispatch
+ * path used by both physical buttons and programmatic callers; they keep
+ * enablement synchronized across responsive ribbon rebuilds.</p>
  */
 public interface RibbonCommandSource {
 	/** Creates and registers a normal ribbon command button. */
@@ -37,10 +37,9 @@ public interface RibbonCommandSource {
 	void unregisterButtons(Collection<? extends AbstractButton> buttons);
 
 	/**
-	 * Programmatic behavior entry point for a ribbon command. Physical buttons
-	 * retain the host's shared Swing {@code Action}, so enablement and toggle
-	 * state remain synchronized; this entry point invokes that same action for
-	 * an embedding host, an overflow surface, or an automated client.
+	 * Behavior entry point for a ribbon command. Physical buttons and
+	 * programmatic callers both invoke this route, so an overflow surface or an
+	 * automated client cannot silently bypass the host command contract.
 	 */
 	RibbonCommandResult dispatch(RibbonCommandInvocation invocation);
 }

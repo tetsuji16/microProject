@@ -45,6 +45,11 @@ public final class UiButtonDiagnostics {
 		return new TracedAction(buttonId, delegate);
 	}
 
+	/** Returns the command beneath an optional diagnostics decorator. */
+	public static Action unwrapAction(Action action) {
+		return action instanceof TracedAction traced ? traced.delegate : action;
+	}
+
 	private static final class TracedAction extends AbstractAction {
 		private static final long serialVersionUID = 1L;
 		private final String buttonId;
@@ -54,8 +59,12 @@ public final class UiButtonDiagnostics {
 			this.buttonId = buttonId;
 			this.delegate = delegate;
 			delegate.addPropertyChangeListener(event -> {
-				if ("enabled".equals(event.getPropertyName()))
+				if ("enabled".equals(event.getPropertyName())) {
 					setEnabled(delegate.isEnabled());
+				} else if (event.getPropertyName() != null
+						&& event.getPropertyName().startsWith("MicroProject.ribbon")) {
+					putValue(event.getPropertyName(), event.getNewValue());
+				}
 			});
 			copyValue(Action.NAME);
 			copyValue(Action.SHORT_DESCRIPTION);

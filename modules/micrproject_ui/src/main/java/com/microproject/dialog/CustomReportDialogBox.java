@@ -50,7 +50,6 @@ import java.util.Map;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
@@ -88,9 +87,10 @@ import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 
 /** User-configurable task report with reusable presets, preview, print, and CSV export. */
-public final class CustomReportDialogBox extends JDialog implements ScheduleEventListener {
+public final class CustomReportDialogBox extends FlatLafDialog implements ScheduleEventListener {
 	private static final long serialVersionUID = 1L;
 	enum ReportTemplate {
 		BLANK("blank", "report.template.blank", List.of()),

@@ -35,7 +35,6 @@ import java.util.prefs.Preferences;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -52,9 +51,10 @@ import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 
 /** Central editor for task custom-field names, values, and optional lookup validation. */
-public final class CustomFieldsDialogBox extends JDialog {
+public final class CustomFieldsDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 	private static final Preferences PREFS = Preferences.userNodeForPackage(CustomFieldsDialogBox.class).node("lookups");
 	private final List<Field> fields;

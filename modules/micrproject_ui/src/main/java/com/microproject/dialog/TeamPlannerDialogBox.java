@@ -47,7 +47,6 @@ import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -62,9 +61,10 @@ import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.pm.task.Project;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 
 /** Resource-row timeline supporting drag rescheduling and reassignment. */
-public final class TeamPlannerDialogBox extends JDialog {
+public final class TeamPlannerDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 	private final Project project;
 	private final TeamPlannerCanvas canvas;

@@ -15,7 +15,6 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JColorChooser;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
@@ -24,10 +23,11 @@ import javax.swing.SpinnerNumberModel;
 
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 import com.microproject.util.PopupDialogSupport;
 
 /** User-level settings which are independent of a project file. */
-public final class PreferencesDialogBox extends JDialog {
+public final class PreferencesDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 
 	public static void showDialog(Frame owner, GlobalPreferences preferences) {

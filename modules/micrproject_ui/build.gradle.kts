@@ -131,6 +131,11 @@ tasks.register<Test>("guiTest") {
 	// exercise the incompatible library class rather than the shipped application.
 	classpath = files(tasks.jar).plus(guiTestSourceSet.runtimeClasspath)
 	useJUnitPlatform()
+	// Swing singletons (locale, menu factories, windows and focus state) are
+	// process-wide. One acceptance class may not leave that state behind for
+	// another class: doing so turns a real physical-route failure into a
+	// test-order accident. Keep each GUI command family in its own JVM.
+	forkEvery = 1
 	systemProperty("java.awt.headless", "false")
     val guiTestLocale = providers.gradleProperty("guiTestLocale").orElse("ja").get()
     val guiTestUiScale = providers.gradleProperty("guiTestUiScale").orNull

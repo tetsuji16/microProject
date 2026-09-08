@@ -39,7 +39,6 @@ import java.util.Date;
 import java.util.List;
 
 import javax.swing.JButton;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -54,9 +53,10 @@ import com.microproject.pm.task.Task;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 
 /** Concise, selectable project timeline suitable for status communication. */
-public final class TimelineDialogBox extends JDialog {
+public final class TimelineDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 	private final Project project;
 	private final List<Task> tasks = new ArrayList<>();

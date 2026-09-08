@@ -12,7 +12,6 @@ import java.awt.Frame;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -25,10 +24,11 @@ import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
 import com.microproject.pm.graphic.views.CriticalChainGraphPanel;
 import com.microproject.pm.task.Project;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 import com.microproject.util.PopupDialogSupport;
 
 /** Read-only CCPM result surface used by the Report and View ribbon commands. */
-public final class CriticalChainStatusDialogBox extends JDialog {
+public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 
 	public enum Surface { BUFFER_STATUS, NETWORK }
@@ -83,10 +83,15 @@ public final class CriticalChainStatusDialogBox extends JDialog {
 
 	private void openSettingsAndReturn(Frame owner, Project project, Surface surface) {
 		dispose();
-		ResourceLevelingDialogBox.getCriticalChainInstance(owner, project).setVisible(true);
-		if (project != null) {
-			new CriticalChainStatusDialogBox(owner, project, surface).setVisible(true);
-		}
+		// Do not open the next modal dialog from the action that is still closing
+		// this one.  That nested modal loop can consume the physical button release
+		// under FlatLaf and leave the settings surface undisplayed.
+		SwingUtilities.invokeLater(() -> {
+			ResourceLevelingDialogBox.getCriticalChainInstance(owner, project).setVisible(true);
+			if (project != null) {
+				new CriticalChainStatusDialogBox(owner, project, surface).setVisible(true);
+			}
+		});
 	}
 
 	private void loadAnalysis(CriticalChainService service, Project project, Surface surface, JPanel content) {

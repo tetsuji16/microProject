@@ -35,10 +35,13 @@ import javax.swing.JFrame;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.util.FlatLafFrame;
+
 class MainRibbonFrameReflectionTest {
 	@Test
-	void mainRibbonFrameIsNowAJFrameBackedWindow() {
-		assertEquals(JFrame.class, MainRibbonFrame.class.getSuperclass());
+	void mainRibbonFrameUsesTheSharedFlatLafJFrameBase() {
+		assertTrue(JFrame.class.isAssignableFrom(MainRibbonFrame.class));
+		assertEquals(FlatLafFrame.class, MainRibbonFrame.class.getSuperclass());
 	}
 
 	@Test

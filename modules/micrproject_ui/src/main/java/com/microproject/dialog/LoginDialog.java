@@ -47,6 +47,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafFrame;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.util.SafeObjectInput;
 
@@ -70,7 +71,7 @@ public final class LoginDialog extends AbstractDialog {
 	public static LoginForm doLogin(Frame owner,URL serverUrl) {
 		
 		if (owner == null) {
-			final JFrame standaloneFrame = new JFrame(getDialogTitle());
+			final JFrame standaloneFrame = new FlatLafFrame(getDialogTitle());
 			standaloneFrame.setIconImage(IconManager.getImage("application.icon")); //$NON-NLS-1$
 			standaloneFrame.addWindowListener(new WindowListener() {
 				public void windowOpened(WindowEvent arg0) {}

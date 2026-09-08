@@ -43,6 +43,7 @@ import javax.swing.JTable;
 import javax.swing.UIManager;
 
 import com.microproject.util.FlatLafSupport;
+import com.microproject.util.FlatLafFrame;
 
 public class UILister {
 	private static final Logger logger = Logger.getLogger(UILister.class.getName());
@@ -89,7 +90,7 @@ public class UILister {
 			main.add(tableScroll, BorderLayout.CENTER);
 			main.add(buttons, BorderLayout.SOUTH);
 
-			JFrame frame = new JFrame("UI Properties");
+			JFrame frame = new FlatLafFrame("UI Properties");
 			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			frame.getContentPane().add(main);
 			frame.pack();
@@ -100,4 +101,3 @@ public class UILister {
 		}
 	}
 }
-

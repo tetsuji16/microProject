@@ -19,6 +19,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.JComponent;
+import javax.swing.UIManager;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -29,7 +30,6 @@ import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.util.Environment;
-import com.microproject.util.FlatLafSupport;
 
 /** Verifies that Windows caption movement is supplied by FlatLaf/Windows. */
 class WindowShellNativeDecorationGuiAcceptanceTest {
@@ -44,7 +44,6 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 	void physicalCaptionDragUsesNativeWindowShell() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for this acceptance test.");
 		Assumptions.assumeTrue(Environment.isWindows(), "FlatLaf native window shell is Windows-specific.");
-		FlatLafSupport.initialize();
 		final JLabel[] title = new JLabel[1];
 		final JComponent[] brand = new JComponent[1];
 		SwingUtilities.invokeAndWait(() -> {
@@ -61,6 +60,10 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			frame.toFront();
 		});
 		GuiAcceptanceSupport.await(() -> title[0].isShowing(), "document title was not visible");
+		assertEquals("com.formdev.flatlaf.FlatLightLaf", UIManager.getLookAndFeel().getClass().getName(),
+			"a standalone ribbon frame must install FlatLaf before it becomes displayable");
+		assertEquals("com.formdev.flatlaf.ui.FlatRootPaneUI", frame.getRootPane().getUI().getClass().getName(),
+			"the root pane created by JFrame must be refreshed to FlatLaf");
 		assertFalse(frame.isUndecorated(), "FlatLaf must own the native-capable decoration layer");
 		assertEquals(Boolean.TRUE, frame.getRootPane().getClientProperty(WindowShellInstaller.USE_WINDOW_DECORATIONS));
 		assertEquals(18, brand[0].getPreferredSize().width);

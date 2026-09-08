@@ -29,15 +29,15 @@ import java.awt.HeadlessException;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
-import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatLafFrame;
 
-public class MainFrame extends JFrame implements FrameHolder{
+public class MainFrame extends FlatLafFrame implements FrameHolder{
 	private static final long serialVersionUID = -5161903673269959353L;
 	protected GraphicManager graphicManager;
 
@@ -77,4 +77,3 @@ public class MainFrame extends JFrame implements FrameHolder{
 	}
 
 }
-

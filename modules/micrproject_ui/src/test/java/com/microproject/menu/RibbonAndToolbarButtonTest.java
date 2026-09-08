@@ -119,7 +119,7 @@ class RibbonAndToolbarButtonTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		SwingUtilities.invokeAndWait(() -> {
 			SwingRibbonFactory factory = new SwingRibbonFactory(
-				new LegacyRibbonCommandSourceAdapter(manager.getToolBarFactory()), ribbonBundles(Locale.getDefault()));
+				new MenuRibbonCommandSource(manager.getToolBarFactory()), ribbonBundles(Locale.getDefault()));
 			SwingRibbonModel model = factory.createModel(MenuManager.STANDARD_RIBBON);
 			assertEquals(ribbonTaskIds().size(), model.getTabs().size());
 
@@ -170,7 +170,7 @@ class RibbonAndToolbarButtonTest {
 	@Test
 	void japaneseRibbonBandsReserveEnoughWidthForBandTitles() throws Exception {
 			SwingRibbonFactory factory = new SwingRibbonFactory(
-				new LegacyRibbonCommandSourceAdapter(new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.JAPANESE))),
+				new MenuRibbonCommandSource(new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.JAPANESE))),
 				ribbonBundles(Locale.JAPANESE));
 		SwingUtilities.invokeAndWait(() -> {
 			SwingRibbonModel model = factory.createModel(MenuManager.STANDARD_RIBBON);
@@ -658,7 +658,7 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
-	void everyVisibleRibbonGroupButtonUsesItsLiveGraphicManagerAction() throws Exception {
+	void everyVisibleRibbonGroupButtonUsesTheCanonicalGraphicManagerCommandRoute() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			GraphicManager graphicManager = new GraphicManager(new JPanel());
 			MenuManager manager = graphicManager.getMenuManager();
@@ -673,8 +673,10 @@ class RibbonAndToolbarButtonTest {
 					for (String buttonId : ribbonButtonIds(bandId)) {
 						AbstractButton button = findAttachedButtonByCommand(host, buttonId);
 						String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
-						assertSame(graphicManager.getAction(actionId), button.getAction(),
-							() -> buttonId + " in " + bandId + " is not wired to " + actionId);
+						assertTrue(button.getAction() != null,
+							() -> buttonId + " in " + bandId + " has no canonical dispatch action");
+						assertTrue(button.getAction() != graphicManager.getAction(actionId),
+							() -> buttonId + " bypasses the ribbon command route for " + actionId);
 					}
 				}
 			}
@@ -773,8 +775,11 @@ class RibbonAndToolbarButtonTest {
 			assertNotNull(action, () -> id + " has no live action for " + context + ": " + actionId);
 			List<?> buttons = menuManager.getToolButtonsFromId(id);
 			assertNotNull(buttons, () -> id + " was not registered as a " + context + " button");
-			assertTrue(buttons.stream().map(AbstractButton.class::cast).anyMatch(button -> button.getAction() == action),
-				() -> id + " is not wired to its resolved live action for " + context);
+			boolean ribbon = "ribbon".equals(context);
+			assertTrue(buttons.stream().map(AbstractButton.class::cast)
+				.anyMatch(button -> button.getAction() != null && (ribbon ? button.getAction() != action : button.getAction() == action)),
+				() -> id + (ribbon ? " bypasses the canonical ribbon dispatch action for "
+					: " is not wired to its resolved live action for ") + context);
 		}
 	}
 

@@ -58,6 +58,15 @@ class FlatLafSupportTest {
 	}
 
 	@Test
+	void ensureInitializedRestoresFlatLafAfterAnotherLookAndFeelWasInstalled() throws Exception {
+		UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+
+		FlatLafSupport.ensureInitialized();
+
+		assertEquals("com.formdev.flatlaf.FlatLightLaf", UIManager.getLookAndFeel().getClass().getName());
+	}
+
+	@Test
 	void dialogComponentStylingCoversLegacySwingTree() {
 		FlatLafSupport.initialize();
 		JPanel content = new JPanel(new BorderLayout());
@@ -74,4 +83,5 @@ class FlatLafSupportTest {
 		assertEquals(FlatUiSupport.dialogButtonHeight(), button.getMinimumSize().height);
 		assertEquals(FlatUiSupport.viewportBackground(), table.getParent().getBackground());
 	}
+
 }

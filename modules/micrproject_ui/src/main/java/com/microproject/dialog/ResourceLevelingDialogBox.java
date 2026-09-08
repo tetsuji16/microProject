@@ -40,7 +40,6 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
@@ -62,10 +61,11 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
 import com.microproject.pm.graphic.views.CriticalChainGraphPanel;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafDialog;
 import com.microproject.util.PopupDialogSupport;
 
 /** Preview-first resource leveling workflow. */
-public final class ResourceLevelingDialogBox extends JDialog {
+public final class ResourceLevelingDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 	private final Project project;
 	private final CriticalChainService criticalChainService = new CriticalChainService();

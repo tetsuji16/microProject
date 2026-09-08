@@ -83,7 +83,7 @@ public final class FlatLafSupport {
 	}
 
 	public static synchronized void ensureInitialized() {
-		if (!initialized) {
+		if (!initialized || !isFlatLafLookAndFeel()) {
 			initialize();
 		}
 	}
