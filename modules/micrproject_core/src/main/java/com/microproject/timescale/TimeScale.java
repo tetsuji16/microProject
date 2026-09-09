@@ -53,12 +53,14 @@ public class TimeScale {
 
 //	private Date recycledDate=new Date();
 	private ExtendedDateFormat recycledDateFormat;
+	private Locale formatterLocale;
 
 	/**
 	 * 
 	 */
 	public TimeScale() {
-		recycledDateFormat = DateTime.extendedUtcDateFormatInstance();
+		formatterLocale = Locale.getDefault();
+		recycledDateFormat = DateTime.extendedUtcDateFormatInstance(formatterLocale);
 	}
 	
 	private Calendar tmp=DateTime.calendarInstance();
@@ -154,7 +156,8 @@ public class TimeScale {
 	
 	public String getText1(long t){
 		tmp.setTimeInMillis(t);
-		recycledDateFormat.applyPattern(pattern1);
+		ensureFormatterLocale();
+		recycledDateFormat.applyPattern(localizedPattern(pattern1));
 		String r=recycledDateFormat.format(tmp.getTime());
 		if (trunc1>=0) {
 			// patch for Chinese week display
@@ -170,11 +173,41 @@ public class TimeScale {
 	}
 	public String getText2(long t){
 		tmp.setTimeInMillis(t);
-		recycledDateFormat.applyPattern(pattern2);
+		ensureFormatterLocale();
+		recycledDateFormat.applyPattern(localizedPattern(pattern2));
 		String r=recycledDateFormat.format(tmp.getTime());
 		if (trunc2>=0) r=r.substring(0,trunc2);
 		if (upperCase2) r=r.toUpperCase(Locale.ROOT);
 		return r;
+	}
+
+	/**
+	 * Rebuilds the formatter when the application locale is changed at runtime.
+	 * TimeScale instances are shared by Gantt and export views, so keeping this
+	 * check here prevents one view from retaining the old language.
+	 */
+	private void ensureFormatterLocale() {
+		Locale current = Locale.getDefault();
+		if (!current.equals(formatterLocale)) {
+			formatterLocale = current;
+			recycledDateFormat = DateTime.extendedUtcDateFormatInstance(current);
+		}
+	}
+
+	/**
+	 * The built-in scale patterns predate Japanese support and are intentionally
+	 * compact English-oriented patterns. Keep custom patterns intact, but use
+	 * natural compact Japanese labels for the built-in patterns.
+	 */
+	private String localizedPattern(String pattern) {
+		if (pattern == null || !"ja".equals(formatterLocale.getLanguage())) return pattern;
+		return switch (pattern) {
+		case "E d MMM" -> "E d";
+		case "d MMM yy" -> "M月d日 yy年";
+		case "MMM y" -> "M月 y年";
+		case "MMM" -> "M月";
+		default -> pattern;
+		};
 	}
 	
 	

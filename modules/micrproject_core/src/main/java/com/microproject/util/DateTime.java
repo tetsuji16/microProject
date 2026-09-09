@@ -72,7 +72,11 @@ public class DateTime {
 		return f;
 	}
 	public static ExtendedDateFormat extendedUtcDateFormatInstance() {
-		ExtendedDateFormat f = new ExtendedDateFormat(((SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, Locale.getDefault())).toPattern(), Locale.getDefault());
+		return extendedUtcDateFormatInstance(Locale.getDefault());
+	}
+	public static ExtendedDateFormat extendedUtcDateFormatInstance(Locale locale) {
+		Locale effectiveLocale = locale == null ? Locale.getDefault() : locale;
+		ExtendedDateFormat f = new ExtendedDateFormat(((SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, effectiveLocale)).toPattern(), effectiveLocale);
 		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
 		return f;
 	}
