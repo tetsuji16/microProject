@@ -99,6 +99,7 @@ import com.microproject.document.ObjectSelectionListener;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeList;
+import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
@@ -1361,6 +1362,21 @@ public class DocumentFrame extends NamedFrame implements
 			}
 		}
 		return taskNodes;
+	}
+
+	/**
+	 * Returns stable domain tasks for Hide Selected Tasks. Group rows are virtual
+	 * nodes created by the view transformer, so their grouped members must be
+	 * resolved before applying the persistent visibility state.
+	 */
+	protected List<Node> getSelectedVisibilityTaskNodes() {
+		List<Node> selected = getSelectedTaskNodes(true, true);
+		if (selected.isEmpty()) return selected;
+		SpreadSheet spreadSheet = getTopSpreadSheet();
+		if (spreadSheet == null || !(spreadSheet.getModel() instanceof SpreadSheetModel model))
+			return selected;
+		WalkersNodeModel viewModel = model.getCache().getWalkersModel();
+		return TaskVisibilitySelectionResolver.resolve(selected, viewModel);
 	}
 
 	protected boolean hasTaskSelection(boolean excludeReadOnly, int minCount, boolean allowMixedSelection) {

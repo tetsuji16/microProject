@@ -128,6 +128,12 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 			if (actions!=null)
 			for (int i=0;i<actions.length;i++){
 				String actionId = actions[i];
+				// These project-level commands are installed above with their
+				// explicit labels and icons. The spreadsheet capability list also
+				// contains them, which used to create duplicate unlabeled entries.
+				if (MenuActionConstants.ACTION_HIDE_SELECTED_TASKS.equals(actionId)
+						|| MenuActionConstants.ACTION_SHOW_ALL_TASKS.equals(actionId))
+					continue;
 				add(spreadSheet.prepareAction(actionId), getMenuAction(actionId), actionId);
 				if (MenuActionConstants.ACTION_PASTE.equals(actionId)) {
 					add(spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT), getInsertPasteMenuIcon(),

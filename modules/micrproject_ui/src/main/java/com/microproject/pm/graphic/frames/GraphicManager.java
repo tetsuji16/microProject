@@ -2960,7 +2960,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!isDocumentActive())
 				return;
 			DocumentFrame frame = getCurrentFrame();
-			java.util.List<com.microproject.grouping.core.Node> selectedNodes = frame.getSelectedTaskNodes(true, true);
+			java.util.List<com.microproject.grouping.core.Node> selectedNodes = frame.getSelectedVisibilityTaskNodes();
 			putValue("MicroProject.ribbonAffectedTaskIds", TaskVisibilityService.affectedHiddenTaskIds(selectedNodes));
 			int changed = TaskVisibilityService.hideSelected(frame.getProject(),
 					selectedNodes, frame.getUndoController());

@@ -125,8 +125,10 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(() -> findResourceLevelingDialog() != null,
 			"CCPM settings must open from the empty network view");
-		assertTrue(findResourceLevelingDialog().isVisible(), "CCPM settings dialog must be visible after the physical click");
-		SwingUtilities.invokeAndWait(() -> findResourceLevelingDialog().dispose());
+		ResourceLevelingDialogBox settingsDialog = findResourceLevelingDialog();
+		assertTrue(settingsDialog != null && settingsDialog.isVisible(),
+			"CCPM settings dialog must be visible after the physical click");
+		SwingUtilities.invokeAndWait(settingsDialog::dispose);
 		GuiAcceptanceSupport.await(() -> findVisibleStatusDialogCount() > 0,
 			"The original CCPM result surface must return after settings are closed");
 		SwingUtilities.invokeAndWait(() -> {
@@ -188,9 +190,20 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 	}
 
 	private static ResourceLevelingDialogBox findResourceLevelingDialog() {
-		for (Window window : Window.getWindows())
-			if (window instanceof ResourceLevelingDialogBox dialog && dialog.isVisible()) return dialog;
-		return null;
+		AtomicReference<ResourceLevelingDialogBox> result = new AtomicReference<>();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window window : Window.getWindows()) {
+					if (window instanceof ResourceLevelingDialogBox dialog && dialog.isVisible()) {
+						result.set(dialog);
+						return;
+					}
+				}
+			});
+		} catch (Exception exception) {
+			throw new IllegalStateException("Could not inspect CCPM settings dialog visibility", exception);
+		}
+		return result.get();
 	}
 
 	private static int findVisibleStatusDialogCount() {
