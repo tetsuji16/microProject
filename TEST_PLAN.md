@@ -262,3 +262,4 @@
 - #464 GUI環境入力回帰（2026-09-06）: `guiTestLocale`／`guiTestUiScale`をGradle `guiTest`の入力プロパティとして宣言。英語150%実行後に日本語150%を実行してもUP-TO-DATEでスキップされず、Task Information実Robotケースが両方BUILD SUCCESSFUL。
 - #464 縮退リボン表示回帰（2026-09-06）: 700px相当の狭幅Robotケースを追加し、全体縮退時も「ファイル …」ランチャーへ先頭コマンドのアイコンが表示され、物理クリックでコマンドポップアップを開けることを確認。日本語100%／150%の新ケースがBUILD SUCCESSFUL。150%の既存1200px全タブ直接クリックケースは画面幅前提のため別テスト基盤課題として扱う。
 - U-20内容不変条件強化（2026-09-06）: usage viewの受入fixtureに実リソースを追加し、物理Ribbonクリック後のTask/Resource Usageモデル行数を `> 0` と検査。従来の常に真となる `>= 0` 判定を除去し、focused U-20 GUIと`:micrproject_ui:test`がBUILD SUCCESSFUL。
+- #482 複数 document window shell 回帰（2026-09-10）: secondary window の FlatLaf/native decoration 契約を表示前に登録する生成順へ修正し、初回 focus が primary container へ誤配置しないようにした。`DefaultFrameManagerGuiAcceptanceTest` で secondary の native decoration、full-window-content、実 restore bounds、focus 切替、title、物理 close を検査。

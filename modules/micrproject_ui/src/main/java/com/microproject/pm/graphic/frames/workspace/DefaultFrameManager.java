@@ -447,6 +447,10 @@ public class DefaultFrameManager implements FrameManager {
 		window.addWindowFocusListener(new WindowAdapter() {
 			@Override public void windowGainedFocus(WindowEvent event) { graphicManager.activateDocumentWindow((DocumentFrame)frame); }
 		});
+		// Register before showing the window.  FlatLaf can deliver the initial
+		// focus event synchronously/asynchronously during setVisible(); without
+		// this ordering activateFrame() treats the secondary document as a
+		// primary child and briefly installs it in the wrong container.
 		documentWindows.put(frame, window);
 		window.setVisible(true);
 	}

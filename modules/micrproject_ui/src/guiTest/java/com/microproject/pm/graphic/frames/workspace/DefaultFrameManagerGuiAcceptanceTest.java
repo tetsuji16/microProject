@@ -80,6 +80,17 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> desktopWindowManager.getIndependentWindowCount() == 1
 				&& desktopWindowManager.getIndependentWindow(frames[1]).isShowing(), "second project did not receive its own desktop window");
 		JFrame secondary = desktopWindowManager.getIndependentWindow(frames[1]);
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(secondary instanceof MainRibbonFrame);
+			assertFalse(secondary.isUndecorated(),
+				"secondary document windows must retain native FlatLaf decorations");
+			assertEquals(Boolean.TRUE,
+				secondary.getRootPane().getClientProperty("JRootPane.useWindowDecorations"));
+			assertEquals(Boolean.TRUE,
+				secondary.getRootPane().getClientProperty("FlatLaf.fullWindowContent"));
+			assertTrue(secondary.getWidth() > 0 && secondary.getHeight() > 0,
+				"secondary window must have a real restore bounds before it is shown");
+		});
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		Point location = secondary.getLocationOnScreen();
