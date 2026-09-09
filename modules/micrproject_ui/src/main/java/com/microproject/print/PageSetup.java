@@ -118,7 +118,9 @@ public class PageSetup{
 
 	protected void initFont(JComponent c){
 		if (c != null)
-			c.setFont(FlatUiSupport.compactFont());
+			// Use the active FlatLaf UI font.  The previous fixed 8pt font made
+			// Japanese labels and high-DPI controls unreadable in print settings.
+			c.setFont(FlatUiSupport.uiFont());
 	}
 
 	protected int updating;

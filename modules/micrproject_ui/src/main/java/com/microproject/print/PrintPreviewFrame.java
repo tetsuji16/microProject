@@ -120,6 +120,7 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 
 		menuManager = MenuManager.getInstance(this);
 		JToolBar toolBar = menuManager.getToolBar(MenuManager.PRINT_PREVIEW_TOOL_BAR);
+		FlatUiSupport.styleToolBar(toolBar);
         getContentPane().add(toolBar, BorderLayout.BEFORE_FIRST_LINE);
          actionsMap.setEnabledDocumentMenuActions(true);
 
@@ -216,7 +217,8 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		if (pageSetup==null){
 			pageSetup=PageSetup.getInstance((GraphPageable)document);
 			pageSetupComponent=new JScrollPane(pageSetup.createContentPanel(true));
-			pageSetupComponent.setFont(pageSetupComponent.getFont().deriveFont(8));
+			FlatUiSupport.styleDialogComponents(pageSetupComponent);
+			FlatUiSupport.applyViewportSurface(((JScrollPane) pageSetupComponent).getViewport());
 			getContentPane().add(pageSetupComponent,BorderLayout.EAST);
 		}
 
@@ -477,6 +479,8 @@ public PagePanel getPagePanel() {
 			g2.fill(new Rectangle2D.Double(0.0,0.0, pw,ph));
 
 			g2.transform(updateTransform());
+			// The page itself is intentionally white: this represents printable
+			// paper, not an application surface, and must remain theme-independent.
 			g2.setColor (Color.WHITE);
 
 			g2.fill (new Rectangle2D.Double(0.0,0.0,w,h));

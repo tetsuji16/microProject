@@ -29,9 +29,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.awt.BorderLayout;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.UIManager;
 
 import org.junit.jupiter.api.Test;
@@ -82,6 +86,28 @@ class FlatLafSupportTest {
 		assertEquals(FlatUiSupport.spreadsheetGridColor(), table.getGridColor());
 		assertEquals(FlatUiSupport.dialogButtonHeight(), button.getMinimumSize().height);
 		assertEquals(FlatUiSupport.viewportBackground(), table.getParent().getBackground());
+	}
+
+	@Test
+	void dialogComponentStylingUsesThemeFontAndSurfacesForStandardControls() {
+		FlatLafSupport.initialize();
+		JPanel content = new JPanel();
+		JComboBox<String> comboBox = new JComboBox<>(new String[] { "A" });
+		JSpinner spinner = new JSpinner();
+		JList<String> list = new JList<>(new String[] { "A" });
+		JTextField textField = new JTextField();
+		content.add(comboBox);
+		content.add(spinner);
+		content.add(list);
+		content.add(textField);
+
+		FlatUiSupport.styleDialogComponents(content);
+
+		assertEquals(FlatUiSupport.uiFont(), comboBox.getFont());
+		assertEquals(FlatUiSupport.uiFont(), spinner.getFont());
+		assertEquals(FlatUiSupport.uiFont(), list.getFont());
+		assertEquals(FlatUiSupport.uiFont(), textField.getFont());
+		assertEquals(FlatUiSupport.dataSurfaceBackground(), list.getBackground());
 	}
 
 }

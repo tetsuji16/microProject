@@ -37,16 +37,19 @@ import java.awt.RenderingHints;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonModel;
 import javax.swing.BorderFactory;
+import javax.swing.JComboBox;
 import javax.swing.event.ChangeListener;
 import javax.swing.JComponent;
 import javax.swing.JToggleButton;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JDialog;
 import javax.swing.JButton;
 import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JSpinner;
 import javax.swing.JTable;
 import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
@@ -54,6 +57,7 @@ import javax.swing.JViewport;
 import javax.swing.UIManager;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.Border;
+import javax.swing.text.JTextComponent;
 import javax.swing.plaf.FontUIResource;
 
 /**
@@ -940,8 +944,20 @@ public final class FlatUiSupport {
 			applyPanelSurface(splitPane);
 			splitPane.setBorder(BorderFactory.createEmptyBorder());
 		}
+		else if (component instanceof JToolBar toolBar)
+			styleToolBar(toolBar);
 		else if (component instanceof JButton button)
 			styleDialogButton(button, false);
+		else if (component instanceof JComboBox<?> comboBox)
+			styleDialogControl(comboBox);
+		else if (component instanceof JSpinner spinner)
+			styleDialogControl(spinner);
+		else if (component instanceof JList<?> list)
+			styleDialogList(list);
+		else if (component instanceof JTextComponent textComponent)
+			styleDialogControl(textComponent);
+		else if (component instanceof JLabel label)
+			label.setForeground(labelForeground());
 		else if (component instanceof JPanel panel)
 			applyPanelSurface(panel);
 
@@ -950,6 +966,19 @@ public final class FlatUiSupport {
 				styleDialogComponents(child);
 			}
 		}
+	}
+
+	private static void styleDialogControl(JComponent component) {
+		component.setFont(uiFont());
+		component.setForeground(labelForeground());
+	}
+
+	private static void styleDialogList(JList<?> list) {
+		list.setFont(uiFont());
+		list.setForeground(tableForeground());
+		list.setBackground(dataSurfaceBackground());
+		list.setSelectionBackground(tableSelectionBackground());
+		list.setSelectionForeground(tableSelectionForeground());
 	}
 
 	public static void styleButtonPanel(JPanel panel) {
