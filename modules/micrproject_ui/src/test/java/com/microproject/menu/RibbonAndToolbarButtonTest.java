@@ -76,6 +76,7 @@ import com.microproject.util.FlatUiSupport;
 import com.microproject.ribbon.CustomRibbonBandGenerator;
 import com.microproject.ribbon.RibbonCommandInvocation;
 import com.microproject.ribbon.RibbonCommandResult;
+import com.microproject.ribbon.RibbonCommandSource;
 import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
@@ -658,6 +659,42 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void ribbonDispatchClearsThePreviousSemanticOutcome() throws Exception {
+		ClickRecordingActionMap actionMap = new ClickRecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actionMap);
+		SwingRibbonFactory factory = new SwingRibbonFactory(
+			new MenuRibbonCommandSource(manager.getToolBarFactory()), ribbonBundles(Locale.ROOT));
+		SwingUtilities.invokeAndWait(() -> factory.createModel(MenuManager.STANDARD_RIBBON));
+		Action action = actionMap.getAction(manager.getToolBarFactory().getActionStringFromId("RibbonGantt"));
+		// The first result simulates a mutation reported by a legacy action.  The
+		// second invocation does not report a result and must not inherit CHANGED.
+		RibbonCommandSource source = new MenuRibbonCommandSource(manager.getToolBarFactory());
+		java.util.concurrent.atomic.AtomicReference<AbstractButton> button = new java.util.concurrent.atomic.AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> button.set(source.createButton("RibbonGantt")));
+		actionMap.reportOutcomeOnce(RibbonCommandResult.Status.CHANGED);
+		RibbonCommandResult first = source.dispatch(new RibbonCommandInvocation("RibbonGantt", RibbonCommandInvocation.Origin.QUICK_ACCESS, new JPanel()));
+		assertEquals(RibbonCommandResult.Status.CHANGED, first.status(), first.toString());
+		assertEquals(RibbonCommandResult.Status.CHANGED,
+			button.get().getAction().getValue("MicroProject.ribbonOutcome"));
+		RibbonCommandResult second = source.dispatch(new RibbonCommandInvocation("RibbonGantt", RibbonCommandInvocation.Origin.QUICK_ACCESS, new JPanel()));
+		assertEquals(RibbonCommandResult.Status.DISPATCHED, second.status(), second.toString());
+		assertEquals(RibbonCommandResult.Status.DISPATCHED,
+			button.get().getAction().getValue("MicroProject.ribbonOutcome"));
+	}
+
+	@Test
+	void ribbonDispatchFromWorkerThreadRunsTheCommandOnTheEdt() throws Exception {
+		ClickRecordingActionMap actionMap = new ClickRecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actionMap);
+		RibbonCommandSource source = new MenuRibbonCommandSource(manager.getToolBarFactory());
+		SwingUtilities.invokeAndWait(() -> source.createButton("RibbonGantt"));
+		RibbonCommandResult result = source.dispatch(new RibbonCommandInvocation(
+			"RibbonGantt", RibbonCommandInvocation.Origin.QUICK_ACCESS, new JPanel()));
+		assertEquals(RibbonCommandResult.Status.DISPATCHED, result.status(), result.toString());
+		assertEquals(1, actionMap.clickCount(manager.getToolBarFactory().getActionStringFromId("RibbonGantt")));
+	}
+
+	@Test
 	void everyVisibleRibbonGroupButtonUsesTheCanonicalGraphicManagerCommandRoute() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			GraphicManager graphicManager = new GraphicManager(new JPanel());
@@ -884,6 +921,7 @@ class RibbonAndToolbarButtonTest {
 	private static final class ClickRecordingActionMap implements com.microproject.menu.ProjectMenuActionMap {
 		private final Map<String, Integer> clickCounts = new HashMap<>();
 		private final Map<String, Action> actions = new HashMap<>();
+		private RibbonCommandResult.Status outcomeOnce;
 
 		@Override
 		public Action getAction(String key) {
@@ -891,6 +929,10 @@ class RibbonAndToolbarButtonTest {
 				@Override
 				public void actionPerformed(java.awt.event.ActionEvent event) {
 					clickCounts.merge(actionId, 1, Integer::sum);
+					if (outcomeOnce != null) {
+						putValue("MicroProject.ribbonOutcome", outcomeOnce);
+						outcomeOnce = null;
+					}
 				}
 			});
 		}
@@ -903,6 +945,10 @@ class RibbonAndToolbarButtonTest {
 
 		int clickCount(String actionId) {
 			return clickCounts.getOrDefault(actionId, 0);
+		}
+
+		void reportOutcomeOnce(RibbonCommandResult.Status outcome) {
+			outcomeOnce = outcome;
 		}
 	}
 }
