@@ -50,9 +50,9 @@ public final class AutoRecoveryStore {
 	private static final String METADATA_SUFFIX = ".recovery.properties";
 
 	public record Entry(long projectId, String displayName, String originalFileName,
-		Instant savedAt, Path snapshot, Path metadata) {
+		Instant savedAt, Path snapshot, Path metadata, boolean offered) {
 		public boolean shouldOfferRecovery() {
-			if (!Files.isRegularFile(snapshot)) {
+			if (offered || !Files.isRegularFile(snapshot)) {
 				return false;
 			}
 			if (originalFileName == null || originalFileName.isBlank()) {
@@ -98,6 +98,7 @@ public final class AutoRecoveryStore {
 		properties.setProperty("displayName", nullToEmpty(displayName));
 		properties.setProperty("originalFileName", nullToEmpty(originalFileName));
 		properties.setProperty("savedAt", Objects.requireNonNull(savedAt, "savedAt").toString());
+		properties.setProperty("offered", Boolean.FALSE.toString());
 		Path metadata = metadataPath(projectId);
 		Path temporary = Files.createTempFile(directory, safeId(projectId), ".metadata.tmp");
 		try {
@@ -131,6 +132,44 @@ public final class AutoRecoveryStore {
 		return List.copyOf(result);
 	}
 
+	/** Marks a recovery round as presented without modifying the snapshot file. */
+	public void markOffered(long projectId) throws IOException {
+		Path metadata = metadataPath(projectId);
+		Properties properties = new Properties();
+		try (InputStream input = Files.newInputStream(metadata)) {
+			properties.load(input);
+		}
+		properties.setProperty("offered", Boolean.TRUE.toString());
+		Path temporary = Files.createTempFile(directory, safeId(projectId), ".metadata.tmp");
+		try {
+			try (OutputStream output = Files.newOutputStream(temporary)) {
+				properties.store(output, "ProjectLibre AutoRecovery");
+			}
+			try {
+				Files.move(temporary, metadata, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+			} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
+				Files.move(temporary, metadata, StandardCopyOption.REPLACE_EXISTING);
+			}
+		} finally {
+			Files.deleteIfExists(temporary);
+		}
+	}
+
+	/** Clears recovery state only after the normal shutdown sequence completed. */
+	public void discardAll() throws IOException {
+		if (!Files.isDirectory(directory)) {
+			return;
+		}
+		try (DirectoryStream<Path> files = Files.newDirectoryStream(directory)) {
+			for (Path file : files) {
+				String name = file.getFileName().toString();
+				if (name.endsWith(SNAPSHOT_SUFFIX) || name.endsWith(METADATA_SUFFIX)) {
+					Files.deleteIfExists(file);
+				}
+			}
+		}
+	}
+
 	public void discard(long projectId) throws IOException {
 		Files.deleteIfExists(snapshotFile(projectId));
 		Files.deleteIfExists(metadataPath(projectId));
@@ -158,7 +197,8 @@ public final class AutoRecoveryStore {
 			Instant savedAt = Instant.parse(properties.getProperty("savedAt"));
 			return new Entry(id, emptyToNull(properties.getProperty("displayName")),
 				emptyToNull(properties.getProperty("originalFileName")), savedAt,
-				snapshotFile(id), metadata);
+				snapshotFile(id), metadata,
+				Boolean.parseBoolean(properties.getProperty("offered", "false")));
 		} catch (IOException | RuntimeException ex) {
 			return null;
 		}

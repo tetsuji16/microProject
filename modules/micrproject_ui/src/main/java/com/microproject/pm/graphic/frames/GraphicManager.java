@@ -3155,6 +3155,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				JobRunnable exitRunnable=new JobRunnable("Local: closeProjects"){
 					public Object run() throws Exception{
 						Frame frame=getFrame();
+						autoRecoveryManager.completeNormalShutdown();
 						if (frame!=null) frame.dispose();
 						System.exit(0);
 		    	    	return null; //return not used anyway
@@ -5055,6 +5056,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}
 		}
 		if (closeStatus[0]){
+			autoRecoveryManager.completeNormalShutdown();
 			Frame frame=getFrame();
 			if (frame!=null) frame.dispose();
 			//System.exit(0);

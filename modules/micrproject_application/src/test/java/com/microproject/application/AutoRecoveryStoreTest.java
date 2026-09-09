@@ -89,4 +89,34 @@ class AutoRecoveryStoreTest {
 		store.cleanup(Instant.parse("2026-01-20T00:00:00Z"), Duration.ofDays(14));
 		assertTrue(Files.list(snapshot.getParent()).findAny().isEmpty());
 	}
+
+	@Test
+	void offeredRecoveryIsConsumedWithoutDeletingTheCandidate() throws Exception {
+		AutoRecoveryStore store = new AutoRecoveryStore(temporaryDirectory.resolve("recovery"));
+		Path snapshot = store.snapshotPath(11L);
+		Files.writeString(snapshot, "recovery");
+		store.recordCompletedSnapshot(11L, "Plan", null, Instant.now());
+
+		assertEquals(1, store.listRecoverable().size());
+		store.markOffered(11L);
+
+		assertTrue(Files.exists(snapshot));
+		assertTrue(store.listRecoverable().isEmpty());
+	}
+
+	@Test
+	void normalShutdownClearsOnlyRecoveryFiles() throws Exception {
+		AutoRecoveryStore store = new AutoRecoveryStore(temporaryDirectory.resolve("recovery"));
+		Path snapshot = store.snapshotPath(12L);
+		Files.writeString(snapshot, "recovery");
+		store.recordCompletedSnapshot(12L, "Plan", null, Instant.now());
+		Path unrelated = snapshot.resolveSibling("keep.txt");
+		Files.writeString(unrelated, "keep");
+
+		store.discardAll();
+
+		assertFalse(Files.exists(snapshot));
+		assertFalse(Files.exists(snapshot.resolveSibling("12.recovery.properties")));
+		assertTrue(Files.exists(unrelated));
+	}
 }

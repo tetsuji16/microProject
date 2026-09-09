@@ -136,6 +136,9 @@ final class AutoRecoveryManager implements AutoSaveControl {
 		try {
 			boolean recovered = false;
 			for (AutoRecoveryStore.Entry entry : store.listRecoverable()) {
+				// Consume the round before displaying the dialog.  A later choice,
+				// including closing the dialog, must not repeat on the next launch.
+				store.markOffered(entry.projectId());
 				String title = entry.displayName() == null ? UsabilityStrings.text("recovery.untitled") : entry.displayName();
 				String message = java.text.MessageFormat.format(UsabilityStrings.text("recovery.prompt"), title, entry.savedAt());
 				Object[] options = {
@@ -149,7 +152,8 @@ final class AutoRecoveryManager implements AutoSaveControl {
 					Project project = graphicManager.loadRecoveryDocument(entry);
 					recovered |= project != null;
 				} else if (choice == 1) {
-					store.discard(entry.projectId());
+					// The recovery round is already consumed.  Keep the candidate
+					// untouched so the user can inspect it or recover it manually.
 				} else {
 					break;
 				}
@@ -158,6 +162,14 @@ final class AutoRecoveryManager implements AutoSaveControl {
 		} catch (IOException ex) {
 			LOGGER.log(Level.WARNING, "Could not inspect recovery snapshots", ex);
 			return false;
+		}
+	}
+
+	void completeNormalShutdown() {
+		try {
+			store.discardAll();
+		} catch (IOException ex) {
+			LOGGER.log(Level.WARNING, "Could not clear recovery state after normal shutdown", ex);
 		}
 	}
 
