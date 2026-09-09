@@ -53,6 +53,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonFind | タスクを検索 | 検索結果へ移動できる |
 | RibbonScrollToTask | 選択タスクへスクロール | 対象タスクが表示領域へ移動する |
 | RibbonHideSelectedTasks / RibbonShowAllTasks | タスクを非表示／全表示 | 対象行の表示状態が切り替わる |
+| RibbonPrivacyMask | プライバシー表示 | タスク名・リソース名・プロジェクト名を表示上だけ匿名化し、再実行で復元する |
 | RibbonPaste / RibbonCopy / RibbonCut | タスクをコピー・切り取り・貼り付け | 対象行だけが正しく複製／移動される |
 
 ### リソース（ResourceRibbonTask）

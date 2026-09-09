@@ -416,6 +416,9 @@ class RibbonAndToolbarButtonTest {
 			List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines", "RibbonToggleCriticalChain"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatDisplayRibbonBand"));
 		assertEquals(
+			List.of("RibbonArrangeAll", "RibbonDetails", "RibbonPrivacyMask"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ViewWindowRibbonBand"));
+		assertEquals(
 			List.of("RibbonTimescale", "RibbonBar", "RibbonBarStyles", "RibbonTextStyles"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatBarRibbonBand"));
 	}
@@ -445,7 +448,8 @@ class RibbonAndToolbarButtonTest {
 			"Gridlines",
 			"TextStyles",
 			"BarStyles",
-			"Layout")) {
+			"Layout",
+			"RibbonPrivacyMask")) {
 			assertTrue(internal.containsKey(id + ".action"), () -> id + " is missing an internal action mapping");
 			assertTrue(labels.containsKey(id + ".text"), () -> id + " is missing menu text");
 		}

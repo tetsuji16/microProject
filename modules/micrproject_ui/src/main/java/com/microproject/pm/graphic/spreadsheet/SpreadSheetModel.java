@@ -99,6 +99,11 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		return SpreadSheetUtils.getValueAt(row,col,getRowMultiple(),cache,colModel,fieldContext);
 	}
 
+	/** Renderer-only access to the stable domain node behind a visible row. */
+	public Node getNodeForDisplayRow(int row) {
+		return getNodeInRow(row);
+	}
+
 	public void setValueAt(Object value, int row, int col) {
 		if (isReadOnly()) return;
 		if (col == 0)

@@ -66,6 +66,7 @@ import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
 import com.microproject.pm.task.Project;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.reports.adapter.DataSource;
 import com.microproject.reports.adapter.DataSourceProvider;
 import com.microproject.reports.adapter.ReportUtil;
@@ -219,7 +220,7 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
         // projet name is used as report's title
         // and passed as a parameter
         HashMap params = new HashMap();
-        params.put("projectName", project.getName()); //$NON-NLS-1$
+        params.put("projectName", PrivacyDisplayMode.projectName(project)); //$NON-NLS-1$
         
 		JasperPrint jasperPrint = JasperFillManager.fillReport(report, params, dataSource);
 		if (viewer != null) {
@@ -424,4 +425,3 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 	
 	
 }
-

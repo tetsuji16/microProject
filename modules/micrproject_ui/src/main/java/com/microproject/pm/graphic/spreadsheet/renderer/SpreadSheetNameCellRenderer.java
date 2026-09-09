@@ -31,7 +31,11 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.field.Field;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.resource.Resource;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 
 /**
  *
@@ -45,11 +49,25 @@ public class SpreadSheetNameCellRenderer extends DefaultTableCellRenderer  imple
 	}
 	public Component getTableCellRendererComponent (JTable table, Object value,boolean isSelected, boolean hasFocus, int row, int column){
 		//JComponent textComponent=new JLabel();
-		return NameCellComponent.getComponent(table,value,isSelected,hasFocus,row,column/*,textComponent*/);
+		Object display = value;
+		if (table != null && table.getModel() instanceof SpreadSheetModel model) {
+			var node = model.getNodeForDisplayRow(table.convertRowIndexToModel(row));
+			if (node != null && node.getImpl() instanceof Task task && PrivacyDisplayMode.isMasked(task.getProject()))
+				display = PrivacyDisplayMode.taskName(task);
+			else if (node != null && node.getImpl() instanceof Resource resource)
+				display = PrivacyDisplayMode.resourceName(resource);
+		}
+		return NameCellComponent.getComponent(table,display,isSelected,hasFocus,row,column/*,textComponent*/);
 	}
 	public Component getComponent(Object value, GraphicNode node,Field field,SpreadSheetParams params){
 		//JComponent textComponent=new JLabel();
-		return  NameCellComponent.getComponent(value, node, params/*, textComponent*/);
+		Object display = value;
+		if (node != null && node.getNode() != null && node.getNode().getImpl() instanceof Task task
+				&& PrivacyDisplayMode.isMasked(task.getProject())) {
+			display = PrivacyDisplayMode.taskName(task);
+		}
+		if (node != null && node.getNode() != null && node.getNode().getImpl() instanceof Resource resource)
+			display = PrivacyDisplayMode.resourceName(resource);
+		return NameCellComponent.getComponent(display, node, params/*, textComponent*/);
 	}
 }
-

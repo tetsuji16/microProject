@@ -56,6 +56,7 @@ import javax.swing.JScrollPane;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.HasDependencies;
@@ -180,7 +181,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 					Color accent = FlatUiSupport.accentColor();
 					g.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 160));
 					g.fillRoundRect(dragPoint.x - 55, dragPoint.y - 10, 110, 20, 8, 8);
-					g.setColor(FlatUiSupport.tableSelectionForeground()); g.drawString(draggedTask.getName(), dragPoint.x - 50, dragPoint.y + 5);
+					g.setColor(FlatUiSupport.tableSelectionForeground()); g.drawString(PrivacyDisplayMode.taskName(draggedTask), dragPoint.x - 50, dragPoint.y + 5);
 				}
 			} finally { g.dispose(); }
 		}
@@ -198,7 +199,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 				Task task = onDay.get(i); Rectangle bounds = new Rectangle(x + 5, y + 23 + i * 23, Math.max(20, width - 10), 19);
 				g.setColor(task.isInactiveTask() ? FlatUiSupport.disabledForeground() : task.isManuallyScheduled() ? FlatUiSupport.accentColor().darker() : FlatUiSupport.ribbonAccentColor());
 				g.fillRoundRect(bounds.x, bounds.y, bounds.width, bounds.height, 7, 7);
-				g.setColor(FlatUiSupport.tableSelectionForeground()); String name = task.getName();
+				g.setColor(FlatUiSupport.tableSelectionForeground()); String name = PrivacyDisplayMode.taskName(task);
 				while (name.length() > 2 && g.getFontMetrics().stringWidth(name) > bounds.width - 8) name = name.substring(0, name.length() - 2) + "…";
 				g.drawString(name, bounds.x + 4, bounds.y + 14); cards.add(new Card(task, bounds));
 				if (hasDependencies(task)) {

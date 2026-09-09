@@ -142,11 +142,11 @@ final class RibbonCommandCatalog {
 			"RibbonProjectInformation", "RibbonProjectsDialog", "RibbonChangeWorkingTime",
 			"RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
 			"RibbonCCPMSettings", "RibbonCCPMClear");
-		register(result, CommandScope.VIEW, VIEW,
+	register(result, CommandScope.VIEW, VIEW,
 			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
 			"RibbonTimeline", "RibbonCalendarView", "RibbonProjects", "RibbonTaskUsageDetail", "RibbonResourceUsageDetail", "RibbonDetails", "RibbonNoTextNoSubWindow",
-			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonCCPMNetwork");
-		register(result, CommandScope.FORMAT, FORMAT,
+			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonCCPMNetwork", "RibbonPrivacyMask");
+	register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
 			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBar", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
 		register(result, CommandScope.DOCUMENT, TASK, Set.of(TASK, RESOURCE), "RibbonPaste", "RibbonCopy", "RibbonCut");

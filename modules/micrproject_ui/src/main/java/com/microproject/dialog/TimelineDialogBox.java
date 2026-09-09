@@ -50,6 +50,7 @@ import javax.swing.table.AbstractTableModel;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
@@ -132,7 +133,7 @@ public final class TimelineDialogBox extends FlatLafDialog {
 			Task task = tasks.get(row);
 			return switch (column) {
 				case 0 -> task.isDisplayOnTimeline();
-				case 1 -> task.getName();
+				case 1 -> PrivacyDisplayMode.taskName(task);
 				case 2 -> DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(task.getStart()));
 				default -> DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(task.getEnd()));
 			};
@@ -175,7 +176,7 @@ public final class TimelineDialogBox extends FlatLafDialog {
 						int[] xs = { x1, x1 + 8, x1, x1 - 8 }, ys = { y - 8, y, y + 8, y };
 						g.fillPolygon(xs, ys, 4);
 					} else g.fillRoundRect(x1, y - 8, x2 - x1, 16, 8, 8);
-					g.setColor(FlatUiSupport.tableForeground()); g.drawString(task.getName(), Math.min(x2 + 8, right - 160), y + 5);
+					g.setColor(FlatUiSupport.tableForeground()); g.drawString(PrivacyDisplayMode.taskName(task), Math.min(x2 + 8, right - 160), y + 5);
 				}
 				long now = System.currentTimeMillis();
 				if (now >= min && now <= max) {

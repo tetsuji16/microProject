@@ -100,6 +100,7 @@ import com.microproject.util.GanttColorPalette;
 import com.microproject.util.GanttProgress;
 import com.microproject.util.DateFieldSupport;
 import com.microproject.util.MicrosoftProjectGanttPalette;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 
 public class GanttRenderer extends GraphRenderer implements Serializable {
 	/**
@@ -746,6 +747,12 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 //			g2.drawString(ObjectConverterManager.toString(value,value.getClass()), x, y);
 //			if (oldColor!=null) g2.setColor(oldColor);
 			String s = DateFieldSupport.annotationTextFor(value, field);
+			if (graphInfo instanceof Gantt gantt && getNodeImpl(node) instanceof Task task
+					&& PrivacyDisplayMode.isMasked(gantt.getProject())) {
+				if ("Field.name".equals(field.getId())) s = PrivacyDisplayMode.taskName(task);
+				else if ("Field.resourceNames".equals(field.getId()))
+					s = PrivacyDisplayMode.resourceNames(gantt.getProject(), s);
+			}
 			if (s==null||s.trim().length()==0) return;
 			int y=yrow+config.getGanttBarYOffset();//+config.getGanttBarAnnotationYOffset();
 			double x0=coord.toX(node.getStart());
@@ -934,6 +941,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		Project project = predecessor.getOwningProject() == null ? predecessor.getProject() : predecessor.getOwningProject();
 		String projectName = project == null || project.getName() == null ? "" : project.getName();
 		String taskName = predecessor.getName() == null ? "" : predecessor.getName();
+		if (project != null && PrivacyDisplayMode.isMasked(project)) {
+			projectName = PrivacyDisplayMode.projectName(project);
+			taskName = PrivacyDisplayMode.taskName(predecessor);
+		}
 		return projectName.isBlank() ? taskName : projectName + ": " + taskName;
 	}
 

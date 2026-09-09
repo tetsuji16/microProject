@@ -33,6 +33,8 @@ import javax.swing.table.TableCellRenderer;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.microproject.field.Field;
+import com.microproject.pm.task.Task;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 
 /**
  *
@@ -50,6 +52,14 @@ public class SpreadSheetCellRendererAdapter implements OfflineRenderer {
 	 */
 	public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
 		Object cvalue = value;
+		if (table != null && table.getModel() instanceof com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model) {
+			var node = model.getNodeForDisplayRow(table.convertRowIndexToModel(row));
+			if (node != null && node.getImpl() instanceof Task task && PrivacyDisplayMode.isMasked(task.getProject())) {
+				Field field = model.getFieldInViewColumn(column);
+				if (field != null && "Field.resourceNames".equals(field.getId()))
+					cvalue = PrivacyDisplayMode.resourceNames(task.getProject(), String.valueOf(value));
+			}
+		}
 		JComponent component=(JComponent)renderer.getTableCellRendererComponent(table,cvalue,isSelected,hasFocus,row,column);
 		CellUtility.setAppearance(table,cvalue,isSelected,hasFocus,row,column,component);
 		return component;
@@ -62,4 +72,3 @@ public class SpreadSheetCellRendererAdapter implements OfflineRenderer {
 	}
 
 }
-

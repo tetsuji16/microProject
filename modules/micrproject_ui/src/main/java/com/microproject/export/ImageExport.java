@@ -7,6 +7,7 @@ package com.microproject.export;
 import java.awt.Component;
 import java.io.IOException;
 import com.microproject.print.GraphPageable;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 
 public class ImageExport {
 	private final ExportFileChooser fileChooser;
@@ -17,7 +18,7 @@ public class ImageExport {
 	}
 	void exportWithChooser(GraphPageable pageable, Component parentComponent) {
 		ExportJobScheduler.scheduleIfSelected(
-				fileChooser.choose(pageable.getRenderer().getProject().getName(), parentComponent),
+				fileChooser.choose(PrivacyDisplayMode.projectName(pageable.getRenderer().getProject()), parentComponent),
 				target -> PageableExportJob.schedule(pageable, parentComponent, target, "Image Export"));
 	}
 }

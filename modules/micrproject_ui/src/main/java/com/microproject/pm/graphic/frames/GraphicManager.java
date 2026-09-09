@@ -174,6 +174,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEven
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeListener;
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.views.GanttView;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.pm.graphic.views.ProjectsDialog;
 import com.microproject.pm.graphic.views.ResourceView;
 import com.microproject.pm.graphic.views.Searchable;
@@ -1996,6 +1997,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_EXPAND, new ExpandAction());
 		actionsMap.addHandler(ACTION_HIDE_SELECTED_TASKS, new HideSelectedTasksAction());
 		actionsMap.addHandler(ACTION_SHOW_ALL_TASKS, new ShowAllTasksAction());
+		actionsMap.addHandler(ACTION_TOGGLE_PRIVACY_MASK, new TogglePrivacyMaskAction());
 
 
 		actionsMap.addHandler(ACTION_CUT, new CutAction());
@@ -2830,6 +2832,26 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			executeExternalRibbonCommand("locale", GraphicManager.this::showLocaleDialog);
+		}
+	}
+
+	public class TogglePrivacyMaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			DocumentFrame frame = getCurrentFrame();
+			boolean masked = PrivacyDisplayMode.toggle(frame.getProject());
+			GanttView ganttView = frame.getGanttView();
+			if (ganttView != null) {
+				if (ganttView.getGantt() != null) ganttView.getGantt().repaint();
+				if (ganttView.getSpreadSheet() != null) ganttView.getSpreadSheet().repaint();
+			}
+			frame.repaint();
+			if (frame.getCalendarViewDialog() != null) frame.getCalendarViewDialog().repaint();
+			if (frame.getTimelineView() != null) frame.getTimelineView().repaint();
+			frame.setTabTitle(masked ? "Project (Masked)" : frame.getProject().getName());
 		}
 	}
 

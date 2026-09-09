@@ -698,7 +698,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonToggleProgressLine",
 			"RibbonLabelResourceNames",
 			"RibbonLabelTaskName",
-				"RibbonToggleCriticalChain");
+				"RibbonToggleCriticalChain",
+			"RibbonPrivacyMask");
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonTopBarUndo",
 			"RibbonTopBarRedo",
