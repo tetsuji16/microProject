@@ -120,6 +120,7 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.ProjectListener;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
+import com.microproject.timescale.TimeScale;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.session.LoadOptions;
 import com.microproject.undo.UndoController;
@@ -252,8 +253,11 @@ public class DocumentFrame extends NamedFrame implements
 
 	}
 	private void updateStatusBarZoom() {
-		statusBar.setZoom(coord.getTimescaleManager().getCurrentScaleIndex(),
-				coord.getTimescaleManager().getScaleCount(), coord.getTimescaleManager().getScale());
+		var timescales = coord.getTimescaleManager();
+		int count = timescales.getScaleCount();
+		int index = timescales.getCurrentScaleIndex();
+		TimeScale scale = count > 0 && index >= 0 && index < count ? timescales.getScale() : null;
+		statusBar.setZoom(index, count, scale);
 	}
 
 	private void setMainView(boolean activate) {

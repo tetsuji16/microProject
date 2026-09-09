@@ -53,7 +53,7 @@ public class DocumentStatusBar extends JPanel {
 		add(zoomLabel);
 		add(selectionLabel);
 		add(modeLabel);
-		setZoom(1, 1);
+		setZoom(0, 1);
 		setSelectedCount(0);
 		setMode("StatusBar.Ready");
 	}
@@ -79,25 +79,61 @@ public class DocumentStatusBar extends JPanel {
 	}
 
 	static String formatZoom(int scaleIndex, int scaleCount) {
-		int clampedIndex = Math.max(0, scaleIndex);
 		int clampedCount = Math.max(1, scaleCount);
+		int clampedIndex = Math.min(Math.max(0, scaleIndex), clampedCount - 1);
 		return MessageFormat.format(Messages.getString("StatusBar.Zoom"), clampedIndex + 1, clampedCount);
 	}
 	static String formatZoom(int scaleIndex, int scaleCount, TimeScale scale) {
 		if (scale == null) return formatZoom(scaleIndex, scaleCount);
+		int clampedCount = Math.max(1, scaleCount);
+		int clampedIndex = Math.min(Math.max(0, scaleIndex), clampedCount - 1);
+		int position = clampedIndex + 1;
+		String label = scaleCount <= 0 ? formatInterval(scale.getCalendarField1(), scale.getNumber1())
+				: formatMspScale(position, scale);
 		return MessageFormat.format(Messages.getString("StatusBar.ZoomSemantic"),
-				formatInterval(scale.getCalendarField1(), scale.getNumber1()), Math.max(0, scaleIndex) + 1, Math.max(1, scaleCount));
+				label, position, clampedCount);
+	}
+
+	/**
+	 * Uses the stable MS Project-style names from the original status-bar
+	 * proposal. The underlying interval remains the fallback for scales outside
+	 * the documented 1..10 range.
+	 */
+	private static String formatMspScale(int position, TimeScale scale) {
+		String key = switch (position) {
+			case 1 -> "StatusBar.Scale.Minute";
+			case 2 -> "StatusBar.Scale.Hourly";
+			case 3 -> "StatusBar.Scale.Daily";
+			case 4 -> "StatusBar.Scale.DetailedWeekly";
+			case 5 -> "StatusBar.Scale.Weekly";
+			case 6 -> "StatusBar.Scale.BiMonthly";
+			case 7 -> "StatusBar.Scale.Monthly";
+			case 8 -> "StatusBar.Scale.Quarterly";
+			case 9 -> "StatusBar.Scale.HalfYearly";
+			case 10 -> "StatusBar.Scale.Yearly";
+			default -> null;
+		};
+		return key == null ? formatInterval(scale.getCalendarField1(), scale.getNumber1()) : Messages.getString(key);
 	}
 	private static String formatInterval(int field, int amount) {
 		int n = Math.max(1, amount);
 		return switch (field) {
-			case Calendar.HOUR_OF_DAY -> n + "h";
-			case Calendar.DAY_OF_WEEK, Calendar.DAY_OF_MONTH, Calendar.DAY_OF_YEAR -> n == 1 ? "day" : n + "d";
-			case Calendar.WEEK_OF_YEAR, Calendar.WEEK_OF_MONTH -> n == 1 ? "week" : n + "w";
-			case Calendar.MONTH -> n == 1 ? "month" : n == 3 ? "quarter" : n == 6 ? "half-year" : n + " months";
-			case Calendar.YEAR -> n == 1 ? "year" : n + " years";
-			default -> "custom";
+			case Calendar.HOUR_OF_DAY -> interval("StatusBar.Interval.Hour", n);
+			case Calendar.DAY_OF_WEEK, Calendar.DAY_OF_MONTH, Calendar.DAY_OF_YEAR ->
+					n == 1 ? Messages.getString("StatusBar.Interval.Day") : interval("StatusBar.Interval.Days", n);
+			case Calendar.WEEK_OF_YEAR, Calendar.WEEK_OF_MONTH ->
+					n == 1 ? Messages.getString("StatusBar.Interval.Week") : interval("StatusBar.Interval.Weeks", n);
+			case Calendar.MONTH -> n == 1 ? Messages.getString("StatusBar.Interval.Month")
+					: n == 3 ? Messages.getString("StatusBar.Interval.Quarter")
+					: n == 6 ? Messages.getString("StatusBar.Interval.HalfYear")
+					: interval("StatusBar.Interval.Months", n);
+			case Calendar.YEAR -> n == 1 ? Messages.getString("StatusBar.Interval.Year")
+					: interval("StatusBar.Interval.Years", n);
+			default -> Messages.getString("StatusBar.Interval.Custom");
 		};
+	}
+	private static String interval(String key, int amount) {
+		return MessageFormat.format(Messages.getString(key), amount);
 	}
 
 	static String formatSelection(int count) {
