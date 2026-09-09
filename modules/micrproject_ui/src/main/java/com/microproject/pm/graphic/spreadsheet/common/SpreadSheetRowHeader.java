@@ -43,6 +43,8 @@ import javax.swing.table.DefaultTableColumnModel;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
+import com.microproject.strings.Messages;
+import com.microproject.util.Alert;
 import java.awt.Dimension;
 import com.microproject.util.FlatUiSupport;
 
@@ -155,7 +157,7 @@ public class SpreadSheetRowHeader extends JTable {
 						}
 					}
 					public void mouseReleased(MouseEvent e) {
-						if (dragging&&validDrop)
+						if (dragging && validDrop && confirmDragMove(spreadSheet))
 							spreadSheet.moveSelectedTaskRowsTo(targetRow,dropAfter);
 						if (e.isPopupTrigger())
 							showTaskPopup(e);
@@ -173,6 +175,18 @@ public class SpreadSheetRowHeader extends JTable {
 			}
 		}
 
+	}
+
+	/**
+	 * A row-header drag is easy to start accidentally while selecting several
+	 * rows.  Keep the explicit Move Up/Down commands confirmation-free, but ask
+	 * before the mouse drag performs the structural move.
+	 */
+	private static boolean confirmDragMove(SpreadSheet spreadSheet) {
+		if (java.awt.GraphicsEnvironment.isHeadless()) {
+			return true;
+		}
+		return Alert.okCancel(Messages.getString("Message.confirmMoveRows"));
 	}
 
 	private void showTaskPopup(MouseEvent e) {
