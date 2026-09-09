@@ -70,8 +70,44 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\gradlew.bat clean build packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
+          .\gradlew.bat clean build packageWindowsAppImage packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify packaged contents and launch path
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '${{ steps.version.outputs.release_version }}'
+          $releaseRoot = Join-Path $PWD "build/releases/v$version"
+          $installJar = Join-Path $PWD 'modules/micrproject_ui/build/install/micrproject_ui/lib/micrproject_ui.jar'
+          $packagedJar = Join-Path $releaseRoot 'app-image/microProject/app/micrproject_ui.jar'
+          if (-not (Test-Path -LiteralPath $packagedJar)) { throw "Packaged UI JAR is missing: $packagedJar" }
+          $installHash = (Get-FileHash -LiteralPath $installJar -Algorithm SHA256).Hash
+          $packagedHash = (Get-FileHash -LiteralPath $packagedJar -Algorithm SHA256).Hash
+          if ($installHash -ne $packagedHash) {
+            throw "Packaged UI JAR differs from installDist. install=$installHash packaged=$packagedHash"
+          }
+
+          $exe = Join-Path $releaseRoot 'app-image/microProject/microProject.exe'
+          if (-not (Test-Path -LiteralPath $exe)) { throw "Packaged EXE is missing: $exe" }
+          $startedAfter = (Get-Date).AddSeconds(-2)
+          $launcher = Start-Process -FilePath $exe -ArgumentList '--launch-only' -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(45)
+            $window = $null
+            do {
+              Start-Sleep -Seconds 1
+              $window = Get-Process -Name 'microProject' -ErrorAction SilentlyContinue |
+                Where-Object { $_.StartTime -ge $startedAfter -and $_.MainWindowTitle -eq 'microProject' } |
+                Select-Object -First 1
+            } while ($null -eq $window -and (Get-Date) -lt $deadline)
+            if ($null -eq $window) { throw 'Packaged EXE did not create the microProject window within 45 seconds.' }
+          } finally {
+            Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProcessId -eq $launcher.Id -or $_.ParentProcessId -eq $launcher.Id } |
+              ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            Stop-Process -Id $launcher.Id -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Stage release assets
         if: ${{ success() }}
@@ -80,32 +116,18 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.version.outputs.release_version }}'
           New-Item -ItemType Directory -Path release-assets | Out-Null
-          # Windows Installer normalizes the MSI version to its supported format,
-          # so its output filename may not retain the CI run-number suffix.
-          # Locate the package produced by this clean build, then publish it
-          # under the GitHub release version calculated above.
-          # jpackage may emit either microProject.msi or a versioned name.
-          $msi = Get-ChildItem -Path build/releases -Recurse -File -Filter 'microProject*.msi' -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($null -eq $msi) {
-            $msi = Get-ChildItem -Path build/releases -Recurse -File -Filter '*.msi' -ErrorAction SilentlyContinue | Select-Object -First 1
-          }
-          # packageWindowsZip normally writes to docs/downloads, but a clean
-          # checkout may not contain that ignored/empty directory. Fall back to
-          # the build tree so staging reports the real packaging failure instead
-          # of failing on directory enumeration (issue #430).
-          $zip = Get-ChildItem -Path docs/downloads -File -Filter 'microProject-*-app-image.zip' -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($null -eq $zip) {
-            $zip = Get-ChildItem -Path build -Recurse -File -Filter 'microProject-*-app-image.zip' -ErrorAction SilentlyContinue | Select-Object -First 1
-          }
-          if ($null -eq $msi) { throw 'The Windows MSI package was not produced.' }
-          if ($null -eq $zip) { throw 'The Windows app-image ZIP was not produced.' }
+          $msiCandidates = @(Get-ChildItem -LiteralPath "build/releases/v$version/msi" -File -Filter '*.msi' -ErrorAction SilentlyContinue)
+          if ($msiCandidates.Count -ne 1) { throw "Expected exactly one MSI in build/releases/v$version/msi, found $($msiCandidates.Count)" }
+          $msi = $msiCandidates[0]
+          $zip = Get-Item "docs/downloads/microProject-$version-app-image.zip" -ErrorAction SilentlyContinue
+          if ($null -eq $zip) { throw "The Windows app-image ZIP was not produced for v$version." }
           Copy-Item $msi.FullName "release-assets/microProject-$version.msi"
           Copy-Item $zip.FullName "release-assets/microProject-$version-app-image.zip"
           Copy-Item "release-assets/microProject-$version.msi" "release-assets/microProject-latest.msi"
           Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
 
-          $appLib = Get-ChildItem -Path build/releases -Recurse -Directory -Filter app | Select-Object -First 1
-          if ($null -eq $appLib) { throw 'The staged app directory was not found.' }
+          $appLib = Get-Item "build/releases/v$version/app-image/microProject/app" -ErrorAction SilentlyContinue
+          if ($null -eq $appLib) { throw "The staged app directory was not found for v$version." }
           Get-ChildItem -Path $appLib.FullName -File -Filter '*.jar' | ForEach-Object {
             Copy-Item $_.FullName "release-assets/microProject-$version-$($_.Name)"
           }

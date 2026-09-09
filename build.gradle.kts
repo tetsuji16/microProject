@@ -236,8 +236,6 @@ tasks.register<Exec>("packageWindowsMsi") {
         windowsMsiDir.get().asFile.mkdirs()
         val inputDir = windowsJpackageInput.get().asFile
         val javaHome = jpackageJavaHomeProvider.get()
-        val wixBin = File(System.getProperty("user.home"), "AppData/Local/Programs/WiX Toolset v7.0/bin")
-        environment("PATH", wixBin.absolutePath + File.pathSeparator + System.getenv("PATH"))
         commandLine(
             File(javaHome, "bin/jpackage.exe").absolutePath,
             "--type", "msi",
@@ -278,8 +276,6 @@ tasks.register<Exec>("packageWindowsExe") {
         windowsExeDir.get().asFile.mkdirs()
         val inputDir = windowsJpackageInput.get().asFile
         val javaHome = jpackageJavaHomeProvider.get()
-        val wixBin = File(System.getProperty("user.home"), "AppData/Local/Programs/WiX Toolset v7.0/bin")
-        environment("PATH", wixBin.absolutePath + File.pathSeparator + System.getenv("PATH"))
         commandLine(
             File(javaHome, "bin/jpackage.exe").absolutePath,
             "--type", "exe",
