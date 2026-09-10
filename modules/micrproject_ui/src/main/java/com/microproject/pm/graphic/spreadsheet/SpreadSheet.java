@@ -487,8 +487,17 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				position = ((NodeBridge)parent).getIndex(node);
 			}
 		}
-		clearSelection();
-		return getCache().pasteNodes(parent, pastedNodes, position);
+		int[] previousRows = getSelectedRows();
+		boolean pasted = getCache().pasteNodes(parent, pastedNodes, position);
+		if (pasted) {
+			clearSelection();
+		} else if (previousRows.length > 0) {
+			clearSelection();
+			getSelectionModel().setSelectionInterval(previousRows[0], previousRows[0]);
+			for (int index = 1; index < previousRows.length; index++)
+				getSelectionModel().addSelectionInterval(previousRows[index], previousRows[index]);
+		}
+		return pasted;
 	}
 
 	public boolean prepareCellPaste() {
@@ -1514,11 +1523,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public List<GraphicNode> rowsToGraphicNodes(int[] rows) {
 		if (rows == null || rows.length == 0)
 			return new LinkedList<>();
-		NodeModelCache cache = ((SpreadSheetModel) getModel()).getCache();
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getCache() == null)
+			return new LinkedList<>();
+		NodeModelCache cache = model.getCache();
 		List<Object> elements = cache.getElementsAt(rows);
 		List<GraphicNode> nodes = new LinkedList<>();
 		for (Object element : elements) {
-			nodes.add((GraphicNode) element);
+			if (element instanceof GraphicNode graphicNode)
+				nodes.add(graphicNode);
 		}
 		return nodes;
 	}
@@ -1753,14 +1765,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 					continue;
 				Node inserted = getCache().newNodeBefore(anchor);
 				if (inserted != null) {
-					restoreTaskRowSelection(List.of(anchor));
+					restoreTaskRowSelection(List.of(inserted));
 					return;
 				}
 			}
 			if (currentRowAnchor != null) {
 				Node inserted = getCache().newNodeBefore(currentRowAnchor);
 				if (inserted != null)
-					restoreTaskRowSelection(List.of(currentRowAnchor));
+					restoreTaskRowSelection(List.of(inserted));
 			}
 		}
 	};

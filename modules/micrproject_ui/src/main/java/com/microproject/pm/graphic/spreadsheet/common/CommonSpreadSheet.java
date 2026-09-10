@@ -233,19 +233,30 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		if (fieldArray == null) {
 			fieldArray = getFieldArray();
 		}
+		SpreadSheetFieldArray result;
+		if (fieldArray instanceof SpreadSheetFieldArray spreadSheetFieldArray) {
+			result = spreadSheetFieldArray;
+		} else {
+			result = new SpreadSheetFieldArray();
+			result.addAll(fieldArray);
+		}
 		// the widths don't work now anyway, and someone had a crash due to code below
-		var cols = (SpreadSheetColumnModel) getColumnModel();
+		var cols = getColumnModel();
 		var colWidths = new ArrayList<Integer>(cols.getColumnCount());
 		var manualWidths = new ArrayList<Boolean>(cols.getColumnCount() + 1);
 		colWidths.add(-1); //id column ignored
 		manualWidths.add(false);
 		for (int i = 0; i < cols.getColumnCount(); i++) {
 			colWidths.add(cols.getColumn(i).getWidth());
-			manualWidths.add(cols.isWidthManuallyAdjusted(((Field) cols.getColumn(i).getIdentifier()).getId()));
+			Object identifier = cols.getColumn(i).getIdentifier();
+			boolean manuallyAdjusted = cols instanceof SpreadSheetColumnModel spreadSheetColumns
+					&& identifier instanceof Field field
+					&& spreadSheetColumns.isWidthManuallyAdjusted(field.getId());
+			manualWidths.add(manuallyAdjusted);
 		}
-		((SpreadSheetFieldArray)fieldArray).setWidths(colWidths);
-		((SpreadSheetFieldArray)fieldArray).setManualWidths(manualWidths);
-		return (SpreadSheetFieldArray) fieldArray;
+		result.setWidths(colWidths);
+		result.setManualWidths(manualWidths);
+		return result;
 	}
 
 	public final void setFieldArrayWithWidths(SpreadSheetFieldArray fieldArray) {
@@ -304,7 +315,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		return selection;
 	}
 	public boolean isCellEditing(int row, int col) {
-		return (!(isEditing() && getEditingRow() == row && getEditingColumn() == col));
+		return isEditing() && getEditingRow() == row && getEditingColumn() == col;
 	}
 
 	// ---------------------------------------------------------------------

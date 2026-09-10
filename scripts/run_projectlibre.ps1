@@ -49,7 +49,7 @@ function Write-Status {
 function Get-ProjectLibreJavaProcesses {
     $javaProcessNames = @("java", "javaw")
     $javaProcesses = Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'" |
-        Where-Object { $_.CommandLine -match "projectlibre" }
+        Where-Object { $_.CommandLine -match "(?i)microproject|projectlibre" }
 
     foreach ($proc in $javaProcesses) {
         $psProc = Get-Process -Id $proc.ProcessId -ErrorAction SilentlyContinue

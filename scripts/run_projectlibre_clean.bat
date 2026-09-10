@@ -49,6 +49,6 @@ exit /b %EXIT_CODE%
 
 :StopProjectLibreProcesses
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$procs = Get-CimInstance Win32_Process -Filter \"Name = 'java.exe' OR Name = 'javaw.exe'\" | Where-Object { $_.CommandLine -match 'projectlibre' };" ^
+  "$procs = Get-CimInstance Win32_Process -Filter \"Name = 'java.exe' OR Name = 'javaw.exe'\" | Where-Object { $_.CommandLine -match '(?i)microproject|projectlibre' };" ^
   "foreach ($proc in $procs) { Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue }"
 exit /b 0

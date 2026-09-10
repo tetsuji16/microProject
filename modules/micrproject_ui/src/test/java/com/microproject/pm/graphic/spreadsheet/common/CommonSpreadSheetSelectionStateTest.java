@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.spreadsheet.common;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -40,6 +41,7 @@ import javax.swing.table.TableColumnModel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetSelectionModel;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.util.FlatUiSupport;
 
 class CommonSpreadSheetSelectionStateTest {
@@ -68,6 +70,26 @@ class CommonSpreadSheetSelectionStateTest {
 		sheet.selectRowAndAllColumns(0);
 		sheet.selectColumnAndAllRows(0);
 		sheet.selectEntireSpreadsheet();
+	}
+
+	@Test
+	void cellEditingReportsOnlyTheRequestedCellWhileEditing() throws Exception {
+		final TestSpreadSheet[] sheetRef = new TestSpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> sheetRef[0] = new TestSpreadSheet());
+		TestSpreadSheet sheet = sheetRef[0];
+
+		assertFalse(sheet.isCellEditing(0, 0), "a non-editing cell must not report as editing");
+	}
+
+	@Test
+	void fieldWidthsAcceptAnOrdinaryArrayList() throws Exception {
+		final TestSpreadSheet[] sheetRef = new TestSpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> sheetRef[0] = new TestSpreadSheet());
+
+		ArrayList<com.microproject.field.Field> fields = new ArrayList<>();
+		SpreadSheetFieldArray result = sheetRef[0].getFieldArrayWithWidths(fields);
+		assertTrue(result != fields, "the public ArrayList overload must adapt non-persistent lists");
+		assertEquals(3, result.getWidths().size(), "width metadata must include the hidden ID slot");
 	}
 
 	@Test

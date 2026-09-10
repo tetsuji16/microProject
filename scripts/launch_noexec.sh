@@ -11,9 +11,6 @@ LOG="${PROJECTLIBRE_LOG:-$ROOT/build/gui_dbg.log}"
 trap 'rm -f "$ARG_FILE_RAW"' EXIT
 
 JAVA_EXE="$(command -v java)"
-if [ -z "${JAVA_HOME:-}" ] && [ -x "/c/Program Files/Java/jdk-26.0.1/bin/java.exe" ]; then
-  JAVA_EXE="/c/Program Files/Java/jdk-26.0.1/bin/java.exe"
-fi
 
 preferred=(
   micrproject_ui.jar micrproject_application.jar micrproject_exchange.jar

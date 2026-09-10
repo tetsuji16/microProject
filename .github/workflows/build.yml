@@ -3,6 +3,16 @@ name: Build
 on:
   pull_request:
     branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -22,6 +32,9 @@ jobs:
 
       - name: Verify architecture boundaries
         run: bash ./gradlew verifyArchitectureBoundaries --console=plain
+
+      - name: Test repository maintenance scripts
+        run: python -m unittest discover -s scripts/tests -v
 
       - name: Build and test with Gradle
         run: bash ./gradlew clean build installDist --console=plain

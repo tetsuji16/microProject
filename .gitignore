@@ -26,6 +26,7 @@ Thumbs.db
 *.war
 *.ear
 *.log
+__pycache__/
 
 # Ant
 *.bak

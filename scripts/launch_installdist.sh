@@ -11,10 +11,6 @@ ARG_FILE="$(cygpath -w "$ARG_FILE_RAW")"
 trap 'rm -f "$ARG_FILE_RAW"' EXIT
 
 JAVA_EXE="$(command -v java)"
-# Prefer the installed JDK 26 if JAVA_HOME unset
-if [ -z "${JAVA_HOME:-}" ] && [ -x "/c/Program Files/Java/jdk-26.0.1/bin/java.exe" ]; then
-  JAVA_EXE="/c/Program Files/Java/jdk-26.0.1/bin/java.exe"
-fi
 
 preferred=(
   micrproject_ui.jar

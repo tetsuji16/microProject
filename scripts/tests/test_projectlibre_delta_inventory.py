@@ -10,8 +10,8 @@ import sys
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-import micrproject_delta_inventory as inventory
-from micrproject_review_groups import build_groups
+import projectlibre_delta_inventory as inventory
+from projectlibre_review_groups import build_groups
 
 
 class DeltaInventoryTest(unittest.TestCase):
@@ -60,10 +60,10 @@ class DeltaInventoryTest(unittest.TestCase):
 			)
 			rows = list(csv.DictReader(output.splitlines(), delimiter="\t"))
 			identities = {row["canonical_symbol"] for row in rows}
-			self.assertIn("com.projity.Sample#<init>()", identities)
-			self.assertIn("com.projity.Sample#run()", identities)
-			self.assertIn("com.projity.Sample#run(String)", identities)
-			self.assertIn("com.projity.Sample#<clinit>[1]", identities)
+			self.assertIn("com.projectlibre1.Sample#<init>()", identities)
+			self.assertIn("com.projectlibre1.Sample#run()", identities)
+			self.assertIn("com.projectlibre1.Sample#run(String)", identities)
+			self.assertIn("com.projectlibre1.Sample#<clinit>[1]", identities)
 
 	def test_xml_is_indexed_by_element_path_without_file_level_template(self):
 		with tempfile.TemporaryDirectory() as temporary:

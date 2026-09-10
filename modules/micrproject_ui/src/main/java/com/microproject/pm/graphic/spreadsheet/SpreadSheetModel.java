@@ -106,8 +106,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 
 	public void setValueAt(Object value, int row, int col) {
 		if (isReadOnly()) return;
-		if (col == 0)
-			return;
+		if (row < 0 || row >= getRowCount() || col <= 0 || col >= getColumnCount()) return;
 		Field field=getFieldInColumn(col);
 		boolean roleField="Field.userRole".equals(field.getId()); //an exception for roles
 		NodeModel nodeModel=getCache().getModel();
