@@ -11,7 +11,10 @@ MPOF is the open, ODF-style project container for microProject.
   the `content.xml` entry, and its SHA-256 checksum
 - `operations/log.jsonl` + `changes/task-identities.json` — collaboration operation log, one validated JSON object per line
 - `settings.xml` — CCPM settings and baseline (optional)
-- `ccpm/history.jsonl` — persisted CCPM status observations, one JSON object per line
+- `ccpm/history.jsonl` — persisted CCPM status observations and audit retractions, one JSON object per line.
+  Observation entries use `kind="observation"` and stable `id`; retractions use
+  `kind="retraction"`, refer to that id, and retain the actor, time, and required reason.
+  Older id-less observation entries remain readable and are assigned a deterministic id on import.
 - unknown extra entries are preserved verbatim on round-trip
 
 ## Version policy

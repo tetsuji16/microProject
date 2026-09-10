@@ -6,12 +6,16 @@
 package com.microproject.dialog;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.SwingUtilities;
 
@@ -19,10 +23,12 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.ccpm.CriticalChainService;
+import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
 import com.microproject.pm.graphic.views.CriticalChainGraphPanel;
+import com.microproject.pm.graphic.views.CriticalChainGraphScene;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
@@ -104,6 +110,23 @@ class CriticalChainApplyAndRenderTest {
 	}
 
 	@Test
+	void graphSceneProvidesStableItemsForFutureNavigationAndFiltering() throws Exception {
+		Project project = buildProjectWithTasksAndResources();
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Settings settings = service.settings(project);
+		settings.setEnabled(true);
+		CriticalChainService.Analysis applied = service.apply(project, null, settings);
+
+		CriticalChainGraphScene scene = CriticalChainGraphScene.from(project, applied);
+		assertEquals(applied.criticalTaskIds().size() + applied.feedingBuffers().size() + 1, scene.nodes().size());
+		CriticalChainGraphScene.Node firstTask = scene.nodes().stream()
+			.filter(node -> node.kind() == CriticalChainGraphScene.NodeKind.TASK).findFirst().orElseThrow();
+		assertNotNull(scene.node(firstTask.key()));
+		assertEquals(firstTask, scene.nodeAt(firstTask.bounds().x(), firstTask.bounds().y()));
+		assertFalse(scene.edges().isEmpty(), "the scene must retain graph relationships for the renderer and later interactions");
+	}
+
+	@Test
 	void bufferChartPanelRendersAppliedAnalysisWithoutException() throws Exception {
 		Project project = buildProjectWithTasksAndResources();
 		CriticalChainService service = new CriticalChainService();
@@ -122,5 +145,24 @@ class CriticalChainApplyAndRenderTest {
 		} finally {
 			g.dispose();
 		}
+	}
+
+	@Test
+	void bufferChartSelectsLatestOverlappingObservationByStableId() throws Exception {
+		Project project = buildProjectWithTasksAndResources();
+		CriticalChainBufferHistory history = project.getOrCreateTransientDocumentState(
+			CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+		UUID older = UUID.randomUUID();
+		UUID newer = UUID.randomUUID();
+		Instant base = Instant.parse("2026-01-01T00:00:00Z");
+		history.add(new CriticalChainBufferHistory.Point(older, base, "a", "A", 40, 20, "GREEN", "b"));
+		history.add(new CriticalChainBufferHistory.Point(newer, base.plusSeconds(60), "a", "A", 40.05, 20.05, "GREEN", "b"));
+		CriticalChainBufferChartPanel panel = new CriticalChainBufferChartPanel(project);
+		panel.setSize(620, 420);
+		AtomicReference<UUID> selected = new AtomicReference<>();
+		panel.setSelectionListener(selected::set);
+		panel.selectAt(64 + Math.round(530 * 0.40f), 30 + 338 - Math.round(338 * 0.20f));
+		assertEquals(newer, selected.get());
+		assertEquals(newer, panel.selectedPoint().observationId());
 	}
 }

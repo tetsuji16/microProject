@@ -1241,6 +1241,29 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertEquals(55D, history.points().get(2).consumptionPercent(), 0.00001D);
 	}
 
+	@Test
+	void retractedCcpmObservationSurvivesMpoSaveAndReloadAsAuditOnly() throws Exception {
+		Project original = projectForRoundTrip();
+		CriticalChainBufferHistory history = original.getOrCreateTransientDocumentState(
+			CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+		CriticalChainBufferHistory.Point point = new CriticalChainBufferHistory.Point(
+			java.time.Instant.parse("2026-09-11T00:00:00Z"), "planner", "Planner", 40D, 70D, "RED", "baseline-1");
+		history.add(point);
+		assertTrue(new com.microproject.pm.ccpm.CriticalChainBufferHistoryService()
+			.retract(original, point.observationId(), "Accidental status refresh", "planner", "Planner").changed());
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Project loaded = loadFromBytes(archive.toByteArray());
+		CriticalChainBufferHistory restored = loaded.findTransientDocumentState(CriticalChainBufferHistory.class);
+
+		org.junit.jupiter.api.Assertions.assertNotNull(restored);
+		assertTrue(restored.points().isEmpty(), "retracted point must not return to the visible chart after reload");
+		assertEquals(1, restored.retractions().size());
+		assertEquals(point.observationId(), restored.retractions().getFirst().observationId());
+		assertEquals("Accidental status refresh", restored.retractions().getFirst().reason());
+	}
+
 	private static Project loadFromBytes(byte[] mpo) throws Exception {
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
