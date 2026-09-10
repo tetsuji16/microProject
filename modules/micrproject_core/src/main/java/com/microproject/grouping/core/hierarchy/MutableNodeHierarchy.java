@@ -667,8 +667,12 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	        }
         }
 
-		if (isEvent(actionType)&&nodesToChange.size()>0)
+		if (isEvent(actionType)&&nodesToChange.size()>0) {
+			// Task ID is the MSP-compatible row number. Indent/outdent changes
+			// depth-first order, so refresh it before observers rebuild the sheet.
+			renumber();
 			fireNodesChanged(this,nodesToChange.toArray());
+		}
 		return nodesToChange;
     }
 

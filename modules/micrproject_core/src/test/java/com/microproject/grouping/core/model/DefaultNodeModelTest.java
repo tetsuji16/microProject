@@ -484,6 +484,28 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void indentAndOutdentKeepTaskIdsUniqueAndInDepthFirstOrder() {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask parent = createTask(project, "Parent");
+		NormalTask child = createTask(project, "Child");
+		NormalTask sibling = createTask(project, "Sibling");
+		long parentUniqueId = parent.getUniqueId();
+		long childUniqueId = child.getUniqueId();
+		long siblingUniqueId = sibling.getUniqueId();
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+
+		model.getHierarchy().indent(Arrays.asList(model.search(child)), 1, model, NodeModel.NORMAL);
+		assertEquals(List.of(1L, 2L, 3L), taskIds(project));
+		assertEquals(parentUniqueId, parent.getUniqueId());
+		assertEquals(childUniqueId, child.getUniqueId());
+		assertEquals(siblingUniqueId, sibling.getUniqueId());
+
+		model.getHierarchy().indent(Arrays.asList(model.search(child)), -1, model, NodeModel.NORMAL);
+		assertEquals(List.of(1L, 2L, 3L), taskIds(project));
+		assertEquals(childUniqueId, child.getUniqueId());
+	}
+
+	@Test
 	void relocateCanMoveTaskToAnotherOutlineParentWithoutChangingUniqueId() {
 		Project project = createProjectWithoutVoidRows();
 		NormalTask firstSummary = createTask(project, "First summary");
@@ -612,6 +634,13 @@ class DefaultNodeModelTest {
 		project.connectTask(task);
 		project.getTaskOutlines().addToAll(task, null);
 		return task;
+	}
+
+	private List<Long> taskIds(Project project) {
+		List<Long> ids = new ArrayList<>();
+		for (Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();)
+			ids.add(Long.valueOf(((com.microproject.pm.task.Task) iterator.next()).getId()));
+		return ids;
 	}
 
 	private Dependency findDependency(NormalTask predecessor, NormalTask successor) {
