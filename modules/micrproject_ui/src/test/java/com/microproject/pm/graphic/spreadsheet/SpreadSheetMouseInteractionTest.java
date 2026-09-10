@@ -43,6 +43,7 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
@@ -143,6 +144,27 @@ class SpreadSheetMouseInteractionTest {
 
 			assertSame(fixture.secondTask(), fixture.sheet().getTaskAtRow(row));
 		});
+	}
+
+	@Test
+	void taskTableDoubleClickNeverStartsCellEditing() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int nameColumn = findNameColumn(sheet);
+			int row = findRow(sheet, fixture.secondTask());
+			assertFalse(sheet.editCellAt(row, nameColumn, mousePress(sheet, row, nameColumn,
+					MouseEvent.BUTTON1, 2)));
+		});
+	}
+
+	@Test
+	void notesDoubleClickUsesStableFieldIdAcrossLocalizedLabels() {
+		Field notes = new Field();
+		notes.setId("Field.notes");
+		notes.setName("メモ");
+
+		assertTrue(SpreadSheet.isNotesField(notes));
 	}
 
 	@Test

@@ -1003,11 +1003,22 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		tableMouseHandlerInstalled = true;
 	}
 
+	@Override
+	public boolean editCellAt(int row, int column, java.util.EventObject event) {
+		// MSP opens Task Information for a double-click anywhere in a task row.
+		// Reserve mouse double-clicks for that command; F2 and typed input still
+		// use the normal editor path.
+		if (isTaskTable() && event instanceof MouseEvent mouse
+				&& mouse.getID() == MouseEvent.MOUSE_PRESSED && mouse.getClickCount() >= 2)
+			return false;
+		return super.editCellAt(row, column, event);
+	}
+
 	/**
 	 * Own table gestures after the Swing UI delegate has processed the native
-	 * event.  ETable's own mouse listener may consume or replace a selection;
+	 * event. ETable's own mouse listener may consume or replace a selection;
 	 * installing a second listener made dispatch order determine whether task
-	 * clicks selected a cell or a whole row.  Processing here leaves one
+	 * clicks selected a cell or a whole row. Processing here leaves one
 	 * deterministic controller for the task-table surface.
 	 */
 	@Override
@@ -1412,9 +1423,28 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return;
 		Task task = getTaskAtRow(row);
 		if (task != null)
-			manager.doInformationDialog(task, false);
+			manager.doInformationDialog(task, opensNotesTabOnDoubleClick(col));
 		else
 			manager.doInformationDialog(false);
+	}
+
+	/** MSP opens Task Information directly on Notes for a Notes-field double-click. */
+	boolean opensNotesTabOnDoubleClick(int viewColumn) {
+		if (!isTaskTable() || viewColumn < 0 || viewColumn >= getColumnCount()
+				|| !(getModel() instanceof SpreadSheetModel model))
+			return false;
+		Field field = model.getFieldInViewColumn(viewColumn);
+		// getName() is the localized/aliased display label (for example メモ in
+		// Japanese), so it is not a compatibility-safe discriminator.
+		return isNotesField(field);
+	}
+
+	static boolean isNotesField(Field field) {
+		return field != null && "Field.notes".equalsIgnoreCase(field.getId());
+	}
+
+	private boolean isTaskTable() {
+		return SpreadSheetCategories.taskSpreadsheetCategory.equals(getSpreadSheetCategory());
 	}
 
 	/**
