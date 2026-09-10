@@ -28,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Font;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Handler;
@@ -44,6 +46,14 @@ import net.sf.jasperreports.engine.JasperReport;
 
 class ReportUtilTest {
 	private static final String JASPER_XML_LOGGER_NAME = "net.sf.jasperreports.engine.xml";
+
+	@Test
+	void previewFontIsACompositeFontThatCanRenderJapanese() {
+		Font font = new Font(ReportFontSupport.PREVIEW_FONT_NAME, Font.PLAIN, 12);
+
+		assertTrue(font.canDisplayUpTo("日本語") < 0,
+			() -> "Report font cannot display Japanese: " + font);
+	}
 
 	@Test
 	void loadsBundledJrxmlReportDefinitions() throws Exception {

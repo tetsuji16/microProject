@@ -349,7 +349,7 @@ public void dispose(JRDataSource arg0) throws JRException {
 				staticText.setHeight(15);
 			staticText.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
 				JRDesignFont normalFont = new JRDesignFont(design.getDefaultStyle());
-				normalFont.setFontName("Arial");
+				normalFont.setFontName(ReportFontSupport.PREVIEW_FONT_NAME);
 				normalFont.setFontSize(Float.valueOf(10));
 				normalFont.setPdfFontName("Helvetica");
 				applyFont(staticText, normalFont);

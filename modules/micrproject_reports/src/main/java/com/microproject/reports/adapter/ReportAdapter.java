@@ -127,14 +127,14 @@ public class ReportAdapter {
 		
 			//Fonts
 			normalFont = new JRDesignFont(jasperDesign.getDefaultStyle());
-			normalFont.setFontName("Arial");
+			normalFont.setFontName(ReportFontSupport.PREVIEW_FONT_NAME);
 			normalFont.setFontSize(Float.valueOf(10));
 			normalFont.setPdfFontName("Helvetica");
 			normalFont.setPdfEncoding("Cp1252");
 			normalFont.setPdfEmbedded(false);
 			
 			boldFont = new JRDesignFont(jasperDesign.getDefaultStyle());
-			boldFont.setFontName("Arial");
+			boldFont.setFontName(ReportFontSupport.PREVIEW_FONT_NAME);
 			boldFont.setFontSize(Float.valueOf(12));
 			boldFont.setBold(true);
 			boldFont.setPdfFontName("Helvetica-Bold");
@@ -142,7 +142,7 @@ public class ReportAdapter {
 			boldFont.setPdfEmbedded(false);
 			
 			italicFont = new JRDesignFont(jasperDesign.getDefaultStyle());
-			italicFont.setFontName("Arial");
+			italicFont.setFontName(ReportFontSupport.PREVIEW_FONT_NAME);
 			italicFont.setFontSize(Float.valueOf(12));
 			italicFont.setItalic(true);
 			italicFont.setPdfFontName("Helvetica-Oblique");
@@ -167,7 +167,7 @@ public class ReportAdapter {
 			text.setHeight(30);
 			text.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
 			JRDesignFont bigFont = new JRDesignFont(jasperDesign.getDefaultStyle());
-			bigFont.setFontName("Arial");
+			bigFont.setFontName(ReportFontSupport.PREVIEW_FONT_NAME);
 			bigFont.setFontSize(Float.valueOf(22));
 			bigFont.setPdfFontName("Helvetica");
 			bigFont.setPdfEncoding("Cp1252");
