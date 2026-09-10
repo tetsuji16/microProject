@@ -26,14 +26,14 @@ package com.microproject.dialog;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
 
 import javax.swing.JList;
 import javax.swing.ListModel;
+import javax.swing.AbstractAction;
+import javax.swing.KeyStroke;
 
 /**
  * A Jlist that responds to dbl clicks and enter key taken from
@@ -57,18 +57,16 @@ public class ActionJList extends JList {
 			}
 		});
 
-		addKeyListener(new KeyAdapter() {
-			public void keyReleased(KeyEvent ke) {
+		getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ENTER"), "actionJList.activate");
+		getActionMap().put("actionJList.activate", new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) {
 				if (al == null)
 					return;
 				List<?> selectedValues = getSelectedValuesList();
 				if (selectedValues.size() != 1)
 					return;
-				if (ke.getKeyCode() == KeyEvent.VK_ENTER) {
-					al.actionPerformed(new ActionEvent(this,
-							ActionEvent.ACTION_PERFORMED, selectedValues.get(0).toString()));
-					ke.consume();
-				}
+				al.actionPerformed(new ActionEvent(ActionJList.this,
+						ActionEvent.ACTION_PERFORMED, selectedValues.get(0).toString()));
 			}
 		});
 		this.setSelectedIndex(0);

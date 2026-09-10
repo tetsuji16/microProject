@@ -31,8 +31,6 @@ import java.awt.GridLayout;
 import java.nio.file.Path;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -42,6 +40,8 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JList;
+import javax.swing.AbstractAction;
+import javax.swing.KeyStroke;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -143,13 +143,10 @@ public final class WelcomeDialog extends AbstractDialog {
 				if (event.getClickCount() == 2) openSelectedRecentProject();
 			}
 		});
-		recentProjects.addKeyListener(new KeyAdapter() {
-			@Override public void keyPressed(KeyEvent event) {
-				if (event.getKeyCode() == KeyEvent.VK_ENTER) {
-					openSelectedRecentProject();
-					event.consume();
-				}
-			}
+		recentProjects.getInputMap(JList.WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ENTER"), "welcome.openRecent");
+		recentProjects.getActionMap().put("welcome.openRecent", new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) { openSelectedRecentProject(); }
 		});
 		templateChoice = new JComboBox<>(new String[] {
 			UsabilityStrings.text("welcome.template.basic"),

@@ -26,8 +26,8 @@ package com.microproject.dialog.util;
 
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+import java.awt.event.InputMethodEvent;
+import java.awt.event.InputMethodListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.beans.PropertyChangeEvent;
@@ -46,13 +46,17 @@ import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.JTextComponent;
 
 import com.microproject.dialog.FieldDialog;
 import com.microproject.pm.graphic.spreadsheet.editor.SpinEditor;
+import com.microproject.pm.graphic.spreadsheet.editor.ImeTextInputSupport;
 import com.microproject.datatype.Hyperlink;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
@@ -267,24 +271,34 @@ public class ComponentFactory {
 				component = text;
 			}
 		}
-		if (text != null) {
-			text.addKeyListener(new KeyListener() {
-			public void keyPressed(KeyEvent arg0) {
-			}
-			public void keyReleased(KeyEvent arg0) {
-			}
-
-			public void keyTyped(KeyEvent arg0) {
-				JTextComponent textComponent = (JTextComponent)arg0.getComponent();
-				textComponent.setForeground(FlatUiSupport.accentColor());
-				FieldDialog parentFieldDialog = getParentFieldDialog(textComponent);
-				if (parentFieldDialog != null)
-					parentFieldDialog.setDirtyComponent(textComponent);
-			}});
-
-		}
 		if (!(component instanceof JCheckBox))
 			setValueOfComponent(component,value,readOnly);
+		if (text != null) {
+			final JTextComponent trackedText = text;
+			class FieldStateTracker {
+				void markDirtyIfCommitted() {
+					if (ImeTextInputSupport.isCompositionActive(trackedText)) return;
+					trackedText.setForeground(FlatUiSupport.accentColor());
+					FieldDialog parentFieldDialog = getParentFieldDialog(trackedText);
+					if (parentFieldDialog != null) parentFieldDialog.setDirtyComponent(trackedText);
+				}
+			}
+			FieldStateTracker stateTracker = new FieldStateTracker();
+			text.addInputMethodListener(new InputMethodListener() {
+				@Override public void inputMethodTextChanged(InputMethodEvent event) {
+					ImeTextInputSupport.updateCompositionState(trackedText, event);
+					if (!ImeTextInputSupport.isCompositionActive(trackedText))
+						SwingUtilities.invokeLater(stateTracker::markDirtyIfCommitted);
+				}
+				@Override public void caretPositionChanged(InputMethodEvent event) { }
+			});
+			text.getDocument().addDocumentListener(new DocumentListener() {
+				@Override public void insertUpdate(DocumentEvent event) { deferUpdate(); }
+				@Override public void removeUpdate(DocumentEvent event) { deferUpdate(); }
+				@Override public void changedUpdate(DocumentEvent event) { deferUpdate(); }
+				private void deferUpdate() { SwingUtilities.invokeLater(stateTracker::markDirtyIfCommitted); }
+			});
+		}
 		return component;
 		
 	}

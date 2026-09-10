@@ -27,8 +27,6 @@ package com.microproject.dialog;
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
@@ -48,6 +46,8 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -203,15 +203,11 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 				context.setForward(false);
 				onOk();
 			}});
-		search.addKeyListener(new KeyListener() {
-			public void keyPressed(KeyEvent e) {
-			}
-
-			public void keyReleased(KeyEvent e) {
-				updateFindButtonState();			}
-
-			public void keyTyped(KeyEvent e) {
-			}});
+		search.getDocument().addDocumentListener(new DocumentListener() {
+			@Override public void insertUpdate(DocumentEvent event) { updateFindButtonState(); }
+			@Override public void removeUpdate(DocumentEvent event) { updateFindButtonState(); }
+			@Override public void changedUpdate(DocumentEvent event) { updateFindButtonState(); }
+		});
 		return buttonPanel;
 	}
 

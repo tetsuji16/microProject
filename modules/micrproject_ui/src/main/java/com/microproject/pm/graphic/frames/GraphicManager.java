@@ -4584,6 +4584,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private void putShortcut(InputMap inputMap, ActionMap actionMap, KeyStroke key, String actionConstant, Action action) {
+		Object existing = localBinding(inputMap, key);
+		if (existing != null && !actionConstant.equals(existing)) {
+			throw new IllegalStateException("Duplicate shortcut " + key + ": " + existing + " vs " + actionConstant);
+		}
 		inputMap.put(key, actionConstant);
 		if (action == null) {
 			try {
@@ -4597,6 +4601,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}
 		}
 		actionMap.put(actionConstant, action);
+	}
+
+	/** Reads only this registration layer; inherited UI defaults must not count as conflicts. */
+	private static Object localBinding(InputMap inputMap, KeyStroke key) {
+		KeyStroke[] keys = inputMap.keys();
+		if (keys == null) {
+			return null;
+		}
+		for (KeyStroke registeredKey : keys) {
+			if (key.equals(registeredKey)) {
+				return inputMap.get(registeredKey);
+			}
+		}
+		return null;
 	}
 
 	/**

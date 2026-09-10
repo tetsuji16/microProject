@@ -30,10 +30,8 @@ import java.awt.event.InputMethodEvent;
 import java.awt.event.InputMethodListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.awt.im.InputContext;
 import java.util.EventObject;
 import java.util.function.IntFunction;
-import java.text.AttributedCharacterIterator;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -56,7 +54,7 @@ import com.microproject.pm.graphic.spreadsheet.renderer.CellUtility;
  */
 public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	protected static JTable lastTable;
-	private static final String COMPOSITION_PROPERTY = "projectlibre.input.composing";
+	private static final String COMPOSITION_PROPERTY = ImeTextInputSupport.COMPOSITION_PROPERTY;
 	private static final String NAME_TAB_INSTALL_PROPERTY = "projectlibre.nameTabActionsInstalled";
 	private static final String NAME_COLLAPSE_ACTION = "spreadsheet.nameColumnCollapse";
 	private static final String NAME_EXPAND_ACTION = "spreadsheet.nameColumnExpand";
@@ -64,7 +62,6 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	private static final String NAME_LAST_ACTION = "spreadsheet.nameColumnLast";
 	private static final String NAME_UNDO_ACTION = "spreadsheet.nameColumnUndo";
 	private static final String NAME_REDO_ACTION = "spreadsheet.nameColumnRedo";
-	private static final String RECONVERT_ACTION = "spreadsheet.imeReconvert";
 	protected TableCellEditor editor;
 	private JComponent activeEditorComponent;
 	private boolean activeDurationField;
@@ -79,7 +76,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	protected void prepareEditorComponent(JComponent edit) {
 		activeEditorComponent = edit;
 		edit.enableInputMethods(true);
-		installReconversionAction(edit);
+		ImeTextInputSupport.installReconversionAction(edit);
 		installCompositionTracking(edit);
 	}
 
@@ -89,26 +86,6 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	 * input context so a selected, already committed string can be reconverted
 	 * by Microsoft IME.
 	 */
-	private void installReconversionAction(final JComponent edit) {
-		InputMap inputMap = edit.getInputMap(JComponent.WHEN_FOCUSED);
-		ActionMap actionMap = edit.getActionMap();
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_CONVERT, 0), RECONVERT_ACTION);
-		actionMap.put(RECONVERT_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-
-			public void actionPerformed(ActionEvent e) {
-				try {
-					InputContext inputContext = edit.getInputContext();
-					if (inputContext != null) {
-						inputContext.reconvert();
-					}
-				} catch (RuntimeException ignored) {
-					// Reconversion is optional for an input method; keep the selection intact.
-				}
-			}
-		});
-	}
-
 	protected void clearActiveEditorComponent() {
 		if (activeEditorComponent != null) {
 			activeEditorComponent.putClientProperty(COMPOSITION_PROPERTY, Boolean.FALSE);
@@ -238,33 +215,25 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_NEXT_ACTION_PROPERTY, null);
 	}
 
+	protected boolean isComposing(InputMethodEvent event) {
+		return ImeTextInputSupport.isComposing(event);
+	}
+
+	/** Keeps the listener owned by the editor adapter; only the state calculation is shared. */
 	protected void installCompositionTracking(final JComponent edit) {
-		if (Boolean.TRUE.equals(edit.getClientProperty(NAME_TAB_INSTALL_PROPERTY))) {
-			return;
-		}
+		if (Boolean.TRUE.equals(edit.getClientProperty(NAME_TAB_INSTALL_PROPERTY))) return;
 		edit.putClientProperty(NAME_TAB_INSTALL_PROPERTY, Boolean.TRUE);
 		edit.putClientProperty(COMPOSITION_PROPERTY, Boolean.FALSE);
 		edit.addInputMethodListener(new InputMethodListener() {
-			public void inputMethodTextChanged(InputMethodEvent event) {
-				edit.putClientProperty(COMPOSITION_PROPERTY, Boolean.valueOf(isComposing(event)));
+			@Override public void inputMethodTextChanged(InputMethodEvent event) {
+				ImeTextInputSupport.updateCompositionState(edit, event);
 			}
-			public void caretPositionChanged(InputMethodEvent event) {
-			}
+			@Override public void caretPositionChanged(InputMethodEvent event) { }
 		});
 	}
 
-	protected boolean isComposing(InputMethodEvent event) {
-		AttributedCharacterIterator text = event.getText();
-		if (text == null) {
-			return false;
-		}
-		int committed = event.getCommittedCharacterCount();
-		int length = text.getEndIndex() - text.getBeginIndex();
-		return committed < length;
-	}
-
 	protected boolean isCompositionActive(JComponent edit) {
-		return Boolean.TRUE.equals(edit.getClientProperty(COMPOSITION_PROPERTY));
+		return ImeTextInputSupport.isCompositionActive(edit);
 	}
 
 	/**

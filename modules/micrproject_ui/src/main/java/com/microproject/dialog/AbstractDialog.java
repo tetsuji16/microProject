@@ -40,6 +40,7 @@ import java.awt.event.MouseListener;
 import java.util.logging.Logger;
 
 import javax.swing.BoxLayout;
+import javax.swing.AbstractAction;
 import javax.swing.ComboBoxModel;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
@@ -124,12 +125,21 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		};
 		JRootPane rootPane = new JRootPane();
 		KeyStroke escapeStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
-		rootPane.registerKeyboardAction(escapeListener, escapeStroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
 		KeyStroke enterStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
-		rootPane.registerKeyboardAction(enterListener, enterStroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
 		KeyStroke f1Stroke = KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0);
-		rootPane.registerKeyboardAction(helpListener, f1Stroke, JComponent.WHEN_IN_FOCUSED_WINDOW);
+		bindWindowAction(rootPane, escapeStroke, "dialog.escape", escapeListener);
+		bindWindowAction(rootPane, enterStroke, "dialog.enter", enterListener);
+		bindWindowAction(rootPane, f1Stroke, "dialog.help", helpListener);
 		return rootPane;
+	}
+
+	private static void bindWindowAction(JRootPane rootPane, KeyStroke keyStroke, String actionKey,
+			ActionListener listener) {
+		rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStroke, actionKey);
+		rootPane.getActionMap().put(actionKey, new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) { listener.actionPerformed(event); }
+		});
 	}
 
 	protected boolean hasHelp() {

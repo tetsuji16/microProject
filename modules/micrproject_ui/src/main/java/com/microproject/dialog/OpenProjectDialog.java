@@ -30,8 +30,6 @@ import java.awt.Frame;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashSet;
@@ -42,6 +40,8 @@ import java.util.logging.Logger;
 
 import javax.swing.DefaultListSelectionModel;
 import javax.swing.JButton;
+import javax.swing.AbstractAction;
+import javax.swing.KeyStroke;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
@@ -264,13 +264,15 @@ public final class OpenProjectDialog extends AbstractDialog {
 	        setSelectionModel(new OpenProjectListSelectionModel());
 	        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 	        addMouseListener();
-			addKeyListener(new KeyAdapter() {
-				public void keyPressed(KeyEvent e) {
-					if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
-						OpenProjectDialog.this.onCancel();
-					else if (e.getKeyCode() == KeyEvent.VK_ENTER)
-						OpenProjectDialog.this.onOk();
-				}
+			getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ESCAPE"), "openProject.cancel");
+			getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ENTER"), "openProject.accept");
+			getActionMap().put("openProject.cancel", new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(ActionEvent event) { OpenProjectDialog.this.onCancel(); }
+			});
+			getActionMap().put("openProject.accept", new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(ActionEvent event) { OpenProjectDialog.this.onOk(); }
 			});
 			setGridColor(FlatUiSupport.borderColor());
 

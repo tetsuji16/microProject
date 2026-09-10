@@ -34,7 +34,6 @@ import java.awt.event.FocusEvent;
 import java.awt.event.InputMethodEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.awt.im.InputContext;
 import java.lang.reflect.Method;
 import java.text.AttributedCharacterIterator;
 import java.util.ArrayList;
@@ -87,6 +86,7 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetSearchContext;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.KeyboardFocusable;
+import com.microproject.pm.graphic.spreadsheet.editor.ImeTextInputSupport;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetSelectionModel;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent;
@@ -121,7 +121,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	public static final String RESOURCE_CATEGORY="resourceSpreadsheet";
 	public static final String TASK_CATEGORY="taskSpreadsheet";
 	private static final String COMMIT_AND_MOVE_DOWN_ACTION = "spreadsheet.commitAndMoveDown";
-	private static final String COMPOSITION_PROPERTY = "projectlibre.input.composing";
+	private static final String COMPOSITION_PROPERTY = ImeTextInputSupport.COMPOSITION_PROPERTY;
 	private static final int RECONVERSION_FOCUS_TIMEOUT_MILLIS = 1000;
 
 	protected SpreadSheetSelectionModel selection;
@@ -556,13 +556,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	private void reconvert(JTextComponent text) {
-		try {
-			InputContext inputContext = text.getInputContext();
-			if (inputContext != null)
-				inputContext.reconvert();
-		} catch (RuntimeException ignored) {
-			// Some input methods do not expose reconversion; selection remains active for the user's next IME action.
-		}
+		ImeTextInputSupport.reconvert(text);
 	}
 
 	private boolean shouldClearFieldOnTypedDigit(int row, int column, char typedChar) {
@@ -823,7 +817,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		if (!(text instanceof JComponent component)) {
 			return false;
 		}
-		return Boolean.TRUE.equals(component.getClientProperty(COMPOSITION_PROPERTY));
+		return ImeTextInputSupport.isCompositionActive(component);
 	}
 
 	private static final class EditableCellTarget {
