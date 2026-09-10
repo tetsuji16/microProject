@@ -157,6 +157,10 @@ class MicrosoftShortcutsRootPaneTest {
 			assertEquals(MenuActionConstants.ACTION_FIND,
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK)),
 					"Shift+F5 must find");
+			assertEquals(MenuActionConstants.ACTION_SCROLL_TO_TASK,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5,
+						InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+F5 must scroll to the selected task");
 			assertEquals(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION,
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)), "F1 must open help");
 			assertEquals(MenuActionConstants.ACTION_NEW,
@@ -253,6 +257,10 @@ class MicrosoftShortcutsRootPaneTest {
 			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION),
 					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)),
 					"F1 must use the same help action as the ribbon and menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_SCROLL_TO_TASK),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5,
+						InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+F5 must use the same Scroll to Task action as the ribbon and menu");
 			assertNotNull(harness.panel.getActionMap().get("DeleteRow"),
 					"Ctrl+Minus must keep its row-delete action separate from Delete");
 		});

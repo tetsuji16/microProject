@@ -4513,6 +4513,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		});
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F2, ACTION_LINK, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F2, ACTION_UNLINK, InputEvent.SHIFT_DOWN_MASK, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_SCROLL_TO_TASK, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), ACTION_GOTO, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK), ACTION_FIND, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), ACTION_PROJECTLIBRE_DOCUMENTATION, null);
