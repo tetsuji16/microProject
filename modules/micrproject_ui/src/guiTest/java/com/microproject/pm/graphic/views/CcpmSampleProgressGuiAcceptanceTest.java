@@ -37,12 +37,14 @@ import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
 import javax.swing.JFrame;
+import javax.swing.JDialog;
 import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
 import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
+import javax.swing.JTextField;
 import javax.swing.text.JTextComponent;
 
 import org.junit.jupiter.api.AfterEach;
@@ -57,6 +59,7 @@ import com.microproject.exchange.MpoFileImporter;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.pm.ccpm.CriticalChainService;
+import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -119,6 +122,60 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		showAndCapture(robot, project, CriticalChainStatusDialogBox.Surface.NETWORK,
 			CriticalChainGraphPanel.class, "ccpm-sample-progress-network.png");
 		showBufferTransitionScenario(robot, project, service);
+	}
+
+	@Test
+	void robotRetractsSelectedObservationAndRestoresItWithUndoRedo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Project fixture = loadSample();
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Settings settings = service.settings(fixture);
+		settings.setEnabled(true);
+		service.apply(fixture, null, settings);
+		this.project = fixture;
+		observer = new DialogObserver(); observer.open();
+		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(null, fixture,
+			CriticalChainStatusDialogBox.Surface.BUFFER_STATUS));
+		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
+		GuiAcceptanceSupport.await(() -> visibleComponentExists(dialog, CriticalChainBufferChartPanel.class), "CCPM buffer chart did not render");
+		CriticalChainBufferChartPanel chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
+		assertNotNull(chart);
+		CriticalChainBufferHistory history = fixture.findTransientDocumentState(CriticalChainBufferHistory.class);
+		int before = chart.activeObservationCount();
+		assertTrue(before > 0, "the dialog must contain an active observation");
+		CriticalChainBufferHistory.Point point = history.points().getLast();
+		Rectangle marker = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			java.awt.Point origin = chart.getLocationOnScreen();
+			int width = chart.getWidth() - 64 - 26;
+			int height = chart.getHeight() - 30 - 52;
+			marker.setBounds(origin.x + 64 + (int) Math.round(width * point.progressPercent() / 100D) - 5,
+				origin.y + 30 + (int) Math.round(height * (100D - point.consumptionPercent()) / 100D) - 5, 10, 10);
+		});
+		Robot robot = new Robot(); robot.setAutoDelay(35);
+		robot.mouseMove(marker.x + 5, marker.y + 5); robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		AbstractButton retract = findButton(dialog, UsabilityStrings.text("ccpm.retractObservation"));
+		GuiAcceptanceSupport.await(() -> retract != null && retract.isEnabled(), "retraction command did not enable after physical point selection");
+		Rectangle retractBounds = onScreen(retract);
+		robot.mouseMove(retractBounds.x + retractBounds.width / 2, retractBounds.y + retractBounds.height / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		JDialog confirmation = awaitConfirmation();
+		JTextField reason = findComponent(confirmation, JTextField.class);
+		assertNotNull(reason, "confirmation must expose a reason field");
+		Rectangle reasonBounds = onScreen(reason);
+		robot.mouseMove(reasonBounds.x + 10, reasonBounds.y + reasonBounds.height / 2); robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		typeAscii(robot, "accidental plot");
+		AbstractButton ok = findConfirmationButton(confirmation);
+		assertNotNull(ok, "confirmation must expose an OK action");
+		Rectangle okBounds = onScreen(ok);
+		robot.mouseMove(okBounds.x + okBounds.width / 2, okBounds.y + okBounds.height / 2); robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> chart.activeObservationCount() == before - 1 && history.retractions().size() == 1,
+			"physical retraction did not remove the active point and add its audit record");
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_Z); robot.keyRelease(KeyEvent.VK_Z); robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> chart.activeObservationCount() == before && history.retractions().isEmpty(), "Ctrl+Z did not restore the observation");
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_Y); robot.keyRelease(KeyEvent.VK_Y); robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> chart.activeObservationCount() == before - 1 && history.retractions().size() == 1, "Ctrl+Y did not re-apply the retraction");
+		robot.keyPress(KeyEvent.VK_ESCAPE); robot.keyRelease(KeyEvent.VK_ESCAPE);
 	}
 
 	private void showGantt(Project project) throws Exception {
@@ -324,6 +381,65 @@ class CcpmSampleProgressGuiAcceptanceTest {
 			}
 		}
 		return null;
+	}
+
+	private static AbstractButton findButton(java.awt.Container parent, String text) {
+		for (Component component : parent.getComponents()) {
+			if (component instanceof AbstractButton button && text.equals(button.getText())) return button;
+			if (component instanceof java.awt.Container nested) {
+				AbstractButton found = findButton(nested, text);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
+	private static Rectangle onScreen(Component component) throws Exception {
+		Rectangle bounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			java.awt.Point point = component.getLocationOnScreen();
+			bounds.setBounds(point.x, point.y, component.getWidth(), component.getHeight());
+		});
+		return bounds;
+	}
+
+	private static JDialog awaitConfirmation() throws Exception {
+		AtomicReference<JDialog> found = new AtomicReference<>();
+		GuiAcceptanceSupport.await(() -> {
+			for (Window window : Window.getWindows())
+				if (window instanceof JDialog dialog && dialog.isShowing() && findComponent(dialog, JTextField.class) != null) {
+					found.set(dialog); return true;
+				}
+			return false;
+		}, "retraction confirmation dialog did not open");
+		return found.get();
+	}
+
+	private static AbstractButton findConfirmationButton(JDialog dialog) {
+		for (Component component : dialog.getComponents()) {
+			AbstractButton found = findConfirmationButton(component);
+			if (found != null) return found;
+		}
+		return null;
+	}
+
+	private static AbstractButton findConfirmationButton(Component component) {
+		if (component instanceof AbstractButton button && button.isShowing()
+			&& ("OK".equalsIgnoreCase(button.getText()) || "確認".equals(button.getText()))) return button;
+		if (component instanceof java.awt.Container container)
+			for (Component child : container.getComponents()) {
+				AbstractButton found = findConfirmationButton(child);
+				if (found != null) return found;
+			}
+		return null;
+	}
+
+	private static void typeAscii(Robot robot, String text) {
+		for (char character : text.toCharArray()) {
+			int code = KeyEvent.getExtendedKeyCodeForChar(character);
+			if (code == KeyEvent.VK_UNDEFINED) continue;
+			robot.keyPress(code); robot.keyRelease(code);
+		}
 	}
 
 	private static boolean visibleComponentExists(Window window, Class<? extends Component> type) {

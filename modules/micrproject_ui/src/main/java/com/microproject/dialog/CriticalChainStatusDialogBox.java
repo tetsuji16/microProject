@@ -17,6 +17,10 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.JTextField;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.GridLayout;
 import java.time.format.DateTimeFormatter;
 import java.time.Instant;
@@ -55,6 +59,7 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		PopupDialogSupport.bindEscapeToDispose(this);
 		setLayout(new BorderLayout());
+		installUndoRedoBindings();
 
 		CriticalChainService service = new CriticalChainService();
 		CriticalChainService.Settings settings = service.findSettings(project);
@@ -102,6 +107,30 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		setPreferredSize(new Dimension(820, 510));
 		pack();
 		setLocationRelativeTo(owner);
+	}
+
+	private void installUndoRedoBindings() {
+		JComponent root = getRootPane();
+		var input = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		var actions = root.getActionMap();
+		input.put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK), "ccpm-undo");
+		input.put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK), "ccpm-redo");
+		actions.put("ccpm-undo", new javax.swing.AbstractAction() {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+				if (project != null && project.getUndoController().canUndo()) {
+					project.getUndoController().undo();
+					if (bufferChart != null) bufferChart.reloadHistory();
+				}
+			}
+		});
+		actions.put("ccpm-redo", new javax.swing.AbstractAction() {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+				if (project != null && project.getUndoController().canRedo()) {
+					project.getUndoController().redo();
+					if (bufferChart != null) bufferChart.reloadHistory();
+				}
+			}
+		});
 	}
 
 	private void openSettingsAndReturn(Frame owner, Project project, Surface surface) {
@@ -179,7 +208,8 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		CriticalChainBufferHistoryService.Outcome outcome = new CriticalChainBufferHistoryService().retract(project,
 			point.observationId(), reason.getText(), "local", "Local user");
 		if (!outcome.changed()) {
-			feedback.setText(UsabilityStrings.text("ccpm.retractRejected"));
+			feedback.setText(UsabilityStrings.text(outcome.status() == CriticalChainBufferHistoryService.Status.FAILED
+				? "ccpm.retractFailed" : "ccpm.retractRejected"));
 			updateRetractionEnabled();
 			return;
 		}

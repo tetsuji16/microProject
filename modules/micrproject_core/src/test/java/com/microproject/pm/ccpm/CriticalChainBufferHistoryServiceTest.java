@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -57,6 +58,21 @@ class CriticalChainBufferHistoryServiceTest {
 
 		assertFalse(outcome.changed());
 		assertEquals("reason-required", outcome.reason());
+		assertEquals(1, history.points().size());
+		assertTrue(history.retractions().isEmpty());
+	}
+
+	@Test
+	void unknownAndReadOnlyObservationsAreRejectedWithoutMutation() {
+		Project project = project();
+		CriticalChainBufferHistory history = project.getOrCreateTransientDocumentState(
+			CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+		CriticalChainBufferHistory.Point point = new CriticalChainBufferHistory.Point(Instant.now(), "user", "Planner", 0D, 0D, "GREEN", "");
+		history.add(point);
+		CriticalChainBufferHistoryService service = new CriticalChainBufferHistoryService();
+		assertEquals("observation-not-found", service.retract(project, UUID.randomUUID(), "typo", "user", "Planner").reason());
+		project.setReadOnly(true);
+		assertEquals("read-only", service.retract(project, point.observationId(), "valid", "user", "Planner").reason());
 		assertEquals(1, history.points().size());
 		assertTrue(history.retractions().isEmpty());
 	}
