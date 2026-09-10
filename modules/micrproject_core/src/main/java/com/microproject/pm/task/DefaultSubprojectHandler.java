@@ -36,6 +36,7 @@ import java.util.Set;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModelUtil;
 import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.util.FilePathUtils;
 
 public class DefaultSubprojectHandler implements SubprojectHandler {
 	private final Project dummyProject;
@@ -267,13 +268,7 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 	}
 
 	private static String canonicalPath(String fileName) {
-		if (fileName == null || fileName.isBlank())
-			return fileName;
-		try {
-			return new File(fileName).getCanonicalPath();
-		} catch (IOException exception) {
-			return new File(fileName).getAbsolutePath();
-		}
+		return FilePathUtils.canonicalPath(fileName);
 	}
 
 	@Override

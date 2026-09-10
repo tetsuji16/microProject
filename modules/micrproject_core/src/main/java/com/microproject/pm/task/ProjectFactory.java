@@ -58,6 +58,7 @@ import com.microproject.job.JobRunnable;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.server.data.DataUtil;
+import com.microproject.util.FilePathUtils;
 import com.microproject.session.CreateOptions;
 import com.microproject.session.LoadOptions;
 import com.microproject.session.LocalSession;
@@ -749,7 +750,7 @@ public class ProjectFactory {
 			return Messages.getString("Text.Untitled");
 		String fileName = project.getFileName();
 		if (fileName != null && fileName.trim().length() > 0)
-			return new File(fileName).getName();
+			return FilePathUtils.fileName(fileName);
 		String projectName = project.getName();
 		if (projectName != null && projectName.trim().length() > 0)
 			return projectName;

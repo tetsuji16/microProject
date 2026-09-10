@@ -5,14 +5,13 @@
  ******************************************************************************/
 package com.microproject.pm.resource;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.task.Project;
+import com.microproject.util.FilePathUtils;
 
 /**
  * Connects a sharer project to a separately saved resource-pool project.
@@ -155,13 +154,8 @@ public final class SharedResourcePoolService {
 	}
 
 	private String canonicalFileName(String fileName) {
-		if (fileName == null || fileName.isBlank())
-			return null;
-		try {
-			return new File(fileName).getCanonicalPath();
-		} catch (IOException e) {
-			return new File(fileName).getAbsolutePath();
-		}
+		String canonical = FilePathUtils.canonicalPath(fileName);
+		return canonical == null || canonical.isBlank() ? null : canonical;
 	}
 
 	private static boolean containsIdentity(Iterable<Project> projects, Project expected) {
