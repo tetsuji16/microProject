@@ -48,6 +48,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.Collections;
 import java.util.logging.Level;
@@ -1030,6 +1032,22 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		barStyles.apply(dependency,linkRenderer,true,false,false, false);
 	}
 
+	/**
+	 * A dependency can only contribute pixels near the rows of its two endpoint
+	 * tasks. Keep one extra row on either side because the routed connector and
+	 * its arrow head may extend beyond an endpoint's bar.
+	 */
+	static boolean isDependencyPotentiallyVisible(int fromRow, int toRow, int rowHeight, Rectangle clipBounds) {
+		if (clipBounds == null || rowHeight <= 0 || fromRow < 0 || toRow < 0) {
+			return true;
+		}
+		long minY = (long) Math.min(fromRow, toRow) * rowHeight - rowHeight;
+		long maxY = (long) (Math.max(fromRow, toRow) + 2) * rowHeight;
+		long clipMinY = clipBounds.y;
+		long clipMaxY = (long) clipBounds.y + clipBounds.height;
+		return maxY >= clipMinY && minY <= clipMaxY;
+	}
+
 	private void paintChartBackground(Graphics2D g2, Rectangle bounds) {
 		if (g2 == null || bounds == null)
 			return;
@@ -1387,11 +1405,36 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 
 		GraphicDependency dependency;
+		Map<GraphicNode, Integer> rowByNode = new IdentityHashMap<>();
+		if (cache.getVisibleNodes() != null && cache.getVisibleNodes().getElements() != null) {
+			List<?> visibleNodes = cache.getVisibleNodes().getElements();
+			for (int row = 0; row < visibleNodes.size(); row++) {
+				Object visibleNode = visibleNodes.get(row);
+				if (visibleNode instanceof GraphicNode graphicNode) {
+					rowByNode.put(graphicNode, row);
+				}
+			}
+		}
 		@SuppressWarnings("unchecked")
 		Iterator<GraphicDependency> dependencyIterator = cache.getVisibleDependencies().getIterator();
 		for (;dependencyIterator.hasNext();){
 			dependency=dependencyIterator.next();
-			//if (nodeList.contains(dependency.getPredecessor())||nodeList.contains(dependency.getSuccessor()))
+			GraphicNode predecessor = dependency.getPredecessor();
+			GraphicNode successor = dependency.getSuccessor();
+			if (predecessor == null || successor == null) {
+				paintLink(g2,dependency);
+				continue;
+			}
+			int predecessorRow = rowByNode.getOrDefault(predecessor, -1);
+			int successorRow = rowByNode.getOrDefault(successor, -1);
+			if (predecessorRow >= 0 && successorRow >= 0) {
+				// LinkRenderer uses the temporary row on each endpoint. Keep it in
+				// sync when a dependency reaches in from outside the paint clip.
+				predecessor.setRow(predecessorRow);
+				successor.setRow(successorRow);
+			}
+			if (isDependencyPotentiallyVisible(predecessorRow, successorRow,
+					(int) rowHeight, clipBounds))
 				paintLink(g2,dependency);
 		}
 

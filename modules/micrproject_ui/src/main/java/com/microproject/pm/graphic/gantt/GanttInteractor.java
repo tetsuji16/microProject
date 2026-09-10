@@ -73,6 +73,14 @@ public class GanttInteractor extends GraphInteractor{
 	protected static final int SPLIT=7;
 	private static final int HORIZONTAL_PAN_SPEED_MULTIPLIER = 2;
 
+	/** Immutable snapshot used while committing a bar-to-bar dependency drag. */
+	private record DependencyLinkEndpoints(
+			GraphicNode sourceNode,
+			GraphicNode destinationNode,
+			HasDependencies source,
+			HasDependencies destination) {
+	}
+
 	protected Consumer<String> modeListener;
 
 	public void setModeListener(Consumer<String> modeListener) {
@@ -383,23 +391,43 @@ public class GanttInteractor extends GraphInteractor{
 	}
 
 	private boolean createDependencyLink() {
+		DependencyLinkEndpoints endpoints = resolveDependencyLinkEndpoints();
+		if (endpoints == null) {
+			return false;
+		}
 		try {
-			if (sourceNode != null && !CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "link"))
+			if (!CollaborationHelper.tryLockObject(null, endpoints.sourceNode().getNode(), getGraph(), "link"))
 				return false;
-			if (destinationNode != null && !CollaborationHelper.tryLockObject(null, destinationNode.getNode(), getGraph(), "link"))
-				return false;
-			if (sourceNode == null || destinationNode == null
-					|| !(sourceNode.getNode().getImpl() instanceof HasDependencies)
-					|| !(destinationNode.getNode().getImpl() instanceof HasDependencies))
+			if (!CollaborationHelper.tryLockObject(null, endpoints.destinationNode().getNode(), getGraph(), "link"))
 				return false;
 			// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
-			DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),
-					(HasDependencies)destinationNode.getNode().getImpl(), DependencyType.FS, 0, this);
+			DependencyService.getInstance().newDependency(endpoints.source(), endpoints.destination(),
+					DependencyType.FS, 0, this);
 			return true;
 		} catch (InvalidAssociationException e) {
 			Alert.error(e.getMessage());
 			return false;
 		}
+	}
+
+	/**
+	 * Resolves and validates both ends once, before collaboration locks or model
+	 * mutation. This keeps the drag commit from locking an invalid target and
+	 * gives the command one canonical endpoint snapshot.
+	 */
+	private DependencyLinkEndpoints resolveDependencyLinkEndpoints() {
+		if (sourceNode == null || destinationNode == null || sourceNode == destinationNode
+				|| !sourceNode.isLinkable() || !destinationNode.isLinkable()
+				|| sourceNode.getNode() == null || destinationNode.getNode() == null) {
+			return null;
+		}
+		Object sourceImpl = sourceNode.getNode().getImpl();
+		Object destinationImpl = destinationNode.getNode().getImpl();
+		if (!(sourceImpl instanceof HasDependencies source)
+				|| !(destinationImpl instanceof HasDependencies destination)) {
+			return null;
+		}
+		return new DependencyLinkEndpoints(sourceNode, destinationNode, source, destination);
 	}
 
     private boolean applyIntervalDrag(long dt, UndoableEditSupport undoSupport) {
