@@ -26,6 +26,7 @@ package com.microproject.pm.graphic.spreadsheet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,8 +45,6 @@ import org.junit.jupiter.api.Test;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
-import com.microproject.menu.MenuActionConstants;
-import com.microproject.pm.graphic.ChangeAwareTextField;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.editor.SimpleEditor;
@@ -57,14 +56,14 @@ import com.microproject.undo.DataFactoryUndoController;
 
 class SpreadSheetHierarchyNavigationTest {
 	@Test
-	void ctrlUpAndDownAreBoundForBothTableAndEditorBoundaryNavigation() throws Exception {
+	void ctrlArrowsRemainStandardSheetNavigationInTableAndEditor() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createHierarchyFixture();
 			SpreadSheet sheet = fixture.sheet();
 			InputMap tableInputMap = sheet.getInputMap(JComponent.WHEN_FOCUSED);
-			assertEquals("spreadsheet.nameColumnJumpFirst",
+			assertNull(
 				tableInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK)));
-			assertEquals("spreadsheet.nameColumnJumpLast",
+			assertNull(
 				tableInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK)));
 
 			SpreadSheetCellEditorAdapter adapter = new SpreadSheetCellEditorAdapter(new SimpleEditor(String.class));
@@ -72,17 +71,15 @@ class SpreadSheetHierarchyNavigationTest {
 			int row = findRow(sheet, fixture.firstChild());
 			JComponent editor = (JComponent) adapter.getTableCellEditorComponent(sheet, "Task", true, row, nameColumn);
 			InputMap editorInputMap = editor.getInputMap(JComponent.WHEN_FOCUSED);
-			assertEquals(SpreadSheetCellEditorAdapterNameBindings.FIRST_ACTION,
+			assertNotEquals("spreadsheet.nameColumnFirst",
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK)));
-			assertEquals(SpreadSheetCellEditorAdapterNameBindings.LAST_ACTION,
+			assertNotEquals("spreadsheet.nameColumnLast",
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK)));
-			assertNotNull(editor.getClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY));
-			assertNotNull(editor.getClientProperty(ChangeAwareTextField.NAME_HIERARCHY_NEXT_ACTION_PROPERTY));
 		});
 	}
 
 	@Test
-	void nameEditorGivesTaskShortcutsPriorityOverTextEntry() throws Exception {
+	void nameEditorKeepsTabAndCtrlArrowsAsEditingNavigation() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createHierarchyFixture();
 			SpreadSheet sheet = fixture.sheet();
@@ -92,13 +89,13 @@ class SpreadSheetHierarchyNavigationTest {
 			JComponent editor = (JComponent) adapter.getTableCellEditorComponent(sheet, "Task", true, row, nameColumn);
 			InputMap editorInputMap = editor.getInputMap(JComponent.WHEN_FOCUSED);
 
-			assertEquals(SpreadSheet.NAME_COLUMN_INDENT_ACTION,
+			assertNotEquals("spreadsheet.nameColumnIndent",
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0)));
-			assertEquals(SpreadSheet.NAME_COLUMN_OUTDENT_ACTION,
+			assertNotEquals("spreadsheet.nameColumnOutdent",
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK)));
-			assertEquals(ChangeAwareTextField.NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY,
+			assertNotEquals("projectlibre.nameHierarchyCollapseAction",
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, KeyEvent.CTRL_DOWN_MASK)));
-			assertEquals(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY,
+			assertNotEquals("projectlibre.nameHierarchyExpandAction",
 				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, KeyEvent.CTRL_DOWN_MASK)));
 			assertNull(editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK)));
 			assertNull(editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK)));
@@ -156,7 +153,7 @@ class SpreadSheetHierarchyNavigationTest {
 	}
 
 	@Test
-	void nameCellEditorReceivesBoundaryNavigationActionsThroughClientProperties() throws Exception {
+	void nameCellEditorDoesNotReceiveNonMspHierarchyNavigationActions() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createHierarchyFixture();
 			SpreadSheet sheet = fixture.sheet();
@@ -166,8 +163,6 @@ class SpreadSheetHierarchyNavigationTest {
 
 			SpreadSheetCellEditorAdapter adapter = new SpreadSheetCellEditorAdapter(new SimpleEditor(String.class));
 			JComponent editor = (JComponent) adapter.getTableCellEditorComponent(sheet, "Task", true, row, nameColumn);
-			assertNotNull(editor.getClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY));
-			assertNotNull(editor.getClientProperty(ChangeAwareTextField.NAME_HIERARCHY_NEXT_ACTION_PROPERTY));
 		});
 	}
 
@@ -191,33 +186,6 @@ class SpreadSheetHierarchyNavigationTest {
 			sheet.setColumnSelectionInterval(nameColumn, nameColumn);
 			sheet.executeNameCellBoundaryJump(true);
 			assertEquals(lastRow, sheet.getSelectedRow());
-		});
-	}
-
-	@Test
-	void tabIndentAndOutdentCollapseToTheCurrentNameRowBeforeDispatch() throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			Fixture fixture = createHierarchyFixture(RecordingSpreadSheet::new);
-			RecordingSpreadSheet sheet = (RecordingSpreadSheet) fixture.sheet();
-			int nameColumn = findNameColumn(sheet);
-			int firstChildRow = findRow(sheet, fixture.firstChild());
-			int secondChildRow = findRow(sheet, fixture.secondChild());
-			assertTrue(firstChildRow >= 0);
-			assertTrue(secondChildRow >= 0);
-
-			sheet.setRowSelectionInterval(firstChildRow, secondChildRow);
-			sheet.setColumnSelectionInterval(nameColumn, nameColumn);
-			sheet.executeNameCellTabAction(false);
-			assertEquals(MenuActionConstants.ACTION_INDENT, sheet.lastActionId);
-			assertEquals(1, sheet.selectedRowsDuringAction.length);
-			assertEquals(firstChildRow, sheet.selectedRowsDuringAction[0]);
-
-			sheet.setRowSelectionInterval(firstChildRow, secondChildRow);
-			sheet.setColumnSelectionInterval(nameColumn, nameColumn);
-			sheet.executeNameCellTabAction(true);
-			assertEquals(MenuActionConstants.ACTION_OUTDENT, sheet.lastActionId);
-			assertEquals(1, sheet.selectedRowsDuringAction.length);
-			assertEquals(firstChildRow, sheet.selectedRowsDuringAction[0]);
 		});
 	}
 
@@ -307,20 +275,4 @@ class SpreadSheetHierarchyNavigationTest {
 
 	private record Fixture(SpreadSheet sheet, Project project, NormalTask firstChild, NormalTask secondChild) {}
 
-	private static final class RecordingSpreadSheet extends SpreadSheet {
-		private static final long serialVersionUID = 1L;
-		private String lastActionId;
-		private int[] selectedRowsDuringAction = new int[0];
-
-		@Override
-		public void executeAction(String actionId) {
-			lastActionId = actionId;
-			selectedRowsDuringAction = getSelectedRows();
-		}
-	}
-
-	private static final class SpreadSheetCellEditorAdapterNameBindings {
-		private static final String FIRST_ACTION = "spreadsheet.nameColumnFirst";
-		private static final String LAST_ACTION = "spreadsheet.nameColumnLast";
-	}
 }

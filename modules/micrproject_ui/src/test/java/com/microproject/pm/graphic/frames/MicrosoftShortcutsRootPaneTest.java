@@ -183,13 +183,24 @@ class MicrosoftShortcutsRootPaneTest {
 							InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
 					"Alt+Shift+Left must outdent");
 			assertEquals(MenuActionConstants.ACTION_EXPAND,
-					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS,
-							InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS,
+						InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
 					"Alt+Shift+= must expand");
+			assertEquals(MenuActionConstants.ACTION_EXPAND,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_ADD,
+						InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Alt+Shift+Numpad Plus must expand");
 			assertEquals(MenuActionConstants.ACTION_COLLAPSE,
-					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS,
-							InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS,
+						InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
 					"Alt+Shift+- must collapse");
+			assertEquals(MenuActionConstants.ACTION_COLLAPSE,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT,
+						InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Alt+Shift+Numpad Minus must collapse");
+			assertEquals(null,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_CONVERT, 0)),
+					"Japanese IME Convert must remain editor-local");
 
 			// Microsoft Project selection / row shortcuts
 			assertEquals("SelectRow",
@@ -283,6 +294,16 @@ class MicrosoftShortcutsRootPaneTest {
 				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS,
 					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
 				"collapse shortcut variants must use one command action");
+			assertSame(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_ADD,
+				InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"top-row and numpad expand keys must use one command action");
+			assertSame(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT,
+				InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"top-row and numpad collapse keys must use one command action");
 		});
 	}
 

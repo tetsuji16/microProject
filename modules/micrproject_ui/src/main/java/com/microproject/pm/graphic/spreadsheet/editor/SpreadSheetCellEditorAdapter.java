@@ -25,7 +25,6 @@
 package com.microproject.pm.graphic.spreadsheet.editor;
 
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputMethodEvent;
 import java.awt.event.InputMethodListener;
 import java.awt.event.KeyEvent;
@@ -33,18 +32,13 @@ import java.awt.event.MouseEvent;
 import java.util.EventObject;
 import java.util.function.IntFunction;
 
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
 import javax.swing.JComponent;
-import javax.swing.InputMap;
-import javax.swing.KeyStroke;
 import javax.swing.JTable;
 import javax.swing.event.CellEditorListener;
 import javax.swing.table.TableCellEditor;
 import javax.swing.text.JTextComponent;
 
 import com.microproject.menu.MenuActionConstants;
-import com.microproject.pm.graphic.ChangeAwareTextField;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
@@ -55,11 +49,7 @@ import com.microproject.pm.graphic.spreadsheet.renderer.CellUtility;
 public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	protected static JTable lastTable;
 	private static final String COMPOSITION_PROPERTY = ImeTextInputSupport.COMPOSITION_PROPERTY;
-	private static final String NAME_TAB_INSTALL_PROPERTY = "projectlibre.nameTabActionsInstalled";
-	private static final String NAME_COLLAPSE_ACTION = "spreadsheet.nameColumnCollapse";
-	private static final String NAME_EXPAND_ACTION = "spreadsheet.nameColumnExpand";
-	private static final String NAME_FIRST_ACTION = "spreadsheet.nameColumnFirst";
-	private static final String NAME_LAST_ACTION = "spreadsheet.nameColumnLast";
+	private static final String COMPOSITION_LISTENER_INSTALLED_PROPERTY = "projectlibre.compositionListenerInstalled";
 	private static final String NAME_UNDO_ACTION = "spreadsheet.nameColumnUndo";
 	private static final String NAME_REDO_ACTION = "spreadsheet.nameColumnRedo";
 	protected TableCellEditor editor;
@@ -114,14 +104,8 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		CellUtility.setAppearance(table,value,isSelected,true,row,column,component);
 		
 		if (table instanceof SpreadSheet){
-			final SpreadSheet spreadSheet=(SpreadSheet)table;
 			JComponent edit = (component instanceof DateEditor.ExtDateField) ? ((DateEditor.ExtDateField)component).getTextField() : component;
 			prepareEditorComponent(edit);
-			if (table.getModel() instanceof SpreadSheetModel && spreadSheet.isNameFieldColumn(column)) {
-				installNameFieldTabActions(spreadSheet, edit);
-			} else {
-				resetNameFieldTabActions(edit);
-			}
 		} else {
 			prepareEditorComponent(component);
 		}
@@ -145,84 +129,14 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		return field != null && (field.isDuration() || "Field.duration".equals(field.getId()));
 	}
 
-	protected void installNameFieldTabActions(final SpreadSheet spreadSheet, final JComponent edit) {
-		edit.setFocusTraversalKeysEnabled(false);
-		InputMap inputMap = edit.getInputMap(JComponent.WHEN_FOCUSED);
-		ActionMap actionMap = edit.getActionMap();
-		inputMap.put(KeyStroke.getKeyStroke("TAB"), SpreadSheet.NAME_COLUMN_INDENT_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke("shift TAB"), SpreadSheet.NAME_COLUMN_OUTDENT_ACTION);
-		actionMap.put(SpreadSheet.NAME_COLUMN_INDENT_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				spreadSheet.executeNameCellTabAction(false);
-			}
-		});
-		actionMap.put(SpreadSheet.NAME_COLUMN_OUTDENT_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				spreadSheet.executeNameCellTabAction(true);
-			}
-		});
-		actionMap.put(NAME_COLLAPSE_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				spreadSheet.executeNameCellCollapseExpand(false);
-			}
-		});
-		actionMap.put(NAME_EXPAND_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				spreadSheet.executeNameCellCollapseExpand(true);
-			}
-		});
-		actionMap.put(NAME_FIRST_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				spreadSheet.executeNameCellBoundaryJump(false);
-			}
-		});
-		actionMap.put(NAME_LAST_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				spreadSheet.executeNameCellBoundaryJump(true);
-			}
-		});
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK), NAME_FIRST_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK), NAME_LAST_ACTION);
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY, actionMap.get(NAME_COLLAPSE_ACTION));
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY, actionMap.get(NAME_EXPAND_ACTION));
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY, actionMap.get(NAME_FIRST_ACTION));
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_NEXT_ACTION_PROPERTY, actionMap.get(NAME_LAST_ACTION));
-	}
-
-	protected void resetNameFieldTabActions(JComponent edit) {
-		edit.setFocusTraversalKeysEnabled(true);
-		InputMap inputMap = edit.getInputMap(JComponent.WHEN_FOCUSED);
-		ActionMap actionMap = edit.getActionMap();
-		inputMap.remove(KeyStroke.getKeyStroke("TAB"));
-		inputMap.remove(KeyStroke.getKeyStroke("shift TAB"));
-		inputMap.remove(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK));
-		inputMap.remove(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK));
-		actionMap.remove(SpreadSheet.NAME_COLUMN_INDENT_ACTION);
-		actionMap.remove(SpreadSheet.NAME_COLUMN_OUTDENT_ACTION);
-		actionMap.remove(NAME_COLLAPSE_ACTION);
-		actionMap.remove(NAME_EXPAND_ACTION);
-		actionMap.remove(NAME_FIRST_ACTION);
-		actionMap.remove(NAME_LAST_ACTION);
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY, null);
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_EXPAND_ACTION_PROPERTY, null);
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY, null);
-		edit.putClientProperty(ChangeAwareTextField.NAME_HIERARCHY_NEXT_ACTION_PROPERTY, null);
-	}
-
 	protected boolean isComposing(InputMethodEvent event) {
 		return ImeTextInputSupport.isComposing(event);
 	}
 
 	/** Keeps the listener owned by the editor adapter; only the state calculation is shared. */
 	protected void installCompositionTracking(final JComponent edit) {
-		if (Boolean.TRUE.equals(edit.getClientProperty(NAME_TAB_INSTALL_PROPERTY))) return;
-		edit.putClientProperty(NAME_TAB_INSTALL_PROPERTY, Boolean.TRUE);
+		if (Boolean.TRUE.equals(edit.getClientProperty(COMPOSITION_LISTENER_INSTALLED_PROPERTY))) return;
+		edit.putClientProperty(COMPOSITION_LISTENER_INSTALLED_PROPERTY, Boolean.TRUE);
 		edit.putClientProperty(COMPOSITION_PROPERTY, Boolean.FALSE);
 		edit.addInputMethodListener(new InputMethodListener() {
 			@Override public void inputMethodTextChanged(InputMethodEvent event) {

@@ -4525,11 +4525,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.editActiveCell(); }
 		});
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, InputEvent.SHIFT_DOWN_MASK), ACTION_INFORMATION, null);
-		// Microsoft Project outline keys: Alt+Shift+Right/Left indent/outdent, Alt+Shift++/= expand, Alt+Shift+- collapse.
+		// Microsoft Project outline keys.  Project documents both the top-row
+		// spelling (=/-) and the numeric-keypad spelling (+/-); keep both physical
+		// key codes because Windows reports them differently to Swing.  The
+		// editor-local VK_CONVERT binding is intentionally not installed here: the
+		// Japanese IME conversion key belongs to the active cell editor.
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_INDENT, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_OUTDENT, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_ADD, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, collapseAction);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, collapseAction);
 		// Microsoft Project selection shortcuts: Ctrl+Space selects the row, Shift+Space
 		// the column, Ctrl+Shift+Space the whole sheet.
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK), "SelectRow",

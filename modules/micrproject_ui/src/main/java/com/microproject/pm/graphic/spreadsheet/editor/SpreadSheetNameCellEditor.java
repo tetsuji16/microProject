@@ -32,7 +32,6 @@ import javax.swing.JTextField;
 import javax.swing.table.TableCellEditor;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
-import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.renderer.CellUtility;
 import com.microproject.pm.graphic.spreadsheet.renderer.FontManager;
@@ -86,10 +85,6 @@ public class SpreadSheetNameCellEditor extends SpreadSheetCellEditorAdapter{
 			}
 			FontManager.setComponentFont(model.getCellProperties(node), component);
 			component.doLayout();
-		}
-		if (table instanceof SpreadSheet) {
-			SpreadSheet spreadSheet = (SpreadSheet)table;
-			installNameFieldTabActions(spreadSheet, textComponent);
 		}
 		return component;
 	}

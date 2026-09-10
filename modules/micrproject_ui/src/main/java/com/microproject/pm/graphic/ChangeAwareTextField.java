@@ -24,61 +24,22 @@
  *******************************************************************************/
 package com.microproject.pm.graphic;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
-
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
-import javax.swing.Action;
-import javax.swing.JComponent;
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.KeyStroke;
+import java.awt.event.KeyEvent;
 
 /**
  * Lightweight text field with dirty tracking only.
  */
 public class ChangeAwareTextField extends JTextField implements DocumentListener, ChangeAwareComponent {
 	private static final long serialVersionUID = -1961714277621662190L;
-	public static final String NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY = "projectlibre.nameHierarchyCollapseAction";
-	public static final String NAME_HIERARCHY_EXPAND_ACTION_PROPERTY = "projectlibre.nameHierarchyExpandAction";
-	public static final String NAME_HIERARCHY_PREVIOUS_ACTION_PROPERTY = "projectlibre.nameHierarchyPreviousAction";
-	public static final String NAME_HIERARCHY_NEXT_ACTION_PROPERTY = "projectlibre.nameHierarchyNextAction";
-
 	protected boolean changed = false;
 
 	public ChangeAwareTextField() {
 		super();
 		getDocument().addDocumentListener(this);
-		installHierarchyKeyBindings();
-	}
-
-	private void installHierarchyKeyBindings() {
-		InputMap inputMap = getInputMap(JComponent.WHEN_FOCUSED);
-		ActionMap actionMap = getActionMap();
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, KeyEvent.CTRL_DOWN_MASK), NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, KeyEvent.CTRL_DOWN_MASK), NAME_HIERARCHY_EXPAND_ACTION_PROPERTY);
-		actionMap.put(NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				performHierarchyAction(NAME_HIERARCHY_COLLAPSE_ACTION_PROPERTY, e);
-			}
-		});
-		actionMap.put(NAME_HIERARCHY_EXPAND_ACTION_PROPERTY, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			public void actionPerformed(ActionEvent e) {
-				performHierarchyAction(NAME_HIERARCHY_EXPAND_ACTION_PROPERTY, e);
-			}
-		});
-	}
-
-	private void performHierarchyAction(String property, ActionEvent event) {
-		Action action = (Action)getClientProperty(property);
-		if (action != null) {
-			action.actionPerformed(event);
-		}
 	}
 
 	public boolean hasChanged() {
@@ -111,4 +72,3 @@ public class ChangeAwareTextField extends JTextField implements DocumentListener
 		return super.processKeyBinding(ks, e, condition, pressed);
 	}
 }
-

@@ -127,15 +127,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private NodeModel registeredLayoutModel;
 	private String registeredLayoutCategory;
 	private static final long serialVersionUID = 5958334223191182318L;
-	public static final String NAME_COLUMN_INDENT_ACTION = "spreadsheet.nameColumnIndent";
-	public static final String NAME_COLUMN_OUTDENT_ACTION = "spreadsheet.nameColumnOutdent";
-	private static final String NAME_COLUMN_JUMP_FIRST_ACTION = "spreadsheet.nameColumnJumpFirst";
-	private static final String NAME_COLUMN_JUMP_LAST_ACTION = "spreadsheet.nameColumnJumpLast";
 	private static final String CLIPBOARD_PASTE_VALUES_ACTION = "spreadsheet.clipboardPasteValues";
 	public static final String MOVE_TASK_UP_ACTION = "spreadsheet.moveTaskUp";
 	public static final String MOVE_TASK_DOWN_ACTION = "spreadsheet.moveTaskDown";
-	private Object defaultTabActionKey;
-	private Object defaultShiftTabActionKey;
 	protected SpreadSheetPopupMenu popup=null;
 	private boolean hierarchyActionInProgress;
 	private boolean tableMouseHandlerInstalled;
@@ -762,78 +756,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return field != null && field.isNameField();
 	}
 
-	public boolean isNameCellTabActionEnabled() {
+	private boolean isNameCellNavigationEnabled() {
 		int column = getCurrentViewColumn();
 		return isNameFieldColumn(column);
-	}
-
-	public void executeNameCellTabAction(boolean outdent) {
-		if (hierarchyActionInProgress || !isNameCellTabActionEnabled())
-			return;
-		var rowToFocus = getCurrentRow();
-		if (rowToFocus < 0)
-			rowToFocus = getSelectionModel().getAnchorSelectionIndex();
-		GraphicNode focusNode = null;
-		if (rowToFocus >= 0 && rowToFocus < getRowCount() && getModel() instanceof SpreadSheetModel) {
-			focusNode = ((SpreadSheetModel) getModel()).getNode(rowToFocus);
-		}
-		hierarchyActionInProgress = true;
-		try {
-			finishCurrentOperations();
-			focusSingleNameRow(rowToFocus);
-			executeAction(outdent ? MenuActionConstants.ACTION_OUTDENT : MenuActionConstants.ACTION_INDENT);
-			restoreNameColumnFocus(focusNode, rowToFocus);
-		} finally {
-			hierarchyActionInProgress = false;
-		}
-	}
-
-	public boolean canIndentCurrentNameRow() {
-		var row = getCurrentRow();
-		if (row < 0 || row >= getRowCount())
-			return false;
-		if (!(getModel() instanceof SpreadSheetModel))
-			return false;
-		var model = (SpreadSheetModel) getModel();
-		var graphicNode = model.getNode(row);
-		if (graphicNode == null)
-			return false;
-		var node = graphicNode.getNode();
-		if (node == null || node.isRoot() || !node.isIndentable(1))
-			return false;
-		var parent = (Node) node.getParent();
-		if (parent == null)
-			return false;
-		var index = parent.getIndex(node);
-		if (index <= 0)
-			return false;
-		for (var siblingIndex = index - 1; siblingIndex >= 0; siblingIndex--) {
-			var sibling = (Node) parent.getChildAt(siblingIndex);
-			if (node.canBeChildOf(sibling))
-				return true;
-			if (!sibling.isVoid())
-				break;
-		}
-		return false;
-	}
-
-	public boolean canOutdentCurrentNameRow() {
-		var row = getCurrentRow();
-		if (row < 0 || row >= getRowCount())
-			return false;
-		if (!(getModel() instanceof SpreadSheetModel))
-			return false;
-		var model = (SpreadSheetModel) getModel();
-		var graphicNode = model.getNode(row);
-		if (graphicNode == null)
-			return false;
-		var node = graphicNode.getNode();
-		if (node == null || node.isRoot() || !node.isIndentable(-1))
-			return false;
-		var parent = (Node) node.getParent();
-		if (parent == null || parent.isRoot() || parent.isLazyParent())
-			return false;
-		return true;
 	}
 
 	public void executeNameCellCollapseExpand(boolean expand) {
@@ -865,7 +790,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	/** Moves the active name cell to the first or last visible task row, matching MSP sheet navigation. */
 	public void executeNameCellBoundaryJump(boolean last) {
-		if (hierarchyActionInProgress || !isNameCellTabActionEnabled())
+		if (hierarchyActionInProgress || !isNameCellNavigationEnabled())
 			return;
 		if (!(getModel() instanceof SpreadSheetModel model) || getRowCount() == 0)
 			return;
@@ -885,42 +810,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 	}
 
-	private void installNameColumnHierarchyNavigationActions() {
-		var inputMap = getInputMap(JComponent.WHEN_FOCUSED);
-		var actionMap = getActionMap();
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, KeyEvent.CTRL_DOWN_MASK), "spreadsheet.nameColumnCollapseExpandLeft");
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, KeyEvent.CTRL_DOWN_MASK), "spreadsheet.nameColumnCollapseExpandRight");
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK), NAME_COLUMN_JUMP_FIRST_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK), NAME_COLUMN_JUMP_LAST_ACTION);
-		actionMap.put("spreadsheet.nameColumnCollapseExpandLeft", new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				executeNameCellCollapseExpand(false);
-			}
-		});
-		actionMap.put("spreadsheet.nameColumnCollapseExpandRight", new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				executeNameCellCollapseExpand(true);
-			}
-		});
-		actionMap.put(NAME_COLUMN_JUMP_FIRST_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				executeNameCellBoundaryJump(false);
-			}
-		});
-		actionMap.put(NAME_COLUMN_JUMP_LAST_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				executeNameCellBoundaryJump(true);
-			}
-		});
-	}
 
 	private void focusSingleNameRow(int row) {
 		int nameColumn = findNameColumn();
@@ -979,75 +868,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				return row;
 		}
 		return -1;
-	}
-
-	private void installNameColumnTabActions() {
-		var inputMap = getInputMap(JComponent.WHEN_FOCUSED);
-		var actionMap = getActionMap();
-		defaultTabActionKey = inputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0));
-		defaultShiftTabActionKey = inputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK));
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0), NAME_COLUMN_INDENT_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK), NAME_COLUMN_OUTDENT_ACTION);
-		actionMap.put(NAME_COLUMN_INDENT_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				if (isNameCellTabActionEnabled()) {
-					executeNameCellTabAction(false);
-					return;
-				}
-				invokeBoundAction(defaultTabActionKey, e);
-			}
-		});
-		actionMap.put(NAME_COLUMN_OUTDENT_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				if (isNameCellTabActionEnabled()) {
-					executeNameCellTabAction(true);
-					return;
-				}
-				invokeBoundAction(defaultShiftTabActionKey, e);
-			}
-		});
-	}
-
-	@Override
-	protected boolean handleHierarchyNavigationKeyEvent(KeyEvent e) {
-		if (e == null || e.getID() != KeyEvent.KEY_PRESSED)
-			return false;
-		var column = getCurrentViewColumn();
-		if (!isNameFieldColumn(column))
-			return false;
-		if ((e.getModifiersEx() & (KeyEvent.CTRL_DOWN_MASK | KeyEvent.ALT_DOWN_MASK | KeyEvent.META_DOWN_MASK)) != KeyEvent.CTRL_DOWN_MASK)
-			return false;
-		return switch (e.getKeyCode()) {
-			case KeyEvent.VK_LEFT -> {
-				executeNameCellCollapseExpand(false);
-				yield true;
-			}
-			case KeyEvent.VK_RIGHT -> {
-				executeNameCellCollapseExpand(true);
-				yield true;
-			}
-			case KeyEvent.VK_UP -> {
-				executeNameCellBoundaryJump(false);
-				yield true;
-			}
-			case KeyEvent.VK_DOWN -> {
-				executeNameCellBoundaryJump(true);
-				yield true;
-			}
-			default -> false;
-		};
-	}
-
-	private void invokeBoundAction(Object actionKey, ActionEvent event) {
-		if (actionKey == null)
-			return;
-		var action = getActionMap().get(actionKey);
-		if (action != null)
-			action.actionPerformed(new ActionEvent(this, event.getID(), String.valueOf(actionKey), event.getWhen(), event.getModifiers()));
 	}
 
 	public void setFieldArray(ArrayList fieldArray) {
@@ -1147,8 +967,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		
 		registerEditors(); //Consume memory
-		installNameColumnHierarchyNavigationActions();
-		installNameColumnTabActions();
 		initRowHeader(spreadSheetModel);
 		initModel();
 		if (SpreadSheetCategories.taskSpreadsheetCategory.equals(getSpreadSheetCategory())
