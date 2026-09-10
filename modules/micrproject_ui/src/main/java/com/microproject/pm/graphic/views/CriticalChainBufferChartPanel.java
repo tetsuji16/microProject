@@ -16,8 +16,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 import javax.swing.JPanel;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
@@ -44,6 +48,8 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	private final List<CriticalChainBufferHistory.Point> history = new ArrayList<>();
 	private CriticalChainService.Analysis analysis;
 	private boolean enabled;
+	private UUID selectedObservationId;
+	private Consumer<UUID> selectionListener = ignored -> { };
 
 	public CriticalChainBufferChartPanel(Project project) {
 		this.project = project;
@@ -53,7 +59,59 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		setPreferredSize(new Dimension(620, 420));
 		getAccessibleContext().setAccessibleName(UsabilityStrings.text("ccpm.bufferChartAccessible"));
 		setToolTipText(UsabilityStrings.text("ccpm.bufferChartTooltip"));
+		setFocusable(true);
+		addMouseListener(new MouseAdapter() {
+			@Override public void mouseClicked(MouseEvent event) { selectAt(event.getX(), event.getY()); }
+		});
 	}
+
+	/** Installs the one selection callback used by the status dialog. */
+	public void setSelectionListener(Consumer<UUID> listener) {
+		selectionListener = listener == null ? ignored -> { } : listener;
+	}
+
+	public CriticalChainBufferHistory.Point selectedPoint() {
+		if (selectedObservationId == null) return null;
+		return history.stream().filter(point -> selectedObservationId.equals(point.observationId())).findFirst().orElse(null);
+	}
+
+	/** Selects the nearest visible point within the marker hit radius. */
+	public void selectAt(int x, int y) {
+		int width = Math.max(1, getWidth() - LEFT - RIGHT);
+		int height = Math.max(1, getHeight() - TOP - BOTTOM);
+		CriticalChainBufferHistory.Point candidate = null;
+		double bestDistance = 9D * 9D;
+		// Hit testing uses every active observation. Rendering may collapse adjacent
+		// duplicates for a clean line, but selection must still choose the latest
+		// observation when markers overlap.
+		for (CriticalChainBufferHistory.Point point : history) {
+			double dx = xFor(point.progressPercent(), width) - x;
+			double dy = yFor(point.consumptionPercent(), height) - y;
+			double distance = dx * dx + dy * dy;
+			// In an overlap, the latest observation is the actionable one.
+			if (distance <= bestDistance && (candidate == null || distance < bestDistance
+				|| point.observedAt().isAfter(candidate.observedAt()))) {
+				candidate = point; bestDistance = distance;
+			}
+		}
+		selectedObservationId = candidate == null ? null : candidate.observationId();
+		selectionListener.accept(selectedObservationId);
+		repaint();
+	}
+
+	/** Reloads active observations after a model mutation or Undo/Redo. */
+	public void reloadHistory() {
+		history.clear();
+		CriticalChainBufferHistory saved = project == null ? null
+			: project.findTransientDocumentState(CriticalChainBufferHistory.class);
+		if (saved != null) history.addAll(saved.points());
+		if (selectedPoint() == null) selectedObservationId = null;
+		selectionListener.accept(selectedObservationId);
+		repaint();
+	}
+
+	/** Number of active observations currently available to normal views. */
+	public int activeObservationCount() { return history.size(); }
 
 	/** Updates the current point and retains distinct observations made during this dialog session. */
 	public void setAnalysis(CriticalChainService.Analysis analysis, boolean enabled) {
@@ -158,6 +216,11 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 			int y = yFor(point.consumptionPercent(), height);
 			g.setColor(new Color(20, 75, 145));
 			g.fillOval(x - 5, y - 5, 10, 10);
+			if (point.observationId().equals(selectedObservationId)) {
+				g.setColor(new Color(210, 80, 30));
+				g.setStroke(new BasicStroke(2f));
+				g.drawOval(x - 8, y - 8, 16, 16);
+			}
 			g.setColor(Color.WHITE);
 			g.drawOval(x - 3, y - 3, 6, 6);
 			g.setColor(Color.DARK_GRAY);

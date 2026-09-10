@@ -127,6 +127,8 @@ public interface MenuActionConstants {
 	public static final String ACTION_CCPM_SETTINGS           = "CCPMSettings";
 	public static final String ACTION_CCPM_CLEAR              = "CCPMClear";
 	public static final String ACTION_CCPM_BUFFER_STATUS      = "CCPMBufferStatus";
+	/** Canonical command id for retracting one selected CCPM buffer observation. */
+	public static final String ACTION_CCPM_BUFFER_OBSERVATION_RETRACT = "CCPM_BUFFER_OBSERVATION_RETRACT";
 	public static final String ACTION_CCPM_NETWORK            = "CCPMNetwork";
 	public static final String ACTION_TOGGLE_CRITICAL_CHAIN   = "ToggleCriticalChain";
 	public static final String ACTION_TRACKING                = "Tracking";

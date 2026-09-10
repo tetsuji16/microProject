@@ -1363,14 +1363,25 @@ public class MpoFileImporter extends FileImporter {
 
 	private static byte[] ccpmHistoryJson(Project project) throws IOException {
 		CriticalChainBufferHistory history = project.findTransientDocumentState(CriticalChainBufferHistory.class);
-		if (history == null || history.points().isEmpty()) return new byte[0];
+		if (history == null || (history.points().isEmpty() && history.retractions().isEmpty())) return new byte[0];
 		StringBuilder jsonl = new StringBuilder();
 		for (CriticalChainBufferHistory.Point point : history.points()) {
 			ObjectNode value = JSON.createObjectNode();
+			value.put("kind", "observation");
+			value.put("id", point.observationId().toString());
 			value.put("observedAt", point.observedAt().toString());
 			value.put("actorId", point.actorId()); value.put("actorName", point.actorName());
 			value.put("progressPercent", point.progressPercent()); value.put("consumptionPercent", point.consumptionPercent());
 			value.put("zone", point.zone()); value.put("baselineId", point.baselineId());
+			jsonl.append(JSON.writeValueAsString(value)).append('\n');
+		}
+		for (CriticalChainBufferHistory.Retraction retraction : history.retractions()) {
+			ObjectNode value = JSON.createObjectNode();
+			value.put("kind", "retraction");
+			value.put("id", retraction.observationId().toString());
+			value.put("retractedAt", retraction.retractedAt().toString());
+			value.put("actorId", retraction.actorId()); value.put("actorName", retraction.actorName());
+			value.put("reason", retraction.reason());
 			jsonl.append(JSON.writeValueAsString(value)).append('\n');
 		}
 		return jsonl.toString().getBytes(StandardCharsets.UTF_8);
@@ -1383,10 +1394,18 @@ public class MpoFileImporter extends FileImporter {
 			if (line.isBlank()) continue;
 			try {
 				JsonNode value = JSON.readTree(line);
-				history.add(new CriticalChainBufferHistory.Point(Instant.parse(value.path("observedAt").asText()),
-					value.path("actorId").asText("unknown"), value.path("actorName").asText("unknown"),
-					value.path("progressPercent").asDouble(), value.path("consumptionPercent").asDouble(),
-					value.path("zone").asText("UNKNOWN"), value.path("baselineId").asText("")));
+				java.util.UUID id = value.hasNonNull("id") ? java.util.UUID.fromString(value.path("id").asText())
+					: java.util.UUID.nameUUIDFromBytes(line.getBytes(StandardCharsets.UTF_8));
+				if ("retraction".equals(value.path("kind").asText())) {
+					history.recordRetraction(new CriticalChainBufferHistory.Retraction(id,
+						Instant.parse(value.path("retractedAt").asText()), value.path("actorId").asText("unknown"),
+						value.path("actorName").asText("unknown"), value.path("reason").asText()));
+				} else {
+					history.add(new CriticalChainBufferHistory.Point(id, Instant.parse(value.path("observedAt").asText()),
+						value.path("actorId").asText("unknown"), value.path("actorName").asText("unknown"),
+						value.path("progressPercent").asDouble(), value.path("consumptionPercent").asDouble(),
+						value.path("zone").asText("UNKNOWN"), value.path("baselineId").asText("")));
+				}
 			} catch (RuntimeException | IOException exception) {
 				throw new IOException("Invalid CCPM history entry", exception);
 			}
