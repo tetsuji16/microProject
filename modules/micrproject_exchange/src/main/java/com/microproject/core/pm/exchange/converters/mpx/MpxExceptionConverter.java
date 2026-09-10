@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
+import net.sf.mpxj.DateRange;
 import net.sf.mpxj.ProjectCalendarException;
 
 import com.microproject.core.pm.exchange.converters.type.DateHoursMinsConverter;
@@ -45,20 +46,26 @@ public class MpxExceptionConverter {
 		java.util.Date to = mpxException.getToDate();
 		if (from != null && to != null) {
 			DateHoursMinsConverter converter = new DateHoursMinsConverter();
-			long start = (Long) converter.from(from);
-			long end = (Long) converter.from(to);
-			if (end == 0)
-				end = 24 * 3600000L;
-			WorkingHours workingHours = exception.getWorkingHours();
-			if (workingHours == null) {
-				workingHours = new WorkingHours();
-				exception.setWorkingHours(workingHours);
+			WorkingHours workingHours = new WorkingHours();
+			// The exception bounds describe the date, not its working interval.
+			// Preserve every interval supplied by MSP instead of treating the whole
+			// exception as one continuous range.
+			int targetIndex = 0;
+			for (int i = 0; i < mpxException.size() && targetIndex < 5; i++) {
+				DateRange range = mpxException.get(i);
+				if (range == null || range.getStart() == null || range.getEnd() == null)
+					continue;
+				long start = (Long) converter.from(range.getStart());
+				long end = (Long) converter.from(range.getEnd());
+				try {
+					if (end > 0 && end < start)
+						continue; // one exception cannot express a cross-midnight day
+					workingHours.setInterval(targetIndex++, start, end);
+				} catch (WorkRangeException error) {
+					throw new IllegalArgumentException("Invalid MSP calendar exception interval", error);
+				}
 			}
-			try {
-				workingHours.setInterval(0, start, end);
-			} catch (WorkRangeException e) {
-				// leave the exception as a non-working day
-			}
+			exception.setWorkingHours(workingHours);
 		}
 	}
 }

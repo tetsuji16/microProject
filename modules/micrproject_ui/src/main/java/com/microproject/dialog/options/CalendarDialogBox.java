@@ -69,8 +69,12 @@ public class CalendarDialogBox extends AbstractDialog{
         	hoursPerDay = Double.valueOf(option.getHoursPerDay());
         	hoursPerWeek = Double.valueOf(option.getHoursPerWeek());
         	daysPerMonth = Double.valueOf(option.getDaysPerMonth());
-        	startTime = option.getDefaultStartHour() +""; //$NON-NLS-1$
-        	endTime = option.getDefaultEndHour()+""; //$NON-NLS-1$
+	startTime = Integer.toString(option.getDefaultStartHour());
+	endTime = Integer.toString(option.getDefaultEndHour());
+		weekStart = Integer.toString(option.getWeekStartsOn() - 1);
+		fiscalYearStart = Integer.toString(option.getFiscalYearStartsIn() - 1);
+		useStartingYear = Boolean.FALSE;
+		setAsDefault = Boolean.FALSE;
         	showTimeInDates = Boolean.valueOf(option.isShowTimeInDates());
         	
         }
@@ -81,6 +85,8 @@ public class CalendarDialogBox extends AbstractDialog{
         	option.setShowTimeInDates(showTimeInDates.booleanValue());
         	option.setDefaultStartHour(parseHour(startTime, option.getDefaultStartHour()));
         	option.setDefaultEndHour(parseHour(endTime, option.getDefaultEndHour()));
+		option.setWeekStartsOn(parseIndex(weekStart, option.getWeekStartsOn() - 1) + 1);
+		option.setFiscalYearStartsIn(parseIndex(fiscalYearStart, option.getFiscalYearStartsIn() - 1) + 1);
         	
         }
         public Double getDaysPerMonth() {
@@ -147,6 +153,9 @@ public class CalendarDialogBox extends AbstractDialog{
         private int parseHour(String value, int fallback) {
         	return TimeInputParser.parseHour(value, fallback);
         }
+	private int parseIndex(String value, int fallback) {
+		try { return Integer.parseInt(value); } catch (RuntimeException ignored) { return fallback; }
+	}
     }	
         
         private Form form;
@@ -187,8 +196,8 @@ public class CalendarDialogBox extends AbstractDialog{
     	    useStartingYear=new JCheckBox(Messages.getString("CalendarDialogBox.UserStartingYearForFVNumbering")); //$NON-NLS-1$
     	    useStartingYear.setEnabled(false);
 
-            startTime= new JTextField (Messages.getString("CalendarDialogBox.EightAM")); //$NON-NLS-1$
-            endTime= new JTextField (Messages.getString("CalendarDialogBox.SixPM")); //$NON-NLS-1$
+            startTime= new JTextField(form.getStartTime());
+            endTime= new JTextField(form.getEndTime());
     	              
     		hoursPerDay = new JSpinner(new SpinnerNumberModel(form.getHoursPerDay().doubleValue(),0,24.0,0.5));
     		JSpinner.NumberEditor editor1;
@@ -238,12 +247,12 @@ public class CalendarDialogBox extends AbstractDialog{
     		if (form == null)
     			return false;
     		if (get) {
-    		    weekStart.setSelectedItem(form.getWeekStart());
-    		    fiscalYearStart.setSelectedItem(form.getFiscalYearStart()); 		    
+		    weekStart.setSelectedIndex(Integer.parseInt(form.getWeekStart()));
+		    fiscalYearStart.setSelectedIndex(Integer.parseInt(form.getFiscalYearStart()));
     		    showTimeInDates.setSelected((form.getShowTimeInDates()).booleanValue());
-    		    useStartingYear.setSelected((form.getUseStartingYear()).booleanValue());
-    		    startTime.setText(/*form.getStartTime()*/Messages.getString("CalendarDialogBox.Eight")); //$NON-NLS-1$
-    		    endTime.setText(/*form.getEndTime()*/Messages.getString("CalendarDialogBox.Seventeen")); //$NON-NLS-1$
+		    useStartingYear.setSelected(form.getUseStartingYear().booleanValue());
+		    startTime.setText(form.getStartTime());
+		    endTime.setText(form.getEndTime());
     		    hoursPerDay.setValue(form.getHoursPerDay());
     		    hoursPerWeek.setValue(form.getHoursPerWeek());
     		    daysPerMonth.setValue(form.getDaysPerMonth());    		    
@@ -252,8 +261,8 @@ public class CalendarDialogBox extends AbstractDialog{
  
  
     		} else {
-    			form.setWeekStart((String)weekStart.getSelectedItem());
-    			form.setFiscalYearStart((String)fiscalYearStart.getSelectedItem());  		    
+			form.setWeekStart(Integer.toString(weekStart.getSelectedIndex()));
+			form.setFiscalYearStart(Integer.toString(fiscalYearStart.getSelectedIndex()));
     			form.setShowTimeInDates(Boolean.valueOf(showTimeInDates.isSelected()));
     			Boolean b1=Boolean.valueOf(useStartingYear.isSelected());
     			form.setUseStartingYear(b1);
@@ -275,7 +284,7 @@ public class CalendarDialogBox extends AbstractDialog{
     		
     		FormLayout layout = new FormLayout(
     		        "p,3dlu,p,p:grow", //$NON-NLS-1$
-			  "p,p,p,p,p,p,p"); //$NON-NLS-1$
+			  "p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p"); //$NON-NLS-1$
 
     		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
     		builder.setDefaultDialogBorder();
@@ -288,6 +297,14 @@ public class CalendarDialogBox extends AbstractDialog{
     		builder.append(Messages.getString("CalendarDialogBox.HoursPerWeek"),hoursPerWeek); //$NON-NLS-1$
     		builder.nextLine(2);
     		builder.append(Messages.getString("CalendarDialogBox.DaysPerMonth"),daysPerMonth); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("CalendarDialogBox.WeekStartsOn"), weekStart); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("CalendarDialogBox.FiscalYearStartsIn"), fiscalYearStart); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("CalendarDialogBox.DefaultStartTime"), startTime); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("CalendarDialogBox.DefaultEndTime"), endTime); //$NON-NLS-1$
     		builder.nextLine(2);
     		builder.append(setAsDefault);
     		builder.nextLine(2);

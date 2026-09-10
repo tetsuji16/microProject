@@ -189,21 +189,10 @@ public class MPXConverter {
 		if  (day==null)
 			return;
 		WorkingHours workingHours=day.getWorkingHours();
-		WorkRange range;
-
-		range=workingHours.getInterval(0);
-		if (range!=null){
-			mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime()))); //claur
-		}
-
-		range=workingHours.getInterval(1);
-		if (range!=null){
-			mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));//claur
-		}
-
-		range=workingHours.getInterval(2);
-		if (range!=null){
-			mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));//claur
+		for (WorkRange range : (List<WorkRange>) workingHours.getIntervals()) {
+			if (range != null)
+				mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),
+						DateTime.fromGmt(range.getNormalizedEndTime())));
 		}
 	}
 

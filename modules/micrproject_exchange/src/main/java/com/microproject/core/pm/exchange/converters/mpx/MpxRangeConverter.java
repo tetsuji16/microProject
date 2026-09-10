@@ -26,22 +26,50 @@ package com.microproject.core.pm.exchange.converters.mpx;
 
 import com.microproject.core.pm.exchange.converters.type.DateHoursMinsConverter;
 import com.microproject.pm.calendar.WorkRange;
+import com.microproject.pm.calendar.WorkRangeException;
+import com.microproject.pm.calendar.WorkingHours;
 
 import net.sf.mpxj.DateRange;
 import net.sf.mpxj.ProjectCalendarHours;
 
 /**
  * Builds a microproject WorkingHours representation from MPXJ calendar hours.
- * Exact per-day working hours are collapsed to the standard working-day template
- * (see issue #154); this converter is retained for completeness but the calendar
- * path now copies days via WorkDay directly.
+ * Copies every MPXJ time range into the model's normalized time-of-day ranges.
  * @author Laurent Chretienneau
  */
 public class MpxRangeConverter {
 
 	public void from(ProjectCalendarHours mpxRange, WorkRange range) {
-		// Orphaned converter retained for API compatibility; the calendar path now
-		// copies days via WorkDay directly (see issue #154). No per-interval
-		// mapping is performed here.
+		throw new UnsupportedOperationException("Use from(ProjectCalendarHours) to preserve all calendar ranges");
+	}
+
+	public WorkingHours from(ProjectCalendarHours mpxHours) {
+		WorkingHours hours = new WorkingHours();
+		if (mpxHours == null)
+			return hours;
+		if (mpxHours.size() > 5)
+			throw new IllegalArgumentException("MSP calendar has more working intervals than the model supports: "
+					+ mpxHours.size());
+		DateHoursMinsConverter converter = new DateHoursMinsConverter();
+		int targetIndex = 0;
+		for (int i = 0; i < mpxHours.size(); i++) {
+			DateRange range = mpxHours.get(i);
+			if (range == null || range.getStart() == null || range.getEnd() == null)
+				continue;
+			long start = (Long) converter.from(range.getStart());
+			long end = (Long) converter.from(range.getEnd());
+			try {
+				// A range crossing midnight belongs to two calendar dates. The
+				// current model cannot represent that relation in one weekday;
+				// retain the pre-existing standard-day fallback rather than
+				// silently assigning the hours to the wrong date.
+				if (end > 0 && end < start)
+					return WorkingHours.getDefault();
+				hours.setInterval(targetIndex++, start, end);
+			} catch (WorkRangeException error) {
+				throw new IllegalArgumentException("Invalid MSP working interval " + start + "-" + end, error);
+			}
+		}
+		return hours;
 	}
 }

@@ -76,6 +76,20 @@ class WorkingCalendarTest {
 		assertNotEquals(derived.getConcreteInstance().getExceptions().length, copy.getConcreteInstance().getExceptions().length);
 	}
 
+	@Test
+	void weekdayDescriptorUsesTheCalendarOverrideForDisplayAndEditing() throws Exception {
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		WorkingHours hours = new WorkingHours();
+		hours.setInterval(0, WorkingHours.hourTime(9), WorkingHours.hourTime(12));
+		WorkDay monday = new WorkDay();
+		monday.setWorkingHours(hours);
+		calendar.setWeekDay(Calendar.MONDAY - 1, monday);
+
+		DayDescriptor descriptor = calendar.getWeekDayDescriptor(Calendar.MONDAY);
+		assertTrue(descriptor.isModified());
+		assertEquals(3L * 60L * 60L * 1000L, descriptor.getWorkingHours().getDuration());
+	}
+
 	private static long timestamp(int year, int month, int dayOfMonth) {
 		return DateTime.calendarInstance(year, month, dayOfMonth).getTimeInMillis();
 	}

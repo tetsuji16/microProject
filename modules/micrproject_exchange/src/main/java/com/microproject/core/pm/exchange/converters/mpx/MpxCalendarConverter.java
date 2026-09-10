@@ -29,6 +29,7 @@ import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkDay;
 import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.calendar.WorkingHours;
 
 import net.sf.mpxj.Day;
 import net.sf.mpxj.ProjectCalendar;
@@ -37,9 +38,8 @@ import net.sf.mpxj.ProjectCalendarHours;
 
 /**
  * Converts an MPXJ ProjectCalendar into a microproject WorkingCalendar.
- * Exact per-day working hours are collapsed to the standard working-day template
- * (see issue #154); calendar exceptions are carried as date-bounded WorkDay
- * entries.
+ * Per-weekday MSP working ranges and date-bounded calendar exceptions are
+ * copied into the WorkingCalendar without collapsing them to a standard template.
  * @author Laurent Chretienneau
  */
 public class MpxCalendarConverter {
@@ -65,6 +65,7 @@ public class MpxCalendarConverter {
 		}
 
 		// work weeks
+		MpxRangeConverter rangeConverter = new MpxRangeConverter();
 		for (int i = 0; i < 7; i++) {
 			Day mpxDayId = Day.getInstance(i + 1);
 			ProjectCalendarHours mpxDay = mpxCalendar.getCalendarHours(mpxDayId);
@@ -78,11 +79,10 @@ public class MpxCalendarConverter {
 						day = WorkDay.getNonWorkingDay();
 				}
 			} else {
-				if (mpxDayType == net.sf.mpxj.DayType.WORKING) {
-					day = WorkDay.getDefaultWorkDay();
-				} else {
-					day = WorkDay.getNonWorkingDay();
-				}
+				WorkingHours hours = rangeConverter.from(mpxDay);
+				day = hours.getDuration() > 0 ? new WorkDay() : WorkDay.getNonWorkingDay();
+				if (hours.getDuration() > 0)
+					day.setWorkingHours(hours);
 			}
 			if (day != null)
 				calendar.setWeekDay(i, day);

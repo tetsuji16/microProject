@@ -493,10 +493,13 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	DayDescriptor getWeekDayDescriptor(int dayNum) {
 		dayNum -=1; // SUNDAY is 1, so need to subtract 1
 		DayDescriptor descriptor = new DayDescriptor();
-		descriptor.workDay = differences.week.getWeekDay(dayNum);
+		WorkDay override = differences.week.getWeekDay(dayNum);
 
-		descriptor.modified = descriptor.workDay != null;
-		descriptor.workDay = getConcreteInstance().week.getWeekDay(dayNum);
+		descriptor.modified = override != null;
+		// Keep the weekday override as the effective value.  Replacing it with
+		// the concrete base day made the calendar dialog display MSP weekday
+		// exceptions as if they used the base calendar.
+		descriptor.workDay = override != null ? override : getConcreteInstance().week.getWeekDay(dayNum);
 //		if (isBaseCalendar()) {
 //			// for base calendars, the notion of modified is based on the default work week
 //			WorkDay baseDay = WorkingCalendar.getDefaultInstance(null).getWeekDay(dayNum);
