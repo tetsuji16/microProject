@@ -237,7 +237,9 @@ class NormalTaskDurationTest {
 			long oldStart = predecessor.getStart();
 			long oldEnd = predecessor.getEnd();
 			long shift = 2L * day();
-			predecessor.moveInterval(this, oldStart + shift, oldEnd + shift,
+			long movedStart = predecessor.getEffectiveWorkCalendar().add(oldStart, shift, false);
+			long movedEnd = predecessor.getEffectiveWorkCalendar().add(oldEnd, shift, false);
+			predecessor.moveInterval(this, movedStart, movedEnd,
 				new ScheduleInterval(oldStart, oldEnd), false);
 			project.recalculate();
 			if (type == DependencyType.FF)
