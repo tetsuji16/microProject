@@ -55,6 +55,8 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	protected ScaledComponent main;
 	protected DocumentFrame documentFrame;
 	private Point lastViewportPosition = new Point();
+	/** The coordinate origin used by the last viewport layout. */
+	private long lastOrigin;
 	private boolean extendingHorizontalRange;
 	private static final int EDGE_TRIGGER_PIXELS = 24;
 	private static final int RANGE_EXTENSION_DAYS = 30;
@@ -71,6 +73,7 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		this.coord=coord;
 		this.documentFrame=documentFrame;
 		main.setCoord(coord);
+		lastOrigin = coord.getOrigin();
 		createLayout();
 		coord.addTimeScaleListener(this);
 		this.getVerticalScrollBar().setUnitIncrement(verticalIncrement);
@@ -101,14 +104,8 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 
 		extendingHorizontalRange = true;
 		try {
-			Point before = viewport.getViewPosition();
-			long oldOrigin = coord.getOrigin();
 			if (atStart) coord.extendViewBefore(RANGE_EXTENSION_DAYS);
 			if (atEnd) coord.extendViewAfter(RANGE_EXTENSION_DAYS);
-			if (atStart && coord.getOrigin() != oldOrigin) {
-				int shift = (int) Math.round(coord.toX(oldOrigin));
-				viewport.setViewPosition(new Point(Math.max(0, before.x + shift), before.y));
-			}
 		} finally {
 			extendingHorizontalRange = false;
 		}
@@ -161,8 +158,23 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	}
 	
 	public void timeScaleChanged(TimeScaleEvent e) {
+		if (e != null && (e.getType() & TimeScaleEvent.ORIGIN_AND_END_CHANGE) != 0) {
+			restoreViewportLeftDate(lastOrigin);
+		}
+		lastOrigin = coord.getOrigin();
 		timeScaleComponent.repaint();
 		updateHorizontalScrollIncrement();
+	}
+
+	/** Restore the visible time range after the coordinate origin has moved. */
+	private void restoreViewportLeftDate(long previousOrigin) {
+		if (coord == null) return;
+		JViewport viewport = getViewport();
+		if (viewport == null) return;
+		Point position = viewport.getViewPosition();
+		double leftDate = previousOrigin + coord.getTimescaleManager().getScale().toTime(position.x);
+		position.x = Math.max(0, (int) Math.round(coord.toX(leftDate)));
+		viewport.setViewPosition(position);
 	}
 
 	private void updateHorizontalScrollIncrement() {
@@ -228,9 +240,12 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;
-     	if (ws.viewPosition != null) {
-     		getViewport().setViewPosition(ws.viewPosition);
-     	}
+		if (ws.viewPosition != null) {
+			getViewport().setViewPosition(ws.viewPosition);
+		}
+		// Workspace restoration may restore the coordinate converter without
+		// emitting a time-scale event, so reset the comparison origin explicitly.
+		lastOrigin = coord.getOrigin();
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
