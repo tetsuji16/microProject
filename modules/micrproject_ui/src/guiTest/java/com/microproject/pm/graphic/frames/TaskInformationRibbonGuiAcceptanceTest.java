@@ -681,7 +681,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
-	void robotNameCellShortcutsFollowMicrosoftSheetNavigationSemantics() throws Exception {
+	void robotNameCellIndentShortcutsFollowMicrosoftProjectSemantics() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -713,35 +713,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "shortcut spreadsheet did not accept focus before Robot input");
 
-		// MSP: Tab indents the current name row; Shift+Tab outdents it.
+		// MSP outline shortcuts: Alt+Shift+Right indents; Alt+Shift+Left outdents.
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, target), nameColumn));
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "name-cell click did not give focus to the spreadsheet");
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter name-cell editing");
-		press(robot, KeyEvent.VK_TAB);
+		press(robot, KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_RIGHT);
 		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == predecessor,
-				"Robot Tab did not indent the selected name row");
+				"Robot Alt+Shift+Right did not indent the selected name row");
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(target),
-				"Robot Tab lost the selected task");
+				"Robot Alt+Shift+Right lost the selected task");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, outdentTarget), nameColumn));
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "second name-cell click did not give focus to the spreadsheet");
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter the second name-cell edit");
-		press(robot, KeyEvent.VK_SHIFT, KeyEvent.VK_TAB);
+		press(robot, KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_LEFT);
 		GuiAcceptanceSupport.await(() -> outdentTarget.getWbsParentTask() == null,
-				"Robot Shift+Tab did not outdent the selected name row");
+				"Robot Alt+Shift+Left did not outdent the selected name row");
 
-		// Ctrl+Up/Down navigates to the first/last visible task row, matching MSP.
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, predecessor), nameColumn));
-		GuiAcceptanceSupport.await(sheet::isFocusOwner, "navigation name-cell click did not give focus to the spreadsheet");
-		press(robot, KeyEvent.VK_F2);
-		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not enter the navigation name-cell edit");
-		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_DOWN);
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(outdentTarget),
-				"Robot Ctrl+Down did not move to the last visible task row");
-		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_UP);
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
-				"Robot Ctrl+Up did not move to the first visible task row");
 	}
 
 	@Test

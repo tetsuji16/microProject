@@ -75,11 +75,12 @@ were removed so each key resolves to exactly one action.
 The task spreadsheet adopts Excel-style direct cell entry.  microProject does not
 have a separate Entry Bar, so an editable selected cell is edited in place.
 
-1. A shortcut always wins over text entry.  `Tab`, `Shift+Tab`, `Ctrl+Arrow`,
+1. A shortcut always wins over text entry.  `Ctrl+Arrow`, `Alt+Shift+Arrow`,
    `Ctrl+Z`, `Ctrl+Y`, and every key with Ctrl, Alt, or Meta are dispatched through
    their shortcut binding; they must never open an editor or insert a character.
-2. When the name field has focus, this rule also applies *while editing*: `Tab` and
-   `Shift+Tab` indent/outdent; `Ctrl+Left`/`Ctrl+Right` collapse/expand; and
+2. When the name field has focus, this rule also applies *while editing*:
+   `Alt+Shift+Right` and `Alt+Shift+Left` indent/outdent;
+   `Ctrl+Left`/`Ctrl+Right` collapse/expand; and
    `Ctrl+Up`/`Ctrl+Down` move to the first/last visible task row, matching MSP sheet
    navigation.  The active edit is finished before navigation.
 3. In a non-editing editable cell, a printable character starts in-place editing and
@@ -115,7 +116,7 @@ bindings and were left unchanged:
 - `Ctrl+N/O/S/P` (new/open/save/print), `Ctrl+K` (insert), `Ctrl+Period/Comma` (indent/outdent),
   `Ctrl+Plus/Minus` (expand/collapse), `Ctrl+R` (recalculate).
 - Spreadsheet component bindings: `Ctrl+V` (paste values), `Shift+Ctrl+V` (paste insert),
-  `Ctrl+D` (fill down), `Alt+Shift+Up/Down` (move task), `Tab`/`Shift+Tab` (name-column indent/outdent),
+  `Ctrl+D` (fill down), `Alt+Shift+Up/Down` (move task), `Alt+Shift+Left/Right` (indent/outdent),
   `F2` (edit).
 - Gantt component bindings: `Ctrl+Left/Right` (zoom), `Ctrl+Z/Y` (undo/redo).
 - `Enter`/`Esc` form behavior, `F10`/`Alt` menu-bar activation, `Alt+F4` close window (native).
