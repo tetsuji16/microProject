@@ -178,27 +178,25 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean moveSelectedTaskRows(int direction) {
-		// Microsoft Project moves the selected task from any selected cell (a single
-		// cell in the task row is enough), not only when the entire row is selected.
-		// Requiring the whole row broke the keyboard move after a "select column then
-		// click a cell" sequence, which collapses the selection to a single cell and
-		// silently rejected the move. See issue #45.
-		return moveSelectedTaskRows(direction, false);
+		return moveSelectedTaskRowsInternal(direction);
 	}
 
 	public boolean moveSelectedTaskRowsFromCommand(int direction) {
-		return moveSelectedTaskRows(direction, false);
+		return moveSelectedTaskRowsInternal(direction);
 	}
 
 	public boolean canMoveSelectedTaskRows(int direction, boolean requireEntireRow) {
-		if (requireEntireRow && !hasEntireRowSelection())
+		// Project Desktop documents Alt+Shift+Up/Down as moving the selected task
+		// only when its entire row is selected.  All task move entry points share
+		// this precondition so shortcut, ribbon/menu, and drag routes cannot diverge.
+		if (!hasEntireRowSelection())
 			return false;
 		return hasOnlyTaskRowsSelected() && getCache().canMoveNodes(getSelectedGraphicNodes(), direction);
 	}
 
-	private boolean moveSelectedTaskRows(int direction, boolean requireEntireRow) {
+	private boolean moveSelectedTaskRowsInternal(int direction) {
 		finishCurrentOperations();
-		if (!canMoveSelectedTaskRows(direction, requireEntireRow))
+		if (!canMoveSelectedTaskRows(direction, true))
 			return false;
 		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
 		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, nodes, this, "move task"))
@@ -212,15 +210,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean canMoveSelectedTaskRowsTo(int targetRow, boolean after) {
-		// Microsoft Project lets you drag a selected task to a new position from any
-		// selected cell, not only when the entire row is selected. Requiring the whole
-		// row here (while the keyboard/ribbon move paths no longer do) was an extra
-		// source of the "refresh sometimes does not work" symptom reported in issue
-		// #45: after a "select column then click a cell" sequence the selection is a
-		// single cell and the drop was silently rejected. See issue #45.
 		if (!(getModel() instanceof SpreadSheetModel model))
 			return false;
-		if (targetRow < 0 || targetRow >= getRowCount() || !hasOnlyTaskRowsSelected())
+		if (targetRow < 0 || targetRow >= getRowCount() || !hasEntireRowSelection() || !hasOnlyTaskRowsSelected())
 			return false;
 		GraphicNode target = model.getNode(targetRow);
 		return target != null && target.getNode() != null
@@ -1260,6 +1252,20 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		SpreadSheetFieldArray after = fields.insertField(insertionIndex, field);
 		applyColumnLayoutChange(before, after, insertionIndex - 1,
 				Messages.getString("SpreadSheetColumnMenu.InsertColumn"));
+		return true;
+	}
+
+	/**
+	 * Applies a task-table column preset through the same project persistence and
+	 * Undo path as header insert/hide.  Presets are view state, but for the task
+	 * sheet that state belongs to the project and must survive save/reload.
+	 */
+	public boolean applyColumnLayoutPreset(SpreadSheetFieldArray fields, String presentationName) {
+		if (!isCanModifyColumns() || fields == null || !(getFieldArray() instanceof SpreadSheetFieldArray current))
+			return false;
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) current.clone();
+		SpreadSheetFieldArray after = (SpreadSheetFieldArray) fields.clone();
+		applyColumnLayoutChange(before, after, 0, presentationName);
 		return true;
 	}
 

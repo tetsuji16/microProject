@@ -341,6 +341,12 @@ public class NodeListTransferable implements Transferable {
 
 	private static boolean setValueAt(CommonSpreadSheetModel model,String value,int row,int column){
 		try{
+			// Field.setValue deliberately treats a read-only target as a no-op rather
+			// than throwing.  A paste must not translate that no-op into a successful
+			// command (or an empty Undo edit), so validate the same editability
+			// predicate used by normal cell editing before the parse-only pass.
+			if (!model.isCellEditable(row, column + 1))
+				return false;
 			model.setValueAt(value,row,column+1);
 			return true;
 		}catch(Exception e){

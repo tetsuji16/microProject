@@ -33,6 +33,8 @@ import javax.swing.JRadioButtonMenuItem;
 
 import com.microproject.dialog.RenameDialog;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.NamedItem;
 import com.microproject.strings.Messages;
@@ -66,6 +68,8 @@ public class SpreadSheetColumnsPopupMenu extends JPopupMenu {
 			spreadSheet.finishCurrentOperations();
 			if (current) {
 				RenameDialog.doRename(spreadSheet,(NamedItem) fields);
+			} else if (spreadSheet instanceof SpreadSheet sheet && fields instanceof SpreadSheetFieldArray taskFields) {
+				sheet.applyColumnLayoutPreset(taskFields, getText());
 			} else {
 				spreadSheet.setFieldArray(fields);
 			}

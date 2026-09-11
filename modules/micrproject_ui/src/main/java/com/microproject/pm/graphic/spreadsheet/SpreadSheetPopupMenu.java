@@ -134,6 +134,14 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				if (MenuActionConstants.ACTION_HIDE_SELECTED_TASKS.equals(actionId)
 						|| MenuActionConstants.ACTION_SHOW_ALL_TASKS.equals(actionId))
 					continue;
+				// Task-table popup commands must use the same document command as the
+				// menu, ribbon, and root-pane shortcuts.  That route owns the stable
+				// selection snapshot, collaboration lock, Undo refresh, and diagnostics.
+				// Keep the local action only for standalone spreadsheet fixtures which
+				// deliberately have no GraphicManager.
+				if (SpreadSheetCategories.taskSpreadsheetCategory.equals(spreadSheet.getSpreadSheetCategory())
+						&& addGraphicManagerAction(actionId, getMenuAction(actionId)))
+					continue;
 				add(spreadSheet.prepareAction(actionId), getMenuAction(actionId), actionId);
 				if (MenuActionConstants.ACTION_PASTE.equals(actionId)) {
 					add(spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT), getInsertPasteMenuIcon(),
@@ -143,14 +151,16 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 		}
 	    
 	private Map<String, String> menuActionMap = null;
-	private void addGraphicManagerAction(String actionId, String iconName) {
+	private boolean addGraphicManagerAction(String actionId, String iconName) {
 		GraphicManager manager = GraphicManager.getInstance(spreadSheet);
 		if (manager == null)
-			return;
+			return false;
 		try {
 			add(manager.getAction(actionId), iconName, actionId);
+			return true;
 		} catch (com.microproject.menu.resource.MissingListenerException ignored) {
 			// A spreadsheet can be constructed outside a document frame in tests.
+			return false;
 		}
 	}
 	    protected String getMenuAction(String action){

@@ -516,7 +516,7 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
-	void keyboardMoveWorksFromASingleTaskCellSelection() throws Exception {
+	void keyboardMoveRejectsASingleTaskCellSelection() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
@@ -538,21 +538,20 @@ class SpreadSheetMouseInteractionTest {
 			assertFalse(sheet.getColumnCount() == sheet.getSelectedColumnCount(),
 					"the selection is a single cell, NOT a whole row");
 
-			// Before the fix the keyboard move required the entire row and was silently
-			// rejected here, so the task list never refreshed. Microsoft Project moves
-			// the selected task from any selected cell, so the keyboard shortcut (which
-			// uses requireEntireRow=false) must now move and refresh.
-			assertTrue(sheet.canMoveSelectedTaskRows(-1, false),
-					"keyboard/drag move precondition must accept a single task-cell selection");
+			// Microsoft Project Desktop documents Alt+Shift+Up/Down as requiring the
+			// entire task row to be selected.  A collapsed single-cell selection must
+			// therefore not mutate the task order.
+			assertFalse(sheet.canMoveSelectedTaskRows(-1, false),
+					"task move must reject a single task-cell selection");
 			sheet.getActionMap().get(SpreadSheet.MOVE_TASK_UP_ACTION).actionPerformed(
 					new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, SpreadSheet.MOVE_TASK_UP_ACTION));
-			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()),
-					"the selected task must move up after the keyboard shortcut from a single cell");
+			assertEquals(secondRow, findRow(sheet, fixture.secondTask()),
+					"the keyboard shortcut must not move a single-cell selection");
 		});
 	}
 
 	@Test
-	void dragMovePreconditionAcceptsSingleCellSelection() throws Exception {
+	void dragMovePreconditionRejectsSingleCellSelection() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
@@ -573,36 +572,32 @@ class SpreadSheetMouseInteractionTest {
 			assertFalse(sheet.getColumnCount() == sheet.getSelectedColumnCount(),
 					"the selection is a single cell, NOT a whole row");
 
-			// The single selected task row must be a valid drag target, just like the
-			// keyboard/ribbon move. Before the fix this returned false and the drop
-			// was silently rejected (beep only), so the list never refreshed.
-			assertTrue(sheet.canMoveSelectedTaskRowsTo(firstRow, false),
-					"drag-drop move target must accept a single task-cell selection");
-			assertTrue(sheet.moveSelectedTaskRowsTo(firstRow, false),
-					"drag-drop move must succeed from a single task-cell selection");
-			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()),
-					"the selected task must move above the target from a single-cell drag");
+			assertFalse(sheet.canMoveSelectedTaskRowsTo(firstRow, false),
+					"drag-drop move target must reject a single task-cell selection");
+			assertFalse(sheet.moveSelectedTaskRowsTo(firstRow, false),
+					"drag-drop move must not mutate a single-cell selection");
+			assertEquals(secondRow, findRow(sheet, fixture.secondTask()),
+					"single-cell drag must leave the task order unchanged");
 		});
 	}
 
 	@Test
-	void taskMoveIsRejectedWhenSelectionContainsANonTaskRow() throws Exception {
+	void taskMoveRejectsASingleTaskCellSelectionRegardlessOfLegacyCallerFlag() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
 			int column = findNameColumn(sheet);
-			// A single-cell selection on a real task row must still be movable (the
-			// regression from issue #45); this guards that the relaxed precondition
-			// did not accidentally start accepting non-task rows.
+			// A single cell is not a valid task-move selection, even on a real task
+			// row.  This prevents a partial spreadsheet selection from relocating it.
 			sheet.selectColumnAndAllRows(column);
 			sheet.changeSelection(findRow(sheet, fixture.secondTask()), column, false, false);
-			assertTrue(sheet.canMoveSelectedTaskRows(-1, false),
-					"a single task cell must remain movable");
+			assertFalse(sheet.canMoveSelectedTaskRows(-1, false),
+					"a single task cell must not be movable");
 		});
 	}
 
 	@Test
-	void movePreconditionStillRequiresEntireRowWhenExplicitlyRequested() throws Exception {
+	void movePreconditionRequiresEntireRowForEveryCommandRoute() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
 			RecordingSpreadSheet sheet = fixture.sheet();
@@ -618,8 +613,8 @@ class SpreadSheetMouseInteractionTest {
 			assertTrue(sheet.canMoveSelectedTaskRows(-1, true),
 					"move up must be allowed when the whole row is selected");
 
-			// A single-cell selection must still be rejected when the caller explicitly
-			// requires the entire row (drag path keeps its stricter check).
+			// A single-cell selection must be rejected regardless of the legacy
+			// requireEntireRow argument, so no caller can bypass the MSP precondition.
 			sheet.selectColumnAndAllRows(column);
 			assertTrue(sheet.isColumnFullySelected(column),
 					"after selectColumnAndAllRows the column must be fully selected");
@@ -627,9 +622,11 @@ class SpreadSheetMouseInteractionTest {
 			assertEquals(1, sheet.getSelectedColumnCount(),
 					"after selecting a column then a single cell, exactly one column is selected");
 			assertFalse(sheet.canMoveSelectedTaskRows(-1, true),
-					"explicit requireEntireRow=true must still reject a single-cell selection");
-			assertTrue(sheet.moveSelectedTaskRowsFromCommand(-1),
-					"Move Up/Down command (requireEntireRow=false) still works on a single-cell selection");
+					"whole-row move precondition must reject a single-cell selection");
+			assertFalse(sheet.canMoveSelectedTaskRows(-1, false),
+					"legacy callers must not bypass the whole-row move precondition");
+			assertFalse(sheet.moveSelectedTaskRowsFromCommand(-1),
+					"Move Up/Down command must reject a single-cell selection");
 		});
 	}
 

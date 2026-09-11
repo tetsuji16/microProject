@@ -16,6 +16,14 @@ not bypass an earlier shared-cause phase for a later cosmetic symptom.
 ## Goal and scope
 
 - Maintain this Windows-oriented ProjectLibre desktop fork without regressing existing project files, scheduling behavior, or packaging.
+- The primary agent owns repository-wide planning, specification interpretation,
+  integration, and completion decisions.  It may delegate independent bounded
+  investigation, testing, or implementation work to Luna agents at any time;
+  it remains responsible for reviewing and integrating every result.
+- Judge Microsoft Project Desktop (MSP) compatibility against the applicable
+  Microsoft-published specification or support documentation.  An installed
+  MSP application is supplementary evidence only and is not required for a
+  compatibility decision or issue closure.
 - Prefer the smallest change that fixes the root cause. Trace the relevant input, state transition, model/view conversion, persistence, and reload path before editing.
 - Preserve unrelated user changes. Existing uncommitted changes are not a blocker, but inspect `git status` before and after work and never discard changes you did not create.
 - Do not claim a fix is complete when only a symptom is hidden. If the root cause or a required verification remains uncertain, state that explicitly.

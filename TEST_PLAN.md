@@ -139,6 +139,7 @@
 | U-22 | 回帰 | 変更可能なプロジェクト操作 | 操作 → 保存 → 再読込 → Undo/Redo可能な範囲を確認 | 保存後もモデル／表示が一致し、操作対象外のデータや Undo 履歴を破壊しない |
 | U-23 | 異常 | 選択なし、複数不足、read-only、ロック済み、非対応 view | リボン、メニュー、ショートカットの各入口を実行 | 入口間で有効条件とエラー表示が一致し、silent no-op と例外漏出がない |
 | U-24 | 診断 | UI debug mode | 成功・前提不成立・例外・表示未更新の各操作を実行 | ログに command ID、選択、モデル前後、表示前後、Undo 状態、失敗理由が記録される |
+| U-25 | MSP互換/回帰 | タスク移動（Alt+Shift+↑/↓、リボン/メニュー、行ドラッグ） | Microsoft公式ショートカット仕様を issue にリンク。全行選択で移動→Undo/Redo→保存/再読込、単一セル・read-only・lock は各入口で disabled/rejected 結果を確認 | 公式仕様の「entire row must be selected」に一致。全入口は同一選択判定・一回の順序変更・可観測な失敗理由を共有し、再読込後も順序が一致 |
 
 ### Build / Packaging / Regression
 

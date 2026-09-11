@@ -81,7 +81,13 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 
 		hide.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				if (fields.size() > 2 ) { // there is always the hidden Id field, so only allow delete if more than one other field
+				if (sp instanceof SpreadSheet sheet) {
+					// col is a field-array index (the hidden ID field is index 0).
+					// Delegate to the one task-layout mutation path so this context-menu
+					// operation persists on the project and posts exactly one Undo edit.
+					if (!sheet.removeSelectedColumn(col - 1))
+						Alert.warn(Messages.getString("Message.cantEmptySpreadsheet"), sp);
+				} else if (fields.size() > 2 ) { // there is always the hidden Id field, so only allow delete if more than one other field
 					sp.setFieldArray(fields.removeField(col));
 				} else {
 					Alert.warn(Messages.getString("Message.cantEmptySpreadsheet"),sp); //$NON-NLS-1$

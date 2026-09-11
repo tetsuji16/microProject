@@ -11,6 +11,30 @@ This gate applies to every change under `micrproject_ui`, and to any other
 change that changes a GUI-observable command, model projection, persistence
 path, or keyboard shortcut.
 
+## MSP compatibility evidence and closure rule
+
+When a change claims Microsoft Project Desktop compatibility, the compatibility
+oracle is the applicable Microsoft-published specification or support document,
+not an unavailable local installation of Microsoft Project.  The issue or PR
+must link the exact source and name the documented product/version scope.  A
+behavior not covered by that source is an implementation choice, not proof of
+MSP compatibility.
+
+A compatibility defect may be closed only when all of the following are true:
+
+1. the documented MSP requirement is recorded together with its source;
+2. the command contract identifies every supported physical route and the
+   canonical implementation they share;
+3. a pre-fix regression test and the required headless/Robot evidence pass;
+4. mutation, Undo/Redo, and persistence evidence are present when the command
+   changes project data; and
+5. invalid states produce an observable disabled/rejected outcome, not a silent
+   no-op.
+
+If any condition is missing, leave the issue open with the missing evidence and
+scope stated explicitly.  Direct execution against Microsoft Project is useful
+supplementary evidence when available, but is never required to apply this rule.
+
 For the current stabilization order, follow
 [GUI recovery sequence](gui-recovery-sequence.md).  Do not skip a phase to
 patch a later symptom unless the defect is a data-loss or security emergency.
@@ -27,7 +51,7 @@ Each user command must have a testable contract with all of these facts:
 | View | The active spreadsheet/Gantt/dialog reflects the new state after EDT repaint/revalidation. |
 | Undo/Redo | One Ctrl+Z restores the exact before-state and one Ctrl+Y restores the exact after-state. |
 | Persistence | Commands that modify project data survive save/reload. |
-| Failure | Invalid input, no selection, locked data, and unsupported views have deterministic feedback; they may not silently return. |
+| Failure | Invalid input, no selection, locked data, and unsupported views have a deterministic, observable disabled/rejected result; they may not silently return. |
 
 The test must name the state it observes.  `action-complete`, `isVisible`, or
 `no exception` by themselves never satisfy Model or View.
@@ -153,7 +177,11 @@ and stable task IDs, never only object identity or a blank event source.
   copy-pasted scenario.  A new test case needs a stated new state transition,
   boundary, or failure mode.
 - A PR touching GUI behavior must list its command contract, fixtures, exact
-  test commands, and Robot evidence in its description.
+  test commands, Robot evidence, and (for MSP claims) the official-source URL
+  and documented product/version scope in its description.
+- A GUI compatibility claim cannot be closed from a passing action dispatch,
+  a screenshot, or a comparison with an undocumented observed behavior.  The
+  MSP-source evidence and the complete command contract above are mandatory.
 - Run the focused unit tests and focused `guiTest` before review.  Run the full
   `:micrproject_ui:test` and `:micrproject_ui:guiTest --max-workers=1` before a
   release or when shared command, selection, layout, or shortcut code changes.

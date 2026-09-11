@@ -871,7 +871,7 @@ public class DocumentFrame extends NamedFrame implements
 	}
 	public boolean canMoveSelectedTasks(int direction) {
 		SpreadSheet spreadSheet=getActiveSpreadSheet();
-		return spreadSheet != null && spreadSheet.canMoveSelectedTaskRows(direction,false);
+		return spreadSheet != null && spreadSheet.canMoveSelectedTaskRows(direction,true);
 	}
 	public void doMoveSelectedTasks(int direction) {
 		SpreadSheet spreadSheet=getActiveSpreadSheet();

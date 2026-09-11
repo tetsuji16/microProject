@@ -37,6 +37,7 @@ import java.util.function.Supplier;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
+import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
@@ -257,6 +258,27 @@ class SpreadSheetHierarchyNavigationTest {
 		}
 		Node node = (Node) sheet.getCache().getModel().search(task);
 		return model.findGraphicNodeRow(sheet.getCache().getGraphicNode(node));
+	}
+
+	@Test
+	void headerContextHideColumnUsesTheSamePersistentUndoableLayoutMutation() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			int fieldCount = sheet.getFieldArray().size();
+
+			// HeaderMouseListener supplies a field-array index: index 0 is the hidden ID field.
+			SpreadSheetColumnMenu menu = new SpreadSheetColumnMenu(sheet, 1);
+			((JMenuItem)menu.getComponent(1)).doClick();
+
+			assertEquals(fieldCount - 1, sheet.getFieldArray().size());
+			assertEquals(fieldCount - 1, fixture.project().getFieldArray().size());
+			fixture.project().getUndoController().undo();
+			assertEquals(fieldCount, sheet.getFieldArray().size());
+			assertEquals(fieldCount, fixture.project().getFieldArray().size());
+			fixture.project().getUndoController().redo();
+			assertEquals(fieldCount - 1, sheet.getFieldArray().size());
+		});
 	}
 
 	private int firstTaskRow(SpreadSheet sheet) {

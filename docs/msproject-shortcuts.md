@@ -52,8 +52,8 @@ were removed so each key resolves to exactly one action.
 | `Ctrl+Shift+F2` | Unlink tasks | `ACTION_UNLINK` | New. |
 | `Alt+Shift+Right` | Indent selected task | `ACTION_INDENT` | New MS-conformant binding (app also keeps `Ctrl+.`). |
 | `Alt+Shift+Left` | Outdent selected task | `ACTION_OUTDENT` | New MS-conformant binding (app also keeps `Ctrl+,`). |
-| `Alt+Shift+Up` | Move task up | `ACTION_MOVE_TASK_UP` | Already on spreadsheet + row header. |
-| `Alt+Shift+Down` | Move task down | `ACTION_MOVE_TASK_DOWN` | Already on spreadsheet + row header. |
+| `Alt+Shift+Up` | Move task up (entire task row selected) | `ACTION_MOVE_TASK_UP` | Already on spreadsheet + row header; reject a partial-cell selection. |
+| `Alt+Shift+Down` | Move task down (entire task row selected) | `ACTION_MOVE_TASK_DOWN` | Already on spreadsheet + row header; reject a partial-cell selection. |
 | `Alt+Shift+-` | Hide subtasks | `ACTION_COLLAPSE` | New MS-conformant binding (app also keeps `Ctrl+-` for row delete). |
 | `Alt+Shift+=` | Show subtasks | `ACTION_EXPAND` | New MS-conformant binding (app also keeps `Ctrl++`/`Ctrl+=). |
 | `Ctrl+Space` | Select the row | `SelectRow` on active spreadsheet | New MS-conformant binding. |

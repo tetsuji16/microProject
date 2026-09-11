@@ -351,6 +351,33 @@ class NodeListTransferablePasteFailureTest {
 	}
 
 	@Test
+	void readonlyFieldRejectsCellPasteInsteadOfReportingASuccessfulNoOp() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project, "Original");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		boolean[] pasted = new boolean[1];
+		Field[] nameField = new Field[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(project, "readonly-field-paste");
+			int nameColumn = columnForField(sheetRef[0], "Field.name");
+			nameField[0] = (Field) sheetRef[0].getColumnModel().getColumn(nameColumn).getIdentifier();
+			sheetRef[0].changeSelection(0, nameColumn, false, false);
+		});
+
+		boolean originalReadOnly = nameField[0].isReadOnly();
+		try {
+			nameField[0].setReadOnly(true);
+			SwingUtilities.invokeAndWait(() -> pasted[0] = NodeListTransferable.pasteString("Changed", sheetRef[0]));
+		} finally {
+			nameField[0].setReadOnly(originalReadOnly);
+		}
+
+		assertFalse(pasted[0]);
+		assertEquals("Original", task.getName());
+	}
+
+	@Test
 	void collaborationLockRejectionPreventsCellPaste() throws Exception {
 		Project project = createProject();
 		NormalTask task = createTask(project, "Original");

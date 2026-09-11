@@ -15,6 +15,9 @@ favors foundational command state over individual ribbon buttons.
   #462, #463, #464).
 - Regenerate `installDist`; record application version, locale, DPI, fixture,
   and the exact user route for each failure.
+- For every MSP compatibility claim, record the Microsoft-published source and
+  documented product/version scope.  Do not mark an undocumented observed
+  behavior as MSP-compatible.
 - Do not close issues or claim a button healthy from `action-complete` logs.
 - Do not add feature work or isolated UI workarounds.
 
@@ -110,8 +113,9 @@ passing headless build as evidence of GUI acceptance.
 
 **Exit gate:** every issue closed in these phases has a command contract,
 focused invariant test, physical Robot evidence, and required visual or
-persistence evidence.  `git diff --check`, status, and release verification
-are clean.
+persistence evidence.  MSP compatibility closures additionally link the
+applicable Microsoft-published specification and its product/version scope.
+`git diff --check`, status, and release verification are clean.
 
 ## Work selection within a phase
 

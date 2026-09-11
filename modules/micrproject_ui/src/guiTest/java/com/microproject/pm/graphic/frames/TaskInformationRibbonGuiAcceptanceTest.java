@@ -681,6 +681,46 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotMoveTaskShortcutRequiresAndUsesWholeRowSelectionWithUndoRedo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("robot-move-shortcut-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask first = project.createScriptedTask();
+		first.setName("Move shortcut first");
+		NormalTask second = project.createScriptedTask();
+		second.setName("Move shortcut second");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"move-shortcut test project did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> sheet.getSelectedRow() == rowForTask(sheet, second)
+				&& sheet.getSelectedColumnCount() == sheet.getColumnCount(),
+			"physical task selection did not select the entire task row required by MSP");
+		press(robot, KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_UP);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) < rowForTask(sheet, first),
+			"Robot Alt+Shift+Up did not move the selected whole task row");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, first) < rowForTask(sheet, second),
+			"Ctrl+Z did not restore the task order after the move shortcut");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) < rowForTask(sheet, first),
+			"Ctrl+Y did not reapply the task order after the move shortcut");
+	}
+
+	@Test
 	void robotNameCellIndentShortcutsFollowMicrosoftProjectSemantics() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
