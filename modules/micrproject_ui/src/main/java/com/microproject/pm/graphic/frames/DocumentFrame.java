@@ -57,6 +57,7 @@ import com.microproject.dialog.TimelineDialogBox;
 import com.microproject.dialog.CalendarViewDialogBox;
 import com.microproject.dialog.CustomFieldsDialogBox;
 import com.microproject.dialog.CustomReportDialogBox;
+import com.microproject.dialog.MoveProjectDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.dialog.calendar.ChangeWorkingTimeDialogBox;
@@ -125,6 +126,7 @@ import com.microproject.timescale.TimeScale;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.session.LoadOptions;
 import com.microproject.undo.UndoController;
+import com.microproject.undo.ProjectStartDateEdit;
 import com.microproject.util.Alert;
 import com.microproject.util.ArrayUtils;
 import com.microproject.util.ClassUtils;
@@ -872,6 +874,37 @@ public class DocumentFrame extends NamedFrame implements
 	public boolean canMoveSelectedTasks(int direction) {
 		SpreadSheet spreadSheet=getActiveSpreadSheet();
 		return spreadSheet != null && spreadSheet.canMoveSelectedTaskRows(direction,true);
+	}
+
+	void doMoveProjectDialog() {
+		finishAnyOperations();
+		if (project == null || project.isReadOnly() || !project.isForward())
+			return;
+		MoveProjectDialog dialog = MoveProjectDialog.getInstance(getGraphicManager().getFrame(), project);
+		dialog.setLocationRelativeTo(getGraphicManager().getFrame());
+		if (dialog.doModal() && dialog.getSelectedStartDate() != null)
+			moveProject(dialog.getSelectedStartDate().getTime());
+	}
+
+	/**
+	 * Canonical mutation path for every Move Project entry point. The Project
+	 * setter adjusts the date to the working calendar and recalculates tasks;
+	 * this method owns document dirtiness and the single undo unit.
+	 */
+	public boolean moveProject(long requestedStartDate) {
+		if (project == null || project.isReadOnly() || !project.isForward())
+			return false;
+		long before = project.getStartDate();
+		project.setStartDate(requestedStartDate);
+		long after = project.getStartDate();
+		if (before == after)
+			return false;
+		if (project.getUndoController() != null)
+			project.getUndoController().getEditSupport().postEdit(new ProjectStartDateEdit(project, before, after));
+		project.setDirty(true);
+		repaint();
+		refreshUndoButtons();
+		return true;
 	}
 	public void doMoveSelectedTasks(int direction) {
 		SpreadSheet spreadSheet=getActiveSpreadSheet();

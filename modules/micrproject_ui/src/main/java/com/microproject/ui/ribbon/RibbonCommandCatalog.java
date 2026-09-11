@@ -140,7 +140,7 @@ final class RibbonCommandCatalog {
 			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");
 		register(result, CommandScope.PROJECT, PROJECT,
 			"RibbonProjectInformation", "RibbonProjectsDialog", "RibbonChangeWorkingTime",
-			"RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
+			"RibbonCalendarOptions", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
 			"RibbonCCPMSettings", "RibbonCCPMClear");
 	register(result, CommandScope.VIEW, VIEW,
 			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",

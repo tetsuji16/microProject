@@ -1598,6 +1598,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		} else {
 			projectInformationDialog.setObject(getCurrentFrame().getProject());
 		}
+		projectInformationDialog.setMoveProjectHandler(getCurrentFrame()::moveProject);
 		projectInformationDialog.setLocationRelativeTo(getCurrentFrame());//to center on screen
 		projectInformationDialog.setVisible(true);
 
@@ -1882,6 +1883,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return true;
 	}
 
+	protected boolean beforeMoveProjectRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
 	protected boolean beforeSaveBaselineRoute(DocumentFrame documentFrame) {
 		return true;
 	}
@@ -1966,6 +1971,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_CUSTOM_REPORT, new CustomReportAction());
 		actionsMap.addHandler(ACTION_UPDATE_TASKS, new UpdateTasksAction());
 		actionsMap.addHandler(ACTION_UPDATE_PROJECT, new UpdateProjectAction());
+		actionsMap.addHandler(ACTION_MOVE_PROJECT, new MoveProjectAction());
 		actionsMap.addHandler(ACTION_RECALCULATE, new RecalculateAction());
 		actionsMap.addHandler(ACTION_BAR, new BarAction());
 		actionsMap.addHandler(ACTION_TIMESCALE, new TimescaleAction());
@@ -2832,6 +2838,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			executeExternalRibbonCommand("locale", GraphicManager.this::showLocaleDialog);
+		}
+	}
+
+	public class MoveProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeMoveProjectRoute(getCurrentFrame())) return;
+			if (isDocumentActive())
+				getCurrentFrame().doMoveProjectDialog();
+		}
+		protected boolean allowed(boolean enable) {
+			if (!enable) return true;
+			return isDocumentWritable() && getCurrentFrame() != null && getCurrentFrame().getProject().isForward();
 		}
 	}
 

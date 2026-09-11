@@ -137,6 +137,8 @@ public interface MenuActionConstants {
 	public static final String ACTION_DELEGATE_TASKS          = "DelegateTasks";
 	public static final String ACTION_UPDATE_TASKS            = "UpdateTasks";
 	public static final String ACTION_UPDATE_PROJECT          = "UpdateProject";
+	/** MSP Project tab command that shifts a forward-scheduled project. */
+	public static final String ACTION_MOVE_PROJECT            = "MoveProject";
 	public static final String ACTION_SAVE_BASELINE           = "SaveBaseline";
 	public static final String ACTION_CLEAR_BASELINE          = "ClearBaseline";
 	public static final String ACTION_LOCALE		          = "LocaleAction";

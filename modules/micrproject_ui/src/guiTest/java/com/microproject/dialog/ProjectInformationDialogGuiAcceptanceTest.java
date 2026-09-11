@@ -49,13 +49,28 @@ class ProjectInformationDialogGuiAcceptanceTest {
 			"Project information must show General, Statistics, and Notes tabs");
 		assertTrue(findButton(dialog, "Close") != null || findButton(dialog, "閉じる") != null,
 			"Project information must expose a visible close button");
+		AbstractButton move = findButton(dialog, "Move Project...");
+		if (move == null) move = findButton(dialog, "プロジェクトの移動...");
+		assertTrue(move != null, "Project information must expose the MSP Move Project route");
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(30);
+		java.awt.Point location = move.getLocationOnScreen();
+		robot.mouseMove(location.x + move.getWidth() / 2, location.y + move.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> visibleDialog(MoveProjectDialog.class) != null,
+			"Move Project dialog did not open from Project Information");
+		SwingUtilities.invokeAndWait(() -> visibleDialog(MoveProjectDialog.class).dispose());
 		SwingUtilities.invokeAndWait(() -> dialog.setSize(dialog.getWidth() + 180, dialog.getHeight() + 80));
 		robot.delay(250);
 		assertTrue(findTabs(dialog).isShowing() && findTabs(dialog).getWidth() > 0 && findTabs(dialog).getHeight() > 0,
 			"Project information content must remain visible after resize");
+	}
+
+	private static <T extends Window> T visibleDialog(Class<T> type) {
+		for (Window window : Window.getWindows()) if (type.isInstance(window) && window.isShowing()) return type.cast(window);
+		return null;
 	}
 
 	private static JTabbedPane findTabs(java.awt.Container root) {

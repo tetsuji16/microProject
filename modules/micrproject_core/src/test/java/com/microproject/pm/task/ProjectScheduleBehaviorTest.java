@@ -41,6 +41,7 @@ import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.undo.ProjectStartDateEdit;
 
 class ProjectScheduleBehaviorTest {
 	@Test
@@ -121,6 +122,39 @@ class ProjectScheduleBehaviorTest {
 		assertEquals(10L * day(), project.getSummaryEnvelope().getManualDuration().longValue());
 		assertEquals(rootTask.getStart(), project.calculateRollupSpan().getStart());
 		assertEquals(rootTask.getEnd(), project.calculateRollupSpan().getFinish());
+	}
+
+	@Test
+	void changingForwardProjectStartRecalculatesUnconstrainedTasks() {
+		Project project = createProject();
+		NormalTask task = project.createScriptedTask();
+		task.setName("Move with project");
+		task.setDuration(day());
+		project.connectTask(task);
+		project.getTaskOutlines().addToAll(task, null);
+		project.recalculate();
+
+		long originalTaskStart = task.getStart();
+		long newProjectStart = project.getEffectiveWorkCalendar().add(project.getStartDate(), day(), false);
+		project.setStartDate(newProjectStart);
+		project.recalculate();
+
+		assertEquals(newProjectStart, project.getStartDate());
+		assertEquals(project.getEffectiveWorkCalendar().add(originalTaskStart, day(), false), task.getStart());
+	}
+
+	@Test
+	void moveProjectUndoEditRestoresAndReappliesTheProjectBoundary() {
+		Project project = createProject();
+		long before = project.getStartDate();
+		long after = project.getEffectiveWorkCalendar().add(before, day(), false);
+		project.setStartDate(after);
+		ProjectStartDateEdit edit = new ProjectStartDateEdit(project, before, project.getStartDate());
+
+		edit.undo();
+		assertEquals(before, project.getStartDate());
+		edit.redo();
+		assertEquals(after, project.getStartDate());
 	}
 
 	@Test

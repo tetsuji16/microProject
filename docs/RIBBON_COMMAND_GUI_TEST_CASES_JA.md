@@ -89,6 +89,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonChangeWorkingTime | 稼働時間を変更 | カレンダー設定を開いて保存／取消できる |
 | RibbonCalendarOptions | カレンダーオプションを開く | オプションを表示できる |
 | RibbonUpdateProject | プロジェクトを更新 | 更新結果がタスク表へ反映される |
+| RibbonMoveProject | プロジェクト全体を移動 | 新しい開始日に合わせてタスクとガントバーが移動し、Undo／Redo と保存／再読込後も結果が保たれる |
 | RibbonRecalculate | スケジュールを再計算 | 依存タスクとガントバーが再計算される |
 | RibbonRefreshSubprojects | マスターのサブプロジェクトを更新 | 各リンクが安全に再読み込みされ、未保存の子プロジェクトでは保存・破棄・キャンセルを選べる |
 | RibbonOpenSubproject | 選択したサブプロジェクトを開く | 選択したリンク先を正規化された既存ウィンドウで開き、既に開いている場合はそのウィンドウを前面に表示する |

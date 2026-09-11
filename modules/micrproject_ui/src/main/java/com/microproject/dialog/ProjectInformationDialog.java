@@ -27,8 +27,10 @@ package com.microproject.dialog;
 import java.awt.Frame;
 import java.awt.Dimension;
 import java.util.Collection;
+import java.util.function.Consumer;
 
 import javax.swing.JComponent;
+import javax.swing.JButton;
 import javax.swing.JTabbedPane;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
@@ -50,6 +52,7 @@ import com.microproject.util.Environment;
  */
 public class ProjectInformationDialog extends InformationDialog {
 	private static final long serialVersionUID = 1L;
+	private Consumer<Long> moveProjectHandler;
 
 	public static ProjectInformationDialog getInstance(Frame owner, Project project) {
 		return new ProjectInformationDialog(owner, project);
@@ -61,6 +64,11 @@ public class ProjectInformationDialog extends InformationDialog {
 		setObject(project);
 		addDocHelp("Project_Information_Dialog");
 
+	}
+
+	/** Installs the document command used by the optional Move Project entry point. */
+	public void setMoveProjectHandler(Consumer<Long> handler) {
+		moveProjectHandler = handler;
 	}
 
 	private JTabbedPane tabbedPane;
@@ -99,7 +107,22 @@ public class ProjectInformationDialog extends InformationDialog {
 		builder.nextLine(2);
 		
 		map.appendSometimesReadOnly(builder,"Field.startDate"); //$NON-NLS-1$
+		JButton moveProject = new JButton(Messages.getString("MoveProjectDialog.Button"));
+		Project dialogProject = (Project) getObject();
+		moveProject.setEnabled(dialogProject != null && !dialogProject.isReadOnly() && dialogProject.isForward());
+		moveProject.addActionListener(event -> {
+			Project project = (Project) getObject();
+			if (project != null && !project.isReadOnly() && project.isForward()) {
+				MoveProjectDialog dialog = MoveProjectDialog.getInstance(getOwner() instanceof Frame frame ? frame : null, project);
+				dialog.setLocationRelativeTo(this);
+				if (dialog.doModal() && dialog.getSelectedStartDate() != null && moveProjectHandler != null)
+					moveProjectHandler.accept(dialog.getSelectedStartDate().getTime());
+				updateAll();
+			}
+		});
 		map.append(builder,"Field.currentDate"); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(moveProject);
 		builder.nextLine(2);
 		map.appendSometimesReadOnly(builder,"Field.finishDate"); //$NON-NLS-1$
 		JComponent statusDateComponent = map.append(builder,"Field.statusDate"); //$NON-NLS-1$

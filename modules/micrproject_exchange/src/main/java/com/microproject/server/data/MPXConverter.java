@@ -52,6 +52,7 @@ import net.sf.mpxj.ProjectProperties;
 import net.sf.mpxj.Resource;
 import net.sf.mpxj.ResourceField;
 import net.sf.mpxj.ResourceAssignment;
+import net.sf.mpxj.ScheduleFrom;
 import net.sf.mpxj.Task;
 import net.sf.mpxj.TaskMode;
 import net.sf.mpxj.TaskType;
@@ -126,6 +127,10 @@ public class MPXConverter {
 		projectHeader.setComments(project.getNotes());
 		projectHeader.setManager(project.getManager());
 		projectHeader.setComments(removeInvalidChars(project.getNotes()));
+		// MSPDI requires this flag to state which boundary is used to schedule
+		// the project.  Writing both dates without it causes readers to assume a
+		// forward schedule and loses a finish-scheduled project's semantics.
+		projectHeader.setScheduleFrom(project.isForward() ? ScheduleFrom.START : ScheduleFrom.FINISH);
 		projectHeader.setStartDate(DateTime.fromGmt(new Date(project.getStartDate())));
 		projectHeader.setFinishDate(DateTime.fromGmt(new Date(project.getFinishDate())));
 		projectHeader.setDefaultStartTime(CalendarOption.getInstance().getDefaultStartTime().getTime());

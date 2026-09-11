@@ -90,7 +90,7 @@ class RibbonStructureTest {
 			"ResourceAssignmentsRibbonBand", "ResourceLevelRibbonBand", "ResourcePoolRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
 		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
 		assertEquals(List.of("RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool"), ribbonButtonIds("ResourcePoolRibbonBand"));
-		assertEquals(List.of("RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonUpdateProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
+		assertEquals(List.of("RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
 			ribbonButtonIds("ProjectScheduleRibbonBand"));
 	}
 

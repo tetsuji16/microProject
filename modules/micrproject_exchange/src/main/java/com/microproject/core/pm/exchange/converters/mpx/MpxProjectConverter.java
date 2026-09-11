@@ -31,6 +31,7 @@ import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.task.Project;
 
 import net.sf.mpxj.ProjectProperties;
+import net.sf.mpxj.ScheduleFrom;
 
 /**
  * Converts MPXJ ProjectProperties into a microproject Project header.
@@ -47,7 +48,16 @@ public class MpxProjectConverter {
 			project.setManager(mpxProjectHeader.getManager());
 		if (mpxProjectHeader.getComments() != null)
 			project.setNotes(mpxProjectHeader.getComments());
-		project.setStartDate(toLong(mpxProjectHeader.getStartDate()));
+		// MSPDI makes ScheduleFromStart the discriminator for the project boundary:
+		// StartDate is authoritative for a forward schedule and FinishDate is
+		// authoritative for a backward schedule.  Do not silently turn a
+		// finish-scheduled MSP project into a start-scheduled project on import.
+		boolean scheduleFromStart = mpxProjectHeader.getScheduleFrom() != ScheduleFrom.FINISH;
+		project.setForward(scheduleFromStart);
+		if (scheduleFromStart)
+			project.setStartDate(toLong(mpxProjectHeader.getStartDate()));
+		else
+			project.setFinishDate(toLong(mpxProjectHeader.getFinishDate()));
 		project.setStatusDate(toLong(mpxProjectHeader.getStatusDate()));
 
 		WorkCalendar calendar = null;

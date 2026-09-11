@@ -28,6 +28,7 @@ import static com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonUiBu
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -198,6 +199,10 @@ class RibbonButtonBehaviorTest {
 		assertCall(harness, "updateProject", harness.frame);
 
 		harness.resetCalls();
+		harness.invoke("RibbonMoveProject");
+		assertCall(harness, "moveProject", harness.frame);
+
+		harness.resetCalls();
 		harness.invoke("RibbonSaveBaseline");
 		assertEquals(1, harness.frame.baselineDialogCallCount(true));
 		assertNotNull(harness.task.getSnapshot(Snapshottable.BASELINE),
@@ -265,6 +270,25 @@ class RibbonButtonBehaviorTest {
 			"Insert Resource must create an undoable resource-sheet row");
 		assertEquals(taskCountBefore, count(harness.project.getTaskOutlineIterator()),
 			"Insert Resource must not insert a task row");
+	}
+
+	@Test
+	void moveProjectCommandMutatesTheScheduleAndPostsOneUndoUnit() throws Exception {
+		Harness harness = newHarness();
+		harness.undoController.clear();
+		long before = harness.project.getStartDate();
+		long requested = harness.project.getEffectiveWorkCalendar().add(before, 5L * 24L * 60L * 60L * 1000L, false);
+
+		SwingUtilities.invokeAndWait(() -> assertTrue(harness.frame.moveProject(requested)));
+		long moved = harness.project.getStartDate();
+		assertNotEquals(before, moved);
+		assertTrue(harness.project.isDirty());
+		assertTrue(harness.undoController.canUndo());
+
+		harness.undoController.undo();
+		assertEquals(before, harness.project.getStartDate());
+		harness.undoController.redo();
+		assertEquals(moved, harness.project.getStartDate());
 	}
 
 	private static int count(Iterator<?> iterator) {
@@ -660,6 +684,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonCalendarOptions",
 			"RibbonUpdateTasks",
 			"RibbonUpdateProject",
+			"RibbonMoveProject",
 			"RibbonSaveBaseline",
 			"RibbonClearBaseline",
 			"RibbonCCPMBufferStatus",
@@ -967,6 +992,12 @@ class RibbonButtonBehaviorTest {
 		@Override
 		protected boolean beforeUpdateProjectRoute(DocumentFrame documentFrame) {
 			calls.add(new Call("updateProject", List.of(documentFrame)));
+			return false;
+		}
+
+		@Override
+		protected boolean beforeMoveProjectRoute(DocumentFrame documentFrame) {
+			calls.add(new Call("moveProject", List.of(documentFrame)));
 			return false;
 		}
 

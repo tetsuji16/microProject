@@ -1698,6 +1698,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		start = getEffectiveWorkCalendar().adjustInsideCalendar(start,false);
 		setStart(start);
 		getSchedulingAlgorithm().setStartConstraint(start);
+		// Project Information edits are direct field mutations rather than task
+		// sheet updates. Recalculate here so changing the project boundary has the
+		// same immediate visible scheduling effect as Microsoft Project.
+		recalculate();
 	}
 
 	public final boolean isReadOnlyStartDate(FieldContext fieldContext) {
@@ -1711,6 +1715,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		finish = getEffectiveWorkCalendar().adjustInsideCalendar(finish,true);
 		setEnd(finish);
 		getSchedulingAlgorithm().setEndConstraint(finish);
+		recalculate();
 	}
 
 	public boolean isReadOnlyFinishDate(FieldContext fieldContext) {
