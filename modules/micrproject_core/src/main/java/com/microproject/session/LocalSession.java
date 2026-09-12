@@ -383,8 +383,19 @@ public class LocalSession extends AbstractSession{
 	 			
 	    		}
 	    	});
-		} catch (IllegalArgumentException e) {
+		} catch (RuntimeException e) {
 			logger.log(Level.WARNING, "Failed to create registered importer: " + opt.getImporter(), e);
+			final IllegalStateException importerFailure = new IllegalStateException(
+					"Failed to create importer for format: " + opt.getImporter(), e);
+			// Keep the returned Job executable and observable.  Returning an empty
+			// job made Open Project appear to succeed while silently skipping MPO
+			// loading and prevented the caller's normal failure handler from
+			// clearing loading state and reporting the problem.
+			job.addRunnable(new JobRunnable("LocalAccess: importer initialization failure", 1.0f) {
+				public Object run() throws Exception {
+					throw importerFailure;
+				}
+			});
 		}
      	return job;
     }

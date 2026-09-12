@@ -33,6 +33,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Objects;
+import java.util.concurrent.CancellationException;
 
 import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
@@ -160,7 +162,9 @@ public class JobQueue extends ThreadGroup{
 
  	//for free jobs (queued==false)
 	public boolean executeCriticalSectionClosure(Job job,Consumer<Object> c,Object arg) {
-		 synchronized (criticalSectionMutex) {
+		Objects.requireNonNull(job, "job");
+		Objects.requireNonNull(c, "closure");
+		synchronized (criticalSectionMutex) {
 			 if (criticalSectionOwner==job){
 				 c.accept(arg);
 				 return true;
@@ -171,25 +175,55 @@ public class JobQueue extends ThreadGroup{
 		 }
 	}
 
+	/**
+	 * Compatibility entry point for callers compiled against the original API.
+	 * Interrupted/cancelled acquisition is reported explicitly instead of
+	 * silently continuing without ownership.
+	 */
 	public void beginCriticalSection(Job job){
+		if (!tryBeginCriticalSection(job))
+			throw new CancellationException("Critical section acquisition cancelled: " + job.getName());
+	}
+
+	/**
+	 * Attempts to acquire the queue-wide critical section for {@code job}.
+	 *
+	 * <p>The old implementation ignored interruption while waiting and then
+	 * granted ownership anyway.  A cancelled/interrupted MPO load could
+	 * therefore acquire the section after the user had moved on, starving the
+	 * next save or load.  Cancellation is observed between timed waits as well,
+	 * so a normal Job.cancel() does not require an unsafe thread stop.</p>
+	 *
+	 * @return {@code true} when ownership was acquired, otherwise {@code false}
+	 */
+	public boolean tryBeginCriticalSection(Job job){
+		Objects.requireNonNull(job, "job");
 		synchronized (criticalSectionMutex) {
 			while (criticalSectionOwner!=null&&criticalSectionOwner.isQueued()){
+				if (job.isCanceled())
+					return false;
 				try {
-					criticalSectionMutex.wait();
+					criticalSectionMutex.wait(250L);
 				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return false;
 				}
 			}
+			if (job.isCanceled())
+				return false;
 	 		criticalSectionOwner=job;
-	 		job.logBegin("Critical section");
+			job.logBegin("Critical section");
+			return true;
 		}
- 	}
+	}
 
- 	public void endCriticalSection(Job job){
+	public void endCriticalSection(Job job){
+		Objects.requireNonNull(job, "job");
 		synchronized (criticalSectionMutex) {
 	 		job.logEnd("Critical section");
 			if (criticalSectionOwner==job){
 				criticalSectionOwner=null;
-				criticalSectionMutex.notify();
+				criticalSectionMutex.notifyAll();
 			}
 
 		}

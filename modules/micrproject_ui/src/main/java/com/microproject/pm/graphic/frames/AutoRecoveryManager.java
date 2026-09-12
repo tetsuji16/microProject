@@ -27,9 +27,12 @@ package com.microproject.pm.graphic.frames;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,8 +50,12 @@ import com.microproject.application.AutoRecoveryStore;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
+import com.microproject.pm.ccpm.CriticalChainService;
+import com.microproject.session.FileHelper;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
+import com.microproject.session.SessionFactory;
+import com.microproject.job.Job;
 import com.microproject.util.PopupDialogSupport;
 
 /** Periodically writes complete, non-destructive recovery snapshots. */
@@ -64,6 +71,7 @@ final class AutoRecoveryManager implements AutoSaveControl {
 	private final AutoRecoveryStore store;
 	private final Preferences preferences;
 	private final Set<Long> savesInProgress = ConcurrentHashMap.newKeySet();
+	private final ExecutorService recoveryExecutor;
 	private final Timer timer;
 
 	AutoRecoveryManager(ProjectFactory projectFactory, GraphicManager graphicManager) {
@@ -76,6 +84,11 @@ final class AutoRecoveryManager implements AutoSaveControl {
 		this.graphicManager = graphicManager;
 		this.store = store;
 		this.preferences = preferences;
+		recoveryExecutor = Executors.newSingleThreadExecutor(task -> {
+			Thread thread = new Thread(task, "microProject-auto-recovery");
+			thread.setDaemon(true);
+			return thread;
+		});
 		int intervalMinutes = Math.max(MINIMUM_INTERVAL_MINUTES,
 			preferences.getInt(INTERVAL_MINUTES_PREFERENCE, DEFAULT_INTERVAL_MINUTES));
 		timer = new Timer((int) TimeUnit.MINUTES.toMillis(intervalMinutes), event -> saveDirtyProjects());
@@ -108,6 +121,10 @@ final class AutoRecoveryManager implements AutoSaveControl {
 
 	void stop() {
 		timer.stop();
+		// Do not interrupt an export which may currently be replacing an MPO
+		// snapshot.  Already queued saves are allowed to finish and the daemon
+		// worker cannot keep the application alive during shutdown.
+		recoveryExecutor.shutdown();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -180,32 +197,74 @@ final class AutoRecoveryManager implements AutoSaveControl {
 	}
 
 	private void save(Project project) {
+		if (project == null) {
+			return;
+		}
 		long projectId = project.getUniqueId();
 		if (!beginSave(projectId)) {
 			return;
 		}
 		try {
+			recoveryExecutor.execute(() -> saveOnWorker(project, projectId));
+		} catch (RejectedExecutionException ex) {
+			// stop() may race with a timer event.  A rejected task must not leave
+			// the project permanently claimed for a recovery save.
+			completeSave(projectId);
+			LOGGER.log(Level.FINE, "Recovery save skipped after shutdown", ex);
+		}
+	}
+
+	/** Builds and schedules the complete save job away from the Swing EDT. */
+	private void saveOnWorker(Project project, long projectId) {
+		try {
 			String originalFileName = project.getFileName();
+			boolean mpoSnapshot = FileHelper.isMpoFile(originalFileName)
+					|| new CriticalChainService().requiresMpo(project);
+			java.nio.file.Path snapshotPath = store.snapshotPath(projectId, mpoSnapshot);
 			SaveOptions options = new SaveOptions();
 			options.setLocal(true);
 			options.setSaveAs(true);
 			options.setRecoverySnapshot(true);
-			options.setImporter(LocalSession.LOCAL_PROJECT_IMPORTER);
-			options.setFileName(store.snapshotPath(projectId).toString());
+			options.setImporter(mpoSnapshot ? LocalSession.MPO_PROJECT_IMPORTER
+					: LocalSession.LOCAL_PROJECT_IMPORTER);
+			options.setFileName(snapshotPath.toString());
 			options.setPostSaving(new Consumer<Object>() { public void accept(Object ignored) {
-					try {
-						store.recordCompletedSnapshot(projectId, project.getName(), originalFileName, Instant.now());
-					} catch (IOException ex) {
-						LOGGER.log(Level.WARNING, "Could not record recovery snapshot", ex);
-					} finally {
-						completeSave(projectId);
-					}
+					// LocalSession invokes postSaving from a Swing completion runnable.
+					// Metadata is file I/O too, so keep it off the EDT (especially for
+					// MPO snapshots, whose replacement may otherwise stall repainting).
+					recordSnapshotAsync(projectId, project.getName(), originalFileName, snapshotPath);
 				}
 			});
-			projectFactory.saveProject(project, options);
+			Job job = projectFactory.getSaveProjectJob(project, options);
+			if (job == null) {
+				completeSave(projectId);
+				return;
+			}
+			// Job completion runs once for success, failure, and cancellation.  It
+			// is the sole release point for the in-flight claim after scheduling.
+			job.addCompletionRunnable(() -> completeSave(projectId));
+			SessionFactory.getInstance().getSession(options.isLocal()).schedule(job);
 		} catch (RuntimeException | IOException ex) {
+			// Covers job construction and queue admission failures.  If admission
+			// succeeded, Job's completion callback owns the release; this path is
+			// only reached before that callback can run.
 			completeSave(projectId);
 			LOGGER.log(Level.WARNING, "Could not save recovery snapshot", ex);
+		}
+	}
+
+	private void recordSnapshotAsync(long projectId, String projectName, String originalFileName,
+			java.nio.file.Path snapshotPath) {
+		try {
+			recoveryExecutor.execute(() -> {
+				try {
+					store.recordCompletedSnapshot(projectId, projectName, originalFileName, Instant.now(), snapshotPath);
+				} catch (IOException ex) {
+					LOGGER.log(Level.WARNING, "Could not record recovery snapshot", ex);
+				}
+			});
+		} catch (RejectedExecutionException ex) {
+			LOGGER.log(Level.FINE, "Recovery metadata skipped after shutdown", ex);
 		}
 	}
 

@@ -53,6 +53,7 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipException;
 import java.util.ArrayList;
 import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,6 +67,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.prefs.Preferences;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
@@ -271,6 +274,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private final RecentProjectStore recentProjectStore = new RecentProjectStore();
 	private Runnable afterSaveNewProject;
 	private volatile boolean quitting;
+	static final long QUIT_WAIT_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(30);
 	protected Container container;
 	protected Frame frame;
 	TabbedNavigation topTabs = null;
@@ -5222,13 +5226,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				desktop.setQuitHandler(new QuitHandler() {
 					@Override
 					public void handleQuitRequestWith(QuitEvent e, QuitResponse response){
-                        try {
-                            boolean continueQuit=quitApplication();
-							if (continueQuit) response.performQuit();
-							else response.cancelQuit();
-                        } catch (Exception ex) {
-                            throw new RuntimeException(ex);
-                        }
+						requestQuit(response);
                     }
 				});
 			}
@@ -5259,6 +5257,42 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public boolean quitApplication() throws Exception{
+		if (SwingUtilities.isEventDispatchThread()) {
+			throw new IllegalStateException("quitApplication must not wait on the EDT");
+		}
+		final AtomicReference<QuitOperation> operationReference = new AtomicReference<>();
+		try {
+			SwingUtilities.invokeAndWait(() -> operationReference.set(prepareQuitOperation()));
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw ex;
+		}
+		QuitOperation operation = operationReference.get();
+		if (operation == null)
+			throw new IllegalStateException("Quit operation was not prepared");
+		SessionFactory.getInstance().getLocalSession().schedule(operation.job());
+		try {
+			if (!awaitQuitCompletion(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS)) {
+				logger.warning("Timed out while waiting for projects to close");
+				return false;
+			}
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			logger.log(Level.FINE, "Interrupted while waiting for projects to close", ex);
+			return false;
+		}
+		if (operation.closeStatus()[0]){
+			autoRecoveryManager.completeNormalShutdown();
+			Frame frame=getFrame();
+			if (frame!=null) frame.dispose();
+			//System.exit(0);
+			return true;
+		}
+		return false;
+	}
+
+	/** Captures the close job on the caller's UI/model context without waiting. */
+	private QuitOperation prepareQuitOperation() {
 		quitting = true;
 		for (Object frameObj : new ArrayList(frameList)) {
 			if (frameObj instanceof DocumentFrame) {
@@ -5269,39 +5303,123 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				}
 			}
 		}
-		final boolean[] lock=new boolean[]{false};
+		final Object monitor = new Object();
+		final boolean[] completed = new boolean[]{false};
 
 		JobRunnable exitRunnable=new JobRunnable("Local: closeProjects"){
 			public Object run() throws Exception{
-				synchronized (lock) {
-					lock[0]=true;
-					lock.notifyAll();
+				synchronized (monitor) {
+					completed[0]=true;
+					monitor.notifyAll();
 				}
     	    	return null;
 			}
 		};
 		final boolean[] closeStatus=new boolean[]{false};
 		final Job job=projectFactory.getPortfolio().getRemoveAllProjectsJob(exitRunnable,false,closeStatus);
-		SessionFactory.getInstance().getLocalSession().schedule(job);
+		return new QuitOperation(monitor, () -> completed[0], closeStatus, job);
+	}
 
-		synchronized(lock){
-			while (!lock[0]){
-				try{
-						lock.wait();
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						logger.log(Level.FINE, "Interrupted while waiting for projects to close", e);
-						return false;
-					}
-			}
+	/**
+	 * Starts the desktop quit handshake without blocking the thread supplied by
+	 * AWT.  Save prompts are created on the EDT; queue completion is observed by
+	 * a daemon worker and the response is returned on the EDT afterwards.
+	 */
+	private void requestQuit(QuitResponse response) {
+		if (response == null)
+			return;
+		final AtomicReference<QuitOperation> operationReference = new AtomicReference<>();
+		try {
+			Runnable prepare = () -> operationReference.set(prepareQuitOperation());
+			if (SwingUtilities.isEventDispatchThread())
+				prepare.run();
+			else
+				SwingUtilities.invokeAndWait(prepare);
+			QuitOperation operation = operationReference.get();
+			if (operation == null)
+				throw new IllegalStateException("Quit operation was not prepared");
+			Runnable schedule = () -> SessionFactory.getInstance().getLocalSession().schedule(operation.job());
+			if (SwingUtilities.isEventDispatchThread())
+				schedule.run();
+			else
+				SwingUtilities.invokeAndWait(schedule);
+			awaitQuitCompletionAsync(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS,
+					completed -> {
+						if (completed && operation.closeStatus()[0]) {
+							// Recovery cleanup is filesystem I/O; keep it on the waiter
+							// before handing the final AWT response back to the EDT.
+							autoRecoveryManager.completeNormalShutdown();
+						}
+						SwingUtilities.invokeLater(() -> {
+							if (completed && operation.closeStatus()[0]) {
+								Frame frame = getFrame();
+								if (frame != null) frame.dispose();
+								response.performQuit();
+							} else {
+								response.cancelQuit();
+							}
+						});
+					});
+		} catch (Exception ex) {
+			logger.log(Level.WARNING, "Could not start application quit", ex);
+			Runnable cancel = response::cancelQuit;
+			if (SwingUtilities.isEventDispatchThread())
+				cancel.run();
+			else
+				SwingUtilities.invokeLater(cancel);
 		}
-		if (closeStatus[0]){
-			autoRecoveryManager.completeNormalShutdown();
-			Frame frame=getFrame();
-			if (frame!=null) frame.dispose();
-			//System.exit(0);
+	}
+
+	private record QuitOperation(Object monitor, BooleanSupplier completed, boolean[] closeStatus, Job job) {
+		private QuitOperation {
+			Objects.requireNonNull(monitor, "monitor");
+			Objects.requireNonNull(completed, "completed");
+			Objects.requireNonNull(closeStatus, "closeStatus");
+			Objects.requireNonNull(job, "job");
+		}
+	}
+
+	/**
+	 * Waits for the asynchronous project-removal job without allowing a hung
+	 * MPO export (or another queue failure) to block the caller forever.
+	 */
+	static boolean awaitQuitCompletion(Object monitor, BooleanSupplier completed, long timeoutMillis)
+			throws InterruptedException {
+		Objects.requireNonNull(monitor, "monitor");
+		Objects.requireNonNull(completed, "completed");
+		if (timeoutMillis < 0L)
+			throw new IllegalArgumentException("timeoutMillis must not be negative");
+		long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+		synchronized (monitor) {
+			while (!completed.getAsBoolean()) {
+				long remainingNanos = deadline - System.nanoTime();
+				if (remainingNanos <= 0L)
+					return false;
+				long waitMillis = TimeUnit.NANOSECONDS.toMillis(remainingNanos);
+				int waitNanos = (int) (remainingNanos - TimeUnit.MILLISECONDS.toNanos(waitMillis));
+				monitor.wait(Math.max(1L, waitMillis), Math.max(0, waitNanos));
+			}
 			return true;
-		}else return false;
+		}
+	}
+
+	/** Waits on a daemon worker so a desktop quit callback never blocks the EDT. */
+	static Thread awaitQuitCompletionAsync(Object monitor, BooleanSupplier completed, long timeoutMillis,
+			Consumer<Boolean> result) {
+		Objects.requireNonNull(result, "result");
+		Thread waiter = new Thread(() -> {
+			boolean finished;
+			try {
+				finished = awaitQuitCompletion(monitor, completed, timeoutMillis);
+			} catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				finished = false;
+			}
+			result.accept(finished);
+		}, "microProject-quit-wait");
+		waiter.setDaemon(true);
+		waiter.start();
+		return waiter;
 	}
 
 

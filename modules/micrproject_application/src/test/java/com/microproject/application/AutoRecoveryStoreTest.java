@@ -158,4 +158,19 @@ class AutoRecoveryStoreTest {
 		assertEquals(AutoRecoveryStore.MetadataIssueKind.UNREADABLE, scan.issues().getFirst().kind());
 		assertEquals(metadataDirectory, scan.issues().getFirst().metadata());
 	}
+
+	@Test
+	void recordsAndReloadsMpoSnapshotEvenWhenOriginalUsedLegacyExtension() throws Exception {
+		AutoRecoveryStore store = new AutoRecoveryStore(temporaryDirectory.resolve("recovery"));
+		Path snapshot = store.snapshotPath(16L, true);
+		Files.writeString(snapshot, "mpo recovery");
+		store.recordCompletedSnapshot(16L, "CCPM plan", "plan.pod", Instant.now(), snapshot);
+
+		var entries = store.listRecoverable();
+		assertEquals(1, entries.size());
+		assertEquals(snapshot, entries.getFirst().snapshot());
+		assertTrue(Files.exists(snapshot));
+		store.discard(16L);
+		assertFalse(Files.exists(snapshot));
+	}
 }

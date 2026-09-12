@@ -36,6 +36,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -49,7 +50,9 @@ import java.util.logging.Logger;
 public final class AutoRecoveryStore {
 	public static final Duration DEFAULT_RETENTION = Duration.ofDays(14);
 	private static final String SNAPSHOT_SUFFIX = ".recovery.pod";
+	private static final String MPO_SNAPSHOT_SUFFIX = ".recovery.mpo";
 	private static final String METADATA_SUFFIX = ".recovery.properties";
+	private static final String SNAPSHOT_FORMAT_PROPERTY = "snapshotFormat";
 	private static final Logger LOGGER = Logger.getLogger(AutoRecoveryStore.class.getName());
 
 	/** The kind of failure found while inspecting one recovery metadata file. */
@@ -120,13 +123,41 @@ public final class AutoRecoveryStore {
 	}
 
 	public Path snapshotPath(long projectId) throws IOException {
+		return snapshotPath(projectId, false);
+	}
+
+	/** Returns the recovery path for the requested native container format. */
+	public Path snapshotPath(long projectId, boolean mpo) throws IOException {
 		Files.createDirectories(directory);
-		return directory.resolve(safeId(projectId) + SNAPSHOT_SUFFIX);
+		return directory.resolve(safeId(projectId) + (mpo ? MPO_SNAPSHOT_SUFFIX : SNAPSHOT_SUFFIX));
+	}
+
+	/** Selects MPO for an MPO source file while retaining POD compatibility for legacy files. */
+	public Path snapshotPath(long projectId, String originalFileName) throws IOException {
+		return snapshotPath(projectId, isMpoFileName(originalFileName));
 	}
 
 	public void recordCompletedSnapshot(long projectId, String displayName,
 		String originalFileName, Instant savedAt) throws IOException {
-		Path snapshot = snapshotPath(projectId);
+		Path snapshot = snapshotPath(projectId, originalFileName);
+		// A caller may have selected MPO because the project contains CCPM data
+		// even when its original path used the legacy POD extension.  Prefer the
+		// actually written sibling before reporting a missing snapshot.
+		if (!Files.isRegularFile(snapshot)) {
+			Path alternate = snapshotPath(projectId, !isMpoFileName(originalFileName));
+			if (Files.isRegularFile(alternate))
+				snapshot = alternate;
+		}
+		if (!Files.isRegularFile(snapshot)) {
+			throw new IOException("Recovery snapshot was not created: " + snapshot);
+		}
+		recordCompletedSnapshot(projectId, displayName, originalFileName, savedAt, snapshot);
+	}
+
+	/** Records metadata for the exact snapshot path produced by the save job. */
+	public void recordCompletedSnapshot(long projectId, String displayName,
+		String originalFileName, Instant savedAt, Path snapshot) throws IOException {
+		Objects.requireNonNull(snapshot, "snapshot");
 		if (!Files.isRegularFile(snapshot)) {
 			throw new IOException("Recovery snapshot was not created: " + snapshot);
 		}
@@ -136,6 +167,7 @@ public final class AutoRecoveryStore {
 		properties.setProperty("originalFileName", nullToEmpty(originalFileName));
 		properties.setProperty("savedAt", Objects.requireNonNull(savedAt, "savedAt").toString());
 		properties.setProperty("offered", Boolean.FALSE.toString());
+		properties.setProperty(SNAPSHOT_FORMAT_PROPERTY, isMpoSnapshot(snapshot) ? "mpo" : "pod");
 		Path metadata = metadataPath(projectId);
 		writeMetadataAtomically(metadata, projectId, properties);
 	}
@@ -195,7 +227,8 @@ public final class AutoRecoveryStore {
 		try (DirectoryStream<Path> files = Files.newDirectoryStream(directory)) {
 			for (Path file : files) {
 				String name = file.getFileName().toString();
-				if (name.endsWith(SNAPSHOT_SUFFIX) || name.endsWith(METADATA_SUFFIX)) {
+				if (name.endsWith(SNAPSHOT_SUFFIX) || name.endsWith(MPO_SNAPSHOT_SUFFIX)
+						|| name.endsWith(METADATA_SUFFIX)) {
 					Files.deleteIfExists(file);
 				}
 			}
@@ -203,7 +236,8 @@ public final class AutoRecoveryStore {
 	}
 
 	public void discard(long projectId) throws IOException {
-		Files.deleteIfExists(snapshotFile(projectId));
+		Files.deleteIfExists(snapshotFile(projectId, false));
+		Files.deleteIfExists(snapshotFile(projectId, true));
 		Files.deleteIfExists(metadataPath(projectId));
 	}
 
@@ -243,9 +277,11 @@ public final class AutoRecoveryStore {
 			properties.load(input);
 			long id = parseProjectId(properties.getProperty("projectId"));
 			Instant savedAt = parseSavedAt(properties.getProperty("savedAt"));
+			String originalFileName = emptyToNull(properties.getProperty("originalFileName"));
+			boolean mpo = parseMpoFormat(properties.getProperty(SNAPSHOT_FORMAT_PROPERTY), originalFileName);
 			return ReadResult.success(new Entry(id, emptyToNull(properties.getProperty("displayName")),
-				emptyToNull(properties.getProperty("originalFileName")), savedAt,
-				snapshotFile(id), metadata,
+				originalFileName, savedAt,
+				snapshotFile(id, mpo), metadata,
 				Boolean.parseBoolean(properties.getProperty("offered", "false"))));
 		} catch (IOException | SecurityException ex) {
 			return ReadResult.failure(new MetadataIssue(metadata, MetadataIssueKind.UNREADABLE,
@@ -290,8 +326,27 @@ public final class AutoRecoveryStore {
 		return directory.resolve(safeId(projectId) + METADATA_SUFFIX);
 	}
 
-	private Path snapshotFile(long projectId) {
-		return directory.resolve(safeId(projectId) + SNAPSHOT_SUFFIX);
+	private Path snapshotFile(long projectId, boolean mpo) {
+		return directory.resolve(safeId(projectId) + (mpo ? MPO_SNAPSHOT_SUFFIX : SNAPSHOT_SUFFIX));
+	}
+
+	private static boolean isMpoFileName(String fileName) {
+		return fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".mpo");
+	}
+
+	private static boolean isMpoSnapshot(Path snapshot) {
+		Path fileName = snapshot.getFileName();
+		return fileName != null && fileName.toString().endsWith(MPO_SNAPSHOT_SUFFIX);
+	}
+
+	private static boolean parseMpoFormat(String value, String originalFileName) {
+		if (value == null || value.isBlank())
+			return isMpoFileName(originalFileName);
+		if ("mpo".equalsIgnoreCase(value))
+			return true;
+		if ("pod".equalsIgnoreCase(value))
+			return false;
+		throw new IllegalArgumentException("Unsupported recovery snapshot format: " + value);
 	}
 
 	private static String safeId(long projectId) {

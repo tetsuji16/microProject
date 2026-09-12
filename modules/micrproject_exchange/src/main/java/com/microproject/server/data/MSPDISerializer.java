@@ -442,16 +442,24 @@ public class MSPDISerializer implements ProjectSerializer {
 
 	public boolean saveProject(Project project,OutputStream out) {
 		try {
-			//MSPDISerializer serializer=new MSPDISerializer();
-			ProjectFile data=serializeProject(project);
-			if (job!=null) job.setProgress(0.9f);
-			new MSPDIWriter().write(data,out);
-			if (job!=null) job.setProgress(1.0f);
+			saveProjectOrThrow(project, out);
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to save ProjectLibre project as MSPDI", e);
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Writes MSPDI while preserving the serializer's failure cause for callers
+	 * that need transactional error reporting.  The legacy boolean method above
+	 * intentionally keeps its historical failure contract.
+	 */
+	public void saveProjectOrThrow(Project project, OutputStream out) throws Exception {
+		ProjectFile data = serializeProject(project);
+		if (job != null) job.setProgress(0.9f);
+		new MSPDIWriter().write(data, out);
+		if (job != null) job.setProgress(1.0f);
 	}
 
 	public JobRunnable getJob() {

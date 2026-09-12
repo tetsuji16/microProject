@@ -127,9 +127,14 @@ public class MicrosoftImporter extends ServerFileImporter{
     	return project;
 	}
     
-    @Override
+	@Override
 	public boolean saveProject(Project project,OutputStream out) throws Exception{
 		return saveProject(project, out, fileName);
+	}
+
+	/** Exception-preserving counterpart used by transactional container formats. */
+	public void saveProjectOrThrow(Project project, OutputStream out) throws Exception {
+		saveProjectOrThrow(project, out, fileName);
 	}
 
 	@Override
@@ -358,19 +363,24 @@ public class MicrosoftImporter extends ServerFileImporter{
     }
 
 	private boolean saveProject(Project project, OutputStream out, String targetFileName) throws Exception {
+		saveProjectOrThrow(project, out, targetFileName);
+		return true;
+	}
+
+	private void saveProjectOrThrow(Project project, OutputStream out, String targetFileName) throws Exception {
 		String extension = getFileExtension(targetFileName);
 		if ("xlsx".equals(extension)) {
 			new ProjectLibreXlsxWriter().writeProjectLibreProject(project, out);
-			return true;
+			return;
 		}
 		MSPDISerializer serializer = new MSPDISerializer();
 		if ("xml".equals(extension) || extension.length() == 0) {
-			return serializer.saveProject(project, out);
+			serializer.saveProjectOrThrow(project, out);
+			return;
 		}
 
 		ProjectWriter writer = ProjectWriterFactory.forFile(targetFileName);
 		writer.write(serializer.serializeProject(project), out);
-		return true;
 	}
 
 	private String getFileExtension() {

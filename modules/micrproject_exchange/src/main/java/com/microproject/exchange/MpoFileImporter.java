@@ -7,11 +7,14 @@ package com.microproject.exchange;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.channels.FileChannel;
@@ -29,6 +32,8 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -106,6 +111,16 @@ public class MpoFileImporter extends FileImporter {
 	private static final int MAX_ENTRY_BYTES = 64 * 1024 * 1024;
 	private static final int MAX_TOTAL_BYTES = 128 * 1024 * 1024;
 	private static final int MAX_ENTRIES = 128;
+	/** Semantic limits are independent of the compressed/archive byte budget. */
+	static final int MAX_OPERATION_COUNT = 100_000;
+	static final int MAX_OPERATION_PARENTS = 256;
+	static final int MAX_OPERATION_PAYLOAD_FIELDS = 256;
+	// Keep normal task notes/actor labels compatible while bounding pathological
+	// single-field allocations independently from the 64 MiB entry budget.
+	static final int MAX_JSON_STRING_CHARS = 1_048_576;
+	static final int MAX_JSON_NESTING = 32;
+	static final int MAX_CCPM_HISTORY_ENTRIES = 100_000;
+	static final int MAX_CCPM_HISTORY_LINE_CHARS = 64 * 1024;
 	private static final ObjectMapper JSON = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
 		.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
@@ -128,9 +143,10 @@ public class MpoFileImporter extends FileImporter {
 			}
 			project = loadProject(new File(fileName));
 		} else {
-			try (InputStream in = fileInputStream) {
-				project = loadProject(in);
-			}
+			// The stream is supplied by the session/application and remains owned by
+			// that caller.  loadProject(InputStream) follows the same non-closing
+			// contract, so closing a ZIP parser must never close the session stream.
+			project = loadProject(fileInputStream);
 		}
 	}
 
@@ -148,102 +164,55 @@ public class MpoFileImporter extends FileImporter {
 			MpoArchiveBudgetValidator.DEFAULT_BUDGET);
 		if (!budget.valid())
 			throw new IOException("MPOF archive budget rejected: " + budget.reason());
-		try (ZipFile zip = new ZipFile(source, StandardCharsets.UTF_8);
-			 ByteArrayOutputStream normalized = new ByteArrayOutputStream()) {
-			int[] totalBytes = new int[] { 0 };
-			int entryCount = 0;
-			try (ZipOutputStream output = new ZipOutputStream(normalized, StandardCharsets.UTF_8)) {
-				java.util.Enumeration<? extends ZipEntry> entries = zip.entries();
-				while (entries.hasMoreElements()) {
-					ZipEntry entry = entries.nextElement();
-					MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-					if (++entryCount > MAX_ENTRIES) throw new IOException("MPOF file has too many entries");
-					ZipEntry copy = new ZipEntry(entry.getName());
-					output.putNextEntry(copy);
-					if (!entry.isDirectory()) {
-						try (InputStream entryInput = zip.getInputStream(entry)) {
-							output.write(readEntry(entryInput, totalBytes));
-						}
+		ArchiveParts parts = new ArchiveParts();
+		try (ZipFile zip = new ZipFile(source, StandardCharsets.UTF_8)) {
+			java.util.Enumeration<? extends ZipEntry> entries = zip.entries();
+			while (entries.hasMoreElements()) {
+				ZipEntry entry = entries.nextElement();
+				MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
+				if (entry.isDirectory()) {
+					parts.accept(entry.getName(), true, null);
+				} else {
+					try (InputStream entryInput = zip.getInputStream(entry)) {
+						parts.accept(entry.getName(), false, entryInput);
 					}
-					output.closeEntry();
 				}
 			}
-			return loadProject(new ByteArrayInputStream(normalized.toByteArray()));
 		}
+		return finishArchive(parts);
 	}
 
 	@Override
 	public Project loadProject(InputStream in) throws Exception {
-		byte[] manifest = null;
-		byte[] projectXml = null;
-		byte[] meta = null;
-		byte[] settings = null;
-		byte[] ccpmHistory = null;
-		byte[] layout = null;
-		byte[] visibility = null;
-		byte[] draftCcpm = null;
-		byte[] operations = null;
-		byte[] draftOperations = null;
-		byte[] taskIdentities = null;
-		byte[] mimetype = null;
-		MpoExtensions extensions = new MpoExtensions();
-		int[] totalBytes = new int[] { 0 };
-		int entryCount = 0;
-		try (ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
+		Objects.requireNonNull(in, "in");
+		ArchiveParts parts = new ArchiveParts();
+		// ZipInputStream.close() also closes its source.  Shield the public input
+		// stream so callers can reuse/close it according to their own lifecycle.
+		try (ZipInputStream zip = new ZipInputStream(new NonClosingInputStream(in), StandardCharsets.UTF_8)) {
 			ZipEntry entry;
 			while ((entry = zip.getNextEntry()) != null) {
 				MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-				if (++entryCount > MAX_ENTRIES) throw new IOException("MPOF file has too many entries");
-				if (!entry.isDirectory() && MIMETYPE_ENTRY.equals(entry.getName())) {
-					mimetype = readEntry(zip, totalBytes);
-					String mime = new String(mimetype, StandardCharsets.UTF_8).trim();
-					if (!MIME_TYPE.equals(mime)) throw new IOException("Invalid MPOF mimetype entry: " + mime);
-					zip.closeEntry();
-					continue;
-				}
-				if (entry.isDirectory()) {
-					if (!entry.getName().endsWith("/")) throw new IOException("Invalid mpo directory entry");
-				} else if (MANIFEST_ENTRY.equals(entry.getName())) {
-					if (manifest != null) throw new IOException("Duplicate manifest entry");
-					manifest = readEntry(zip, totalBytes);
-				} else if (PROJECT_ENTRY.equals(entry.getName())) {
-					if (projectXml != null) throw new IOException("Duplicate project snapshot entry");
-					projectXml = readEntry(zip, totalBytes);
-				} else if (META_ENTRY.equals(entry.getName())) {
-					if (meta != null) throw new IOException("Duplicate mpo entry: " + META_ENTRY);
-					meta = readEntry(zip, totalBytes);
-				} else if (SETTINGS_ENTRY.equals(entry.getName())) {
-					if (settings != null) throw new IOException("Duplicate mpo entry: " + SETTINGS_ENTRY);
-					settings = readEntry(zip, totalBytes);
-				} else if (CCPM_HISTORY_ENTRY.equals(entry.getName())) {
-					if (ccpmHistory != null) throw new IOException("Duplicate mpo entry: " + CCPM_HISTORY_ENTRY);
-					ccpmHistory = readEntry(zip, totalBytes);
-				} else if (LAYOUT_ENTRY.equals(entry.getName())) {
-					if (layout != null) throw new IOException("Duplicate mpo entry: " + LAYOUT_ENTRY);
-					layout = readEntry(zip, totalBytes);
-				} else if (VISIBILITY_ENTRY.equals(entry.getName())) {
-					if (visibility != null) throw new IOException("Duplicate mpo entry: " + VISIBILITY_ENTRY);
-					visibility = readEntry(zip, totalBytes);
-				} else if (DRAFT_CCPM_ENTRY.equals(entry.getName())) {
-					if (draftCcpm != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_CCPM_ENTRY);
-					draftCcpm = readEntry(zip, totalBytes);
-				} else if (OPERATIONS_ENTRY.equals(entry.getName())) {
-					if (operations != null) throw new IOException("Duplicate mpo entry: " + OPERATIONS_ENTRY);
-					operations = readEntry(zip, totalBytes);
-				} else if (DRAFT_OPERATIONS_ENTRY.equals(entry.getName())) {
-					if (draftOperations != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_OPERATIONS_ENTRY);
-					draftOperations = readEntry(zip, totalBytes);
-				} else if (TASK_IDENTITIES_ENTRY.equals(entry.getName())) {
-					if (taskIdentities != null) throw new IOException("Duplicate mpo entry: " + TASK_IDENTITIES_ENTRY);
-					taskIdentities = readEntry(zip, totalBytes);
-				} else {
-					validateExtensionName(entry.getName());
-					if (extensions.entries.containsKey(entry.getName())) throw new IOException("Duplicate mpo extension: " + entry.getName());
-					extensions.entries.put(entry.getName(), readEntry(zip, totalBytes));
-				}
+				parts.accept(entry.getName(), entry.isDirectory(), zip);
 				zip.closeEntry();
 			}
 		}
+		return finishArchive(parts);
+	}
+
+	private Project finishArchive(ArchiveParts parts) throws Exception {
+		byte[] manifest = parts.manifest;
+		byte[] projectXml = parts.projectXml;
+		byte[] meta = parts.meta;
+		byte[] settings = parts.settings;
+		byte[] ccpmHistory = parts.ccpmHistory;
+		byte[] layout = parts.layout;
+		byte[] visibility = parts.visibility;
+		byte[] draftCcpm = parts.draftCcpm;
+		byte[] operations = parts.operations;
+		byte[] draftOperations = parts.draftOperations;
+		byte[] taskIdentities = parts.taskIdentities;
+		byte[] mimetype = parts.mimetype;
+		MpoExtensions extensions = parts.extensions;
 		if (manifest == null || projectXml == null) {
 			throw new IOException("An MPOF file must contain " + MANIFEST_ENTRY + " and " + PROJECT_ENTRY);
 		}
@@ -255,6 +224,18 @@ public class MpoFileImporter extends FileImporter {
 		ManifestData manifestData = readManifest(manifest, projectXml);
 		validateArchiveChecksums(manifestData, mimetype, meta, settings, ccpmHistory, layout, visibility,
 				draftCcpm, operations, draftOperations, taskIdentities, projectXml, extensions.entries);
+		if (operations != null && draftOperations != null)
+			throw new IOException("MPOF contains both current and draft operation logs");
+		if (operations == null) operations = draftOperations;
+		// Parse and bound untrusted semantic records before creating or mutating a
+		// Project.  OperationLog itself predates these archive-level limits.
+		OperationLog.DocumentLog operationLog = operations == null ? null
+			: readBoundedOperationLog(operations, draftOperations == operations);
+		if (operationLog != null && manifestData.documentId() != null
+				&& !manifestData.documentId().equals(operationLog.documentId()))
+			throw new IOException("MPOF operation log document identity does not match its manifest");
+		java.util.Map<Long, Long> taskIdentityMap = taskIdentities == null ? null : readTaskIdentities(taskIdentities);
+		if (ccpmHistory != null) validateCcpmHistory(ccpmHistory);
 		// Freeze the validated read boundary before constructing the mutable model.
 		// The plan is deliberately built from immutable snapshot data so malformed
 		// archives fail before any Project state is changed.
@@ -287,15 +268,10 @@ public class MpoFileImporter extends FileImporter {
 		if (ccpmHistory != null) restoreCcpmHistory(project, ccpmHistory);
 		if (layout != null) restoreLayout(project, layout);
 		if (visibility != null) restoreVisibility(project, visibility);
-		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
-		if (operations == null) operations = draftOperations;
-		if (operations != null) {
-			OperationLog.DocumentLog operationLog = draftOperations == operations ? new OperationLog().readDocument(operations) : new OperationLog().readJsonl(operations);
-			if (manifestData.documentId() != null && !manifestData.documentId().equals(operationLog.documentId()))
-				throw new IOException("MPOF operation log document identity does not match its manifest");
+		if (operationLog != null) {
 			if (manifestData.documentId() == null) project.setDocumentId(operationLog.documentId());
 			java.util.List<OperationLog.Operation> normalized = taskIdentities == null ? operationLog.operations()
-				: remapTaskOperations(operationLog.operations(), readTaskIdentities(taskIdentities));
+				: remapTaskOperations(operationLog.operations(), taskIdentityMap);
 			// The snapshot is authoritative: it already represents the advertised
 			// document state.  The operation log is retained as collaboration history
 			// for a later explicit merge, but must not be replayed during an ordinary
@@ -334,6 +310,7 @@ public class MpoFileImporter extends FileImporter {
 	private void exportFileLocked(File target) throws Exception {
 		MpoOperationState operationState = workingOperationStateFor(project);
 		operationState.appendChanges(project);
+		ensureOperationCount(operationState.operations);
 		MpoMergePreparation merge = target.isFile() && target.length() > 0L
 				? prepareExternalMerge(target, project, operationState) : null;
 		Project outputProject = project;
@@ -423,6 +400,7 @@ public class MpoFileImporter extends FileImporter {
 		byte[] projectXml = serializeProjectXml(project);
 		MpoOperationState operationState = workingOperationStateFor(project);
 		operationState.appendChanges(project);
+		ensureOperationCount(operationState.operations);
 		String taskIdentities = taskIdentitiesFor(project, projectXml);
 		operationState.remapTaskIds(readTaskIdentities(taskIdentities.getBytes(StandardCharsets.UTF_8)));
 		boolean written = writeMpo(project, out, projectXml, operationState);
@@ -431,6 +409,7 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private boolean writeMpo(Project project, OutputStream out, byte[] projectXml, MpoOperationState operationState) throws Exception {
+		ensureOperationCount(operationState.operations);
 		java.util.List<EmbeddedProject> embeddedProjects = embeddedProjectsFor(project);
 		java.util.LinkedHashMap<String, byte[]> archiveEntries = new java.util.LinkedHashMap<>();
 		archiveEntries.put(MIMETYPE_ENTRY, MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
@@ -467,6 +446,11 @@ public class MpoFileImporter extends FileImporter {
 			}
 		}
 		return true;
+	}
+
+	private static void ensureOperationCount(java.util.Collection<OperationLog.Operation> operations) throws IOException {
+		if (operations != null && operations.size() > MAX_OPERATION_COUNT)
+			throw new IOException("MPOF operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 	}
 
 	private static MpoArchiveSnapshot snapshotForWrite(Project project, byte[] projectXml,
@@ -592,7 +576,7 @@ public class MpoFileImporter extends FileImporter {
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
 		try {
-			if (!delegate.saveProject(project, xml)) throw new IOException("Unable to serialize mpo project snapshot");
+			delegate.saveProjectOrThrow(project, xml);
 		} catch (Exception exception) {
 			if (exception instanceof IOException io) throw io;
 			throw new IOException("Unable to serialize mpo project snapshot", exception);
@@ -704,6 +688,8 @@ public class MpoFileImporter extends FileImporter {
 		for (OperationLog.Operation operation : local.operations)
 			locallyAppliedOperationIds.add(operation.id());
 		all.addAll(external.taskIdentities == null ? external.document.operations() : remapTaskOperations(external.document.operations(), readTaskIdentities(external.taskIdentities)));
+		if (all.size() > MAX_OPERATION_COUNT)
+			throw new IOException("MPOF merged operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 		try {
 			OperationLog.MergeResult merged = new OperationLog().merge(all);
 			java.util.List<MpoMergePlan.Conflict> planConflicts = merged.conflicts().stream()
@@ -770,10 +756,11 @@ public class MpoFileImporter extends FileImporter {
 		validateArchiveChecksums(manifestData, mimetype, meta, settings, history, layout, visibility, draftCcpm,
 				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		if (settings != null && draftCcpm != null) throw new IOException("MPOF contains both current and draft CCPM settings");
+		if (history != null) validateCcpmHistory(history);
 		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
 		if (operations == null) operations = draftOperations;
 		if (operations == null) throw new IOException("Cannot merge MPOF without an operation log");
-		OperationLog.DocumentLog document = draftOperations == operations ? new OperationLog().readDocument(operations) : new OperationLog().readJsonl(operations);
+		OperationLog.DocumentLog document = readBoundedOperationLog(operations, draftOperations == operations);
 		String manifestDocumentId = manifestData.documentId();
 		Long manifestProjectId = manifestData.projectUniqueId();
 		return new ExternalMpo(document, extensions, manifestDocumentId, manifestProjectId, taskIdentities,
@@ -867,6 +854,153 @@ public class MpoFileImporter extends FileImporter {
 		Job job = new Job(SessionFactory.getInstance().getLocalSession().getJobQueue(), name, title, true);
 		job.addRunnable(runnable);
 		return job;
+	}
+
+	/** Reads an operation log and enforces archive-specific semantic limits. */
+	private static OperationLog.DocumentLog readBoundedOperationLog(byte[] bytes, boolean draft)
+			throws IOException {
+		Objects.requireNonNull(bytes, "operation log");
+		if (!draft) validateJsonlOperationShape(bytes);
+		OperationLog.DocumentLog result = draft ? new OperationLog().readDocument(bytes)
+			: new OperationLog().readJsonl(bytes);
+		if (result.operations().size() > MAX_OPERATION_COUNT)
+			throw new IOException("MPOF operation log exceeds " + MAX_OPERATION_COUNT + " operations");
+		for (OperationLog.Operation operation : result.operations()) {
+			if (operation.parents().size() > MAX_OPERATION_PARENTS)
+				throw new IOException("MPOF operation has too many parents");
+			if (operation.payload().size() > MAX_OPERATION_PAYLOAD_FIELDS)
+				throw new IOException("MPOF operation payload has too many fields");
+			validateStringLength(operation.id(), "operation id");
+			validateStringLength(operation.actorId(), "operation actor");
+			validateStringLength(operation.entityId(), "operation entity");
+			validateStringLength(operation.kind(), "operation kind");
+			for (String parent : operation.parents()) validateStringLength(parent, "operation parent");
+			validateJsonValue(operation.payload(), 0, "operation payload");
+		}
+		return result;
+	}
+
+	/** Performs a bounded line-by-line pass before OperationLog allocates its list. */
+	private static void validateJsonlOperationShape(byte[] bytes) throws IOException {
+		int count = 0;
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+				new ByteArrayInputStream(bytes), StandardCharsets.UTF_8))) {
+			String line;
+			boolean first = true;
+			while ((line = reader.readLine()) != null) {
+				if (line.length() > MAX_ENTRY_BYTES)
+					throw new IOException("MPOF operation record is too large");
+				if (first) {
+					first = false;
+					continue;
+				}
+				if (line.isBlank()) throw new IOException("Invalid blank JSONL operation record");
+				if (++count > MAX_OPERATION_COUNT)
+					throw new IOException("MPOF operation log exceeds " + MAX_OPERATION_COUNT + " operations");
+				JsonNode value = JSON.readTree(line);
+				if (value == null || !value.isObject() || value.has("type"))
+					throw new IOException("Invalid JSONL operation record");
+				validateOperationNodeShape(value);
+			}
+			if (first) throw new IOException("Invalid JSONL operation log header");
+		} catch (IOException exception) {
+			throw exception;
+		}
+	}
+
+	private static void validateOperationNodeShape(JsonNode value) throws IOException {
+		JsonNode parents = value.get("parents");
+		if (parents != null && (!parents.isArray() || parents.size() > MAX_OPERATION_PARENTS))
+			throw new IOException("MPOF operation has too many parents");
+		JsonNode payload = value.get("payload");
+		if (payload != null && (!payload.isObject() || payload.size() > MAX_OPERATION_PAYLOAD_FIELDS))
+			throw new IOException("MPOF operation payload has too many fields");
+		validateJsonNode(value, 0, "operation");
+	}
+
+	private static void validateJsonNode(JsonNode value, int depth, String description) throws IOException {
+		if (value == null) return;
+		if (depth > MAX_JSON_NESTING) throw new IOException("MPOF " + description + " is too deeply nested");
+		if (value.isTextual()) {
+			validateStringLength(value.textValue(), description);
+		} else if (value.isObject()) {
+			if (value.size() > MAX_OPERATION_PAYLOAD_FIELDS)
+				throw new IOException("MPOF " + description + " has too many fields");
+			java.util.Iterator<Map.Entry<String, JsonNode>> fields = value.fields();
+			while (fields.hasNext()) {
+				Map.Entry<String, JsonNode> field = fields.next();
+				validateStringLength(field.getKey(), description + " field name");
+				validateJsonNode(field.getValue(), depth + 1, description + "." + field.getKey());
+			}
+		} else if (value.isArray()) {
+			if (value.size() > MAX_OPERATION_COUNT)
+				throw new IOException("MPOF " + description + " array is too large");
+			for (JsonNode child : value) validateJsonNode(child, depth + 1, description + "[]");
+		}
+	}
+
+	private static void validateJsonValue(Object value, int depth, String description) throws IOException {
+		if (value == null) return;
+		if (depth > MAX_JSON_NESTING) throw new IOException("MPOF " + description + " is too deeply nested");
+		if (value instanceof String string) {
+			validateStringLength(string, description);
+		} else if (value instanceof Map<?, ?> map) {
+			if (map.size() > MAX_OPERATION_PAYLOAD_FIELDS)
+				throw new IOException("MPOF " + description + " has too many fields");
+			for (Map.Entry<?, ?> entry : map.entrySet()) {
+				if (entry.getKey() != null) validateStringLength(String.valueOf(entry.getKey()), description + " field name");
+				validateJsonValue(entry.getValue(), depth + 1, description);
+			}
+		} else if (value instanceof Iterable<?> iterable) {
+			int count = 0;
+			for (Object child : iterable) {
+				if (++count > MAX_OPERATION_COUNT) throw new IOException("MPOF " + description + " array is too large");
+				validateJsonValue(child, depth + 1, description + "[]");
+			}
+		}
+	}
+
+	private static void validateStringLength(String value, String description) throws IOException {
+		if (value != null && value.length() > MAX_JSON_STRING_CHARS)
+			throw new IOException("MPOF " + description + " is too long");
+	}
+
+	private static void validateCcpmHistory(byte[] bytes) throws IOException {
+		int count = 0;
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+				new ByteArrayInputStream(bytes), StandardCharsets.UTF_8))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (line.isBlank()) continue;
+				if (line.length() > MAX_CCPM_HISTORY_LINE_CHARS)
+					throw new IOException("MPOF CCPM history entry is too large");
+				if (++count > MAX_CCPM_HISTORY_ENTRIES)
+					throw new IOException("MPOF CCPM history exceeds " + MAX_CCPM_HISTORY_ENTRIES + " entries");
+				JsonNode value = JSON.readTree(line);
+				if (value == null || !value.isObject()) throw new IOException("Invalid CCPM history entry");
+				validateJsonNode(value, 0, "CCPM history");
+				validateCcpmHistoryEntry(value, line);
+			}
+		}
+	}
+
+	private static void validateCcpmHistoryEntry(JsonNode value, String source) throws IOException {
+		try {
+			java.util.UUID id = value.hasNonNull("id") ? java.util.UUID.fromString(value.path("id").asText())
+				: java.util.UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8));
+			if ("retraction".equals(value.path("kind").asText())) {
+				new CriticalChainBufferHistory.Retraction(id,
+					Instant.parse(value.path("retractedAt").asText()), value.path("actorId").asText("unknown"),
+					value.path("actorName").asText("unknown"), value.path("reason").asText());
+			} else {
+				new CriticalChainBufferHistory.Point(id, Instant.parse(value.path("observedAt").asText()),
+					value.path("actorId").asText("unknown"), value.path("actorName").asText("unknown"),
+					value.path("progressPercent").asDouble(), value.path("consumptionPercent").asDouble(),
+					value.path("zone").asText("UNKNOWN"), value.path("baselineId").asText(""));
+			}
+		} catch (RuntimeException exception) {
+			throw new IOException("Invalid CCPM history entry", exception);
+		}
 	}
 
 	private static byte[] readEntry(InputStream in, int[] totalBytes) throws IOException {
@@ -1090,8 +1224,9 @@ public class MpoFileImporter extends FileImporter {
 				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		if (settings != null && draftCcpm != null) throw new IOException("Embedded MPOF has both current and draft CCPM settings");
 		if (operations != null && draftOperations != null) throw new IOException("Embedded MPOF has both current and draft operations");
-		if (operations != null) new OperationLog().readJsonl(operations);
-		else if (draftOperations != null) new OperationLog().readDocument(draftOperations);
+		if (history != null) validateCcpmHistory(history);
+		if (operations != null) readBoundedOperationLog(operations, false);
+		else if (draftOperations != null) readBoundedOperationLog(draftOperations, true);
 		try {
 			javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
 			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -1658,9 +1793,14 @@ public class MpoFileImporter extends FileImporter {
 
 	private static void restoreCcpmHistory(Project project, byte[] bytes) throws IOException {
 		CriticalChainBufferHistory history = project.getOrCreateTransientDocumentState(CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
-		String content = new String(bytes, StandardCharsets.UTF_8);
-		for (String line : content.split("\\R")) {
+		int count = 0;
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+				new ByteArrayInputStream(bytes), StandardCharsets.UTF_8))) {
+		String line;
+		while ((line = reader.readLine()) != null) {
 			if (line.isBlank()) continue;
+			if (++count > MAX_CCPM_HISTORY_ENTRIES)
+				throw new IOException("MPOF CCPM history exceeds " + MAX_CCPM_HISTORY_ENTRIES + " entries");
 			try {
 				JsonNode value = JSON.readTree(line);
 				java.util.UUID id = value.hasNonNull("id") ? java.util.UUID.fromString(value.path("id").asText())
@@ -1678,6 +1818,7 @@ public class MpoFileImporter extends FileImporter {
 			} catch (RuntimeException | IOException exception) {
 				throw new IOException("Invalid CCPM history entry", exception);
 			}
+		}
 		}
 	}
 
@@ -1754,6 +1895,92 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("Unsafe mpo extension name");
 	}
 
+	/** Mutable only while an archive is being collected; handed off once complete. */
+	private static final class ArchiveParts {
+		private byte[] manifest;
+		private byte[] projectXml;
+		private byte[] meta;
+		private byte[] settings;
+		private byte[] ccpmHistory;
+		private byte[] layout;
+		private byte[] visibility;
+		private byte[] draftCcpm;
+		private byte[] operations;
+		private byte[] draftOperations;
+		private byte[] taskIdentities;
+		private byte[] mimetype;
+		private final MpoExtensions extensions = new MpoExtensions();
+		private final int[] totalBytes = new int[] { 0 };
+		private int entryCount;
+
+		private void accept(String name, boolean directory, InputStream input) throws IOException {
+			if (++entryCount > MAX_ENTRIES) throw new IOException("MPOF file has too many entries");
+			if (directory) {
+				if (!name.endsWith("/")) throw new IOException("Invalid mpo directory entry");
+				return;
+			}
+			// Reject traversal/absolute extension names before reading their bytes.
+			// This keeps malformed entries from consuming the per-entry memory budget.
+			if (!isStandardEntry(name)) validateExtensionName(name);
+			byte[] value = readEntry(Objects.requireNonNull(input, "input"), totalBytes);
+			if (MIMETYPE_ENTRY.equals(name)) {
+				if (mimetype != null) throw new IOException("Duplicate mpo entry: " + MIMETYPE_ENTRY);
+				mimetype = value;
+				String mime = new String(value, StandardCharsets.UTF_8).trim();
+				if (!MIME_TYPE.equals(mime)) throw new IOException("Invalid MPOF mimetype entry: " + mime);
+			} else if (MANIFEST_ENTRY.equals(name)) {
+				if (manifest != null) throw new IOException("Duplicate manifest entry");
+				manifest = value;
+			} else if (PROJECT_ENTRY.equals(name)) {
+				if (projectXml != null) throw new IOException("Duplicate project snapshot entry");
+				projectXml = value;
+			} else if (META_ENTRY.equals(name)) {
+				if (meta != null) throw new IOException("Duplicate mpo entry: " + META_ENTRY);
+				meta = value;
+			} else if (SETTINGS_ENTRY.equals(name)) {
+				if (settings != null) throw new IOException("Duplicate mpo entry: " + SETTINGS_ENTRY);
+				settings = value;
+			} else if (CCPM_HISTORY_ENTRY.equals(name)) {
+				if (ccpmHistory != null) throw new IOException("Duplicate mpo entry: " + CCPM_HISTORY_ENTRY);
+				ccpmHistory = value;
+			} else if (LAYOUT_ENTRY.equals(name)) {
+				if (layout != null) throw new IOException("Duplicate mpo entry: " + LAYOUT_ENTRY);
+				layout = value;
+			} else if (VISIBILITY_ENTRY.equals(name)) {
+				if (visibility != null) throw new IOException("Duplicate mpo entry: " + VISIBILITY_ENTRY);
+				visibility = value;
+			} else if (DRAFT_CCPM_ENTRY.equals(name)) {
+				if (draftCcpm != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_CCPM_ENTRY);
+				draftCcpm = value;
+			} else if (OPERATIONS_ENTRY.equals(name)) {
+				if (operations != null) throw new IOException("Duplicate mpo entry: " + OPERATIONS_ENTRY);
+				operations = value;
+			} else if (DRAFT_OPERATIONS_ENTRY.equals(name)) {
+				if (draftOperations != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_OPERATIONS_ENTRY);
+				draftOperations = value;
+			} else if (TASK_IDENTITIES_ENTRY.equals(name)) {
+				if (taskIdentities != null) throw new IOException("Duplicate mpo entry: " + TASK_IDENTITIES_ENTRY);
+				taskIdentities = value;
+			} else {
+				validateExtensionName(name);
+				if (extensions.entries.put(name, value) != null) throw new IOException("Duplicate mpo extension: " + name);
+			}
+		}
+
+		private static boolean isStandardEntry(String name) {
+			return MIMETYPE_ENTRY.equals(name) || MANIFEST_ENTRY.equals(name) || PROJECT_ENTRY.equals(name)
+				|| META_ENTRY.equals(name) || SETTINGS_ENTRY.equals(name) || CCPM_HISTORY_ENTRY.equals(name)
+				|| LAYOUT_ENTRY.equals(name) || VISIBILITY_ENTRY.equals(name) || DRAFT_CCPM_ENTRY.equals(name)
+				|| OPERATIONS_ENTRY.equals(name) || DRAFT_OPERATIONS_ENTRY.equals(name)
+				|| TASK_IDENTITIES_ENTRY.equals(name);
+		}
+	}
+
+	private static final class NonClosingInputStream extends FilterInputStream {
+		private NonClosingInputStream(InputStream delegate) { super(delegate); }
+		@Override public void close() { /* caller owns the wrapped stream */ }
+	}
+
 	private static final class MpoExtensions {
 		private final java.util.SortedMap<String, byte[]> entries = new java.util.TreeMap<String, byte[]>();
 	}
@@ -1767,6 +1994,7 @@ public class MpoFileImporter extends FileImporter {
 		private void capture(Project project) { snapshots.clear(); parentSnapshots.clear(); dependencySnapshots.clear(); assignmentSnapshots.clear(); for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) { Task task = (Task) it.next(); Long id = Long.valueOf(task.getUniqueId()); snapshots.put(id, signature(task)); parentSnapshots.put(id, parentId(task)); for (java.util.Iterator<?> links = task.getSuccessorList().iterator(); links.hasNext();) { Dependency dependency = (Dependency) links.next(); dependencySnapshots.add(dependencyKey(dependency)); } if (task instanceof NormalTask) for (java.util.Iterator<?> assignments = ((NormalTask) task).getAssignments().iterator(); assignments.hasNext();) { Assignment assignment = (Assignment) assignments.next(); if (!assignment.isDefault()) assignmentSnapshots.put(assignmentKey(assignment), assignmentValue(assignment)); } } }
 		private void remapTaskIds(java.util.Map<Long, Long> identities) throws IOException {
 			java.util.List<OperationLog.Operation> normalized = remapTaskOperations(operations, identities);
+			ensureOperationCount(normalized);
 			operations.clear(); operations.addAll(normalized); json = new OperationLog().writeJsonl(documentId, operations);
 		}
 		private void appendChanges(Project project) throws IOException {
@@ -1780,7 +2008,7 @@ public class MpoFileImporter extends FileImporter {
 			for (String key : dependencySnapshots) if (!dependencies.contains(key)) { String[] parts = key.split(":", -1); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("predecessorLegacyUniqueId", Long.valueOf(parts[0])); payload.put("successorLegacyUniqueId", Long.valueOf(parts[1])); payload.put("dependencyType", Integer.valueOf(parts[2])); payload.put("lag", Long.valueOf(parts[3])); addOperation("dependency.delete", key, payload, ++sequence); changed = true; }
 			for (java.util.Map.Entry<String,String> entry : assignments.entrySet()) if (!assignmentSnapshots.containsKey(entry.getKey())) { String[] ids = entry.getKey().split(":", -1); String[] values = entry.getValue().split(":", -1); Assignment assignment = findAssignment(project, Long.parseLong(ids[0]), Long.parseLong(ids[1])); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("taskLegacyUniqueId", Long.valueOf(ids[0])); payload.put("resourceUniqueId", Long.valueOf(ids[1])); payload.put("resourceName", assignment.getResource().getName()); payload.put("units", Double.valueOf(values[0])); payload.put("delay", Long.valueOf(values[1])); addOperation("assignment.add", entry.getKey(), payload, ++sequence); changed = true; }
 			for (String key : assignmentSnapshots.keySet()) if (!assignments.containsKey(key)) { String[] ids = key.split(":", -1); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("taskLegacyUniqueId", Long.valueOf(ids[0])); payload.put("resourceUniqueId", Long.valueOf(ids[1])); addOperation("assignment.delete", key, payload, ++sequence); changed = true; }
-			if (changed) { json = new OperationLog().writeJsonl(documentId, operations); capture(project); }
+			if (changed) { ensureOperationCount(operations); json = new OperationLog().writeJsonl(documentId, operations); capture(project); }
 		}
 		private void addOperation(String kind, String key, java.util.Map<String,Object> payload, long sequence) { operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, sequence, java.util.Set.of(), kind, java.util.UUID.nameUUIDFromBytes((documentId + ":" + kind + ":" + key).getBytes(StandardCharsets.UTF_8)).toString(), payload)); }
 		private MpoOperationState copy() {

@@ -196,6 +196,7 @@ public class Job extends Thread {
 	InternalRunnable lastRunnable=null;
 	public void execute(){
 		boolean asyncExecuting=false;
+		boolean criticalSectionAcquired=false;
 		try{
 			jobQueue.addExecutingJob(this);
 			//detection
@@ -237,7 +238,13 @@ public class Job extends Thread {
 				}
 			}
 
-    		if (lastRunnable!=null&&!Job.this.isCustomCriticalSection()) jobQueue.beginCriticalSection(Job.this);
+		if (lastRunnable!=null&&!Job.this.isCustomCriticalSection()) {
+			criticalSectionAcquired = jobQueue.tryBeginCriticalSection(Job.this);
+			if (!criticalSectionAcquired) {
+				log("Job canceled before critical section acquisition");
+				return;
+			}
+		}
 			globalMutex.lock();
 			logBegin("global");
 
@@ -275,6 +282,8 @@ public class Job extends Thread {
 			logEnd("global");
 			globalMutex.unlock();
 			if (!asyncExecuting) jobQueue.removeExecutingJob(this); //because it's done in run(false);
+			if (!asyncExecuting && criticalSectionAcquired)
+				jobQueue.endCriticalSection(this);
 			if (!asyncExecuting)
 				runCompletionRunnables();
 		}
@@ -374,6 +383,8 @@ public class Job extends Thread {
 			boolean terminal = exceptionHandlerExecuted || isInterrupted() || isCanceled() || !runnableIterator.hasNext();
 			groupMutex.unlock();
 			jobQueue.removeExecutingJob(this);
+			if (terminal && !isCustomCriticalSection())
+				jobQueue.endCriticalSection(this);
 			if (terminal)
 				runCompletionRunnables();
 		}
@@ -413,9 +424,9 @@ public class Job extends Thread {
 		        }
 		    });
 		}else{
-			if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
-				return;
-    		try{
+			try{
+				if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
+					return;
     			logBegin("running "+runnable.runnable.getName());
     			runnable.run();
     			//if (runnable.getException()!=null) cancel();

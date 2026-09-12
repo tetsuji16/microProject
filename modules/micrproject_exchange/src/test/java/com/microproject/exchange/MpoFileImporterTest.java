@@ -7,6 +7,7 @@ package com.microproject.exchange;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
@@ -55,6 +57,68 @@ class MpoFileImporterTest {
 	void closeOwnedExtractionSessions() {
 		MpoExtractionOwnershipRegistry.closeAll();
 		MpoFileImporter.setExtractionWorkspaceRoot(null);
+	}
+
+	@Test
+	void loadProjectDoesNotCloseCallerOwnedInputStream() throws Exception {
+		Project project = projectForRoundTrip();
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		class CloseTrackingInputStream extends ByteArrayInputStream {
+			boolean closed;
+			CloseTrackingInputStream(byte[] data) { super(data); }
+			@Override public void close() { closed = true; }
+		}
+		CloseTrackingInputStream input = new CloseTrackingInputStream(archive.toByteArray());
+		assertTrue(new MpoFileImporter().loadProject(input) != null);
+		assertFalse(input.closed, "MPO loader must not close a caller-owned stream");
+	}
+
+	@Test
+	void mpoSnapshotSerializationRetainsTheUnderlyingFailureCause() {
+		IOException failure = assertThrows(IOException.class,
+				() -> new MpoFileImporter().saveProject(null, new ByteArrayOutputStream()));
+		assertTrue(failure.getCause() != null,
+				"MPO snapshot serialization must retain the MSPDI failure cause");
+	}
+
+	@Test
+	void operationLogSemanticLimitsAreRejectedBeforeProjectImport() throws Exception {
+		Project project = projectForRoundTrip();
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		String documentId = manifestDocumentId(entries);
+		String parent = "00000000-0000-0000-0000-000000000001";
+		StringBuilder parents = new StringBuilder("[");
+		for (int i = 0; i < MpoFileImporter.MAX_OPERATION_PARENTS + 1; i++) {
+			if (i > 0) parents.append(',');
+			parents.append('"').append(parent).append('"');
+		}
+		parents.append(']');
+		String operation = "{\"id\":\"00000000-0000-0000-0000-000000000002\","
+			+ "\"actorId\":\"00000000-0000-0000-0000-000000000003\",\"sequence\":1,"
+			+ "\"parents\":" + parents + ",\"kind\":\"task.update\","
+			+ "\"entityId\":\"00000000-0000-0000-0000-000000000004\",\"payload\":{}}\n";
+		entries.put(MpoFileImporter.OPERATIONS_ENTRY,
+			("{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"" + documentId + "\"}\n" + operation)
+				.getBytes(StandardCharsets.UTF_8));
+		updateManifestChecksum(entries, MpoFileImporter.OPERATIONS_ENTRY, entries.get(MpoFileImporter.OPERATIONS_ENTRY));
+		assertThrows(IOException.class, () -> new MpoFileImporter().loadProject(new ByteArrayInputStream(zip(entries).toByteArray())));
+	}
+
+	@Test
+	void ccpmHistorySemanticLimitIsRejectedBeforeProjectImport() throws Exception {
+		Project project = projectForRoundTrip();
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		StringBuilder history = new StringBuilder();
+		for (int i = 0; i < MpoFileImporter.MAX_CCPM_HISTORY_ENTRIES + 1; i++) history.append("{}\n");
+		byte[] historyBytes = history.toString().getBytes(StandardCharsets.UTF_8);
+		entries.put(MpoFileImporter.CCPM_HISTORY_ENTRY, historyBytes);
+		updateManifestChecksum(entries, MpoFileImporter.CCPM_HISTORY_ENTRY, historyBytes);
+		assertThrows(IOException.class, () -> new MpoFileImporter().loadProject(new ByteArrayInputStream(zip(entries).toByteArray())));
 	}
 
 	@Test
