@@ -166,7 +166,18 @@ class MicrosoftShortcutsRootPaneTest {
 			assertEquals(MenuActionConstants.ACTION_NEW,
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0)), "Insert must add a task");
 			assertEquals(MenuActionConstants.ACTION_DELETE,
-					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)), "Delete must delete");
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)), "Delete must delete");
+			assertEquals(MenuActionConstants.ACTION_MOVE_TASK_UP,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_UP,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"Alt+Shift+Up must move the selected task up");
+			assertEquals(MenuActionConstants.ACTION_MOVE_TASK_DOWN,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"Alt+Shift+Down must move the selected task down");
+			assertEquals(MenuActionConstants.ACTION_CLEAR_CONTENTS,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, ctrl)),
+					"Ctrl+Delete must clear selected field values, not delete rows");
 			assertEquals("EditField",
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0)), "F2 must edit the field");
 			assertEquals(MenuActionConstants.ACTION_INFORMATION,
@@ -265,6 +276,8 @@ class MicrosoftShortcutsRootPaneTest {
 			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_DELETE),
 					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)),
 					"Delete must use the same delete action as the menu");
+			assertNotNull(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, InputEvent.CTRL_DOWN_MASK)),
+					"Ctrl+Delete must install its dedicated clear-contents command action");
 			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION),
 					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)),
 					"F1 must use the same help action as the ribbon and menu");

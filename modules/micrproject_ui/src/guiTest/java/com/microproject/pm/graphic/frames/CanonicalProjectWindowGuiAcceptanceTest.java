@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
@@ -155,6 +158,92 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		robot.delay(700);
 		capture(robot, "issue451-matched-dependencies-v2.png");
+	}
+
+	@Test
+	void robotCtrlDeleteClearsSelectedFieldWithoutDeletingItsTaskAndSupportsUndoRedo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project project = project("Ctrl Delete", null);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Clear with Ctrl Delete");
+		DocumentFrame[] document = new DocumentFrame[1];
+		SpreadSheet[] sheets = new SpreadSheet[1];
+		int[] taskCell = new int[2];
+		SwingUtilities.invokeAndWait(() -> {
+			window = new MainRibbonFrame("microProject — Ctrl Delete GUI acceptance", null, null);
+			graphicManager = new GraphicManager(window);
+			window.setGraphicManager(graphicManager);
+			graphicManager.initView();
+			document[0] = graphicManager.addProjectFrame(project);
+			window.setSize(920, 560);
+			window.setLocationByPlatform(true);
+			window.setAlwaysOnTop(true);
+			window.setVisible(true);
+		});
+		GuiAcceptanceSupport.await(() -> window.isShowing() && document[0].isShowing(), "project document did not become visible");
+		SwingUtilities.invokeAndWait(() -> {
+			sheets[0] = document[0].getActiveSpreadSheet();
+			taskCell[0] = findTaskRow(sheets[0], task);
+			taskCell[1] = findNameColumn(sheets[0]);
+		});
+		GuiAcceptanceSupport.await(() -> sheets[0] != null && sheets[0].isShowing(), "task spreadsheet did not become visible");
+		assertTrue(taskCell[0] >= 0 && taskCell[1] >= 0, "fixture task Name cell was not visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = sheets[0].getCellRect(taskCell[0], taskCell[1], true));
+		java.awt.Point point = sheets[0].getLocationOnScreen();
+		robot.mouseMove(point.x + bounds[0].x + Math.max(2, bounds[0].width / 2),
+			point.y + bounds[0].y + Math.max(2, bounds[0].height / 2));
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		// A task-table click intentionally selects the full task row. Narrow the
+		// spreadsheet selection back to the clicked field before exercising the
+		// physical global shortcut, matching MSP's "selected field" contract.
+		SwingUtilities.invokeAndWait(() -> {
+			sheets[0].changeSelection(taskCell[0], taskCell[1], false, false);
+			sheets[0].requestFocusInWindow();
+		});
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_DELETE);
+		robot.keyRelease(KeyEvent.VK_DELETE);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> "".equals(task.getName()), "physical Ctrl+Delete did not clear the selected Name field");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(task, ((SpreadSheetModel) sheets[0].getModel()).getNodeForDisplayRow(taskCell[0]).getImpl());
+			assertEquals("", sheets[0].getValueAt(taskCell[0], taskCell[1]), "rendered cell was not cleared");
+		});
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> "Clear with Ctrl Delete".equals(task.getName()), "Ctrl+Z did not restore cleared value");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> "".equals(task.getName()), "Ctrl+Y did not reapply clear");
+	}
+
+	private static int findTaskRow(SpreadSheet sheet, NormalTask task) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int row = 0; row < model.getRowCount(); row++) {
+			if (model.getNodeForDisplayRow(row) != null && model.getNodeForDisplayRow(row).getImpl() == task)
+				return row;
+		}
+		return -1;
+	}
+
+	private static int findNameColumn(SpreadSheet sheet) {
+		for (int column = 0; column < sheet.getColumnCount(); column++) {
+			if (sheet.isNameFieldColumn(column))
+				return column;
+		}
+		return -1;
 	}
 
 	private void capture(Robot robot) throws Exception {

@@ -25,6 +25,7 @@
 package com.microproject.core.pm.exchange;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -86,6 +87,8 @@ public class MspImporter {
 	protected ProjectFile mpxProjectFile;
 	protected MpxImportState state=new MpxImportState();
 	protected AbstractProjectReader reader;
+	/** Native ProjectLibre XLSX payload, when present and valid. */
+	protected Project nativeProject;
 	protected long earliestTaskStart=-1L;
 	protected net.sf.mpxj.Task mpxRootTask=null;
 	private final List<ImportedAssignmentLevelingDelay> importedAssignmentLevelingDelays = new ArrayList<>();
@@ -105,6 +108,10 @@ public class MspImporter {
 	}
 
 	private Project importProject_(ProgressClosure progress) throws Exception{
+		if (nativeProject != null) {
+			progress.updateProgress(1f, "Completed");
+			return nativeProject;
+		}
 		progress.updateProgress(0.2f, "File parsed");
 		initializeTimephasedState();
 		importedAssignmentLevelingDelays.clear();
@@ -156,7 +163,29 @@ public class MspImporter {
 	
 	public void parseProject(InputStream in, String extension) throws Exception {
 		try {
-			InputStream source = prepareProjectStream(in);
+			InputStream source;
+			if ("xlsx".equalsIgnoreCase(extension)) {
+				// ProjectLibre XLSX contains both a lossless native payload and an
+				// MSPDI payload. Keep a replayable copy so native failure can use the
+				// established MSPDI fallback reader.
+				byte[] data = in.readAllBytes();
+				try {
+					nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(
+						new ByteArrayInputStream(data));
+				} catch (Exception e) {
+					// Non-ZIP XML supplied with an XLSX extension is an existing
+					// compatibility case; let the normal extension normalization and
+					// MSPDI reader handle it below.
+					nativeProject = null;
+				}
+				if (nativeProject != null) {
+					return;
+				}
+				source = prepareProjectStream(new ByteArrayInputStream(data));
+			} else {
+				nativeProject = null;
+				source = prepareProjectStream(in);
+			}
 			String effectiveExtension = normalizeExtension(extension, source);
 			reader = createReader(effectiveExtension);
 			mpxProjectFile = readProjectFile(source);

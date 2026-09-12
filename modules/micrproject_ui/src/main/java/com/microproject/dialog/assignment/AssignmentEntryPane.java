@@ -283,14 +283,16 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 		setViewport(viewport);
 		
 		setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		// Populate the model before deriving the viewport size.  Otherwise a newly
+		// opened assignment dialog sees a zero-row table and fixes its viewport at
+		// zero height, leaving the resource list visible but impossible to select.
+		updateTable();
 		
 		Dimension d=spreadSheet.getPreferredSize();
 		Dimension enclosing=new Dimension();
 
 		enclosing.setSize(d.getWidth()/*+rowHeaderWidth*/,d.getHeight());
 		viewport.setPreferredSize(enclosing);
-		
-		updateTable();
 	}
 	
 	/**
@@ -363,4 +365,3 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 	public void structureChanged(HierarchyEvent e) {
 	}
 }
-

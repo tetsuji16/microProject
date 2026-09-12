@@ -346,7 +346,6 @@ class RibbonButtonBehaviorTest {
 		assertChooser(harness, "RibbonChooseSort", MenuActionConstants.ACTION_CHOOSE_SORT);
 		assertChooser(harness, "RibbonChooseGroup", MenuActionConstants.ACTION_CHOOSE_GROUP);
 		assertChooser(harness, "RibbonTimescale", MenuActionConstants.ACTION_TIMESCALE);
-		assertChooser(harness, "RibbonBar", MenuActionConstants.ACTION_BAR_STYLES);
 		assertChooser(harness, "RibbonBarStyles", MenuActionConstants.ACTION_BAR_STYLES);
 		assertChooser(harness, "RibbonTextStyles", MenuActionConstants.ACTION_TEXT_STYLES);
 		assertChooser(harness, "RibbonLayout", MenuActionConstants.ACTION_LAYOUT);
@@ -401,6 +400,27 @@ class RibbonButtonBehaviorTest {
 		assertToggle(harness, "RibbonLabelResourceNames", true);
 		assertToggle(harness, "RibbonLabelTaskName", true);
 		assertChooser(harness, "RibbonGridlines", MenuActionConstants.ACTION_GRIDLINES);
+	}
+
+	@Test
+	void legacyTransformIdsShareCanonicalActionsAndChooserRoutes() throws Exception {
+		Harness harness = newHarness();
+		assertSame(harness.manager.getAction(MenuActionConstants.ACTION_CHOOSE_FILTER),
+			harness.manager.getAction(MenuActionConstants.ACTION_FILTER));
+		assertSame(harness.manager.getAction(MenuActionConstants.ACTION_CHOOSE_SORT),
+			harness.manager.getAction(MenuActionConstants.ACTION_SORT));
+		assertSame(harness.manager.getAction(MenuActionConstants.ACTION_CHOOSE_GROUP),
+			harness.manager.getAction(MenuActionConstants.ACTION_GROUP));
+
+		harness.resetCalls();
+		harness.invokeAction(MenuActionConstants.ACTION_FILTER);
+		assertCall(harness, "chooser", MenuActionConstants.ACTION_CHOOSE_FILTER);
+		harness.resetCalls();
+		harness.invokeAction(MenuActionConstants.ACTION_SORT);
+		assertCall(harness, "chooser", MenuActionConstants.ACTION_CHOOSE_SORT);
+		harness.resetCalls();
+		harness.invokeAction(MenuActionConstants.ACTION_GROUP);
+		assertCall(harness, "chooser", MenuActionConstants.ACTION_CHOOSE_GROUP);
 	}
 
 	@Test
@@ -713,7 +733,6 @@ class RibbonButtonBehaviorTest {
 			"RibbonChooseSort",
 			"RibbonChooseGroup",
 			"RibbonTimescale",
-			"RibbonBar",
 			"RibbonBarStyles",
 			"RibbonTextStyles",
 				"RibbonLayout", "RibbonGridlines");
@@ -871,6 +890,11 @@ class RibbonButtonBehaviorTest {
 				Action action = manager.getAction(actionId);
 				action.actionPerformed(new ActionEvent(new JButton(buttonId), ActionEvent.ACTION_PERFORMED, buttonId));
 			});
+		}
+
+		void invokeAction(String actionId) throws Exception {
+			SwingUtilities.invokeAndWait(() -> manager.getAction(actionId).actionPerformed(
+				new ActionEvent(new JButton(actionId), ActionEvent.ACTION_PERFORMED, actionId)));
 		}
 	}
 

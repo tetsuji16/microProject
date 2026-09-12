@@ -24,9 +24,14 @@
  *******************************************************************************/
 package com.microproject.pm.assignment;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.swing.undo.UndoableEditSupport;
@@ -45,6 +50,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.undo.AssignmentCreationEdit;
 import com.microproject.undo.AssignmentDeletionEdit;
+import com.microproject.undo.AssignmentDetailStateEdit;
 import com.microproject.undo.NodeUndoInfo;
 import com.microproject.undo.ScheduleBackupEdit;
 import com.microproject.undo.ScheduleEdit;
@@ -100,6 +106,102 @@ public class AssignmentService {
 		}
 	}
 
+	/**
+	 * Replaces one resource assignment as a single model and Undo transaction.
+	 *
+	 * <p>Microsoft Project keeps the source assignment when it contains actual
+	 * work and gives the selected replacement resources the source's remaining
+	 * work.  A source without actual work is removed, which preserves the legacy
+	 * remove-then-assign behavior without exposing that two-step implementation
+	 * to callers.</p>
+	 *
+	 * @return assignments created for replacement resources; empty when no
+	 *         usable replacement was supplied
+	 */
+	public List<Assignment> replaceAssignment(Assignment source,
+			Collection<? extends Resource> replacementResources, Object eventSource, boolean undo) {
+		if (source == null || !(source.getTask() instanceof NormalTask))
+			throw new IllegalArgumentException("A replacement requires a normal-task assignment");
+		NormalTask task = (NormalTask) source.getTask();
+		if (task.findAssignment(source.getResource()) != source)
+			throw new IllegalArgumentException("The source assignment is no longer attached to its task");
+		if (!task.isAssignable())
+			return List.of();
+		List<Resource> replacements = replacementResourcesFor(source, replacementResources);
+		if (replacements.isEmpty())
+			return List.of();
+
+		ResourcePool resourcePool = resourcePoolOf(replacements.get(0));
+		BatchUpdate batchUpdate = new BatchUpdate();
+		List<Assignment> created = new ArrayList<Assignment>(replacements.size());
+		Map<Assignment, Object> detailBefore = new LinkedHashMap<>();
+		if (undo)
+			detailBefore.put(source, source.backupDetail());
+		boolean sourceHasActualWork = source.getActualWork(null) > 0L;
+		long sourceActualWork = source.getActualWork(null);
+		long sourceRemainingWork = source.getRemainingWork();
+		try {
+			// Assignment detail state is authoritative for replacement; the generic
+			// task snapshot would overwrite it during undo.
+			batchUpdate.beginIfNeeded(task, List.of(task), resourcePool, this, undo, false);
+			if (undo)
+				batchUpdate.postAssignmentDetailBefore(detailBefore);
+			if (!sourceHasActualWork)
+				remove(source, eventSource, undo);
+			for (int index = 0; index < replacements.size(); index++) {
+				Assignment replacement = newAssignment(task, replacements.get(index), 1.0D, 0L,
+					eventSource, undo);
+				if (replacement == null)
+					continue;
+				if (undo)
+					detailBefore.put(replacement, replacement.backupDetail());
+				if (sourceHasActualWork)
+					// setRemainingWork derives actual work from total work.  A replacement
+					// starts at zero actuals, so set its total work directly instead.
+					replacement.setWork(replacementWorkShare(sourceRemainingWork,
+						replacements.size(), index), null);
+				created.add(replacement);
+			}
+			if (sourceHasActualWork)
+				// Shrinking total work to the recorded actuals leaves the source's
+				// actual work intact and removes only its remaining allocation.
+				source.setWork(sourceActualWork, null);
+			if (undo)
+				batchUpdate.queueAssignmentDetailAfter(detailBefore.keySet());
+		} finally {
+			batchUpdate.endIfNeeded();
+		}
+		return List.copyOf(created);
+	}
+
+	private List<Resource> replacementResourcesFor(Assignment source,
+			Collection<? extends Resource> replacementResources) {
+		if (replacementResources == null)
+			return List.of();
+		Project sourceProject = ((NormalTask) source.getTask()).getProject();
+		ResourcePool resourcePool = null;
+		Set<Resource> unique = new LinkedHashSet<Resource>();
+		for (Resource resource : replacementResources) {
+			if (resource == null || resource == source.getResource()
+					|| ((NormalTask) source.getTask()).findAssignment(resource) != null)
+				continue;
+			if (resourcePoolOf(resource) == null || resourcePoolOf(resource) != sourceProject.getResourcePool())
+				throw new IllegalArgumentException("Replacement resources must belong to the task project resource pool");
+			if (resourcePool == null)
+				resourcePool = resourcePoolOf(resource);
+			else if (resourcePool != resourcePoolOf(resource))
+				throw new IllegalArgumentException("A replacement must use one resource pool");
+			unique.add(resource);
+		}
+		return List.copyOf(unique);
+	}
+
+	private long replacementWorkShare(long totalRemainingWork, int replacementCount, int replacementIndex) {
+		long base = totalRemainingWork / replacementCount;
+		long remainder = totalRemainingWork % replacementCount;
+		return base + (replacementIndex < remainder ? 1L : 0L);
+	}
+
 	private ResourcePool resourcePoolOf(Resource resource) {
 		return resource.getDocument() instanceof ResourcePool ? (ResourcePool) resource.getDocument() : null;
 	}
@@ -150,8 +252,14 @@ public class AssignmentService {
 		private int transactionId;
 		private ResourcePool transactionResourcePool;
 		private int resourceTransactionId;
+		private Collection<Assignment> queuedDetailAssignments;
 
 		void beginIfNeeded(NormalTask task, Collection tasks, ResourcePool resourcePool, AssignmentService service, boolean undo) {
+			beginIfNeeded(task, tasks, resourcePool, service, undo, true);
+		}
+
+		void beginIfNeeded(NormalTask task, Collection tasks, ResourcePool resourcePool, AssignmentService service,
+				boolean undo, boolean captureScheduleBackup) {
 			if (!undo) {
 				return;
 			}
@@ -164,7 +272,8 @@ public class AssignmentService {
 			transactionResourcePool = resourcePool;
 			if (transactionResourcePool != null)
 				resourceTransactionId = transactionResourcePool.fireMultipleTransaction(0, true);
-			transactionProject.getUndoController().getEditSupport().postEdit(new ScheduleBackupEdit(tasks, service));
+			if (captureScheduleBackup)
+				transactionProject.getUndoController().getEditSupport().postEdit(new ScheduleBackupEdit(tasks, service));
 		}
 
 		void endIfNeeded() {
@@ -174,7 +283,30 @@ public class AssignmentService {
 			if (transactionResourcePool != null)
 				transactionResourcePool.fireMultipleTransaction(resourceTransactionId, false);
 			transactionProject.fireMultipleTransaction(transactionId, false);
+			if (queuedDetailAssignments != null) {
+				Map<Assignment, Object> after = new LinkedHashMap<>();
+				for (Assignment assignment : queuedDetailAssignments) {
+					after.put(assignment, assignment.backupDetail());
+				}
+				postAssignmentDetailAfter(after);
+			}
 			transactionProject.endUndoUpdate();
+		}
+
+		void postAssignmentDetailBefore(Map<Assignment, Object> before) {
+			if (transactionId != 0 && !before.isEmpty())
+				transactionProject.getUndoController().getEditSupport()
+					.postEdit(new AssignmentDetailStateEdit(before, Map.of()));
+		}
+
+		void postAssignmentDetailAfter(Map<Assignment, Object> after) {
+			if (transactionId != 0 && !after.isEmpty())
+				transactionProject.getUndoController().getEditSupport()
+					.postEdit(new AssignmentDetailStateEdit(Map.of(), after));
+		}
+
+		void queueAssignmentDetailAfter(Collection<Assignment> assignments) {
+			queuedDetailAssignments = assignments;
 		}
 	}
 
@@ -211,8 +343,11 @@ public class AssignmentService {
  * @return
  */	
 	public Assignment newAssignment(NormalTask task, Resource resource, double units, long delay, Object eventSource,boolean undo) {
+		return newAssignment(task, resource, units, delay, eventSource, new NodeUndoInfo(undo));
+	}
+	private Assignment newAssignment(NormalTask task, Resource resource, double units, long delay, Object eventSource, NodeUndoInfo undoInfo) {
 		Assignment assignment = Assignment.getInstance(task, resource, units, delay);
-		if (!connect(assignment,eventSource,undo))
+		if (!connect(assignment,eventSource,undoInfo))
 			return null;
 		// NormalTask.addAssignment may copy the default assignment's fields. Apply
 		// the caller-provided delay after that normalization so it is not lost.

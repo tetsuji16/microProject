@@ -148,7 +148,7 @@ final class RibbonCommandCatalog {
 			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonCCPMNetwork", "RibbonPrivacyMask");
 	register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
-			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBar", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
+			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
 		register(result, CommandScope.DOCUMENT, TASK, Set.of(TASK, RESOURCE), "RibbonPaste", "RibbonCopy", "RibbonCut");
 		register(result, CommandScope.DOCUMENT, QUICK_ACCESS,
 			"RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo");

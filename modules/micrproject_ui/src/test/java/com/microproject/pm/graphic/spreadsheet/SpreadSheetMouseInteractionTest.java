@@ -67,8 +67,7 @@ class SpreadSheetMouseInteractionTest {
 			int secondRow=findRow(sheet,fixture.secondTask());
 			sheet.selectRowAndAllColumns(secondRow);
 			assertTrue(sheet.canMoveSelectedTaskRows(-1,true));
-			sheet.getActionMap().get(SpreadSheet.MOVE_TASK_UP_ACTION).actionPerformed(
-				new ActionEvent(sheet,ActionEvent.ACTION_PERFORMED,SpreadSheet.MOVE_TASK_UP_ACTION));
+			sheet.moveSelectedTaskRows(-1);
 
 			assertTrue(findRow(sheet,fixture.secondTask())<findRow(sheet,fixture.firstTask()));
 			assertFalse(sheet.canMoveSelectedTaskRows(-1,true));
@@ -381,7 +380,7 @@ class SpreadSheetMouseInteractionTest {
 			fixture.project().getUndoController().clear();
 			sheet.selectRowAndAllColumns(findRow(sheet, fixture.secondTask()));
 
-			assertTrue(sheet.moveSelectedTaskRowsFromCommand(-1));
+			assertTrue(sheet.moveSelectedTaskRows(-1));
 			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()));
 
 			fixture.project().getUndoController().undo();
@@ -543,8 +542,7 @@ class SpreadSheetMouseInteractionTest {
 			// therefore not mutate the task order.
 			assertFalse(sheet.canMoveSelectedTaskRows(-1, false),
 					"task move must reject a single task-cell selection");
-			sheet.getActionMap().get(SpreadSheet.MOVE_TASK_UP_ACTION).actionPerformed(
-					new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, SpreadSheet.MOVE_TASK_UP_ACTION));
+			sheet.moveSelectedTaskRows(-1);
 			assertEquals(secondRow, findRow(sheet, fixture.secondTask()),
 					"the keyboard shortcut must not move a single-cell selection");
 		});
@@ -625,7 +623,7 @@ class SpreadSheetMouseInteractionTest {
 					"whole-row move precondition must reject a single-cell selection");
 			assertFalse(sheet.canMoveSelectedTaskRows(-1, false),
 					"legacy callers must not bypass the whole-row move precondition");
-			assertFalse(sheet.moveSelectedTaskRowsFromCommand(-1),
+			assertFalse(sheet.moveSelectedTaskRows(-1),
 					"Move Up/Down command must reject a single-cell selection");
 		});
 	}
@@ -668,6 +666,61 @@ class SpreadSheetMouseInteractionTest {
 			}
 		}
 		return -1;
+	}
+
+	@Test
+	void clearContentsClearsSelectedFieldRangeAsOneUndoableCellCommand() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int nameColumn = findNameColumn(sheet);
+			int firstRow = findRow(sheet, fixture.firstTask());
+			int secondRow = findRow(sheet, fixture.secondTask());
+			int rowCount = sheet.getRowCount();
+			sheet.setRowSelectionInterval(firstRow, secondRow);
+			sheet.setColumnSelectionInterval(nameColumn, nameColumn);
+			fixture.project().getUndoController().clear();
+
+			assertTrue(sheet.clearSelectedCellValues());
+			assertEquals("", fixture.firstTask().getName());
+			assertEquals("", fixture.secondTask().getName());
+			assertEquals(rowCount, sheet.getRowCount(), "clear must not delete the selected task rows");
+			assertTrue(fixture.project().getUndoController().canUndo());
+
+			fixture.project().getUndoController().undo();
+			assertEquals("First task", fixture.firstTask().getName());
+			assertEquals("Second task", fixture.secondTask().getName());
+			fixture.project().getUndoController().redo();
+			assertEquals("", fixture.firstTask().getName());
+			assertEquals("", fixture.secondTask().getName());
+		});
+	}
+
+	@Test
+	void clearContentsLeavesBlankAndReadOnlyCellsUntouched() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int nameColumn = findNameColumn(sheet);
+			int firstRow = findRow(sheet, fixture.firstTask());
+			sheet.changeSelection(firstRow, nameColumn, false, false);
+			fixture.firstTask().setName("");
+			fixture.project().getUndoController().clear();
+			assertFalse(sheet.clearSelectedCellValues(), "an already blank field must not create an Undo edit");
+			assertFalse(fixture.project().getUndoController().canUndo());
+
+			fixture.firstTask().setName("Read-only task");
+			Field nameField = ((SpreadSheetModel) sheet.getModel()).getFieldInColumn(
+				sheet.convertColumnIndexToModel(nameColumn));
+			nameField.setReadOnly(true);
+			try {
+				assertFalse(sheet.clearSelectedCellValues());
+				assertEquals("Read-only task", fixture.firstTask().getName());
+				assertFalse(fixture.project().getUndoController().canUndo());
+			} finally {
+				nameField.setReadOnly(false);
+			}
+		});
 	}
 
 	private int findRow(SpreadSheet sheet, NormalTask task) {

@@ -25,6 +25,7 @@ final class EditCommandPipeline {
 		}
 		switch (command) {
 		case MenuActionConstants.ACTION_DELETE -> sheet.executeAction(MenuActionConstants.ACTION_DELETE);
+		case MenuActionConstants.ACTION_CLEAR_CONTENTS -> sheet.clearSelectedCellValues();
 		case MenuActionConstants.ACTION_CUT, MenuActionConstants.ACTION_COPY ->
 			sheet.performAction(command, new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, command));
 		case MenuActionConstants.ACTION_PASTE, MenuActionConstants.ACTION_PASTE_INSERT -> {

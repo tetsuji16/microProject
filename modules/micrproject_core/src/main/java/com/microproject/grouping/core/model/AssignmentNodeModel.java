@@ -104,14 +104,22 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 							}
 							if (child==null) child = NodeFactory.getInstance().createNode(assignment);
 						}
-						int position=0;
-						for (Enumeration e=parent.children();e.hasMoreElements();position++){
-							if (!(((Node)e.nextElement()).getImpl() instanceof Assignment))
-								break;
+						// Shared assignment models can receive the same redo create event.
+						// Once the node already belongs to this parent there is nothing to
+						// insert (and reinserting it would remove then insert at a stale index).
+						boolean added = false;
+						if (child.getParent() != parent) {
+							int position=0;
+							for (Enumeration e=parent.children();e.hasMoreElements();position++){
+								if (!(((Node)e.nextElement()).getImpl() instanceof Assignment))
+									break;
+							}
+							position = Math.min(position, parent.getChildCount());
+							add(parent,child,position,EVENT);
+							added = true;
 						}
-						add(parent,child,position,EVENT);
 
-						if ((objectEvent.getInfo()==null||(objectEvent.getInfo()!=null&&objectEvent.getInfo().isUndo()))&& dataFactory instanceof Project){
+						if (added && (objectEvent.getInfo()==null||(objectEvent.getInfo()!=null&&objectEvent.getInfo().isUndo()))&& dataFactory instanceof Project){
 							UndoableEditSupport undoableEditSupport=getUndoableEditSupport();
 							if (undoableEditSupport!=null){
 								undoableEditSupport.postEdit(new AssignmentCreationEdit(child));

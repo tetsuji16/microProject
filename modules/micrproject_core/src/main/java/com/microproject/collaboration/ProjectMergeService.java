@@ -295,6 +295,15 @@ public class ProjectMergeService {
 	}
 
 	private Project loadPodProject(String fileName) throws Exception {
+		// A POD contains two representations: the native serialized payload and
+		// an MSPDI XML trailer for interoperability.  The native payload is the
+		// lossless application format, so use the same precedence as the normal
+		// local-file loader.  MSPDI is only a recovery path for legacy/corrupt
+		// native payloads.
+		Project nativeProject = loadSerializedPodProject(fileName);
+		if (nativeProject != null) {
+			return nativeProject;
+		}
 		try (InputStream embeddedXml = openEmbeddedPodXml(fileName)) {
 			if (embeddedXml != null) {
 				Project project = loadMicrosoftProject(fileName, embeddedXml);

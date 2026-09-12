@@ -65,12 +65,6 @@ public class SpreadSheetRowHeader extends JTable {
 		super();
 		setGridColor(FlatUiSupport.tableGridColor());
 		this.table=table;
-		if (table instanceof SpreadSheet){
-			final SpreadSheet spreadSheet=(SpreadSheet)table;
-
-			spreadSheet.installTaskMoveBindings(this);
-
-		}
 		setFont(FlatUiSupport.headerFont());
 		setForeground(FlatUiSupport.headerForeground());
 		setBackground(FlatUiSupport.spreadsheetHeaderBackground());

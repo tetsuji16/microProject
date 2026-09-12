@@ -278,6 +278,30 @@ public class CollaborationConflictTest extends TestCase {
 		assertTrue(sidecar.length() > 0L);
 	}
 
+	public void testPodMergeUsesTheSameNativePayloadAsLocalLoad() throws Exception {
+		File podFile = createPodFile("Native identity task", "Native second task");
+
+		LocalFileImporter localImporter = new LocalFileImporter();
+		localImporter.setFileName(podFile.getAbsolutePath());
+		localImporter.importFile();
+		Project localProject = localImporter.getProject();
+		assertNotNull(localProject);
+
+		Project mergeProject = new ProjectMergeService().loadExternalProject(podFile.getAbsolutePath());
+		assertNotNull(mergeProject);
+		assertEquals("POD merge must use the native document identity", localProject.getDocumentId(),
+			mergeProject.getDocumentId());
+		assertEquals(localProject.getTasks().size(), mergeProject.getTasks().size());
+		for (int i = 0; i < localProject.getTasks().size(); i++) {
+			com.microproject.pm.task.Task localTask =
+				(com.microproject.pm.task.Task) localProject.getTasks().get(i);
+			com.microproject.pm.task.Task mergeTask =
+				(com.microproject.pm.task.Task) mergeProject.getTasks().get(i);
+			assertEquals(localTask.getUniqueId(), mergeTask.getUniqueId());
+			assertEquals(localTask.getName(), mergeTask.getName());
+		}
+	}
+
 	private void assertBackgroundRefreshUpdatesOnlyUnlockedExistingTasks(String extension) throws Exception {
 		File original = createProjectFile(extension, "Baseline Task", "Unchanged Task");
 		File changed = createProjectFile(extension, "Renamed Task", "Externally Changed Task");

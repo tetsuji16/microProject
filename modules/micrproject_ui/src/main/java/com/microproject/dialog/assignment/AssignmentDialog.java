@@ -40,6 +40,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.ButtonPanel;
 import com.microproject.help.HelpUtil;
+import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.DocumentSelectedEvent;
@@ -79,6 +80,11 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	JPanel editorsButtons=null;
 	JLabel showingTeamAll = null;
 	List<NormalTask> selectedTasks = null;
+
+	@FunctionalInterface
+	private interface AssignmentMutation {
+		void apply(List<NormalTask> tasks);
+	}
 	
 	public AssignmentDialog(DocumentFrame documentFrame) {
 		super(documentFrame.getGraphicManager().getFrame(),Messages.getString("Text.AssignResources"),false); //$NON-NLS-1$
@@ -180,22 +186,14 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	    SpreadSheet sp=spreadSheetPane.getSpreadSheet();
 		if (sp.isEditing()) sp.getCellEditor().stopCellEditing();
 		assign(getSelectedResources(),1.0D);
-		spreadSheetPane.updateTable();
 	}
 	
 	void assign(List<?> resourceList, double units) {
-		if (documentFrame.getProject().isSharedResourcePoolUnresolved())
+		List<Resource> resources = resourceSnapshot(resourceList);
+		if (resources.isEmpty())
 			return;
-		if (selectedTasks == null) // if no selection, do nothing
-			return;
-		List<NormalTask> taskList = new ArrayList<>(selectedTasks.size());
-		for (NormalTask task : selectedTasks) { // go thru all selected tasks
-			if (!task.isAssignable())
-				continue;
-			taskList.add(task);
-		}
-		AssignmentService.getInstance().newAssignments(taskList,resourceList,units,0,this,true);
-		spreadSheetPane.updateTable();
+		executeAssignmentMutation("assign resources", tasks ->
+			AssignmentService.getInstance().newAssignments(tasks, resources, units, 0L, this, true));
 	}
 	
 	public void assign(Resource resource, double units) {
@@ -214,28 +212,28 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 /**
  * Removes given the current task selection for the given resource lsit
  * @param resourceList
- */	void remove(List<?> resourceList) {
-		for (Resource resource : getSelectedResources()) {
-			remove(resource);
-		}
-		spreadSheetPane.updateTable();
+*/	void remove(List<?> resourceList) {
+		List<Resource> resources = resourceSnapshot(resourceList);
+		if (resources.isEmpty())
+			return;
+		executeAssignmentMutation("remove resource assignment", tasks -> {
+			for (NormalTask task : tasks) {
+				for (Resource resource : resources) {
+					Assignment assignment = task.findAssignment(resource);
+					if (assignment != null)
+						AssignmentService.getInstance().remove(assignment, this, true);
+				}
+			}
+		});
 	}
 	
 /**
  * Removes given resource from current task selection 
  * @param resource
  * @param selectedTasks
- */	void remove(Resource resource) {
-		if (documentFrame.getProject().isSharedResourcePoolUnresolved())
-			return;
-		if (selectedTasks == null)
-			return;
-		Assignment assignment;
-		for (NormalTask task : selectedTasks) {
-			assignment = task.findAssignment(resource);
-			if (assignment != null)
-				AssignmentService.getInstance().remove(assignment,this,true);
-		}
+*/	void remove(Resource resource) {
+		if (resource != null)
+			remove(List.of(resource));
 	}	
 	
 	void replace() {
@@ -252,11 +250,56 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		List<Resource> replacementList = ReplaceAssignmentDialog.getReplacementFromDialog(documentFrame,resource);
 		if (replacementList == null || replacementList.isEmpty()) // cancelled or nothing chosen
 			return;
-		if (!replacementList.contains(resource)) // if resource was replaced, remove it
-			remove(resource);
-		else // resource is in new list too, so don't touch it
-			replacementList.remove(resource);
-		assign(replacementList,1.0); // Preserve the current unit assignment for the replacement flow.
+		List<Resource> replacements = resourceSnapshot(replacementList);
+		executeAssignmentMutation("replace resource assignment", tasks -> {
+			for (NormalTask task : tasks) {
+				Assignment source = task.findAssignment(resource);
+				if (source != null)
+					AssignmentService.getInstance().replaceAssignment(source, replacements, this, true);
+			}
+		});
+	}
+
+	/**
+	 * The three assignment mutations share one selection snapshot and one
+	 * collaboration-lock boundary.  Showing the dialog remains lock-free;
+	 * locks are acquired only immediately before a model mutation.
+	 */
+	private boolean executeAssignmentMutation(String actionLabel, AssignmentMutation mutation) {
+		if (documentFrame == null || documentFrame.getProject() == null
+				|| documentFrame.getProject().isSharedResourcePoolUnresolved())
+			return false;
+		List<NormalTask> tasks = selectedTaskSnapshot();
+		if (tasks.isEmpty())
+			return false;
+		if (!CollaborationHelper.tryLockNodes(documentFrame.getProject(), new ArrayList<NormalTask>(tasks), this,
+				actionLabel))
+			return false;
+		mutation.apply(tasks);
+		spreadSheetPane.updateTable();
+		return true;
+	}
+
+	private List<NormalTask> selectedTaskSnapshot() {
+		if (selectedTasks == null || selectedTasks.isEmpty())
+			return List.of();
+		List<NormalTask> tasks = new ArrayList<NormalTask>(selectedTasks.size());
+		for (NormalTask task : selectedTasks) {
+			if (task != null && task.isAssignable())
+				tasks.add(task);
+		}
+		return List.copyOf(tasks);
+	}
+
+	private List<Resource> resourceSnapshot(List<?> resources) {
+		if (resources == null || resources.isEmpty())
+			return List.of();
+		List<Resource> result = new ArrayList<Resource>(resources.size());
+		for (Object resource : resources) {
+			if (resource instanceof Resource)
+				result.add((Resource) resource);
+		}
+		return List.copyOf(result);
 	}
 
 	

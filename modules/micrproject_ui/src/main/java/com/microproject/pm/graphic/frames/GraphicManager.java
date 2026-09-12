@@ -1589,7 +1589,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		if (!beforeProjectInformationRoute(getCurrentFrame().getProject()))
 			return;
-		finishAnyOperations();
 
 		if (projectInformationDialog == null) {
 			projectInformationDialog = ProjectInformationDialog.getInstance(getFrame(),getCurrentFrame().getProject());
@@ -1604,64 +1603,112 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	}
 
-	public void doInformationDialog(boolean notes) {
+	private enum InformationTargetKind { TASK, RESOURCE, PROJECT }
 
-		if (!isDocumentActive())
-			return;
-
-		finishAnyOperations();
-	    List nodes=getCurrentFrame().getSelectedNodes(false);
-	    if (isEmptySelection(nodes))
-	    	return;
-		if (nodes.size() > 1) {
-			Alert.warn(Messages.getString("Message.onlySelectOneElement"),getContainer()); //$NON-NLS-1$
-			return;
+	/** Immutable target snapshot shared by every Information entry route. */
+	private record InformationTarget(InformationTargetKind kind, Task task,
+			Resource resource, Project project, boolean assignmentResourcesTab) {
+		static InformationTarget task(Task task, boolean assignmentResourcesTab) {
+			return new InformationTarget(InformationTargetKind.TASK, task, null, null,
+				assignmentResourcesTab);
 		}
-		final Node node=(Node)nodes.get(0);
-		Object impl=node.getImpl();
-		if (impl instanceof Task||(impl instanceof Assignment&&taskType)){
-			Task task=(Task)((impl instanceof Assignment)?(((Assignment)impl).getTask()):impl);
-			boolean resourcesTab = impl instanceof Assignment;
-			if (!beforeTaskInformationRoute(task, notes, resourcesTab))
-				return;
-			openTaskInformation(task, notes, resourcesTab);
-		} else if (impl instanceof Resource||(impl instanceof Assignment&&resourceType)) {
-			Resource resource=(Resource)((impl instanceof Assignment)?(((Assignment)impl).getResource()):impl);;
-			if (!beforeResourceInformationRoute(resource, notes))
+		static InformationTarget resource(Resource resource) {
+			return new InformationTarget(InformationTargetKind.RESOURCE, null, resource,
+				null, false);
+		}
+		static InformationTarget project(Project project) {
+			return new InformationTarget(InformationTargetKind.PROJECT, null, null, project,
+				false);
+		}
+	}
+
+	/**
+	 * Resolves one selected node before ending an active cell edit.  The caller
+	 * receives an immutable model target, so ribbon focus changes and editor
+	 * teardown cannot silently redirect the Information command.
+	 */
+	private InformationTarget resolveInformationTarget(boolean allowProject,
+			boolean allowTask, boolean allowResource) {
+		if (!isDocumentActive())
+			return null;
+		List nodes = getCurrentFrame().getSelectedNodes(false);
+		if (isEmptySelection(nodes))
+			return null;
+		if (nodes.size() > 1) {
+			Alert.warn(Messages.getString("Message.onlySelectOneElement"), getContainer()); //$NON-NLS-1$
+			return null;
+		}
+		Object impl = ((Node) nodes.get(0)).getImpl();
+		InformationTarget target = informationTargetFor(impl, allowProject, allowTask,
+			allowResource);
+		if (target != null)
+			traceUi("information.selection snapshot kind=" + target.kind());
+		return target;
+	}
+
+	private InformationTarget informationTargetFor(Object impl, boolean allowProject,
+			boolean allowTask, boolean allowResource) {
+		if (impl instanceof Task && allowTask)
+			return InformationTarget.task((Task) impl, false);
+		if (impl instanceof Assignment) {
+			Assignment assignment = (Assignment) impl;
+			if (allowTask && taskType)
+				return InformationTarget.task(assignment.getTask(), true);
+			if (allowResource && resourceType)
+				return InformationTarget.resource(assignment.getResource());
+		}
+		if (impl instanceof Resource && allowResource)
+			return InformationTarget.resource((Resource) impl);
+		if (impl instanceof Project && allowProject)
+			return InformationTarget.project((Project) impl);
+		return null;
+	}
+
+	/** Canonical Information command: target snapshot, edit teardown, route, view. */
+	private void executeInformation(InformationTarget target, boolean notes) {
+		if (target == null)
+			return;
+		finishAnyOperations();
+		switch (target.kind()) {
+		case TASK:
+			if (beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab()))
+				openTaskInformation(target.task(), notes, target.assignmentResourcesTab());
+			break;
+		case RESOURCE:
+			if (!beforeResourceInformationRoute(target.resource(), notes))
 				return;
 			if (resourceInformationDialog == null) {
-				resourceInformationDialog = ResourceInformationDialog.getInstance(getFrame(),resource);
+				resourceInformationDialog = ResourceInformationDialog.getInstance(getFrame(), target.resource());
 				resourceInformationDialog.pack();
 				resourceInformationDialog.setModal(false);
 			} else {
-				resourceInformationDialog.setObject(resource);
+				resourceInformationDialog.setObject(target.resource());
 				resourceInformationDialog.updateAll();
 			}
-			resourceInformationDialog.setLocationRelativeTo(getCurrentFrame());//to center on screen
+			resourceInformationDialog.setLocationRelativeTo(getCurrentFrame());
 			if (notes)
 				resourceInformationDialog.showNotes();
 			resourceInformationDialog.setVisible(true);
-
-		} else if (impl instanceof Project) {
+			break;
+		case PROJECT:
 			doProjectInformationDialog();
+			break;
+		default:
+			break;
 		}
+	}
 
-
+	public void doInformationDialog(boolean notes) {
+		executeInformation(resolveInformationTarget(true, true, true), notes);
 	}
 
 	public void doInformationDialog(Task task, boolean notes) {
 		if (task == null)
 			return;
-		// A Gantt double-click already supplies the exact task that was hit. Its
-		// chart component can receive focus before the document frame activation
-		// event is processed, so do not discard that direct request merely because
-		// isDocumentActive() is transiently false.
+		// A Gantt double-click supplies the exact clicked task. Keep that explicit
+		// target even while focus/activation events are still settling.
 		setMeAsLastGraphicManager();
-		if (isDocumentActive())
-			finishAnyOperations();
-		if (!beforeTaskInformationRoute(task, notes, false))
-			return;
-		openTaskInformation(task, notes, false);
+		executeInformation(InformationTarget.task(task, false), notes);
 	}
 
 	/**
@@ -1712,76 +1759,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
-	private Object getSingleSelectedImpl() {
-		if (!isDocumentActive()) {
-			traceUi("task-information.selection rejected: document is not active");
-			return null;
-		}
-
-		List nodes = getCurrentFrame().getSelectedNodes(false);
-		// Finish editing only after taking the model-node snapshot.  The editor
-		// teardown may clear the table selection, while the command was enabled
-		// from that same selection.
-		finishAnyOperations();
-		if (nodes == null || nodes.isEmpty()) {
-			traceUi("task-information.selection rejected: no selected nodes");
-			return null;
-		}
-		if (nodes.size() > 1) {
-			traceUi("task-information.selection rejected: selectedNodes=" + nodes.size());
-			Alert.warn(Messages.getString("Message.onlySelectOneElement"), getContainer()); //$NON-NLS-1$
-			return null;
-		}
-		Object selected = ((Node) nodes.get(0)).getImpl();
-		traceUi("task-information.selection accepted impl=" + describeUiObject(selected));
-		return selected;
-	}
-
 	private void showTaskInformationForSelection(boolean notes) {
 		traceUi("task-information.command received notes=" + notes);
-		Object impl = getSingleSelectedImpl();
-		if (impl == null)
-			return;
-		if (impl instanceof Assignment)
-			impl = ((Assignment) impl).getTask();
-		if (!(impl instanceof Task)) {
-			traceUi("task-information.selection rejected: impl is not a task (" + describeUiObject(impl) + ")");
-			return;
-		}
-
-		Task task = (Task) impl;
-		if (!beforeTaskInformationRoute(task, notes, false)) {
-			traceUi("task-information.route rejected taskId=" + task.getId());
-			return;
-		}
-		traceUi("task-information.route accepted taskId=" + task.getId());
-		openTaskInformation(task, notes, false);
+		executeInformation(resolveInformationTarget(false, true, false), notes);
 	}
 
 	private void showResourceInformationForSelection(boolean notes) {
-		Object impl = getSingleSelectedImpl();
-		if (impl == null)
-			return;
-		if (impl instanceof Assignment)
-			impl = ((Assignment) impl).getResource();
-		if (!(impl instanceof Resource))
-			return;
-
-		Resource resource = (Resource) impl;
-		if (!beforeResourceInformationRoute(resource, notes))
-			return;
-		if (resourceInformationDialog == null) {
-			resourceInformationDialog = ResourceInformationDialog.getInstance(getFrame(), resource);
-			resourceInformationDialog.pack();
-			resourceInformationDialog.setModal(false);
-		} else {
-			resourceInformationDialog.setObject(resource);
-			resourceInformationDialog.updateAll();
-		}
-		resourceInformationDialog.setLocationRelativeTo(getCurrentFrame());
-		if (notes)
-			resourceInformationDialog.showNotes();
-		resourceInformationDialog.setVisible(true);
+		executeInformation(resolveInformationTarget(false, false, true), notes);
 	}
 
 	protected boolean beforeActionRoute(String actionId) {
@@ -1935,8 +1919,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TEAM_FILTER, new TeamFilterAction());
 		actionsMap.addHandler(ACTION_DOCUMENTS, new DocumentsAction());
 		actionsMap.addHandler(ACTION_INFORMATION, new InformationAction());
-		actionsMap.addHandler("RibbonTaskInformationAction", new RibbonTaskInformationAction());
-		actionsMap.addHandler("RibbonResourceInformationAction", new RibbonResourceInformationAction());
+		actionsMap.addHandler("RibbonTaskInformation", new RibbonTaskInformationAction());
+		actionsMap.addHandler("RibbonResourceInformation", new RibbonResourceInformationAction());
 		actionsMap.addHandler(ACTION_NOTES, new NotesAction());
 		actionsMap.addHandler(ACTION_ASSIGN_RESOURCES, new AssignResourcesAction());
 		actionsMap.addHandler(ACTION_TIMESHEET, new TimesheetAction());
@@ -1973,15 +1957,27 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_UPDATE_PROJECT, new UpdateProjectAction());
 		actionsMap.addHandler(ACTION_MOVE_PROJECT, new MoveProjectAction());
 		actionsMap.addHandler(ACTION_RECALCULATE, new RecalculateAction());
-		actionsMap.addHandler(ACTION_BAR, new BarAction());
+		// Keep the legacy action id as a compatibility alias, but expose only the
+		// canonical Bar Styles command in the current ribbon/menu definition.
+		BarStylesAction barStylesAction = new BarStylesAction();
+		actionsMap.addHandler(ACTION_BAR, barStylesAction);
 		actionsMap.addHandler(ACTION_TIMESCALE, new TimescaleAction());
 		actionsMap.addHandler(ACTION_GRIDLINES, new GridlinesAction());
 		actionsMap.addHandler(ACTION_TEXT_STYLES, new TextStylesAction());
-		actionsMap.addHandler(ACTION_BAR_STYLES, new BarStylesAction());
+		actionsMap.addHandler(ACTION_BAR_STYLES, barStylesAction);
 		actionsMap.addHandler(ACTION_LAYOUT, new LayoutAction());
 		actionsMap.addHandler(ACTION_INSERT_RECURRING, new RecurringTaskAction());
-		actionsMap.addHandler(ACTION_SORT, new SortAction());
-		actionsMap.addHandler(ACTION_GROUP, new GroupAction());
+		// Legacy menu ids remain aliases of the canonical transform commands.  A
+		// single action instance keeps menu, ribbon and toolbar behavior identical.
+		TransformAction filterTransform = new TransformAction(TransformComboBoxModel.FILTER);
+		TransformAction sortTransform = new TransformAction(TransformComboBoxModel.SORTER);
+		TransformAction groupTransform = new TransformAction(TransformComboBoxModel.GROUPER);
+		actionsMap.addHandler(ACTION_FILTER, filterTransform);
+		actionsMap.addHandler(ACTION_CHOOSE_FILTER, filterTransform);
+		actionsMap.addHandler(ACTION_SORT, sortTransform);
+		actionsMap.addHandler(ACTION_CHOOSE_SORT, sortTransform);
+		actionsMap.addHandler(ACTION_GROUP, groupTransform);
+		actionsMap.addHandler(ACTION_CHOOSE_GROUP, groupTransform);
 		actionsMap.addHandler(ACTION_CALENDAR_OPTIONS, new CalendarOptionsAction());
 		actionsMap.addHandler("GeneralOptions", new GeneralOptionsAction());
 		actionsMap.addHandler(ACTION_SAVE_BASELINE, new SaveBaselineAction());
@@ -2030,9 +2026,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_NO_SUB_WINDOW, new ViewAction(ACTION_NO_SUB_WINDOW));
 		actionsMap.addHandler(ACTION_ARRANGE_ALL, new ArrangeAllAction());
 
-		actionsMap.addHandler(ACTION_CHOOSE_FILTER, new TransformAction(TransformComboBoxModel.FILTER));
-		actionsMap.addHandler(ACTION_CHOOSE_SORT, new TransformAction(TransformComboBoxModel.SORTER));
-		actionsMap.addHandler(ACTION_CHOOSE_GROUP, new TransformAction(TransformComboBoxModel.GROUPER));
 
 		actionsMap.addHandler(ACTION_PALETTE, new PaletteAction());
 		actionsMap.addHandler(ACTION_LOOK_AND_FEEL, new LookAndFeelAction());
@@ -2180,6 +2173,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			finishAnyOperations();
 			doProjectInformationDialog();
 		}
 	}
@@ -2695,14 +2689,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
-	public class BarAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent arg0) {
-			setMeAsLastGraphicManager();
-			if (!beforeChooserRoute(ACTION_BAR_STYLES)) return;
-			showBarStyleChooser();
-		}
-	}
 	public class TimescaleAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -2750,22 +2736,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (isDocumentActive())
 				getCurrentFrame().doRecurringTaskDialog();
-		}
-	}
-	public class SortAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent arg0) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive())
-				getCurrentFrame().doSortDialog();
-		}
-	}
-	public class GroupAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent arg0) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive())
-				getCurrentFrame().doGroupDialog();
 		}
 	}
 	public class SaveBaselineAction extends MenuActionsMap.DocumentMenuAction {
@@ -3282,6 +3252,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 	protected boolean loadLocalDocument(String fileName,boolean merge){ //uses server to merge
 		return loadLocalDocument(fileName, merge, null);
+	}
+
+	/** Microsoft Project Ctrl+Delete: clear selected field values without deleting rows. */
+	public class ClearContentsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doClearContents();
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
 	}
 
 
@@ -4522,6 +4506,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// Spreadsheet editing / outline / information shortcuts (issue #47).
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_X, ACTION_CUT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_COPY, 0, null);
+		// MSP Ctrl+Delete clears selected field values. Keep this distinct from plain
+		// Delete (row deletion) and bind it only on the document root pane.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_DELETE, ACTION_CLEAR_CONTENTS, 0, new ClearContentsAction());
 		// Clipboard and task-edit commands must reuse the menu actions.  Those actions
 		// perform the document-level writability, collaboration-routing, and history
 		// checks; spreadsheet-local implementations would make keyboard behavior differ
@@ -4540,6 +4527,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_FIND, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), ACTION_NEW, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), ACTION_DELETE, null);
+		putShortcut(inputMap, actionMap,
+			KeyStroke.getKeyStroke(KeyEvent.VK_UP, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK),
+			ACTION_MOVE_TASK_UP, null);
+		putShortcut(inputMap, actionMap,
+			KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK),
+			ACTION_MOVE_TASK_DOWN, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "EditField", new SpreadSheetDispatchAction("EditField") {
 			private static final long serialVersionUID = 1L;
 			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.editActiveCell(); }

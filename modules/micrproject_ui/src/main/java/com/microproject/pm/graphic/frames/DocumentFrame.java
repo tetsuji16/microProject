@@ -498,22 +498,6 @@ public class DocumentFrame extends NamedFrame implements
 		new CustomReportDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
 	}
 
-	void doBarDialog() {
-		finishAnyOperations();
-//		ShapeBarDialogBox.getInstance(getGraphicManager().getFrame(), null).doModal();
-	}
-
-	void doSortDialog() {
-		finishAnyOperations();
-//		SortDialogBox.getInstance(getGraphicManager().getFrame(), null).doModal();
-	}
-
-	void doGroupDialog() {
-		finishAnyOperations();
-//		GroupDefinitionDialogBox.getInstance(getGraphicManager().getFrame(), null).doModal();
-	}
-
-
 	public void doLinkTasks() {
 		// Capture the selection before finishing an editor.  Stopping a cell
 		// editor can clear the JTable selection, which previously made the
@@ -809,24 +793,28 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public void doOutdent() {
+		doHierarchyIndent(MenuActionConstants.ACTION_OUTDENT, "outdent");
+	}
+
+	private void doHierarchyIndent(String actionId, String diagnosticId) {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
 			int[] selectedRows = ss.getSelectedRows();
 			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
-			getGraphicManager().traceUi("outdent start selectedTasks=" + taskNodes.size()
+			getGraphicManager().traceUi(diagnosticId + " start selectedTasks=" + taskNodes.size()
 					+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
 			finishAnyOperations();
 			if (taskNodes.isEmpty()) {
-				getGraphicManager().traceUi("outdent rejected reason=no-selection");
+				getGraphicManager().traceUi(diagnosticId + " rejected reason=no-selection");
 				return;
 			}
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "outdent")) {
-				getGraphicManager().traceUi("outdent rejected reason=lock-failed selectedTasks=" + taskNodes.size());
+			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, diagnosticId)) {
+				getGraphicManager().traceUi(diagnosticId + " rejected reason=lock-failed selectedTasks=" + taskNodes.size());
 				return;
 			}
-			ss.executeAction(MenuActionConstants.ACTION_OUTDENT, selectedRows);
+			ss.executeAction(actionId, selectedRows);
 			ss.restoreTaskRowSelection(taskNodes);
-			getGraphicManager().traceUi("outdent complete selectedTasks=" + taskNodes.size()
+			getGraphicManager().traceUi(diagnosticId + " complete selectedTasks=" + taskNodes.size()
 					+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		}
 	}
@@ -850,26 +838,7 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public void doIndent() {
-		SpreadSheet ss = getActiveSpreadSheet();
-		if (ss !=null) {
-			int[] selectedRows = ss.getSelectedRows();
-			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
-			getGraphicManager().traceUi("indent start selectedTasks=" + taskNodes.size()
-					+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
-			finishAnyOperations();
-			if (taskNodes.isEmpty()) {
-				getGraphicManager().traceUi("indent rejected reason=no-selection");
-				return;
-			}
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "indent")) {
-				getGraphicManager().traceUi("indent rejected reason=lock-failed selectedTasks=" + taskNodes.size());
-				return;
-			}
-			ss.executeAction(MenuActionConstants.ACTION_INDENT, selectedRows);
-			ss.restoreTaskRowSelection(taskNodes);
-			getGraphicManager().traceUi("indent complete selectedTasks=" + taskNodes.size()
-					+ " undo=" + canUndoState() + " redo=" + canRedoState());
-		}
+		doHierarchyIndent(MenuActionConstants.ACTION_INDENT, "indent");
 	}
 	public boolean canMoveSelectedTasks(int direction) {
 		SpreadSheet spreadSheet=getActiveSpreadSheet();
@@ -908,10 +877,13 @@ public class DocumentFrame extends NamedFrame implements
 	}
 	public void doMoveSelectedTasks(int direction) {
 		SpreadSheet spreadSheet=getActiveSpreadSheet();
-		if (spreadSheet != null) spreadSheet.moveSelectedTaskRowsFromCommand(direction);
+		if (spreadSheet != null) spreadSheet.moveSelectedTaskRows(direction);
 	}
 	public void doDelete() {
 		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_DELETE);
+	}
+	public void doClearContents() {
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_CLEAR_CONTENTS);
 	}
 
 	public void doCut() {

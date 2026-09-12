@@ -419,7 +419,7 @@ class RibbonAndToolbarButtonTest {
 			List.of("RibbonArrangeAll", "RibbonDetails", "RibbonPrivacyMask"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ViewWindowRibbonBand"));
 		assertEquals(
-			List.of("RibbonTimescale", "RibbonBar", "RibbonBarStyles", "RibbonTextStyles"),
+			List.of("RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatBarRibbonBand"));
 	}
 

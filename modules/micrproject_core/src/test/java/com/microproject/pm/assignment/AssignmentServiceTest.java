@@ -26,11 +26,13 @@ package com.microproject.pm.assignment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +40,7 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.options.CalendarOption;
 import com.microproject.transaction.MultipleTransaction;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -119,6 +122,78 @@ class AssignmentServiceTest {
 		}
 
 		assertEquals(2, transactionEvents[0]);
+	}
+
+	@Test
+	void replaceAssignmentWithActualWorkRetainsSourceAndTransfersRemainingWork() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(2L * day);
+		ResourceImpl original = project.getResourcePool().newResourceInstance();
+		ResourceImpl replacement = project.getResourcePool().newResourceInstance();
+		Assignment source = AssignmentService.getInstance().newAssignment(task, original, 1.0D, 0L, this);
+		long originalWork = source.getWork(null);
+		source.setActualWork(originalWork / 2L, null);
+		long actualWork = source.getActualWork(null);
+		long remainingWork = source.getRemainingWork();
+
+		List<Assignment> replacements = AssignmentService.getInstance().replaceAssignment(source,
+				List.of(replacement), this, true);
+
+		assertEquals(1, replacements.size());
+		Assignment replacementAssignment = replacements.get(0);
+		assertSame(source, task.findAssignment(original), "actuals must remain with the original resource");
+		assertEquals(actualWork, source.getActualWork(null));
+		assertEquals(0L, source.getRemainingWork(), "the original resource must no longer own remaining work");
+		assertSame(replacementAssignment, task.findAssignment(replacement));
+		assertEquals(remainingWork, replacementAssignment.getRemainingWork(),
+				"the replacement must receive the original remaining work");
+
+		project.getUndoController().undo();
+		assertSame(source, task.findAssignment(original));
+		assertEquals(actualWork, source.getActualWork(null));
+		assertEquals(remainingWork, source.getRemainingWork());
+		project.getUndoController().redo();
+		Assignment redoneReplacement = task.findAssignment(replacement);
+		assertSame(replacementAssignment, redoneReplacement);
+		assertEquals(actualWork, source.getActualWork(null));
+		assertEquals(0L, source.getRemainingWork());
+		assertEquals(remainingWork, redoneReplacement.getRemainingWork());
+
+	}
+
+	@Test
+	void replaceAssignmentWithoutActualWorkRemovesSource() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl original = project.getResourcePool().newResourceInstance();
+		ResourceImpl replacement = project.getResourcePool().newResourceInstance();
+		Assignment source = AssignmentService.getInstance().newAssignment(task, original, 1.0D, 0L, this);
+
+		List<Assignment> replacements = AssignmentService.getInstance().replaceAssignment(source,
+				List.of(replacement), this, true);
+
+		assertEquals(1, replacements.size());
+		assertNull(task.findAssignment(original));
+		assertSame(replacements.get(0), task.findAssignment(replacement));
+	}
+
+	@Test
+	void replaceAssignmentLeavesSourceUntouchedWhenTaskBecomesReadOnly() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl original = project.getResourcePool().newResourceInstance();
+		ResourceImpl replacement = project.getResourcePool().newResourceInstance();
+		Assignment source = AssignmentService.getInstance().newAssignment(task, original, 1.0D, 0L, this);
+		project.setReadOnly(true);
+
+		List<Assignment> replacements = AssignmentService.getInstance().replaceAssignment(source,
+				List.of(replacement), this, true);
+
+		assertEquals(0, replacements.size());
+		assertSame(source, task.findAssignment(original));
+		assertNull(task.findAssignment(replacement));
 	}
 
 	private Project createProject() {

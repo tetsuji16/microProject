@@ -54,7 +54,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
@@ -93,6 +92,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetSelectionMod
 import com.microproject.pm.graphic.spreadsheet.selection.event.HeaderMouseListener;
 import com.microproject.datatype.Hyperlink;
 import com.microproject.field.Field;
+import com.microproject.field.FieldContext;
 import com.microproject.graphic.configuration.ActionList;
 import com.microproject.graphic.configuration.CellStyle;
 import com.microproject.graphic.configuration.GraphicConfiguration;
@@ -114,6 +114,7 @@ import com.microproject.server.data.Serializer;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
+import com.microproject.undo.UndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
 
@@ -128,8 +129,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private String registeredLayoutCategory;
 	private static final long serialVersionUID = 5958334223191182318L;
 	private static final String CLIPBOARD_PASTE_VALUES_ACTION = "spreadsheet.clipboardPasteValues";
-	public static final String MOVE_TASK_UP_ACTION = "spreadsheet.moveTaskUp";
-	public static final String MOVE_TASK_DOWN_ACTION = "spreadsheet.moveTaskDown";
 	protected SpreadSheetPopupMenu popup=null;
 	private boolean hierarchyActionInProgress;
 	private boolean tableMouseHandlerInstalled;
@@ -149,8 +148,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		// only remove the duplicate keyboard bindings here.
 		removeDuplicateClipboardKeyBindings(this);
 		installClipboardPasteBindings();
-		installTaskMoveBindings(this);
-
 	}
 
 	private static void removeDuplicateClipboardKeyBindings(JComponent c) {
@@ -160,28 +157,13 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		focused.remove(KeyStroke.getKeyStroke("ctrl X"));
 	}
 
-	public void installTaskMoveBindings(JComponent component) {
-		if (component == null)
-			return;
-		InputMap inputMap = component.getInputMap(JComponent.WHEN_FOCUSED);
-		ActionMap actionMap = component.getActionMap();
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.ALT_DOWN_MASK | KeyEvent.SHIFT_DOWN_MASK), MOVE_TASK_UP_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.ALT_DOWN_MASK | KeyEvent.SHIFT_DOWN_MASK), MOVE_TASK_DOWN_ACTION);
-		actionMap.put(MOVE_TASK_UP_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override public void actionPerformed(ActionEvent event) { moveSelectedTaskRows(-1); }
-		});
-		actionMap.put(MOVE_TASK_DOWN_ACTION, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override public void actionPerformed(ActionEvent event) { moveSelectedTaskRows(1); }
-		});
-	}
-
+	/**
+	 * Canonical task-row move command shared by the Alt+Shift+Up/Down shortcut
+	 * and the ribbon/menu route.  Keeping this as the one entry point ensures
+	 * that both routes apply the same whole-row precondition, collaboration
+	 * lock, undoable relocation, selection restore, and view refresh.
+	 */
 	public boolean moveSelectedTaskRows(int direction) {
-		return moveSelectedTaskRowsInternal(direction);
-	}
-
-	public boolean moveSelectedTaskRowsFromCommand(int direction) {
 		return moveSelectedTaskRowsInternal(direction);
 	}
 
@@ -500,25 +482,81 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return CollaborationHelper.tryLockNodes(null, getSelectedNodes(), this, "paste");
 	}
 
-	public boolean cutSelectedCellValues(int[] rows, int[] columns) {
+	/**
+	 * Canonical cell-value clear used by Microsoft Project Ctrl+Delete and cell Cut.
+	 * It never creates a row, skips read-only cells, validates the whole writable range
+	 * before mutation, and records the range as one Undo unit.
+	 */
+	public boolean clearSelectedCellValues() {
+		int[] rows = finishCurrentOperations();
+		return clearSelectedCellValues(rows == null ? getSelectedRows() : rows, getSelectedColumns());
+	}
+
+	public boolean clearSelectedCellValues(int[] rows, int[] columns) {
 		if (rows == null || columns == null || rows.length == 0 || columns.length == 0 || isClipboardTargetReadOnly()) {
 			return false;
 		}
-		List<Node> selectedNodes = getSelectedNodes();
-		if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "cut")) {
+		if (!(getModel() instanceof SpreadSheetModel model)) {
 			return false;
 		}
-		boolean cleared = false;
+		List<ClearCellTarget> targets = new ArrayList<>();
+		FieldContext fieldContext = model.getFieldContext();
 		for (int row : rows) {
+			if (row < 0 || row >= model.getRowCount())
+				continue;
+			Node node = model.getNodeForDisplayRow(row);
+			if (node == null || node.isVoid())
+				continue;
 			for (int column : columns) {
-				if (isCellEditable(row, column)) {
-					setValueAt("", row, column);
-					cleared = true;
-				}
+				int modelColumn = convertColumnIndexToModel(column);
+				if (!model.isCellEditable(row, modelColumn))
+					continue;
+				Field field = model.getFieldInColumn(modelColumn);
+				Object currentValue = field.getValue(node, model.getCache().getWalkersModel(), fieldContext);
+				if (currentValue == null || "".equals(currentValue))
+					continue;
+				targets.add(new ClearCellTarget(row, modelColumn, node, field));
 			}
 		}
-		return cleared;
+		if (targets.isEmpty() || !validateClearTargets(targets, model, fieldContext))
+			return false;
+		List<Node> targetNodes = targets.stream().map(ClearCellTarget::node).distinct().toList();
+		if (!CollaborationHelper.tryLockNodes(null, targetNodes, this, "clearContents"))
+			return false;
+		UndoController undoController = model.getCache().getModel().getUndoController();
+		if (undoController != null)
+			undoController.beginUpdate();
+		try {
+			for (ClearCellTarget target : targets)
+				model.setValueAt("", target.row(), target.column());
+		} finally {
+			if (undoController != null)
+				undoController.endUpdate();
+		}
+		return true;
 	}
+
+	private boolean validateClearTargets(List<ClearCellTarget> targets, SpreadSheetModel model, FieldContext fieldContext) {
+		boolean parseOnly = fieldContext.isParseOnly();
+		fieldContext.setParseOnly(true);
+		try {
+			for (ClearCellTarget target : targets)
+				target.field().setValue(target.node(), model.getCache().getWalkersModel(), this, "", fieldContext);
+			return true;
+		} catch (Exception exception) {
+			logger.log(Level.FINE, "Unable to clear selected field values", exception);
+			return false;
+		} finally {
+			fieldContext.setParseOnly(parseOnly);
+		}
+	}
+
+	/** Compatibility entry point for the transfer handler's Cut completion callback. */
+	public boolean cutSelectedCellValues(int[] rows, int[] columns) {
+		return clearSelectedCellValues(rows, columns);
+	}
+
+	private record ClearCellTarget(int row, int column, Node node, Field field) { }
 
 	public boolean commitTaskCut(List<Node> selectedNodes) {
 		if (selectedNodes == null || selectedNodes.isEmpty() || isClipboardTargetReadOnly()) {

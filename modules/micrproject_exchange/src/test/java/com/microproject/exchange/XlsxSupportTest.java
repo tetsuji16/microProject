@@ -186,6 +186,50 @@ public class XlsxSupportTest extends TestCase {
 		assertNotNull(imported);
 	}
 
+	public void testMicrosoftAndDirectMspImportUseTheSameNativeXlsxPayload() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		com.microproject.pm.task.Project source = com.microproject.pm.task.Project.createProject(
+			ResourcePool.createRourcePool("native-xlsx", undo), undo);
+		NormalTask first = (NormalTask) source.createLocalTaskNode(null).getImpl();
+		first.setName("Native first task");
+		NormalTask second = (NormalTask) source.createLocalTaskNode(null).getImpl();
+		second.setName("Native second task");
+		source.initialize(false, false);
+
+		File tempFile = File.createTempFile("projectlibre-native-xlsx", ".xlsx");
+		tempFile.deleteOnExit();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName(tempFile.getAbsolutePath());
+		try (FileOutputStream out = new FileOutputStream(tempFile)) {
+			assertTrue(exporter.saveProject(source, out));
+		}
+
+		MicrosoftImporter microsoftImporter = new MicrosoftImporter();
+		microsoftImporter.setFileName(tempFile.getAbsolutePath());
+		com.microproject.pm.task.Project microsoftProject;
+		try (InputStream in = new java.io.FileInputStream(tempFile)) {
+			microsoftProject = microsoftImporter.loadProject(in);
+		}
+		MspImporter directImporter = new MspImporter();
+		com.microproject.pm.task.Project directProject = directImporter.importProject(tempFile.getAbsolutePath(),
+			new MspImporter.ProgressClosure() {
+				@Override
+				public void updateProgress(float progress, String label) {
+				}
+			});
+
+		assertEquals(microsoftProject.getDocumentId(), directProject.getDocumentId());
+		assertEquals(microsoftProject.getTasks().size(), directProject.getTasks().size());
+		for (int i = 0; i < microsoftProject.getTasks().size(); i++) {
+			com.microproject.pm.task.Task microsoftTask =
+				(com.microproject.pm.task.Task) microsoftProject.getTasks().get(i);
+			com.microproject.pm.task.Task directTask =
+				(com.microproject.pm.task.Task) directProject.getTasks().get(i);
+			assertEquals(microsoftTask.getUniqueId(), directTask.getUniqueId());
+			assertEquals(microsoftTask.getName(), directTask.getName());
+		}
+	}
+
 	public void testMspImporterUsesMspdiProjectDefaultCalendar() throws Exception {
 		ProjectFile file = new ProjectFile();
 		file.addDefaultBaseCalendar();

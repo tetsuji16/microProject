@@ -415,10 +415,7 @@ Font.text        = �����...
 Font.mnemonic    = F
 Font.action      = FontAction
 
-Bar.type        = ITEM
 Bar.text        = �������...
-Bar.mnemonic    = B
-Bar.action      = BarAction
 
 Timescale.type        = ITEM
 Timescale.text        = ����� �������...
@@ -1075,17 +1072,17 @@ Tool24Refresh.tooltip =��������
 
 TransformChooseBar = ChooseFilter ChooseSort ChooseGroup
 
-ChooseFilter.action = FilterAction
+ChooseFilter.action = ChooseFilter
 ChooseFilter.tooltip   = �����������
 #ChooseFilter.help=http://hosted/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%204.htm#filters
 ChooseFilter.demo=http://www.projectlibre.com/docs/tutorial_video/POD_FilterSort/POD_FilterSort.html
 
-ChooseSort.action = SortAction
+ChooseSort.action = ChooseSort
 ChooseSort.tooltip   = �����������
 #ChooseSort.help=http://hosted/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%204.htm#sorting
 ChooseSort.demo=http://www.projectlibre.com/docs/tutorial_video/POD_FilterSort/POD_FilterSort.html
 
-ChooseGroup.action = GroupAction
+ChooseGroup.action = ChooseGroup
 ChooseGroup.tooltip   = ������������
 #ChooseGroup.help=http://hosted/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%204.htm#grouping
 ChooseGroup.demo=http://www.projectlibre.com/docs/tutorial_video/POD_FilterSort/POD_FilterSort.html
