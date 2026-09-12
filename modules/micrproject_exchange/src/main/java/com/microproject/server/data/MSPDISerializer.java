@@ -25,10 +25,10 @@
 package com.microproject.server.data;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -65,6 +65,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
+import com.microproject.temporary.TemporaryCleanupQueue;
 
 import net.sf.mpxj.ProjectCalendar;
 import net.sf.mpxj.ProjectFile;
@@ -389,49 +390,54 @@ public class MSPDISerializer implements ProjectSerializer {
      }
     
 	public boolean saveProject(Project project,String fileName) {
-		String extension="";
-		String name=fileName;
-		String tmpFileName=fileName;
-		int i=fileName.lastIndexOf('.');
-		if (i>0){
-			extension=fileName.substring(i);
-			name=fileName.substring(0, i);
+		if (project == null || fileName == null || fileName.isBlank()) {
+			logger.warning("Failed to save MSPDI file: project and file name are required");
+			return false;
 		}
-		
-		File file=new File(fileName);
-		File tmpFile=file;
-		for (int count=0;tmpFile.exists();count++){
-			tmpFileName=name+"_tmp"+count+extension;
-			tmpFile=new File(tmpFileName);
+		File file = new File(fileName).getAbsoluteFile();
+		Path target = file.toPath();
+		Path parent = target.getParent();
+		if (parent == null) {
+			logger.warning("Failed to save MSPDI file: target has no parent directory " + file);
+			return false;
 		}
-		
-		try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
-			if (!saveProject(project, fos) || tmpFile.length()==0){
-				// Serialization failed or produced an empty file: discard the
-				// partial temp so it cannot accumulate, and keep the original.
-				tmpFile.delete();
-				Alert.error(Messages.getString("Message.saveError"));
-				return false;
-			}
+
+		Path temporaryPath;
+		try {
+			// Keep the temporary file beside the target so replacement remains a
+			// same-volume move and never falls back to the old racy _tmpN probing.
+			temporaryPath = Files.createTempFile(parent, target.getFileName().toString() + ".tmp-", ".tmp");
 		} catch (IOException e) {
-			logger.log(Level.WARNING, "Failed to save MSPDI file " + fileName, e);
-			tmpFile.delete();
+			logger.log(Level.WARNING, "Failed to create temporary MSPDI file beside " + file, e);
 			Alert.error(Messages.getString("Message.saveError"));
 			return false;
 		}
-		// Replace the original with the temp file only after the move has
-		// actually succeeded, so a failed rename can no longer delete the user's
-		// data (issue #354). On failure the temp is discarded to avoid an
-		// ever-growing pile of _tmpN files.
-		if (file.equals(tmpFile)) {
+		File temporaryFile = temporaryPath.toFile();
+		boolean replaced = false;
+		try {
+			boolean saved;
+			try (OutputStream output = Files.newOutputStream(temporaryPath)) {
+				saved = saveProject(project, output);
+			}
+			if (!saved || Files.size(temporaryPath) == 0L) {
+				Alert.error(Messages.getString("Message.saveError"));
+				return false;
+			}
+			if (!SafeFileReplace.replace(temporaryFile, file)) {
+				Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), temporaryFile));
+				return false;
+			}
+			replaced = true;
 			return true;
-		}
-		if (!SafeFileReplace.replace(tmpFile, file)) {
-			tmpFile.delete();
-			Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
+		} catch (IOException e) {
+			logger.log(Level.WARNING, "Failed to save MSPDI file " + fileName, e);
+			Alert.error(Messages.getString("Message.saveError"));
 			return false;
+		} finally {
+			if (!replaced) {
+				TemporaryCleanupQueue.deleteOrEnqueue(temporaryPath);
+			}
 		}
-		return true;
 	}
 
 	public boolean saveProject(Project project,OutputStream out) {

@@ -73,12 +73,18 @@ detection so the counts are reproducible across machines and git versions.
 
 ## Repository Layout
 
+The Gradle build currently contains eight production subprojects. The
+authoritative list and source-directory mapping are maintained in
+[`settings.gradle.kts`](settings.gradle.kts); keep this summary synchronized
+when a module is added, removed, or renamed.
+
 - `modules/micrproject_core`: scheduling engine, data model, collaboration logic, and configuration
 - `modules/micrproject_application`: application workflows, file policies, and save/open coordination
 - `modules/micrproject_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
 - `modules/micrproject_exchange`: file exchange, import/export, and format integration code
 - `modules/micrproject_reports`: report-related code and templates
 - `modules/micrproject_contrib`: shared third-party dependencies built into the app distribution
+- `modules/micrproject_bootstrap`: update/bootstrap entry point and packaged launch support
 - `modules/micrproject_ribbon`: reusable Swing ribbon API and extension SPI, independent of project-domain commands
 - `packaging`: active packaging assets, licenses, and Windows release icons
 - `samples`: sample project files for screenshots and manual verification
@@ -92,7 +98,8 @@ to check this rule.
 ## Requirements
 
 - Windows with a full JDK that includes `jpackage`
-- Java 25+ required
+- Java 25 or newer is required. Gradle compiles every Java source with
+  `--release 25`; a newer installed JDK may be used as the toolchain runtime.
 - Gradle Wrapper support files are included in this repository
 - WiX Toolset on `PATH` for MSI packaging
 
@@ -102,6 +109,10 @@ If `JAVA_HOME` is not set, the Gradle release tasks fall back to `C:\Program Fil
 
 - `Gradle` is the supported build and release entrypoint for this repository
 - `build.gradle.kts` drives module compilation, installable app layout generation, and Windows `jpackage` packaging
+- The root build applies Java toolchains to all eight subprojects and pins
+  `JavaCompile.options.release` to 25 for reproducible API compatibility
+- CI uses Temurin JDK 25 and runs `verifyArchitectureBoundaries` before the
+  repository build; see [`.github/workflows/build.yml`](.github/workflows/build.yml)
 - `packaging` is the source of active packaging assets, icons, and license notices consumed by the Gradle tasks
 - `packaging/windows/installer-resources` contains the English and Japanese WiX localization resources used by the Windows installers
 - Keep `micrproject_contrib` jars lean when updating dependencies so the packaged app size does not grow unnecessarily

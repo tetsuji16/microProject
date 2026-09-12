@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.AccessDeniedException;
@@ -48,7 +49,7 @@ import java.util.logging.Logger;
 import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.OutlineCollection;
-import com.microproject.exchange.FileImporter;
+import com.microproject.port.SessionImporter;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.resource.ResourcePool;
@@ -279,6 +280,7 @@ public class ProjectMergeService {
 			if (normalized.contains("must contain meta-inf/manifest.xml")
 					|| normalized.contains("must contain content.xml")
 					|| normalized.contains("not a zip archive")
+					|| normalized.contains("no session importer provider")
 					|| normalized.contains("mpof"))
 				return LoadStatus.INVALID_FILE;
 		}
@@ -286,7 +288,7 @@ public class ProjectMergeService {
 	}
 
 	private Project loadMpoProject(String fileName) throws Exception {
-		FileImporter importer = LocalSession.getImporter(LocalSession.MPO_PROJECT_IMPORTER);
+		SessionImporter importer = requireImporter(LocalSession.MPO_PROJECT_IMPORTER);
 		importer.setFileName(fileName);
 		importer.setProjectFactory(ProjectFactory.getInstance());
 		try (InputStream in = new FileInputStream(fileName)) {
@@ -318,7 +320,7 @@ public class ProjectMergeService {
 	}
 
 	private Project loadSerializedPodProject(String fileName) throws Exception {
-		com.microproject.exchange.LocalFileImporter importer = new com.microproject.exchange.LocalFileImporter();
+		SessionImporter importer = requireImporter(LocalSession.LOCAL_PROJECT_IMPORTER);
 		importer.setFileName(fileName);
 		importer.setProjectFactory(ProjectFactory.getInstance());
 		importer.importFile();
@@ -326,7 +328,7 @@ public class ProjectMergeService {
 	}
 
 	private Project loadMicrosoftProject(String fileName, InputStream in) throws Exception {
-		FileImporter importer = LocalSession.getImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
+		SessionImporter importer = requireImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePoolFactory.getInstance().createResourcePool("", undoController);
 		resourcePool.setLocal(true);
@@ -335,6 +337,13 @@ public class ProjectMergeService {
 		importer.setProject(project);
 		importer.setProjectFactory(ProjectFactory.getInstance());
 		return importer.loadProject(in);
+	}
+
+	private static SessionImporter requireImporter(String formatKey) throws IOException {
+		SessionImporter importer = LocalSession.getImporter(formatKey);
+		if (importer == null)
+			throw new IOException("No session importer provider is available for format: " + formatKey);
+		return importer;
 	}
 
 	InputStream openEmbeddedPodXml(String fileName) throws Exception {

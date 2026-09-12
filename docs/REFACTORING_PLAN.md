@@ -1,10 +1,18 @@
 # ProjectLibre リファクタリング状況
 
-最終更新: 2026-07-19
+最終更新: 2026-09-12
 
 ## 方針
 
-- Gradle の 6 サブプロジェクトを現行構成として維持する。
+- Gradle の 8 サブプロジェクトを現行構成として維持する。正本は
+  `settings.gradle.kts` とし、`micrproject_core`、`micrproject_application`、
+  `micrproject_ui`、`micrproject_exchange`、`micrproject_reports`、
+  `micrproject_contrib`、`micrproject_bootstrap`、`micrproject_ribbon` の
+  8 モジュールを対象とする。
+- Java 25 を最小コンパイル対象とする。root の `build.gradle.kts` は全
+  サブプロジェクトに Java toolchain を適用し、`JavaCompile.options.release`
+  を 25 に固定する。CI も Temurin JDK 25 を使用するため、機能追加で
+  Java 25 未満の API や言語機能へ戻さない。
 - プロジェクトファイル、スケジュール計算、Swing の model/view 変換、保存・再読込を互換性境界として扱う。
 - 症状を隠す変更や、仕様の確定していない機能追加をリファクタリングに混ぜない。
 - 同梱した第三者ソースやローカル bridge jar は、互換性テストを用意してから Maven 依存へ置き換える。
@@ -14,12 +22,12 @@
 
 ### 依存関係
 
-- `modules/projectlibre_exchange/src/main/java/net/sf/mpxj` に複製されていた MPXJ ソースを削除した。
+- `modules/micrproject_exchange/src/main/java/net/sf/mpxj` に複製されていた MPXJ ソースを削除した。
 - MPXJ は `net.sf.mpxj:mpxj:11.5.4` を Gradle version catalog から利用する。ProjectLibre 固有の writer 選択と enum 変換は `com.projectlibre1.exchange.mpxj` に隔離した。
-- `modules/projectlibre_ui/src/main/java/org/pushingpixels` に複製されていた Flamingo、Neon、Trident ソースを削除した。
+- `modules/micrproject_ui/src/main/java/org/pushingpixels` に複製されていた Flamingo、Neon、Trident ソースを削除した。
 - Flamingo は `org.pushingpixels:flamengo:5.0`、Neon と Trident は既存の Radiance Maven 依存を利用する。
 - 空になっていた contrib/report bridge classpath 定義を削除した。
-- `isolated-build/` と `modules/projectlibre_contrib/lib` に Git 管理中の成果物はない。ローカル生成物を配布の正本として扱わない。
+- `isolated-build/` と `modules/micrproject_contrib/lib` に Git 管理中の成果物はない。ローカル生成物を配布の正本として扱わない。
 
 ### 実装
 

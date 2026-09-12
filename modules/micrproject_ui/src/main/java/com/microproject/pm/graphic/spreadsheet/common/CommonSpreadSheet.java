@@ -151,6 +151,13 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		// can dispatch EditField, so it may edit a different field than the clicked
 		// cell. F2 is registered exclusively by GraphicManager on the root pane.
 		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
+		// ETable can also consume MSP's outline shortcuts from this ancestor map
+		// while a cell editor owns focus. The document root pane is the sole
+		// registration layer for these commands.
+		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT,
+				java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
+		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,
+				java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
 		enableInputMethods(true);
 		rowHeader=new SpreadSheetRowHeader(this);
 		rowHeader.setRowHeight(getRowHeight());
@@ -163,15 +170,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			copyInputMapWithout(getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT), shortcut));
 	}
 
-	private static InputMap copyInputMapWithout(InputMap source, KeyStroke shortcut) {
+	private static InputMap copyInputMapWithout(InputMap source, KeyStroke... shortcuts) {
 		if (source == null)
 			return null;
 		InputMap copy = new InputMap();
-		copy.setParent(copyInputMapWithout(source.getParent(), shortcut));
+		copy.setParent(copyInputMapWithout(source.getParent(), shortcuts));
 		KeyStroke[] keys = source.keys();
 		if (keys != null) {
 			for (KeyStroke key : keys) {
-				if (!shortcut.equals(key))
+				if (!java.util.Arrays.asList(shortcuts).contains(key))
 					copy.put(key, source.get(key));
 			}
 		}
@@ -417,10 +424,42 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			JTextComponent text = getEditorTextComponent();
 			if (text == null)
 				return;
+			// Outline shortcuts are owned by the document root pane.  Swing text
+			// editors inherit platform bindings for Alt+Shift+Left/Right, which
+			// otherwise consume MSP's outdent/indent keystrokes before the root map
+			// can dispatch the canonical command.
+			removeDocumentHierarchyShortcutBindings(text);
+			// NameCellComponent reuses a composite editor.  Its wrapper can carry
+			// a fresh UI-delegate InputMap when the second edit begins, so clear the
+			// same inherited bindings from the editor hierarchy as well.  The
+			// document root-pane remains the only owner/action registration layer.
+			if (editorComp instanceof JComponent editor && editor != text)
+				removeDocumentHierarchyShortcutBindings(editor);
 			if (action != null) {
 				action.apply(text);
 			}
 		});
+	}
+
+	private static void removeDocumentHierarchyShortcutBindings(JComponent component) {
+		KeyStroke right = KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT,
+				java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK);
+		KeyStroke left = KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,
+				java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK);
+		component.setInputMap(JComponent.WHEN_FOCUSED,
+				copyInputMapWithout(component.getInputMap(JComponent.WHEN_FOCUSED), right, left));
+		component.setInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+				copyInputMapWithout(component.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT), right, left));
+	}
+
+	private static void removeDocumentHierarchyShortcutsOnFocus(JComponent component) {
+		FocusAdapter listener = new FocusAdapter() {
+			@Override public void focusGained(FocusEvent event) {
+				component.removeFocusListener(this);
+				removeDocumentHierarchyShortcutBindings(component);
+			}
+		};
+		component.addFocusListener(listener);
 	}
 
 	// ---------------------------------------------------------------------
@@ -462,6 +501,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		}
 		super.processKeyEvent(e);
 	}
+
 
 	@Override
 	protected void processInputMethodEvent(InputMethodEvent e) {
@@ -1124,6 +1164,16 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		if (text == null) {
 			return;
 		}
+		// The editor may be reused and its UI delegate can reinstall the
+		// platform Alt+Shift+Arrow bindings during configure/start.  Remove them
+		// synchronously, before focus is transferred, so the second edit cannot
+		// consume the keystroke before the document root-pane route sees it.
+		removeDocumentHierarchyShortcutBindings(text);
+		if (editorComp instanceof JComponent editor && editor != text)
+			removeDocumentHierarchyShortcutBindings(editor);
+		removeDocumentHierarchyShortcutsOnFocus(text);
+		if (editorComp instanceof JComponent editor && editor != text)
+			removeDocumentHierarchyShortcutsOnFocus(editor);
 
 		var mouseEditingNameCell = nameCell && e instanceof MouseEvent;
 		if (nameCell && !mouseEditingNameCell) {

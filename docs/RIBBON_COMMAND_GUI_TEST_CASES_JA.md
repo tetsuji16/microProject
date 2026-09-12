@@ -49,6 +49,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonNotes | タスクメモを編集 | メモを保存して再表示できる |
 | RibbonUpdateTasks | タスクの進捗を更新 | 更新値がタスク表とバーへ反映される |
 | RibbonDelete | 選択タスクを削除 | 確認後に対象行だけが削除される |
+| RibbonTaskModeManual / RibbonTaskModeAutomatic | 手動／自動スケジュールへ切り替え | 選択タスクのスケジュールモードが変わり、Undo/Redoと保存再読込で保持される |
 | RibbonCustomFields | ユーザー設定フィールドを開く | カスタムフィールド操作が可能 |
 | RibbonFind | タスクを検索 | 検索結果へ移動できる |
 | RibbonScrollToTask | 選択タスクへスクロール | 対象タスクが表示領域へ移動する |
@@ -89,6 +90,8 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonChangeWorkingTime | 稼働時間を変更 | カレンダー設定を開いて保存／取消できる |
 | RibbonCalendarOptions | カレンダーオプションを開く | オプションを表示できる |
 | RibbonUpdateProject | プロジェクトを更新 | 更新結果がタスク表へ反映される |
+| RibbonStatusDate | 状況報告日を設定 | 状況報告日が設定され、Undo/Redoで復元される |
+| RibbonMarkOnTrack | 選択タスクを予定どおりに更新 | 状況報告日に基づく進捗へ更新され、Undo/Redoで復元される |
 | RibbonMoveProject | プロジェクト全体を移動 | 新しい開始日に合わせてタスクとガントバーが移動し、Undo／Redo と保存／再読込後も結果が保たれる |
 | RibbonRecalculate | スケジュールを再計算 | 依存タスクとガントバーが再計算される |
 | RibbonRefreshSubprojects | マスターのサブプロジェクトを更新 | 各リンクが安全に再読み込みされ、未保存の子プロジェクトでは保存・破棄・キャンセルを選べる |

@@ -42,6 +42,9 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		pool.setLocal(true);
 		Project project = Project.createProject(pool, undo);
 		project.setName("Project information GUI");
+		// Move Project is available only for forward-scheduled projects; keep the
+		// fixture's physical route preconditions explicit.
+		project.setForward(true);
 		dialog = ProjectInformationDialog.getInstance(null, project);
 		SwingUtilities.invokeLater(() -> { dialog.pack(); dialog.setVisible(true); });
 		GuiAcceptanceSupport.await(() -> dialog.isShowing(), "Project information dialog did not open");

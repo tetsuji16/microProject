@@ -35,8 +35,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Verify architecture boundaries
-        run: bash ./gradlew verifyArchitectureBoundaries --console=plain
+      - name: Verify architecture and naming boundaries
+        run: bash ./gradlew verifyArchitectureBoundaries verifyArchitectureBoundaryFixtures verifyNamingConventions --console=plain
 
       - name: Test repository maintenance scripts
         run: python -m unittest discover -s scripts/tests -v

@@ -514,6 +514,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return statusDate != 0;
 	}
 
+	/** Clears an explicitly configured status date (used by undo). */
+	public void clearStatusDate() {
+		this.statusDate = 0L;
+	}
+
 	/**
 	 * @param statusDate The statusDate to set.
 	 */

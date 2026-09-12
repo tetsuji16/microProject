@@ -217,7 +217,8 @@ public final class SwingRibbonFactory {
 		if (value != null) {
 			return value;
 		}
-		throw new MissingResourceException("Missing ribbon resource", SwingRibbonFactory.class.getName(), key);
+		throw new MissingResourceException("Missing ribbon resource: " + key,
+				SwingRibbonFactory.class.getName(), key);
 	}
 
 	private String resolveStringOrNull(String key) {

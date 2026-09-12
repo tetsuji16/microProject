@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Scanner;
 
 import javax.swing.SwingUtilities;
@@ -56,6 +58,7 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.SafeFileReplace;
 import com.microproject.util.SafeObjectInput;
+import com.microproject.temporary.TemporaryCleanupQueue;
 
 /**
  * Loads/Saves a project from/to a pod file
@@ -222,9 +225,7 @@ public class LocalFileImporter extends FileImporter {
 					logger.info("Recovered with XML");
 				}else{
 					//unable to recover from xml 
-		    		if ( ex!=null &&
-		    				ex instanceof ClassNotFoundException &&
-		    				ex.getMessage().equals("com.projity.server.data.ProjectData")) {
+					if (isLegacyProjectDataFailure(ex)) {
 		    			SwingUtilities.invokeLater(new Runnable(){
 		    				public void run(){
 				    			Alert.error(Messages.getString("Message.ImportOldFormatError"));
@@ -253,6 +254,11 @@ public class LocalFileImporter extends FileImporter {
 				}
 			}
         }
+	}
+
+	static boolean isLegacyProjectDataFailure(Exception exception) {
+		return exception instanceof ClassNotFoundException
+				&& "com.projity.server.data.ProjectData".equals(exception.getMessage());
 	}
 
 	
@@ -298,26 +304,19 @@ public class LocalFileImporter extends FileImporter {
 
 	@Override
 	public void exportFile() throws Exception{
-		String extension="";
+		File file=new File(fileName).getAbsoluteFile();
 		String name=fileName;
-		String tmpFileName=fileName;
-		int i=fileName.lastIndexOf('.');
-		if (i>0){
-			extension=fileName.substring(i);
-			name=fileName.substring(0, i);
-		}
-		
-		File file=new File(fileName);
-		File tmpFile=file;
-		for (int count=0;tmpFile.exists();count++){
-			tmpFileName=name+"_tmp"+count+extension;
-			tmpFile=new File(tmpFileName);
-		}
-		
-		
-
+		int extensionIndex=fileName.lastIndexOf('.');
+		if (extensionIndex > 0) name=fileName.substring(0, extensionIndex);
+		Path parent = file.toPath().getParent();
+		if (parent == null) throw new IOException("Cannot determine target directory: " + file);
+		// Always write beside the target through a unique file.  This prevents
+		// partial target files and the racy legacy _tmpN name probing.
+		File tmpFile = Files.createTempFile(parent, file.getName() + ".", ".tmp").toFile();
+		String tmpFileName = tmpFile.getAbsolutePath();
+		boolean replaced = false;
 		boolean error=false;
-		
+		try {
 		try (FileOutputStream fout = new FileOutputStream(tmpFile);
 			 BufferedOutputStream bout = new BufferedOutputStream(fout);
 			 ObjectOutputStream out = new ObjectOutputStream(bout)) {
@@ -345,7 +344,10 @@ public class LocalFileImporter extends FileImporter {
 			try{
 				bout.write(PROJECT_LIBRE_FILE_SEPARATOR.getBytes());
 				bout.flush();
-				FileImporter importer=LocalSession.getImporter("com.microproject.exchange.MicrosoftImporter");
+				com.microproject.port.SessionImporter importer=LocalSession.getImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
+				if (importer == null) {
+					throw new IOException("POD export requires the Microsoft exchange importer provider");
+				}
 				String previousFileName = importer.getFileName();
 				try {
 					// POD stores a serialized ProjectLibre payload followed by embedded MSPDI XML.
@@ -365,17 +367,21 @@ public class LocalFileImporter extends FileImporter {
 			logger.log(Level.WARNING, "Error during file import", e);
 		}
 
-		//Don't replace original file if an error occurred
+		// Don't replace the original file if an error occurred.
 		if (error){
-			if (file.equals(tmpFile))
-				Alert.error(Messages.getString("Message.saveError"));
-				else Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
-		}else if (!file.equals(tmpFile)){
+			Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
+		}else{
 			if (!SafeFileReplace.replace(tmpFile, file)) {
-				// The original is preserved by the safe replace; discard the temp
-				// so it does not accumulate (issue #354).
-				tmpFile.delete();
+				// The original is preserved by the safe replace; cleanup is handled
+				// by the finally block even when Windows denies the first delete.
 				Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
+			} else {
+				replaced = true;
+			}
+		}
+		} finally {
+			if (!replaced) {
+				TemporaryCleanupQueue.deleteOrEnqueue(tmpFile.toPath());
 			}
 		}
 
@@ -387,7 +393,7 @@ public class LocalFileImporter extends FileImporter {
 		return getImportFileJob(this);
 	}
 
-    public static Job getImportFileJob(final FileImporter importer){
+    public static Job getImportFileJob(final com.microproject.port.SessionImporter importer){
     	final Job job=new Job(importer.getJobQueue(),"importFile",Messages.getString("LocalFileImporter.Importing"),true); //$NON-NLS-1$ //$NON-NLS-2$
         job.addRunnable(new JobRunnable("Import",1.0f){ //$NON-NLS-1$
     		public Object run() throws Exception{
@@ -402,7 +408,7 @@ public class LocalFileImporter extends FileImporter {
     public Job getExportFileJob(){
     	return getExportFileJob(this);
     }
-    public static Job getExportFileJob(final FileImporter importer){
+    public static Job getExportFileJob(final com.microproject.port.SessionImporter importer){
     	final Job job=new Job(importer.getJobQueue(),"exportFile",Messages.getString("LocalFileImporter.Exporting"),true); //$NON-NLS-1$ //$NON-NLS-2$
         job.addRunnable(new JobRunnable("Export",1.0f){ //$NON-NLS-1$
     		public Object run() throws Exception{

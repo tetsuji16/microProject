@@ -8,6 +8,24 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 import java.io.File
 import java.util.zip.ZipFile
 
+fun architectureSourceBoundaryViolations(sourceFile: File, forbiddenPackages: List<String>): List<String> {
+    return sourceFile.readLines().mapIndexedNotNull { index, line ->
+        val code = line.substringBefore("//")
+        forbiddenPackages.firstOrNull { forbidden ->
+            Regex("(?<![A-Za-z0-9_$])${Regex.escape(forbidden)}(?:[A-Za-z0-9_$.]*)(?![A-Za-z0-9_$])")
+                .containsMatchIn(code)
+        }?.let { forbidden ->
+            "${sourceFile}:${index + 1}: forbidden package '$forbidden': $line"
+        }
+    }
+}
+
+fun requireArchitectureSet(label: String, module: String, expected: Set<String>, actual: Set<String>) {
+    require(actual == expected) {
+        "Unexpected $label for $module: expected=${expected.sorted()}, actual=${actual.sorted()}"
+    }
+}
+
 plugins {
     base
 }
@@ -77,9 +95,67 @@ tasks.register("stageAppDist") {
 
 tasks.register("verifyArchitectureBoundaries") {
     group = "verification"
-    description = "Verifies the module dependency direction and legacy-namespace containment."
+    description = "Verifies module dependencies, API exposure, and namespace boundaries."
 
     doLast {
+        val expectedProjectDependencies = mapOf<String, Set<String>>(
+            "micrproject_contrib" to emptySet(),
+            "micrproject_core" to setOf("micrproject_contrib"),
+            "micrproject_application" to setOf("micrproject_core"),
+            "micrproject_exchange" to setOf("micrproject_contrib", "micrproject_core"),
+            "micrproject_reports" to setOf("micrproject_contrib", "micrproject_core"),
+            "micrproject_bootstrap" to emptySet(),
+            "micrproject_ribbon" to emptySet(),
+            "micrproject_ui" to setOf(
+                "micrproject_application", "micrproject_contrib", "micrproject_core",
+                "micrproject_exchange", "micrproject_reports", "micrproject_ribbon"
+            )
+        )
+        val configuredModules = rootProject.subprojects.map { it.name }.toSet()
+        require(configuredModules == expectedProjectDependencies.keys) {
+            "Architecture allowlist must cover exactly the configured micrproject modules. " +
+                "configured=${configuredModules.sorted()}, " +
+                "allowlisted=${expectedProjectDependencies.keys.sorted()}"
+        }
+        expectedProjectDependencies.forEach { (module, expected) ->
+            val actual = project(":$module").configurations
+                .filter { it.name in setOf("api", "implementation", "compileOnly", "runtimeOnly") }
+                .flatMap { configuration -> configuration.dependencies }
+                .filter { dependency -> dependency is org.gradle.api.artifacts.ProjectDependency }
+                .map { dependency -> dependency as org.gradle.api.artifacts.ProjectDependency }
+                .map { dependency -> dependency.path.removePrefix(":") }
+                .toSet()
+            requireArchitectureSet("project dependency graph", module, expected, actual)
+        }
+
+        val allowedApiDependencies = mapOf<String, Set<String>>(
+            // contrib exposes only com.microproject.contrib/org.jdesktop APIs;
+            // third-party implementation details must not leak to consumers.
+            "micrproject_contrib" to emptySet(),
+            "micrproject_core" to emptySet(),
+            "micrproject_application" to emptySet(),
+            "micrproject_exchange" to emptySet(),
+            "micrproject_reports" to emptySet(),
+            "micrproject_bootstrap" to emptySet(),
+            "micrproject_ribbon" to emptySet(),
+            "micrproject_ui" to emptySet()
+        )
+        allowedApiDependencies.forEach { (module, allowed) ->
+            val actual = project(":$module").configurations
+                .findByName("api")
+                ?.dependencies
+                ?.map { dependency ->
+                    if (dependency is org.gradle.api.artifacts.ProjectDependency) {
+                        dependency.path
+                    } else {
+                        "${dependency.group}:${dependency.name}"
+                    }
+                }
+                ?.toSet()
+                ?: emptySet()
+            requireArchitectureSet("public API dependencies", module, allowed, actual)
+        }
+
         val boundaryRules = mapOf(
             "micrproject_core" to listOf("com.microproject.application", "com.microproject.reports", "com.microproject.ui"),
             "micrproject_application" to listOf("com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
@@ -88,32 +164,133 @@ tasks.register("verifyArchitectureBoundaries") {
             "micrproject_bootstrap" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
             "micrproject_ribbon" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.menu", "com.microproject.pm", "com.microproject.reports", "com.microproject.ui", "com.microproject.util")
         )
+
         boundaryRules.forEach { (module, forbiddenPackages) ->
             val sourceRoot = project(":$module").projectDir.resolve("src/main")
             fileTree(sourceRoot).matching { include("**/*.java", "**/*.kt") }.forEach { sourceFile ->
-                sourceFile.useLines { lines ->
-                    lines.forEach { line ->
-                        if (line.trimStart().startsWith("import ") && forbiddenPackages.any { line.contains(it) }) {
-                            throw GradleException("Independent boundary violation in ${sourceFile}: $line")
-                        }
+                architectureSourceBoundaryViolations(sourceFile, forbiddenPackages).forEach { violation ->
+                    throw GradleException("Independent boundary violation in $violation")
+                }
+            }
+        }
+
+        // A legacy class-name key is persisted in old POD options.  Keep this
+        // compatibility adapter narrow and explicit; all other legacy FQNs are
+        // still rejected, including new reflection/package leaks.
+        val legacyNamespaceAllowlist = mapOf(
+            "modules/micrproject_core/src/main/java/com/microproject/util/SafeObjectInput.java" to setOf("com.projectlibre1"),
+            "modules/micrproject_exchange/src/main/java/com/microproject/exchange/DefaultFileImporterProvider.java" to setOf(
+                "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
+            ),
+            "modules/micrproject_core/src/main/java/com/microproject/exchange/ImporterRegistry.java" to setOf(
+                "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
+            )
+        )
+        val legacyFqnPattern = Regex("(?<![A-Za-z0-9_$])com\\.projectlibre(?:1)?(?:\\.[A-Za-z0-9_$]+)*(?![A-Za-z0-9_$])")
+        val legacyNamespaceReferences = fileTree(layout.projectDirectory.dir("modules")) {
+            include("**/src/main/**/*.java", "**/src/main/**/*.kt")
+            exclude("**/build/**")
+        }.flatMap { sourceFile ->
+            val relative = sourceFile.relativeTo(layout.projectDirectory.asFile).invariantSeparatorsPath
+            val allowed = legacyNamespaceAllowlist[relative].orEmpty()
+            sourceFile.readLines().flatMapIndexed { index, line ->
+                legacyFqnPattern.findAll(line.substringBefore("//")).mapNotNull { match ->
+                    val token = match.value
+                    if (allowed.any { token == it || (it == "com.projectlibre1" && token.startsWith("$it.")) }) {
+                        null
+                    } else {
+                        "${sourceFile}:${index + 1}: $line"
+                    }
+                }.toList()
+            }
+        }
+        require(legacyNamespaceReferences.isEmpty()) {
+            "Legacy com.projectlibre namespace leaked outside the explicit compatibility allowlist:\n" + legacyNamespaceReferences.joinToString("\n")
+        }
+    }
+}
+
+tasks.register("verifyDependencyAllowlist") {
+    group = "verification"
+    description = "Checks the approved external dependency and single logging-backend policy."
+    doLast {
+        // This is intentionally a group-level allowlist: versions are managed
+        // centrally in libs.versions.toml, while this gate prevents a module
+        // from quietly introducing an unrelated public/runtime dependency.
+        val allowedGroups = setOf(
+            "com.fasterxml.jackson.core", "com.fasterxml.jackson.dataformat",
+            "com.formdev", "com.jgoodies", "com.lowagie", "com.thoughtworks.xstream",
+            "commons-beanutils", "commons-codec", "commons-collections",
+            "commons-io", "commons-lang", "commons-logging", "commons-pool", "commons-digester",
+            "io.reactivex.rxjava3", "javax.activation", "javax.xml.bind",
+            "net.sf.mpxj", "net.sf.jasperreports", "org.apache.commons",
+            "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
+            "org.codehaus.groovy", "org.glassfish.jaxb", "org.imgscalr", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
+            "org.update4j", "com.github.librepdf",
+            "org.netbeans.api", "org.junit", "junit", "com.github"
+        )
+        subprojects.forEach { module ->
+            module.configurations.findByName("implementation")?.dependencies?.forEach { dependency ->
+                if (dependency is org.gradle.api.artifacts.ExternalModuleDependency) {
+                    require(dependency.group in allowedGroups) {
+                        "Dependency ${dependency.group}:${dependency.name} in ${module.name} is not in the external allowlist"
                     }
                 }
             }
         }
 
-        val legacyNamespaceReferences = fileTree(layout.projectDirectory.dir("modules")) {
-            include("**/src/main/**/*.java", "**/src/main/**/*.kt")
-            exclude("**/build/**")
-        }.filter { sourceFile ->
-            sourceFile.relativeTo(layout.projectDirectory.asFile).invariantSeparatorsPath !=
-                "modules/micrproject_core/src/main/java/com/microproject/util/SafeObjectInput.java"
-        }.flatMap { sourceFile ->
-            sourceFile.readLines().mapIndexedNotNull { index, line ->
-                if (line.contains("com.projectlibre")) "${sourceFile}:${index + 1}: $line" else null
+        val forbiddenBackends = setOf("ch.qos.logback:logback-classic", "org.apache.logging.log4j:log4j-core")
+        subprojects.forEach { module ->
+            val runtime = module.configurations.findByName("runtimeClasspath") ?: return@forEach
+            val resolved = runtime.resolvedConfiguration.resolvedArtifacts.map {
+                "${it.moduleVersion.id.group}:${it.name}"
+            }.toSet()
+            require(resolved.intersect(forbiddenBackends).isEmpty()) {
+                "Forbidden logging backend resolved for ${module.name}: ${resolved.intersect(forbiddenBackends)}"
             }
+            val simpleBackends = resolved.filter { it == "org.slf4j:slf4j-simple" }
+            require(simpleBackends.size <= 1) { "Duplicate slf4j-simple backend in ${module.name}" }
         }
-        require(legacyNamespaceReferences.isEmpty()) {
-            "Legacy com.projectlibre namespace leaked outside SafeObjectInput:\n" + legacyNamespaceReferences.joinToString("\n")
+    }
+}
+
+tasks.register("verifyArchitectureBoundaryFixtures") {
+    group = "verification"
+    description = "Self-tests the source-level architecture boundary detector with violating fixtures."
+
+    doLast {
+        val fixtureRoot = layout.buildDirectory.dir("tmp/architecture-boundary-fixtures").get().asFile
+        fixtureRoot.deleteRecursively()
+        fixtureRoot.mkdirs()
+        val fixture = fixtureRoot.resolve("ForbiddenImport.java")
+        try {
+            fixture.writeText(
+                "package com.microproject.core;\n" +
+                    "import com.microproject.exchange.MpoFileImporter;\n" +
+                    "class ForbiddenImport { Object load() { return Class.forName(\"com.microproject.exchange.MpoFileImporter\"); } }\n"
+            )
+            val detected = architectureSourceBoundaryViolations(fixture, listOf("com.microproject.exchange"))
+            require(detected.size == 2) {
+                "Architecture boundary fixture must reject both direct and reflective FQNs; detected=$detected"
+            }
+
+            var projectDependencyRejected = false
+            try {
+                requireArchitectureSet("project dependency graph", "fixture", emptySet(), setOf("micrproject_exchange"))
+            } catch (_: IllegalArgumentException) {
+                projectDependencyRejected = true
+            }
+            require(projectDependencyRejected) { "Architecture fixture must reject an undeclared project dependency." }
+
+            var apiDependencyRejected = false
+            try {
+                requireArchitectureSet("public API dependencies", "fixture", emptySet(), setOf("org.bad:leak"))
+            } catch (_: IllegalArgumentException) {
+                apiDependencyRejected = true
+            }
+            require(apiDependencyRejected) { "Architecture fixture must reject an API dependency leak." }
+        } finally {
+            fixtureRoot.deleteRecursively()
         }
     }
 }
@@ -122,6 +299,119 @@ tasks.register("verifyIndependentBoundaries") {
     group = "verification"
     description = "Compatibility alias for verifyArchitectureBoundaries."
     dependsOn("verifyArchitectureBoundaries")
+}
+
+tasks.register("verifyNamingConventions") {
+    group = "verification"
+    description = "Verifies the micrproject build identity, microProject product branding, and source namespace policy."
+
+    doLast {
+        // The Gradle identity is deliberately lower-case and keeps the historical
+        // micrproject spelling.  It is not the user-visible product name.
+        val expectedModules = setOf(
+            "micrproject_contrib",
+            "micrproject_core",
+            "micrproject_application",
+            "micrproject_ui",
+            "micrproject_exchange",
+            "micrproject_reports",
+            "micrproject_bootstrap",
+            "micrproject_ribbon"
+        )
+        val configuredModules = rootProject.subprojects.map { it.name }.toSet()
+        require(configuredModules == expectedModules) {
+            "Naming policy requires exactly the eight micrproject_* modules. " +
+                "configured=${configuredModules.sorted()}, expected=${expectedModules.sorted()}"
+        }
+        require(rootProject.name == "micrproject") {
+            "The Gradle root identity must remain 'micrproject'; use 'microProject' only for product branding."
+        }
+        // Issue #529: the logical project name and the on-disk project directory
+        // are both part of the build contract. This catches a partially renamed
+        // module while allowing unreferenced legacy folders to remain for audit.
+        val modulesRoot = layout.projectDirectory.dir("modules").asFile.canonicalFile
+        val expectedProjectDirs = expectedModules.associateWith { module ->
+            modulesRoot.resolve(module).canonicalFile
+        }
+        val actualProjectDirs = expectedModules.associateWith { module ->
+            project(":$module").projectDir.canonicalFile
+        }
+        require(actualProjectDirs == expectedProjectDirs) {
+            "Each active module must live at modules/<micrproject_* name>; " +
+                "actual=${actualProjectDirs.mapValues { it.value.path }}, " +
+                "expected=${expectedProjectDirs.mapValues { it.value.path }}"
+        }
+        expectedProjectDirs.forEach { (module, directory) ->
+            require(directory.isDirectory) {
+                "Active module directory is missing for $module: $directory"
+            }
+        }
+        val legacyProjectDirs = modulesRoot.listFiles()
+            ?.filter { it.isDirectory && it.name.startsWith("projectlibre_") }
+            .orEmpty()
+            .map { it.canonicalFile }
+            .toSet()
+        require(legacyProjectDirs.intersect(actualProjectDirs.values.toSet()).isEmpty()) {
+            "Legacy projectlibre_* directories must never be active Gradle projects: " +
+                legacyProjectDirs.intersect(actualProjectDirs.values.toSet())
+        }
+        expectedModules.forEach { module ->
+            val artifactName = project(":$module").tasks.named<Jar>("jar").get().archiveBaseName.get()
+            require(artifactName == module) {
+                "The $module JAR must retain its stable micrproject_* artifact name; actual=$artifactName"
+            }
+        }
+
+        val settingsText = layout.projectDirectory.file("settings.gradle.kts").asFile.readText()
+        require(!Regex("include\\(\\\"projectlibre_").containsMatchIn(settingsText)) {
+            "Legacy projectlibre_* modules must not be reintroduced into settings.gradle.kts."
+        }
+
+        // Package declarations are the source-namespace boundary.  Both legacy
+        // ProjectLibre and casing-variant microProject/micrproject declarations
+        // are rejected. References to old names in compatibility strings, file
+        // formats, or SafeObjectInput are intentionally not treated as a violation.
+        val forbiddenDeclarations = mutableListOf<String>()
+        expectedModules.forEach { module ->
+            listOf("src/main/java", "src/test/java").forEach { sourcePath ->
+                val sourceRoot = layout.projectDirectory.dir("modules/$module/$sourcePath").asFile
+                if (!sourceRoot.isDirectory) return@forEach
+                fileTree(sourceRoot).matching { include("**/*.java", "**/*.kt") }.files.forEach { sourceFile ->
+                    sourceFile.readLines().forEachIndexed { index, line ->
+                        val declaration = line.trim()
+                        if (declaration.startsWith("package com.projectlibre") ||
+                            declaration.startsWith("package org.projectlibre") ||
+                            declaration.startsWith("package com.microProject") ||
+                            declaration.startsWith("package com.micrproject")) {
+                            forbiddenDeclarations += "${sourceFile}:${index + 1}: $declaration"
+                        }
+                    }
+                }
+            }
+        }
+        require(forbiddenDeclarations.isEmpty()) {
+            "Legacy ProjectLibre package declarations are not allowed in active sources:\n" +
+                forbiddenDeclarations.joinToString("\n")
+        }
+
+        require(minimumJavaRelease >= 25 && activeToolchainVersion >= 25) {
+            "Active Java/toolchain baseline must remain Java 25 or newer."
+        }
+        val packagingBuild = layout.projectDirectory.file("build.gradle.kts").asFile.readText()
+        require(packagingBuild.contains("--name\", \"microProject\"")) {
+            "Windows packaging must use the user-visible microProject application name."
+        }
+        require(layout.projectDirectory.file("packaging/windows/launchers/microProject.cmd").asFile.isFile) {
+            "The canonical microProject Windows launcher is missing."
+        }
+        require(layout.projectDirectory.file("packaging/windows/icons/microproject.ico").asFile.isFile) {
+            "The canonical microproject Windows icon is missing."
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn("verifyArchitectureBoundaries", "verifyArchitectureBoundaryFixtures", "verifyNamingConventions")
 }
 
 tasks.register<Delete>("cleanLegacyPackagingArtifacts") {

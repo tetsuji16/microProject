@@ -119,4 +119,43 @@ class AutoRecoveryStoreTest {
 		assertFalse(Files.exists(snapshot.resolveSibling("12.recovery.properties")));
 		assertTrue(Files.exists(unrelated));
 	}
+
+	@Test
+	void malformedMetadataIsReturnedAsDiagnosticAndDoesNotHideValidCandidates() throws Exception {
+		AutoRecoveryStore store = new AutoRecoveryStore(temporaryDirectory.resolve("recovery"));
+		Path validSnapshot = store.snapshotPath(13L);
+		Files.writeString(validSnapshot, "valid recovery");
+		store.recordCompletedSnapshot(13L, "Valid", null, Instant.now());
+		Path malformed = validSnapshot.resolveSibling("14.recovery.properties");
+		Files.writeString(malformed, "projectId=not-a-number\nsavedAt=not-an-instant\n");
+		Path malformedSnapshot = validSnapshot.resolveSibling("14.recovery.pod");
+		Files.writeString(malformedSnapshot, "malformed recovery");
+
+		AutoRecoveryStore.RecoveryScan scan = store.scanRecoverable();
+
+		assertEquals(1, scan.entries().size());
+		assertEquals(13L, scan.entries().getFirst().projectId());
+		assertEquals(1, scan.issues().size());
+		assertEquals(AutoRecoveryStore.MetadataIssueKind.MALFORMED, scan.issues().getFirst().kind());
+		assertEquals(malformed, scan.issues().getFirst().metadata());
+		assertTrue(scan.issues().getFirst().detail().contains("For input string"));
+		assertTrue(scan.hasIssues());
+
+		// The legacy API remains usable and logs the same diagnostic.
+		assertEquals(1, store.listRecoverable().size());
+	}
+
+	@Test
+	void unreadableMetadataIsReturnedAsDiagnostic() throws Exception {
+		AutoRecoveryStore store = new AutoRecoveryStore(temporaryDirectory.resolve("recovery"));
+		Path metadataDirectory = store.snapshotPath(15L).resolveSibling("15.recovery.properties");
+		Files.createDirectory(metadataDirectory);
+
+		AutoRecoveryStore.RecoveryScan scan = store.scanRecoverable();
+
+		assertTrue(scan.entries().isEmpty());
+		assertEquals(1, scan.issues().size());
+		assertEquals(AutoRecoveryStore.MetadataIssueKind.UNREADABLE, scan.issues().getFirst().kind());
+		assertEquals(metadataDirectory, scan.issues().getFirst().metadata());
+	}
 }

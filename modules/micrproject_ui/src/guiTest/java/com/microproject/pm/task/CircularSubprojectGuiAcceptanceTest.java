@@ -71,12 +71,16 @@ class CircularSubprojectGuiAcceptanceTest {
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> { dialog.toFront(); dialog.requestFocus(); });
 		capture(robot, dialog);
 		Rectangle buttonBounds = buttonBounds(dialog);
 		robot.mouseMove(buttonBounds.x + buttonBounds.width / 2, buttonBounds.y + buttonBounds.height / 2);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(completed::get, "OK did not dismiss circular-reference warning");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(completed::get, "OK did not dismiss circular-reference warning: visible="
+			+ dialog.isVisible() + ", displayable=" + dialog.isDisplayable() + ", owner=" + dialog.getOwner());
 		assertNull(result.get());
 		assertEquals(SubProj.LoadStatus.CYCLE, fixture.attempt.getLoadStatus());
 		assertFalse(fixture.master.getTasks().contains(fixture.candidate), "candidate must not be attached after a cycle rejection");
@@ -104,7 +108,9 @@ class CircularSubprojectGuiAcceptanceTest {
 			frame.add(new JLabel("Cycle insertion is rejected without changing the master", SwingConstants.CENTER), BorderLayout.CENTER);
 			frame.setSize(760, 280);
 			frame.setLocationByPlatform(true);
-			frame.setAlwaysOnTop(true);
+			// The warning is a modal child window. Keeping the fixture frame
+			// always-on-top can cover the native dialog and consume Robot clicks.
+			frame.setAlwaysOnTop(false);
 			frame.setVisible(true);
 		});
 	}

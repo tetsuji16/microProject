@@ -111,6 +111,7 @@ import com.microproject.configuration.Settings;
 import com.microproject.application.ProjectDocumentWorkflow;
 import com.microproject.application.ProjectLoadWorkflow;
 import com.microproject.application.RecentProjectStore;
+import com.microproject.application.TemporaryWorkspace;
 import com.microproject.collaboration.CollaborationMetadataStore;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.ProjectMergeService;
@@ -138,6 +139,7 @@ import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
 import com.microproject.exchange.ResourceMappingForm;
 import com.microproject.exchange.MpoFileImporter;
+import com.microproject.exchange.MpoExtractionOwnershipRegistry;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
@@ -217,7 +219,7 @@ import com.microproject.util.UiLinkTargets;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
 import com.microproject.ribbon.RibbonCommandResult;
-import com.microproject.ui.command.SelectionSnapshot;
+import com.microproject.ribbon.CommandId;
 
 
 
@@ -230,7 +232,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static final boolean BINARY_WORKSPACE = true;
 	private RibbonCommandResult lastRibbonCommandResult;
 	private static GraphicManager lastGraphicManager = null; // used when displaying a popup but the frame isn't known
-    private DocumentFrame currentFrame = null;
+	private DocumentFrame currentFrame = null;
+	private final DocumentGeneration documentGeneration = new DocumentGeneration();
 	private List frameList=new ArrayList();
 
 	/** Returns a snapshot of projects currently open in this desktop window. */
@@ -264,6 +267,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     private ResourceMappingDialog resourceMappingDialog=null;
 	ProjectFactory projectFactory = null;
 	private final AutoRecoveryManager autoRecoveryManager;
+	private final TemporaryWorkspace temporaryWorkspace;
 	private final RecentProjectStore recentProjectStore = new RecentProjectStore();
 	private Runnable afterSaveNewProject;
 	private volatile boolean quitting;
@@ -352,6 +356,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}});
 
 		projectFactory = ProjectFactory.getInstance();
+		TemporaryWorkspace workspace;
+		try {
+			workspace = TemporaryWorkspace.openDefault();
+			MpoFileImporter.setExtractionWorkspaceRoot(workspace.root());
+		} catch (IOException exception) {
+			// MPOF falls back to the same platform default when the workspace cannot
+			// be initialized; opening ordinary project files must remain available.
+			logger.log(Level.WARNING, "Unable to initialize temporary workspace", exception);
+			workspace = null;
+		}
+		temporaryWorkspace = workspace;
 		autoRecoveryManager = new AutoRecoveryManager(projectFactory, this);
 		projectFactory.getPortfolio().addObjectListener(this);
 
@@ -380,6 +395,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	public void cleanUp() {
 		autoRecoveryManager.stop();
+		MpoExtractionOwnershipRegistry.closeAll();
+		if (temporaryWorkspace != null)
+			temporaryWorkspace.close();
 
 //		On quitting, a sleep interrupted exception (below) is thrown by Substance. Without changing the source
 //		java.lang.InterruptedException: sleep interrupted
@@ -791,6 +809,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	protected void setCurrentFrame(DocumentFrame frame){
 		if (frame instanceof DocumentFrame) {
+			if (currentFrame != frame)
+				documentGeneration.advance();
 			if (currentFrame != null && projectListMenu != null&&!Environment.isPlugin()) {
 				currentFrame.getMenuItem().setSelected(false);
 			}
@@ -1772,6 +1792,28 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return false;
 	}
 
+	/**
+	 * Canonical task-command route shared by menu, ribbon, popup and shortcuts.
+	 * The frame owns the typed selection/precondition/mutation pipeline; this
+	 * manager only records the semantic result for diagnostics and enablement.
+	 */
+	private RibbonCommandResult dispatchTaskCommand(CommandId command) {
+		Objects.requireNonNull(command, "command");
+		if (getCurrentFrame() == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-active-document");
+		RibbonCommandResult result = getCurrentFrame().routeTaskCommand(command);
+		return result;
+	}
+
+	private void publishTaskCommandOutcome(Action action, RibbonCommandResult result) {
+		if (result != null && getCurrentFrame() != null)
+			result = result.withActiveView(getCurrentFrame().getTopViewId());
+		action.putValue("MicroProject.ribbonOutcome", result.status());
+		action.putValue("MicroProject.ribbonReason", result.reason());
+		action.putValue("MicroProject.ribbonAffectedTaskIds", result.affectedTaskIds());
+		recordRibbonCommandResult(result);
+	}
+
 	protected boolean beforeExternalRoute(String routeId) {
 		return true;
 	}
@@ -1928,6 +1970,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_FIND, new FindAction());
 		actionsMap.addHandler(ACTION_GOTO, new GoToAction());
 		actionsMap.addHandler(ACTION_INSERT_TASK, new InsertTaskAction());
+		actionsMap.addHandler(ACTION_TASK_MODE_MANUAL, new TaskModeAction(true));
+		actionsMap.addHandler(ACTION_TASK_MODE_AUTOMATIC, new TaskModeAction(false));
+		actionsMap.addHandler(ACTION_STATUS_DATE, new StatusDateAction());
+		actionsMap.addHandler(ACTION_MARK_ON_TRACK, new MarkOnTrackAction());
 		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertResourceAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT, new SaveProjectAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT_AS, new SaveProjectAsAction());
@@ -2368,18 +2414,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			DocumentFrame frame = getCurrentFrame();
-			// Opening an MPOF document can leave the frame briefly deactivated while
-			// its view is already visible.  Do not drop an Insert command during that
-			// activation transition; the project writability check remains authoritative.
-			if (frame != null && !frame.getProject().isReadOnly()) {
-				SpreadSheet sheet = frame.getTopSpreadSheet();
-				SelectionSnapshot selection = new SelectionSnapshot(sheet == null ? null : sheet.getSelectedRows());
-				int insertionCount = selection.isEmpty() ? 1 : selection.size();
-				for (int i = 0; i < insertionCount; i++) {
-					frame.addNodeForImpl(null);
-				}
-			}
+			// A visible MPOF frame may be transiently deactivated while its table is
+			// already ready.  Route by current frame identity; the frame performs the
+			// authoritative writable/selection checks.
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INSERT));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2575,15 +2613,29 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+	/** Typed view-to-context contract; unsupported contexts remain absent rather than fake-enabled. */
+	static record ContextualRibbonDescriptor(String viewId, String tabId, String titleKey, boolean implemented) { }
+
+	static ContextualRibbonDescriptor contextualRibbonDescriptor(String topViewId) {
+		if (ACTION_GANTT.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "FormatRibbonTask", "GanttChartFormat.contextualTitle", true);
+		if (ACTION_TRACKING_GANTT.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "FormatRibbonTask", "TrackingGanttFormat.contextualTitle", true);
+		if (ACTION_NETWORK.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "NetworkFormatRibbonTask", "NetworkFormat.contextualTitle", true);
+		if (ACTION_CALENDAR_VIEW.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "CalendarFormatRibbonTask", "CalendarFormat.contextualTitle", true);
+		return new ContextualRibbonDescriptor(topViewId == null ? "" : topViewId, "", "", false);
+	}
+
 	/** Keeps the Format tab contextual, matching the active Project view. */
 	void updateRibbonContext(String topViewId) {
 		if (!(container instanceof MainRibbonFrame ribbonFrame)) return;
-		boolean gantt = ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId);
-		ribbonFrame.setVisibleContextualRibbonTabs(gantt ? List.of("FormatRibbonTask") : List.of());
-		String titleKey = ACTION_TRACKING_GANTT.equals(topViewId)
-			? "TrackingGanttFormat.contextualTitle" : "GanttChartFormat.contextualTitle";
-		ribbonFrame.setContextualRibbonTabTitles(gantt
-			? Map.of("FormatRibbonTask", getMenuManager().getString(titleKey)) : Map.of());
+		ContextualRibbonDescriptor descriptor = contextualRibbonDescriptor(topViewId);
+		ribbonFrame.setVisibleContextualRibbonTabs(descriptor.implemented()
+			? List.of(descriptor.tabId()) : List.of());
+		ribbonFrame.setContextualRibbonTabTitles(descriptor.implemented()
+			? Map.of(descriptor.tabId(), getMenuManager().getString(descriptor.titleKey())) : Map.of());
 	}
 
 	/** Project-level entry point; the dialog owns preview, apply, and cancel semantics. */
@@ -2671,8 +2723,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (!beforeUpdateProjectRoute(getCurrentFrame())) return;
-			if (isDocumentActive())
-				getCurrentFrame().doUpdateProjectDialog();
+			if (isDocumentActive()) {
+				// The confirmation dialog is modal and blocks this action until it
+				// closes. Publish the physical dispatch before entering it so every
+				// route exposes the same observable two-phase command lifecycle.
+				publishTaskCommandOutcome(this, RibbonCommandResult.dispatched(CommandId.UPDATE_PROJECT.actionId()));
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.UPDATE_PROJECT));
+			}
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2811,6 +2868,26 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+	/** Canonical Ribbon/menu/popup adapter for MSP task scheduling mode. */
+	private final class TaskModeAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final boolean manual;
+		private TaskModeAction(boolean manual) { this.manual = manual; }
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			getCurrentFrame().routeTaskCommand(manual ? CommandId.TASK_MODE_MANUAL : CommandId.TASK_MODE_AUTOMATIC);
+		}
+	}
+	private final class StatusDateAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) { setMeAsLastGraphicManager(); publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.STATUS_DATE)); }
+	}
+	private final class MarkOnTrackAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) { setMeAsLastGraphicManager(); publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.MARK_ON_TRACK)); }
+	}
+
 	public class MoveProjectAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -2868,12 +2945,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "no-active-document"));
 			if (isDocumentActive()) {
-				if (!getCurrentFrame().hasTaskSelection(false, 2, true))
+				if (!getCurrentFrame().hasTaskSelection(false, 2, true)) {
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "selection-too-small"));
 					return;
+				}
 				if (beforeActionRoute("link"))
 					return;
-				getCurrentFrame().doLinkTasks();
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.LINK));
 			}
 		}
 	}
@@ -2881,12 +2961,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-active-document"));
 			if (isDocumentActive()) {
-				if (!getCurrentFrame().hasTaskSelection(false, 1, true))
+				if (!getCurrentFrame().hasTaskSelection(false, 1, true)) {
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-selection"));
 					return;
+				}
 				if (beforeActionRoute("unlink"))
 					return;
-				getCurrentFrame().doUnlinkTasks();
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.UNLINK));
 			}
 		}
 	}
@@ -2922,7 +3005,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
-				getCurrentFrame().doExpand();
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.EXPAND));
+			else
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.EXPAND.actionId(), "no-selection"));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2934,7 +3019,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
-				getCurrentFrame().doCollapse();
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.COLLAPSE));
+			else
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.COLLAPSE.actionId(), "no-selection"));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2986,8 +3073,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.INDENT.actionId(), "no-active-document"));
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
-				getCurrentFrame().doIndent();
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INDENT));
+			else if (isDocumentActive())
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.INDENT.actionId(), "no-selection"));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2998,8 +3088,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.OUTDENT.actionId(), "no-active-document"));
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
-				getCurrentFrame().doOutdent();
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.OUTDENT));
+			else if (isDocumentActive())
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.OUTDENT.actionId(), "no-selection"));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3030,34 +3123,31 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()){
-				addHistory("doCut");
-				getCurrentFrame().doCut();
-			}
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.CUT)
+				: RibbonCommandResult.rejected(CommandId.CUT.actionId(), "no-active-document"));
 		}
 	}
 	public class CopyAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()){
-				addHistory("doCopy");
-				getCurrentFrame().doCopy();
-			}
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.COPY)
+				: RibbonCommandResult.rejected(CommandId.COPY.actionId(), "no-active-document"));
 		}
 	}
 	public class PasteAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()){
-				if (!getCurrentFrame().canPasteIntoCurrentSelection())
-					return;
-				if (beforeActionRoute("paste"))
-					return;
-				addHistory("doPaste");
-				getCurrentFrame().doPaste();
+			if (isDocumentActive() && beforeActionRoute("paste")) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.PASTE.actionId(), "route-rejected"));
+				return;
 			}
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.PASTE)
+				: RibbonCommandResult.rejected(CommandId.PASTE.actionId(), "no-active-document"));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3068,14 +3158,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()) {
-				if (!getCurrentFrame().canPasteIntoCurrentSelection())
-					return;
-				if (beforeActionRoute("pasteInsert"))
-					return;
-				addHistory("doPasteInsert");
-				getCurrentFrame().doPasteInsert();
+			if (isDocumentActive() && beforeActionRoute("pasteInsert")) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.PASTE_INSERT.actionId(), "route-rejected"));
+				return;
 			}
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.PASTE_INSERT)
+				: RibbonCommandResult.rejected(CommandId.PASTE_INSERT.actionId(), "no-active-document"));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3087,8 +3176,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive())
-				getCurrentFrame().doDelete();
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.DELETE)
+				: RibbonCommandResult.rejected(CommandId.DELETE.actionId(), "no-active-document"));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3315,11 +3405,23 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * loader has released its single-load critical section.
 	 */
 	private boolean loadLocalDocument(String fileName, boolean merge, Consumer<Object> afterLoad){
+		return loadLocalDocument(fileName, merge, afterLoad, false);
+	}
+
+	/**
+	 * Opens a document and optionally permits its completion to advance the
+	 * active-document generation.  A sequential multi-file open deliberately
+	 * changes the current frame after each file, so using the ordinary stale
+	 * completion guard would discard every callback after the first document.
+	 */
+	private boolean loadLocalDocument(String fileName, boolean merge, Consumer<Object> afterLoad,
+			boolean completionMayFollowFrameSwitch){
 		// A background load reports failures through Alert, whose default parent is
 		// the last active manager.  Make this manager current before scheduling the
 		// job so repeated opens from different desktop windows cannot route the
 		// error dialog to a disposed window.
 		setMeAsLastGraphicManager();
+		final long loadGeneration = documentGeneration.current();
 	addHistory("loadLocalDocument",new Object[]{fileName,merge});
 		//showWaitCursor(true);
 		if (fileName != null && !merge) {
@@ -3328,7 +3430,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				setCurrentFrame(existing);
 				showDocumentRibbon();
 				if (afterLoad != null)
-					SwingUtilities.invokeLater(() -> afterLoad.accept(existing.getProject()));
+					dispatchDocumentCompletion(documentGeneration.current(), () -> afterLoad.accept(existing.getProject()));
 				return true;
 			}
 		}
@@ -3342,7 +3444,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (Environment.getStandAlone())
 				opt.setId(SessionFactory.getInstance().getLocalSession().registerProjectFile(fileName));
 			opt.setEndSwingClosure(new Consumer<Object>() { public void accept(Object arg0) {
-				setMeAsLastGraphicManager();
+					Runnable completion = () -> {
+					setMeAsLastGraphicManager();
 					if (arg0 instanceof Project) {
 						Project loadedProject = (Project)arg0;
 						// The portfolio normally creates the document frame.  Keep the
@@ -3353,7 +3456,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 						initializeCollaboration(loadedProject);
 					}
 					if (afterLoad != null)
-						SwingUtilities.invokeLater(() -> afterLoad.accept(arg0));
+						afterLoad.accept(arg0);
+					};
+					if (completionMayFollowFrameSwitch)
+						SwingUtilities.invokeLater(completion);
+					else
+						dispatchDocumentCompletion(loadGeneration, completion);
 				}
 			});
 
@@ -3386,6 +3494,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		//showWaitCursor(false);
 		return project != null;
+	}
+
+	/** Runs a background completion only on EDT and only for the document that requested it. */
+	void dispatchDocumentCompletion(long generation, Runnable completion) {
+		dispatchDocumentCompletion(documentGeneration, generation, completion);
+	}
+
+	static void dispatchDocumentCompletion(DocumentGeneration generations, long generation, Runnable completion) {
+		Objects.requireNonNull(generations, "generations");
+		Objects.requireNonNull(completion, "completion");
+		SwingUtilities.invokeLater(() -> {
+			if (generations.isCurrent(generation))
+				completion.run();
+		});
 	}
 
 	/**
@@ -3526,6 +3648,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	protected void closeProject(Project project){
 		autoRecoveryManager.discard(project);
 		persistCollaborationWorkspace(project);
+		// Subprojects do not always have a DocumentFrame; release their MPOF
+		// extraction ownership at the project-removal boundary as well.
+		MpoExtractionOwnershipRegistry.close(project);
 		if (project.getCollaborationSession() != null) {
 			project.getCollaborationSession().stop();
 			project.setCollaborationSession(null);
@@ -3560,7 +3685,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!Environment.getStandAlone() || findFrameForProjectFile(fileName) == null) {
 				final int next = current + 1;
 				loadLocalDocument(fileName, !Environment.getStandAlone(),
-					ignored -> openLocalProjectsSequentially(fileNames, next));
+					ignored -> openLocalProjectsSequentially(fileNames, next), true);
 				return;
 			}
 			setCurrentFrame(findFrameForProjectFile(fileName));
@@ -4143,18 +4268,44 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_COPY,notVoid&&(actions==null||actions.contains(ACTION_COPY)));
 		getMenuManager().setActionEnabled(ACTION_PASTE,!readOnly && (actions==null||actions.contains(ACTION_PASTE)));
 		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && (actions==null||actions.contains(ACTION_DELETE)));
-		boolean isTask = currentImpl != null && currentImpl instanceof Task;
+		// After hierarchy Undo/Redo the lead node supplied by the selection event
+		// may still describe the pre-mutation row.  Command enablement must use the
+		// same stable task selection that execution uses, not that stale singleton.
+		List<com.microproject.grouping.core.Node> selectedTaskNodes = currentFrame == null
+			? java.util.List.of() : currentFrame.getSelectedTaskNodes(false, true);
+		// While a reused cell editor owns focus, the frame provider can lag the
+		// JTable selection by one event. The active sheet is the authoritative
+		// physical selection owner; prefer its typed task nodes when available.
+		if (currentFrame != null && currentFrame.getActiveSpreadSheet() != null
+				&& currentFrame.getActiveSpreadSheet().getSelectedRows().length > 0) {
+			List<com.microproject.grouping.core.Node> tableTasks = currentFrame.getActiveSpreadSheet().getSelectedNodes().stream()
+				.filter(node -> node != null && node.getImpl() instanceof Task).toList();
+			if (!tableTasks.isEmpty()) selectedTaskNodes = tableTasks;
+		}
+		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
 		boolean isResource = currentImpl != null && currentImpl instanceof Resource;
 		boolean isLinkedSubproject = currentImpl instanceof SubProj;
 		boolean isHasStartAndEnd = currentImpl != null && currentImpl instanceof HasStartAndEnd;
 		boolean writable = (currentImpl != null && !ClassUtils.isObjectReadOnly(currentImpl));
-		getMenuManager().setActionEnabled(ACTION_INDENT,!readOnly &&(isTask || isResource)&&(actions==null||actions.contains(ACTION_INDENT)));
-		getMenuManager().setActionEnabled(ACTION_OUTDENT,!readOnly &&(isTask || isResource)&&(actions==null||actions.contains(ACTION_OUTDENT)));
+		boolean hasOneTaskSelection = currentFrame != null && currentFrame.hasTaskSelection(false, 1, true);
+		boolean hierarchySelection = (!selectedTaskNodes.isEmpty() && isTask) || isResource;
+		boolean canOutdent = !isTask || selectedTaskNodes.stream()
+			.anyMatch(node -> node != null && node.getImpl() instanceof Task task
+					&& task.getWbsParentTask() != null);
+		// The task table owns both hierarchy commands even while its model cache is
+		// being rebuilt after an indent/undo/redo.  Consulting the transient action
+		// list here caused the ribbon and root shortcut to remain disabled although
+		// the canonical command had a valid task selection.
+		boolean hierarchyCommandsAvailable = isTask || actions == null
+			|| actions.contains(ACTION_INDENT) || actions.contains(ACTION_OUTDENT);
+		getMenuManager().setActionEnabled(ACTION_INDENT,
+				!readOnly && hierarchySelection && hierarchyCommandsAvailable);
+		getMenuManager().setActionEnabled(ACTION_OUTDENT,
+				!readOnly && hierarchySelection && canOutdent && hierarchyCommandsAvailable);
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_UP,!readOnly && isTask && currentFrame != null && currentFrame.canMoveSelectedTasks(-1));
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && currentFrame != null && currentFrame.canMoveSelectedTasks(1));
 		getMenuManager().setActionEnabled(ACTION_EXPAND,!readOnly && notVoid && (actions==null||actions.contains(ACTION_EXPAND)));
 		getMenuManager().setActionEnabled(ACTION_COLLAPSE,!readOnly && notVoid && (actions==null||actions.contains(ACTION_COLLAPSE)));
-		boolean hasOneTaskSelection = currentFrame != null && currentFrame.hasTaskSelection(false, 1, true);
 		boolean hasLinkSelection = currentFrame != null && currentFrame.hasTaskSelection(false, 2, true);
 		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && hasLinkSelection);
 		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasOneTaskSelection);
@@ -4222,6 +4373,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_DOCUMENTS,currentFrame != null && isEnabledFieldAction(ACTION_DOCUMENTS,  currentFrame.getProject()));
 
 
+	}
+
+	private static boolean canOutdent(Node node) {
+		if (node == null || node.isRoot() || !(node.getImpl() instanceof Task task))
+			return false;
+		return task.getOutlineLevel() > 1;
 	}
 
 	public void setZoomButtons() {
@@ -4483,6 +4640,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_EQUALS, ACTION_EXPAND, 0, expandAction);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, 0, collapseAction);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_R, ACTION_RECALCULATE, 0, new RecalculateAction());
+		// Task Mode has no built-in MSP keystroke. Keep both variants on the
+		// document root pane so physical keyboard input follows the same typed
+		// selection and Undo pipeline as menu, popup, and ribbon actions.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_M, ACTION_TASK_MODE_MANUAL,
+			InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_M, ACTION_TASK_MODE_AUTOMATIC,
+			InputEvent.ALT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_T, ACTION_MARK_ON_TRACK,
+			InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_S, ACTION_STATUS_DATE,
+			InputEvent.ALT_DOWN_MASK, null);
 
 		// Critical Chain (CCPM) shortcuts. CCPM is a feature Microsoft Project does not
 		// have, so there is no MS-conformant binding to follow. We use chords that do NOT
@@ -4543,8 +4711,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// key codes because Windows reports them differently to Swing.  The
 		// editor-local VK_CONVERT binding is intentionally not installed here: the
 		// Japanese IME conversion key belongs to the active cell editor.
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_INDENT, null);
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_OUTDENT, null);
+		// Keep the root-pane binding enabled while a reused cell editor owns
+		// focus. The canonical DocumentFrame command performs the real selection
+		// and precondition checks; using a dispatch action here avoids stale menu
+		// enablement suppressing the physical root-pane route.
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_INDENT,
+			new SpreadSheetDispatchAction(ACTION_INDENT) {
+				private static final long serialVersionUID = 1L;
+				@Override protected void runOnSpreadSheet(SpreadSheet sheet) { getCurrentFrame().doIndent(); }
+			});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_OUTDENT,
+			new SpreadSheetDispatchAction(ACTION_OUTDENT) {
+				private static final long serialVersionUID = 1L;
+				@Override protected void runOnSpreadSheet(SpreadSheet sheet) { getCurrentFrame().doOutdent(); }
+			});
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_ADD, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, collapseAction);

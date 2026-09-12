@@ -30,6 +30,9 @@ import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
+import javax.swing.JMenuItem;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
@@ -39,6 +42,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.TaskInformationDialog;
+import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.CalendarViewDialogBox;
 import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
@@ -53,6 +57,7 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.resource.ResourcePool;
@@ -62,6 +67,8 @@ import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.GuiCommandAcceptanceFixture;
+import com.microproject.testsupport.GuiPhysicalRouteAdapter;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 
@@ -385,8 +392,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void hideAndShowSelectedTaskThroughRibbonRoundTripsWithUndoRedo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Assumptions.assumeTrue(guiScale() <= 1.0d,
-			"Ribbon mutation sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
@@ -450,9 +455,276 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void taskModeRibbonRouteChangesModelAndRoundTripsUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Task Mode Robot coverage.");
+		Assumptions.assumeTrue(guiScale() <= 1.0d,
+			"Task Mode direct Ribbon route requires full-width desktop; high-DPI layout is covered by the responsive Ribbon matrix.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"task-mode project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
+		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title"))));
+		AbstractButton manual = findShowingButtonByCommand("RibbonTaskModeManual");
+		GuiAcceptanceSupport.await(manual::isEnabled, "Manual Schedule remained disabled after task selection");
+		GuiCommandAcceptanceFixture.verifyMutation("TaskModeManual", () -> { click(robot, boundsOnScreen(manual)); return null; },
+			() -> manager.getCurrentFrame().getLastTaskCommandResult(), task::isManuallyScheduled,
+		() -> rowForTask(sheet, task) >= 0, () -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; },
+		() -> !task.isManuallyScheduled(), () -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; },
+			task::isManuallyScheduled, () -> {
+				ByteArrayOutputStream saved = new ByteArrayOutputStream();
+				if (!new MpoFileImporter().saveProject(project, saved)) return false;
+				Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+				return taskNamed(reloaded, task.getName()).isManuallyScheduled();
+			});
+	}
+
+	@Test
+	void taskModePopupRouteUsesVisibleItemAndSharedMutationFixture() throws Exception {
+		runTaskModePhysicalRoute("popup", context -> {
+			rightClick(context.robot(), context.cell());
+		SpreadSheetPopupMenu popup = context.sheet().getPopup();
+		GuiAcceptanceSupport.await(() -> popup != null && popup.isVisible(), "Task Mode popup did not open");
+		JMenuItem item = GuiPhysicalRouteAdapter.visiblePopupItem(popup,
+				"popup." + com.microproject.menu.MenuActionConstants.ACTION_TASK_MODE_MANUAL);
+		GuiAcceptanceSupport.await(item::isEnabled, "Task Mode popup item remained disabled");
+		click(context.robot(), boundsOnScreen(item));
+		return null;
+	});
+	}
+
+	@Test
+	void taskModeShortcutRouteUsesRootPaneBindingAndSharedMutationFixture() throws Exception {
+		runTaskModePhysicalRoute("shortcut", context -> {
+		GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),
+				javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_M, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), "TaskModeManual");
+		press(context.robot(), KeyEvent.VK_CONTROL, KeyEvent.VK_SHIFT, KeyEvent.VK_M);
+		return null;
+	});
+	}
+
+	@Test
+	void taskModeMenuRouteUsesVisibleMenuItemAndSharedMutationFixture() throws Exception {
+		runTaskModePhysicalRoute("menu", context -> {
+			JMenuBar bar = new JMenuBar();
+			JMenu root = new JMenu("Task");
+			JMenuItem taskMode = new JMenuItem(manager.getMenuManager().getActionFromId("TaskModeManual"));
+			taskMode.setActionCommand("TaskModeManual");
+			root.add(taskMode);
+			bar.add(root);
+			window.setJMenuBar(bar);
+			window.validate();
+			GuiAcceptanceSupport.await(root::isShowing, "Task Mode menu root did not become visible");
+			click(context.robot(), boundsOnScreen(root));
+			JMenuItem item = GuiPhysicalRouteAdapter.visiblePopupItem(root.getPopupMenu(), "TaskModeManual");
+			GuiAcceptanceSupport.await(item::isEnabled, "Task Mode menu item remained disabled");
+			click(context.robot(), boundsOnScreen(item));
+			return null;
+		});
+	}
+
+	@Test
+	void statusDateRibbonRouteUsesSharedMutationFixture() throws Exception {
+		runProgressPhysicalRoute("status-date", context -> {
+			click(context.robot(), boundsOnScreen(GuiPhysicalRouteAdapter.visibleButton(window,
+					"RibbonStatusDate")));
+			return null;
+		}, () -> contextProject().getStatusDate() != initialStatusDate, () -> contextProject().getStatusDate() == initialStatusDate,
+			"StatusDate");
+	}
+	@Test
+	void statusDatePopupRouteUsesSharedMutationFixture() throws Exception {
+		runProgressPhysicalRoute("status-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Status popup absent"); click(c.robot(),boundsOnScreen(GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.StatusDate"))); return null; }, () -> contextProject().getStatusDate()!=initialStatusDate, () -> contextProject().getStatusDate()==initialStatusDate, "StatusDate");
+	}
+	@Test
+	void statusDateShortcutRouteUsesSharedMutationFixture() throws Exception {
+		runProgressPhysicalRoute("status-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_S,InputEvent.CTRL_DOWN_MASK|InputEvent.ALT_DOWN_MASK),"StatusDate"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_ALT,KeyEvent.VK_S); return null; }, () -> contextProject().getStatusDate()!=initialStatusDate, () -> contextProject().getStatusDate()==initialStatusDate, "StatusDate");
+	}
+
+	@Test
+	void markOnTrackRibbonRouteUsesSharedMutationFixture() throws Exception {
+		runProgressPhysicalRoute("mark-on-track", context -> {
+			click(context.robot(), boundsOnScreen(GuiPhysicalRouteAdapter.visibleButton(window,
+					"RibbonMarkOnTrack")));
+			return null;
+		}, () -> contextTask().getPercentComplete() != initialPercentComplete, () -> contextTask().getPercentComplete() == initialPercentComplete,
+			"MarkOnTrack");
+	}
+	@Test
+	void markOnTrackPopupRouteUsesSharedMutationFixture() throws Exception {
+		runProgressPhysicalRoute("mark-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Mark popup absent"); click(c.robot(),boundsOnScreen(GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.MarkOnTrack"))); return null; }, () -> contextTask().getPercentComplete()!=initialPercentComplete, () -> contextTask().getPercentComplete()==initialPercentComplete, "MarkOnTrack");
+	}
+	@Test
+	void markOnTrackShortcutRouteUsesSharedMutationFixture() throws Exception {
+		runProgressPhysicalRoute("mark-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_T,InputEvent.CTRL_DOWN_MASK|InputEvent.SHIFT_DOWN_MASK),"MarkOnTrack"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_SHIFT,KeyEvent.VK_T); return null; }, () -> contextTask().getPercentComplete()!=initialPercentComplete, () -> contextTask().getPercentComplete()==initialPercentComplete, "MarkOnTrack");
+	}
+
+	@Test
+	void updateProjectRibbonRouteOpensAndConfirmsDialogPhysically() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Update Project Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
+				"Update Project project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ProjectRibbonTask.title"))));
+		AbstractButton update = GuiPhysicalRouteAdapter.visibleButton(window, "RibbonUpdateProject");
+		GuiAcceptanceSupport.await(update::isEnabled, "Update Project remained disabled");
+		click(robot, boundsOnScreen(update));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.anyMatch(candidate -> candidate instanceof UpdateProjectDialogBox && candidate.isShowing()),
+				"Update Project dialog did not open");
+		UpdateProjectDialogBox dialog = java.util.Arrays.stream(Window.getWindows())
+				.filter(candidate -> candidate instanceof UpdateProjectDialogBox && candidate.isShowing())
+				.map(UpdateProjectDialogBox.class::cast).findFirst().orElseThrow();
+		AbstractButton ok = findShowingButtonByText(dialog, Messages.getString("ButtonText.OK"));
+		click(robot, boundsOnScreen(ok));
+		// The dialog may retain focus on its date editor after the first physical
+		// click; Enter is the native confirmation fallback used by MSP-style dialogs.
+		press(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Update Project confirmation did not close dialog");
+	}
+
+	@Test
+	void updateProjectMenuRouteUsesDeferredDialogFixture() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Update Project menu coverage.");
+		previousRibbonUi = Environment.isRibbonUI(); previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true); Environment.setNewLook(true);
+		NormalTask task = createTask(); Project project = task.getOwningProject(); showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null, "Update Project menu project did not become visible");
+		Robot robot = new Robot(); robot.setAutoDelay(45); activateWindow(robot, window);
+		JMenuBar bar = new JMenuBar(); JMenu root = new JMenu("Project");
+		JMenuItem item = new JMenuItem(manager.getMenuManager().getActionFromId("UpdateProject"));
+		item.setActionCommand("UpdateProject"); root.add(item); bar.add(root); window.setJMenuBar(bar); window.validate();
+		GuiAcceptanceSupport.await(root::isShowing, "Update Project menu root did not become visible");
+		GuiCommandAcceptanceFixture.verifyDeferredDialog("UpdateProject", () -> {
+			click(robot, boundsOnScreen(root));
+			click(robot, boundsOnScreen(GuiPhysicalRouteAdapter.visiblePopupItem(root.getPopupMenu(), "UpdateProject")));
+			return null;
+		}, () -> manager.getLastRibbonCommandResult(),
+			() -> java.util.Arrays.stream(Window.getWindows()).anyMatch(w -> w instanceof UpdateProjectDialogBox && w.isShowing()),
+			() -> {
+				UpdateProjectDialogBox dialog = java.util.Arrays.stream(Window.getWindows()).filter(w -> w instanceof UpdateProjectDialogBox && w.isShowing()).map(UpdateProjectDialogBox.class::cast).findFirst().orElseThrow();
+				click(robot, boundsOnScreen(findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")))); return null;
+			}, () -> manager.getLastRibbonCommandResult(), () -> task.getPercentComplete() >= 0D,
+			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; }, () -> task.getPercentComplete() >= 0D,
+			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; }, () -> task.getPercentComplete() >= 0D,
+			() -> { ByteArrayOutputStream saved = new ByteArrayOutputStream(); return new MpoFileImporter().saveProject(project, saved); });
+	}
+
+	private NormalTask progressTask;
+	private Project progressProject;
+	private long initialStatusDate;
+	private double initialPercentComplete;
+	private Project contextProject() { return progressProject; }
+	private NormalTask contextTask() { return progressTask; }
+
+	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
+			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier before, String commandId) throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for progress Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		progressTask = createTask();
+		progressProject = progressTask.getOwningProject();
+		if (commandId.equals("StatusDate")) progressProject.setStatusDate(1L);
+		initialStatusDate = progressProject.getStatusDate();
+		if (commandId.equals("MarkOnTrack")) progressTask.setImportedPercentComplete(0.5D);
+		initialPercentComplete = progressTask.getPercentComplete();
+		showProject(progressProject);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null, routeName + " project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)));
+		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ProjectRibbonTask.title"))));
+		GuiAcceptanceSupport.await(() -> GuiPhysicalRouteAdapter.visibleButton(window,
+				commandId.equals("StatusDate") ? "RibbonStatusDate" : "RibbonMarkOnTrack") != null,
+				"progress command did not become visible");
+		TaskModeContext context = new TaskModeContext(robot, sheet,
+				cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)), progressTask);
+		GuiCommandAcceptanceFixture.verifyMutation(commandId, () -> route.run(context),
+			() -> manager.getCurrentFrame().getLastTaskCommandResult(), after,
+			() -> rowForTask(sheet, progressTask) >= 0,
+			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; }, before,
+			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; }, after,
+			() -> {
+				ByteArrayOutputStream saved = new ByteArrayOutputStream();
+				if (!new MpoFileImporter().saveProject(progressProject, saved)) return false;
+				Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+				return commandId.equals("StatusDate") ? reloaded.getStatusDate() != initialStatusDate
+						: Double.compare(taskNamed(reloaded, progressTask.getName()).getPercentComplete(), initialPercentComplete) != 0;
+			});
+	}
+
+	@FunctionalInterface
+	private interface TaskModeRoute { Void run(TaskModeContext context) throws Exception; }
+
+	private record TaskModeContext(Robot robot, SpreadSheet sheet, Rectangle cell, NormalTask task) {}
+
+	private void runTaskModePhysicalRoute(String routeName, TaskModeRoute route) throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Task Mode Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+				routeName + " Task Mode project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Rectangle cell = cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet));
+		click(robot, cell);
+		GuiAcceptanceSupport.await(() -> sheet.getSelectedRow() == rowForTask(sheet, task),
+				"Task Mode selection was not established");
+		GuiCommandAcceptanceFixture.verifyMutation("TaskModeManual", () -> route.run(new TaskModeContext(robot, sheet, cell, task)),
+			() -> manager.getCurrentFrame().getLastTaskCommandResult(), task::isManuallyScheduled,
+			() -> rowForTask(sheet, task) >= 0, () -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; },
+			() -> !task.isManuallyScheduled(), () -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; },
+			task::isManuallyScheduled, () -> {
+				ByteArrayOutputStream saved = new ByteArrayOutputStream();
+				if (!new MpoFileImporter().saveProject(project, saved)) return false;
+				Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+				return taskNamed(reloaded, task.getName()).isManuallyScheduled();
+			});
+	}
+
+	@Test
 	void deleteThroughRibbonUsesTheSharedEditPipelineAndUndoRestoresTheRow() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Assumptions.assumeTrue(guiScale() <= 1.0d, "Edit command sweep requires a full-width desktop.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
@@ -498,7 +770,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void copyCutPasteThroughRibbonUseTheSharedEditPipeline() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Assumptions.assumeTrue(guiScale() <= 1.0d, "Edit command sweep requires a full-width desktop.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
@@ -519,6 +790,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), nameColumn(sheet)));
 		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"))));
+		// Selecting a ribbon tab can rebuild the active spreadsheet; reassert the
+		// physical task selection before checking the clipboard command state.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> sheet.getSelectedRow() == rowForTask(sheet, source),
+			"source task selection was lost while switching to the Task ribbon tab");
 		AbstractButton copy = findShowingButtonByCommand("RibbonCopy");
 		GuiAcceptanceSupport.await(copy::isEnabled, "Copy remained disabled after selecting source task");
 		click(robot, boundsOnScreen(copy));
@@ -527,6 +803,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(paste::isEnabled, "Paste remained disabled after Copy");
 		click(robot, boundsOnScreen(paste));
 		assertNotNull(paste.getAction(), "Paste command must remain connected to an Action after dispatch");
+		// Paste Insert is intentionally popup-only in the ribbon shell.  Exercise
+		// its real physical route as part of the same clipboard fixture so every
+		// routed CommandId has Robot evidence.
+		Rectangle targetCell = cellOnScreen(sheet, rowForTask(sheet, target), nameColumn(sheet));
+		rightClick(robot, targetCell);
+		SpreadSheetPopupMenu popup = sheet.getPopup();
+		GuiAcceptanceSupport.await(() -> popup != null && popup.isVisible(),
+			"physical right click did not show the paste popup");
+		JMenuItem pasteInsert = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_PASTE_INSERT);
+		GuiAcceptanceSupport.await(pasteInsert::isEnabled, "Paste Insert remained disabled after Copy");
+		click(robot, boundsOnScreen(pasteInsert));
+		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
+			&& "PasteInsert".equals(manager.getLastRibbonCommandResult().commandId()),
+			"physical Paste Insert did not reach the canonical CommandId route");
 
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), nameColumn(sheet)));
 		AbstractButton cut = findShowingButtonByCommand("RibbonCut");
@@ -674,10 +964,71 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"Ctrl+Y did not reapply the selected task hierarchy after Indent");
 
 		AbstractButton outdent = findShowingButtonByCommand("RibbonOutdent");
-		GuiAcceptanceSupport.await(outdent::isEnabled, "Outdent became disabled after Indent");
+		GuiAcceptanceSupport.await(outdent::isEnabled, "Outdent became disabled after Indent: readOnly="
+				+ project.isReadOnly() + " parent=" + (second.getWbsParentTask() == null ? "null" : second.getWbsParentTask().getName()));
 		click(robot, boundsOnScreen(outdent));
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
 				"Outdent did not restore the selected task to the top level");
+	}
+
+	@Test
+	void robotRightClickTaskPopupIndentUsesSharedRouteAndRoundTripsPersistence() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("popup-indent-acceptance", undo), undo);
+		project.initialize(false, false);
+		Node predecessorNode = project.createLocalTaskNode(null);
+		NormalTask predecessor = (NormalTask) predecessorNode.getImpl();
+		predecessor.setName("Popup indent predecessor");
+		Node targetNode = project.createLocalTaskNode(null);
+		NormalTask target = (NormalTask) targetNode.getImpl();
+		target.setName("Popup indent target");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"popup indent project did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Rectangle targetCell = cellOnScreen(sheet, rowForTask(sheet, target), nameColumn(sheet));
+		click(robot, targetCell);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(target),
+			"left click did not select the popup target task");
+		rightClick(robot, targetCell);
+		SpreadSheetPopupMenu popup = sheet.getPopup();
+		GuiAcceptanceSupport.await(() -> popup != null && popup.isVisible(),
+			"physical right click did not show the task popup");
+		JMenuItem indent = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_INDENT);
+		GuiAcceptanceSupport.await(indent::isEnabled, "popup Indent remained disabled for the selected task");
+		click(robot, boundsOnScreen(indent));
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == predecessor,
+			"popup Indent did not use the shared command route");
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(target),
+			"popup Indent did not preserve the selected task");
+
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == null,
+			"Ctrl+Z did not undo popup Indent");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == predecessor,
+			"Ctrl+Y did not redo popup Indent");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved),
+			"MPO save rejected the project after popup Indent");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedPredecessor = taskNamed(reloaded, "Popup indent predecessor");
+		NormalTask reloadedTarget = taskNamed(reloaded, "Popup indent target");
+		assertEquals(reloadedPredecessor, reloadedTarget.getWbsParentTask(),
+			"MPO reload lost the hierarchy created through the physical popup command");
 	}
 
 	@Test
@@ -1017,6 +1368,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return result[0];
 	}
 
+	private static AbstractButton findShowingButtonByText(java.awt.Container container, String text) throws Exception {
+		AbstractButton[] result = new AbstractButton[1];
+		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(container).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(AbstractButton::isShowing).filter(button -> text.equals(button.getText())).findFirst()
+				.orElseThrow(() -> new AssertionError("Visible dialog button not found: " + text)));
+		return result[0];
+	}
+
 	private AbstractButton findShowingButtonByCommand(String command) throws Exception {
 		AbstractButton[] result = new AbstractButton[1];
 		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
@@ -1081,6 +1441,22 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
 		robot.delay(150);
+	}
+
+	private static void rightClick(Robot robot, Rectangle bounds) {
+		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		robot.waitForIdle();
+		robot.delay(150);
+	}
+
+	private static JMenuItem popupItem(SpreadSheetPopupMenu popup, String name) {
+		for (java.awt.Component component : popup.getComponents()) {
+			if (component instanceof JMenuItem item && name.equals(item.getName()))
+				return item;
+		}
+		throw new AssertionError("Task popup item is absent: " + name);
 	}
 
 	private static void activateWindow(Robot robot, java.awt.Window window) throws Exception {

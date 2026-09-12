@@ -33,6 +33,8 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
+import com.microproject.pm.task.UpdateProjectRequest;
+import com.microproject.command.UpdateProjectCommand;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -45,9 +47,36 @@ import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.NodeFactory;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class MpoFileImporterTest {
+	@AfterEach
+	void closeOwnedExtractionSessions() {
+		MpoExtractionOwnershipRegistry.closeAll();
+		MpoFileImporter.setExtractionWorkspaceRoot(null);
+	}
+
+	@Test
+	void mpoSaveCreatesANewDestinationDirectory() throws Exception {
+		Project project = projectForRoundTrip();
+		File root = java.nio.file.Files.createTempDirectory("mpo-new-folder-").toFile();
+		root.deleteOnExit();
+		File destination = new File(root, "nested" + File.separator + "plan.mpo");
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(destination.getAbsolutePath());
+		writer.setProject(project);
+
+		writer.exportFile();
+
+		assertTrue(destination.isFile(), "MPO save must create a missing destination directory");
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setFileName(destination.getAbsolutePath());
+		try (java.io.FileInputStream input = new java.io.FileInputStream(destination)) {
+			assertTrue(reader.loadProject(input) != null, "newly saved MPO must be readable");
+		}
+	}
+
 	@Test
 	void hiddenTaskVisibilitySurvivesMpoSaveAndReload() throws Exception {
 		Project original = projectForRoundTrip();
@@ -129,6 +158,56 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(new File(restored.getSubprojectFile()).isFile());
 		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(childFile.toPath()),
 				java.nio.file.Files.readAllBytes(new File(restored.getSubprojectFile()).toPath()));
+	}
+
+	@Test
+	void fileImportOwnsExtractionUntilTheLoadedProjectIsClosed() throws Exception {
+		File childFile = File.createTempFile("mpo-lifecycle-child-", ".mpo");
+		File masterFile = File.createTempFile("mpo-lifecycle-master-", ".mpo");
+		java.nio.file.Path extractionRoot = java.nio.file.Files.createTempDirectory("mpo-lifecycle-workspace-");
+		try {
+			Project child = projectForRoundTrip();
+			child.setFileName(childFile.getAbsolutePath());
+			MpoFileImporter childWriter = new MpoFileImporter();
+			childWriter.setFileName(childFile.getAbsolutePath());
+			childWriter.setProject(child);
+			childWriter.exportFile();
+
+			Project master = projectForRoundTrip();
+			master.setMaster(true);
+			addEmbeddedReference(master, child, childFile);
+			MpoFileImporter masterWriter = new MpoFileImporter();
+			masterWriter.setFileName(masterFile.getAbsolutePath());
+			masterWriter.setProject(master);
+			masterWriter.exportFile();
+
+			MpoFileImporter.setExtractionWorkspaceRoot(extractionRoot);
+			MpoFileImporter reader = new MpoFileImporter();
+			reader.setFileName(masterFile.getAbsolutePath());
+			reader.setProjectFactory(ProjectFactory.getInstance());
+			reader.importFile();
+			Project loaded = reader.getProject();
+			DefaultSubProj restored = findSubproject(loaded);
+			File extracted = new File(restored.getSubprojectFile());
+			assertTrue(extracted.isFile(), "real file import must materialize the embedded child");
+			assertEquals(1, MpoExtractionOwnershipRegistry.size());
+
+			// This is the same ownership boundary used by DocumentFrame/GraphicManager
+			// when the loaded project document is closed.
+			assertTrue(MpoExtractionOwnershipRegistry.close(loaded));
+			assertTrue(!extracted.exists(), "closing the project must remove extracted children");
+			assertEquals(0, MpoExtractionOwnershipRegistry.size());
+		} finally {
+			MpoExtractionOwnershipRegistry.closeAll();
+			MpoFileImporter.setExtractionWorkspaceRoot(null);
+			try (java.util.stream.Stream<java.nio.file.Path> paths = java.nio.file.Files.walk(extractionRoot)) {
+				paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+					try { java.nio.file.Files.deleteIfExists(path); } catch (IOException ignored) { }
+				});
+			}
+			java.nio.file.Files.deleteIfExists(childFile.toPath());
+			java.nio.file.Files.deleteIfExists(masterFile.toPath());
+		}
 	}
 
 	@Test
@@ -1034,6 +1113,14 @@ class MpoFileImporterTest {
 		CriticalChainService.Analysis reanalyzed = loadedService.preview(loaded, java.util.List.of(loadedResource), restored);
 		org.junit.jupiter.api.Assertions.assertFalse(reanalyzed.criticalTaskIds().isEmpty());
 		org.junit.jupiter.api.Assertions.assertTrue(reanalyzed.projectBuffer().plannedMillis() >= 0L);
+		// CCPM Apply -> Save -> Reload -> Clear must remove only the document-scoped
+		// CCPM projection and restore the ordinary schedule state.
+		loadedService.clear(loaded);
+		org.junit.jupiter.api.Assertions.assertNull(loadedService.findSettings(loaded));
+		org.junit.jupiter.api.Assertions.assertNull(loadedService.findBaseline(loaded));
+		org.junit.jupiter.api.Assertions.assertNull(loadedService.findAnalysis(loaded));
+		org.junit.jupiter.api.Assertions.assertTrue(loaded.getTaskOutlineIterator().hasNext(),
+			"clearing CCPM must retain the reloaded task document");
 	}
 
 	/**
@@ -1130,6 +1217,52 @@ class MpoFileImporterTest {
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName("Mpo task");
 		return project;
+	}
+
+	@Test
+	void taskSchedulingModeSurvivesMpoRoundTrip() throws Exception {
+		Project original = projectForRoundTrip();
+		com.microproject.pm.task.Task task = firstTask(original);
+		task.setManuallyScheduled(true);
+		Project restored = load(writeTempMpo(original));
+		assertTrue(firstTask(restored).isManuallyScheduled(),
+				"MPO reload must preserve the task scheduling mode");
+	}
+
+	@Test
+	void statusDateSurvivesMpoRoundTrip() throws Exception {
+		Project original = projectForRoundTrip();
+		long expected = firstTask(original).getEnd();
+		original.setStatusDate(expected);
+		Project restored = load(writeTempMpo(original));
+		assertTrue(restored.isStatusDateSet());
+		assertEquals(original.getStatusDate(), restored.getStatusDate());
+	}
+
+	@Test
+	void updateProjectRequestStateSurvivesMpoRoundTrip() throws Exception {
+		Project original = projectForRoundTrip();
+		Task task = firstTask(original);
+		long statusDate = task.getEnd() + 86_400_000L;
+		UpdateProjectRequest request = new UpdateProjectRequest(statusDate, true, false, true);
+		new UpdateProjectCommand(original, request).accept(task);
+		assertEquals(1D, task.getPercentComplete(), 0.00001D,
+			"Update Project must complete the source task before export");
+
+		Project restored = load(writeTempMpo(original));
+		assertTrue(restored.isStatusDateSet());
+		assertEquals(original.getStatusDate(), restored.getStatusDate());
+		assertEquals(1D, firstTask(restored).getPercentComplete(), 0.00001D,
+			"Update Project actual progress must survive MPO reload");
+	}
+
+	private static File writeTempMpo(Project project) throws Exception {
+		File output = File.createTempFile("task-mode-roundtrip-", ".mpo");
+		output.deleteOnExit();
+		try (java.io.OutputStream stream = java.nio.file.Files.newOutputStream(output.toPath())) {
+			new MpoFileImporter().saveProject(project, stream);
+		}
+		return output;
 	}
 
 	/** MSPDI export preserves unique ids only when they are positive (see MPXConverter.exportId). */

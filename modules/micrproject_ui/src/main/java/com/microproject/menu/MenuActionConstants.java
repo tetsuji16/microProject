@@ -99,6 +99,10 @@ public interface MenuActionConstants {
 	public static final String ACTION_LABEL_TASK_NAME         = "LabelTaskName";
 
 	public static final String ACTION_INSERT_TASK             = "InsertTask";
+	public static final String ACTION_TASK_MODE_MANUAL       = "TaskModeManual";
+	public static final String ACTION_TASK_MODE_AUTOMATIC    = "TaskModeAutomatic";
+	public static final String ACTION_STATUS_DATE             = "StatusDate";
+	public static final String ACTION_MARK_ON_TRACK           = "MarkOnTrack";
 	public static final String ACTION_INSERT_RESOURCE         = "InsertResource";
 	public static final String ACTION_INSERT_RECURRING        = "InsertRecurring";
 	public static final String ACTION_INSERT_PROJECT          = "InsertProject";

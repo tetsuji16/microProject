@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.awt.Graphics;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
+import com.microproject.pm.ccpm.CriticalChainBufferHistoryService;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
@@ -42,6 +44,13 @@ import com.microproject.undo.DataFactoryUndoController;
  * network; an empty criticalTaskIds() here would mean the graph renders blank.
  */
 class CriticalChainApplyAndRenderTest {
+	@Test
+	void emptyRetractionReasonGetsSpecificUserFeedback() {
+		CriticalChainBufferHistoryService.Outcome outcome = new CriticalChainBufferHistoryService.Outcome(
+			CriticalChainBufferHistoryService.Status.REJECTED, "reason-required", null);
+		assertEquals(UsabilityStrings.text("ccpm.retractReasonRequired"),
+			CriticalChainStatusDialogBox.retractionFailureMessage(outcome));
+	}
 
 	private static Project buildProjectWithTasksAndResources() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -118,12 +127,34 @@ class CriticalChainApplyAndRenderTest {
 		CriticalChainService.Analysis applied = service.apply(project, null, settings);
 
 		CriticalChainGraphScene scene = CriticalChainGraphScene.from(project, applied);
-		assertEquals(applied.criticalTaskIds().size() + applied.feedingBuffers().size() + 1, scene.nodes().size());
+		assertEquals(applied.criticalTaskIds().size() + applied.feedingBuffers().size()
+			+ applied.resourceBuffers().size() + 1, scene.nodes().size());
 		CriticalChainGraphScene.Node firstTask = scene.nodes().stream()
 			.filter(node -> node.kind() == CriticalChainGraphScene.NodeKind.TASK).findFirst().orElseThrow();
 		assertNotNull(scene.node(firstTask.key()));
 		assertEquals(firstTask, scene.nodeAt(firstTask.bounds().x(), firstTask.bounds().y()));
 		assertFalse(scene.edges().isEmpty(), "the scene must retain graph relationships for the renderer and later interactions");
+	}
+
+	@Test
+	void networkPanelExposesReadOnlySelectionTooltipAndStableEdgeLegend() throws Exception {
+		Project project = buildProjectWithTasksAndResources();
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Settings settings = service.settings(project);
+		settings.setEnabled(true);
+		CriticalChainService.Analysis applied = service.apply(project, null, settings);
+		CriticalChainGraphPanel panel = new CriticalChainGraphPanel(project);
+		panel.setAnalysis(applied);
+		CriticalChainGraphScene.Node task = CriticalChainGraphScene.from(project, applied).nodes().stream()
+			.filter(node -> node.kind() == CriticalChainGraphScene.NodeKind.TASK).findFirst().orElseThrow();
+		int x = task.bounds().x() + 5;
+		int y = task.bounds().y() + 5;
+		panel.dispatchEvent(new MouseEvent(panel, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(), 0, x, y, 1, false));
+		assertEquals(task.key(), panel.getSelectedNodeKey());
+		assertNotNull(panel.getToolTipText(new MouseEvent(panel, MouseEvent.MOUSE_MOVED,
+			System.currentTimeMillis(), 0, x, y, 0, false)));
+		assertEquals(3, panel.legendEntries().size());
+		assertFalse(project.isReadOnly(), "fixture must be writable so the graph's read-only surface is meaningful");
 	}
 
 	@Test

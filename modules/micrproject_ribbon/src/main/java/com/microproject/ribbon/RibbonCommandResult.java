@@ -9,7 +9,8 @@ import java.util.Objects;
 import java.util.List;
 
 /** Outcome recorded by the canonical ribbon command route. */
-public record RibbonCommandResult(String commandId, Status status, String reason, List<Long> affectedTaskIds) {
+public record RibbonCommandResult(String commandId, Status status, String reason, List<Long> affectedTaskIds,
+		String activeViewId) {
 	public enum Status {
 		/** The input route accepted the command; asynchronous work may still fail. */
 		DISPATCHED,
@@ -26,9 +27,17 @@ public record RibbonCommandResult(String commandId, Status status, String reason
 		Objects.requireNonNull(status, "status");
 		reason = reason == null ? "" : reason;
 		affectedTaskIds = affectedTaskIds == null ? List.of() : List.copyOf(affectedTaskIds);
+		activeViewId = activeViewId == null ? "" : activeViewId;
+	}
+	public RibbonCommandResult(String commandId, Status status, String reason, List<Long> affectedTaskIds) {
+		this(commandId, status, reason, affectedTaskIds, "");
 	}
 	public RibbonCommandResult(String commandId, Status status, String reason) {
 		this(commandId, status, reason, List.of());
+	}
+
+	public RibbonCommandResult withActiveView(String viewId) {
+		return new RibbonCommandResult(commandId, status, reason, affectedTaskIds, viewId);
 	}
 
 	public static RibbonCommandResult dispatched(String commandId) {

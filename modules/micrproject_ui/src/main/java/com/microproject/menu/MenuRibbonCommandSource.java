@@ -36,6 +36,7 @@ import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	private static final Logger logger = Logger.getLogger(MenuRibbonCommandSource.class.getName());
 	private static final String OUTCOME_KEY = "MicroProject.ribbonOutcome";
+	private static final String REASON_KEY = "MicroProject.ribbonReason";
 	private static final String AFFECTED_TASK_IDS_KEY = "MicroProject.ribbonAffectedTaskIds";
 	private final ExtToolBarFactory factory;
 	private final Map<String, CommandBinding> bindingsById = new LinkedHashMap<>();
@@ -117,6 +118,7 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		// value on the legacy action made a later NO_CHANGE/DISPATCHED click look
 		// like the preceding CHANGED click.
 		action.putValue(OUTCOME_KEY, null);
+		action.putValue(REASON_KEY, null);
 		action.putValue(AFFECTED_TASK_IDS_KEY, null);
 		try {
 			action.actionPerformed(new ActionEvent(invocation.source() == null ? action : invocation.source(),

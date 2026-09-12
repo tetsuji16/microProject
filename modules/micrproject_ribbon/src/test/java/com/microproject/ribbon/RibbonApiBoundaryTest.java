@@ -62,5 +62,7 @@ class RibbonApiBoundaryTest {
 		ids.add(99L);
 		assertEquals(List.of(42L), result.affectedTaskIds());
 		assertThrows(UnsupportedOperationException.class, () -> result.affectedTaskIds().add(7L));
+		assertEquals("", result.activeViewId());
+		assertEquals("Gantt", result.withActiveView("Gantt").activeViewId());
 	}
 }

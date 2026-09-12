@@ -2,6 +2,11 @@ dependencies {
     implementation(project(":micrproject_contrib"))
     implementation(project(":micrproject_core"))
     implementation(libs.mpxj)
+    // Exchange adapters use these APIs directly.
+    implementation(libs.bundles.jackson)
+    implementation(libs.commons.collections)
+    implementation(libs.commons.lang)
+    implementation(libs.bundles.poi)
     // Route MPXJ/POI's Log4j API calls to the existing SLF4J backend instead
     // of emitting "could not find a logging provider" on packaged imports.
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")

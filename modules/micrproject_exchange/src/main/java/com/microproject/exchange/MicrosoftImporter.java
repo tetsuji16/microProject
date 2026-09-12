@@ -29,6 +29,9 @@ import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import com.microproject.util.SafeFileReplace;
+import com.microproject.temporary.TemporaryCleanupQueue;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Date;
@@ -131,34 +134,27 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 	@Override
 	public void exportFile() throws Exception {
-		String extension = ""; //$NON-NLS-1$
-		String name = fileName;
-		String tmpFileName = fileName;
-		int i = fileName.lastIndexOf('.');
-		if (i > 0) {
-			extension = fileName.substring(i);
-			name = fileName.substring(0, i);
-		}
-
-		File file = new File(fileName);
-		File tmpFile = file;
-		for (int count = 0; tmpFile.exists(); count++) {
-			tmpFileName = name + "_tmp" + count + extension; //$NON-NLS-1$
-			tmpFile = new File(tmpFileName);
-		}
-
-		try (FileOutputStream out = new FileOutputStream(tmpFile)) {
-			if (!saveProject(project, out, fileName)) {
-				throw new Exception("Failed to save project: " + fileName); //$NON-NLS-1$
+		File file = new File(fileName).getAbsoluteFile();
+		Path parent = file.toPath().getParent();
+		if (parent == null) throw new IOException("Cannot determine target directory: " + file);
+		// Always stage beside the target in a uniquely-created file.  The old
+		// exists/_tmpN loop was racy and could leave partial target files.
+		File tmpFile = Files.createTempFile(parent, file.getName() + ".", ".tmp").toFile();
+		boolean replaced = false;
+		try {
+			try (FileOutputStream out = new FileOutputStream(tmpFile)) {
+				if (!saveProject(project, out, fileName)) {
+					throw new IOException("Failed to save project: " + fileName); //$NON-NLS-1$
+				}
 			}
-		}
 
-		if (!file.equals(tmpFile)) {
 			if (!SafeFileReplace.replace(tmpFile, file)) {
-				// The original is preserved by the safe replace; discard the
-				// unusable temp so it does not accumulate (issue #354).
-				tmpFile.delete();
 				throw new IOException("Failed to replace " + file + " with temporary file " + tmpFile);
+			}
+			replaced = true;
+		} finally {
+			if (!replaced) {
+				TemporaryCleanupQueue.deleteOrEnqueue(tmpFile.toPath());
 			}
 		}
 	}

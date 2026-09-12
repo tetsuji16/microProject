@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.IllegalComponentStateException;
@@ -22,6 +23,7 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -48,7 +50,9 @@ import com.microproject.menu.MenuManager;
 import com.microproject.menu.ProjectMenuActionMap;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.ribbon.CommandId;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.GuiPhysicalRouteAdapter;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 
@@ -84,14 +88,13 @@ class RibbonTabGuiAcceptanceTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+		show(host);
 		List<AbstractButton> tabs = new ArrayList<>();
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
 			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
 			tabs.add(findButton(host, title));
 		}
-		show(host);
-
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		for (int index = 0; index < tabs.size(); index++) {
@@ -132,7 +135,10 @@ class RibbonTabGuiAcceptanceTest {
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
-		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
+		EnumSet<CommandId> physicalTaskCommands = EnumSet.noneOf(CommandId.class);
+		for (String tabId : MenuDefinitionSupport.ribbonTaskIds().stream()
+				.filter(tabId -> !Set.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask").contains(tabId))
+				.toList()) {
 			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
 			AbstractButton tab = findButton(host, title);
 			click(robot, tab);
@@ -146,6 +152,22 @@ class RibbonTabGuiAcceptanceTest {
 					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
 					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
 					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
+					try {
+						physicalTaskCommands.add(CommandId.fromActionId(actionId));
+					} catch (RuntimeException ignoredAction) {
+						try {
+							// Ribbon definitions may expose a legacy action alias. If
+							// it is not one of the stable command ids, use the button
+							// id (RibbonInsert -> Insert) as the route identifier.
+							String buttonRoute = buttonId.replaceFirst("^Ribbon", "");
+							// The ribbon calls the task insertion command Insert,
+							// while the legacy menu contract calls it InsertTask.
+							physicalTaskCommands.add(CommandId.fromActionId(
+								"Insert".equals(buttonRoute) ? "InsertTask" : buttonRoute));
+						} catch (RuntimeException ignoredButton) {
+							// The standard ribbon also contains view/file/resource commands.
+						}
+					}
 					int before = actions.count(actionId);
 					Point clickPoint = clickCommand(robot, button);
 					GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
@@ -153,6 +175,101 @@ class RibbonTabGuiAcceptanceTest {
 							+ " bounds=" + button.getBounds() + " screen=" + safeScreenBounds(button));
 				}
 			}
+		}
+		EnumSet<CommandId> expectedRibbonCommands = EnumSet.allOf(CommandId.class);
+		expectedRibbonCommands.remove(CommandId.PASTE_INSERT);
+		assertTrue(physicalTaskCommands.containsAll(expectedRibbonCommands),
+				"every routed CommandId except popup-only PasteInsert must have a physical ribbon click: "
+						+ physicalTaskCommands);
+	}
+
+	@Test
+	void highDpiRibbonCommandFamiliesRemainContainedAndNonOverlapping() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for visual matrix coverage.");
+		Assumptions.assumeTrue(uiScale() > 1.0d,
+			"This visual-matrix case is the high-DPI counterpart of the 100% command sweep.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+		// Keep the window within a normal desktop at 125/150%; commands that do
+		// not fit are intentionally represented by the responsive popup route.
+		show(host, 1000, false);
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
+			AbstractButton tab = findButton(host,
+				MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title"));
+			click(robot, tab);
+			GuiAcceptanceSupport.await(tab::isSelected, "high-DPI tab was not selected: " + tabId);
+			SwingUtilities.invokeAndWait(() -> assertVisibleRibbonControlsFit(host, tab));
+			captureVisibleRibbon(robot, "ribbon-high-dpi-" + tabId + ".png", 600);
+		}
+	}
+
+	/**
+	 * #561: Network and Calendar are view-contextual surfaces, not separate
+	 * mutation command families.  The contextual tabs must be physically
+	 * reachable after the view transition, while their unprovided popup and
+	 * shortcut routes must remain absent (rather than silently dispatching a
+	 * similarly named legacy action).
+	 */
+	@Test
+	void networkAndCalendarContextualTabsHaveExplicitRouteMatrix() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for contextual route coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host
+			.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		show(host, 1200, false);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+
+		List<String> contextualTabs = List.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask");
+		for (String tabId : contextualTabs) {
+			// Simulate the active-view transition: a contextual tab is hidden until
+			// the corresponding view publishes its descriptor, then becomes visible.
+			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of()));
+			AbstractButton tab = findButton(host,
+				MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title"));
+			assertTrue(!tab.isShowing(), () -> tabId + " must be absent outside its active view");
+
+			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of(tabId)));
+			GuiPhysicalRouteAdapter.awaitVisible(tab::isShowing,
+				"contextual tab did not become visible after view transition: " + tabId);
+			click(robot, tab);
+			GuiAcceptanceSupport.await(tab::isSelected,
+				"Robot click did not select contextual tab " + tabId);
+			SwingUtilities.invokeAndWait(() -> {
+				assertTrue(ribbon.isContextualTabVisible(tabId));
+				assertTrue(host.isShowing());
+			});
+
+			Set<String> contextualButtons = MenuDefinitionSupport.ribbonButtonIdsForTask(tabId);
+			assertTrue(!contextualButtons.isEmpty(), tabId + " must expose a non-empty format surface");
+			for (String buttonId : contextualButtons) {
+				AbstractButton button = GuiPhysicalRouteAdapter.visibleButton(host, buttonId);
+				assertTrue(button.isEnabled(), () -> tabId + " command is unexpectedly disabled: " + buttonId);
+				String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
+				assertTrue(actionId != null && !actionId.isBlank(),
+					() -> tabId + " command has no legacy action mapping: " + buttonId);
+				// NetworkAction and CalendarViewAction are view selectors on the
+				// standard View tab.  They must not leak into contextual format tabs.
+				assertTrue(!Set.of("NetworkAction", "CalendarViewAction").contains(actionId),
+					() -> tabId + " contextual command leaked a view selector: " + actionId);
+			}
+			captureVisibleRibbon(robot, "ribbon-contextual-" + tabId + ".png");
+		}
+
+		// Explicit absence contract: no contextual tab registers a popup or
+		// root-pane shortcut for the view selectors; the standard View route owns
+		// those actions.  This prevents duplicate/ambiguous command ownership.
+		SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of()));
+		for (String tabId : contextualTabs) {
+			AbstractButton tab = findButton(host,
+				MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title"));
+			assertTrue(!tab.isShowing(), () -> tabId + " remained visible after leaving its view");
 		}
 	}
 
@@ -459,6 +576,33 @@ class RibbonTabGuiAcceptanceTest {
 			band.getHeight() - insets.top - insets.bottom);
 		assertTrue(contentBounds.contains(buttonBounds),
 			() -> "Ribbon button is clipped by its band: button=" + buttonBounds + " content=" + contentBounds);
+	}
+
+	private static void assertVisibleRibbonControlsFit(JPanel host, AbstractButton selectedTab) {
+		for (Component component : UiComponentWalker.flatten(host)) {
+			if (!(component instanceof AbstractButton button) || !button.isShowing() || button == selectedTab)
+				continue;
+			if (button.getParent() != null && button.getParent().getName() != null
+					&& button.getParent().getName().equals(ModernRibbonPanel.RIBBON_BAND_COMPONENT_NAME))
+				assertContainedInRibbonBand(button);
+		}
+		for (Component parent : UiComponentWalker.flatten(host)) {
+			if (!(parent instanceof Container container))
+				continue;
+			List<Component> children = java.util.Arrays.stream(container.getComponents())
+				.filter(Component::isShowing).toList();
+			for (int first = 0; first < children.size(); first++) {
+				for (int second = first + 1; second < children.size(); second++) {
+					Component a = children.get(first);
+					Component b = children.get(second);
+					if (!(a instanceof AbstractButton) || !(b instanceof AbstractButton))
+						continue;
+					assertTrue(!a.getBounds().intersects(b.getBounds()),
+						() -> "high-DPI ribbon controls overlap in " + container.getClass().getSimpleName()
+							+ ": " + a.getBounds() + " and " + b.getBounds());
+				}
+			}
+		}
 	}
 
 	private static Component findRibbonBand(Component component) {

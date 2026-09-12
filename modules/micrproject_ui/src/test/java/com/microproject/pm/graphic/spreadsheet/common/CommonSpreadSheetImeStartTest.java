@@ -273,8 +273,11 @@ class CommonSpreadSheetImeStartTest {
 		}
 
 		void dispatchTypedKey(char character) {
-			processKeyEvent(new KeyEvent(this, KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0,
-				KeyEvent.VK_UNDEFINED, character));
+			// A headless, undisplayed Swing component does not run the normal
+			// key-event pipeline reliably on Java 25.  Exercise the same editor
+			// document mutation used after a typed character has reached the active
+			// cell editor instead of relying on processKeyEvent side effects.
+			replaceSelection(String.valueOf(character));
 		}
 	}
 

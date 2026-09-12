@@ -40,8 +40,7 @@ dependencies {
 	implementation(libs.jackson.annotations)
 	implementation(libs.jackson.core)
 	implementation(libs.jackson.databind)
-	implementation(libs.log4j.core)
-	implementation(libs.logback.classic)
+	implementation(libs.jasperreports)
 	implementation(libs.pdfbox)
 	implementation(libs.poi)
 	implementation(libs.poi.ooxml)
@@ -137,6 +136,7 @@ tasks.register<Test>("guiTest") {
 	// test-order accident. Keep each GUI command family in its own JVM.
 	forkEvery = 1
 	systemProperty("java.awt.headless", "false")
+	systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
     val guiTestLocale = providers.gradleProperty("guiTestLocale").orElse("ja").get()
     val guiTestUiScale = providers.gradleProperty("guiTestUiScale").orNull
     inputs.property("guiTestLocale", guiTestLocale)

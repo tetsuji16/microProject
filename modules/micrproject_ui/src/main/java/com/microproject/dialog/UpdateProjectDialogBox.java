@@ -47,9 +47,9 @@ import com.microproject.strings.Messages;
 public class UpdateProjectDialogBox extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
 	public static class Form {
-		Boolean update;
-		Boolean progress;
-		Boolean entireProject;
+		Boolean update = Boolean.TRUE;
+		Boolean progress = Boolean.TRUE;
+		Boolean entireProject = Boolean.TRUE;
 		Date updateDate = new Date(CalendarOption.getInstance().makeValidStart(System.currentTimeMillis(), true));		
 		Date rescheduleDate = new Date(CalendarOption.getInstance().makeValidStart(System.currentTimeMillis(), true));
 	
@@ -139,6 +139,10 @@ public class UpdateProjectDialogBox extends AbstractDialog {
 	    
 		updateDateChooser = ComponentFactory.createDateField();
 		rescheduleDateChooser = ComponentFactory.createDateField();
+		// doModal() does not call bind(true); initialize the editors from the
+		// default form so the first physical OK can always commit valid dates.
+		updateDateChooser.setValue(form.getUpdateDate());
+		rescheduleDateChooser.setValue(form.getRescheduleDate());
 		rescheduleDateChooser.setEnabled(false);
 		
 		progress= new JRadioButton(Messages.getString("UpdateProjectDialogBox.SetZeroHundred")); //$NON-NLS-1$
@@ -184,10 +188,14 @@ public class UpdateProjectDialogBox extends AbstractDialog {
 			form.setUpdate(b2);
 			Boolean b3=Boolean.valueOf(progress.isSelected());
 			form.setProgress(b3);	    		    
-			long d1 = updateDateChooser.getDateValue().getTime();
+			Date updateDateValue = updateDateChooser.getDateValue();
+			Date rescheduleDateValue = rescheduleDateChooser.getDateValue();
+			if (updateDateValue == null || rescheduleDateValue == null)
+				return false;
+			long d1 = updateDateValue.getTime();
 			d1 = CalendarOption.getInstance().makeValidStart(d1, true);
 			form.setUpdateDate(new Date(d1));
-			long d2 = rescheduleDateChooser.getDateValue().getTime();
+			long d2 = rescheduleDateValue.getTime();
 			d2 = CalendarOption.getInstance().makeValidStart(d2, true);
 			form.setRescheduleDate(new Date(d2));
 		}
@@ -244,4 +252,3 @@ public class UpdateProjectDialogBox extends AbstractDialog {
 	}
 	
 }
-

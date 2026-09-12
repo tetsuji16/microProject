@@ -48,7 +48,7 @@ class RibbonStructureTest {
 	void standardRibbonUsesTheDesktopProjectTabOrder() {
 		assertEquals(List.of(
 			"FileRibbonTask", "TaskRibbonTask", "ResourceRibbonTask", "ReportRibbonTask",
-			"ProjectRibbonTask", "ViewRibbonTask", "FormatRibbonTask"), ribbonTaskIds());
+			"ProjectRibbonTask", "ViewRibbonTask", "FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"), ribbonTaskIds());
 	}
 
 	@Test
@@ -90,7 +90,7 @@ class RibbonStructureTest {
 			"ResourceAssignmentsRibbonBand", "ResourceLevelRibbonBand", "ResourcePoolRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
 		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
 		assertEquals(List.of("RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool"), ribbonButtonIds("ResourcePoolRibbonBand"));
-		assertEquals(List.of("RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
+			assertEquals(List.of("RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonStatusDate", "RibbonMarkOnTrack", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
 			ribbonButtonIds("ProjectScheduleRibbonBand"));
 	}
 
@@ -120,8 +120,17 @@ class RibbonStructureTest {
 			}
 		}
 		Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut");
+		Set<String> contextualFormatCommands = Set.of(
+			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
+			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",
+			"RibbonTextStyles", "RibbonLayout");
 		for (Map.Entry<String, Set<String>> entry : tabsByButton.entrySet()) {
-			assertTrue(entry.getValue().size() == 1 || permittedDuplicates.contains(entry.getKey()),
+			boolean legalContextualFormatDuplicate = contextualFormatCommands.contains(entry.getKey())
+				&& entry.getValue().contains("FormatRibbonTask")
+				&& entry.getValue().stream().allMatch(Set.of(
+					"FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask")::contains);
+			assertTrue(entry.getValue().size() == 1 || permittedDuplicates.contains(entry.getKey())
+				|| legalContextualFormatDuplicate,
 				() -> "Unexpected duplicate ribbon command: " + entry.getKey() + " in " + entry.getValue());
 		}
 	}

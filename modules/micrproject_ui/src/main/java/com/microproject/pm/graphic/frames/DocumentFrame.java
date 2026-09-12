@@ -60,6 +60,7 @@ import com.microproject.dialog.CustomReportDialogBox;
 import com.microproject.dialog.MoveProjectDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.UpdateTaskDialog;
+import com.microproject.exchange.MpoExtractionOwnershipRegistry;
 import com.microproject.dialog.calendar.ChangeWorkingTimeDialogBox;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuActionsMap;
@@ -121,6 +122,7 @@ import com.microproject.pm.task.ProjectEvent;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.ProjectListener;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.UpdateProjectRequest;
 import com.microproject.strings.Messages;
 import com.microproject.timescale.TimeScale;
 import com.microproject.preference.GlobalPreferences;
@@ -134,6 +136,8 @@ import com.microproject.util.DataUtils;
 import com.microproject.util.Environment;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.ribbon.CommandId;
+import com.microproject.ribbon.RibbonCommandResult;
 
 /**
  *
@@ -171,6 +175,13 @@ public class DocumentFrame extends NamedFrame implements
 	BaseView activeTopView = null;
 	BaseView activeBottomView = null;
 	private CalendarViewDialogBox calendarViewDialog;
+	/** Result of the last typed task command route, consumed by menu/ribbon actions. */
+	private RibbonCommandResult lastTaskCommandResult;
+
+	/** Returns the semantic outcome most recently published by the task route. */
+	public RibbonCommandResult getLastTaskCommandResult() {
+		return lastTaskCommandResult;
+	}
 
 	// keep state of pushed buttons so i can reset them when a view is reactivated
 	String lastTopButton = null;
@@ -442,19 +453,26 @@ public class DocumentFrame extends NamedFrame implements
 
 	}
 
-	void doUpdateProjectDialog() {
+	private RibbonCommandResult doUpdateProjectDialog(String commandId) {
 		finishAnyOperations();
 		UpdateProjectDialogBox dlg = UpdateProjectDialogBox.getInstance(
 				getGraphicManager().getFrame(), null,hasAtLeastOneTaskSelected());
 		if (dlg.doModal()) {
-			UpdateProjectCommand cmd = new UpdateProjectCommand(project, dlg
-					.getForm().getActiveDate().getTime(), dlg.getForm()
-					.getUpdate().booleanValue(), dlg.getForm().getProgress()
-					.booleanValue());
-			forTasksDo(cmd, dlg.getForm().getEntireProject().booleanValue());
-			cmd = null;
+			UpdateProjectRequest request;
+			try {
+				request = new UpdateProjectRequest(
+						com.microproject.util.DateTime.nextDay(dlg.getForm().getActiveDate().getTime()),
+						dlg.getForm().getUpdate().booleanValue(), dlg.getForm().getProgress().booleanValue(),
+						dlg.getForm().getEntireProject().booleanValue());
+			} catch (IllegalArgumentException | NullPointerException invalidInput) {
+				return RibbonCommandResult.rejected(commandId, "invalid-input").withActiveView("task");
+			}
+			UpdateProjectCommand cmd = new UpdateProjectCommand(project, request);
+			forTasksDo(cmd, request.entireProject());
+			return (cmd.affectedTaskIds().isEmpty() ? RibbonCommandResult.noChange(commandId)
+				: RibbonCommandResult.changed(commandId, cmd.affectedTaskIds())).withActiveView("task");
 		}
-
+		return RibbonCommandResult.rejected(commandId, "dialog-cancelled").withActiveView("task");
 	}
 
 	void doDefineCodeDialog() {
@@ -498,42 +516,200 @@ public class DocumentFrame extends NamedFrame implements
 		new CustomReportDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
 	}
 
+	/**
+	 * Routes a task command through the same typed pipeline used by all
+	 * presentations.  The legacy do* methods remain virtual and callable by
+	 * integrations; a subclass which overrides one of them is treated as a
+	 * dispatched legacy adapter when it does not publish a semantic result.
+	 */
+	public RibbonCommandResult routeTaskCommand(CommandId command) {
+		java.util.Objects.requireNonNull(command, "command");
+		lastTaskCommandResult = null;
+		switch (command) {
+		case INSERT -> lastTaskCommandResult = executeTaskTableMutation(command, () -> {
+			SpreadSheet activeSheet = getActiveSpreadSheet();
+			int count = activeSheet == null ? 1 : Math.max(1, activeSheet.getSelectedRows().length);
+			for (int index = 0; index < count; index++)
+				addNodeForImpl(null);
+		}, false);
+		case DELETE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doDelete, true);
+		case CUT -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCut, true);
+		case COPY -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCopy, true);
+		case PASTE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doPaste, true);
+		case PASTE_INSERT -> lastTaskCommandResult = executeTaskTableMutation(command, this::doPasteInsert, true);
+		case LINK -> doLinkTasks();
+		case UNLINK -> doUnlinkTasks();
+		case INDENT -> doIndent();
+		case OUTDENT -> doOutdent();
+		case EXPAND -> lastTaskCommandResult = executeTaskTableMutation(command, this::doExpand, true);
+		case COLLAPSE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCollapse, true);
+		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.MANUAL);
+		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
+		case STATUS_DATE -> lastTaskCommandResult = applyStatusDate(command);
+		case MARK_ON_TRACK -> lastTaskCommandResult = applyMarkOnTrack(command);
+		case UPDATE_PROJECT -> lastTaskCommandResult = openUpdateProject(command);
+		}
+		if (lastTaskCommandResult == null)
+			lastTaskCommandResult = RibbonCommandResult.dispatched(command.actionId());
+		return lastTaskCommandResult;
+	}
+
+	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {
+		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(false, true));
+		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
+		if (tasks.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-task-selection");
+		new com.microproject.pm.task.TaskModeService().apply(tasks, mode, project.getUndoController().getEditSupport());
+		getActiveSpreadSheet().restoreTaskRowSelection(selection);
+		return RibbonCommandResult.changed(command.actionId(), taskIds(selection)).withActiveView("task");
+	}
+
+	private RibbonCommandResult applyStatusDate(CommandId command) {
+		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		new com.microproject.pm.task.TaskProgressService().setStatusDate(project, System.currentTimeMillis(),
+				project.getUndoController().getEditSupport());
+		return RibbonCommandResult.changed(command.actionId()).withActiveView("task");
+	}
+
+	private RibbonCommandResult applyMarkOnTrack(CommandId command) {
+		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(false, true));
+		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
+		if (tasks.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-task-selection");
+		var result = new com.microproject.pm.task.TaskProgressService().markOnTrack(project, tasks,
+				project.getUndoController().getEditSupport());
+		getActiveSpreadSheet().restoreTaskRowSelection(selection);
+		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), taskIds(selection))
+				: RibbonCommandResult.noChange(command.actionId(), taskIds(selection))).withActiveView("task");
+	}
+
+	private RibbonCommandResult openUpdateProject(CommandId command) {
+		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		return doUpdateProjectDialog(command.actionId());
+	}
+
+	/**
+	 * Executes a task-table command after capturing one stable selection and
+	 * compares the table projection before/after. Legacy do* methods remain the
+	 * mutation adapters, so menu, popup, ribbon and shortcut routes share this
+	 * result without breaking older integrations that override those methods.
+	 */
+	private RibbonCommandResult executeTaskTableMutation(CommandId command, Runnable operation,
+			boolean requiresSelection) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (sheet == null)
+			return executeLegacyWithoutTable(command, operation);
+		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(false, true));
+		if (requiresSelection && selection.isEmpty())
+			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		int beforeRows = sheet.getRowCount();
+		int beforeTasks = project.getTaskList().size();
+		try {
+			operation.run();
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure);
+		}
+		int afterRows = sheet.getRowCount();
+		int afterTasks = project.getTaskList().size();
+		if (lastTaskCommandResult != null)
+			return lastTaskCommandResult;
+		List<Long> ids = taskIds(selection);
+		return beforeRows != afterRows || beforeTasks != afterTasks
+			? RibbonCommandResult.changed(command.actionId(), ids)
+			: command == CommandId.COPY
+				? RibbonCommandResult.dispatched(command.actionId())
+				: RibbonCommandResult.noChange(command.actionId(), ids);
+	}
+
+	private RibbonCommandResult executeLegacyWithoutTable(CommandId command, Runnable operation) {
+		try {
+			operation.run();
+			return RibbonCommandResult.dispatched(command.actionId());
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure);
+		}
+	}
+
+	private static List<Long> taskIds(List<Node> nodes) {
+		return nodes.stream().filter(java.util.Objects::nonNull).map(Node::getImpl)
+			.filter(Task.class::isInstance).map(Task.class::cast).map(Task::getId).toList();
+	}
+
+	private void publishTaskCommandResult(CommandId command, RibbonCommandResult.Status status,
+			String reason, List<Node> nodes) {
+		List<Long> affectedTaskIds = nodes == null ? List.of() : nodes.stream()
+			.filter(java.util.Objects::nonNull)
+			.map(Node::getImpl)
+			.filter(Task.class::isInstance)
+			.map(Task.class::cast)
+			.map(Task::getId)
+			.toList();
+		lastTaskCommandResult = new RibbonCommandResult(command.actionId(), status, reason, affectedTaskIds);
+	}
+
 	public void doLinkTasks() {
 		// Capture the selection before finishing an editor.  Stopping a cell
 		// editor can clear the JTable selection, which previously made the
 		// ribbon command silently return even though it was enabled.
 		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
+		publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+			"selection-too-small", taskNodes);
 		if (taskNodes.size() > 1)
 			undoRedoSelection = new ArrayList<>(taskNodes);
 		getGraphicManager().traceUi("link start selectedTasks=" + taskNodes.size()
 				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
 		try {
+			if (project == null || project.isReadOnly()) {
+				publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+					"document-read-only", taskNodes);
+				getGraphicManager().traceUi("link rejected reason=document-read-only");
+				return;
+			}
 			if (taskNodes.size() < 2) {
 				getGraphicManager().traceUi("link rejected reason=selection-too-small selectedTasks=" + taskNodes.size());
 				return;
 			}
 			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "link")) {
+				publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+					"lock-failed", taskNodes);
 				getGraphicManager().traceUi("link rejected reason=lock-failed selectedTasks=" + taskNodes.size());
 				return;
 			}
 			List list = NodeList.nodeListToImplList(taskNodes, NotAssignmentFilter.getInstance());
 			if (list.size() < 2) {
+				publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+					"task-filter", taskNodes);
 				getGraphicManager().traceUi("link rejected reason=task-filter selectedTasks=" + list.size());
 				return;
 			}
+			int beforeDependencies = dependencyCount(list);
 			DependencyService.getInstance().connect(list,this,null);
 			getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
+			int afterDependencies = dependencyCount(list);
+			publishTaskCommandResult(CommandId.LINK,
+				afterDependencies > beforeDependencies
+					? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
+				"", taskNodes);
+			refreshUndoButtonsSafely();
 			getGraphicManager().traceUi("link complete selectedTasks=" + taskNodes.size()
 				+ " dependencies=" + dependencyCount(list) + " undo=" + canUndoState() + " redo=" + canRedoState());
 			//DependencyService.getInstance().connect(list,this);
 		} catch (InvalidAssociationException e) {
+			publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+				"invalid-association", taskNodes);
 			getGraphicManager().traceUi("link rejected reason=invalid-association message=" + e.getMessage());
 			Alert.error(e.getMessage(),this);
 		}
 	}
 	public void doUnlinkTasks() {
 		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
+		publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+			"no-selection", taskNodes);
 		if (taskNodes.size() > 1)
 			undoRedoSelection = new ArrayList<>(taskNodes);
 		getGraphicManager().traceUi("unlink start selectedTasks=" + taskNodes.size()
@@ -543,15 +719,26 @@ public class DocumentFrame extends NamedFrame implements
 			getGraphicManager().traceUi("unlink rejected reason=no-selection");
 			return;
 		}
+		if (project == null || project.isReadOnly()) {
+			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+				"document-read-only", taskNodes);
+			getGraphicManager().traceUi("unlink rejected reason=document-read-only");
+			return;
+		}
 		if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "unlink")) {
+			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+				"lock-failed", taskNodes);
 			getGraphicManager().traceUi("unlink rejected reason=lock-failed selectedTasks=" + taskNodes.size());
 			return;
 		}
 		List list = NodeList.nodeListToImplList(taskNodes, NotAssignmentFilter.getInstance());
 		if (list.isEmpty()) {
+			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+				"task-filter", taskNodes);
 			getGraphicManager().traceUi("unlink rejected reason=task-filter");
 			return;
 		}
+		int beforeDependencies = dependencyCount(list);
 
 
 		if (list.size() == 1 && list.get(0) instanceof HasDependencies && !java.awt.GraphicsEnvironment.isHeadless()) {
@@ -560,6 +747,8 @@ public class DocumentFrame extends NamedFrame implements
 			if (incident.size() > 1) {
 				Dependency selected = chooseDependencyToUnlink(incident);
 				if (selected == null) {
+					publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+						"dependency-not-selected", taskNodes);
 					getGraphicManager().traceUi("unlink cancelled reason=dependency-not-selected");
 					return;
 				}
@@ -571,6 +760,12 @@ public class DocumentFrame extends NamedFrame implements
 			DependencyService.getInstance().removeAnyDependencies(list,this);
 		}
 		getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
+		int afterDependencies = dependencyCount(list);
+		publishTaskCommandResult(CommandId.UNLINK,
+			afterDependencies < beforeDependencies
+				? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
+			"", taskNodes);
+		refreshUndoButtonsSafely();
 		getGraphicManager().traceUi("unlink complete selectedTasks=" + taskNodes.size()
 				+ " dependencies=" + dependencyCount(list) + " undo=" + canUndoState() + " redo=" + canRedoState());
 	}
@@ -607,6 +802,13 @@ public class DocumentFrame extends NamedFrame implements
 				undoController.redo();
 			refreshUndoButtons();
 			selectionSnapshot.restore();
+			// Restoring the same row can leave Swing's selection model unchanged,
+			// therefore no SelectionNodeEvent is emitted.  Recompute command
+			// enablement explicitly so hierarchy actions reflect the post-undo model.
+			getGraphicManager().setButtonState(getSelectedImpl(), project);
+			// Node-cache projection may finish on the next EDT turn. Refresh once
+			// more after that projection so ribbon state cannot lag the model.
+			SwingUtilities.invokeLater(() -> getGraphicManager().setButtonState(getSelectedImpl(), project));
 			getGraphicManager().traceUi((isUndo ? "undo" : "redo") + " complete canUndo=" + canUndoState() + " canRedo=" + canRedoState()
 					+ " selectedTasks=" + getSelectedTaskNodes(false, true).size());
 		}
@@ -798,25 +1000,59 @@ public class DocumentFrame extends NamedFrame implements
 
 	private void doHierarchyIndent(String actionId, String diagnosticId) {
 		SpreadSheet ss = getActiveSpreadSheet();
+		CommandId command = MenuActionConstants.ACTION_INDENT.equals(actionId) ? CommandId.INDENT : CommandId.OUTDENT;
+		List<Node> taskNodes = List.of();
 		if (ss !=null) {
 			int[] selectedRows = ss.getSelectedRows();
-			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, false));
 			getGraphicManager().traceUi(diagnosticId + " start selectedTasks=" + taskNodes.size()
-					+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
+				+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
 			finishAnyOperations();
+			// Ending a reused cell editor can synchronously commit and restore the
+			// row selection. Resolve the typed selection after that lifecycle step;
+			// resolving before it leaves the second name-cell edit with the prior
+			// task as the command target.
+			// The table is the authoritative selection owner while an editor is
+			// focused.  Resolve it directly after commit; the frame selection
+			// provider may still expose the previous editor row for one event turn.
+			taskNodes = new ArrayList<>();
+			for (Node node : ss.getSelectedNodes())
+				if (node != null && node.getImpl() instanceof Task && !ClassUtils.isObjectReadOnly(node.getImpl()))
+					taskNodes.add(node);
+			publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED, "no-selection", taskNodes);
+			if (project == null || project.isReadOnly()) {
+				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
+					"document-read-only", taskNodes);
+				getGraphicManager().traceUi(diagnosticId + " rejected reason=document-read-only");
+				return;
+			}
 			if (taskNodes.isEmpty()) {
 				getGraphicManager().traceUi(diagnosticId + " rejected reason=no-selection");
 				return;
 			}
+			if (command == CommandId.OUTDENT && taskNodes.stream().noneMatch(DocumentFrame::canOutdent)) {
+				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
+					"cannot-outdent", taskNodes);
+				getGraphicManager().traceUi(diagnosticId + " rejected reason=cannot-outdent");
+				return;
+			}
 			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, diagnosticId)) {
+				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
+					"lock-failed", taskNodes);
 				getGraphicManager().traceUi(diagnosticId + " rejected reason=lock-failed selectedTasks=" + taskNodes.size());
 				return;
 			}
 			ss.executeAction(actionId, selectedRows);
 			ss.restoreTaskRowSelection(taskNodes);
+			publishTaskCommandResult(command, RibbonCommandResult.Status.CHANGED, "", taskNodes);
+			refreshUndoButtonsSafely();
 			getGraphicManager().traceUi(diagnosticId + " complete selectedTasks=" + taskNodes.size()
 					+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		}
+	}
+
+	private void refreshUndoButtonsSafely() {
+		if (menuManager != null)
+			refreshUndoButtons();
 	}
 	public void doExpand() {
 		SpreadSheet ss = getActiveSpreadSheet();
@@ -839,6 +1075,15 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void doIndent() {
 		doHierarchyIndent(MenuActionConstants.ACTION_INDENT, "indent");
+	}
+
+	static boolean canOutdent(Node node) {
+		// The outline level is a derived display value and can lag one EDT turn
+		// behind a hierarchy mutation.  The parent link is the authoritative model
+		// state for this command; using it keeps ribbon enablement and the canonical
+		// command precondition in sync immediately after Indent/Redo.
+		return node != null && !node.isRoot() && node.getImpl() instanceof Task task
+				&& task.getWbsParentTask() != null;
 	}
 	public boolean canMoveSelectedTasks(int direction) {
 		SpreadSheet spreadSheet=getActiveSpreadSheet();
@@ -897,12 +1142,18 @@ public class DocumentFrame extends NamedFrame implements
 			//ss.executeAction(SpreadSheet.COPY);
 	}
 	public void doPaste() {
-		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE);
+		boolean changed = EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE);
+		lastTaskCommandResult = changed
+			? RibbonCommandResult.changed(CommandId.PASTE.actionId())
+			: RibbonCommandResult.rejected(CommandId.PASTE.actionId(), "paste-not-applied");
 			//NodeListTransferHandler.getPasteAction(ss).actionPerformed(new ActionEvent(this,0,null));
 			//ss.executeAction(SpreadSheet.PASTE);
 	}
 	public void doPasteInsert() {
-		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE_INSERT);
+		boolean changed = EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE_INSERT);
+		lastTaskCommandResult = changed
+			? RibbonCommandResult.changed(CommandId.PASTE_INSERT.actionId())
+			: RibbonCommandResult.rejected(CommandId.PASTE_INSERT.actionId(), "paste-not-applied");
 	}
 
 
@@ -1353,6 +1604,14 @@ public class DocumentFrame extends NamedFrame implements
 
 	protected List<Node> getSelectedTaskNodes(boolean excludeReadOnly, boolean allowMixedSelection) {
 		List<Node> nodes = getSelectedNodes(excludeReadOnly);
+		// A few integrations override the frame-level selection provider while the
+		// JTable still owns the physical selection.  Resolve that fallback here so
+		// every command route observes the same active task-table selection.
+		if (nodes == null || nodes.isEmpty()) {
+			SpreadSheet sheet = getActiveSpreadSheet();
+			if (sheet != null && sheet.getSelectedRows().length > 0)
+				nodes = sheet.getSelectedNodes();
+		}
 		if (nodes == null || nodes.isEmpty())
 			return Collections.emptyList();
 		ArrayList<Node> taskNodes = new ArrayList<>(nodes.size());
@@ -1609,6 +1868,10 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void cleanUp() {
 		logger.fine("Document Frame Cleanup");
+		// Embedded MPOF files are owned by the document lifetime.  Release them
+		// before dropping the model reference so Windows can delete open handles.
+		if (project != null)
+			MpoExtractionOwnershipRegistry.close(project);
 		if (calendarViewDialog != null) {
 			calendarViewDialog.dispose();
 			calendarViewDialog = null;

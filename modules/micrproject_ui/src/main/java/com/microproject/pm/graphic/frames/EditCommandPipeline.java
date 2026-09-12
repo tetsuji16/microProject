@@ -15,23 +15,30 @@ final class EditCommandPipeline {
 	private EditCommandPipeline() {
 	}
 
-	static void execute(DocumentFrame frame, String command) {
+	static boolean execute(DocumentFrame frame, String command) {
 		if (frame == null || command == null) {
-			return;
+			return false;
 		}
 		SpreadSheet sheet = frame.getActiveSpreadSheet();
 		if (sheet == null) {
-			return;
+			return false;
 		}
 		switch (command) {
-		case MenuActionConstants.ACTION_DELETE -> sheet.executeAction(MenuActionConstants.ACTION_DELETE);
-		case MenuActionConstants.ACTION_CLEAR_CONTENTS -> sheet.clearSelectedCellValues();
-		case MenuActionConstants.ACTION_CUT, MenuActionConstants.ACTION_COPY ->
-			sheet.performAction(command, new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, command));
-		case MenuActionConstants.ACTION_PASTE, MenuActionConstants.ACTION_PASTE_INSERT -> {
-			if (frame.canPasteIntoCurrentSelection()) {
-				sheet.performAction(command, new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, command));
-			}
+		case MenuActionConstants.ACTION_DELETE -> {
+			sheet.executeAction(MenuActionConstants.ACTION_DELETE);
+			return true;
+		}
+		case MenuActionConstants.ACTION_CLEAR_CONTENTS -> {
+			return sheet.clearSelectedCellValues();
+		}
+		case MenuActionConstants.ACTION_CUT, MenuActionConstants.ACTION_COPY -> {
+			return sheet.performAction(command, new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, command));
+		}
+		case MenuActionConstants.ACTION_PASTE -> {
+			return frame.canPasteIntoCurrentSelection() && sheet.pasteClipboardContents();
+		}
+		case MenuActionConstants.ACTION_PASTE_INSERT -> {
+			return frame.canPasteIntoCurrentSelection() && sheet.pasteClipboardInsertedContents();
 		}
 		default -> throw new IllegalArgumentException("Unsupported edit command: " + command);
 		}

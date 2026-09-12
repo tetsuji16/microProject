@@ -110,7 +110,7 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			((ModernRibbonPanel) ribbon.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
-				.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+				.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
 			assertAttachedButtonsAreVisible(ribbon, MenuManager.STANDARD_RIBBON);
 		});
 	}
@@ -366,7 +366,9 @@ class RibbonAndToolbarButtonTest {
 				"ReportRibbonTask",
 				"ProjectRibbonTask",
 				"ViewRibbonTask",
-				"FormatRibbonTask"),
+				"FormatRibbonTask",
+				"NetworkFormatRibbonTask",
+				"CalendarFormatRibbonTask"),
 			ribbonTaskIds());
 	}
 

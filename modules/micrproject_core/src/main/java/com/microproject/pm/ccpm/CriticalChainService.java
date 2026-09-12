@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
@@ -33,18 +34,43 @@ import com.microproject.pm.task.Task;
  * is explicitly called.
  */
 public final class CriticalChainService {
+	/** Generation guard shared by asynchronous Analyze/Apply/Refresh callers. */
+	public static final class Generation {
+		private final AtomicLong value = new AtomicLong();
+		public long begin() { return value.incrementAndGet(); }
+		public long current() { return value.get(); }
+		public boolean isCurrent(long token) { return token == value.get(); }
+		public boolean accept(long token, Runnable completion) {
+			Objects.requireNonNull(completion, "completion");
+			if (!isCurrent(token)) return false;
+			completion.run();
+			return true;
+		}
+	}
+
+	/** Outcome of clearing CCPM state, including a report when the baseline was edited. */
+	public record ClearResult(boolean cleared, boolean baselineEdited, Baseline discardedBaseline) { }
 	public enum BufferStatus { GREEN, AMBER, RED }
+	/** Stable semantic category used by all CCPM projections. */
+	public enum BufferKind { PROJECT, FEEDING, RESOURCE }
 	public record ChainEdge(long predecessorTaskId, long successorTaskId, Kind kind) {
 		public enum Kind { DEPENDENCY, RESOURCE_CONSTRAINT }
 	}
 
 	/** Immutable buffer measurement. Consumption is never allowed to exceed the planned amount. */
 	public record Buffer(long plannedMillis, long consumedMillis, long remainingMillis, double consumptionRatio,
-		BufferStatus status) {
+		BufferStatus status, BufferKind kind) {
 		public Buffer {
+			Objects.requireNonNull(status, "status");
+			Objects.requireNonNull(kind, "kind");
 			if (plannedMillis < 0L || consumedMillis < 0L || remainingMillis < 0L || !Double.isFinite(consumptionRatio)) {
 				throw new IllegalArgumentException("Invalid CCPM buffer");
 			}
+		}
+		/** Source-compatible constructor for callers predating typed buffers. */
+		public Buffer(long plannedMillis, long consumedMillis, long remainingMillis, double consumptionRatio,
+			BufferStatus status) {
+			this(plannedMillis, consumedMillis, remainingMillis, consumptionRatio, status, BufferKind.PROJECT);
 		}
 	}
 
@@ -108,13 +134,22 @@ public final class CriticalChainService {
 	public record Analysis(ResourceLevelingService.Plan levelingPlan, List<Long> criticalTaskIds,
 		long projectBufferMillis, Map<Long, Long> feedingBufferMillis, Buffer projectBuffer,
 		Map<Long, Buffer> feedingBuffers, Map<Long, List<Long>> resourcePredecessors,
-		List<ChainEdge> graphEdges) {
+		List<ChainEdge> graphEdges, Map<Long, Buffer> resourceBuffers) {
 		public Analysis {
 			criticalTaskIds = List.copyOf(criticalTaskIds);
 			feedingBufferMillis = Map.copyOf(feedingBufferMillis);
 			feedingBuffers = Map.copyOf(feedingBuffers);
 			resourcePredecessors = Map.copyOf(resourcePredecessors);
 			graphEdges = List.copyOf(graphEdges);
+			resourceBuffers = Map.copyOf(resourceBuffers);
+		}
+		/** Source-compatible constructor for untyped analysis fixtures. */
+		public Analysis(ResourceLevelingService.Plan levelingPlan, List<Long> criticalTaskIds,
+			long projectBufferMillis, Map<Long, Long> feedingBufferMillis, Buffer projectBuffer,
+			Map<Long, Buffer> feedingBuffers, Map<Long, List<Long>> resourcePredecessors,
+			List<ChainEdge> graphEdges) {
+			this(levelingPlan, criticalTaskIds, projectBufferMillis, feedingBufferMillis, projectBuffer,
+				feedingBuffers, resourcePredecessors, graphEdges, Map.of());
 		}
 	}
 
@@ -256,14 +291,21 @@ public final class CriticalChainService {
 
 	/** Clears leveling and CCPM state as one undoable operation. */
 	public void clear(Project project) {
-		if (project == null) return;
+		clearWithReport(project);
+	}
+
+	public ClearResult clearWithReport(Project project) {
+		if (project == null) return new ClearResult(false, false, null);
 		UndoableEditSupport editSupport = project.getUndoController().getEditSupport();
 		State before = captureState(project);
+		Baseline baseline = before.baseline();
+		boolean baselineEdited = baseline != null && project.getEnd() != baseline.projectFinishMillis();
 		if (editSupport != null) editSupport.beginUpdate();
 		try {
 			new ResourceLevelingService().clear(project, editSupport);
 			forget(project);
 			postStateEdit(project, editSupport, before, captureState(project));
+			return new ClearResult(true, baselineEdited, baseline);
 		} finally {
 			if (editSupport != null) editSupport.endUpdate();
 		}
@@ -407,9 +449,32 @@ public final class CriticalChainService {
 			long planned = baselineMatches ? baseline.feedingBufferMillis().getOrDefault(entry.getKey(), entry.getValue()) : entry.getValue();
 			Task target = tasksById.get(entry.getKey());
 			long referenceStart = baselineMatches ? baseline.feedingTaskStartMillis().getOrDefault(entry.getKey(), target == null ? 0L : target.getStart()) : (target == null ? 0L : target.getStart());
-			feedingBuffers.put(entry.getKey(), buffer(planned, target == null ? 0L : Math.max(0L, target.getStart() - referenceStart)));
+			feedingBuffers.put(entry.getKey(), buffer(planned, target == null ? 0L : Math.max(0L, target.getStart() - referenceStart), BufferKind.FEEDING));
 		}
-		return new Analysis(plan, ids, recommendedProjectBuffer, feeding, projectBuffer, feedingBuffers, resourcePredecessors, graphEdges);
+		Map<Long, Buffer> resourceBuffers = resourceBuffers(selectedResources, settings, project);
+		return new Analysis(plan, ids, recommendedProjectBuffer, feeding, projectBuffer, feedingBuffers, resourcePredecessors, graphEdges, resourceBuffers);
+	}
+
+	private static Map<Long, Buffer> resourceBuffers(Collection<? extends Resource> selectedResources, Settings settings, Project project) {
+		Collection<? extends Resource> resources = selectedResources == null ? project.getResourcePool().getResourceList() : selectedResources;
+		Map<Long, Buffer> result = new LinkedHashMap<>();
+		for (Resource resource : resources) {
+			long planned = 0L;
+			long consumed = 0L;
+			for (Object value : resource.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				Task task = assignment.getTask();
+				if (task == null || task.isSummary() || assignment.isDefault()) continue;
+				long duration = Math.max(0L, assignment.getEnd() - assignment.getStart());
+				planned = Math.addExact(planned, duration);
+				long remaining = Math.max(0L, Math.round(duration * Math.max(0D, 1D - task.getPercentComplete())));
+				consumed = Math.addExact(consumed, Math.max(0L, duration - remaining));
+			}
+			long plannedBuffer = scaled(planned, settings.getBufferFraction());
+			long consumedBuffer = Math.min(plannedBuffer, scaled(consumed, settings.getBufferFraction()));
+			result.put(Long.valueOf(resource.getUniqueId()), buffer(plannedBuffer, consumedBuffer, BufferKind.RESOURCE));
+		}
+		return result;
 	}
 
 	private static Map<Long, List<Long>> resourcePredecessors(Project project, Collection<? extends Resource> selectedResources,
@@ -474,13 +539,15 @@ public final class CriticalChainService {
 
 	private static long originalStart(Task task, Map<Task, ResourceLevelingService.Change> changes) { ResourceLevelingService.Change change = changes.get(task); return change == null ? task.getStart() : change.oldStart(); }
 
-	private static Buffer buffer(long planned, long consumed) {
+	private static Buffer buffer(long planned, long consumed) { return buffer(planned, consumed, BufferKind.PROJECT); }
+
+	private static Buffer buffer(long planned, long consumed, BufferKind kind) {
 		long safePlanned = Math.max(0L, planned);
 		long safeConsumed = Math.max(0L, consumed);
 		long remaining = Math.max(0L, safePlanned - safeConsumed);
 		double ratio = safePlanned == 0L ? (safeConsumed == 0L ? 0D : 1D) : Math.min(1D, (double) safeConsumed / safePlanned);
 		BufferStatus status = ratio < 1D / 3D ? BufferStatus.GREEN : ratio < 2D / 3D ? BufferStatus.AMBER : BufferStatus.RED;
-		return new Buffer(safePlanned, safeConsumed, remaining, ratio, status);
+		return new Buffer(safePlanned, safeConsumed, remaining, ratio, status, kind);
 	}
 
 	private static Map<Long, Long> taskStarts(Project project, Collection<Long> ids) {

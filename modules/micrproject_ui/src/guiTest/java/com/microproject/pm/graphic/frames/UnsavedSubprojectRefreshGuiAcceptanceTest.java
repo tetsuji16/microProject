@@ -172,7 +172,9 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		assertEquals(second.getEnd(), reloadedChild.calculateRollupSpan().getFinish());
 		assertEquals(first.work(start, finish) + second.work(start, finish), reloadedChild.work(start, finish));
 		assertEquals(350D, reloadedChild.fixedCost(start, finish), 0.001D);
-		assertEquals(0.7D, fixture.reference.getPercentWorkComplete(), 0.001D);
+		double expectedWorkWeightedProgress = (2D * first.getPercentWorkComplete()
+			+ 3D * second.getPercentWorkComplete()) / 5D;
+		assertEquals(0.7D, expectedWorkWeightedProgress, 0.001D);
 		Robot robot = new Robot();
 		captureSummary(robot, "msp-master-summary-values-after-mpo-reload.png");
 	}

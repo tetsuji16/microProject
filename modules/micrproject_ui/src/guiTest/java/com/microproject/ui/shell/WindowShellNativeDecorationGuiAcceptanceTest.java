@@ -70,15 +70,20 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		assertTrue(brand[0] instanceof JLabel label && label.getIcon() != null,
 			"Windows full-content header must show the application icon");
 
-		Point start = title[0].getLocationOnScreen();
+		// FlatLaf starts a native caption drag from the root-pane title-bar strip;
+		// child labels consume events and are not valid drag targets.
+		Point root = frame.getRootPane().getLocationOnScreen();
+		Point start = new Point(root.x + Math.max(80, frame.getWidth() / 2), root.y + 8);
 		Point before = frame.getLocation();
 		Robot robot = new Robot();
 		robot.setAutoDelay(25);
-		robot.mouseMove(start.x + Math.max(4, title[0].getWidth() / 2), start.y + title[0].getHeight() / 2);
+		robot.mouseMove(start.x, start.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseMove(start.x + 60, start.y + 35);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> !before.equals(frame.getLocation()), "native caption drag did not move the window");
+		GuiAcceptanceSupport.await(() -> !before.equals(frame.getLocation()), "native caption drag did not move the window: before="
+			+ before + ", after=" + frame.getLocation() + ", dragTarget=" + start
+			+ ", rootBounds=" + frame.getRootPane().getBounds());
 		assertNotEquals(before, frame.getLocation());
 	}
 

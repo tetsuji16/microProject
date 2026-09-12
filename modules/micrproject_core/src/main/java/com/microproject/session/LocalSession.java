@@ -39,11 +39,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.prefs.Preferences;
+import java.util.ServiceConfigurationError;
+import java.util.ServiceLoader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
-import com.microproject.exchange.FileImporter;
+import com.microproject.port.SessionImporter;
+import com.microproject.port.SessionImporterProvider;
+import com.microproject.port.SessionImporterRegistry;
+import com.microproject.port.PortRegistry;
 import com.microproject.grouping.core.model.DefaultNodeModel;
 import com.microproject.job.Job;
 import com.microproject.job.JobRunnable;
@@ -56,17 +61,56 @@ import com.microproject.server.data.ProjectData;
 import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
-import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 
 public class LocalSession extends AbstractSession{
 	private static final Logger logger = Logger.getLogger(LocalSession.class.getName());
-	public static final String LOCAL_PROJECT_IMPORTER = "com.microproject.exchange.LocalFileImporter";
-	public static final String MPO_PROJECT_IMPORTER = "com.microproject.exchange.MpoFileImporter";
-	public static final String SERVER_LOCAL_PROJECT_IMPORTER = "com.microproject.exchange.ServerLocalFileImporter";
-	public static final String MICROSOFT_PROJECT_IMPORTER = "com.microproject.exchange.MicrosoftImporter";
+	/** Stable format keys; legacy class-name aliases are registered by exchange. */
+	public static final String LOCAL_PROJECT_IMPORTER = "pod";
+	public static final String MPO_PROJECT_IMPORTER = "mpo";
+	public static final String SERVER_LOCAL_PROJECT_IMPORTER = "server-local";
+	public static final String MICROSOFT_PROJECT_IMPORTER = "mspdi";
+	private static final SessionImporterRegistry IMPORTER_REGISTRY = createImporterRegistry();
+	private static final PortRegistry PORT_REGISTRY = createPortRegistry();
 	private static final String DESCRIPTOR_FILE_NAME = "projectlibre.fileName";
 	private static final int DESCRIPTOR_SCAN_DEPTH = 2;
+
+	private static SessionImporterRegistry createImporterRegistry() {
+		SessionImporterRegistry registry = new SessionImporterRegistry();
+		try {
+			ServiceLoader.load(SessionImporterProvider.class).forEach(provider -> {
+				try {
+					provider.register(registry);
+				} catch (RuntimeException ex) {
+					logger.log(Level.WARNING, "Failed to register file importer provider", ex);
+				}
+			});
+		} catch (ServiceConfigurationError ex) {
+			logger.log(Level.WARNING, "Failed to discover session importer providers", ex);
+		}
+		return registry;
+	}
+
+	private static PortRegistry createPortRegistry() {
+		PortRegistry registry = new PortRegistry();
+		try {
+			ServiceLoader.load(SessionImporterProvider.class).forEach(provider -> {
+				try {
+					provider.registerPorts(registry);
+				} catch (RuntimeException ex) {
+					logger.log(Level.WARNING, "Failed to register typed exchange ports", ex);
+				}
+			});
+		} catch (ServiceConfigurationError ex) {
+			logger.log(Level.WARNING, "Failed to discover typed exchange ports", ex);
+		}
+		return registry;
+	}
+
+	/** Typed port registry used by application orchestration. */
+	public static PortRegistry getPortRegistry() {
+		return PORT_REGISTRY;
+	}
 	private final Map<Long, String> descriptorFiles = Collections.synchronizedMap(new HashMap<Long, String>());
 	
 	
@@ -291,8 +335,7 @@ public class LocalSession extends AbstractSession{
 			}
         });
 		try {
-			final FileImporter importer = ClassUtils.forName(opt.getImporter()).asSubclass(FileImporter.class)
-				.getDeclaredConstructor().newInstance();
+			final SessionImporter importer = IMPORTER_REGISTRY.create(opt.getImporter());
 	    	importer.setFileName(opt.getFileName());
 	    	importer.setFileInputStream(opt.getFileInputStream());
 	    	importer.setResourceMapping(opt.getResourceMapping());
@@ -302,7 +345,7 @@ public class LocalSession extends AbstractSession{
 	        job.addSwingRunnable(new JobRunnable("LocalAccess: loadProject.begin",1.0f){
 	    		public Object run() throws Exception{
 	    			ResourcePool resourcePool=null;
-	    			if (MICROSOFT_PROJECT_IMPORTER.equals(opt.getImporter())){
+					if (MICROSOFT_PROJECT_IMPORTER.equals(opt.getImporter())){
 	    				DataFactoryUndoController undoController=new DataFactoryUndoController();
 	    				resourcePool = ResourcePoolFactory.getInstance().createResourcePool("",undoController);
 	    				resourcePool.setLocal(importer.getResourceMapping()==null);
@@ -329,7 +372,7 @@ public class LocalSession extends AbstractSession{
 				// files replace one another in the shared portfolio and cannot be linked.
 				if (opt.getId() > 0L)
 					project.setUniqueId(opt.getId());
-	    			if (MICROSOFT_PROJECT_IMPORTER.equals(opt.getImporter()))
+					if (MICROSOFT_PROJECT_IMPORTER.equals(opt.getImporter()))
 	    				project.getResourcePool().setName(project.getName());
 	    			if (Environment.getStandAlone()){ //force local in this case
 	    				project.setMaster(true); //local project is always master
@@ -340,22 +383,20 @@ public class LocalSession extends AbstractSession{
 	 			
 	    		}
 	    	});
-		} catch (ReflectiveOperationException | ClassCastException e) {
-			logger.log(Level.WARNING, "Failed to create importer", e);
+		} catch (IllegalArgumentException e) {
+			logger.log(Level.WARNING, "Failed to create registered importer: " + opt.getImporter(), e);
 		}
      	return job;
     }
 
     
-    public static FileImporter getImporter(String name){
-		FileImporter importer=null;
+    public static SessionImporter getImporter(String name){
 		try {
-			importer = ClassUtils.forName(name).asSubclass(FileImporter.class)
-				.getDeclaredConstructor().newInstance();
-		} catch (ReflectiveOperationException | ClassCastException e) {
-			logger.log(Level.WARNING, "Failed to create importer", e);
+			return IMPORTER_REGISTRY.create(name);
+		} catch (IllegalArgumentException e) {
+			logger.log(Level.WARNING, "Failed to create registered importer: " + name, e);
+			return null;
 		}
-    	return importer;
     }
     
     
@@ -407,7 +448,7 @@ public class LocalSession extends AbstractSession{
 				opt.setImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
 
 			}
-	        FileImporter importer=getImporter(opt.getImporter());
+	        SessionImporter importer=getImporter(opt.getImporter());
 			importer.setJobQueue(jobQueue);
 			importer.setProjectFactory(ProjectFactory.getInstance());//used?
 

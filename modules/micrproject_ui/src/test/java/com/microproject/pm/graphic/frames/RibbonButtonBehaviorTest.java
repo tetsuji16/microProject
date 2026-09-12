@@ -246,6 +246,24 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void hierarchyCommandsFollowTaskSelectionState() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().clearSelection();
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled());
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled());
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 0);
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled());
+			// The first task is at the root and therefore cannot be outdented;
+			// selection still enables the hierarchy command that is applicable.
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled());
+		});
+	}
+
+	@Test
 	void insertResourceRouteUsesTheResourceSheetNewCommand() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(false, true);
@@ -538,6 +556,10 @@ class RibbonButtonBehaviorTest {
 			"RibbonCopy",
 			"RibbonPaste",
 			"RibbonDelete",
+			"RibbonTaskModeManual",
+			"RibbonTaskModeAutomatic",
+			"RibbonStatusDate",
+			"RibbonMarkOnTrack",
 			"RibbonInsert",
 			"RibbonInsertResource",
 			"RibbonInsertRecurring",
@@ -764,6 +786,10 @@ class RibbonButtonBehaviorTest {
 			"RibbonRemoveSubproject",
 			"RibbonCCPMSettings",
 			"RibbonCCPMClear",
+			"RibbonTaskModeManual",
+			"RibbonTaskModeAutomatic",
+			"RibbonStatusDate",
+			"RibbonMarkOnTrack",
 			"RibbonScrollToTask",
 			"RibbonHideSelectedTasks",
 			"RibbonShowAllTasks",

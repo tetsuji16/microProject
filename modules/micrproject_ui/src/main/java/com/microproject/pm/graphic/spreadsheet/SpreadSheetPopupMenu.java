@@ -74,6 +74,14 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				}, "ribbon.information", MenuActionConstants.ACTION_INFORMATION);
 				addGraphicManagerAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS, "ribbon.hideSelectedTasks");
 				addGraphicManagerAction(MenuActionConstants.ACTION_SHOW_ALL_TASKS, "ribbon.showAllTasks");
+				// Task scheduling mode is also available from the row popup.  These
+				// items deliberately obtain the already-registered GraphicManager
+				// actions so popup, menu, ribbon and root-pane shortcuts share one
+				// canonical DocumentFrame route.
+				addGraphicManagerAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL, "ribbon.taskInformation");
+				addGraphicManagerAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC, "ribbon.taskInformation");
+				addGraphicManagerAction(MenuActionConstants.ACTION_MARK_ON_TRACK, "ribbon.update");
+				addGraphicManagerAction(MenuActionConstants.ACTION_STATUS_DATE, "ribbon.calendar");
 				openLinkedProject = new JMenuItem(Messages.getString("RibbonOpenSubproject.text"));
 				openLinkedProject.setIcon(getPopupIcon("ribbon.openSubproject"));
 				openLinkedProject.setToolTipText(Messages.getString("RibbonOpenSubproject.tooltip"));
@@ -125,6 +133,7 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 			
 			//Normal spreadsheet
 			//NodeListTransferHandler.registerWith(this);
+			boolean pasteInsertAdded = false;
 			if (actions!=null)
 			for (int i=0;i<actions.length;i++){
 				String actionId = actions[i];
@@ -141,12 +150,28 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				// deliberately have no GraphicManager.
 				if (SpreadSheetCategories.taskSpreadsheetCategory.equals(spreadSheet.getSpreadSheetCategory())
 						&& addGraphicManagerAction(actionId, getMenuAction(actionId)))
+				{
+					if (MenuActionConstants.ACTION_PASTE.equals(actionId)) {
+						addGraphicManagerAction(MenuActionConstants.ACTION_PASTE_INSERT, getInsertPasteMenuIcon());
+						pasteInsertAdded = true;
+					}
 					continue;
+				}
 				add(spreadSheet.prepareAction(actionId), getMenuAction(actionId), actionId);
 				if (MenuActionConstants.ACTION_PASTE.equals(actionId)) {
 					add(spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT), getInsertPasteMenuIcon(),
 						MenuActionConstants.ACTION_PASTE_INSERT);
+					pasteInsertAdded = true;
 				}
+			}
+			// Some task-sheet models expose only the clipboard transfer action through
+			// their capability list. Keep the MSP Paste Insert variant physically
+			// reachable whenever the task popup is present.
+			if (SpreadSheetCategories.taskSpreadsheetCategory.equals(spreadSheet.getSpreadSheetCategory())
+					&& !pasteInsertAdded) {
+				if (!addGraphicManagerAction(MenuActionConstants.ACTION_PASTE_INSERT, getInsertPasteMenuIcon()))
+					add(spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT), getInsertPasteMenuIcon(),
+						MenuActionConstants.ACTION_PASTE_INSERT);
 			}
 		}
 	    
@@ -175,6 +200,10 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				menuActionMap.put(MenuActionConstants.ACTION_PASTE, "ribbon.paste");
 				menuActionMap.put(MenuActionConstants.ACTION_EXPAND, "ribbon.expand");
 				menuActionMap.put(MenuActionConstants.ACTION_COLLAPSE, "ribbon.collapse");
+				menuActionMap.put(MenuActionConstants.ACTION_TASK_MODE_MANUAL, "ribbon.taskInformation");
+				menuActionMap.put(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC, "ribbon.taskInformation");
+				menuActionMap.put(MenuActionConstants.ACTION_STATUS_DATE, "ribbon.calendar");
+				menuActionMap.put(MenuActionConstants.ACTION_MARK_ON_TRACK, "ribbon.update");
 	    	}
             return menuActionMap.get(action);
         }

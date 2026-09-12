@@ -13,6 +13,20 @@ import java.util.List;
 
 /** Deterministic CSV/HTML reports built from persisted CCPM observations. */
 public final class CriticalChainReportService {
+	/** Exports the same typed buffer projection used by supported CCPM views. */
+	public String toBufferCsv(CriticalChainService.Analysis analysis) {
+		StringBuilder out = new StringBuilder("kind,id,plannedMillis,consumedMillis,remainingMillis,status\n");
+		if (analysis == null) return out.toString();
+		appendBuffer(out, "PROJECT", "project", analysis.projectBuffer());
+		for (var entry : analysis.feedingBuffers().entrySet()) appendBuffer(out, "FEEDING", entry.getKey().toString(), entry.getValue());
+		for (var entry : analysis.resourceBuffers().entrySet()) appendBuffer(out, "RESOURCE", entry.getKey().toString(), entry.getValue());
+		return out.toString();
+	}
+
+	private static void appendBuffer(StringBuilder out, String kind, String id, CriticalChainService.Buffer buffer) {
+		if (buffer != null) out.append(kind).append(',').append(id).append(',').append(buffer.plannedMillis()).append(',')
+			.append(buffer.consumedMillis()).append(',').append(buffer.remainingMillis()).append(',').append(buffer.status()).append('\n');
+	}
 	public String toCsv(CriticalChainBufferHistory history) {
 		StringBuilder out = new StringBuilder("observedAt,actorId,actorName,progressPercent,consumptionPercent,zone,baselineId\n");
 		if (history != null) for (CriticalChainBufferHistory.Point p : history.points()) {

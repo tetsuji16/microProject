@@ -35,7 +35,7 @@ import com.microproject.pm.task.ProjectFactory;
 /**
  * Abstract class for importing and exporting files
  */
-public abstract class FileImporter /*implements Runnable*/ {
+public abstract class FileImporter implements com.microproject.port.SessionImporter /*implements Runnable*/ {
 	protected JobQueue jobQueue=null;
 	protected String fileName;
 	protected InputStream fileInputStream;
@@ -105,6 +105,17 @@ public abstract class FileImporter /*implements Runnable*/ {
 
 	public void setResourceMapping(ResourceMappingForm resourceMapping) {
 		this.resourceMapping = resourceMapping;
+	}
+	@Override
+	public void setResourceMapping(Object resourceMapping) {
+		if (resourceMapping == null) {
+			this.resourceMapping = null;
+		} else if (resourceMapping instanceof ResourceMappingForm form) {
+			this.resourceMapping = form;
+		} else {
+			throw new IllegalArgumentException("Unsupported resource mapping type: "
+					+ resourceMapping.getClass().getName());
+		}
 	}
 
 	public InputStream getFileInputStream() {

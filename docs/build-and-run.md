@@ -86,8 +86,13 @@ U-21の視覚検査では次のように別プロセスで実行する。
 .\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain
 .\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1.25' --max-workers=1 --no-daemon --console=plain
 .\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1.5' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain
 .\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1.25' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1.5' --max-workers=1 --no-daemon --console=plain
 ```
+
+Task command semantics and the per-surface evidence mapping are maintained in
+[`docs/msp-task-command-contract.md`](msp-task-command-contract.md).
 
 各実行で画面キャプチャとコンポーネント境界を確認し、倍率指定だけで成功扱いにしない。
 標準リボンの全コマンド実クリック掃引は、全ボタンを同時に画面内へ置ける日本語100%で実施する。高DPI実行では画面端を越える試験ウィンドウを無理にクリックせず、同掃引はスキップされ、ダイアログ／タブの視覚レイアウト検査を行う。

@@ -56,10 +56,10 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	@AfterEach
 	void cleanUp() throws Exception {
 		UiServices.setFileChooserProvider(previousChooser);
-		if (manager != null)
-			SwingUtilities.invokeAndWait(() -> manager.cleanUp());
 		if (window != null)
-			SwingUtilities.invokeAndWait(() -> window.dispose());
+			GuiAcceptanceSupport.runOnEdtWithTimeout(window::dispose, "Multiple-project main window disposal");
+		if (manager != null)
+			GuiAcceptanceSupport.runOnEdtWithTimeout(manager::cleanUp, "Multiple-project manager cleanup");
 		if (firstFile != null) Files.deleteIfExists(firstFile);
 		if (secondFile != null) Files.deleteIfExists(secondFile);
 		Environment.setStandAlone(previousStandalone);
@@ -84,18 +84,20 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		secondFile = Files.createTempFile("msp-open-beta-", ".mpo");
 		writeProject(firstFile, "Multiple Open Alpha");
 		writeProject(secondFile, "Multiple Open Beta");
-		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
-			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) { return null; }
-			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
-				return save ? List.of() : List.of(firstFile.toString(), secondFile.toString());
-			}
-		});
-
 		SwingUtilities.invokeAndWait(() -> {
 			window = new MainRibbonFrame("microProject — Multiple local project Open GUI acceptance", null, null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();
+			// FlatLafSupport installs the native chooser during initView(). Install
+			// the deterministic provider afterwards, otherwise the Robot test opens
+			// a real Windows file dialog and blocks the EDT indefinitely.
+			UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
+				@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) { return null; }
+				@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+					return save ? List.of() : List.of(firstFile.toString(), secondFile.toString());
+				}
+			});
 			SessionFactory.getInstance().setJobQueue(manager.getJobQueue());
 			window.setSize(1020, 620);
 			window.setLocationByPlatform(true);

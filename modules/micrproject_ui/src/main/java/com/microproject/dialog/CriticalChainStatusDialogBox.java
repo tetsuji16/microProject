@@ -208,8 +208,7 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		CriticalChainBufferHistoryService.Outcome outcome = new CriticalChainBufferHistoryService().retract(project,
 			point.observationId(), reason.getText(), "local", "Local user");
 		if (!outcome.changed()) {
-			feedback.setText(UsabilityStrings.text(outcome.status() == CriticalChainBufferHistoryService.Status.FAILED
-				? "ccpm.retractFailed" : "ccpm.retractRejected"));
+			feedback.setText(retractionFailureMessage(outcome));
 			updateRetractionEnabled();
 			return;
 		}
@@ -217,6 +216,21 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		feedback.setText(MessageFormat.format(UsabilityStrings.text("ccpm.retractSuccess"),
 			reason.getText().trim(), DateTimeFormatter.ISO_INSTANT.format(Instant.now())));
 		updateRetractionEnabled();
+	}
+
+	static String retractionFailureMessage(CriticalChainBufferHistoryService.Outcome outcome) {
+		if (outcome == null)
+			return UsabilityStrings.text("ccpm.retractRejected");
+		if (outcome.status() == CriticalChainBufferHistoryService.Status.FAILED)
+			return UsabilityStrings.text("ccpm.retractFailed");
+		String reason = outcome.reason() == null ? "" : outcome.reason();
+		return switch (reason) {
+			case "reason-required" -> UsabilityStrings.text("ccpm.retractReasonRequired");
+			case "read-only" -> UsabilityStrings.text("ccpm.retractReadOnly");
+			case "history-empty" -> UsabilityStrings.text("ccpm.retractHistoryEmpty");
+			case "observation-not-found" -> UsabilityStrings.text("ccpm.retractNotFound");
+			default -> UsabilityStrings.text("ccpm.retractRejected");
+		};
 	}
 
 	private void exportReport(Project project, boolean html) {

@@ -95,6 +95,7 @@ import com.microproject.server.access.ErrorLogger;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 import com.microproject.util.DisplayMath;
+import com.microproject.util.Environment;
 
 /**
  * @stereotype thing
@@ -758,8 +759,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 */
 	protected void assignParentActualDatesFromChildren() {
 		NormalTask parent = this;
-		while ((parent = (NormalTask) parent.getWbsParentTask()) != null)
+		while ((parent = (NormalTask) parent.getWbsParentTask()) != null) {
 			parent.assignActualDatesFromChildren();
+			parent.assignScheduledDatesFromChildren();
+		}
 
 	}
 
@@ -782,17 +785,30 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			if (! (current instanceof NormalTask))
 				continue;
 			child = (NormalTask) current;
-			if (!child.inProgress())
+			// Completed children also contribute the parent's actual span.  Excluding
+			// them leaves a summary with no active children at 0% in its stored
+			// schedule, even though every leaf is complete.
+			if (child.getPercentComplete() <= 0.0D)
 				continue;
-			if ((currentActualStart = child.getActualStart()) != 0) // if any task has actual start, use the earliest value
+			currentActualStart = child.getActualStart();
+			if (currentActualStart == 0L && child.getPercentComplete() >= 1.0D)
+				currentActualStart = child.getStart();
+			if (currentActualStart != 0) // if any task has actual start, use the earliest value
 				computedActualStart = Math.min(computedActualStart, currentActualStart);
 
-			stop = Math.max(stop, child.getStop());
+			// Actual dates are an independent track.  Do not use the scheduled
+			// finish (getEnd()) as a substitute for actual progress.
+			long actualFinish = child.getActualFinish();
+			long childStop = child.getStop();
+			if (actualFinish != 0L)
+				stop = Math.max(stop, actualFinish);
+			if (childStop != 0L)
+				stop = Math.max(stop, childStop);
 		}
 
 		long actualDuration = 0;
 		if (computedActualStart != Long.MAX_VALUE && stop != 0)
-			actualDuration = getEffectiveWorkCalendar().compare(stop,getStart(),false);
+			actualDuration = getEffectiveWorkCalendar().compare(stop, computedActualStart, false);
 		if (computedActualStart != Long.MAX_VALUE)
 			setActualStartNoEvent(computedActualStart);
 		else
@@ -804,23 +820,25 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			markTaskAsNeedingRecalculation(); // so it redraws
 		}
 
-		// Issue #267: a summary (grouped) task's scheduled start/finish must follow the
-		// rollup of its children. Task.getStart()/getEnd() return this task's own
-		// currentSchedule, which is never updated from the rollup here (only actual dates
-		// were), so the grouped task stayed frozen after a child edit. Recompute the
-		// scheduled span from the children and write it back, honoring any manual
-		// override stored in the SummaryEnvelope (same contract as getTaskDisplayValue).
-		if (isWbsParent()) {
-			RollupSpan span = calculateRollupSpan();
-			if (span.getStart() != 0L || span.getFinish() != 0L) {
-				SummaryEnvelope envelope = getSummaryEnvelope();
-				if (!envelope.hasManualStart())
-					setCurrentScheduleStart(span.getStart());
-				if (!envelope.hasManualFinish())
-					setCurrentScheduleFinish(span.getFinish());
-				markTaskAsNeedingRecalculation(); // so it redraws
-			}
-		}
+	}
+
+	/**
+	 * Updates the stored scheduled span for an automatically scheduled summary.
+	 * Manual/top-down/constraint edits are represented by the envelope and must
+	 * not be overwritten by actual-progress propagation.
+	 */
+	private void assignScheduledDatesFromChildren() {
+		if (!isWbsParent() || isManuallyScheduled() || Environment.isImporting())
+			return;
+		SummaryEnvelope envelope = getSummaryEnvelope();
+		RollupSpan span = calculateRollupSpan();
+		if (span.getStart() == 0L && span.getFinish() == 0L)
+			return;
+		if (!envelope.hasManualStart())
+			setCurrentScheduleStart(span.getStart());
+		if (!envelope.hasManualFinish())
+			setCurrentScheduleFinish(span.getFinish());
+		markTaskAsNeedingRecalculation();
 	}
 
 

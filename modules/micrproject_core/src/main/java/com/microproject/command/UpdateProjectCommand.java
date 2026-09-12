@@ -26,6 +26,9 @@ package com.microproject.command;
 
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.UpdateProjectRequest;
+import java.util.ArrayList;
+import java.util.List;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 
@@ -34,19 +37,33 @@ import com.microproject.util.DateTime;
  * Consumer<Object> that holds parameters from UpdateProject dialog and executes the action by visiting a task collection
  */
 public class UpdateProjectCommand extends Command {
-	Project project;
-	long date;
-	boolean updateWorkAsCompleteThrough;
-	boolean setFractionalPercentComplete;
+	private final Project project;
+	private final UpdateProjectRequest request;
+	private final List<Long> affectedTaskIds = new ArrayList<>();
 	public UpdateProjectCommand(Project project, long date, boolean updateWorkAsCompleteThrough, boolean setFractionalPercentComplete) {
+		this(project, new UpdateProjectRequest(DateTime.nextDay(date), updateWorkAsCompleteThrough,
+			setFractionalPercentComplete, false));
+	}
+	public UpdateProjectCommand(Project project, UpdateProjectRequest request) {
 		super(Messages.getString("Command.UpdateProject"),project);
 		this.project = project;
-		this.date = DateTime.nextDay(date); // need to move ahead a day, since we really want day end, so use midnight next day
-		this.updateWorkAsCompleteThrough = updateWorkAsCompleteThrough;
-		this.setFractionalPercentComplete = setFractionalPercentComplete;
+		this.request = java.util.Objects.requireNonNull(request, "request");
 	}
 	public void accept(Object arg0) {
-		project.setStatusDate(date);
-		((Task)arg0).updateProjectTask(date,updateWorkAsCompleteThrough,setFractionalPercentComplete);
+		project.setStatusDate(request.statusDate());
+		Task task = (Task) arg0;
+		long taskEndBeforeUpdate = task.getEnd();
+		if (task.updateProjectTask(request.statusDate(), request.updateWorkAsCompleteThrough(),
+			request.setFractionalPercentComplete())) {
+			if (task instanceof com.microproject.pm.task.NormalTask normal) {
+				double exportedProgress = request.updateWorkAsCompleteThrough()
+					&& !request.setFractionalPercentComplete()
+					&& request.statusDate() >= taskEndBeforeUpdate ? 1D : task.getPercentComplete();
+				normal.setImportedPercentComplete(exportedProgress);
+			}
+			affectedTaskIds.add(Long.valueOf(task.getUniqueId()));
+		}
 	}
+	public UpdateProjectRequest request() { return request; }
+	public List<Long> affectedTaskIds() { return List.copyOf(affectedTaskIds); }
 }

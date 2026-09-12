@@ -67,12 +67,14 @@ public final class AboutDialog extends AbstractDialog {
 	}
 
 	private void handleUpdateResult(UpdateChecker.UpdateResult result) {
-		if (!result.updateAvailable() || !isShowing()) return;
+		if (!result.updateAvailable() || !isShowing()) {
+			if (result.updateAvailable()) UpdateChecker.discardStagedUpdate();
+			return;
+		}
 		String message = UsabilityStrings.text("update.ready").replace("{0}", result.currentVersion())
 				.replace("{1}", result.latestVersion());
-		if (Alert.okCancel(message)) {
-			UpdateChecker.applyStagedUpdate();
-		}
+		if (Alert.okCancel(message)) UpdateChecker.applyStagedUpdate();
+		else UpdateChecker.discardStagedUpdate();
 	}
 
 

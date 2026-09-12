@@ -28,6 +28,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Frame;
+import java.awt.Window;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -112,11 +113,28 @@ public class Alert {
 	private static final String GRAPHIC_MANAGER="com.microproject.pm.graphic.frames.GraphicManager";
 	public static Frame getFrame(){
 		try {
-		    return (Frame)Class.forName(GRAPHIC_MANAGER).getMethod("getFrameInstance", new Class<?>[0]).invoke(null, new Object[0]);
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to get main frame", e);
-			return null;
+			Class<?> managerType = Class.forName(GRAPHIC_MANAGER);
+			// A project operation may run while the application shell is only a
+			// hidden shared owner.  Prefer the visible document frame so modal
+			// errors are attached to the window the user is actually editing.
+			Object documentFrame = managerType.getMethod("getDocumentFrameInstance")
+				.invoke(null, new Object[0]);
+			if (documentFrame instanceof Frame frame && frame.isShowing())
+				return frame;
+			Object fallback = managerType.getMethod("getFrameInstance", new Class<?>[0]).invoke(null, new Object[0]);
+			if (fallback instanceof Frame frame && frame.isShowing()) return frame;
+			} catch (Exception e) {
+			logger.log(Level.FINE, "No GraphicManager document frame available", e);
 		}
+		// Lightweight clients and GUI fixtures may not initialize GraphicManager.
+		// Prefer an actually visible frame so JOptionPane does not create a hidden
+		// SharedOwnerFrame and strand the caller in a modal transaction.
+		Window[] windows = Window.getWindows();
+		for (int i = windows.length - 1; i >= 0; i--) {
+			Window window = windows[i];
+			if (window.isShowing() && window instanceof Frame frame) return frame;
+		}
+		return null;
 	}
 	public static Object getGraphicManager(){
 		try {

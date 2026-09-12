@@ -97,7 +97,8 @@ final class RibbonCommandCatalog {
 				throw new IllegalStateException("Ribbon command is missing action or icon metadata: " + definition.id());
 			}
 			Set<String> actualTabs = tabsByCommand.get(definition.id());
-			if (!definition.permittedTabs().equals(actualTabs)) {
+			if (!definition.permittedTabs().containsAll(actualTabs)
+				|| !actualTabs.contains(definition.primaryTab())) {
 				throw new IllegalStateException("Ribbon command has invalid tab placement: " + definition.id()
 					+ " expected " + definition.permittedTabs() + " but was " + actualTabs);
 			}
@@ -132,7 +133,8 @@ final class RibbonCommandCatalog {
 			"RibbonMoveTaskUp", "RibbonMoveTaskDown",
 			"RibbonExpand", "RibbonCollapse", "RibbonLink", "RibbonUnlink", "RibbonAssignResources",
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonNotes", "RibbonUpdateTasks", "RibbonDelete",
-			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonHideSelectedTasks", "RibbonShowAllTasks");
+			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
+			"RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter", "RibbonLevelResources",
 			"RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool");
@@ -140,15 +142,24 @@ final class RibbonCommandCatalog {
 			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");
 		register(result, CommandScope.PROJECT, PROJECT,
 			"RibbonProjectInformation", "RibbonProjectsDialog", "RibbonChangeWorkingTime",
-			"RibbonCalendarOptions", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
+			"RibbonCalendarOptions", "RibbonStatusDate", "RibbonMarkOnTrack", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
 			"RibbonCCPMSettings", "RibbonCCPMClear");
 	register(result, CommandScope.VIEW, VIEW,
 			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
 			"RibbonTimeline", "RibbonCalendarView", "RibbonProjects", "RibbonTaskUsageDetail", "RibbonResourceUsageDetail", "RibbonDetails", "RibbonNoTextNoSubWindow",
 			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonCCPMNetwork", "RibbonPrivacyMask");
-	register(result, CommandScope.FORMAT, FORMAT,
+		register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
 			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
+		// Format controls are shared by the implemented contextual tabs.  The
+		// catalog permits a subset per tab; each command remains primary on the
+		// normal Format tab and cannot appear on an unrelated tab.
+		for (String id : List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
+			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout")) {
+			Placement placement = result.get(id);
+			result.put(id, new Placement(placement.scope(), placement.primaryTab(),
+				Set.of(FORMAT, "NetworkFormatRibbonTask", "CalendarFormatRibbonTask")));
+		}
 		register(result, CommandScope.DOCUMENT, TASK, Set.of(TASK, RESOURCE), "RibbonPaste", "RibbonCopy", "RibbonCut");
 		register(result, CommandScope.DOCUMENT, QUICK_ACCESS,
 			"RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo");

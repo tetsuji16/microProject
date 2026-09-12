@@ -36,7 +36,7 @@ public final class CriticalChainGraphScene {
 	private static final int MARGIN = 20;
 	private static final DecimalFormat BUFFER_DAYS = new DecimalFormat("0.0");
 
-	public enum NodeKind { TASK, PROJECT_BUFFER, FEEDING_BUFFER }
+	public enum NodeKind { TASK, PROJECT_BUFFER, FEEDING_BUFFER, RESOURCE_BUFFER }
 	public enum EdgeKind { DEPENDENCY, RESOURCE_CONSTRAINT, BUFFER_PROTECTION }
 
 	/** Immutable rectangular hit target in canvas coordinates. */
@@ -98,6 +98,11 @@ public final class CriticalChainGraphScene {
 		for (Map.Entry<Long, CriticalChainService.Buffer> entry : analysis.feedingBuffers().entrySet()) {
 			nodes.add(bufferNode(feedingBufferKey(entry.getKey().longValue()), NodeKind.FEEDING_BUFFER,
 				UsabilityStrings.text("ccpm.feedingBuffer") + " #" + entry.getKey(), entry.getValue(), bufferX,
+				MARGIN + feederRow++ * (NODE_HEIGHT + VERTICAL_GAP)));
+		}
+		for (Map.Entry<Long, CriticalChainService.Buffer> entry : analysis.resourceBuffers().entrySet()) {
+			nodes.add(bufferNode(resourceBufferKey(entry.getKey().longValue()), NodeKind.RESOURCE_BUFFER,
+				UsabilityStrings.text("ccpm.resourceBuffer") + " #" + entry.getKey(), entry.getValue(), bufferX,
 				MARGIN + feederRow++ * (NODE_HEIGHT + VERTICAL_GAP)));
 		}
 		List<Edge> edges = new ArrayList<>(analysis.graphEdges().size() + analysis.feedingBuffers().size() + 1);
@@ -162,4 +167,5 @@ public final class CriticalChainGraphScene {
 
 	private static String taskKey(long taskId) { return "task:" + taskId; }
 	private static String feedingBufferKey(long taskId) { return "feeding-buffer:" + taskId; }
+	private static String resourceBufferKey(long resourceId) { return "resource-buffer:" + resourceId; }
 }

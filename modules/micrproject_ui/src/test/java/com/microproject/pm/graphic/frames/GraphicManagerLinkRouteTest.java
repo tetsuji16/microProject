@@ -41,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.dialog.ProjectDialog;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Project;
+import com.microproject.ribbon.RibbonCommandResult;
 
 import sun.misc.Unsafe;
 
@@ -122,6 +123,25 @@ class GraphicManagerLinkRouteTest {
 		assertFalse(routedActions.isEmpty());
 		assertFalse(documentFrame.linkInvoked);
 		assertFalse(documentFrame.unlinkInvoked);
+	}
+
+	@Test
+	void taskActionsPublishTypedPreconditionOutcomesWhenSelectionIsRejected() throws Exception {
+		TestDocumentFrame documentFrame = allocateWithoutConstructor(TestDocumentFrame.class);
+		documentFrame.setTaskSelectionCount(1);
+		GraphicManager graphicManager = new GraphicManager(new JPanel()) {
+			@Override public boolean isDocumentActive() { return true; }
+			@Override public DocumentFrame getCurrentFrame() { return documentFrame; }
+		};
+
+		javax.swing.Action link = graphicManager.new LinkAction();
+		link.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "Link"));
+
+		assertEquals(RibbonCommandResult.Status.REJECTED,
+			link.getValue("MicroProject.ribbonOutcome"));
+		assertEquals("selection-too-small",
+			link.getValue("MicroProject.ribbonReason"));
+		assertFalse(documentFrame.linkInvoked);
 	}
 
 	@Test

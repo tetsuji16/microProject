@@ -39,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,7 +50,13 @@ public class CollaborationMetadataStore {
 	private static final int MAX_METADATA_BYTES = 1024 * 1024; // 1 MB safety limit
 	public static final int SCHEMA_VERSION = 1;
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-	private static final ConcurrentHashMap<String, Object> JVM_LOCKS = new ConcurrentHashMap<String, Object>();
+	private static final Object JVM_LOCK_REGISTRY_GUARD = new Object();
+	private static final ConcurrentHashMap<String, JvmLockEntry> JVM_LOCKS = new ConcurrentHashMap<String, JvmLockEntry>();
+
+	private static final class JvmLockEntry {
+		private final Object monitor = new Object();
+		private final AtomicInteger references = new AtomicInteger();
+	}
 
 	private final File projectFile;
 	private final File sidecarFile;
@@ -90,6 +97,76 @@ public class CollaborationMetadataStore {
 		return sidecarFile;
 	}
 
+	/**
+	 * Removes collaboration artifacts for an explicitly deleted/unshared
+	 * project.  A malformed or partially synced sidecar is never treated as an
+	 * empty lease table.  The sidecar and marker are removed only after the
+	 * metadata has been read successfully, all leases are absent/expired, and
+	 * the OS lock has been acquired and released.
+	 *
+	 * @return {@code true} when both artifacts were removed, otherwise
+	 *         {@code false} and the files are left untouched
+	 */
+	public boolean removeArtifactsIfUnowned() {
+		final long now = System.currentTimeMillis();
+		Boolean unowned = withLockedMetadata(new MetadataCallback<Boolean>() {
+			@Override
+			public Boolean execute(Metadata metadata) {
+				return Boolean.valueOf(metadata.getLocks().values().stream()
+						.noneMatch(lock -> lock != null && lock.getLeaseUntil() > now
+								&& ((lock.getOwnerKey() != null && !lock.getOwnerKey().isBlank())
+										|| (lock.getUserKey() != null && !lock.getUserKey().isBlank()))));
+			}
+
+			@Override
+			public Boolean onError(Exception error) {
+				return Boolean.FALSE;
+			}
+		});
+		if (!Boolean.TRUE.equals(unowned)) return false;
+
+		// Keep the JVM monitor while acquiring/releasing the OS lock.  This
+		// prevents another local caller from starting a new lease between the
+		// ownership check and cleanup; other processes are serialized by the
+		// marker lock itself.
+		String lockKey;
+		try {
+			lockKey = lockFile.getCanonicalPath();
+		} catch (IOException error) {
+			lockKey = lockFile.getAbsolutePath();
+		}
+		JvmLockEntry entry;
+		synchronized (JVM_LOCK_REGISTRY_GUARD) {
+			entry = JVM_LOCKS.computeIfAbsent(lockKey, key -> new JvmLockEntry());
+			entry.references.incrementAndGet();
+		}
+		try {
+			synchronized (entry.monitor) {
+				try (FileChannel channel = FileChannel.open(lockFile.toPath(),
+						StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+					 FileLock ignored = channel.tryLock()) {
+					if (ignored == null) return false;
+				}
+				try {
+					Files.deleteIfExists(sidecarFile.toPath());
+					Files.deleteIfExists(lockFile.toPath());
+					return true;
+				} catch (IOException error) {
+					logger.log(Level.WARNING, "Could not remove collaboration artifacts for " + projectFile, error);
+					return false;
+				}
+			}
+		} catch (java.nio.channels.OverlappingFileLockException error) {
+			logger.log(Level.FINE, "Collaboration lock is already held for cleanup " + projectFile, error);
+			return false;
+		} catch (IOException error) {
+			logger.log(Level.WARNING, "Could not acquire collaboration lock for cleanup " + projectFile, error);
+			return false;
+		} finally {
+			releaseJvmLock(lockKey, entry);
+		}
+	}
+
 	static File buildLockFile(File sidecarFile) {
 		String name = sidecarFile.getName();
 		String suffix = ".json";
@@ -122,9 +199,47 @@ public class CollaborationMetadataStore {
 		} catch (IOException e) {
 			lockKey = lockFile.getAbsolutePath();
 		}
-		Object jvmLock = JVM_LOCKS.computeIfAbsent(lockKey, key -> new Object());
-		synchronized (jvmLock) {
-			return withLockedMetadataUnderJvmLock(callback);
+		JvmLockEntry entry;
+		synchronized (JVM_LOCK_REGISTRY_GUARD) {
+			entry = JVM_LOCKS.computeIfAbsent(lockKey, key -> new JvmLockEntry());
+			entry.references.incrementAndGet();
+		}
+		try {
+			synchronized (entry.monitor) {
+				return withLockedMetadataUnderJvmLock(callback);
+			}
+		} finally {
+			releaseJvmLock(lockKey, entry);
+		}
+	}
+
+	private static void releaseJvmLock(String lockKey, JvmLockEntry entry) {
+		synchronized (JVM_LOCK_REGISTRY_GUARD) {
+			if (entry.references.decrementAndGet() == 0) {
+				// Removal is guarded together with reference acquisition. A waiter
+				// can therefore never observe a removed entry and create a second
+				// monitor for the same canonical path.
+				JVM_LOCKS.remove(lockKey, entry);
+			}
+		}
+	}
+
+	/** Package-private visibility keeps registry assertions out of production APIs. */
+	static int jvmLockRegistrySizeForTests() {
+		return JVM_LOCKS.size();
+	}
+
+	/** Package-private diagnostic used to prove monitor identity during contention. */
+	static Object jvmLockMonitorForTests(File projectFile) {
+		String key;
+		try {
+			key = buildLockFile(buildSidecarFile(projectFile)).getCanonicalPath();
+		} catch (IOException e) {
+			key = buildLockFile(buildSidecarFile(projectFile)).getAbsolutePath();
+		}
+		synchronized (JVM_LOCK_REGISTRY_GUARD) {
+			JvmLockEntry entry = JVM_LOCKS.get(key);
+			return entry == null ? null : entry.monitor;
 		}
 	}
 
@@ -274,10 +389,10 @@ public class CollaborationMetadataStore {
 		void mutate(Metadata metadata);
 	}
 
-	public static abstract class MetadataCallback<T> {
-		public abstract T execute(Metadata metadata);
+	public interface MetadataCallback<T> {
+		T execute(Metadata metadata);
 
-		public T onError(Exception e) {
+		default T onError(Exception e) {
 			throw new RuntimeException(e);
 		}
 	}

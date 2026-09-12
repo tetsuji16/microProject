@@ -230,6 +230,9 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		pool.setLocal(true);
 		Project project = Project.createProject(pool, undo);
 		project.setName("CCPM status dialog acceptance");
+		// Move Project is a forward-scheduling command in MSP.  Make the fixture
+		// satisfy that precondition so the Robot route exercises the real dialog.
+		project.setForward(true);
 		Task first = project.createScriptedTask();
 		first.setName("Design");
 		Task second = project.createScriptedTask();

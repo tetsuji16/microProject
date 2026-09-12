@@ -114,7 +114,7 @@ public final class PopupDialogSupport {
 	public static int showOptionDialog(Component parentComponent, Object message, String title, int optionType, int messageType,
 		Icon icon, Object[] options, Object initialValue, int escapeResult) {
 		JOptionPane optionPane = new JOptionPane(message, messageType, optionType, icon, options, initialValue);
-		JDialog dialog = optionPane.createDialog(parentComponent, title);
+			JDialog dialog = optionPane.createDialog(parentComponent, title);
 		bindOptionButtons(optionPane, options);
 		bindEscapeToOptionPane(dialog, optionPane, escapeResult);
 		bindConfirmationMnemonics(dialog.getRootPane(), options);
@@ -171,10 +171,23 @@ public final class PopupDialogSupport {
 	}
 
 	public static void showMessageDialog(Component parentComponent, Object message, String title, int messageType) {
-		JOptionPane optionPane = new JOptionPane(message, messageType, JOptionPane.DEFAULT_OPTION);
+		JButton ok = new JButton(localized("dialog.ok", "OK"));
+		Object[] options = { ok };
+		JOptionPane optionPane = new JOptionPane(message, messageType, JOptionPane.DEFAULT_OPTION, null, options, ok);
 		JDialog dialog = optionPane.createDialog(parentComponent, title);
+		bindOptionButtons(optionPane, options);
+		ok.addActionListener(event -> {
+			optionPane.setValue(Integer.valueOf(JOptionPane.OK_OPTION));
+			dialog.setVisible(false);
+			dialog.dispose();
+		});
+		dialog.getRootPane().setDefaultButton(ok);
 		bindEscapeToOptionPane(dialog, optionPane, JOptionPane.CLOSED_OPTION);
+		// Keep the modal owner above lightweight fixture/application windows while
+		// it is active; otherwise a visible owner can still cover the button.
+		dialog.setAlwaysOnTop(true);
 		dialog.setVisible(true);
+		dialog.setAlwaysOnTop(false);
 		dialog.dispose();
 	}
 

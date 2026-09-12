@@ -28,8 +28,8 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.function.Consumer;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -63,7 +63,7 @@ final class AutoRecoveryManager implements AutoSaveControl {
 	private final GraphicManager graphicManager;
 	private final AutoRecoveryStore store;
 	private final Preferences preferences;
-	private final Set<Long> savesInProgress = new HashSet<>();
+	private final Set<Long> savesInProgress = ConcurrentHashMap.newKeySet();
 	private final Timer timer;
 
 	AutoRecoveryManager(ProjectFactory projectFactory, GraphicManager graphicManager) {
@@ -181,7 +181,7 @@ final class AutoRecoveryManager implements AutoSaveControl {
 
 	private void save(Project project) {
 		long projectId = project.getUniqueId();
-		if (!savesInProgress.add(projectId)) {
+		if (!beginSave(projectId)) {
 			return;
 		}
 		try {
@@ -198,14 +198,24 @@ final class AutoRecoveryManager implements AutoSaveControl {
 					} catch (IOException ex) {
 						LOGGER.log(Level.WARNING, "Could not record recovery snapshot", ex);
 					} finally {
-						savesInProgress.remove(projectId);
+						completeSave(projectId);
 					}
 				}
 			});
 			projectFactory.saveProject(project, options);
 		} catch (RuntimeException | IOException ex) {
-			savesInProgress.remove(projectId);
+			completeSave(projectId);
 			LOGGER.log(Level.WARNING, "Could not save recovery snapshot", ex);
 		}
+	}
+
+	/** Atomically claims a project for one in-flight recovery save. */
+	boolean beginSave(long projectId) {
+		return savesInProgress.add(projectId);
+	}
+
+	/** Releases a recovery-save claim after success or failure. */
+	void completeSave(long projectId) {
+		savesInProgress.remove(projectId);
 	}
 }

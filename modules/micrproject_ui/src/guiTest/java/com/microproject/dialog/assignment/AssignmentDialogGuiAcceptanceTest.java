@@ -202,8 +202,9 @@ class AssignmentDialogGuiAcceptanceTest {
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(remainingWork, source.getRemainingWork());
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null,
-			"Ctrl+Y did not restore the replacement assignment");
+		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null
+				&& source.getRemainingWork() == 0L,
+			"Ctrl+Y did not restore the replacement assignment and source remaining work");
 		assertSame(source, task.findAssignment(original));
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(0L, source.getRemainingWork());

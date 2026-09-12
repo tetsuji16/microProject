@@ -321,75 +321,77 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		});
 	}
 
-	public void pasteClipboardAsValues() {
+	public boolean pasteClipboardAsValues() {
 		finishCurrentOperations();
 		var transferable = getClipboardContents();
 		if (transferable.isEmpty()) {
-			return;
+			return false;
 		}
-		pasteClipboardAsValues(transferable.get());
+		return pasteClipboardAsValues(transferable.get());
 	}
 
-	void pasteClipboardAsValues(Transferable transferable) {
+	boolean pasteClipboardAsValues(Transferable transferable) {
 		if (transferable == null) {
-			return;
+			return false;
 		}
 		var text = getClipboardText(transferable);
 		if (text.isPresent()) {
 			if (!prepareCellPaste()) {
-				return;
+				return false;
 			}
 			if (!NodeListTransferable.pasteString(text.get(), this)) {
 				Alert.error(Messages.getString("Message.invalidInput"));
+				return false;
 			}
-			return;
+			return true;
 		}
 		if (hasNodeListFlavor(transferable)) {
-			pasteClipboardContents(transferable);
-			return;
+			return pasteClipboardContents(transferable);
 		}
-		pasteClipboardContents(transferable);
+		return pasteClipboardContents(transferable);
 	}
 
-	public void insertClipboardContents() {
-		pasteClipboardInsertedContents();
+	public boolean insertClipboardContents() {
+		return pasteClipboardInsertedContents();
 	}
 
-	public void pasteClipboardContents() {
-		getClipboardContents().ifPresent(this::pasteClipboardContents);
+	public boolean pasteClipboardContents() {
+		return getClipboardContents().map(this::pasteClipboardContents).orElse(false);
 	}
 
-	public void pasteClipboardInsertedContents() {
-		getClipboardContents().ifPresent(this::pasteInsertedClipboardContents);
+	public boolean pasteClipboardInsertedContents() {
+		return getClipboardContents().map(this::pasteInsertedClipboardContents).orElse(false);
 	}
 
-	private void pasteClipboardContents(Transferable transferable) {
+	private boolean pasteClipboardContents(Transferable transferable) {
 		if (transferable == null) {
-			return;
+			return false;
 		}
 		if (getTransferHandler() instanceof NodeListTransferHandler transferHandler) {
 			if (!transferHandler.importData(this, transferable)) {
 				Alert.error(Messages.getString("Message.invalidInput"));
+				return false;
 			}
-			return;
+			return true;
 		}
 		if (NodeListTransferHandler.getPasteAction() != null) {
 			NodeListTransferHandler.getPasteAction().actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, null));
+			return true;
 		}
+		return false;
 	}
 
-	private void pasteInsertedClipboardContents(Transferable transferable) {
+	private boolean pasteInsertedClipboardContents(Transferable transferable) {
 		if (transferable == null) {
-			return;
+			return false;
 		}
 		if (hasNodeListFlavor(transferable)) {
-			pasteClipboardContents(transferable);
-			return;
+			return pasteClipboardContents(transferable);
 		}
 		var text = getClipboardText(transferable);
 		if (text.isEmpty()) {
 			Alert.error(Messages.getString("Message.invalidInput"));
-			return;
+			return false;
 		}
 		NodeModel model = ((CommonSpreadSheetModel)getModel()).getCache().getModel();
 		List<Field> fields = getSelectedFields();
@@ -400,7 +402,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			fields, model.getDataFactory());
 		if (nodes.isEmpty() || !pasteNodesFromClipboard(nodes)) {
 			Alert.error(Messages.getString("Message.invalidInput"));
+			return false;
 		}
+		return true;
 	}
 
 	private Optional<Transferable> getClipboardContents() {
@@ -1310,8 +1314,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private void applyColumnLayoutChange(SpreadSheetFieldArray before, SpreadSheetFieldArray after,
 			int preferredColumn, String presentationName) {
 		Project project = getLayoutProject();
-		if (project != null)
+		if (project != null) {
 			project.setFieldArray(after);
+			project.setDirty(true);
+		}
 		setFieldArray(after);
 		selectColumnAfterColumnChange(Math.min(preferredColumn, getColumnCount() - 1));
 
@@ -1380,8 +1386,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		private void apply(SpreadSheetFieldArray fields, int preferredColumn) {
 			SpreadSheetFieldArray restoredFields = (SpreadSheetFieldArray) fields.clone();
 			Project currentProject = project.get();
-			if (currentProject != null)
+			if (currentProject != null) {
 				currentProject.setFieldArray(restoredFields);
+				currentProject.setDirty(true);
+			}
 			SpreadSheet target = findLayoutTarget(model.get(), category, source.get());
 			if (target == null)
 				return;

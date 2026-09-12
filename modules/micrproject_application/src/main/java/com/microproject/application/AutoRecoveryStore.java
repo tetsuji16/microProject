@@ -38,6 +38,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Owns crash-recovery files independently of the currently open project file.
@@ -48,6 +50,41 @@ public final class AutoRecoveryStore {
 	public static final Duration DEFAULT_RETENTION = Duration.ofDays(14);
 	private static final String SNAPSHOT_SUFFIX = ".recovery.pod";
 	private static final String METADATA_SUFFIX = ".recovery.properties";
+	private static final Logger LOGGER = Logger.getLogger(AutoRecoveryStore.class.getName());
+
+	/** The kind of failure found while inspecting one recovery metadata file. */
+	public enum MetadataIssueKind {
+		UNREADABLE,
+		MALFORMED
+	}
+
+	/** A diagnostic that explains why one metadata file was not offered. */
+	public record MetadataIssue(Path metadata, MetadataIssueKind kind, String detail) {
+		public MetadataIssue {
+			Objects.requireNonNull(metadata, "metadata");
+			Objects.requireNonNull(kind, "kind");
+			if (detail == null || detail.isBlank()) {
+				detail = "No further details available";
+			}
+		}
+	}
+
+	/**
+	 * Result of one recovery directory scan.  Invalid files are isolated from
+	 * valid candidates so one damaged metadata file cannot hide other recovery
+	 * candidates.  The immutable issue list is available to callers that need to
+	 * surface diagnostics or report them to telemetry.
+	 */
+	public record RecoveryScan(List<Entry> entries, List<MetadataIssue> issues) {
+		public RecoveryScan {
+			entries = List.copyOf(Objects.requireNonNull(entries, "entries"));
+			issues = List.copyOf(Objects.requireNonNull(issues, "issues"));
+		}
+
+		public boolean hasIssues() {
+			return !issues.isEmpty();
+		}
+	}
 
 	public record Entry(long projectId, String displayName, String originalFileName,
 		Instant savedAt, Path snapshot, Path metadata, boolean offered) {
@@ -100,36 +137,43 @@ public final class AutoRecoveryStore {
 		properties.setProperty("savedAt", Objects.requireNonNull(savedAt, "savedAt").toString());
 		properties.setProperty("offered", Boolean.FALSE.toString());
 		Path metadata = metadataPath(projectId);
-		Path temporary = Files.createTempFile(directory, safeId(projectId), ".metadata.tmp");
-		try {
-			try (OutputStream output = Files.newOutputStream(temporary)) {
-				properties.store(output, "ProjectLibre AutoRecovery");
-			}
-			try {
-				Files.move(temporary, metadata, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-			} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
-				Files.move(temporary, metadata, StandardCopyOption.REPLACE_EXISTING);
-			}
-		} finally {
-			Files.deleteIfExists(temporary);
-		}
+		writeMetadataAtomically(metadata, projectId, properties);
 	}
 
 	public List<Entry> listRecoverable() throws IOException {
+		RecoveryScan scan = scanRecoverable();
+		for (MetadataIssue issue : scan.issues()) {
+			LOGGER.log(Level.WARNING, "Ignoring auto-recovery metadata {0} ({1}): {2}",
+				new Object[] { issue.metadata(), issue.kind(), issue.detail() });
+		}
+		return scan.entries();
+	}
+
+	/**
+	 * Lists recovery candidates and returns parse/I-O failures as structured
+	 * diagnostics.  This method does not log, allowing callers to choose their
+	 * own reporting policy; {@link #listRecoverable()} logs the same diagnostics
+	 * for existing callers.
+	 */
+	public RecoveryScan scanRecoverable() throws IOException {
 		if (!Files.isDirectory(directory)) {
-			return List.of();
+			return new RecoveryScan(List.of(), List.of());
 		}
 		List<Entry> result = new ArrayList<>();
+		List<MetadataIssue> issues = new ArrayList<>();
 		try (DirectoryStream<Path> files = Files.newDirectoryStream(directory, "*" + METADATA_SUFFIX)) {
 			for (Path metadata : files) {
-				Entry entry = read(metadata);
-				if (entry != null && entry.shouldOfferRecovery()) {
-					result.add(entry);
+				ReadResult readResult = read(metadata);
+				if (readResult.entry() != null && readResult.entry().shouldOfferRecovery()) {
+					result.add(readResult.entry());
+				}
+				if (readResult.issue() != null) {
+					issues.add(readResult.issue());
 				}
 			}
 		}
 		result.sort(Comparator.comparing(Entry::savedAt).reversed());
-		return List.copyOf(result);
+		return new RecoveryScan(result, issues);
 	}
 
 	/** Marks a recovery round as presented without modifying the snapshot file. */
@@ -140,19 +184,7 @@ public final class AutoRecoveryStore {
 			properties.load(input);
 		}
 		properties.setProperty("offered", Boolean.TRUE.toString());
-		Path temporary = Files.createTempFile(directory, safeId(projectId), ".metadata.tmp");
-		try {
-			try (OutputStream output = Files.newOutputStream(temporary)) {
-				properties.store(output, "ProjectLibre AutoRecovery");
-			}
-			try {
-				Files.move(temporary, metadata, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-			} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
-				Files.move(temporary, metadata, StandardCopyOption.REPLACE_EXISTING);
-			}
-		} finally {
-			Files.deleteIfExists(temporary);
-		}
+		writeMetadataAtomically(metadata, projectId, properties);
 	}
 
 	/** Clears recovery state only after the normal shutdown sequence completed. */
@@ -189,18 +221,67 @@ public final class AutoRecoveryStore {
 		}
 	}
 
-	private Entry read(Path metadata) {
+	/** Writes metadata through the common manifest/retry-owned temporary artifact contract. */
+	private void writeMetadataAtomically(Path metadata, long projectId, Properties properties) throws IOException {
+		try (TemporaryWorkspace workspace = TemporaryWorkspace.open(directory, TemporaryWorkspace.DEFAULT_RETENTION);
+			TemporaryWorkspace.TempArtifact temporary = workspace.createArtifact("recovery-" + safeId(projectId), ".metadata.tmp",
+				java.util.Map.of("kind", "auto-recovery-metadata", "projectId", Long.toString(projectId)))) {
+			try (OutputStream output = Files.newOutputStream(temporary.path())) {
+				properties.store(output, "ProjectLibre AutoRecovery");
+			}
+			try {
+				Files.move(temporary.path(), metadata, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+			} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
+				Files.move(temporary.path(), metadata, StandardCopyOption.REPLACE_EXISTING);
+			}
+		}
+	}
+
+	private ReadResult read(Path metadata) {
 		Properties properties = new Properties();
 		try (InputStream input = Files.newInputStream(metadata)) {
 			properties.load(input);
-			long id = Long.parseLong(properties.getProperty("projectId"));
-			Instant savedAt = Instant.parse(properties.getProperty("savedAt"));
-			return new Entry(id, emptyToNull(properties.getProperty("displayName")),
+			long id = parseProjectId(properties.getProperty("projectId"));
+			Instant savedAt = parseSavedAt(properties.getProperty("savedAt"));
+			return ReadResult.success(new Entry(id, emptyToNull(properties.getProperty("displayName")),
 				emptyToNull(properties.getProperty("originalFileName")), savedAt,
 				snapshotFile(id), metadata,
-				Boolean.parseBoolean(properties.getProperty("offered", "false")));
-		} catch (IOException | RuntimeException ex) {
-			return null;
+				Boolean.parseBoolean(properties.getProperty("offered", "false"))));
+		} catch (IOException | SecurityException ex) {
+			return ReadResult.failure(new MetadataIssue(metadata, MetadataIssueKind.UNREADABLE,
+				detail(ex)));
+		} catch (IllegalArgumentException ex) {
+			return ReadResult.failure(new MetadataIssue(metadata, MetadataIssueKind.MALFORMED,
+				detail(ex)));
+		}
+	}
+
+	private static long parseProjectId(String value) {
+		if (value == null || value.isBlank()) {
+			throw new IllegalArgumentException("missing projectId");
+		}
+		return Long.parseLong(value);
+	}
+
+	private static Instant parseSavedAt(String value) {
+		if (value == null || value.isBlank()) {
+			throw new IllegalArgumentException("missing savedAt");
+		}
+		return Instant.parse(value);
+	}
+
+	private static String detail(Exception ex) {
+		String message = ex.getMessage();
+		return message == null || message.isBlank() ? ex.getClass().getSimpleName() : message;
+	}
+
+	private record ReadResult(Entry entry, MetadataIssue issue) {
+		static ReadResult success(Entry entry) {
+			return new ReadResult(entry, null);
+		}
+
+		static ReadResult failure(MetadataIssue issue) {
+			return new ReadResult(null, issue);
 		}
 	}
 

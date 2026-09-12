@@ -6,6 +6,8 @@
 package com.microproject.pm.ccpm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -19,6 +21,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
@@ -26,6 +30,19 @@ import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class CriticalChainServiceTest {
+	@Test
+	void analyzeApplyRefreshDiscardStaleGenerations() {
+		CriticalChainService.Generation generations = new CriticalChainService.Generation();
+		long analyze = generations.begin();
+		long apply = generations.begin();
+		java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+		assertFalse(generations.accept(analyze, calls::incrementAndGet));
+		assertTrue(generations.accept(apply, calls::incrementAndGet));
+		long refresh = generations.begin();
+		assertFalse(generations.accept(apply, calls::incrementAndGet));
+		assertTrue(generations.accept(refresh, calls::incrementAndGet));
+		assertEquals(2, calls.get());
+	}
 	@Test
 	void previewFindsResourceConstraintWithoutMutatingSchedule() {
 		Fixture fixture = fixture();
@@ -44,6 +61,18 @@ class CriticalChainServiceTest {
 		assertTrue(analysis.graphEdges().stream().anyMatch(edge -> edge.predecessorTaskId() == first.getUniqueId()
 			&& edge.successorTaskId() == second.getUniqueId()
 			&& edge.kind() == CriticalChainService.ChainEdge.Kind.RESOURCE_CONSTRAINT));
+	}
+
+	@Test
+	void readOnlyAnalysisRequiresAnAppliedBaselineAndNeverMutatesAnOrdinaryProject() {
+		Fixture fixture = fixture();
+		NormalTask task = task(fixture.project, "ordinary task");
+		long start = task.getStart();
+		CriticalChainService service = new CriticalChainService();
+
+		assertNull(service.analysis(fixture.project), "a non-CCPM project must not expose a fabricated analysis");
+		assertEquals(start, task.getStart(), "read-only analysis must not change the schedule");
+		assertNull(service.findBaseline(fixture.project));
 	}
 
 	@Test
@@ -149,6 +178,121 @@ class CriticalChainServiceTest {
 		assertTrue(analysis.resourcePredecessors().values().stream().mapToInt(List::size).sum() <= 1000,
 			"resource constraint edges must remain linear for fully overlapping assignments");
 		assertTrue(elapsedMillis < 10_000L, "large shared-resource preview took " + elapsedMillis + " ms");
+	}
+
+	@Test
+	void emptyAndBoundaryTasksProduceTypedSafeBuffers() {
+		Fixture fixture = fixture();
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Analysis empty = service.preview(fixture.project, List.of(fixture.resource));
+		assertTrue(empty.criticalTaskIds().isEmpty());
+		assertTrue(empty.graphEdges().isEmpty());
+		assertTrue(empty.projectBufferMillis() >= 0L);
+
+		NormalTask milestone = task(fixture.project, "Zero milestone");
+		milestone.setDuration(0L);
+		milestone.setPercentComplete(1.0D);
+		fixture.project.recalculate();
+		CriticalChainService.Settings settings = service.settings(fixture.project);
+		settings.setEnabled(true);
+		CriticalChainService.Analysis boundary = service.apply(fixture.project, List.of(fixture.resource));
+		assertTrue(milestone.isMilestone(), "zero duration must remain a milestone");
+		assertEquals(1.0D, milestone.getPercentComplete(), 0.00001D);
+		assertTrue(boundary.projectBuffer().remainingMillis() <= boundary.projectBuffer().plannedMillis());
+		assertTrue(boundary.feedingBuffers().values().stream().allMatch(buffer ->
+			buffer.remainingMillis() <= buffer.plannedMillis()));
+		assertTrue(boundary.projectBuffer().status() instanceof CriticalChainService.BufferStatus);
+		assertEquals(CriticalChainService.BufferKind.PROJECT, boundary.projectBuffer().kind());
+		assertTrue(boundary.feedingBuffers().values().stream().allMatch(buffer ->
+			buffer.kind() == CriticalChainService.BufferKind.FEEDING));
+		assertThrows(UnsupportedOperationException.class,
+			() -> boundary.criticalTaskIds().add(Long.valueOf(99L)),
+			"critical task projection must be immutable");
+	}
+
+	@Test
+	void typedBufferRejectsInvalidValuesAndPreservesEdgeKinds() {
+		assertThrows(IllegalArgumentException.class,
+			() -> new CriticalChainService.Buffer(-1L, 0L, 0L, 0D, CriticalChainService.BufferStatus.GREEN));
+		assertThrows(IllegalArgumentException.class,
+			() -> new CriticalChainService.Buffer(1L, 0L, 0L, Double.NaN, CriticalChainService.BufferStatus.GREEN));
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "Typed predecessor");
+		NormalTask second = task(fixture.project, "Typed successor");
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Analysis analysis = service.preview(fixture.project, List.of(fixture.resource));
+		assertTrue(analysis.graphEdges().stream().anyMatch(edge ->
+			edge.kind() == CriticalChainService.ChainEdge.Kind.RESOURCE_CONSTRAINT));
+		assertTrue(analysis.resourceBuffers().values().stream().allMatch(buffer ->
+			buffer.kind() == CriticalChainService.BufferKind.RESOURCE
+				&& buffer.consumedMillis() <= buffer.plannedMillis()));
+	}
+
+	@Test
+	void multipleFeedingBranchesRemainSeparateFromFixedDependencies() throws Exception {
+		Fixture fixture = fixture();
+		NormalTask feederOne = task(fixture.project, "Feeder one");
+		NormalTask feederTwo = task(fixture.project, "Feeder two");
+		NormalTask critical = task(fixture.project, "Critical");
+		DependencyService.getInstance().newDependency(feederOne, critical, DependencyType.FS, 0L, this);
+		DependencyService.getInstance().newDependency(feederTwo, critical, DependencyType.FS, 0L, this);
+		AssignmentService.getInstance().newAssignment(feederOne, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(critical, fixture.resource, 1D, 0L, this);
+		CriticalChainService.Analysis analysis = new CriticalChainService().preview(fixture.project, List.of(fixture.resource));
+		assertNotNull(analysis.feedingBuffers(), "feeding projection must remain separate from constraints");
+		assertNotNull(analysis.resourcePredecessors(), "resource constraints must remain separate from feeding buffers");
+		assertTrue(java.util.Collections.disjoint(analysis.feedingBuffers().keySet(), analysis.resourceBuffers().keySet()),
+			"feeding task keys and resource IDs must not be conflated");
+		assertTrue(analysis.graphEdges().stream().allMatch(edge -> edge.kind() != null));
+	}
+
+	@Test
+	void resourceBufferRemainingWorkUsesGreenAmberRedThresholds() {
+		assertEquals(CriticalChainService.BufferStatus.GREEN,
+			new CriticalChainService.Buffer(100L, 0L, 100L, 0D, CriticalChainService.BufferStatus.GREEN,
+				CriticalChainService.BufferKind.RESOURCE).status());
+		assertEquals(CriticalChainService.BufferStatus.AMBER,
+			new CriticalChainService.Buffer(100L, 50L, 50L, 0.5D, CriticalChainService.BufferStatus.AMBER,
+				CriticalChainService.BufferKind.RESOURCE).status());
+		assertEquals(CriticalChainService.BufferStatus.RED,
+			new CriticalChainService.Buffer(100L, 100L, 0L, 1D, CriticalChainService.BufferStatus.RED,
+				CriticalChainService.BufferKind.RESOURCE).status());
+	}
+
+	@Test
+	void supportedReportProjectsAllTypedBufferKinds() {
+		CriticalChainService.Buffer project = new CriticalChainService.Buffer(100L, 0L, 100L, 0D,
+			CriticalChainService.BufferStatus.GREEN, CriticalChainService.BufferKind.PROJECT);
+		CriticalChainService.Buffer feeding = new CriticalChainService.Buffer(100L, 50L, 50L, .5D,
+			CriticalChainService.BufferStatus.AMBER, CriticalChainService.BufferKind.FEEDING);
+		CriticalChainService.Buffer resource = new CriticalChainService.Buffer(100L, 100L, 0L, 1D,
+			CriticalChainService.BufferStatus.RED, CriticalChainService.BufferKind.RESOURCE);
+		CriticalChainService.Analysis analysis = new CriticalChainService.Analysis(null, List.of(), 100L,
+			java.util.Map.of(), project, java.util.Map.of(2L, feeding), java.util.Map.of(), List.of(), java.util.Map.of(7L, resource));
+		String report = new CriticalChainReportService().toBufferCsv(analysis);
+		assertTrue(report.contains("PROJECT,project") && report.contains("FEEDING,2") && report.contains("RESOURCE,7"));
+	}
+
+	@Test
+	void clearReportsEditedBaselineAndUndoRestoresIt() {
+		Fixture fixture = fixture();
+		NormalTask task = task(fixture.project, "edited baseline");
+		CriticalChainService service = new CriticalChainService();
+		service.settings(fixture.project).setEnabled(true);
+		service.apply(fixture.project, List.of(fixture.resource));
+		long originalEnd = fixture.project.getEnd();
+		task.setDuration(task.getDuration() + 86_400_000L);
+		fixture.project.recalculate();
+		CriticalChainService.ClearResult result = service.clearWithReport(fixture.project);
+		assertTrue(result.cleared());
+		assertTrue(result.baselineEdited());
+		assertNotNull(result.discardedBaseline());
+		assertNull(service.findBaseline(fixture.project));
+		fixture.project.getUndoController().undo();
+		assertNotNull(service.findBaseline(fixture.project));
+		assertEquals(originalEnd, service.findBaseline(fixture.project).projectFinishMillis());
 	}
 
 	private Fixture fixture() {

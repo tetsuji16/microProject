@@ -146,16 +146,21 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		CriticalChainBufferHistory.Point point = history.points().getLast();
 		Rectangle marker = new Rectangle();
 		SwingUtilities.invokeAndWait(() -> {
-			java.awt.Point origin = chart.getLocationOnScreen();
-			int width = chart.getWidth() - 64 - 26;
-			int height = chart.getHeight() - 30 - 52;
-			marker.setBounds(origin.x + 64 + (int) Math.round(width * point.progressPercent() / 100D) - 5,
-				origin.y + 30 + (int) Math.round(height * (100D - point.consumptionPercent()) / 100D) - 5, 10, 10);
+			java.awt.Point center = chart.screenPointForObservation(point.observationId());
+			if (center == null) throw new AssertionError("observation marker is not physically visible");
+			marker.setBounds(center.x - 5, center.y - 5, 10, 10);
 		});
 		Robot robot = new Robot(); robot.setAutoDelay(35);
+		SwingUtilities.invokeAndWait(() -> { chart.requestFocusInWindow(); chart.revalidate(); chart.repaint(); });
 		robot.mouseMove(marker.x + 5, marker.y + 5); robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> {
+			AbstractButton button = findButton(dialog, UsabilityStrings.text("ccpm.retractObservation"));
+			return button != null && button.isEnabled();
+		}, "retraction command did not enable after physical point selection: selected="
+			+ (chart.selectedPoint() == null ? "null" : chart.selectedPoint().observationId())
+			+ ", enabled=" + findButton(dialog, UsabilityStrings.text("ccpm.retractObservation")).isEnabled()
+			+ ", edt=" + SwingUtilities.isEventDispatchThread());
 		AbstractButton retract = findButton(dialog, UsabilityStrings.text("ccpm.retractObservation"));
-		GuiAcceptanceSupport.await(() -> retract != null && retract.isEnabled(), "retraction command did not enable after physical point selection");
 		Rectangle retractBounds = onScreen(retract);
 		robot.mouseMove(retractBounds.x + retractBounds.width / 2, retractBounds.y + retractBounds.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);

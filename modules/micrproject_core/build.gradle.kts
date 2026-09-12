@@ -1,5 +1,12 @@
 dependencies {
     implementation(project(":micrproject_contrib"))
+    // Core sources use these libraries directly; do not rely on contrib's
+    // implementation classpath to leak them transitively.
+    implementation(libs.bundles.commons.legacy)
+    implementation(libs.commons.collections4)
+    implementation(libs.bundles.jackson)
+    implementation(libs.bundles.jaxb)
+    implementation(libs.groovy)
     // slf4j-simple is the logging backend. commons-logging 1.3.x routes through slf4j;
     // log4j2/logback are excluded project-wide (see root build.gradle.kts) because they
     // recurse via StackWalker on modern JDKs and break Configuration.getInstance()/.pod load.

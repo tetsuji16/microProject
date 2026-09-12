@@ -20,6 +20,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -75,12 +76,27 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		return history.stream().filter(point -> selectedObservationId.equals(point.observationId())).findFirst().orElse(null);
 	}
 
+	/** Returns the physical screen point for a rendered observation marker. */
+	public java.awt.Point screenPointForObservation(java.util.UUID observationId) {
+		if (observationId == null || !isShowing()) return null;
+		CriticalChainBufferHistory.Point point = history.stream()
+			.filter(value -> observationId.equals(value.observationId())).findFirst().orElse(null);
+		if (point == null) return null;
+		int width = Math.max(1, getWidth() - LEFT - RIGHT);
+		int height = Math.max(1, getHeight() - TOP - BOTTOM);
+		java.awt.Point screen = new java.awt.Point(xFor(point.progressPercent(), width), yFor(point.consumptionPercent(), height));
+		SwingUtilities.convertPointToScreen(screen, this);
+		return screen;
+	}
+
 	/** Selects the nearest visible point within the marker hit radius. */
 	public void selectAt(int x, int y) {
 		int width = Math.max(1, getWidth() - LEFT - RIGHT);
 		int height = Math.max(1, getHeight() - TOP - BOTTOM);
 		CriticalChainBufferHistory.Point candidate = null;
-		double bestDistance = 9D * 9D;
+		// Keep physical Robot selection tolerant of DPI rounding and the
+		// anti-aliased marker edge while retaining nearest-point semantics.
+		double bestDistance = 16D * 16D;
 		// Hit testing uses every active observation. Rendering may collapse adjacent
 		// duplicates for a clean line, but selection must still choose the latest
 		// observation when markers overlap.

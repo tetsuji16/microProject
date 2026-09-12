@@ -29,6 +29,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.nio.file.Files;
 import java.util.Collections;
 
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -114,6 +116,28 @@ public class MsProjectTaskMoveCompatibilityTest {
 			// MSPDI LinkLag is expressed in tenths of a working minute: one
 			// standard eight-hour working day is 8 * 60 * 10 = 4800.
 			assertEquals("4800", childText(link, "LinkLag"));
+		}
+	}
+
+	@Test
+	public void fileExportLeavesNoTemporarySiblingAfterSuccessfulReplace() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("temp-lifecycle", undo), undo);
+		project.initialize(false, false);
+		task(project, "Exported task");
+		File target = Files.createTempFile("microproject-temp-lifecycle-", ".xml").toFile();
+		try {
+			MicrosoftImporter exporter = new MicrosoftImporter();
+			exporter.setFileName(target.getAbsolutePath());
+			exporter.setProject(project);
+			exporter.exportFile();
+			assertTrue(target.isFile());
+			try (var siblings = Files.list(target.toPath().getParent())) {
+				assertTrue(siblings.noneMatch(path -> path.getFileName().toString().startsWith(target.getName() + ".")
+						&& path.getFileName().toString().endsWith(".tmp")));
+			}
+		} finally {
+			Files.deleteIfExists(target.toPath());
 		}
 	}
 
