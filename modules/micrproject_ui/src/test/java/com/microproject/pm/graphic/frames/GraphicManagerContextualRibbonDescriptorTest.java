@@ -31,7 +31,7 @@ class GraphicManagerContextualRibbonDescriptorTest {
 	void contextualMatrixDoesNotAdvertiseUnsupportedTimelineOrReportSurfaces() {
 		var expected = java.util.Map.of(
 			"Gantt", "FormatRibbonTask",
-			"Tracking Gantt", "FormatRibbonTask",
+			"TrackingGantt", "FormatRibbonTask",
 			"Network", "NetworkFormatRibbonTask",
 			"CalendarView", "CalendarFormatRibbonTask");
 		expected.forEach((view, tab) -> {

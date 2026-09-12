@@ -64,6 +64,7 @@ final class AutoRecoveryManager implements AutoSaveControl {
 	static final String INTERVAL_MINUTES_PREFERENCE = "autoRecovery.intervalMinutes";
 	static final int DEFAULT_INTERVAL_MINUTES = 5;
 	static final int MINIMUM_INTERVAL_MINUTES = 1;
+	static final int MAXIMUM_INTERVAL_MINUTES = 24 * 60;
 	private static final Logger LOGGER = Logger.getLogger(AutoRecoveryManager.class.getName());
 
 	private final ProjectFactory projectFactory;
@@ -89,9 +90,8 @@ final class AutoRecoveryManager implements AutoSaveControl {
 			thread.setDaemon(true);
 			return thread;
 		});
-		int intervalMinutes = Math.max(MINIMUM_INTERVAL_MINUTES,
-			preferences.getInt(INTERVAL_MINUTES_PREFERENCE, DEFAULT_INTERVAL_MINUTES));
-		timer = new Timer((int) TimeUnit.MINUTES.toMillis(intervalMinutes), event -> saveDirtyProjects());
+		timer = new Timer(recoveryDelayMillis(preferences.getInt(INTERVAL_MINUTES_PREFERENCE,
+			DEFAULT_INTERVAL_MINUTES)), event -> saveDirtyProjects());
 		timer.setRepeats(true);
 		if (isEnabled()) {
 			timer.start();
@@ -180,6 +180,12 @@ final class AutoRecoveryManager implements AutoSaveControl {
 			LOGGER.log(Level.WARNING, "Could not inspect recovery snapshots", ex);
 			return false;
 		}
+	}
+
+	/** Converts a user preference to a Swing-safe bounded delay. */
+	static int recoveryDelayMillis(int requestedMinutes) {
+		int minutes = Math.clamp(requestedMinutes, MINIMUM_INTERVAL_MINUTES, MAXIMUM_INTERVAL_MINUTES);
+		return Math.toIntExact(TimeUnit.MINUTES.toMillis(minutes));
 	}
 
 	void completeNormalShutdown() {

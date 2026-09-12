@@ -24,6 +24,14 @@ import com.microproject.pm.task.ProjectFactory;
 
 class AutoRecoveryManagerConcurrencyTest {
 	@Test
+	void recoveryIntervalIsBoundedBeforeSwingTimerConversion() {
+		assertEquals(TimeUnit.MINUTES.toMillis(AutoRecoveryManager.MINIMUM_INTERVAL_MINUTES),
+			AutoRecoveryManager.recoveryDelayMillis(Integer.MIN_VALUE));
+		assertEquals(TimeUnit.MINUTES.toMillis(AutoRecoveryManager.MAXIMUM_INTERVAL_MINUTES),
+			AutoRecoveryManager.recoveryDelayMillis(Integer.MAX_VALUE));
+	}
+
+	@Test
 	void onlyOneRecoverySaveClaimWinsAndCompletionReleasesIt() throws Exception {
 		Path recoveryDirectory = Files.createTempDirectory("auto-recovery-test-");
 		Preferences preferences = Preferences.userRoot().node("microproject-test/" + System.nanoTime());
