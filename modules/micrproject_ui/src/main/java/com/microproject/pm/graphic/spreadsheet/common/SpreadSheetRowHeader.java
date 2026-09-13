@@ -63,6 +63,8 @@ public class SpreadSheetRowHeader extends JTable {
 	//	protected SpreadSheetPopupMenu popup=null;
 	public SpreadSheetRowHeader(CommonSpreadSheet table) {
 		super();
+		getAccessibleContext().setAccessibleName(Messages.getString("SpreadSheet.rowHeaderAccessibleName"));
+		getAccessibleContext().setAccessibleDescription(Messages.getString("SpreadSheet.rowHeaderAccessibleDescription"));
 		setGridColor(FlatUiSupport.tableGridColor());
 		this.table=table;
 		setFont(FlatUiSupport.headerFont());

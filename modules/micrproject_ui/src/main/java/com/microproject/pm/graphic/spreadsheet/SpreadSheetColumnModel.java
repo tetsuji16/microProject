@@ -73,6 +73,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	private Map<String,Integer> colWidthMap;
 	private final Set<String> configuredWidthFields = new HashSet<>();
 	private final Set<String> manuallyAdjustedWidthFields = new HashSet<>();
+	private boolean applyingSavedWidths;
 
 	boolean svg;
 	/**
@@ -137,6 +138,47 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			totalWidth += column.getPreferredWidth();
 		}
 		colWidth = totalWidth;
+	}
+
+	/**
+	 * Loads persisted column width metadata before columns are rebuilt.  The
+	 * metadata is deliberately keyed by field id: a malformed or truncated
+	 * width list must not shift widths onto a different field.
+	 */
+	public void applySavedWidthConfiguration(SpreadSheetFieldArray fields) {
+		configuredWidthFields.clear();
+		manuallyAdjustedWidthFields.clear();
+		if (fields == null) return;
+		for (int index = 0; index < fields.size(); index++) {
+			Field field = fields.get(index);
+			if (field == null) continue;
+			int width = fields.getWidth(index);
+			if (width <= 0) continue;
+			int safeWidth = Math.max(width, minimumReadableWidth(field.getId()));
+			colWidthMap.put(field.getId(), safeWidth);
+			if (fields.isManualWidth(index)) {
+				configuredWidthFields.add(field.getId());
+				manuallyAdjustedWidthFields.add(field.getId());
+			}
+		}
+	}
+
+	/** Applies the already validated saved widths to the current columns. */
+	public void restoreSavedWidths() {
+		applyingSavedWidths = true;
+		try {
+			for (int index = 0; index < getColumnCount(); index++) {
+				TableColumn column = getColumn(index);
+				if (!(column.getIdentifier() instanceof Field field)) continue;
+				Integer width = colWidthMap.get(field.getId());
+				if (width == null || width <= 0) continue;
+				int safeWidth = Math.max(width, minimumReadableWidth(field.getId()));
+				column.setPreferredWidth(safeWidth);
+				column.setWidth(safeWidth);
+			}
+		} finally {
+			applyingSavedWidths = false;
+		}
 	}
 
 	private static int preferredWidth(Component component) {
@@ -212,7 +254,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			tc.setWidth(Math.max(tc.getWidth(), tc.getPreferredWidth()));
 			colWidth += tc.getPreferredWidth();
 			tc.addPropertyChangeListener(event -> {
-				if ("width".equals(event.getPropertyName()) && event.getNewValue() instanceof Number number
+				if (!applyingSavedWidths && "width".equals(event.getPropertyName()) && event.getNewValue() instanceof Number number
 						&& number.intValue() > 0) {
 					manuallyAdjustedWidthFields.add(field.getId());
 				}

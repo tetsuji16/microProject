@@ -162,7 +162,10 @@ class MicrosoftShortcutsRootPaneTest {
 						InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
 					"Ctrl+Shift+F5 must scroll to the selected task");
 			assertEquals(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION,
-					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)), "F1 must open help");
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)), "F1 must open help");
+			assertEquals(MenuActionConstants.ACTION_CLEAR_FILTER,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0)),
+				"F3 must show all tasks in the active view, not open Find");
 			assertEquals(MenuActionConstants.ACTION_NEW,
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0)), "Insert must add a task");
 			assertEquals(MenuActionConstants.ACTION_DELETE,
@@ -279,8 +282,11 @@ class MicrosoftShortcutsRootPaneTest {
 			assertNotNull(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, InputEvent.CTRL_DOWN_MASK)),
 					"Ctrl+Delete must install its dedicated clear-contents command action");
 			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION),
-					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)),
-					"F1 must use the same help action as the ribbon and menu");
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)),
+				"F1 must use the same help action as the ribbon and menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_CLEAR_FILTER),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0)),
+				"F3 must use the same Show All Tasks action as the ribbon and menu");
 			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_SCROLL_TO_TASK),
 					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5,
 						InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),

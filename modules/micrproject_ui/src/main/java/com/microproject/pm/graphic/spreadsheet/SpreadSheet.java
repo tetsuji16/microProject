@@ -1586,6 +1586,29 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		return nodes;
 	}
+
+	/**
+	 * Resolves model rows from a stable node selection.  Row indexes are a view
+	 * detail and may change when an editor is committed or the outline is
+	 * rebuilt; callers that already captured node identities must use this
+	 * conversion immediately before dispatching a row-based action.
+	 */
+	public int[] nodesToRows(List<Node> nodes) {
+		if (nodes == null || nodes.isEmpty() || !(getModel() instanceof SpreadSheetModel model)
+				|| model.getCache() == null)
+			return new int[0];
+		List<Integer> rows = new ArrayList<>();
+		for (Node node : nodes) {
+			if (node == null)
+				continue;
+			Object cachedNode = model.getCache().getGraphicNode(node);
+			GraphicNode graphicNode = cachedNode instanceof GraphicNode candidate ? candidate : null;
+			int row = graphicNode == null ? -1 : model.findGraphicNodeRow(graphicNode);
+			if (row >= 0)
+				rows.add(row);
+		}
+		return rows.stream().mapToInt(Integer::intValue).toArray();
+	}
 	
 	
 	

@@ -103,6 +103,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.server.access.ErrorLogger;
+import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
@@ -140,6 +141,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	public CommonSpreadSheet() {
 		super();
+		getAccessibleContext().setAccessibleName(Messages.getString("SpreadSheet.accessibleName"));
+		getAccessibleContext().setAccessibleDescription(Messages.getString("SpreadSheet.accessibleDescription"));
 		setGridColor(FlatUiSupport.tableGridColor());
 		FlatUiSupport.applyDataSurface(this);
 		putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
@@ -267,11 +270,14 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	public final void setFieldArrayWithWidths(SpreadSheetFieldArray fieldArray) {
+		if (fieldArray == null) return;
+		SpreadSheetColumnModel columns = (SpreadSheetColumnModel) getColumnModel();
+		// Configure before rebuilding: task sheets may auto-size during model
+		// setup, before persisted widths would otherwise be applied.
+		columns.applySavedWidthConfiguration(fieldArray);
 		setFieldArray(fieldArray);
-		// the widths don't work now anyway, and someone had a crash due to code below
-//		SpreadSheetColumnModel cols = (SpreadSheetColumnModel)getColumnModel();
-//		for (int i=0; i < cols.getColumnCount(); i++)
-//			cols.getColumn(i).setWidth(fieldArray.getWidth(i));
+		columns.restoreSavedWidths();
+		resizeAndRepaintHeader();
 	}
 
 

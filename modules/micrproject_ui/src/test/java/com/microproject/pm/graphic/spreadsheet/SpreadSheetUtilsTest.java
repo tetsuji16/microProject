@@ -25,11 +25,13 @@
 package com.microproject.pm.graphic.spreadsheet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Iterator;
+import java.util.ArrayList;
 
 import javax.swing.SwingUtilities;
 import javax.swing.table.TableColumn;
@@ -170,6 +172,40 @@ class SpreadSheetUtilsTest {
 		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.duration") >= 60);
 		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.start") >= 100);
 		assertTrue(SpreadSheetColumnModel.minimumReadableWidth("Field.finish") >= 100);
+	}
+
+	@Test
+	void savedWidthsAndManualFlagsSurviveColumnRebuild() {
+		SpreadSheetFieldArray fields = SpreadSheetFieldArray.getFromId(
+			SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry").clone();
+		fields.setWidths(new ArrayList<>(java.util.List.of(-1, 275, 81)));
+		fields.setManualWidths(new ArrayList<>(java.util.List.of(false, true, false)));
+
+		SpreadSheetColumnModel columns = new SpreadSheetColumnModel(fields);
+		columns.applySavedWidthConfiguration(fields);
+		for (int i = 0; i < 3; i++) columns.addColumn(new TableColumn(i));
+		columns.restoreSavedWidths();
+
+		assertEquals(275, columns.getColumn(0).getWidth());
+		assertTrue(columns.isWidthManuallyAdjusted(fields.get(1).getId()));
+		assertEquals(Math.max(81, SpreadSheetColumnModel.minimumReadableWidth(fields.get(2).getId())),
+			columns.getColumn(1).getWidth());
+	}
+
+	@Test
+	void malformedSavedWidthMetadataIsIgnoredSafely() {
+		SpreadSheetFieldArray fields = SpreadSheetFieldArray.getFromId(
+			SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry").clone();
+		fields.setWidths(new ArrayList<>(java.util.List.of(-1, -20)));
+		fields.setManualWidths(new ArrayList<>(java.util.List.of(false, true)));
+
+		SpreadSheetColumnModel columns = new SpreadSheetColumnModel(fields);
+		columns.applySavedWidthConfiguration(fields);
+		for (int i = 0; i < 3; i++) columns.addColumn(new TableColumn(i));
+		columns.restoreSavedWidths();
+
+		assertTrue(columns.getColumn(0).getWidth() >= SpreadSheetColumnModel.minimumReadableWidth(fields.get(1).getId()));
+		assertFalse(columns.isWidthManuallyAdjusted(fields.get(1).getId()));
 	}
 
 

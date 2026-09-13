@@ -2049,6 +2049,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_EXPAND, new ExpandAction());
 		actionsMap.addHandler(ACTION_HIDE_SELECTED_TASKS, new HideSelectedTasksAction());
 		actionsMap.addHandler(ACTION_SHOW_ALL_TASKS, new ShowAllTasksAction());
+		actionsMap.addHandler(ACTION_CLEAR_FILTER, new ClearFilterAction());
 		actionsMap.addHandler(ACTION_TOGGLE_PRIVACY_MASK, new TogglePrivacyMaskAction());
 
 
@@ -3346,6 +3347,31 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 	protected boolean loadLocalDocument(String fileName,boolean merge){ //uses server to merge
 		return loadLocalDocument(fileName, merge, null);
+	}
+	/** Clears the active view's user filter without changing project data. */
+	public class ClearFilterAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			DocumentFrame frame = getCurrentFrame();
+			com.microproject.grouping.core.transform.ViewConfiguration view =
+				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null) return;
+			if (!view.getTransform().isNoneFilter()) {
+				view.getTransform().setUserFilterId(
+					com.microproject.grouping.core.transform.ViewTransformer.FILTER_NONE_ID);
+				frame.setComboBoxesViewName(frame.getTopViewId());
+			}
+			setButtonState(frame.getSelectedImpl(), frame.getProject());
+		}
+		@Override protected boolean allowed(boolean enable) {
+			// This action is reachable only by the document-wide F3 binding.  Keep it
+			// enabled for every active document: when no filter is active it is a
+			// deterministic no-op, and a later filter activation cannot leave a stale
+			// disabled Action in the root-pane map.
+			return !enable || isDocumentActive();
+		}
 	}
 
 	/** Microsoft Project Ctrl+Delete: clear selected field values without deleting rows. */
@@ -4696,7 +4722,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), ACTION_GOTO, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK), ACTION_FIND, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), ACTION_PROJECTLIBRE_DOCUMENTATION, null);
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_FIND, null);
+		// Microsoft Project uses F3 to clear the active view's filter and show all
+		// rows. Find is Ctrl+F (and Shift+F5).
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_CLEAR_FILTER, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), ACTION_NEW, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), ACTION_DELETE, null);
 		putShortcut(inputMap, actionMap,

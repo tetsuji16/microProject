@@ -92,6 +92,16 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(), "task table or Gantt was not visible");
 		robot.delay(500);
 		assertTrue(hasRenderedGanttNode(fixture.gantt), "Gantt must render at least one task node");
+		SwingUtilities.invokeAndWait(() -> {
+			String tableName = fixture.sheet.getAccessibleContext().getAccessibleName();
+			String rowHeaderName = fixture.sheet.getRowHeader().getAccessibleContext().getAccessibleName();
+			assertTrue(tableName != null && !tableName.isBlank(),
+				"the visible task table must expose an accessible name");
+			assertTrue(rowHeaderName != null && !rowHeaderName.isBlank(),
+				"the visible task row header must expose an accessible name");
+			assertFalse(tableName.equals(rowHeaderName),
+				"the task table and row-header accessible names must be distinct");
+		});
 		captureVisibleLayout(robot);
 
 		SwingUtilities.invokeAndWait(() -> {

@@ -42,6 +42,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetSelectionModel;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.strings.Messages;
 import com.microproject.util.FlatUiSupport;
 
 class CommonSpreadSheetSelectionStateTest {
@@ -58,6 +59,19 @@ class CommonSpreadSheetSelectionStateTest {
 		assertEquals(new ArrayList<>(), sheet.getSelectableFields());
 		assertNull(sheet.getCurrentRowImpl());
 		assertNull(sheet.getCurrentRowNode());
+	}
+
+	@Test
+	void spreadsheetAndRowHeaderHaveDistinctAccessibleNames() throws Exception {
+		final CommonSpreadSheet[] sheetRef = new CommonSpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> sheetRef[0] = new CommonSpreadSheet());
+
+		assertEquals(Messages.getString("SpreadSheet.accessibleName"),
+			sheetRef[0].getAccessibleContext().getAccessibleName());
+		assertEquals(Messages.getString("SpreadSheet.rowHeaderAccessibleName"),
+			sheetRef[0].getRowHeader().getAccessibleContext().getAccessibleName());
+		assertFalse(sheetRef[0].getAccessibleContext().getAccessibleName()
+			.equals(sheetRef[0].getRowHeader().getAccessibleContext().getAccessibleName()));
 	}
 
 	@Test

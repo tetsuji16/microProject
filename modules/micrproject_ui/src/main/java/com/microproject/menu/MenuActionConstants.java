@@ -170,6 +170,8 @@ public interface MenuActionConstants {
 	public static final String ACTION_HIDE_OUTLINE_SYMBOLS    = "HideOutlineSymbols";
 	public static final String ACTION_HIDE_SELECTED_TASKS     = "HideSelectedTasks";
 	public static final String ACTION_SHOW_ALL_TASKS          = "ShowAllTasks";
+	/** MSP F3 command: clear the active view's user filter. */
+	public static final String ACTION_CLEAR_FILTER            = "ClearFilter";
 	public static final String ACTION_TOGGLE_PRIVACY_MASK     = "TogglePrivacyMask";
 
 	public static final String ACTION_ALL_CHILDREN            = "AllChildren";

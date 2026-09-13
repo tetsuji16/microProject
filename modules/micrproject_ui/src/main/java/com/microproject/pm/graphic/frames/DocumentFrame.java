@@ -1001,11 +1001,7 @@ public class DocumentFrame extends NamedFrame implements
 	private void doHierarchyIndent(String actionId, String diagnosticId) {
 		SpreadSheet ss = getActiveSpreadSheet();
 		CommandId command = MenuActionConstants.ACTION_INDENT.equals(actionId) ? CommandId.INDENT : CommandId.OUTDENT;
-		List<Node> taskNodes = List.of();
 		if (ss !=null) {
-			int[] selectedRows = ss.getSelectedRows();
-			getGraphicManager().traceUi(diagnosticId + " start selectedTasks=" + taskNodes.size()
-				+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
 			finishAnyOperations();
 			// Ending a reused cell editor can synchronously commit and restore the
 			// row selection. Resolve the typed selection after that lifecycle step;
@@ -1014,10 +1010,16 @@ public class DocumentFrame extends NamedFrame implements
 			// The table is the authoritative selection owner while an editor is
 			// focused.  Resolve it directly after commit; the frame selection
 			// provider may still expose the previous editor row for one event turn.
-			taskNodes = new ArrayList<>();
+			List<Node> taskNodes = new ArrayList<>();
 			for (Node node : ss.getSelectedNodes())
 				if (node != null && node.getImpl() instanceof Task && !ClassUtils.isObjectReadOnly(node.getImpl()))
 					taskNodes.add(node);
+			// The editor commit above may rebuild the outline and invalidate the
+			// pre-commit JTable row indexes.  Resolve rows from this same stable
+			// node snapshot so mutation and selection restoration target one set.
+			int[] selectedRows = ss.nodesToRows(taskNodes);
+			getGraphicManager().traceUi(diagnosticId + " start selectedTasks=" + taskNodes.size()
+				+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
 			publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED, "no-selection", taskNodes);
 			if (project == null || project.isReadOnly()) {
 				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
@@ -1027,6 +1029,12 @@ public class DocumentFrame extends NamedFrame implements
 			}
 			if (taskNodes.isEmpty()) {
 				getGraphicManager().traceUi(diagnosticId + " rejected reason=no-selection");
+				return;
+			}
+			if (selectedRows.length != taskNodes.size()) {
+				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
+					"selection-not-visible", taskNodes);
+				getGraphicManager().traceUi(diagnosticId + " rejected reason=selection-not-visible");
 				return;
 			}
 			if (command == CommandId.OUTDENT && taskNodes.stream().noneMatch(DocumentFrame::canOutdent)) {
