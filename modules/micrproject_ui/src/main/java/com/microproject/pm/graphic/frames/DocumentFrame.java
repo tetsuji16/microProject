@@ -1611,12 +1611,18 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	protected List<Node> getSelectedTaskNodes(boolean excludeReadOnly, boolean allowMixedSelection) {
+		SpreadSheet activeSheet = getActiveSpreadSheet();
+		// Ctrl+Space/header selection is intentionally a column-only operation.
+		// Its JTable representation includes every row, but it must not authorize
+		// a task command against every task in the project.
+		if (activeSheet != null && activeSheet.isHeaderColumnSelectionActive())
+			return Collections.emptyList();
 		List<Node> nodes = getSelectedNodes(excludeReadOnly);
 		// A few integrations override the frame-level selection provider while the
 		// JTable still owns the physical selection.  Resolve that fallback here so
 		// every command route observes the same active task-table selection.
 		if (nodes == null || nodes.isEmpty()) {
-			SpreadSheet sheet = getActiveSpreadSheet();
+			SpreadSheet sheet = activeSheet;
 			if (sheet != null && sheet.getSelectedRows().length > 0)
 				nodes = sheet.getSelectedNodes();
 		}
@@ -1642,11 +1648,19 @@ public class DocumentFrame extends NamedFrame implements
 	 * resolved before applying the persistent visibility state.
 	 */
 	protected List<Node> getSelectedVisibilityTaskNodes() {
-		List<Node> selected = getSelectedTaskNodes(true, true);
-		if (selected.isEmpty()) return selected;
 		SpreadSheet spreadSheet = getTopSpreadSheet();
+		if (spreadSheet != null && spreadSheet.isHeaderColumnSelectionActive())
+			return Collections.emptyList();
+		// Visibility is also valid for a virtual grouping row.  Do not filter it
+		// through getSelectedTaskNodes() first: that would discard the group before
+		// TaskVisibilitySelectionResolver can expand its member tasks.
+		List<Node> selected = getSelectedNodes(true);
+		if ((selected == null || selected.isEmpty()) && spreadSheet != null
+				&& spreadSheet.getSelectedRows().length > 0)
+			selected = spreadSheet.getSelectedNodes();
+		if (selected == null || selected.isEmpty()) return Collections.emptyList();
 		if (spreadSheet == null || !(spreadSheet.getModel() instanceof SpreadSheetModel model))
-			return selected;
+			return TaskVisibilitySelectionResolver.resolve(selected, null);
 		WalkersNodeModel viewModel = model.getCache().getWalkersModel();
 		return TaskVisibilitySelectionResolver.resolve(selected, viewModel);
 	}

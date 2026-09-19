@@ -692,7 +692,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	 * Gantt immediately so both panes match Microsoft Project's live selection.
 	 */
 	static ListSelectionListener createGanttSelectionListener(Gantt gantt, JTable table) {
-		return event -> syncGanttHighlightedRows(gantt, table == null ? null : table.getSelectedRows());
+		return event -> {
+			// A JTable encodes a header column selection as all rows selected.  That
+			// is a grid/presentation selection, not a task selection, and must not
+			// create (or replace) Gantt bar highlights.
+			if (isColumnPresentationSelection(table))
+				return;
+			syncGanttHighlightedRows(gantt, table == null ? null : table.getSelectedRows());
+		};
 	}
 
 	private void removeSpreadsheetSelectionListener() {
@@ -704,7 +711,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 
 	private void updateGanttHighlightedRows() {
+		if (isColumnPresentationSelection(spreadSheet))
+			return;
 		syncGanttHighlightedRows(gantt, spreadSheet == null ? null : spreadSheet.getSelectedRows());
+	}
+
+	private static boolean isColumnPresentationSelection(JTable table) {
+		return table instanceof com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet sheet
+				&& sheet.isHeaderColumnSelectionActive();
 	}
 
 	private static void syncGanttHighlightedRows(Gantt gantt, int[] rows) {

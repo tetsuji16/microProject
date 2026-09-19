@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.imageio.ImageIO;
@@ -198,6 +199,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.getSelectionModel().addListSelectionListener(
+				GanttView.createGanttSelectionListener(fixture.gantt, fixture.sheet));
 			frame.toFront();
 			frame.requestFocus();
 			fixture.sheet.requestFocusInWindow();
@@ -223,6 +226,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertFalse(fixture.sheet.isHeaderColumnSelectionActive(),
 				"a task-cell click must not be rendered as a column-header selection");
 			assertHeaderHighlight(fixture.sheet, column);
+			assertEquals(Set.of(row), fixture.gantt.getHighlightedRows(),
+				"a task-cell selection must project only its task row to the Gantt");
 		});
 
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
@@ -239,6 +244,65 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				"column-header selection must use the column-header rendering state");
 			assertFalse(fixture.sheet.getSelection().isActiveCell(row, column),
 				"a full column selection must not retain a misleading active-cell highlight");
+			assertEquals(Set.of(row), fixture.gantt.getHighlightedRows(),
+				"a presentation-only column selection must not select every Gantt task row");
+		});
+
+		int cellRow = 0;
+		Point cellAfterHeader = screenCenter(fixture.sheet, fixture.sheet.getCellRect(cellRow, column, true));
+		robot.mouseMove(cellAfterHeader.x, cellAfterHeader.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.keyPress(java.awt.event.KeyEvent.VK_RIGHT);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_RIGHT);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelection().isActiveCell(cellRow, column + 1),
+			"after a column selection, a cell click and Right Arrow must move to its adjacent visible cell");
+		SwingUtilities.invokeAndWait(() -> {
+			assertFalse(fixture.sheet.isHeaderColumnSelectionActive(),
+				"a task-cell click must end column presentation selection before keyboard navigation");
+			assertTrue(fixture.sheet.getSelection().isActiveCell(cellRow, column + 1),
+				"Right Arrow must retain the clicked row and advance exactly one visible column");
+		});
+	}
+
+	@Test
+	void calendarWhitespaceDragExtendsVisibleTaskSelectionWithoutEditingBars() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.getSelectionModel().addListSelectionListener(
+				GanttView.createGanttSelectionListener(fixture.gantt, fixture.sheet));
+			fixture.gantt.setBarSelectionListener(click -> GanttView.syncSpreadsheetSelection(click, fixture.sheet));
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
+			"task table or Gantt was not visible for calendar whitespace drag");
+
+		Point chartLocation = new Point();
+		Rectangle visibleChart = new Rectangle();
+		int rowHeight = fixture.gantt.getRowHeight();
+		SwingUtilities.invokeAndWait(() -> {
+			chartLocation.setLocation(fixture.gantt.getLocationOnScreen());
+			visibleChart.setBounds(fixture.gantt.getVisibleRect());
+		});
+		int x = chartLocation.x + visibleChart.x + visibleChart.width - 12;
+		int startY = chartLocation.y + rowHeight / 2;
+		int endY = chartLocation.y + rowHeight * 2 + rowHeight / 2;
+		robot.mouseMove(x, startY);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseMove(x, endY);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRowCount() == 3,
+			"dragging over calendar whitespace must extend the selected visible task range");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(Set.of(0, 1, 2), fixture.gantt.getHighlightedRows(),
+				"the Gantt highlight must match the whitespace-drag task range");
+			assertEquals(fixture.sheet.getColumnCount(), fixture.sheet.getSelectedColumnCount(),
+				"whitespace selection must remain a task-row selection rather than a cell range");
 		});
 	}
 

@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.SwingUtilities;
 import javax.swing.DefaultListSelectionModel;
@@ -120,6 +121,22 @@ class CommonSpreadSheetSelectionStateTest {
 
 		SwingUtilities.invokeAndWait(() -> sheet.changeSelection(0, 0, false, false));
 		assertEquals(false, sheet.isColumnFullySelected(0));
+	}
+
+	@Test
+	void columnPresentationStateIsPublishedBeforeSwingSelectsAllRows() throws Exception {
+		final TestSpreadSheet[] sheetRef = new TestSpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> sheetRef[0] = new TestSpreadSheet(2));
+		TestSpreadSheet sheet = sheetRef[0];
+		AtomicBoolean sawColumnPresentationState = new AtomicBoolean();
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.getSelectionModel().addListSelectionListener(event ->
+				sawColumnPresentationState.compareAndSet(false, sheet.isHeaderColumnSelectionActive()));
+			sheet.selectColumnAndAllRows(1);
+		});
+
+		assertTrue(sawColumnPresentationState.get(),
+			"listeners must see a header-column operation as presentation selection, never task rows");
 	}
 
 	@Test

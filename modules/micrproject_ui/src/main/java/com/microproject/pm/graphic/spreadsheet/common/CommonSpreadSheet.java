@@ -491,6 +491,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return;
 		}
 		if (e != null && !isEditing()) {
+			if (e.getID() == KeyEvent.KEY_PRESSED && moveActiveCellWithArrowKey(e)) {
+				e.consume();
+				return;
+			}
 			if (e.getID() == KeyEvent.KEY_PRESSED && handleHierarchyNavigationKeyEvent(e)) {
 				e.consume();
 				return;
@@ -517,6 +521,38 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			}
 		}
 		super.processKeyEvent(e);
+	}
+
+	/**
+	 * Keeps keyboard navigation anchored to the explicit active cell.  A whole
+	 * row or header-column selection deliberately has a broader JTable range,
+	 * whose lead index is not the cell that the user clicked.  Arrow navigation
+	 * must use the visible active coordinate instead of that incidental lead.
+	 */
+	private boolean moveActiveCellWithArrowKey(KeyEvent event) {
+		if (headerColumnSelectionActive || event.isShiftDown() || event.isControlDown()
+				|| event.isMetaDown() || event.isAltDown() || !hasSelectionModel())
+			return false;
+		int row = getSelection().getActiveRow();
+		int column = getSelection().getActiveColumn();
+		if (row < 0 || column < 0)
+			return false;
+		int targetRow = row;
+		int targetColumn = column;
+		switch (event.getKeyCode()) {
+		case KeyEvent.VK_LEFT -> targetColumn--;
+		case KeyEvent.VK_RIGHT -> targetColumn++;
+		case KeyEvent.VK_UP -> targetRow--;
+		case KeyEvent.VK_DOWN -> targetRow++;
+		default -> {
+			return false;
+		}
+		}
+		if (targetRow < 0 || targetRow >= getRowCount() || targetColumn < 0 || targetColumn >= getColumnCount())
+			return true;
+		changeSelection(targetRow, targetColumn, false, false);
+		scrollRectToVisible(getCellRect(targetRow, targetColumn, true));
+		return true;
 	}
 
 
@@ -1361,17 +1397,19 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	public void selectColumnAndAllRows(int column) {
-		headerColumnSelectionActive = false;
 		rowHeaderSelectionActive = false;
 		if (column < 0 || column >= getColumnCount())
 			return;
 		if (!hasSelectionModel())
 			return;
+		// JTable represents a complete-column selection as every row plus one
+		// column.  Mark it before changing the Swing selection so listeners can
+		// distinguish this presentation selection from a task-row selection.
+		headerColumnSelectionActive = true;
 		SpreadSheetSelectionModel selection = getSelection();
 		selectColumns(selection, column, column);
 		selectRows(selection, 0, getRowCount() - 1);
 		selection.clearActiveCell();
-		headerColumnSelectionActive = true;
 	}
 
 	public void selectEntireSpreadsheet() {

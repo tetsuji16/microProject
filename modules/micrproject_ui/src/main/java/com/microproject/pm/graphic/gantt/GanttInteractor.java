@@ -66,6 +66,8 @@ import com.microproject.util.DateTime;
  *
  */
 public class GanttInteractor extends GraphInteractor{
+	private boolean calendarRangeSelecting;
+	private GraphicNode lastCalendarRangeNode;
 	private static final long serialVersionUID = -555882007216388246L;
 	protected static final int BAR_MOVE_START=4;
 	protected static final int BAR_MOVE_END=5;
@@ -236,7 +238,13 @@ public class GanttInteractor extends GraphInteractor{
 			// of that row, even when no task bar occupies that particular pixel.
 			// Do not pass this through GraphInteractor: its drag path treats a
 			// selected node as a bar-edit gesture.
-			if (getTaskRowAt(e.getY()) != null) {
+			GraphicNode calendarNode = getTaskRowAt(e.getY());
+			if (calendarNode != null) {
+				// A drag in calendar whitespace selects visible task rows.  It deliberately
+				// reuses the chart-to-table BarClick contract rather than entering the
+				// bar-edit drag path, so it cannot alter dates or dependencies.
+				calendarRangeSelecting = !isToggleModifier(e) && !e.isShiftDown();
+				lastCalendarRangeNode = calendarNode;
 				notifyMode("StatusBar.Ready");
 				return;
 			}
@@ -257,6 +265,16 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     public void mouseDragged(MouseEvent e) {
+		if (calendarRangeSelecting) {
+			GraphicNode calendarNode = getTaskRowAt(e.getY());
+			if (calendarNode != null && calendarNode != lastCalendarRangeNode) {
+				if (getGraph() instanceof Gantt gantt)
+					gantt.notifyBarSelection(new Gantt.BarClick(calendarNode, false, true));
+				lastCalendarRangeNode = calendarNode;
+			}
+			e.consume();
+			return;
+		}
     	if (panning) {
     		updatePan(e);
     		e.consume();
@@ -266,6 +284,14 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     public void mouseReleased(MouseEvent e) {
+		if (calendarRangeSelecting) {
+			calendarRangeSelecting = false;
+			lastCalendarRangeNode = null;
+			getGraph().requestFocusInWindow();
+			notifyMode("StatusBar.Ready");
+			e.consume();
+			return;
+		}
     	if (panning) {
     		stopPan();
     		notifyMode("StatusBar.Ready");

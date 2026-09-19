@@ -24,6 +24,29 @@ not bypass an earlier shared-cause phase for a later cosmetic symptom.
   Microsoft-published specification or support documentation.  An installed
   MSP application is supplementary evidence only and is not required for a
   compatibility decision or issue closure.
+
+### Microsoft compatibility decisions without an installed MSP client
+
+- Never leave an interaction or issue unspecified merely because an agent
+  cannot perform a physical MSP experiment.  Microsoft-published support and
+  specification material is the normative source; record the exact source in
+  the issue and in the regression test's rationale.
+- When Microsoft documentation states an interaction directly, implement that
+  behavior.  When it defines the component or shortcut but not every detail,
+  choose the narrowest Office-consistent rule: preserve the existing selection
+  scope, do not mutate unrelated model data, resolve navigation against visible
+  view coordinates before model conversion, and make modifier keys extend or
+  toggle selection only where documented.
+- Mark a behavior as a *document-derived compatibility decision* when it is an
+  inference from published documentation rather than an empirical MSP run. Do
+  not present it as a measured result.
+- If Microsoft Project has no equivalent feature (for example a product-only
+  hide command or calendar-whitespace range gesture), call it a product
+  extension. Define a deterministic contract using the same Office selection,
+  filtering, Undo/Redo, and persistence principles; do not claim MSP parity.
+- Delegated agents must apply these rules, cite the source and resulting rule in
+  their report, and add a regression test for the selected contract. They must
+  escalate only when authoritative sources conflict, not because MSP is absent.
 - Prefer the smallest change that fixes the root cause. Trace the relevant input, state transition, model/view conversion, persistence, and reload path before editing.
 - Preserve unrelated user changes. Existing uncommitted changes are not a blocker, but inspect `git status` before and after work and never discard changes you did not create.
 - Do not claim a fix is complete when only a symptom is hidden. If the root cause or a required verification remains uncertain, state that explicitly.
