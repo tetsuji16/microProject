@@ -122,6 +122,21 @@ allowed this bug?*  “Add another case” is not an adequate answer by itself.
 - Commands that require N selected tasks (for example Link) must be disabled
   when fewer than N valid task nodes are selected, or give an explicit message.
 
+### Context menus and column layouts
+
+- A constructed `JPopupMenu` or `JMenuItem.doClick()` is route-integration
+  evidence only. A reported context-menu command also requires Robot
+  right-click on the actual header or row, physical menu-item selection, and
+  an assertion of the resulting model and visible state.
+- Column Insert and Hide share the persistent layout mutation and must share a
+  compact headless Undo/Redo fixture. The physical header-popup journey proves
+  the header view-coordinate to field-array-coordinate conversion. Custom
+  rename, preset selection, and AutoFilter are separate state transitions; add
+  one case each only when their dialog/filter behavior changes.
+- Persisted column layouts require save/reload evidence. Row popup mutations
+  reuse their command-family fixture; do not duplicate the same hierarchy or
+  dependency journey once per popup item.
+
 ### Hierarchy, dependency, and visibility commands
 
 - Indent, outdent, move, expand, collapse, link, unlink, hide, and show must

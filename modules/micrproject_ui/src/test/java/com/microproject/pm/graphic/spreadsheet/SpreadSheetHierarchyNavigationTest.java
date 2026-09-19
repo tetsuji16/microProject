@@ -261,6 +261,31 @@ class SpreadSheetHierarchyNavigationTest {
 	}
 
 	@Test
+	void headerContextInsertColumnUsesTheSamePersistentUndoableLayoutMutation() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			Field field = sheet.getAvailableFields().stream()
+				.filter(candidate -> !sheet.getFieldArray().contains(candidate))
+				.findFirst().orElseThrow();
+			int fieldCount = sheet.getFieldArray().size();
+
+			// HeaderMouseListener supplies a field-array index: index 0 is hidden.
+			SpreadSheetColumnMenu menu = new SpreadSheetColumnMenu(sheet, 2,
+				(ignored, available, current) -> field);
+			((JMenuItem) menu.getComponent(0)).doClick();
+
+			assertEquals(fieldCount + 1, sheet.getFieldArray().size());
+			assertEquals(fieldCount + 1, fixture.project().getFieldArray().size());
+			assertEquals(field, sheet.getFieldArray().get(2));
+			fixture.project().getUndoController().undo();
+			assertEquals(fieldCount, sheet.getFieldArray().size());
+			fixture.project().getUndoController().redo();
+			assertEquals(field, sheet.getFieldArray().get(2));
+		});
+	}
+
+	@Test
 	void headerContextHideColumnUsesTheSamePersistentUndoableLayoutMutation() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createHierarchyFixture();

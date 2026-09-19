@@ -30,6 +30,9 @@ import javax.swing.JSplitPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.JMenuItem;
+import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
 import javax.swing.border.LineBorder;
 import javax.swing.table.TableCellRenderer;
 
@@ -46,6 +49,7 @@ import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnMenu;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.resource.ResourcePool;
@@ -263,6 +267,49 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertTrue(fixture.sheet.getSelection().isActiveCell(cellRow, column + 1),
 				"Right Arrow must retain the clicked row and advance exactly one visible column");
 		});
+	}
+
+	@Test
+	void physicalHeaderRightClickHidesTheChosenColumnThroughTheColumnPopup() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getColumnCount() > 1,
+			"task table was not ready for a header context-menu operation");
+
+		int column = 1;
+		int beforeFields = fixture.sheet.getFieldArray().size();
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(),
+			fixture.sheet.getTableHeader().getHeaderRect(column));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		final SpreadSheetColumnMenu[] popup = new SpreadSheetColumnMenu[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+				if (element instanceof SpreadSheetColumnMenu menu) {
+					popup[0] = menu;
+					return true;
+				}
+			}
+			return false;
+		}, "physical header right-click did not open the column popup");
+		JMenuItem hide = (JMenuItem) popup[0].getComponent(1);
+		Point hideLocation = new Point();
+		SwingUtilities.invokeAndWait(() -> hideLocation.setLocation(hide.getLocationOnScreen()));
+		robot.mouseMove(hideLocation.x + hide.getWidth() / 2, hideLocation.y + hide.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getFieldArray().size() == beforeFields - 1,
+			"Hide Column from the physical popup did not update the persistent field layout");
+		SwingUtilities.invokeAndWait(() -> assertEquals(beforeFields - 1, fixture.sheet.getColumnCount() + 1,
+			"the visible table must remove exactly the header column chosen from its popup"));
 	}
 
 	@Test

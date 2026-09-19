@@ -26,6 +26,7 @@ package com.microproject.pm.graphic.spreadsheet;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
@@ -46,6 +47,10 @@ import com.microproject.util.Alert;
  */
 public class SpreadSheetColumnMenu extends JPopupMenu {
 	private static final long serialVersionUID = -8788124911790572547L;
+	@FunctionalInterface
+	interface FieldSelector {
+		Field select(CommonSpreadSheet spreadSheet, List<Field> availableFields, List<Field> currentFields);
+	}
 
 	private JMenuItem insert = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.InsertColumn")); //$NON-NLS-1$
 
@@ -59,6 +64,12 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 	 * 
 	 */
 	public SpreadSheetColumnMenu(CommonSpreadSheet spreadSheet, final int col) {
+		this(spreadSheet, col, (sheet, available, current) ->
+			ColumnDialog.getFieldFromDialog(sheet, available, current));
+	}
+
+	/** Package-visible seam keeps the popup route testable without a modal dialog. */
+	SpreadSheetColumnMenu(CommonSpreadSheet spreadSheet, final int col, FieldSelector fieldSelector) {
 		super();
 		// setLabel("");
 		final CommonSpreadSheet sp = spreadSheet;
@@ -66,7 +77,7 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 		insert.setIcon(IconManager.getIcon("menu.insertColumn")); //$NON-NLS-1$
 		insert.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				Field field = ColumnDialog.getFieldFromDialog(sp,sp.getAvailableFields(),fields);
+				Field field = fieldSelector.select(sp, sp.getAvailableFields(), fields);
 				if (field != null) {
 					int c = col <= 0 ? fields.size() : Math.min(col, fields.size());
 					if (sp instanceof SpreadSheet sheet) {

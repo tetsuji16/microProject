@@ -196,6 +196,13 @@ Choose the narrowest command that exercises the change, then widen verification 
   reconversion, committed domain plus rendered values, and save/reload after a
   structural mutation.  `setText`, one character, or an editor-text assertion
   alone is insufficient.
+- Treat a context menu as a physical command route, not a constructed
+  `JPopupMenu`. For a changed or reported popup command, test a real Robot
+  right-click on the originating header/row plus the menu item; assert the
+  canonical mutation's model/view/Undo state. A `doClick` test may cover route
+  integration but never substitutes for that physical proof. Keep one shared
+  fixture per popup family (column layout, task row, filter) and include
+  save/reload for any project-persisted mutation.
 - Do not respond to GUI regressions by accumulating isolated test cases.  First consolidate all equivalent menu/ribbon/context-menu/shortcut paths into one command pipeline with one typed selection resolver, one mutation/Undo path, and one observable result.  Build compact reusable fixtures that assert shared invariants across command families; add a new scenario only for a new transition, boundary, or failure mode.  Remove redundant tests after consolidation.
 - For scheduling, Gantt, progress, or spreadsheet changes, cover zero/empty values, boundaries, intermediate and 100% progress, hierarchy/dependency changes, and save/reload when relevant.
 - For import/export or collaboration changes, cover malformed or missing data, round trips, conflicts/concurrency where relevant, and preservation of existing user data.
