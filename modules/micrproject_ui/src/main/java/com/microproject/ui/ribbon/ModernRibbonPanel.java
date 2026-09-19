@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.function.Consumer;
 
 import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
@@ -72,10 +73,12 @@ import com.microproject.ribbon.RibbonCommandInvocation;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
+import com.microproject.dialog.UsabilityStrings;
 
 public final class ModernRibbonPanel extends JPanel {
 	/** Client-property key on the ribbon host for view-context coordination. */
 	public static final String CONTEXTUAL_TABS_PROPERTY = "microproject.ribbon.contextualTabs";
+	public static final String DISPLAY_MODE_POPUP_NAME = "microproject.ribbon.displayModePopup";
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
 	static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
@@ -142,12 +145,17 @@ public final class ModernRibbonPanel extends JPanel {
 	private final RibbonButtonStyler buttonStyler;
 	private final RibbonTheme theme;
 	private final Map<String, Integer> bandHeights;
+	private final List<Consumer<RibbonDisplayMode>> displayModeListeners = new ArrayList<>();
 	private final java.util.Set<String> visibleContextualTabs = new LinkedHashSet<>();
 	private final Map<String, String> contextualTabTitles = new LinkedHashMap<>();
 	private RibbonDensity density = RibbonDensity.FULL;
 	private String activeTabId;
 	private boolean rebuildingDensity;
 	private JRootPane shortcutRoot;
+	private boolean ownsAutoHideRevealShortcut;
+	private JComponent tabRow;
+	private RibbonDisplayMode displayMode = RibbonDisplayMode.ALWAYS_SHOW;
+	private boolean autoHideRevealed;
 
 	ModernRibbonPanel(SwingRibbonModel model, RibbonCommandSource commandSource, ResourceBundle[] bundles, Runnable helpAction) {
 		super(new BorderLayout());
@@ -173,7 +181,8 @@ public final class ModernRibbonPanel extends JPanel {
 	void build() {
 		// The ribbon owns only the tab strip and command bands.  Window chrome and
 		// document/workspace navigation are deliberately outside this component.
-		add(buildTabRow(), BorderLayout.NORTH);
+		tabRow = buildTabRow();
+		add(tabRow, BorderLayout.NORTH);
 		add(cards, BorderLayout.CENTER);
 		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
 			tabBodies.computeIfAbsent(tab.getId(), this::createTabBody);
@@ -188,6 +197,36 @@ public final class ModernRibbonPanel extends JPanel {
 			}
 		});
 		updateResponsiveMode();
+	}
+
+	/** Changes only chrome visibility; commands, tab selection, and project data remain intact. */
+	public void setRibbonDisplayMode(RibbonDisplayMode mode) {
+		RibbonDisplayMode next = Objects.requireNonNull(mode);
+		boolean changed = displayMode != next;
+		displayMode = next;
+		autoHideRevealed = false;
+		applyDisplayMode();
+		if (changed) displayModeListeners.forEach(listener -> listener.accept(next));
+	}
+
+	public RibbonDisplayMode getRibbonDisplayMode() {
+		return displayMode;
+	}
+
+	/** Whether command bands, rather than just tab navigation, are currently exposed. */
+	public boolean isCommandSurfaceVisible() {
+		return cards.isVisible();
+	}
+
+	/** Restores an auto-hidden ribbon for the keyboard route documented by Office. */
+	public void revealAutoHiddenRibbon() {
+		if (displayMode != RibbonDisplayMode.AUTO_HIDE) return;
+		autoHideRevealed = true;
+		applyDisplayMode();
+	}
+
+	public void addRibbonDisplayModeListener(Consumer<RibbonDisplayMode> listener) {
+		displayModeListeners.add(Objects.requireNonNull(listener));
 	}
 
 	/**
@@ -274,6 +313,14 @@ public final class ModernRibbonPanel extends JPanel {
 				}
 			});
 		}
+		KeyStroke revealKey = KeyStroke.getKeyStroke("alt pressed ALT");
+		if (inputMap.get(revealKey) == null) {
+			inputMap.put(revealKey, "microproject.ribbon.revealAutoHidden");
+			actionMap.put("microproject.ribbon.revealAutoHidden", new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) { revealAutoHiddenRibbon(); }
+			});
+			ownsAutoHideRevealShortcut = true;
+		}
 	}
 
 	private void uninstallTabAccessKeys() {
@@ -285,6 +332,11 @@ public final class ModernRibbonPanel extends JPanel {
 			if (accessKey != null && accessKey.length() == 1)
 				inputMap.remove(KeyStroke.getKeyStroke(Character.toUpperCase(accessKey.charAt(0)), InputEvent.ALT_DOWN_MASK));
 			actionMap.remove(accessActionId(tab.getId()));
+		}
+		if (ownsAutoHideRevealShortcut) {
+			inputMap.remove(KeyStroke.getKeyStroke("alt pressed ALT"));
+			actionMap.remove("microproject.ribbon.revealAutoHidden");
+			ownsAutoHideRevealShortcut = false;
 		}
 		shortcutRoot = null;
 	}
@@ -378,6 +430,10 @@ public final class ModernRibbonPanel extends JPanel {
 		button.setHorizontalAlignment(SwingConstants.LEFT);
 		button.getModel().addChangeListener(event -> updateTabButtonAppearance(button, button.isSelected()));
 		button.addActionListener(e -> showTab(tab.getId()));
+		button.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override public void mousePressed(java.awt.event.MouseEvent event) { showDisplayModePopup(event); }
+			@Override public void mouseReleased(java.awt.event.MouseEvent event) { showDisplayModePopup(event); }
+		});
 		button.setVisible(!tab.isContextual() || visibleContextualTabs.contains(tab.getId()));
 		if (tabBodies.isEmpty()) {
 			button.setSelected(true);
@@ -946,6 +1002,18 @@ public final class ModernRibbonPanel extends JPanel {
 		return button;
 	}
 
+	private void showDisplayModePopup(java.awt.event.MouseEvent event) {
+		if (!event.isPopupTrigger()) return;
+		JPopupMenu popup = new JPopupMenu();
+		popup.setName(DISPLAY_MODE_POPUP_NAME);
+		javax.swing.JMenuItem item = new javax.swing.JMenuItem(UsabilityStrings.text(displayMode == RibbonDisplayMode.TABS_ONLY
+			? "chrome.ribbonShow" : "chrome.ribbonCollapse"));
+		item.addActionListener(action -> setRibbonDisplayMode(displayMode == RibbonDisplayMode.TABS_ONLY
+			? RibbonDisplayMode.ALWAYS_SHOW : RibbonDisplayMode.TABS_ONLY));
+		popup.add(item);
+		popup.show(event.getComponent(), event.getX(), event.getY());
+	}
+
 	private String getStringOrNull(String key) {
 		for (ResourceBundle bundle : bundles) {
 			try {
@@ -957,8 +1025,26 @@ public final class ModernRibbonPanel extends JPanel {
 	}
 
 	private void updatePreferredHeight() {
+		if (displayMode == RibbonDisplayMode.AUTO_HIDE && !autoHideRevealed) {
+			setPreferredSize(new Dimension(0, 0));
+			return;
+		}
+		if (displayMode == RibbonDisplayMode.TABS_ONLY) {
+			setPreferredSize(new Dimension(0, theme.tabHeight() + 1));
+			return;
+		}
 		int maxBodyHeight = bandHeights.values().stream().mapToInt(Integer::intValue).max().orElse(theme.surfaceHeight());
 		setPreferredSize(new Dimension(0, theme.tabHeight() + maxBodyHeight + 1));
+	}
+
+	private void applyDisplayMode() {
+		boolean visible = displayMode != RibbonDisplayMode.AUTO_HIDE || autoHideRevealed;
+		setVisible(visible);
+		if (tabRow != null) tabRow.setVisible(visible);
+		cards.setVisible(visible && (displayMode == RibbonDisplayMode.ALWAYS_SHOW || autoHideRevealed));
+		updatePreferredHeight();
+		revalidate();
+		repaint();
 	}
 
 	private final class OfficeRibbonSurfacePanel extends JPanel {

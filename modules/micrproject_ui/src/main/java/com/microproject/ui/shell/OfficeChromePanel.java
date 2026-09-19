@@ -46,6 +46,7 @@ import javax.swing.JFrame;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
@@ -56,6 +57,8 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Environment;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonDisplayMode;
 
 final class OfficeChromePanel extends JPanel {
 	static final String NAME = "officeChromePanel";
@@ -66,6 +69,8 @@ final class OfficeChromePanel extends JPanel {
 	static final String QUICK_ACCESS_NAME = "officeChromeQuickAccess";
 	static final String RIGHT_ACTIONS_NAME = "officeChromeRightActions";
 	static final String HELP_BUTTON_NAME = "officeChromeHelpButton";
+	static final String RIBBON_DISPLAY_OPTIONS_NAME = "officeChromeRibbonDisplayOptions";
+	static final String RIBBON_DISPLAY_OPTIONS_POPUP_NAME = "officeChromeRibbonDisplayOptionsPopup";
 	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
 	static final String BRAND_ICON_NAME = "officeChromeBrandIcon";
 
@@ -253,11 +258,49 @@ final class OfficeChromePanel extends JPanel {
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridx = 0;
 		constraints.insets = new Insets(0, 0, 0, 4);
+		cluster.add(createRibbonDisplayOptionsButton(), constraints);
+		constraints.gridx++;
+		constraints.insets = new Insets(0, 0, 0, 4);
 		cluster.add(createHelpButton(), constraints);
-		constraints.gridx = 1;
+		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 0);
 		cluster.add(createWindowButtonsPlaceholder(), constraints);
 		return cluster;
+	}
+
+	private AbstractButton createRibbonDisplayOptionsButton() {
+		OfficeIconButton button = new OfficeIconButton(GlyphIcon.ribbonDisplayOptions(), RIBBON_DISPLAY_OPTIONS_NAME, false);
+		button.setToolTipText(UsabilityStrings.text("chrome.ribbonDisplayOptions"));
+		button.addActionListener(event -> showRibbonDisplayOptions(button));
+		return button;
+	}
+
+	private void showRibbonDisplayOptions(AbstractButton button) {
+		ModernRibbonPanel ribbon = findRibbonController();
+		if (ribbon == null) return;
+		JPopupMenu popup = new JPopupMenu();
+		popup.setName(RIBBON_DISPLAY_OPTIONS_POPUP_NAME);
+		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.AUTO_HIDE, "chrome.ribbonAutoHide");
+		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.TABS_ONLY, "chrome.ribbonTabsOnly");
+		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.ALWAYS_SHOW, "chrome.ribbonAlwaysShow");
+		popup.show(button, 0, button.getHeight());
+	}
+
+	private void addRibbonDisplayItem(JPopupMenu popup, ModernRibbonPanel ribbon, RibbonDisplayMode mode, String textKey) {
+		javax.swing.JRadioButtonMenuItem item = new javax.swing.JRadioButtonMenuItem(UsabilityStrings.text(textKey),
+			ribbon.getRibbonDisplayMode() == mode);
+		item.addActionListener(event -> ribbon.setRibbonDisplayMode(mode));
+		popup.add(item);
+	}
+
+	private ModernRibbonPanel findRibbonController() {
+		for (java.awt.Component component : getComponents()) {
+			if (component instanceof JComponent child) {
+				Object value = child.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+				if (value instanceof ModernRibbonPanel ribbon) return ribbon;
+			}
+		}
+		return null;
 	}
 
 
@@ -514,7 +557,8 @@ final class OfficeChromePanel extends JPanel {
 		private enum Kind {
 			COMMENT,
 			SHARE,
-			PROFILE
+			PROFILE,
+			RIBBON_DISPLAY_OPTIONS
 		}
 
 		private final Kind kind;
@@ -540,6 +584,10 @@ final class OfficeChromePanel extends JPanel {
 
 		static Icon profile() {
 			return new GlyphIcon(Kind.PROFILE, 16);
+		}
+
+		static Icon ribbonDisplayOptions() {
+			return new GlyphIcon(Kind.RIBBON_DISPLAY_OPTIONS, 16);
 		}
 
 		static Icon fallback(String hint) {
@@ -570,6 +618,7 @@ final class OfficeChromePanel extends JPanel {
 					case COMMENT -> paintComment(g2, x, y);
 					case SHARE -> paintShare(g2, x, y);
 					case PROFILE -> paintProfile(g2, x, y);
+					case RIBBON_DISPLAY_OPTIONS -> paintRibbonDisplayOptions(g2, x, y);
 				}
 			} finally {
 				g2.dispose();
@@ -606,6 +655,12 @@ final class OfficeChromePanel extends JPanel {
 		private void paintProfile(Graphics2D g2, int x, int y) {
 			g2.drawOval(x + 3, y + 2, 10, 10);
 			g2.drawArc(x + 1, y + 8, 14, 7, 0, 180);
+		}
+
+		private void paintRibbonDisplayOptions(Graphics2D g2, int x, int y) {
+			g2.fillOval(x + 3, y + 7, 2, 2);
+			g2.fillOval(x + 7, y + 7, 2, 2);
+			g2.fillOval(x + 11, y + 7, 2, 2);
 		}
 	}
 }

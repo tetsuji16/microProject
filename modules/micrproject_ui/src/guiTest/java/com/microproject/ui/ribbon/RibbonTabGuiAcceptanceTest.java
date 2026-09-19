@@ -38,6 +38,7 @@ import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
@@ -80,6 +81,33 @@ class RibbonTabGuiAcceptanceTest {
 		}
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+	}
+
+	@Test
+	void rightClickTabCollapsesAndRestoresRibbonCommands() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		show(host, 1200, false);
+		AbstractButton taskTab = findButton(host,
+			MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title"));
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		rightClick(robot, taskTab);
+		JPopupMenu firstPopup = awaitDisplayModePopup();
+		clickCommand(robot, firstPopupMenuItem(firstPopup));
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.TABS_ONLY,
+			"physical tab popup did not collapse the ribbon");
+		assertTrue(taskTab.isShowing(), "tabs-only mode must leave the tab row reachable");
+		assertTrue(!ribbon.isCommandSurfaceVisible(), "tabs-only mode left command bands visible");
+
+		rightClick(robot, taskTab);
+		JPopupMenu secondPopup = awaitDisplayModePopup();
+		clickCommand(robot, firstPopupMenuItem(secondPopup));
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
+			"physical tab popup did not restore the ribbon");
+		assertTrue(ribbon.isCommandSurfaceVisible());
 	}
 
 	@Test
@@ -576,6 +604,27 @@ class RibbonTabGuiAcceptanceTest {
 			band.getHeight() - insets.top - insets.bottom);
 		assertTrue(contentBounds.contains(buttonBounds),
 			() -> "Ribbon button is clipped by its band: button=" + buttonBounds + " content=" + contentBounds);
+	}
+
+	private static void rightClick(Robot robot, AbstractButton button) throws Exception {
+		Point point = button.getLocationOnScreen();
+		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+	}
+
+	private static JPopupMenu awaitDisplayModePopup() throws Exception {
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
+			.anyMatch(JPopupMenu.class::isInstance), "ribbon display-mode popup did not open");
+		return java.util.Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
+			.filter(JPopupMenu.class::isInstance).map(JPopupMenu.class::cast)
+			.filter(popup -> ModernRibbonPanel.DISPLAY_MODE_POPUP_NAME.equals(popup.getName()))
+			.findFirst().orElseThrow(() -> new AssertionError("unexpected popup opened from ribbon tab"));
+	}
+
+	private static AbstractButton firstPopupMenuItem(JPopupMenu popup) {
+		return UiComponentWalker.flatten(popup).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast).findFirst().orElseThrow();
 	}
 
 	private static void assertVisibleRibbonControlsFit(JPanel host, AbstractButton selectedTab) {
