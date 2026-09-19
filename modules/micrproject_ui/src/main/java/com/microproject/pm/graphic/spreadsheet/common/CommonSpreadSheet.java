@@ -479,6 +479,17 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			e.consume();
 			return;
 		}
+		// editCellAt() attaches the editor synchronously, while the editor focus is
+		// transferred on the next EDT turn. A physical keyboard can deliver another
+		// printable key in that window. It still arrives at the table, where JTable
+		// would otherwise discard it. Route all such text through the same pending
+		// buffer used for IME input; the editor's own events do not pass through here.
+		if (e != null && e.getID() == KeyEvent.KEY_TYPED && isEditing()
+				&& shouldStartTypingEdit(e) && !shouldSuppressReceivedText(e)) {
+			insertReceivedText(String.valueOf(e.getKeyChar()));
+			e.consume();
+			return;
+		}
 		if (e != null && !isEditing()) {
 			if (e.getID() == KeyEvent.KEY_PRESSED && handleHierarchyNavigationKeyEvent(e)) {
 				e.consume();

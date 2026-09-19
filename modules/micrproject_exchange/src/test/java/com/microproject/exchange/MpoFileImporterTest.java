@@ -919,6 +919,39 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoSaveAfterHierarchyChangeAcceptsAnEquivalentArchiveOperationWithDifferentNumberTypes() throws Exception {
+		Project initial = projectForRoundTrip();
+		File shared = File.createTempFile("mpo-number-normalization", ".mpo");
+		shared.deleteOnExit();
+		MpoFileImporter initialWriter = new MpoFileImporter();
+		initialWriter.setFileName(shared.getAbsolutePath());
+		initialWriter.setProject(initial);
+		initialWriter.exportFile();
+
+		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(shared.toPath()));
+		OperationLog.Operation archiveOperation = new OperationLog.Operation(
+				"00000000-0000-0000-0000-000000000081", "00000000-0000-0000-0000-000000000082", 1,
+				java.util.Set.of(), "assignment.delete", "00000000-0000-0000-0000-000000000083",
+				Map.of("taskLegacyUniqueId", Integer.valueOf(1), "resourceUniqueId", Integer.valueOf(1)));
+		byte[] archiveLog = new OperationLog().writeJsonl(manifestDocumentId(entries), java.util.List.of(archiveOperation));
+		entries.put(MpoFileImporter.OPERATIONS_ENTRY, archiveLog);
+		updateManifestChecksum(entries, MpoFileImporter.OPERATIONS_ENTRY, archiveLog);
+		java.nio.file.Files.write(shared.toPath(), zip(entries).toByteArray());
+
+		Project editor = load(shared);
+		NormalTask child = (NormalTask) firstTask(editor);
+		NormalTask parent = (NormalTask) editor.createLocalTaskNode(null).getImpl();
+		parent.setName("New parent");
+		editor.setLocalParent(child, parent);
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(shared.getAbsolutePath());
+		writer.setProject(editor);
+
+		assertDoesNotThrow(writer::exportFile);
+		assertEquals(parent.getUniqueId(), load(shared).findByUniqueId(child.getUniqueId()).getWbsParentTask().getUniqueId());
+	}
+
+	@Test
 	void mpoConcurrentSharedFolderSavesSerializeAndMergeBothEditors() throws Exception {
 		Project initial = projectForRoundTrip();
 		NormalTask second = (NormalTask) initial.createLocalTaskNode(null).getImpl(); second.setName("Second");

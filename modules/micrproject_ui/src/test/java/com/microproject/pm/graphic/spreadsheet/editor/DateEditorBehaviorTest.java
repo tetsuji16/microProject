@@ -94,6 +94,25 @@ class DateEditorBehaviorTest {
 	}
 
 	@Test
+	void whitespaceOnlyTextCommitsClearWhenInitialValueExists() throws Exception {
+		SpreadsheetFixture fixture = createFixture();
+		final TrackingDateEditor[] editorRef = new TrackingDateEditor[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			int startColumn = fixture.findColumnByFieldId("Field.start");
+			TrackingDateEditor editor = new TrackingDateEditor();
+			editorRef[0] = editor;
+			editor.getTableCellEditorComponent(fixture.sheet, fixture.firstStart, true, 0, startColumn);
+			editor.dateField.getTextField().setText("   ");
+
+			assertTrue(editor.stopCellEditing());
+		});
+
+		assertTrue(!editorRef[0].canceled);
+		assertNull(editorRef[0].getCellEditorValue());
+	}
+
+	@Test
 	void invalidDateCancelsAndLeavesValueUnchanged() throws Exception {
 		SpreadsheetFixture fixture = createFixture();
 		final TrackingDateEditor[] editorRef = new TrackingDateEditor[1];

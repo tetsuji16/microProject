@@ -24,6 +24,24 @@ class OperationLogTest {
 		assertEquals(List.of(next), log.merge(List.of(next)).pending());
 	}
 
+	@Test void mergeTreatsEquivalentJsonNumberRepresentationsAsOneOperation() {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation fromArchive = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "assignment.delete", ENTITY,
+			Map.of("taskLegacyUniqueId", Integer.valueOf(1), "resourceUniqueId", Integer.valueOf(1)));
+		OperationLog.Operation fromMemory = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "assignment.delete", ENTITY,
+			Map.of("taskLegacyUniqueId", Long.valueOf(1L), "resourceUniqueId", Long.valueOf(1L)));
+
+		assertEquals(List.of(fromArchive), log.merge(List.of(fromArchive, fromMemory)).ready());
+	}
+
+	@Test void mergeStillRejectsAReusedIdWithDifferentPayload() {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation original = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("percentComplete", Integer.valueOf(10)));
+		OperationLog.Operation conflicting = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("percentComplete", Integer.valueOf(98)));
+
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> log.merge(List.of(original, conflicting)));
+	}
+
 	@Test void jsonRoundTripKeepsOperations() throws Exception {
 		OperationLog log = new OperationLog();
 		OperationLog.Operation op = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));

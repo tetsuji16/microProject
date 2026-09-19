@@ -119,7 +119,7 @@ public class DateEditor extends AbstractCellEditor implements TableCellEditor {
 		
 		String text = dateField.getFormattedTextField().getText();
 		Date date;
-		if (text.equals("")) { // empty text means Zero time
+		if (text == null || text.isBlank()) { // an optional date may be cleared
 			if (initialValue == null) {
 				cancelCellEditing();
 				return true;
@@ -163,4 +163,3 @@ public class DateEditor extends AbstractCellEditor implements TableCellEditor {
 		return formattedDate.equals(formattedInitialValue);
 	}
 }
-

@@ -133,6 +133,14 @@ public final class ColumnDialog extends AbstractDialog {
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		initControls();
+		return buildContentPanel(filter, combo);
+	}
+
+	/**
+	 * Builds the two-row form independently of the modal shell so the layout
+	 * contract can be tested without opening a dialog.
+	 */
+	static JComponent buildContentPanel(JTextField filter, JComboBox<Field> combo) {
 		FormLayout layout = new FormLayout("default, 3dlu, 120dlu:grow", // cols //$NON-NLS-1$
 				"p, 3dlu, p"); // rows //$NON-NLS-1$
 
@@ -141,6 +149,7 @@ public final class ColumnDialog extends AbstractDialog {
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		builder.append(Messages.getString("ColumnDialog.Filter"), filter); //$NON-NLS-1$
+		builder.nextLine();
 		builder.append(Messages.getString("Text.Field"), combo); //$NON-NLS-1$
 		return builder.getPanel();
 	}

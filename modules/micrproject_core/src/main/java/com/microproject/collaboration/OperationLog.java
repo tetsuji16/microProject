@@ -5,6 +5,7 @@
  ******************************************************************************/
 package com.microproject.collaboration;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -65,7 +66,7 @@ public final class OperationLog {
 		Map<String, Operation> unique = new LinkedHashMap<>(operationCount * 4 / 3 + 1);
 		for (Operation operation : operations == null ? List.<Operation>of() : operations) {
 			Operation existing = unique.putIfAbsent(operation.id(), operation);
-			if (existing != null && !existing.equals(operation)) throw new IllegalArgumentException("Operation ID collision: " + operation.id());
+			if (existing != null && !sameOperation(existing, operation)) throw new IllegalArgumentException("Operation ID collision: " + operation.id());
 		}
 		List<Operation> ordered = new ArrayList<>(unique.values());
 		ordered.sort(Comparator.comparingLong(Operation::sequence).thenComparing(Operation::actorId).thenComparing(Operation::id));
@@ -83,6 +84,46 @@ public final class OperationLog {
 		if (pending.size() > MAX_PENDING) throw new IllegalArgumentException("Too many pending mpo operations");
 		List<Conflict> conflicts = detectConflicts(ordered);
 		return new MergeResult(List.copyOf(ready), List.copyOf(pending), conflicts);
+	}
+
+	/**
+	 * JSON parsers are permitted to materialize the same integral value as an
+	 * {@link Integer}, {@link Long}, or {@link BigDecimal}.  Operation identity
+	 * must be stable across that representation detail: an archive read and its
+	 * in-memory counterpart are the same history record, not a conflicting ID.
+	 */
+	private static boolean sameOperation(Operation left, Operation right) {
+		return left.id().equals(right.id())
+			&& left.actorId().equals(right.actorId())
+			&& left.sequence() == right.sequence()
+			&& left.parents().equals(right.parents())
+			&& left.kind().equals(right.kind())
+			&& left.entityId().equals(right.entityId())
+			&& samePayload(left.payload(), right.payload());
+	}
+
+	private static boolean samePayload(Map<String, Object> left, Map<String, Object> right) {
+		if (!left.keySet().equals(right.keySet())) return false;
+		for (String key : left.keySet()) if (!sameJsonValue(left.get(key), right.get(key))) return false;
+		return true;
+	}
+
+	private static boolean sameJsonValue(Object left, Object right) {
+		if (left == right) return true;
+		if (left == null || right == null) return false;
+		if (left instanceof Number leftNumber && right instanceof Number rightNumber)
+			return new BigDecimal(leftNumber.toString()).compareTo(new BigDecimal(rightNumber.toString())) == 0;
+		if (left instanceof Map<?, ?> leftMap && right instanceof Map<?, ?> rightMap) {
+			if (!leftMap.keySet().equals(rightMap.keySet())) return false;
+			for (Object key : leftMap.keySet()) if (!sameJsonValue(leftMap.get(key), rightMap.get(key))) return false;
+			return true;
+		}
+		if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
+			if (leftList.size() != rightList.size()) return false;
+			for (int index = 0; index < leftList.size(); index++) if (!sameJsonValue(leftList.get(index), rightList.get(index))) return false;
+			return true;
+		}
+		return left.equals(right);
 	}
 
 	private static List<Conflict> detectConflicts(List<Operation> operations) {

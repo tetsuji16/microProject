@@ -40,6 +40,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.JTextField;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class CommonSpreadSheetImeStartTest {
 	@Test
@@ -126,6 +128,25 @@ class CommonSpreadSheetImeStartTest {
 		assertEquals("Task 42", sheet.editorText());
 	}
 
+	@ParameterizedTest(name = "rapid value {0}")
+	@ValueSource(strings = { "20", "10" })
+	void rapidAsciiInputIsRetainedBeforeEditorFocusIsReady(String value) throws Exception {
+		RecordingSpreadSheet sheet = newRecordingSpreadSheet();
+		onEdt(sheet::primeEditorOnNextEdit);
+
+		// A real keyboard can deliver the next key before the invokeLater task
+		// transfers focus to the newly-created editor.  Both characters belong to
+		// one edit transaction and must survive that hand-off.
+		onEdt(() -> {
+			for (char character : value.toCharArray()) {
+				sheet.processKeyEvent(typedKey(sheet, character));
+			}
+		});
+		flushEdt();
+
+		assertEquals(value, sheet.editorText());
+	}
+
 	@Test
 	void inputMethodStartDispatchesFullImeTextToEditor() throws Exception {
 		RecordingSpreadSheet sheet = newRecordingSpreadSheet();
@@ -139,6 +160,18 @@ class CommonSpreadSheetImeStartTest {
 		SwingUtilities.invokeAndWait(() -> {});
 
 		assertEquals("テスト", sheet.lastDispatchedImeText());
+	}
+
+	@Test
+	void convertKeyStartsJapaneseReconversionWithTheExistingTextSelected() throws Exception {
+		RecordingSpreadSheet sheet = newRecordingSpreadSheet();
+		onEdt(() -> sheet.primeEditorOnNextEdit("日本語の再変換"));
+
+		onEdt(() -> sheet.processKeyEvent(new KeyEvent(sheet, KeyEvent.KEY_PRESSED,
+			System.currentTimeMillis(), 0, KeyEvent.VK_CONVERT, KeyEvent.CHAR_UNDEFINED)));
+		flushEdt();
+
+		assertEquals("日本語の再変換", sheet.editorSelectedText());
 	}
 
 	private static boolean readBooleanField(Object target, String fieldName) throws Exception {
@@ -185,7 +218,11 @@ class CommonSpreadSheetImeStartTest {
 		}
 
 		void primeEditorOnNextEdit() {
-			JTextField field = new DispatchTextField();
+			primeEditorOnNextEdit("");
+		}
+
+		void primeEditorOnNextEdit(String text) {
+			JTextField field = new DispatchTextField(text);
 			field.addInputMethodListener(new InputMethodListener() {
 				@Override
 				public void inputMethodTextChanged(InputMethodEvent event) {
@@ -210,6 +247,10 @@ class CommonSpreadSheetImeStartTest {
 
 		String editorText() {
 			return ((JTextField) editorComp).getText();
+		}
+
+		String editorSelectedText() {
+			return ((JTextField) editorComp).getSelectedText();
 		}
 
 		String lastDispatchedImeText() {

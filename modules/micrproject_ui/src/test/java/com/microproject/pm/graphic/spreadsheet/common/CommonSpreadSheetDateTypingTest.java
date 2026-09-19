@@ -69,6 +69,23 @@ class CommonSpreadSheetDateTypingTest {
 	}
 
 	@Test
+	void rapidFullDateTypingRetainsEveryCharacterBeforeEditorFocusTransfers() throws Exception {
+		SpreadsheetFixture fixture = createFixture();
+
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.changeSelection(0, fixture.startColumn, false, false);
+			for (char character : "2026/10/05".toCharArray()) {
+				fixture.sheet.processKeyEvent(new KeyEvent(fixture.sheet, KeyEvent.KEY_TYPED,
+					System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, character));
+			}
+		});
+		SwingUtilities.invokeAndWait(() -> { });
+
+		DateEditor.ExtDateField editor = (DateEditor.ExtDateField) fixture.sheet.getEditorComponent();
+		assertEquals("2026/10/05", editor.getTextField().getText());
+	}
+
+	@Test
 	void nonDigitDoesNotUseDateClearOnStartRule() throws Exception {
 		SpreadsheetFixture fixture = createFixture();
 		Method method = CommonSpreadSheet.class.getDeclaredMethod("shouldClearFieldOnTypedDigit", int.class, int.class, char.class);
