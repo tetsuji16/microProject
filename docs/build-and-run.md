@@ -3,7 +3,7 @@
 This project has two different build outputs that matter during verification:
 
 - `build` compiles and tests the code.
-- `installDist` refreshes the runnable desktop app layout under `modules/micrproject_ui/build/install/micrproject_ui`.
+- `installDist` refreshes the runnable desktop app layout under `modules/microproject_ui/build/install/microproject_ui`.
 
 When you need to execute the app for manual verification, always run the installed layout produced by `installDist`, not an older copy of the generated files.
 
@@ -24,13 +24,13 @@ If you also want to remove generated legacy packaging scratch output before rebu
 Then launch the installed app from:
 
 ```powershell
-modules\micrproject_ui\build\install\micrproject_ui\bin\micrproject_ui.bat
+modules\microproject_ui\build\install\microproject_ui\bin\microproject_ui.bat
 ```
 
 For the quickest repeatable Windows workflow, use the repository launcher instead:
 
 ```powershell
-.\scripts\run_micrproject_clean.bat
+.\scripts\run_microproject_clean.bat
 ```
 
 Or double-click:
@@ -47,13 +47,13 @@ That launcher:
 
 ## Why This Matters
 
-`build` alone can leave an already-generated `build/install/...` layout behind from an earlier run. If you execute that stale layout, you may be testing an old `micrproject_ui.jar` even though the source tree has already been rebuilt.
+`build` alone can leave an already-generated `build/install/...` layout behind from an earlier run. If you execute that stale layout, you may be testing an old `microproject_ui.jar` even though the source tree has already been rebuilt.
 
 To avoid that trap:
 
 1. Run `clean build installDist` before manual UI verification.
 2. If you only changed code and want a quicker refresh, at minimum run `installDist` again before launching the app.
-3. Treat `modules/micrproject_ui/build/install/micrproject_ui` as disposable generated output, not a source-controlled artifact.
+3. Treat `modules/microproject_ui/build/install/microproject_ui` as disposable generated output, not a source-controlled artifact.
 
 ## Incremental Launcher
 
@@ -83,12 +83,12 @@ GUI受入は同じRobotケースをlocale／DPI軸でも実行できる。標準
 U-21の視覚検査では次のように別プロセスで実行する。
 
 ```powershell
-.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain
-.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1.25' --max-workers=1 --no-daemon --console=plain
-.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1.5' --max-workers=1 --no-daemon --console=plain
-.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain
-.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1.25' --max-workers=1 --no-daemon --console=plain
-.\gradlew.bat :micrproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1.5' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :microproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :microproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1.25' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :microproject_ui:guiTest '-PguiTestLocale=ja' '-PguiTestUiScale=1.5' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :microproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :microproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1.25' --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :microproject_ui:guiTest '-PguiTestLocale=en' '-PguiTestUiScale=1.5' --max-workers=1 --no-daemon --console=plain
 ```
 
 Task command semantics and the per-surface evidence mapping are maintained in
@@ -100,13 +100,13 @@ Task command semantics and the per-surface evidence mapping are maintained in
 `W-464-DPI-FULLWIDTH` waiver の範囲内に限る。高DPIの視覚検査・対象別
 Robot操作・モデル／Undo検査は省略しない。
 
-Use `run_projectlibre.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_micrproject_clean.bat` when you want the safest one-step clean rebuild and launch.
+Use `run_projectlibre.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_microproject_clean.bat` when you want the safest one-step clean rebuild and launch.
 
 ## Quick Checks
 
 - Confirm the installed app layout was refreshed recently.
 - Confirm the title bar and UI reflect the latest source change.
-- If a fix appears missing, verify that the executable came from `modules/micrproject_ui/build/install/micrproject_ui`, not an older local copy.
+- If a fix appears missing, verify that the executable came from `modules/microproject_ui/build/install/microproject_ui`, not an older local copy.
 
 ## Notes For Codex
 

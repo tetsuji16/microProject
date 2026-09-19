@@ -21,7 +21,7 @@ CCPMは、単なるタスクの達成率表示ではありません。タスク�
 
 ## 2. 起動と画面の準備
 
-1. リポジトリのルートで `scripts\\run_micrproject_clean.bat` を実行します。
+1. リポジトリのルートで `scripts\\run_microproject_clean.bat` を実行します。
 2. 起動したmicroProjectを最大化します。
 3. 自動保存が有効になっている場合でも、CCPM固有情報を確実に残すため、最後に必ず「名前を付けて保存」を実行します。
 4. 画面撮影時はmicroProjectのウィンドウだけが写る状態にします。

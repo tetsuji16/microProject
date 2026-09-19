@@ -187,17 +187,17 @@ non-deterministic map ordering inside the serialized `ProjectData`
 (`fieldValues` from `FieldValues.getValues`, `extraFields`).
 
 **Changes:**
-- `modules/micrproject_core/.../field/FieldValues.java` — `getValues()` now
+- `modules/microproject_core/.../field/FieldValues.java` — `getValues()` now
   returns `LinkedHashMap` (insertion order preserved) instead of `HashMap`.
-- `modules/micrproject_core/.../field/HasExtraFieldsImpl.java` — `getExtraFields()`
+- `modules/microproject_core/.../field/HasExtraFieldsImpl.java` — `getExtraFields()`
   lazy init uses `LinkedHashMap`.
-- `modules/micrproject_core/.../pm/task/Project.java` — `getExtraFields()` lazy
+- `modules/microproject_core/.../pm/task/Project.java` — `getExtraFields()` lazy
   init uses `LinkedHashMap`.
-- `modules/micrproject_exchange/.../exchange/PodRoundTripTest.java` — added
+- `modules/microproject_exchange/.../exchange/PodRoundTripTest.java` — added
   `podSaveDoesNotGrowOnRoundTrip` regression test (guards against unbounded
   file growth across round-trips).
 
-**Verification:** `:micrproject_exchange:test` passes (55 tests), including the
+**Verification:** `:microproject_exchange:test` passes (55 tests), including the
 new regression test.
 
 **Known remaining gap:** byte-for-byte idempotency is NOT yet guaranteed.
@@ -288,7 +288,7 @@ implementation, (4) run the callers' module tests.
 
 **Process for each:** open a design issue/PR describing the caller search
 results + which implementation survives + which is deleted, get sign-off, then
-implement with `:micrproject_<module>:test` green after each.
+implement with `:microproject_<module>:test` green after each.
 
 ---
 

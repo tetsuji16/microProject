@@ -20,11 +20,11 @@ the documented MPOF/MSPDI/native-format compatibility boundary.
 ## Required recurring verification
 
 - After a functional change: focused module test plus the affected Robot case.
-- After a UI or persistence change: `:micrproject_ui:guiTest` and the relevant
+- After a UI or persistence change: `:microproject_ui:guiTest` and the relevant
   core/exchange tests.
 - Before a completion claim: `clean build installDist`, inspect test XML counts,
   and launch the freshly regenerated installed layout.
 
 The current artifacts are generated under
-`modules/micrproject_ui/build/reports/guiTest-artifacts/`; they are evidence,
+`modules/microproject_ui/build/reports/guiTest-artifacts/`; they are evidence,
 not source-controlled deliverables.

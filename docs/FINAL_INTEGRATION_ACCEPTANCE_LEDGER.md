@@ -9,8 +9,8 @@ remaining acceptance condition is explicitly listed below.
 
 | Issue | Completion condition / scope | Evidence and responsible area | Remaining / status |
 |---|---|---|---|
-| #528 | Empty CCPM observation has a diagnostic reason, not generic error | CCPM service/dialog tests; `micrproject_core` / UI | None recorded / CLOSED |
-| #529 | Canonical `microProject` file/module naming | naming and package gates / all modules | None recorded / CLOSED |
+| #528 | Empty CCPM observation has a diagnostic reason, not generic error | CCPM service/dialog tests; `microproject_core` / UI | None recorded / CLOSED |
+| #529 | Canonical `microProject` product naming with compatibility-safe `microproject` build identifiers | `docs/architecture/naming-policy.md`, `verifyNamingConventions`, and package/architecture gates / all modules | None recorded / CLOSED |
 | #530 | One command route, column-layout lifecycle, paste result contract | `CommandRouteMatrixTest`, `RibbonButtonBehaviorTest`, paste failure tests, column permission/undo tests, #549/#550 / UI | All acceptance conditions met; #549 and #550 closed / CLOSED |
 | #531 | Thread-safe AutoRecovery state and no duplicate snapshots | AutoRecovery concurrency tests / application + UI | None recorded / CLOSED |
 | #532 | Corrupt recovery metadata is diagnosable | metadata failure tests / application | None recorded / CLOSED |
@@ -72,8 +72,8 @@ No claim is made for undocumented or version-specific behavior.
 Previously successful repository gates include:
 
 ```text
-.\gradlew.bat :micrproject_ui:test --console=plain
-.\gradlew.bat :micrproject_ui:test --tests "com.microproject.pm.graphic.frames.CommandRouteMatrixTest" --tests "com.microproject.pm.graphic.frames.DocumentGenerationTest" --console=plain
+.\gradlew.bat :microproject_ui:test --console=plain
+.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.CommandRouteMatrixTest" --tests "com.microproject.pm.graphic.frames.DocumentGenerationTest" --console=plain
 .\gradlew.bat clean build installDist verifyPackagedFileImports verifyArchitectureBoundaries verifyArchitectureBoundaryFixtures verifyNamingConventions verifyDependencyAllowlist --console=plain
 ```
 
@@ -162,4 +162,4 @@ en/1.5
 ```
 
 Screenshots are written to
-`modules/micrproject_ui/build/reports/guiTest-artifacts/ribbon-contextual-*.png`.
+`modules/microproject_ui/build/reports/guiTest-artifacts/ribbon-contextual-*.png`.

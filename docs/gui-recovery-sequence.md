@@ -57,8 +57,8 @@ Selection shortage is disabled or explicitly explained, never silent.
 
 **Exit gate:** for every structural command, assert model delta, spreadsheet and
 Gantt delta, one Ctrl+Z, one Ctrl+Y, and save/reload where the mutation is
-persisted.  Run focused tests plus `:micrproject_ui:test` and
-`:micrproject_ui:guiTest --max-workers=1`.
+persisted.  Run focused tests plus `:microproject_ui:test` and
+`:microproject_ui:guiTest --max-workers=1`.
 
 ## Phase 3 — Crash-free view and dialog initialization
 

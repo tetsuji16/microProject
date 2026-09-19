@@ -286,7 +286,7 @@ Apply → Save → Reload → Clear の復元を含める。Gantt の `Show Crit
 ## 6. 現在の実装との対応と実装順
 
 現行のリボン定義は
-`modules/micrproject_ui/src/main/resources/com/microproject/menu/menuInternal.properties`、
+`modules/microproject_ui/src/main/resources/com/microproject/menu/menuInternal.properties`、
 表示語は `menu.properties` と `menu_ja.properties`、表示切替は
 `GraphicManager.setVisibleContextualRibbonTabs`、カタログは
 `RibbonCommandCatalog` にある。既に `File, Task, Resource, Report, Project, View, Format` の

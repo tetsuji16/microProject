@@ -53,9 +53,9 @@ root の `verifyArchitectureBoundaries` を追加しました。これは CI ま
 
 従来の `verifyIndependentBoundaries` は互換エイリアスとして残し、同じ検査を呼びます。
 
-`micrproject_ribbon` はリボンの公開 API/SPI 専用モジュールです。ここには
+`microproject_ribbon` はリボンの公開 API/SPI 専用モジュールです。ここには
 Project、メニュー、FlatLaf、アイコン資産を置きません。アプリ固有のリソース解析、
-コマンド接続、描画は `micrproject_ui` 側に残し、`RibbonCommandSource` と
+コマンド接続、描画は `microproject_ui` 側に残し、`RibbonCommandSource` と
 `CustomRibbonBandGenerator` を通して接続します。これにより将来の OSS 公開時にも
 アプリの計画モデルやコマンド実装を依存関係として公開せずに済みます。
 

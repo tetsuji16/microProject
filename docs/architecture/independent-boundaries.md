@@ -6,15 +6,15 @@ the legacy package spelling.
 
 ## Reports
 
-`micrproject_reports` may depend on `micrproject_core` and the bundled reporting
-libraries in `micrproject_contrib`. It must not depend on Swing UI classes,
+`microproject_reports` may depend on `microproject_core` and the bundled reporting
+libraries in `microproject_contrib`. It must not depend on Swing UI classes,
 application workflow classes, or the exchange module. The UI loads the report
 view as an optional integration point.
 
 ## Import/export
 
-`micrproject_exchange` may depend on `micrproject_core`,
-`micrproject_contrib`, and format libraries such as MPXJ. It owns conversion
+`microproject_exchange` may depend on `microproject_core`,
+`microproject_contrib`, and format libraries such as MPXJ. It owns conversion
 and round-trip behavior for MPP, POD, XML, XLSX, and related formats. It must
 not depend on UI, application workflow, or report classes.
 

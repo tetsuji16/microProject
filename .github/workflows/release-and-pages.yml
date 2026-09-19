@@ -62,7 +62,7 @@ jobs:
             exit 0
           }
           $keyFile = Join-Path $env:RUNNER_TEMP 'microproject-update-private.pem'
-          $publicFile = 'modules/micrproject_bootstrap/src/main/resources/com/microproject/bootstrap/public.key'
+          $publicFile = 'modules/microproject_bootstrap/src/main/resources/com/microproject/bootstrap/public.key'
           [IO.File]::WriteAllText($keyFile, $env:UPDATE4J_PRIVATE_KEY)
           [IO.File]::WriteAllText($publicFile, $env:UPDATE4J_PUBLIC_KEY)
           "UPDATE4J_PRIVATE_KEY_FILE=$keyFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -81,8 +81,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.version.outputs.release_version }}'
           $releaseRoot = Join-Path $PWD "build/releases/v$version"
-          $installJar = Join-Path $PWD 'modules/micrproject_ui/build/install/micrproject_ui/lib/micrproject_ui.jar'
-          $packagedJar = Join-Path $releaseRoot 'app-image/microProject/app/micrproject_ui.jar'
+          $installJar = Join-Path $PWD 'modules/microproject_ui/build/install/microproject_ui/lib/microproject_ui.jar'
+          $packagedJar = Join-Path $releaseRoot 'app-image/microProject/app/microproject_ui.jar'
           if (-not (Test-Path -LiteralPath $packagedJar)) { throw "Packaged UI JAR is missing: $packagedJar" }
           $installHash = (Get-FileHash -LiteralPath $installJar -Algorithm SHA256).Hash
           $packagedHash = (Get-FileHash -LiteralPath $packagedJar -Algorithm SHA256).Hash

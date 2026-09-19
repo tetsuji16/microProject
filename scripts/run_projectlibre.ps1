@@ -1,7 +1,7 @@
 # ProjectLibre incremental launcher
 #
 # Preferred one-step verification flow:
-#   .\scripts\run_micrproject_clean.bat
+#   .\scripts\run_microproject_clean.bat
 #
 # Use this script when you want to reuse an existing installDist output or
 # refresh it without switching to the clean build wrapper.
@@ -23,7 +23,7 @@ param(
 $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = (Resolve-Path (Join-Path $scriptDir "..")).Path
-$launcherPath = Join-Path $projectRoot "modules\micrproject_ui\build\install\micrproject_ui\bin\micrproject_ui.bat"
+$launcherPath = Join-Path $projectRoot "modules\microproject_ui\build\install\microproject_ui\bin\microproject_ui.bat"
 $gradlePath = Join-Path $projectRoot "gradlew.bat"
 $resolvedLogRoot = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $LogRoot))
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -84,7 +84,7 @@ function Invoke-Build {
         $gradleArgs += "clean"
         $gradleArgs += "cleanLegacyPackagingArtifacts"
     }
-    $gradleArgs += ":micrproject_ui:installDist"
+    $gradleArgs += ":microproject_ui:installDist"
     $gradleArgs += "--console=plain"
 
     Write-Status "Refreshing installed app layout with Gradle: $($gradleArgs -join ' ')" "Cyan"
@@ -126,8 +126,8 @@ Stop-ExistingProjectLibre
 if ($UiDebug) {
     $uiDebugLog = Join-Path $sessionLogDir "ui-debug.log"
     $debugOptions = "-Dmicroproject.ui.debug=true -Dmicroproject.ui.debug.logFile=`"$uiDebugLog`""
-    $env:MICRPROJECT_UI_OPTS = if ($env:MICRPROJECT_UI_OPTS) {
-        "$($env:MICRPROJECT_UI_OPTS) $debugOptions"
+    $env:MICROPROJECT_UI_OPTS = if ($env:MICROPROJECT_UI_OPTS) {
+        "$($env:MICROPROJECT_UI_OPTS) $debugOptions"
     } else {
         $debugOptions
     }

@@ -8,7 +8,7 @@ acceptance row in the issue body must have matching evidence.
 | Issue | Decision | Completion evidence | Unmet condition |
 |---|---|---|---|
 | #558 | OPEN | Immutable request/result, calendar normalization, core boundary/Undo and MPO tests | Menu/Ribbon physical route and UI Robot matrix are explicitly deferred; no end-to-end selection→dialog→typed outcome→Undo/MPO evidence |
-| #559 | CLOSED | Typed buffer kinds, generation/clear conflict handling, MPO round-trip, focused CCPM suite, plus the three named boundary/projection tests | Closed after `:micrproject_core:test --tests com.microproject.pm.ccpm.CriticalChainServiceTest` BUILD SUCCESSFUL (21s) and GitHub closure comment |
+| #559 | CLOSED | Typed buffer kinds, generation/clear conflict handling, MPO round-trip, focused CCPM suite, plus the three named boundary/projection tests | Closed after `:microproject_core:test --tests com.microproject.pm.ccpm.CriticalChainServiceTest` BUILD SUCCESSFUL (21s) and GitHub closure comment |
 | #560 | OPEN | Contextual descriptor/catalog tests for Gantt, Network and Calendar; invalid placement fix focused tests | Focused tests do not prove the required physical contextual transition at the final GUI gate; Timeline and Report are unsupported and must remain explicitly non-advertised |
 | #453 | OPEN | Standard command inventory, Ribbon comparison, CCPM implementation and child evidence | MSP-complete scope still contains unsupported/conditional commands and advanced CCPM/view/report behavior. Parent cannot close while #558/#559/#560 remain open |
 | #535 | OPEN | Architecture children and most compatibility children closed | Parent completion requires all compatibility children, including #453 and its active children, to be closed |
@@ -57,11 +57,11 @@ issue. No issue was closed by this audit.
 
 ## Current implementation ownership
 
-- #558 UI route matrix: `micrproject_ui` (DocumentFrame/menu/ribbon/popup/root
+- #558 UI route matrix: `microproject_ui` (DocumentFrame/menu/ribbon/popup/root
   action), with core/exchange regression reuse.
-- #559 resource projection: `micrproject_core` (named CCPM boundary fixtures),
-  then `micrproject_ui`/`micrproject_reports` projection tests.
-- #560 contextual Robot matrix: `micrproject_ui`; unsupported Timeline/Report
+- #559 resource projection: `microproject_core` (named CCPM boundary fixtures),
+  then `microproject_ui`/`microproject_reports` projection tests.
+- #560 contextual Robot matrix: `microproject_ui`; unsupported Timeline/Report
   commands remain unbound until real implementations exist.
 
 The corresponding evidence comments were added to GitHub issues #558, #559,

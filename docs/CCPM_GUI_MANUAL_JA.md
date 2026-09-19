@@ -4,7 +4,7 @@
 
 ## 画面をmicroProjectだけに限定する
 
-1. `scripts\run_micrproject_clean.bat` で起動する（または `modules\micrproject_ui\build\install\micrproject_ui` から起動する）。
+1. `scripts\run_microproject_clean.bat` で起動する（または `modules\microproject_ui\build\install\microproject_ui` から起動する）。
 2. 起動後、microProjectのタイトルバーをダブルクリックして最大化する。
 3. デスクトップ、タスクバー、エクスプローラー、ターミナルなどが見えている状態では確認・撮影を開始しない。
 4. スクリーンショットが必要な場合は、デスクトップ全体ではなくmicroProjectウィンドウだけを対象にする。画像の下端にタスクバーがないこと、左右に他アプリがないことを確認する。

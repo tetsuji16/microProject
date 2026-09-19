@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 
 
-DEFAULT_BUNDLE = Path("modules/micrproject_core/src/main/resources/com/microproject/strings/client.properties")
+DEFAULT_BUNDLE = Path("modules/microproject_core/src/main/resources/com/microproject/strings/client.properties")
 DYNAMIC_PREFIXES = (
     "Category.", "Date.Quarter", "Date.Half", "Field.", "Units.", "tip.",
     "T_", "Text.", "Bar.", "Styles.Bar.",

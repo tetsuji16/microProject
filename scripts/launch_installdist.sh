@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Launch the already-built installDist layout with the fixed classpath order
-# so DefaultFormBuilder resolves to the bundled compatibility shim (mirrors run_micrproject_clean.bat).
+# so DefaultFormBuilder resolves to the bundled compatibility shim (mirrors run_microproject_clean.bat).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
-LIB_DIR="$ROOT/modules/micrproject_ui/build/install/micrproject_ui/lib"
+LIB_DIR="$ROOT/modules/microproject_ui/build/install/microproject_ui/lib"
 ARG_FILE_RAW="$(mktemp -t projectlibre-java-args.XXXXXX.txt)"
 # java.exe is a Windows-native binary; it cannot read MSYS /tmp paths. Translate to a Windows path.
 ARG_FILE="$(cygpath -w "$ARG_FILE_RAW")"
@@ -13,11 +13,11 @@ trap 'rm -f "$ARG_FILE_RAW"' EXIT
 JAVA_EXE="$(command -v java)"
 
 preferred=(
-  micrproject_ui.jar
-  micrproject_application.jar
-  micrproject_exchange.jar
-  micrproject_reports.jar
-  micrproject_core.jar
+  microproject_ui.jar
+  microproject_application.jar
+  microproject_exchange.jar
+  microproject_reports.jar
+  microproject_core.jar
   projectlibre-contrib.jar
 )
 

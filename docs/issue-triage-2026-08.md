@@ -64,7 +64,7 @@ Acceptance criteria:
 The following commands completed successfully on the current worktree:
 
 ```text
-.\gradlew.bat :micrproject_core:test :micrproject_exchange:test :micrproject_ui:test :micrproject_bootstrap:test --console=plain
+.\gradlew.bat :microproject_core:test :microproject_exchange:test :microproject_ui:test :microproject_bootstrap:test --console=plain
 ```
 
 These checks include focused Robot-based GUI acceptance runs against the clean
@@ -79,34 +79,34 @@ success、Release Run `33315015982` は pending（GitHub Actions のリリース
 
 #228 では、プロジェクト追加時に件数が既知のリソース／タスク索引 Map を事前容量で
 生成する改善を追加した。`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、3秒）と
-`:micrproject_core:test` 全体（BUILD SUCCESSFUL、13秒）で挙動不変を確認した。
+`:microproject_core:test` 全体（BUILD SUCCESSFUL、13秒）で挙動不変を確認した。
 
 さらに `PercentWorkCompleteService` の収集済み葉タスク数／子ノード数が既知の一時
 リストを事前確保した。`NormalTaskPercentCompleteTest`（BUILD SUCCESSFUL、4秒）と
-`:micrproject_core:test` 全体（BUILD SUCCESSFUL、12秒）で回帰がないことを確認した。
+`:microproject_core:test` 全体（BUILD SUCCESSFUL、12秒）で回帰がないことを確認した。
 
 `ProjectFactory.getCloseProjectsOnServerJob(Collection)` でも入力プロジェクト数を
 事前容量に反映した。`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と
-`:micrproject_core:test` 全体（BUILD SUCCESSFUL、12秒）で回帰がないことを確認した。
+`:microproject_core:test` 全体（BUILD SUCCESSFUL、12秒）で回帰がないことを確認した。
 
 階層操作の一時リストでも、入力ノード数が取得できる `MutableNodeHierarchy` の子孫
 収集と `DefaultNodeModel` の移動候補を事前確保した。`DefaultNodeModelTest`
-（BUILD SUCCESSFUL、5秒）と `:micrproject_core:test` 全体（BUILD SUCCESSFUL、14秒）
+（BUILD SUCCESSFUL、5秒）と `:microproject_core:test` 全体（BUILD SUCCESSFUL、14秒）
 で回帰がないことを確認した。
 
 協調ログの `OperationLog` でも、入力操作数／JSON配列長が既知のMap・一時リストを
 事前確保した。`OperationLogTest`（BUILD SUCCESSFUL、3秒）と
-`:micrproject_core:test` 全体（BUILD SUCCESSFUL、13秒）で回帰がないことを確認した。
+`:microproject_core:test` 全体（BUILD SUCCESSFUL、13秒）で回帰がないことを確認した。
 
 外部プロジェクト差分適用の `ProjectMergeService` でも、外部タスク件数が既知の変更
-ノード通知リストを事前確保した。`:micrproject_core:test` 全体（BUILD SUCCESSFUL、
+ノード通知リストを事前確保した。`:microproject_core:test` 全体（BUILD SUCCESSFUL、
 15秒）で回帰がないことを確認した。
 
 さらに `DefaultNodeModel.RemovalSnapshot` のルート件数既知のエントリ一覧と、
 `ProjectFactory` の終了コールバック通知一覧を入力件数で事前確保した。
-focusedテスト（BUILD SUCCESSFUL、4秒）と `:micrproject_core:test` 全体（BUILD
+focusedテスト（BUILD SUCCESSFUL、4秒）と `:microproject_core:test` 全体（BUILD
 SUCCESSFUL、13秒）で回帰がないことを確認した。
 
 `MutableNodeHierarchy` の削除通知リスト（削除ルート数）と移動通知リスト（最低1件）
-も事前容量を設定した。`:micrproject_core:test` 全体（BUILD SUCCESSFUL、14秒）で
+も事前容量を設定した。`:microproject_core:test` 全体（BUILD SUCCESSFUL、14秒）で
 回帰がないことを確認した。

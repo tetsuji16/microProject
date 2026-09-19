@@ -4,7 +4,7 @@
 # cannot hide them from the host file system.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
-LIB_DIR="$ROOT/modules/micrproject_ui/build/install/micrproject_ui/lib"
+LIB_DIR="$ROOT/modules/microproject_ui/build/install/microproject_ui/lib"
 ARG_FILE_RAW="$(mktemp -t projectlibre-java-args.XXXXXX.txt)"
 ARG_FILE="$(cygpath -w "$ARG_FILE_RAW")"
 LOG="${PROJECTLIBRE_LOG:-$ROOT/build/gui_dbg.log}"
@@ -13,8 +13,8 @@ trap 'rm -f "$ARG_FILE_RAW"' EXIT
 JAVA_EXE="$(command -v java)"
 
 preferred=(
-  micrproject_ui.jar micrproject_application.jar micrproject_exchange.jar
-  micrproject_reports.jar micrproject_core.jar projectlibre-contrib.jar
+  microproject_ui.jar microproject_application.jar microproject_exchange.jar
+  microproject_reports.jar microproject_core.jar projectlibre-contrib.jar
 )
 paths=()
 for name in "${preferred[@]}"; do

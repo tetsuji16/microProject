@@ -22,8 +22,8 @@ scenario, rather than duplicated in the matrix.
 Verification command:
 
 ```powershell
-.\gradlew.bat :micrproject_ui:test --tests "com.microproject.pm.graphic.frames.CommandRouteMatrixTest" --console=plain
-.\gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest.robotClicksEveryStandardRibbonCommandOnce" --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.copyCutPasteThroughRibbonUseTheSharedEditPipeline" -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain
+.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.CommandRouteMatrixTest" --console=plain
+.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest.robotClicksEveryStandardRibbonCommandOnce" --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.copyCutPasteThroughRibbonUseTheSharedEditPipeline" -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain
 ```
 
 Serial execution on 2026-09-13 completed successfully in 44 seconds. The

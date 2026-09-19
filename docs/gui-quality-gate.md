@@ -7,7 +7,7 @@ intended persistent model change and the intended visible result.  A dispatched
 Swing `Action`, a returned method call, or the absence of an exception is not
 evidence of success.
 
-This gate applies to every change under `micrproject_ui`, and to any other
+This gate applies to every change under `microproject_ui`, and to any other
 change that changes a GUI-observable command, model projection, persistence
 path, or keyboard shortcut.
 
@@ -234,7 +234,7 @@ and stable task IDs, never only object identity or a blank event source.
   a screenshot, or a comparison with an undocumented observed behavior.  The
   MSP-source evidence and the complete command contract above are mandatory.
 - Run the focused unit tests and focused `guiTest` before review.  Run the full
-  `:micrproject_ui:test` and `:micrproject_ui:guiTest --max-workers=1` before a
+  `:microproject_ui:test` and `:microproject_ui:guiTest --max-workers=1` before a
   release or when shared command, selection, layout, or shortcut code changes.
 - Test failures, skipped desktop tests, visual regressions, or missing command
   contracts block release.  A waiver requires a linked open issue, a named

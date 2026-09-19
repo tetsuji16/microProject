@@ -7,7 +7,7 @@
 
 The repository has accumulated documentation that described an earlier
 six-module layout and a Java 21 packaging baseline. The current Gradle build
-uses eight `micrproject_*` subprojects, and the root build compiles against the
+uses eight `microproject_*` subprojects, and the root build compiles against the
 Java 25 API level. Documentation drift makes dependency-boundary reviews and
 release troubleshooting unreliable.
 
@@ -15,14 +15,14 @@ release troubleshooting unreliable.
 
 `settings.gradle.kts` is the source of truth for the eight production modules:
 
-1. `micrproject_contrib`
-2. `micrproject_core`
-3. `micrproject_application`
-4. `micrproject_ui`
-5. `micrproject_exchange`
-6. `micrproject_reports`
-7. `micrproject_bootstrap`
-8. `micrproject_ribbon`
+1. `microproject_contrib`
+2. `microproject_core`
+3. `microproject_application`
+4. `microproject_ui`
+5. `microproject_exchange`
+6. `microproject_reports`
+7. `microproject_bootstrap`
+8. `microproject_ribbon`
 
 The root `build.gradle.kts` applies a Java toolchain to every subproject and
 sets `JavaCompile.options.release` to 25. Java 25 is therefore the minimum

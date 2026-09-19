@@ -75,7 +75,7 @@ GitHub Issueへの外部登録は、この検証記録とは別に行う必要�
 ## 実行した検証
 
 ```text
-.\gradlew.bat :micrproject_core:test --console=plain
-.\gradlew.bat :micrproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.checkedInEnglishAndJapaneseCcpmSamplesLoadForVisualization" --console=plain
-.\gradlew.bat :micrproject_ui:test --tests "com.microproject.pm.graphic.views.DockableProjectToolViewTest" --console=plain
+.\gradlew.bat :microproject_core:test --console=plain
+.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.checkedInEnglishAndJapaneseCcpmSamplesLoadForVisualization" --console=plain
+.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.views.DockableProjectToolViewTest" --console=plain
 ```

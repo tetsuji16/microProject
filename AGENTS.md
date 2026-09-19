@@ -64,16 +64,16 @@ Use `rg` / `rg --files` for discovery. Search by symbol and behavior before intr
 
 ## Module map
 
-- `modules/micrproject_core`: scheduling engine, data model, shared utilities, and core configuration.
-- `modules/micrproject_application`: open/save workflows, document coordination, and file policies.
-- `modules/micrproject_ui`: Swing UI, spreadsheet and Gantt views, rendering, menus, and startup.
-- `modules/micrproject_exchange`: MPP/POD/XML/XLSX import/export and collaboration metadata integration.
-- `modules/micrproject_reports`: report code and templates.
-- `modules/micrproject_contrib`: bundled compatibility and third-party code; avoid growing packaged dependencies unnecessarily.
+- `modules/microproject_core`: scheduling engine, data model, shared utilities, and core configuration.
+- `modules/microproject_application`: open/save workflows, document coordination, and file policies.
+- `modules/microproject_ui`: Swing UI, spreadsheet and Gantt views, rendering, menus, and startup.
+- `modules/microproject_exchange`: MPP/POD/XML/XLSX import/export and collaboration metadata integration.
+- `modules/microproject_reports`: report code and templates.
+- `modules/microproject_contrib`: bundled compatibility and third-party code; avoid growing packaged dependencies unnecessarily.
 - `packaging`: authoritative icons, licenses, file associations, and Windows release inputs.
 - `samples`: manual-verification fixtures. Application runs can modify files here, so inspect changes and do not commit incidental rewrites.
 
-Respect the dependency direction expressed in the Gradle files. Put workflow coordination in `micrproject_application`, reusable domain behavior in `micrproject_core`, format conversion in `micrproject_exchange`, and view-only behavior in `micrproject_ui`.
+Respect the dependency direction expressed in the Gradle files. Put workflow coordination in `microproject_application`, reusable domain behavior in `microproject_core`, format conversion in `microproject_exchange`, and view-only behavior in `microproject_ui`.
 
 ## Dependency and namespace hygiene (eliminate ProjectLibre coupling)
 
@@ -82,13 +82,13 @@ alias `com.projectlibre1` kept only inside `SafeObjectInput` for reading old `.p
 files — see issue #154). Anything that still carries the `projectLibre` / `ProjectLibre`
 / `com.projectlibre` name is unfinished rename work and must not be widened.
 
-- **Module names**: every module under `modules/` must be `micrproject_*`. The
+- **Module names**: every module under `modules/` must be `microproject_*`. The
   `modules/projectlibre_*` directories are dead legacy modules (not included in
   `settings.gradle`); do not reference or revive them. Rename or delete before they
   accrue new code.
 - **Packages**: source under `com.projectlibre` / `com.projectlibre1` is a leftover
   from the rename. New code always uses `com.microproject`. Do not add new
-  `com.projectlibre*` packages or imports from `micrproject_*` modules. The only
+  `com.projectlibre*` packages or imports from `microproject_*` modules. The only
   tolerated `com.projectlibre1` reference is the deserialization remap in
   `SafeObjectInput` (backward-compatible `.pod` reads).
 - **Brand/identifier names**: method/constant names such as `isProjectLibreFile`,
@@ -96,9 +96,9 @@ files — see issue #154). Anything that still carries the `projectLibre` / `Pro
   internal identifiers for the *file format*; do not introduce new `ProjectLibre`-prefixed
   public types or APIs. Prefer neutral names (`isNativeFile`, `LOCAL_IMPORTER`, …) for
   new code.
-- **Third-party / contrib**: keep `micrproject_contrib` for bundled compatibility code
+- **Third-party / contrib**: keep `microproject_contrib` for bundled compatibility code
   and avoid growing packaged dependencies. External libraries must not pull the old
-  ProjectLibre namespace into `micrproject_*` runtime modules.
+  ProjectLibre namespace into `microproject_*` runtime modules.
 - **License headers**: files should carry the MIT header with
   `Copyright (c) 2026 microProject`. Old CPAL/`Copyright (c) 2012-2019 ProjectLibre Inc.`
   headers are being phased out (see issue #43 phase 1); do not copy the old header into
@@ -172,14 +172,14 @@ Choose the narrowest command that exercises the change, then widen verification 
 
 ```powershell
 # One module
-.\gradlew.bat :micrproject_core:test --console=plain
-.\gradlew.bat :micrproject_application:test --console=plain
-.\gradlew.bat :micrproject_exchange:test --console=plain
-.\gradlew.bat :micrproject_ui:test --console=plain
-.\gradlew.bat :micrproject_reports:test --console=plain
+.\gradlew.bat :microproject_core:test --console=plain
+.\gradlew.bat :microproject_application:test --console=plain
+.\gradlew.bat :microproject_exchange:test --console=plain
+.\gradlew.bat :microproject_ui:test --console=plain
+.\gradlew.bat :microproject_reports:test --console=plain
 
 # One test class (replace module and class)
-.\gradlew.bat :micrproject_ui:test --tests "com.example.MyTest" --console=plain
+.\gradlew.bat :microproject_ui:test --tests "com.example.MyTest" --console=plain
 
 # Repository-wide verification
 .\gradlew.bat clean build --console=plain
@@ -213,13 +213,13 @@ Choose the narrowest command that exercises the change, then widen verification 
 
 ```powershell
 .\gradlew.bat clean build installDist --console=plain
-.\scripts\run_micrproject_clean.bat
+.\scripts\run_microproject_clean.bat
 ```
 
 For a faster logged incremental launch, use `scripts\run_projectlibre.ps1`; see `docs/build-and-run.md` for its options. The authoritative runnable layout is:
 
 ```text
-modules\micrproject_ui\build\install\micrproject_ui
+modules\microproject_ui\build\install\microproject_ui
 ```
 
 Never validate against an older `build/install` copy. For UI changes, record the scenario and sample file used, and verify state after redraw plus save/reload when applicable.

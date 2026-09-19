@@ -36,12 +36,12 @@ microProject window (not the desktop) with `Robot.createScreenCapture`.
 Reproduction (Windows desktop session; do not run headless):
 
 ```text
-.\gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest.mouseClickSelectsEveryRibbonTabExactlyOnceAndKeepsTheCommandSurfaceVisible" --max-workers=1 --console=plain
+.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest.mouseClickSelectsEveryRibbonTabExactlyOnceAndKeepsTheCommandSurfaceVisible" --max-workers=1 --console=plain
 ```
 
 The test writes temporary evidence to
-`modules/micrproject_ui/build/reports/guiTest-artifacts/ribbon-tab-{0..6}.png`
-(`micrproject.gui.artifacts.dir` is configured by the Gradle `guiTest` task).
+`modules/microproject_ui/build/reports/guiTest-artifacts/ribbon-tab-{0..6}.png`
+(`microproject.gui.artifacts.dir` is configured by the Gradle `guiTest` task).
 These PNGs are disposable build output and must not be copied into `docs/` or
 committed.  The test also verifies the captured window is at least 900 pixels
 wide and over 120 pixels high.  In the present source, all seven standard tabs
@@ -75,8 +75,8 @@ contract, not a claim that every command has identical MSP side effects.
 Focused local verification:
 
 ```text
-.\gradlew.bat :micrproject_ui:test --tests "com.microproject.menu.RibbonStructureTest" --tests "com.microproject.ui.ribbon.RibbonCommandCatalogTest" --tests "com.microproject.pm.graphic.frames.CommandRouteMatrixTest" --tests "com.microproject.pm.graphic.frames.DocumentFrameHierarchyCommandTest" --tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnPermissionTest" --tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnUndoLifecycleTest" --console=plain
-.\gradlew.bat :micrproject_ui:test --console=plain
+.\gradlew.bat :microproject_ui:test --tests "com.microproject.menu.RibbonStructureTest" --tests "com.microproject.ui.ribbon.RibbonCommandCatalogTest" --tests "com.microproject.pm.graphic.frames.CommandRouteMatrixTest" --tests "com.microproject.pm.graphic.frames.DocumentFrameHierarchyCommandTest" --tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnPermissionTest" --tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnUndoLifecycleTest" --console=plain
+.\gradlew.bat :microproject_ui:test --console=plain
 ```
 
 Both commands are expected to pass in a clean checkout.  The full physical
@@ -93,5 +93,5 @@ implementation evidence.  No MSP installation is required to close it.
 #548 is **CLOSED**.  On 2026-09-13 the focused Windows Robot test completed
 successfully (`BUILD SUCCESSFUL`, 22s) and generated exactly seven temporary
 window-only artifacts (`ribbon-tab-0.png` through `ribbon-tab-6.png`, each
-non-empty) under `modules/micrproject_ui/build/reports/guiTest-artifacts`.
+non-empty) under `modules/microproject_ui/build/reports/guiTest-artifacts`.
 Neither issue required an MPO/POD format change.

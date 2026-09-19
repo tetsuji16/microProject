@@ -131,7 +131,7 @@
 | U-14 | 境界 | `foo.PDF`, `foo.png`, parent null | extension append | 大文字/PNG 方針を仕様化 |
 | U-15 | 異常 | 0 page printable | export | 空/破損 PDF を作らない、job complete |
 | U-16 | 大量 | 多ページ Gantt PDF | export | page count 分出力、progress 1.0、stream close |
-| U-17 | 受入 | 実 JFrame、タスク 1 件、期間列を選択 | `:micrproject_ui:guiTest` で Robot click → root-pane EditField → `3` を commit | F2 に対応する root-pane の一経路で期間だけが更新され、想定外モーダルなし |
+| U-17 | 受入 | 実 JFrame、タスク 1 件、期間列を選択 | `:microproject_ui:guiTest` で Robot click → root-pane EditField → `3` を commit | F2 に対応する root-pane の一経路で期間だけが更新され、想定外モーダルなし |
 | U-18 | 受入 | 選択依存の全リボン／メニュー操作 | 実 Robot でタスクを選択後、情報・リンク・インデント／アウトデント・展開／折り畳み・非表示を操作。Hide と対になる Show All は同じ Task Editing バンドから物理クリックする | 押下時にも同じタスク選択が保持され、モデル変更と表示変更が一致。非表示後の再表示導線が同一バンドで発見でき、必要タスク数不足は明示的に無効化または通知 |
 | U-19 | 回帰 | 階層、依存関係、非表示の各変更 | 実キーボード／リボンで変更 → Ctrl+Z → Ctrl+Y | 一操作が一つの Undo edit となり、前状態／後状態を完全に復元。選択・表示・ガントも一致 |
 | U-20 | 回帰 | タスク／リソース使用状況、タイムシート | 各リボンボタンを実 Robot click で開く | 例外なしではなく、専用ビュー／ダイアログの内容モデルが初期化され、表示・閉じる操作まで完了 |
@@ -157,10 +157,10 @@
 | ID | 種別 | 入力/条件 | 手順 | 期待結果 / Assertion |
 |---|---|---|---|---|
 | B-01 | 正常 | clean checkout | `.\gradlew.bat projects` | multi-project 解決 |
-| B-02 | 正常 | unit tests | `:micrproject_core:test`, `:micrproject_exchange:test`, `:micrproject_ui:test`, `:micrproject_reports:test` | 全 pass |
+| B-02 | 正常 | unit tests | `:microproject_core:test`, `:microproject_exchange:test`, `:microproject_ui:test`, `:microproject_reports:test` | 全 pass |
 | B-03 | 正常 | build | `.\gradlew.bat build` | compile/jar 成功 |
 | B-04 | 正常 | packaged import | `.\gradlew.bat verifyPackagedFileImports` | limited modules で MPP/POD 読込成功 |
-| B-05 | 正常 | app dist | `.\gradlew.bat stageAppDist` | `micrproject_ui/build/install/micrproject_ui` 生成 |
+| B-05 | 正常 | app dist | `.\gradlew.bat stageAppDist` | `microproject_ui/build/install/microproject_ui` 生成 |
 | B-05a | 正常 | legacy packaging cleanup | `.\gradlew.bat cleanLegacyPackagingArtifacts` | `isolated-build` が削除され、Gradle 正本の成果物には影響しない |
 | B-06 | 異常 | JAVA_HOME 未設定/不正 | package task | 既定 JDK 25 fallback または明確な失敗 |
 | B-07 | 異常 | WiX なし | MSI/EXE package | 原因が分かる失敗、途中成果物破損なし |
@@ -170,7 +170,7 @@
 
 - OS: Windows、JDK 25+、Gradle Wrapper 使用。
 - Headless unit test: `java.awt.headless=true`。Swing/EDT 系は `SwingUtilities.invokeAndWait` を使う。
-- GUI acceptance test: Windows のデスクトップセッションで `:micrproject_ui:guiTest` を実行する。`installDist` を依存に含み、Robot 操作の失敗時は `micrproject_ui/build/reports/guiTest-artifacts/` に画面を保存する。
+- GUI acceptance test: Windows のデスクトップセッションで `:microproject_ui:guiTest` を実行する。`installDist` を依存に含み、Robot 操作の失敗時は `microproject_ui/build/reports/guiTest-artifacts/` に画面を保存する。
 - GUI quality gate: `docs/gui-quality-gate.md` を正本とする。GUI の修正は、物理操作・モデル／表示・Undo/Redo・保存再読込・視覚レイアウトの必要な層をすべて満たすまで完了扱いにしない。
 - Sample data: `samples/sampledata.mpp`, `samples/Commercial construction project plan.{mpp,pod,xlsx,xml,json}`。
 - 一時ファイル: JUnit の temp directory を使い、POD/XLSX/sidecar を毎回隔離。
@@ -193,48 +193,48 @@
 ### 2026-08-30 追加検証
 
 - U-05/U-06: `YearlessDateInputParserTest` に数値時刻の範囲外（`25:00`）と、完全日付で `fallbackFormat == null` の異常系を追加し、いずれも `ParseException` で安全に拒否することを確認した。
-- 実行: `./gradlew.bat :micrproject_core:test --tests "com.microproject.util.YearlessDateInputParserTest" --console=plain`（BUILD SUCCESSFUL）。
+- 実行: `./gradlew.bat :microproject_core:test --tests "com.microproject.util.YearlessDateInputParserTest" --console=plain`（BUILD SUCCESSFUL）。
 - B-02 / U-11: GitHub Actions の JDK 25 実行で `GanttWheelZoomTest.ctrlWheelKeepsTheCursorDateAnchored` がゼロサイズに近いテスト用 viewport のため不安定化した。テスト用 JScrollPane を実寸レイアウト（幅300px）で実体化し、実GUIと同じスクロール可能な幾何条件で再検証するよう修正した。UIモジュール全体（706 tests相当）をローカルで再実行し成功した。
-- U-12: `TaskDateDependencyGuiAcceptanceTest.robotDateEditSkipsWeekendWhenSchedulingFsSuccessor` で、タスク表から土曜日（2026/06/13）を入力した場合に稼働日に正規化され、FS後続タスクの日付も依存関係どおり更新されることを実マウス操作で確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.TaskDateDependencyGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- U-13: `DefaultFrameManagerGuiAcceptanceTest.robotSwitchesBetweenTwoOpenProjectsWithoutMixingFrames` で、プロジェクト選択コンボを実マウス＋Home/End/Enter操作し、先頭→2番目→先頭を往復して各フレームの表示・active状態が排他的に切り替わることを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-07: `ChangeWorkingTimeDialogGuiAcceptanceTest` を再実行し、実GUIで稼働日選択後の保存とCancelの双方が期待どおり反映／破棄されることを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-08: `TaskInformationGuiAcceptanceTest` を実GUIで再実行し、タスク情報画面の表示・編集・確定経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-09: `ResourceLevelingDialogGuiAcceptanceTest` を実GUIで再実行し、リソース平準化ダイアログの表示・操作・確定経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.dialog.ResourceLevelingDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-10: `PreferencesDialogGuiAcceptanceTest` を実GUIで再実行し、設定ダイアログの表示・入力・確定／取消経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.dialog.PreferencesDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- CCPM-GUI-09: `CriticalChainStatusDialogGuiAcceptanceTest` を実GUIで再実行し、クリティカルチェーン状態ダイアログの表示・内容確認・終了経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.dialog.CriticalChainStatusDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-08: `TaskTableGanttGridGuiAcceptanceTest` を実GUIで再実行し、タスク表とガント領域の選択・表示対応および再描画経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-13/14: `GanttBarDateDragGuiAcceptanceTest` を実GUIで再実行し、ガントバーのドラッグによる日付変更とFS/SS/FF/SF依存タスクの連動を確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-01: `WelcomeDialogGuiAcceptanceTest` を実GUIで再実行し、起動時ウェルカム画面の表示・操作・終了経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.dialog.WelcomeDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-08: `RibbonTabGuiAcceptanceTest` を実GUIで再実行し、標準リボンタブの切替とコマンドボタン操作経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- CCPM-GUI-14補助検証: `ManualAndInactiveTaskSchedulingTest` を実行し、手動スケジュール時のスケジューリング挙動をモデル層で再確認した。`./gradlew.bat :micrproject_core:test --tests "com.microproject.pm.task.ManualAndInactiveTaskSchedulingTest" --console=plain`（BUILD SUCCESSFUL）。実GUIでのMS Project直接比較は引き続き外部環境待ち。
-- B-03/B-05: `./gradlew.bat --no-daemon clean build installDist -x test --console=plain` でclean成果物と `modules/micrproject_ui/build/install/micrproject_ui` を再生成し、その後 `TaskDurationGuiAcceptanceTest` を実行して配布レイアウト経路を確認した（BUILD SUCCESSFUL）。全テスト込みのRelease検証はGitHub Actionsで成功済み。
-- B-02: clean成果物再生成後に `./gradlew.bat :micrproject_ui:test --console=plain` を実行し、UIユニットテスト（BUILD SUCCESSFUL、53秒）を確認した。
+- U-12: `TaskDateDependencyGuiAcceptanceTest.robotDateEditSkipsWeekendWhenSchedulingFsSuccessor` で、タスク表から土曜日（2026/06/13）を入力した場合に稼働日に正規化され、FS後続タスクの日付も依存関係どおり更新されることを実マウス操作で確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.TaskDateDependencyGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- U-13: `DefaultFrameManagerGuiAcceptanceTest.robotSwitchesBetweenTwoOpenProjectsWithoutMixingFrames` で、プロジェクト選択コンボを実マウス＋Home/End/Enter操作し、先頭→2番目→先頭を往復して各フレームの表示・active状態が排他的に切り替わることを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-07: `ChangeWorkingTimeDialogGuiAcceptanceTest` を再実行し、実GUIで稼働日選択後の保存とCancelの双方が期待どおり反映／破棄されることを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-08: `TaskInformationGuiAcceptanceTest` を実GUIで再実行し、タスク情報画面の表示・編集・確定経路が成功することを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-09: `ResourceLevelingDialogGuiAcceptanceTest` を実GUIで再実行し、リソース平準化ダイアログの表示・操作・確定経路が成功することを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.dialog.ResourceLevelingDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-10: `PreferencesDialogGuiAcceptanceTest` を実GUIで再実行し、設定ダイアログの表示・入力・確定／取消経路が成功することを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.dialog.PreferencesDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- CCPM-GUI-09: `CriticalChainStatusDialogGuiAcceptanceTest` を実GUIで再実行し、クリティカルチェーン状態ダイアログの表示・内容確認・終了経路が成功することを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.dialog.CriticalChainStatusDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-08: `TaskTableGanttGridGuiAcceptanceTest` を実GUIで再実行し、タスク表とガント領域の選択・表示対応および再描画経路が成功することを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-13/14: `GanttBarDateDragGuiAcceptanceTest` を実GUIで再実行し、ガントバーのドラッグによる日付変更とFS/SS/FF/SF依存タスクの連動を確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-01: `WelcomeDialogGuiAcceptanceTest` を実GUIで再実行し、起動時ウェルカム画面の表示・操作・終了経路が成功することを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.dialog.WelcomeDialogGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-08: `RibbonTabGuiAcceptanceTest` を実GUIで再実行し、標準リボンタブの切替とコマンドボタン操作経路が成功することを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- CCPM-GUI-14補助検証: `ManualAndInactiveTaskSchedulingTest` を実行し、手動スケジュール時のスケジューリング挙動をモデル層で再確認した。`./gradlew.bat :microproject_core:test --tests "com.microproject.pm.task.ManualAndInactiveTaskSchedulingTest" --console=plain`（BUILD SUCCESSFUL）。実GUIでのMS Project直接比較は引き続き外部環境待ち。
+- B-03/B-05: `./gradlew.bat --no-daemon clean build installDist -x test --console=plain` でclean成果物と `modules/microproject_ui/build/install/microproject_ui` を再生成し、その後 `TaskDurationGuiAcceptanceTest` を実行して配布レイアウト経路を確認した（BUILD SUCCESSFUL）。全テスト込みのRelease検証はGitHub Actionsで成功済み。
+- B-02: clean成果物再生成後に `./gradlew.bat :microproject_ui:test --console=plain` を実行し、UIユニットテスト（BUILD SUCCESSFUL、53秒）を確認した。
 - GUI-NC-10: `TaskDateDependencyGuiAcceptanceTest.robotInvalidDateRejectsInputAndPreservesOriginalValue` を実GUIで再実行し、不正日付入力時の警告表示、編集キャンセル、元データ保持を確認した。focused GUIテストはBUILD SUCCESSFUL。
 - GUI-NC-10: `TaskDateDependencyGuiAcceptanceTest.robotInvalidPredecessorRejectsInputAndPreservesExistingLink` を実GUIで再実行し、不正先行タスクID入力時のエラー表示、既存リンク保持、編集終了を確認した。focused GUIテストはBUILD SUCCESSFUL。
-- B-04 / CCPM-GUI-10: `./gradlew.bat :micrproject_exchange:test --console=plain` を実行し、MPP/POD/XML/XLSXのインポート・エクスポート・再読込およびCCPM依存スケジュール検証がBUILD SUCCESSFULであることを確認した。
-- B-02: `./gradlew.bat :micrproject_reports:test --console=plain` を実行し、レポート生成モジュールの回帰テストがBUILD SUCCESSFULであることを確認した。
-- B-02 / CCPM-GUI-10補助検証: `./gradlew.bat :micrproject_application:test --console=plain` を実行し、プロジェクト作成・保存ワークフローの回帰テストがBUILD SUCCESSFULであることを確認した。
-- B-02: `./gradlew.bat :micrproject_core:test --console=plain` を実行し、スケジューリング・カレンダー・依存関係を含むcore全体の回帰テストがBUILD SUCCESSFULであることを確認した。
-- GUI受入全体: `./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain` を追加の狭幅リボンポップアップケース込みで実行し、16 GUIテストクラス（全受入ケース）がクラス間干渉・ウィンドウ残留なしでBUILD SUCCESSFUL（39秒）となることを確認した。
-- GUI-NC-08: `OfficeChromeSearchGuiAcceptanceTest` を実GUIで再実行し、リボン／Office Chromeの検索入力と結果表示経路が成功することを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.ui.shell.OfficeChromeSearchGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-04: `TaskDurationGuiAcceptanceTest` を実GUIで再実行し、期間セル入力によるタスク期間更新とガント表示反映を確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.TaskDurationGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI-NC-12: `TaskTextInputGuiAcceptanceTest` を実GUIで再実行し、日本語・長文・空文字のテキスト入力で対象セルのみが更新されることを確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskTextInputGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- B-04 / CCPM-GUI-10: `./gradlew.bat :microproject_exchange:test --console=plain` を実行し、MPP/POD/XML/XLSXのインポート・エクスポート・再読込およびCCPM依存スケジュール検証がBUILD SUCCESSFULであることを確認した。
+- B-02: `./gradlew.bat :microproject_reports:test --console=plain` を実行し、レポート生成モジュールの回帰テストがBUILD SUCCESSFULであることを確認した。
+- B-02 / CCPM-GUI-10補助検証: `./gradlew.bat :microproject_application:test --console=plain` を実行し、プロジェクト作成・保存ワークフローの回帰テストがBUILD SUCCESSFULであることを確認した。
+- B-02: `./gradlew.bat :microproject_core:test --console=plain` を実行し、スケジューリング・カレンダー・依存関係を含むcore全体の回帰テストがBUILD SUCCESSFULであることを確認した。
+- GUI受入全体: `./gradlew.bat :microproject_ui:guiTest --max-workers=1 --console=plain` を追加の狭幅リボンポップアップケース込みで実行し、16 GUIテストクラス（全受入ケース）がクラス間干渉・ウィンドウ残留なしでBUILD SUCCESSFUL（39秒）となることを確認した。
+- GUI-NC-08: `OfficeChromeSearchGuiAcceptanceTest` を実GUIで再実行し、リボン／Office Chromeの検索入力と結果表示経路が成功することを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.ui.shell.OfficeChromeSearchGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-04: `TaskDurationGuiAcceptanceTest` を実GUIで再実行し、期間セル入力によるタスク期間更新とガント表示反映を確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.TaskDurationGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI-NC-12: `TaskTextInputGuiAcceptanceTest` を実GUIで再実行し、日本語・長文・空文字のテキスト入力で対象セルのみが更新されることを確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskTextInputGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
 - CI節目確認: Release Run `33306149733`（commit `fbff56043`）のBuild/package、release staging、GitHub Release、Pages deployがすべてsuccess。`actions/checkout@v5`／`actions/setup-java@v5`更新後の配布経路も継続して正常であることを確認した。
-- GUI-NC-03/08: `TaskTableGanttGridGuiAcceptanceTest.twentyMixedTasksRemainAccessibleAfterMouseScrollbarClick` を追加し、FSで連続する10タスク＋独立10タスク（計20タスク）を生成した実GUIで、20行の存在と縦スクロールバーのマウス操作を確認した。`./gradlew.bat :micrproject_ui:guiTest --tests "com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
-- GUI受入回帰: 20タスクケース追加後の全体実行で、不正先行入力ケースの警告ダイアログがEDTを待たせる問題をスレッドダンプで検出。GUIテストの警告解除 watcher をモーダルループに依存しない直接disposeへ変更し、`./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain`（BUILD SUCCESSFUL、33秒）で15クラスの完走を確認した。
-- 最新コミット再検証: `./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain` を`1c97aa0d5`上で再実行し、20タスクケースを含む全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
+- GUI-NC-03/08: `TaskTableGanttGridGuiAcceptanceTest.twentyMixedTasksRemainAccessibleAfterMouseScrollbarClick` を追加し、FSで連続する10タスク＋独立10タスク（計20タスク）を生成した実GUIで、20行の存在と縦スクロールバーのマウス操作を確認した。`./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest" --console=plain`（BUILD SUCCESSFUL）。
+- GUI受入回帰: 20タスクケース追加後の全体実行で、不正先行入力ケースの警告ダイアログがEDTを待たせる問題をスレッドダンプで検出。GUIテストの警告解除 watcher をモーダルループに依存しない直接disposeへ変更し、`./gradlew.bat :microproject_ui:guiTest --max-workers=1 --console=plain`（BUILD SUCCESSFUL、33秒）で15クラスの完走を確認した。
+- 最新コミット再検証: `./gradlew.bat :microproject_ui:guiTest --max-workers=1 --console=plain` を`1c97aa0d5`上で再実行し、20タスクケースを含む全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
 - 20タスク構造回帰: 同ケースにタスク総数20、FSリンク数9、独立タスク数10の明示アサーションを追加し、focused実Robot GUIテストがBUILD SUCCESSFUL（8秒）となることを確認した。
-- 20タスク構造回帰（全体）: 構造アサーション追加後の`4d02db9d4`で`./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain`を再実行し、全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
+- 20タスク構造回帰（全体）: 構造アサーション追加後の`4d02db9d4`で`./gradlew.bat :microproject_ui:guiTest --max-workers=1 --console=plain`を再実行し、全GUI受入スイートがBUILD SUCCESSFUL（33秒）となることを確認した。
 - Gantt表示証跡: `TaskTableGanttGridGuiAcceptanceTest`のfixtureに実GUIと同じ座標変換・標準バー形式・サイズ更新・描画待ちを設定し、Gantt表示の初期化不足を是正。focused実RobotテストはBUILD SUCCESSFUL（5秒）。空白キャプチャを製品不具合と誤登録しないよう、fixture起因として整理した。
 - Gantt描画アサーション: 同ケースに`GanttUI.getNodeAt`の走査を追加し、少なくとも1つのタスクノードが実際に描画されることをfocused実Robotテスト（BUILD SUCCESSFUL、5秒）で確認した。
 - 日付連動・20タスク再検証: `TaskDateDependencyGuiAcceptanceTest`（FS/SS/FF/SF、ラグ、Robot日付編集）と`TaskTableGanttGridGuiAcceptanceTest`（20タスク、連続/独立、実マウスのスクロール、Ganttノード描画）を同時実行し、BUILD SUCCESSFUL（11秒、22 actionable tasks）を確認した。MS Project本体との直接比較は実行環境待ち。
 - MSPDI依存関係出力回帰: `MsProjectTaskMoveCompatibilityTest.xmlExportPreservesAllMicrosoftDependencyTypesAndDayLag` を追加し、FS/SS/FF/SFの4種類と1営業日ラグ（MSPDI `LinkLag=4800`）の型・先行UID・ラグ出力を検証した。期待値の単位誤りをテスト実行で検出・修正後、focused exchange testがBUILD SUCCESSFUL（4秒）。
-- CI回帰確認: `983e7df15` のRelease Run `33309446480` では、負のnative UniqueIdがMSPDI正UIDへ再マッピングされる仕様をテストが直接期待していたため、交換テスト1件が失敗した。XML内の出力Predecessor UIDと比較するよう修正し、`:micrproject_exchange:test` 全体（106 tests）がBUILD SUCCESSFUL（16秒）。製品不具合ではなく追加テストの期待値バグとして#430へ記録。
+- CI回帰確認: `983e7df15` のRelease Run `33309446480` では、負のnative UniqueIdがMSPDI正UIDへ再マッピングされる仕様をテストが直接期待していたため、交換テスト1件が失敗した。XML内の出力Predecessor UIDと比較するよう修正し、`:microproject_exchange:test` 全体（106 tests）がBUILD SUCCESSFUL（16秒）。製品不具合ではなく追加テストの期待値バグとして#430へ記録。
 - CI失敗伝播修正: `gradlew.bat` がGradle失敗後に終了コード0を返し、CIで`BUILD FAILED`後もrelease stagingへ進むことをローカル再現。`ENDLOCAL & EXIT /B %ERRORLEVEL%`を追加し、意図的な存在しないテスト指定で`BUILD FAILED`かつ`EXIT=1`となることを確認した。
 - リポジトリclean build回帰: `./gradlew.bat --no-daemon clean build --console=plain` を実行して全モジュールのclean再コンパイル・テストを完走させ、続く `./gradlew.bat build --console=plain` で`BUILD SUCCESSFUL`かつ`EXIT=0`を確認した。
-- clean成果物GUI回帰: clean build後に`./gradlew.bat :micrproject_ui:guiTest --max-workers=1 --console=plain`を実行し、installDist再生成を含む16 GUIテストクラスがBUILD SUCCESSFUL（41秒）となることを確認した。
+- clean成果物GUI回帰: clean build後に`./gradlew.bat :microproject_ui:guiTest --max-workers=1 --console=plain`を実行し、installDist再生成を含む16 GUIテストクラスがBUILD SUCCESSFUL（41秒）となることを確認した。
 - 配布物ファイル互換性回帰: `./gradlew.bat verifyPackagedFileImports --console=plain` を実行し、installDistのclasspath検証、`Commercial construction project plan.mpp`（145 tasks）および`.pod`（145 tasks）の実配布レイアウト読込がBUILD SUCCESSFUL（5秒）となることを確認した。
-- #438 ロギング診断改善: MPXJ/POIのLog4j API向け`log4j-to-slf4j:2.24.3`ブリッジをexchangeへ追加。`verifyPackagedFileImports`実行時の「could not find a logging provider」警告が消え、MPP/POD（各145タスク）読込、`:micrproject_exchange:test`（BUILD SUCCESSFUL、15秒）、`TaskDateDependencyGuiAcceptanceTest`（11秒）、`:micrproject_ui:test`（53秒）を再確認した。
+- #438 ロギング診断改善: MPXJ/POIのLog4j API向け`log4j-to-slf4j:2.24.3`ブリッジをexchangeへ追加。`verifyPackagedFileImports`実行時の「could not find a logging provider」警告が消え、MPP/POD（各145タスク）読込、`:microproject_exchange:test`（BUILD SUCCESSFUL、15秒）、`TaskDateDependencyGuiAcceptanceTest`（11秒）、`:microproject_ui:test`（53秒）を再確認した。
 - リボン狭幅回帰: `RibbonTabGuiAcceptanceTest.narrowRibbonExposesCollapsedCommandsThroughMousePopup` で900px幅の折りたたみポップアップ生成と`RibbonHideSelectedTasks`配送を確認（focused BUILD SUCCESSFUL）。同じ画面の折りたたみボタンを`Robot`実座標でクリックするとイベントが発火しない環境差を再現し、画面座標・サイズを#430へ記録。ポップアップ生成自体は`doClick`で回帰防止し、実マウス経路は追加調査対象とした。
 - GUI受入ハング回帰: `TaskDateDependencyGuiAcceptanceTest`の警告ダイアログ監視をSwing Timerへ変更し、モーダルEDTと監視スレッドの競合を解消。不正先行入力focusedケース（5秒）と全16クラスGUIスイート（37秒）がBUILD SUCCESSFULとなることを確認した。テスト同期不備として#430へ記録。
 - GUI受入ダイアログ識別回帰: 警告／エラータイトルだけをSwing Timerの解除対象に限定し、他の表示ダイアログを誤って閉じないようにした。不正日付・不正先行入力focusedケース（6秒）と全16クラスGUIスイート（38秒）がBUILD SUCCESSFUL。
@@ -246,32 +246,32 @@
 - #395 複数選択順序回帰: `SwingFileChooserProvider.selectedFileNames`で複数選択の全ファイルを順序どおり返し、null要素と空配列を安全に扱うことを確認（UI focused test BUILD SUCCESSFUL、6秒）。
 - #395 統合GUI再確認: 複数選択変換ヘルパー追加後にinstallDistを再生成し、全16クラス実Robot GUI受入スイートがBUILD SUCCESSFUL（40秒）となることを確認。
 - #395 相対パス境界回帰: 複数選択結果の先頭ファイルに親ディレクトリがない場合も最終アクセス先保存でNPEにならないガードを追加し、`SwingFileChooserProviderTest`を再実行（BUILD SUCCESSFUL、3秒）。
-- #395 UI回帰全体: 相対パスガード後に`:micrproject_ui:test`全体を実行し、BUILD SUCCESSFUL（52秒）。
+- #395 UI回帰全体: 相対パスガード後に`:microproject_ui:test`全体を実行し、BUILD SUCCESSFUL（52秒）。
 - #228 ResourcePool容量回帰: `ResourcePool.findById`の既知リソース件数を逆引きMapの初期容量へ反映し、`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、7秒）でID検索・未存在検索の挙動不変を確認。
-- #228 core全体回帰: ResourcePool逆引きMap容量改善後に`:micrproject_core:test`全体を再実行し、スケジューリング・依存関係・リソース処理を含めBUILD SUCCESSFUL（14秒）。
+- #228 core全体回帰: ResourcePool逆引きMap容量改善後に`:microproject_core:test`全体を再実行し、スケジューリング・依存関係・リソース処理を含めBUILD SUCCESSFUL（14秒）。
 - #395後続GUI回帰: null結果ガード後にinstallDistを再生成し、全16クラスの実Robot GUI受入スイートを再実行（BUILD SUCCESSFUL、44秒）。
-- #228 MutableNodeHierarchy容量回帰: 既知件数を使ってリソース／タスク索引Mapを事前確保し、`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、3秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
+- #228 MutableNodeHierarchy容量回帰: 既知件数を使ってリソース／タスク索引Mapを事前確保し、`ResourcePoolIdentityTest`（BUILD SUCCESSFUL、3秒）と`:microproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
 - CI節目確認: commit `6cbb74127` のPages Run `33315015452` はsuccess、Release Run `33315015982` はpendingのため完了待ち。
-- #228 PercentWorkCompleteService容量回帰: 収集済み葉タスク数／子ノード数が既知の一時リストを事前確保し、`NormalTaskPercentCompleteTest`（BUILD SUCCESSFUL、4秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、12秒）を再実行。
-- #228 ProjectFactory容量回帰: `getCloseProjectsOnServerJob(Collection)` の入力プロジェクト数をローカル／サーバー別リストの事前容量へ反映し、`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、12秒）を再実行。
-- #228 階層操作容量回帰: `MutableNodeHierarchy` の子孫収集と `DefaultNodeModel` の移動候補を入力ノード数で事前確保し、`DefaultNodeModelTest`（BUILD SUCCESSFUL、5秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、14秒）を再実行。
-- #228 OperationLog容量回帰: 入力操作数／JSON配列長が既知の協調ログMap・一時リストを事前確保し、`OperationLogTest`（BUILD SUCCESSFUL、3秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
-- #228 ProjectMergeService容量回帰: 外部タスク件数が既知の変更ノード通知リストを事前確保し、`:micrproject_core:test`全体（BUILD SUCCESSFUL、15秒）を再実行。
-- #228 RemovalSnapshot／終了通知容量回帰: 既知のルート／ID件数をエントリ・コールバック通知リストへ反映し、`DefaultNodeModelTest`＋`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と`:micrproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
-- #228 MutableNodeHierarchy通知容量回帰: 削除ルート数／最低1件を削除・移動通知リストへ反映し、`:micrproject_core:test`全体（BUILD SUCCESSFUL、14秒）を再実行。
+- #228 PercentWorkCompleteService容量回帰: 収集済み葉タスク数／子ノード数が既知の一時リストを事前確保し、`NormalTaskPercentCompleteTest`（BUILD SUCCESSFUL、4秒）と`:microproject_core:test`全体（BUILD SUCCESSFUL、12秒）を再実行。
+- #228 ProjectFactory容量回帰: `getCloseProjectsOnServerJob(Collection)` の入力プロジェクト数をローカル／サーバー別リストの事前容量へ反映し、`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と`:microproject_core:test`全体（BUILD SUCCESSFUL、12秒）を再実行。
+- #228 階層操作容量回帰: `MutableNodeHierarchy` の子孫収集と `DefaultNodeModel` の移動候補を入力ノード数で事前確保し、`DefaultNodeModelTest`（BUILD SUCCESSFUL、5秒）と`:microproject_core:test`全体（BUILD SUCCESSFUL、14秒）を再実行。
+- #228 OperationLog容量回帰: 入力操作数／JSON配列長が既知の協調ログMap・一時リストを事前確保し、`OperationLogTest`（BUILD SUCCESSFUL、3秒）と`:microproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
+- #228 ProjectMergeService容量回帰: 外部タスク件数が既知の変更ノード通知リストを事前確保し、`:microproject_core:test`全体（BUILD SUCCESSFUL、15秒）を再実行。
+- #228 RemovalSnapshot／終了通知容量回帰: 既知のルート／ID件数をエントリ・コールバック通知リストへ反映し、`DefaultNodeModelTest`＋`ProjectFactoryClosingTest`（BUILD SUCCESSFUL、4秒）と`:microproject_core:test`全体（BUILD SUCCESSFUL、13秒）を再実行。
+- #228 MutableNodeHierarchy通知容量回帰: 削除ルート数／最低1件を削除・移動通知リストへ反映し、`:microproject_core:test`全体（BUILD SUCCESSFUL、14秒）を再実行。
 - U-21 DPI/locale harness: `guiTestLocale`／`guiTestUiScale` Gradle propertiesを追加し、`ChangeWorkingTimeDialogGuiAcceptanceTest`を日本語100%・125%・150%、英語125%・150%で実Robot実行。各ケースがBUILD SUCCESSFUL（13〜20秒）。同一ケースを環境軸で再利用できる起動手順を`docs/build-and-run.md`へ記録した。標準リボンの全コマンド実クリック掃引は画面幅に依存するため100%で実施し、125/150%では専用の視覚レイアウト検査を必須とする。
-- #464 Hide/Show契約回帰（2026-09-06）: `Show All Tasks`の有効状態を非表示タスクの有無と共有し、Hide/Show直後に状態を再計算する変更（`89eda1eeb`）。非表示なしで無効、Hide → Undo → Redo → Show Allでモデルと表示行が復元されることを実Robotで確認。focused GUI、`:micrproject_ui:test`全体、日本語100%全GUIスイートがBUILD SUCCESSFUL。日本語125/150%、英語125/150%の全GUIスイートも同日に成功。
-- #464 Hide/Show保存回帰（2026-09-06）: 上記RobotシナリオにMPO保存→再読込を追加し、従来は`hiddenTask`が失われる実欠陥を検出。MPOFの予約エントリ`microproject/visibility.json`へシリアライズ済みタスクIDを保存し、読込・外部MPO・埋め込みMPOのチェックサム検証まで接続。交換層の`hiddenTaskVisibilitySurvivesMpoSaveAndReload`および全`:micrproject_exchange:test`、focused GUIでモデル・表示・永続化を確認する。
-- #395 ウィンドウシェル回帰（2026-09-06）: `DefaultFrameManagerGuiAcceptanceTest`で実ファイル名を持つ2プロジェクトを開き、独立ウィンドウのリボン、切替、タイトル規則（絶対パスを含めない）、右上×を物理Robotで確認。`:micrproject_ui:guiTest --tests=com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest --max-workers=1`成功。
-- U-24診断回帰（2026-09-06）: `UiButtonDiagnostics`のモデル署名にResource PoolのリソースID・名称を追加し、リソース系操作のモデル未変化を検出可能にした。`UiButtonDiagnosticsTest`、`:micrproject_ui:test`、日本語100%全GUIスイート成功。
-- U-20ビュー内容回帰（2026-09-06）: `TaskInformationRibbonGuiAcceptanceTest`でTask／Resource Usageの左右スプレッドシートと各モデル、Timesheetの専用スプレッドシートモデルを明示的に検査。対象GUIクラス全体と`:micrproject_ui:test`全体がBUILD SUCCESSFUL。
-- #464 ダイアログレイアウト回帰（2026-09-06）: Task Informationの全タブを実Robotで巡回し、スクロール不可領域の全可視コンポーネントがpreferredサイズ以上であることを検査。Text Style、依存関係、リソース、詳細、メモで実際に検出した5px行への配置を修正し、対象GUIテストと`:micrproject_ui:test`がBUILD SUCCESSFUL。U-21の日本語100%実GUI経路を更新。
+- #464 Hide/Show契約回帰（2026-09-06）: `Show All Tasks`の有効状態を非表示タスクの有無と共有し、Hide/Show直後に状態を再計算する変更（`89eda1eeb`）。非表示なしで無効、Hide → Undo → Redo → Show Allでモデルと表示行が復元されることを実Robotで確認。focused GUI、`:microproject_ui:test`全体、日本語100%全GUIスイートがBUILD SUCCESSFUL。日本語125/150%、英語125/150%の全GUIスイートも同日に成功。
+- #464 Hide/Show保存回帰（2026-09-06）: 上記RobotシナリオにMPO保存→再読込を追加し、従来は`hiddenTask`が失われる実欠陥を検出。MPOFの予約エントリ`microproject/visibility.json`へシリアライズ済みタスクIDを保存し、読込・外部MPO・埋め込みMPOのチェックサム検証まで接続。交換層の`hiddenTaskVisibilitySurvivesMpoSaveAndReload`および全`:microproject_exchange:test`、focused GUIでモデル・表示・永続化を確認する。
+- #395 ウィンドウシェル回帰（2026-09-06）: `DefaultFrameManagerGuiAcceptanceTest`で実ファイル名を持つ2プロジェクトを開き、独立ウィンドウのリボン、切替、タイトル規則（絶対パスを含めない）、右上×を物理Robotで確認。`:microproject_ui:guiTest --tests=com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest --max-workers=1`成功。
+- U-24診断回帰（2026-09-06）: `UiButtonDiagnostics`のモデル署名にResource PoolのリソースID・名称を追加し、リソース系操作のモデル未変化を検出可能にした。`UiButtonDiagnosticsTest`、`:microproject_ui:test`、日本語100%全GUIスイート成功。
+- U-20ビュー内容回帰（2026-09-06）: `TaskInformationRibbonGuiAcceptanceTest`でTask／Resource Usageの左右スプレッドシートと各モデル、Timesheetの専用スプレッドシートモデルを明示的に検査。対象GUIクラス全体と`:microproject_ui:test`全体がBUILD SUCCESSFUL。
+- #464 ダイアログレイアウト回帰（2026-09-06）: Task Informationの全タブを実Robotで巡回し、スクロール不可領域の全可視コンポーネントがpreferredサイズ以上であることを検査。Text Style、依存関係、リソース、詳細、メモで実際に検出した5px行への配置を修正し、対象GUIテストと`:microproject_ui:test`がBUILD SUCCESSFUL。U-21の日本語100%実GUI経路を更新。
 - #476 ビューリボンのガント表示回帰（2026-09-06）: バンドの左右内側余白を幅計算に含め、幅ゼロで先行構築されたタブを実表示幅で再構築する。通常密度で収まらない場合は compact、tight、タブランチャーの順に縮退し、`RibbonGantt` を左右からクリップしない。`RibbonTabGuiAcceptanceTest` は実Robotでガントをクリックし、バンド内の境界と一回だけのアクション配送を検査する。
 - #464 Task Information DPI回帰（2026-09-06）: 同じ全タブ検査とView/Resourceの物理リボン経路を日本語・英語の125%／150%で再実行し、各ケースBUILD SUCCESSFUL。全GUIスイートの高DPI実行は別ゲートとして未完了扱いを維持する。
-- #464 全GUI高DPI回帰（2026-09-06）: 共通ダイアログ修正後、日本語125%／150%の`:micrproject_ui:guiTest --max-workers=1`全体（各BUILD SUCCESSFUL、約2分）を実行。高DPIの日本語全体では新たな失敗なし。英語全体および残るコマンド固有の意味論監査は継続。
-- #464 英語全GUI高DPI回帰（2026-09-06）: 英語125%／150%の`:micrproject_ui:guiTest --max-workers=1`全体（各BUILD SUCCESSFUL、約2分）を実行。今回のダイアログ共通レイアウト変更について日英100/125/150%の全体GUI回帰が成功。コマンド固有の意味論監査は継続。
+- #464 全GUI高DPI回帰（2026-09-06）: 共通ダイアログ修正後、日本語125%／150%の`:microproject_ui:guiTest --max-workers=1`全体（各BUILD SUCCESSFUL、約2分）を実行。高DPIの日本語全体では新たな失敗なし。英語全体および残るコマンド固有の意味論監査は継続。
+- #464 英語全GUI高DPI回帰（2026-09-06）: 英語125%／150%の`:microproject_ui:guiTest --max-workers=1`全体（各BUILD SUCCESSFUL、約2分）を実行。今回のダイアログ共通レイアウト変更について日英100/125/150%の全体GUI回帰が成功。コマンド固有の意味論監査は継続。
 - #464 初期化順序・詳細タブ回帰（2026-09-06）: 全体GUI実行ログで`DocumentFrame.setComboBoxesViewName`の未初期化`FilterToolBarManager` NPEと、詳細タブの固定90dlu列によるJComboBox横切れ（160px割当／preferred 192px）を実検出。null初期化経路を安全化し、詳細列を`max(90dlu;pref)`へ変更。Task Information／クロスプロジェクト依存関係の同時実Robot 16ケースがBUILD SUCCESSFUL。全GUIスイートは後続ケースの完走確認を継続。
 - #464 GUI環境入力回帰（2026-09-06）: `guiTestLocale`／`guiTestUiScale`をGradle `guiTest`の入力プロパティとして宣言。英語150%実行後に日本語150%を実行してもUP-TO-DATEでスキップされず、Task Information実Robotケースが両方BUILD SUCCESSFUL。
 - #464 縮退リボン表示回帰（2026-09-06）: 700px相当の狭幅Robotケースを追加し、全体縮退時も「ファイル …」ランチャーへ先頭コマンドのアイコンが表示され、物理クリックでコマンドポップアップを開けることを確認。日本語100%／150%の新ケースがBUILD SUCCESSFUL。150%の既存1200px全タブ直接クリックケースは画面幅前提のため別テスト基盤課題として扱う。
-- U-20内容不変条件強化（2026-09-06）: usage viewの受入fixtureに実リソースを追加し、物理Ribbonクリック後のTask/Resource Usageモデル行数を `> 0` と検査。従来の常に真となる `>= 0` 判定を除去し、focused U-20 GUIと`:micrproject_ui:test`がBUILD SUCCESSFUL。
+- U-20内容不変条件強化（2026-09-06）: usage viewの受入fixtureに実リソースを追加し、物理Ribbonクリック後のTask/Resource Usageモデル行数を `> 0` と検査。従来の常に真となる `>= 0` 判定を除去し、focused U-20 GUIと`:microproject_ui:test`がBUILD SUCCESSFUL。
 - #482 複数 document window shell 回帰（2026-09-10）: secondary window の FlatLaf/native decoration 契約を表示前に登録する生成順へ修正し、初回 focus が primary container へ誤配置しないようにした。`DefaultFrameManagerGuiAcceptanceTest` で secondary の native decoration、full-window-content、実 restore bounds、focus 切替、title、物理 close を検査。

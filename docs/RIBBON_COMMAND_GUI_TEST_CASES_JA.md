@@ -4,7 +4,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 
 ## 共通前提
 
-- `clean build installDist` 後の `modules/micrproject_ui/build/install/micrproject_ui` を起動する。
+- `clean build installDist` 後の `modules/microproject_ui/build/install/microproject_ui` を起動する。
 - microProjectを最大化し、証跡画像はmicroProjectウィンドウだけを含める。デスクトップ、タスクバー、他アプリ、OSファイルダイアログは採用しない。
 - 破壊的な操作（閉じる、削除、切断、ベースライン消去、CCPM消去）は専用の一時プロジェクトで実施し、確認ダイアログのキャンセル／確定を両方記録する。
 - ダイアログを開くコマンドは「表示されたこと」「主要入力が可能なこと」「キャンセルして元の画面へ戻れること」を合格条件とする。表示を切り替えるコマンドは選択状態と画面内容の変化を記録する。

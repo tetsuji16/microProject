@@ -60,7 +60,7 @@ journey must assert model/view state, one Undo/Redo, and MPO save/reload.
 ## Existing evidence and DPI/locale audit
 
 The visual harness is parameterized by `guiTestLocale` and
-`guiTestUiScale` in `modules/micrproject_ui/build.gradle.kts`.  The targeted
+`guiTestUiScale` in `modules/microproject_ui/build.gradle.kts`.  The targeted
 Task Information/Ribbon Robot fixture is
 `TaskInformationRibbonGuiAcceptanceTest`; it asserts physical selection,
 button enablement, dialog visibility, tab/view construction, model state, and
@@ -72,7 +72,7 @@ Run each as a separate Gradle process (the JVM UI scale is startup-only):
 ```powershell
 foreach ($locale in @('ja','en')) {
   foreach ($scale in @('1','1.25','1.5')) {
-    .\gradlew.bat :micrproject_ui:guiTest `
+    .\gradlew.bat :microproject_ui:guiTest `
       "-PguiTestLocale=$locale" "-PguiTestUiScale=$scale" `
       --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest" `
       --tests "com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest" `

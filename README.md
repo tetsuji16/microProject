@@ -73,19 +73,25 @@ detection so the counts are reproducible across machines and git versions.
 
 ## Repository Layout
 
+The repository uses `microProject` as the user-visible product name. The
+Gradle root and module/JAR identifiers intentionally retain the historical
+lower-case `microproject` spelling for build-path and artifact compatibility;
+this is not a character-limit requirement. The full boundary and migration
+policy is documented in [`docs/architecture/naming-policy.md`](docs/architecture/naming-policy.md).
+
 The Gradle build currently contains eight production subprojects. The
 authoritative list and source-directory mapping are maintained in
 [`settings.gradle.kts`](settings.gradle.kts); keep this summary synchronized
 when a module is added, removed, or renamed.
 
-- `modules/micrproject_core`: scheduling engine, data model, collaboration logic, and configuration
-- `modules/micrproject_application`: application workflows, file policies, and save/open coordination
-- `modules/micrproject_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
-- `modules/micrproject_exchange`: file exchange, import/export, and format integration code
-- `modules/micrproject_reports`: report-related code and templates
-- `modules/micrproject_contrib`: shared third-party dependencies built into the app distribution
-- `modules/micrproject_bootstrap`: update/bootstrap entry point and packaged launch support
-- `modules/micrproject_ribbon`: reusable Swing ribbon API and extension SPI, independent of project-domain commands
+- `modules/microproject_core`: scheduling engine, data model, collaboration logic, and configuration
+- `modules/microproject_application`: application workflows, file policies, and save/open coordination
+- `modules/microproject_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
+- `modules/microproject_exchange`: file exchange, import/export, and format integration code
+- `modules/microproject_reports`: report-related code and templates
+- `modules/microproject_contrib`: shared third-party dependencies built into the app distribution
+- `modules/microproject_bootstrap`: update/bootstrap entry point and packaged launch support
+- `modules/microproject_ribbon`: reusable Swing ribbon API and extension SPI, independent of project-domain commands
 - `packaging`: active packaging assets, licenses, and Windows release icons
 - `samples`: sample project files for screenshots and manual verification
 - `scripts`: launch helpers for local verification
@@ -115,7 +121,7 @@ If `JAVA_HOME` is not set, the Gradle release tasks fall back to `C:\Program Fil
   repository build; see [`.github/workflows/build.yml`](.github/workflows/build.yml)
 - `packaging` is the source of active packaging assets, icons, and license notices consumed by the Gradle tasks
 - `packaging/windows/installer-resources` contains the English and Japanese WiX localization resources used by the Windows installers
-- Keep `micrproject_contrib` jars lean when updating dependencies so the packaged app size does not grow unnecessarily
+- Keep `microproject_contrib` jars lean when updating dependencies so the packaged app size does not grow unnecessarily
 - CI is aligned to the Gradle flow and validates the installable desktop layout on JDK 25
 
 ## Build The App
@@ -136,7 +142,7 @@ Key Gradle entrypoints:
 
 - `.\gradlew.bat projects`: show the multi-project layout
 - `.\gradlew.bat build`: compile the production modules and assemble per-module jars
-- `.\gradlew.bat stageAppDist`: create the installed desktop app layout from `:micrproject_ui:installDist`
+- `.\gradlew.bat stageAppDist`: create the installed desktop app layout from `:microproject_ui:installDist`
 - `.\gradlew.bat cleanLegacyPackagingArtifacts`: remove generated legacy packaging scratch output such as `isolated-build`
 - `.\gradlew.bat packageWindowsAppImage`: build a Windows app-image with `jpackage`
 - `.\gradlew.bat packageWindowsMsi`: build the Windows MSI
@@ -145,11 +151,11 @@ Key Gradle entrypoints:
 
 When you are manually verifying a UI fix, use the installed app layout created by `stageAppDist` / `installDist`, not an older `build/install` copy. See [docs/build-and-run.md](docs/build-and-run.md) for the exact runbook.
 
-On Windows, the safest one-step launcher is `scripts\run_micrproject_clean.bat`, and `scripts\run_projectlibre.bat` is a double-click entry point to the same flow.
+On Windows, the safest one-step launcher is `scripts\run_microproject_clean.bat`, and `scripts\run_projectlibre.bat` is a double-click entry point to the same flow.
 
 The runnable application layout is generated under:
 
-- `modules\micrproject_ui\build\install\micrproject_ui`
+- `modules\microproject_ui\build\install\microproject_ui`
 
 The root release work area is generated under:
 

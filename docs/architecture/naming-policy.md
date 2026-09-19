@@ -1,13 +1,13 @@
 # Naming policy and compatibility boundaries
 
-This repository intentionally contains two related spellings. They identify
-different compatibility surfaces and must not be normalized by a global rename.
-The policy below is the source of truth for new code and release work.
+This repository intentionally distinguishes the lower-case internal identifier
+from the user-visible product name. The policy below is the source of truth for
+new code and release work.
 
 | Surface | Canonical spelling | Compatibility rule |
 | --- | --- | --- |
-| Gradle root identity | `micrproject` | Keep the existing build identity for project paths, caches, and scripts. |
-| Gradle modules and JAR artifacts | `micrproject_*` | Keep all eight active module names stable. The module name is not product branding. |
+| Gradle root identity | `microproject` | Use the corrected lower-case identifier for project paths, caches, and scripts. |
+| Gradle modules and JAR artifacts | `microproject_*` | Use the corrected identifier for all eight active modules. The module name is not product branding. |
 | Java source packages | `com.microproject` | New code uses this namespace. `com.projectlibre1` is read-only deserialization compatibility in `SafeObjectInput`; do not add other legacy packages. |
 | User-visible product and Windows packaging | `microProject` | Use this casing in application metadata, launchers, jpackage output, installer names, and UI text. |
 | Native project files | `.mpo` (MPOF) | This is the fork's custom format and must not be renamed as part of branding cleanup. |
@@ -18,7 +18,7 @@ The policy below is the source of truth for new code and release work.
 ## Enforcement
 
 The root `verifyNamingConventions` Gradle task checks the active eight
-`micrproject_*` projects, the `micrproject` root identity, the Java 25 baseline,
+`microproject_*` projects, the `microproject` root identity, the Java 25 baseline,
 the canonical Windows packaging name/assets, and package declarations in active
 source and test trees. `verifyArchitectureBoundaries` separately checks module
 dependencies and the legacy namespace compatibility exception. Both checks are
@@ -32,7 +32,7 @@ artifacts impossible to find. Any proposed change to one of those boundaries
 requires a versioned migration and a compatibility test instead of a rename.
 
 The naming gate also compares every configured project directory with the
-canonical `modules/<micrproject_*>` path and confirms that the directory exists.
+canonical `modules/<microproject_*>` path and confirms that the directory exists.
 This is an on-disk/worktree check, not just a settings-file spelling check, so a
 partially renamed module cannot silently become an active project. The gate
 keeps the active set exact while still allowing unrelated directories to be
@@ -40,7 +40,7 @@ present for migration or audit purposes.
 
 ## Change checklist
 
-When adding a module, choose a new `micrproject_*` name and update
+When adding a module, choose a new `microproject_*` name and update
 `settings.gradle.kts`, the architecture allowlist, and this table in the same
 change. When changing packaging, retain `microProject` for user-visible output
 while leaving module JAR names untouched. When touching Java packages, use
@@ -48,6 +48,11 @@ while leaving module JAR names untouched. When touching Java packages, use
 legacy alias only where an existing persisted format requires it.
 
 ## Legacy inventory and retention policy (issue #529)
+
+The former `micrproject` spelling was a typo. It is retired and must not be
+reintroduced in Gradle names, module paths, JAR artifacts, scripts, or source
+packages. `verifyNamingConventions` rejects a checkout that still contains an
+active or stray `modules/micrproject_*` directory.
 
 `modules/projectlibre_*` is the old module naming convention. Such directories
 are not included by `settings.gradle.kts`, are not build inputs, and must not be

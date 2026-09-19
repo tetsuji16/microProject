@@ -13,7 +13,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HEADER_TEMPLATE = os.path.join(ROOT, "scripts", "mit_header.txt")
-EXCLUDE_DIRS = {"micrproject_contrib"}  # keep third-party notices intact
+EXCLUDE_DIRS = {"microproject_contrib"}  # keep third-party notices intact
 
 def load_template():
     with open(HEADER_TEMPLATE, "r", encoding="utf-8") as f:
@@ -23,7 +23,7 @@ def find_java_files():
     result = []
     modules_dir = os.path.join(ROOT, "modules")
     for module in sorted(os.listdir(modules_dir)):
-        if not module.startswith("micrproject_"):
+        if not module.startswith("microproject_"):
             continue
         if module in EXCLUDE_DIRS:
             continue

@@ -51,7 +51,7 @@ def prune(path: Path, keys: set[str], apply: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, default=Path("modules/micrproject_core/src/main/resources/com/microproject/strings"))
+    parser.add_argument("--root", type=Path, default=Path("modules/microproject_core/src/main/resources/com/microproject/strings"))
     parser.add_argument("--allowlist", type=Path, default=Path("scripts/translation_key_prune_allowlist.txt"))
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()

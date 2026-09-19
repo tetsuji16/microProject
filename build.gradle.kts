@@ -90,7 +90,7 @@ subprojects {
 tasks.register("stageAppDist") {
     group = "distribution"
     description = "Builds the installable application layout for microProject."
-    dependsOn(":micrproject_ui:installDist")
+    dependsOn(":microproject_ui:installDist")
 }
 
 tasks.register("verifyArchitectureBoundaries") {
@@ -99,21 +99,21 @@ tasks.register("verifyArchitectureBoundaries") {
 
     doLast {
         val expectedProjectDependencies = mapOf<String, Set<String>>(
-            "micrproject_contrib" to emptySet(),
-            "micrproject_core" to setOf("micrproject_contrib"),
-            "micrproject_application" to setOf("micrproject_core"),
-            "micrproject_exchange" to setOf("micrproject_contrib", "micrproject_core"),
-            "micrproject_reports" to setOf("micrproject_contrib", "micrproject_core"),
-            "micrproject_bootstrap" to emptySet(),
-            "micrproject_ribbon" to emptySet(),
-            "micrproject_ui" to setOf(
-                "micrproject_application", "micrproject_contrib", "micrproject_core",
-                "micrproject_exchange", "micrproject_reports", "micrproject_ribbon"
+            "microproject_contrib" to emptySet(),
+            "microproject_core" to setOf("microproject_contrib"),
+            "microproject_application" to setOf("microproject_core"),
+            "microproject_exchange" to setOf("microproject_contrib", "microproject_core"),
+            "microproject_reports" to setOf("microproject_contrib", "microproject_core"),
+            "microproject_bootstrap" to emptySet(),
+            "microproject_ribbon" to emptySet(),
+            "microproject_ui" to setOf(
+                "microproject_application", "microproject_contrib", "microproject_core",
+                "microproject_exchange", "microproject_reports", "microproject_ribbon"
             )
         )
         val configuredModules = rootProject.subprojects.map { it.name }.toSet()
         require(configuredModules == expectedProjectDependencies.keys) {
-            "Architecture allowlist must cover exactly the configured micrproject modules. " +
+            "Architecture allowlist must cover exactly the configured microproject modules. " +
                 "configured=${configuredModules.sorted()}, " +
                 "allowlisted=${expectedProjectDependencies.keys.sorted()}"
         }
@@ -131,14 +131,14 @@ tasks.register("verifyArchitectureBoundaries") {
         val allowedApiDependencies = mapOf<String, Set<String>>(
             // contrib exposes only com.microproject.contrib/org.jdesktop APIs;
             // third-party implementation details must not leak to consumers.
-            "micrproject_contrib" to emptySet(),
-            "micrproject_core" to emptySet(),
-            "micrproject_application" to emptySet(),
-            "micrproject_exchange" to emptySet(),
-            "micrproject_reports" to emptySet(),
-            "micrproject_bootstrap" to emptySet(),
-            "micrproject_ribbon" to emptySet(),
-            "micrproject_ui" to emptySet()
+            "microproject_contrib" to emptySet(),
+            "microproject_core" to emptySet(),
+            "microproject_application" to emptySet(),
+            "microproject_exchange" to emptySet(),
+            "microproject_reports" to emptySet(),
+            "microproject_bootstrap" to emptySet(),
+            "microproject_ribbon" to emptySet(),
+            "microproject_ui" to emptySet()
         )
         allowedApiDependencies.forEach { (module, allowed) ->
             val actual = project(":$module").configurations
@@ -157,12 +157,12 @@ tasks.register("verifyArchitectureBoundaries") {
         }
 
         val boundaryRules = mapOf(
-            "micrproject_core" to listOf("com.microproject.application", "com.microproject.reports", "com.microproject.ui"),
-            "micrproject_application" to listOf("com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
-            "micrproject_reports" to listOf("com.microproject.application", "com.microproject.exchange", "com.microproject.ui"),
-            "micrproject_exchange" to listOf("com.microproject.application", "com.microproject.reports", "com.microproject.ui"),
-            "micrproject_bootstrap" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
-            "micrproject_ribbon" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.menu", "com.microproject.pm", "com.microproject.reports", "com.microproject.ui", "com.microproject.util")
+            "microproject_core" to listOf("com.microproject.application", "com.microproject.reports", "com.microproject.ui"),
+            "microproject_application" to listOf("com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
+            "microproject_reports" to listOf("com.microproject.application", "com.microproject.exchange", "com.microproject.ui"),
+            "microproject_exchange" to listOf("com.microproject.application", "com.microproject.reports", "com.microproject.ui"),
+            "microproject_bootstrap" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
+            "microproject_ribbon" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.menu", "com.microproject.pm", "com.microproject.reports", "com.microproject.ui", "com.microproject.util")
         )
 
         boundaryRules.forEach { (module, forbiddenPackages) ->
@@ -178,11 +178,11 @@ tasks.register("verifyArchitectureBoundaries") {
         // compatibility adapter narrow and explicit; all other legacy FQNs are
         // still rejected, including new reflection/package leaks.
         val legacyNamespaceAllowlist = mapOf(
-            "modules/micrproject_core/src/main/java/com/microproject/util/SafeObjectInput.java" to setOf("com.projectlibre1"),
-            "modules/micrproject_exchange/src/main/java/com/microproject/exchange/DefaultFileImporterProvider.java" to setOf(
+            "modules/microproject_core/src/main/java/com/microproject/util/SafeObjectInput.java" to setOf("com.projectlibre1"),
+            "modules/microproject_exchange/src/main/java/com/microproject/exchange/DefaultFileImporterProvider.java" to setOf(
                 "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
             ),
-            "modules/micrproject_core/src/main/java/com/microproject/exchange/ImporterRegistry.java" to setOf(
+            "modules/microproject_core/src/main/java/com/microproject/exchange/ImporterRegistry.java" to setOf(
                 "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
             )
         )
@@ -276,7 +276,7 @@ tasks.register("verifyArchitectureBoundaryFixtures") {
 
             var projectDependencyRejected = false
             try {
-                requireArchitectureSet("project dependency graph", "fixture", emptySet(), setOf("micrproject_exchange"))
+                requireArchitectureSet("project dependency graph", "fixture", emptySet(), setOf("microproject_exchange"))
             } catch (_: IllegalArgumentException) {
                 projectDependencyRejected = true
             }
@@ -303,28 +303,28 @@ tasks.register("verifyIndependentBoundaries") {
 
 tasks.register("verifyNamingConventions") {
     group = "verification"
-    description = "Verifies the micrproject build identity, microProject product branding, and source namespace policy."
+    description = "Verifies the microproject build identity, microProject product branding, and source namespace policy."
 
     doLast {
-        // The Gradle identity is deliberately lower-case and keeps the historical
-        // micrproject spelling.  It is not the user-visible product name.
+        // Gradle identifiers are lower-case for path portability; the
+        // user-visible product name intentionally retains its capital P.
         val expectedModules = setOf(
-            "micrproject_contrib",
-            "micrproject_core",
-            "micrproject_application",
-            "micrproject_ui",
-            "micrproject_exchange",
-            "micrproject_reports",
-            "micrproject_bootstrap",
-            "micrproject_ribbon"
+            "microproject_contrib",
+            "microproject_core",
+            "microproject_application",
+            "microproject_ui",
+            "microproject_exchange",
+            "microproject_reports",
+            "microproject_bootstrap",
+            "microproject_ribbon"
         )
         val configuredModules = rootProject.subprojects.map { it.name }.toSet()
         require(configuredModules == expectedModules) {
-            "Naming policy requires exactly the eight micrproject_* modules. " +
+            "Naming policy requires exactly the eight microproject_* modules. " +
                 "configured=${configuredModules.sorted()}, expected=${expectedModules.sorted()}"
         }
-        require(rootProject.name == "micrproject") {
-            "The Gradle root identity must remain 'micrproject'; use 'microProject' only for product branding."
+        require(rootProject.name == "microproject") {
+            "The Gradle root identity must remain 'microproject'; use 'microProject' only for product branding."
         }
         // Issue #529: the logical project name and the on-disk project directory
         // are both part of the build contract. This catches a partially renamed
@@ -337,7 +337,7 @@ tasks.register("verifyNamingConventions") {
             project(":$module").projectDir.canonicalFile
         }
         require(actualProjectDirs == expectedProjectDirs) {
-            "Each active module must live at modules/<micrproject_* name>; " +
+            "Each active module must live at modules/<microproject_* name>; " +
                 "actual=${actualProjectDirs.mapValues { it.value.path }}, " +
                 "expected=${expectedProjectDirs.mapValues { it.value.path }}"
         }
@@ -355,10 +355,19 @@ tasks.register("verifyNamingConventions") {
             "Legacy projectlibre_* directories must never be active Gradle projects: " +
                 legacyProjectDirs.intersect(actualProjectDirs.values.toSet())
         }
+        val retiredTypoProjectDirs = modulesRoot.listFiles()
+            ?.filter { it.isDirectory && it.name.startsWith("micrproject_") }
+            .orEmpty()
+            .map { it.canonicalFile }
+            .toSet()
+        require(retiredTypoProjectDirs.isEmpty()) {
+            "Retired micrproject_* module directories must not remain after the spelling migration: " +
+                retiredTypoProjectDirs
+        }
         expectedModules.forEach { module ->
             val artifactName = project(":$module").tasks.named<Jar>("jar").get().archiveBaseName.get()
             require(artifactName == module) {
-                "The $module JAR must retain its stable micrproject_* artifact name; actual=$artifactName"
+                "The $module JAR must retain its stable microproject_* artifact name; actual=$artifactName"
             }
         }
 
@@ -366,9 +375,50 @@ tasks.register("verifyNamingConventions") {
         require(!Regex("include\\(\\\"projectlibre_").containsMatchIn(settingsText)) {
             "Legacy projectlibre_* modules must not be reintroduced into settings.gradle.kts."
         }
+        require(!settingsText.contains("micrproject")) {
+            "The retired micrproject spelling must not be reintroduced into settings.gradle.kts."
+        }
 
-        // Package declarations are the source-namespace boundary.  Both legacy
-        // ProjectLibre and casing-variant microProject/micrproject declarations
+        // Check the executable build surface as well as the Gradle model. The
+        // root build file is excluded because this gate intentionally names the
+        // retired spelling in its diagnostic checks; historical documentation is
+        // likewise not an executable build input.
+        val typoScanFiles = buildList {
+            add(layout.projectDirectory.file("settings.gradle.kts").asFile)
+            addAll(fileTree(layout.projectDirectory.dir("scripts")).matching {
+                include("**/*.bat", "**/*.ps1", "**/*.sh", "**/*.py")
+                exclude("**/_*", "**/__pycache__/**")
+            }.files)
+            addAll(fileTree(layout.projectDirectory.dir(".github")).matching {
+                include("**/*.yml", "**/*.yaml")
+            }.files)
+            expectedModules.forEach { module ->
+                add(layout.projectDirectory.file("modules/$module/build.gradle.kts").asFile)
+                listOf("src/main", "src/test", "src/guiTest").forEach { sourcePath ->
+                    val sourceRoot = layout.projectDirectory.dir("modules/$module/$sourcePath").asFile
+                    if (sourceRoot.isDirectory) {
+                        addAll(fileTree(sourceRoot).matching {
+                            include("**/*.java", "**/*.kt")
+                        }.files)
+                    }
+                }
+            }
+        }
+        val retiredTypoReferences = typoScanFiles
+            .filter { it.isFile }
+            .flatMap { sourceFile ->
+                sourceFile.readLines().mapIndexedNotNull { index, line ->
+                    if (line.contains("micrproject")) "${sourceFile}:${index + 1}: $line" else null
+                }
+            }
+        require(retiredTypoReferences.isEmpty()) {
+            "The retired micrproject spelling leaked into an executable build input:\n" +
+                retiredTypoReferences.joinToString("\n")
+        }
+
+        // Package declarations are the source-namespace boundary. Legacy
+        // ProjectLibre, the retired micrproject typo, and casing-variant
+        // microProject declarations
         // are rejected. References to old names in compatibility strings, file
         // formats, or SafeObjectInput are intentionally not treated as a violation.
         val forbiddenDeclarations = mutableListOf<String>()
@@ -456,15 +506,15 @@ val windowsRuntimeModules = listOf(
 tasks.register<Sync>("prepareWindowsReleaseInput") {
     group = "distribution"
     description = "Prepares jpackage input files from the Gradle installDist output."
-    dependsOn(":micrproject_ui:installDist", ":micrproject_bootstrap:jar")
+    dependsOn(":microproject_ui:installDist", ":microproject_bootstrap:jar")
 
-    val installLibDir = project(":micrproject_ui").layout.buildDirectory.dir("install/micrproject_ui/lib")
+    val installLibDir = project(":microproject_ui").layout.buildDirectory.dir("install/microproject_ui/lib")
     val iconFile = layout.projectDirectory.file("packaging/windows/icons/microproject.ico")
     val licenseFile = layout.projectDirectory.file("packaging/licenses/license.txt")
 
     from(installLibDir)
-    from(project(":micrproject_bootstrap").tasks.named<Jar>("jar"))
-    from(project(":micrproject_bootstrap").configurations.named("runtimeClasspath"))
+    from(project(":microproject_bootstrap").tasks.named<Jar>("jar"))
+    from(project(":microproject_bootstrap").configurations.named("runtimeClasspath"))
     from(iconFile) {
         rename { "microproject.ico" }
     }
@@ -505,7 +555,7 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "micrproject_bootstrap.jar",
+            "--main-jar", "microproject_bootstrap.jar",
             "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
@@ -535,7 +585,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "micrproject_bootstrap.jar",
+            "--main-jar", "microproject_bootstrap.jar",
             "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
@@ -575,7 +625,7 @@ tasks.register<Exec>("packageWindowsExe") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "micrproject_ui.jar",
+            "--main-jar", "microproject_ui.jar",
             "--main-class", "com.microproject.main.Main",
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
@@ -593,9 +643,9 @@ tasks.register<Exec>("packageWindowsExe") {
 tasks.register<JavaExec>("verifyPackagedFileImports") {
     group = "verification"
     description = "Loads sample MPP and POD files with the same limited modules as the packaged app."
-    dependsOn(":micrproject_ui:installDist", ":micrproject_ui:compileTestJava")
+    dependsOn(":microproject_ui:installDist", ":microproject_ui:compileTestJava")
 
-    val uiSourceSets = project(":micrproject_ui").extensions.getByType<SourceSetContainer>()
+    val uiSourceSets = project(":microproject_ui").extensions.getByType<SourceSetContainer>()
     val uiTestOutput = uiSourceSets.named("test").map { it.output }
     val uiTestRuntimeClasspath = uiSourceSets.named("test").map { it.runtimeClasspath }
 
@@ -603,7 +653,7 @@ tasks.register<JavaExec>("verifyPackagedFileImports") {
     mainClass.set("com.microproject.integration.PackagedImportSmokeMain")
     args(
         "--windows-script",
-        file("modules/micrproject_ui/build/install/micrproject_ui/bin/micrproject_ui.bat").absolutePath,
+        file("modules/microproject_ui/build/install/microproject_ui/bin/microproject_ui.bat").absolutePath,
         file("samples/Commercial construction project plan.mpp").absolutePath,
         file("samples/Commercial construction project plan.pod").absolutePath
     )
@@ -640,9 +690,9 @@ tasks.register<Zip>("packageWindowsZip") {
 tasks.register<JavaExec>("generateUpdateConfiguration") {
     group = "distribution"
     description = "Generates a signed update4j configuration for the staged Windows app image."
-    dependsOn("packageWindowsAppImage", ":micrproject_bootstrap:classes")
+    dependsOn("packageWindowsAppImage", ":microproject_bootstrap:classes")
 
-    val bootstrapSourceSet = project(":micrproject_bootstrap")
+    val bootstrapSourceSet = project(":microproject_bootstrap")
         .extensions.getByType<SourceSetContainer>().named("main")
     classpath = bootstrapSourceSet.get().runtimeClasspath
     mainClass.set("com.microproject.bootstrap.ConfigurationGenerator")
