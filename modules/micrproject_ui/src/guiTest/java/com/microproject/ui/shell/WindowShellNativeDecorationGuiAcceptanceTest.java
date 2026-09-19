@@ -25,6 +25,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import com.formdev.flatlaf.FlatLaf;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
@@ -59,21 +60,27 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			frame.setVisible(true);
 			frame.toFront();
 		});
-		GuiAcceptanceSupport.await(() -> title[0].isShowing(), "document title was not visible");
+		GuiAcceptanceSupport.await(() -> title[0].isShowing() && frame.isActive(),
+			"document title was not visible in the active window");
 		assertEquals("com.formdev.flatlaf.FlatLightLaf", UIManager.getLookAndFeel().getClass().getName(),
 			"a standalone ribbon frame must install FlatLaf before it becomes displayable");
 		assertEquals("com.formdev.flatlaf.ui.FlatRootPaneUI", frame.getRootPane().getUI().getClass().getName(),
 			"the root pane created by JFrame must be refreshed to FlatLaf");
 		assertFalse(frame.isUndecorated(), "FlatLaf must own the native-capable decoration layer");
+		assertTrue(FlatLaf.isUseNativeWindowDecorations(),
+			"Windows must enable FlatLaf native decorations before creating the shell frame");
 		assertEquals(Boolean.TRUE, frame.getRootPane().getClientProperty(WindowShellInstaller.USE_WINDOW_DECORATIONS));
 		assertEquals(18, brand[0].getPreferredSize().width);
 		assertTrue(brand[0] instanceof JLabel label && label.getIcon() != null,
 			"Windows full-content header must show the application icon");
 
-		// FlatLaf starts a native caption drag from the root-pane title-bar strip;
-		// child labels consume events and are not valid drag targets.
-		Point root = frame.getRootPane().getLocationOnScreen();
-		Point start = new Point(root.x + Math.max(80, frame.getWidth() / 2), root.y + 8);
+		// The document label is deliberately marked as a non-interactive FlatLaf
+		// caption. Do not use the header centre here: it contains the search field,
+		// which must retain its own mouse input instead of moving the window.
+		assertEquals(Boolean.TRUE, title[0].getClientProperty("JComponent.titleBarCaption"));
+		Point titleLocation = title[0].getLocationOnScreen();
+		Point start = new Point(titleLocation.x + title[0].getWidth() / 2,
+			titleLocation.y + title[0].getHeight() / 2);
 		Point before = frame.getLocation();
 		Robot robot = new Robot();
 		robot.setAutoDelay(25);
@@ -83,7 +90,7 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(() -> !before.equals(frame.getLocation()), "native caption drag did not move the window: before="
 			+ before + ", after=" + frame.getLocation() + ", dragTarget=" + start
-			+ ", rootBounds=" + frame.getRootPane().getBounds());
+			+ ", captionBounds=" + title[0].getBounds());
 		assertNotEquals(before, frame.getLocation());
 	}
 

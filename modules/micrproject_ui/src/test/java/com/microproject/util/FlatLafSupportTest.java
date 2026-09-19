@@ -25,6 +25,7 @@
 package com.microproject.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
 
@@ -40,6 +41,8 @@ import javax.swing.UIManager;
 
 import org.junit.jupiter.api.Test;
 
+import com.formdev.flatlaf.FlatLaf;
+
 class FlatLafSupportTest {
 	@Test
 	void initializeUsesRibbonChromeForWindowAndMenuBar() {
@@ -49,6 +52,10 @@ class FlatLafSupportTest {
 		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("TitlePane.inactiveBackground"));
 		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("MenuBar.background"));
 		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("Menu.background"));
+		if (Environment.isWindows() && FlatLaf.supportsNativeWindowDecorations()) {
+			assertTrue(FlatLaf.isUseNativeWindowDecorations(),
+				"Windows frames must use FlatLaf native decorations when the runtime supports them");
+		}
 	}
 
 	@Test

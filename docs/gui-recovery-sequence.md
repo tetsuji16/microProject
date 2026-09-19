@@ -80,6 +80,9 @@ non-null and populated as expected, Close/Escape works, and no
 - Consolidate primary and secondary document-window construction (#395).
 - Ensure ribbon/command chrome, title format, close behavior, focus, and
 global shortcuts follow one explicit policy.
+- For #479, enable FlatLaf native window decorations during bootstrap when the
+  Windows runtime supports them; verify the physical OS caption, system-menu,
+  resize, snap/maximize/restore, and secondary-window routes through U-25-W.
 
 **Exit gate:** open two projects and a resource pool, switch between them,
 invoke commands, and close each through the actual title-bar close route.

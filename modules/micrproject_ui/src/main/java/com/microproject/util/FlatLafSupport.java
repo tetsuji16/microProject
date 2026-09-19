@@ -34,6 +34,7 @@ import javax.swing.JFrame;
 import javax.swing.UIManager;
 import javax.swing.plaf.FontUIResource;
 
+import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.microproject.ui.theme.MicroProjectTheme;
 
@@ -62,6 +63,13 @@ public final class FlatLafSupport {
 
 			UiServices.setFileChooserProvider(new SwingFileChooserProvider());
 			FlatLightLaf.setup();
+			// FlatLaf supports native Windows decorations, but leaves them disabled
+			// unless the application opts in. Enable them before any application
+			// JFrame is constructed so Windows owns caption drag, system menus and
+			// snap/maximize state instead of Swing reimplementing those operations.
+			if (Environment.isWindows() && FlatLaf.supportsNativeWindowDecorations()) {
+				FlatLaf.setUseNativeWindowDecorations(true);
+			}
 			Environment.setNewLaf(isFlatLafLookAndFeel());
 
 			Font defaultFont = createDefaultFont();
