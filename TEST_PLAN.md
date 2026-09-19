@@ -142,6 +142,14 @@
 | U-25 | MSP互換/回帰 | タスク移動（Alt+Shift+↑/↓、リボン/メニュー、行ドラッグ） | Microsoft公式ショートカット仕様を issue にリンク。全行選択で移動→Undo/Redo→保存/再読込、単一セル・read-only・lock は各入口で disabled/rejected 結果を確認 | 公式仕様の「entire row must be selected」に一致。全入口は同一選択判定・一回の順序変更・可観測な失敗理由を共有し、再読込後も順序が一致 |
 | U-26 | 入力トランザクション回帰 | 期間=`20`、達成率=`10`、開始/終了/実績開始日=`2026/10/05`、既存日本語の Convert/再変換、残存期間、親子タスクをアウトデント後にMPO保存 | (1) headlessで editor attach 前に連続した key/input-method event を投入し、buffer→editor→commit を検証、(2) 実Robotで数値と日付を1文字ずつ入力してEnter/フォーカス移動でcommit、(3) Convertで既存日本語を選択して再変換、(4) renderer文字列とdomain値を比較、(5) アウトデント→保存→再読込で操作ログを含むMPOを検証 | `20` が `2` にならず、`10%` が `98%` にならない。日付は全桁が認識され、再変換は既存文字列を選択する。残存期間は日数表示に小数ノイズを出さない。構造変更後の保存は成功し、再読込後も階層・値・操作履歴が整合する。各入力は editor text だけでなく commit済みモデル値と描画文字列を検証する。 |
 
+### 2026-09-19 古いGUIテストの監査
+
+- `TaskDurationGuiAcceptanceTest` と `TaskDateDependencyGuiAcceptanceTest` は、Robotでセル選択・F2経路を確認するが、値は `editor.setText(...)` で注入する。そのため **route/commit契約** として保持し、U-26の物理多文字入力の証跡には数えない。
+- `CommonSpreadSheetImeStartTest` と `CommonSpreadSheetDateTypingTest` は editor attach 前のイベント列、IME開始・Convert、全桁日付を検証する **headless入力列契約** として保持する。これらはOS IMEの物理入力を代替しない。
+- `TaskInformationRibbonGuiAcceptanceTest` のアウトデント系は hierarchy/Undo/Redoを検証するが、アウトデント直後のMPO保存・再読込は未接続である。U-26の共有fixtureで追加し、リボン・popup・shortcutそれぞれへ同じ保存テストを複製しない。
+- 残存期間の表示については、duration変換テストだけでなく raw duration・進捗別の renderer文字列を検証する必要がある。U-26で整数日/中間進捗/100%を同じ表示契約に統合する。
+- 古いテストの `doClick` / `actionPerformed` / `setText` は、単体の構成・変換・ルート契約を検証する限り削除しない。物理入力・IME・保存の受入証跡として扱うことだけを禁止する。
+
 ### Build / Packaging / Regression
 
 | ID | 種別 | 入力/条件 | 手順 | 期待結果 / Assertion |

@@ -171,6 +171,21 @@ the renderer's text. Split the fixture into headless event-sequence coverage
 and one compact Robot journey; do not create one copy-pasted Robot case per
 field.
 
+#### Legacy-test classification
+
+Existing tests that use `editor.setText(...)` or invoke an Action directly are
+valuable conversion or route-integration tests, but they are **not** physical
+input acceptance tests. Keep them when they prove a distinct parser, commit, or
+failure contract; label their role in the test plan and add the missing Robot
+journey to the shared input fixture. Do not rename or count an injected-text
+test as evidence for keyboard, IME, focus-transfer, or rendering behavior.
+
+During an audit, classify each old GUI test as one of: domain contract, route
+integration, physical acceptance, visual layout, or obsolete duplicate. Remove
+only an obsolete duplicate after a canonical test covers the same state
+transition. Strengthen the others at their missing boundary rather than
+rewriting a stable unit test into a timing-sensitive GUI test.
+
 ## Diagnostics requirements
 
 Debug mode must report semantic outcomes, not just dispatch:
