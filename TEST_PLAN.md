@@ -140,15 +140,15 @@
 | U-23 | 異常 | 選択なし、複数不足、read-only、ロック済み、非対応 view | リボン、メニュー、ショートカットの各入口を実行 | 入口間で有効条件とエラー表示が一致し、silent no-op と例外漏出がない |
 | U-24 | 診断 | UI debug mode | 成功・前提不成立・例外・表示未更新の各操作を実行 | ログに command ID、選択、モデル前後、表示前後、Undo 状態、失敗理由が記録される |
 | U-25 | MSP互換/回帰 | タスク移動（Alt+Shift+↑/↓、リボン/メニュー、行ドラッグ） | Microsoft公式ショートカット仕様を issue にリンク。全行選択で移動→Undo/Redo→保存/再読込、単一セル・read-only・lock は各入口で disabled/rejected 結果を確認 | 公式仕様の「entire row must be selected」に一致。全入口は同一選択判定・一回の順序変更・可観測な失敗理由を共有し、再読込後も順序が一致 |
-| U-26 | 入力トランザクション回帰 | 期間=`20`、達成率=`10`、開始/終了/実績開始日=`2026/10/05`、既存日本語の Convert/再変換、残存期間、親子タスクをアウトデント後にMPO保存 | (1) headlessで editor attach 前に連続した key/input-method event を投入し、buffer→editor→commit を検証、(2) 実Robotで数値と日付を1文字ずつ入力してEnter/フォーカス移動でcommit、(3) Convertで既存日本語を選択して再変換、(4) renderer文字列とdomain値を比較、(5) アウトデント→保存→再読込で操作ログを含むMPOを検証 | `20` が `2` にならず、`10%` が `98%` にならない。日付は全桁が認識され、再変換は既存文字列を選択する。残存期間は日数表示に小数ノイズを出さない。構造変更後の保存は成功し、再読込後も階層・値・操作履歴が整合する。各入力は editor text だけでなく commit済みモデル値と描画文字列を検証する。 |
-| U-27 | コンテキストメニュー回帰 | 列ヘッダ右クリック、列の挿入/非表示、行右クリックの変更系コマンド、読み取り専用・空白ヘッダ | (1) Robotで対象ヘッダを右クリックしてpopupと対象列を確認、(2) insert/hide は同一の列レイアウトmutationを通すroute integrationでモデル・表示・Undo/Redoを確認、(3) 永続化される列レイアウトは保存→再読込、(4) read-only/無効状態は操作不能または明示拒否を確認 | popup表示だけでは合格にしない。挿入位置、field array、プロジェクトの保存対象レイアウト、表示列、Undo/Redoが一致する。行popupは選択対象を変えず、全変更項目は対応するcanonical commandを一度だけ実行する。 |
+| U-26 | 入力トランザクション回帰 | 期間=`20`、達成率=`10`、開始/終了/実績開始日=`2026/10/05`、既存日本語の Convert/再変換、残存期間、親子タスクをアウトデント後にMPO保存 | (1) headlessで editor attach 前に連続した key/input-method event を投入し、buffer→editor→commit を検証、(2) 実Robotで数値と日付を1文字ずつ入力してEnter/フォーカス移動でcommit、(3) Convertで既存日本語を選択して再変換、(4) duration=8日 の 0%/10%/100% で domain値とrenderer文字列を比較、(5) アウトデント→保存→再読込で操作ログを含むMPOを検証 | `20` が `2` にならず、`10%` が `98%` にならない。日付は全桁が認識され、再変換は既存文字列を選択する。残存期間は Microsoft Project の `Duration - (Duration * Percent Complete)` に従い、10%時の8日は7.2日となる。小数を一律に丸めず、入力破損由来の値ではなく正確なduration値と表示を検証する。構造変更後の保存は成功し、再読込後も階層・値・操作履歴が整合する。各入力は editor text だけでなく commit済みモデル値と描画文字列を検証する。 |
+| U-27 | コンテキストメニュー回帰 | 列ヘッダ右クリック、列の挿入/非表示、行右クリックの変更系コマンド、読み取り専用・空白ヘッダ | (1) Robotで対象ヘッダを右クリックしてpopupと対象列を確認、(2) insert/hide は同一の列レイアウトmutationを通すroute integrationでモデル・表示・Undo/Redoを確認、(3) 永続化される列レイアウトは保存→再読込し、列順・幅・手動幅まで確認、(4) read-only/無効状態は操作不能または明示拒否を確認 | popup表示だけでは合格にしない。挿入位置、field array、プロジェクトの保存対象レイアウト、表示列、Undo/Redoが一致する。行popupは選択対象を変えず、全変更項目は対応するcanonical commandを一度だけ実行する。 |
 
 ### 2026-09-19 古いGUIテストの監査
 
 - `TaskDurationGuiAcceptanceTest` と `TaskDateDependencyGuiAcceptanceTest` は、Robotでセル選択・F2経路を確認するが、値は `editor.setText(...)` で注入する。そのため **route/commit契約** として保持し、U-26の物理多文字入力の証跡には数えない。
 - `CommonSpreadSheetImeStartTest` と `CommonSpreadSheetDateTypingTest` は editor attach 前のイベント列、IME開始・Convert、全桁日付を検証する **headless入力列契約** として保持する。これらはOS IMEの物理入力を代替しない。
 - `TaskInformationRibbonGuiAcceptanceTest` のアウトデント系は hierarchy/Undo/Redoを検証するが、アウトデント直後のMPO保存・再読込は未接続である。U-26の共有fixtureで追加し、リボン・popup・shortcutそれぞれへ同じ保存テストを複製しない。
-- 残存期間の表示については、duration変換テストだけでなく raw duration・進捗別の renderer文字列を検証する必要がある。U-26で整数日/中間進捗/100%を同じ表示契約に統合する。
+- 残存期間の表示については、duration変換テストだけでなく raw duration・進捗別の renderer文字列を検証する必要がある。MSP公式の計算式は小数の残存日数を許容するため、U-26で0%/中間進捗/100%を同じ表示契約に統合し、小数を見た目だけで0へ丸める回帰を防ぐ。
 - 古いテストの `doClick` / `actionPerformed` / `setText` は、単体の構成・変換・ルート契約を検証する限り削除しない。物理入力・IME・保存の受入証跡として扱うことだけを禁止する。
 
 ### Build / Packaging / Regression

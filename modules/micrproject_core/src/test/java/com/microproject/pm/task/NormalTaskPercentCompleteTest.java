@@ -39,6 +39,10 @@ import javax.swing.tree.TreeNode;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationFormat;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeVisitor;
@@ -100,6 +104,26 @@ class NormalTaskPercentCompleteTest {
 
 		task.setPercentComplete(0.01d);
 		assertEquals(task.getStart(), task.getActualStart());
+	}
+
+	@Test
+	void percentCompleteCalculatesExactRemainingDurationAtBoundariesAndIntermediateProgress() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+
+		task.setPercentComplete(0.0d);
+		assertEquals(8L * day, Duration.millis(task.getRemainingDuration()));
+		task.setPercentComplete(0.10d);
+		assertEquals(7.2d * day, Duration.millis(task.getRemainingDuration()), 1.0d,
+			"remaining duration must follow Duration - (Duration * Percent Complete)");
+		Field remainingDuration = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");
+		assertEquals(DurationFormat.getInstance().format(new Duration(task.getRemainingDuration())),
+			remainingDuration.getText(task, null),
+			"the task-sheet field must render the calculated remaining duration, not a stale value");
+		task.setPercentComplete(1.0d);
+		assertEquals(0L, Duration.millis(task.getRemainingDuration()));
 	}
 
 	@Test

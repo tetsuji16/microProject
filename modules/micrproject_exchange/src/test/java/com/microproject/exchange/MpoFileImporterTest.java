@@ -48,6 +48,9 @@ import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.field.Field;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -153,6 +156,33 @@ class MpoFileImporterTest {
 
 		Task restored = firstTask(reopened);
 		assertTrue(restored.isHiddenTask(), "MPO reload must preserve hidden task visibility");
+	}
+
+	@Test
+	void taskColumnLayoutSurvivesMpoSaveAndReload() throws Exception {
+		Project original = projectForRoundTrip();
+		FieldDictionary dictionary = FieldDictionary.getInstance();
+		SpreadSheetFieldArray layout = new SpreadSheetFieldArray();
+		layout.add(dictionary.getFieldFromId("Field.name"));
+		layout.add(dictionary.getFieldFromId("Field.duration"));
+		layout.add(dictionary.getFieldFromId("Field.percentComplete"));
+		layout.setWidths(new ArrayList<>(List.of(240, 88, 72)));
+		layout.setManualWidths(new ArrayList<>(List.of(true, false, true)));
+		original.setFieldArray(layout);
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Project reopened = loadFromBytes(archive.toByteArray());
+		SpreadSheetFieldArray restored = reopened.getFieldArray();
+
+		assertEquals(List.of("Field.name", "Field.duration", "Field.percentComplete"),
+			restored.stream().map(Field::getId).toList());
+		assertEquals(240, restored.getWidth(0));
+		assertEquals(88, restored.getWidth(1));
+		assertEquals(72, restored.getWidth(2));
+		assertTrue(restored.isManualWidth(0));
+		assertFalse(restored.isManualWidth(1));
+		assertTrue(restored.isManualWidth(2));
 	}
 
 	@Test
