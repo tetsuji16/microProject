@@ -189,6 +189,13 @@ Choose the narrowest command that exercises the change, then widen verification 
 - `build` runs the module tests locally. CI currently uses `-x test`, so a successful CI-shaped compile is not evidence that tests passed.
 - For Swing tests, keep them headless-compatible and perform Swing state changes/assertions on the EDT where required.
 - For any GUI-observable change, follow `docs/gui-quality-gate.md`.  A dispatched Action, no exception, or visible dialog alone is never a passing result: verify physical input, command preconditions, model and rendered view state, Undo/Redo, and persistence where applicable.  Add a real Robot acceptance test for every user-reported command regression and a visual-layout assertion for changed dialog/ribbon surfaces.  GUI code is not complete while these checks are absent or failing.
+- Treat spreadsheet editing as an input transaction, never as a parser-only or
+  single-key test.  Any change to editor startup, keyboard/IME handling, field
+  conversion, or scheduling-field rendering must satisfy U-26 in `TEST_PLAN.md`:
+  a multi-character physical route, an editor-attachment event burst, IME
+  reconversion, committed domain plus rendered values, and save/reload after a
+  structural mutation.  `setText`, one character, or an editor-text assertion
+  alone is insufficient.
 - Do not respond to GUI regressions by accumulating isolated test cases.  First consolidate all equivalent menu/ribbon/context-menu/shortcut paths into one command pipeline with one typed selection resolver, one mutation/Undo path, and one observable result.  Build compact reusable fixtures that assert shared invariants across command families; add a new scenario only for a new transition, boundary, or failure mode.  Remove redundant tests after consolidation.
 - For scheduling, Gantt, progress, or spreadsheet changes, cover zero/empty values, boundaries, intermediate and 100% progress, hierarchy/dependency changes, and save/reload when relevant.
 - For import/export or collaboration changes, cover malformed or missing data, round trips, conflicts/concurrency where relevant, and preservation of existing user data.

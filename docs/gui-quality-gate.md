@@ -150,6 +150,27 @@ allowed this bug?*  “Add another case” is not an adequate answer by itself.
 - Verify Undo from the same physical shortcut route the user uses, then verify
   Redo.  For project mutations, save and reload the fixture.
 
+### Spreadsheet input transactions
+
+An editable spreadsheet cell is an input transaction, not a single key event.
+For every change to cell editing, editor activation, input-method handling,
+value conversion, or displayed scheduling field, use the U-26 fixture from
+`TEST_PLAN.md`. It is mandatory to cover all of these boundaries together:
+
+1. physical multi-character ASCII input into numeric and date fields;
+2. an input burst arriving before the editor receives focus;
+3. IME composition and Convert/reconversion with pre-existing Japanese text;
+4. conversion from editor text to the domain value and the rendered cell text;
+5. a structural command followed by save/reload, so UI input cannot create a
+   persistence-only failure.
+
+Do not substitute `setText`, a parser-only test, or a single-key test for the
+physical multi-character route. A test is incomplete if it asserts only editor
+text: it must also assert the committed domain value and, where applicable,
+the renderer's text. Split the fixture into headless event-sequence coverage
+and one compact Robot journey; do not create one copy-pasted Robot case per
+field.
+
 ## Diagnostics requirements
 
 Debug mode must report semantic outcomes, not just dispatch:
@@ -192,7 +213,7 @@ and stable task IDs, never only object identity or a blank event source.
 
 ## Regression matrix
 
-The mandatory matrix is maintained in `TEST_PLAN.md` as U-18 through U-24.
+The mandatory matrix is maintained in `TEST_PLAN.md` as U-18 through U-26.
 Every newly reported GUI defect is assigned a row or added to an existing row
 before implementation begins.
 
