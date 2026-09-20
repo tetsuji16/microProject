@@ -71,4 +71,21 @@ public class ChangeAwareTextField extends JTextField implements DocumentListener
 	protected boolean processKeyBinding(KeyStroke ks, KeyEvent e, int condition, boolean pressed) {
 		return super.processKeyBinding(ks, e, condition, pressed);
 	}
+
+	@Override
+	protected void processKeyEvent(KeyEvent event) {
+		String before = getText();
+		super.processKeyEvent(event);
+		// Some Windows input-method/focus transitions deliver the physical KEY_TYPED
+		// event to the editor but skip JTextComponent's default-key-typed action.
+		// Preserve normal Swing handling first, then make the lost printable input
+		// observable without interfering with IME composition or shortcuts.
+		if (event.getID() == KeyEvent.KEY_TYPED && event.getKeyChar() != KeyEvent.CHAR_UNDEFINED
+				&& !event.isControlDown() && !event.isAltDown() && !event.isMetaDown()
+				&& !Character.isISOControl(event.getKeyChar()) && isEditable() && isEnabled()
+				&& before.equals(getText())) {
+			replaceSelection(String.valueOf(event.getKeyChar()));
+			event.consume();
+		}
+	}
 }

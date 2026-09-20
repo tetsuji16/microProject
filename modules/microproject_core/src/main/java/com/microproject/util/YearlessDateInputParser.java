@@ -27,7 +27,9 @@ package com.microproject.util;
 import java.text.DateFormat;
 import java.text.ParsePosition;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -37,6 +39,7 @@ import java.util.regex.Pattern;
 public final class YearlessDateInputParser {
 	private static final Pattern YEARLESS_DATE_PATTERN = Pattern.compile("^\\s*(\\d{1,2})\\s*[/-]\\s*(\\d{1,2})(?:\\s+(.*?))?\\s*$");
 	private static final Pattern YEAR_PATTERN = Pattern.compile("(?<!\\d)\\d{4}(?!\\d)");
+	private static final Pattern ISO_DATE_PATTERN = Pattern.compile("^\\s*\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}\\s*$");
 
 	private YearlessDateInputParser() {
 	}
@@ -60,15 +63,26 @@ public final class YearlessDateInputParser {
 				return buildDate(reference, month, day, remainder);
 			}
 		}
+		if (fallbackFormat != null && ISO_DATE_PATTERN.matcher(trimmed).matches()) {
+			return parseStrictIsoDate(trimmed);
+		}
 
 		try {
 			return parseStrict(fallbackFormat, trimmed);
 		} catch (ParseException e) {
-			if (!YEAR_PATTERN.matcher(trimmed).find()) {
+			if (YEAR_PATTERN.matcher(trimmed).find()) {
+				if (fallbackFormat == null) throw e;
+				return parseStrictIsoDate(trimmed);
+			} else {
 				throw e;
 			}
 		}
-		throw new ParseException(trimmed, 0);
+	}
+
+	private static Date parseStrictIsoDate(String text) throws ParseException {
+		String normalized = text.replace('-', '/');
+		DateFormat iso = new SimpleDateFormat("yyyy/MM/dd", Locale.ROOT);
+		return parseStrict(iso, normalized);
 	}
 
 	/**

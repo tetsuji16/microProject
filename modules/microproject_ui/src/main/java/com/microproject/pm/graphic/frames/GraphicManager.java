@@ -5173,6 +5173,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 	public void finishInitialization(){
 		container.setVisible(true);
+		// A native FlatLaf window can be visible without becoming the active
+		// foreground window after synchronous startup.  In that state its ribbon
+		// looks ready but physical input is delivered to the previously active
+		// window.  Complete the desktop startup transition by activating the
+		// owning window once the complete command surface has been installed.
+		if (container instanceof Window window) {
+			window.toFront();
+			window.requestFocus();
+			window.requestFocusInWindow();
+		}
 		initialized=true;
 		initializing.unlock();
 		showWaitCursor(false);

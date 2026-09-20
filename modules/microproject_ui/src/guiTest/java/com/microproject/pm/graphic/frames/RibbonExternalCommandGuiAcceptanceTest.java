@@ -204,7 +204,12 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		createStartedWindow("microProject — New project creation acceptance");
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
+		AbstractButton fileTab = findRibbonTab(window, "File", "ファイル");
+		click(robot, fileTab);
+		robot.waitForIdle();
 		AbstractButton newButton = findCommandButton(window, "RibbonNewProject");
+		assertTrue(newButton.isShowing(), "RibbonNewProject must be physically showing after standalone startup completes");
+		assertTrue(newButton.isEnabled(), "RibbonNewProject must be enabled after standalone startup completes");
 		click(robot, newButton);
 		GuiAcceptanceSupport.await(() -> visibleDialog(ProjectDialog.class) != null,
 			"New did not show the project dialog");
@@ -260,6 +265,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			}
 		});
 		GuiAcceptanceSupport.await(() -> window.isShowing(), "startup ribbon window did not become visible");
+		GuiAcceptanceSupport.await(() -> window.isActive() && window.isFocused(),
+			"startup ribbon window did not become the active input window");
 	}
 
 	private void clickAndClose(Robot robot, String commandId, Class<? extends Window> dialogType) throws Exception {
@@ -311,10 +318,21 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private static AbstractButton findCommandButton(Component root, String commandId) {
 		for (Component component : flatten(root)) {
-			if (component instanceof AbstractButton button && commandId.equals(button.getActionCommand()))
+			if (component instanceof AbstractButton button && commandId.equals(button.getActionCommand()) && button.isShowing())
 				return button;
 		}
 		throw new AssertionError("Ribbon command is not present: " + commandId);
+	}
+
+	private static AbstractButton findRibbonTab(Component root, String... titles) {
+		for (Component component : flatten(root)) {
+			if (component instanceof AbstractButton button && button.isShowing()) {
+				for (String title : titles) {
+					if (title.equals(button.getText())) return button;
+				}
+			}
+		}
+		throw new AssertionError("File ribbon tab is not physically visible");
 	}
 
 	private static AbstractButton findButton(Component root, String text) {

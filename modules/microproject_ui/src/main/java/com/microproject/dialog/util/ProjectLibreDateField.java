@@ -25,6 +25,7 @@
 package com.microproject.dialog.util;
 
 import java.awt.BorderLayout;
+import java.awt.event.KeyEvent;
 import java.text.DateFormat;
 import java.text.DateFormatSymbols;
 import java.text.ParseException;
@@ -80,7 +81,7 @@ public class ProjectLibreDateField extends JPanel {
 	public ProjectLibreDateField(DateFormat dateFormat) {
 		super(new BorderLayout(4, 0));
 		this.dateFormat = dateFormat;
-		this.textField = new JFormattedTextField(new DateFormatter(dateFormat));
+		this.textField = new PhysicalInputFormattedTextField(new DateFormatter(dateFormat));
 		this.popupButton = new JButton("...");
 		styleCalendarButton(popupButton);
 		initialize();
@@ -172,6 +173,31 @@ public class ProjectLibreDateField extends JPanel {
 		next.addActionListener(event -> { visible[0] = visible[0].plusMonths(1); redraw.run(); });
 		redraw.run();
 		return panel;
+	}
+
+	/** Keeps physical printable input from being lost during editor focus transitions. */
+	private static final class PhysicalInputFormattedTextField extends JFormattedTextField {
+		private static final long serialVersionUID = 1L;
+
+		private PhysicalInputFormattedTextField(DateFormatter formatter) {
+			super(formatter);
+		}
+
+		@Override
+		protected void processKeyEvent(KeyEvent event) {
+			if (event.getID() == KeyEvent.KEY_TYPED && event.getKeyChar() != KeyEvent.CHAR_UNDEFINED
+					&& !event.isControlDown() && !event.isAltDown() && !event.isMetaDown()
+					&& !Character.isISOControl(event.getKeyChar()) && isEditable() && isEnabled()) {
+				// DateFormatter eagerly reparses every partial edit.  That can turn the
+				// first digit of a physical multi-character ISO date into a different
+				// valid date before the remaining digits arrive.  Keep the text transaction
+				// raw until DateEditor.stopCellEditing performs the strict conversion.
+				replaceSelection(String.valueOf(event.getKeyChar()));
+				event.consume();
+				return;
+			}
+			super.processKeyEvent(event);
+		}
 	}
 
 	private static void styleCalendarButton(JButton button) {

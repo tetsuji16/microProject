@@ -56,6 +56,7 @@ public final class FlatLafSupport {
 	public static synchronized void initialize() {
 		try {
 			Environment.setNewLook(true);
+			configureNativeWindowDecorations();
 
 			// Let FlatLaf paint the title bar so it can share the same chrome color as the menu bar.
 			JFrame.setDefaultLookAndFeelDecorated(true);
@@ -63,13 +64,6 @@ public final class FlatLafSupport {
 
 			UiServices.setFileChooserProvider(new SwingFileChooserProvider());
 			FlatLightLaf.setup();
-			// FlatLaf supports native Windows decorations, but leaves them disabled
-			// unless the application opts in. Enable them before any application
-			// JFrame is constructed so Windows owns caption drag, system menus and
-			// snap/maximize state instead of Swing reimplementing those operations.
-			if (Environment.isWindows() && FlatLaf.supportsNativeWindowDecorations()) {
-				FlatLaf.setUseNativeWindowDecorations(true);
-			}
 			Environment.setNewLaf(isFlatLafLookAndFeel());
 
 			Font defaultFont = createDefaultFont();
@@ -93,6 +87,18 @@ public final class FlatLafSupport {
 	public static synchronized void ensureInitialized() {
 		if (!initialized || !isFlatLafLookAndFeel()) {
 			initialize();
+		}
+	}
+
+	/**
+	 * Enables FlatLaf's native window shell before any application frame is
+	 * created. FlatLaf remains the sole owner of the caption, system menu,
+	 * resize border, and window buttons; unsupported platforms keep their
+	 * normal Swing/OS decoration fallback.
+	 */
+	private static void configureNativeWindowDecorations() {
+		if (isWindows() && FlatLaf.supportsNativeWindowDecorations()) {
+			FlatLaf.setUseNativeWindowDecorations(true);
 		}
 	}
 
