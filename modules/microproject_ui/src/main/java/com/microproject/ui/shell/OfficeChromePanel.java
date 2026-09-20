@@ -114,6 +114,10 @@ final class OfficeChromePanel extends JPanel {
 		setName(NAME);
 		setOpaque(true);
 		setBackground(CHROME_BACKGROUND);
+		// The header is the only draggable caption surface.  Explicitly exclude
+		// the ribbon from FlatLaf's native caption hit testing so physical clicks
+		// reach Swing command buttons on the full-window-content shell.
+		ribbonPanel.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		add(buildHeader(), BorderLayout.NORTH);
 		add(ribbonPanel, BorderLayout.CENTER);
 	}

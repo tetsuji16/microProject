@@ -424,6 +424,7 @@ public final class ModernRibbonPanel extends JPanel {
 
 	private AbstractButton createTabButton(SwingRibbonModel.RibbonTab tab) {
 		JToggleButton button = new JToggleButton(tabTitle(tab));
+		button.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		tabButtons.put(tab.getId(), button);
 		tabGroup.add(button);
 		theme.styleTabButton(button);
@@ -993,6 +994,7 @@ public final class ModernRibbonPanel extends JPanel {
 				: tooltip + " (" + accelerator.trim() + ")");
 		}
 		button.setAlignmentY(Component.TOP_ALIGNMENT);
+		button.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		button.setActionCommand(buttonId);
 		if (specification.getIconKey() != null) {
 			button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, specification.getIconKey());

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.GraphicsEnvironment;
+import java.awt.IllegalComponentStateException;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
@@ -101,7 +102,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		createWindow("microProject — Legacy sample File/Open acceptance");
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
-		AbstractButton openButton = findCommandButton(window, "RibbonOpenProject");
+		AbstractButton openButton = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
 		click(robot, openButton);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(legacyPod.toString()) != null,
 			"File/Open rejected the selected legacy POD before its importer ran");
@@ -136,7 +137,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		createWindow("microProject — CCPM history File/Open acceptance");
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
-		click(robot, findCommandButton(window, "RibbonOpenProject"));
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject"));
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(historySample.toString()) != null,
 			"File/Open did not register the selected CCPM history sample");
 		Project loaded = manager.findFrameForProjectFile(historySample.toString()).getProject();
@@ -204,10 +205,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		createStartedWindow("microProject — New project creation acceptance");
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
-		AbstractButton fileTab = findRibbonTab(window, "File", "ファイル");
+		AbstractButton fileTab = findRibbonTab(window.getRibbonPanel(), "File", "ファイル");
 		click(robot, fileTab);
 		robot.waitForIdle();
-		AbstractButton newButton = findCommandButton(window, "RibbonNewProject");
+		AbstractButton newButton = findCommandButton(window.getRibbonPanel(), "RibbonNewProject");
 		assertTrue(newButton.isShowing(), "RibbonNewProject must be physically showing after standalone startup completes");
 		assertTrue(newButton.isEnabled(), "RibbonNewProject must be enabled after standalone startup completes");
 		click(robot, newButton);
@@ -257,6 +258,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			window = new MainRibbonFrame(title, null, null);
 			manager = new ApplicationStartupFactory(new HashMap<>()).instanceFromNewSession(window, false);
 			window.setGraphicManager(manager);
+			window.setAlwaysOnTop(true);
 			if (!window.isShowing()) {
 				window.setSize(1200, 700);
 				window.setLocationByPlatform(true);
@@ -270,7 +272,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void clickAndClose(Robot robot, String commandId, Class<? extends Window> dialogType) throws Exception {
-		AbstractButton button = findCommandButton(window, commandId);
+		AbstractButton button = findCommandButton(window.getRibbonPanel(), commandId);
 		assertTrue(button.isShowing(), commandId + " is not physically visible");
 		assertTrue(button.isEnabled(), commandId + " is disabled in the real application state");
 		click(robot, button);
@@ -317,11 +319,30 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private static AbstractButton findCommandButton(Component root, String commandId) {
+		AbstractButton match = null;
 		for (Component component : flatten(root)) {
-			if (component instanceof AbstractButton button && commandId.equals(button.getActionCommand()) && button.isShowing())
-				return button;
+			if (component instanceof AbstractButton button && commandId.equals(button.getActionCommand()) && button.isShowing()
+				&& isInsideTopLevelContent(button)
+				&& (match == null || button.getWidth() * button.getHeight() > match.getWidth() * match.getHeight())) {
+				match = button;
+			}
 		}
+		if (match != null) return match;
 		throw new AssertionError("Ribbon command is not present: " + commandId);
+	}
+
+	private static boolean isInsideTopLevelContent(Component component) {
+		Window owner = SwingUtilities.getWindowAncestor(component);
+		if (owner == null || !(owner instanceof javax.swing.JFrame frame)) return true;
+		try {
+			java.awt.Point content = frame.getContentPane().getLocationOnScreen();
+			java.awt.Point button = component.getLocationOnScreen();
+			return button.x >= content.x && button.y >= content.y
+				&& button.x < content.x + frame.getContentPane().getWidth()
+				&& button.y < content.y + frame.getContentPane().getHeight();
+		} catch (IllegalComponentStateException ignored) {
+			return false;
+		}
 	}
 
 	private static AbstractButton findRibbonTab(Component root, String... titles) {
