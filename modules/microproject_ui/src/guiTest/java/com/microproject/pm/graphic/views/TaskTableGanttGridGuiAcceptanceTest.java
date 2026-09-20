@@ -15,8 +15,13 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Point;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.Window;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,6 +36,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.JMenuItem;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.border.LineBorder;
@@ -58,6 +65,8 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.field.Field;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.FlatUiSupport;
@@ -313,6 +322,122 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	@Test
+	void physicalHeaderInsertColumnUsesColumnDialogAndRoundTripsTheProjectLayout() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getColumnCount() > 1,
+			"task table was not ready for a physical Insert Column operation");
+
+		int beforeFields = fixture.sheet.getFieldArray().size();
+
+		int column = 1;
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(),
+			fixture.sheet.getTableHeader().getHeaderRect(column));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		final SpreadSheetColumnMenu[] popup = new SpreadSheetColumnMenu[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+				if (element instanceof SpreadSheetColumnMenu menu) {
+					popup[0] = menu;
+					return true;
+				}
+			}
+			return false;
+		}, "physical header right-click did not open the column popup for Insert Column");
+
+		JMenuItem insert = (JMenuItem) popup[0].getComponent(0);
+		clickComponent(robot, insert);
+		Window dialog = awaitWindowWith(JComboBox.class, "ColumnDialog did not open from the physical column popup");
+		JComboBox<?> combo = findComponent(dialog, JComboBox.class);
+		assertTrue(combo != null && combo.isShowing(), "ColumnDialog must expose a visible field selector");
+		clickComponent(robot, combo);
+		robot.keyPress(KeyEvent.VK_HOME);
+		robot.keyRelease(KeyEvent.VK_HOME);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		Field[] selected = new Field[1];
+		SwingUtilities.invokeAndWait(() -> selected[0] = (Field) combo.getSelectedItem());
+		assertTrue(selected[0] != null, "ColumnDialog physical selection must produce a field");
+		JButton ok = findButton(dialog, "OK", "確認", "適用");
+		assertTrue(ok != null && ok.isShowing() && ok.isEnabled(), "ColumnDialog must expose an enabled OK button");
+		clickComponent(robot, ok);
+
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getFieldArray().size() == beforeFields + 1,
+			"physical ColumnDialog confirmation did not update the task field layout");
+		SwingUtilities.invokeAndWait(() -> assertTrue(fixture.sheet.getFieldArray().stream()
+			.anyMatch(field -> selected[0].getId().equals(field.getId())),
+			"the field selected through ColumnDialog was not inserted into the visible layout"));
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved),
+			"MPO save rejected the project after physical Insert Column");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertTrue(reloaded.getFieldArray().stream().anyMatch(field -> selected[0].getId().equals(field.getId())),
+			"MPO reload lost the column layout created through the physical popup");
+	}
+
+	private static void clickComponent(Robot robot, Component component) throws Exception {
+		Point location = new Point();
+		SwingUtilities.invokeAndWait(() -> location.setLocation(component.getLocationOnScreen()));
+		robot.mouseMove(location.x + component.getWidth() / 2, location.y + component.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static Window awaitWindowWith(Class<? extends Component> type, String message) throws Exception {
+		final Window[] result = new Window[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (Window window : Window.getWindows()) {
+				if (window.isShowing() && findComponent(window, type) != null) {
+					result[0] = window;
+					return true;
+				}
+			}
+			return false;
+		}, message);
+		return result[0];
+	}
+
+	private static <T extends Component> T findComponent(Component root, Class<T> type) {
+		if (type.isInstance(root)) return type.cast(root);
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				T found = findComponent(child, type);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
+	private static JButton findButton(Window window, String... labels) {
+		for (String label : labels) {
+			JButton button = findButton(window, label);
+			if (button != null) return button;
+		}
+		return null;
+	}
+
+	private static JButton findButton(Component root, String label) {
+		if (root instanceof JButton button && label.equals(button.getText())) return button;
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				JButton found = findButton(child, label);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
+	@Test
 	void calendarWhitespaceDragExtendsVisibleTaskSelectionWithoutEditingBars() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
@@ -541,7 +666,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			gantt.setCoord(new CoordinatesConverter(project));
 			gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, "standard"));
 			gantt.updateSize();
-			fixture[0] = new Fixture(sheet, gantt, tasks.size(), 0, 0);
+			fixture[0] = new Fixture(sheet, gantt, project, tasks.size(), 0, 0);
 		});
 		return fixture[0];
 	}
@@ -579,11 +704,11 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			gantt.setCoord(new CoordinatesConverter(project));
 			gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, "standard"));
 			gantt.updateSize();
-			fixture[0] = new Fixture(sheet, gantt, tasks.size(), sequentialDependencyCount, independentTaskCount);
+			fixture[0] = new Fixture(sheet, gantt, project, tasks.size(), sequentialDependencyCount, independentTaskCount);
 		});
 		return fixture[0];
 	}
 
-	private record Fixture(SpreadSheet sheet, Gantt gantt, int taskCount, int sequentialDependencyCount,
+	private record Fixture(SpreadSheet sheet, Gantt gantt, Project project, int taskCount, int sequentialDependencyCount,
 		int independentTaskCount) { }
 }

@@ -25,6 +25,8 @@
 package com.microproject.dialog;
 
 import java.awt.Component;
+import java.awt.Frame;
+import java.awt.Window;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +36,7 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
@@ -59,10 +62,22 @@ public final class ColumnDialog extends AbstractDialog {
 	
 	
 	private ColumnDialog(Component component,List<Field> fieldList, List<Field> currentFields) {
-		super(GraphicManager.getInstance(component).getFrame(), Messages.getString("ColumnDialog.InsertColumn"), true); //$NON-NLS-1$
+		super(resolveOwner(component), Messages.getString("ColumnDialog.InsertColumn"), true); //$NON-NLS-1$
 		this.fieldList = fieldList;
 		this.currentFields = currentFields;
 		addDocHelp("Spreadsheet");
+	}
+
+	/**
+	 * Prefer the actual window that owns the spreadsheet. Lightweight views and
+	 * embedded documents do not necessarily have a registered GraphicManager,
+	 * although they are still valid dialog owners.
+	 */
+	private static Frame resolveOwner(Component component) {
+		Window window = component == null ? null : SwingUtilities.getWindowAncestor(component);
+		if (window instanceof Frame frame) return frame;
+		GraphicManager manager = GraphicManager.getInstance(component);
+		return manager == null ? null : manager.getFrame();
 	}
 
 	// Component Creation and Initialization **********************************
