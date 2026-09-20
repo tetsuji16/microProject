@@ -303,7 +303,6 @@ final class OfficeChromePanel extends JPanel {
 		return null;
 	}
 
-
 	private JComponent createWindowButtonsPlaceholder() {
 		JPanel placeholder = new JPanel();
 		placeholder.setName(WINDOW_BUTTONS_PLACEHOLDER_NAME);
@@ -315,6 +314,7 @@ final class OfficeChromePanel extends JPanel {
 	private JComponent buildSearchBox() {
 		JPanel box = new SearchBoxPanel();
 		box.setName(SEARCH_BOX_NAME);
+		box.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		box.setLayout(new BorderLayout(4, 0));
 		box.setBorder(new EmptyBorder(1, 8, 1, 8));
 		box.setMinimumSize(new Dimension(180, FlatUiSupport.ribbonSearchHeight()));
@@ -334,6 +334,7 @@ final class OfficeChromePanel extends JPanel {
 		searchButton.setMaximumSize(new Dimension(searchButtonSize, searchButtonSize));
 
 		searchField.setName(SEARCH_FIELD_NAME);
+		searchField.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		searchField.setFocusable(true);
 		searchField.setRequestFocusEnabled(true);
 		searchField.putClientProperty("JTextField.placeholderText", UsabilityStrings.text("chrome.search"));
@@ -487,6 +488,10 @@ final class OfficeChromePanel extends JPanel {
 			setBorderPainted(false);
 			setFocusPainted(false);
 			setRolloverEnabled(true);
+			// The enclosing header is a draggable title-bar caption. Explicitly
+			// opt interactive controls out so native/FlatLaf hit testing delivers
+			// physical clicks to the button instead of the window caption.
+			putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 			setMargin(new Insets(0, 0, 0, 0));
 			setFocusable(false);
 			setHorizontalAlignment(SwingConstants.CENTER);
@@ -525,6 +530,7 @@ final class OfficeChromePanel extends JPanel {
 			setBorderPainted(false);
 			setFocusPainted(false);
 			setRolloverEnabled(true);
+			putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 			setFocusable(false);
 			setPreferredSize(AUTOSAVE_SIZE);
 			setMinimumSize(AUTOSAVE_SIZE);

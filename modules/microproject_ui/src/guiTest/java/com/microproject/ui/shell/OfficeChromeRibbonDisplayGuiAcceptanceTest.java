@@ -55,10 +55,17 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			frame.setSize(1200, 500);
 			frame.setLocationByPlatform(true);
 			frame.setVisible(true);
+			frame.toFront();
+			frame.requestFocus();
 		});
 		AbstractButton options = findButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
+		GuiAcceptanceSupport.await(frame::isActive, "office chrome test window did not become active");
+		GuiAcceptanceSupport.await(() -> options.isShowing()
+			&& options.getWidth() > 0 && options.getHeight() > 0,
+			"title-bar display options button did not become laid out");
+		robot.waitForIdle();
 		click(robot, options);
 		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonTabsOnly")));
 		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.TABS_ONLY,
@@ -93,6 +100,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	}
 
 	private static void click(Robot robot, AbstractButton button) {
+		robot.waitForIdle();
 		Point point = button.getLocationOnScreen();
 		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
