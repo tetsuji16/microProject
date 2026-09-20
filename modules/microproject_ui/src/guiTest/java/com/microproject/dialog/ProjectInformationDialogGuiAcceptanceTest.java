@@ -48,6 +48,8 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		dialog = ProjectInformationDialog.getInstance(null, project);
 		SwingUtilities.invokeLater(() -> { dialog.pack(); dialog.setVisible(true); });
 		GuiAcceptanceSupport.await(() -> dialog.isShowing(), "Project information dialog did not open");
+		GuiAcceptanceSupport.await(dialog::isActive, "Project information dialog did not become active");
+		SwingUtilities.invokeAndWait(() -> { dialog.setAlwaysOnTop(true); dialog.toFront(); dialog.requestFocus(); });
 		assertTrue(findTabs(dialog) != null && findTabs(dialog).getTabCount() == 3,
 			"Project information must show General, Statistics, and Notes tabs");
 		assertTrue(findButton(dialog, "Close") != null || findButton(dialog, "閉じる") != null,
@@ -58,10 +60,17 @@ class ProjectInformationDialogGuiAcceptanceTest {
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(30);
+		robot.waitForIdle();
 		java.awt.Point location = move.getLocationOnScreen();
+		java.awt.Point local = new java.awt.Point(location);
+		SwingUtilities.convertPointFromScreen(local, dialog);
+		assertTrue(SwingUtilities.getDeepestComponentAt(dialog, local.x + move.getWidth() / 2, local.y + move.getHeight() / 2) == move,
+			"Move Project button must be the physical hit target");
 		robot.mouseMove(location.x + move.getWidth() / 2, location.y + move.getHeight() / 2);
+		robot.delay(250);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> visibleDialog(MoveProjectDialog.class) != null,
 			"Move Project dialog did not open from Project Information");
 		SwingUtilities.invokeAndWait(() -> visibleDialog(MoveProjectDialog.class).dispose());

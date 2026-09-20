@@ -50,6 +50,7 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.grouping.core.transform.filtering.ColumnValueFilter;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.VisibleNodes;
 import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
@@ -81,7 +82,13 @@ public final class AutoFilterDialog extends AbstractDialog {
 	}
 
 	public static void open(Frame owner, CommonSpreadSheet spreadSheet, Field field) {
-		new AutoFilterDialog(owner, spreadSheet, field).setVisible(true);
+		AutoFilterDialog dialog = new AutoFilterDialog(owner, spreadSheet, field);
+		// AbstractDialog builds its content and buttons during pack().  Calling
+		// setVisible directly leaves the popup dialog uninitialised, so physical
+		// AutoFilter commands appear to do nothing and no value controls exist.
+		dialog.pack();
+		dialog.setLocationRelativeTo(owner);
+		dialog.setVisible(true);
 	}
 
 	@Override
@@ -187,6 +194,24 @@ public final class AutoFilterDialog extends AbstractDialog {
 				continue;
 			String text = f.getText(impl, null);
 			values.add(text == null ? "" : text);
+		}
+		// Some filtered/cache-backed spreadsheet views expose rows through JTable
+		// while their NodeModel iterator is intentionally empty.  Obtain those
+		// visible nodes from the cache, but derive the candidate through Field just
+		// as ColumnValueFilter does.  JTable values can be raw Dates, Durations or
+		// numbers, whose String form does not match the formatted field text used
+		// when the filter evaluates a row.
+		if (values.isEmpty()) {
+			for (int row = 0; row < cache.getSize(); row++) {
+				Object element = cache.getElementAt(row);
+				if (!(element instanceof GraphicNode graphicNode))
+					continue;
+				Object impl = graphicNode.getNode().getImpl();
+				if (impl == null)
+					continue;
+				String text = f.getText(impl, null);
+				values.add(text == null ? "" : text);
+			}
 		}
 		return new ArrayList<>(values);
 	}

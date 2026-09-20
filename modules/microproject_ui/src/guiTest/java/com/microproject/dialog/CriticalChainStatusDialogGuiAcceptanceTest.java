@@ -109,6 +109,8 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(null, project,
 			CriticalChainStatusDialogBox.Surface.NETWORK));
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
+		GuiAcceptanceSupport.await(dialog::isActive, "CCPM result dialog did not become active");
+		SwingUtilities.invokeAndWait(() -> { dialog.setAlwaysOnTop(true); dialog.toFront(); dialog.requestFocus(); });
 		AbstractButton configure = findButton(dialog, UsabilityStrings.text("ccpm.configure"));
 		assertTrue(configure != null && configure.isShowing(),
 			"An unconfigured CCPM view must expose a visible settings/apply button");
@@ -117,12 +119,18 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			java.awt.Point location = configure.getLocationOnScreen();
 			bounds.setBounds(location.x, location.y, configure.getWidth(), configure.getHeight());
+			java.awt.Point local = new java.awt.Point(location);
+			SwingUtilities.convertPointFromScreen(local, dialog);
+			if (SwingUtilities.getDeepestComponentAt(dialog, local.x + configure.getWidth() / 2, local.y + configure.getHeight() / 2) != configure)
+				throw new AssertionError("CCPM configure button must be the physical hit target");
 		});
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
+		robot.waitForIdle();
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> findResourceLevelingDialog() != null,
 			"CCPM settings must open from the empty network view");
 		ResourceLevelingDialogBox settingsDialog = findResourceLevelingDialog();
@@ -190,20 +198,10 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 	}
 
 	private static ResourceLevelingDialogBox findResourceLevelingDialog() {
-		AtomicReference<ResourceLevelingDialogBox> result = new AtomicReference<>();
-		try {
-			SwingUtilities.invokeAndWait(() -> {
-				for (Window window : Window.getWindows()) {
-					if (window instanceof ResourceLevelingDialogBox dialog && dialog.isVisible()) {
-						result.set(dialog);
-						return;
-					}
-				}
-			});
-		} catch (Exception exception) {
-			throw new IllegalStateException("Could not inspect CCPM settings dialog visibility", exception);
+		for (Window window : Window.getWindows()) {
+			if (window instanceof ResourceLevelingDialogBox dialog && dialog.isVisible()) return dialog;
 		}
-		return result.get();
+		return null;
 	}
 
 	private static int findVisibleStatusDialogCount() {

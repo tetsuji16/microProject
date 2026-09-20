@@ -62,6 +62,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		setToolTipText(UsabilityStrings.text("ccpm.bufferChartTooltip"));
 		setFocusable(true);
 		addMouseListener(new MouseAdapter() {
+			@Override public void mousePressed(MouseEvent event) { selectAt(event.getX(), event.getY()); }
 			@Override public void mouseClicked(MouseEvent event) { selectAt(event.getX(), event.getY()); }
 		});
 	}

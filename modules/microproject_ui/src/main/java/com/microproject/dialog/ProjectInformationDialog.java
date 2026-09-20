@@ -47,6 +47,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Environment;
+import com.microproject.util.PhysicalButtonRoute;
 /**
  *
  */
@@ -110,16 +111,36 @@ public class ProjectInformationDialog extends InformationDialog {
 		JButton moveProject = new JButton(Messages.getString("MoveProjectDialog.Button"));
 		Project dialogProject = (Project) getObject();
 		moveProject.setEnabled(dialogProject != null && !dialogProject.isReadOnly() && dialogProject.isForward());
-		moveProject.addActionListener(event -> {
+		final boolean[] moveProjectOpening = { false };
+		Runnable openMoveProject = () -> {
+			if (moveProjectOpening[0]) return;
 			Project project = (Project) getObject();
 			if (project != null && !project.isReadOnly() && project.isForward()) {
+				moveProjectOpening[0] = true;
 				MoveProjectDialog dialog = MoveProjectDialog.getInstance(getOwner() instanceof Frame frame ? frame : null, project);
-				dialog.setLocationRelativeTo(this);
-				if (dialog.doModal() && dialog.getSelectedStartDate() != null && moveProjectHandler != null)
-					moveProjectHandler.accept(dialog.getSelectedStartDate().getTime());
-				updateAll();
+				try {
+					dialog.setLocationRelativeTo(this);
+					if (dialog.doModal() && dialog.getSelectedStartDate() != null && moveProjectHandler != null)
+						moveProjectHandler.accept(dialog.getSelectedStartDate().getTime());
+					updateAll();
+				} finally {
+					moveProjectOpening[0] = false;
+				}
+			}
+		};
+		moveProject.addActionListener(event -> openMoveProject.run());
+		moveProject.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override public void mousePressed(java.awt.event.MouseEvent event) {
+				if (javax.swing.SwingUtilities.isLeftMouseButton(event)) openMoveProject.run();
+			}
+			@Override public void mouseReleased(java.awt.event.MouseEvent event) {
+				if (!javax.swing.SwingUtilities.isLeftMouseButton(event)) return;
+				boolean moveDialogVisible = java.util.Arrays.stream(java.awt.Window.getWindows())
+					.anyMatch(window -> window instanceof MoveProjectDialog && window.isShowing());
+				if (!moveDialogVisible) openMoveProject.run();
 			}
 		});
+		PhysicalButtonRoute.install(this, moveProject, openMoveProject, () -> moveProjectOpening[0]);
 		map.append(builder,"Field.currentDate"); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.append(moveProject);

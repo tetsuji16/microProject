@@ -37,6 +37,7 @@ import com.microproject.menu.MenuActionConstants;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
 import com.microproject.util.PopupDialogSupport;
+import com.microproject.util.PhysicalButtonRoute;
 
 /** Read-only CCPM result surface used by the Report and View ribbon commands. */
 public final class CriticalChainStatusDialogBox extends FlatLafDialog {
@@ -45,6 +46,7 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 	private CriticalChainBufferChartPanel bufferChart;
 	private JButton retractObservation;
 	private final JLabel feedback = new JLabel(" ");
+	private boolean settingsOpening;
 
 	public enum Surface { BUFFER_STATUS, NETWORK }
 
@@ -82,6 +84,17 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 			configure.getAccessibleContext().setAccessibleDescription(
 				UsabilityStrings.text("ccpm.configureTooltip"));
 			configure.addActionListener(event -> openSettingsAndReturn(owner, project, surface));
+			configure.addMouseListener(new java.awt.event.MouseAdapter() {
+				@Override public void mousePressed(java.awt.event.MouseEvent event) {
+					if (javax.swing.SwingUtilities.isLeftMouseButton(event) && isDisplayable())
+						openSettingsAndReturn(owner, project, surface);
+				}
+				@Override public void mouseReleased(java.awt.event.MouseEvent event) {
+					if (javax.swing.SwingUtilities.isLeftMouseButton(event) && isDisplayable())
+						openSettingsAndReturn(owner, project, surface);
+				}
+			});
+			PhysicalButtonRoute.install(this, configure, () -> openSettingsAndReturn(owner, project, surface), () -> settingsOpening);
 			buttons.add(configure);
 		}
 		if (hasAppliedPlan) {
@@ -134,6 +147,8 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 	}
 
 	private void openSettingsAndReturn(Frame owner, Project project, Surface surface) {
+		if (settingsOpening) return;
+		settingsOpening = true;
 		dispose();
 		// Do not open the next modal dialog from the action that is still closing
 		// this one.  That nested modal loop can consume the physical button release

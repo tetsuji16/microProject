@@ -92,6 +92,7 @@ final class OfficeChromePanel extends JPanel {
 	private final JLabel documentTitleLabel;
 	private final AutoSaveControl autoSaveControl;
 	private final OfficeChromeTitleBinding titleBinding;
+	private final ModernRibbonPanel ribbonController;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
 		this(null, menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
@@ -108,6 +109,9 @@ final class OfficeChromePanel extends JPanel {
 		this.officeWindow = frame != null && Environment.isWindows();
 		this.helpAction = helpAction;
 		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
+		Object ribbonValue = ribbonPanel == null ? null
+			: ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		this.ribbonController = ribbonValue instanceof ModernRibbonPanel ribbon ? ribbon : null;
 		this.searchField = new JTextField(28);
 		this.documentTitleLabel = createDocumentTitleLabel(frame == null ? "" : frame.getTitle());
 		this.titleBinding = frame == null ? null : OfficeChromeTitleBinding.attach(frame, this::updateDocumentTitle);
@@ -276,10 +280,23 @@ final class OfficeChromePanel extends JPanel {
 		OfficeIconButton button = new OfficeIconButton(GlyphIcon.ribbonDisplayOptions(), RIBBON_DISPLAY_OPTIONS_NAME, false);
 		button.setToolTipText(UsabilityStrings.text("chrome.ribbonDisplayOptions"));
 		button.addActionListener(event -> showRibbonDisplayOptions(button));
+		// FlatLaf's full-window-content caption hit testing can consume the
+		// release that would normally drive JButton's action listener.  Keep the
+		// command on the same canonical popup method and recover only when the
+		// physical release did not already open it.
+		button.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override public void mouseReleased(java.awt.event.MouseEvent event) {
+				if (javax.swing.SwingUtilities.isLeftMouseButton(event)
+					&& !isRibbonDisplayOptionsPopupVisible()) {
+					showRibbonDisplayOptions(button);
+				}
+			}
+		});
 		return button;
 	}
 
 	private void showRibbonDisplayOptions(AbstractButton button) {
+		if (isRibbonDisplayOptionsPopupVisible()) return;
 		ModernRibbonPanel ribbon = findRibbonController();
 		if (ribbon == null) return;
 		JPopupMenu popup = new JPopupMenu();
@@ -290,6 +307,13 @@ final class OfficeChromePanel extends JPanel {
 		popup.show(button, 0, button.getHeight());
 	}
 
+	private boolean isRibbonDisplayOptionsPopupVisible() {
+		return java.util.Arrays.stream(javax.swing.MenuSelectionManager.defaultManager().getSelectedPath())
+			.filter(JPopupMenu.class::isInstance)
+			.map(JPopupMenu.class::cast)
+			.anyMatch(popup -> RIBBON_DISPLAY_OPTIONS_POPUP_NAME.equals(popup.getName()));
+	}
+
 	private void addRibbonDisplayItem(JPopupMenu popup, ModernRibbonPanel ribbon, RibbonDisplayMode mode, String textKey) {
 		javax.swing.JRadioButtonMenuItem item = new javax.swing.JRadioButtonMenuItem(UsabilityStrings.text(textKey),
 			ribbon.getRibbonDisplayMode() == mode);
@@ -298,6 +322,7 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private ModernRibbonPanel findRibbonController() {
+		if (ribbonController != null) return ribbonController;
 		for (java.awt.Component component : getComponents()) {
 			if (component instanceof JComponent child) {
 				Object value = child.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);

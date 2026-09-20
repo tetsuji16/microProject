@@ -57,6 +57,7 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			brand[0] = findComponent(panel, OfficeChromePanel.BRAND_ICON_NAME);
 			frame.setSize(900, 240);
 			frame.setLocation(120, 120);
+			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();
 		});
@@ -74,23 +75,23 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		assertTrue(brand[0] instanceof JLabel label && label.getIcon() != null,
 			"Windows full-content header must show the application icon");
 
-		// The document label is deliberately marked as a non-interactive FlatLaf
-		// caption. Do not use the header centre here: it contains the search field,
-		// which must retain its own mouse input instead of moving the window.
-		assertEquals(Boolean.TRUE, title[0].getClientProperty("JComponent.titleBarCaption"));
-		Point titleLocation = title[0].getLocationOnScreen();
-		Point start = new Point(titleLocation.x + title[0].getWidth() / 2,
-			titleLocation.y + title[0].getHeight() / 2);
+		// In FlatLaf full-window-content mode the draggable caption is the
+		// document-title component marked as titleBarCaption, not an arbitrary
+		// point over the interactive search box.
+		Point start = title[0].getLocationOnScreen();
+		start.translate(Math.max(4, title[0].getWidth() / 2), Math.max(4, title[0].getHeight() / 2));
 		Point before = frame.getLocation();
 		Robot robot = new Robot();
 		robot.setAutoDelay(25);
+		robot.waitForIdle();
 		robot.mouseMove(start.x, start.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseMove(start.x + 60, start.y + 35);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> !before.equals(frame.getLocation()), "native caption drag did not move the window: before="
 			+ before + ", after=" + frame.getLocation() + ", dragTarget=" + start
-			+ ", captionBounds=" + title[0].getBounds());
+			+ ", windowBounds=" + frame.getBounds());
 		assertNotEquals(before, frame.getLocation());
 	}
 

@@ -24,12 +24,15 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet;
 
+import java.awt.Frame;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 
 import com.microproject.dialog.AutoFilterDialog;
 import com.microproject.dialog.ColumnDialog;
@@ -107,12 +110,13 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 		});
 
 		final Field f = (Field) fields.get(col);
+		final Frame owner = ownerFrame(sp);
 		
 		rename.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				
 				if (fields.size() > 2 ) { // there is always the hidden Id field, so only allow delete if more than one other field
-					FieldAliasDialog.doRename(f);
+					FieldAliasDialog.doRename(owner, f);
 					sp.setFieldArray(fields);
 				} else {
 					Alert.warn(Messages.getString("Message.cantEmptySpreadsheet"),sp); //$NON-NLS-1$
@@ -130,7 +134,7 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 		autoFilter.setIcon(IconManager.getIcon("menu.filter")); //$NON-NLS-1$
 		autoFilter.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				AutoFilterDialog.open(GraphicManager.getInstance().getFrame(), sp, f);
+				AutoFilterDialog.open(owner, sp, f);
 			}
 		});
 		
@@ -140,5 +144,12 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 			add(rename);
 		add(find);
 		add(autoFilter);
+	}
+
+	private static Frame ownerFrame(CommonSpreadSheet spreadSheet) {
+		Window window = SwingUtilities.getWindowAncestor(spreadSheet);
+		if (window instanceof Frame frame)
+			return frame;
+		return GraphicManager.getFrameInstance();
 	}
 }

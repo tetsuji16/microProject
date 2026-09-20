@@ -33,6 +33,9 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.field.Field;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationFormat;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.options.CalendarOption;
@@ -90,6 +93,9 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 				+ " editable=" + fixture.entrySheet.isCellEditable(fixture.entryRow, fixture.startColumn)
 				+ " cell=" + ((SpreadSheetModel) fixture.entrySheet.getModel()).getValueAt(fixture.entryRow, startModelColumn));
 		assertEquals(5, committedStart.get(Calendar.DAY_OF_MONTH), "physical date input must commit the day");
+		Field remainingDuration = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");
+		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
+			remainingDuration.getText(fixture.task, null), "0% renderer must show the full remaining duration");
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
 		activate(fixture.trackingSheet);
@@ -98,6 +104,12 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			"physical multi-character percent input must commit the complete value");
 
 		assertTrue(fixture.task.getRemainingDuration() > 0L, "10% progress must leave a positive remaining duration");
+		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
+			remainingDuration.getText(fixture.task, null), "10% renderer must show the intermediate remaining duration");
+		SwingUtilities.invokeAndWait(() -> fixture.task.setPercentComplete(1.0d));
+		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
+			remainingDuration.getText(fixture.task, null), "100% renderer must show zero remaining duration");
+
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {

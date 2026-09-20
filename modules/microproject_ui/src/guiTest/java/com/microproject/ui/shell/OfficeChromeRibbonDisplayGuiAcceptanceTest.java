@@ -54,6 +54,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			frame.add(new JPanel(), BorderLayout.CENTER);
 			frame.setSize(1200, 500);
 			frame.setLocationByPlatform(true);
+			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();
 			frame.requestFocus();

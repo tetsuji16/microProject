@@ -137,6 +137,8 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(null, fixture,
 			CriticalChainStatusDialogBox.Surface.BUFFER_STATUS));
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
+		GuiAcceptanceSupport.await(dialog::isActive, "CCPM buffer dialog did not become active");
+		SwingUtilities.invokeAndWait(() -> { dialog.setAlwaysOnTop(true); dialog.toFront(); dialog.requestFocus(); });
 		GuiAcceptanceSupport.await(() -> visibleComponentExists(dialog, CriticalChainBufferChartPanel.class), "CCPM buffer chart did not render");
 		CriticalChainBufferChartPanel chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
 		assertNotNull(chart);
@@ -152,7 +154,9 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		});
 		Robot robot = new Robot(); robot.setAutoDelay(35);
 		SwingUtilities.invokeAndWait(() -> { chart.requestFocusInWindow(); chart.revalidate(); chart.repaint(); });
+		robot.waitForIdle();
 		robot.mouseMove(marker.x + 5, marker.y + 5); robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> {
 			AbstractButton button = findButton(dialog, UsabilityStrings.text("ccpm.retractObservation"));
 			return button != null && button.isEnabled();

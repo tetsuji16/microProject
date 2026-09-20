@@ -33,11 +33,15 @@ import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JSplitPane;
 import javax.swing.JPanel;
+import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.JMenuItem;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JTextField;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.border.LineBorder;
@@ -48,6 +52,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.configuration.Dictionary;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.graphic.gantt.Gantt;
@@ -58,6 +63,7 @@ import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnMenu;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetColumnsPopupMenu;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
@@ -294,6 +300,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 
 		int column = 1;
 		int beforeFields = fixture.sheet.getFieldArray().size();
+		// HeaderMouseListener passes the visible header index plus one because the
+		// persisted field array reserves index zero for the hidden task ID field.
+		String hiddenFieldId = fixture.sheet.getFieldArray().get(column + 1).getId();
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(),
 			fixture.sheet.getTableHeader().getHeaderRect(column));
 		robot.mouseMove(headerPoint.x, headerPoint.y);
@@ -317,8 +326,23 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(() -> fixture.sheet.getFieldArray().size() == beforeFields - 1,
 			"Hide Column from the physical popup did not update the persistent field layout");
-		SwingUtilities.invokeAndWait(() -> assertEquals(beforeFields - 1, fixture.sheet.getColumnCount() + 1,
-			"the visible table must remove exactly the header column chosen from its popup"));
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(beforeFields - 1, fixture.sheet.getColumnCount() + 1,
+				"the visible table must remove exactly the header column chosen from its popup");
+			assertFalse(fixture.sheet.getFieldArray().stream().anyMatch(field -> hiddenFieldId.equals(field.getId())),
+				"the physically hidden field must leave the visible field array");
+		});
+		fixture.project.getUndoController().undo();
+		assertEquals(beforeFields, fixture.sheet.getFieldArray().size(), "Undo must restore the hidden column");
+		fixture.project.getUndoController().redo();
+		assertEquals(beforeFields - 1, fixture.sheet.getFieldArray().size(), "Redo must reapply the hidden column");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved),
+			"MPO save rejected the physical Hide Column layout");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertFalse(reloaded.getFieldArray().stream().anyMatch(field -> hiddenFieldId.equals(field.getId())),
+			"MPO reload restored a column that was physically hidden");
 	}
 
 	@Test
@@ -385,6 +409,192 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"MPO reload lost the column layout created through the physical popup");
 	}
 
+	@Test
+	void physicalColumnAutoFilterUsesDisplayedValuesAndUpdatesTheVisibleRows() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getRowCount() >= 3,
+			"task table was not ready for a physical AutoFilter operation");
+		int beforeRows = fixture.sheet.getRowCount();
+
+		int nameFieldIndex = -1;
+		for (int index = 0; index < fixture.sheet.getFieldArray().size(); index++) {
+			if ("Field.name".equals(fixture.sheet.getFieldArray().get(index).getId())) {
+				nameFieldIndex = index;
+				break;
+			}
+		}
+		assertTrue(nameFieldIndex > 0, "fixture must expose the task Name field after its hidden ID field");
+		int nameColumn = nameFieldIndex - 1;
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(nameColumn));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+
+		final SpreadSheetColumnMenu[] popup = new SpreadSheetColumnMenu[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+				if (element instanceof SpreadSheetColumnMenu menu) {
+					popup[0] = menu;
+					return true;
+				}
+			}
+			return false;
+		}, "physical header right-click did not open the column popup for AutoFilter");
+
+		// AutoFilter is the final command for both localized and English menus.
+		Component lastMenuComponent = popup[0].getComponent(popup[0].getComponentCount() - 1);
+		assertTrue(lastMenuComponent instanceof JMenuItem, "column popup must expose its final AutoFilter command");
+		JMenuItem autoFilter = (JMenuItem) lastMenuComponent;
+		clickComponent(robot, autoFilter);
+		Window dialog = awaitWindowWith(JCheckBox.class, "AutoFilter dialog did not open from the physical column popup");
+		JCheckBox value = findCheckBox(dialog, "Sequential 1");
+		assertTrue(value != null && value.isSelected(), "AutoFilter dialog must expose the selected Sequential 1 task value");
+		clickComponent(robot, value);
+		JButton apply = findButton(dialog, "Apply", "適用");
+		assertTrue(apply != null && apply.isShowing() && apply.isEnabled(), "AutoFilter dialog must expose an enabled Apply button");
+		clickComponent(robot, apply);
+
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getRowCount() == beforeRows - 1,
+			"applying a physical AutoFilter selection did not remove exactly one visible task row");
+		assertEquals(beforeRows - 1, fixture.gantt.getModel().getCache().getSize(),
+			"AutoFilter must apply through the shared task-table/Gantt visible cache");
+	}
+
+	@Test
+	void physicalCustomColumnRenameUsesTheHeaderPopupDialog() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		Field customField = fixture.sheet.getAvailableFields().stream().filter(Field::isCustom).findFirst().orElseThrow(
+			() -> new AssertionError("task field catalog must expose a custom field for Rename"));
+		String originalAlias = customField.getAlias();
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.setFieldArray(
+			((SpreadSheetFieldArray) fixture.sheet.getFieldArray()).insertField(fixture.sheet.getFieldArray().size(), customField)));
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getColumnCount() > 1,
+			"task table was not ready for a physical custom-column Rename operation");
+
+		int fieldIndex = fixture.sheet.getFieldArray().indexOf(customField);
+		assertTrue(fieldIndex > 0, "custom field must be visible after the hidden ID field");
+		int customColumn = fieldIndex - 1;
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.scrollRectToVisible(fixture.sheet.getCellRect(0, customColumn, true)));
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(customColumn));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+
+		final SpreadSheetColumnMenu[] popup = new SpreadSheetColumnMenu[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+				if (element instanceof SpreadSheetColumnMenu menu) {
+					popup[0] = menu;
+					return true;
+				}
+			}
+			return false;
+		}, "physical header right-click did not open the custom-column popup");
+
+		JMenuItem rename = (JMenuItem) popup[0].getComponent(2);
+		clickComponent(robot, rename);
+		Window dialog = awaitWindowWith(JTextField.class, "Rename dialog did not open from the physical custom-column popup");
+		JTextField input = findComponent(dialog, JTextField.class);
+		assertTrue(input != null && input.isShowing(), "Rename dialog must expose its visible alias input");
+		clickComponent(robot, input);
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		for (char character : "gui alias".toCharArray()) {
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		JButton ok = findButton(dialog, "OK", "確認");
+		assertTrue(ok != null && ok.isShowing() && ok.isEnabled(), "Rename dialog must expose an enabled OK button");
+		clickComponent(robot, ok);
+		GuiAcceptanceSupport.await(() -> "gui alias".equals(customField.getName()),
+			"physical Rename did not update the custom column alias");
+		assertEquals("gui alias", fixture.sheet.getColumnName(customColumn),
+			"spreadsheet header did not redraw the alias entered through Rename");
+		// Fields are dictionary singletons. Restore the fixture-independent alias
+		// so this physical route does not leak state into the remaining GUI suite.
+		SwingUtilities.invokeAndWait(() -> customField.setAlias(originalAlias));
+	}
+
+	@Test
+	void physicalCornerPresetChangesTaskColumnsAndRoundTripsTheProjectLayout() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getRowCount() >= 3,
+			"task table was not ready for a physical column preset operation");
+
+		JScrollPane tableScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+		assertTrue(tableScroll != null, "task table must be hosted by a scroll pane");
+		Component corner = tableScroll.getCorner(JScrollPane.UPPER_LEFT_CORNER);
+		assertTrue(corner != null && corner.isShowing(), "task table corner must expose the column preset route");
+		String beforeName = fixture.sheet.getFieldArray().toString();
+		Point cornerPoint = screenCenter((JComponent) corner, new Rectangle(0, 0, corner.getWidth(), corner.getHeight()));
+		robot.mouseMove(cornerPoint.x, cornerPoint.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+
+		final SpreadSheetColumnsPopupMenu[] popup = new SpreadSheetColumnsPopupMenu[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+				if (element instanceof SpreadSheetColumnsPopupMenu menu) {
+					popup[0] = menu;
+					return true;
+				}
+			}
+			return false;
+		}, "physical corner right-click did not open the column preset popup");
+
+		JRadioButtonMenuItem preset = null;
+		for (int index = 0; index < popup[0].getComponentCount(); index++) {
+			Component component = popup[0].getComponent(index);
+			if (component instanceof JRadioButtonMenuItem item && !item.isSelected()) {
+				preset = item;
+				break;
+			}
+		}
+		assertTrue(preset != null, "column preset popup must expose an alternative preset");
+		String selectedPreset = preset.getText();
+		clickComponent(robot, preset);
+		GuiAcceptanceSupport.await(() -> !beforeName.equals(fixture.sheet.getFieldArray().toString()),
+			"physical column preset selection did not change the task field layout");
+		assertTrue(fixture.sheet.getFieldArray().size() > 1, "selected column preset must retain visible task fields");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved),
+			"MPO save rejected the physical column preset layout");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(fixture.sheet.getFieldArray().size(), reloaded.getFieldArray().size(),
+			"MPO reload changed the field count selected by the physical preset");
+		List<String> selectedIds = fixture.sheet.getFieldArray().stream().map(Field::getId).toList();
+		List<String> reloadedIds = reloaded.getFieldArray().stream().map(Field::getId).toList();
+		assertEquals(selectedIds, reloadedIds, "MPO reload lost the field layout selected by preset " + selectedPreset);
+	}
+
 	private static void clickComponent(Robot robot, Component component) throws Exception {
 		Point location = new Point();
 		SwingUtilities.invokeAndWait(() -> location.setLocation(component.getLocationOnScreen()));
@@ -412,6 +622,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		if (root instanceof Container container) {
 			for (Component child : container.getComponents()) {
 				T found = findComponent(child, type);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
+	private static JCheckBox findCheckBox(Component root, String text) {
+		if (root instanceof JCheckBox checkBox && text.equals(checkBox.getText())) return checkBox;
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				JCheckBox found = findCheckBox(child, text);
 				if (found != null) return found;
 			}
 		}
@@ -650,7 +871,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			NormalTask task = project.createScriptedTask();
 			task.setName(index == 2 ? "" : "Task " + (index == 1 ? "A" : "B"));
 			task.getCurrentSchedule().setStart(project.getStart());
-			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+			task.setDuration(index == 2 ? 0L : (index == 1
+			? CalendarOption.getInstance().getMillisPerDay() / 2
+			: CalendarOption.getInstance().getMillisPerDay() * 3));
 			tasks.add(task);
 		}
 		project.recalculate();
@@ -681,7 +904,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			NormalTask task = project.createScriptedTask();
 			task.setName(index <= 10 ? "Sequential " + index : "Independent " + index);
 			task.getCurrentSchedule().setStart(project.getStart());
-			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+			task.setDuration(fixtureDuration(index, taskCount));
 			tasks.add(task);
 			if (index > 1 && index <= 10) {
 				DependencyService.getInstance().newDependency(tasks.get(index - 2), task, DependencyType.FS, 0L, project);
@@ -707,6 +930,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			fixture[0] = new Fixture(sheet, gantt, project, tasks.size(), sequentialDependencyCount, independentTaskCount);
 		});
 		return fixture[0];
+	}
+
+	private static long fixtureDuration(int index, int taskCount) {
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		if (taskCount == 1) return day;
+		return switch (index % 4) {
+			case 0 -> day * 5;
+			case 1 -> day / 2;
+			case 2 -> day;
+			default -> day * 3;
+		};
 	}
 
 	private record Fixture(SpreadSheet sheet, Gantt gantt, Project project, int taskCount, int sequentialDependencyCount,

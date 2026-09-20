@@ -25,6 +25,7 @@
 package com.microproject.dialog;
 
 import java.awt.Component;
+import java.awt.Frame;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -49,28 +50,41 @@ public final class FieldAliasDialog extends AbstractDialog {
 	String result = null;
 	
 	public static boolean doRename(Field field) {
-		String value = getValue(field);
+		return doRename(GraphicManager.getFrameInstance(), field);
+	}
+
+	/** Opens the dialog owned by the window containing the originating view. */
+	public static boolean doRename(Frame owner, Field field) {
+		String value = getValue(owner, field);
 		if (value != null)
 			field.setAlias(value);
 		return true;
 	}
 
 	public static String getValue(Field field) {
-		FieldAliasDialog dlg = getInstance(field);
+		return getValue(GraphicManager.getFrameInstance(), field);
+	}
+
+	public static String getValue(Frame owner, Field field) {
+		FieldAliasDialog dlg = getInstance(owner, field);
 		if (dlg.doModal())
 			return dlg.getResult();
 		return null;
 	}
 
 	public static FieldAliasDialog getInstance(Field field) {
-		return new FieldAliasDialog(field);
+		return getInstance(GraphicManager.getFrameInstance(), field);
+	}
+
+	public static FieldAliasDialog getInstance(Frame owner, Field field) {
+		return new FieldAliasDialog(owner, field);
 	}
 	public final String getResult() {
 		return result;
 	}
 	
-	private FieldAliasDialog(Field field) {
-		super(GraphicManager.getFrameInstance(), Messages.getString("RenameDialog.Rename"), true); //$NON-NLS-1$
+	private FieldAliasDialog(Frame owner, Field field) {
+		super(owner, Messages.getString("RenameDialog.Rename"), true); //$NON-NLS-1$
 		this.field = field;
 		defaultName = new JLabel();
 		oldName = new JLabel();
