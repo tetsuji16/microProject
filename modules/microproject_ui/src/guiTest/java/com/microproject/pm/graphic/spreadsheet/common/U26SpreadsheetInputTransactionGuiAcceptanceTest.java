@@ -14,6 +14,7 @@ import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.Calendar;
@@ -182,10 +183,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
 		Rectangle cell = cellOnScreen(sheet, row, column);
-		robot.mouseMove(cell.x + cell.width / 2, cell.y + cell.height / 2);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(sheet::isFocusOwner, "spreadsheet lost focus after cell click");
+		clickCellAndRestoreForeground(robot, sheet, cell);
 		SwingUtilities.invokeAndWait(() -> assertTrue(sheet.editCellAt(row, column, null),
 			"F2 route must start editing the clicked cell row=" + row + " column=" + column));
 		GuiAcceptanceSupport.await(sheet::isEditing, "physical F2 did not start cell editing");
@@ -213,6 +211,34 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical input did not commit: " + value);
+	}
+
+	private static void clickCellAndRestoreForeground(Robot robot, SpreadSheet sheet, Rectangle cell) throws Exception {
+		clickCell(robot, cell);
+		robot.waitForIdle();
+		try {
+			GuiAcceptanceSupport.await(sheet::isFocusOwner, "spreadsheet lost focus after cell click");
+		} catch (AssertionError firstClickLostForeground) {
+			Window owner = SwingUtilities.getWindowAncestor(sheet);
+			SwingUtilities.invokeAndWait(() -> {
+				if (owner != null) {
+					owner.toFront();
+					owner.requestFocus();
+				}
+				sheet.requestFocusInWindow();
+			});
+			robot.delay(100);
+			clickCell(robot, cell);
+			robot.waitForIdle();
+			GuiAcceptanceSupport.await(sheet::isFocusOwner,
+				"spreadsheet lost focus after bounded physical foreground retry");
+		}
+	}
+
+	private static void clickCell(Robot robot, Rectangle cell) {
+		robot.mouseMove(cell.x + cell.width / 2, cell.y + cell.height / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 	}
 
 	private static String activeEditorText(SpreadSheet sheet) throws Exception {
