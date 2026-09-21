@@ -1137,6 +1137,53 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotRightClickTaskPopupDeleteUsesSharedRouteAndRoundTripsPersistence() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask target = createTask();
+		Project project = target.getOwningProject();
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"popup delete project did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Rectangle targetCell = cellOnScreen(sheet, rowForTask(sheet, target), nameColumn(sheet));
+		click(robot, targetCell);
+		rightClick(robot, targetCell);
+		SpreadSheetPopupMenu popup = sheet.getPopup();
+		GuiAcceptanceSupport.await(() -> popup != null && popup.isVisible(),
+				"physical right click did not show the task popup for Delete");
+		JMenuItem delete = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_DELETE);
+		GuiAcceptanceSupport.await(delete::isEnabled, "popup Delete remained disabled for the selected task");
+		click(robot, boundsOnScreen(delete));
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, target),
+				"popup Delete did not remove the selected row");
+
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, target),
+				"Ctrl+Z did not restore the row deleted through the popup");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, target),
+				"Ctrl+Y did not reapply popup Delete");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved),
+				"MPO save rejected the task deleted through the physical popup");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertTrue(reloaded.getTaskList().stream().noneMatch(candidate -> target.getName().equals(candidate.getName())),
+				"MPO reload retained the task deleted through the physical popup");
+	}
+
+	@Test
 	void robotNameCellIndentShortcutsFollowMicrosoftProjectSemantics() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
