@@ -265,8 +265,25 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			// requested active column rather than leaving JTable's lead at column 0.
 			sheet.changeSelection(row, column == 0 ? 1 : column - 1, false, false);
 			Rectangle bounds = sheet.getCellRect(row, column, true);
+			int localX = bounds.x + Math.max(1, bounds.width / 2);
+			int localY = bounds.y + Math.max(1, bounds.height / 2);
+			// Locale/DPI-specific column widths can put the nominal center on a
+			// neighbouring hit region.  Pick a point that Swing itself resolves to
+			// the requested row and column, then send a real Robot click there.
+			for (int candidateX = bounds.x; candidateX < bounds.x + bounds.width; candidateX++) {
+				if (sheet.columnAtPoint(new Point(candidateX, localY)) == column) {
+					localX = candidateX;
+					break;
+				}
+			}
+			for (int candidateY = bounds.y; candidateY < bounds.y + bounds.height; candidateY++) {
+				if (sheet.rowAtPoint(new Point(localX, candidateY)) == row) {
+					localY = candidateY;
+					break;
+				}
+			}
 			Point location = sheet.getLocationOnScreen();
-			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
+			result[0] = new Rectangle(location.x + localX, location.y + localY, 1, 1);
 		});
 		return result[0];
 	}
