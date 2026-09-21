@@ -59,6 +59,28 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
+	void detachedActiveFrameIsReadOnlyDuringDeferredButtonRefresh() throws Exception {
+		GraphicManager graphicManager = new GraphicManager(new JPanel());
+		TestDocumentFrame detachedFrame = allocateWithoutConstructor(TestDocumentFrame.class);
+		detachedFrame.graphicManager = graphicManager;
+		detachedFrame.setActive(true);
+		Field currentFrame = GraphicManager.class.getDeclaredField("currentFrame");
+		currentFrame.setAccessible(true);
+		currentFrame.set(graphicManager, detachedFrame);
+
+		assertFalse(graphicManager.isDocumentWritable(),
+			"a frame whose project is detached during cleanup must not be treated as writable");
+	}
+
+	@Test
+	void findAndGoToActionsAreDisabledWhenTheDocumentFrameIsDetached() {
+		GraphicManager graphicManager = new GraphicManager(new JPanel());
+
+		assertFalse(graphicManager.new FindAction().allowed(true));
+		assertFalse(graphicManager.new GoToAction().allowed(true));
+	}
+
+	@Test
 	void masterProjectCommandForcesTheLocalMasterCreationMode() {
 		ProjectDialog.Form form = new ProjectDialog.Form();
 		form.setLocal(false);

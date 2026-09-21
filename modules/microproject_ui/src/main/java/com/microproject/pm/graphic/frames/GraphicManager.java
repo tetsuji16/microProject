@@ -1609,20 +1609,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 	private void doProjectInformationDialog() {
-		if (!getCurrentFrame().isActive())
+		if (!isDocumentActive())
 			return;
-		if (!beforeProjectInformationRoute(getCurrentFrame().getProject()))
+		DocumentFrame frame = getCurrentFrame();
+		Project project = frame.getProject();
+		if (!beforeProjectInformationRoute(project))
 			return;
 
 		if (projectInformationDialog == null) {
-			projectInformationDialog = ProjectInformationDialog.getInstance(getFrame(),getCurrentFrame().getProject());
+			projectInformationDialog = ProjectInformationDialog.getInstance(getFrame(), project);
 			projectInformationDialog.pack();
 			projectInformationDialog.setModal(false);
 		} else {
-			projectInformationDialog.setObject(getCurrentFrame().getProject());
+			projectInformationDialog.setObject(project);
 		}
-		projectInformationDialog.setMoveProjectHandler(getCurrentFrame()::moveProject);
-		projectInformationDialog.setLocationRelativeTo(getCurrentFrame());//to center on screen
+		projectInformationDialog.setMoveProjectHandler(frame::moveProject);
+		projectInformationDialog.setLocationRelativeTo(frame);//to center on screen
 		projectInformationDialog.setVisible(true);
 
 	}
@@ -2384,7 +2386,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
-			return (currentFrame.getActiveSpreadSheet() != null);
+			return currentFrame != null && currentFrame.getActiveSpreadSheet() != null;
 		}
 	}
 
@@ -2397,7 +2399,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
-			return (currentFrame.getActiveSpreadSheet() != null);
+			return currentFrame != null && currentFrame.getActiveSpreadSheet() != null;
 		}
 	}
 
@@ -3301,7 +3303,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	void setEnabledDocumentMenuActions(boolean enable) {
 		if (Environment.isPlugin()) return;
        actionsMap.setEnabledDocumentMenuActions(enable);
-        if (getCurrentFrame() != null) {
+        if (getCurrentFrame() != null && getCurrentFrame().getFilterToolBarManager() != null) {
         	getCurrentFrame().getFilterToolBarManager().setEnabled(enable);
         }
         if (topTabs != null)
@@ -4186,7 +4188,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return currentFrame != null && currentFrame.isActive();
 	}
 	public boolean isDocumentWritable() {
-		return currentFrame != null && currentFrame.isActive() && !currentFrame.getProject().isReadOnly();
+		// A document frame can remain active for one EDT turn while its project is
+		// being detached during cleanup.  A detached frame is never writable; do
+		// not let deferred Undo/Redo button refreshes turn that normal lifecycle
+		// state into an EDT exception.
+		return currentFrame != null && currentFrame.isActive()
+				&& currentFrame.getProject() != null && !currentFrame.getProject().isReadOnly();
 	}
 
 

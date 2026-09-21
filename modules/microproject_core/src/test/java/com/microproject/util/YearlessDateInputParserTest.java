@@ -32,6 +32,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.TimeZone;
 
 import org.junit.jupiter.api.Test;
 
@@ -80,6 +81,18 @@ class YearlessDateInputParserTest {
 	void rejectsFullDateWhenFallbackFormatIsMissing() {
 		assertThrows(ParseException.class, () ->
 			YearlessDateInputParser.parse("2026/09/02", null, null));
+	}
+
+	@Test
+	void parsesExplicitIsoDatesInTheCanonicalUtcScheduleZone() throws Exception {
+		TimeZone previous = TimeZone.getDefault();
+		TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"));
+		try {
+			Date parsed = YearlessDateInputParser.parse("2026/9/25", new SimpleDateFormat("yyyy/MM/dd"), null);
+			assertEquals(DateTime.calendarInstance(2026, Calendar.SEPTEMBER, 25).getTime(), parsed);
+		} finally {
+			TimeZone.setDefault(previous);
+		}
 	}
 
 	@Test

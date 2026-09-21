@@ -161,6 +161,18 @@ class SpreadsheetGridBorderTest {
 	}
 
 	@Test
+	void booleanRendererAcceptsSerializedBooleanValuesWithoutThrowing() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(new Object[][] { { "true" } }, new Object[] { "Done" }));
+			JComponent component = (JComponent) new OfflineCapableBooleanRenderer()
+				.getTableCellRendererComponent(table, "true", false, false, 0, 0);
+
+			assertTrue(((OfflineCapableBooleanRenderer) component).isSelected());
+		});
+	}
+
+	@Test
 	void specialRendererOverlayPaintsGridWithoutShrinkingSelectionBorder() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			PlainTable table = new PlainTable();

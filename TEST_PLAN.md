@@ -141,8 +141,9 @@
 | U-24 | 診断 | UI debug mode | 成功・前提不成立・例外・表示未更新の各操作を実行 | ログに command ID、選択、モデル前後、表示前後、Undo 状態、失敗理由が記録される |
 | U-25 | MSP互換/回帰 | タスク移動（Alt+Shift+↑/↓、リボン/メニュー、行ドラッグ） | Microsoft公式ショートカット仕様を issue にリンク。全行選択で移動→Undo/Redo→保存/再読込、単一セル・read-only・lock は各入口で disabled/rejected 結果を確認 | 公式仕様の「entire row must be selected」に一致。全入口は同一選択判定・一回の順序変更・可観測な失敗理由を共有し、再読込後も順序が一致 |
 | U-25-W | Windows window-shell acceptance (#479) | Windows 11、FlatLaf native decorations 対応ランタイム、一次・二次 document window、日本語/英語、100/125/150% DPI | FlatLaf native-decoration capability を起動時に有効化してから、Robot で非操作 caption の drag、右上の OS 最大化/復元、Alt+Space system menu、端/角 resize、二次ウィンドウの close/focus を確認する | 手製 drag/button を介さず、Windows が caption drag、Snap、system menu、resize、max/restore を所有する。header icon と taskbar/system-menu icon は同じ公式アセットに由来し、interactive header controls は caption として扱われない |
-| U-26 | 入力トランザクション回帰 | 期間=`20`、達成率=`10`、開始/終了/実績開始日=`2026/10/05`、既存日本語の Convert/再変換、残存期間、親子タスクをアウトデント後にMPO保存 | (1) headlessで editor attach 前に連続した key/input-method event を投入し、buffer→editor→commit を検証、(2) 実Robotで数値と日付を1文字ずつ入力してEnter/フォーカス移動でcommit、(3) Convertで既存日本語を選択して再変換、(4) duration=8日 の 0%/10%/100% で domain値とrenderer文字列を比較、(5) アウトデント→保存→再読込で操作ログを含むMPOを検証 | `20` が `2` にならず、`10%` が `98%` にならない。日付は全桁が認識され、再変換は既存文字列を選択する。残存期間は Microsoft Project の `Duration - (Duration * Percent Complete)` に従い、10%時の8日は7.2日となる。小数を一律に丸めず、入力破損由来の値ではなく正確なduration値と表示を検証する。構造変更後の保存は成功し、再読込後も階層・値・操作履歴が整合する。各入力は editor text だけでなく commit済みモデル値と描画文字列を検証する。 |
+| U-26 | 入力トランザクション回帰 | 期間=`20`、達成率=`10/50/99/100`、開始/終了/実績開始日=`2026/10/05`、既存日本語の Convert/再変換、残存期間、親子タスクをアウトデント後にMPO保存 | (1) headlessで editor attach 前に連続した key/input-method event を投入し、buffer→editor→commit を検証、(2) 実Robotで数値と日付を1文字ずつ入力してEnter/フォーカス移動でcommit、(3) Convertで既存日本語を選択して再変換、(4) duration=8日 の 0%/10%/50%/99%/100% で domain値・renderer文字列・予定バー形状・timescale viewportを比較、(5) アウトデント→保存→再読込で操作ログを含むMPOを検証 | `20` が `2` にならず、達成率の各値が完全にcommitされる。日付は全桁が認識され、再変換は既存文字列を選択する。残存期間は Microsoft Project の `Duration - (Duration * Percent Complete)` に従い、10%時の8日は7.2日となる。小数を一律に丸めず、入力破損由来の値ではなく正確なduration値と表示を検証する。0%から99%までは完了オーバーレイだけが進み、予定バー全体とtimescale viewportは不意に変わらず、100%でも同じ表示範囲契約を守る。構造変更後の保存は成功し、再読込後も階層・値・操作履歴が整合する。各入力は editor text だけでなく commit済みモデル値と描画文字列を検証する。 |
 | U-27 | コンテキストメニュー回帰 | 列ヘッダ右クリック、列の挿入/非表示、行右クリックの変更系コマンド、読み取り専用・空白ヘッダ | (1) Robotで対象ヘッダを右クリックしてpopupと対象列を確認、(2) insert/hide は同一の列レイアウトmutationを通すroute integrationでモデル・表示・Undo/Redoを確認、(3) 永続化される列レイアウトは保存→再読込し、列順・幅・手動幅まで確認、(4) read-only/無効状態は操作不能または明示拒否を確認 | popup表示だけでは合格にしない。挿入位置、field array、プロジェクトの保存対象レイアウト、表示列、Undo/Redoが一致する。行popupは選択対象を変えず、全変更項目は対応するcanonical commandを一度だけ実行する。 |
+| U-28 | 基本操作横断回帰（#587） | タスク表右クリック、期間・開始日/終了日・達成率入力、レベル上げ/下げ、Undo/Redo、概要・ヘルプ・言語・カレンダー・プロジェクト情報、ネットワーク/WBS、切断中Frame・EDT再描画、旧形式Boolean表示 | clean `installDist` から実Robotで各入口を操作する。入力は期間=`10`/`20`、日付=`2026/9/25`/`2026/10/05`、進捗=0%/10%/100%を1文字ずつcommitし、親子・依存あり/なしで比較する。階層・行操作・日付・期間・進捗・先行関係の各変更後にCtrl+Z→Ctrl+Yを実行する。各ダイアログ/ビューは内容、閉じる、再描画、表示範囲を確認し、変更系は保存→再読込する。切断中Frameの遅延ボタン更新、EDT外からの列構成変更、Boolean列の文字列表示を単体回帰で確認する。 | 右クリックの全可視項目は非空のローカライズ文言とアイコンを持つ。入力値はcommit済みモデル値・セル描画・スケジュール結果と一致し、意図した制約/依存再計算以外で日付が変わらない。Ganttはバー位置・幅・timescale viewportを操作前後およびUndo/Redo後で比較し、モデル変化と無関係な自動移動を許さない。ダイアログはタイトル帯のみ、ゼロ高さ、クリップ、空内容をfailとし、ネットワーク/WBSは専用ビューの内容モデルと可視領域が初期化される。切断Frameや列再構成の遅延描画でもNPE、ClassCastException、配列境界例外を出さず、XML/stderrにも未捕捉EDT例外を残さない。 |
 
 ### 2026-09-19 古いGUIテストの監査
 
@@ -166,12 +167,15 @@
 | B-06 | 異常 | JAVA_HOME 未設定/不正 | package task | 既定 JDK 25 fallback または明確な失敗 |
 | B-07 | 異常 | WiX なし | MSI/EXE package | 原因が分かる失敗、途中成果物破損なし |
 | B-08 | 境界 | docs downloads 既存巨大 part | publish split exe | 古い part 削除、新 part/rebuild bat 生成 |
+| B-09 | リリース前GUIゲート | Windows release runner、clean checkout、生成済み `installDist` | `:microproject_ui:guiTest -PguiTestSuite=smoke --max-workers=1` を実行し、Issue #587の共有原因を代表するタスク表／Gantt、ポップアップ、ダイアログ、ビュー切替、物理入力、Undo/Redo、エラー監視を確認。全体スイートは定期／手動監査で `-PguiTestSuite=full` を実行 | headless unit testだけでは合格にしない。代表GUI受入が全件成功し、失敗時は `guiTest-artifacts` の画面とログを成果物として残す。release jobはこのゲート失敗時に公開処理へ進まない |
+| B-10 | GUIゲート実装の強制性 | Windows release runner、現行commit、fresh `installDist`、日本語/英語、100/125/150% | B-09の機能ゲートに加え、日英×3倍率の視覚／代表Robot行列を実行する。各レッグを個別に記録し、外側のプロセス watchdog でEDT・モーダル・非daemon AWT停止を検出し、失敗時はjcmd・Window/Process一覧・JUnit XML・画面証跡を保存する。予期しないエラー画面、ダイアログ、EDT/AWT例外、未捕捉stderr/XMLスタックトレースは、テストが成功を返しても失敗扱いにする。期待される入力拒否のAlertログは、メッセージ・閉じる操作・モデル保持を確認したうえで例外と区別する。ゲート開始時に前回XMLを削除し、終了後に新しいJUnit XMLのskipを解析する。 |
 
 ## 4. テスト環境・前提条件
 
 - OS: Windows、JDK 25+、Gradle Wrapper 使用。
 - Headless unit test: `java.awt.headless=true`。Swing/EDT 系は `SwingUtilities.invokeAndWait` を使う。
 - GUI acceptance test: Windows のデスクトップセッションで `:microproject_ui:guiTest` を実行する。`installDist` を依存に含み、Robot 操作の失敗時は `microproject_ui/build/reports/guiTest-artifacts/` に画面を保存する。
+- B-10の結果は過去の実行記録で代用しない。現行commit、locale、DPI、fixture、実行コマンド、完走時刻、成果物パスを同じ検証記録に残す。後続実行で失敗した場合は、以前の `BUILD SUCCESSFUL` 記録を現行合格証拠として扱わない。
 - GUI quality gate: `docs/gui-quality-gate.md` を正本とする。GUI の修正は、物理操作・モデル／表示・Undo/Redo・保存再読込・視覚レイアウトの必要な層をすべて満たすまで完了扱いにしない。
 - Sample data: `samples/sampledata.mpp`, `samples/Commercial construction project plan.{mpp,pod,xlsx,xml,json}`。
 - 一時ファイル: JUnit の temp directory を使い、POD/XLSX/sidecar を毎回隔離。

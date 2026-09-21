@@ -25,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,6 +43,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JTextField;
+import javax.swing.text.JTextComponent;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.border.LineBorder;
@@ -63,6 +65,7 @@ import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnMenu;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetColumnsPopupMenu;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.resource.ResourcePool;
@@ -931,6 +934,156 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 		return fixture[0];
 	}
+
+	@Test
+	void physicalTaskTableDurationEditDoesNotPanGanttViewport() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(1);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
+		NormalTask task = (NormalTask) node.getNode().getImpl();
+		int durationColumn = findColumn(fixture.sheet, "Field.duration");
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			fixture.sheet.changeSelection(node.getRow(), durationColumn, false, false);
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
+			"task table and Gantt must be visible before duration input");
+		JScrollPane pane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.gantt);
+		assertTrue(pane != null, "Gantt must be hosted by a scroll pane");
+		Point viewportBefore = pane.getViewport().getViewPosition();
+		BarGeometry before = barGeometry(fixture.gantt, task);
+		editCellPhysically(robot, fixture.sheet, node.getRow(), durationColumn, "10");
+		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), task.getRawDuration(),
+			"the task-table physical duration edit must commit the complete value");
+		GuiAcceptanceSupport.await(() -> task.getRawDuration() == 10L * CalendarOption.getInstance().getMillisPerDay(),
+			"duration edit did not reach the task model");
+		SwingUtilities.invokeAndWait(fixture.gantt::updateSize);
+		Point viewportAfter = pane.getViewport().getViewPosition();
+		BarGeometry after = barGeometry(fixture.gantt, task);
+		assertEquals(viewportBefore, viewportAfter,
+			"a task-table duration commit must not move the Gantt timescale viewport");
+		assertEquals(before.startX(), after.startX(),
+			"the duration edit must preserve the task start bar position");
+		assertTrue(after.width() > before.width(),
+			"the committed duration must change only the planned bar width, not the viewport");
+	}
+
+	@Test
+	void physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(1);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
+		NormalTask task = (NormalTask) node.getNode().getImpl();
+		int startColumn = findColumn(fixture.sheet, "Field.start");
+		JScrollPane pane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.gantt);
+		assertTrue(pane != null, "Gantt must be hosted by a scroll pane");
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
+			"task table and Gantt must be visible before date input");
+		Point viewportBefore = pane.getViewport().getViewPosition();
+		long originalStart = task.getStart();
+		editCellPhysically(robot, fixture.sheet, node.getRow(), startColumn, "2026/9/25");
+		Calendar committed = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+		committed.setTimeInMillis(task.getStart());
+		assertEquals(2026, committed.get(Calendar.YEAR), "date input must commit the year");
+		assertEquals(Calendar.SEPTEMBER, committed.get(Calendar.MONTH), "date input must commit the month");
+		assertEquals(25, committed.get(Calendar.DAY_OF_MONTH), "date input must commit the day");
+		assertTrue(task.getStart() != originalStart, "a valid date input must change the task start");
+		Point viewportAfter = pane.getViewport().getViewPosition();
+		assertEquals(viewportBefore, viewportAfter,
+			"a task-table date commit must not move the Gantt timescale viewport");
+	}
+
+	@Test
+	void physicalTaskTableDurationEditRoundTripsThroughMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(1);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
+		editCellPhysically(robot, fixture.sheet, node.getRow(), findColumn(fixture.sheet, "Field.duration"), "10");
+		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), fixture.project.getTasks().stream()
+			.filter(value -> value instanceof NormalTask && "Sequential 1".equals(((NormalTask) value).getName()))
+			.map(value -> ((NormalTask) value).getRawDuration()).findFirst().orElseThrow());
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved),
+			"MPO save rejected the physical duration edit");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask restored = reloaded.getTasks().stream()
+			.filter(value -> value instanceof NormalTask && "Sequential 1".equals(((NormalTask) value).getName()))
+			.map(value -> (NormalTask) value).findFirst().orElseThrow();
+		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), restored.getRawDuration(),
+			"MPO reload lost the physical duration edit");
+	}
+
+	private static void editCellPhysically(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
+		Rectangle bounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getCellRect(row, column, true);
+			Point location = sheet.getLocationOnScreen();
+			bounds.setBounds(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
+		});
+		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(sheet::isFocusOwner, "duration cell did not receive focus");
+		SwingUtilities.invokeAndWait(() -> assertTrue(sheet.editCellAt(row, column, null),
+			"duration cell editor did not start"));
+		GuiAcceptanceSupport.await(sheet::isEditing, "duration editor did not start");
+		SwingUtilities.invokeAndWait(() -> sheet.getEditorComponent().requestFocusInWindow());
+		GuiAcceptanceSupport.await(() -> sheet.getEditorComponent() != null && sheet.getEditorComponent().isFocusOwner(),
+			"duration editor did not receive focus");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		for (char character : value.toCharArray()) {
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		assertEquals(value, activeEditorText(sheet), "physical duration input must reach the editor");
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "duration edit did not commit");
+	}
+
+	private static String activeEditorText(SpreadSheet sheet) throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			if (sheet.getEditorComponent() instanceof JTextComponent component) text[0] = component.getText();
+			else if (sheet.getEditorComponent() instanceof DateEditor.ExtDateField date) text[0] = date.getTextField().getText();
+		});
+		return text[0];
+	}
+
+	private static int findColumn(SpreadSheet sheet, String fieldId) {
+		com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model =
+			(com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) sheet.getModel();
+		for (int column = 0; column < model.getColumnCount(); column++) {
+			Field field = model.getFieldInColumn(column);
+			if (field != null && fieldId.equals(field.getId())) return sheet.convertColumnIndexToView(column);
+		}
+		throw new IllegalArgumentException("Missing field: " + fieldId);
+	}
+
+	private static BarGeometry barGeometry(Gantt chart, NormalTask task) throws Exception {
+		double[] values = new double[2];
+		SwingUtilities.invokeAndWait(() -> {
+			values[0] = chart.getCoord().toX(task.getStart());
+			values[1] = chart.getCoord().toX(task.getEnd()) - values[0];
+		});
+		return new BarGeometry((int) Math.round(values[0]), (int) Math.round(values[1]));
+	}
+
+	private record BarGeometry(int startX, int width) { }
 
 	private static long fixtureDuration(int index, int taskCount) {
 		long day = CalendarOption.getInstance().getMillisPerDay();

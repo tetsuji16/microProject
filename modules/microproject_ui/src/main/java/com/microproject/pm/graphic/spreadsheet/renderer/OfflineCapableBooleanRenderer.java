@@ -64,7 +64,14 @@ public class OfflineCapableBooleanRenderer extends JCheckBox implements OfflineR
 				setForeground(table.getForeground());
 			}
 		}
-		setSelected((value != null && ((Boolean)value).booleanValue()));
+		// Importers and a few legacy field adapters can hand the renderer the
+		// serialized string form even though the column is declared Boolean.  A
+		// paint callback must never throw on that representation: rendering is
+		// read-only and should preserve the safe false default for unknown values.
+		boolean selected = value instanceof Boolean bool
+			? bool
+			: value instanceof String text && Boolean.parseBoolean(text);
+		setSelected(selected);
 
 		if (table != null && table.isEditing() && table.getEditingRow() == row && table.getEditingColumn() == column) {
 			setBorder(FlatUiSupport.spreadsheetEditingCellBorder());
@@ -83,4 +90,3 @@ public class OfflineCapableBooleanRenderer extends JCheckBox implements OfflineR
 	}
 
 }
-

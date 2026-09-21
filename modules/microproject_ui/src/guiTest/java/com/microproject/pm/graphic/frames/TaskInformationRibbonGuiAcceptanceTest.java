@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Dialog;
+import java.awt.Component;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -60,6 +61,8 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.pm.graphic.views.UsageDetailView;
+import com.microproject.pm.graphic.views.PertView;
+import com.microproject.pm.graphic.views.TreeView;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -134,9 +137,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		int row = rowForTask(sheet, task);
 		int column = nameColumn(sheet);
-		click(robot, cellOnScreen(sheet, row, column));
-		GuiAcceptanceSupport.await(() -> sheet.getSelectedRow() == row,
-			"Robot click did not select the task-table row");
+		clickUntilSelected(robot, window, sheet, row, column);
 
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title"));
@@ -297,6 +298,45 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
+			"network/WBS test window did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ViewRibbonTask.title"));
+		click(robot, boundsOnScreen(viewTab));
+		GuiAcceptanceSupport.await(viewTab::isSelected, "View ribbon tab was not selected");
+
+		AbstractButton network = findShowingButtonByCommand("RibbonNetwork");
+		click(robot, boundsOnScreen(network));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof PertView,
+			"RibbonNetwork did not activate the real network view");
+		assertTrue(isShowingView(manager.getCurrentFrame().getActiveTopView()),
+			"network view was activated without becoming visible");
+
+		AbstractButton wbs = findShowingButtonByCommand("RibbonWBS");
+		click(robot, boundsOnScreen(wbs));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof TreeView,
+			"RibbonWBS did not activate the real WBS view");
+		assertTrue(isShowingView(manager.getCurrentFrame().getActiveTopView()),
+			"WBS view was activated without becoming visible");
+	}
+
+	private static boolean isShowingView(Object view) {
+		return view instanceof Component component && component.isShowing();
+	}
+
+	@Test
 	void calendarDependencyMarkerOpensTheLinkDialogAndCanRemoveTheLink() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -407,7 +447,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		int row = rowForTask(sheet, task);
-		click(robot, cellOnScreen(sheet, row, nameColumn(sheet)));
+		clickUntilSelected(robot, window, sheet, row, nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		click(robot, boundsOnScreen(taskTab));
@@ -1553,6 +1593,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
 		robot.delay(150);
+	}
+
+	private static void clickUntilSelected(Robot robot, java.awt.Window window, SpreadSheet sheet, int row, int column)
+		throws Exception {
+		for (int attempt = 0; attempt < 3 && sheet.getSelectedRow() != row; attempt++) {
+			if (attempt > 0) activateWindow(robot, window);
+			click(robot, cellOnScreen(sheet, row, column));
+		}
+		GuiAcceptanceSupport.await(() -> sheet.getSelectedRow() == row,
+			"physical task-table click did not establish the selected row after bounded foreground retries");
 	}
 
 	private static void rightClick(Robot robot, Rectangle bounds) {

@@ -11,6 +11,14 @@ This gate applies to every change under `microproject_ui`, and to any other
 change that changes a GUI-observable command, model projection, persistence
 path, or keyboard shortcut.
 
+An unexpected error dialog, error screen, uncaught EDT/AWT exception, or
+stderr stack trace is a failed GUI result even when the JUnit method reports
+success.  Each visible error must first be classified as an expected,
+user-facing validation outcome or an unexpected defect.  Expected errors are
+asserted for their message, close route, model preservation, and recovery;
+unexpected errors are fixed at their shared cause and are never hidden by a
+catch, retry-only workaround, or log suppression.
+
 ## MSP compatibility evidence and closure rule
 
 When a change claims Microsoft Project Desktop compatibility, the compatibility
@@ -106,6 +114,11 @@ remove the duplicate responsibility that made the defect possible.
    identical invariant through duplicated implementations, retain the clearer
    one and remove the other.  Test code is production code and follows the
    same no-duplication rule.
+
+The release gate uses the compact `-PguiTestSuite=smoke` matrix, which covers
+each shared-cause family changed by the release.  The complete `full` suite is
+reserved for scheduled/manual audits and broad UI changes; reducing the gate
+does not permit removing a required invariant from the smoke classes.
 
 The review question is therefore: *which duplicated path or missing invariant
 allowed this bug?*  “Add another case” is not an adequate answer by itself.
@@ -240,6 +253,46 @@ and stable task IDs, never only object identity or a blank event source.
   contracts block release.  A waiver requires a linked open issue, a named
   owner, scope, and expiry; it cannot be used for a known data-loss, command,
   or layout defect.
+
+## Enforcement gaps that are themselves release defects
+
+The rules above are not evidence merely because they are written in this
+document.  The release workflow and the test harness must mechanically enforce
+them.  In particular:
+
+- JUnit's method timeout is not an EDT or native-window watchdog.  A test that
+  blocks in `SwingUtilities.invokeAndWait`, a modal loop, a font/layout pass,
+  or a non-daemon AWT thread can leave the Gradle worker alive after the test
+  timeout.  The release gate must therefore have an outer process-level
+  timeout, capture a thread dump and window/process inventory, and fail the
+  job if the child process does not exit.  A timeout that only prints a JUnit
+  failure is insufficient.
+- `forkEvery=1` isolates test classes but does not prove that a class released
+  every Window, native focus grab, timer, executor, or AWT helper.  The shared
+  GUI extension must assert zero unexpected windows and no surviving test-owned
+  non-daemon helpers at teardown; the CI watchdog remains mandatory.
+- The compact release `smoke` gate is not the complete U-21 visual matrix.
+  It must still run the representative functional journey at the canonical
+  desktop scale.  The `full` audit additionally runs the reusable
+  visual/targeted-command suite for Japanese and English at 100%, 125%, and
+  150%.  A requested full-audit leg that is missing is a gate failure, not a
+  pass.  A mutually exclusive scale Assumption is acceptable only when the
+  same case is executed and passes in its designated alternate scale leg;
+  unexpected or unexplained skips remain failures.  The Windows workflow
+  deletes stale GUI JUnit XML before each gate invocation, parses the fresh
+  XML after the process exits, and allows only the two explicitly paired
+  high-DPI assumption messages; all other skipped cases fail the release.
+- Historical entries in `TEST_PLAN.md` describe evidence at a particular
+  revision only.  They must not satisfy the current gate unless the current
+  commit, install layout, locale, scale, fixture, test command, and result are
+  recorded.  A later failing run supersedes an older `BUILD SUCCESSFUL` entry.
+- A Robot test that retries because the first click was consumed by Windows
+  foreground activation must record the retry as diagnostic evidence.  It may
+  stabilize the harness, but it cannot turn an unresolved active/focused or
+  command-registration failure into a pass by omitting the semantic assertion.
+- The gate must run against the freshly generated `installDist` and, for a
+  release, the packaged executable.  A compile or headless test result cannot
+  substitute for either launch path.
 
 ## Regression matrix
 

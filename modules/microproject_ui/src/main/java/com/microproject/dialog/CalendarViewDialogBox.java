@@ -67,13 +67,15 @@ import com.microproject.help.HelpUtil;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
+import com.microproject.util.DateTime;
 
 /** Month calendar with task cards and drag-to-reschedule support. */
 public final class CalendarViewDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 	private final JLabel monthLabel = new JLabel();
 	private final CalendarCanvas canvas;
-	private YearMonth month = YearMonth.now();
+	private final ZoneId scheduleZone = DateTime.calendarInstance().getTimeZone().toZoneId();
+	private YearMonth month = YearMonth.now(scheduleZone);
 
 	public CalendarViewDialogBox(java.awt.Frame owner, Project project) {
 		super(owner, UsabilityStrings.text("calendar.title"), false);
@@ -88,7 +90,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		JButton today = new JButton(UsabilityStrings.text("common.today"));
 		JButton next = new JButton(UsabilityStrings.text("common.next"));
 		previous.addActionListener(event -> setMonth(month.minusMonths(1)));
-		today.addActionListener(event -> setMonth(YearMonth.now()));
+		today.addActionListener(event -> setMonth(YearMonth.now(scheduleZone)));
 		next.addActionListener(event -> setMonth(month.plusMonths(1)));
 		monthLabel.setFont(monthLabel.getFont().deriveFont(Font.BOLD, 16F));
 		navigation.add(previous); navigation.add(today); navigation.add(next); navigation.add(monthLabel);
@@ -133,7 +135,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		private static final int HEADER = 34;
 		private static final int CELL_HEIGHT = 105;
 		private final Project project;
-		private final ZoneId zone = ZoneId.systemDefault();
+		private final ZoneId zone = scheduleZone;
 		private final List<Card> cards = new ArrayList<>();
 		private Task draggedTask;
 		private Point dragPoint;
@@ -191,7 +193,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			boolean currentMonth = YearMonth.from(day).equals(month);
 			g.setColor(currentMonth ? FlatUiSupport.dataSurfaceBackground() : FlatUiSupport.panelBackground()); g.fillRect(x, y, width, CELL_HEIGHT);
 			g.setColor(FlatUiSupport.borderColor()); g.drawRect(x, y, width, CELL_HEIGHT);
-			if (day.equals(LocalDate.now())) { g.setColor(FlatUiSupport.errorForeground()); g.setStroke(new BasicStroke(2F)); g.drawRect(x + 1, y + 1, width - 2, CELL_HEIGHT - 2); }
+			if (day.equals(LocalDate.now(zone))) { g.setColor(FlatUiSupport.errorForeground()); g.setStroke(new BasicStroke(2F)); g.drawRect(x + 1, y + 1, width - 2, CELL_HEIGHT - 2); }
 			g.setColor(currentMonth ? FlatUiSupport.tableForeground() : FlatUiSupport.disabledForeground()); g.drawString(Integer.toString(day.getDayOfMonth()), x + 7, y + 17);
 			List<Task> onDay = tasksOn(day);
 			int visible = Math.min(3, onDay.size());

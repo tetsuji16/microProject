@@ -4,6 +4,15 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      gui_suite:
+        description: 'GUI suite for the release gate (smoke is the efficient default)'
+        required: false
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - full
 
 permissions:
   contents: write
@@ -75,6 +84,138 @@ jobs:
           .\gradlew.bat clean build packageWindowsAppImage packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Run Windows GUI acceptance gate
+        shell: pwsh
+        timeout-minutes: 25
+        run: |
+          $ErrorActionPreference = 'Stop'
+           # The Windows release runner is the only CI job with the desktop
+           # environment required by Robot acceptance tests.  This catches
+           # stale installDist, focus, popup/dialog layout, and view-routing
+           # regressions that a headless build cannot observe.
+           $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
+           New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
+           function Invoke-GuiGate([string]$label, [string[]]$arguments) {
+             $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
+             $stdout = Join-Path $gateLogs "$safe.stdout.log"
+             $stderr = Join-Path $gateLogs "$safe.stderr.log"
+             $testResults = Join-Path $PWD 'modules/microproject_ui/build/test-results/guiTest'
+             New-Item -ItemType Directory -Force -Path $testResults | Out-Null
+             Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue |
+               Remove-Item -Force
+             $process = Start-Process -FilePath (Join-Path $PWD 'gradlew.bat') `
+               -ArgumentList $arguments -PassThru -RedirectStandardOutput $stdout `
+               -RedirectStandardError $stderr
+             if (-not $process.WaitForExit(900000)) {
+               taskkill.exe /PID $process.Id /T /F | Out-Null
+               throw "GUI gate watchdog timed out: $label"
+             }
+             $stdoutText = Get-Content -LiteralPath $stdout -Raw
+             $stderrText = Get-Content -LiteralPath $stderr -Raw
+             $stdoutText
+             $stderrText
+             # Alert.error/Alert.warn intentionally logs expected user-facing
+             # validation cases at a severe level (for example invalid links
+             # and circular subprojects).  Severity alone is not an uncaught
+             # GUI failure.  Detect exception signatures in the process log,
+             # then inspect the XML test output for deferred EDT exceptions.
+             $unexpectedError = '(?im)Exception in thread|(?:^|\s)(?:java\.)?lang\.NullPointerException(?:$|\s)|(?:^|\s)(?:java\.)?lang\.ClassCastException(?:$|\s)|(?:^|\s)(?:java\.)?lang\.ArrayIndexOutOfBoundsException(?:$|\s)'
+             if (($stdoutText + "`n" + $stderrText) -match $unexpectedError) {
+               throw "GUI gate emitted an unexpected exception/error diagnostic: $label"
+             }
+             if ($process.ExitCode -ne 0) { throw "GUI gate failed: $label exit=$($process.ExitCode)" }
+             $deferredExceptions = Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue |
+               Select-String -Pattern $unexpectedError
+             if ($null -ne $deferredExceptions) {
+               $files = ($deferredExceptions | Select-Object -ExpandProperty Path -Unique) -join ', '
+               throw "GUI gate found an unexpected deferred GUI exception in test XML: $label ($files)"
+             }
+             $allowedSkipReasons = @(
+               'Direct command sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.',
+               'This visual-matrix case is the high-DPI counterpart of the 100% command sweep.'
+             )
+             $unexpectedSkips = @()
+             foreach ($resultFile in (Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue)) {
+               [xml]$resultXml = Get-Content -LiteralPath $resultFile.FullName -Raw
+               foreach ($testCase in @($resultXml.testsuite.testcase)) {
+                 if ($null -ne $testCase.skipped) {
+                   $reason = [string]$testCase.skipped.message
+                   if ($allowedSkipReasons -notcontains $reason) {
+                     $unexpectedSkips += "$($testCase.classname).$($testCase.name): $reason"
+                   }
+                 }
+               }
+             }
+             if ($unexpectedSkips.Count -gt 0) {
+               throw "GUI gate found unexplained skipped test(s): $label ($($unexpectedSkips -join '; '))"
+             }
+           }
+           # The targeted smoke matrix is the per-release functional gate.  It
+           # covers every Issue #587 shared-cause family without repeating the
+           # unrelated legacy GUI classes on every release attempt.  The full
+           # suite remains available as :microproject_ui:guiTest with the
+           # default guiTestSuite=full and is run by scheduled/manual audits.
+           $requestedSuite = '${{ inputs.gui_suite }}'
+           if ([string]::IsNullOrWhiteSpace($requestedSuite)) { $requestedSuite = 'smoke' }
+           Invoke-GuiGate "functional-$requestedSuite-ja-100" @(':microproject_ui:guiTest', '--max-workers=1', '--console=plain', "-PguiTestSuite=$requestedSuite", '-PguiTestLocale=ja', '-PguiTestUiScale=1.0')
+
+           # The complete visual matrix is intentionally an explicit full-suite
+           # audit.  Running every legacy GUI class at every locale/scale on
+           # every release both repeats the same shared command paths and can
+           # hide the actionable smoke result behind a long-running tail.
+           if ($requestedSuite -eq 'full') {
+             $visualTests = @(
+               'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
+               'com.microproject.dialog.ChangeWorkingTimeDialogGuiAcceptanceTest',
+               'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
+               'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
+               'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest'
+             )
+             foreach ($locale in @('ja', 'en')) {
+               foreach ($scale in @('1.0', '1.25', '1.5')) {
+                 Write-Host "GUI visual gate: locale=$locale scale=$scale"
+                 $gradleArgs = @(
+                   ':microproject_ui:guiTest', '--max-workers=1', '--rerun-tasks', '--console=plain',
+                   "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
+                 )
+                 foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
+                 Invoke-GuiGate "visual-$locale-$scale" $gradleArgs
+               }
+             }
+           }
+
+      - name: Capture GUI failure diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $diagnostics = 'modules/microproject_ui/build/reports/guiTest-artifacts'
+          New-Item -ItemType Directory -Force -Path $diagnostics | Out-Null
+          Get-Process java,javaw -ErrorAction SilentlyContinue |
+            Select-Object Id,ProcessName,CPU,StartTime,Path |
+            Out-File (Join-Path $diagnostics 'java-processes.txt')
+           $jcmd = Join-Path $env:JAVA_HOME 'bin/jcmd.exe'
+           if (-not (Test-Path -LiteralPath $jcmd)) { $jcmd = 'jcmd' }
+           Get-Process java,javaw -ErrorAction SilentlyContinue | ForEach-Object {
+             $dump = Join-Path $diagnostics ("thread-dump-$($_.Id).txt")
+             & $jcmd $_.Id Thread.print 2>&1 | Out-File $dump
+           }
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match 'java|microProject' } |
+            Select-Object ProcessId,ParentProcessId,Name,CommandLine |
+            Out-File (Join-Path $diagnostics 'java-command-lines.txt')
+
+      - name: Upload GUI acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-acceptance-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            modules/microproject_ui/build/reports/tests/guiTest
+            modules/microproject_ui/build/test-results/guiTest
+            modules/microproject_ui/build/reports/guiTest-artifacts
+
       - name: Verify packaged contents and launch path
         shell: pwsh
         run: |
@@ -128,10 +269,14 @@ jobs:
           Copy-Item "release-assets/microProject-$version.msi" "release-assets/microProject-latest.msi"
           Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
 
-          $appLib = Get-Item "build/releases/v$version/app-image/microProject/app" -ErrorAction SilentlyContinue
-          if ($null -eq $appLib) { throw "The staged app directory was not found for v$version." }
-          Get-ChildItem -Path $appLib.FullName -File -Filter '*.jar' | ForEach-Object {
-            Copy-Item $_.FullName "release-assets/microProject-$version-$($_.Name)"
+          if ('${{ steps.signing.outputs.configured }}' -eq 'true') {
+            # update4j fetches and verifies each application JAR individually.
+            # Do not publish these duplicate assets when auto-update is disabled.
+            $appLib = Get-Item "build/releases/v$version/app-image/microProject/app" -ErrorAction SilentlyContinue
+            if ($null -eq $appLib) { throw "The staged app directory was not found for v$version." }
+            Get-ChildItem -Path $appLib.FullName -File -Filter '*.jar' | ForEach-Object {
+              Copy-Item $_.FullName "release-assets/microProject-$version-$($_.Name)"
+            }
           }
 
       - name: Generate signed update configuration

@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.HashMap;
@@ -914,6 +915,22 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public void setFieldArray(ArrayList fieldArray) {
+		if (!SwingUtilities.isEventDispatchThread()) {
+			try {
+				SwingUtilities.invokeAndWait(() -> setFieldArray(fieldArray));
+			} catch (InterruptedException exception) {
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException("Interrupted while updating spreadsheet columns", exception);
+			} catch (InvocationTargetException exception) {
+				Throwable cause = exception.getCause();
+				if (cause instanceof RuntimeException runtimeException)
+					throw runtimeException;
+				if (cause instanceof Error error)
+					throw error;
+				throw new IllegalStateException("Could not update spreadsheet columns", cause);
+			}
+			return;
+		}
 		clearHeaderColumnSelectionState();
 		if (getSelection() != null)
 			getSelection().clearActiveCell();

@@ -26,6 +26,9 @@ package com.microproject.pm.graphic.frames;
 
 import java.awt.Container;
 import java.awt.HeadlessException;
+import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
@@ -219,8 +222,47 @@ public abstract class StartupFactory {
 
 		}finally{
 			graphicManager.finishInitialization();
+			activateStartupWindow(gm.getContainer());
 		}
         return graphicManager;
+	}
+
+	/**
+	 * Showing a frame does not guarantee that Windows activates it after the
+	 * startup bootstrap.  Restore the native shell's foreground/focus state so
+	 * the next physical Robot or user click is delivered to the ribbon window.
+	 */
+	private static void activateStartupWindow(Container container) {
+		if (!(container instanceof Window window)) return;
+		Runnable activate = () -> {
+			if (!window.isDisplayable() || !window.isVisible()) return;
+			window.setFocusableWindowState(true);
+			if (!window.isAlwaysOnTop()) window.setAlwaysOnTop(true);
+			window.toFront();
+			window.requestFocus();
+			window.requestFocusInWindow();
+		};
+		window.addWindowListener(new WindowAdapter() {
+			@Override public void windowOpened(WindowEvent event) { activate.run(); }
+		});
+		SwingUtilities.invokeLater(activate);
+		// Windows can reject the first foreground request while the launcher is
+		// still handing off focus. Retry briefly without listening to
+		// windowActivated (that event is emitted by requestFocus itself and would
+		// recurse through DefaultFrameManager).
+		javax.swing.Timer retry = new javax.swing.Timer(100, null);
+		final int[] attempts = {0};
+		retry.addActionListener(event -> {
+			if (!window.isDisplayable() || !window.isVisible() || window.isActive() || ++attempts[0] >= 10) {
+				((javax.swing.Timer) event.getSource()).stop();
+				if (window.isDisplayable() && window.isVisible() && window.isAlwaysOnTop())
+					window.setAlwaysOnTop(false);
+				return;
+			}
+			activate.run();
+		});
+		retry.setInitialDelay(100);
+		retry.start();
 	}
 
 	public void doLoadConfig() {

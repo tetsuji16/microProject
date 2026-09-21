@@ -140,6 +140,9 @@ class AssignmentServiceTest {
 
 		List<Assignment> replacements = AssignmentService.getInstance().replaceAssignment(source,
 				List.of(replacement), this, true);
+		// The desktop route schedules a recalculation after the assignment
+		// mutation; verify the actual/remaining split survives that same pass.
+		project.recalculate();
 
 		assertEquals(1, replacements.size());
 		Assignment replacementAssignment = replacements.get(0);

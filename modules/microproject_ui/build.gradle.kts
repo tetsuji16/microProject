@@ -130,6 +130,27 @@ tasks.register<Test>("guiTest") {
 	// exercise the incompatible library class rather than the shipped application.
 	classpath = files(tasks.jar).plus(guiTestSourceSet.runtimeClasspath)
 	useJUnitPlatform()
+	val guiTestSuite = providers.gradleProperty("guiTestSuite").orElse("full").get()
+	val guiSmokeTestPatterns = listOf(
+		"com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction",
+		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDurationEditDoesNotPanGanttViewport",
+		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotClickOnTaskPropertiesInformationOpensTaskInformation",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotCalendarCommandOpensUsableCalendarDialog",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.indentAndOutdentSelectedTaskThroughRibbonRoundTripsHierarchy",
+		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotInvokesRealFileRibbonCommandsAndOpensTheirDialogs",
+		"com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest.projectInformationShowsAllTabsAndButtonsAfterResize",
+		"com.microproject.dialog.assignment.AssignmentDialogGuiAcceptanceTest.robotReplaceWithActualWorkPreservesActualsAndSupportsUndoRedo"
+	)
+	inputs.property("guiTestSuite", guiTestSuite)
+	if (guiTestSuite == "smoke") {
+		filter {
+			guiSmokeTestPatterns.forEach(::includeTestsMatching)
+		}
+	} else require(guiTestSuite == "full") {
+		"guiTestSuite must be 'full' or 'smoke'"
+	}
 	// Swing singletons (locale, menu factories, windows and focus state) are
 	// process-wide. One acceptance class may not leave that state behind for
 	// another class: doing so turns a real physical-route failure into a
@@ -137,6 +158,17 @@ tasks.register<Test>("guiTest") {
 	forkEvery = 1
 	systemProperty("java.awt.headless", "false")
 	systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+	// A modal dialog, stale native window, or non-daemon AWT helper must fail
+	// the owning acceptance method instead of hanging the Gradle worker.
+	systemProperty("junit.jupiter.execution.timeout.mode", "enabled")
+	systemProperty("junit.jupiter.execution.timeout.default", "120s")
+	testLogging {
+		events("started", "passed", "failed", "skipped")
+		exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+		showExceptions = true
+		showCauses = true
+		showStackTraces = true
+	}
     val guiTestLocale = providers.gradleProperty("guiTestLocale").orElse("ja").get()
     val guiTestUiScale = providers.gradleProperty("guiTestUiScale").orNull
     inputs.property("guiTestLocale", guiTestLocale)

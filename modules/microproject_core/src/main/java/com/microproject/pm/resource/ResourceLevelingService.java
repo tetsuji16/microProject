@@ -163,12 +163,11 @@ public final class ResourceLevelingService {
 	private static final class LevelingScratch {
 		private final ArrayList<Assignment> assignments = new ArrayList<>();
 		private final ArrayList<Scheduled> accepted = new ArrayList<>();
-		private final ArrayList<Long> boundaries = new ArrayList<>();
+		private final Set<Long> boundaries = new LinkedHashSet<>();
 
 		private void reset(int assignmentCount) {
 			assignments.ensureCapacity(assignmentCount);
 			accepted.ensureCapacity(assignmentCount * 2);
-			boundaries.ensureCapacity(assignmentCount + 1);
 			assignments.clear();
 			accepted.clear();
 			boundaries.clear();
@@ -357,15 +356,19 @@ public final class ResourceLevelingService {
 	}
 
 	private static boolean isOverallocated(long start, long end, double units,
-		List<Scheduled> accepted, double capacity, List<Long> boundaries) {
+		List<Scheduled> accepted, double capacity, Set<Long> boundaries) {
 		if (units > capacity + 0.000001D) {
 			return true;
 		}
 		boundaries.clear();
-		boundaries.add(start);
+		boundaries.add(Long.valueOf(start));
 		for (Scheduled scheduled : accepted) {
 			if (overlaps(start, end, scheduled.start(), scheduled.end())) {
-				boundaries.add(Math.max(start, scheduled.start()));
+				// Do not retain duplicate boundaries.  Fully overlapping
+				// assignments otherwise make the boundary scan quadratic on every
+				// candidate and turn a linear predecessor workload into a cubic
+				// preview path.
+				boundaries.add(Long.valueOf(Math.max(start, scheduled.start())));
 			}
 		}
 		for (long boundary : boundaries) {

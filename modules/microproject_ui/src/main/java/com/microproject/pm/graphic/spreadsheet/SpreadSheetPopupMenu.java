@@ -219,10 +219,41 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 			return;
 		}
 		JMenuItem menuItem = new JMenuItem(action);
+		// Document actions are registered independently from the menu factory and
+		// therefore do not necessarily carry Action.NAME.  The task popup must
+		// still render the same localized label as the ribbon/menu definition.
+		GraphicManager manager = GraphicManager.getInstance(spreadSheet);
+		if (manager != null) {
+			String label = manager.getMenuManager().getStringOrNull(popupTextKey(actionId) + ".text");
+			if (label == null || label.isBlank())
+				label = manager.getMenuManager().getStringOrNull(actionId + ".text");
+			if (label != null && !label.isBlank()) {
+				menuItem.setText(label);
+			}
+		}
 		menuItem.setName("popup." + actionId);
 		menuItem.setIcon(getPopupIcon(iconName));
 		add(menuItem);
 	    }
+
+	private String popupTextKey(String actionId) {
+		return switch (actionId) {
+		case MenuActionConstants.ACTION_NEW -> "RibbonInsert";
+		case MenuActionConstants.ACTION_DELETE -> "RibbonDelete";
+		case MenuActionConstants.ACTION_INDENT -> "RibbonIndent";
+		case MenuActionConstants.ACTION_OUTDENT -> "RibbonOutdent";
+		case MenuActionConstants.ACTION_CUT -> "RibbonCut";
+		case MenuActionConstants.ACTION_COPY -> "RibbonCopy";
+		case MenuActionConstants.ACTION_PASTE, MenuActionConstants.ACTION_PASTE_INSERT -> "RibbonPaste";
+		case MenuActionConstants.ACTION_EXPAND -> "RibbonExpand";
+		case MenuActionConstants.ACTION_COLLAPSE -> "RibbonCollapse";
+		case MenuActionConstants.ACTION_STATUS_DATE -> "RibbonStatusDate";
+		case MenuActionConstants.ACTION_MARK_ON_TRACK -> "RibbonMarkOnTrack";
+		case MenuActionConstants.ACTION_HIDE_SELECTED_TASKS -> "RibbonHideSelectedTasks";
+		case MenuActionConstants.ACTION_SHOW_ALL_TASKS -> "RibbonShowAllTasks";
+		default -> actionId;
+		};
+	}
 
 	private javax.swing.Icon getPopupIcon(String iconName) {
 		if (iconName == null)

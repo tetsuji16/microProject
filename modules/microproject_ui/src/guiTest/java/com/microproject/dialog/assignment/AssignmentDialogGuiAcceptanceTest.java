@@ -182,6 +182,8 @@ class AssignmentDialogGuiAcceptanceTest {
 
 		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null,
 			"Replace did not create the replacement assignment");
+		GuiAcceptanceSupport.await(() -> source.getRemainingWork() == 0L,
+			"Replace did not finish transferring the source remaining work");
 		Assignment replacementAssignment = task.findAssignment(replacement);
 		assertSame(source, task.findAssignment(original), "actual work must retain the original assignment");
 		assertEquals(actualWork, source.getActualWork(null));
@@ -198,6 +200,8 @@ class AssignmentDialogGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) == null,
 			"Ctrl+Z did not remove the replacement assignment");
+		GuiAcceptanceSupport.await(() -> source.getRemainingWork() == remainingWork,
+			"Ctrl+Z did not restore the source remaining work");
 		assertSame(source, task.findAssignment(original));
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(remainingWork, source.getRemainingWork());

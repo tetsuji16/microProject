@@ -24,6 +24,7 @@ import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
@@ -37,7 +38,11 @@ import com.microproject.configuration.FieldDictionary;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.configuration.Dictionary;
+import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.grouping.core.Node;
+import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -77,25 +82,26 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		activate(fixture.entrySheet);
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "20");
-		assertEquals(20L * CalendarOption.getInstance().getMillisPerDay(), fixture.task.getRawDuration(),
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10");
+		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), fixture.task.getRawDuration(),
 			"physical multi-character duration input must commit the complete value");
 
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.startColumn, "2026/10/05");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.startColumn, "2026/9/25");
 		Calendar committedStart = DateTime.calendarInstance();
 		committedStart.setTimeInMillis(fixture.task.getStart());
 		int startModelColumn = fixture.entrySheet.convertColumnIndexToModel(fixture.startColumn);
 		Field startField = ((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldInColumn(startModelColumn);
 		assertEquals(2026, committedStart.get(Calendar.YEAR), "physical date input must commit the year");
-		assertEquals(Calendar.OCTOBER, committedStart.get(Calendar.MONTH),
+		assertEquals(Calendar.SEPTEMBER, committedStart.get(Calendar.MONTH),
 			"physical date input must commit the month: " + committedStart.getTime()
 				+ " field=" + (startField == null ? null : startField.getId())
 				+ " editable=" + fixture.entrySheet.isCellEditable(fixture.entryRow, fixture.startColumn)
 				+ " cell=" + ((SpreadSheetModel) fixture.entrySheet.getModel()).getValueAt(fixture.entryRow, startModelColumn));
-		assertEquals(5, committedStart.get(Calendar.DAY_OF_MONTH), "physical date input must commit the day");
+		assertEquals(25, committedStart.get(Calendar.DAY_OF_MONTH), "physical date input must commit the day");
 		Field remainingDuration = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");
 		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
 			remainingDuration.getText(fixture.task, null), "0% renderer must show the full remaining duration");
+		fixture.setProgressBaseline();
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
 		activate(fixture.trackingSheet);
@@ -106,9 +112,39 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertTrue(fixture.task.getRemainingDuration() > 0L, "10% progress must leave a positive remaining duration");
 		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
 			remainingDuration.getText(fixture.task, null), "10% renderer must show the intermediate remaining duration");
-		SwingUtilities.invokeAndWait(() -> fixture.task.setPercentComplete(1.0d));
+		GanttGeometry afterTen = ganttGeometry(fixture);
+		assertEquals(fixture.progressViewportBefore(), afterTen.viewport(),
+			"10% task-table input must not move the Gantt timescale viewport");
+		assertEquals(fixture.progressBarBefore(), afterTen.bar(),
+			"10% task-table input must not change the planned bar geometry");
+		editWithPhysicalKeys(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, "50");
+		assertEquals(0.50d, fixture.task.getPercentComplete(), 0.00001d,
+			"physical intermediate percent input must commit 50%");
+		assertTrue(fixture.task.getRemainingDuration() > 0L, "50% progress must leave a positive remaining duration");
+		GanttGeometry afterHalf = ganttGeometry(fixture);
+		assertEquals(fixture.progressViewportBefore(), afterHalf.viewport(),
+			"50% task-table input must not move the Gantt timescale viewport");
+		assertEquals(fixture.progressBarBefore(), afterHalf.bar(),
+			"50% task-table input must not change the planned bar geometry");
+		editWithPhysicalKeys(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, "99");
+		assertEquals(0.99d, fixture.task.getPercentComplete(), 0.00001d,
+			"physical near-complete percent input must commit 99%");
+		assertTrue(fixture.task.getRemainingDuration() > 0L, "99% progress must leave a positive remaining duration");
+		GanttGeometry afterNearComplete = ganttGeometry(fixture);
+		assertEquals(fixture.progressViewportBefore(), afterNearComplete.viewport(),
+			"99% task-table input must not move the Gantt timescale viewport");
+		assertEquals(fixture.progressBarBefore(), afterNearComplete.bar(),
+			"99% task-table input must not change the planned bar geometry");
+		editWithPhysicalKeys(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, "100");
+		assertEquals(1.0d, fixture.task.getPercentComplete(), 0.00001d,
+			"physical 100% input must commit the complete value");
 		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
 			remainingDuration.getText(fixture.task, null), "100% renderer must show zero remaining duration");
+		GanttGeometry afterComplete = ganttGeometry(fixture);
+		assertEquals(fixture.progressViewportBefore(), afterComplete.viewport(),
+			"100% task-table input must not move the Gantt timescale viewport");
+		assertEquals(fixture.progressBarBefore(), afterComplete.bar(),
+			"100% task-table input must not change the planned bar geometry");
 
 	}
 
@@ -126,8 +162,8 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			tabs = new JTabbedPane();
 			tabs.addTab("Entry", new JScrollPane(fixture.entrySheet));
 			tabs.addTab("Tracking", new JScrollPane(fixture.trackingSheet));
-			frame.add(tabs);
-			frame.setPreferredSize(new Dimension(1100, 460));
+			frame.add(new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tabs, new JScrollPane(fixture.gantt)));
+			frame.setPreferredSize(new Dimension(1400, 560));
 			frame.pack();
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
@@ -217,7 +253,12 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			SheetSetup tracking = createSheet(project, "u26-physical-input-tracking", "Spreadsheet.Task.tracking");
 		int entryRow = findTaskRow(entry, task);
 		int trackingRow = findTaskRow(tracking, task);
-			result[0] = new Fixture(entry.sheet(), tracking.sheet(), task, entryRow, trackingRow,
+			Gantt gantt = new Gantt(project, "Gantt");
+			gantt.setCache(entry.cache());
+			gantt.setCoord(new CoordinatesConverter(project));
+			gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, "standard"));
+			gantt.updateSize();
+			result[0] = new Fixture(entry.sheet(), tracking.sheet(), gantt, task, entryRow, trackingRow,
 				findColumn(entry.sheet(), "Field.duration"), findColumn(tracking.sheet(), "Field.percentComplete"),
 				findColumn(entry.sheet(), "Field.start"));
 		});
@@ -248,7 +289,44 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		throw new IllegalArgumentException("Missing field: " + fieldId);
 	}
 
-	private record Fixture(SpreadSheet entrySheet, SpreadSheet trackingSheet, NormalTask task, int entryRow,
-		int trackingRow, int durationColumn, int percentColumn, int startColumn) { }
+	private static GanttGeometry ganttGeometry(Fixture fixture) throws Exception {
+		GanttGeometry[] result = new GanttGeometry[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JScrollPane pane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.gantt);
+			Point viewport = pane == null ? new Point() : pane.getViewport().getViewPosition();
+			double start = fixture.gantt.getCoord().toX(fixture.task.getStart());
+			double width = fixture.gantt.getCoord().toX(fixture.task.getEnd()) - start;
+			result[0] = new GanttGeometry(viewport, new BarGeometry((int) Math.round(start), (int) Math.round(width)));
+		});
+		return result[0];
+	}
+
+	private record BarGeometry(int startX, int width) { }
+	private record GanttGeometry(Point viewport, BarGeometry bar) { }
+
+	private static final class Fixture {
+		final SpreadSheet entrySheet;
+		final SpreadSheet trackingSheet;
+		final Gantt gantt;
+		final NormalTask task;
+		final int entryRow, trackingRow, durationColumn, percentColumn, startColumn;
+		private Point progressViewportBefore;
+		private BarGeometry progressBarBefore;
+
+		Fixture(SpreadSheet entrySheet, SpreadSheet trackingSheet, Gantt gantt, NormalTask task, int entryRow,
+			int trackingRow, int durationColumn, int percentColumn, int startColumn) {
+			this.entrySheet = entrySheet; this.trackingSheet = trackingSheet; this.gantt = gantt; this.task = task;
+			this.entryRow = entryRow; this.trackingRow = trackingRow; this.durationColumn = durationColumn;
+			this.percentColumn = percentColumn; this.startColumn = startColumn;
+		}
+
+		void setProgressBaseline() throws Exception {
+			GanttGeometry geometry = ganttGeometry(this);
+			progressViewportBefore = geometry.viewport();
+			progressBarBefore = geometry.bar();
+		}
+		Point progressViewportBefore() { return progressViewportBefore; }
+		BarGeometry progressBarBefore() { return progressBarBefore; }
+	}
 	private record SheetSetup(SpreadSheet sheet, NodeModelCache cache) { }
 }

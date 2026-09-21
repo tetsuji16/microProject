@@ -66,7 +66,11 @@ class UnresolvedCrossProjectDependencyGuiAcceptanceTest {
 			owner.setVisible(true);
 			dialog = TaskInformationDialog.getInstance(owner, fixture.localTask, false);
 			dialog.setModal(false);
-			dialog.pack();
+			dialog.initComponents();
+			// Avoid an unbounded native font/layout pass during the full GUI suite;
+			// the acceptance below validates the rendered predecessor table at this
+			// explicit viewport size, so packing is neither required nor useful here.
+			dialog.setSize(1_050, 600);
 			dialog.setLocationByPlatform(true);
 			dialog.setAlwaysOnTop(true);
 			dialog.setVisible(true);

@@ -112,7 +112,16 @@ their viewport and non-overlapping; button Close/Cancel/Help actions work.
 - Run the full GUI suite and the appropriate module suites from a fresh
 `installDist`; review artifacts and issue status.
 - Keep unresolved defects open with explicit scope and risk.  Do not use a
-passing headless build as evidence of GUI acceptance.
+  passing headless build as evidence of GUI acceptance.
+
+Before declaring this phase complete, the gate implementation itself must be
+audited.  A JUnit timeout, `forkEvery`, or a historical successful run is not
+an outer watchdog and does not prove that an EDT, modal dialog, native window,
+or non-daemon helper terminated.  The Windows workflow must execute the
+functional gate and the Japanese/English 100/125/150% visual matrix, capture
+diagnostics on failure or timeout, and fail closed when any matrix leg is
+skipped or cannot be started.  The current commit and freshly generated
+`installDist` are the only evidence eligible for release.
 
 **Exit gate:** every issue closed in these phases has a command contract,
 focused invariant test, physical Robot evidence, and required visual or

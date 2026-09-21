@@ -210,6 +210,31 @@ class GanttRendererProgressTest {
 	}
 
 	@Test
+	void progressMatrixChangesOnlyCompletionOverlayNotPlannedBarGeometry() {
+		final double x = 10.0d;
+		final double y = 20.0d;
+		final double plannedWidth = 100.0d;
+		Rectangle2D plannedBar = GanttBarSupport.createCapsuleBarBounds(x, y, plannedWidth, 12.0d);
+		double[] progressValues = { 0.0d, 0.10d, 0.50d, 0.99d, 1.0d };
+		for (double progress : progressValues) {
+			Rectangle2D overlay = GanttBarSupport.progressOverlayBounds(x, y, plannedWidth, 8.0d, progress);
+			if (progress == 0.0d) {
+				assertNull(overlay, "zero progress must not paint a completion overlay");
+			} else {
+				assertEquals(plannedWidth * progress, overlay.getWidth(), 0.00001d,
+					"completion overlay width must follow the committed progress ratio");
+				assertEquals(x, overlay.getX(), 0.00001d);
+			}
+			// The planned bar geometry is derived from the schedule interval, not
+			// from percent complete. A viewport/bar-wide change must be tested at
+			// the GUI level as a schedule or rendering regression, not accepted as
+			// a consequence of painting the completion overlay.
+			assertEquals(plannedWidth, plannedBar.getWidth(), 0.00001d);
+			assertEquals(x, plannedBar.getX(), 0.00001d);
+		}
+	}
+
+	@Test
 	void progressOverlayIncludesDarkMicrosoftProjectStyleIndicator() {
 		BufferedImage image = new BufferedImage(60, 20, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D graphics = image.createGraphics();

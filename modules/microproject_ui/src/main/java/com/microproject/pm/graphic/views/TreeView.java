@@ -127,10 +127,10 @@ public class TreeView extends JScrollPane implements BaseView {
 		return viewName;
 	}
 	public boolean showsTasks() {
-		return viewName == MenuActionConstants.ACTION_WBS;
+		return MenuActionConstants.ACTION_WBS.equals(viewName);
 	}
 	public boolean showsResources() {
-		return viewName == MenuActionConstants.ACTION_RBS;
+		return MenuActionConstants.ACTION_RBS.equals(viewName);
 	}
 	public void onActivate(boolean activate) {
 	}
@@ -199,4 +199,3 @@ public class TreeView extends JScrollPane implements BaseView {
 	
 
 }
-

@@ -276,6 +276,21 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void taskPopupRendersLocalizedLabelsForEveryVisibleCommand() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			SpreadSheetPopupMenu popup = fixture.sheet().getPopup();
+
+			for (java.awt.Component component : popup.getComponents()) {
+				if (!(component instanceof JMenuItem item) || !item.isVisible())
+					continue;
+				assertNotNull(item.getText(), "visible popup command must have a label: " + item.getName());
+				assertFalse(item.getText().isBlank(), "visible popup command must not be icon-only: " + item.getName());
+			}
+		});
+	}
+
+	@Test
 	void linkedSubprojectPopupExposesRecoveryActionsForAnUnloadedReference() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			DataFactoryUndoController undoController = new DataFactoryUndoController();
