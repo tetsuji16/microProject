@@ -182,6 +182,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	}
 
 	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
+		focusWindowWithPhysicalTitleClick(robot, sheet);
 		Rectangle cell = cellOnScreen(sheet, row, column);
 		clickCellAndRestoreForeground(robot, sheet, row, column, cell);
 		SwingUtilities.invokeAndWait(() -> assertTrue(sheet.editCellAt(row, column, null),
@@ -211,6 +212,24 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical input did not commit: " + value);
+	}
+
+	private static void focusWindowWithPhysicalTitleClick(Robot robot, SpreadSheet sheet) throws Exception {
+		Window owner = SwingUtilities.getWindowAncestor(sheet);
+		if (owner == null)
+			throw new AssertionError("spreadsheet must have a native window owner");
+		Rectangle bounds = owner.getBounds();
+		robot.mouseMove(bounds.x + Math.max(1, bounds.width / 2), bounds.y + 8);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		SwingUtilities.invokeAndWait(() -> {
+			owner.toFront();
+			owner.requestFocus();
+			sheet.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(sheet::isFocusOwner,
+			"spreadsheet did not receive focus after physical title-bar activation");
 	}
 
 	private static void clickCellAndRestoreForeground(Robot robot, SpreadSheet sheet, int row, int column,
