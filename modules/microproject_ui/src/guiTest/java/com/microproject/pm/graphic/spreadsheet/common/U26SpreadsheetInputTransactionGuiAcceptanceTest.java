@@ -217,7 +217,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			Rectangle cell) throws Exception {
 		clickCell(robot, cell);
 		robot.waitForIdle();
-		if (!sheet.isFocusOwner()) {
+		if (!isActiveCell(sheet, row, column)) {
 			Window owner = SwingUtilities.getWindowAncestor(sheet);
 			SwingUtilities.invokeAndWait(() -> {
 				if (owner != null) {
@@ -227,8 +227,14 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 				sheet.requestFocusInWindow();
 			});
 			robot.delay(100);
-			clickCell(robot, cell);
-			robot.waitForIdle();
+			int step = Math.max(4, cell.width);
+			int[] offsets = {0, -step, step, -2 * step, 2 * step, -3 * step, 3 * step};
+			for (int offset : offsets) {
+				clickCell(robot, cell, offset);
+				robot.waitForIdle();
+				if (isActiveCell(sheet, row, column))
+					break;
+			}
 		}
 		// A native Windows foreground transfer may leave the JTable without focus
 		// even though the physical click was delivered.  The selection is the
@@ -243,9 +249,20 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	}
 
 	private static void clickCell(Robot robot, Rectangle cell) {
-		robot.mouseMove(cell.x + cell.width / 2, cell.y + cell.height / 2);
+		clickCell(robot, cell, 0);
+	}
+
+	private static void clickCell(Robot robot, Rectangle cell, int xOffset) {
+		robot.mouseMove(cell.x + cell.width / 2 + xOffset, cell.y + cell.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static boolean isActiveCell(SpreadSheet sheet, int row, int column) throws Exception {
+		boolean[] result = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> result[0] = row == sheet.getSelection().getActiveRow()
+			&& column == sheet.getSelection().getActiveColumn());
+		return result[0];
 	}
 
 	private static String activeEditorText(SpreadSheet sheet) throws Exception {
@@ -265,25 +282,8 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			// requested active column rather than leaving JTable's lead at column 0.
 			sheet.changeSelection(row, column == 0 ? 1 : column - 1, false, false);
 			Rectangle bounds = sheet.getCellRect(row, column, true);
-			int localX = bounds.x + Math.max(1, bounds.width / 2);
-			int localY = bounds.y + Math.max(1, bounds.height / 2);
-			// Locale/DPI-specific column widths can put the nominal center on a
-			// neighbouring hit region.  Pick a point that Swing itself resolves to
-			// the requested row and column, then send a real Robot click there.
-			for (int candidateX = bounds.x; candidateX < bounds.x + bounds.width; candidateX++) {
-				if (sheet.columnAtPoint(new Point(candidateX, localY)) == column) {
-					localX = candidateX;
-					break;
-				}
-			}
-			for (int candidateY = bounds.y; candidateY < bounds.y + bounds.height; candidateY++) {
-				if (sheet.rowAtPoint(new Point(localX, candidateY)) == row) {
-					localY = candidateY;
-					break;
-				}
-			}
 			Point location = sheet.getLocationOnScreen();
-			result[0] = new Rectangle(location.x + localX, location.y + localY, 1, 1);
+			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
 		return result[0];
 	}
