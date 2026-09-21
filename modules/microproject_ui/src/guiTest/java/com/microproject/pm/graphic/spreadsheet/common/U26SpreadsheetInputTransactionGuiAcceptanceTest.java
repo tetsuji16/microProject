@@ -9,15 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Dimension;
+import java.awt.Component;
 import java.awt.GraphicsEnvironment;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
-import java.awt.Window;
-import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.Calendar;
+import java.awt.event.InputEvent;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -178,25 +178,27 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			frame.requestFocus();
 			sheet.requestFocusInWindow();
 		});
-		GuiAcceptanceSupport.await(sheet::isFocusOwner, "spreadsheet did not receive focus");
+		GuiAcceptanceSupport.await(() -> frame.isActive() && sheet.isFocusOwner(),
+			"spreadsheet window did not become active and focused");
 	}
 
 	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
-		focusWindowWithPhysicalTitleClick(robot, sheet);
 		Rectangle cell = cellOnScreen(sheet, row, column);
-		clickCellAndRestoreForeground(robot, sheet, row, column, cell);
-		SwingUtilities.invokeAndWait(() -> assertTrue(sheet.editCellAt(row, column, null),
-			"F2 route must start editing the clicked cell row=" + row + " column=" + column));
+		clickCellAndSelect(robot, sheet, row, column, cell);
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(sheet.editCellAt(row, column, null),
+				"the input transaction must start editing row=" + row + " column=" + column);
+		});
 		GuiAcceptanceSupport.await(sheet::isEditing, "physical F2 did not start cell editing");
 		assertEquals(column, sheet.getEditingColumn(), "physical click/F2 must edit the clicked field");
-		SwingUtilities.invokeAndWait(() -> sheet.getEditorComponent().requestFocusInWindow());
-		GuiAcceptanceSupport.await(() -> sheet.getEditorComponent() != null
-			&& sheet.getEditorComponent().isFocusOwner(), "cell editor did not receive focus");
-		assertEquals(sheet.getEditorComponent(), KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(),
+		JTextComponent input = editorInputComponent(sheet);
+		GuiAcceptanceSupport.await(input::isFocusOwner, "cell editor did not receive focus");
+		assertEquals(input, KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(),
 			"physical input must target the active cell editor");
-		sheet.getEditorComponent().requestFocusInWindow();
-		robot.delay(100);
-		robot.delay(50);
+		SwingUtilities.invokeAndWait(input::requestFocusInWindow);
+		GuiAcceptanceSupport.await(input::isFocusOwner, "cell editor lost focus before physical typing");
+		robot.waitForIdle();
+		robot.delay(150);
 		robot.keyPress(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_A);
 		robot.keyRelease(KeyEvent.VK_A);
@@ -214,61 +216,29 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical input did not commit: " + value);
 	}
 
-	private static void focusWindowWithPhysicalTitleClick(Robot robot, SpreadSheet sheet) throws Exception {
-		Window owner = SwingUtilities.getWindowAncestor(sheet);
-		if (owner == null)
-			throw new AssertionError("spreadsheet must have a native window owner");
-		Rectangle bounds = owner.getBounds();
-		robot.mouseMove(bounds.x + Math.max(1, bounds.width / 2), bounds.y + 8);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
+	private static Rectangle cellOnScreen(SpreadSheet sheet, int row, int column) throws Exception {
+		Rectangle[] result = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			owner.toFront();
-			owner.requestFocus();
-			sheet.requestFocusInWindow();
+			sheet.changeSelection(row, Math.max(0, column - 1), false, false);
+			Rectangle bounds = sheet.getCellRect(row, column, true);
+			Point location = sheet.getLocationOnScreen();
+			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
-		GuiAcceptanceSupport.await(sheet::isFocusOwner,
-			"spreadsheet did not receive focus after physical title-bar activation");
+		return result[0];
 	}
 
-	private static void clickCellAndRestoreForeground(Robot robot, SpreadSheet sheet, int row, int column,
+	private static void clickCellAndSelect(Robot robot, SpreadSheet sheet, int row, int column,
 			Rectangle cell) throws Exception {
-		clickCell(robot, cell);
-		robot.waitForIdle();
-		if (!isActiveCell(sheet, row, column)) {
-			Window owner = SwingUtilities.getWindowAncestor(sheet);
-			SwingUtilities.invokeAndWait(() -> {
-				if (owner != null) {
-					owner.toFront();
-					owner.requestFocus();
-				}
-				sheet.requestFocusInWindow();
-			});
-			robot.delay(100);
-			int step = Math.max(4, cell.width);
-			int[] offsets = {0, -step, step, -2 * step, 2 * step, -3 * step, 3 * step};
-			for (int offset : offsets) {
-				clickCell(robot, cell, offset);
-				robot.waitForIdle();
-				if (isActiveCell(sheet, row, column))
-					break;
-			}
+		int step = Math.max(4, cell.width / 4);
+		for (int offset = -3 * cell.width; offset <= 3 * cell.width; offset += step) {
+			clickCell(robot, cell, offset);
+			robot.waitForIdle();
+			if (isActiveCell(sheet, row, column)) break;
 		}
-		// A native Windows foreground transfer may leave the JTable without focus
-		// even though the physical click was delivered.  The selection is the
-		// observable result of that click; editor focus is checked immediately
-		// after editCellAt and is the condition required for physical key input.
 		SwingUtilities.invokeAndWait(() -> {
-			assertEquals(row, sheet.getSelection().getActiveRow(),
-				"physical cell click must select the requested row");
-			assertEquals(column, sheet.getSelection().getActiveColumn(),
-				"physical cell click must select the requested column");
+			assertEquals(row, sheet.getSelection().getActiveRow(), "physical cell click must select the requested row");
+			assertEquals(column, sheet.getSelection().getActiveColumn(), "physical cell click must select the requested column");
 		});
-	}
-
-	private static void clickCell(Robot robot, Rectangle cell) {
-		clickCell(robot, cell, 0);
 	}
 
 	private static void clickCell(Robot robot, Rectangle cell, int xOffset) {
@@ -284,25 +254,35 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		return result[0];
 	}
 
+	private static JTextComponent editorInputComponent(SpreadSheet sheet) throws Exception {
+		JTextComponent[] result = new JTextComponent[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component editor = sheet.getEditorComponent();
+			if (editor instanceof DateEditor.ExtDateField date) {
+				result[0] = date.getTextField();
+			} else {
+				result[0] = findTextComponent(editor);
+			}
+		});
+		return result[0];
+	}
+
+	private static JTextComponent findTextComponent(Component component) {
+		if (component instanceof JTextComponent text) return text;
+		if (component instanceof java.awt.Container container) {
+			for (Component child : container.getComponents()) {
+				JTextComponent result = findTextComponent(child);
+				if (result != null) return result;
+			}
+		}
+		return null;
+	}
+
 	private static String activeEditorText(SpreadSheet sheet) throws Exception {
 		String[] result = new String[1];
 		SwingUtilities.invokeAndWait(() -> {
 			if (sheet.getEditorComponent() instanceof JTextComponent text) result[0] = text.getText();
 			else if (sheet.getEditorComponent() instanceof DateEditor.ExtDateField date) result[0] = date.getTextField().getText();
-		});
-		return result[0];
-	}
-
-	private static Rectangle cellOnScreen(SpreadSheet sheet, int row, int column) throws Exception {
-		Rectangle[] result = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> {
-			// Preserve the same full-row selection setup as the existing physical
-			// spreadsheet fixtures; the following mouse click must establish the
-			// requested active column rather than leaving JTable's lead at column 0.
-			sheet.changeSelection(row, column == 0 ? 1 : column - 1, false, false);
-			Rectangle bounds = sheet.getCellRect(row, column, true);
-			Point location = sheet.getLocationOnScreen();
-			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
 		return result[0];
 	}

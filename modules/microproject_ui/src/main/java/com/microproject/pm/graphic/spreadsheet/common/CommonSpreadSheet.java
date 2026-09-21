@@ -1165,6 +1165,9 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
     	if (editingStarted && editorComp != null) {
 //    		System.out.println("editing cell at " + row + " " + column);
     		configureEditorComponentAfterStart(row, column, e);
+		// JTable attaches the editor synchronously, but the real F2/click route
+		// must transfer keyboard focus before the next physical key arrives.
+		SwingUtilities.invokeLater(this::requestEditorFocus);
     	}
 		return editingStarted;
 	}
