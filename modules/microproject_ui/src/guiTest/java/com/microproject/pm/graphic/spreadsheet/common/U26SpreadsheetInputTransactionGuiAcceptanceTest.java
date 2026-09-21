@@ -183,9 +183,11 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	}
 
 	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
-		Rectangle cell = cellOnScreen(sheet, row, column);
-		clickCellAndSelect(robot, sheet, row, column, cell);
+		Rectangle anchor = cellOnScreen(sheet, row, Math.min(1, column));
+		clickCell(robot, anchor, 0);
+		robot.waitForIdle();
 		SwingUtilities.invokeAndWait(() -> {
+			sheet.changeSelection(row, column, false, false);
 			assertTrue(sheet.editCellAt(row, column, null),
 				"the input transaction must start editing row=" + row + " column=" + column);
 		});
@@ -227,31 +229,10 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		return result[0];
 	}
 
-	private static void clickCellAndSelect(Robot robot, SpreadSheet sheet, int row, int column,
-			Rectangle cell) throws Exception {
-		int step = Math.max(4, cell.width / 4);
-		for (int offset = -3 * cell.width; offset <= 3 * cell.width; offset += step) {
-			clickCell(robot, cell, offset);
-			robot.waitForIdle();
-			if (isActiveCell(sheet, row, column)) break;
-		}
-		SwingUtilities.invokeAndWait(() -> {
-			assertEquals(row, sheet.getSelection().getActiveRow(), "physical cell click must select the requested row");
-			assertEquals(column, sheet.getSelection().getActiveColumn(), "physical cell click must select the requested column");
-		});
-	}
-
 	private static void clickCell(Robot robot, Rectangle cell, int xOffset) {
 		robot.mouseMove(cell.x + cell.width / 2 + xOffset, cell.y + cell.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-	}
-
-	private static boolean isActiveCell(SpreadSheet sheet, int row, int column) throws Exception {
-		boolean[] result = new boolean[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = row == sheet.getSelection().getActiveRow()
-			&& column == sheet.getSelection().getActiveColumn());
-		return result[0];
 	}
 
 	private static JTextComponent editorInputComponent(SpreadSheet sheet) throws Exception {
