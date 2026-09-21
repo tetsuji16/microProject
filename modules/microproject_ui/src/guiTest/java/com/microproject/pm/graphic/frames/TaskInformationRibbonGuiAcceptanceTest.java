@@ -969,6 +969,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(outdent));
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
 				"Outdent did not restore the selected task to the top level");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved),
+				"MPO save rejected the hierarchy restored through the physical Outdent route");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedFirst = taskNamed(reloaded, "Indent predecessor");
+		NormalTask reloadedSecond = taskNamed(reloaded, "Indent target");
+		assertNotNull(reloadedFirst, "MPO reload lost the Outdent predecessor");
+		assertNotNull(reloadedSecond, "MPO reload lost the Outdent target");
+		assertTrue(reloadedSecond.getWbsParentTask() == null,
+				"MPO reload retained a parent after the physical Outdent route");
 	}
 
 	@Test

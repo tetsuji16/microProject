@@ -148,7 +148,7 @@
 
 - `TaskDurationGuiAcceptanceTest` と `TaskDateDependencyGuiAcceptanceTest` は、Robotでセル選択・F2経路を確認するが、値は `editor.setText(...)` で注入する。そのため **route/commit契約** として保持し、U-26の物理多文字入力の証跡には数えない。
 - `CommonSpreadSheetImeStartTest` と `CommonSpreadSheetDateTypingTest` は editor attach 前のイベント列、IME開始・Convert、全桁日付を検証する **headless入力列契約** として保持する。これらはOS IMEの物理入力を代替しない。
-- `TaskInformationRibbonGuiAcceptanceTest` のアウトデント系は hierarchy/Undo/Redoを検証するが、アウトデント直後のMPO保存・再読込は未接続である。U-26の共有fixtureで追加し、リボン・popup・shortcutそれぞれへ同じ保存テストを複製しない。
+- `TaskInformationRibbonGuiAcceptanceTest` のアウトデント系は、物理リボン操作後の hierarchy/Undo/Redo と MPO保存・再読込までを同一fixtureで検証する。popup/shortcutは同じcanonical commandのroute検証に留め、保存テストを複製しない。
 - 残存期間の表示については、duration変換テストだけでなく raw duration・進捗別の renderer文字列を検証する必要がある。MSP公式の計算式は小数の残存日数を許容するため、U-26で0%/中間進捗/100%を同じ表示契約に統合し、小数を見た目だけで0へ丸める回帰を防ぐ。
 - 古いテストの `doClick` / `actionPerformed` / `setText` は、単体の構成・変換・ルート契約を検証する限り削除しない。物理入力・IME・保存の受入証跡として扱うことだけを禁止する。
 
