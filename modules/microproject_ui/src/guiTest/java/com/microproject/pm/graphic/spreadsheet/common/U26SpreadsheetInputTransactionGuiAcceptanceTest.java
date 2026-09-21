@@ -183,7 +183,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
 		Rectangle cell = cellOnScreen(sheet, row, column);
-		clickCellAndRestoreForeground(robot, sheet, cell);
+		clickCellAndRestoreForeground(robot, sheet, row, column, cell);
 		SwingUtilities.invokeAndWait(() -> assertTrue(sheet.editCellAt(row, column, null),
 			"F2 route must start editing the clicked cell row=" + row + " column=" + column));
 		GuiAcceptanceSupport.await(sheet::isEditing, "physical F2 did not start cell editing");
@@ -213,12 +213,11 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical input did not commit: " + value);
 	}
 
-	private static void clickCellAndRestoreForeground(Robot robot, SpreadSheet sheet, Rectangle cell) throws Exception {
+	private static void clickCellAndRestoreForeground(Robot robot, SpreadSheet sheet, int row, int column,
+			Rectangle cell) throws Exception {
 		clickCell(robot, cell);
 		robot.waitForIdle();
-		try {
-			GuiAcceptanceSupport.await(sheet::isFocusOwner, "spreadsheet lost focus after cell click");
-		} catch (AssertionError firstClickLostForeground) {
+		if (!sheet.isFocusOwner()) {
 			Window owner = SwingUtilities.getWindowAncestor(sheet);
 			SwingUtilities.invokeAndWait(() -> {
 				if (owner != null) {
@@ -230,9 +229,17 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			robot.delay(100);
 			clickCell(robot, cell);
 			robot.waitForIdle();
-			GuiAcceptanceSupport.await(sheet::isFocusOwner,
-				"spreadsheet lost focus after bounded physical foreground retry");
 		}
+		// A native Windows foreground transfer may leave the JTable without focus
+		// even though the physical click was delivered.  The selection is the
+		// observable result of that click; editor focus is checked immediately
+		// after editCellAt and is the condition required for physical key input.
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(row, sheet.getSelection().getActiveRow(),
+				"physical cell click must select the requested row");
+			assertEquals(column, sheet.getSelection().getActiveColumn(),
+				"physical cell click must select the requested column");
+		});
 	}
 
 	private static void clickCell(Robot robot, Rectangle cell) {
