@@ -189,8 +189,26 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 	}
 	
     protected void updateLargeInterval(boolean event){
-    	adaptInterval(getLargeStart(),getLargeEnd(),event);
-    	//System.out.println("updateLargeInterval: "+CalendarUtil.toString(getOrigin())+", "+CalendarUtil.toString(getEnd()));
+		// Establish a range once, then only grow it when the schedule moves
+		// outside the user's current browsing range. Replacing both endpoints
+		// from the project dates on every schedule notification discarded
+		// manually browsed empty time and made unrelated edits move the axis.
+		if (origin == 0 || end == 0) {
+			adaptInterval(getLargeStart(), getLargeEnd(), event);
+			return;
+		}
+		Calendar requiredStart = getLargeStart();
+		Calendar requiredEnd = getLargeEnd();
+		int changeType = 0;
+		if (requiredStart.getTimeInMillis() < origin) {
+			adaptOrigin(requiredStart, false);
+			changeType = TimeScaleEvent.ORIGIN_AND_END_CHANGE;
+		}
+		if (requiredEnd.getTimeInMillis() > end) {
+			adaptEnd(requiredEnd, false);
+			if (changeType == 0) changeType = TimeScaleEvent.END_ONLY_CHANGE;
+		}
+		if (event && changeType != 0) fireTimeScaleChanged(this, changeType);
     }
     
     
@@ -209,21 +227,18 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
     
 	public void zoomIn(){
 		if(timescaleManager.zoomIn()){
-			updateLargeInterval(false);
 			fireTimeScaleChanged(this,TimeScaleEvent.SCALE_CHANGE);
 		}
 	}
 	
 	public void zoomOut(){
 		if(timescaleManager.zoomOut()){
-			updateLargeInterval(false);
 			fireTimeScaleChanged(this,TimeScaleEvent.SCALE_CHANGE);
 		}
 	}
 	
 	public void zoomReset(){
 		if(timescaleManager.zoomReset()){
-			updateLargeInterval(false);
 			fireTimeScaleChanged(this,TimeScaleEvent.SCALE_CHANGE);
 		}
 	}

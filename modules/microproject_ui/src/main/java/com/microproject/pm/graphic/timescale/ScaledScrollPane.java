@@ -98,6 +98,10 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		int value = getHorizontalScrollBar().getValue();
 		int extent = getHorizontalScrollBar().getVisibleAmount();
 		int maximum = getHorizontalScrollBar().getMaximum();
+		// Adjustment events also fire while Swing is laying out the scrollbar.
+		// A zero-sized or non-scrollable model is not a user reaching an edge;
+		// treating it as one silently grows the date range during view creation.
+		if (extent <= 0 || maximum - extent <= EDGE_TRIGGER_PIXELS * 2) return;
 		boolean atStart = value <= EDGE_TRIGGER_PIXELS;
 		boolean atEnd = value + extent >= maximum - EDGE_TRIGGER_PIXELS;
 		if (!atStart && !atEnd) return;

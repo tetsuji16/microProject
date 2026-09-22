@@ -17,10 +17,32 @@ import javax.swing.JViewport;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ScaledScrollPaneTest {
+	@Test
+	void zoomAndUnrelatedScheduleNotificationsKeepTheDisplayRange() {
+		var undoController = new DataFactoryUndoController();
+		var resourcePool = ResourcePool.createRourcePool("scaled-scroll-pane-test", undoController);
+		var project = Project.createProject(resourcePool, undoController);
+		var coord = new CoordinatesConverter(project);
+		coord.extendViewBefore(30);
+		coord.extendViewAfter(30);
+		long origin = coord.getOrigin();
+		long end = coord.getEnd();
+
+		coord.zoomIn();
+		coord.zoomOut();
+		coord.zoomReset();
+		coord.scheduleChanged(new ScheduleEvent(project, ScheduleEvent.SCHEDULE));
+		coord.scheduleChanged(new ScheduleEvent(project, null));
+
+		assertEquals(origin, coord.getOrigin());
+		assertEquals(end, coord.getEnd());
+	}
+
 	@Test
 	void timeAxisShowsPreciseHorizontalScrollButtonsOnly() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
@@ -31,6 +53,21 @@ class ScaledScrollPaneTest {
 
 		assertEquals(Boolean.TRUE, scrollPane.getHorizontalScrollBar().getClientProperty("JScrollBar.showButtons"));
 		assertNull(scrollPane.getVerticalScrollBar().getClientProperty("JScrollBar.showButtons"));
+	}
+
+	@Test
+	void creatingTheScrollPaneDoesNotTreatItsInitialScrollbarLayoutAsEdgeNavigation() {
+		var undoController = new DataFactoryUndoController();
+		var resourcePool = ResourcePool.createRourcePool("scaled-scroll-pane-test", undoController);
+		var project = Project.createProject(resourcePool, undoController);
+		var coordinates = new CoordinatesConverter(project);
+		long origin = coordinates.getOrigin();
+		long end = coordinates.getEnd();
+
+		new ScaledScrollPane(new TestScaledComponent(coordinates), coordinates, null, 10);
+
+		assertEquals(origin, coordinates.getOrigin());
+		assertEquals(end, coordinates.getEnd());
 	}
 
 	@Test
