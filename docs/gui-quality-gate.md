@@ -171,6 +171,41 @@ allowed this bug?*  “Add another case” is not an adequate answer by itself.
   title convention, and keyboard routing as the primary window unless the
   difference is explicitly specified and tested.
 
+### Visual issue intake and historical regression closure
+
+For every GUI issue with screenshots, treat the report as a set of visual
+contracts, not as one representative example:
+
+1. Enumerate every image in the issue body and every comment/reply. Open each
+image and record its screen, affected controls, symptom, and source link in a
+coverage matrix before changing code. Text extracted from the issue is not a
+substitute for inspecting the pixels.
+2. Search prior open, closed, and reopened issues plus their comments for the
+same screen, component, layout helper, and symptom. Read the prior fix and its
+test scope; a past closure is history, not evidence that the current paths are
+covered.
+3. Map every image to its owning shared layout/component rule and to at least
+one regression assertion. Keep the issue open in the work record until every
+image has a matching test or a documented reason it is unaffected.
+4. Dialog visual checks must verify text-bearing labels, buttons, fields, and
+combos have at least their font-derived preferred height, remain inside the
+owning panel/window, and do not overlap sibling content. “Dialog opened” and
+“component is visible” are not clipping checks.
+5. When a common layout helper or dialog base class changes, rerun the
+representative dialog family, including old screens implicated by historical
+reports. Add a shared invariant assertion rather than isolated per-label pixel
+offsets.
+
+Issue #590 is a regression example: the issue body has four screenshots and
+its replies add two more. All six must be represented. Earlier issue #460 had
+already broadened the known scope from calendar dialogs to Help, Locale,
+Project Information, Clear Baseline, and Task Information; closing from a
+narrow subset failed to preserve that broader coverage. The follow-up reopened
+for an empty Project Information dialog because its `p,3dlu,p`/`nextLine(2)`
+pattern escaped the earlier checks. The countermeasure is image-to-test
+traceability plus shared preferred-height assertions, not another one-off
+layout workaround.
+
 ### Undo and persistence
 
 - A user-visible mutation posts exactly one undoable edit.  Do not clear or
@@ -296,9 +331,7 @@ them.  In particular:
 
 ## Regression matrix
 
-The mandatory matrix is maintained in `TEST_PLAN.md` as U-18 through U-26.
-Every newly reported GUI defect is assigned a row or added to an existing row
-before implementation begins.
+The mandatory matrix is maintained in `TEST_PLAN.md`. Every newly reported GUI defect is assigned a row or added to an existing row before implementation begins.
 
 ## Active environmental waiver
 

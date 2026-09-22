@@ -35,6 +35,7 @@ import javax.swing.JButton;
 import javax.swing.JToggleButton;
 
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.image.BufferedImage;
 
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,20 @@ import org.junit.jupiter.api.Test;
 import com.microproject.pm.graphic.IconManager;
 
 class FlatUiSupportButtonStateTest {
+	@Test
+	void dialogButtonHeightNeverOverridesItsFontAndInsetsPreferredHeight() {
+		JButton button = new JButton("オンラインヘルプを表示");
+		button.setFont(new Font(Font.DIALOG, Font.PLAIN, 28));
+
+		FlatUiSupport.styleDialogButton(button, false);
+
+		Dimension styled = button.getPreferredSize();
+		button.setPreferredSize(null);
+		Dimension fontDerived = button.getPreferredSize();
+		assertTrue(styled.height >= fontDerived.height,
+			"dialog button height must not shrink below the preferred size from its font, margin, and border");
+	}
+
 	@Test
 	void toolbarActionButtonsUseHoverStateButIgnorePersistentSelectionWhenNotToggle() {
 		JButton button = new JButton("Save");

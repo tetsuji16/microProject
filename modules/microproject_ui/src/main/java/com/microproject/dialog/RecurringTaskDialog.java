@@ -26,6 +26,9 @@ package com.microproject.dialog;
 
 import java.awt.Dimension;
 import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -173,11 +176,30 @@ public final class RecurringTaskDialog extends AbstractDialog {
 	}
 
 	private JComponent createRangePanel() {
-		JPanel panel = new JPanel();
-		panel.add(endByDateButton);
-		panel.add(endDateField);
-		panel.add(endAfterOccurrencesButton);
-		panel.add(occurrenceSpinner);
+		JPanel panel = new JPanel(new GridBagLayout());
+		GridBagConstraints constraints = new GridBagConstraints();
+		constraints.anchor = GridBagConstraints.LINE_START;
+		constraints.gridx = 0;
+		constraints.gridy = 0;
+		constraints.insets = new Insets(0, 0, 4, 6);
+		panel.add(endByDateButton, constraints);
+
+		constraints.gridx = 1;
+		constraints.weightx = 1.0;
+		constraints.fill = GridBagConstraints.HORIZONTAL;
+		constraints.insets = new Insets(0, 0, 4, 0);
+		panel.add(endDateField, constraints);
+
+		constraints.gridx = 0;
+		constraints.gridy = 1;
+		constraints.weightx = 0.0;
+		constraints.fill = GridBagConstraints.NONE;
+		constraints.insets = new Insets(0, 0, 0, 6);
+		panel.add(endAfterOccurrencesButton, constraints);
+
+		constraints.gridx = 1;
+		constraints.insets = new Insets(0, 0, 0, 0);
+		panel.add(occurrenceSpinner, constraints);
 		return panel;
 	}
 

@@ -46,13 +46,13 @@ import com.microproject.util.FlatUiSupport;
 class ProjectDialogTest {
 	@Test
 	void preferredFormRowsUsesOnlyPreferredHeightTracks() {
-		assertEquals("p,p,p,p,p", FlatUiSupport.preferredFormRows(5));
+		assertEquals("p,3dlu,p,3dlu,p,3dlu,p,3dlu,p", FlatUiSupport.preferredFormRows(5));
 		assertThrows(IllegalArgumentException.class, () -> FlatUiSupport.preferredFormRows(0));
 	}
 
 	@Test
 	void preferredRowsKeepEveryBuilderTargetAtItsPreferredHeight() {
-		FormLayout layout = new FormLayout("default, 3dlu, 220dlu:grow", FlatUiSupport.preferredFormRows(5));
+		FormLayout layout = new FormLayout("default, 3dlu, 220dlu:grow", FlatUiSupport.preferredFormRows(3));
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		JLabel firstLabel = new JLabel("プロジェクト名:");
 		JTextField firstField = new JTextField();
@@ -70,6 +70,26 @@ class ProjectDialogTest {
 		assertAtLeastPreferredHeight(firstField);
 		assertAtLeastPreferredHeight(secondLabel);
 		assertAtLeastPreferredHeight(secondField);
+	}
+
+	@Test
+	void nextLineTwoSkipsTheSpacerAndPlacesTheNextControlOnAPreferredTrack() {
+		FormLayout layout = new FormLayout("default, 3dlu, 220dlu:grow", "p,3dlu,p");
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		JLabel first = new JLabel("開始日");
+		JTextField second = new JTextField("2026-09-23");
+		builder.append(first);
+		builder.nextLine(2);
+		builder.append(second);
+
+		JPanel panel = builder.getPanel();
+		panel.setSize(panel.getPreferredSize());
+		panel.doLayout();
+
+		assertEquals(1, layout.getConstraints(first).gridY);
+		assertEquals(3, layout.getConstraints(second).gridY);
+		assertAtLeastPreferredHeight(first);
+		assertAtLeastPreferredHeight(second);
 	}
 
 	private static void assertAtLeastPreferredHeight(java.awt.Component component) {

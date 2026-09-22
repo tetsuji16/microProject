@@ -40,6 +40,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.util.Environment;
 import com.microproject.util.UiServices;
 
@@ -325,6 +326,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			commandId + " did not open " + dialogType.getSimpleName());
 		Window dialog = visibleDialog(dialogType);
 		assertDialogBodyIsRendered(dialog, commandId);
+		if (dialog instanceof LocaleDialog)
+			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Locale Settings dialog (#590 body image 4)");
+		if (dialog instanceof HelpDialog)
+			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Help dialog (#590 body image 3)");
 		clickCancel(robot, dialog);
 		GuiAcceptanceSupport.await(() -> visibleDialog(dialogType) == null,
 			commandId + " did not close its dialog through the physical Cancel route");

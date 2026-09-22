@@ -93,10 +93,28 @@ No orphan window, missing ribbon, stale active frame, or inconsistent title.
 **Purpose:** remove clipping at its layout root rather than per-label patches.
 
 - Establish a shared dialog form/layout policy that honors preferred component
-height and viewport bounds.
+  height and viewport bounds.
+- Keep the bundled `DefaultFormBuilder.nextLine(int)` grid-row contract aligned
+  with JGoodies: subtracting one from `nextLine(2)` places controls on the
+  `3dlu` spacer track, clipping text across unrelated dialogs. Update callers
+  that follow a separator, because `addSeparator()` already advances once.
+- In Recurring Task, keep the two end-condition choices and their controls in
+  separate responsive rows. A single `FlowLayout` row overflows the form's
+  fixed-width input column and leaves a clipped date/spinner fragment below
+  the controls, even when the labels themselves fit.
 - Migrate affected dialogs/tabs through that policy: task information,
 calendars, baseline, project information, recurring task, find, and resource
 pool dialogs (#460).
+- Treat #460 as an open regression map even though it was closed: its body and
+  comments expanded the affected surfaces, while the later reopen showed that
+  Project Information's matching row pattern had not been tested. For a new
+  visual report such as #590, enumerate every body and reply attachment before
+  selecting representative dialogs; keep one image-to-assertion matrix in the
+  regression plan. Do not infer “all dialogs fixed” from the first screenshot.
+- Replace visibility-only GUI assertions with the shared text-control
+  preferred-height invariant. A control can be visible, in-bounds, and still
+  have its glyphs crossed by a separator because it was assigned to a spacer
+  row.
 - Do not use arbitrary per-language pixel offsets as fixes.
 
 **Exit gate:** reusable visual harness checks Japanese and English at

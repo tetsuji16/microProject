@@ -39,6 +39,7 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** GUI-NC-07: open and cancel the working-time dialog through real mouse input. */
@@ -100,6 +101,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Change Working Time dialog (#590 body image 1)");
 		assertVisibleComponentsFit(dialog);
 		Robot robot = new Robot();
 		robot.setAutoDelay(50);

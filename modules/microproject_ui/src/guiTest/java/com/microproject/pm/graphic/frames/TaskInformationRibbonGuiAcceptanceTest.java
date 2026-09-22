@@ -8,6 +8,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
@@ -31,11 +32,12 @@ import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
+import javax.swing.JTabbedPane;
+import javax.swing.JScrollPane;
 import javax.swing.JMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JLabel;
-import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
@@ -43,12 +45,14 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.TaskInformationDialog;
+import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.CalendarViewDialogBox;
 import com.microproject.dialog.options.CalendarDialogBox;
 import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.assignment.TimesheetEntryPane;
+import com.microproject.menu.MenuManager;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
@@ -73,6 +77,7 @@ import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiCommandAcceptanceFixture;
 import com.microproject.testsupport.GuiPhysicalRouteAdapter;
+import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 
@@ -96,7 +101,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	void closeWindow() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window candidate : Window.getWindows()) {
-				if (candidate instanceof TaskInformationDialog || candidate instanceof TimesheetDialog
+				if (candidate instanceof TaskInformationDialog || candidate instanceof UpdateTaskDialog || candidate instanceof TimesheetDialog
 					|| candidate instanceof CalendarDialogBox)
 					candidate.dispose();
 			}
@@ -114,6 +119,113 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		else
 			System.setProperty("microproject.ui.debug", previousUiDebug);
 		SessionFactory.getInstance().setJobQueue(previousJobQueue);
+	}
+
+	@Test
+	void robotOpensIssue590DialogsWithoutClippedText() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousUiDebug = System.getProperty("microproject.ui.debug");
+		System.setProperty("microproject.ui.debug", "true");
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"full ribbon task window did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title"));
+		click(robot, boundsOnScreen(taskTab));
+		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
+		AbstractButton update = findShowingButtonByCommand("RibbonUpdateTasks");
+		GuiAcceptanceSupport.await(update::isEnabled, "Update Tasks remained disabled after selecting a task");
+		click(robot, boundsOnScreen(update));
+
+		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() != null,
+			"Task > Update did not open the Update Tasks dialog after a Robot click");
+		UpdateTaskDialog dialog = findUpdateTaskDialog();
+		capture(robot, dialog, "issue-590-update-tasks.png");
+		assertUpdateDialogComponentsFit(dialog);
+
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() == null,
+			"Escape did not close Update Tasks after visual assertions");
+		AbstractButton recurring = findShowingButtonByCommand("RibbonInsertRecurring");
+		click(robot, boundsOnScreen(recurring));
+		GuiAcceptanceSupport.await(() -> findRecurringTaskDialog() != null,
+			"Task > Insert > Recurring Task did not open after a Robot click");
+		Dialog recurringDialog = findRecurringTaskDialog();
+		capture(robot, recurringDialog, "issue-590-recurring-task.png");
+		assertRecurringDialogComponentsFit(recurringDialog);
+	}
+
+	private static void assertUpdateDialogComponentsFit(UpdateTaskDialog dialog) throws Exception {
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Update Tasks dialog");
+		final String[] clipping = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			layoutTree(dialog);
+			clipping[0] = null;
+			AbstractButton help = findVisibleButton(dialog, MenuManager.getMenuString("Help.text"));
+			assertNotNull(help, "Update Tasks must expose its online Help button");
+			if (clipping[0] == null && help.getHeight() < help.getPreferredSize().height)
+				clipping[0] = "Help button " + help.getClass().getName() + " bounds=" + help.getBounds()
+					+ " preferred=" + help.getPreferredSize();
+		});
+		assertEquals(null, clipping[0], () -> "Update Tasks clips a text component: " + clipping[0]);
+	}
+
+	private static void assertRecurringDialogComponentsFit(Dialog dialog) throws Exception {
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Recurring Task dialog");
+		final String[] clipping = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			layoutTree(dialog);
+			clipping[0] = null;
+			AbstractButton create = findVisibleButton(dialog, Messages.getString("RecurringTaskDialog.Create"));
+			AbstractButton cancel = findVisibleButton(dialog, Messages.getString("ButtonText.Cancel"));
+			AbstractButton endByDate = findVisibleButton(dialog, Messages.getString("RecurringTaskDialog.EndByDate"));
+			AbstractButton endAfterOccurrences = findVisibleButton(dialog,
+				Messages.getString("RecurringTaskDialog.EndAfterOccurrences"));
+			assertNotNull(create, "Recurring Task must expose its Create button");
+			assertNotNull(cancel, "Recurring Task must expose its Cancel button");
+			assertNotNull(endByDate, "Recurring Task must expose its end-by-date option");
+			assertNotNull(endAfterOccurrences, "Recurring Task must expose its occurrence-count option");
+			assertSame(endByDate.getParent(), endAfterOccurrences.getParent(),
+				"The two end conditions must share their dedicated range panel");
+			assertTrue(endAfterOccurrences.getY() > endByDate.getY(),
+				"The end conditions must occupy separate rows so their controls cannot spill into each other");
+			String overflow = findChildOutsideParent(endByDate.getParent());
+			if (clipping[0] == null && overflow != null)
+				clipping[0] = "Recurring Task range control overflows its panel: " + overflow;
+			if (clipping[0] == null && (create.getHeight() < create.getPreferredSize().height
+					|| cancel.getHeight() < cancel.getPreferredSize().height))
+				clipping[0] = "Recurring Task buttons do not fit their labels";
+		});
+		assertEquals(null, clipping[0], () -> "Recurring Task clips a text component: " + clipping[0]);
+	}
+
+	private static String findChildOutsideParent(java.awt.Container parent) {
+		for (Component child : parent.getComponents()) {
+			Rectangle bounds = child.getBounds();
+			if (bounds.x < 0 || bounds.y < 0 || bounds.x + bounds.width > parent.getWidth()
+					|| bounds.y + bounds.height > parent.getHeight())
+				return child.getClass().getName() + " bounds=" + bounds + " parent=" + parent.getSize();
+			if (child instanceof java.awt.Container nested) {
+				String overflow = findChildOutsideParent(nested);
+				if (overflow != null)
+					return overflow;
+			}
+		}
+		return null;
 	}
 
 	@Test
@@ -156,7 +268,54 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Task Properties > Information did not open Task Information after a Robot click");
 		TaskInformationDialog dialog = findTaskInformationDialog();
 		assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + task.getId(), dialog.getTitle());
+		assertTextStyleTabComponentsFit(dialog);
 		capture(robot, dialog);
+	}
+
+	private static void assertTextStyleTabComponentsFit(TaskInformationDialog dialog) throws Exception {
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Task Information dialog");
+		String tabTitle = Messages.getString("TaskInformationDialog.TextStyle");
+		final java.awt.Container[] selectedTab = new java.awt.Container[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JTabbedPane tabs = findTabbedPane(dialog);
+			assertNotNull(tabs, "Task Information must expose its tabs");
+			AbstractButton help = findVisibleButton(dialog, MenuManager.getMenuString("Help.text"));
+			assertNotNull(help, "Task Information must expose its online Help button");
+			assertTrue(help.getHeight() >= help.getPreferredSize().height,
+				"online Help button must retain its font-derived preferred height");
+			int tabIndex = tabs.indexOfTab(tabTitle);
+			assertTrue(tabIndex >= 0, "Text Style tab is missing: " + tabTitle);
+			tabs.setSelectedIndex(tabIndex);
+			layoutTree(dialog);
+			Component tab = tabs.getComponentAt(tabIndex);
+			if (tab instanceof JScrollPane scrollPane && scrollPane.getViewport().getView() instanceof java.awt.Container view)
+				tab = view;
+			if (tab instanceof java.awt.Container container)
+				selectedTab[0] = container;
+		});
+		assertNotNull(selectedTab[0], "Text Style tab has no layout container");
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(selectedTab[0], "Task Information Text Style tab");
+	}
+
+	private static JTabbedPane findTabbedPane(java.awt.Container root) {
+		for (Component child : root.getComponents()) {
+			if (child instanceof JTabbedPane tabs)
+				return tabs;
+			if (child instanceof java.awt.Container nested) {
+				JTabbedPane tabs = findTabbedPane(nested);
+				if (tabs != null)
+					return tabs;
+			}
+		}
+		return null;
+	}
+
+	private static void layoutTree(java.awt.Container root) {
+		root.doLayout();
+		for (Component child : root.getComponents()) {
+			if (child instanceof java.awt.Container nested)
+				layoutTree(nested);
+		}
 	}
 
 	@Test
@@ -274,6 +433,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> findCalendarOptionsDialog() != null,
 			"Calendar Options did not show CalendarDialogBox");
 		CalendarDialogBox dialog = findCalendarOptionsDialog();
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Calendar Options dialog");
 		assertTrue(dialog.getWidth() > 240 && dialog.getHeight() > 180,
 			"Calendar Options opened without a usable dialog body: " + dialog.getSize());
 		assertTrue(UiComponentWalker.flatten(dialog).stream().anyMatch(Component::isShowing),
@@ -1682,6 +1842,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return null;
 	}
 
+	private static UpdateTaskDialog findUpdateTaskDialog() {
+		for (Window candidate : Window.getWindows()) {
+			if (candidate instanceof UpdateTaskDialog dialog && dialog.isVisible())
+				return dialog;
+		}
+		return null;
+	}
+
+	private static Dialog findRecurringTaskDialog() {
+		for (Window candidate : Window.getWindows()) {
+			if (candidate instanceof Dialog dialog && dialog.isVisible()
+					&& Messages.getString("RecurringTaskDialog.Title").equals(dialog.getTitle()))
+				return dialog;
+		}
+		return null;
+	}
+
 	private static CalendarDialogBox findCalendarOptionsDialog() {
 		for (Window candidate : Window.getWindows()) {
 			if (candidate instanceof CalendarDialogBox dialog && dialog.isVisible())
@@ -1708,13 +1885,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private static void capture(Robot robot, TaskInformationDialog dialog) throws Exception {
+		capture(robot, dialog, "task-information-ribbon-click.png");
+	}
+
+	private static void capture(Robot robot, Dialog dialog, String fileName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(dialog.getLocationOnScreen(), dialog.getSize()));
 		BufferedImage image = robot.createScreenCapture(bounds[0]);
 		Path artifact = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"),
-			"task-information-ribbon-click.png");
+		fileName);
 		Files.createDirectories(artifact.getParent());
 		ImageIO.write(image, "png", artifact.toFile());
-		assertTrue(image.getWidth() > 300 && image.getHeight() > 200, "Task Information capture is unexpectedly small");
+		assertTrue(image.getWidth() > 300 && image.getHeight() > 200, "Dialog capture is unexpectedly small: " + fileName);
 	}
 }

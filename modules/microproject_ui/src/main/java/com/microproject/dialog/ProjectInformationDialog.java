@@ -187,7 +187,7 @@ public class ProjectInformationDialog extends InformationDialog {
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
 		        "p, 3dlu, 50dlu, 20dlu, p, 3dlu, 50dlu:grow", //$NON-NLS-1$
-		"p,p,p,p,p, 10dlu, p,p,p, 10dlu, p,p,p, 10dlu, p,p,p"); //$NON-NLS-1$
+		"p,p,p,p,p, 10dlu, p,p,p, 10dlu, p,p,p, 10dlu, p,p,p,p,p"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();

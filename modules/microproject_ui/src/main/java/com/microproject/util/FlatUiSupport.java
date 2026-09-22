@@ -624,20 +624,20 @@ public final class FlatUiSupport {
 	 * Returns preferred-height tracks for a form built with
 	 * {@code DefaultFormBuilder.nextLine(2)}.
 	 *
-	 * That builder movement keeps the historical spacer tracks in the row
-	 * cursor, so declaring {@code 3dlu} spacer rows makes the next component
-	 * inherit a height that is smaller than many fonts.  Keep the track count
-	 * and replace every track with {@code p}; spacing belongs in the builder
-	 * border/gaps, not in a fixed-height component row.
+	 * Each logical form line occupies a preferred-height track followed by a
+	 * small spacer track.  The trailing spacer is omitted because the builder
+	 * never advances beyond the last component line.
 	 */
 	public static String preferredFormRows(int rowCount) {
 		if (rowCount < 1)
 			throw new IllegalArgumentException("rowCount must be positive");
-		StringBuilder rows = new StringBuilder(rowCount * 2 - 1);
+		StringBuilder rows = new StringBuilder(rowCount * 8);
 		for (int row = 0; row < rowCount; row++) {
 			if (row > 0)
 				rows.append(',');
 			rows.append('p');
+			if (row + 1 < rowCount)
+				rows.append(",3dlu");
 		}
 		return rows.toString();
 	}
@@ -996,8 +996,6 @@ public final class FlatUiSupport {
 			return;
 		button.setFocusPainted(false);
 		button.setMargin(new Insets(4, 12, 4, 12));
-		button.setPreferredSize(new Dimension(Math.max(button.getPreferredSize().width, 92), dialogButtonHeight()));
-		button.setMinimumSize(new Dimension(92, dialogButtonHeight()));
 		if (primary) {
 			button.setOpaque(true);
 			button.setForeground(Color.WHITE);
@@ -1013,6 +1011,14 @@ public final class FlatUiSupport {
 				BorderFactory.createLineBorder(borderColor()),
 				BorderFactory.createEmptyBorder(0, 8, 0, 8)));
 		}
+		// The theme height is a minimum. Font metrics, margin, and border
+		// insets determine the actual content height, especially for Japanese
+		// text and when the platform scales fonts independently of UI pixels.
+		Dimension preferred = button.getPreferredSize();
+		int width = Math.max(preferred.width, 92);
+		int height = Math.max(preferred.height, dialogButtonHeight());
+		button.setPreferredSize(new Dimension(width, height));
+		button.setMinimumSize(new Dimension(92, height));
 	}
 
 	public static void applyTableHeaderStyle(JComponent component) {

@@ -236,7 +236,9 @@ public class TaskInformationDialog extends InformationDialog {
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		builder.addSeparator(Messages.getString("TaskInformationDialog.TextStyle"));
-		builder.nextLine(2);
+		// addSeparator already advances past the separator row. Skip the
+		// spacer row once so the first controls land on a preferred-height row.
+		builder.nextLine();
 		map.append(builder, "Field.fontFamily");
 		map.append(builder, "Field.fontSize");
 		builder.nextLine(2);

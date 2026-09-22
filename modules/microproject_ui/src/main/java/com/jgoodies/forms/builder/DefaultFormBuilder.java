@@ -183,13 +183,12 @@ public class DefaultFormBuilder {
 		nextLine(1);
 	}
 
-	public void nextLine(int gapRows) {
-		// Form layouts express a content row and its following gap as two grid
-		// rows.  Legacy callers use nextLine(2) to move from that gap to the
-		// next content row; advancing by two grid rows puts fields on a gap (and
-		// eventually beyond the layout).  Keep the older builder API's logical
-		// "next content line" behavior for both nextLine() and nextLine(2).
-		currentRow += Math.max(1, gapRows - 1);
+	public void nextLine(int lineCount) {
+		// This is the grid-row count from the original JGoodies builder API.
+		// Most forms declare each content row and its spacer separately
+		// ("p,3dlu,p"), so nextLine(2) must land on the next preferred-height
+		// track.  Subtracting one puts controls on the 3dlu spacer and clips them.
+		currentRow += Math.max(1, lineCount);
 		currentColumn = 1;
 	}
 
