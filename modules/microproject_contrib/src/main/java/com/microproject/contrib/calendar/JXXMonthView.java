@@ -1195,12 +1195,14 @@ public class JXXMonthView extends JComponent {
 	 */
 	protected void paintComponent(Graphics g) {
 		Object oldAAValue = null;
+		Object oldFractionalMetricsValue = null;
 		Graphics2D g2 = (g instanceof Graphics2D) ? (Graphics2D) g : null;
 		if (g2 != null && _antiAlias) {
 			oldAAValue = g2
 					.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);
-			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-					RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+			oldFractionalMetricsValue = g2
+					.getRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS);
+			CalendarRenderingSupport.applyQualityHints(g2);
 		}
 
 		Rectangle clip = g.getClipBounds();
@@ -1309,7 +1311,7 @@ public class JXXMonthView extends JComponent {
 						boolean flagged = _flaggedWeekDates[dayIndex];
 						boolean colored = _coloredWeekDates[dayIndex];
 						calculateBoundsForDay(_bounds,weekCal,true);
-						drawDay(colored,flagged,false,g,_daysOfTheWeek[dayIndex], tmpX,
+						drawWeekDay(colored, dayIndex + 1, g, _daysOfTheWeek[dayIndex], tmpX,
 								tmpY);
 
 //						if ((_dropShadowMask & WEEK_DROP_SHADOW) != 0) {
@@ -1373,6 +1375,8 @@ public class JXXMonthView extends JComponent {
 		if (g2 != null && _antiAlias) {
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
 					oldAAValue);
+			g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS,
+					oldFractionalMetricsValue);
 		}
 	}
 
@@ -1522,7 +1526,22 @@ public class JXXMonthView extends JComponent {
 		}
 	}
 
-//	PROJECTLIBRE_MODIFICATION
+	//	PROJECTLIBRE_MODIFICATION
+	protected Color getWeekDayForeground(int calendarDayOfWeek) {
+		return getForeground();
+	}
+
+	private void drawWeekDay(boolean colored, int calendarDayOfWeek, Graphics g, String text, int x, int y) {
+		Color defaultColor = g.getColor();
+		if (colored) {
+			g.setColor(Color.LIGHT_GRAY);
+			g.fillRect(_bounds.x, _bounds.y, _bounds.width, _bounds.height);
+		}
+		g.setColor(getWeekDayForeground(calendarDayOfWeek));
+		g.drawString(text, x, y);
+		g.setColor(defaultColor);
+	}
+
 	private void drawDay(boolean colored, boolean flagged, boolean today, Graphics g, String text, int x, int y) {
 		Color defaultColor = g.getColor();
 		Font oldFont = getFont();

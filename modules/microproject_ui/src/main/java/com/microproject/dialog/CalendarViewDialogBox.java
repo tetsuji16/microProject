@@ -33,7 +33,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.DayOfWeek;
@@ -54,6 +53,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
 import com.microproject.pm.resource.TeamPlannerService;
+import com.microproject.contrib.calendar.CalendarRenderingSupport;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
@@ -168,7 +168,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			super.paintComponent(graphics);
 			Graphics2D g = (Graphics2D) graphics.create();
 			try {
-				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				CalendarRenderingSupport.applyQualityHints(g);
 				g.setFont(FlatUiSupport.uiFont());
 				cards.clear();
 				int width = Math.max(1, getWidth() / 7);

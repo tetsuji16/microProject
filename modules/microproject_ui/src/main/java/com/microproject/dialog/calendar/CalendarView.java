@@ -24,6 +24,12 @@
  *******************************************************************************/
 package com.microproject.dialog.calendar;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.util.Calendar;
+
+import javax.swing.UIManager;
+
 import com.microproject.contrib.calendar.ContribIntervals;
 import com.microproject.contrib.calendar.JXXMonthView;
 
@@ -45,8 +51,27 @@ public class CalendarView extends JXXMonthView {
 	 */
 	public CalendarView(long initialTime) {
 		super(initialTime);
+		Font uiFont = UIManager.getFont("Label.font");
+		if (uiFont != null) setFont(uiFont);
+		// JXXMonthView predates HiDPI Swing and disables text antialiasing by
+		// default.  Keep its selection/date model, but opt this user-facing
+		// calendar into the platform's high-quality text rasterisation.
+		setAntialiased(true);
 		setPreferredCols(1);
 		setPreferredRows(1);
+	}
+
+	static Color weekDayColor(int calendarDayOfWeek) {
+		return switch (calendarDayOfWeek) {
+			case Calendar.SUNDAY -> Color.RED;
+			case Calendar.SATURDAY -> Color.BLUE;
+			default -> Color.BLACK;
+		};
+	}
+
+	@Override
+	protected Color getWeekDayForeground(int calendarDayOfWeek) {
+		return weekDayColor(calendarDayOfWeek);
 	}
 
 	public Intervals getSelectedFixedIntervals(){
@@ -57,4 +82,3 @@ public class CalendarView extends JXXMonthView {
 
 
 }
-
