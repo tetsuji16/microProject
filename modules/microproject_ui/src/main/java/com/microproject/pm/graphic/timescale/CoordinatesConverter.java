@@ -288,6 +288,11 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 
 	
 	public void scheduleChanged(ScheduleEvent evt) {
+		// Progress/actual-value edits do not change the planned project date
+		// range. Recomputing here can reset a user-adjusted Gantt display range.
+		if (ScheduleEvent.ACTUAL.equals(evt.getType())) {
+			return;
+		}
 		updateLargeInterval(true);
 		//if project start or end have changed, it triggers a TimeScaleEvent
 	}
