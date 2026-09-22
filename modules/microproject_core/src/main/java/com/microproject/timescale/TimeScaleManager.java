@@ -60,6 +60,11 @@ public class TimeScaleManager {
 	public TimeScale getScale() {
 		return (TimeScale)scales.get(getCurrentScaleIndex());
 	}
+
+	/** Returns the configured scale at a zero-based position. */
+	public TimeScale getScale(int index) {
+		return (TimeScale) scales.get(index);
+	}
 	
 	public int getMinWidth() {
 		return getScale().getMinWidth();

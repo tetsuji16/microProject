@@ -27,6 +27,7 @@ package com.microproject.pm.graphic.frames;
 import java.awt.FlowLayout;
 import java.util.Calendar;
 import java.text.MessageFormat;
+import java.util.function.IntFunction;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -88,36 +89,38 @@ public class DocumentStatusBar extends JPanel {
 		int clampedCount = Math.max(1, scaleCount);
 		int clampedIndex = Math.min(Math.max(0, scaleIndex), clampedCount - 1);
 		int position = clampedIndex + 1;
-		String label = scaleCount <= 0 ? formatInterval(scale.getCalendarField1(), scale.getNumber1())
-				: formatMspScale(position, scale);
+		String label = formatScaleDescription(scale);
 		return MessageFormat.format(Messages.getString("StatusBar.ZoomSemantic"),
 				label, position, clampedCount);
 	}
 
+	static String formatScaleChoice(String timescaleLabel, int scaleIndex, int scaleCount, TimeScale scale) {
+		int count = Math.max(1, scaleCount);
+		int position = Math.min(Math.max(0, scaleIndex), count - 1) + 1;
+		if (scale == null) return timescaleLabel + " " + position;
+		return MessageFormat.format(Messages.getString("StatusBar.ScaleChoice"), timescaleLabel,
+				formatScaleDescription(scale), position, count);
+	}
+
+	static String[] formatScaleChoices(String timescaleLabel, int scaleCount, IntFunction<TimeScale> scaleAt) {
+		String[] labels = new String[Math.max(0, scaleCount)];
+		for (int i = 0; i < labels.length; i++) {
+			labels[i] = formatScaleChoice(timescaleLabel, i, labels.length, scaleAt.apply(i));
+		}
+		return labels;
+	}
+
 	/**
-	 * Uses the stable MS Project-style names from the original status-bar
-	 * proposal. The underlying interval remains the fallback for scales outside
-	 * the documented 1..10 range.
+	 * Describes the configured major interval. The index is deliberately not
+	 * used to infer a name: projects may supply a custom scale sequence.
 	 */
-	private static String formatMspScale(int position, TimeScale scale) {
-		String key = switch (position) {
-			case 1 -> "StatusBar.Scale.Minute";
-			case 2 -> "StatusBar.Scale.Hourly";
-			case 3 -> "StatusBar.Scale.Daily";
-			case 4 -> "StatusBar.Scale.DetailedWeekly";
-			case 5 -> "StatusBar.Scale.Weekly";
-			case 6 -> "StatusBar.Scale.BiMonthly";
-			case 7 -> "StatusBar.Scale.Monthly";
-			case 8 -> "StatusBar.Scale.Quarterly";
-			case 9 -> "StatusBar.Scale.HalfYearly";
-			case 10 -> "StatusBar.Scale.Yearly";
-			default -> null;
-		};
-		return key == null ? formatInterval(scale.getCalendarField1(), scale.getNumber1()) : Messages.getString(key);
+	private static String formatScaleDescription(TimeScale scale) {
+		return formatInterval(scale.getCalendarField1(), scale.getNumber1());
 	}
 	private static String formatInterval(int field, int amount) {
 		int n = Math.max(1, amount);
 		return switch (field) {
+			case Calendar.MINUTE -> interval("StatusBar.Interval.Minute", n);
 			case Calendar.HOUR_OF_DAY -> interval("StatusBar.Interval.Hour", n);
 			case Calendar.DAY_OF_WEEK, Calendar.DAY_OF_MONTH, Calendar.DAY_OF_YEAR ->
 					n == 1 ? Messages.getString("StatusBar.Interval.Day") : interval("StatusBar.Interval.Days", n);
@@ -129,6 +132,8 @@ public class DocumentStatusBar extends JPanel {
 					: interval("StatusBar.Interval.Months", n);
 			case Calendar.YEAR -> n == 1 ? Messages.getString("StatusBar.Interval.Year")
 					: interval("StatusBar.Interval.Years", n);
+			case Calendar.SECOND -> interval("StatusBar.Interval.Second", n);
+			case Calendar.MILLISECOND -> interval("StatusBar.Interval.Millisecond", n);
 			default -> Messages.getString("StatusBar.Interval.Custom");
 		};
 	}

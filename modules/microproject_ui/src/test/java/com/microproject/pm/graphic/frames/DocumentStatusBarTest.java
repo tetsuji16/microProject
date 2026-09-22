@@ -40,18 +40,29 @@ class DocumentStatusBarTest {
 		scale.setCalendarField1(Calendar.MONTH);
 		scale.setNumber1(3);
 		String text = DocumentStatusBar.formatZoom(7, 9, scale);
-		assertTrue(text.contains(Messages.getString("StatusBar.Scale.Quarterly")));
+		assertTrue(text.contains(Messages.getString("StatusBar.Interval.Quarter")));
 		assertTrue(text.contains("8/9"));
 	}
 
 	@Test
-	void semanticZoomLabelUsesMspCompatibleScaleNames() {
+	void semanticZoomLabelUsesTheConfiguredIntervalInsteadOfInferringFromIndex() {
 		TimeScale scale = new TimeScale();
 		scale.setCalendarField1(Calendar.MONTH);
 		scale.setNumber1(6);
-		assertTrue(DocumentStatusBar.formatZoom(8, 9, scale).contains(Messages.getString("StatusBar.Scale.HalfYearly")));
-		assertTrue(DocumentStatusBar.formatZoom(5, 9, scale).contains(Messages.getString("StatusBar.Scale.BiMonthly")));
-		assertTrue(DocumentStatusBar.formatZoom(9, 10, scale).contains(Messages.getString("StatusBar.Scale.Yearly")));
+		String text = DocumentStatusBar.formatZoom(5, 9, scale);
+		assertTrue(text.contains(Messages.getString("StatusBar.Interval.HalfYear")));
+		assertTrue(text.contains("6/9"));
+	}
+
+	@Test
+	void timescaleChoiceIncludesMeaningAndPosition() {
+		TimeScale scale = new TimeScale();
+		scale.setCalendarField1(Calendar.DAY_OF_MONTH);
+		scale.setNumber1(3);
+		String label = DocumentStatusBar.formatScaleChoice("Timescale", 3, 9, scale);
+		assertTrue(label.contains("Timescale"));
+		assertTrue(label.contains(MessageFormat.format(Messages.getString("StatusBar.Interval.Days"), 3)));
+		assertTrue(label.contains("4/9"));
 	}
 
 	@Test
@@ -97,6 +108,8 @@ class DocumentStatusBarTest {
 		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
 		assertEquals("選択中のタスク数: {0}", japanese.getString("StatusBar.SelectedTasks"));
 		assertEquals("ズーム: {0} ({1}/{2} 段階)", japanese.getString("StatusBar.ZoomSemantic"));
+		assertEquals("{0}: {1} ({2}/{3})", japanese.getString("StatusBar.ScaleChoice"));
+		assertEquals("{0}分", japanese.getString("StatusBar.Interval.Minute"));
 		assertEquals("{0}時間", japanese.getString("StatusBar.Interval.Hour"));
 		assertEquals("{0}日", japanese.getString("StatusBar.Interval.Days"));
 		assertEquals("四半期", japanese.getString("StatusBar.Scale.Quarterly"));

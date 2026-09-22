@@ -4033,10 +4033,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		MenuManager manager = getMenuManager();
 		int scaleCount = ganttView.getScaleCount();
-		String[] labels = new String[scaleCount];
-		for (int i = 0; i < scaleCount; i++) {
-			labels[i] = manager.getString("RibbonTimescale.text") + " " + (i + 1);
-		}
+		String[] labels = DocumentStatusBar.formatScaleChoices(manager.getString("RibbonTimescale.text"),
+			scaleCount, ganttView::getTimeScale);
 		JComboBox<String> combo = new JComboBox<>(labels);
 		combo.setSelectedIndex(ganttView.getScale());
 		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
@@ -4097,10 +4095,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		MenuManager manager = getMenuManager();
 		int scaleCount = ganttView.getScaleCount();
-		String[] scaleLabels = new String[scaleCount];
-		for (int i = 0; i < scaleCount; i++) {
-			scaleLabels[i] = manager.getString("RibbonTimescale.text") + " " + (i + 1);
-		}
+		String[] scaleLabels = DocumentStatusBar.formatScaleChoices(manager.getString("RibbonTimescale.text"),
+			scaleCount, ganttView::getTimeScale);
 		JComboBox<String> timescaleCombo = new JComboBox<>(scaleLabels);
 		timescaleCombo.setSelectedIndex(ganttView.getScale());
 		JComboBox<String> barStyleCombo = new JComboBox<>(new String[] { "standard", "Tracking" });

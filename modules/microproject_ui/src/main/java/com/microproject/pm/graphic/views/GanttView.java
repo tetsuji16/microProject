@@ -56,6 +56,7 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.timescale.ScaledScrollPane;
+import com.microproject.timescale.TimeScale;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.pm.graphic.views.synchro.Synchronizer;
 import com.microproject.configuration.Dictionary;
@@ -395,6 +396,9 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public int getScaleCount() {
 		return coord.getTimescaleManager().getScaleCount();
+	}
+	public TimeScale getTimeScale(int scaleIndex) {
+		return coord.getTimescaleManager().getScale(scaleIndex);
 	}
 	public void setScale(int scaleIndex) {
 		if (coord == null)
