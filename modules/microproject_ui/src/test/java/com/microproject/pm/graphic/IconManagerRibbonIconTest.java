@@ -63,6 +63,43 @@ class IconManagerRibbonIconTest {
 		assertTrue(hasHighSaturationPixel(normalCanvas), "enabled SVG should retain a high-contrast source colour");
 		assertTrue(maxAlpha(disabledCanvas) <= 100, "disabled SVG should use approximately 38% opacity");
 	}
+
+	@Test
+	void chartAndHistogramIconsUseTheOfficeSeriesPalette() {
+		assertEquals("histogram.svg", IconManager.getConfiguredIconName("view.histogram"));
+		var icon = IconManager.getIcon("view.histogram");
+		assertNotNull(icon);
+		BufferedImage image = paint(icon, icon.getIconWidth(), icon.getIconHeight());
+		assertTrue(containsRgb(image, 0x4472C4), "first histogram bar should use the task blue");
+		assertTrue(containsRgb(image, 0xED7D31), "second histogram bar should use the Office orange");
+		assertTrue(containsRgb(image, 0x7F7F7F), "third histogram bar should use a neutral baseline gray");
+
+		assertEquals("chart.svg", IconManager.getConfiguredIconName("view.charts"));
+		var chartIcon = IconManager.getIcon("view.charts");
+		assertNotNull(chartIcon);
+		BufferedImage chartImage = paint(chartIcon, chartIcon.getIconWidth(), chartIcon.getIconHeight());
+		assertEquals(2, accentColorCount(chartImage), "chart view icon should use the Office blue and orange accents");
+	}
+
+	/**
+	 * Microsoft Project documents distinct manual and automatic task modes and
+	 * mode indicators, but does not specify the ribbon pictograms' artwork or
+	 * colors. The pencil and clock are product icons styled with the app theme.
+	 * https://support.microsoft.com/en-us/project/task-mode-task-field
+	 */
+	@Test
+	void manualAndAutomaticTaskModeIconsAreDistinctAndThemeColored() {
+		assertEquals("task-mode-manual.svg", IconManager.getConfiguredIconName("ribbon.taskModeManual"));
+		assertEquals("task-mode-automatic.svg", IconManager.getConfiguredIconName("ribbon.taskModeAutomatic"));
+		for (int size : new int[] {16, 20, 32}) {
+			assertTrue(IconManager.hasSizeSpecificRibbonResource("ribbon.taskModeManual", size));
+			assertTrue(IconManager.hasSizeSpecificRibbonResource("ribbon.taskModeAutomatic", size));
+		}
+		BufferedImage manual = paint(IconManager.getRibbonIcon("ribbon.taskModeManual", 32, 32), 32, 32);
+		BufferedImage automatic = paint(IconManager.getRibbonIcon("ribbon.taskModeAutomatic", 32, 32), 32, 32);
+		assertTrue(containsRgb(manual, 0xED7D31), "manual scheduling should show the pencil accent");
+		assertTrue(containsRgb(automatic, 0x70AD47), "automatic scheduling should show the clock accent");
+	}
 	static Set<String> standardRibbonKeys() {
 		Set<String> keys = new LinkedHashSet<>();
 		for (var spec : RibbonInventory.standardRibbon().buttons().values()) {
@@ -153,6 +190,15 @@ class IconManagerRibbonIconTest {
 				if (((image.getRGB(x, y) >>> 24) & 0xFF) != 0) {
 					return true;
 				}
+			}
+		}
+		return false;
+	}
+
+	private static boolean containsRgb(BufferedImage image, int rgb) {
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				if ((image.getRGB(x, y) & 0x00FFFFFF) == rgb) return true;
 			}
 		}
 		return false;

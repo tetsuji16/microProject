@@ -284,3 +284,4 @@
 ### Gantt表示範囲 / MSP文書準拠
 
 | U-29 | Ganttのtimescaleズーム | 数値キーパッド Ctrl+/ と Ctrl+*、Ctrl+ホイール、ズームボタン | 公開仕様はMicrosoft Support「[Change the timescale in a Project view in Project desktop](https://support.microsoft.com/en-us/project/change-the-timescale-in-a-project-view-in-project-desktop)」（Project Online Desktop Client、Project 2016/2019/2021/2024）。Quick ways to zoomはCtrl+/で小さい時間単位、Ctrl+*で大きい時間単位を選ぶと明記。回帰テストでキーパッドdivide/multiply登録アクションとscale indexを検査し、ホイールではポインタ下の日付保持を確認する。 | Ctrl+/ は細かい時間単位、Ctrl+* は大きい時間単位に移る。端のscaleではそれ以上変更しない。ホイールズームはポインタ下の日付を可能な範囲で固定する。表示のみの互換動作でプロジェクトデータ、Undo履歴、保存内容は変更しない。横方向の範囲移動はスクロールバーまたはShift+ホイールで行い、可視範囲を境界内に保つ。 |
+| U-30 | Chart View のMS Office風配色と系列選択コントラスト | Chart View の系列リストと対応するチャート | Microsoft SupportはProject Resource Graphの通常割当を青、過割当を赤と定義するが、全時系列系列の固定色表は公開していない。したがって通常/過割当は文書準拠、その他はMicrosoft Office標準テーマのアクセント色に基づくプロダクト配色とする。選択行は背景輝度に合わせて文字を黒/白にし、コントラスト比4.5:1以上を保つ。 |

@@ -78,8 +78,8 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				// items deliberately obtain the already-registered GraphicManager
 				// actions so popup, menu, ribbon and root-pane shortcuts share one
 				// canonical DocumentFrame route.
-				addGraphicManagerAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL, "ribbon.taskInformation");
-				addGraphicManagerAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC, "ribbon.taskInformation");
+				addGraphicManagerAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL, "ribbon.taskModeManual");
+				addGraphicManagerAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC, "ribbon.taskModeAutomatic");
 				addGraphicManagerAction(MenuActionConstants.ACTION_MARK_ON_TRACK, "ribbon.update");
 				addGraphicManagerAction(MenuActionConstants.ACTION_STATUS_DATE, "ribbon.calendar");
 				openLinkedProject = new JMenuItem(Messages.getString("RibbonOpenSubproject.text"));
@@ -200,8 +200,8 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				menuActionMap.put(MenuActionConstants.ACTION_PASTE, "ribbon.paste");
 				menuActionMap.put(MenuActionConstants.ACTION_EXPAND, "ribbon.expand");
 				menuActionMap.put(MenuActionConstants.ACTION_COLLAPSE, "ribbon.collapse");
-				menuActionMap.put(MenuActionConstants.ACTION_TASK_MODE_MANUAL, "ribbon.taskInformation");
-				menuActionMap.put(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC, "ribbon.taskInformation");
+				menuActionMap.put(MenuActionConstants.ACTION_TASK_MODE_MANUAL, "ribbon.taskModeManual");
+				menuActionMap.put(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC, "ribbon.taskModeAutomatic");
 				menuActionMap.put(MenuActionConstants.ACTION_STATUS_DATE, "ribbon.calendar");
 				menuActionMap.put(MenuActionConstants.ACTION_MARK_ON_TRACK, "ribbon.update");
 	    	}

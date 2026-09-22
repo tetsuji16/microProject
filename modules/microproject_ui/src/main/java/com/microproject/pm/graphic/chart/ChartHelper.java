@@ -46,7 +46,6 @@ import org.jfree.chart.renderer.xy.XYStepAreaRenderer;
 import org.jfree.data.xy.XYDataset;
 import org.jfree.chart.ui.RectangleInsets;
 
-import com.microproject.graphic.configuration.shape.Colors;
 import com.microproject.pm.assignment.TimeDistributedConstants;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
@@ -58,6 +57,17 @@ import com.microproject.util.FlatUiSupport;
  */
 public class ChartHelper implements TimeDistributedConstants {
 	public static final int BOTTOM_INSET = 7;// replace domain legend
+	private static final Color OFFICE_BLUE = new Color(0x4472C4);
+	private static final Color OFFICE_ORANGE = new Color(0xED7D31);
+	private static final Color OFFICE_GRAY = new Color(0xA5A5A5);
+	private static final Color OFFICE_GOLD = new Color(0xFFC000);
+	private static final Color OFFICE_LIGHT_BLUE = new Color(0x5B9BD5);
+	private static final Color OFFICE_GREEN = new Color(0x70AD47);
+	private static final Color OFFICE_RED = new Color(0xC00000);
+	private static final Color[] OFFICE_SERIES = {
+		OFFICE_BLUE, OFFICE_ORANGE, OFFICE_GRAY, OFFICE_GOLD, OFFICE_LIGHT_BLUE, OFFICE_GREEN,
+		new Color(0x264478), new Color(0x9E480E), new Color(0x636363), new Color(0x997300)
+	};
 
 	public static JFreeChart createChart(final XYDataset dataset, boolean bar,final XYDataset secondDataset) {
 		
@@ -141,45 +151,45 @@ public class ChartHelper implements TimeDistributedConstants {
 				result = map;
 				if (result == null) {
 					Map<Object, Color> m = new HashMap<>();
-					m.put(PERCENT_ALLOC, Colors.RED);
-					m.put(OVERALLOCATED, Colors.RED);
-					if (!Environment.getStandAlone()) m.put(OTHER_PROJECTS, Colors.GRAY);
-					m.put(AVAILABILITY, Colors.BLACK);
-					m.put(SELECTED, Colors.BLUE);
-					m.put(THIS_PROJECT, Colors.GREEN);
-					m.put(WORK, Colors.RED);
-					m.put(ACTUAL_WORK, Colors.BROWN);
-					m.put(REMAINING_WORK, Colors.PURPLE);
-					m.put(BASELINE_WORK, Colors.DARK_SLATE_GRAY);
-					m.put(COST, Colors.RED);
-					m.put(ACTUAL_COST, Colors.BROWN);
-					m.put(FIXED_COST, Colors.CORAL);
-					m.put(ACTUAL_FIXED_COST, Colors.BURLY_WOOD);
-					m.put(REMAINING_COST, Colors.PURPLE);
-					m.put(BASELINE_COST, Colors.DARK_SLATE_GRAY);
-					m.put(ACWP, Colors.RED);
-					m.put(BCWP, Colors.OLIVE_DRAB);
-					m.put(BCWS, Colors.GOLD);
-					m.put(BASELINE1_WORK, Colors.MAGENTA);
-					m.put(BASELINE2_WORK, Colors.KHAKI);
-					m.put(BASELINE3_WORK, Colors.TAN);
-					m.put(BASELINE4_WORK, Colors.NAVY);
-					m.put(BASELINE5_WORK, Colors.TURQUOISE);
-					m.put(BASELINE6_WORK, Colors.VIOLET);
-					m.put(BASELINE7_WORK, Colors.MAROON);
-					m.put(BASELINE8_WORK, Colors.SALMON);
-					m.put(BASELINE9_WORK, Colors.ORANGE);
-					m.put(BASELINE10_WORK, Colors.CYAN);
-					m.put(BASELINE1_COST, Colors.MAGENTA);
-					m.put(BASELINE2_COST, Colors.KHAKI);
-					m.put(BASELINE3_COST, Colors.TAN);
-					m.put(BASELINE4_COST, Colors.NAVY);
-					m.put(BASELINE5_COST, Colors.TURQUOISE);
-					m.put(BASELINE6_COST, Colors.VIOLET);
-					m.put(BASELINE7_COST, Colors.MAROON);
-					m.put(BASELINE8_COST, Colors.SALMON);
-					m.put(BASELINE9_COST, Colors.ORANGE);
-					m.put(BASELINE10_COST, Colors.CYAN);
+					m.put(PERCENT_ALLOC, OFFICE_BLUE);
+					m.put(OVERALLOCATED, OFFICE_RED);
+					if (!Environment.getStandAlone()) m.put(OTHER_PROJECTS, OFFICE_GRAY);
+					m.put(AVAILABILITY, new Color(0x404040));
+					m.put(SELECTED, OFFICE_LIGHT_BLUE);
+					m.put(THIS_PROJECT, OFFICE_GREEN);
+					m.put(WORK, OFFICE_BLUE);
+					m.put(ACTUAL_WORK, OFFICE_ORANGE);
+					m.put(REMAINING_WORK, OFFICE_GREEN);
+					m.put(BASELINE_WORK, OFFICE_GRAY);
+					m.put(COST, OFFICE_BLUE);
+					m.put(ACTUAL_COST, OFFICE_ORANGE);
+					m.put(FIXED_COST, OFFICE_GRAY);
+					m.put(ACTUAL_FIXED_COST, OFFICE_GOLD);
+					m.put(REMAINING_COST, OFFICE_GREEN);
+					m.put(BASELINE_COST, new Color(0x7F7F7F));
+					m.put(ACWP, OFFICE_RED);
+					m.put(BCWP, OFFICE_GREEN);
+					m.put(BCWS, OFFICE_BLUE);
+					m.put(BASELINE1_WORK, OFFICE_SERIES[0]);
+					m.put(BASELINE2_WORK, OFFICE_SERIES[1]);
+					m.put(BASELINE3_WORK, OFFICE_SERIES[2]);
+					m.put(BASELINE4_WORK, OFFICE_SERIES[3]);
+					m.put(BASELINE5_WORK, OFFICE_SERIES[4]);
+					m.put(BASELINE6_WORK, OFFICE_SERIES[5]);
+					m.put(BASELINE7_WORK, OFFICE_SERIES[6]);
+					m.put(BASELINE8_WORK, OFFICE_SERIES[7]);
+					m.put(BASELINE9_WORK, OFFICE_SERIES[8]);
+					m.put(BASELINE10_WORK, OFFICE_SERIES[9]);
+					m.put(BASELINE1_COST, OFFICE_SERIES[0]);
+					m.put(BASELINE2_COST, OFFICE_SERIES[1]);
+					m.put(BASELINE3_COST, OFFICE_SERIES[2]);
+					m.put(BASELINE4_COST, OFFICE_SERIES[3]);
+					m.put(BASELINE5_COST, OFFICE_SERIES[4]);
+					m.put(BASELINE6_COST, OFFICE_SERIES[5]);
+					m.put(BASELINE7_COST, OFFICE_SERIES[6]);
+					m.put(BASELINE8_COST, OFFICE_SERIES[7]);
+					m.put(BASELINE9_COST, OFFICE_SERIES[8]);
+					m.put(BASELINE10_COST, OFFICE_SERIES[9]);
 					result = Map.copyOf(m);
 					map = result;
 				}
