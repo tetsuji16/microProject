@@ -45,6 +45,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.CalendarViewDialogBox;
+import com.microproject.dialog.options.CalendarDialogBox;
 import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.assignment.TimesheetEntryPane;
@@ -95,7 +96,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	void closeWindow() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window candidate : Window.getWindows()) {
-				if (candidate instanceof TaskInformationDialog || candidate instanceof TimesheetDialog)
+				if (candidate instanceof TaskInformationDialog || candidate instanceof TimesheetDialog
+					|| candidate instanceof CalendarDialogBox)
 					candidate.dispose();
 			}
 			if (manager != null)
@@ -244,6 +246,41 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() == null
 			&& manager.getCurrentFrame().getMainView().getBottomComponent() == null,
 			"Details did not close the restored bottom view after a Robot click");
+	}
+
+	@Test
+	void robotCalendarOptionsRibbonRouteOpensUsableDialog() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
+			"calendar options project window did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ProjectRibbonTask.title"));
+		click(robot, boundsOnScreen(projectTab));
+		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
+		AbstractButton calendarOptions = findShowingButtonByCommand("RibbonCalendarOptions");
+		GuiAcceptanceSupport.await(calendarOptions::isEnabled, "Calendar Options remained disabled");
+		click(robot, boundsOnScreen(calendarOptions));
+		GuiAcceptanceSupport.await(() -> findCalendarOptionsDialog() != null,
+			"Calendar Options did not show CalendarDialogBox");
+		CalendarDialogBox dialog = findCalendarOptionsDialog();
+		assertTrue(dialog.getWidth() > 240 && dialog.getHeight() > 180,
+			"Calendar Options opened without a usable dialog body: " + dialog.getSize());
+		assertTrue(UiComponentWalker.flatten(dialog).stream().anyMatch(Component::isShowing),
+			"Calendar Options dialog body has no showing components");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(),
+			"Escape did not close the Calendar Options dialog");
 	}
 
 	@Test
@@ -1640,6 +1677,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private static TaskInformationDialog findTaskInformationDialog() {
 		for (Window candidate : Window.getWindows()) {
 			if (candidate instanceof TaskInformationDialog dialog && dialog.isVisible())
+				return dialog;
+		}
+		return null;
+	}
+
+	private static CalendarDialogBox findCalendarOptionsDialog() {
+		for (Window candidate : Window.getWindows()) {
+			if (candidate instanceof CalendarDialogBox dialog && dialog.isVisible())
 				return dialog;
 		}
 		return null;

@@ -512,7 +512,15 @@ tasks.register<Sync>("prepareWindowsReleaseInput") {
     val iconFile = layout.projectDirectory.file("packaging/windows/icons/microproject.ico")
     val licenseFile = layout.projectDirectory.file("packaging/licenses/license.txt")
 
-    from(installLibDir)
+    from(installLibDir) {
+        // jpackage writes input JARs to microProject.cfg in filename order.
+        // microproject_ui.jar contains the compatibility DefaultFormBuilder
+        // that must shadow the older class with the same name in this JGoodies
+        // dependency. Keep that dependency after the UI JAR in packaged builds.
+        rename { fileName ->
+            if (fileName == "jgoodies-forms-1.9.0.jar") "zz-jgoodies-forms-1.9.0.jar" else fileName
+        }
+    }
     from(project(":microproject_bootstrap").tasks.named<Jar>("jar"))
     from(project(":microproject_bootstrap").configurations.named("runtimeClasspath"))
     from(iconFile) {
@@ -562,6 +570,37 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--dest", windowsAppImageDir.get().asFile.absolutePath,
             "--verbose"
         )
+    }
+
+    doLast {
+        val launcherConfig = windowsAppImageDir.get()
+            .file("microProject/app/microProject.cfg").asFile
+        check(launcherConfig.isFile) {
+            "jpackage did not generate the expected launcher config: $launcherConfig"
+        }
+        val classpathEntries = launcherConfig.readLines(Charsets.UTF_8)
+            .filter { it.startsWith("app.classpath=") }
+        val uiJarIndex = classpathEntries.indexOfFirst { it.endsWith("\\microproject_ui.jar") }
+        val formsJarIndex = classpathEntries.indexOfFirst {
+            it.endsWith("\\zz-jgoodies-forms-1.9.0.jar")
+        }
+        check(uiJarIndex >= 0 && formsJarIndex > uiJarIndex) {
+            "Packaged classpath must load microproject_ui.jar before JGoodies Forms; " +
+                "inspect $launcherConfig"
+        }
+
+        val appDir = launcherConfig.parentFile.toPath()
+        val classpathUrls = classpathEntries.map { entry ->
+            val relativeJar = entry.substringAfter("=").replace("\$APPDIR\\", "")
+            appDir.resolve(relativeJar).toUri().toURL()
+        }.toTypedArray()
+        java.net.URLClassLoader(classpathUrls, null).use { loader ->
+            val compatibilityClass = loader.getResource(
+                "com/jgoodies/forms/builder/DefaultFormBuilder.class")
+            check(compatibilityClass?.toExternalForm()?.contains("/microproject_ui.jar!") == true) {
+                "Packaged DefaultFormBuilder must resolve from microproject_ui.jar, got $compatibilityClass"
+            }
+        }
     }
 }
 
