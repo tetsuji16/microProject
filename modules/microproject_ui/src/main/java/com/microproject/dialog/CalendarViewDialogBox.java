@@ -169,6 +169,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			Graphics2D g = (Graphics2D) graphics.create();
 			try {
 				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g.setFont(FlatUiSupport.uiFont());
 				cards.clear();
 				int width = Math.max(1, getWidth() / 7);
 				for (int column = 0; column < 7; column++) {

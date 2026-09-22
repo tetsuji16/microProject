@@ -28,6 +28,7 @@ import com.microproject.dialog.UsabilityStrings;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.task.Project;
+import com.microproject.util.FlatUiSupport;
 
 /** Read-only CCPM fever chart relating project progress to buffer consumption. */
 public final class CriticalChainBufferChartPanel extends JPanel {
@@ -144,6 +145,9 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		Graphics2D g = (Graphics2D) graphics.create();
 		try {
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			// Chart labels are painted directly on Graphics, so do not rely on the
+			// component's inherited font (which can differ across look and feels).
+			applyChartFont(g);
 			if (!enabled || analysis == null) {
 				g.setColor(Color.DARK_GRAY);
 				g.drawString(UsabilityStrings.text("ccpm.bufferChartEmpty"), LEFT, TOP + 20);
@@ -158,6 +162,10 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		} finally {
 			g.dispose();
 		}
+	}
+
+	static void applyChartFont(Graphics2D graphics) {
+		if (graphics != null) graphics.setFont(FlatUiSupport.uiFont());
 	}
 
 	private void drawZones(Graphics2D g, int width, int height) {

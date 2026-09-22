@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.awt.BorderLayout;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -29,6 +30,19 @@ import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class DockableProjectToolViewTest {
+	@Test
+	void bufferChartUsesSharedUiFontForDirectGraphicsLabels() {
+		BufferedImage image = new BufferedImage(20, 20, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D graphics = image.createGraphics();
+		try {
+			graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, 28));
+			CriticalChainBufferChartPanel.applyChartFont(graphics);
+			assertEquals(com.microproject.util.FlatUiSupport.uiFont(), graphics.getFont());
+		} finally {
+			graphics.dispose();
+		}
+	}
+
 	@Test
 	void wrapsToolContentWithoutCreatingASecondWindow() {
 		JPanel content = new JPanel(new BorderLayout());

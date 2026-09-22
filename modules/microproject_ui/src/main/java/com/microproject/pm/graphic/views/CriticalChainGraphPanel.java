@@ -24,6 +24,7 @@ import javax.swing.SwingUtilities;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.task.Project;
 import com.microproject.dialog.UsabilityStrings;
+import com.microproject.util.FlatUiSupport;
 
 /** Lightweight, read-only CCPM network view including resource constraints. */
 public final class CriticalChainGraphPanel extends JPanel {
@@ -102,6 +103,7 @@ public final class CriticalChainGraphPanel extends JPanel {
 		Graphics2D g = (Graphics2D) graphics.create();
 		try {
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g.setFont(FlatUiSupport.uiFont());
 			for (CriticalChainGraphScene.Edge edge : scene.edges()) drawEdge(g, edge);
 			for (CriticalChainGraphScene.Node node : scene.nodes()) drawNode(g, node);
 			drawLegend(g);

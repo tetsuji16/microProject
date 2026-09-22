@@ -231,6 +231,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			Graphics2D g2 = (Graphics2D) graphics.create();
 			try {
 				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2.setFont(FlatUiSupport.uiFont());
 				paintGrid(g2);
 				paintSlots(g2);
 				paintDragGhost(g2);

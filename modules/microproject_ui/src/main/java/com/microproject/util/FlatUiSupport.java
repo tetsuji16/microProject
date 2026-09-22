@@ -110,7 +110,7 @@ public final class FlatUiSupport {
 	}
 
 	public static Font headerFont() {
-		return uiFont().deriveFont(Font.BOLD);
+		return ganttHeaderFont();
 	}
 
 	public static Font mediumFont() {

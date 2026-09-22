@@ -154,6 +154,7 @@ public final class TimelineDialogBox extends FlatLafDialog {
 			Graphics2D g = (Graphics2D) graphics.create();
 			try {
 				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g.setFont(FlatUiSupport.uiFont());
 				List<Task> selected = tasks.stream().filter(Task::isDisplayOnTimeline).toList();
 				if (selected.isEmpty()) { g.setColor(FlatUiSupport.disabledForeground()); g.drawString(UsabilityStrings.text("timeline.empty"), 24, 40); return; }
 				long min = selected.stream().mapToLong(Task::getStart).min().orElse(project.getStart());
