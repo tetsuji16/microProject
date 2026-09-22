@@ -447,8 +447,10 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		var inputMap = getInputMap(WHEN_IN_FOCUSED_WINDOW);
 		var actionMap = getActionMap();
 
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.CTRL_DOWN_MASK), ZOOM_OUT_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.CTRL_DOWN_MASK), ZOOM_IN_ACTION);
+		// Microsoft Project Desktop documents Ctrl+/ (numeric keypad) for a
+		// finer timescale and Ctrl+* (numeric keypad) for a broader one.
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DIVIDE, InputEvent.CTRL_DOWN_MASK), ZOOM_IN_ACTION);
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, InputEvent.CTRL_DOWN_MASK), ZOOM_OUT_ACTION);
 
 		actionMap.put(ZOOM_OUT_ACTION, createZoomAction(() -> ScrollPaneSynchronizer.zoomOut(Gantt.this)));
 		actionMap.put(ZOOM_IN_ACTION, createZoomAction(() -> ScrollPaneSynchronizer.zoomIn(Gantt.this)));

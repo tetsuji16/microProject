@@ -30,6 +30,41 @@ import com.microproject.undo.DataFactoryUndoController;
 class GanttWheelZoomTest {
 
 	@Test
+	void microsoftProjectKeypadShortcutsZoomTheTimescale() {
+		Gantt gantt = newGantt();
+		try {
+			CoordinatesConverter coord = new CoordinatesConverter(gantt.getProject());
+			gantt.setCoord(coord);
+			JScrollPane chartPane = chartPaneForTest(gantt);
+			JScrollPane otherPane = new JScrollPane(new JPanel());
+			Synchronizer synchronizer = new Synchronizer();
+			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
+
+			var inputMap = gantt.getInputMap(Gantt.WHEN_IN_FOCUSED_WINDOW);
+			var actionMap = gantt.getActionMap();
+			Object zoomIn = inputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_DIVIDE, InputEvent.CTRL_DOWN_MASK));
+			Object zoomOut = inputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, InputEvent.CTRL_DOWN_MASK));
+			assertTrue(zoomIn != null, "Ctrl+/ keypad shortcut must be registered");
+			assertTrue(zoomOut != null, "Ctrl+* keypad shortcut must be registered");
+
+			int initial = coord.getTimescaleManager().getCurrentScaleIndex();
+			if (coord.canZoomIn()) {
+				actionMap.get(zoomIn).actionPerformed(new java.awt.event.ActionEvent(gantt, 0, "zoom-in"));
+				assertTrue(coord.getTimescaleManager().getCurrentScaleIndex() < initial,
+						"Ctrl+/ must select a finer time scale");
+			}
+			if (coord.canZoomOut()) {
+				int beforeZoomOut = coord.getTimescaleManager().getCurrentScaleIndex();
+				actionMap.get(zoomOut).actionPerformed(new java.awt.event.ActionEvent(gantt, 0, "zoom-out"));
+				assertTrue(coord.getTimescaleManager().getCurrentScaleIndex() > beforeZoomOut,
+						"Ctrl+* must select a broader time scale");
+			}
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
 	void undoRedoShortcutsAreLeftToTheDocumentRootPane() {
 		Gantt gantt = newGantt();
 		try {

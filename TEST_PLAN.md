@@ -280,3 +280,7 @@
 - #464 縮退リボン表示回帰（2026-09-06）: 700px相当の狭幅Robotケースを追加し、全体縮退時も「ファイル …」ランチャーへ先頭コマンドのアイコンが表示され、物理クリックでコマンドポップアップを開けることを確認。日本語100%／150%の新ケースがBUILD SUCCESSFUL。150%の既存1200px全タブ直接クリックケースは画面幅前提のため別テスト基盤課題として扱う。
 - U-20内容不変条件強化（2026-09-06）: usage viewの受入fixtureに実リソースを追加し、物理Ribbonクリック後のTask/Resource Usageモデル行数を `> 0` と検査。従来の常に真となる `>= 0` 判定を除去し、focused U-20 GUIと`:microproject_ui:test`がBUILD SUCCESSFUL。
 - #482 複数 document window shell 回帰（2026-09-10）: secondary window の FlatLaf/native decoration 契約を表示前に登録する生成順へ修正し、初回 focus が primary container へ誤配置しないようにした。`DefaultFrameManagerGuiAcceptanceTest` で secondary の native decoration、full-window-content、実 restore bounds、focus 切替、title、物理 close を検査。
+
+### Gantt表示範囲 / MSP文書準拠
+
+| U-29 | Ganttのtimescaleズーム | 数値キーパッド Ctrl+/ と Ctrl+*、Ctrl+ホイール、ズームボタン | 公開仕様はMicrosoft Support「[Change the timescale in a Project view in Project desktop](https://support.microsoft.com/en-us/project/change-the-timescale-in-a-project-view-in-project-desktop)」（Project Online Desktop Client、Project 2016/2019/2021/2024）。Quick ways to zoomはCtrl+/で小さい時間単位、Ctrl+*で大きい時間単位を選ぶと明記。回帰テストでキーパッドdivide/multiply登録アクションとscale indexを検査し、ホイールではポインタ下の日付保持を確認する。 | Ctrl+/ は細かい時間単位、Ctrl+* は大きい時間単位に移る。端のscaleではそれ以上変更しない。ホイールズームはポインタ下の日付を可能な範囲で固定する。表示のみの互換動作でプロジェクトデータ、Undo履歴、保存内容は変更しない。横方向の範囲移動はスクロールバーまたはShift+ホイールで行い、可視範囲を境界内に保つ。 |
