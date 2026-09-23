@@ -71,6 +71,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Printer printable-area bounds | `ExtendedPageFormat.adaptMediaPrintableArea` | Fixed an OpenProj-origin bug where all four upper bounds were read from the requested area instead of the printer-supported maximum. A focused test failed before the fix and verifies all four bounds after clamping. |
 | Group sorter resolution | `NodeGroup.getSorter` | Replaced the remaining cast-after-`instanceof` branch with a Java 25 pattern binding; retained the existing null fallback and verified the grouping core test plus the UI consumer compilation. |
 | Assignment update notification | `ObjectEventManager.fireUpdateEvent` | Replaced the raw iterator and cast-after-`instanceof` with a typed enhanced-for loop and pattern binding. A focused regression verifies both the task event and propagation to its assignment; the original OpenProj bug-258 behavior is retained. |
+| Date cell rendering | `DateRenderer.getTableCellRendererComponent` | Replaced the redundant null-plus-`instanceof` check and cast with a pattern binding; retained the same date-formatting and superclass-rendering path. UI compilation passed; no Robot scenario was added for this behavior-preserving local refactor. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -169,6 +170,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 - `ObjectEventManagerTest` passed for task-to-assignment update propagation;
   the full core suite plus application, exchange, UI, and reports `compileJava`
   also passed. No GUI route or layout changed.
+- `DateRenderer` behavior-preserving pattern-binding cleanup passed
+  `:microproject_ui:compileJava`; no interaction, visual contract, or layout
+  changed, so GUI/Robot tests were intentionally not repeated.
 - At the integration checkpoint after the recorded core batches,
   `.\gradlew.bat clean build installDist verifyArchitectureBoundaries
   --console=plain` completed successfully (all module tests included, 3m52s).
