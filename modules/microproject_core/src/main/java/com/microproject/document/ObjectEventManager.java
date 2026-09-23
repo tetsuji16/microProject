@@ -24,8 +24,6 @@
  *******************************************************************************/
 package com.microproject.document;
 
-import java.util.Iterator;
-
 import com.microproject.association.Association;
 import com.microproject.field.Field;
 import com.microproject.pm.assignment.Assignment;
@@ -83,12 +81,11 @@ public class ObjectEventManager {
     	evt.setField(field);
     	fire(evt);
     	
-    	if (object instanceof NormalTask && field.isApplicable(Assignment.class)) { // fix for bug 258
-			Iterator<Association> i = ((NormalTask)object).getAssignments().iterator();
-			while (i.hasNext()) {
-				fireUpdateEvent(source, i.next(), field);
-    		}
-    	}
+		if (object instanceof NormalTask task && field.isApplicable(Assignment.class)) { // fix for bug 258
+			for (Association assignment : task.getAssignments()) {
+				fireUpdateEvent(source, assignment, field);
+			}
+		}
     }
 	
 	
