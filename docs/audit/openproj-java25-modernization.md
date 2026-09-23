@@ -58,6 +58,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Schedule undo snapshots | `ScheduleBackupEdit` | Typed the backup map, replaced raw iterator traversal with enhanced-for/`Map.forEach`, used `instanceof` pattern matching for collection input, and made captured source immutable; regression tests cover singleton and collection snapshots plus undo/redo behavior. |
 | Hierarchy paste undo | `NodePasteEdit` | Typed the captured children as `List<?>` and the extracted removal roots as `List<Node>` while preserving erased API descriptors; an integration regression verifies undo/redo restores node identity and insertion order. |
 | Snapshot clear undo | `ClearSnapshotEdit` | Typed selection and backup detail containers as wildcard lists/collections; extended the project snapshot test to verify clear → undo restore → redo clear through the real undo controller. |
+| Selection membership filter | `BelongsToCollectionFilter` | Replaced raw membership collection declarations and setter parameters with `Collection<?>`; caller erasure is unchanged, and tests cover selected/nonselected implementations plus callback suppression/notification. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -100,6 +101,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   The `NodePasteEdit` insertion-position undo/redo test and the
   `ClearSnapshotEdit` clear/restore/clear regression passed, followed by the
   full core suite and application, exchange, UI, and reports compilation.
+  `SelectionFilterTest` (including collection membership and callback behavior),
+  the full core suite, and UI compilation passed after typing the active
+  `BelongsToCollectionFilter` collection contract.
 - Application, exchange, UI, and reports compilation passed at an earlier
   calendar-clone integration checkpoint. No GUI route, layout, or Swing behavior
   was changed, so Robot/GUI tests were not repeated.
