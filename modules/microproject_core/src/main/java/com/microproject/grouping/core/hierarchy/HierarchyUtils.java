@@ -25,24 +25,26 @@
 package com.microproject.grouping.core.hierarchy;
 
 import java.util.Collection;
-import java.util.Iterator;
 
 import com.microproject.grouping.core.Node;
 
 public class HierarchyUtils {
 
-    public static void extractParents(Collection nodes,Collection parentNodes){
-        Node node,parent,current;
-        for (Iterator i=nodes.iterator();i.hasNext();){
-        	node=(Node)i.next();
-        	current=node;
-        	parent=null;
-        	if (current.getParent()==null&&!parentNodes.contains(node)) parentNodes.add(node);
-        	else{
-	        	while ((current=(Node)current.getParent())!=null&&!nodes.contains(current))
-	        		parent=current;
-	        	if (parent!=null&&!parentNodes.contains(node)) parentNodes.add(node);
-        	}
+    public static void extractParents(Collection<?> nodes, Collection<? super Node> parentNodes) {
+        for (Object nodeObject : nodes) {
+            Node node = (Node) nodeObject;
+            Node current = node;
+            Node parent = null;
+            if (current.getParent() == null && !parentNodes.contains(node)) {
+                parentNodes.add(node);
+            } else {
+                while ((current = (Node) current.getParent()) != null && !nodes.contains(current)) {
+                    parent = current;
+                }
+                if (parent != null && !parentNodes.contains(node)) {
+                    parentNodes.add(node);
+                }
+            }
         }
     }
 
