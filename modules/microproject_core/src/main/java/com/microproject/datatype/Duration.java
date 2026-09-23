@@ -83,23 +83,23 @@ public class Duration extends Number implements Comparable {
 		return work;
 	}
 	
-	private static int SHIFT = 57; // 6 bits are used: bits 62-57 (bit 63 is the sign bit and is not used
-	private static long ESTIMATED_BIT 		= 0x20L << SHIFT; // 1<< 62
-	private static long ELAPSED_BIT 		= 0x10L << SHIFT;
-	private static long PERCENT_BIT			= 0x0fL << SHIFT;	
-	private static long YEARS_BIT 			= 0x0eL << SHIFT;
-	private static long MONTHS_BIT 			= 0x0dL << SHIFT;
-	private static long WEEKS_BIT 			= 0x0cL << SHIFT;
-	private static long DAYS_BIT			= 0x0bL << SHIFT;	
-	private static long HOURS_BIT			= 0x0aL << SHIFT;
-	private static long MINUTES_BIT			= 0x09L << SHIFT;
-	private static long SECONDS_BIT			= 0x08L << SHIFT;
-	private static long NON_TEMPORAL_BIT	= 0x07L << SHIFT;
+	private static final int SHIFT = 57; // 6 bits are used: bits 62-57 (bit 63 is the sign bit and is not used
+	private static final long ESTIMATED_BIT 		= 0x20L << SHIFT; // 1<< 62
+	private static final long ELAPSED_BIT 		= 0x10L << SHIFT;
+	private static final long PERCENT_BIT			= 0x0fL << SHIFT;
+	private static final long YEARS_BIT 			= 0x0eL << SHIFT;
+	private static final long MONTHS_BIT 			= 0x0dL << SHIFT;
+	private static final long WEEKS_BIT 			= 0x0cL << SHIFT;
+	private static final long DAYS_BIT			= 0x0bL << SHIFT;
+	private static final long HOURS_BIT			= 0x0aL << SHIFT;
+	private static final long MINUTES_BIT			= 0x09L << SHIFT;
+	private static final long SECONDS_BIT			= 0x08L << SHIFT;
+	private static final long NON_TEMPORAL_BIT	= 0x07L << SHIFT;
 	
 	
-	private static long UNITS_MASK 		= 0x0fL << SHIFT;
-	private static long ELAPSED_AND_UNITS_MASK = (0x1fL << SHIFT);	
-	private static long MILLIS_MASK 	= ~(0x3fL << SHIFT);
+	private static final long UNITS_MASK 		= 0x0fL << SHIFT;
+	private static final long ELAPSED_AND_UNITS_MASK = (0x1fL << SHIFT);
+	private static final long MILLIS_MASK 	= ~(0x3fL << SHIFT);
 	
 	
 	public static long clear(long duration) {

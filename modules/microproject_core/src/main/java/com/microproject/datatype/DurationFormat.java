@@ -77,18 +77,18 @@ public class DurationFormat extends Format {
 	}
 	
 	// these strings are themselves parts of string ids in properties file and as such must be hard coded as below
-	private static String[] types = {"minute", "hour", "day", "week", "month",
+	private static final String[] types = {"minute", "hour", "day", "week", "month",
 			"year", "percent", "eminute", "ehour", "eday", "eweek", "emonth",
 			"eyear", "epercent"};
 	
 	private static final int SINGULAR = 0;
 	private static final int PLURAL = 1;
-	private static final String multiple[] = {".singular", ".plural"};
-	private static int TYPE_COUNT = types.length;
-	private static int NAME_COUNT = 4;
-	private static String[][][] typesArray = new String[NAME_COUNT][multiple.length][TYPE_COUNT];
-	private static Pattern[] pattern = new Pattern[TYPE_COUNT];
-	private static String estimatedSymbol = Messages.getString("Units.estimatedSymbol");
+	private static final String[] multiple = {".singular", ".plural"};
+	private static final int TYPE_COUNT = types.length;
+	private static final int NAME_COUNT = 4;
+	private static final String[][][] typesArray = new String[NAME_COUNT][multiple.length][TYPE_COUNT];
+	private static final Pattern[] pattern = new Pattern[TYPE_COUNT];
+	private static final String estimatedSymbol = Messages.getString("Units.estimatedSymbol");
 	
 	
 	//private constructor initializes values.
@@ -101,8 +101,7 @@ public class DurationFormat extends Format {
 			String singularNames=null;
 			String pluralNames=null;
 			for (int j = 0; j < multiple.length; j++) {
-				String names = new String(Messages.getString("Units."
-						+ types[i] + multiple[j]));
+				String names = Messages.getString("Units." + types[i] + multiple[j]);
 				if (j==SINGULAR) singularNames=names;
 				if (j==PLURAL) pluralNames=names;
 				String[] units = names.split("\\|", -1); // index into the names list, getting string
