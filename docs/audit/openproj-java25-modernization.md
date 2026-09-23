@@ -66,6 +66,11 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 - Compilation/test success is evidence only for those exercised modules; it is
   not evidence that the inventory is exhausted or that every compatibility
   boundary has been audited.
+- At the integration checkpoint after the recorded core batches,
+  `.\gradlew.bat clean build installDist verifyArchitectureBoundaries
+  --console=plain` completed successfully (all module tests included, 3m52s).
+  `git status` remained clean after the build; no generated output or sample
+  rewrites were staged or committed.
 
 ## Remaining work
 
