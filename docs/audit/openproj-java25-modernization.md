@@ -17,9 +17,17 @@ baseline. On the pinned base (`origin/master` =
 `59eb4e0dc1157b382d754deb0acc79fd3384ac5b`), the script reports 280 ledger
 rows: 212 mapped files have normalized content matching the OpenProj source,
 55 mapped files differ, and 13 mapped paths are absent. Of those 13, two source
-files have same-module relocations (`IntervalConsumer` and
-`ScheduleIntervalGenerator`); the other 11 do not resolve by basename in the
-current core production Java tree. None of the absent paths are presumed dead.
+files have active same-module relocations (`IntervalConsumer` and
+`ScheduleIntervalGenerator`) under `com.microproject.pm.scheduling`. The other
+11 legacy source paths were moved into the retired `projectlibre_core` module by
+the namespace-migration commit, but were not carried into the active
+`microproject_core` source tree. `settings.gradle.kts` includes only the active
+`microproject_*` modules, and searches of current modules found none of these 11
+type names or references. They are therefore excluded from this issue's current
+runtime modernization scope; their provenance-ledger rows remain historical
+records and are not treated as deletion candidates. This classification does
+not claim that removing these APIs from any separately distributed historical
+artifact would be compatible.
 
 These are path/content reconciliation results, not an active-caller or hunk
 provenance audit. A matching file may contain a narrow fork delta; a differing
@@ -269,8 +277,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 
 ## Remaining work
 
-- Review all 55 content-different candidates and the 11 absent class paths;
-  determine whether they are relocations, removed sources, or stale ledger rows.
+- Hunk-provenance and active-caller review remains for the 55 content-different
+  candidates; the 13 absent-path discrepancies are now classified as two active
+  relocations and 11 sources outside the current included module graph.
 - Search the 212 matching files and the OpenProj-origin hunks within the 55
   differing files for production callers and compatibility boundaries; do not
   treat file-level equality as proof of an active eligible hunk.
