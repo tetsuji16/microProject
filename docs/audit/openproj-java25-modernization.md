@@ -9,19 +9,26 @@ Git and summarized in [issue #595](https://github.com/tetsuji16/ProjectLibre/iss
 ## Inventory caveat
 
 `docs/legal/license-provenance.csv` uses the former `projectlibre_*` module and
-`com.projectlibre1` package paths. A read-only path check of its
-`projectlibre_core` production-Java rows marked `normalized_openproj_match=true`
-found 280 ledger rows and 267 existing files after mapping the old core root
-and package path to the current `microproject_core` / `com.microproject` tree.
-The remaining 13 path mappings did not resolve with that simple mapping.
+`com.projectlibre1` package paths. Run
+`python scripts/audit/openproj_java25_inventory.py --ref origin/master` to
+reconcile its `projectlibre_core` production-Java rows marked
+`normalized_openproj_match=true` against the current source tree and OpenProj
+baseline. On the pinned base (`origin/master` =
+`59eb4e0dc1157b382d754deb0acc79fd3384ac5b`), the script reports 280 ledger
+rows: 212 mapped files have normalized content matching the OpenProj source,
+55 mapped files differ, and 13 mapped paths are absent. Of those 13, two source
+files have same-module relocations (`IntervalConsumer` and
+`ScheduleIntervalGenerator`); the other 11 do not resolve by basename in the
+current core production Java tree. None of the absent paths are presumed dead.
 
-These figures are only candidate-discovery results. They do **not** prove that
-the rows still match current file contents, that every hunk is OpenProj-origin,
-that every file has a production caller, or that each file is safe to modernize.
-The CSV's normalized match is not a legal conclusion. Resolve stale paths,
-inspect origin at hunk/responsibility level, search callers (including dynamic
-configuration and serialization), and classify compatibility-sensitive code
-before counting a candidate as eligible.
+These are path/content reconciliation results, not an active-caller or hunk
+provenance audit. A matching file may contain a narrow fork delta; a differing
+file may still contain eligible OpenProj-origin hunks. The results do **not**
+prove that each source has a production caller or is safe to modernize. The
+ledger's normalized match is not a legal conclusion. Inspect origin at
+hunk/responsibility level, search callers (including dynamic configuration and
+serialization), and classify compatibility-sensitive code before counting a
+candidate as eligible.
 
 ## Completed, source-confirmed work segments
 
@@ -74,11 +81,11 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 
 ## Remaining work
 
-- Resolve all 13 stale path mappings and validate candidate hashes against the
-  current baseline; separate exact-origin hunks from later fork changes.
-- Search all 267 provisional active-path candidates for actual callers and
-  compatibility boundaries; prioritize candidates by correctness/maintenance
-  risk, not by conversion count.
+- Review all 55 content-different candidates and the 11 absent class paths;
+  determine whether they are relocations, removed sources, or stale ledger rows.
+- Search the 212 matching files and the OpenProj-origin hunks within the 55
+  differing files for production callers and compatibility boundaries; do not
+  treat file-level equality as proof of an active eligible hunk.
 - Audit remaining eligible Java in exchange, UI, reports, and other core
   responsibilities; do not add GUI tests unless a physical GUI contract or
   visual surface is changed.
