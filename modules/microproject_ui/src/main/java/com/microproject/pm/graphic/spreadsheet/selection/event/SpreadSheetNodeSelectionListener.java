@@ -50,7 +50,7 @@ public class SpreadSheetNodeSelectionListener implements ListSelectionListener {
 		CommonSpreadSheetModel model=(CommonSpreadSheetModel)spreadSheet.getModel();
 		
 		int[] rows=spreadSheet.getSelectedRows();
-		List nodes=new ArrayList(rows.length);
+		List<Node> nodes=new ArrayList<>(rows.length);
 		Node currentNode = null;
 		int selectedRow = spreadSheet.getSelectedRow();
 		for (int i=0;i<rows.length;i++){

@@ -1047,7 +1047,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	public SelectionNodeListener[] getSelectionNodeListeners() {
 		return (SelectionNodeListener[]) selectionNodeListenerList.getListeners(SelectionNodeListener.class);
 	}
-	public void fireContentsChanged(Object source, List<?> nodes, Node currentNode) {
+	public void fireContentsChanged(Object source, List<? extends Node> nodes, Node currentNode) {
 		Object[] listeners = selectionNodeListenerList.getListenerList();
 		SelectionNodeEvent e = null;
 		for (int i = listeners.length - 2; i >= 0; i -= 2) {

@@ -36,7 +36,7 @@ public class SelectionNodeEvent extends GraphicEvent {
     public static final int SELECTION_CHANGED = 0;
     
     protected int type;
-    protected List<?> nodes;
+    protected List<? extends Node> nodes;
     protected Node currentNode;
     protected String category;
     
@@ -47,7 +47,7 @@ public class SelectionNodeEvent extends GraphicEvent {
      * @param type
      * @param nodes
      */
-    public SelectionNodeEvent(Object source, int type, List<?> nodes, Node currentNode, String category) {
+    public SelectionNodeEvent(Object source, int type, List<? extends Node> nodes, Node currentNode, String category) {
         super(source);
         this.type = type;
         this.nodes = nodes;
@@ -58,7 +58,7 @@ public class SelectionNodeEvent extends GraphicEvent {
     /**
      * @return Returns the nodes.
      */
-    public List<?> getNodes() {
+    public List<? extends Node> getNodes() {
         return nodes;
     }
     /**

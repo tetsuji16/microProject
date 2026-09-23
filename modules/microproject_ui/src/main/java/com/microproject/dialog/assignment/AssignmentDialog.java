@@ -51,6 +51,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.configuration.Settings;
 import com.microproject.document.ObjectEvent;
+import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
@@ -414,7 +415,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		project.getResourcePool().addObjectListener(this);
 	}
 	
-	private static final List<Object> emptyList = List.of();
+	private static final List<Node> emptyList = List.of();
 	public void documentSelected(DocumentSelectedEvent evt) {
 		setDocumentFrame(evt.getCurrent());
 		if (getDocumentFrame() != null) {
@@ -427,12 +428,12 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	public void selectionChanged(SelectionNodeEvent e) {
 		if (e.getCategory() != GanttView.spreadsheetCategory) // Keep spreadsheet events scoped to the assignment pane.
 			return;
-		List<?> selectedNodes = e.getNodes();
+		List<? extends Node> selectedNodes = e.getNodes();
 		setSelectedTasks(selectedNodes);
 	}
 
 	private static final NodeFilter filter=NotAssignmentFilter.getWritableInstance();
-	private void setSelectedTasks(List<?> selectedNodes) {
+	private void setSelectedTasks(List<? extends Node> selectedNodes) {
 		selectedTasks = toSelectedTasks(selectedNodes);
 		String names;
 		if (selectedTasks.isEmpty())
@@ -452,9 +453,8 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
   		return spreadSheetPane.getSelectedResources(false);
   	}
 
-	@SuppressWarnings("unchecked")
-	private List<NormalTask> toSelectedTasks(List<?> selectedNodes) {
-		List<?> objects = NodeList.nodeListToImplList(selectedNodes, filter);
+	private List<NormalTask> toSelectedTasks(List<? extends Node> selectedNodes) {
+		List<Object> objects = NodeList.nodeListToImplList(selectedNodes, filter);
 		List<NormalTask> tasks = new ArrayList<>(objects.size());
 		for (Object current : objects) {
 			if (current instanceof NormalTask task && task.isAssignable()) {
