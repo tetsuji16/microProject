@@ -33,10 +33,9 @@ import com.microproject.pm.assignment.Assignment;
 public class AssignmentCompositionFilter extends PreCompositionNodeFilter {
     
     public boolean evaluate(NodeFilter filter,Object node) {
-        Object impl=((Node)node).getImpl();
-        if (!(impl instanceof Assignment)) return super.evaluate(filter,node);
-        Assignment assignment=(Assignment)impl;
-        return super.evaluate(filter,assignment.getResource());
+        if (((Node) node).getImpl() instanceof Assignment assignment)
+            return super.evaluate(filter, assignment.getResource());
+        return super.evaluate(filter, node);
     }
 
 }

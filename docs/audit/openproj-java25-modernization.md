@@ -44,6 +44,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Personal contour | `PersonalContourMaker` | Replaced raw collection types with `List<PersonalContourBucket>` / typed `Collection`; used pattern matching for bucket narrowing. |
 | Scripting configuration | `ScriptConfiguration` | Replaced raw `Set` with `Set<String>` and diamond construction; added configured/unlisted class-name behavior coverage. |
 | Grouping XML configuration | `NodeGrouper` | Typed the XML-populated group list and `addGroup`/getter API as `NodeGroup`; verified insertion order and transform relationship, then compiled the UI consumer. |
+| Assignment composition filtering | `AssignmentCompositionFilter` | Applied pattern matching to the source-exact OpenProj Assignment branch; added delegation tests for both Assignment-to-Resource composition and unchanged non-Assignment nodes. The `Filter.WhoDoesWhatReport` XML configuration remains unchanged. |
 | Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
 | External task resolution | `ExternalTaskManager` | Typed the manager-owned external-task list and iterator; retained `AssociationList`'s actual `Association` iterator contract and the existing cast semantics for dependencies. |
 | Resource pool registry | `ResourcePoolFactory` | Typed the existing `ArrayList` without changing its erased public return descriptor; removed unreferenced private `removePool` and unused `name` state after repository-wide caller search. |
@@ -62,6 +63,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   at the contour checkpoint; the core full suite passed again after the
   `ScriptConfiguration` type-safety change. The focused `NodeGrouperTest`, full
   core suite, and UI compilation passed after typing the XML grouping contract.
+  The focused `AssignmentCompositionFilterTest` and the full core suite passed
+  after modernizing Assignment composition dispatch.
   The core full test suite and application, exchange, and UI compilations passed
   after typing scheduling field notification state. Core tests and exchange /
   application compilations passed after typing external task manager storage.
