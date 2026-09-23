@@ -35,8 +35,4 @@ public class NodeId extends UniqueId{
 	public NodeId() {
 		super();
 	}
-	
-//	public NodeId(long id) {
-//		super(id);
-//	}
 }

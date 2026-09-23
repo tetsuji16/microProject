@@ -23,9 +23,6 @@
  * SOFTWARE.
  *******************************************************************************/
 package com.microproject.core.id;
-
-
-
 /**
  * @author Laurent Chretienneau
  *
@@ -34,11 +31,9 @@ public class UniqueId {
 	protected long id;
 
 	public UniqueId() {
-		super();
 	}
 
 	public UniqueId(long id) {
-		super();
 		this.id = id;
 	}
 	public long getId() {
@@ -48,35 +43,19 @@ public class UniqueId {
 	public void setId(long id) {
 		this.id = id;
 	}
-	
-	
-
 	@Override
 	public int hashCode() {
-		//return id.hashCode();
 		return (int)(id ^ (id >>> 32));
 	}
 
-//	public UUID getId() {
-//		return id;
-//	}
-//
-//	public void setId(UUID id) {
-//		this.id = id;
-//	}
-
 	@Override
 	public String toString() {
-		//return id.toString();
-		return ""+id;
+		return Long.toString(id);
 	}
-	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj==null || !(obj instanceof UniqueId))
+		if (!(obj instanceof UniqueId other))
 			return false;
-		return id==((UniqueId)obj).getId();
+		return id == other.getId();
 	}
-
-	
 }

@@ -42,16 +42,7 @@ public class DefaultTimeIntervals implements TimeIntervals {
 	protected TreeSet<TimeInterval> intervals;
 
 	public DefaultTimeIntervals(){
-		intervals=new TreeSet<TimeInterval>(new Comparator<TimeInterval>() {
-			@Override
-			public int compare(TimeInterval t1, TimeInterval t2) {
-				if (t1.getStart() < t2.getStart())
-					return -1;
-				if (t1.getStart() == t2.getStart()) 
-					return 0;
-				else return 1;
-			}
-		});
+		intervals = new TreeSet<>(Comparator.comparingLong(TimeInterval::getStart));
 	}
 	public DefaultTimeIntervals(long start,long end){
 		this();
@@ -67,8 +58,12 @@ public class DefaultTimeIntervals implements TimeIntervals {
 	@Override
 	public void setStart(long start) {
 		TimeInterval t;
-		if (isEmpty()) t=new DefaultTimeInterval();
-		else t=intervals.first();
+		if (isEmpty()) {
+			t = new DefaultTimeInterval();
+			intervals.add(t);
+		} else {
+			t = intervals.first();
+		}
 		t.setStart(start);
 	}
 
@@ -80,8 +75,12 @@ public class DefaultTimeIntervals implements TimeIntervals {
 	@Override
 	public void setEnd(long end) {
 		TimeInterval t;
-		if (isEmpty()) t=new DefaultTimeInterval();
-		else t=intervals.last();
+		if (isEmpty()) {
+			t = new DefaultTimeInterval();
+			intervals.add(t);
+		} else {
+			t = intervals.last();
+		}
 		t.setEnd(end);
 	}
 
@@ -148,15 +147,14 @@ public class DefaultTimeIntervals implements TimeIntervals {
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj==null || ! (obj instanceof DefaultTimeIntervals))
+		if (!(obj instanceof DefaultTimeIntervals other))
 			return false;
-		DefaultTimeIntervals i=(DefaultTimeIntervals)obj;
-		if (size()!=i.size())
+		if (size() != other.size())
 			return false;
-		Iterator<TimeInterval> i1=iterator();
-		Iterator<TimeInterval> i2=i.iterator();
-		while (i1.hasNext()){
-			if (!i1.next().equals(i2.next()))
+		Iterator<TimeInterval> thisIntervals = iterator();
+		Iterator<TimeInterval> otherIntervals = other.iterator();
+		while (thisIntervals.hasNext()) {
+			if (!thisIntervals.next().equals(otherIntervals.next()))
 				return false;
 		}
 		return true;
