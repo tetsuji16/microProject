@@ -87,10 +87,9 @@ public class LinkData extends SerializedDataObject {
 
 	public boolean equals(Object obj){
 		if (!super.equals(obj)) return false;
-		if (obj instanceof LinkData){
-			LinkData data=(LinkData)obj;
+		if (obj instanceof LinkData data)
 			return data.getPredecessorId()==getPredecessorId();
-		}else return false;
+		return false;
 	}
 	@Override
 	public int hashCode(){

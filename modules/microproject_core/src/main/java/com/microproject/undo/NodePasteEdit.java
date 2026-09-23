@@ -41,8 +41,8 @@ import com.microproject.grouping.core.model.NodeModel;
 public class NodePasteEdit extends AbstractUndoableEdit{
 	protected NodeModel model;
 	protected Node parent;
-	protected List children;
-	protected List roots;
+	protected List<?> children;
+	protected List<Node> roots;
 	protected int position;
 	//protected UndoController undoController;
 	
@@ -54,7 +54,7 @@ public class NodePasteEdit extends AbstractUndoableEdit{
 	 * @param children
 	 * @param position
 	 */
-	public NodePasteEdit(NodeModel model, Node parent, List children,
+	public NodePasteEdit(NodeModel model, Node parent, List<?> children,
 			int position/*,UndoController undoController*/) {
 		super();
 		this.model = model;
@@ -62,7 +62,7 @@ public class NodePasteEdit extends AbstractUndoableEdit{
 		this.children = children;
 		this.position = position;
 		//this.undoController=undoController;
-		roots=new ArrayList();
+		roots=new ArrayList<>();
 		HierarchyUtils.extractParents(children, roots);
 	}
 	public void redo() throws CannotRedoException {

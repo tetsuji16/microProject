@@ -18,13 +18,13 @@ public final class RecurringCalendarException implements Serializable, Cloneable
 	private CalendarRecurrence recurrence;
 
 	public RecurringCalendarException(WorkDay template, CalendarRecurrence recurrence) {
-		this.template = (WorkDay) Objects.requireNonNull(template, "template").clone();
+		this.template = Objects.requireNonNull(template, "template").clone();
 		this.recurrence = Objects.requireNonNull(recurrence, "recurrence").clone();
 		if (DateTime.dayFloor(template.getStart()) != recurrence.getStartDate())
 			throw new IllegalArgumentException("Exception start must match the recurrence start date");
 	}
 
-	public WorkDay getTemplate() { return (WorkDay) template.clone(); }
+	public WorkDay getTemplate() { return template.clone(); }
 	public CalendarRecurrence getRecurrence() { return recurrence.clone(); }
 	public List<WorkDay> getOccurrences() {
 		long spanDays = (DateTime.dayFloor(template.getEnd()) - DateTime.dayFloor(template.getStart()))
@@ -33,7 +33,7 @@ public final class RecurringCalendarException implements Serializable, Cloneable
 		for (long start : recurrence.occurrenceDates()) {
 			WorkDay occurrence = new WorkDay(start, DateTime.dayFloor(start) + spanDays * WorkCalendar.MILLIS_IN_DAY,
 				template.getDescription());
-			occurrence.setWorkingHours((WorkingHours) template.getWorkingHours().clone());
+			occurrence.setWorkingHours(template.getWorkingHours().clone());
 			result.add(occurrence);
 		}
 		return List.copyOf(result);
@@ -42,7 +42,7 @@ public final class RecurringCalendarException implements Serializable, Cloneable
 	@Override public RecurringCalendarException clone() {
 		try {
 			RecurringCalendarException result = (RecurringCalendarException) super.clone();
-			result.template = (WorkDay) template.clone();
+			result.template = template.clone();
 			result.recurrence = recurrence.clone();
 			return result;
 		} catch (CloneNotSupportedException impossible) {

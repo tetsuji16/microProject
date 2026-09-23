@@ -44,9 +44,9 @@ public class NodeList extends ArrayList<Node> {
 	private Node getNode() throws NodeException {
 		if (size() == 0)
 			throw new NodeException("Empty NodeList");
-		return (Node) get(0);
+		return get(0);
 	}
-	public Class getType() throws NodeException {
+	public Class<? extends Node> getType() throws NodeException {
 		return getNode().getClass();
 	}
 
@@ -56,9 +56,9 @@ public class NodeList extends ArrayList<Node> {
 	public void setVirtual(boolean virtual) {
 	}
 
-	public static void accept(NodeVisitor visitor, Iterator nodes) {
+	public static void accept(NodeVisitor visitor, Iterator<? extends Node> nodes) {
 		while (nodes.hasNext())
-			((Node) nodes.next()).accept(visitor);
+			nodes.next().accept(visitor);
 	}
 	public void accept(NodeVisitor visitor) {
 		accept(visitor, iterator());
@@ -67,15 +67,14 @@ public class NodeList extends ArrayList<Node> {
 		return null;
 	}
 	
-	public static List<Object> nodeListToImplList(Collection<?> nodeList) {
+	public static List<Object> nodeListToImplList(Collection<? extends Node> nodeList) {
 	    return nodeListToImplList(nodeList,NotVoidFilter.getInstance());
 	}
-	public static List<Object> nodeListToImplList(Collection<?> nodeList,NodeFilter filter) {
+	public static List<Object> nodeListToImplList(Collection<? extends Node> nodeList,NodeFilter filter) {
 		if (nodeList == null) // happens in certain cases
 			return new ArrayList<>();
 		List<Object> implList = new ArrayList<>(nodeList.size());
-		for (Object value : nodeList) {
-			Node current = (Node) value;
+		for (Node current : nodeList) {
 			if (!current.isVirtual()&&(filter==null||filter.evaluate(current)))
 				implList.add(current.getImpl());
 		}

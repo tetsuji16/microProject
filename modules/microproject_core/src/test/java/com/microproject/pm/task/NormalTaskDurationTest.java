@@ -25,6 +25,7 @@
 package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeVisitor;
 import com.microproject.field.FieldContext;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.criticalpath.PredecessorTaskList;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
@@ -53,6 +55,30 @@ import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskDurationTest {
+	@Test
+	void arrangeTaskKeepsSummaryChildrenBetweenParentMarkers() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask child = createTask(project);
+		attachChildren(parent, child);
+		parent.setMarkerStatus(false);
+		child.setMarkerStatus(false);
+		List<Object> ordered = new ArrayList<>();
+
+		parent.arrangeTask(ordered, true, 0);
+
+		assertEquals(3, ordered.size());
+		PredecessorTaskList.TaskReference begin = (PredecessorTaskList.TaskReference) ordered.get(0);
+		PredecessorTaskList.TaskReference childReference = (PredecessorTaskList.TaskReference) ordered.get(1);
+		PredecessorTaskList.TaskReference end = (PredecessorTaskList.TaskReference) ordered.get(2);
+		assertSame(parent, begin.getTask());
+		assertEquals(-1, begin.getType());
+		assertSame(child, childReference.getTask());
+		assertEquals(0, childReference.getType());
+		assertSame(parent, end.getTask());
+		assertEquals(1, end.getType());
+	}
+
 	@Test
 	void durationInputKeepsStartAndMovesFinishForRegularTask() {
 		Project project = createProject();

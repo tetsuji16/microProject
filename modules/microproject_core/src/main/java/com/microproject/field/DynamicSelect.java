@@ -91,7 +91,7 @@ public class DynamicSelect extends Select implements Finder {
 		return ObjectUtils.toString(arg0);
 	}
 
-	public Object find(Object key, Collection container) {
+	public Object find(Object key, Collection<?> container) {
 		String name = (String)key;
 		try {
 			return finderMethod.invoke(null, new Object[] {name});

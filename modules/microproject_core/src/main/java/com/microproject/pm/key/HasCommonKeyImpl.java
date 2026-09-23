@@ -85,9 +85,9 @@ public class HasCommonKeyImpl extends HasUniqueIdImpl implements HasKey{
 	}
 
 	public boolean equals(Object other) {
-		if (! (other instanceof HasKey))
+		if (!(other instanceof HasKey key))
 			return false;
-		return uniqueId == ((HasKey)other).getUniqueId();
+		return uniqueId == key.getUniqueId();
 	}
 
 	@Override

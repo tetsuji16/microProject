@@ -34,6 +34,33 @@ import org.junit.jupiter.api.Test;
 import com.microproject.field.FieldConverter;
 
 class DurationEncodingTest {
+	@Test
+	void setAsTimeUnitEncodesEachSupportedUnitAndPreservesUnknownUnits() {
+		int[] units = {
+			TimeUnit.NON_TEMPORAL, TimeUnit.MINUTES, TimeUnit.ELAPSED_MINUTES,
+			TimeUnit.HOURS, TimeUnit.ELAPSED_HOURS, TimeUnit.DAYS, TimeUnit.ELAPSED_DAYS,
+			TimeUnit.WEEKS, TimeUnit.ELAPSED_WEEKS, TimeUnit.MONTHS, TimeUnit.ELAPSED_MONTHS,
+			TimeUnit.YEARS, TimeUnit.ELAPSED_YEARS, TimeUnit.PERCENT, TimeUnit.ELAPSED_PERCENT
+		};
+		long untypedDuration = 12345L;
+
+		for (int unit : units) {
+			long encoded = Duration.setAsTimeUnit(untypedDuration, unit);
+			assertEquals(unit, Duration.getType(encoded));
+			assertEquals(untypedDuration, Duration.millis(encoded));
+		}
+		assertEquals(untypedDuration, Duration.setAsTimeUnit(untypedDuration, Integer.MAX_VALUE));
+	}
+
+	@Test
+	void parseAtEndOfInputReturnsNullWithoutAdvancingPosition() {
+		String input = "2d";
+		ParsePosition position = new ParsePosition(input.length());
+
+		assertEquals(null, DurationFormat.getInstance().parseObject(input, position));
+		assertEquals(input.length(), position.getIndex());
+	}
+
     @Test
     void temporalUnitsRoundTripWithinOneMillisecondPrecision() {
 		int[] units = {TimeUnit.MINUTES, TimeUnit.HOURS, TimeUnit.DAYS,

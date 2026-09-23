@@ -24,18 +24,20 @@
  *******************************************************************************/
 package com.microproject.grouping.core.hierarchy;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Stack;
+import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.function.Consumer;
 
 import javax.swing.event.EventListenerList;
 import javax.swing.tree.TreeNode;
@@ -79,43 +81,40 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 		return iterator(null);
 	}
 	
-    final class ShallowPreorderInterator implements Iterator<TreeNode> {
-    	protected Stack stack;
-    	protected int maxLevel;
-    	protected Stack<Integer> levelStack;
+    private final class ShallowPreorderIterator implements Iterator<TreeNode> {
+        private final Deque<Enumeration<? extends TreeNode>> stack = new ArrayDeque<>();
+        private final int maxLevel;
+        private final Deque<Integer> levelStack = new ArrayDeque<>();
 
-    	public ShallowPreorderInterator(TreeNode rootNode,int maxLevel,boolean returnRoot) {
-    	    super();
-    	    ArrayList v = new ArrayList(1);
-    	    v.add(rootNode);	// PENDING: don't really need a ArrayList stack = new Stack();
-    	    stack.push(Collections.enumeration(v));
-    	    levelStack=new Stack<Integer>();
-    	    levelStack.push(0);
-    	    this.maxLevel=maxLevel;
-    	    if (!returnRoot&&hasNext()) next(); 
-    	}
+        private ShallowPreorderIterator(TreeNode rootNode, int maxLevel, boolean returnRoot) {
+            stack.push(Collections.enumeration(List.of(rootNode)));
+            levelStack.push(0);
+            this.maxLevel = maxLevel;
+            if (!returnRoot && hasNext()) next();
+        }
 
-    	public boolean hasNext() {
-    	    return (!stack.empty() &&
-    		    ((Enumeration)stack.peek()).hasMoreElements());
-    	}
+        public boolean hasNext() {
+            return !stack.isEmpty() && stack.peek().hasMoreElements();
+        }
 
-    	public TreeNode next() {
-    	    Enumeration	enumer = (Enumeration)stack.peek();
-    	    int level=levelStack.peek();
-    	    TreeNode	node = (TreeNode)enumer.nextElement();
-    	    Enumeration	children = level==maxLevel?null:node.children();
+        public TreeNode next() {
+            if (!hasNext())
+                throw new NoSuchElementException();
+            Enumeration<? extends TreeNode> enumer = stack.peek();
+            int level = levelStack.peek();
+            TreeNode node = enumer.nextElement();
+            Enumeration<? extends TreeNode> children = level == maxLevel ? null : node.children();
 
-    	    if (!enumer.hasMoreElements()) {
-    		stack.pop();
-    		levelStack.pop();
-    	    }
-    	    if (children!=null&&children.hasMoreElements()) {
-    		stack.push(children);
-    		levelStack.push(level+1);
-    	    }
-    	    return node;
-    	}
+            if (!enumer.hasMoreElements()) {
+                stack.pop();
+                levelStack.pop();
+            }
+            if (children != null && children.hasMoreElements()) {
+                stack.push(children);
+                levelStack.push(level + 1);
+            }
+            return node;
+        }
 		public void remove() {
 			throw new UnsupportedOperationException("Remove not supported");
 		}
@@ -123,7 +122,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 
 	
 	public Iterator shallowIterator(int maxLevel,boolean returnRoot){
-		return new ShallowPreorderInterator((TreeNode)getRoot(),maxLevel,returnRoot);
+		return new ShallowPreorderIterator((TreeNode)getRoot(),maxLevel,returnRoot);
 	}
 	
 
@@ -137,14 +136,13 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     		return counter.count;
     	if (!skipVoid || !node.isVirtual())
     		counter.count++;
-    	Collection children = getChildren(node);
-    	if (children == null)
-    		return -1;
-    	Iterator i = children.iterator();
-    	int found = -1;
-    	while (i.hasNext()) {
-    		if ((found = getIndexOfNode(key,(Node)i.next(),counter,skipVoid)) != -1)
-    			break;
+		List<?> children = getChildren(node);
+		if (children == null)
+			return -1;
+		int found = -1;
+		for (Object child : children) {
+			if ((found = getIndexOfNode((Node) child, key, counter, skipVoid)) != -1)
+				break;
     	}
     	return found;
     	
@@ -153,15 +151,14 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	visitAll(null,visitor);
     }
     public void visitAll(Node parent, Consumer<Object> visitor) {
-    	if (parent != null)
-    		visitor.accept(parent);
-    	Collection children = getChildren(parent);
-    	if (children != null) {
-        	Iterator i = children.iterator();
-        	while (i.hasNext()) {
-        		visitAll((Node)i.next(),visitor);
-        	}
-    	}
+        if (parent != null)
+            visitor.accept(parent);
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                visitAll((Node) child, visitor);
+            }
+        }
     }
     //doesn't visit parent
     public void visitAllLevelOrder(Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
@@ -173,17 +170,15 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
    		// saving a suproject itself, in which case, the root element will be a subproject task and first will be true
     	if (!first && skipLazyParents && parent != null && parent.getImpl() instanceof LazyParent) 
     		return;
-    	Collection children = getChildren(parent);
-    	if (children != null) {
-        	Iterator i = children.iterator();
-        	while (i.hasNext()) {
-        		visitor.accept(i.next());
-        	}
-        	i=children.iterator();
-        	while (i.hasNext()) {
-        		visitAllLevelOrder(false,(Node)i.next(),skipLazyParents,visitor);
-        	}
-    	}
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                visitor.accept(child);
+            }
+            for (Object child : children) {
+                visitAllLevelOrder(false, (Node) child, skipLazyParents, visitor);
+            }
+        }
     }
    	
     public void visitAll(Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
@@ -194,23 +189,21 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
    		// saving a suproject itself, in which case, the root element will be a subproject task and first will be true
     	if (!first && skipLazyParents && parent != null && parent.getImpl() instanceof LazyParent) 
     		return;
-    	Collection children = getChildren(parent);
-    	if (children != null) {
-        	Iterator i = children.iterator();
-        	i=children.iterator();
-        	while (i.hasNext()) {
-        		Node node=(Node)i.next();
-        		visitor.accept(node);
-        		visitAll(false,node,skipLazyParents,visitor);
-        	}
-    	}
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                Node node = (Node) child;
+                visitor.accept(node);
+                visitAll(false, node, skipLazyParents, visitor);
+            }
+        }
     }
    	
     public void visitLeaves(Node node, Consumer<Object> visitor) {
-    	if (node.isLeaf()) visitor.accept(node);
-    	else for (Enumeration e=node.children();e.hasMoreElements();){
-    		visitLeaves((Node)e.nextElement(), visitor);
-    	}
+        if (node.isLeaf()) visitor.accept(node);
+        else for (Enumeration<?> children = node.children(); children.hasMoreElements();) {
+            visitLeaves((Node) children.nextElement(), visitor);
+        }
     }
 
 
@@ -221,14 +214,14 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	Node node = current;
     	while (true) {
     		node = getNext(node,true);
-    		if (node == null || !node.isVirtual())
-    			break;
+			if (node == null || (!node.isVirtual() && !node.isRoot()))
+				break;
     	}
     	return node;
     }
     
     private Node getNext(Node current, boolean doChildren) {
-    	List children;
+        List<?> children;
     	if (doChildren) { // if haven't visited children yet
     		children = getChildren(current);
        		if (children != null && children.size() > 0) // if parent, next is first child
@@ -238,7 +231,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
        		return null;
    		Node parent =getParent(current);
 		children = getChildren(parent);
-		Iterator i = children.iterator();
+		Iterator<?> i = children.iterator();
         while (i.hasNext()) { // get next element after this one.  If it is the last then try its parent
         	if (i.next() == current) {
         		if (i.hasNext())
@@ -253,21 +246,21 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	Node node = current;
     	while (true) {
     		node = getPrevious(node,true);
-    		if (node == null || !node.isVirtual())
-    			break;
+			if (node == null || (!node.isVirtual() && !node.isRoot()))
+				break;
     	}
     	return node;
     }
     
     private Node getPrevious(Node current, boolean doChildren) {
-       	if (current == null) // null parent has no parent
-       		return null;
-    	List children;
+        if (current == null || current.isRoot()) // the root has no preceding visible node
+            return null;
+        List<?> children;
 
     	Node parent =getParent(current);
 		children = getChildren(parent);
     	if (doChildren) { // if haven't visited children yet
-			ListIterator i = children.listIterator(children.size()); // reverse iterator
+			ListIterator<?> i = children.listIterator(children.size()); // reverse iterator
 	        while (i.hasPrevious()) { // get next element after this one.  If it is the last then try its parent
 	        	if (i.previous() == current) {
 	        		if (i.hasPrevious())
@@ -287,27 +280,20 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 
 	
     public void dump() {
-    	dump(null,"",new Consumer<Object>() { public void accept(Object obj) {
-    			logger.log(Level.FINE, "{0}", obj);
-    		}
-    	});
+        dump(null, "", line -> logger.log(Level.FINE, "{0}", line));
    }
     public void dump(final StringBuffer buf) {
-    	dump(null,"",new Consumer<Object>() { public void accept(Object obj) {
-    			buf.append((String)obj).append('\n');
-    		}
-    	});
+        dump(null, "", line -> buf.append(line).append('\n'));
    }
     
-    private void dump(Node parent, String indent,Consumer<Object> c) {
+    private void dump(Node parent, String indent, Consumer<String> c) {
     	if (parent != null)
     		c.accept(indent + ">"+parent.toString());
-    	Collection children = getChildren(parent);
+        List<?> children = getChildren(parent);
     	if (children != null) {
-        	Iterator i = children.iterator();
-        	while (i.hasNext()) {
-        		dump((Node)i.next(),indent+"--",c);
-        	}
+            for (Object child : children) {
+                dump((Node) child, indent + "--", c);
+            }
     	}
     }
 	

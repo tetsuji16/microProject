@@ -39,14 +39,14 @@ public class Merge implements Consumer<Object> {
 	long currentEnd;
 	Object currentObject = null;
 	Consumer<Object> callBack;
-	Comparator comparator = null;
+	Comparator<Object> comparator = null;
 //	boolean ignoreZeroValueIntervals = false;
 	
 	public static Merge getInstance(Consumer<Object> callBack) {
 		return new Merge(callBack);
 	}
 
-	public static Merge getInstance(Consumer<Object> callBack, Comparator comparator) {
+	public static Merge getInstance(Consumer<Object> callBack, Comparator<Object> comparator) {
 		return new Merge(callBack, comparator);
 	}
 
@@ -55,7 +55,7 @@ public class Merge implements Consumer<Object> {
 		initializeDates();
 	}
 	
-	private Merge(Consumer<Object> callBack, Comparator comparator) {
+	private Merge(Consumer<Object> callBack, Comparator<Object> comparator) {
 		this(callBack);
 		this.comparator = comparator;
 	}

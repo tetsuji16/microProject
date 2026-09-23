@@ -40,11 +40,12 @@ public class ClearSnapshotEdit extends AbstractUndoableEdit{
 	protected Project project;
 	protected Object snapshotId;
 	protected boolean entireProject;
-	protected List selection;
-	protected Collection snapshotDetail;
+	protected List<?> selection;
+	protected Collection<?> snapshotDetail;
 
 	
-	public ClearSnapshotEdit(Project project, Object snapshotId, boolean entireProject, List selection, Collection snapshotDetail) {
+	public ClearSnapshotEdit(Project project, Object snapshotId, boolean entireProject, List<?> selection,
+			Collection<?> snapshotDetail) {
 		super();
 		this.project = project;
 		this.snapshotId = snapshotId;

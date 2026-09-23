@@ -80,14 +80,12 @@ public class RateFormat extends Format implements TimeUnit {
 	
 	public static String unitLabelOfObject(Object object) {
 		String result = null;
-		if (object != null) {
-			if (object instanceof String)
-				result = (String)object;
-			else if (object instanceof CanSupplyRateUnit) {
-				result = ((CanSupplyRateUnit)object).getTimeUnitLabel();
-				if (result == null)
-					result = "";
-			}
+		if (object instanceof String label) {
+			result = label;
+		} else if (object instanceof CanSupplyRateUnit rateUnit) {
+			result = rateUnit.getTimeUnitLabel();
+			if (result == null)
+				result = "";
 		}
 		return result;
 	}
@@ -102,7 +100,7 @@ public class RateFormat extends Format implements TimeUnit {
 		this.temporal = temporal;
 	}
 	public Object parseObject(String rateString, ParsePosition pos) {
-		if (rateString.length() == 0)
+		if (rateString.isEmpty() || pos.getIndex() < 0 || pos.getIndex() >= rateString.length())
 			return null;
 		
 		if (rateString.charAt(pos.getIndex()) == '+') // if string begins with + sign, ignore it

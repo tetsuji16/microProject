@@ -31,5 +31,5 @@ import java.util.Collection;
  */
 public interface Finder {
 	void setFinder(String finderMethodName);
-	Object find(Object key, Collection container);
+	Object find(Object key, Collection<?> container);
 }

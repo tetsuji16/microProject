@@ -26,10 +26,11 @@ package com.microproject.pm.assignment.timesheet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -78,6 +79,36 @@ class TimesheetInfrastructureTest {
 	}
 
 	@Test
+	void timesheetHelperAppliesEveryChildAndReturnsWhetherAnythingChanged() {
+		StubUpdatesFromTimesheet changed = new StubUpdatesFromTimesheet(TimesheetStatus.ENTERED);
+		changed.applyResult = true;
+		StubUpdatesFromTimesheet unchanged = new StubUpdatesFromTimesheet(TimesheetStatus.NO_DATA);
+		List<UpdatesFromTimesheet> children = updates(changed, unchanged);
+		List<String> fieldArray = List.of("timesheet-field");
+
+		assertTrue(TimesheetHelper.applyTimesheet(children, fieldArray, 1234L));
+		assertEquals(1, changed.applyCount);
+		assertEquals(1, unchanged.applyCount);
+		assertEquals(fieldArray, changed.appliedFieldArray);
+		assertEquals(1234L, unchanged.appliedUpdateDate);
+	}
+
+	@Test
+	void timesheetHelperAggregatesLatestUpdateAndPendingState() {
+		StubUpdatesFromTimesheet older = new StubUpdatesFromTimesheet(TimesheetStatus.ENTERED);
+		older.lastUpdate = 100L;
+		StubUpdatesFromTimesheet newerPending = new StubUpdatesFromTimesheet(TimesheetStatus.VALIDATED);
+		newerPending.lastUpdate = 250L;
+		newerPending.pending = true;
+		List<UpdatesFromTimesheet> children = updates(older, newerPending);
+
+		assertEquals(250L, TimesheetHelper.getLastTimesheetUpdate(children));
+		assertTrue(TimesheetHelper.isPendingTimesheetUpdate(children));
+		assertEquals(0L, TimesheetHelper.getLastTimesheetUpdate(List.of()));
+		assertEquals(false, TimesheetHelper.isPendingTimesheetUpdate(List.of()));
+	}
+
+	@Test
 	void timesheetStatusFieldUsesUpdatesFromTimesheetProperty() {
 		Field field = Configuration.getFieldFromId("Field.timesheetStatus");
 
@@ -86,13 +117,12 @@ class TimesheetInfrastructureTest {
 			field.getValue(new StubUpdatesFromTimesheet(TimesheetStatus.ENTERED), null));
 	}
 
-	private static Collection updates(UpdatesFromTimesheet... entries) {
+	private static List<UpdatesFromTimesheet> updates(UpdatesFromTimesheet... entries) {
 		return Arrays.asList(entries);
 	}
 
 	private static Field findField(SpreadSheetFieldArray fieldArray, String fieldId) {
-		for (Iterator i = fieldArray.iterator(); i.hasNext();) {
-			Field field = (Field) i.next();
+		for (Field field : fieldArray) {
 			if (fieldId.equals(field.getId())) {
 				return field;
 			}
@@ -102,21 +132,30 @@ class TimesheetInfrastructureTest {
 
 	private static final class StubUpdatesFromTimesheet implements UpdatesFromTimesheet {
 		private final int status;
+		private long lastUpdate;
+		private boolean pending;
+		private boolean applyResult;
+		private int applyCount;
+		private Collection appliedFieldArray;
+		private long appliedUpdateDate;
 
 		private StubUpdatesFromTimesheet(int status) {
 			this.status = status;
 		}
 
 		public boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate) {
-			return false;
+			applyCount++;
+			appliedFieldArray = fieldArray;
+			appliedUpdateDate = timesheetUpdateDate;
+			return applyResult;
 		}
 
 		public long getLastTimesheetUpdate() {
-			return 0;
+			return lastUpdate;
 		}
 
 		public boolean isPendingTimesheetUpdate() {
-			return status == TimesheetStatus.VALIDATED;
+			return pending;
 		}
 
 		public int getTimesheetStatus() {

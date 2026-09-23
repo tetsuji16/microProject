@@ -40,7 +40,7 @@ import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIt
 public class GeneralFilteredIterator extends FilterIterator implements PredicatedNodeFilterIterator  {
 	private boolean nodeBased = false;
 
-	public static GeneralFilteredIterator instance(Iterator baseIterator) {//, Predicate predicate, boolean nodeBased) {
+	public static GeneralFilteredIterator instance(Iterator<?> baseIterator) {//, Predicate predicate, boolean nodeBased) {
 		return new GeneralFilteredIterator(baseIterator);
 	}
 	public void setPredicate(Predicate child) {
@@ -48,7 +48,7 @@ public class GeneralFilteredIterator extends FilterIterator implements Predicate
 		
 	}
 	
-	private GeneralFilteredIterator(Iterator baseIterator) {//, Predicate predicate, boolean nodeBased) {
+	private GeneralFilteredIterator(Iterator<?> baseIterator) {//, Predicate predicate, boolean nodeBased) {
 		super(baseIterator);
 	}
 	
@@ -58,8 +58,8 @@ public class GeneralFilteredIterator extends FilterIterator implements Predicate
 	public Object next() {
 		Object obj = super.next();
 		if (nodeBased) {
-			if (obj instanceof GraphicNode)
-				obj = ((GraphicNode)obj).getNode();
+			if (obj instanceof GraphicNode graphicNode)
+				obj = graphicNode.getNode();
 		} else {
 			obj = GraphicNode.getImpl(obj);
 		}

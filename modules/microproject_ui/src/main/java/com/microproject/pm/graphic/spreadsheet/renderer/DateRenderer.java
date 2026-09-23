@@ -38,10 +38,9 @@ public class DateRenderer extends SimpleRenderer {
 
     public Component getTableCellRendererComponent(JTable table, Object value,
             boolean isSelected, boolean isEnabled, int row, int col) {
-        if ((value != null) && (value instanceof Date)) 
-        	value = EditOption.getInstance().getDateFormat().format((Date) value); 
-        Component retorno = super.getTableCellRendererComponent(table, value, isSelected, isEnabled, row, col);
-        return retorno;
+        if (value instanceof Date date)
+            value = EditOption.getInstance().getDateFormat().format(date);
+        return super.getTableCellRendererComponent(table, value, isSelected, isEnabled, row, col);
     }
 
 }

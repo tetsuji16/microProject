@@ -623,17 +623,13 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 		//note that it is possible that this is called for non parents
 
-		Collection children = getWbsChildrenNodes(); // I depend on my predecessors children
+		Collection<?> children = getWbsChildrenNodes(); // I depend on my predecessors children
 		if (children != null) {
-			Iterator p = children.iterator();
-			Object current;
-			Task child;
-			while (p.hasNext()) {
-				current = ((Node)p.next()).getImpl();
-				if (! (current instanceof Task))
+			for (Object childNode : children) {
+				Object current = ((Node) childNode).getImpl();
+				if (!(current instanceof Task child))
 					continue;
 
-				child = (Task)current;
 				child.arrangeTask(addTo,markerStatus,depth+1);
 			}
 		}
@@ -679,7 +675,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		Task predecessor;
 		Dependency dep;
 
-		Collection children;
+		Collection<?> children;
 		Iterator i;
 
 		i = getPredecessorList().iterator();
@@ -706,19 +702,15 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		}
 
 		children = getWbsChildrenNodes();
-		Task child;
-		Object current;
 		Iterator j;
 
 
 		// I depend on my children's preds
 		if (children != null) {
-			i = children.iterator();
-			while (i.hasNext()) {
-				current = ((Node)i.next()).getImpl();
-				if (! (current instanceof Task))
+			for (Object childNode : children) {
+				Object current = ((Node) childNode).getImpl();
+				if (!(current instanceof Task child))
 					continue;
-				child = (Task)current;
 
 				j = child.getPredecessorList().iterator();
 				while (j.hasNext()) {

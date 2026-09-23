@@ -36,15 +36,13 @@ public class ScheduleUtil {
 	public static DivisionSummaryVisitor percentCompleteClosureInstance(final boolean nodeBased) {
 		return new DivisionSummaryVisitor(nodeBased) {
 			public double getNumerator(Object impl) {
-				if (impl instanceof Schedule) {
-					Schedule schedule = ((Schedule)impl);
+				if (impl instanceof Schedule schedule) {
 					return schedule.getPercentComplete() * Duration.millis(schedule.getDuration());
 				}
 				return 0;
 			}
 			public double getDenominator(Object impl) {
-				if (impl instanceof Schedule) {
-					Schedule schedule = ((Schedule)impl);
+				if (impl instanceof Schedule schedule) {
 					return Duration.millis(schedule.getDuration());
 				}
 				return 0;

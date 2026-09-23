@@ -26,6 +26,7 @@ package com.microproject.pm.assignment.functor;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.contour.AbstractContourBucket;
@@ -37,7 +38,7 @@ import com.microproject.pm.time.HasStartAndEnd;
  * This functor adds buckets to a collection.  If an entire bucket is used, it is added as is, otherwise a new one is made.
  */
 public class PersonalContourMaker extends AssignmentFieldFunctor{
-	private ArrayList list = new ArrayList();
+	private final List<PersonalContourBucket> list = new ArrayList<>();
 	long assignmentDuration;
 	double multiplier = 1.0D;
 	
@@ -62,13 +63,13 @@ public class PersonalContourMaker extends AssignmentFieldFunctor{
 		AbstractContourBucket bucket = (AbstractContourBucket) contourBucketIntervalGenerator.current();
 		if (bucket == null)
 			return;
-		if (bucket instanceof PersonalContourBucket)
-			list.add(bucket);
+		if (bucket instanceof PersonalContourBucket personalBucket)
+			list.add(personalBucket);
 		else
 			list.add(PersonalContourBucket.getInstance(bucket.getBucketDuration(assignmentDuration),bucket.getUnits() * multiplier));
 	}
 	
-	public Collection getList() {
+	public Collection<PersonalContourBucket> getList() {
 		return list;
 	}
 }

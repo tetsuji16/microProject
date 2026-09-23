@@ -76,7 +76,7 @@ public class ExtendedPageFormat extends PageFormat implements Cloneable,Serializ
 		if (printService instanceof PDFPrintService) return ExtendedPageFormat.getDefaultMediaSizeName();
 		else{
 			Object attr=printService.getDefaultAttributeValue(Media.class);
-			if (attr instanceof MediaSizeName) return (MediaSizeName)attr;
+			if (attr instanceof MediaSizeName mediaSizeName) return mediaSizeName;
 			else return null;
 		}
 	}
@@ -93,7 +93,7 @@ public class ExtendedPageFormat extends PageFormat implements Cloneable,Serializ
 		MediaPrintableArea max=getMaxMediaPrintableArea(printService, mediaSizeName);
 		boolean changed=false;
 		float x=m.getX(MediaSize.MM),y=m.getY(MediaSize.MM),w=m.getWidth(MediaSize.MM),h=m.getHeight(MediaSize.MM);
-		float mx=m.getX(MediaSize.MM),my=m.getY(MediaSize.MM),mw=m.getWidth(MediaSize.MM),mh=m.getHeight(MediaSize.MM);
+		float mx=max.getX(MediaSize.MM),my=max.getY(MediaSize.MM),mw=max.getWidth(MediaSize.MM),mh=max.getHeight(MediaSize.MM);
 		if (x<0){
 			x=0;
 			changed=true;

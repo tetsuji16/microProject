@@ -104,11 +104,11 @@ public class DefaultTimeInterval implements TimeInterval, Comparable<TimeInterva
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj==null || (!(obj instanceof DefaultTimeInterval)
-				&& !(obj instanceof com.microproject.pm.time.Interval)))
-			return false;
-		com.microproject.pm.time.HasStartAndEnd i=(com.microproject.pm.time.HasStartAndEnd)obj;
-		return start==i.getStart() && end==i.getEnd();
+		if (obj instanceof DefaultTimeInterval interval)
+			return start == interval.getStart() && end == interval.getEnd();
+		if (obj instanceof com.microproject.pm.time.Interval interval)
+			return start == interval.getStart() && end == interval.getEnd();
+		return false;
 	}
 	
 	@Override

@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,7 @@ import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.hierarchy.AbstractMutableNodeHierarchy;
 import com.microproject.grouping.core.event.HierarchyEvent;
 import com.microproject.grouping.core.event.HierarchyListener;
 import com.microproject.pm.dependency.Dependency;
@@ -113,6 +115,126 @@ class DefaultNodeModelTest {
 		model.remove(node, NodeModel.NORMAL);
 
 		assertNull(model.search(replacementImpl));
+	}
+
+	@Test
+	void hierarchyIndexUsesDepthFirstChildOrder() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node parent = NodeFactory.getInstance().createNode(new Object());
+		Node child = NodeFactory.getInstance().createNode(new Object());
+		Node sibling = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, parent, NodeModel.SILENT);
+		model.add(parent, child, NodeModel.SILENT);
+		model.add(root, sibling, NodeModel.SILENT);
+
+		assertSame(parent, child.getParent());
+		assertSame(child, parent.getChildAt(0));
+		assertEquals(0, model.getHierarchy().getIndexOfNode(root, false));
+		assertEquals(1, model.getHierarchy().getIndexOfNode(parent, false));
+		assertEquals(2, model.getHierarchy().getIndexOfNode(child, false));
+		assertEquals(3, model.getHierarchy().getIndexOfNode(sibling, false));
+	}
+
+	@Test
+	void hierarchyTraversalsPreservePreorderAndLevelOrder() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node first = NodeFactory.getInstance().createNode(new Object());
+		Node second = NodeFactory.getInstance().createNode(new Object());
+		Node firstChild = NodeFactory.getInstance().createNode(new Object());
+		Node secondChild = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, first, NodeModel.SILENT);
+		model.add(root, second, NodeModel.SILENT);
+		model.add(first, firstChild, NodeModel.SILENT);
+		model.add(second, secondChild, NodeModel.SILENT);
+		List<Object> preorder = new ArrayList<>();
+		List<Object> levelOrder = new ArrayList<>();
+
+		model.getHierarchy().visitAll(root, true, preorder::add);
+		model.getHierarchy().visitAllLevelOrder(root, false, levelOrder::add);
+
+		assertNodeOrder(preorder, first, firstChild, second, secondChild);
+		assertNodeOrder(levelOrder, first, second, firstChild, secondChild);
+	}
+
+	@Test
+	void hierarchyNavigationMovesInPreorderAndSkipsVirtualRoot() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node firstParent = NodeFactory.getInstance().createNode(new Object());
+		Node firstChild = NodeFactory.getInstance().createNode(new Object());
+		Node lastChild = NodeFactory.getInstance().createNode(new Object());
+		Node nextParent = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, firstParent, NodeModel.SILENT);
+		model.add(firstParent, firstChild, NodeModel.SILENT);
+		model.add(firstParent, lastChild, NodeModel.SILENT);
+		model.add(root, nextParent, NodeModel.SILENT);
+
+		assertSame(firstChild, model.getHierarchy().getNext(firstParent));
+		assertSame(nextParent, model.getHierarchy().getNext(lastChild));
+		assertSame(lastChild, model.getHierarchy().getPrevious(nextParent));
+		assertSame(firstParent, model.getHierarchy().getPrevious(firstChild));
+		assertNull(model.getHierarchy().getPrevious(firstParent));
+		assertNull(model.getHierarchy().getNext(nextParent));
+	}
+
+	@Test
+	void shallowHierarchyIteratorHonorsDepthAndRootOptions() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node first = NodeFactory.getInstance().createNode(new Object());
+		Node second = NodeFactory.getInstance().createNode(new Object());
+		Node grandchild = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, first, NodeModel.SILENT);
+		model.add(root, second, NodeModel.SILENT);
+		model.add(first, grandchild, NodeModel.SILENT);
+
+		Iterator<?> includingRoot = model.shallowIterator(1, true);
+		assertSame(root, includingRoot.next());
+		assertSame(first, includingRoot.next());
+		assertSame(second, includingRoot.next());
+		assertFalse(includingRoot.hasNext());
+		assertThrows(NoSuchElementException.class, includingRoot::next);
+
+		Iterator<?> excludingRoot = model.shallowIterator(2, false);
+		assertSame(first, excludingRoot.next());
+		assertSame(grandchild, excludingRoot.next());
+		assertSame(second, excludingRoot.next());
+		assertFalse(excludingRoot.hasNext());
+		assertThrows(NoSuchElementException.class, excludingRoot::next);
+
+		Iterator<?> excludingOnlyRoot = model.shallowIterator(0, false);
+		assertFalse(excludingOnlyRoot.hasNext());
+		assertThrows(NoSuchElementException.class, excludingOnlyRoot::next);
+	}
+
+	@Test
+	void hierarchyDumpPreservesDepthFirstIndentationAndNewlines() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node first = NodeFactory.getInstance().createNode("first");
+		Node child = NodeFactory.getInstance().createNode("child");
+		Node second = NodeFactory.getInstance().createNode("second");
+		model.add(root, first, NodeModel.SILENT);
+		model.add(first, child, NodeModel.SILENT);
+		model.add(root, second, NodeModel.SILENT);
+		StringBuffer buffer = new StringBuffer();
+
+		((AbstractMutableNodeHierarchy) model.getHierarchy()).dump(buffer);
+
+		assertEquals("-->first\n---->child\n-->second\n", buffer.toString());
+	}
+
+	private static void assertNodeOrder(List<Object> actual, Node... expected) {
+		assertEquals(expected.length, actual.size());
+		for (int i = 0; i < expected.length; i++)
+			assertSame(expected[i], actual.get(i));
 	}
 
 	@Test
@@ -240,6 +362,31 @@ class DefaultNodeModelTest {
 		assertEquals(4, children.size());
 		assertTrue(children.get(0) != children.get(1));
 		assertTrue(children.get(1) != children.get(2));
+	}
+
+	@Test
+	void pasteUndoRedoRestoresThePastedNodeAtItsOriginalPosition() {
+		UndoController undoController = new UndoController();
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.setUndoController(undoController);
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node existing = NodeFactory.getInstance().createNode(new Object());
+		Node pasted = NodeFactory.getInstance().createVoidNode();
+		model.add(root, existing, NodeModel.SILENT);
+		undoController.clear();
+
+		model.paste(root, List.of(pasted), 0, NodeModel.NORMAL);
+
+		assertSame(pasted, root.getChildAt(0));
+		assertSame(existing, root.getChildAt(1));
+		undoController.undo();
+		assertEquals(1, root.getChildCount());
+		assertSame(existing, root.getChildAt(0));
+		undoController.redo();
+		assertEquals(2, root.getChildCount());
+		assertSame(pasted, root.getChildAt(0));
+		assertSame(existing, root.getChildAt(1));
 	}
 
 	@Test

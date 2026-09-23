@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,30 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.pm.assignment.functor;
+package com.microproject.field;
 
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.contour.AbstractContourBucket;
-import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
-import com.microproject.pm.calendar.WorkCalendar;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- *
- */
-public class PeakUnitsFunctor extends AssignmentFieldFunctor {
-	public static PeakUnitsFunctor getInstance(com.microproject.pm.assignment.Assignment assignment, com.microproject.pm.calendar.WorkCalendar workCalendar, com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator contourBucketIntervalGenerator) {
-		return new PeakUnitsFunctor(assignment, workCalendar, contourBucketIntervalGenerator);
+import org.junit.jupiter.api.Test;
+
+class FieldComparisonTest {
+	@Test
+	void ordersIndexedFieldsWithoutIntegerOverflow() {
+		Field first = new Field();
+		first.setIndex(Integer.MIN_VALUE);
+		Field last = new Field();
+		last.setIndex(Integer.MAX_VALUE);
+
+		assertTrue(first.compareTo(last) < 0);
+		assertTrue(last.compareTo(first) > 0);
+		assertEquals(0, first.compareTo(first));
 	}
-	private PeakUnitsFunctor(Assignment assignment, WorkCalendar workCalendar, ContourBucketIntervalGenerator contourBucketIntervalGenerator) {
-		super(assignment,workCalendar, contourBucketIntervalGenerator);
-	}
-	public void accept(Object object) {
-		AbstractContourBucket bucket = (AbstractContourBucket) contourBucketIntervalGenerator.current();
-		if (bucket != null) {
-			value = Math.max(value,bucket.getEffectiveUnits(assignment.getUnits()));
-		}
-	}
-	
-	
 }
-

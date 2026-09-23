@@ -24,10 +24,11 @@
  *******************************************************************************/
 package com.microproject.field;
 
-import java.util.HashSet;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.Iterator;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.document.Document;
@@ -56,15 +57,14 @@ public abstract class AlgorithmFieldUpdater extends Thread {
  * @param algo
  * @param object
  */	public void fireOutputEvents(Object algo, Object object) {
-		Iterator i = outputFields.iterator();
+		Iterator<Field> i = outputFields.iterator();
 	
 		ObjectEvent objectEvent = ObjectEvent.getInstance(algo);
 		objectEvent.setObject(object);
-		Field field;
 		while (i.hasNext()) {
 			if (isInterrupted()) // if interrupted, don't keep going
 				break;
-			field = (Field)i.next();
+			Field field = i.next();
 			objectEvent.setField(field);
 			document.getObjectEventManager().fire(objectEvent);
 		}
@@ -79,8 +79,8 @@ public abstract class AlgorithmFieldUpdater extends Thread {
 		return outputFields.contains(field);
 	}
 
-	protected HashSet inputFields = new HashSet();
-	protected HashSet outputFields = new HashSet();
+	protected Set<Field> inputFields = new HashSet<>();
+	protected Set<Field> outputFields = new HashSet<>();
 	
 	protected void addInputField(String fieldId) {
 		Field field = Configuration.getFieldFromId(fieldId);

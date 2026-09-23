@@ -33,7 +33,10 @@ import com.microproject.util.ClassUtils;
  * For internal use only
  */
 public class NotAssignmentFilter extends NodeFilter {
-	private boolean writableOnly = false;
+	private final boolean writableOnly;
+	private static final NotAssignmentFilter INSTANCE = new NotAssignmentFilter(false);
+	private static final NotAssignmentFilter WRITABLE_INSTANCE = new NotAssignmentFilter(true);
+
 	public boolean evaluate(Object obj) {
 		Node node=(Node)obj;
 		Object impl = node.getImpl();
@@ -45,22 +48,15 @@ public class NotAssignmentFilter extends NodeFilter {
 			return false;
 		return (!writableOnly || !ClassUtils.isObjectReadOnly(impl));
 	}
-	private static NotAssignmentFilter instance = null;
-	private static NotAssignmentFilter writableInstance = null;
 	private NotAssignmentFilter(boolean writableOnly) {
 		super();
 		this.writableOnly = writableOnly;
 	}
 
-	
 	public static NotAssignmentFilter getInstance() {
-		if (instance == null)
-			instance = new NotAssignmentFilter(false);
-		return instance;
+		return INSTANCE;
 	}
 	public static NotAssignmentFilter getWritableInstance() {
-		if (writableInstance == null)
-			writableInstance = new NotAssignmentFilter(true);
-		return writableInstance;
+		return WRITABLE_INSTANCE;
 	}
 }

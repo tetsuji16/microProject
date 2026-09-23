@@ -43,7 +43,8 @@ public class BarClosure implements Consumer<Object>, Serializable, Cloneable {
 		public void accept(Object arg0) {
 			HasStartAndEnd interval = (HasStartAndEnd)arg0;
 			long start = interval.getStart();
-			if (schedule instanceof ScheduleWindow && start == schedule.getResume() && ((ScheduleWindow)schedule).getSplitDuration() == 0)
+			if (schedule instanceof ScheduleWindow window && start == schedule.getResume()
+					&& window.getSplitDuration() == 0)
 				start = schedule.getStop(); // special case
 			count++;
 			ScheduleInterval scheduleInterval = new ScheduleInterval(start,interval.getEnd()).intersectWith(bounds);

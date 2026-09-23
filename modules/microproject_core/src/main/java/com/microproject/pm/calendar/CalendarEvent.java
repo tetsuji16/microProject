@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.pm.calendar;
 import java.io.Serializable;
+import java.util.Objects;
 
 import com.microproject.pm.time.ImmutableInterval;
 
@@ -58,13 +59,17 @@ public class CalendarEvent extends ImmutableInterval implements Serializable {
 		this(date, DEFAULT_DESCRIPTION);
 	}
 	
-	public boolean equals(Object e) {
-		if (! (e instanceof CalendarEvent))
+	public boolean equals(Object other) {
+		if (!(other instanceof CalendarEvent event))
 			return false;
-		if (! super.equals(e))
+		if (!super.equals(event))
 			return false;
-		String otherDescription = ((CalendarEvent)e).description;
-		return description == null ? otherDescription == null : description.equals(otherDescription);
+		return Objects.equals(description, event.description);
+	}
+
+	@Override
+	protected boolean canEqual(Object other) {
+		return other instanceof CalendarEvent && other.getClass() == getClass();
 	}
 
 	@Override
@@ -73,9 +78,9 @@ public class CalendarEvent extends ImmutableInterval implements Serializable {
 	}
 
 	public int compare(Object event1, Object event2) {
-		if (! (event1 instanceof CalendarEvent) || ! (event2 instanceof CalendarEvent))
+		if (!(event1 instanceof CalendarEvent first) || !(event2 instanceof CalendarEvent second))
 			return 0;
-		return super.compare(event1,event2);
+		return super.compare(first, second);
 	}
 
 

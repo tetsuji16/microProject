@@ -730,8 +730,8 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 			return 0;
 		Node node = model.getParent(model.search(this));
 		Object impl = node.getImpl();
-		if (impl != null && impl instanceof HasKey)
-			return ((HasKey)impl).getId();
+		if (impl instanceof HasKey hasKey)
+			return hasKey.getId();
 		return 0;
 	}
 

@@ -25,13 +25,13 @@
 package com.microproject.server.data.linker;
 
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 
 import com.microproject.grouping.core.Node;
@@ -43,18 +43,18 @@ import com.microproject.pm.assignment.Assignment;
  */
 public abstract class Linker {
 	//protected boolean globalIdsOnly=true;
-	protected Map transformationMap=new HashMap();
-	protected Collection transformed=new ArrayList();
-	protected Iterator iterator=null;
+	protected Map<Object, Object> transformationMap = new HashMap<>();
+	protected Collection<Object> transformed = new ArrayList<>();
+	protected Iterator<?> iterator;
 	protected Object parent;
 	protected Object transformedParent;
 	protected Object[] args=null;
 	protected boolean incremental;
 
-	public Map getTransformationMap() {
+	public Map<?, ?> getTransformationMap() {
 		return transformationMap;
 	}
-	public Collection getTransformed() {
+	public Collection<?> getTransformed() {
 		return transformed;
 	}
 //	public boolean isGlobalIdsOnly() {
@@ -90,7 +90,7 @@ public abstract class Linker {
 	public void setArgs(Object[] args) {
 		this.args = args;
 	}
-	public boolean hasNext(){return (iterator==null)?false:iterator.hasNext();}
+	public boolean hasNext() { return iterator != null && iterator.hasNext(); }
 	public void addTransformedObjects() throws Exception{
 		while(hasNext()){
 			Object obj=executeNext();
@@ -109,7 +109,7 @@ public abstract class Linker {
 
 	//private int lastIndex;
     public void addOutline(Node root){
-    	final Set endVoids=new HashSet();
+		final Set<Node> endVoids = new HashSet<>();
     	//lastIndex=0;
         getHierarchy().visitAll(root, true,new Consumer<Object>(){
         	//int tmpIndex=0;

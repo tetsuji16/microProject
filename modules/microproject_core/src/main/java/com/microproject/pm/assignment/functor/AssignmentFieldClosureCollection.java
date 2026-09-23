@@ -81,8 +81,8 @@ public class AssignmentFieldClosureCollection extends AssignmentFieldFunctor {
 		AssignmentFieldFunctor current;
 		while (i.hasNext()) {
 			current = (AssignmentFieldFunctor)i.next();
-		    if (current instanceof CostFunctor) 
-		    	value += ((CostFunctor) current).getFixedValue();
+		    if (current instanceof CostFunctor costFunctor)
+				value += costFunctor.getFixedValue();
 		}
 		return value;
 	}

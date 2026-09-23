@@ -45,9 +45,9 @@ public class FieldArrayUtil {
 
 	public static SpreadSheetFieldArray removeNonWebFields(SpreadSheetFieldArray in) {
 		SpreadSheetFieldArray out= (SpreadSheetFieldArray)in.clone();
-		Iterator i = out.iterator();
+		Iterator<Field> i = out.iterator();
 		while (i.hasNext()) {
-			Field f = (Field)i.next();
+			Field f = i.next();
 			if (f.getId().equals("Field.indicators") || /*f.isGraphical() ||*/
 					(projectFieldArrayCategory.equals(out.getCategory())&&"Field.id".equals(f.getId())))
 				i.remove();

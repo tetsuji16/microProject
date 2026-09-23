@@ -24,12 +24,8 @@
  *******************************************************************************/
 package com.microproject.grouping.core.summaries;
 
-import com.microproject.util.DataUtils;
-
-import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
-
-import org.apache.commons.collections.CollectionUtils;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -45,12 +41,13 @@ public class LeafWalker extends NodeWalker {
 	
 	public void accept(Object arg0) {
 		Node node = (Node)arg0;
-		Collection nodeList = nodeModel.getChildren(node);
+		List<?> nodeList = nodeModel.getChildren(node);
 		if (nodeList == null || nodeList.isEmpty()) { // if has no children
-			if (visitor != null)	
-				visitor.accept(node); // add value
+			if (closure != null)
+				closure.accept(node); // add value
 		} else {
-			DataUtils.forAllDo(nodeList.iterator(), this); // treat children
+			for (Object child : nodeList)
+				accept(child); // treat children
 		}
 	}
 	

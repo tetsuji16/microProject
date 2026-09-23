@@ -71,4 +71,12 @@ class ResourcePoolIdentityTest {
         assertEquals(true, pool.getResourceOutline().isLocal());
         assertEquals(true, pool.getResourceOutline().isMaster());
     }
+
+    @Test
+    void resourceParentIdFallsBackToZeroWhenOutlineParentHasNoKey() {
+        ResourcePool pool = ResourcePool.createRourcePool("test", new DataFactoryUndoController());
+        ResourceImpl resource = (ResourceImpl) pool.createScriptedResource();
+
+        assertEquals(0L, resource.getParentId(0));
+    }
 }

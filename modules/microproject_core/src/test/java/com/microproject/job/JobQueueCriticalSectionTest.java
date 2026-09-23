@@ -15,6 +15,34 @@ import org.junit.jupiter.api.Test;
 
 class JobQueueCriticalSectionTest {
 	@Test
+	void cancelCancelsRunningJobsInItsThreadGroup() throws Exception {
+		JobQueue queue = new JobQueue("cancel-running-job-test", false);
+		CountDownLatch started = new CountDownLatch(1);
+		CountDownLatch finish = new CountDownLatch(1);
+		Job job = new Job(queue, "running", "Running", false) {
+			@Override
+			public void run() {
+				started.countDown();
+				try {
+					finish.await(5, TimeUnit.SECONDS);
+				} catch (InterruptedException interrupted) {
+					Thread.currentThread().interrupt();
+				}
+			}
+		};
+		job.start();
+		try {
+			assertTrue(started.await(5, TimeUnit.SECONDS));
+			queue.cancel();
+			assertTrue(job.isCanceled());
+		} finally {
+			finish.countDown();
+			job.join(5_000L);
+		}
+		assertFalse(job.isAlive());
+	}
+
+	@Test
 	void interruptedWaiterDoesNotBecomeCriticalSectionOwner() throws Exception {
 		JobQueue queue = new JobQueue("critical-section-interruption-test", false);
 		Job owner = new Job(queue, "owner", "Owner", false);

@@ -30,11 +30,11 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -76,7 +76,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		if (base == null) {
 			week = new WorkWeek();
 		} else {
-			week = (WorkWeek)  base.week.clone(); // copy the week days
+			week = base.week.clone(); // copy the week days
 			for (WorkWeekPeriod period : base.getWorkWeekPeriods())
 				addOrReplaceWorkWeekPeriod(period);
 			for (RecurringCalendarException exception : base.getRecurringExceptions())
@@ -87,8 +87,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		for (RecurringCalendarException exception : differences.getRecurringExceptions())
 			addOrReplaceRecurringException(exception);
 
-		@SuppressWarnings("unchecked")
-		TreeSet<WorkDay> clonedExceptions = (TreeSet<WorkDay>) differences.dayExceptions.clone();
+		TreeSet<WorkDay> clonedExceptions = new TreeSet<>(differences.dayExceptions);
 		dayExceptions = clonedExceptions; // copy from differences
 		if (base != null)
 			dayExceptions.addAll( base.dayExceptions); // add in base days. If day is already present it will not be added
@@ -166,7 +165,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	WorkDay[] getLocalExceptionDays() {
 		return dayExceptions.stream()
 			.filter(day -> day != WorkDay.MINIMUM && day != WorkDay.MAXIMUM)
-			.map(day -> (WorkDay) day.clone())
+			.map(WorkDay::clone)
 			.toArray(WorkDay[]::new);
 	}
 
@@ -221,14 +220,14 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	}
 
 
-	public Object clone() throws CloneNotSupportedException {
+	@Override
+	public CalendarDefinition clone() throws CloneNotSupportedException {
 		CalendarDefinition newOne = (CalendarDefinition) super.clone();
-		newOne.week = (WorkWeek) week.clone();
+		newOne.week = week.clone();
 		newOne.dayExceptions = new TreeSet<WorkDay>();
 
-		Iterator<WorkDay> i = dayExceptions.iterator();
-		while (i.hasNext())
-			newOne.dayExceptions.add((WorkDay) i.next().clone());
+		for (WorkDay dayException : dayExceptions)
+			newOne.dayExceptions.add(dayException.clone());
 		newOne.workWeekPeriods = null;
 		if (workWeekPeriods != null) {
 			newOne.workWeekPeriods = new ArrayList<>();
@@ -273,31 +272,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 /**
 	 * Cache key for add() results. Uses three primitive fields for minimal overhead.
 	 */
-	static final class AddCacheKey {
-		final long date;
-		final long duration;
-		final boolean useSooner;
-
-		AddCacheKey(long date, long duration, boolean useSooner) {
-			this.date = date;
-			this.duration = duration;
-			this.useSooner = useSooner;
-		}
-
-		@Override
-		public int hashCode() {
-			return (int) (date ^ (date >>> 32) ^ duration ^ (duration >>> 32) ^ (useSooner ? 1 : 0));
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof AddCacheKey) {
-				AddCacheKey o = (AddCacheKey) obj;
-				return date == o.date && duration == o.duration && useSooner == o.useSooner;
-			}
-			return false;
-		}
-	}
+	private record AddCacheKey(long date, long duration, boolean useSooner) {}
 
 	/**
 	 * Clear the add() result cache. Called after each scheduling pass to prevent stale results.
@@ -308,11 +283,12 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 
 	// Track all CalendarDefinition instances that have been used for caching.
 	// WeakHashMap ensures no memory leak - entries are removed when CalendarDefinition is GC'd.
-	private static final java.util.concurrent.ConcurrentHashMap<CalendarDefinition, Boolean> cachedInstances =
-		new java.util.concurrent.ConcurrentHashMap<>();
+	private static final WeakHashMap<CalendarDefinition, Boolean> cachedInstances = new WeakHashMap<>();
 
 	private void markCacheUsed() {
-		cachedInstances.put(this, Boolean.TRUE);
+		synchronized (cachedInstances) {
+			cachedInstances.put(this, Boolean.TRUE);
+		}
 	}
 
 	/**
@@ -320,8 +296,10 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	 * Called after each scheduling pass to free memory and prevent stale results.
 	 */
 	public static void clearAllAddCaches() {
-		for (CalendarDefinition cd : cachedInstances.keySet()) {
-			cd.addCache.clear();
+		synchronized (cachedInstances) {
+			for (CalendarDefinition calendar : cachedInstances.keySet()) {
+				calendar.addCache.clear();
+			}
 		}
 	}
 

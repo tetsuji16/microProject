@@ -137,8 +137,7 @@ public class SelectFrom implements HasStartAndEnd {
 	public SelectFrom whereInRange(long start, long end) {
 		if (start <= end) { // if non backwards range 
 			// If there is already a range, intersect with it
-			if (wherePredicate != null && wherePredicate instanceof DateInRangePredicate) {
-				DateInRangePredicate range = (DateInRangePredicate)wherePredicate;
+			if (wherePredicate instanceof DateInRangePredicate range) {
 				range.limitTo(start,end);
 				start = range.getStart();
 				end = range.getEnd();

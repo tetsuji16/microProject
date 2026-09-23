@@ -30,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.core.id.UniqueId;
+import com.microproject.core.nodes.NodeId;
 import com.microproject.core.time.DefaultTimeInterval;
 import com.microproject.core.time.DefaultTimeIntervals;
 import com.microproject.datatype.Duration;
@@ -129,6 +131,18 @@ class EqualsHashCodeContractTest {
 	}
 
 	@Test
+	void uniqueIdEqualityPreservesSubclassCompatibility() {
+		UniqueId base = new UniqueId(42L);
+		NodeId node = new NodeId();
+		node.setId(42L);
+
+		assertEquals(base, node);
+		assertEquals(node, base);
+		assertEquals(base.hashCode(), node.hashCode());
+		assertEquals("42", base.toString());
+	}
+
+	@Test
 	void hasCommonKeyEqualsImpliesSameHashCode() {
 		// Issue #177: HasCommonKeyImpl overrides equals() by uniqueId and now
 		// implements hashCode() consistently.
@@ -136,6 +150,8 @@ class EqualsHashCodeContractTest {
 		HasCommonKeyImpl b = new HasCommonKeyImpl(null, 42L);
 		assertEquals(a, b);
 		assertEquals(a.hashCode(), b.hashCode());
+		assertNotEquals(a, null);
+		assertNotEquals(a, new Object());
 
 		a.setUniqueId(7L);
 		assertNotEquals(a, b);

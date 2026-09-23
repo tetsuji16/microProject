@@ -24,7 +24,7 @@
  *******************************************************************************/
 package com.microproject.grouping.core.summaries;
 
-import java.util.Collection;
+import java.util.List;
 
 import com.microproject.grouping.core.Node;
 
@@ -38,7 +38,7 @@ public class CountNonsummariesWalker extends NodeWalker {
 	}
 
 	private void countNonSummaryDescendants(Node node) {
-		Collection nodeList = nodeModel.getChildren(node);
+		List<?> nodeList = nodeModel.getChildren(node);
 		if (nodeList == null) {
 			return;
 		}

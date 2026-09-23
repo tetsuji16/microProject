@@ -24,12 +24,9 @@
  *******************************************************************************/
 package com.microproject.grouping.core.summaries;
 
-import com.microproject.util.DataUtils;
-
-import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 
 import com.microproject.grouping.core.Node;
@@ -66,9 +63,14 @@ public class DeepChildSearcher extends NodeWalker {
 		Node node = (Node) arg0;
 		if (node != null)
 			closure.accept(node);
-		Collection nodeList = nodeModel.getChildren(node);
-		if (nodeList != null)
-			DataUtils.forAllDo(nodeList.iterator(), this);
+		List<?> nodeList = nodeModel.getChildren(node);
+		if (nodeList != null) {
+			for (Object child : nodeList) {
+				accept(child);
+				if (findClosure.result != null)
+					break;
+			}
+		}
 	}
 
 	/**

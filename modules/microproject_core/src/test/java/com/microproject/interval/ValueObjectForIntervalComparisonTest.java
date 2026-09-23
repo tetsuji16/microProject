@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,53 +21,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.algorithm;
+package com.microproject.interval;
 
-/**
- * A calculation visitor that performs a division
- */
-public class ValueDivision implements CalculationVisitor, DoubleValue {
-	double value = 0.0;
-	DoubleValue first;
-	DoubleValue second;
-	public static ValueDivision getInstance(DoubleValue first, DoubleValue second) {
-		return new ValueDivision(first, second);
-	}
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-	/**
-	 * 
-	 */
-	private ValueDivision(DoubleValue first, DoubleValue second) {
-		super();
-		this.first = first;
-		this.second = second;
+import org.junit.jupiter.api.Test;
 
-	}
-	public void initialize() {
-		value = 0.0;
+class ValueObjectForIntervalComparisonTest {
+	@Test
+	void ordersExtremeStartDatesWithoutOverflow() {
+		ValueObjectForInterval earliest = new ValueObjectForInterval(null, Long.MIN_VALUE);
+		ValueObjectForInterval latest = new ValueObjectForInterval(null, Long.MAX_VALUE);
 
-	}
-	public void accept(Object arg0) {
-		double denominator = second.getValue();
-		if (denominator != 0.0)
-			value = first.getValue() / second.getValue();
-		
-	}
-
-	/**
-	 * @return Returns the value.
-	 */
-	public double getValue() {
-		return value;
-	}
-	
-	public String toString() {
-		return Double.toString(value);
-	}
-	public boolean isCumulative() {
-		return false;
-	}
-	public void reset() {
-		initialize();
+		assertTrue(earliest.compareTo(latest) < 0);
+		assertTrue(latest.compareTo(earliest) > 0);
+		assertTrue(earliest.compare(earliest, latest) < 0);
 	}
 }

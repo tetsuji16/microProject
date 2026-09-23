@@ -312,7 +312,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		return defaultCalendar;
 	}
 	
-	public ArrayList extractCalendars() {
+	public ArrayList<WorkingCalendar> extractCalendars() {
 		return WorkingCalendar.extractCalendars(resourceList);
 	}
 	

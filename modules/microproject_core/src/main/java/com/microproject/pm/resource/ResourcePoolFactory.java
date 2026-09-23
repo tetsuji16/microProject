@@ -36,8 +36,7 @@ import com.microproject.undo.DataFactoryUndoController;
  */
 public class ResourcePoolFactory {
 	private static ResourcePoolFactory instance = null;
-	private ArrayList resourcePools = new ArrayList();
-	private String name;
+	private final ArrayList<ResourcePool> resourcePools = new ArrayList<>();
 	public static ResourcePoolFactory getInstance() {
 		if (instance == null)
 			instance = new ResourcePoolFactory();
@@ -56,7 +55,7 @@ public class ResourcePoolFactory {
 	/**
 	 * @return Returns the resourcePools.
 	 */
-	public ArrayList getResourcePools() {
+	public ArrayList<ResourcePool> getResourcePools() {
 		return resourcePools;
 	}
 
@@ -70,9 +69,4 @@ public class ResourcePoolFactory {
 		resourcePools.add(pool);
 	}
 	
-	private void removePool(ResourcePool pool) {
-		resourcePools.remove(pool);
-	}
-
-
 }

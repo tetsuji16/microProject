@@ -41,6 +41,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -179,7 +180,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	boolean forward = true;
 	int priority = 500;
 	long currentDate = 0;
-	private Map extraFields = null;
+	private Map<String, Object> extraFields = null;
 	/** Project-scoped report definitions persisted with native project files. */
 	private Map<String, String> customReportPresets = new LinkedHashMap<>();
 	private GanttBarFormatOverrides ganttBarFormatOverrides = new GanttBarFormatOverrides();
@@ -2022,14 +2023,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return subprojectFacade.getLatestFinishingTask();
 	}
 
-	public final Map getExtraFields() {
+	public final Map<String, Object> getExtraFields() {
 		if (extraFields == null)
 			// LinkedHashMap preserves insertion order for stable POD serialization (issue #227)
-			extraFields = new LinkedHashMap();
+			extraFields = new LinkedHashMap<>();
 		return extraFields;
 	}
 
-	public final void setExtraFields(Map extraFields) {
+	public final void setExtraFields(Map<String, Object> extraFields) {
 		this.extraFields = extraFields;
 	}
 
@@ -2511,14 +2512,16 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	private class TaskIterator implements Iterator<Task>{
-		private Iterator iterator;
+		private Iterator<?> iterator;
 		private Task next=null;
 		private Task nextElement(){
-	        Node node=null;
-	        while(iterator.hasNext() && !((node=(Node)iterator.next()).getImpl() instanceof Task));
-	        if (node!=null && node.getImpl() instanceof Task) next=(Task)node.getImpl();
-	        else next=null;
-	        return next;
+			while (iterator.hasNext()) {
+				Object element = iterator.next();
+				if (element instanceof Node node && node.getImpl() instanceof Task task) {
+					return next = task;
+				}
+			}
+			return next = null;
 		}
 
 		TaskIterator(){
@@ -2529,6 +2532,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			return next!=null;
 		}
 		public Task next() {
+			if (next == null) throw new NoSuchElementException();
 			Task n=next;
 			nextElement();
 			return n;

@@ -35,14 +35,14 @@ import com.microproject.grouping.core.Node;
  */
 public class BelongsToCollectionFilter extends NodeFilter {
     protected Consumer<Object> callback;
-    protected Collection impls=null;
+    protected Collection<?> impls=null;
     public BelongsToCollectionFilter(String arg){
     	preserveHierarchy=false;
     }
-    public void setSelectedNodesImpl(Collection impls){
+    public void setSelectedNodesImpl(Collection<?> impls){
        setSelectedNodesImpl(impls,true);
     }
-    public void setSelectedNodesImpl(Collection impls,boolean needCallback){
+    public void setSelectedNodesImpl(Collection<?> impls,boolean needCallback){
         this.impls=impls;
  		if (needCallback) callback.accept(this);
     }

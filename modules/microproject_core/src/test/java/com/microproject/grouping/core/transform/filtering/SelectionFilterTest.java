@@ -26,6 +26,7 @@ package com.microproject.grouping.core.transform.filtering;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -36,6 +37,24 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.task.NormalTask;
 
 class SelectionFilterTest {
+	@Test
+	void belongsToCollectionFilterMatchesNodeImplementationsAndHonorsCallbackFlag() {
+		BelongsToCollectionFilter filter = new BelongsToCollectionFilter(null);
+		Node selected = NodeFactory.getInstance().createNode(new NormalTask());
+		Object[] notified = new Object[1];
+		filter.setRedefinitionCallBack(value -> notified[0] = value);
+
+		filter.setSelectedNodesImpl(List.of(selected.getImpl()), false);
+
+		assertTrue(filter.evaluate(selected));
+		assertFalse(filter.evaluate(NodeFactory.getInstance().createNode(new NormalTask())));
+		assertTrue(notified[0] == null);
+
+		filter.setSelectedNodesImpl(List.of(selected.getImpl()));
+
+		assertSame(filter, notified[0]);
+	}
+
     @Test
     void emptySelectionIsAStableFilterState() {
         SelectionFilter filter = new SelectionFilter("true");

@@ -26,10 +26,12 @@ package com.microproject.pm.calendar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Calendar;
+import java.util.WeakHashMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,6 +39,12 @@ import com.microproject.datatype.Duration;
 import com.microproject.util.DateTime;
 
 class CalendarDefinitionTest {
+	@Test
+	void globalScheduleCacheRegistryUsesWeakKeys() throws NoSuchFieldException {
+		assertEquals(WeakHashMap.class,
+				CalendarDefinition.class.getDeclaredField("cachedInstances").getType());
+	}
+
 	@Test
 	void calendarDefinitionExposesIdentityAndValidity() {
 		CalendarDefinition calendar = standardWeekCalendar();
@@ -159,6 +167,19 @@ class CalendarDefinitionTest {
 	}
 
 	@Test
+	void cloneKeepsCalendarExceptionsDeeplyIndependent() throws CloneNotSupportedException {
+		CalendarDefinition original = standardWeekCalendar();
+		WorkDay exception = new WorkDay(timestamp(2024, Calendar.JUNE, 8, 0));
+		exception.setWorkingHours(WorkingHours.getDefault().clone());
+		original.addOrReplaceException(exception);
+
+		CalendarDefinition copy = original.clone();
+		WorkDay copiedException = copy.dayExceptions.first();
+		assertNotSame(exception, copiedException);
+		assertNotSame(exception.getWorkingHours(), copiedException.getWorkingHours());
+	}
+
+	@Test
 	void addWithZeroWorkingTimeWeekDegradesGracefully() {
 		// Issue #175: a week with no working time must not divide by zero
 		// (ArithmeticException) or walk non-working days forever.
@@ -202,7 +223,7 @@ class CalendarDefinitionTest {
 			calendar.week.setWeekDay(day, nonWorkingDay(0L));
 		}
 		WorkDay workingException = new WorkDay(timestamp(2024, Calendar.JUNE, 1, 0));
-		workingException.setWorkingHours((WorkingHours) WorkingHours.getDefault().clone());
+		workingException.setWorkingHours(WorkingHours.getDefault().clone());
 		workingException.initialize();
 		calendar.addOrReplaceException(workingException);
 		calendar.addSentinelsAndMakeArray();
@@ -249,7 +270,7 @@ class CalendarDefinitionTest {
 	}
 
 	private static WorkDay copyOf(WorkDay workDay) {
-		return (WorkDay) workDay.clone();
+		return workDay.clone();
 	}
 
 	private static long timestamp(int year, int month, int dayOfMonth, int hourOfDay) {

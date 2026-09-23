@@ -29,12 +29,12 @@ import java.util.Comparator;
 
 import com.microproject.pm.time.MutableHasStartAndEnd;
 import com.microproject.util.DateTime;
-import com.microproject.util.MathUtils;
 
 /**
  *
  */
-public class ValueObjectForInterval implements MutableHasStartAndEnd, Comparable,Comparator, Serializable, Cloneable {
+public class ValueObjectForInterval implements MutableHasStartAndEnd, Comparable<ValueObjectForInterval>,
+		Comparator<ValueObjectForInterval>, Serializable, Cloneable {
 	static final long serialVersionUID = 286111222666L;
 	protected static long NA_TIME = DateTime.NA_TIME.getTime();
 	long start = NA_TIME;
@@ -81,8 +81,9 @@ public class ValueObjectForInterval implements MutableHasStartAndEnd, Comparable
 		return start == NA_TIME;
 	}
 	
-	public int compare(Object arg0, Object arg1) {
-		return MathUtils.signum(((ValueObjectForInterval)arg0).start - ((ValueObjectForInterval)arg1).start); 
+	@Override
+	public int compare(ValueObjectForInterval first, ValueObjectForInterval second) {
+		return Long.compare(first.start, second.start);
 	}
 	public boolean equals(Object arg0) {
 		if (! (arg0 instanceof ValueObjectForInterval))
@@ -95,8 +96,9 @@ public class ValueObjectForInterval implements MutableHasStartAndEnd, Comparable
 		return Long.hashCode(start);
 	}
 
-	public int compareTo(Object arg0) {
-		return compare(this,arg0);
+	@Override
+	public int compareTo(ValueObjectForInterval other) {
+		return compare(this, other);
 	}
 	public Object clone(){ 
 		try {

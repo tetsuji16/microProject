@@ -178,21 +178,19 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 
 	public boolean isDirty() {
 		Object impl=getImpl();
-		if (impl instanceof DataObject) return ((DataObject)impl).isDirty();
-		else return false;
+		return impl instanceof DataObject dataObject && dataObject.isDirty();
 	}
 	public void setDirty(boolean dirty) {
 		//System.out.println("NodeBridge _setDirty("+dirty+")");
 		Object impl=getImpl();
-		if (impl instanceof DataObject) ((DataObject)impl).setDirty(dirty);
+		if (impl instanceof DataObject dataObject) dataObject.setDirty(dirty);
 	}
 	public final boolean isLazyParent() {
 		return getImpl() instanceof LazyParent;
 	}
 
 	public final boolean isValidLazyParent() {
-		return getImpl() instanceof LazyParent
-		&& ((LazyParent)getImpl()).isValid();
+		return getImpl() instanceof LazyParent lazyParent && lazyParent.isValid();
 	}
 
 	public boolean hasNumber(){

@@ -26,6 +26,9 @@ package com.microproject.algorithm.buffer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 class GroupedCalculatedValuesTest {
@@ -83,6 +86,16 @@ class GroupedCalculatedValuesTest {
 		assertPoint(populated, 0, 10L, 1.0);
 	}
 
+	@Test
+	void makeSeriesEmitsCumulativeValuesInIndexOrder() {
+		GroupedCalculatedValues values = values(point(10L, 1.0), point(20L, 2.0));
+		List<SeriesSample> samples = new ArrayList<>();
+
+		values.makeSeries(true, (index, date, value) -> samples.add(new SeriesSample(index, (long) date, value)));
+
+		assertEquals(List.of(new SeriesSample(0, 10L, 1.0), new SeriesSample(1, 20L, 3.0)), samples);
+	}
+
 	private static GroupedCalculatedValues values(Point... points) {
 		GroupedCalculatedValues values = new GroupedCalculatedValues();
 		for (int index = 0; index < points.length; index++) {
@@ -95,6 +108,8 @@ class GroupedCalculatedValuesTest {
 	private static Point point(long date, double value) {
 		return new Point(date, value);
 	}
+
+	private record SeriesSample(int index, long date, double value) {}
 
 	private static void assertPoint(GroupedCalculatedValues values, int index, long date, double value) {
 		assertEquals(date, values.getDate(index));

@@ -24,8 +24,7 @@
  *******************************************************************************/
 package com.microproject.document;
 
-import java.util.Iterator;
-
+import com.microproject.association.Association;
 import com.microproject.field.Field;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.NormalTask;
@@ -82,12 +81,11 @@ public class ObjectEventManager {
     	evt.setField(field);
     	fire(evt);
     	
-    	if (object instanceof NormalTask && field.isApplicable(Assignment.class)) { // fix for bug 258
-    		Iterator i = ((NormalTask)object).getAssignments().iterator();
-    		while (i.hasNext()) {
-    			fireUpdateEvent(source,i.next(),field);
-    		}
-    	}
+		if (object instanceof NormalTask task && field.isApplicable(Assignment.class)) { // fix for bug 258
+			for (Association assignment : task.getAssignments()) {
+				fireUpdateEvent(source, assignment, field);
+			}
+		}
     }
 	
 	
@@ -97,19 +95,22 @@ public class ObjectEventManager {
     	fire(evt);
     }
     
-    public void fire(ObjectEvent evt) {    	
-        Object[] listeners = listenerList.getListenerList();
-        // Each listener occupies two elements - the first is the listener class
-        // and the second is the listener instance
-        for (int i=0; i<listeners.length; i+=2) {
-            if (listeners[i]==ObjectEvent.Listener.class) {
+    public void fire(ObjectEvent evt) {
+        try {
+            Object[] listeners = listenerList.getListenerList();
+            // Each listener occupies two elements - the first is the listener class
+            // and the second is the listener instance
+            for (int i=0; i<listeners.length; i+=2) {
+                if (listeners[i]==ObjectEvent.Listener.class) {
 //            	if (evt.isUpdate()) System.out.println("ObjectEvent update: object="+evt.getObject()+", field="+evt.getField()+", source="+evt.getSource()+", info="+evt.getInfo()+", listener="+listeners[i+1]);
 //            	else if (evt.isCreate()) System.out.println("ObjectEvent create: object="+evt.getObject()+", field="+evt.getField()+", source="+evt.getSource()+", info="+evt.getInfo()+", listener="+listeners[i+1]);
 //            	else if (evt.isDelete()) System.out.println("ObjectEvent delete: object="+evt.getObject()+", field="+evt.getField()+", source="+evt.getSource()+", info="+evt.getInfo()+", listener="+listeners[i+1]);
 //            	else System.out.println("ObjectEvent: object="+evt.getObject()+", field="+evt.getField()+", source="+evt.getSource()+", info="+evt.getInfo()+", listener="+listeners[i+1]);
-                ((ObjectEvent.Listener)listeners[i+1]).objectChanged(evt);
+                    ((ObjectEvent.Listener)listeners[i+1]).objectChanged(evt);
+                }
             }
+        } finally {
+            evt.recycle();
         }
-        evt.recycle();
     }
 }

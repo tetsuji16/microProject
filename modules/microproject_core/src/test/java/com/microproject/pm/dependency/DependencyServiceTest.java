@@ -274,6 +274,27 @@ class DependencyServiceTest {
 	}
 
 	@Test
+	void summaryTaskPredecessorSearchRejectsChildDependencyCycles() throws InvalidAssociationException {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask outside = new NormalTask(project);
+		NormalTask parent = new NormalTask(project);
+		NormalTask child = new NormalTask(project);
+		project.connectTask(outside);
+		project.connectTask(parent);
+		project.connectTask(child);
+		child.setWbsParent(parent);
+		parent.setWbsChildrenNodes(Collections.singletonList(NodeFactory.getInstance().createNode(child)));
+		DependencyService.getInstance().newDependency(outside, child, DependencyType.FS, 0L, this);
+
+		assertThrows(InvalidAssociationException.class,
+				() -> DependencyService.getInstance().newDependency(parent, outside, DependencyType.FS, 0L, this));
+		assertEquals(1, child.getPredecessorList().size());
+		assertEquals(0, outside.getPredecessorList().size());
+	}
+
+	@Test
 	void connectListSkipsReadOnlyPredecessorTasks() throws InvalidAssociationException {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

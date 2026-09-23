@@ -36,16 +36,18 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import com.microproject.util.SafeFileReplace;
 
+import com.microproject.association.Association;
+import com.microproject.association.AssociationList;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.server.data.linker.Linker;
 import com.microproject.server.data.linker.ResourceLinker;
 import com.microproject.server.data.linker.TaskLinker;
 import net.sf.mpxj.mspdi.MSPDIWriter;
-import com.microproject.association.AssociationList;
 import com.microproject.configuration.Settings;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.VoidNodeImpl;
@@ -122,8 +124,8 @@ public class MSPDISerializer implements ProjectSerializer {
                 if (snapshot==null) continue;
                 AssociationList snapshotAssignments=snapshot.getHasAssignments().getAssignments();
                 if (snapshotAssignments.size()>0){
-                    for (Iterator j=snapshotAssignments.iterator();j.hasNext();){
-                        Assignment assignment=(Assignment)j.next();
+                    for (Association snapshotAssignment : snapshotAssignments) {
+                        Assignment assignment = (Assignment) snapshotAssignment;
                         ResourceImpl r=(ResourceImpl)assignment.getResource();
                         if (s!=Snapshottable.CURRENT.intValue()) continue;
                         net.sf.mpxj.Resource resourceData=(net.sf.mpxj.Resource)resourceMap.get(r);
@@ -190,6 +192,7 @@ public class MSPDISerializer implements ProjectSerializer {
         return (Map<ResourceImpl, net.sf.mpxj.Resource>) resourceLinker.getTransformationMap();
     }
 
+    @SuppressWarnings("unchecked")
     protected Map<net.sf.mpxj.Task, Task> saveTasks(Project project,ProjectFile projectFile,Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap) throws Exception{
 		NodeModelUtil.enumerateNonAssignments(project.getTaskOutline()); // to fix bug, I moved this before tasks are saved. 16.2.06 hk
     	taskLinker.setParent(project);
@@ -202,8 +205,7 @@ public class MSPDISerializer implements ProjectSerializer {
 
     	//dependencies
 		// mpxj uses default options when importing link leads and lags
-		CalendarOption oldOptions = CalendarOption.getInstance();
-		CalendarOption.setInstance(CalendarOption.getDefaultInstance());
+		return withDefaultCalendarOptions(() -> {
 
 		int taskCount = 0;
 		Map<Task, net.sf.mpxj.Task> externalTasks=new HashMap<Task, net.sf.mpxj.Task>();
@@ -240,8 +242,8 @@ public class MSPDISerializer implements ProjectSerializer {
 //	            task.setUniqueId(task.getId()); // set unique id and id to the same thing on export. Ensures unique id is unique
 	            net.sf.mpxj.Task taskData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(task);
 		        
-	            for (Iterator j=task.getPredecessorList().iterator();j.hasNext();){
-	            	Dependency dependency=(Dependency)j.next();
+	            for (Association predecessorAssociation : task.getPredecessorList()) {
+	                Dependency dependency = (Dependency) predecessorAssociation;
 	            	Task pred=(Task)dependency.getPredecessor();
 	            	net.sf.mpxj.Task predData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(pred);
 				if (predData==null)
@@ -252,9 +254,19 @@ public class MSPDISerializer implements ProjectSerializer {
     		}
         }
     	
-		CalendarOption.setInstance(oldOptions);
-        return taskLinker.getTransformationMap();
+			return (Map<net.sf.mpxj.Task, Task>) taskLinker.getTransformationMap();
+		});
     }
+
+	static <T> T withDefaultCalendarOptions(Callable<T> operation) throws Exception {
+		CalendarOption previousOptions = CalendarOption.getInstance();
+		CalendarOption.setInstance(CalendarOption.getDefaultInstance());
+		try {
+			return operation.call();
+		} finally {
+			CalendarOption.setInstance(previousOptions);
+		}
+	}
 
 	private net.sf.mpxj.Task externalTask(ProjectFile projectFile,Map<Task, net.sf.mpxj.Task> externalTasks,Task task) {
 		net.sf.mpxj.Task taskData=externalTasks.get(task);

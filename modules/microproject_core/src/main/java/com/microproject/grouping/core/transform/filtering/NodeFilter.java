@@ -106,9 +106,9 @@ public abstract class NodeFilter extends CommonTransform implements Predicate{
 		return IteratorUtils.filteredIterator(i,this);
 	}
 	
-	public List filterList(List list){
+	public <T> List<T> filterList(List<T> list){
 		if (list==null) return null;
-		for (Iterator i=list.iterator();i.hasNext();){
+		for (Iterator<T> i=list.iterator();i.hasNext();){
 			if (!evaluate(i.next())) i.remove();
 		}
 		return list;
@@ -116,7 +116,7 @@ public abstract class NodeFilter extends CommonTransform implements Predicate{
 	}
 	public Object[] filterArray(Object[] list){
 		if (list==null) return null;
-		ArrayList filtered = new ArrayList(list.length);
+		ArrayList<Object> filtered = new ArrayList<>(list.length);
 		for (int i=0;i<list.length;i++){
 			Object obj=list[i];
 			if (evaluate(obj)) filtered.add(obj);

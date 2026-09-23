@@ -58,11 +58,9 @@ public class DictionaryCategory {
 	}
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof DictionaryCategory){
-			DictionaryCategory key=(DictionaryCategory)obj;
-			return classe.equals(key.getClasse()) && category.equals(category);
-		}
-		return false;
+		return obj instanceof DictionaryCategory key
+				&& classe.equals(key.getClasse())
+				&& category.equals(key.getCategory());
 	}
 	@Override
 	public String toString() {

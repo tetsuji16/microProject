@@ -25,7 +25,11 @@
 package com.microproject.algorithm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -46,5 +50,88 @@ class IntervalGeneratorContractTest {
 		assertSame(generator, generator.current());
 		assertEquals(0L, generator.currentStart());
 		assertEquals(10L, generator.currentEnd());
+	}
+
+	@Test
+	void evaluatesOnlyUniqueEarliestEndingGenerator() {
+		StubIntervalGenerator earliest = new StubIntervalGenerator(10L, true);
+		StubIntervalGenerator later = new StubIntervalGenerator(20L, true);
+		IntervalGeneratorSet generators = IntervalGeneratorSet.getInstance(List.of(earliest, later));
+
+		assertTrue(generators.evaluate(new Object()));
+
+		assertEquals(1, earliest.evaluationCount);
+		assertEquals(0, later.evaluationCount);
+	}
+
+	@Test
+	void evaluatesEveryGeneratorTiedAtEarliestEndWithoutShortCircuiting() {
+		StubIntervalGenerator first = new StubIntervalGenerator(10L, false);
+		StubIntervalGenerator tied = new StubIntervalGenerator(10L, true);
+		StubIntervalGenerator later = new StubIntervalGenerator(20L, true);
+		IntervalGeneratorSet generators = IntervalGeneratorSet.getInstance(List.of(first, tied, later));
+
+		assertFalse(generators.evaluate(new Object()));
+
+		assertEquals(1, first.evaluationCount);
+		assertEquals(1, tied.evaluationCount);
+		assertEquals(0, later.evaluationCount);
+	}
+
+	@Test
+	void acceptsGeneratorEndingAtMaximumLongValue() {
+		StubIntervalGenerator unbounded = new StubIntervalGenerator(Long.MAX_VALUE, true);
+		IntervalGeneratorSet generators = IntervalGeneratorSet.getInstance(List.of(unbounded));
+
+		assertTrue(generators.hasNext());
+		assertTrue(generators.evaluate(new Object()));
+		assertEquals(1, unbounded.evaluationCount);
+	}
+
+	private static final class StubIntervalGenerator implements IntervalGenerator {
+		private final long end;
+		private final boolean evaluationResult;
+		private int evaluationCount;
+
+		private StubIntervalGenerator(long end, boolean evaluationResult) {
+			this.end = end;
+			this.evaluationResult = evaluationResult;
+		}
+
+		@Override
+		public Object current() {
+			return this;
+		}
+
+		@Override
+		public long currentEnd() {
+			return end;
+		}
+
+		@Override
+		public long currentStart() {
+			return 0;
+		}
+
+		@Override
+		public boolean isCurrentActive() {
+			return true;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return true;
+		}
+
+		@Override
+		public boolean canBeShared() {
+			return true;
+		}
+
+		@Override
+		public boolean evaluate(Object value) {
+			evaluationCount++;
+			return evaluationResult;
+		}
 	}
 }

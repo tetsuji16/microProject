@@ -42,25 +42,24 @@ import com.microproject.util.DateTime;
  */
 public class WorkingHours implements Cloneable, Serializable {
 	static final long serialVersionUID = 83888849333431L;
-	//private static Log log = LogFactory.getLog(WorkingHours.class);
-	private static long MS_PER_MINUTE = 60000L;
 	private static final Logger logger = Logger.getLogger(WorkingHours.class.getName());
 	/**
 	 * milliseconds of work time in the day
 	 */
 	long duration = 0;
 
-	WorkRange workRange[] = new WorkRange[Settings.CALENDAR_INTERVALS];
+	WorkRange[] workRange = new WorkRange[Settings.CALENDAR_INTERVALS];
 	private static GregorianCalendar helper = DateTime.calendarInstance();;
 	
 	
-	public Object clone() {
+	@Override
+	public WorkingHours clone() {
 		WorkingHours newOne = new WorkingHours();
 		for (int i = 0; i < workRange.length; i++) {
 			if (workRange[i] == null)
 				newOne.workRange[i] = null;
 			else
-				newOne.workRange[i] = (WorkRange) workRange[i].clone();
+				newOne.workRange[i] = workRange[i].clone();
 		}
 		newOne.duration = duration;
 		return newOne;
@@ -79,7 +78,7 @@ public class WorkingHours implements Cloneable, Serializable {
 		long end;
 		WorkRange thisRange;
 		WorkRange otherRange;
-		ArrayList list = new ArrayList();
+		List<WorkRange> intersections = new ArrayList<>();
 		for(;;) {
 			// check boundary conditions.  if one of the working hours is exhausted, then no more intersection
 			if (thisIndex == workRange.length)
@@ -106,15 +105,14 @@ public class WorkingHours implements Cloneable, Serializable {
 			}
 			if (end > start) //if the range is not degenerate, then there is an overlap
 				try {
-					list.add(new WorkRange(start,end));
+					intersections.add(new WorkRange(start,end));
 				} catch (WorkRangeException e) {
 					logger.log(Level.WARNING, "Failed to create intersected work range", e);
 				}
 		}
 		// make a new working hours and use the work ranges that were generated
 		WorkingHours result = new WorkingHours();
-		result.workRange = new WorkRange[list.size()];
-		list.toArray(result.workRange);
+		result.workRange = intersections.toArray(WorkRange[]::new);
 		result.initialize();
 		return result;
 		
@@ -183,7 +181,7 @@ public class WorkingHours implements Cloneable, Serializable {
 	    return workRange[number];
 	}
 	
-	public List getIntervals(){
+	public List<WorkRange> getIntervals(){
 	    return Arrays.asList(workRange);
 	}
 	
@@ -375,20 +373,7 @@ public class WorkingHours implements Cloneable, Serializable {
 
 	
 	public boolean equals(Object arg0) {
-		if (!(arg0 instanceof WorkingHours))
-			return false;
-		if (this == arg0)
-			return true;
-		WorkingHours to = (WorkingHours)arg0;
-		for (int i = 0; i < workRange.length; i++) {
-			if (workRange[i] != null) {
-				if (!workRange[i].equals(to.workRange[i]))
-					return false;
-			} else if (to.workRange[i] != null) {
-					return false;
-			}
-		}
-		return true;
+		return arg0 instanceof WorkingHours other && Arrays.equals(workRange, other.workRange);
 	}
 
 	@Override

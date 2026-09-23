@@ -7,6 +7,8 @@ package com.microproject.server.data;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -18,6 +20,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.microproject.options.CalendarOption;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
@@ -25,6 +28,22 @@ import com.microproject.undo.DataFactoryUndoController;
 class MSPDISerializerAtomicSaveTest {
 	@TempDir
 	Path temporaryDirectory;
+
+	@Test
+	void restoresCalendarOptionsWhenTaskExportFails() {
+		CalendarOption previousOptions = CalendarOption.getInstance();
+		CalendarOption customOptions = CalendarOption.getNewInstance();
+		CalendarOption.setInstance(customOptions);
+		try {
+			assertThrows(IOException.class, () -> MSPDISerializer.withDefaultCalendarOptions(() -> {
+				assertSame(CalendarOption.getDefaultInstance(), CalendarOption.getInstance());
+				throw new IOException("simulated task export failure");
+			}));
+			assertSame(customOptions, CalendarOption.getInstance());
+		} finally {
+			CalendarOption.setInstance(previousOptions);
+		}
+	}
 
 	@Test
 	void successfulSaveUsesSiblingTempAndLeavesNoTemporaryFile() throws Exception {

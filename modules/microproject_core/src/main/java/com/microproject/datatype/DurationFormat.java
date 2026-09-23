@@ -42,26 +42,25 @@ import java.text.Format;
  * there is no object churn and fewer function calls.
  */
 public class DurationFormat extends Format {
-	private boolean showPlusSign = false;
-	private boolean isWork = false;
-	private boolean canBeNonTemporal = false;
+	private final boolean showPlusSign;
+	private final boolean isWork;
+	private final boolean canBeNonTemporal;
 	private static Format instance = null;
 	public static Format getInstance() {
 		if (instance == null)
-			instance = new DurationFormat(false);
+			instance = new DurationFormat(false, false, false);
 		return instance;
 	}
 	private static Format signedInstance = null;
 	public static Format getSignedInstance() {
 		if (signedInstance == null)
-			signedInstance = new DurationFormat(true);
+			signedInstance = new DurationFormat(true, false, false);
 		return signedInstance;
 	}
 	private static Format workInstance = null;
 	public static Format getWorkInstance() {
 		if (workInstance == null) {
-			workInstance = new DurationFormat(false);
-			((DurationFormat)workInstance).isWork = true;
+			workInstance = new DurationFormat(false, true, false);
 		}
 		return workInstance;
 	}
@@ -69,31 +68,31 @@ public class DurationFormat extends Format {
 	private static Format nonTemporalWorkInstance = null;
 	public static Format getNonTemporalWorkInstance() {
 		if (nonTemporalWorkInstance == null) {
-			nonTemporalWorkInstance = new DurationFormat(false);
-			((DurationFormat)nonTemporalWorkInstance).isWork = true;
-			((DurationFormat)nonTemporalWorkInstance).canBeNonTemporal = true;
+			nonTemporalWorkInstance = new DurationFormat(false, true, true);
 		}
 		return nonTemporalWorkInstance;
 	}
 	
 	// these strings are themselves parts of string ids in properties file and as such must be hard coded as below
-	private static String[] types = {"minute", "hour", "day", "week", "month",
+	private static final String[] types = {"minute", "hour", "day", "week", "month",
 			"year", "percent", "eminute", "ehour", "eday", "eweek", "emonth",
 			"eyear", "epercent"};
 	
 	private static final int SINGULAR = 0;
 	private static final int PLURAL = 1;
-	private static final String multiple[] = {".singular", ".plural"};
-	private static int TYPE_COUNT = types.length;
-	private static int NAME_COUNT = 4;
-	private static String[][][] typesArray = new String[NAME_COUNT][multiple.length][TYPE_COUNT];
-	private static Pattern[] pattern = new Pattern[TYPE_COUNT];
-	private static String estimatedSymbol = Messages.getString("Units.estimatedSymbol");
+	private static final String[] multiple = {".singular", ".plural"};
+	private static final int TYPE_COUNT = types.length;
+	private static final int NAME_COUNT = 4;
+	private static final String[][][] typesArray = new String[NAME_COUNT][multiple.length][TYPE_COUNT];
+	private static final Pattern[] pattern = new Pattern[TYPE_COUNT];
+	private static final String estimatedSymbol = Messages.getString("Units.estimatedSymbol");
 	
 	
 	//private constructor initializes values.
-	private DurationFormat(boolean showPlusSign) {
+	private DurationFormat(boolean showPlusSign, boolean isWork, boolean canBeNonTemporal) {
 		this.showPlusSign = showPlusSign;
+		this.isWork = isWork;
+		this.canBeNonTemporal = canBeNonTemporal;
 		String estimated = Messages.getString("Units.estimatedSymbolRegex"); // Like ?
 		
 		// a bunch of init code which reads the possible  values for durations from localized messages
@@ -101,8 +100,7 @@ public class DurationFormat extends Format {
 			String singularNames=null;
 			String pluralNames=null;
 			for (int j = 0; j < multiple.length; j++) {
-				String names = new String(Messages.getString("Units."
-						+ types[i] + multiple[j]));
+				String names = Messages.getString("Units." + types[i] + multiple[j]);
 				if (j==SINGULAR) singularNames=names;
 				if (j==PLURAL) pluralNames=names;
 				String[] units = names.split("\\|", -1); // index into the names list, getting string
@@ -127,7 +125,7 @@ public class DurationFormat extends Format {
 	
 	public Object parseObject(String durationString, ParsePosition pos) {
 		Object result = null;
-		if (durationString.length() == 0)
+		if (durationString.isEmpty() || pos.getIndex() < 0 || pos.getIndex() >= durationString.length())
 			return null;
 		
 		if (durationString.charAt(pos.getIndex()) == '+') // if string begins with + sign, ignore it
@@ -250,7 +248,7 @@ public class DurationFormat extends Format {
 		return getWorkInstance().format(new Work(millis)).toString();
 	}
 	public static String formatWork(Object millis) {
-		if (millis!=null&&millis instanceof Long) return formatWork(((Long)millis).longValue());
+		if (millis instanceof Long longMillis) return formatWork(longMillis);
 		return getWorkInstance().format(millis);
 	}
 }

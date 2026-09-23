@@ -27,8 +27,6 @@ package com.microproject.pm.time;
 import java.io.Serializable;
 import java.util.Comparator;
 
-import com.microproject.util.MathUtils;
-
 /**
  *
  */
@@ -57,17 +55,19 @@ public abstract class Interval implements HasStartAndEnd, Comparable, Comparator
 		return compare(this,arg0);
 	}
 	public int compare(Object t1, Object t2) {
-		if (! (t1 instanceof HasStartAndEnd) || ! (t2 instanceof HasStartAndEnd))
+		if (!(t1 instanceof HasStartAndEnd first) || !(t2 instanceof HasStartAndEnd second))
 			return 0;
-		
-		return MathUtils.signum(((HasStartAndEnd)t1).getStart() - ((HasStartAndEnd)t2).getStart());
+		return Long.compare(first.getStart(), second.getStart());
+	}
+
+	protected boolean canEqual(Object other) {
+		return other instanceof Interval;
 	}
 
 	public boolean equals(Object arg0) {
-		if (!(arg0 instanceof Interval))
+		if (!(arg0 instanceof Interval other))
 			return false;
-		Interval to = (Interval)arg0;
-		return (start == to.start && end == to.end);
+		return canEqual(other) && other.canEqual(this) && start == other.start && end == other.end;
 	}
 
 	@Override
