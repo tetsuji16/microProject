@@ -103,6 +103,17 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Timesheet natural-order stub | `TimesheetAssignment.compareTo` | The OpenProj-origin subtraction comparator had no caller: current `TimesheetEntryPane` sorts with its own explicit resource/task/start comparator. Repository search found no other natural-order, reflection, or configuration use; the class is not Serializable. Removed the unused `Comparable` implementation and method without changing the timesheet list's actual sort order. Full `:microproject_core:test`, application/exchange/UI/reports `compileJava`, and `verifyArchitectureBoundaries` passed. |
 | Duration natural ordering | `Duration.compareTo`, `ClassUtils` duration/Work comparators | Compared against OpenProj baseline `d2fa3c20`; made the raw `Comparable` contract `Comparable<Duration>` and typed comparator operands at the integration boundary, including `Work`'s inherited Duration comparison. Kept existing comparison arithmetic and null/type failure behavior unchanged. Added regression coverage for direct order and both registered comparators. Focused Duration comparison/encoding and Rate comparison tests, full `:microproject_core:test`, application/exchange/UI/reports `compileJava`, and `javap` confirmation of the erased bridge passed. |
 
+## Fork-specific correctness defect found during the audit
+
+- `DictionaryCategory.equals` comes from later ProjectLibre code, not the
+  OpenProj baseline, and is not counted as a modernization candidate. While
+  scanning remaining core type checks, a regression test demonstrated that
+  categories with the same class but different category names compared equal,
+  despite `hashCode` including the category. Corrected equality to compare both
+  fields using Java pattern matching. The new focused test failed before the
+  fix and passed afterward; the full core suite and application/exchange/UI/
+  reports `compileJava` also passed.
+
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
 
