@@ -26,6 +26,9 @@ package com.microproject.grouping.core;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.NoSuchElementException;
 
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Task;
@@ -34,31 +37,41 @@ import com.microproject.pm.task.Task;
  * An Iterator for Node lists which will treat it like an impl list and consider elements of a certain type.
  * Useful for applying a fuction to a selection
  */
-public class TypedNodeIterator implements Iterator {
-	public static TypedNodeIterator getInstance(Collection collection, Class clazz) {
+public class TypedNodeIterator implements Iterator<Object> {
+	public static TypedNodeIterator getInstance(Collection<?> collection, Class<?> clazz) {
 		return new TypedNodeIterator(collection,clazz);
 	}
-	public static TypedNodeIterator getTaskInstance(Collection collection) {
+	public static TypedNodeIterator getTaskInstance(Collection<?> collection) {
 		return new TypedNodeIterator(collection,Task.class);
 	}
-	public static TypedNodeIterator getResourceInstance(Collection collection) {
+	public static TypedNodeIterator getResourceInstance(Collection<?> collection) {
 		return new TypedNodeIterator(collection,Resource.class);
 	}
 	
-	private Iterator i;
-	private Class clazz;
+	private final Collection<?> collection;
+	private Iterator<?> i;
+	private final Class<?> clazz;
 	private Object next = null;
+	private int scanned;
+	private int nextIndex = -1;
+	private int lastReturnedIndex = -1;
+	private boolean canRemove;
 	
 	private Object nextOfType() {
 		Object cur = null;
 		while (i.hasNext()) {
 			cur = ((Node)i.next()).getImpl();
-			if (clazz.isAssignableFrom(cur.getClass()))
+			int currentIndex = scanned++;
+			if (cur != null && clazz.isInstance(cur)) {
+				nextIndex = currentIndex;
 				return cur;
+			}
 		}
+		nextIndex = -1;
 		return null;
 	}
-	private TypedNodeIterator(Collection collection, Class clazz) {
+	private TypedNodeIterator(Collection<?> collection, Class<?> clazz) {
+		this.collection = collection;
 		i = collection.iterator();
 		this.clazz = clazz;
 		if (i.hasNext())
@@ -70,16 +83,42 @@ public class TypedNodeIterator implements Iterator {
 	public int hashCode() {
 		return i.hashCode();
 	}
+	@Override
 	public boolean hasNext() {
 		return next != null;
 	}
+	@Override
 	public Object next() {
+		if (!hasNext())
+			throw new NoSuchElementException();
 		Object result = next;
+		lastReturnedIndex = nextIndex;
+		canRemove = true;
 		next = nextOfType();
 		return result;
 	}
+	/**
+	 * Removes the last returned node. Lookahead can be rewound safely only for
+	 * list-backed selections; other collection types leave the source unchanged.
+	 */
+	@Override
 	public void remove() {
-		i.remove();
+		if (!canRemove)
+			throw new IllegalStateException();
+		if (!(collection instanceof List<?> list))
+			throw new UnsupportedOperationException("remove requires a list-backed node collection");
+
+		ListIterator<?> removal = list.listIterator(lastReturnedIndex);
+		removal.next();
+		removal.remove();
+
+		if (nextIndex > lastReturnedIndex)
+			nextIndex--;
+		scanned--;
+		i = collection.iterator();
+		for (int index = 0; index < scanned; index++)
+			i.next();
+		canRemove = false;
 	}
 	public String toString() {
 		return i.toString();
