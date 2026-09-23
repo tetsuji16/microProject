@@ -68,6 +68,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Common-key equality | `HasCommonKeyImpl.equals` | Confirmed the equality hunk matches OpenProj; replaced the type check/cast with a pattern binding and expanded existing unique-ID equality/hash tests with null and unrelated-object inputs. Existing fork hashCode fix remains intact. |
 | Schedule bar interval boundary | `BarClosure.accept` | Confirmed the file is normalized-identical to OpenProj; replaced the `ScheduleWindow` check/cast with pattern binding and tested both the resume/unsplit stop adjustment and unchanged non-window intervals. |
 | Earned-value schedule offsets | `EarnedValueCalculator.getStartOffset` / `getFinishOffset` | Replaced repeated interface checks and casts with pattern bindings while preserving the zero result when required schedule fields are absent; added a focused regression for that fallback. |
+| Printer printable-area bounds | `ExtendedPageFormat.adaptMediaPrintableArea` | Fixed an OpenProj-origin bug where all four upper bounds were read from the requested area instead of the printer-supported maximum. A focused test failed before the fix and verifies all four bounds after clamping. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -159,6 +160,10 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   dispatch modernization; application, exchange, UI, and reports `compileJava`
   passed. No GUI route, layout, or Swing behavior changed, so GUI/Robot tests
   were not repeated.
+- `ExtendedPageFormatTest` reproduced the printer-boundary defect before the
+  fix and passed afterward. The full core suite plus application, exchange, UI,
+  and reports `compileJava` passed. The change is in print-area calculation;
+  no GUI interaction or layout was changed, so no GUI/Robot run was repeated.
 - At the integration checkpoint after the recorded core batches,
   `.\gradlew.bat clean build installDist verifyArchitectureBoundaries
   --console=plain` completed successfully (all module tests included, 3m52s).
