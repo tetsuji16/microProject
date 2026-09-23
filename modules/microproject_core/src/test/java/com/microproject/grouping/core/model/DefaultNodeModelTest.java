@@ -243,6 +243,31 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void pasteUndoRedoRestoresThePastedNodeAtItsOriginalPosition() {
+		UndoController undoController = new UndoController();
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.setUndoController(undoController);
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node existing = NodeFactory.getInstance().createNode(new Object());
+		Node pasted = NodeFactory.getInstance().createVoidNode();
+		model.add(root, existing, NodeModel.SILENT);
+		undoController.clear();
+
+		model.paste(root, List.of(pasted), 0, NodeModel.NORMAL);
+
+		assertSame(pasted, root.getChildAt(0));
+		assertSame(existing, root.getChildAt(1));
+		undoController.undo();
+		assertEquals(1, root.getChildCount());
+		assertSame(existing, root.getChildAt(0));
+		undoController.redo();
+		assertEquals(2, root.getChildCount());
+		assertSame(pasted, root.getChildAt(0));
+		assertSame(existing, root.getChildAt(1));
+	}
+
+	@Test
 	void addBeforeLinkedListHonorsUndoActionType() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("test", undoController), undoController);

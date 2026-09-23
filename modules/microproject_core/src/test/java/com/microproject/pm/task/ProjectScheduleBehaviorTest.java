@@ -206,6 +206,14 @@ class ProjectScheduleBehaviorTest {
 		Object backup = task.backupDetail(snapshotId);
 		assertNotNull(backup);
 		assertNull(((TaskBackup) backup).snapshot);
+
+		project.getUndoController().undo();
+		Object restoredBackup = task.backupDetail(snapshotId);
+		assertNotNull(((TaskBackup) restoredBackup).snapshot);
+
+		project.getUndoController().redo();
+		Object redoneBackup = task.backupDetail(snapshotId);
+		assertNull(((TaskBackup) redoneBackup).snapshot);
 	}
 
 	@Test
