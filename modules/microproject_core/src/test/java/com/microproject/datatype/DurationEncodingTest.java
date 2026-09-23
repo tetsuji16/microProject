@@ -52,6 +52,15 @@ class DurationEncodingTest {
 		assertEquals(untypedDuration, Duration.setAsTimeUnit(untypedDuration, Integer.MAX_VALUE));
 	}
 
+	@Test
+	void parseAtEndOfInputReturnsNullWithoutAdvancingPosition() {
+		String input = "2d";
+		ParsePosition position = new ParsePosition(input.length());
+
+		assertEquals(null, DurationFormat.getInstance().parseObject(input, position));
+		assertEquals(input.length(), position.getIndex());
+	}
+
     @Test
     void temporalUnitsRoundTripWithinOneMillisecondPrecision() {
 		int[] units = {TimeUnit.MINUTES, TimeUnit.HOURS, TimeUnit.DAYS,

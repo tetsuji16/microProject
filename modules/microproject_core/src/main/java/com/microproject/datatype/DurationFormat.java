@@ -127,7 +127,7 @@ public class DurationFormat extends Format {
 	
 	public Object parseObject(String durationString, ParsePosition pos) {
 		Object result = null;
-		if (durationString.length() == 0)
+		if (durationString.isEmpty() || pos.getIndex() < 0 || pos.getIndex() >= durationString.length())
 			return null;
 		
 		if (durationString.charAt(pos.getIndex()) == '+') // if string begins with + sign, ignore it
@@ -250,7 +250,7 @@ public class DurationFormat extends Format {
 		return getWorkInstance().format(new Work(millis)).toString();
 	}
 	public static String formatWork(Object millis) {
-		if (millis!=null&&millis instanceof Long) return formatWork(((Long)millis).longValue());
+		if (millis instanceof Long longMillis) return formatWork(longMillis);
 		return getWorkInstance().format(millis);
 	}
 }
