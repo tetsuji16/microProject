@@ -24,18 +24,20 @@
  *******************************************************************************/
 package com.microproject.grouping.core.hierarchy;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Stack;
+import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.function.Consumer;
 
 import javax.swing.event.EventListenerList;
 import javax.swing.tree.TreeNode;
@@ -79,43 +81,40 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 		return iterator(null);
 	}
 	
-    final class ShallowPreorderInterator implements Iterator<TreeNode> {
-    	protected Stack stack;
-    	protected int maxLevel;
-    	protected Stack<Integer> levelStack;
+    private final class ShallowPreorderIterator implements Iterator<TreeNode> {
+        private final Deque<Enumeration<? extends TreeNode>> stack = new ArrayDeque<>();
+        private final int maxLevel;
+        private final Deque<Integer> levelStack = new ArrayDeque<>();
 
-    	public ShallowPreorderInterator(TreeNode rootNode,int maxLevel,boolean returnRoot) {
-    	    super();
-    	    ArrayList v = new ArrayList(1);
-    	    v.add(rootNode);	// PENDING: don't really need a ArrayList stack = new Stack();
-    	    stack.push(Collections.enumeration(v));
-    	    levelStack=new Stack<Integer>();
-    	    levelStack.push(0);
-    	    this.maxLevel=maxLevel;
-    	    if (!returnRoot&&hasNext()) next(); 
-    	}
+        private ShallowPreorderIterator(TreeNode rootNode, int maxLevel, boolean returnRoot) {
+            stack.push(Collections.enumeration(List.of(rootNode)));
+            levelStack.push(0);
+            this.maxLevel = maxLevel;
+            if (!returnRoot && hasNext()) next();
+        }
 
-    	public boolean hasNext() {
-    	    return (!stack.empty() &&
-    		    ((Enumeration)stack.peek()).hasMoreElements());
-    	}
+        public boolean hasNext() {
+            return !stack.isEmpty() && stack.peek().hasMoreElements();
+        }
 
-    	public TreeNode next() {
-    	    Enumeration	enumer = (Enumeration)stack.peek();
-    	    int level=levelStack.peek();
-    	    TreeNode	node = (TreeNode)enumer.nextElement();
-    	    Enumeration	children = level==maxLevel?null:node.children();
+        public TreeNode next() {
+            if (!hasNext())
+                throw new NoSuchElementException();
+            Enumeration<? extends TreeNode> enumer = stack.peek();
+            int level = levelStack.peek();
+            TreeNode node = enumer.nextElement();
+            Enumeration<? extends TreeNode> children = level == maxLevel ? null : node.children();
 
-    	    if (!enumer.hasMoreElements()) {
-    		stack.pop();
-    		levelStack.pop();
-    	    }
-    	    if (children!=null&&children.hasMoreElements()) {
-    		stack.push(children);
-    		levelStack.push(level+1);
-    	    }
-    	    return node;
-    	}
+            if (!enumer.hasMoreElements()) {
+                stack.pop();
+                levelStack.pop();
+            }
+            if (children != null && children.hasMoreElements()) {
+                stack.push(children);
+                levelStack.push(level + 1);
+            }
+            return node;
+        }
 		public void remove() {
 			throw new UnsupportedOperationException("Remove not supported");
 		}
@@ -123,7 +122,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 
 	
 	public Iterator shallowIterator(int maxLevel,boolean returnRoot){
-		return new ShallowPreorderInterator((TreeNode)getRoot(),maxLevel,returnRoot);
+		return new ShallowPreorderIterator((TreeNode)getRoot(),maxLevel,returnRoot);
 	}
 	
 

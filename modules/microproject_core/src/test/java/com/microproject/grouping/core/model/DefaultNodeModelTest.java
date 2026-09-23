@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import org.junit.jupiter.api.Test;
 
@@ -178,6 +179,37 @@ class DefaultNodeModelTest {
 		assertSame(firstParent, model.getHierarchy().getPrevious(firstChild));
 		assertNull(model.getHierarchy().getPrevious(firstParent));
 		assertNull(model.getHierarchy().getNext(nextParent));
+	}
+
+	@Test
+	void shallowHierarchyIteratorHonorsDepthAndRootOptions() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node first = NodeFactory.getInstance().createNode(new Object());
+		Node second = NodeFactory.getInstance().createNode(new Object());
+		Node grandchild = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, first, NodeModel.SILENT);
+		model.add(root, second, NodeModel.SILENT);
+		model.add(first, grandchild, NodeModel.SILENT);
+
+		Iterator<?> includingRoot = model.shallowIterator(1, true);
+		assertSame(root, includingRoot.next());
+		assertSame(first, includingRoot.next());
+		assertSame(second, includingRoot.next());
+		assertFalse(includingRoot.hasNext());
+		assertThrows(NoSuchElementException.class, includingRoot::next);
+
+		Iterator<?> excludingRoot = model.shallowIterator(2, false);
+		assertSame(first, excludingRoot.next());
+		assertSame(grandchild, excludingRoot.next());
+		assertSame(second, excludingRoot.next());
+		assertFalse(excludingRoot.hasNext());
+		assertThrows(NoSuchElementException.class, excludingRoot::next);
+
+		Iterator<?> excludingOnlyRoot = model.shallowIterator(0, false);
+		assertFalse(excludingOnlyRoot.hasNext());
+		assertThrows(NoSuchElementException.class, excludingOnlyRoot::next);
 	}
 
 	private static void assertNodeOrder(List<Object> actual, Node... expected) {
