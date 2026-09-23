@@ -25,43 +25,42 @@
 package com.microproject.pm.assignment.timesheet;
 
 import java.util.Collection;
-import java.util.Iterator;
 
 import com.microproject.strings.Messages;
 
 public class TimesheetHelper {
-	public static boolean applyTimesheet(Collection children, Collection fieldArray, long timesheetUpdateDate) {
-		Iterator i = children.iterator();
+	public static boolean applyTimesheet(Collection<?> children, Collection<?> fieldArray, long timesheetUpdateDate) {
 		boolean changed = false;
-		while (i.hasNext()) {
-			if (((UpdatesFromTimesheet)i.next()).applyTimesheet(fieldArray,timesheetUpdateDate))
+		for (Object item : children) {
+			UpdatesFromTimesheet child = (UpdatesFromTimesheet) item;
+			if (child.applyTimesheet(fieldArray,timesheetUpdateDate))
 				changed = true;
 		}
 		return changed;
 	}
 	
-	public static long getLastTimesheetUpdate(Collection children) {
+	public static long getLastTimesheetUpdate(Collection<?> children) {
 		long last = 0;
-		Iterator i = children.iterator();
-		while (i.hasNext()) {
-			last = Math.max(last,((UpdatesFromTimesheet)i.next()).getLastTimesheetUpdate());
+		for (Object item : children) {
+			UpdatesFromTimesheet child = (UpdatesFromTimesheet) item;
+			last = Math.max(last, child.getLastTimesheetUpdate());
 		}
 		return last;
 	}
-	public static boolean isPendingTimesheetUpdate(Collection children) {
-		Iterator i = children.iterator();
-		while (i.hasNext()) {
-			if (((UpdatesFromTimesheet)i.next()).isPendingTimesheetUpdate())
+	public static boolean isPendingTimesheetUpdate(Collection<?> children) {
+		for (Object item : children) {
+			UpdatesFromTimesheet child = (UpdatesFromTimesheet) item;
+			if (child.isPendingTimesheetUpdate())
 			return true;
 		}
 		return false;
 	}
 
-	public static int getTimesheetStatus(Collection children) {
-		Iterator i = children.iterator();
+	public static int getTimesheetStatus(Collection<?> children) {
 		int status = TimesheetStatus.NO_DATA;
-		while (i.hasNext()) {
-			int curStatus = ((UpdatesFromTimesheet)i.next()).getTimesheetStatus();
+		for (Object item : children) {
+			UpdatesFromTimesheet child = (UpdatesFromTimesheet) item;
+			int curStatus = child.getTimesheetStatus();
 			if (curStatus == TimesheetStatus.NO_DATA) // ignore if no data
 				continue;
 			if (status == TimesheetStatus.NO_DATA) // if currently no value, use this 
