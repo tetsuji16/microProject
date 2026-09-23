@@ -41,9 +41,8 @@ import com.microproject.timescale.CalendarUtil;
  */
 public class CalendarService {
 	private static CalendarService instance = null;
-	ArrayList baseCalendars = new ArrayList();
-	ArrayList derivedCalendars = new ArrayList();
-	ArrayList assignmentCalendars = new ArrayList();
+	ArrayList<WorkingCalendar> baseCalendars = new ArrayList<>();
+	ArrayList<WorkingCalendar> derivedCalendars = new ArrayList<>();
 
 	public static CalendarService getInstance() {
 		if (instance == null)
@@ -96,7 +95,7 @@ public class CalendarService {
 	 * @param intervals
 	 * @return Common day or null
 	 */
-	public DayDescriptor getDay(WorkingCalendar workingCalendar, Set intervals, boolean selectedWeekDays[]){
+	public DayDescriptor getDay(WorkingCalendar workingCalendar, Set<?> intervals, boolean selectedWeekDays[]){
 		CalendarUtil.DayIterator days=new CalendarUtil.DayIterator();
 	    DayDescriptor common=null;
 	    DayDescriptor current;
@@ -110,8 +109,8 @@ public class CalendarService {
 		    }
 		}
 
-	    for (Iterator i=intervals.iterator();i.hasNext();){
-		    days.setInterval((HasStartAndEnd)i.next());
+	    for (Object interval : intervals) {
+		    days.setInterval((HasStartAndEnd) interval);
 		    while(days.hasMoreDays()){
 		        current=workingCalendar.getMonthDayDescriptor(days.nextDay());
 		        common = mergeWithCommon(current,common);
@@ -189,7 +188,7 @@ public class CalendarService {
 	 *            with no overlap
 	 * @return
 	 */
-	public void makeDefaultDays(WorkingCalendar workingCalendar, Set intervals,boolean[] selectedDays) {
+	public void makeDefaultDays(WorkingCalendar workingCalendar, Set<?> intervals,boolean[] selectedDays) {
 		for (int i = 0; i < 7; i++) {
 			if (selectedDays[i]) {
 				makeDefaultWeekDay(workingCalendar, i+1);
@@ -198,8 +197,8 @@ public class CalendarService {
 
 
 		CalendarUtil.DayIterator days=new CalendarUtil.DayIterator();
-	    for (Iterator i=intervals.iterator();i.hasNext();){
-		    days.setInterval((HasStartAndEnd)i.next());
+	    for (Object interval : intervals) {
+		    days.setInterval((HasStartAndEnd) interval);
 		    while(days.hasMoreDays())
 		        workingCalendar.makeDefaultDay(days.nextDay());
 		}
@@ -241,7 +240,7 @@ public class CalendarService {
 			workingCalendar.setDayWorkingHours(date,workingHours);
 	}
 
-	public void setDaysWorkingHours(WorkingCalendar workingCalendar, Set intervals, boolean selectedDays[], WorkingHours workingHours)  throws WorkRangeException, InvalidCalendarException{
+	public void setDaysWorkingHours(WorkingCalendar workingCalendar, Set<?> intervals, boolean selectedDays[], WorkingHours workingHours)  throws WorkRangeException, InvalidCalendarException{
 		for (int i = 0; i < 7; i++) {
 			if (selectedDays[i]) {
 				setWeekDayWorkingHours(workingCalendar, i+1,workingHours);
@@ -249,8 +248,8 @@ public class CalendarService {
 		}
 
 		CalendarUtil.DayIterator days=new CalendarUtil.DayIterator();
-	    for (Iterator i=intervals.iterator();i.hasNext();){
-		    days.setInterval((HasStartAndEnd)i.next());
+	    for (Object interval : intervals) {
+		    days.setInterval((HasStartAndEnd) interval);
 		    while(days.hasMoreDays())
 		        workingCalendar.setDayWorkingHours(days.nextDay(),workingHours);
 		}
@@ -290,15 +289,15 @@ public class CalendarService {
 
 	}
 
-	public void setDaysNonWorking(WorkingCalendar workingCalendar, Set intervals, boolean[] selectedDays) throws InvalidCalendarException{
+	public void setDaysNonWorking(WorkingCalendar workingCalendar, Set<?> intervals, boolean[] selectedDays) throws InvalidCalendarException{
 		for (int i = 0; i < 7; i++) {
 			if (selectedDays[i]) {
 				setWeekDayNonWorking(workingCalendar,i+1);
 			}
 		}
 		CalendarUtil.DayIterator days=new CalendarUtil.DayIterator();
-	    for (Iterator i=intervals.iterator();i.hasNext();){
-		    days.setInterval((HasStartAndEnd)i.next());
+	    for (Object interval : intervals) {
+		    days.setInterval((HasStartAndEnd) interval);
 		    while(days.hasMoreDays())
 		        workingCalendar.setDayNonWorking(days.nextDay());
 		}
@@ -392,16 +391,12 @@ public class CalendarService {
 	public void invalidate(WorkingCalendar cal) {
 		if (cal == null)
 			return;
-		Iterator i = cal.getObjectsUsing().iterator();
-		HasCalendar hasCal;
-		HashSet documents = new HashSet();
-		while (i.hasNext()) {
-			hasCal = (HasCalendar)i.next();
+		Set<Document> documents = new HashSet<>();
+		for (Object object : cal.getObjectsUsing()) {
+			HasCalendar hasCal = (HasCalendar) object;
 			documents.add(hasCal.invalidateCalendar());
 		}
-		Iterator d = documents.iterator();
-		while (d.hasNext()) {
-			Document doc = (Document)d.next();
+		for (Document doc : documents) {
 			if (doc != null)
 				doc.fireUpdateEvent(this,doc);
 		}
@@ -419,13 +414,10 @@ public class CalendarService {
 		if (base == null)
 			return;
 		invalidateDerivedInList(derivedCalendars, base);
-		invalidateDerivedInList(assignmentCalendars, base);
 	}
 
-	private void invalidateDerivedInList(ArrayList calendars, WorkingCalendar base) {
-		Iterator i = calendars.iterator();
-		while (i.hasNext()) {
-			WorkingCalendar calendar = (WorkingCalendar) i.next();
+	private void invalidateDerivedInList(List<WorkingCalendar> calendars, WorkingCalendar base) {
+		for (WorkingCalendar calendar : calendars) {
 			if (calendar != null && calendar != base && calendar.dependsOn(base))
 				calendar.invalidateConcreteInstance();
 		}
@@ -521,10 +513,10 @@ public class CalendarService {
 //		}
 //	}
 //
-	public ArrayList getBaseCalendars() {
+	public ArrayList<WorkingCalendar> getBaseCalendars() {
 		return baseCalendars;
 	}
-	public ArrayList getDerivedCalendars() {
+	public ArrayList<WorkingCalendar> getDerivedCalendars() {
 		return derivedCalendars;
 	}
 
@@ -543,20 +535,14 @@ public class CalendarService {
 		// this led to an explosion of calendars on repeated imports and exports
 		if (importing)
 			name = name + PLACE_HOLDER_NAME;
-		Iterator i = getInstance().getBaseCalendars().iterator();
-		WorkingCalendar current;
-		while (i.hasNext()) {
-			current = (WorkingCalendar)i.next();
+		for (WorkingCalendar current : getInstance().getBaseCalendars()) {
 			if (current!=null&&current.getName()!=null&&current.getName().equals(name))
 				return current;
 		}
 		return null;
 	}
 	public WorkCalendar findBaseCalendar(long id) {
-		Iterator i = getInstance().getBaseCalendars().iterator();
-		WorkingCalendar current;
-		while (i.hasNext()) {
-			current = (WorkingCalendar)i.next();
+		for (WorkingCalendar current : getInstance().getBaseCalendars()) {
 			if (current.getUniqueId() == id)
 				return current;
 		}
@@ -578,12 +564,8 @@ public class CalendarService {
 
 	private static final String PLACE_HOLDER_NAME = "____~";
 	public void renameImportedBaseCalendars(String documentName) {
-		Iterator i = getInstance().getBaseCalendars().iterator();
-		WorkingCalendar current;
-		String currentName;
-		while (i.hasNext()) {
-			current = (WorkingCalendar)i.next();
-			currentName = current.getName();
+		for (WorkingCalendar current : getInstance().getBaseCalendars()) {
+			String currentName = current.getName();
 			int spot = currentName.indexOf(PLACE_HOLDER_NAME);
 			if (spot == -1)
 				continue;
@@ -600,10 +582,10 @@ public class CalendarService {
 	public void reassignCalendar(HasCalendar object, WorkCalendar oldCal, WorkCalendar newCal) {
 		if (oldCal == newCal)
 			return;
-		if (oldCal != null && oldCal instanceof WorkingCalendar)
-			((WorkingCalendar)oldCal).removeObjectUsing(object);
-		if (newCal != null && newCal instanceof WorkingCalendar)
-			((WorkingCalendar)newCal).addObjectUsing(object);
+		if (oldCal instanceof WorkingCalendar workingCalendar)
+			workingCalendar.removeObjectUsing(object);
+		if (newCal instanceof WorkingCalendar workingCalendar)
+			workingCalendar.addObjectUsing(object);
 	}
 
 }
