@@ -69,9 +69,9 @@ public final class Rate implements Comparable, Serializable, Cloneable {
 		this.timeUnit = timeUnit;
 	}
 	public int compareTo(Object arg0) {
-		if (!(arg0 instanceof Rate))
+		if (!(arg0 instanceof Rate rate))
 			throw new IllegalArgumentException();
-		return (int) (value - ((Rate)arg0).value);
+		return Double.compare(value, rate.value);
 	}
 	
 	public String toString() {
