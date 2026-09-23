@@ -38,6 +38,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Scripting configuration | `ScriptConfiguration` | Replaced raw `Set` with `Set<String>` and diamond construction; added configured/unlisted class-name behavior coverage. |
 | Grouping XML configuration | `NodeGrouper` | Typed the XML-populated group list and `addGroup`/getter API as `NodeGroup`; verified insertion order and transform relationship, then compiled the UI consumer. |
 | Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
+| External task resolution | `ExternalTaskManager` | Typed the manager-owned external-task list and iterator; retained `AssociationList`'s actual `Association` iterator contract and the existing cast semantics for dependencies. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -54,7 +55,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   `ScriptConfiguration` type-safety change. The focused `NodeGrouperTest`, full
   core suite, and UI compilation passed after typing the XML grouping contract.
   The core full test suite and application, exchange, and UI compilations passed
-  after typing scheduling field notification state.
+  after typing scheduling field notification state. Core tests and exchange /
+  application compilations passed after typing external task manager storage.
 - Application, exchange, UI, and reports compilation passed at an earlier
   calendar-clone integration checkpoint. No GUI route, layout, or Swing behavior
   was changed, so Robot/GUI tests were not repeated.

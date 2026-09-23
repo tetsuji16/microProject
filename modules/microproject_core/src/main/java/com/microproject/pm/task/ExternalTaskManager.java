@@ -24,28 +24,29 @@
  *******************************************************************************/
 package com.microproject.pm.task;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
+import com.microproject.association.Association;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 
 public class ExternalTaskManager {
-	private ArrayList externalTasks = new ArrayList();
+	private final List<Task> externalTasks = new ArrayList<>();
 	
 	public void add(Task task) {
 		externalTasks.add(task);
 	}
 	
 	public void handleExternalTasks(Project project, boolean opening, boolean saving) {
-		Iterator i = externalTasks.iterator();
-		Task externalTask;
+		Iterator<Task> i = externalTasks.iterator();
 		Portfolio portfolio = ProjectFactory.getInstance().getPortfolio();
 		while (i.hasNext()) {
-			externalTask = (Task) i.next();
+			Task externalTask = i.next();
 			
 			if (externalTask.getProjectId() == project.getUniqueId()
 					|| sameProjectFile(externalTask.getExternalProjectFile(), project.getFileName())) {
@@ -76,11 +77,11 @@ public class ExternalTaskManager {
 	private void treatOpenedTask(Task externalTask, Task realTask, boolean opening) {
 		externalTask.setExternal(!opening);
 		if (opening) {
-			Iterator i = externalTask.getSuccessorList().iterator();
+			Iterator<Association> i = externalTask.getSuccessorList().iterator();
 			Dependency dep;
 			realTask.invalidateSchedules();
 			while (i.hasNext()) {
-				dep = (Dependency)i.next();
+				dep = (Dependency) i.next();
 				dep.fireDeleteEvent(this);
 				dep.replace(realTask, true);
 				try {
@@ -103,7 +104,7 @@ public class ExternalTaskManager {
 			// directions resolve when the referenced project is opened.
 			i = externalTask.getPredecessorList().iterator();
 			while (i.hasNext()) {
-				dep = (Dependency)i.next();
+				dep = (Dependency) i.next();
 				dep.fireDeleteEvent(this);
 				dep.replace(realTask, false);
 				try {
