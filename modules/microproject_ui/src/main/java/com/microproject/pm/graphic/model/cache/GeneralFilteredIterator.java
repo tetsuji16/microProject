@@ -58,8 +58,8 @@ public class GeneralFilteredIterator extends FilterIterator implements Predicate
 	public Object next() {
 		Object obj = super.next();
 		if (nodeBased) {
-			if (obj instanceof GraphicNode)
-				obj = ((GraphicNode)obj).getNode();
+			if (obj instanceof GraphicNode graphicNode)
+				obj = graphicNode.getNode();
 		} else {
 			obj = GraphicNode.getImpl(obj);
 		}

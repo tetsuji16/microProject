@@ -70,6 +70,12 @@ public class DataObjectEqualsHashCodeTest {
 
 		b.setPredecessorId(6L);
 		assertNotEquals(a, b);
+		assertNotEquals(a, null);
+		assertNotEquals(a, new Object());
+
+		AssignmentData otherDataType = new AssignmentData();
+		otherDataType.setUniqueId(a.getUniqueId());
+		assertNotEquals(a, otherDataType);
 	}
 
 	@Test

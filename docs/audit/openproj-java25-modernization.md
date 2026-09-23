@@ -74,6 +74,8 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Date cell rendering | `DateRenderer.getTableCellRendererComponent` | Replaced the redundant null-plus-`instanceof` check and cast with a pattern binding; retained the same date-formatting and superclass-rendering path. UI compilation passed; no Robot scenario was added for this behavior-preserving local refactor. |
 | Split-view component narrowing | `MainView.setChildrenDividerLocation` | Replaced null/type checks plus casts with pattern bindings for both child components; preserved the same null/type fallback. The existing `SplittedViewLifecycleTest` and UI compilation passed; no command or layout contract changed. |
 | Deep child traversal | `DeepChildWalker.accept` | Replaced the raw collection plus iterator utility call with `List<?>` and enhanced-for recursion; preserved parent-first and child-list order. A proxy-backed focused test verifies the recursive visitation order. |
+| Collaboration link identity | `LinkData.equals` | Replaced the cast-after-`instanceof` with a pattern binding and expanded the existing equality contract test for null, unrelated values, and a different serialized-data subtype. |
+| Filtered graphic-node iteration | `GeneralFilteredIterator.next` | Replaced the GraphicNode check/cast with a pattern binding and added a headless focused test that confirms node-based iteration still returns the underlying Node. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -181,6 +183,10 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 - `DeepChildWalkerTest` and the full core suite passed after typing the local
   child list and replacing the generic iterator helper; application, exchange,
   UI, and reports `compileJava` passed.
+- `DataObjectEqualsHashCodeTest` passed after the `LinkData` pattern-binding
+  cleanup. `GeneralFilteredIteratorTest` passed after explicitly installing
+  its documented null-as-accept-all predicate; the initial run exposed a test
+  fixture omission (missing predicate), not a product regression.
 - At the integration checkpoint after the recorded core batches,
   `.\gradlew.bat clean build installDist verifyArchitectureBoundaries
   --console=plain` completed successfully (all module tests included, 3m52s).
