@@ -729,7 +729,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
  * must be an exact match.
  */
 	public void forEachWorkingInterval(Consumer<Object> visitor, boolean mergeWorking, WorkCalendar workCalendar) {
-		Comparator comparator = (mergeWorking ? null : WorkComparator.getInstance()); 	// if a value of null is used , then the bars will be grouped based on time only
+		Comparator<Object> comparator = (mergeWorking ? null : WorkComparator.getInstance()); 	// if a value of null is used , then the bars will be grouped based on time only
 		Merge merge =  Merge.getInstance(visitor, comparator);
 		Query.getInstance().groupBy(contourGeneratorInstance(WORK))
 							.action(merge)
