@@ -34,16 +34,14 @@ public class NotVoidFilter extends NodeFilter {
 		Node node=(Node)obj;
 		return !node.isVoid();
 	}
-	private static NotVoidFilter instance = null;
+	private static final NotVoidFilter INSTANCE = new NotVoidFilter();
 	private NotVoidFilter() {
 		super();
 	}
 
 	
 	public static NotVoidFilter getInstance() {
-		if (instance == null)
-			instance = new NotVoidFilter();
-		return instance;
+		return INSTANCE;
 	}
 	
 
