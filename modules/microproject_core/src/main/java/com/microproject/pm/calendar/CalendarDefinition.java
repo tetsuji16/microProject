@@ -24,11 +24,16 @@
  *******************************************************************************/
 package com.microproject.pm.calendar;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -50,6 +55,8 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	private static final Logger logger = Logger.getLogger(CalendarDefinition.class.getName());
 	TreeSet<WorkDay> dayExceptions = null;
 	WorkDay[] exceptions = null;
+	private List<WorkWeekPeriod> workWeekPeriods;
+	private List<RecurringCalendarException> recurringExceptions;
 	WorkWeek week = new WorkWeek();
 	protected long id=-1L;
 	private String name = "CalendarDefinition";
@@ -70,8 +77,15 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 			week = new WorkWeek();
 		} else {
 			week = (WorkWeek)  base.week.clone(); // copy the week days
+			for (WorkWeekPeriod period : base.getWorkWeekPeriods())
+				addOrReplaceWorkWeekPeriod(period);
+			for (RecurringCalendarException exception : base.getRecurringExceptions())
+				addOrReplaceRecurringException(exception);
 		}
 		week.addDaysFrom(differences.week); // Now replace any special weekdays
+		for (WorkWeekPeriod difference : differences.getWorkWeekPeriods()) addOrReplaceWorkWeekPeriod(difference);
+		for (RecurringCalendarException exception : differences.getRecurringExceptions())
+			addOrReplaceRecurringException(exception);
 
 		@SuppressWarnings("unchecked")
 		TreeSet<WorkDay> clonedExceptions = (TreeSet<WorkDay>) differences.dayExceptions.clone();
@@ -97,8 +111,20 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		// Add endpoint sentinels.  This facilitates algorithms which will no longer need to check for boundary conditions
 		dayExceptions.add(WorkDay.MINIMUM);
 		dayExceptions.add(WorkDay.MAXIMUM);
-		exceptions = new WorkDay[dayExceptions.size()];
-		dayExceptions.toArray(exceptions);
+		exceptions = buildExceptionArray();
+	}
+
+	private WorkDay[] buildExceptionArray() {
+		TreeSet<WorkDay> allExceptions = new TreeSet<>();
+		if (recurringExceptions != null)
+			for (RecurringCalendarException recurring : recurringExceptions)
+				for (WorkDay occurrence : recurring.getOccurrences()) allExceptions.add(occurrence);
+		// An explicitly dated exception overrides a recurring exception on the same day.
+		for (WorkDay exception : dayExceptions) {
+			allExceptions.remove(exception);
+			allExceptions.add(exception);
+		}
+		return allExceptions.toArray(WorkDay[]::new);
 
 	}
 
@@ -137,14 +163,61 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		return exceptions;
 	}
 
+	WorkDay[] getLocalExceptionDays() {
+		return dayExceptions.stream()
+			.filter(day -> day != WorkDay.MINIMUM && day != WorkDay.MAXIMUM)
+			.map(day -> (WorkDay) day.clone())
+			.toArray(WorkDay[]::new);
+	}
+
+	/** Canonicalize empty lists written by transitional builds and legacy fixtures. */
+	private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+		input.defaultReadObject();
+		if (workWeekPeriods != null && workWeekPeriods.isEmpty()) workWeekPeriods = null;
+	}
+
+	public List<WorkWeekPeriod> getWorkWeekPeriods() {
+		return workWeekPeriods == null ? Collections.emptyList() : Collections.unmodifiableList(workWeekPeriods);
+	}
+
+	public List<RecurringCalendarException> getRecurringExceptions() {
+		return recurringExceptions == null ? Collections.emptyList() : Collections.unmodifiableList(recurringExceptions);
+	}
+
+	void addOrReplaceRecurringException(RecurringCalendarException exception) {
+		if (recurringExceptions == null) recurringExceptions = new ArrayList<>();
+		WorkDay template = exception.getTemplate();
+		recurringExceptions.removeIf(existing -> existing.getTemplate().getStart() == template.getStart()
+			&& java.util.Objects.equals(existing.getTemplate().getDescription(), template.getDescription()));
+		recurringExceptions.add(exception.clone());
+	}
+
+	void removeRecurringException(RecurringCalendarException exception) {
+		if (recurringExceptions == null) return;
+		WorkDay template = exception.getTemplate();
+		recurringExceptions.removeIf(existing -> existing.getTemplate().getStart() == template.getStart()
+			&& java.util.Objects.equals(existing.getTemplate().getDescription(), template.getDescription()));
+		exceptions = buildExceptionArray();
+	}
+
+	void addOrReplaceWorkWeekPeriod(WorkWeekPeriod period) {
+		if (workWeekPeriods == null) workWeekPeriods = new ArrayList<>();
+		workWeekPeriods.removeIf(existing -> existing.hasSameRange(period));
+		workWeekPeriods.add(period.clone());
+	}
+
+	void removeWorkWeekPeriod(WorkWeekPeriod period) {
+		if (workWeekPeriods != null)
+			workWeekPeriods.removeIf(existing -> existing.hasSameRange(period));
+	}
+
 	public WorkDay getWeekDay(int d) {
 		return week.getWeekDay(d);
 	}
 	void addOrReplaceException(WorkDay exceptionDay) {
 		dayExceptions.remove(exceptionDay); // remove any existing
 		dayExceptions.add(exceptionDay);
-		exceptions = new WorkDay[dayExceptions.size()];
-		dayExceptions.toArray(exceptions);
+		exceptions = buildExceptionArray();
 	}
 
 
@@ -156,6 +229,18 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		Iterator<WorkDay> i = dayExceptions.iterator();
 		while (i.hasNext())
 			newOne.dayExceptions.add((WorkDay) i.next().clone());
+		newOne.workWeekPeriods = null;
+		if (workWeekPeriods != null) {
+			newOne.workWeekPeriods = new ArrayList<>();
+			for (WorkWeekPeriod period : workWeekPeriods) newOne.workWeekPeriods.add(period.clone());
+		}
+		newOne.recurringExceptions = null;
+		if (recurringExceptions != null) {
+			newOne.recurringExceptions = new ArrayList<>();
+			for (RecurringCalendarException exception : recurringExceptions)
+				newOne.recurringExceptions.add(exception.clone());
+		}
+		newOne.exceptions = newOne.buildExceptionArray();
 		return newOne;
 	}
 
@@ -331,6 +416,10 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 			// in calculateAddition().
 			weekDuration = effectiveWeekDuration();
 		}
+		// Week skipping only adjusts for exception start dates. A ranged
+		// exception changes each covered day, so walk those dates explicitly.
+		if (hasMultiDayException())
+			weekDuration = 0;
 		long numWeeks;
 		while (weekDuration > 0 && (numWeeks = (duration / weekDuration)) != 0) {
 			if (weekTries++ == 4) {
@@ -428,7 +517,8 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		long duration = current.calcWorkTimeAfter(iterator.timeOf(earlierDate));
 		long currentDay = iterator.nextDay(earlierDay);
 
-		long numWeeks = (iterator.dayOf(laterDate) - currentDay) / WorkWeek.MS_IN_WEEK;
+		long numWeeks = hasMultiDayException() ? 0
+			: (iterator.dayOf(laterDate) - currentDay) / WorkWeek.MS_IN_WEEK;
 		if (numWeeks != 0) {
 			currentDay = iterator.moveNumberOfDays((int) (WorkWeek.DAYS_IN_WEEK * numWeeks), currentDay);
 			duration += numWeeks * week.getDuration();
@@ -483,6 +573,8 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		long exceptionDay;
 		int i;
 		boolean forward;
+		boolean rangeExceptions;
+		CalendarDefinition calendar;
 		int step;
 
 
@@ -523,6 +615,8 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 
 
 		private void initialize(CalendarDefinition cal, boolean forward, long day) {
+			calendar = cal;
+			rangeExceptions = cal.hasMultiDayException();
 			exceptions = cal.exceptions;
 			week = cal.week;
 			this.forward = forward;
@@ -561,7 +655,9 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		
 		private WorkingHours getNext(long day) {
 			WorkDay workDay;
-			if (day == exceptionDay) {
+			if (rangeExceptions) {
+				workDay = calendar.getWorkDay(day);
+			} else if (day == exceptionDay) {
 				workDay = exceptions[i]; // move index, save off new value for exception day
 				advanceExceptionIndex();
 			} else {
@@ -671,16 +767,61 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 
 
 	public final WorkDay getWorkDay(long date) {
+		WorkDay dateSpecific = getDateSpecificWorkDay(date);
+		return dateSpecific == null ? getWeekDay(date) : dateSpecific;
+	}
+
+	/** Returns the effective exception/work-week override, or {@code null} if none applies. */
+	final WorkDay getDateSpecificWorkDay(long date) {
 		int i = findExceptionIndex(date);
 		if (i >= 0) {
 			return exceptions[i];
 		}
-		return getWeekDay(date);
+		WorkWeekPeriod period = findWorkWeekPeriod(date);
+		if (period != null) {
+			WorkDay periodDay = period.workDayForDate(date);
+			return periodDay == null ? getWeekDay(date) : periodDay;
+		}
+		return null;
+	}
+
+	private WorkWeekPeriod findWorkWeekPeriod(long date) {
+		WorkWeekPeriod selected = null;
+		for (WorkWeekPeriod period : getConcreteInstance().getWorkWeekPeriods()) {
+			if (period.contains(date) && (selected == null || period.getStart() >= selected.getStart()))
+				selected = period;
+		}
+		return selected;
 	}
 
 	private int findExceptionIndex(long date) {
-		Date searchDate = new Date(DateTime.dayFloor(date));
-		return Arrays.binarySearch(getConcreteInstance().exceptions, searchDate);
+		long day = DateTime.dayFloor(date);
+		WorkDay[] concreteExceptions = getConcreteInstance().exceptions;
+		int index = Arrays.binarySearch(concreteExceptions, new Date(day));
+		if (index >= 0)
+			return index;
+
+		// MSP exceptions can cover date intervals. Find the most recently
+		// starting interval that still contains this day, not only an exception
+		// whose start exactly equals the requested date.
+		for (int candidate = -index - 2; candidate >= 0; candidate--) {
+			WorkDay exception = concreteExceptions[candidate];
+			if (exception.getStart() <= day && exception.getEnd() >= day
+					&& exception != WorkDay.MINIMUM && exception != WorkDay.MAXIMUM)
+				return candidate;
+		}
+		return -1;
+	}
+
+	private boolean hasMultiDayException() {
+		if (!getConcreteInstance().getWorkWeekPeriods().isEmpty()) return true;
+		WorkDay[] concreteExceptions = getConcreteInstance().exceptions;
+		for (int i = 1; i < concreteExceptions.length - 1; i++) {
+			if (DateTime.dayFloor(concreteExceptions[i].getEnd())
+					> DateTime.dayFloor(concreteExceptions[i].getStart()))
+				return true;
+		}
+		return false;
 	}
 
 	private WorkDay getWeekDay(long date) {

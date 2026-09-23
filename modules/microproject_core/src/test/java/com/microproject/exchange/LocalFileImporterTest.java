@@ -23,4 +23,5 @@ class LocalFileImporterTest {
 		assertFalse(LocalFileImporter.isLegacyProjectDataFailure(
 				new ClassNotFoundException("another.type")));
 	}
+
 }

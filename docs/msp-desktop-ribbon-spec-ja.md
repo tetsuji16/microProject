@@ -142,12 +142,12 @@ Visio が必要な Visual Reports は条件付きである。
 |---|---|
 | Properties | Project Information、Custom Fields、Links Between Projects、WBS、Change Working Time |
 | Schedule | Calculate Project、Set Baseline、Clear Baseline、Move Project |
-| Status | Status Date、Update Project、Mark on Track |
+| Status | Status Date、Update Project |
 | Reports | Visual Reports（条件付き） |
 | Proofing | Spelling、Proofing language |
 
 Baseline は複数スロットと選択タスク／全プロジェクトを区別する。Status Date、Update Project、
-Mark on Track は進捗とスケジュールに影響するため、同じトランザクションと Undo 単位にする。
+Mark on Track は Task タブの Schedule グループに配置する。Microsoft の手順に従って選択タスクを対象にし、選択がない場合は実行できない。1 回の操作を 1 つの Undo 単位にする。
 
 ### View
 
@@ -274,7 +274,7 @@ CCPM のモデル要件は次のとおり。
 5. Clear は `ccpmPlan` の作成時に記録したスナップショット又は操作ログから復元する。元計画への
    手編集と CCPM 適用後の編集が混在した場合は、破棄せず競合を表示して選択させる。
 6. バッファ消費率は、予定日数の消化率ではなく、CCPM 計画で定義した残作業とチェーン／バッファの
-   進捗から算出する。計算式、閾値、ステータス日を設定として保存し、レポートにも同じ値を使う。
+   進捗から算出する。計算式、閾値、状況報告日を設定として保存し、レポートにも同じ値を使う。
 7. CCPM 分析・適用中は UI をブロックしない。モデル計算はバックグラウンドで行い、Swing UI と
    selection model の更新は EDT で行う。計算対象が変更された場合は結果を破棄して再分析を促す。
 

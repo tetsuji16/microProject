@@ -7,9 +7,11 @@ intended persistent model change and the intended visible result.  A dispatched
 Swing `Action`, a returned method call, or the absence of an exception is not
 evidence of success.
 
-This gate applies to every change under `microproject_ui`, and to any other
-change that changes a GUI-observable command, model projection, persistence
-path, or keyboard shortcut.
+This gate applies when a change can affect a user-visible result, command
+route, model projection, persistence path, or keyboard shortcut. A behavior-
+preserving source modernization in `microproject_ui` does not by itself require
+a Robot run or a visual matrix; use the affected module tests and static review
+unless evidence shows a GUI contract changed.
 
 An unexpected error dialog, error screen, uncaught EDT/AWT exception, or
 stderr stack trace is a failed GUI result even when the JUnit method reports
@@ -64,25 +66,32 @@ Each user command must have a testable contract with all of these facts:
 The test must name the state it observes.  `action-complete`, `isVisible`, or
 `no exception` by themselves never satisfy Model or View.
 
-## Required test layers
+## Choose test layers by the changed contract
 
-1. **Headless contract test.** Exercise the canonical service/action on the
-   EDT and assert before/after model state, undo/redo, and rejection behavior.
-2. **Route integration test.** Assert that every menu, ribbon, context-menu,
-   and shortcut entry point uses that same command and has the same enabled
-   predicate.  Parallel implementations are a defect, not extra coverage.
-3. **Robot acceptance test.** In `src/guiTest`, use real `Robot` mouse or key
-   input against a visible `MainRibbonFrame` and assert the user-visible result
-   plus the model result.  Calling `actionPerformed`, `doClick`, or a private
-   helper is not a substitute for this layer.
-4. **Visual-layout test.** Every new or changed dialog/tab/ribbon surface is
-   captured at 100%, 125%, and 150% Windows scale with Japanese and English
-   text.  The test asserts that interactive components and their labels are
-   inside the viewport and do not overlap.  A screenshot is retained on test
-   failure as evidence, not treated as the assertion itself.
+The following layers are selected by the risk and observable surface of the
+change. They are not a checklist to repeat for every source edit.
 
-Existing code without all four layers is technical debt.  A change touching
-that area must add the missing layers before it is called fixed.
+1. **Behavior-preserving refactor or syntax modernization.** Run compilation
+   and focused tests for the owning module. Reuse existing contract tests. Do
+   not add Robot coverage when command routing, selection, rendering, and
+   persistence are unchanged.
+2. **Model or command behavior change.** Test the canonical service/action,
+   including before/after state, rejection, and Undo/Redo where applicable.
+   Add save/reload coverage only when project data or its persistence path is
+   affected.
+3. **New or changed physical route, or a reproduced GUI command regression.**
+   Test route wiring and add/update one Robot journey for the affected command
+   family. Reuse that journey for sibling entry points when they share the same
+   command pipeline; do not repeat it for every syntactic refactor or locale.
+4. **Changed visual layout.** Run the shared layout assertions for the affected
+   surface. Exercise locale/scale combinations that can expose the changed
+   constraint. Run the full ja/en × 100/125/150% matrix for broad/shared layout
+   changes or at scheduled/release audits, not for unrelated code edits.
+
+Existing coverage gaps are not automatically in scope for every refactor. Add
+the missing layer when the change relies on that unverified contract or when
+the task is specifically closing the GUI defect. Keep broader debt visible in
+the test plan or a tracked issue instead of multiplying unrelated Robot runs.
 
 ## Efficiency rule: reduce paths before adding cases
 
@@ -106,19 +115,24 @@ remove the duplicate responsibility that made the defect possible.
    tasks.  Reuse it for indent/outdent, expand/collapse, link/unlink,
    hide/show, Undo/Redo, and save/reload.  Add a new fixture only when it
    exercises a new state transition.
-5. **One full Robot journey per command family.** A Robot test proves the
-   physical route.  It must not be duplicated for every visual variant when a
-   headless contract test already covers the same state machine.  Visual tests
-   share a dialog/ribbon harness that iterates locale and scale settings.
+5. **One full Robot journey per affected command family.** Run it when a
+   physical route or user-visible command contract changes. A Robot test must
+   not be duplicated for every visual variant when a headless contract test
+   covers the same state machine. Visual tests share a dialog/ribbon harness;
+   rerun only the locale/scale legs relevant to the changed constraint, except
+   in broad shared-layout and scheduled/release audits.
 6. **Delete redundant tests after consolidation.** If two tests prove the
    identical invariant through duplicated implementations, retain the clearer
    one and remove the other.  Test code is production code and follows the
    same no-duplication rule.
 
 The release gate uses the compact `-PguiTestSuite=smoke` matrix, which covers
-each shared-cause family changed by the release.  The complete `full` suite is
-reserved for scheduled/manual audits and broad UI changes; reducing the gate
-does not permit removing a required invariant from the smoke classes.
+each shared-cause family changed by the release. The complete `full` suite is
+reserved for scheduled/manual audits and broad UI changes. Neither suite is a
+default per-PR requirement for a behavior-preserving source modernization;
+the affected module tests remain required, and a release gate still verifies
+the integrated result. A targeted GUI change must retain the invariant tests
+needed for that changed contract.
 
 The review question is therefore: *which duplicated path or missing invariant
 allowed this bug?*  “Add another case” is not an adequate answer by itself.

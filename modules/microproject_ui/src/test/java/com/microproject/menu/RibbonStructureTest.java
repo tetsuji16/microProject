@@ -84,14 +84,20 @@ class RibbonStructureTest {
 		assertTrue(menuBundle(Locale.ROOT).getString("RibbonMoveTaskDown.tooltip").contains("Alt+Shift+Down"));
 		assertEquals(List.of("RibbonLink", "RibbonUnlink", "RibbonAssignResources", "RibbonDelegateTasks"),
 			ribbonButtonIds("TaskDependenciesRibbonBand"));
-		assertEquals(List.of("RibbonUpdateTasks"), ribbonButtonIds("TaskTrackingRibbonBand"));
+		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks"), ribbonButtonIds("TaskTrackingRibbonBand"));
+		assertEquals(List.of("RibbonProjectInformation", "RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonProjectsDialog"),
+			ribbonButtonIds("ProjectInfoRibbonBand"));
+		assertEquals(List.of("RibbonStatusDate", "RibbonUpdateProject"),
+			ribbonButtonIds("ProjectStatusRibbonBand"));
+		assertEquals(List.of("ProjectInfoRibbonBand", "ProjectScheduleRibbonBand", "ProjectStatusRibbonBand",
+			"ProjectBaselineRibbonBand", "ProjectCcpmRibbonBand"), ribbonBandIds("ProjectRibbonTask"));
 		assertEquals(List.of(
 			"ClipboardRibbonBand", "ResourceInsertRibbonBand", "ResourcePropertiesRibbonBand",
 			"ResourceAssignmentsRibbonBand", "ResourceLevelRibbonBand", "ResourcePoolRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
 		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
 		assertEquals(List.of("RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool"), ribbonButtonIds("ResourcePoolRibbonBand"));
-			assertEquals(List.of("RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonStatusDate", "RibbonMarkOnTrack", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
-			ribbonButtonIds("ProjectScheduleRibbonBand"));
+			assertEquals(List.of("RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
+				ribbonButtonIds("ProjectScheduleRibbonBand"));
 	}
 
 	@Test
@@ -109,6 +115,19 @@ class RibbonStructureTest {
 	@Test
 	void projectTabDoesNotExposeTheUnimplementedDefineWbsCommand() {
 		assertTrue(!ribbonButtonIds("ProjectInfoRibbonBand").contains("RibbonDefineWBS"));
+	}
+
+	@Test
+	void japaneseStatusDateUsesMicrosoftProjectTerminology() {
+		// Microsoft Support's Japanese Project documentation calls Status Date
+		// "状況報告日" (for example, /ja-jp/project/start-fields).
+		assertEquals("状況報告日", menuBundle(Locale.JAPANESE).getString("RibbonStatusDate.text"));
+		assertEquals("状況報告日", menuBundle(Locale.JAPANESE).getString("StatusDate.text"));
+		assertTrue(menuBundle(Locale.JAPANESE).getString("RibbonStatusDate.tooltip").contains("状況報告日"));
+		assertTrue(menuBundle(Locale.JAPANESE).getString("RibbonMarkOnTrack.tooltip").contains("状況報告日"));
+		assertTrue(!menuBundle(Locale.JAPANESE).getString("RibbonMarkOnTrack.tooltip").contains("選択"));
+		assertEquals("作業時間の変更", menuBundle(Locale.JAPANESE).getString("RibbonChangeWorkingTime.text"));
+		assertEquals("プロジェクトの更新", menuBundle(Locale.JAPANESE).getString("RibbonUpdateProject.text"));
 	}
 
 	@Test

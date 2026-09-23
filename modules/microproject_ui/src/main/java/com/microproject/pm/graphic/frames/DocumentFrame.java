@@ -58,6 +58,7 @@ import com.microproject.dialog.CalendarViewDialogBox;
 import com.microproject.dialog.CustomFieldsDialogBox;
 import com.microproject.dialog.CustomReportDialogBox;
 import com.microproject.dialog.MoveProjectDialog;
+import com.microproject.dialog.StatusDateDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.exchange.MpoExtractionOwnershipRegistry;
@@ -455,8 +456,14 @@ public class DocumentFrame extends NamedFrame implements
 
 	private RibbonCommandResult doUpdateProjectDialog(String commandId) {
 		finishAnyOperations();
+		boolean hasSelectedTasks = hasAtLeastOneTaskSelected();
+		UpdateProjectDialogBox.Form form = new UpdateProjectDialogBox.Form();
+		java.util.Date effectiveStatusDate = new java.util.Date(project.getStatusDate());
+		form.setUpdateDate(effectiveStatusDate);
+		form.setRescheduleDate(effectiveStatusDate);
+		form.setEntireProject(!hasSelectedTasks);
 		UpdateProjectDialogBox dlg = UpdateProjectDialogBox.getInstance(
-				getGraphicManager().getFrame(), null,hasAtLeastOneTaskSelected());
+				getGraphicManager().getFrame(), form, hasSelectedTasks);
 		if (dlg.doModal()) {
 			UpdateProjectRequest request;
 			try {
@@ -468,9 +475,12 @@ public class DocumentFrame extends NamedFrame implements
 				return RibbonCommandResult.rejected(commandId, "invalid-input").withActiveView("task");
 			}
 			UpdateProjectCommand cmd = new UpdateProjectCommand(project, request);
-			forTasksDo(cmd, request.entireProject());
-			return (cmd.affectedTaskIds().isEmpty() ? RibbonCommandResult.noChange(commandId)
-				: RibbonCommandResult.changed(commandId, cmd.affectedTaskIds())).withActiveView("task");
+			List<Task> targets = new ArrayList<>();
+			if (request.entireProject()) targets.addAll(project.getTaskList());
+			else for (Object value : getSelectedImpls(true)) if (value instanceof Task task) targets.add(task);
+			List<Long> changed = cmd.execute(targets, project.getUndoController().getEditSupport());
+			return (changed.isEmpty() ? RibbonCommandResult.noChange(commandId)
+				: RibbonCommandResult.changed(commandId, changed)).withActiveView("task");
 		}
 		return RibbonCommandResult.rejected(commandId, "dialog-cancelled").withActiveView("task");
 	}
@@ -567,22 +577,31 @@ public class DocumentFrame extends NamedFrame implements
 
 	private RibbonCommandResult applyStatusDate(CommandId command) {
 		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
-		new com.microproject.pm.task.TaskProgressService().setStatusDate(project, System.currentTimeMillis(),
-				project.getUndoController().getEditSupport());
-		return RibbonCommandResult.changed(command.actionId()).withActiveView("task");
+		long before = project.isStatusDateSet() ? project.getStatusDate() : 0L;
+		StatusDateDialog dialog = StatusDateDialog.getInstance(getGraphicManager().getFrame(), project);
+		dialog.setLocationRelativeTo(getGraphicManager().getFrame());
+		if (!dialog.doModal()) return RibbonCommandResult.noChange(command.actionId());
+		var service = new com.microproject.pm.task.TaskProgressService();
+		if (dialog.isNotSet()) service.clearStatusDate(project, project.getUndoController().getEditSupport());
+		else service.setStatusDate(project, dialog.getSelectedStatusDate().getTime(), project.getUndoController().getEditSupport());
+		getGraphicManager().refreshStatusDateControl();
+		long after = project.isStatusDateSet() ? project.getStatusDate() : 0L;
+		return (before == after ? RibbonCommandResult.noChange(command.actionId())
+				: RibbonCommandResult.changed(command.actionId())).withActiveView("task");
 	}
 
 	private RibbonCommandResult applyMarkOnTrack(CommandId command) {
 		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(false, true));
-		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
 		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
 		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
 		if (tasks.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-task-selection");
 		var result = new com.microproject.pm.task.TaskProgressService().markOnTrack(project, tasks,
 				project.getUndoController().getEditSupport());
 		getActiveSpreadSheet().restoreTaskRowSelection(selection);
-		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), taskIds(selection))
-				: RibbonCommandResult.noChange(command.actionId(), taskIds(selection))).withActiveView("task");
+		List<Long> affectedTaskIds = tasks.stream().map(Task::getId).toList();
+		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), affectedTaskIds)
+				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
 	}
 
 	private RibbonCommandResult openUpdateProject(CommandId command) {
@@ -1690,11 +1709,6 @@ public class DocumentFrame extends NamedFrame implements
 			spreadSheet.getColumnModel().getSelectionModel().setSelectionInterval(column, column);
 		}
 	}
-	private void forTasksDo(Consumer<Object> closure, boolean all) {
-		DataUtils.forAllDo(closure, all, project.getTaskOutlineIterator(),
-				getSelectedNodes(true), Task.class);
-	}
-
 	public void undoableEditHappened(UndoableEditEvent e) {
 		refreshUndoButtons();
 	}
@@ -1740,6 +1754,7 @@ public class DocumentFrame extends NamedFrame implements
 		}
 		menuManager.setActionEnabled(ACTION_UNDO,canUndo);
 		menuManager.setActionEnabled(ACTION_REDO,canRedo);
+		getGraphicManager().refreshStatusDateControl();
 
 	}
 

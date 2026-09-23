@@ -73,19 +73,21 @@ class ChangeWorkingTimeDialogBoxSaveTest {
 					handler + " must mark the calendar edited (issue #353)");
 		}
 
-		// OK's commit decision must consult the edited flag
-		int saveIfNeeded = src.indexOf("public void saveIfNeeded()");
+		// Edits are staged by calendar identity and assigned only on parent OK.
+		int saveIfNeeded = src.indexOf("public boolean saveIfNeeded()");
 		assertTrue(saveIfNeeded > 0);
-		String commitBlock = src.substring(saveIfNeeded,
-				src.indexOf("}", src.indexOf("saveCalendar();", saveIfNeeded)) + 1);
-		assertTrue(commitBlock.contains("calendarEdited"),
-				"OK must commit when the calendar was edited (issue #353)");
+		assertTrue(src.contains("Map<WorkingCalendar, WorkingCalendar> stagedCalendars"),
+				"switching calendars must retain isolated edits until parent OK");
+		assertTrue(src.contains("if (!saveIfNeeded()) return;"),
+				"invalid working-hour input must keep the parent dialog open");
 
-		// and the commit must push the scratch copy back into the real calendar
-		int saveCalendar = src.indexOf("private void saveCalendar()");
-		String saveBody = src.substring(saveCalendar, src.indexOf("saveAndUpdate", saveCalendar));
-		assertTrue(saveBody.contains("assignCalendar(editedCalendar"),
-				"commit path must assign the scratch copy onto the edited calendar");
+		// Commit all staged copies as one undo transaction.
+		int saveCalendar = src.indexOf("private boolean saveCalendar()");
+		assertTrue(saveCalendar > 0);
+		String saveBody = src.substring(saveCalendar, src.indexOf("private void importNonWorkingDays()", saveCalendar));
+		assertTrue(saveBody.contains("new CompoundEdit()"), "calendar edits must undo in one step");
+		assertTrue(saveBody.contains("service.assignCalendar(original, updated)"),
+				"commit path must assign every staged calendar copy");
 
 		int importNonWorkingDays = src.indexOf("private void importNonWorkingDays()");
 		assertTrue(importNonWorkingDays > 0,

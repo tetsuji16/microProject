@@ -978,6 +978,9 @@ public final class ModernRibbonPanel extends JPanel {
 			throw new IllegalStateException("Unable to create ribbon button " + buttonId, ex);
 		}
 		String text = getStringOrNull(buttonId + ".text");
+		Object dynamicName = button.getAction() == null ? null : button.getAction().getValue(javax.swing.Action.NAME);
+		if ("RibbonStatusDate".equals(buttonId) && dynamicName instanceof String name && !name.isBlank())
+			text = name;
 		if (text != null) {
 			button.setText(text);
 		}

@@ -29,6 +29,10 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.task.UpdateProjectRequest;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import javax.swing.undo.AbstractUndoableEdit;
+import javax.swing.undo.UndoableEditSupport;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 
@@ -50,8 +54,24 @@ public class UpdateProjectCommand extends Command {
 		this.request = java.util.Objects.requireNonNull(request, "request");
 	}
 	public void accept(Object arg0) {
-		project.setStatusDate(request.statusDate());
 		Task task = (Task) arg0;
+		if (task.isReadOnly() || task.isSummary()) return;
+		applyToTask(task);
+	}
+
+	/** Applies one Update Project transaction and posts exactly one undoable edit. */
+	public List<Long> execute(List<? extends Task> targets, UndoableEditSupport edits) {
+		Map<Task, TaskState> before = backupProjectTasks();
+		affectedTaskIds.clear();
+		for (Task task : targets) accept(task);
+		if (!affectedTaskIds.isEmpty()) {
+			Map<Task, TaskState> after = backupProjectTasks();
+			edits.postEdit(new UpdateProjectEdit(project, before, after));
+		}
+		return affectedTaskIds();
+	}
+
+	private void applyToTask(Task task) {
 		long taskEndBeforeUpdate = task.getEnd();
 		if (task.updateProjectTask(request.statusDate(), request.updateWorkAsCompleteThrough(),
 			request.setFractionalPercentComplete())) {
@@ -62,6 +82,47 @@ public class UpdateProjectCommand extends Command {
 				normal.setImportedPercentComplete(exportedProgress);
 			}
 			affectedTaskIds.add(Long.valueOf(task.getUniqueId()));
+		}
+	}
+
+	private Map<Task, TaskState> backupProjectTasks() {
+		Map<Task, TaskState> result = new LinkedHashMap<>();
+		for (Task task : project.getTaskList()) {
+			Double override = task instanceof com.microproject.pm.task.NormalTask normal
+				? normal.getImportedPercentCompleteOverride() : null;
+			result.put(task, new TaskState(task.backupDetail(), override));
+		}
+		return result;
+	}
+
+	private record TaskState(Object detail, Double importedPercentCompleteOverride) { }
+
+	private static final class UpdateProjectEdit extends AbstractUndoableEdit {
+		private static final long serialVersionUID = 1L;
+		private final Project project;
+		private final Map<Task, TaskState> before;
+		private final Map<Task, TaskState> after;
+		UpdateProjectEdit(Project project, Map<Task, TaskState> before, Map<Task, TaskState> after) {
+			this.project = project;
+			this.before = before;
+			this.after = after;
+		}
+		@Override public String getPresentationName() { return Messages.getString("Command.UpdateProject"); }
+		@Override public void undo() {
+			super.undo();
+			restore(before);
+		}
+		@Override public void redo() {
+			super.redo();
+			restore(after);
+		}
+		private void restore(Map<Task, TaskState> state) {
+			for (Map.Entry<Task, TaskState> entry : state.entrySet()) {
+				entry.getKey().restoreDetail(this, entry.getValue().detail(), false);
+				if (entry.getKey() instanceof com.microproject.pm.task.NormalTask normal)
+					normal.restoreImportedPercentCompleteOverride(entry.getValue().importedPercentCompleteOverride());
+			}
+			project.setDirty(true);
 		}
 	}
 	public UpdateProjectRequest request() { return request; }

@@ -254,6 +254,10 @@ public class MpoFileImporter extends FileImporter {
 		}
 		if (manifestData.projectUniqueId() != null && manifestData.projectUniqueId().longValue() > 0L)
 			project.setUniqueId(manifestData.projectUniqueId().longValue());
+		// The MPO manifest is authoritative for the explicit/NA distinction.
+		// The embedded MSP project XML may contain an effective date even when the
+		// user selected NA, so clear the delegate's value before applying it.
+		project.clearStatusDate();
 		if (manifestData.statusDate() != null && manifestData.statusDate().longValue() > 0L)
 			project.setStatusDate(manifestData.statusDate().longValue());
 		if (manifestData.sharedResourcePoolPath() != null && !manifestData.sharedResourcePoolPath().isBlank())

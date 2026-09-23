@@ -194,9 +194,11 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 			command = next;
 			enabledListener = event -> {
 				if ("enabled".equals(event.getPropertyName())) dispatchAction.setEnabled(command.isEnabled());
+				if (Action.NAME.equals(event.getPropertyName())) dispatchAction.putValue(Action.NAME, event.getNewValue());
 			};
 			command.addPropertyChangeListener(enabledListener);
 			dispatchAction.setEnabled(command.isEnabled());
+			dispatchAction.putValue(Action.NAME, command.getValue(Action.NAME));
 		}
 
 		private void publishResult(RibbonCommandResult result) {

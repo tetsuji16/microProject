@@ -30,11 +30,16 @@ import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkDay;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.pm.calendar.WorkWeek;
+import com.microproject.pm.calendar.WorkWeekPeriod;
+import com.microproject.pm.calendar.RecurringCalendarException;
+import com.microproject.util.DateTime;
 
 import net.sf.mpxj.Day;
 import net.sf.mpxj.ProjectCalendar;
 import net.sf.mpxj.ProjectCalendarException;
 import net.sf.mpxj.ProjectCalendarHours;
+import net.sf.mpxj.ProjectCalendarWeek;
 
 /**
  * Converts an MPXJ ProjectCalendar into a microproject WorkingCalendar.
@@ -44,6 +49,13 @@ import net.sf.mpxj.ProjectCalendarHours;
  */
 public class MpxCalendarConverter {
 	public void from(ProjectCalendar mpxCalendar, WorkingCalendar calendar, MpxImportState state){
+		java.util.IdentityHashMap<ProjectCalendarException, com.microproject.pm.calendar.CalendarRecurrence> recurrenceRules
+			= new java.util.IdentityHashMap<>();
+		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
+			if (mpxException.getRecurring() != null) {
+				recurrenceRules.put(mpxException, new MpxCalendarRecurrenceConverter().from(mpxException.getRecurring()));
+			}
+		}
 		calendar.setName(mpxCalendar.getName());
 		calendar.setId(mpxCalendar.getUniqueID());
 
@@ -87,15 +99,55 @@ public class MpxCalendarConverter {
 			if (day != null)
 				calendar.setWeekDay(i, day);
 		}
+		for (ProjectCalendarWeek mpxWeek : mpxCalendar.getWorkWeeks()) {
+			if (mpxWeek.getDateRange() == null || mpxWeek.getDateRange().getStart() == null
+					|| mpxWeek.getDateRange().getEnd() == null) continue;
+			long start = DateTime.dayFloor(TimeUtil.addTimeZoneOffset(mpxWeek.getDateRange().getStart().getTime()));
+			long end = DateTime.dayFloor(TimeUtil.addTimeZoneOffset(mpxWeek.getDateRange().getEnd().getTime()));
+			WorkWeek week = new WorkWeek();
+			for (int i = 0; i < 7; i++) {
+				Day dayId = Day.getInstance(i + 1);
+				ProjectCalendarHours hours = mpxWeek.getCalendarHours(dayId);
+				net.sf.mpxj.DayType dayType = mpxWeek.getCalendarDayType(dayId);
+				if (dayType == net.sf.mpxj.DayType.NON_WORKING) {
+					week.setWeekDay(i, WorkDay.getNonWorkingDay());
+				} else if (hours != null) {
+					WorkingHours workingHours = rangeConverter.from(hours);
+					WorkDay workDay = workingHours.getDuration() > 0 ? new WorkDay() : WorkDay.getNonWorkingDay();
+					if (workingHours.getDuration() > 0) workDay.setWorkingHours(workingHours);
+					week.setWeekDay(i, workDay);
+				} else if (dayType == net.sf.mpxj.DayType.WORKING) {
+					week.setWeekDay(i, new WorkDay());
+				}
+			}
+			calendar.addOrReplaceWorkWeekPeriod(new WorkWeekPeriod(
+				mpxWeek.getName() == null || mpxWeek.getName().isBlank() ? "Work week" : mpxWeek.getName(),
+				start, end, week));
+		}
 
 		// exceptions
 		MpxExceptionConverter exceptionConverter = new MpxExceptionConverter();
 		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
-			long from = TimeUtil.removeTimeZoneOffset(mpxException.getFromDate().getTime());
-			long to = TimeUtil.removeTimeZoneOffset(mpxException.getToDate().getTime());
-			WorkDay exception = new WorkDay(from, to);
+			com.microproject.pm.calendar.CalendarRecurrence recurrence = recurrenceRules.get(mpxException);
+			// MPXJ exposes calendar exception boundaries as local-midnight dates.
+			// Convert those local dates to the core's UTC day keys; subtracting the
+			// offset moved Japanese/negative-offset locales onto the previous day.
+			long from = recurrence == null
+				? DateTime.dayFloor(TimeUtil.addTimeZoneOffset(mpxException.getFromDate().getTime()))
+				: recurrence.getStartDate();
+			// For recurring MPXJ exceptions getToDate() is the final recurrence
+			// occurrence, not the duration of one occurrence. Calendar exceptions
+			// selected from MSP's date grid are one-day events.
+			long to = recurrence != null || mpxException.getToDate() == null ? from
+				: DateTime.dayFloor(TimeUtil.addTimeZoneOffset(mpxException.getToDate().getTime()));
+			WorkDay exception = new WorkDay(from, to, mpxException.getName());
+			exception.setWorkingHours(new WorkingHours());
 			exceptionConverter.from(mpxException, exception);
-			calendar.addOrReplaceException(exception);
+			if (recurrence == null) {
+				calendar.addOrReplaceException(exception);
+			} else {
+				calendar.addOrReplaceRecurringException(new RecurringCalendarException(exception, recurrence));
+			}
 		}
 	}
 

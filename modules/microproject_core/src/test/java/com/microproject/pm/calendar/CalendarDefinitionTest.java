@@ -87,6 +87,78 @@ class CalendarDefinitionTest {
 	}
 
 	@Test
+	void rangedExceptionAppliesToEveryCoveredCalendarDay() {
+		CalendarDefinition calendar = standardWeekCalendar();
+		long start = DateTime.calendarInstance(2024, Calendar.JUNE, 4).getTimeInMillis();
+		long end = DateTime.calendarInstance(2024, Calendar.JUNE, 5).getTimeInMillis();
+		calendar.addOrReplaceException(nonWorkingRange(start, end));
+		calendar.addSentinelsAndMakeArray();
+
+		assertFalse(calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 4, 12)).isWorking());
+		assertFalse(calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 5, 12)).isWorking());
+		assertTrue(calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 6, 12)).isWorking());
+	}
+
+	@Test
+	void schedulingSkipsEntireRangedNonWorkingException() {
+		CalendarDefinition calendar = standardWeekCalendar();
+		long start = DateTime.calendarInstance(2024, Calendar.JUNE, 4).getTimeInMillis();
+		long end = DateTime.calendarInstance(2024, Calendar.JUNE, 5).getTimeInMillis();
+		calendar.addOrReplaceException(nonWorkingRange(start, end));
+		calendar.addSentinelsAndMakeArray();
+
+		long mondayAtNine = timestamp(2024, Calendar.JUNE, 3, 9);
+		assertEquals(timestamp(2024, Calendar.JUNE, 6, 9), calendar.add(mondayAtNine, eightHours(), true));
+		assertEquals(eightHours(), calendar.compare(timestamp(2024, Calendar.JUNE, 6, 9), mondayAtNine, false));
+	}
+
+	@Test
+	void datedWorkWeekPatternDrivesSchedulingAndDayExceptionsRemainMoreSpecific() {
+		CalendarDefinition calendar = standardWeekCalendar();
+		WorkWeek datedWeek = new WorkWeek();
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
+			datedWeek.setWeekDay(day, nonWorkingDay(0L));
+		datedWeek.setWeekDay(Calendar.TUESDAY - 1, copyOf(WorkDay.getDefaultWorkDay()));
+		datedWeek.setWeekDay(Calendar.THURSDAY - 1, copyOf(WorkDay.getDefaultWorkDay()));
+		long monday = DateTime.calendarInstance(2024, Calendar.JUNE, 3).getTimeInMillis();
+		long sunday = DateTime.calendarInstance(2024, Calendar.JUNE, 9).getTimeInMillis();
+		calendar.addOrReplaceWorkWeekPeriod(new WorkWeekPeriod("Summer shift", monday, sunday, datedWeek));
+
+		assertFalse(calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 3, 12)).isWorking());
+		assertTrue(calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 4, 12)).isWorking());
+		assertTrue(calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 6, 12)).isWorking());
+		assertTrue(calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 10, 12)).isWorking(),
+				"The default weekly pattern resumes after the dated Work Week ends");
+
+		long mondayAtNine = timestamp(2024, Calendar.JUNE, 3, 9);
+		assertEquals(timestamp(2024, Calendar.JUNE, 4, 17), calendar.add(mondayAtNine, eightHours(), true));
+		assertEquals(eightHours(), calendar.compare(timestamp(2024, Calendar.JUNE, 4, 17), mondayAtNine, false));
+
+		WorkDay holiday = nonWorkingDay(DateTime.calendarInstance(2024, Calendar.JUNE, 4).getTimeInMillis());
+		calendar.addOrReplaceException(holiday);
+		assertFalse(calendar.getWorkDay(timestamp(2024, Calendar.JUNE, 4, 12)).isWorking(),
+				"A specific calendar exception must override its active dated work-week pattern");
+	}
+
+	@Test
+	void datedWorkWeekIsCopiedIntoScratchCalendarsWithoutAliasing() {
+		WorkingCalendar source = WorkingCalendar.getStandardBasedInstance();
+		WorkWeek pattern = new WorkWeek();
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++) pattern.setWeekDay(day, nonWorkingDay(0L));
+		long start = DateTime.calendarInstance(2024, Calendar.JUNE, 3).getTimeInMillis();
+		long end = DateTime.calendarInstance(2024, Calendar.JUNE, 9).getTimeInMillis();
+		source.addOrReplaceWorkWeekPeriod(new WorkWeekPeriod("Temporary", start, end, pattern));
+
+		WorkingCalendar scratch = source.makeScratchCopy();
+		assertEquals(1, scratch.getEffectiveWorkWeekPeriods().size());
+		assertFalse(scratch.getMonthDayDescriptor(timestamp(2024, Calendar.JUNE, 3, 12)).isWorking());
+		WorkWeekPeriod exposedCopy = scratch.getWorkWeekPeriods().getFirst();
+		exposedCopy.setName("Detached edit");
+		assertEquals("Temporary", scratch.getWorkWeekPeriods().getFirst().getName(),
+			"Public getters must not expose mutable periods owned by the calendar");
+	}
+
+	@Test
 	void addWithZeroWorkingTimeWeekDegradesGracefully() {
 		// Issue #175: a week with no working time must not divide by zero
 		// (ArithmeticException) or walk non-working days forever.
@@ -170,6 +242,10 @@ class CalendarDefinitionTest {
 
 	private static WorkDay nonWorkingDay(long day) {
 		return new WorkDay(day);
+	}
+
+	private static WorkDay nonWorkingRange(long start, long end) {
+		return new WorkDay(start, end);
 	}
 
 	private static WorkDay copyOf(WorkDay workDay) {

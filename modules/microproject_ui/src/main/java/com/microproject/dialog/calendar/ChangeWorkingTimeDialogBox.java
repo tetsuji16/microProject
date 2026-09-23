@@ -41,7 +41,9 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -60,10 +62,12 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.undo.UndoableEditSupport;
+import javax.swing.undo.CompoundEdit;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -131,6 +135,9 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
     JButton newCalendar;
     JButton options;
     JButton importNonWorkingDays;
+    WorkWeekEditorPanel workWeekEditor;
+    ExceptionEditorPanel exceptionEditor;
+    JTabbedPane calendarTabs;
     SimpleDateFormat hourFormat= DateTime.dateFormatInstance("H:mm"); //$NON-NLS-1$
     JLabel basedOnText;
     List<WorkingCalendar> documentCalendars;
@@ -146,6 +153,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
     boolean calendarEdited = false;
     /** Set once {@link #saveCalendar()} commits the scratch copy (test hook). */
     private boolean committed;
+    /** Keep calendar edits private until the parent dialog's single OK is accepted. */
+    private final Map<WorkingCalendar, WorkingCalendar> stagedCalendars = new IdentityHashMap<>();
 
 
     private void setEditable(boolean editable) {
@@ -164,6 +173,10 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
     	}
 		if (importNonWorkingDays != null)
 			importNonWorkingDays.setEnabled(editable);
+		if (workWeekEditor != null)
+			workWeekEditor.setEditable(editable);
+		if (exceptionEditor != null)
+			exceptionEditor.setEditable(editable);
     }
 	public static ChangeWorkingTimeDialogBox getInstance(Frame owner, Project project, WorkingCalendar cal, List<WorkingCalendar> documentCalendars, boolean restrict, UndoController undoController) {
 		return new ChangeWorkingTimeDialogBox(owner, project,cal,documentCalendars, restrict,undoController);
@@ -196,7 +209,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 
 	private void setCal(WorkingCalendar cal) {
 		editedCalendar = cal;
-		form.setCalendar(CalendarService.getInstance().makeScratchCopy(cal));
+		WorkingCalendar staged = stagedCalendars.get(cal);
+		form.setCalendar(CalendarService.getInstance().makeScratchCopy(staged == null ? cal : staged));
 		calendarType.setSelectedItem(editedCalendar);
 
 
@@ -370,19 +384,23 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	private boolean isCalEditable(WorkingCalendar cal) {
 	    // form.getCalendar() is a scratch copy, so compare the original selected
 	    // calendar as well; otherwise project calendars become falsely read-only.
-	    boolean editable = projectCalendars.contains(cal) || projectCalendars.contains(editedCalendar);
+	    boolean editable = projectCalendars.contains(cal) || projectCalendars.contains(editedCalendar)
+			|| documentCalendars != null && (documentCalendars.contains(cal) || documentCalendars.contains(editedCalendar));
     	if (GraphicManager.getInstance().isEditingMasterProject()) // always editable if master project
     		editable = true;
     	return editable;
 
 	}
 	private void setNewCalendar(WorkingCalendar cal) {
-		saveIfNeeded();
+		if (!stageCurrentCalendar()) {
+			calendarType.setSelectedItem(editedCalendar);
+			return;
+		}
         setCal(cal);
 		updateView();
 
 	}
-	private void saveWorkingHoursChanges(boolean saveCalendar){
+	private boolean saveWorkingHoursChanges(){
 	    try {
 	        WorkingHours hours=new WorkingHours();
 	        String startS,endS;
@@ -395,8 +413,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	                if (startS.length()==0&&endS.length()==0)
 	                    break;
 	                else{
-	                    Alert.warn(Messages.getString("Message.badTimeFormat"),this); //$NON-NLS-1$
-	                    return;
+					Alert.warn(Messages.getString("Message.badTimeFormat"),this); //$NON-NLS-1$
+					return false;
 	                }
 	            }
 	        }
@@ -406,34 +424,40 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		    service.setDaysWorkingHours(copy,lastSelection,lastWeekSelection,hours);
 		    service.setDaysWorkingHours(wc,lastSelection,lastWeekSelection,hours);
 
-		    if (saveCalendar) {
-		    	saveCalendar();
-		    } else {
-		    	markCalendarEdited();
-		    }
+			markCalendarEdited();
 		    //System.out.println("Saved "+lastSelection);
 	    } catch (WorkRangeException e) {
 	        Alert.warn(Messages.getString("Message.badTimeIntervals"),this); //$NON-NLS-1$
+	        return false;
 	    } catch (ParseException e) {
 	        Alert.warn(Messages.getString("Message.badTimeFormat"),this); //$NON-NLS-1$
+	        return false;
 	    } catch (InvalidCalendarException e) {
 	    	Alert.warn(e.getMessage(),this);
-	    	return;
+			return false;
 		}
 	    updateView();
+	    return true;
 	}
 
-	private void saveCalendar() {
-		CalendarService service=CalendarService.getInstance();
-		WorkingCalendar wc=form.getCalendar();
-		UndoableEditSupport undoableEditSupport=undoController.getEditSupport();
-		if (undoableEditSupport!=null){
-			undoableEditSupport.postEdit(new CalendarEdit(editedCalendar,wc));
+	private boolean saveCalendar() {
+		if (!stageCurrentCalendar()) return false;
+		if (stagedCalendars.isEmpty()) return true;
+		CalendarService service = CalendarService.getInstance();
+		CompoundEdit transaction = new CompoundEdit();
+		for (Map.Entry<WorkingCalendar, WorkingCalendar> entry : stagedCalendars.entrySet()) {
+			WorkingCalendar original = entry.getKey();
+			WorkingCalendar updated = entry.getValue();
+			transaction.addEdit(new CalendarEdit(original, updated));
+			service.assignCalendar(original, updated);
+			service.saveAndUpdate(original);
 		}
-
-		service.assignCalendar(editedCalendar,wc);
-		service.saveAndUpdate(editedCalendar);
+		transaction.end();
+		UndoableEditSupport editSupport = undoController == null ? null : undoController.getEditSupport();
+		if (editSupport != null) editSupport.postEdit(transaction);
+		stagedCalendars.clear();
 		committed = true;
+		return true;
 
 	}
 
@@ -461,6 +485,20 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		calendarEdited = true;
 	}
 
+	WorkingCalendar getScratchCalendar() {
+		return form == null ? null : form.getCalendar();
+	}
+
+	long[] getSelectedCalendarDateRange() {
+		if (sdCalendar == null) return new long[] { DateTime.midnightToday(), DateTime.midnightToday() };
+		Intervals selected = sdCalendar.getSelectedFixedIntervals();
+		if (selected == null || selected.isEmpty()) {
+			long today = DateTime.midnightToday();
+			return new long[] { today, today };
+		}
+		return new long[] { DateTime.dayFloor(selected.getStart()), DateTime.dayFloor(selected.getEnd()) };
+	}
+
 	/**
 	 * Test/verification hook: true once the scratch copy has been committed back
 	 * to {@code editedCalendar} via {@link #saveCalendar()}.
@@ -474,11 +512,17 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		return form.getCalendar().getName();
 	}
 
-	public void saveIfNeeded() {
-		if (dirtyWorkingHours)
-			saveWorkingHoursChanges(true);
-		else if (calendarEdited)
-			saveCalendar();
+	public boolean saveIfNeeded() {
+		return saveCalendar();
+	}
+
+	private boolean stageCurrentCalendar() {
+		if (dirtyWorkingHours && !saveWorkingHoursChanges()) return false;
+		if (calendarEdited && editedCalendar != null && form.getCalendar() != null)
+			stagedCalendars.put(editedCalendar, form.getCalendar().makeScratchCopy());
+		calendarEdited = false;
+		dirtyWorkingHours = false;
+		return true;
 	}
 
 	private Calendar _calendar=DateTime.calendarInstance();
@@ -543,6 +587,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 
 
 	protected void updateView(){
+		if (workWeekEditor != null) workWeekEditor.refresh();
+		if (exceptionEditor != null) exceptionEditor.refresh();
 
 	    CalendarService service=CalendarService.getInstance();
 	    WorkingCalendar wc=form.getCalendar();
@@ -609,7 +655,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
         final CalendarService service=CalendarService.getInstance();
 
 		 if (dirtyWorkingHours){
-	        saveWorkingHoursChanges(false);
+	        saveWorkingHoursChanges();
 	    }
 
         DayDescriptor day=service.getDay(form.getCalendar(),sdCalendar.getSelectedFixedIntervals(),sdCalendar.getSelectedWeekDays());
@@ -698,7 +744,15 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 //		panel.setLeftComponent(settingsPanel);
 		panel.setLeftComponent(createSettingsPanel());
 
-		panel.setRightComponent(sdCalendar);
+		calendarTabs = new JTabbedPane();
+		calendarTabs.addTab(Messages.getString("ChangeWorkingTimeDialogBox.CalendarTab"), sdCalendar);
+		workWeekEditor = new WorkWeekEditorPanel(this);
+		workWeekEditor.setEditable(isCalEditable(form.getCalendar()));
+		calendarTabs.addTab(Messages.getString("ChangeWorkingTimeDialogBox.WorkWeeksTab"), workWeekEditor);
+		exceptionEditor = new ExceptionEditorPanel(this);
+		exceptionEditor.setEditable(isCalEditable(form.getCalendar()));
+		calendarTabs.addTab(Messages.getString("ChangeWorkingTimeDialogBox.ExceptionsTab"), exceptionEditor);
+		panel.setRightComponent(calendarTabs);
 
 		JPanel buttonPanel=new JPanel();
 		buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
@@ -806,7 +860,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		return buttonPanel;
 	}
 	public void onOk() {
-		saveIfNeeded();
+		if (!saveIfNeeded()) return;
 		super.onOk();
 	}
 }
