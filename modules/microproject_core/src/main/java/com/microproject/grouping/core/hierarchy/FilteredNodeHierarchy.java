@@ -65,21 +65,6 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 		fireStructureChanged(this);
 	}
 	
-//    public void cleanNullChildren(){
-//    	hierarchy.cleanNullChildren();
-//    }
-	
-	
-	
-//	public void add(Node parent, Node child, int actionType) {
-//		hierarchy.add(parent, child, actionType);
-//	}
-//    public void add(Node parent,Node child,int position,int actionType){
-//		hierarchy.add(parent, child, position,actionType);
-//    }
-//	public void add(Node parent, List children, int actionType) {
-//		hierarchy.add(parent, children, actionType);
-//	}
    public void add(Node parent,List children,int position,int actionType){
 		hierarchy.add(parent, children, position,actionType);
     }
@@ -99,13 +84,6 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public void checkEndVoidNodes(boolean subproject,int actionType){
 		hierarchy.checkEndVoidNodes(subproject,actionType);
 	}
-//	public int deleteVoidNodesAfter(NodeHierarchyLocation location) {
-//		return hierarchy.deleteVoidNodesAfter(location);
-//	}
-//	public int deleteVoidNodesAfter(NodeHierarchyLocation location, int n,
-//			boolean event) {
-//		return hierarchy.deleteVoidNodesAfter(location, n, event);
-//	}
 	public int getLevel(Node node) {
 		return hierarchy.getLevel(node);
 	}
@@ -115,9 +93,6 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public void indent(List nodes, int deltaLevel, NodeModel nodeModel,int actionType) {
 		hierarchy.indent(nodes, deltaLevel, nodeModel,actionType);
 	}
-//	public void indent(Node node, int deltaLevel,int actionType) {
-//		hierarchy.indent(node, deltaLevel,actionType);
-//	}
 //	public int insertVoidNodesAfter(NodeHierarchyLocation location, int n,
 //			boolean event) {
 //		return hierarchy.insertVoidNodesAfter(location, n, event);
@@ -128,30 +103,12 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public boolean isSummary(Node node) {
 		return hierarchy.isSummary(node);
 	}
-//	public void promoteVoidNode(NodeHierarchyVoidLocation info,
-//			Object newNodeImpl) {
-//		hierarchy.promoteVoidNode(info, newNodeImpl);
-//	}
-//	public void remove(Node node, NodeModel model, int actionType) {
-//		hierarchy.remove(node, model, actionType);
-//	}
 	public void remove(List nodes, NodeModel model, int actionType,boolean removeDependencies) {
 		hierarchy.remove(nodes, model, actionType,removeDependencies);
 	}
-//    public void move(Node node,Node newParent){
-//        hierarchy.move(node,newParent);
-//    }
     public void move(Node node,Node newParent, int actionType){
         hierarchy.move(node,newParent,actionType);
     }
-//
-//    public void move(List nodes,Node newParent){
-//        hierarchy.move(nodes,newParent);
-//    }
-//	public void replaceVoidNode(Node child, NodeHierarchyVoidLocation info,
-//			boolean event) {
-//		hierarchy.replaceVoidNode(child, info, event);
-//	}
 	public void setNbEndVoidNodes(int nbEndVoidNodes) {
 		hierarchy.setNbEndVoidNodes(nbEndVoidNodes);
 	}
@@ -177,9 +134,6 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public void removeTreeModelListener(TreeModelListener l) {
 		hierarchy.removeTreeModelListener(l);
 	}
-//	public Map getVoidNodesMap(){
-//	    return hierarchy.getVoidNodesMap();
-//	}
 	
 	public void removeAll(NodeModel model, int actionType) {
 		hierarchy.removeAll(model,actionType);
