@@ -150,6 +150,8 @@ class EqualsHashCodeContractTest {
 		HasCommonKeyImpl b = new HasCommonKeyImpl(null, 42L);
 		assertEquals(a, b);
 		assertEquals(a.hashCode(), b.hashCode());
+		assertNotEquals(a, null);
+		assertNotEquals(a, new Object());
 
 		a.setUniqueId(7L);
 		assertNotEquals(a, b);
