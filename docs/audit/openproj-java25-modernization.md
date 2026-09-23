@@ -63,6 +63,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Resource parent identity | `ResourceImpl.getParentId` | Confirmed the parent `HasKey` type-check hunk is unchanged from OpenProj; applied pattern matching and added a resource-outline regression for the no-key parent fallback (`0`). |
 | Reverse cost query aggregation | `AssignmentFieldClosureCollection.getFixedValue` | Confirmed this aggregation hunk matches OpenProj; replaced cast-after-`instanceof` with pattern matching and tested that only `CostFunctor` fixed values contribute. Fork-specific `Consumer` chain behavior was left untouched. |
 | WBS task ordering | `Task.arrangeChildren` | Confirmed the child traversal hunk matches OpenProj; changed raw iterator/cast control flow to enhanced-for plus pattern matching, with an ordering regression for parent-begin / child / parent-end task references. |
+| Summary dependency cycle detection | `Task.dependsOn` child-predecessor traversal | Confirmed the child-task type narrowing matches OpenProj; replaced the iterator/cast branch with enhanced-for and pattern matching. A focused dependency test verifies an indirect parent/child cycle is rejected without adding a partial edge. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -132,6 +133,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   `NormalTaskDurationTest.arrangeTaskKeepsSummaryChildrenBetweenParentMarkers`
   passed after modernizing WBS child traversal; the full core suite and
   application, exchange, UI, and reports compilation also passed.
+  The focused `DependencyServiceTest.summaryTaskPredecessorSearchRejectsChildDependencyCycles`
+  and full core suite passed after modernizing the summary child-predecessor
+  scan; application, exchange, UI, and reports compilation passed as well.
 - Application, exchange, UI, and reports compilation passed at an earlier
   calendar-clone integration checkpoint. No GUI route, layout, or Swing behavior
   was changed, so Robot/GUI tests were not repeated.
