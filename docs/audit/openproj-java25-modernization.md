@@ -48,6 +48,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Assignment exclusion filtering | `NotAssignmentFilter` | Replaced racy mutable lazy singleton fields with immutable `static final` instances and made the mode flag final; tests verify stable, distinct standard/writable instances and task acceptance. |
 | Resource team filtering | `ResourceInTeamFilter` | Applied pattern matching only to the two OpenProj-origin type checks; preserved the later `Consumer` callback fork delta and tested both resource paths plus change-only notification behavior. |
 | Timesheet aggregation | `TimesheetHelper` | Replaced raw iterators with enhanced-for loops and wildcard collection parameters; retained per-element casts required by `AssociationList`'s `Association` declaration and preserved processing/early-return behavior. Expanded existing timesheet aggregation tests. |
+| Object event delivery and pooling | `ObjectEvent`, `ObjectEventManager` | Typed assignment iteration; fixed a pooled-event stale-state bug by resetting `field`/`info`, and now recycles in `finally` when a listener throws. Regression test asserts exception propagation, object reuse, and cleared state. |
 | Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
 | External task resolution | `ExternalTaskManager` | Typed the manager-owned external-task list and iterator; retained `AssociationList`'s actual `Association` iterator contract and the existing cast semantics for dependencies. |
 | Resource pool registry | `ResourcePoolFactory` | Typed the existing `ArrayList` without changing its erased public return descriptor; removed unreferenced private `removePool` and unused `name` state after repository-wide caller search. |
@@ -74,6 +75,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   passed after pattern-matching the resource/team filter branches.
   The focused `TimesheetInfrastructureTest`, full core suite, and exchange /
   application compilations passed after typing timesheet aggregation iteration.
+  The focused `ObjectEventManagerTest`, full core suite, and exchange /
+  application compilations passed after the event pooling fix.
   The core full test suite and application, exchange, and UI compilations passed
   after typing scheduling field notification state. Core tests and exchange /
   application compilations passed after typing external task manager storage.

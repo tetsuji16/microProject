@@ -111,7 +111,9 @@ public class ObjectEvent extends EventObject {
 	private void reset() {
 		source = null;
 		eventType = 0;
-		object = null;	
+		object = null;
+		info = null;
+		field = null;
 	}
 	
 	private ObjectEvent() {
