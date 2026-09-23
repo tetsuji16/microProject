@@ -44,7 +44,7 @@ import com.microproject.pm.task.HasNotes;
 import com.microproject.pm.task.Project;
 import com.microproject.util.DateTime;
 
-public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, TimeDistributedFields, UpdatesFromTimesheet, HasCssStyle, CanBeDirty, Comparable, HasNotes {
+public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, TimeDistributedFields, UpdatesFromTimesheet, HasCssStyle, CanBeDirty, HasNotes {
 	Assignment assignment;
 	String taskName;
 	String projectName;
@@ -390,10 +390,6 @@ public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, 
 			return 0;
 		return DateTime.gmt(d);
 	//	return d.getTime();
-	}
-	
-	public int compareTo(Object arg0) {
-		return com.microproject.util.MathUtils.signum(getCachedStart() - ((TimesheetAssignment)arg0).getCachedStart());
 	}
 	
 	public long getReadOnlyDuration() {
