@@ -66,6 +66,18 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
 
+## Deleted code, caller and compatibility evidence
+
+- Removed `PeakUnitsFunctor`: normalized source matched the OpenProj baseline,
+  but a repository-wide symbol search found no production/test caller, class-name
+  string, reflection/configuration registration, ServiceLoader entry, or
+  serialization reference. The core module is not published as a separately
+  versioned library and has no `module-info.java`/declared exported API; the
+  class was not part of documented extension configuration. Core tests and all
+  direct application/exchange/UI/reports compilations passed after removal.
+  The provenance CSV row is retained as historical origin evidence, not as a
+  statement that the deleted class remains in the current runtime.
+
 ## Verification evidence to date
 
 - Focused regression tests were run for the changed interval, calendar, duration,
