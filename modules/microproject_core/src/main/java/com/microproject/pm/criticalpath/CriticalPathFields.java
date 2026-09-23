@@ -25,6 +25,7 @@
 package com.microproject.pm.criticalpath;
 
 import java.util.HashSet;
+import java.util.Set;
 
 import com.microproject.document.Document;
 import com.microproject.field.*;
@@ -37,8 +38,8 @@ public class CriticalPathFields extends AlgorithmFieldUpdater {
 		super.run();
 		
 	}
-	protected static volatile HashSet staticInputFields;
-	protected static volatile HashSet staticOutputFields;
+	protected static volatile Set<Field> staticInputFields;
+	protected static volatile Set<Field> staticOutputFields;
 	
 	static CriticalPathFields getInstance(Object eventSource, Document document) {
 		return new CriticalPathFields(eventSource, document);
@@ -52,8 +53,8 @@ public class CriticalPathFields extends AlgorithmFieldUpdater {
 		if (staticInputFields == null) {
 			synchronized (CriticalPathFields.class) {
 				if (staticInputFields == null) {
-					inputFields = new HashSet(32);
-					outputFields = new HashSet(8);
+					inputFields = new HashSet<>(32);
+					outputFields = new HashSet<>(8);
 					init();
 					staticInputFields = inputFields;
 					staticOutputFields = outputFields;

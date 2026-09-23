@@ -37,6 +37,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Personal contour | `PersonalContourMaker` | Replaced raw collection types with `List<PersonalContourBucket>` / typed `Collection`; used pattern matching for bucket narrowing. |
 | Scripting configuration | `ScriptConfiguration` | Replaced raw `Set` with `Set<String>` and diamond construction; added configured/unlisted class-name behavior coverage. |
 | Grouping XML configuration | `NodeGrouper` | Typed the XML-populated group list and `addGroup`/getter API as `NodeGroup`; verified insertion order and transform relationship, then compiled the UI consumer. |
+| Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -52,6 +53,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   at the contour checkpoint; the core full suite passed again after the
   `ScriptConfiguration` type-safety change. The focused `NodeGrouperTest`, full
   core suite, and UI compilation passed after typing the XML grouping contract.
+  The core full test suite and application, exchange, and UI compilations passed
+  after typing scheduling field notification state.
 - Application, exchange, UI, and reports compilation passed at an earlier
   calendar-clone integration checkpoint. No GUI route, layout, or Swing behavior
   was changed, so Robot/GUI tests were not repeated.
