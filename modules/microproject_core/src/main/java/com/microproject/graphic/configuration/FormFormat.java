@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.graphic.configuration;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -35,33 +34,33 @@ import org.apache.commons.digester.Digester;
  * 
  */
 public class FormFormat{
-	List boxes=null;
-	List layouts=null;
+	List<FormBox> boxes;
+	List<FormBoxLayout> layouts;
 	
 	public FormFormat() {}
 	
 	
-	public List getBoxes() {
+	public List<FormBox> getBoxes() {
 		return boxes;
 	}
 	public void addBox(FormBox box) {
-		if (boxes==null) boxes=new LinkedList();
+		if (boxes==null) boxes=new LinkedList<>();
 		boxes.add(box);
 	}
 	
-	public List getLayout() {
+	public List<FormBoxLayout> getLayout() {
 		return layouts;
 	}
 	public void addLayout(FormBoxLayout layout) {
-		if (layouts==null) layouts=new LinkedList();
+		if (layouts==null) layouts=new LinkedList<>();
 		layouts.add(layout);
 	}
 	
 	protected int defaultZoomIndex;
 	public int getDefaultZoomIndex() {
 		if (!defaultZoomIndexSet)
-			for (ListIterator i=layouts.listIterator();i.hasNext();){
-				FormBoxLayout layout=(FormBoxLayout)i.next();
+			for (ListIterator<FormBoxLayout> i=layouts.listIterator();i.hasNext();){
+				FormBoxLayout layout=i.next();
 				if (layout.isDefaultZoom()){
 					defaultZoomIndexSet=true;
 					defaultZoomIndex=i.previousIndex();
@@ -76,7 +75,7 @@ public class FormFormat{
 		int index=i+zoomLevel;
 		if (index<0) index=0;
 		else if (index>=layouts.size()) index=layouts.size()-1;
-		return (FormBoxLayout)layouts.get(index);
+		return layouts.get(index);
 	}
 	
 	public static void addDigesterEvents(Digester digester){

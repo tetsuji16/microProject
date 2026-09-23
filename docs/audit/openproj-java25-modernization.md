@@ -39,6 +39,9 @@ are recorded below. Progress is summarized in
   `fbd6271dcb5887fa3b0758eb69a25c18e984c307`; made the collaboration lock
   contention test deterministic after its timing race was found in this work.
   The product locking behavior was not changed.
+- PR [#607](https://github.com/tetsuji16/ProjectLibre/pull/607) merged as
+  `1e28c3df1606aed06a2fffbb4bc32e17ccaa9a2a` after full CI success; removed the
+  unreferenced `TestFilter`.
 
 ## Inventory caveat
 
@@ -66,12 +69,13 @@ artifact would be compatible.
 
 The initial-base counts above are historical. Re-running the inventory at the
 latest integrated checkpoint (`origin/master` =
-`fbd6271dcb5887fa3b0758eb69a25c18e984c307`) reports 280 ledger rows: 188
-normalized matches, 76 content-different files, and 16 absent mapped paths.
+`1e28c3df1606aed06a2fffbb4bc32e17ccaa9a2a`) reports 280 ledger rows: 187
+normalized matches, 76 content-different files, and 17 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the
-current module graph, and the three intentionally deleted unreferenced classes
-`PeakUnitsFunctor`, `NumericMaximum`, and `NodeFieldList`. These are still
-path/content counts, not proof that every remaining file is active or eligible.
+current module graph, and the four intentionally deleted unreferenced classes
+`PeakUnitsFunctor`, `NumericMaximum`, `NodeFieldList`, and `TestFilter`. These
+are still path/content counts, not proof that every remaining file is active or
+eligible.
 
 These are path/content reconciliation results, not an active-caller or hunk
 provenance audit. A matching file may contain a narrow fork delta; a differing
@@ -167,6 +171,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Node factory reflection | `NodeFactory.createNode(Class)` | Replaced zero-length reflective argument arrays with `Class.getConstructor().newInstance()` and parameterized the `Class` as `Class<?>` without changing the erased descriptor. Focused tests verify virtual-node construction and preserve the existing null-on-unsupported-class behavior. |
 | Unreferenced node-field list | `NodeFieldList` | Removed after repository-wide symbol search found only its definition (plus the historical provenance ledger row); no configuration/reflection registration or project persistence route references it. It is an application-internal class, not a separately published core API. It inherits `Serializable` from `LinkedList`, so unknown external serialized consumers remain a compatibility risk; no in-repository serialized use exists. The historical provenance row remains unchanged. |
 | Unreferenced test filter | `TestFilter` | Removed after full source/configuration search found no caller, configuration registration, or reflective class-name reference beyond its own declaration. The class always accepted every value and had no active summary-filter use. Historical provenance remains recorded; this deletion does not change the configured summary or filtering behavior. |
+| Form configuration collections | `FormFormat.boxes`, `layouts` | Confirmed normalized OpenProj provenance, the Apache Digester `addBox`/`addLayout` rules, and the active UI `FormComponent` consumer. Replaced raw collections and casts with `List<FormBox>`/`List<FormBoxLayout>` while preserving `List` erasure and XML element names. A Digester regression verifies order, default zoom selection, and typed UI configuration access. |
 
 ## Fork-specific correctness defect found during the audit
 
@@ -370,9 +375,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 ## Remaining work
 
 - Hunk-provenance and active-caller review remains for the 76 content-different
-  candidates; the 16 absent paths are classified above and do not all represent
+  candidates; the 17 absent paths are classified above and do not all represent
   active source requiring modernization.
-- Search the 188 matching files and OpenProj-origin hunks within the 76
+- Search the 187 matching files and OpenProj-origin hunks within the 76
   differing files for production callers and compatibility boundaries; do not
   treat file-level equality as proof of an active eligible hunk.
 - Audit remaining eligible Java in exchange, UI, reports, and other core

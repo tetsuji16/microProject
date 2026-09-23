@@ -97,7 +97,7 @@ public class FormComponent extends JPanel{
 		if (format==null) return;
 		FormFormat form=format.getForm();
 		if (form==null) return;
-		List boxes=form.getBoxes();
+		List<FormBox> boxes=form.getBoxes();
 		if (boxes==null||boxes.size()==0){
 			return;
 		}
@@ -109,8 +109,7 @@ public class FormComponent extends JPanel{
 		if (formBoxLayout.getBorder()==null) builder.setDefaultDialogBorder();
 		else builder.setBorder(Borders.createEmptyBorder(formBoxLayout.getBorder()));
 		CellConstraints cc = new CellConstraints();
-		for (Object item : boxes){
-			FormBox box = (FormBox)item;
+		for (FormBox box : boxes){
 			if (zoom<box.getMinZoom()) return;
 			JComponent component;
 			if(box.getFieldId()==null) component=new JLabel(Messages.getString(box.getTextId()));
