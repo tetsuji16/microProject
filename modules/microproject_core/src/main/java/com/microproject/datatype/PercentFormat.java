@@ -67,8 +67,8 @@ public class PercentFormat extends Format {
 			return arg1; // empty
 		}
 		Object value;
-		if (arg0 instanceof Rate)
-			value = Double.valueOf(((Rate)arg0).getValue());
+		if (arg0 instanceof Rate rate)
+			value = rate.getValue();
 		else
 			value = arg0;
 		percentFormat().format(value,arg1,arg2);
