@@ -92,33 +92,20 @@ public class DistributionData implements Serializable{
 		return ToStringBuilder.reflectionToString(this);
 	}
 	public int hashCode(){
-		int _hashCode = 0;
-		_hashCode += (int)this.resourceId;
-		_hashCode += (int)this.taskId;
-		_hashCode += (int)this.timeId;
-		_hashCode += (int)this.type;
-
-		return _hashCode;
+		int result = Long.hashCode(projectId);
+		result = 31 * result + Long.hashCode(taskId);
+		result = 31 * result + Long.hashCode(resourceId);
+		result = 31 * result + Integer.hashCode(timeId);
+		return 31 * result + Short.hashCode(type);
 	}
 
 	public boolean equals(Object obj){
-		if( !(obj instanceof DistributionData) )
-			return false;
-
-		DistributionData d = (DistributionData)obj;
-		boolean eq = true;
-
-		if( obj == null ){
-			eq = false;
-		}
-		else{
-			eq = eq && this.resourceId == d.resourceId;
-			eq = eq && this.taskId == d.taskId;
-			eq = eq && this.timeId == d.timeId;
-			eq = eq && this.type == d.type;
-		}
-
-		return eq;
+		return obj instanceof DistributionData data
+				&& projectId == data.projectId
+				&& taskId == data.taskId
+				&& resourceId == data.resourceId
+				&& timeId == data.timeId
+				&& type == data.type;
 	}
 
 }
