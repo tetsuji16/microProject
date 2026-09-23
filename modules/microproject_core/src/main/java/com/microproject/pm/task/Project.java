@@ -41,6 +41,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -2511,14 +2512,16 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	private class TaskIterator implements Iterator<Task>{
-		private Iterator iterator;
+		private Iterator<?> iterator;
 		private Task next=null;
 		private Task nextElement(){
-	        Node node=null;
-	        while(iterator.hasNext() && !((node=(Node)iterator.next()).getImpl() instanceof Task));
-	        if (node!=null && node.getImpl() instanceof Task) next=(Task)node.getImpl();
-	        else next=null;
-	        return next;
+			while (iterator.hasNext()) {
+				Object element = iterator.next();
+				if (element instanceof Node node && node.getImpl() instanceof Task task) {
+					return next = task;
+				}
+			}
+			return next = null;
 		}
 
 		TaskIterator(){
@@ -2529,6 +2532,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			return next!=null;
 		}
 		public Task next() {
+			if (next == null) throw new NoSuchElementException();
 			Task n=next;
 			nextElement();
 			return n;
