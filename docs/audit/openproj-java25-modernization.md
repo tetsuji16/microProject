@@ -155,6 +155,19 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   deprecation/removal decision is made; do not count this as safely deletable
   dead code in issue #595.
 
+## Contrib SPI and absent-source review
+
+- The OpenProj-matching contrib ledger candidates contain one active contract:
+  `ClassResolverFilter` is implemented by `ScriptConfiguration` and passed to
+  Groovy's `ResolveVisitor.setClassResolverFilter` through reflection in
+  `Init`. Its public `canBeResoved` spelling is therefore retained as an SPI
+  method name; renaming it would break the reflective/third-party contract.
+  `ScriptConfigurationTest` already verifies allowed and unlisted class names.
+- The other two contrib candidates (`Log` and `LogFactory`) are absent from the
+  active `microproject_contrib` source tree. Repository-wide Java search found
+  only commented-out former logging references, so they are not active code or
+  new deletion work for this issue.
+
 ## Deliberately retained compatibility-sensitive comparison
 
 - `Rate` remains on raw `Comparable`: its public `compareTo(Object)` explicitly
