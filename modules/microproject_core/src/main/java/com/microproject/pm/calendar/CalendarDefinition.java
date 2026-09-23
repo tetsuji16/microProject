@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -273,31 +274,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 /**
 	 * Cache key for add() results. Uses three primitive fields for minimal overhead.
 	 */
-	static final class AddCacheKey {
-		final long date;
-		final long duration;
-		final boolean useSooner;
-
-		AddCacheKey(long date, long duration, boolean useSooner) {
-			this.date = date;
-			this.duration = duration;
-			this.useSooner = useSooner;
-		}
-
-		@Override
-		public int hashCode() {
-			return (int) (date ^ (date >>> 32) ^ duration ^ (duration >>> 32) ^ (useSooner ? 1 : 0));
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof AddCacheKey) {
-				AddCacheKey o = (AddCacheKey) obj;
-				return date == o.date && duration == o.duration && useSooner == o.useSooner;
-			}
-			return false;
-		}
-	}
+	private record AddCacheKey(long date, long duration, boolean useSooner) {}
 
 	/**
 	 * Clear the add() result cache. Called after each scheduling pass to prevent stale results.
@@ -308,11 +285,12 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 
 	// Track all CalendarDefinition instances that have been used for caching.
 	// WeakHashMap ensures no memory leak - entries are removed when CalendarDefinition is GC'd.
-	private static final java.util.concurrent.ConcurrentHashMap<CalendarDefinition, Boolean> cachedInstances =
-		new java.util.concurrent.ConcurrentHashMap<>();
+	private static final WeakHashMap<CalendarDefinition, Boolean> cachedInstances = new WeakHashMap<>();
 
 	private void markCacheUsed() {
-		cachedInstances.put(this, Boolean.TRUE);
+		synchronized (cachedInstances) {
+			cachedInstances.put(this, Boolean.TRUE);
+		}
 	}
 
 	/**
@@ -320,8 +298,10 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	 * Called after each scheduling pass to free memory and prevent stale results.
 	 */
 	public static void clearAllAddCaches() {
-		for (CalendarDefinition cd : cachedInstances.keySet()) {
-			cd.addCache.clear();
+		synchronized (cachedInstances) {
+			for (CalendarDefinition calendar : cachedInstances.keySet()) {
+				calendar.addCache.clear();
+			}
 		}
 	}
 

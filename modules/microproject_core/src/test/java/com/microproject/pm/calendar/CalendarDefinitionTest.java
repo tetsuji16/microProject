@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Calendar;
+import java.util.WeakHashMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,6 +38,12 @@ import com.microproject.datatype.Duration;
 import com.microproject.util.DateTime;
 
 class CalendarDefinitionTest {
+	@Test
+	void globalScheduleCacheRegistryUsesWeakKeys() throws NoSuchFieldException {
+		assertEquals(WeakHashMap.class,
+				CalendarDefinition.class.getDeclaredField("cachedInstances").getType());
+	}
+
 	@Test
 	void calendarDefinitionExposesIdentityAndValidity() {
 		CalendarDefinition calendar = standardWeekCalendar();
