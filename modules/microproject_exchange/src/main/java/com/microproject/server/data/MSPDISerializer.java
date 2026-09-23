@@ -191,6 +191,7 @@ public class MSPDISerializer implements ProjectSerializer {
         return (Map<ResourceImpl, net.sf.mpxj.Resource>) resourceLinker.getTransformationMap();
     }
 
+    @SuppressWarnings("unchecked")
     protected Map<net.sf.mpxj.Task, Task> saveTasks(Project project,ProjectFile projectFile,Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap) throws Exception{
 		NodeModelUtil.enumerateNonAssignments(project.getTaskOutline()); // to fix bug, I moved this before tasks are saved. 16.2.06 hk
     	taskLinker.setParent(project);
@@ -254,7 +255,7 @@ public class MSPDISerializer implements ProjectSerializer {
         }
     	
 		CalendarOption.setInstance(oldOptions);
-        return taskLinker.getTransformationMap();
+        return (Map<net.sf.mpxj.Task, Task>) taskLinker.getTransformationMap();
     }
 
 	private net.sf.mpxj.Task externalTask(ProjectFile projectFile,Map<Task, net.sf.mpxj.Task> externalTasks,Task task) {

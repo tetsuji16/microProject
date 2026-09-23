@@ -129,8 +129,9 @@ public class Serializer {
             transformationMap.put(Long.valueOf(resource.getUniqueId()),resourceData); // the resource map uses ids now
             return resourceData;
     	}
-    	public void executeFinally(){
-    		((ProjectData)getTransformedParent()).setResources(transformed);
+	@SuppressWarnings("unchecked")
+	public void executeFinally(){
+		((ProjectData)getTransformedParent()).setResources((Collection<? extends DataObject>) getTransformed());
     	}
     	public boolean addOutlineElement(Object outlineChild,Object outlineParent,long position){
 			if (outlineChild instanceof VoidNodeImpl) return false;
@@ -276,8 +277,9 @@ public class Serializer {
             transformationMap.put(task,taskData);
             return taskData;
     	}
-    	public void executeFinally(){
-    		((ProjectData)getTransformedParent()).setTasks(transformed);
+	@SuppressWarnings("unchecked")
+	public void executeFinally(){
+		((ProjectData)getTransformedParent()).setTasks((Collection<? extends DataObject>) getTransformed());
     	}
     	public boolean addOutlineElement(Object outlineChild,Object outlineParent,long position){
 			TaskData taskData=(TaskData)getTransformationMap().get(outlineChild);
