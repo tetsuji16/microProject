@@ -47,6 +47,7 @@ public class WorkRange extends ImmutableInterval implements Cloneable,Serializab
 
 	public WorkRange(long start, long end, boolean overtime) throws WorkRangeException  {
 		super(start,end);
+		this.overtime = overtime;
 		if (end == 0)
 			this.end = DateTime.hour24();
 		
@@ -54,9 +55,10 @@ public class WorkRange extends ImmutableInterval implements Cloneable,Serializab
 			throw new WorkRangeException(Messages.getString("WorkRangeException.EndMustBeAfterStart"));
 	}
 	
-	public Object clone() {
+	@Override
+	public WorkRange clone() {
 		try {
-			return super.clone();
+			return (WorkRange) super.clone();
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("WorkRange must be cloneable", e);
 		}

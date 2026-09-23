@@ -58,7 +58,7 @@ public class WorkingHours implements Cloneable, Serializable {
 			if (workRange[i] == null)
 				newOne.workRange[i] = null;
 			else
-				newOne.workRange[i] = (WorkRange) workRange[i].clone();
+				newOne.workRange[i] = workRange[i].clone();
 		}
 		newOne.duration = duration;
 		return newOne;
