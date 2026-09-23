@@ -37,11 +37,10 @@ public abstract class ResourceLinker extends Linker {
 	}
 	public Object executeNext(){
         Node  node=(Node)iterator.next();
-        if (!(node.getImpl() instanceof ResourceImpl)) {
+		if (!(node.getImpl() instanceof ResourceImpl resource)) {
 			return null;
         }
-		
-    	ResourceImpl resource=(ResourceImpl)node.getImpl(); //ResourceImpl to have the EnterpriseResource link
+		//ResourceImpl to have the EnterpriseResource link
     	//if (globalIdsOnly) CommonDataObject.makeGlobal(resource); //modify enterprise resource in fact
     	return resource;
 	}
