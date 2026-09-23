@@ -24,12 +24,8 @@
  *******************************************************************************/
 package com.microproject.grouping.core.summaries;
 
-import com.microproject.util.DataUtils;
-
-import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
-
-import org.apache.commons.collections.CollectionUtils;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -47,11 +43,12 @@ public class DeepChildWalker extends NodeWalker {
 
 	public void accept(Object arg0) {
 		Node node = (Node) arg0;
-		Collection nodeList = nodeModel.getChildren(node);
+		List<?> nodeList = nodeModel.getChildren(node);
 		closure.accept(node);
 		
 		if (nodeList != null && (!parentsOnlyIfProject  || !(node.getImpl() instanceof Project)))
-			DataUtils.forAllDo(nodeList.iterator(), this);
+			for (Object child : nodeList)
+				accept(child);
 	}
 
 	/**
