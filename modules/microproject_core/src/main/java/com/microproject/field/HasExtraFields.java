@@ -27,6 +27,6 @@ package com.microproject.field;
 import java.util.Map;
 
 public interface HasExtraFields {
-	Map getExtraFields();
-	void setExtraFields(Map extraFields);
+	Map<String, Object> getExtraFields();
+	void setExtraFields(Map<String, Object> extraFields);
 }

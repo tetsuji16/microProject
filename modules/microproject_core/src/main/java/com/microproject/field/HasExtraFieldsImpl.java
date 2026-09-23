@@ -29,15 +29,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class HasExtraFieldsImpl implements HasExtraFields {
-	private Map extraFields = null;
-	public final Map getExtraFields() {
+	private Map<String, Object> extraFields = null;
+	public final Map<String, Object> getExtraFields() {
 		if (extraFields == null)
 			// LinkedHashMap preserves insertion order for stable POD serialization (issue #227)
-			extraFields = new LinkedHashMap();
+			extraFields = new LinkedHashMap<>();
 		return extraFields;
 	}
 
-	public final void setExtraFields(Map extraFields) {
+	public final void setExtraFields(Map<String, Object> extraFields) {
 		this.extraFields = extraFields;
 	}
 }

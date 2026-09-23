@@ -43,6 +43,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Distribution identity | `DistributionData` | Pattern matching and hash/equality alignment with the active `DistributionComparator` key, including `projectId`; added focused identity/payload tests. |
 | Personal contour | `PersonalContourMaker` | Replaced raw collection types with `List<PersonalContourBucket>` / typed `Collection`; used pattern matching for bucket narrowing. |
 | Scripting configuration | `ScriptConfiguration` | Replaced raw `Set` with `Set<String>` and diamond construction; added configured/unlisted class-name behavior coverage. |
+| Project extra fields | `HasExtraFields`, `HasExtraFieldsImpl`, `Project` | Typed the extensible custom-field map as `Map<String, Object>` across the shared API and Project owner. Preserved heterogeneous values, LinkedHashMap insertion order, the erased Map method descriptors, and existing serializer copy semantics. |
 | Grouping XML configuration | `NodeGrouper` | Typed the XML-populated group list and `addGroup`/getter API as `NodeGroup`; verified insertion order and transform relationship, then compiled the UI consumer. |
 | Assignment composition filtering | `AssignmentCompositionFilter` | Applied pattern matching to the source-exact OpenProj Assignment branch; added delegation tests for both Assignment-to-Resource composition and unchanged non-Assignment nodes. The `Filter.WhoDoesWhatReport` XML configuration remains unchanged. |
 | Assignment exclusion filtering | `NotAssignmentFilter` | Replaced racy mutable lazy singleton fields with immutable `static final` instances and made the mode flag final; tests verify stable, distinct standard/writable instances and task acceptance. |
@@ -199,6 +200,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   cleanup. `GeneralFilteredIteratorTest` passed after explicitly installing
   its documented null-as-accept-all predicate; the initial run exposed a test
   fixture omission (missing predicate), not a product regression.
+- `HasExtraFieldsImplTest` passed for insertion order and heterogeneous values;
+  full core tests, `PodRoundTripTest`, and application/exchange/UI/reports
+  compilation passed after typing the extra-field map.
 - At the integration checkpoint after the recorded core batches,
   `.\gradlew.bat clean build installDist verifyArchitectureBoundaries
   --console=plain` completed successfully (all module tests included, 3m52s).

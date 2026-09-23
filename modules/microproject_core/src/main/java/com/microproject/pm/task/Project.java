@@ -179,7 +179,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	boolean forward = true;
 	int priority = 500;
 	long currentDate = 0;
-	private Map extraFields = null;
+	private Map<String, Object> extraFields = null;
 	/** Project-scoped report definitions persisted with native project files. */
 	private Map<String, String> customReportPresets = new LinkedHashMap<>();
 	private GanttBarFormatOverrides ganttBarFormatOverrides = new GanttBarFormatOverrides();
@@ -2022,14 +2022,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return subprojectFacade.getLatestFinishingTask();
 	}
 
-	public final Map getExtraFields() {
+	public final Map<String, Object> getExtraFields() {
 		if (extraFields == null)
 			// LinkedHashMap preserves insertion order for stable POD serialization (issue #227)
-			extraFields = new LinkedHashMap();
+			extraFields = new LinkedHashMap<>();
 		return extraFields;
 	}
 
-	public final void setExtraFields(Map extraFields) {
+	public final void setExtraFields(Map<String, Object> extraFields) {
 		this.extraFields = extraFields;
 	}
 
