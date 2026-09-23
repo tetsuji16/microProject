@@ -24,9 +24,6 @@
  *******************************************************************************/
 package com.microproject.algorithm;
 
-import java.util.function.Consumer;
-
-
 import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.timescale.TimeIterator;
 
@@ -34,11 +31,9 @@ import com.microproject.timescale.TimeIterator;
  * A generator corresponding to a start/end with a stepping value
  */
 public class TimeIteratorGenerator implements IntervalGenerator, HasStartAndEnd {
-	TimeIterator timeIterator;
-	HasStartAndEnd currentInterval = null;
-	long currentEnd;
-	Consumer<Object> visitor = null;
-	int index = 0;
+	private final TimeIterator timeIterator;
+	private HasStartAndEnd currentInterval;
+	private int index;
 
 	private TimeIteratorGenerator(TimeIterator timeIterator) {
 		this.timeIterator = timeIterator;
@@ -62,10 +57,6 @@ public class TimeIteratorGenerator implements IntervalGenerator, HasStartAndEnd 
 		currentInterval = timeIterator.next();
 		index++;
 		return timeIterator.hasNext();
-	}
-
-	public int compareTo(Object arg0) {
-		return 0;
 	}
 
 	/**
