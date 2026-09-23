@@ -72,7 +72,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Group sorter resolution | `NodeGroup.getSorter` | Replaced the remaining cast-after-`instanceof` branch with a Java 25 pattern binding; retained the existing null fallback and verified the grouping core test plus the UI consumer compilation. |
 | Assignment update notification | `ObjectEventManager.fireUpdateEvent` | Replaced the raw iterator and cast-after-`instanceof` with a typed enhanced-for loop and pattern binding. A focused regression verifies both the task event and propagation to its assignment; the original OpenProj bug-258 behavior is retained. |
 | Date cell rendering | `DateRenderer.getTableCellRendererComponent` | Replaced the redundant null-plus-`instanceof` check and cast with a pattern binding; retained the same date-formatting and superclass-rendering path. UI compilation passed; no Robot scenario was added for this behavior-preserving local refactor. |
-| Split-view component narrowing | `MainView.setChildrenDividerLocation` | Replaced null/type checks plus casts with pattern bindings for both child components; preserved the same null/type fallback. The existing `SplittedViewLifecycleTest` and UI compilation passed; no command or layout contract changed. |
+| Split-view component narrowing | `MainView` split synchronization methods | Replaced the `SplittedView` check/cast pairs with pattern bindings in parent assignment, divider synchronization, and synchronization setup/removal; simplified the synchronizability predicate because `instanceof` already rejects null. Also replaced the stale captured-component null branch with a check of the current split components. `SplittedViewLifecycleTest` and UI compilation passed; no command or layout contract changed. |
 | Deep child traversal | `DeepChildWalker.accept` | Replaced the raw collection plus iterator utility call with `List<?>` and enhanced-for recursion; preserved parent-first and child-list order. A proxy-backed focused test verifies the recursive visitation order. |
 | Collaboration link identity | `LinkData.equals` | Replaced the cast-after-`instanceof` with a pattern binding and expanded the existing equality contract test for null, unrelated values, and a different serialized-data subtype. |
 | Filtered graphic-node iteration | `GeneralFilteredIterator.next` | Replaced the GraphicNode check/cast with a pattern binding and added a headless focused test that confirms node-based iteration still returns the underlying Node. |
@@ -178,8 +178,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   `:microproject_ui:compileJava`; no interaction, visual contract, or layout
   changed, so GUI/Robot tests were intentionally not repeated.
 - `SplittedViewLifecycleTest` passed alongside UI compilation for the
-  `MainView` pattern-binding cleanup. It preserves the existing physical
-  interaction/layout behavior; no new Robot scenario was warranted.
+  `MainView` pattern-binding cleanup. Existing split lifecycle checks remain
+  green; no physical interaction/layout contract changed and no new Robot
+  scenario was warranted.
 - `DeepChildWalkerTest` and the full core suite passed after typing the local
   child list and replacing the generic iterator helper; application, exchange,
   UI, and reports `compileJava` passed.

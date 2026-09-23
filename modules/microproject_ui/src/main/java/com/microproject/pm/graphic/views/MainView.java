@@ -74,15 +74,14 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
 			setDividerSize(defaultDividerSize);
 			setDividerLocation(defaultDividerLocation);
 		}
-		if (top instanceof SplittedView)
-			((SplittedView) top).setParentView(this);
+		if (top instanceof SplittedView splitView)
+			splitView.setParentView(this);
 		setTopComponent(top);
 
-		if (viewsSynchronizable()) {
-		    if (bottom==null)
-		        ((SplittedView) top).setDividerLocation(((SplittedView) bottom).getDividerLocation());
-		    else ((SplittedView) top).setDividerLocationSilent(((SplittedView) bottom)
-					.getDividerLocation()+((SplittedView) bottom).getDeltaDivider()-((SplittedView) top).getDeltaDivider()); //bottom not initialized yet, no sync
+		if (getTopComponent() instanceof SplittedView topView
+				&& getBottomComponent() instanceof SplittedView bottomView) {
+			topView.setDividerLocationSilent(bottomView.getDividerLocation() + bottomView.getDeltaDivider()
+					- topView.getDeltaDivider()); //bottom not initialized yet, no sync
 			addScaledComponentsSynchro();
 		}
 	}
@@ -95,13 +94,14 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
 			setDividerSize(defaultDividerSize);
 			setDividerLocation(defaultDividerLocation);
 		}
-		if (bottom instanceof SplittedView)
-			((SplittedView) bottom).setParentView(this);
+		if (bottom instanceof SplittedView splitView)
+			splitView.setParentView(this);
 		setBottomComponent(bottom);
 
-		if (viewsSynchronizable()) {
-			((SplittedView) bottom).setDividerLocationSilent(((SplittedView) top)
-					.getDividerLocation()+((SplittedView) top).getDeltaDivider()-((SplittedView) bottom).getDeltaDivider()); //bottom not initialized yet, no sync
+		if (getTopComponent() instanceof SplittedView topView
+				&& getBottomComponent() instanceof SplittedView bottomView) {
+			bottomView.setDividerLocationSilent(topView.getDividerLocation() + topView.getDeltaDivider()
+					- bottomView.getDeltaDivider()); //bottom not initialized yet, no sync
 			addScaledComponentsSynchro();
 		}
     }
@@ -154,13 +154,11 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
     public boolean viewsSynchronizable(){
     	Component top=getTopComponent();
     	Component bottom=getBottomComponent();
-    	return (top!=null&&bottom!=null&&(top instanceof SplittedView)&&(bottom instanceof SplittedView));
+		return top instanceof SplittedView && bottom instanceof SplittedView;
     }
     
     public void addScaledComponentsSynchro(){
-    	if (viewsSynchronizable()){
-    		SplittedView top=(SplittedView)getTopComponent();
-    		SplittedView bottom=(SplittedView)getBottomComponent();
+	if (getTopComponent() instanceof SplittedView top && getBottomComponent() instanceof SplittedView bottom){
     		JViewport bottomViewport=bottom.rightScrollPane.getViewport();
     		JViewport topViewport=top.rightScrollPane.getViewport();
     		JComponent bottomComponent=(JComponent)bottomViewport.getComponent(0);
@@ -173,9 +171,7 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
     }
     
     public void removeScaledComponentsSynchro(){
-    	if (viewsSynchronizable()){
-    		SplittedView top=(SplittedView)getTopComponent();
-    		SplittedView bottom=(SplittedView)getBottomComponent();
+	if (getTopComponent() instanceof SplittedView top && getBottomComponent() instanceof SplittedView bottom){
    // 		JViewport bottomViewport=bottom.rightScrollPane.getViewport();
     		JViewport topViewport=top.rightScrollPane.getViewport();
     //		JComponent bottomComponent=(JComponent)bottomViewport.getComponent(0);
