@@ -348,7 +348,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 		this.dirty = dirty;
 	}
 
-	public ArrayList extractCalendars() {
+	public ArrayList<WorkingCalendar> extractCalendars() {
 		return WorkingCalendar.extractCalendars(nodeModel.getHierarchy());
 	}
 

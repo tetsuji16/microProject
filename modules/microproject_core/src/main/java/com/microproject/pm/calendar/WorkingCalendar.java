@@ -57,11 +57,11 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	public static final WorkingCalendar INVALID_INTERSECTION_CALENDAR = new WorkingCalendar();
 
 // the objects that use this calendar
-	private transient HashSet objectsUsing = null;
+	private transient HashSet<HasCalendar> objectsUsing = null;
 
-	public final HashSet getObjectsUsing() {
+	public final HashSet<HasCalendar> getObjectsUsing() {
 		if (objectsUsing == null)
-			objectsUsing = new HashSet();
+			objectsUsing = new HashSet<>();
 		return objectsUsing;
 	}
 	public void addObjectUsing(HasCalendar cal) {
@@ -517,12 +517,9 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 
 
-	private static WorkDay getDay(Collection collection, long day) {
-		Iterator i = collection.iterator();
+	private static WorkDay getDay(Collection<WorkDay> collection, long day) {
 		Date date = new Date(day);
-		WorkDay current = null;
-		while (i.hasNext()) {
-			current = (WorkDay)i.next();
+		for (WorkDay current : collection) {
 			if (current.compareTo(date) == 0) {
 				return current;
 			}
@@ -650,12 +647,10 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	public final void setFixedId(int fixedId) {
 		this.fixedId = fixedId;
 	}
-	public static ArrayList extractCalendars(Collection collection) {
-		ArrayList list = new ArrayList(collection.size());
-		Iterator i = collection.iterator();
-		WorkingCalendar cal;
-		while (i.hasNext()) {
-			cal = (WorkingCalendar) ((HasCalendar)i.next()).getWorkCalendar();
+	public static ArrayList<WorkingCalendar> extractCalendars(Collection<? extends HasCalendar> collection) {
+		ArrayList<WorkingCalendar> list = new ArrayList<>(collection.size());
+		for (HasCalendar hasCalendar : collection) {
+			WorkingCalendar cal = (WorkingCalendar) hasCalendar.getWorkCalendar();
 			if (cal != null)
 				list.add(cal);
 		}
@@ -663,13 +658,13 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		return list;
 	}
 
-	public static ArrayList extractCalendars(NodeHierarchy hierarchy) {
-		final ArrayList list = new ArrayList();
+	public static ArrayList<WorkingCalendar> extractCalendars(NodeHierarchy hierarchy) {
+		ArrayList<HasCalendar> list = new ArrayList<>();
 		hierarchy.visitAll(new Consumer<Object>() { public void accept(Object arg0) {
 				if (arg0 != null) {
 					Object impl = ((Node)arg0).getImpl();
-					if (impl instanceof HasCalendar)
-						list.add(impl);
+					if (impl instanceof HasCalendar hasCalendar)
+						list.add(hasCalendar);
 				}
 			}});
 		return WorkingCalendar.extractCalendars(list);
@@ -678,9 +673,9 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	public int compareTo(Object arg0) {
 		if (arg0 == null)
 			return 1;
-		if (!(arg0 instanceof WorkingCalendar))
-			return -1;
-		return getName().compareTo(((WorkingCalendar)arg0).getName());
+		if (arg0 instanceof WorkingCalendar calendar)
+			return getName().compareTo(calendar.getName());
+		return -1;
 	}
 
 	public void notifyChanged() {

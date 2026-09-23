@@ -392,8 +392,7 @@ public class CalendarService {
 		if (cal == null)
 			return;
 		Set<Document> documents = new HashSet<>();
-		for (Object object : cal.getObjectsUsing()) {
-			HasCalendar hasCal = (HasCalendar) object;
+		for (HasCalendar hasCal : cal.getObjectsUsing()) {
 			documents.add(hasCal.invalidateCalendar());
 		}
 		for (Document doc : documents) {
