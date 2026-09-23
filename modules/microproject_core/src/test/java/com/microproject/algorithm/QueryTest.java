@@ -26,6 +26,8 @@ package com.microproject.algorithm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -49,5 +51,21 @@ class QueryTest {
 				.execute();
 
 		assertEquals(1, intervals.length);
+	}
+
+	@Test
+	void whereInRangeIntersectsAnExistingRangeAndRejectsBackwardsRanges() {
+		SelectFrom selectFrom = SelectFrom.getInstance()
+				.whereInRange(10L, 30L)
+				.whereInRange(15L, 25L);
+
+		assertTrue(selectFrom.wherePredicate instanceof DateInRangePredicate);
+		DateInRangePredicate range = (DateInRangePredicate) selectFrom.wherePredicate;
+		assertEquals(15L, range.getStart());
+		assertEquals(25L, range.getEnd());
+
+		selectFrom.whereInRange(26L, 24L);
+
+		assertSame(org.apache.commons.collections.functors.FalsePredicate.INSTANCE, selectFrom.wherePredicate);
 	}
 }
