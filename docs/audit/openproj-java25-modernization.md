@@ -6,6 +6,15 @@ Baseline checked: `origin/master` at `59eb4e0dc1157b382d754deb0acc79fd3384ac5b`.
 The modernization branch is based on that commit. Progress commits are listed in
 Git and summarized in [issue #595](https://github.com/tetsuji16/ProjectLibre/issues/595).
 
+## Integrated checkpoints
+
+- PR [#597](https://github.com/tetsuji16/ProjectLibre/pull/597) merged as
+  `5e6f519cad233ff53d5a35363315c192de6784a0` after full CI success. It integrated
+  the initial core modernization and audit tranche; issue #595 remains open.
+- PR [#598](https://github.com/tetsuji16/ProjectLibre/pull/598) merged as
+  `6fd9a4b74cece7bce723beef81cf998c0e751cff` after full CI success. Follow-up
+  audit work continues from that latest `origin/master` baseline.
+
 ## Inventory caveat
 
 `docs/legal/license-provenance.csv` uses the former `projectlibre_*` module and
@@ -118,6 +127,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Project task iterator | `Project.TaskIterator` | Replaced its raw iterator and unchecked casts with a wildcard iterator and pattern bindings. The iterator previously returned `null` from `next()` after exhaustion, violating `Iterator`'s contract; corrected it to throw `NoSuchElementException` and added a focused task-order/exhaustion regression in `ProjectHierarchyQueriesTest`. |
 | Text document length filter | `FixedSizeFilter.maxSize` | Confirmed the class and its insertion/replacement logic match OpenProj; production callers are `SimpleEditor` and `ComponentFactory`. Marked the constructor-set limit final and added a headless `PlainDocument` test for insertion truncation and replacement capacity. No visible GUI contract changed; the focused `:microproject_ui:test --tests com.microproject.dialog.util.FixedSizeFilterTest` passed. |
 | Resource export traversal | `ResourceLinker.executeNext` | Confirmed the type-check/cast is source-identical to OpenProj. Replaced the duplicate `ResourceImpl` check/cast with a Java pattern binding while preserving null-skip behavior for non-resource outline nodes. Existing export tests traverse assigned resources and MSPDI output; verify with the focused exchange suite. |
+| Chart popup dead-code removal and workspace restore | `TimeChartPopupMenu`, `TimeChartPanel.verticalScrollingItem`, `ChartInfo.restoreWorkspace` | The popup constructor documents replacement by JFreeChart; the popup has no production caller and its workspace menu item was never initialized after its addition was commented out. Removed the unused popup class/references and dead item field/call. A focused workspace regression failed before the fix with `NullPointerException`, then verifies the persisted vertical-scroll value restores through the live chart-panel state. The right-click route still obtains the current `TimeChartPanel` popup. The UI module is an application, not a documented plugin artifact; no in-repo reflection, configuration, serialized reference, or public extension contract was found. Unknown external binaries remain an explicit compatibility risk; obsolete locale resource keys are retained. |
 
 ## Fork-specific correctness defect found during the audit
 

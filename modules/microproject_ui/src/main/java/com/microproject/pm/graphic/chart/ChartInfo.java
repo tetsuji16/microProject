@@ -389,7 +389,6 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		selectedOnTop = ws.selectedOnTop;
 		work = ws.work;
 		chartPanel.setVerticalScrolling(ws.verticalScroll);
-		chartPanel.verticalScrollingItem.setSelected(ws.verticalScroll);
 		if (!isResourceGraph())
 			setTraces(SpreadSheetFieldArray.fromIdArray(ws.traces));
 	}

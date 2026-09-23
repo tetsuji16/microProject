@@ -34,7 +34,6 @@ import java.text.NumberFormat;
 import java.text.ParsePosition;
 
 import javax.swing.JComponent;
-import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
@@ -268,14 +267,11 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 		}
 		return 4;
 	}
-	JMenuItem verticalScrollingItem;
 	protected JPopupMenu createPopupMenu(boolean arg0, boolean arg1, boolean arg2, boolean arg3) {
 		JPopupMenu menu = super.createPopupMenu(false, arg1, arg2, false); // hide
 																			// properties
 																			// and
 																			// zoom
-//		menu.add(new JSeparator());
-//		menu.add(verticalScrollingItem = TimeChartPopupMenu.buildVerticalScrollingItem(this));
 		return menu;
 	}
 
