@@ -129,6 +129,16 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
 
+## Fork-only code explicitly excluded from this issue
+
+- `Project.isBaselineFieldHidden` and `EnterpriseResource.isBaselineFieldHidden`
+  are duplicate current helpers, but neither helper exists in the OpenProj
+  baseline; the corresponding baseline `fieldHideBaselineCost` methods are
+  fixed `false` stubs. Consolidating these methods here would change
+  fork-specific visibility behavior, so they are not included in this
+  OpenProj-only refactor. Any correctness change to their shared policy should
+  be reviewed as a separate fork-behavior task with its own regression contract.
+
 ## Deliberately retained compatibility-sensitive comparison
 
 - `Rate` remains on raw `Comparable`: its public `compareTo(Object)` explicitly
