@@ -94,4 +94,14 @@ class WorkingHoursTest {
 		assertEquals(WorkingHours.hourTime(14), intersection.getIntervals().get(1).getEnd());
 		assertEquals(4L * 60L * 60L * 1000L, intersection.getDuration());
 	}
+
+	@Test
+	void equalityMatchesTheWorkingRangeArrayAndItsHashCode() throws WorkRangeException {
+		WorkingHours original = new WorkingHours();
+		original.setInterval(0, WorkingHours.hourTime(8), WorkingHours.hourTime(12));
+		WorkingHours copy = (WorkingHours) original.clone();
+
+		assertEquals(original, copy);
+		assertEquals(original.hashCode(), copy.hashCode());
+	}
 }

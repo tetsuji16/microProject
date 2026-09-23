@@ -372,20 +372,7 @@ public class WorkingHours implements Cloneable, Serializable {
 
 	
 	public boolean equals(Object arg0) {
-		if (!(arg0 instanceof WorkingHours))
-			return false;
-		if (this == arg0)
-			return true;
-		WorkingHours to = (WorkingHours)arg0;
-		for (int i = 0; i < workRange.length; i++) {
-			if (workRange[i] != null) {
-				if (!workRange[i].equals(to.workRange[i]))
-					return false;
-			} else if (to.workRange[i] != null) {
-					return false;
-			}
-		}
-		return true;
+		return arg0 instanceof WorkingHours other && Arrays.equals(workRange, other.workRange);
 	}
 
 	@Override
