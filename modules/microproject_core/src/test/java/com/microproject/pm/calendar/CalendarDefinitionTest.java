@@ -209,7 +209,7 @@ class CalendarDefinitionTest {
 			calendar.week.setWeekDay(day, nonWorkingDay(0L));
 		}
 		WorkDay workingException = new WorkDay(timestamp(2024, Calendar.JUNE, 1, 0));
-		workingException.setWorkingHours((WorkingHours) WorkingHours.getDefault().clone());
+		workingException.setWorkingHours(WorkingHours.getDefault().clone());
 		workingException.initialize();
 		calendar.addOrReplaceException(workingException);
 		calendar.addSentinelsAndMakeArray();

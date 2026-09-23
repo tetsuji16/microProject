@@ -52,7 +52,8 @@ public class WorkingHours implements Cloneable, Serializable {
 	private static GregorianCalendar helper = DateTime.calendarInstance();;
 	
 	
-	public Object clone() {
+	@Override
+	public WorkingHours clone() {
 		WorkingHours newOne = new WorkingHours();
 		for (int i = 0; i < workRange.length; i++) {
 			if (workRange[i] == null)

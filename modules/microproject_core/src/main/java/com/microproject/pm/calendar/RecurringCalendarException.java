@@ -33,7 +33,7 @@ public final class RecurringCalendarException implements Serializable, Cloneable
 		for (long start : recurrence.occurrenceDates()) {
 			WorkDay occurrence = new WorkDay(start, DateTime.dayFloor(start) + spanDays * WorkCalendar.MILLIS_IN_DAY,
 				template.getDescription());
-			occurrence.setWorkingHours((WorkingHours) template.getWorkingHours().clone());
+			occurrence.setWorkingHours(template.getWorkingHours().clone());
 			result.add(occurrence);
 		}
 		return List.copyOf(result);

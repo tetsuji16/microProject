@@ -99,7 +99,7 @@ class WorkingHoursTest {
 	void equalityMatchesTheWorkingRangeArrayAndItsHashCode() throws WorkRangeException {
 		WorkingHours original = new WorkingHours();
 		original.setInterval(0, WorkingHours.hourTime(8), WorkingHours.hourTime(12));
-		WorkingHours copy = (WorkingHours) original.clone();
+		WorkingHours copy = original.clone();
 
 		assertEquals(original, copy);
 		assertEquals(original.hashCode(), copy.hashCode());

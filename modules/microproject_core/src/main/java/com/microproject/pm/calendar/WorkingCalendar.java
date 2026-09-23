@@ -724,9 +724,9 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 		for (long day = start; day < end; day = DateTime.nextDay(day)) {
 			WorkDay workDay = new WorkDay(day,day);
-			WorkingHours hours = (WorkingHours) (CalendarOption.getInstance().isAddedCalendarTimeIsNonStop()
+			WorkingHours hours = CalendarOption.getInstance().isAddedCalendarTimeIsNonStop()
 					 ? WorkingHours.getNonStop().clone()
-					 : WorkingHours.getDefault().clone());
+					 : WorkingHours.getDefault().clone();
 
 			workDay.setWorkingHours(hours);
 			addOrReplaceException(workDay);

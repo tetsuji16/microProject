@@ -65,7 +65,7 @@ class CalendarDefinitionDegenerateFuzzTest {
 					break;
 				case 2:
 					workDay = new WorkDay(0L);
-					workDay.setWorkingHours((WorkingHours) WorkingHours.getDefault().clone());
+					workDay.setWorkingHours(WorkingHours.getDefault().clone());
 					break;
 				default:
 					// null weekday: resolves to the default working day
