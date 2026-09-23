@@ -30,7 +30,7 @@ import javax.swing.text.DocumentFilter;
 
 // taken from http://www.exampledepot.com/egs/javax.swing.text/LimitText.html with slight modif for null str
 public class FixedSizeFilter extends DocumentFilter {
-    int maxSize;
+    final int maxSize;
 
     // limit is the maximum number of characters allowed.
     public FixedSizeFilter(int limit) {
