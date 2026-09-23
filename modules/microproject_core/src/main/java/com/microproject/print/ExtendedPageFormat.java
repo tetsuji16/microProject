@@ -76,7 +76,7 @@ public class ExtendedPageFormat extends PageFormat implements Cloneable,Serializ
 		if (printService instanceof PDFPrintService) return ExtendedPageFormat.getDefaultMediaSizeName();
 		else{
 			Object attr=printService.getDefaultAttributeValue(Media.class);
-			if (attr instanceof MediaSizeName) return (MediaSizeName)attr;
+			if (attr instanceof MediaSizeName mediaSizeName) return mediaSizeName;
 			else return null;
 		}
 	}
