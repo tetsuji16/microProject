@@ -28,7 +28,6 @@ import java.io.Serializable;
 import java.util.Calendar;
 import java.util.Date;
 
-import com.microproject.util.MathUtils;
 public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Serializable {
 
 	static final long serialVersionUID = 28283927181117L;
@@ -46,15 +45,15 @@ public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Seri
 	public WorkDay(long fromDate, long toDate, String name) {
 		super(fromDate, toDate, name);
 	}
-	public Object clone() {
-		WorkDay newOne = null;
+	@Override
+	public WorkDay clone() {
 		try {
-			newOne = (WorkDay) super.clone();
-			newOne.workingHours = workingHours == null ? null : (WorkingHours) workingHours.clone();
+			WorkDay copy = (WorkDay) super.clone();
+			copy.workingHours = workingHours == null ? null : (WorkingHours) workingHours.clone();
+			return copy;
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("WorkDay must be cloneable", e);
 		}
-		return newOne;
 	}
 
 	/**
@@ -74,7 +73,7 @@ public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Seri
  * @return
  */	
 	WorkDay intersectWith(WorkDay other) {
-		WorkDay result = new WorkDay(Math.max(getStart(),other.getStart()),Math.min(getStart(),other.getStart()));
+		WorkDay result = new WorkDay(Math.max(getStart(), other.getStart()), Math.min(getEnd(), other.getEnd()));
 		result.setWorkingHours(workingHours.intersectWith(other.getWorkingHours()));
 		return result;
 		
@@ -111,10 +110,9 @@ public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Seri
 			return false;
 		return workingHours.equals(d.workingHours);
 	}
-	public boolean equals(Object e) {
-		if (! (e instanceof WorkDay))
-			return false;
-		return (getStart() == ((WorkDay)e).getStart());
+	@Override
+	public boolean equals(Object candidate) {
+		return candidate instanceof WorkDay other && getStart() == other.getStart();
 	}
 
 	@Override
@@ -124,17 +122,15 @@ public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Seri
 	}
 
 	public int compare(Object event1, Object event2) {
-		
-		if (event2 instanceof Date) // if comparing to a date
-			return MathUtils.signum(((WorkDay)event1).getStart() - ((Date)event2).getTime()); 
+		if (event2 instanceof Date date)
+			return Long.compare(((WorkDay) event1).getStart(), date.getTime());
 
-		if (event2 instanceof Calendar) // if comparing to a date
-			return MathUtils.signum(((WorkDay)event1).getStart() - ((Calendar)event2).getTimeInMillis()); 
-		
-		if (! (event1 instanceof WorkDay) || ! (event2 instanceof WorkDay))
+		if (event2 instanceof Calendar calendar)
+			return Long.compare(((WorkDay) event1).getStart(), calendar.getTimeInMillis());
+
+		if (!(event1 instanceof WorkDay first) || !(event2 instanceof WorkDay second))
 			return 0;
-		
-		return MathUtils.signum(((WorkDay)event1).getStart() - ((WorkDay)event2).getStart());
+		return Long.compare(first.getStart(), second.getStart());
 	}
 	
     public long getDuration() {
@@ -144,15 +140,16 @@ public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Seri
     public boolean isWorking() {
     	return getDuration() > 0;
     }
+	@Override
 	public int compareTo(Object to) {
-		if (to instanceof WorkDay) // if comparing to a date
-			return MathUtils.signum((getStart() - ((WorkDay)to).getStart()));
+		if (to instanceof WorkDay workDay)
+			return Long.compare(getStart(), workDay.getStart());
 
-		if (to instanceof Date) // if comparing to a date
-			return MathUtils.signum(getStart() - ((Date)to).getTime()); 
+		if (to instanceof Date date)
+			return Long.compare(getStart(), date.getTime());
 
-		if (to instanceof Calendar) // if comparing to a date
-			return MathUtils.signum(getStart() - ((Calendar)to).getTimeInMillis()); 
+		if (to instanceof Calendar calendar)
+			return Long.compare(getStart(), calendar.getTimeInMillis());
 		
 		throw new ClassCastException("Cant compare" + to + " to a WorkDay");
 	}
