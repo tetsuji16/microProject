@@ -51,10 +51,7 @@ public class Duration extends Number implements Comparable {
 	}
 	
 	public boolean equals(Object arg0) {
-		if (arg0 != null && arg0 instanceof Duration)
-			return encodedMillis == ((Duration)arg0).encodedMillis;
-		else
-			return false;
+		return arg0 instanceof Duration duration && encodedMillis == duration.encodedMillis;
 	}
 
 	@Override
@@ -65,10 +62,9 @@ public class Duration extends Number implements Comparable {
 	public int compareTo(Object arg0) {
 		if (arg0 == null)
 			 throw new NullPointerException();
-		if (!(arg0 instanceof Duration))
+		if (!(arg0 instanceof Duration duration))
 			throw new ClassCastException();
-		
-		return MathUtils.signum(getValue(encodedMillis) - getValue(((Duration)arg0).getEncodedMillis())); 
+		return MathUtils.signum(getValue(encodedMillis) - getValue(duration.getEncodedMillis()));
 	}
 		
 	public long getEncodedMillis() {
@@ -283,78 +279,44 @@ public class Duration extends Number implements Comparable {
 	}
 	
 	public static long setAsTimeUnit(long duration, int type) {
-		switch (type) {
-			case TimeUnit.PERCENT :
-				return setAsPercent(duration);
-			case TimeUnit.ELAPSED_PERCENT :
-				return setAsElapsedPercent(duration);
-			case TimeUnit.NON_TEMPORAL :
-				return setAsNonTemporal(duration);
-			case TimeUnit.MINUTES :
-				return setAsMinutes(duration);
-			case TimeUnit.ELAPSED_MINUTES :
-				return setAsElapsedMinutes(duration);
-			case TimeUnit.HOURS :
-				return setAsHours(duration);
-			case TimeUnit.ELAPSED_HOURS :
-				return setAsElapsedHours(duration);
-			case TimeUnit.DAYS :
-				return setAsDays(duration);
-			case TimeUnit.ELAPSED_DAYS :
-				long x = setAsDays(duration);
-				long y = setAsElapsedDays(duration);
-				
-				return setAsElapsedDays(duration);
-			case TimeUnit.WEEKS :
-				return setAsWeeks(duration);
-			case TimeUnit.ELAPSED_WEEKS :
-				return setAsElapsedWeeks(duration);
-			case TimeUnit.MONTHS :
-				return setAsMonths(duration);
-			case TimeUnit.ELAPSED_MONTHS :
-				return setAsElapsedMonths(duration);
-			case TimeUnit.YEARS :
-				return setAsYears(duration);
-			case TimeUnit.ELAPSED_YEARS :
-				return setAsElapsedYears(duration);
-			// 	don't bother for NONE
-		}
-		return duration;
+		return switch (type) {
+			case TimeUnit.PERCENT -> setAsPercent(duration);
+			case TimeUnit.ELAPSED_PERCENT -> setAsElapsedPercent(duration);
+			case TimeUnit.NON_TEMPORAL -> setAsNonTemporal(duration);
+			case TimeUnit.MINUTES -> setAsMinutes(duration);
+			case TimeUnit.ELAPSED_MINUTES -> setAsElapsedMinutes(duration);
+			case TimeUnit.HOURS -> setAsHours(duration);
+			case TimeUnit.ELAPSED_HOURS -> setAsElapsedHours(duration);
+			case TimeUnit.DAYS -> setAsDays(duration);
+			case TimeUnit.ELAPSED_DAYS -> setAsElapsedDays(duration);
+			case TimeUnit.WEEKS -> setAsWeeks(duration);
+			case TimeUnit.ELAPSED_WEEKS -> setAsElapsedWeeks(duration);
+			case TimeUnit.MONTHS -> setAsMonths(duration);
+			case TimeUnit.ELAPSED_MONTHS -> setAsElapsedMonths(duration);
+			case TimeUnit.YEARS -> setAsYears(duration);
+			case TimeUnit.ELAPSED_YEARS -> setAsElapsedYears(duration);
+			default -> duration;
+		};
 	}	
 
 	public static double timeUnitFactor(int type) {
-		double result = 1.0;
 		if (type == TimeUnit.NONE)
 			type = ScheduleOption.getInstance().getDurationEnteredIn();
-		
-		switch (type) {
-			case TimeUnit.NON_TEMPORAL:
-				return 1.0D;
-			case TimeUnit.MINUTES :
-			case TimeUnit.ELAPSED_MINUTES :
-				return 60.0 * 1000;
-			case TimeUnit.HOURS :
-			case TimeUnit.ELAPSED_HOURS :
-				return 60.0 * 60 * 1000;
-			case TimeUnit.DAYS :
-				return CalendarOption.getInstance().getHoursPerDay() * 60.0 * 60 * 1000;
-			case TimeUnit.ELAPSED_DAYS :
-				return 24.0 * 60 * 60 * 1000;
-			case TimeUnit.WEEKS :
-				return CalendarOption.getInstance().getHoursPerWeek() * 60.0 * 60 * 1000;
-			case TimeUnit.ELAPSED_WEEKS :
-				return 7.0 * 24 * 60 * 60 * 1000;
-			case TimeUnit.MONTHS :
-				return CalendarOption.getInstance().hoursPerMonth() * 60.0 * 60 * 1000;
-			case TimeUnit.ELAPSED_MONTHS : 
-				return 30.0 * 24 * 60 * 60 * 1000;
-			case TimeUnit.YEARS :
-				return 365 * CalendarOption.getInstance().getHoursPerDay() * 60
-						* 60 * 1000;
-			case TimeUnit.ELAPSED_YEARS :
-				return 365 * 24 * 60 * 60 * 1000;
-		}
-		return result;
+
+		return switch (type) {
+			case TimeUnit.NON_TEMPORAL -> 1.0D;
+			case TimeUnit.MINUTES, TimeUnit.ELAPSED_MINUTES -> 60.0 * 1000;
+			case TimeUnit.HOURS, TimeUnit.ELAPSED_HOURS -> 60.0 * 60 * 1000;
+			case TimeUnit.DAYS -> CalendarOption.getInstance().getHoursPerDay() * 60.0 * 60 * 1000;
+			case TimeUnit.ELAPSED_DAYS -> 24.0 * 60 * 60 * 1000;
+			case TimeUnit.WEEKS -> CalendarOption.getInstance().getHoursPerWeek() * 60.0 * 60 * 1000;
+			case TimeUnit.ELAPSED_WEEKS -> 7.0 * 24 * 60 * 60 * 1000;
+			case TimeUnit.MONTHS -> CalendarOption.getInstance().hoursPerMonth() * 60.0 * 60 * 1000;
+			case TimeUnit.ELAPSED_MONTHS -> 30.0 * 24 * 60 * 60 * 1000;
+			case TimeUnit.YEARS -> 365 * CalendarOption.getInstance().getHoursPerDay() * 60 * 60 * 1000;
+			case TimeUnit.ELAPSED_YEARS -> 365 * 24 * 60 * 60 * 1000;
+			default -> 1.0D;
+		};
 	}
 	
 	public static long getInstance(double value, int type) {
