@@ -45,10 +45,10 @@ public class ResourceInTeamFilter extends NodeFilter {
 		Object impl = node.getImpl();
 		if (impl == null)
 			return false;
-		if (impl instanceof ResourceImpl)
-			return filterTeam?((ResourceImpl)impl).isInTeam():true;
-		else if (impl instanceof AssignmentEntry)
-			return filterTeam?((ResourceImpl)((AssignmentEntry)impl).getResource()).isInTeam():true;
+		if (impl instanceof ResourceImpl resource)
+			return filterTeam ? resource.isInTeam() : true;
+		else if (impl instanceof AssignmentEntry entry)
+			return filterTeam ? ((ResourceImpl) entry.getResource()).isInTeam() : true;
 		return false;
 	}
 
