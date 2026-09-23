@@ -137,14 +137,13 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     		return counter.count;
     	if (!skipVoid || !node.isVirtual())
     		counter.count++;
-    	Collection children = getChildren(node);
-    	if (children == null)
-    		return -1;
-    	Iterator i = children.iterator();
-    	int found = -1;
-    	while (i.hasNext()) {
-    		if ((found = getIndexOfNode(key,(Node)i.next(),counter,skipVoid)) != -1)
-    			break;
+		List<?> children = getChildren(node);
+		if (children == null)
+			return -1;
+		int found = -1;
+		for (Object child : children) {
+			if ((found = getIndexOfNode((Node) child, key, counter, skipVoid)) != -1)
+				break;
     	}
     	return found;
     	

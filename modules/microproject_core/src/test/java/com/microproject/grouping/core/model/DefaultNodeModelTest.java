@@ -116,6 +116,26 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void hierarchyIndexUsesDepthFirstChildOrder() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node parent = NodeFactory.getInstance().createNode(new Object());
+		Node child = NodeFactory.getInstance().createNode(new Object());
+		Node sibling = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, parent, NodeModel.SILENT);
+		model.add(parent, child, NodeModel.SILENT);
+		model.add(root, sibling, NodeModel.SILENT);
+
+		assertSame(parent, child.getParent());
+		assertSame(child, parent.getChildAt(0));
+		assertEquals(0, model.getHierarchy().getIndexOfNode(root, false));
+		assertEquals(1, model.getHierarchy().getIndexOfNode(parent, false));
+		assertEquals(2, model.getHierarchy().getIndexOfNode(child, false));
+		assertEquals(3, model.getHierarchy().getIndexOfNode(sibling, false));
+	}
+
+	@Test
 	void deletionUndoRedoRestoresASelectedParentAndItsChildOnce() {
 		UndoController undoController = new UndoController();
 		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
