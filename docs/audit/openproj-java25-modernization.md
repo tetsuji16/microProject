@@ -67,6 +67,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Weighted completion calculation | `ScheduleUtil.percentCompleteClosureInstance` | Confirmed both schedule dispatch hunks match OpenProj; replaced cast-after-`instanceof` with pattern bindings and tested weighted percent calculation plus ignored non-schedule input. |
 | Common-key equality | `HasCommonKeyImpl.equals` | Confirmed the equality hunk matches OpenProj; replaced the type check/cast with a pattern binding and expanded existing unique-ID equality/hash tests with null and unrelated-object inputs. Existing fork hashCode fix remains intact. |
 | Schedule bar interval boundary | `BarClosure.accept` | Confirmed the file is normalized-identical to OpenProj; replaced the `ScheduleWindow` check/cast with pattern binding and tested both the resume/unsplit stop adjustment and unchanged non-window intervals. |
+| Earned-value schedule offsets | `EarnedValueCalculator.getStartOffset` / `getFinishOffset` | Replaced repeated interface checks and casts with pattern bindings while preserving the zero result when required schedule fields are absent; added a focused regression for that fallback. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -154,6 +155,10 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 - Compilation/test success is evidence only for those exercised modules; it is
   not evidence that the inventory is exhausted or that every compatibility
   boundary has been audited.
+- `EarnedValueCalculatorTest` and the full core suite passed after the offset
+  dispatch modernization; application, exchange, UI, and reports `compileJava`
+  passed. No GUI route, layout, or Swing behavior changed, so GUI/Robot tests
+  were not repeated.
 - At the integration checkpoint after the recorded core batches,
   `.\gradlew.bat clean build installDist verifyArchitectureBoundaries
   --console=plain` completed successfully (all module tests included, 3m52s).

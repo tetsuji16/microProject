@@ -182,31 +182,27 @@ public class EarnedValueCalculator {
 	}
 	public long getStartOffset(EarnedValueValues ev) {
 		int numBaseline = Snapshottable.BASELINE.intValue(); // TODO use EV baseline?
-		if (!(ev instanceof HasStartAndEnd))
+		if (!(ev instanceof HasStartAndEnd schedule)
+				|| !(ev instanceof BaselineScheduleFields baseline)
+				|| !(ev instanceof HasCalendar calendar))
 			return 0L;
-		if (!(ev instanceof BaselineScheduleFields))
-			return 0L;
-		if (!(ev instanceof HasCalendar))
-			return 0L;
-		long baselineStart = ((BaselineScheduleFields)ev).getBaselineStart(numBaseline);
+		long baselineStart = baseline.getBaselineStart(numBaseline);
 		if (baselineStart == 0)
 			return 0L;
-		long start = ((HasStartAndEnd)ev).getStart();
-		return ((HasCalendar)ev).getEffectiveWorkCalendar().compare(start,baselineStart, false);
+		long start = schedule.getStart();
+		return calendar.getEffectiveWorkCalendar().compare(start,baselineStart, false);
 	}
 	public long getFinishOffset(EarnedValueValues ev) {
 		int numBaseline = Snapshottable.BASELINE.intValue(); // TODO use EV baseline?
-		if (!(ev instanceof HasStartAndEnd))
+		if (!(ev instanceof HasStartAndEnd schedule)
+				|| !(ev instanceof BaselineScheduleFields baseline)
+				|| !(ev instanceof HasCalendar calendar))
 			return 0L;
-		if (!(ev instanceof BaselineScheduleFields))
-			return 0L;
-		if (!(ev instanceof HasCalendar))
-			return 0L;
-		long baselineFinish = ((BaselineScheduleFields)ev).getBaselineFinish(numBaseline);
+		long baselineFinish = baseline.getBaselineFinish(numBaseline);
 		if (baselineFinish == 0)
 			return 0L;
-		long finish = ((HasStartAndEnd)ev).getEnd();
-		return ((HasCalendar)ev).getEffectiveWorkCalendar().compare(finish,baselineFinish, false);
+		long finish = schedule.getEnd();
+		return calendar.getEffectiveWorkCalendar().compare(finish,baselineFinish, false);
 		
 	}
 	private static final String NO_BASELINE = "There is no Earned Value data"; //$NON-NLS-1$
