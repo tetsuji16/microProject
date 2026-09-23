@@ -30,7 +30,6 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -77,7 +76,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		if (base == null) {
 			week = new WorkWeek();
 		} else {
-			week = (WorkWeek)  base.week.clone(); // copy the week days
+			week = base.week.clone(); // copy the week days
 			for (WorkWeekPeriod period : base.getWorkWeekPeriods())
 				addOrReplaceWorkWeekPeriod(period);
 			for (RecurringCalendarException exception : base.getRecurringExceptions())
@@ -88,8 +87,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		for (RecurringCalendarException exception : differences.getRecurringExceptions())
 			addOrReplaceRecurringException(exception);
 
-		@SuppressWarnings("unchecked")
-		TreeSet<WorkDay> clonedExceptions = (TreeSet<WorkDay>) differences.dayExceptions.clone();
+		TreeSet<WorkDay> clonedExceptions = new TreeSet<>(differences.dayExceptions);
 		dayExceptions = clonedExceptions; // copy from differences
 		if (base != null)
 			dayExceptions.addAll( base.dayExceptions); // add in base days. If day is already present it will not be added
@@ -167,7 +165,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	WorkDay[] getLocalExceptionDays() {
 		return dayExceptions.stream()
 			.filter(day -> day != WorkDay.MINIMUM && day != WorkDay.MAXIMUM)
-			.map(day -> (WorkDay) day.clone())
+			.map(WorkDay::clone)
 			.toArray(WorkDay[]::new);
 	}
 
@@ -222,14 +220,14 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	}
 
 
-	public Object clone() throws CloneNotSupportedException {
+	@Override
+	public CalendarDefinition clone() throws CloneNotSupportedException {
 		CalendarDefinition newOne = (CalendarDefinition) super.clone();
-		newOne.week = (WorkWeek) week.clone();
+		newOne.week = week.clone();
 		newOne.dayExceptions = new TreeSet<WorkDay>();
 
-		Iterator<WorkDay> i = dayExceptions.iterator();
-		while (i.hasNext())
-			newOne.dayExceptions.add((WorkDay) i.next().clone());
+		for (WorkDay dayException : dayExceptions)
+			newOne.dayExceptions.add(dayException.clone());
 		newOne.workWeekPeriods = null;
 		if (workWeekPeriods != null) {
 			newOne.workWeekPeriods = new ArrayList<>();

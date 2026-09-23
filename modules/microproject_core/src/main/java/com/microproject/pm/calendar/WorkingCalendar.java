@@ -125,7 +125,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 			newOne = new WorkingCalendar();
 			newOne.baseCalendar = baseCalendar;
 			newOne.setName(getName());
-			newOne.differences = (CalendarDefinition) differences.clone();
+			newOne.differences = differences.clone();
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("Calendar definition should be cloneable", e);
 		}

@@ -67,11 +67,11 @@ public final class WorkWeekPeriod implements Serializable, Cloneable {
 
 	public WorkDay getWeekDay(int day) {
 		WorkDay result = week.getWeekDay(day);
-		return result == null ? null : (WorkDay) result.clone();
+		return result == null ? null : result.clone();
 	}
 
 	public void setWeekDay(int day, WorkDay workDay) {
-		week.setWeekDay(day, workDay == null ? null : (WorkDay) workDay.clone());
+		week.setWeekDay(day, workDay == null ? null : workDay.clone());
 	}
 
 	public WorkWeek getWeek() { return copyOf(week); }
@@ -95,6 +95,6 @@ public final class WorkWeekPeriod implements Serializable, Cloneable {
 	}
 
 	private static WorkWeek copyOf(WorkWeek source) {
-		return (WorkWeek) source.clone();
+		return source.clone();
 	}
 }
