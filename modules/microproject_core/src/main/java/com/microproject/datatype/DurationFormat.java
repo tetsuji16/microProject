@@ -42,26 +42,25 @@ import java.text.Format;
  * there is no object churn and fewer function calls.
  */
 public class DurationFormat extends Format {
-	private boolean showPlusSign = false;
-	private boolean isWork = false;
-	private boolean canBeNonTemporal = false;
+	private final boolean showPlusSign;
+	private final boolean isWork;
+	private final boolean canBeNonTemporal;
 	private static Format instance = null;
 	public static Format getInstance() {
 		if (instance == null)
-			instance = new DurationFormat(false);
+			instance = new DurationFormat(false, false, false);
 		return instance;
 	}
 	private static Format signedInstance = null;
 	public static Format getSignedInstance() {
 		if (signedInstance == null)
-			signedInstance = new DurationFormat(true);
+			signedInstance = new DurationFormat(true, false, false);
 		return signedInstance;
 	}
 	private static Format workInstance = null;
 	public static Format getWorkInstance() {
 		if (workInstance == null) {
-			workInstance = new DurationFormat(false);
-			((DurationFormat)workInstance).isWork = true;
+			workInstance = new DurationFormat(false, true, false);
 		}
 		return workInstance;
 	}
@@ -69,9 +68,7 @@ public class DurationFormat extends Format {
 	private static Format nonTemporalWorkInstance = null;
 	public static Format getNonTemporalWorkInstance() {
 		if (nonTemporalWorkInstance == null) {
-			nonTemporalWorkInstance = new DurationFormat(false);
-			((DurationFormat)nonTemporalWorkInstance).isWork = true;
-			((DurationFormat)nonTemporalWorkInstance).canBeNonTemporal = true;
+			nonTemporalWorkInstance = new DurationFormat(false, true, true);
 		}
 		return nonTemporalWorkInstance;
 	}
@@ -92,8 +89,10 @@ public class DurationFormat extends Format {
 	
 	
 	//private constructor initializes values.
-	private DurationFormat(boolean showPlusSign) {
+	private DurationFormat(boolean showPlusSign, boolean isWork, boolean canBeNonTemporal) {
 		this.showPlusSign = showPlusSign;
+		this.isWork = isWork;
+		this.canBeNonTemporal = canBeNonTemporal;
 		String estimated = Messages.getString("Units.estimatedSymbolRegex"); // Like ?
 		
 		// a bunch of init code which reads the possible  values for durations from localized messages
