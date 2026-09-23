@@ -52,7 +52,6 @@ public class ChartCorner extends GradientCorner {
 
 				if  (SwingUtilities.isRightMouseButton(e)) {
 					JPopupMenu popup = chart.getPopupMenu();
-					// not using this anymoreTimeChartPopupMenu popup = new TimeChartPopupMenu(chart);
 					popup.show(chart,e.getX(),e.getY());
 
 				}			
