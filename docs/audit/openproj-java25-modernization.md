@@ -141,6 +141,19 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   OpenProj-only refactor. Any correctness change to their shared policy should
   be reviewed as a separate fork-behavior task with its own regression contract.
 
+## Exchange dead-code candidate retained for API compatibility
+
+- `com.microproject.exchange.Context` is a provenance-ledger candidate and
+  currently has no production references to its accessors or fields; the only
+  in-repository code reference is initialization of
+  `MicrosoftImporter.context`. However, `Context` is public and that importer
+  field is `protected`, so external importer subclasses can compile against and
+  use this extension surface. No consumer search inside this repository can
+  establish that removing the type/field is binary compatible for downstream
+  integrations. Keep both until a deliberate compatibility-breaking API
+  deprecation/removal decision is made; do not count this as safely deletable
+  dead code in issue #595.
+
 ## Deliberately retained compatibility-sensitive comparison
 
 - `Rate` remains on raw `Comparable`: its public `compareTo(Object)` explicitly
