@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.assignment.AssignmentEntry;
+import com.microproject.pm.assignment.HasAssignmentsImpl;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
@@ -33,6 +34,14 @@ class ResourceInTeamFilterTest {
 		assertEquals(expected, filter.evaluate(NodeFactory.getInstance().createNode(resource)));
 		assertEquals(expected, filter.evaluate(NodeFactory.getInstance().createNode(entry)));
 		assertFalse(filter.evaluate(NodeFactory.getInstance().createNode(new Object())));
+	}
+
+	@Test
+	void rejectsAssignmentEntriesWithoutAResourceInsteadOfFailingTheFilter() {
+		ResourceInTeamFilter filter = new ResourceInTeamFilter(null);
+		AssignmentEntry entry = new AssignmentEntry(new HasAssignmentsImpl(), new ArrayList<>(), null);
+
+		assertFalse(filter.evaluate(NodeFactory.getInstance().createNode(entry)));
 	}
 
 	@Test

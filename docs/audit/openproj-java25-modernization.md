@@ -46,7 +46,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Grouping XML configuration | `NodeGrouper` | Typed the XML-populated group list and `addGroup`/getter API as `NodeGroup`; verified insertion order and transform relationship, then compiled the UI consumer. |
 | Assignment composition filtering | `AssignmentCompositionFilter` | Applied pattern matching to the source-exact OpenProj Assignment branch; added delegation tests for both Assignment-to-Resource composition and unchanged non-Assignment nodes. The `Filter.WhoDoesWhatReport` XML configuration remains unchanged. |
 | Assignment exclusion filtering | `NotAssignmentFilter` | Replaced racy mutable lazy singleton fields with immutable `static final` instances and made the mode flag final; tests verify stable, distinct standard/writable instances and task acceptance. |
-| Resource team filtering | `ResourceInTeamFilter` | Applied pattern matching only to the two OpenProj-origin type checks; preserved the later `Consumer` callback fork delta and tested both resource paths plus change-only notification behavior. |
+| Resource team filtering | `ResourceInTeamFilter` | Applied pattern matching to the two OpenProj-origin type checks; preserved the later `Consumer` callback fork delta. A newly reproduced ClassCastException for an `AssignmentEntry` wrapping non-`ResourceImpl` `HasAssignments` is now a clean filter rejection; existing resource paths and change-only notification behavior remain covered. |
 | Timesheet aggregation | `TimesheetHelper` | Replaced raw iterators with enhanced-for loops and wildcard collection parameters; retained per-element casts required by `AssociationList`'s `Association` declaration and preserved processing/early-return behavior. Expanded existing timesheet aggregation tests. |
 | Object event delivery and pooling | `ObjectEvent`, `ObjectEventManager` | Typed assignment iteration; fixed a pooled-event stale-state bug by resetting `field`/`info`, and now recycles in `finally` when a listener throws. Regression test asserts exception propagation, object reuse, and cleared state. |
 | Script field arrays | `FieldArrayUtil` | Typed the iterator over `SpreadSheetFieldArray`'s `Field` elements; tests verify excluded IDs by category and that filtering mutates only the clone, not the configured source. |
@@ -108,7 +108,10 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   The focused `NotAssignmentFilterTest`, full core suite, and UI compilation
   passed after making the filter instances immutable and initialization-safe.
   The focused `ResourceInTeamFilterTest`, full core suite, and UI compilation
-  passed after pattern-matching the resource/team filter branches.
+  passed after pattern-matching the resource/team filter branches. An added
+  non-resource `AssignmentEntry` regression failed before the defensive type
+  narrowing and passed after it; the full core suite plus application,
+  exchange, UI, and reports compilation also passed.
   The focused `TimesheetInfrastructureTest`, full core suite, and exchange /
   application compilations passed after typing timesheet aggregation iteration.
   The focused `ObjectEventManagerTest`, full core suite, and exchange /

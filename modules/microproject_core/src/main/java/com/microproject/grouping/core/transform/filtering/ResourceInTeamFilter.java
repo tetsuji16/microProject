@@ -47,8 +47,11 @@ public class ResourceInTeamFilter extends NodeFilter {
 			return false;
 		if (impl instanceof ResourceImpl resource)
 			return filterTeam ? resource.isInTeam() : true;
-		else if (impl instanceof AssignmentEntry entry)
-			return filterTeam ? ((ResourceImpl) entry.getResource()).isInTeam() : true;
+		else if (impl instanceof AssignmentEntry entry) {
+			if (!filterTeam)
+				return true;
+			return entry.getResource() instanceof ResourceImpl resource && resource.isInTeam();
+		}
 		return false;
 	}
 
