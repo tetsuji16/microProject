@@ -29,13 +29,12 @@ import java.util.Comparator;
 
 import com.microproject.algorithm.DoubleValue;
 import com.microproject.pm.time.HasStartAndEnd;
-import com.microproject.util.MathUtils;
 
 
 /**
  * Used to hold a point in Calculated values arrays
  */
-public class Point implements Comparable, Comparator, Serializable, HasStartAndEnd, DoubleValue {
+public class Point implements Comparable<Point>, Comparator<Point>, Serializable, HasStartAndEnd, DoubleValue {
 	static final long serialVersionUID = 629828246846L;
 	public Point(long date, double value) {
 		this.date = date;
@@ -52,8 +51,8 @@ public class Point implements Comparable, Comparator, Serializable, HasStartAndE
 		return new java.util.Date(date) + " " + value;
 	}
 
-	public int compareTo(Object to) {
-		return MathUtils.signum(date - ((Point)to).date);
+	public int compareTo(Point other) {
+		return Long.compare(date, other.date);
 	}
 	/**
 	 * @return Returns the date.
@@ -80,8 +79,8 @@ public class Point implements Comparable, Comparator, Serializable, HasStartAndE
 		this.value = value;
 	}
 
-	public int compare(Object arg0, Object arg1) {
-		return ((Point)arg0).compareTo(arg1);
+	public int compare(Point first, Point second) {
+		return first.compareTo(second);
 	}
 
 	public long getStart() {
