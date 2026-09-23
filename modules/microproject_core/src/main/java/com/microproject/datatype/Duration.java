@@ -33,7 +33,7 @@ import com.microproject.util.MathUtils;
  * The idea is that the algorithms will run faster because there is no object churn and fewer function
  * calls.
  */
-public class Duration extends Number implements Comparable {
+public class Duration extends Number implements Comparable<Duration> {
 	private static final long serialVersionUID = 1489291902577173002L;
 	private long encodedMillis;
 	protected boolean work = false;
@@ -59,11 +59,9 @@ public class Duration extends Number implements Comparable {
 		return Long.hashCode(encodedMillis);
 	}
 
-	public int compareTo(Object arg0) {
-		if (arg0 == null)
+	public int compareTo(Duration duration) {
+		if (duration == null)
 			 throw new NullPointerException();
-		if (!(arg0 instanceof Duration duration))
-			throw new ClassCastException();
 		return MathUtils.signum(getValue(encodedMillis) - getValue(duration.getEncodedMillis()));
 	}
 		

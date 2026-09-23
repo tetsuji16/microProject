@@ -100,9 +100,19 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Configurable field ordering | `Field.compareTo` | Confirmed the method hunk matches OpenProj baseline `d2fa3c20` and is used by production UI/configuration sorting. The `index - other.index` ordering overflowed for opposite integer extremes; a focused test reproduced reversal before the fix. Changed the raw `Comparable` to `Comparable<Field>` and replaced subtraction with `Integer.compare`. Focused field tests, full `:microproject_core:test`, and application/exchange/UI/reports `compileJava` passed; `javap` confirms the erased `compareTo(Object)` bridge remains alongside the type-safe method. |
 | Interval-table ordering | `ValueObjectForInterval.compare`, `compareTo` | Confirmed the comparator hunk matches OpenProj baseline `d2fa3c20`; production interval-table insertion and search use it with `Collections.binarySearch`. The start-date subtraction overflowed for opposite long extremes, reproduced by a focused pre-fix regression. Replaced raw `Comparable`/`Comparator` with typed contracts and `Long.compare`. Focused comparator/table/equality tests, full `:microproject_core:test`, and application/exchange/UI/reports `compileJava` passed; `javap` confirms the erased `compareTo(Object)` and `compare(Object,Object)` bridges remain. |
 | Timesheet natural-order stub | `TimesheetAssignment.compareTo` | The OpenProj-origin subtraction comparator had no caller: current `TimesheetEntryPane` sorts with its own explicit resource/task/start comparator. Repository search found no other natural-order, reflection, or configuration use; the class is not Serializable. Removed the unused `Comparable` implementation and method without changing the timesheet list's actual sort order. Full `:microproject_core:test`, application/exchange/UI/reports `compileJava`, and `verifyArchitectureBoundaries` passed. |
+| Duration natural ordering | `Duration.compareTo`, `ClassUtils` duration/Work comparators | Compared against OpenProj baseline `d2fa3c20`; made the raw `Comparable` contract `Comparable<Duration>` and typed comparator operands at the integration boundary, including `Work`'s inherited Duration comparison. Kept existing comparison arithmetic and null/type failure behavior unchanged. Added regression coverage for direct order and both registered comparators. Focused Duration comparison/encoding and Rate comparison tests, full `:microproject_core:test`, application/exchange/UI/reports `compileJava`, and `javap` confirmation of the erased bridge passed. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
+
+## Deliberately retained compatibility-sensitive comparison
+
+- `Rate` remains on raw `Comparable`: its public `compareTo(Object)` explicitly
+  throws `IllegalArgumentException` for a non-Rate operand. Converting it to
+  `Comparable<Rate>` would generate a bridge that throws `ClassCastException`
+  before entering the method, changing an observable contract. A type-safe
+  migration needs a separately designed compatibility adapter; this syntax
+  cleanup does not justify that behavior change.
 
 ## Deleted code, caller and compatibility evidence
 

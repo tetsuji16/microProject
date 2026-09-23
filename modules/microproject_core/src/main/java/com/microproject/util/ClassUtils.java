@@ -428,13 +428,13 @@ public class ClassUtils {
 				registerComparator(Duration.class, nullSafeComparator(new Comparator<Object>() {
 					@Override
 					public int compare(Object o1, Object o2) {
-						return ((Duration) o1).compareTo(o2);
+						return ((Duration) o1).compareTo((Duration) o2);
 					}
 				}));
 				registerComparator(Work.class, nullSafeComparator(new Comparator<Object>() {
 					@Override
 					public int compare(Object o1, Object o2) {
-						return ((Work) o1).compareTo(o2);
+						return ((Work) o1).compareTo((Duration) o2);
 					}
 				}));
 				registerComparator(Rate.class, nullSafeComparator(new Comparator<Object>() {
