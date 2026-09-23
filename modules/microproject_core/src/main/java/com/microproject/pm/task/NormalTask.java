@@ -1628,6 +1628,17 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		getCurrentSchedule().setPercentComplete(importedPercentComplete.doubleValue());
 	}
 
+	/** Returns the externally supplied task-level progress override, if any. */
+	public Double getImportedPercentCompleteOverride() {
+		return importedPercentComplete;
+	}
+
+	/** Restores imported task-level progress metadata without touching assignment progress. */
+	public void restoreImportedPercentCompleteOverride(Double percentComplete) {
+		importedPercentComplete = percentComplete;
+		if (percentComplete != null) getCurrentSchedule().setPercentComplete(percentComplete.doubleValue());
+	}
+
 	private void updateAssignmentPercentComplete(double percentComplete) {
 		final double pc = percentComplete;
 		Iterator i = getAssignments().iterator();

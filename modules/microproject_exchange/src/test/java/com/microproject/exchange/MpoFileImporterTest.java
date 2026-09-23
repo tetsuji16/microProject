@@ -1370,6 +1370,8 @@ class MpoFileImporterTest {
 	void updateProjectRequestStateSurvivesMpoRoundTrip() throws Exception {
 		Project original = projectForRoundTrip();
 		Task task = firstTask(original);
+		boolean statusDateWasSet = original.isStatusDateSet();
+		long originalStatusDate = original.getStatusDate();
 		long statusDate = task.getEnd() + 86_400_000L;
 		UpdateProjectRequest request = new UpdateProjectRequest(statusDate, true, false, true);
 		new UpdateProjectCommand(original, request).accept(task);
@@ -1377,8 +1379,11 @@ class MpoFileImporterTest {
 			"Update Project must complete the source task before export");
 
 		Project restored = load(writeTempMpo(original));
-		assertTrue(restored.isStatusDateSet());
-		assertEquals(original.getStatusDate(), restored.getStatusDate());
+		assertEquals(statusDateWasSet, original.isStatusDateSet(),
+			"Update Project uses its target date without changing the project Status Date setting");
+		assertEquals(statusDateWasSet, restored.isStatusDateSet(),
+			"MPO reload must preserve the unchanged Status Date setting");
+		assertEquals(originalStatusDate, restored.getStatusDate());
 		assertEquals(1D, firstTask(restored).getPercentComplete(), 0.00001D,
 			"Update Project actual progress must survive MPO reload");
 	}

@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JTabbedPane;
@@ -37,6 +38,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
+import javax.swing.JPopupMenu;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 
@@ -47,7 +49,9 @@ import org.junit.jupiter.api.Test;
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
+import com.microproject.dialog.StatusDateDialog;
 import com.microproject.dialog.CalendarViewDialogBox;
+import com.microproject.dialog.calendar.ChangeWorkingTimeDialogBox;
 import com.microproject.dialog.options.CalendarDialogBox;
 import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
@@ -69,6 +73,9 @@ import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.graphic.views.PertView;
 import com.microproject.pm.graphic.views.TreeView;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.graphic.views.ResourceView;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -444,6 +451,191 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotChangeWorkingTimeProjectRibbonRouteOpensAndCancels() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
+			"working-time project window did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ProjectRibbonTask.title"));
+		click(robot, boundsOnScreen(projectTab));
+		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
+		AbstractButton changeWorkingTime = findShowingButtonByCommand("RibbonChangeWorkingTime");
+		assertTrue(changeWorkingTime.isEnabled(), "Change Working Time requires the active project calendar to be editable");
+		click(robot, boundsOnScreen(changeWorkingTime));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate instanceof ChangeWorkingTimeDialogBox && candidate.isShowing()),
+			"Project ribbon Change Working Time did not open its dialog");
+		ChangeWorkingTimeDialogBox dialog = java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate instanceof ChangeWorkingTimeDialogBox && candidate.isShowing())
+			.map(ChangeWorkingTimeDialogBox.class::cast).findFirst().orElseThrow();
+		com.microproject.pm.calendar.WorkingCalendar calendar = (com.microproject.pm.calendar.WorkingCalendar)
+			manager.getCurrentFrame().getProject().getWorkCalendar();
+		int exceptionCount = calendar.getExceptionDays().length;
+		int workWeekCount = calendar.getWorkWeekPeriods().size();
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Change Working Time ribbon route");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Escape did not cancel Change Working Time");
+		assertEquals(exceptionCount, calendar.getExceptionDays().length,
+			"closing without parent OK must not commit calendar exceptions");
+		assertEquals(workWeekCount, calendar.getWorkWeekPeriods().size(),
+			"closing without parent OK must not commit work weeks");
+	}
+
+	@Test
+	void robotIssue592StatusDateAndUpdateProjectDialogsFitVisualMatrix() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot visual coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		project.setStatusDate(task.getEnd() + 86_400_000L);
+		long originalStatusDate = project.getStatusDate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
+			"Issue #592 project window did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ProjectRibbonTask.title"));
+		click(robot, boundsOnScreen(projectTab));
+		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
+
+		AbstractButton statusDate = findShowingButtonByCommand("RibbonStatusDate");
+		String renderedStatusDate = statusDate.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+		String localizedDate = com.microproject.options.EditOption.getInstance().getDateFormat()
+			.format(new java.util.Date(originalStatusDate));
+		assertTrue(renderedStatusDate.startsWith(localizedDate + " ") && renderedStatusDate.endsWith(":"),
+			"Status Date ribbon value/caption must remain readable at this locale and scale: " + renderedStatusDate);
+		click(robot, boundsOnScreen(statusDate));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing()),
+			"Status Date dialog did not open for visual inspection");
+		StatusDateDialog statusDialog = java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing())
+			.map(StatusDateDialog.class::cast).findFirst().orElseThrow();
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(statusDialog, "Issue #592 Status Date dialog");
+		click(robot, boundsOnScreen(findShowingButtonByText(statusDialog, Messages.getString("ButtonText.Cancel"))));
+		GuiAcceptanceSupport.await(() -> !statusDialog.isShowing(), "Status Date visual dialog did not cancel");
+		assertEquals(originalStatusDate, project.getStatusDate(), "visual inspection must not change Status Date");
+
+		AbstractButton updateProject = findShowingButtonByCommand("RibbonUpdateProject");
+		click(robot, boundsOnScreen(updateProject));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate instanceof UpdateProjectDialogBox && candidate.isShowing()),
+			"Update Project dialog did not open for visual inspection");
+		UpdateProjectDialogBox updateDialog = java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate instanceof UpdateProjectDialogBox && candidate.isShowing())
+			.map(UpdateProjectDialogBox.class::cast).findFirst().orElseThrow();
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(updateDialog, "Issue #592 Update Project dialog");
+		click(robot, boundsOnScreen(findShowingButtonByText(updateDialog, Messages.getString("ButtonText.Cancel"))));
+		GuiAcceptanceSupport.await(() -> !updateDialog.isShowing(), "Update Project visual dialog did not cancel");
+		assertEquals(originalStatusDate, project.getStatusDate(), "visual inspection must not alter Status Date");
+	}
+
+	@Test
+	void robotChangeWorkingTimeCommandResolvesSelectedResourceCalendar() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		Resource resource = project.getResourcePool().createScriptedResource();
+		resource.setName("Selected resource calendar");
+		WorkingCalendar resourceCalendar = WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		resourceCalendar.setName("Selected resource calendar work time");
+		resource.setWorkCalendar(resourceCalendar);
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> {
+			window.setSize(1600, 700);
+			manager.getCurrentFrame().activateResourceView();
+		});
+		DocumentFrame documentFrame = manager.getCurrentFrame();
+		ResourceView resourceView = documentFrame.getResourceView();
+		GuiAcceptanceSupport.await(() -> documentFrame.getActiveTopView() == resourceView,
+			"Resource Sheet did not become active");
+		SpreadSheet resourceSheet = resourceView.getSpreadSheet();
+		int resourceRow = rowForResource(resourceSheet, resource);
+		assertTrue(resourceRow >= 0, "the test resource must be present in Resource Sheet's visible rows");
+		// Seed the typed row selection through its canonical Swing selection model;
+		// the subsequent command itself is exercised with physical Robot input.
+		SwingUtilities.invokeAndWait(() -> resourceSheet.setRowSelectionInterval(resourceRow, resourceRow));
+		Object selected = documentFrame.getSelectedImpl();
+		assertTrue(selected instanceof Resource && "Selected resource calendar".equals(((Resource) selected).getName()),
+			"resource selection must resolve to the selected resource, got " + selected);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		// ResourceView presents a one-time product notice for ordinary projects.
+		// Dismiss that expected modal before testing the Project ribbon route.
+		if (java.util.Arrays.stream(Window.getWindows()).anyMatch(candidate -> candidate instanceof Dialog && candidate.isShowing())) {
+			press(robot, KeyEvent.VK_ENTER);
+			GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.noneMatch(candidate -> candidate instanceof Dialog && candidate.isShowing()),
+				"the expected Resource Sheet notice did not close");
+		}
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ProjectRibbonTask.title"));
+		for (int attempt = 0; attempt < 3 && !projectTab.isSelected(); attempt++) {
+			if (attempt > 0) activateWindow(robot, window);
+			click(robot, boundsOnScreen(projectTab));
+		}
+		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab was not selected after bounded physical clicks");
+		AbstractButton changeWorkingTime = findShowingButtonByCommand("RibbonChangeWorkingTime");
+		assertTrue(changeWorkingTime.isEnabled(), "Change Working Time must be enabled for a selected writable resource");
+		click(robot, boundsOnScreen(changeWorkingTime));
+		GuiAcceptanceSupport.await(() -> findWorkingTimeDialog() != null, "Change Working Time did not open");
+		ChangeWorkingTimeDialogBox dialog = findWorkingTimeDialog();
+		assertTrue(UiComponentWalker.flatten(dialog).stream().filter(JComboBox.class::isInstance)
+			.map(JComboBox.class::cast).anyMatch(combo -> combo.getSelectedItem() == resourceCalendar),
+			"DocumentFrame must open Change Working Time on the selected resource's calendar");
+		JTabbedPane tabs = findTabbedPane(dialog);
+		assertNotNull(tabs, "Change Working Time must expose calendar tabs");
+		Rectangle exceptionsTab = tabs.getBoundsAt(2);
+		Rectangle tabsBounds = boundsOnScreen(tabs);
+		click(robot, new Rectangle(tabsBounds.x + exceptionsTab.x + exceptionsTab.width / 2,
+			tabsBounds.y + exceptionsTab.y + exceptionsTab.height / 2, 1, 1));
+		GuiAcceptanceSupport.await(() -> tabs.getSelectedIndex() == 2, "Exceptions tab did not become active");
+		AbstractButton add = UiComponentWalker.flatten(dialog).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast).filter(button -> "calendarExceptionAddButton".equals(button.getName()))
+			.findFirst().orElseThrow(() -> new AssertionError("resource exception Add button is absent"));
+		assertTrue(add.isEnabled(), "resource-specific calendar exceptions must be editable");
+		click(robot, boundsOnScreen(add));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate instanceof Dialog && candidate.isShowing() && candidate != dialog),
+			"resource calendar Add editor did not open");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.noneMatch(candidate -> candidate instanceof Dialog && candidate.isShowing() && candidate != dialog),
+			"Escape did not close resource calendar Add editor");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Escape did not cancel Change Working Time");
+		assertTrue(resourceCalendar.getRecurringExceptions().isEmpty(), "Cancel must leave resource calendar unchanged");
+	}
+
+	private static ChangeWorkingTimeDialogBox findWorkingTimeDialog() {
+		return java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate instanceof ChangeWorkingTimeDialogBox && candidate.isShowing())
+			.map(ChangeWorkingTimeDialogBox.class::cast).findFirst().orElse(null);
+	}
+
+	@Test
 	void robotCalendarCommandOpensUsableCalendarDialog() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -635,7 +827,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		NormalTask task = createTask();
 		showProject(task.getOwningProject());
-		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"hide/show test project did not become visible");
@@ -648,7 +840,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		click(robot, boundsOnScreen(taskTab));
-		AbstractButton hide = findShowingButtonByCommand("RibbonHideSelectedTasks");
+		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		GuiAcceptanceSupport.await(hide::isEnabled, "Hide Selected Tasks remained disabled after selection");
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Hide Selected Tasks did not update the task model");
@@ -674,6 +866,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Ctrl+Z did not restore the visible task row");
 
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
+		hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(task::isHiddenTask, "second hide did not update the task model");
 		robot.keyPress(KeyEvent.VK_CONTROL);
@@ -683,7 +876,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Ctrl+Y did not reapply task visibility");
 
-		AbstractButton show = findShowingButtonByCommand("RibbonShowAllTasks");
+		AbstractButton show = findVisibleOrOverflowButton(robot, "RibbonShowAllTasks");
 		assertTrue(show.isShowing(), "Show All Tasks must remain discoverable beside Hide Selected Tasks after hiding");
 		assertTrue(show.isEnabled(), "Show All Tasks must become enabled after a task is hidden");
 		click(robot, boundsOnScreen(show));
@@ -694,8 +887,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void taskModeRibbonRouteChangesModelAndRoundTripsUndoRedoAndMpo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Task Mode Robot coverage.");
-		Assumptions.assumeTrue(guiScale() <= 1.0d,
-			"Task Mode direct Ribbon route requires full-width desktop; high-DPI layout is covered by the responsive Ribbon matrix.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
@@ -703,7 +894,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask task = createTask();
 		Project project = task.getOwningProject();
 		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"task-mode project did not become visible");
@@ -714,7 +905,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"))));
-		AbstractButton manual = findShowingButtonByCommand("RibbonTaskModeManual");
+		AbstractButton manual = findVisibleOrOverflowButton(robot, "RibbonTaskModeManual");
 		GuiAcceptanceSupport.await(manual::isEnabled, "Manual Schedule remained disabled after task selection");
 		GuiCommandAcceptanceFixture.verifyMutation("TaskModeManual", () -> { click(robot, boundsOnScreen(manual)); return null; },
 			() -> manager.getCurrentFrame().getLastTaskCommandResult(), task::isManuallyScheduled,
@@ -775,19 +966,84 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void statusDateRibbonRouteUsesSharedMutationFixture() throws Exception {
 		runProgressPhysicalRoute("status-date", context -> {
-			click(context.robot(), boundsOnScreen(GuiPhysicalRouteAdapter.visibleButton(window,
-					"RibbonStatusDate")));
+			AbstractButton statusDate = GuiPhysicalRouteAdapter.visibleButton(window, "RibbonStatusDate");
+			String expectedDate = com.microproject.options.EditOption.getInstance().getDateFormat()
+					.format(new java.util.Date(initialStatusDate));
+			String statusDateText = statusDate.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+			assertTrue(statusDateText.startsWith(expectedDate + " "),
+					"MSP Status Date control must show the current date before its caption: " + statusDateText);
+			assertTrue(statusDateText.endsWith(":"),
+					"MSP Status Date control must retain its caption after the date value: " + statusDateText);
+			click(context.robot(), boundsOnScreen(statusDate));
+			GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+					.anyMatch(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing()),
+					"Status Date dialog did not open for cancel verification");
+			StatusDateDialog cancelled = java.util.Arrays.stream(Window.getWindows())
+					.filter(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing())
+					.map(StatusDateDialog.class::cast).findFirst().orElseThrow();
+			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(cancelled, "Status Date dialog");
+			assertTrue(UiComponentWalker.flatten(cancelled).stream()
+					.filter(com.microproject.dialog.util.ExtDateField.class::isInstance)
+					.map(com.microproject.dialog.util.ExtDateField.class::cast)
+					.anyMatch(field -> field.isEnabled() && field.getDateValue() != null),
+					"A configured MSP Status Date must be shown in the editable date field");
+			click(context.robot(), boundsOnScreen(findShowingButtonByText(cancelled, Messages.getString("ButtonText.Cancel"))));
+			GuiAcceptanceSupport.await(() -> !cancelled.isShowing(), "Status Date cancel did not close dialog");
+			assertEquals(initialStatusDate, contextProject().getStatusDate(), "Cancel must not change status date");
+			click(context.robot(), boundsOnScreen(GuiPhysicalRouteAdapter.visibleButton(window, "RibbonStatusDate")));
+			chooseStatusDateNotSet(context.robot());
+			GuiAcceptanceSupport.await(() -> GuiPhysicalRouteAdapter.visibleButton(window, "RibbonStatusDate")
+					.getText().startsWith("NA "), "Status Date ribbon value did not refresh to NA");
 			return null;
-		}, () -> contextProject().getStatusDate() != initialStatusDate, () -> contextProject().getStatusDate() == initialStatusDate,
+		}, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(),
+			() -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(),
 			"StatusDate");
 	}
 	@Test
+	void statusDateRibbonCanSetSpecificDatePhysically() throws Exception {
+		runProgressPhysicalRoute("status-set-date", context -> {
+			click(context.robot(), boundsOnScreen(GuiPhysicalRouteAdapter.visibleButton(window, "RibbonStatusDate")));
+			GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+					.anyMatch(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing()),
+					"Status Date dialog did not open for date selection");
+			StatusDateDialog dialog = java.util.Arrays.stream(Window.getWindows())
+					.filter(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing())
+					.map(StatusDateDialog.class::cast).findFirst().orElseThrow();
+			AbstractButton picker = UiComponentWalker.flatten(dialog).stream()
+					.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+					.filter(button -> "...".equals(button.getText())).findFirst().orElseThrow();
+			click(context.robot(), boundsOnScreen(picker));
+			GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(javax.swing.MenuSelectionManager.defaultManager().getSelectedPath())
+					.anyMatch(JPopupMenu.class::isInstance), "Status Date calendar popup did not open");
+			JPopupMenu popup = java.util.Arrays.stream(javax.swing.MenuSelectionManager.defaultManager().getSelectedPath())
+					.filter(JPopupMenu.class::isInstance).map(JPopupMenu.class::cast).findFirst().orElseThrow();
+			AbstractButton selectedDay = UiComponentWalker.flatten(popup).stream()
+					.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+					.filter(button -> "3".equals(button.getText())).findFirst().orElseThrow();
+			click(context.robot(), boundsOnScreen(selectedDay));
+			com.microproject.dialog.util.ExtDateField dateField = UiComponentWalker.flatten(dialog).stream()
+					.filter(com.microproject.dialog.util.ExtDateField.class::isInstance)
+					.map(com.microproject.dialog.util.ExtDateField.class::cast).findFirst().orElseThrow();
+			assertNotNull(dateField.getDateValue(), "Selecting a calendar day must update the date field");
+			assertTrue(initialStatusDate != dateField.getDateValue().getTime(),
+					"The physical calendar selection must replace the preselected status date");
+			click(context.robot(), boundsOnScreen(findShowingButtonByText(dialog, Messages.getString("ButtonText.OK"))));
+			GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Status Date date selection did not close dialog");
+			assertTrue(initialStatusDate != contextProject().getStatusDate(),
+					"Accepting the selected date must update the project model");
+			return null;
+		}, () -> contextProject().isStatusDateSet() && contextProject().getStatusDate() != initialStatusDate
+				&& statusDateRibbonMatchesModel(),
+			() -> contextProject().isStatusDateSet() && contextProject().getStatusDate() == initialStatusDate
+				&& statusDateRibbonMatchesModel(), "StatusDate");
+	}
+	@Test
 	void statusDatePopupRouteUsesSharedMutationFixture() throws Exception {
-		runProgressPhysicalRoute("status-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Status popup absent"); click(c.robot(),boundsOnScreen(GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.StatusDate"))); return null; }, () -> contextProject().getStatusDate()!=initialStatusDate, () -> contextProject().getStatusDate()==initialStatusDate, "StatusDate");
+		runProgressPhysicalRoute("status-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Status popup absent"); click(c.robot(),boundsOnScreen(GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.StatusDate"))); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 	@Test
 	void statusDateShortcutRouteUsesSharedMutationFixture() throws Exception {
-		runProgressPhysicalRoute("status-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_S,InputEvent.CTRL_DOWN_MASK|InputEvent.ALT_DOWN_MASK),"StatusDate"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_ALT,KeyEvent.VK_S); return null; }, () -> contextProject().getStatusDate()!=initialStatusDate, () -> contextProject().getStatusDate()==initialStatusDate, "StatusDate");
+		runProgressPhysicalRoute("status-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_S,InputEvent.CTRL_DOWN_MASK|InputEvent.ALT_DOWN_MASK),"StatusDate"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_ALT,KeyEvent.VK_S); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 
 	@Test
@@ -807,6 +1063,35 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	void markOnTrackShortcutRouteUsesSharedMutationFixture() throws Exception {
 		runProgressPhysicalRoute("mark-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_T,InputEvent.CTRL_DOWN_MASK|InputEvent.SHIFT_DOWN_MASK),"MarkOnTrack"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_SHIFT,KeyEvent.VK_T); return null; }, () -> contextTask().getPercentComplete()!=initialPercentComplete, () -> contextTask().getPercentComplete()==initialPercentComplete, "MarkOnTrack");
 	}
+	@Test
+	void markOnTrackMenuRouteUsesSharedMutationFixture() throws Exception {
+		runProgressPhysicalRoute("mark-menu", c -> {
+			JMenuBar bar = new JMenuBar();
+			JMenu root = new JMenu("Task");
+			JMenuItem item = new JMenuItem(manager.getMenuManager().getActionFromId("MarkOnTrack"));
+			item.setActionCommand("MarkOnTrack");
+			root.add(item); bar.add(root); window.setJMenuBar(bar); window.validate();
+			GuiAcceptanceSupport.await(root::isShowing, "Mark on Track menu root did not become visible");
+			click(c.robot(), boundsOnScreen(root));
+			JMenuItem visible = GuiPhysicalRouteAdapter.visiblePopupItem(root.getPopupMenu(), "MarkOnTrack");
+			GuiAcceptanceSupport.await(visible::isEnabled, "Mark on Track menu item remained disabled for a selected task");
+			click(c.robot(), boundsOnScreen(visible));
+			return null;
+		}, () -> contextTask().getPercentComplete() != initialPercentComplete,
+			() -> contextTask().getPercentComplete() == initialPercentComplete, "MarkOnTrack");
+	}
+	@Test
+	void markOnTrackRibbonIsDisabledWithoutTaskSelection() throws Exception {
+		runProgressPhysicalRoute("mark-on-track-no-selection", c -> {
+			AbstractButton markOnTrack = GuiPhysicalRouteAdapter.visibleButton(window, "RibbonMarkOnTrack");
+			assertFalse(markOnTrack.isEnabled(), "MSP Mark on Track requires selected tasks");
+			click(c.robot(), boundsOnScreen(markOnTrack));
+			assertEquals(initialPercentComplete, contextTask().getPercentComplete(),
+					"A disabled command must leave the task unchanged");
+			return null;
+		}, () -> contextTask().getPercentComplete() == initialPercentComplete,
+			() -> contextTask().getPercentComplete() == initialPercentComplete, "MarkOnTrack", false);
+	}
 
 	@Test
 	void updateProjectRibbonRouteOpensAndConfirmsDialogPhysically() throws Exception {
@@ -824,6 +1109,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
 		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ProjectRibbonTask.title"))));
 		AbstractButton update = GuiPhysicalRouteAdapter.visibleButton(window, "RibbonUpdateProject");
@@ -835,6 +1122,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		UpdateProjectDialogBox dialog = java.util.Arrays.stream(Window.getWindows())
 				.filter(candidate -> candidate instanceof UpdateProjectDialogBox && candidate.isShowing())
 				.map(UpdateProjectDialogBox.class::cast).findFirst().orElseThrow();
+		AbstractButton selectedTasks = findShowingButtonByText(dialog,
+			Messages.getString("UpdateProjectDialogBox.SelectedTasks"));
+		assertTrue(selectedTasks.isSelected(), "an existing task selection must default to Selected Tasks");
+		assertEquals(project.getStatusDate(), dialog.getForm().getUpdateDate().getTime(),
+			"Update Project date defaults to the effective project Status Date");
 		AbstractButton ok = findShowingButtonByText(dialog, Messages.getString("ButtonText.OK"));
 		click(robot, boundsOnScreen(ok));
 		// The dialog may retain focus on its date editor after the first physical
@@ -849,6 +1141,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		previousRibbonUi = Environment.isRibbonUI(); previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true); Environment.setNewLook(true);
 		NormalTask task = createTask(); Project project = task.getOwningProject(); showProject(project);
+		project.setStatusDate(task.getEnd() + 86_400_000L);
+		long statusDateBeforeUpdate = project.getStatusDate();
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null, "Update Project menu project did not become visible");
 		Robot robot = new Robot(); robot.setAutoDelay(45); activateWindow(robot, window);
@@ -864,11 +1158,26 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			() -> java.util.Arrays.stream(Window.getWindows()).anyMatch(w -> w instanceof UpdateProjectDialogBox && w.isShowing()),
 			() -> {
 				UpdateProjectDialogBox dialog = java.util.Arrays.stream(Window.getWindows()).filter(w -> w instanceof UpdateProjectDialogBox && w.isShowing()).map(UpdateProjectDialogBox.class::cast).findFirst().orElseThrow();
+				assertTrue(findShowingButtonByText(dialog, Messages.getString("UpdateProjectDialogBox.EntireProject")).isSelected(),
+					"no selected task rows must default Update Project to Entire Project");
+				assertEquals(statusDateBeforeUpdate, dialog.getForm().getUpdateDate().getTime(),
+					"Update Project date must default to the effective project Status Date");
+				click(robot, boundsOnScreen(findShowingButtonByText(dialog,
+					Messages.getString("UpdateProjectDialogBox.SetZeroOrHundredOnly"))));
 				click(robot, boundsOnScreen(findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")))); return null;
-			}, () -> manager.getLastRibbonCommandResult(), () -> task.getPercentComplete() >= 0D,
-			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; }, () -> task.getPercentComplete() >= 0D,
-			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; }, () -> task.getPercentComplete() >= 0D,
-			() -> { ByteArrayOutputStream saved = new ByteArrayOutputStream(); return new MpoFileImporter().saveProject(project, saved); });
+			}, () -> manager.getLastRibbonCommandResult(), () -> task.getPercentComplete() == 1D,
+			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; },
+				() -> task.getPercentComplete() == 0D && project.getStatusDate() == statusDateBeforeUpdate,
+			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; },
+				() -> task.getPercentComplete() == 1D && project.getStatusDate() == statusDateBeforeUpdate,
+			() -> {
+				ByteArrayOutputStream saved = new ByteArrayOutputStream();
+				MpoFileImporter importer = new MpoFileImporter();
+				return importer.saveProject(project, saved)
+					&& importer.loadProject(new java.io.ByteArrayInputStream(saved.toByteArray()))
+						.getTaskList().stream().anyMatch(reloaded -> reloaded.getUniqueId() == task.getUniqueId()
+							&& reloaded.getPercentComplete() == 1D);
+			});
 	}
 
 	private NormalTask progressTask;
@@ -877,9 +1186,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private double initialPercentComplete;
 	private Project contextProject() { return progressProject; }
 	private NormalTask contextTask() { return progressTask; }
+	private boolean statusDateRibbonMatchesModel() {
+		AbstractButton button = GuiPhysicalRouteAdapter.visibleButton(window, "RibbonStatusDate");
+		String text = button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+		if (!contextProject().isStatusDateSet()) return text.startsWith("NA ") && text.endsWith(":");
+		String date = com.microproject.options.EditOption.getInstance().getDateFormat()
+				.format(new java.util.Date(contextProject().getStatusDate()));
+		return text.startsWith(date + " ") && text.endsWith(":");
+	}
 
 	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
 			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier before, String commandId) throws Exception {
+		runProgressPhysicalRoute(routeName, route, after, before, commandId, true);
+	}
+
+	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
+			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier before, String commandId,
+			boolean selectTask) throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for progress Robot coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -899,14 +1222,21 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)));
+		if (selectTask) click(robot, cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)));
+		else SwingUtilities.invokeAndWait(sheet::clearSelection);
 		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString("ProjectRibbonTask.title"))));
+				.getString(commandId.equals("MarkOnTrack") ? "TaskRibbonTask.title" : "ProjectRibbonTask.title"))));
 		GuiAcceptanceSupport.await(() -> GuiPhysicalRouteAdapter.visibleButton(window,
 				commandId.equals("StatusDate") ? "RibbonStatusDate" : "RibbonMarkOnTrack") != null,
 				"progress command did not become visible");
 		TaskModeContext context = new TaskModeContext(robot, sheet,
 				cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)), progressTask);
+		if (!selectTask) {
+			assertEquals(0, sheet.getSelectedRows().length, "No-selection fixture must have no selected task rows");
+			route.run(context);
+			assertTrue(after.getAsBoolean(), "Disabled Mark on Track must preserve task progress");
+			return;
+		}
 		GuiCommandAcceptanceFixture.verifyMutation(commandId, () -> route.run(context),
 			() -> manager.getCurrentFrame().getLastTaskCommandResult(), after,
 			() -> rowForTask(sheet, progressTask) >= 0,
@@ -916,9 +1246,25 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				ByteArrayOutputStream saved = new ByteArrayOutputStream();
 				if (!new MpoFileImporter().saveProject(progressProject, saved)) return false;
 				Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
-				return commandId.equals("StatusDate") ? reloaded.getStatusDate() != initialStatusDate
+				return commandId.equals("StatusDate") ? reloaded.isStatusDateSet() == progressProject.isStatusDateSet()
+						&& (!reloaded.isStatusDateSet() || reloaded.getStatusDate() == progressProject.getStatusDate())
 						: Double.compare(taskNamed(reloaded, progressTask.getName()).getPercentComplete(), initialPercentComplete) != 0;
 			});
+	}
+
+	private void chooseStatusDateNotSet(Robot robot) throws Exception {
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.anyMatch(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing()),
+				"Status Date dialog did not open");
+		StatusDateDialog dialog = java.util.Arrays.stream(Window.getWindows())
+				.filter(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing())
+				.map(StatusDateDialog.class::cast).findFirst().orElseThrow();
+		JCheckBox notSet = (JCheckBox) UiComponentWalker.flatten(dialog).stream()
+				.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+				.filter(JCheckBox::isShowing).findFirst().orElseThrow();
+		click(robot, boundsOnScreen(notSet));
+		click(robot, boundsOnScreen(findShowingButtonByText(dialog, Messages.getString("ButtonText.OK"))));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Status Date dialog did not close");
 	}
 
 	@FunctionalInterface
@@ -968,7 +1314,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		NormalTask task = createTask();
 		showProject(task.getOwningProject());
-		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null, "delete test project did not become visible");
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -978,7 +1324,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"))));
-		AbstractButton delete = findShowingButtonByCommand("RibbonDelete");
+		AbstractButton delete = findVisibleOrOverflowButton(robot, "RibbonDelete");
 		GuiAcceptanceSupport.await(delete::isEnabled, "Delete remained disabled after selecting a task");
 		click(robot, boundsOnScreen(delete));
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task), "Delete did not remove the selected row");
@@ -1086,7 +1432,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		NormalTask task = createTask();
 		showProject(task.getOwningProject());
-		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"no-selection test project did not become visible");
@@ -1112,10 +1458,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Outdent must be disabled without a selected task");
 		assertFalse(findShowingButtonByCommand("RibbonCollapse").isEnabled(),
 			"Collapse must be disabled without a selected task");
-		assertFalse(findShowingButtonByCommand("RibbonHideSelectedTasks").isEnabled(),
-			"Hide Selected Tasks must be disabled without a selected task");
-		assertFalse(findShowingButtonByCommand("RibbonShowAllTasks").isEnabled(),
-			"Show All Tasks must be disabled when no task is hidden");
+		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
+		AbstractButton show = findVisibleOrOverflowButton(robot, "RibbonShowAllTasks");
+		assertFalse(hide.isEnabled(), "Hide Selected Tasks must be disabled without a selected task");
+		assertFalse(show.isEnabled(), "Show All Tasks must be disabled when no task is hidden");
 	}
 
 	@Test
@@ -1739,6 +2085,56 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return result[0];
 	}
 
+	private JPopupMenu openOverflowForCommand(Robot robot, String command) throws Exception {
+		JPopupMenu[] result = new JPopupMenu[1];
+		AbstractButton[] trigger = new AbstractButton[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (java.awt.Component component : UiComponentWalker.flatten(window)) {
+				if (!(component instanceof AbstractButton button)) continue;
+				Object value = button.getClientProperty("MicroProject.ribbonCollapsedPopup");
+				if (value instanceof JPopupMenu popup && popupCommandOrNull(popup, command) != null) {
+					trigger[0] = button;
+					result[0] = popup;
+					break;
+				}
+			}
+		});
+		if (trigger[0] == null)
+			throw new AssertionError("Responsive ribbon overflow has no command: " + command);
+		click(robot, boundsOnScreen(trigger[0]));
+		GuiAcceptanceSupport.await(result[0]::isVisible, "Responsive ribbon overflow did not open");
+		return result[0];
+	}
+
+	private AbstractButton findVisibleOrOverflowButton(Robot robot, String command) throws Exception {
+		AbstractButton direct = findVisibleCommandOrNull(command);
+		if (direct != null) return direct;
+		return popupCommand(openOverflowForCommand(robot, command), command);
+	}
+
+	private AbstractButton findVisibleCommandOrNull(String command) throws Exception {
+		AbstractButton[] result = new AbstractButton[1];
+		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(AbstractButton::isShowing).filter(button -> command.equals(button.getActionCommand()))
+			.findFirst().orElse(null));
+		return result[0];
+	}
+
+	private static AbstractButton popupCommand(JPopupMenu popup, String command) {
+		AbstractButton button = popupCommandOrNull(popup, command);
+		if (button == null) throw new AssertionError("Ribbon overflow has no command: " + command);
+		return button;
+	}
+
+	private static AbstractButton popupCommandOrNull(JPopupMenu popup, String command) {
+		for (java.awt.Component component : UiComponentWalker.flatten(popup)) {
+			if (component instanceof AbstractButton button && command.equals(button.getActionCommand()))
+				return button;
+		}
+		return null;
+	}
+
 	private static int rowForTask(SpreadSheet sheet, NormalTask task) {
 		CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
 		for (int row = 0; row < sheet.getRowCount(); row++) {
@@ -1766,6 +2162,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return sheet.convertColumnIndexToView(modelColumn);
 		}
 		throw new AssertionError("Task-name column is absent from the visible spreadsheet");
+	}
+
+	private static int rowForResource(SpreadSheet sheet, Resource resource) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int row = 0; row < model.getRowCount(); row++) {
+			Node node = model.getNodeForDisplayRow(row);
+			if (node != null && node.getImpl() == resource) return row;
+		}
+		return -1;
 	}
 
 	private static Rectangle cellOnScreen(SpreadSheet sheet, int row, int column) throws Exception {

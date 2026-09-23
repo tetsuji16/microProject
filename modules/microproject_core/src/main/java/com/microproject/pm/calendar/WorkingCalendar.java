@@ -168,7 +168,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	private CalendarDefinition differences = new CalendarDefinition();
 
 	public WorkDay[] getExceptionDays() { // get day exceptions in derived cal
-		return differences.getExceptions();
+		return differences.getLocalExceptionDays();
 	}
 	/**
 	 * @return Returns the name.
@@ -191,6 +191,63 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	public void removeException(WorkDay exceptionDay) {
 		differences.dayExceptions.remove(exceptionDay); // remove any existing
 		invalidateConcreteInstance();
+	}
+
+	/** Returns local named exception recurrence rules, not their expanded occurrences. */
+	public ArrayList<RecurringCalendarException> getRecurringExceptions() {
+		ArrayList<RecurringCalendarException> result = new ArrayList<>();
+		for (RecurringCalendarException exception : differences.getRecurringExceptions()) result.add(exception.clone());
+		return result;
+	}
+
+	/** Returns inherited and local recurrence rules in effect. */
+	public ArrayList<RecurringCalendarException> getEffectiveRecurringExceptions() {
+		ArrayList<RecurringCalendarException> result = new ArrayList<>();
+		for (RecurringCalendarException exception : getConcreteInstance().getRecurringExceptions()) result.add(exception.clone());
+		return result;
+	}
+
+	public void addOrReplaceRecurringException(RecurringCalendarException exception) {
+		if (exception == null) throw new NullPointerException("exception");
+		differences.addOrReplaceRecurringException(exception);
+		invalidate();
+	}
+
+	public void removeRecurringException(RecurringCalendarException exception) {
+		if (exception == null) return;
+		differences.removeRecurringException(exception);
+		invalidate();
+	}
+
+	/** Returns this calendar's local dated work-week overrides. */
+	public ArrayList<WorkWeekPeriod> getWorkWeekPeriods() {
+		ArrayList<WorkWeekPeriod> result = new ArrayList<>();
+		for (WorkWeekPeriod period : differences.getWorkWeekPeriods()) result.add(period.clone());
+		return result;
+	}
+
+	/** Returns inherited and local dated work-week patterns in effect. */
+	public ArrayList<WorkWeekPeriod> getEffectiveWorkWeekPeriods() {
+		ArrayList<WorkWeekPeriod> result = new ArrayList<>();
+		for (WorkWeekPeriod period : getConcreteInstance().getWorkWeekPeriods()) result.add(period.clone());
+		return result;
+	}
+
+	public void addOrReplaceWorkWeekPeriod(WorkWeekPeriod period) {
+		if (period == null) throw new NullPointerException("period");
+		for (WorkWeekPeriod existing : differences.getWorkWeekPeriods()) {
+			if (!existing.hasSameRange(period)
+					&& existing.getStart() <= period.getEnd() && period.getStart() <= existing.getEnd())
+				throw new IllegalArgumentException("Work week date ranges must not overlap");
+		}
+		differences.addOrReplaceWorkWeekPeriod(period);
+		invalidate();
+	}
+
+	public void removeWorkWeekPeriod(WorkWeekPeriod period) {
+		if (period == null) return;
+		differences.removeWorkWeekPeriod(period);
+		invalidate();
 	}
 
 
@@ -479,15 +536,26 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		descriptor.workDay = getDay(differences.dayExceptions,date); // is this day modified in derived calendar?
 		descriptor.modified = descriptor.workDay != null;
 
+		// Resolve date-specific overrides before ordinary weekday settings so
+		// ranged exceptions and dated Work Weeks paint the same state that drives
+		// schedule calculations.
+		if (descriptor.workDay == null && hasDateSpecificCalendarRules()) {
+			descriptor.workDay = getConcreteInstance().getDateSpecificWorkDay(date);
+			descriptor.modified = descriptor.workDay != null;
+		}
+
 		if (descriptor.workDay == null)
 			descriptor.workDay = differences.week.getWeekDay(dayNum); // try difference week day
-
-		if (descriptor.workDay == null) // if not overrideen in derived calendar, see if base calendar has a special day
-			descriptor.workDay = getConcreteInstance().getWorkDay(date);
 
 		if (descriptor.workDay == null) // return week day
 			descriptor.workDay = getConcreteInstance().week.getWeekDay(CalendarDefinition.getDayOfWeek(date));
 		return descriptor;
+	}
+
+	private boolean hasDateSpecificCalendarRules() {
+		if (!differences.getWorkWeekPeriods().isEmpty() || !differences.dayExceptions.isEmpty()
+				|| !differences.getRecurringExceptions().isEmpty()) return true;
+		return baseCalendar instanceof WorkingCalendar base && base.hasDateSpecificCalendarRules();
 	}
 
 	DayDescriptor getWeekDayDescriptor(int dayNum) {

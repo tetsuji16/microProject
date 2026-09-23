@@ -48,7 +48,9 @@ import net.sf.mpxj.Priority;
 import net.sf.mpxj.ProjectCalendar;
 import net.sf.mpxj.ProjectCalendarException;
 import net.sf.mpxj.ProjectCalendarHours;
+import net.sf.mpxj.ProjectCalendarWeek;
 import net.sf.mpxj.ProjectProperties;
+import net.sf.mpxj.RecurringData;
 import net.sf.mpxj.Resource;
 import net.sf.mpxj.ResourceField;
 import net.sf.mpxj.ResourceAssignment;
@@ -74,6 +76,9 @@ import com.microproject.pm.calendar.WorkDay;
 import com.microproject.pm.calendar.WorkRange;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.pm.calendar.WorkWeekPeriod;
+import com.microproject.pm.calendar.RecurringCalendarException;
+import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarRecurrenceConverter;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -157,19 +162,48 @@ public class MPXConverter {
 				}
 			}
 		}
+		for (WorkWeekPeriod period : workCalendar.getEffectiveWorkWeekPeriods()) {
+			ProjectCalendarWeek mpxWeek = mpx.addWorkWeek();
+			mpxWeek.setName(period.getName());
+			mpxWeek.setDateRange(new DateRange(
+				DateTime.fromGmt(new Date(DateTime.dayFloor(period.getStart()))),
+				DateTime.fromGmt(new Date(DateTime.dayFloor(period.getEnd())))));
+			for (int i = 0; i < 7; i++) {
+				Day mpxDay = Day.getInstance(i + 1);
+				WorkDay workDay = period.getWeekDay(i);
+				if (workDay == null) {
+					mpxWeek.setCalendarDayType(mpxDay, DayType.DEFAULT);
+				} else if (!workDay.isWorking()) {
+					mpxWeek.setCalendarDayType(mpxDay, DayType.NON_WORKING);
+				} else {
+					mpxWeek.setCalendarDayType(mpxDay, DayType.WORKING);
+					ProjectCalendarHours mpxHours = mpxWeek.addCalendarHours(mpxDay);
+					toMpxCalendarDay(workDay, mpxHours);
+				}
+			}
+		}
+
+		MpxCalendarRecurrenceConverter recurrenceConverter = new MpxCalendarRecurrenceConverter();
+		for (RecurringCalendarException recurring : workCalendar.getEffectiveRecurringExceptions()) {
+			WorkDay template = recurring.getTemplate();
+			RecurringData recurrence = recurrenceConverter.to(recurring.getRecurrence());
+			ProjectCalendarException exception = mpx.addCalendarException(recurrence);
+			if (template.getDescription() != null) exception.setName(template.getDescription());
+			toMpxExceptionDay(template, exception);
+		}
 
 		WorkDay[] workDays=workCalendar.getExceptionDays();
 		if (workDays!=null)
 			for (int i=0;i<workDays.length;i++){
 				if (workDays[i]==null||workDays[i].getStart()==0L||workDays[i].getStart()==Long.MAX_VALUE)
 					continue;
-				Date start = new Date(workDays[i].getStart());
-				GregorianCalendar cal = DateTime.calendarInstance();
-				// days go from 00:00 to 23:59
-				cal.setTime(start);
-				cal.set(Calendar.HOUR,23);
-				cal.set(Calendar.MINUTE,59);
-				ProjectCalendarException exception=mpx.addCalendarException(start,DateTime.fromGmt(cal.getTime())); //claur
+				Date start = DateTime.fromGmt(new Date(DateTime.dayFloor(workDays[i].getStart())));
+				// Keep both bounds as calendar dates; MPXJ treats the exception end
+				// date as inclusive and normalizes its time component.
+				Date end = DateTime.fromGmt(new Date(DateTime.dayFloor(workDays[i].getEnd())));
+				ProjectCalendarException exception=mpx.addCalendarException(start,end); //claur
+				if (workDays[i].getDescription() != null)
+					exception.setName(workDays[i].getDescription());
 				
 				toMpxExceptionDay(workDays[i],exception);
 				//exception.setWorking(workDays[i].isWorking()); //claur exception is working once it has at least one range

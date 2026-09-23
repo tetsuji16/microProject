@@ -122,8 +122,9 @@ public class UpdateProjectDialogBox extends AbstractDialog {
 	
 	protected void initControls() {
 	    entireProject = new JRadioButton(Messages.getString("UpdateProjectDialogBox.EntireProject")); //$NON-NLS-1$
-	    entireProject.setSelected(true);
+	    entireProject.setSelected(form.getEntireProject().booleanValue());
 	    selectedTask = new JRadioButton(Messages.getString("UpdateProjectDialogBox.SelectedTasks")); //$NON-NLS-1$
+	    selectedTask.setSelected(!form.getEntireProject().booleanValue());
 	    if (!hasTasksSelected)
 	    	selectedTask.setEnabled(false);
 	    projectOrTask = new ButtonGroup();
@@ -131,8 +132,9 @@ public class UpdateProjectDialogBox extends AbstractDialog {
 	    projectOrTask.add(selectedTask);
 	    
 	    update = new JRadioButton();
-	    update.setSelected(true);
+	    update.setSelected(form.getUpdate().booleanValue());
 	    reschedule = new JRadioButton();
+	    reschedule.setSelected(!form.getUpdate().booleanValue());
 	    updateOrReschedule = new ButtonGroup();
 	    updateOrReschedule.add(update);
 	    updateOrReschedule.add(reschedule);
@@ -143,14 +145,18 @@ public class UpdateProjectDialogBox extends AbstractDialog {
 		// default form so the first physical OK can always commit valid dates.
 		updateDateChooser.setValue(form.getUpdateDate());
 		rescheduleDateChooser.setValue(form.getRescheduleDate());
-		rescheduleDateChooser.setEnabled(false);
+		rescheduleDateChooser.setEnabled(!form.getUpdate().booleanValue());
 		
 		progress= new JRadioButton(Messages.getString("UpdateProjectDialogBox.SetZeroHundred")); //$NON-NLS-1$
-		progress.setSelected(true);
+		progress.setSelected(form.getProgress().booleanValue());
 		completeOrNotOnly= new JRadioButton(Messages.getString("UpdateProjectDialogBox.SetZeroOrHundredOnly")); //$NON-NLS-1$
+		completeOrNotOnly.setSelected(!form.getProgress().booleanValue());
 		progressCalculationType = new ButtonGroup();;
 		progressCalculationType.add(progress);
 		progressCalculationType.add(completeOrNotOnly);
+		progress.setEnabled(form.getUpdate().booleanValue());
+		completeOrNotOnly.setEnabled(form.getUpdate().booleanValue());
+		updateDateChooser.setEnabled(form.getUpdate().booleanValue());
 
 		update.addActionListener(new ActionListener(){
 		    public void actionPerformed(ActionEvent e){

@@ -846,6 +846,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if(!Environment.isPlugin()){
 				setEnabledDocumentMenuActions(currentFrame!=null);
 				setButtonState(null,currentFrame.getProject());
+				// Ribbon construction can be deferred until the frame is laid out;
+				// refresh once more after that registration point so the value is not
+				// lost behind the bundle's static button text.
+				SwingUtilities.invokeLater(this::refreshStatusDateControl);
 			}
 			if (currentFrame != null && currentFrame.getProject() != null) {
 				if (!Environment.isPlugin()) currentFrame.getFilterToolBarManager().transformBasedOnValue();
@@ -4367,7 +4371,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			hasCcpmPlan && com.microproject.pm.graphic.gantt.CriticalChainDisplayState.isVisible(project));
 		getMenuManager().setActionEnabled(ACTION_DELEGATE_TASKS,isTask && writable);
 		getMenuManager().setActionEnabled(ACTION_UPDATE_TASKS,!readOnly && isTask);
+		// MSP documents Mark on Track as an operation on selected tasks. Keep its
+		// enablement aligned with the typed selection snapshot used by dispatch.
+		getMenuManager().setActionEnabled(ACTION_MARK_ON_TRACK,
+				!readOnly && taskType && !selectedTaskNodes.isEmpty());
 		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,currentFrame != null);
+		refreshStatusDateControl(project);
 
 
 		boolean insertProject = currentFrame != null && project != null && currentFrame.isCurrentRowInMainProject();
@@ -4406,6 +4415,49 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_DOCUMENTS,currentFrame != null && isEnabledFieldAction(ACTION_DOCUMENTS,  currentFrame.getProject()));
 
 
+	}
+
+	/** Keeps the ribbon control identical to MSP's "Status Date: <date>" field. */
+	public void refreshStatusDateControl() {
+		DocumentFrame frame = getCurrentFrame();
+		refreshStatusDateControl(frame == null ? null : frame.getProject());
+	}
+
+	private void refreshStatusDateControl(Project project) {
+		String label = getMenuManager().getStringOrNull("RibbonStatusDate.text");
+		if (label == null) label = "Status Date";
+		String value = project == null || !project.isStatusDateSet() ? "NA"
+				: com.microproject.options.EditOption.getInstance().getDateFormat()
+					.format(new java.util.Date(project.getStatusDate()));
+		// MSP's Project ribbon renders the current value first, followed by the
+		// localized "Status Date:" caption (the value is not just a tooltip).
+		String display = value + " " + label + ":";
+		Action action = getMenuManager().getActionFromId(ACTION_STATUS_DATE);
+		if (action != null) action.putValue(Action.NAME, display);
+		java.util.List<Object> buttons = new java.util.ArrayList<>();
+		var actionButtons = getMenuManager().getToolButtonsFromId(ACTION_STATUS_DATE);
+		if (actionButtons != null) buttons.addAll(actionButtons);
+		var ribbonButtons = getMenuManager().getToolButtonsFromId("RibbonStatusDate");
+		if (ribbonButtons != null) buttons.addAll(ribbonButtons);
+		for (Object candidate : buttons) if (candidate instanceof AbstractButton button) {
+			button.setText(display);
+			button.getAccessibleContext().setAccessibleName(display);
+			button.revalidate();
+			button.repaint();
+		}
+		if (getFrame() instanceof Container root) updateStatusDateComponents(root, display);
+	}
+
+	private static void updateStatusDateComponents(Container parent, String display) {
+		for (Component child : parent.getComponents()) {
+			if (child instanceof AbstractButton button && "RibbonStatusDate".equals(button.getActionCommand())) {
+				button.setText(display);
+				button.getAccessibleContext().setAccessibleName(display);
+				button.revalidate();
+				button.repaint();
+			}
+			if (child instanceof Container nested) updateStatusDateComponents(nested, display);
+		}
 	}
 
 	private static boolean canOutdent(Node node) {

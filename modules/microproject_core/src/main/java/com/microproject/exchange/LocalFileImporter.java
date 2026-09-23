@@ -342,21 +342,29 @@ public class LocalFileImporter extends FileImporter {
 				logger.log(Level.WARNING, "Error during file import", e);
 			}
 			try{
-				bout.write(PROJECT_LIBRE_FILE_SEPARATOR.getBytes());
-				bout.flush();
-				com.microproject.port.SessionImporter importer=LocalSession.getImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
-				if (importer == null) {
-					throw new IOException("POD export requires the Microsoft exchange importer provider");
+				if (project.getTasks().isEmpty()) {
+					// MPXJ materializes dated Work Weeks as bounded recurring exceptions
+					// in MSPDI. Its bounds come from task dates, so an empty project has
+					// no valid range for that optional recovery payload. The serialized
+					// POD document above is complete and remains directly readable.
+					logger.info("Skipping optional MSPDI recovery payload for an empty project");
+				} else {
+					bout.write(PROJECT_LIBRE_FILE_SEPARATOR.getBytes());
+					bout.flush();
+					com.microproject.port.SessionImporter importer=LocalSession.getImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
+					if (importer == null) {
+						throw new IOException("POD export requires the Microsoft exchange importer provider");
+					}
+					String previousFileName = importer.getFileName();
+					try {
+						// POD stores a serialized ProjectLibre payload followed by embedded MSPDI XML.
+						importer.setFileName(name + ".xml");
+						importer.saveProject(project, bout);
+					} finally {
+						importer.setFileName(previousFileName);
+					}
+					bout.flush();
 				}
-				String previousFileName = importer.getFileName();
-				try {
-					// POD stores a serialized ProjectLibre payload followed by embedded MSPDI XML.
-					importer.setFileName(name + ".xml");
-					importer.saveProject(project, bout);
-				} finally {
-					importer.setFileName(previousFileName);
-				}
-				bout.flush();
 				
 			}catch (Exception e) {
 				error=true;

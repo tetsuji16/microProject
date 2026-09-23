@@ -42,6 +42,10 @@ public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Seri
 	public WorkDay(long fromDate, long toDate) {
 		super(fromDate, toDate);
 	}
+
+	public WorkDay(long fromDate, long toDate, String name) {
+		super(fromDate, toDate, name);
+	}
 	public Object clone() {
 		WorkDay newOne = null;
 		try {

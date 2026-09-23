@@ -56,6 +56,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.task.RollupSpan;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.resource.Resource;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -63,6 +64,118 @@ import com.microproject.server.data.ProjectData;
 import com.microproject.server.data.Serializer;
 
 public class PodRoundTripTest {
+	@Test
+	public void emptyProjectWithDatedWorkWeekRoundTripsAsNativePod() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("empty-work-week", undo), undo);
+		project.initialize(false, false);
+		com.microproject.pm.calendar.WorkingCalendar calendar =
+			com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("Empty project work week");
+		long start = com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.SEPTEMBER, 21)
+			.getTimeInMillis();
+		com.microproject.pm.calendar.WorkWeek week = new com.microproject.pm.calendar.WorkWeek();
+		week.setWeekDay(java.util.Calendar.MONDAY - 1, com.microproject.pm.calendar.WorkDay.getNonWorkingDay());
+		calendar.addOrReplaceWorkWeekPeriod(new com.microproject.pm.calendar.WorkWeekPeriod("Shutdown week", start,
+			start + 6L * 24L * 60L * 60L * 1000L, week));
+		project.setWorkCalendar(calendar);
+
+		File saved = Files.createTempFile("empty-work-week-", ".pod").toFile();
+		try {
+			LocalFileImporter exporter = new LocalFileImporter();
+			exporter.setFileName(saved.getAbsolutePath());
+			exporter.setProject(project);
+			exporter.exportFile();
+			assertTrue("native POD payload must be written without MSPDI task-date bounds", saved.length() > 0);
+			Project reopened = load(saved);
+			assertEquals("Shutdown week", ((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+				.getWorkWeekPeriods().getFirst().getName());
+		} finally {
+			Files.deleteIfExists(saved.toPath());
+		}
+	}
+
+	@Test
+	public void recurringCalendarExceptionRuleSurvivesNativePodWithoutFlattening() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("recurring-calendar-exception", undo), undo);
+		project.initialize(false, false);
+		var calendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("Recurring exception calendar");
+		long start = com.microproject.util.DateTime.calendarInstance(2024, java.util.Calendar.JANUARY, 1)
+			.getTimeInMillis();
+		var nonworking = new com.microproject.pm.calendar.WorkDay(start, start, "Annual shutdown");
+		nonworking.setWorkingHours(new com.microproject.pm.calendar.WorkingHours());
+		var recurrence = com.microproject.pm.calendar.CalendarRecurrence.yearly(start, 1, false,
+			java.util.Calendar.JANUARY + 1, 1, 1, 1,
+			com.microproject.pm.calendar.CalendarRecurrence.EndMode.AFTER_OCCURRENCES, 0, 3);
+		calendar.addOrReplaceRecurringException(
+			new com.microproject.pm.calendar.RecurringCalendarException(nonworking, recurrence));
+		project.setWorkCalendar(calendar);
+
+		File saved = Files.createTempFile("recurring-calendar-exception-", ".pod").toFile();
+		try {
+			LocalFileImporter exporter = new LocalFileImporter();
+			exporter.setFileName(saved.getAbsolutePath());
+			exporter.setProject(project);
+			exporter.exportFile();
+			Project reopened = load(saved);
+			var restored = (com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar();
+			assertEquals(1, restored.getRecurringExceptions().size());
+			assertEquals("Annual shutdown", restored.getRecurringExceptions().getFirst().getTemplate().getDescription());
+			assertEquals(List.of(start,
+				com.microproject.util.DateTime.calendarInstance(2025, java.util.Calendar.JANUARY, 1).getTimeInMillis(),
+				com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.JANUARY, 1).getTimeInMillis()),
+				restored.getRecurringExceptions().getFirst().getRecurrence().occurrenceDates());
+			assertEquals("POD must not flatten occurrences to one-off dates", 0, restored.getExceptionDays().length);
+		} finally {
+			Files.deleteIfExists(saved.toPath());
+		}
+	}
+
+	@Test
+	public void resourceSpecificRecurringCalendarSurvivesNativePodRoundTrip() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-calendar-pod", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		project.setMaster(true);
+		Resource resource = pool.createScriptedResource();
+		resource.setName("Resource calendar POD fixture");
+		var calendar = com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		calendar.setName("Resource-specific recurring calendar");
+		long start = com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.JANUARY, 5)
+			.getTimeInMillis();
+		var template = new com.microproject.pm.calendar.WorkDay(start, start, "Resource shutdown");
+		template.setWorkingHours(new com.microproject.pm.calendar.WorkingHours());
+		var recurrence = com.microproject.pm.calendar.CalendarRecurrence.daily(start, 1, false,
+			com.microproject.pm.calendar.CalendarRecurrence.EndMode.AFTER_OCCURRENCES, 0L, 3);
+		calendar.addOrReplaceRecurringException(
+			new com.microproject.pm.calendar.RecurringCalendarException(template, recurrence));
+		resource.setWorkCalendar(calendar);
+
+		File saved = Files.createTempFile("resource-calendar-pod-", ".pod").toFile();
+		try {
+			LocalFileImporter exporter = new LocalFileImporter();
+			exporter.setFileName(saved.getAbsolutePath());
+			exporter.setProject(project);
+			exporter.exportFile();
+			Project reopened = load(saved);
+			Resource restoredResource = reopened.getResourcePool().getResourceList().stream()
+				.filter(candidate -> "Resource calendar POD fixture".equals(candidate.getName()))
+				.findFirst().orElseThrow();
+			var restoredCalendar = (com.microproject.pm.calendar.WorkingCalendar) restoredResource.getWorkCalendar();
+			assertEquals(1, restoredCalendar.getRecurringExceptions().size());
+			assertEquals(recurrence.occurrenceDates(), restoredCalendar.getRecurringExceptions().getFirst()
+				.getRecurrence().occurrenceDates());
+			assertTrue("resource recurrence must remain a rule rather than flattened date exceptions",
+				restoredCalendar.getExceptionDays().length == 0);
+		} finally {
+			Files.deleteIfExists(saved.toPath());
+		}
+	}
+
 	@Test
 	public void podExportLeavesNoTemporarySiblingAfterSuccessfulReplace() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -532,6 +645,8 @@ public class PodRoundTripTest {
 		e2.exportFile();
 
 		Project p2 = load(f2);
+		assertEquals("effective Work Week rules must survive consecutive native round-trips",
+				workWeekSignature(p1), workWeekSignature(p2));
 		assertEquals("round-2 created", p0Created, p2.getCreated().getTime());
 		assertEquals("round-2 uid", p0Uid, p2.getUniqueId());
 	}
@@ -583,6 +698,27 @@ public class PodRoundTripTest {
 		if (!iterator.hasNext())
 			throw new AssertionError("Sample project has no tasks");
 		return (Task) iterator.next();
+	}
+
+	private static String workWeekSignature(Project project) {
+		java.util.IdentityHashMap<com.microproject.pm.calendar.WorkingCalendar, Boolean> calendars = new java.util.IdentityHashMap<>();
+		addCalendar(calendars, project.getWorkCalendar());
+		for (Task task : project.getTaskList())
+			if (task instanceof NormalTask normalTask) addCalendar(calendars, normalTask.getWorkCalendar());
+		for (com.microproject.pm.resource.Resource resource : project.getResourcePool().getResourceList())
+			addCalendar(calendars, resource.getWorkCalendar());
+		return calendars.keySet().stream().map(calendar -> calendar.getName() + ":"
+			+ ((com.microproject.pm.calendar.WorkingCalendar) calendar).getEffectiveWorkWeekPeriods().stream()
+				.map(period -> period.getName() + ":" + period.getStart() + ":" + period.getEnd())
+				.toList())
+			.sorted().toList().toString();
+	}
+
+	private static void addCalendar(
+		java.util.IdentityHashMap<com.microproject.pm.calendar.WorkingCalendar, Boolean> calendars,
+		com.microproject.pm.calendar.WorkCalendar calendar) {
+		if (calendar instanceof com.microproject.pm.calendar.WorkingCalendar workingCalendar)
+			calendars.put(workingCalendar, Boolean.TRUE);
 	}
 
 	private static List<TaskState> leafSnapshot(List<TaskState> states, Project project) {
@@ -718,6 +854,9 @@ public class PodRoundTripTest {
 		e2.exportFile();
 
 		Project p2 = load(f2);
+		assertEquals("task states must stabilize after one full save/reload cycle", snapshot(p1), snapshot(p2));
+		assertEquals("effective Work Week rules must stabilize after one full save/reload cycle",
+				workWeekSignature(p1), workWeekSignature(p2));
 
 		// The real round-trip determinism guarantee: serializing the two loaded
 		// projects back to their ProjectData payloads must be bit-for-bit identical.
