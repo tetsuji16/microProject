@@ -26,8 +26,8 @@ package com.microproject.undo;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import javax.swing.undo.AbstractUndoableEdit;
@@ -37,8 +37,8 @@ import javax.swing.undo.CannotUndoException;
 import com.microproject.pm.scheduling.Schedule;
 
 public class ScheduleBackupEdit  extends AbstractUndoableEdit{
-	Map backups;
-	protected Object source;
+	private final Map<Schedule, Object> backups;
+	protected final Object source;
 	
 	/**
 	 * @param interval
@@ -47,17 +47,13 @@ public class ScheduleBackupEdit  extends AbstractUndoableEdit{
 	 */
 	public ScheduleBackupEdit(Object schedule, Object source) {
 		super();
-		backups=new HashMap();
-		Collection collection;
-		if (schedule instanceof Collection){
-			collection=(Collection)schedule;
-		}else{
-			collection=new ArrayList(1);
-			collection.add(schedule);
-		}
-		for (Iterator i=collection.iterator();i.hasNext();){
-			Schedule s=(Schedule)i.next();
-			backups.put(s,s.backupDetail());
+		backups = new HashMap<>();
+		Collection<?> schedules = schedule instanceof Collection<?> collection
+				? collection
+				: Collections.singletonList(schedule);
+		for (Object item : schedules) {
+			Schedule current = (Schedule) item;
+			backups.put(current, current.backupDetail());
 		}
 		this.source=source;
 	}
@@ -75,10 +71,7 @@ public class ScheduleBackupEdit  extends AbstractUndoableEdit{
 	}
 	public void undo() throws CannotUndoException {
 		super.undo();
-		for (Iterator i=backups.keySet().iterator();i.hasNext();){
-			Schedule s=(Schedule)i.next();
-			s.restoreDetail(source, backups.get(s), false);
-		}
+		backups.forEach((schedule, detail) -> schedule.restoreDetail(source, detail, false));
 	}
 
 }

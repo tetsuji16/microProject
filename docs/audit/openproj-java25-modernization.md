@@ -55,6 +55,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
 | External task resolution | `ExternalTaskManager` | Typed the manager-owned external-task list and iterator; retained `AssociationList`'s actual `Association` iterator contract and the existing cast semantics for dependencies. |
 | Resource pool registry | `ResourcePoolFactory` | Typed the existing `ArrayList` without changing its erased public return descriptor; removed unreferenced private `removePool` and unused `name` state after repository-wide caller search. |
+| Schedule undo snapshots | `ScheduleBackupEdit` | Typed the backup map, replaced raw iterator traversal with enhanced-for/`Map.forEach`, used `instanceof` pattern matching for collection input, and made captured source immutable; regression tests cover singleton and collection snapshots plus undo/redo behavior. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -91,6 +92,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   application compilations passed after typing external task manager storage.
   Core tests and UI compilation passed after the resource-pool registry typing
   and dead-state cleanup.
+  `ScheduleBackupEditTest` and the full core suite passed after typing schedule
+  snapshot capture/restoration; application, exchange, UI, and reports all
+  compiled against the unchanged constructor descriptor.
 - Application, exchange, UI, and reports compilation passed at an earlier
   calendar-clone integration checkpoint. No GUI route, layout, or Swing behavior
   was changed, so Robot/GUI tests were not repeated.
