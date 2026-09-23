@@ -35,26 +35,6 @@ public class GroupNodeImpl extends NormalTask{ //should use its own implementati
 	public GroupNodeImpl() {
 		super(Project.getDummy());
 	}
-	/*protected List groupFields;
-	
-	public List getGroupFields() {
-		return groupFields;
-	}
-	public void setGroupFields(List groupFields) {
-		this.groupFields = groupFields;
-	}*/
-	
-	//group choses his own summary if it's one of his fields
-	/*public int getGroupSummary(Field field){
-		//if (groupFields!=null&&groupFields.contains(field)) return SummaryNames.GROUP;
-	    int sum=field.getGroupSummary();
-		//System.out.println("getGroupSummary("+field+") groupSum="+sum);
-	    if (sum!=SummaryNames.NONE) return sum;
-	    return field.getSummary();
-	}*/
-	
-	
-	
 	public boolean isNormal() {
 		return false;
 	}

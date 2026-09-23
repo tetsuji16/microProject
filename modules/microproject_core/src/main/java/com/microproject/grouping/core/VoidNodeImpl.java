@@ -34,9 +34,9 @@ import com.microproject.session.SessionFactory;
  *
  */
 public class VoidNodeImpl implements HasId, DataObject  {
-	protected static LinkedList fields=new LinkedList();
+	protected static final LinkedList<Object> fields = new LinkedList<>();
 	long id = 0;
-	public LinkedList getFields() throws NodeException {
+	public LinkedList<Object> getFields() throws NodeException {
 		return fields;
 	}
 	public String toString() {
