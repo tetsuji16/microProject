@@ -25,6 +25,12 @@ are recorded below. Progress is summarized in
 - PR [#601](https://github.com/tetsuji16/ProjectLibre/pull/601) merged as
   `c48b9e92224fd29d766bad5e2cde6730bf458643` after full CI success; removed
   the unreferenced numeric maximum visitor.
+- PR [#602](https://github.com/tetsuji16/ProjectLibre/pull/602) merged as
+  `40dacaa1cb14bcd778faba831f9fbdf8608e9ab8` after full CI success; refreshed
+  the audit checkpoint history and inventory counts.
+- PR [#603](https://github.com/tetsuji16/ProjectLibre/pull/603) merged as
+  `e2df4e960f844df8d2c49ebd34c7c96d5af50323` after a successful CI rerun; used
+  modern reflective construction for `NodeFactory` while preserving behavior.
 
 ## Inventory caveat
 
@@ -52,8 +58,8 @@ artifact would be compatible.
 
 The initial-base counts above are historical. Re-running the inventory at the
 latest integrated checkpoint (`origin/master` =
-`c48b9e92224fd29d766bad5e2cde6730bf458643`) reports 280 ledger rows: 190
-normalized matches, 75 content-different files, and 15 absent mapped paths.
+`e2df4e960f844df8d2c49ebd34c7c96d5af50323`) reports 280 ledger rows: 189
+normalized matches, 76 content-different files, and 15 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the
 current module graph, and the two intentionally deleted unreferenced classes
 `PeakUnitsFunctor` and `NumericMaximum`. These are still path/content counts,
@@ -151,6 +157,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Node void-filter singleton | `NotVoidFilter.getInstance` | Confirmed normalized source against the OpenProj-derived candidate and found active callers in `NodeList` plus UI `ViewNodeModelCache`. Replaced the mutable lazy singleton with eager `static final` initialization. Concurrent first access could previously publish multiple filter instances and data-race on the shared reference; callers now always receive the safely published singleton. The focused test verifies stable identity and regular-node acceptance. |
 | Unused numeric maximum visitor | `NumericMaximum` | Removed after repository-wide search found no production/test caller, class-name string, reflective/configuration registration, or serialization route. Unlike `Maximum`, this class is not registered in `SummaryVisitorFactory` or configuration XML. It does not implement `Serializable`, and the active application core has no documented external plugin/API contract. Its historical provenance row remains in the ledger; deletion is not a licensing conclusion. |
 | Node factory reflection | `NodeFactory.createNode(Class)` | Replaced zero-length reflective argument arrays with `Class.getConstructor().newInstance()` and parameterized the `Class` as `Class<?>` without changing the erased descriptor. Focused tests verify virtual-node construction and preserve the existing null-on-unsupported-class behavior. |
+| Unreferenced node-field list | `NodeFieldList` | Removed after repository-wide symbol search found only its definition (plus the historical provenance ledger row); no configuration/reflection registration or project persistence route references it. It is an application-internal class, not a separately published core API. It inherits `Serializable` from `LinkedList`, so unknown external serialized consumers remain a compatibility risk; no in-repository serialized use exists. The historical provenance row remains unchanged. |
 
 ## Fork-specific correctness defect found during the audit
 
