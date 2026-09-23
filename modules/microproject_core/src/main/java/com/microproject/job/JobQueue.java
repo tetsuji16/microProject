@@ -73,7 +73,7 @@ public class JobQueue extends ThreadGroup{
 		Thread[] threads=new Thread[count];
 		count=enumerate(threads);
 		for (int i=0;i<count;i++){
-			if (threads[i] instanceof Job) ((Job)threads[i]).cancel();
+			if (threads[i] instanceof Job job) job.cancel();
 		}
 	}
 
