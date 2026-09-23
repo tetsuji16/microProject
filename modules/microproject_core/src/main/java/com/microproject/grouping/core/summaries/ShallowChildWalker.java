@@ -24,10 +24,7 @@
  *******************************************************************************/
 package com.microproject.grouping.core.summaries;
 
-import com.microproject.util.DataUtils;
-
-import java.util.Collection;
-import org.apache.commons.collections.CollectionUtils;
+import java.util.List;
 
 import com.microproject.grouping.core.Node;
 
@@ -42,8 +39,9 @@ public class ShallowChildWalker extends NodeWalker {
 	
 	public void accept(Object arg0) {
 		Node node = (Node)arg0;
-		Collection nodeList = nodeModel.getChildren(node);
+		List<?> nodeList = nodeModel.getChildren(node);
 		if (nodeList != null)
-			DataUtils.forAllDo(nodeList.iterator(), visitor);
+			for (Object child : nodeList)
+				visitor.accept(child);
 	}
 }
