@@ -36,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import com.microproject.util.SafeFileReplace;
@@ -204,8 +205,7 @@ public class MSPDISerializer implements ProjectSerializer {
 
     	//dependencies
 		// mpxj uses default options when importing link leads and lags
-		CalendarOption oldOptions = CalendarOption.getInstance();
-		CalendarOption.setInstance(CalendarOption.getDefaultInstance());
+		return withDefaultCalendarOptions(() -> {
 
 		int taskCount = 0;
 		Map<Task, net.sf.mpxj.Task> externalTasks=new HashMap<Task, net.sf.mpxj.Task>();
@@ -254,9 +254,19 @@ public class MSPDISerializer implements ProjectSerializer {
     		}
         }
     	
-		CalendarOption.setInstance(oldOptions);
-        return (Map<net.sf.mpxj.Task, Task>) taskLinker.getTransformationMap();
+			return (Map<net.sf.mpxj.Task, Task>) taskLinker.getTransformationMap();
+		});
     }
+
+	static <T> T withDefaultCalendarOptions(Callable<T> operation) throws Exception {
+		CalendarOption previousOptions = CalendarOption.getInstance();
+		CalendarOption.setInstance(CalendarOption.getDefaultInstance());
+		try {
+			return operation.call();
+		} finally {
+			CalendarOption.setInstance(previousOptions);
+		}
+	}
 
 	private net.sf.mpxj.Task externalTask(ProjectFile projectFile,Map<Task, net.sf.mpxj.Task> externalTasks,Task task) {
 		net.sf.mpxj.Task taskData=externalTasks.get(task);
