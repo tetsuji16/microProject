@@ -37,7 +37,7 @@ import com.microproject.grouping.core.transform.CommonTransformFactory;
 public class NodeGrouper extends CommonTransformFactory{
 //	static Log log = LogFactory.getLog(NodeGrouper.class);
 	protected String type = null; 
-	protected List groups=new ArrayList();
+	protected List<NodeGroup> groups = new ArrayList<>();
 	
 	private static int count=0;
 	
@@ -55,12 +55,12 @@ public class NodeGrouper extends CommonTransformFactory{
         this.type = type;
     }
     
-    public void addGroup(Object group){
-    	groups.add(group);
-    }
+	public void addGroup(NodeGroup group){
+		groups.add(group);
+	}
     
-    public List getGroups(){
-    	return groups;
+	public List<NodeGroup> getGroups(){
+		return groups;
     }
     
    

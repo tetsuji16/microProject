@@ -36,6 +36,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Distribution identity | `DistributionData` | Pattern matching and hash/equality alignment with the active `DistributionComparator` key, including `projectId`; added focused identity/payload tests. |
 | Personal contour | `PersonalContourMaker` | Replaced raw collection types with `List<PersonalContourBucket>` / typed `Collection`; used pattern matching for bucket narrowing. |
 | Scripting configuration | `ScriptConfiguration` | Replaced raw `Set` with `Set<String>` and diamond construction; added configured/unlisted class-name behavior coverage. |
+| Grouping XML configuration | `NodeGrouper` | Typed the XML-populated group list and `addGroup`/getter API as `NodeGroup`; verified insertion order and transform relationship, then compiled the UI consumer. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -49,7 +50,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 - `:microproject_core:test` and `:microproject_exchange:test` passed at the
   distribution-identity checkpoint; core tests and exchange compilation passed
   at the contour checkpoint; the core full suite passed again after the
-  `ScriptConfiguration` type-safety change.
+  `ScriptConfiguration` type-safety change. The focused `NodeGrouperTest`, full
+  core suite, and UI compilation passed after typing the XML grouping contract.
 - Application, exchange, UI, and reports compilation passed at an earlier
   calendar-clone integration checkpoint. No GUI route, layout, or Swing behavior
   was changed, so Robot/GUI tests were not repeated.
