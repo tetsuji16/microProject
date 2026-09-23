@@ -132,6 +132,13 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   and its public factory is unused. Removed the stale algorithm/query backlog
   entry as well. Full `:microproject_core:test`, application/exchange/UI/reports
   `compileJava`, and `verifyArchitectureBoundaries` passed after removal.
+- Removed `DistributionHolder`: a repository-wide source/configuration search
+  found no production/test caller or ScriptRunner exposure; its only former
+  configuration reference was an already-commented XML fragment. The class
+  does not implement `Serializable`. Removed the dead class and configuration
+  fragment, and cleared the corresponding TODO. The full core test suite,
+  application/exchange/UI/reports compilations, and
+  `verifyArchitectureBoundaries` passed after removal.
 
 ## Verification evidence to date
 

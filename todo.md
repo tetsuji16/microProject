@@ -316,7 +316,6 @@
 
 - Undo 系の一部に、復旧失敗時の扱いを確認すべき箇所が残る
 - `DistributionConverter` / `DataUtil` など server data 変換系が例外握り潰し気味
-- `DistributionHolder` に自動生成 stub が残る
 - `ScriptedFormula` は古い BSF/Groovy 前提 TODO が残る
 
 やること:
@@ -341,6 +340,7 @@
 - `DefaultUser` を匿名ローカルユーザーとして明示化し、ID・名称・権限の契約を `DefaultUserTest` で固定した
 - standalone の `DistributionConverter` が null ではなく空結果を返し、delegate 呼び出し失敗を明示的な例外にするよう修正した。`DistributionConverterTest` を追加した
 - Field / Assignment / Dependency の Undo/Redo 失敗をログだけで握り潰さず、`CannotUndoException` / `CannotRedoException` として伝播するよう修正した
+- `DistributionHolder` は production/test caller と ScriptRunner 公開経路がなく、設定参照も無効化済み XML コメントのみで、Serializable でもないことを確認して削除した。未使用 stub の調査項目も解消した
 
 ## 5.8 UI: dialog 系
 

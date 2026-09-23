@@ -785,10 +785,6 @@
 
 
 
-		<!--class name="com.microproject.script.object.DistributionHolder">
-			<field property="id" id="Field.id"/>
-			<field property="name" id="Field.name"/>
-		</class-->
 		
 	</fieldDictionary>
 
