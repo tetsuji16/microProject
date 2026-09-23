@@ -42,8 +42,6 @@ import com.microproject.util.DateTime;
  */
 public class WorkingHours implements Cloneable, Serializable {
 	static final long serialVersionUID = 83888849333431L;
-	//private static Log log = LogFactory.getLog(WorkingHours.class);
-	private static long MS_PER_MINUTE = 60000L;
 	private static final Logger logger = Logger.getLogger(WorkingHours.class.getName());
 	/**
 	 * milliseconds of work time in the day
@@ -79,7 +77,7 @@ public class WorkingHours implements Cloneable, Serializable {
 		long end;
 		WorkRange thisRange;
 		WorkRange otherRange;
-		ArrayList list = new ArrayList();
+		List<WorkRange> intersections = new ArrayList<>();
 		for(;;) {
 			// check boundary conditions.  if one of the working hours is exhausted, then no more intersection
 			if (thisIndex == workRange.length)
@@ -106,15 +104,14 @@ public class WorkingHours implements Cloneable, Serializable {
 			}
 			if (end > start) //if the range is not degenerate, then there is an overlap
 				try {
-					list.add(new WorkRange(start,end));
+					intersections.add(new WorkRange(start,end));
 				} catch (WorkRangeException e) {
 					logger.log(Level.WARNING, "Failed to create intersected work range", e);
 				}
 		}
 		// make a new working hours and use the work ranges that were generated
 		WorkingHours result = new WorkingHours();
-		result.workRange = new WorkRange[list.size()];
-		list.toArray(result.workRange);
+		result.workRange = intersections.toArray(WorkRange[]::new);
 		result.initialize();
 		return result;
 		
@@ -183,7 +180,7 @@ public class WorkingHours implements Cloneable, Serializable {
 	    return workRange[number];
 	}
 	
-	public List getIntervals(){
+	public List<WorkRange> getIntervals(){
 	    return Arrays.asList(workRange);
 	}
 	

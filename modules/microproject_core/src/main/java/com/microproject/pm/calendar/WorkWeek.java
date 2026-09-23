@@ -27,29 +27,24 @@ package com.microproject.pm.calendar;
 import java.io.Serializable;
 
 import com.microproject.strings.Messages;
-import java.util.logging.Logger;
 
 public class WorkWeek implements Cloneable,Serializable {
 	static final long serialVersionUID = 2555674567677L;
     public static final int DAYS_IN_WEEK = 7;
 	public static final long MS_IN_WEEK = DAYS_IN_WEEK * 24L*60*60*1000;
     WorkDay workDay[] = new WorkDay[DAYS_IN_WEEK];
-    private static final Logger logger = Logger.getLogger(WorkWeek.class.getName());
-
-    private static String WEEKDAY_MASK = Messages.getString("Calendar.WeekdayBitMaskFromSundayToSaturday");
-	public Object clone() {
-		WorkWeek newOne = new WorkWeek();
+	private static final String WEEKDAY_MASK = Messages.getString("Calendar.WeekdayBitMaskFromSundayToSaturday");
+	@Override
+	public WorkWeek clone() {
+		WorkWeek copy = new WorkWeek();
 		for (int i = 0; i < DAYS_IN_WEEK; i++) {
-			if (workDay[i] == null)
-				newOne.workDay[i] = null;
-			else
-				newOne.workDay[i] = (WorkDay) workDay[i].clone();
+			copy.workDay[i] = workDay[i] == null ? null : workDay[i].clone();
 		}
-		return newOne;
+		return copy;
 	}
 
 	public WorkWeek(WorkDay[] days) {
-		this.workDay = (WorkDay[]) days.clone();
+		this.workDay = days.clone();
         updateWorkingDuration();
 	}
 	

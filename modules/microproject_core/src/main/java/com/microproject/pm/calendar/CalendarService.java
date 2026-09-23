@@ -138,15 +138,15 @@ public class CalendarService {
             if ((current.getWorkingHours()==null&&common.getWorkingHours()!=null)||
                     (current.getWorkingHours()!=null&&common.getWorkingHours()==null))
                 return null;
-            List currentIntervals=current.getWorkingHours().getIntervals();
-            List commonIntervals=common.getWorkingHours().getIntervals();
+            List<WorkRange> currentIntervals = current.getWorkingHours().getIntervals();
+            List<WorkRange> commonIntervals = common.getWorkingHours().getIntervals();
             if (commonIntervals.size()!=currentIntervals.size()) return null;
-            Iterator com=commonIntervals.iterator();
-            Iterator cur=currentIntervals.iterator();
-            HasStartAndEnd comInterval,curInterval;
+            Iterator<WorkRange> com = commonIntervals.iterator();
+            Iterator<WorkRange> cur = currentIntervals.iterator();
+            WorkRange comInterval, curInterval;
             while (com.hasNext()){
-                comInterval=(HasStartAndEnd)com.next();
-                curInterval=(HasStartAndEnd)cur.next();
+                comInterval = com.next();
+                curInterval = cur.next();
                 if (curInterval==null&&comInterval==null) continue;
                 if (curInterval==null&&comInterval!=null) return null;
                 if (curInterval!=null&&comInterval==null) return null;

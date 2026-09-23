@@ -76,4 +76,22 @@ class WorkingHoursTest {
 		assertTrue(day.isWorking());
 		assertEquals(working.getDuration(), day.getDuration());
 	}
+
+	@Test
+	void intersectionReturnsTypedOrderedRangesWithTheSameElapsedWork() throws WorkRangeException {
+		WorkingHours first = new WorkingHours();
+		first.setInterval(0, WorkingHours.hourTime(8), WorkingHours.hourTime(12));
+		first.setInterval(1, WorkingHours.hourTime(13), WorkingHours.hourTime(17));
+		WorkingHours second = new WorkingHours();
+		second.setInterval(0, WorkingHours.hourTime(9), WorkingHours.hourTime(14));
+
+		WorkingHours intersection = first.intersectWith(second);
+
+		assertEquals(2, intersection.getIntervals().size());
+		assertEquals(WorkingHours.hourTime(9), intersection.getIntervals().getFirst().getStart());
+		assertEquals(WorkingHours.hourTime(12), intersection.getIntervals().getFirst().getEnd());
+		assertEquals(WorkingHours.hourTime(13), intersection.getIntervals().get(1).getStart());
+		assertEquals(WorkingHours.hourTime(14), intersection.getIntervals().get(1).getEnd());
+		assertEquals(4L * 60L * 60L * 1000L, intersection.getDuration());
+	}
 }
