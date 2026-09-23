@@ -112,10 +112,6 @@ public class RangeIntervalGenerator implements IntervalGenerator {
 		return true;
 	}
 
-	public int compareTo(Object arg0) {
-		return 0;
-	}
-
 	/**
 	 * @return Returns the end.
 	 */

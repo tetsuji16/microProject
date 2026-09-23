@@ -107,10 +107,6 @@ public class CollectionIntervalGenerator implements IntervalGenerator, HasStartA
 	}
 
 	
-	public int compareTo(Object arg0) {
-		return 0;
-	}
-
 	public boolean hasNext() {
 		return iterator.hasNext();
 	}
