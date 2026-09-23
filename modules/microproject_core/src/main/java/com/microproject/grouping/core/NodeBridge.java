@@ -190,8 +190,7 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 	}
 
 	public final boolean isValidLazyParent() {
-		return getImpl() instanceof LazyParent
-		&& ((LazyParent)getImpl()).isValid();
+		return getImpl() instanceof LazyParent lazyParent && lazyParent.isValid();
 	}
 
 	public boolean hasNumber(){

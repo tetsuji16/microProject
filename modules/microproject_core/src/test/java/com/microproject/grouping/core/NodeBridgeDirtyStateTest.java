@@ -46,6 +46,24 @@ class NodeBridgeDirtyStateTest {
 		assertFalse(otherNode.isDirty());
 		otherNode.setDirty(true);
 		assertFalse(otherNode.isDirty());
+
+		Node validLazyParent = NodeFactory.getInstance().createNode(new TestLazyParent(true));
+		Node invalidLazyParent = NodeFactory.getInstance().createNode(new TestLazyParent(false));
+		assertTrue(((NodeBridge) validLazyParent).isValidLazyParent());
+		assertFalse(((NodeBridge) invalidLazyParent).isValidLazyParent());
+		assertFalse(((NodeBridge) otherNode).isValidLazyParent());
+	}
+
+	private record TestLazyParent(boolean isValid) implements LazyParent {
+		@Override
+		public boolean isDataFetched() {
+			return false;
+		}
+
+		@Override
+		public boolean fetchData(Node node) {
+			return false;
+		}
 	}
 
 	private static final class MutableDataObject implements DataObject {
