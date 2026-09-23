@@ -25,8 +25,8 @@
 package com.microproject.association;
 
 import java.text.FieldPosition;
+import java.text.Format;
 import java.text.ParsePosition;
-import java.util.Iterator;
 
 import com.microproject.configuration.Settings;
 
@@ -34,52 +34,64 @@ import com.microproject.configuration.Settings;
 /**
  * Text formatter used for formatting and parsing lists of assignments or predecessors
  */
-public class AssociationListFormat extends java.text.Format {
-	java.text.Format associationFormat;
-	public static AssociationListFormat getInstance(java.text.Format associationFormat) {
+public class AssociationListFormat extends Format {
+	private final Format associationFormat;
+	public static AssociationListFormat getInstance(Format associationFormat) {
 		return new AssociationListFormat(associationFormat);
 	}
 	
-	private AssociationListFormat(java.text.Format associationFormat) {
+	private AssociationListFormat(Format associationFormat) {
 		this.associationFormat = associationFormat;
 	}
 
-	/* 
-	 * Caution - returns a LinkedList and not a subclass of AssociationLIst
-	 */
-	public Object parseObject(String string, ParsePosition arg1) { 
+	@Override
+	public Object parseObject(String string, ParsePosition position) {
+		int inputLength = string.length();
+		int start = position.getIndex();
+		if (start < 0 || start > inputLength) {
+			position.setErrorIndex(start);
+			return null;
+		}
+		String originalList = string.substring(start);
+		string = originalList;
 		AssociationList newList = new AssociationList();
 		string = string.trim(); // trim the string for test if it is empty
 		string = string.replace(",", Settings.LIST_SEPARATOR); // allow commas too
 		string = string.replace(";", Settings.LIST_SEPARATOR); // allow semicolons too
 		if (string.length() != 0) { // if list not empty
-		String elements[] = string.split(Settings.LIST_SEPARATOR, -1);
+		String[] elements = string.split(Settings.LIST_SEPARATOR, -1);
 			
-			Association association;
-			for (int i =0; i < elements.length; i++) {
-				association = (Association) associationFormat.parseObject(elements[i],new ParsePosition(0));
-				if (association == null)
+			int searchFrom = 0;
+			for (String element : elements) {
+				ParsePosition elementPosition = new ParsePosition(0);
+				Association association = (Association) associationFormat.parseObject(element, elementPosition);
+				if (association == null) {
+					int elementStart = originalList.indexOf(element, searchFrom);
+					position.setErrorIndex(start + Math.max(elementStart, 0));
 					return null;
+				}
 				newList.add(association);
+				int elementStart = originalList.indexOf(element, searchFrom);
+				searchFrom = Math.max(elementStart, 0) + element.length();
 			}
 		}
+		position.setIndex(inputLength);
+		position.setErrorIndex(-1);
 		return newList;
 	}
 
 
+	@Override
 	public StringBuffer format(Object associationListObject, StringBuffer string, FieldPosition fieldPos) {
 		AssociationList associationList = (AssociationList)associationListObject;
-		Iterator i = associationList.iterator();
-		Association association;
-	
-		while (i.hasNext()) {
-			association = (Association) i.next();
-
+		boolean hasFormattedAssociation = false;
+		for (Association association : associationList) {
 			if (association.isDefault()) // ignore default elements
 				continue;
-			associationFormat.format(association,string,fieldPos);
-			if (i.hasNext())
+			if (hasFormattedAssociation)
 				string.append(Settings.LIST_SEPARATOR);
+			associationFormat.format(association,string,fieldPos);
+			hasFormattedAssociation = true;
 		}
 		return string;
 	}
