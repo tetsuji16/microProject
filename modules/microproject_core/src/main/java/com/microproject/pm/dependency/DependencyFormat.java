@@ -64,7 +64,7 @@ public class DependencyFormat extends AssociationFormat {
 			throw new ParseException(getErrorMessage(string), pos.getIndex());
 		
 		Object found = null;
-		Collection container = getContainer(parameters.isLeftAssociation());
+		Collection<?> container = getContainer(parameters.isLeftAssociation());
 		if (container != null)
 			found = parameters.getIdField().find(number,container);
 

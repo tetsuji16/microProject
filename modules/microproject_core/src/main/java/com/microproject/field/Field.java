@@ -1865,7 +1865,7 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 		this.finder = finder;
 	}
 
-	public Object find(Object key, Collection container) {
+	public Object find(Object key, Collection<?> container) {
 		if (finderMethod == null)
 			return findFirstInCollection(key, container);
 
