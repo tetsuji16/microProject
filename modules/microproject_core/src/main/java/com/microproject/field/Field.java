@@ -89,7 +89,7 @@ import java.util.logging.Level;
 /**
  *
  */
-public class Field implements SummaryNames, Cloneable, Comparable, Finder, Comparator<Object> {
+public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder, Comparator<Object> {
 	private static final Logger logger = Logger.getLogger(Field.class.getName());
 	private static final String EMPTY_STRING = "";
 	private static final String PASSWORD_MASK = "********";
@@ -1737,18 +1737,15 @@ public class Field implements SummaryNames, Cloneable, Comparable, Finder, Compa
 	 * to sort numerically and not alphabetically so that for example, Cost11
 	 * appears after Cost2 and not before.
 	 */
-	public int compareTo(Object to) {
+	public int compareTo(Field to) {
 		if (to == null)
 			throw new NullPointerException();
-		if (!(to instanceof Field))
-			throw new ClassCastException();
-		Field toField = (Field) to;
-		if (configurationId == toField.configurationId) { // if array field,
-															// then compare
-															// indexes
-			return index - toField.index;
+		if (configurationId == to.configurationId) { // if array field,
+													// then compare
+													// indexes
+			return Integer.compare(index, to.index);
 		} else {
-			return getName().compareTo(toField.getName());
+			return getName().compareTo(to.getName());
 		}
 	}
 
