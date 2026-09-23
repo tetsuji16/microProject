@@ -64,7 +64,7 @@ public abstract class AbstractSession implements Session{
 
     //public Job getSaveProjectJob(final Project project, final boolean cloneMaster){
     public Job getSaveProjectJob(final Project project, SaveOptions opt){
-    	List<Project> projects=new ArrayList();
+		List<Project> projects = new ArrayList<>();
     	projects.add(project);
     	return getSaveProjectJob(projects,opt);
     }

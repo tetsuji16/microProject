@@ -50,6 +50,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Timesheet aggregation | `TimesheetHelper` | Replaced raw iterators with enhanced-for loops and wildcard collection parameters; retained per-element casts required by `AssociationList`'s `Association` declaration and preserved processing/early-return behavior. Expanded existing timesheet aggregation tests. |
 | Object event delivery and pooling | `ObjectEvent`, `ObjectEventManager` | Typed assignment iteration; fixed a pooled-event stale-state bug by resetting `field`/`info`, and now recycles in `finally` when a listener throws. Regression test asserts exception propagation, object reuse, and cleared state. |
 | Script field arrays | `FieldArrayUtil` | Typed the iterator over `SpreadSheetFieldArray`'s `Field` elements; tests verify excluded IDs by category and that filtering mutates only the clone, not the configured source. |
+| Session save delegation | `AbstractSession` | Replaced the raw diamond for its `List<Project>` delegation with `new ArrayList<>()`; a recording session test verifies one-item and options-preserving delegation. |
 | Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
 | External task resolution | `ExternalTaskManager` | Typed the manager-owned external-task list and iterator; retained `AssociationList`'s actual `Association` iterator contract and the existing cast semantics for dependencies. |
 | Resource pool registry | `ResourcePoolFactory` | Typed the existing `ArrayList` without changing its erased public return descriptor; removed unreferenced private `removePool` and unused `name` state after repository-wide caller search. |
@@ -80,6 +81,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   application compilations passed after the event pooling fix.
   The focused `FieldArrayUtilTest`, full core suite, and application /
   exchange compilations passed after typing field-array filtering.
+  The focused `AbstractSessionTest`, full core suite, and application
+  compilation passed after typing the session save delegation.
   The core full test suite and application, exchange, and UI compilations passed
   after typing scheduling field notification state. Core tests and exchange /
   application compilations passed after typing external task manager storage.
