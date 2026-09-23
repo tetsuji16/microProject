@@ -2,9 +2,11 @@
 
 Status: in progress; this document does not mark any issue phase complete.
 
-Baseline checked: `origin/master` at `59eb4e0dc1157b382d754deb0acc79fd3384ac5b`.
-The modernization branch is based on that commit. Progress commits are listed in
-Git and summarized in [issue #595](https://github.com/tetsuji16/ProjectLibre/issues/595).
+Initial modernization baseline checked: `origin/master` at
+`59eb4e0dc1157b382d754deb0acc79fd3384ac5b`. Subsequent implementation
+checkpoints were each based on the latest `origin/master`; their merge commits
+are recorded below. Progress is summarized in
+[issue #595](https://github.com/tetsuji16/ProjectLibre/issues/595).
 
 ## Integrated checkpoints
 
@@ -14,6 +16,15 @@ Git and summarized in [issue #595](https://github.com/tetsuji16/ProjectLibre/iss
 - PR [#598](https://github.com/tetsuji16/ProjectLibre/pull/598) merged as
   `6fd9a4b74cece7bce723beef81cf998c0e751cff` after full CI success. Follow-up
   audit work continues from that latest `origin/master` baseline.
+- PR [#599](https://github.com/tetsuji16/ProjectLibre/pull/599) merged as
+  `7f6e3fb35c5a925a6ccac838b7ea0f4fc52c9678` after full CI success; removed an
+  unused chart popup and fixed chart workspace vertical-scroll restoration.
+- PR [#600](https://github.com/tetsuji16/ProjectLibre/pull/600) merged as
+  `f4f50c022c4ed075278858c33f28dacaaa67c698` after full CI success; made the
+  active not-void filter singleton safely initialized.
+- PR [#601](https://github.com/tetsuji16/ProjectLibre/pull/601) merged as
+  `c48b9e92224fd29d766bad5e2cde6730bf458643` after full CI success; removed
+  the unreferenced numeric maximum visitor.
 
 ## Inventory caveat
 
@@ -38,6 +49,15 @@ runtime modernization scope; their provenance-ledger rows remain historical
 records and are not treated as deletion candidates. This classification does
 not claim that removing these APIs from any separately distributed historical
 artifact would be compatible.
+
+The initial-base counts above are historical. Re-running the inventory at the
+latest integrated checkpoint (`origin/master` =
+`c48b9e92224fd29d766bad5e2cde6730bf458643`) reports 280 ledger rows: 190
+normalized matches, 75 content-different files, and 15 absent mapped paths.
+The absent paths include two active relocations, 11 files absent from the
+current module graph, and the two intentionally deleted unreferenced classes
+`PeakUnitsFunctor` and `NumericMaximum`. These are still path/content counts,
+not proof that every remaining file is active or eligible.
 
 These are path/content reconciliation results, not an active-caller or hunk
 provenance audit. A matching file may contain a narrow fork delta; a differing
@@ -332,10 +352,10 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 
 ## Remaining work
 
-- Hunk-provenance and active-caller review remains for the 55 content-different
-  candidates; the 13 absent-path discrepancies are now classified as two active
-  relocations and 11 sources outside the current included module graph.
-- Search the 212 matching files and the OpenProj-origin hunks within the 55
+- Hunk-provenance and active-caller review remains for the 75 content-different
+  candidates; the 15 absent paths are classified above and do not all represent
+  active source requiring modernization.
+- Search the 190 matching files and OpenProj-origin hunks within the 75
   differing files for production callers and compatibility boundaries; do not
   treat file-level equality as proof of an active eligible hunk.
 - Audit remaining eligible Java in exchange, UI, reports, and other core
