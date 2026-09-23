@@ -189,12 +189,12 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
     
     
     public void setChildrenDividerLocation(Object source,int pos){
-    	SplittedView top=null;
-    	SplittedView bottom=null;
-         Component c=getBottomComponent();
-        if (c!=null&&(c instanceof SplittedView)) bottom=(SplittedView)c;
+        SplittedView top=null;
+        SplittedView bottom=null;
+        Component c=getBottomComponent();
+        if (c instanceof SplittedView split) bottom=split;
         c=getTopComponent();
-        if (c!=null&&(c instanceof SplittedView)) top=(SplittedView)c;
+        if (c instanceof SplittedView split) top=split;
         if (top==null||bottom==null) return;
         if (bottom.getDeltaDivider()<top.getDeltaDivider()){
         	SplittedView tmp=bottom;
