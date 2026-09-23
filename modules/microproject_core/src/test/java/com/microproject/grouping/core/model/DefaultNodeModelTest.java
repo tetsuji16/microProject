@@ -136,6 +136,35 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void hierarchyTraversalsPreservePreorderAndLevelOrder() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node first = NodeFactory.getInstance().createNode(new Object());
+		Node second = NodeFactory.getInstance().createNode(new Object());
+		Node firstChild = NodeFactory.getInstance().createNode(new Object());
+		Node secondChild = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, first, NodeModel.SILENT);
+		model.add(root, second, NodeModel.SILENT);
+		model.add(first, firstChild, NodeModel.SILENT);
+		model.add(second, secondChild, NodeModel.SILENT);
+		List<Object> preorder = new ArrayList<>();
+		List<Object> levelOrder = new ArrayList<>();
+
+		model.getHierarchy().visitAll(root, true, preorder::add);
+		model.getHierarchy().visitAllLevelOrder(root, false, levelOrder::add);
+
+		assertNodeOrder(preorder, first, firstChild, second, secondChild);
+		assertNodeOrder(levelOrder, first, second, firstChild, secondChild);
+	}
+
+	private static void assertNodeOrder(List<Object> actual, Node... expected) {
+		assertEquals(expected.length, actual.size());
+		for (int i = 0; i < expected.length; i++)
+			assertSame(expected[i], actual.get(i));
+	}
+
+	@Test
 	void deletionUndoRedoRestoresASelectedParentAndItsChildOnce() {
 		UndoController undoController = new UndoController();
 		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());

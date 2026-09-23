@@ -152,15 +152,14 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	visitAll(null,visitor);
     }
     public void visitAll(Node parent, Consumer<Object> visitor) {
-    	if (parent != null)
-    		visitor.accept(parent);
-    	Collection children = getChildren(parent);
-    	if (children != null) {
-        	Iterator i = children.iterator();
-        	while (i.hasNext()) {
-        		visitAll((Node)i.next(),visitor);
-        	}
-    	}
+        if (parent != null)
+            visitor.accept(parent);
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                visitAll((Node) child, visitor);
+            }
+        }
     }
     //doesn't visit parent
     public void visitAllLevelOrder(Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
@@ -172,17 +171,15 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
    		// saving a suproject itself, in which case, the root element will be a subproject task and first will be true
     	if (!first && skipLazyParents && parent != null && parent.getImpl() instanceof LazyParent) 
     		return;
-    	Collection children = getChildren(parent);
-    	if (children != null) {
-        	Iterator i = children.iterator();
-        	while (i.hasNext()) {
-        		visitor.accept(i.next());
-        	}
-        	i=children.iterator();
-        	while (i.hasNext()) {
-        		visitAllLevelOrder(false,(Node)i.next(),skipLazyParents,visitor);
-        	}
-    	}
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                visitor.accept(child);
+            }
+            for (Object child : children) {
+                visitAllLevelOrder(false, (Node) child, skipLazyParents, visitor);
+            }
+        }
     }
    	
     public void visitAll(Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
@@ -193,23 +190,21 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
    		// saving a suproject itself, in which case, the root element will be a subproject task and first will be true
     	if (!first && skipLazyParents && parent != null && parent.getImpl() instanceof LazyParent) 
     		return;
-    	Collection children = getChildren(parent);
-    	if (children != null) {
-        	Iterator i = children.iterator();
-        	i=children.iterator();
-        	while (i.hasNext()) {
-        		Node node=(Node)i.next();
-        		visitor.accept(node);
-        		visitAll(false,node,skipLazyParents,visitor);
-        	}
-    	}
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                Node node = (Node) child;
+                visitor.accept(node);
+                visitAll(false, node, skipLazyParents, visitor);
+            }
+        }
     }
    	
     public void visitLeaves(Node node, Consumer<Object> visitor) {
-    	if (node.isLeaf()) visitor.accept(node);
-    	else for (Enumeration e=node.children();e.hasMoreElements();){
-    		visitLeaves((Node)e.nextElement(), visitor);
-    	}
+        if (node.isLeaf()) visitor.accept(node);
+        else for (Enumeration<?> children = node.children(); children.hasMoreElements();) {
+            visitLeaves((Node) children.nextElement(), visitor);
+        }
     }
 
 
