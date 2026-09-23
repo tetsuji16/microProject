@@ -46,6 +46,7 @@ import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.hierarchy.AbstractMutableNodeHierarchy;
 import com.microproject.grouping.core.event.HierarchyEvent;
 import com.microproject.grouping.core.event.HierarchyListener;
 import com.microproject.pm.dependency.Dependency;
@@ -210,6 +211,24 @@ class DefaultNodeModelTest {
 		Iterator<?> excludingOnlyRoot = model.shallowIterator(0, false);
 		assertFalse(excludingOnlyRoot.hasNext());
 		assertThrows(NoSuchElementException.class, excludingOnlyRoot::next);
+	}
+
+	@Test
+	void hierarchyDumpPreservesDepthFirstIndentationAndNewlines() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node first = NodeFactory.getInstance().createNode("first");
+		Node child = NodeFactory.getInstance().createNode("child");
+		Node second = NodeFactory.getInstance().createNode("second");
+		model.add(root, first, NodeModel.SILENT);
+		model.add(first, child, NodeModel.SILENT);
+		model.add(root, second, NodeModel.SILENT);
+		StringBuffer buffer = new StringBuffer();
+
+		((AbstractMutableNodeHierarchy) model.getHierarchy()).dump(buffer);
+
+		assertEquals("-->first\n---->child\n-->second\n", buffer.toString());
 	}
 
 	private static void assertNodeOrder(List<Object> actual, Node... expected) {

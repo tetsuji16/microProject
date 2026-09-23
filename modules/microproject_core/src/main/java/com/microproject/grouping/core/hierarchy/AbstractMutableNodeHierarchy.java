@@ -280,27 +280,20 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 
 	
     public void dump() {
-    	dump(null,"",new Consumer<Object>() { public void accept(Object obj) {
-    			logger.log(Level.FINE, "{0}", obj);
-    		}
-    	});
+        dump(null, "", line -> logger.log(Level.FINE, "{0}", line));
    }
     public void dump(final StringBuffer buf) {
-    	dump(null,"",new Consumer<Object>() { public void accept(Object obj) {
-    			buf.append((String)obj).append('\n');
-    		}
-    	});
+        dump(null, "", line -> buf.append(line).append('\n'));
    }
     
-    private void dump(Node parent, String indent,Consumer<Object> c) {
+    private void dump(Node parent, String indent, Consumer<String> c) {
     	if (parent != null)
     		c.accept(indent + ">"+parent.toString());
-    	Collection children = getChildren(parent);
+        List<?> children = getChildren(parent);
     	if (children != null) {
-		Iterator<?> i = children.iterator();
-        	while (i.hasNext()) {
-        		dump((Node)i.next(),indent+"--",c);
-        	}
+            for (Object child : children) {
+                dump((Node) child, indent + "--", c);
+            }
     	}
     }
 	
