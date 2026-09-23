@@ -102,8 +102,14 @@ class JvmLockRegistryAcceptanceTest {
 		owner.start();
 		assertTrue(entered.await(5, TimeUnit.SECONDS));
 		waiter.start();
-		Thread.sleep(50);
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		while (CollaborationMetadataStore.jvmLockReferenceCountForTests(project.toFile()) < 2
+				&& System.nanoTime() < deadline) {
+			Thread.sleep(1);
+		}
+		int registeredReferences = CollaborationMetadataStore.jvmLockReferenceCountForTests(project.toFile());
 		release.countDown();
+		assertEquals(2, registeredReferences, "waiter must join the registry entry before owner releases it");
 		owner.join(5000);
 		waiter.join(5000);
 		assertSame(firstMonitor.get(), secondMonitor.get(), "canonical path must share one JVM monitor");
