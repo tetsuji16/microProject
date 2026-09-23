@@ -222,7 +222,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     }
     
     private Node getNext(Node current, boolean doChildren) {
-    	List<?> children;
+        List<?> children;
     	if (doChildren) { // if haven't visited children yet
     		children = getChildren(current);
        		if (children != null && children.size() > 0) // if parent, next is first child
@@ -254,9 +254,9 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     }
     
     private Node getPrevious(Node current, boolean doChildren) {
-        	if (current == null || current.isRoot()) // the root has no preceding visible node
-        		return null;
-    	List<?> children;
+        if (current == null || current.isRoot()) // the root has no preceding visible node
+            return null;
+        List<?> children;
 
     	Node parent =getParent(current);
 		children = getChildren(parent);
