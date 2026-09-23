@@ -25,9 +25,9 @@
 package com.microproject.algorithm;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,10 +35,9 @@ import java.util.logging.Logger;
  * An interval generator which is itself contains a collection of one or more other generators
  */
 public class IntervalGeneratorSet implements IntervalGenerator {
-	private IntervalGenerator currentIntervalGenerator = null;
-	private List<IntervalGenerator> generators = null;
+	private IntervalGenerator currentIntervalGenerator;
+	private List<IntervalGenerator> generators;
 	private static final Logger logger = Logger.getLogger(IntervalGeneratorSet.class.getName());
-	private boolean sameEarliestEnding = true; // flag if more than one of the earliest generators has the same start time
 	public Collection<IntervalGenerator> getGenerators() {
 		return generators;
 	}
@@ -84,9 +83,7 @@ public class IntervalGeneratorSet implements IntervalGenerator {
 			while (i.hasNext()) {
 				current = i.next();
 				generatorEnd = current.currentEnd();
-				if (generatorEnd == minEnd)
-					sameEarliestEnding = true;
-				if (generatorEnd < minEnd) {
+				if (result == null || generatorEnd < minEnd) {
 					minEnd = generatorEnd;
 					result = current;
 				}
@@ -181,20 +178,11 @@ public class IntervalGeneratorSet implements IntervalGenerator {
 		if (currentIntervalGenerator == null)
 			return false;
 		
-		// it is fairly common that two or more generators share the same endpoint.  If so, they all must be evaluated
-		if (sameEarliestEnding) {
-			long earliestEnd = currentIntervalGenerator.currentEnd();
-			Iterator<IntervalGenerator> i = generators.iterator();
-			IntervalGenerator current;
-			while (i.hasNext()) {
-				current = i.next();
-				if (current.currentEnd() == earliestEnd) { // see if this generator is at the earliest end point too
-					if (!current.evaluate(arg0))
-						result = false;
-				}
+		long earliestEnd = currentIntervalGenerator.currentEnd();
+		for (IntervalGenerator generator : generators) {
+			if (generator.currentEnd() == earliestEnd && !generator.evaluate(arg0)) {
+				result = false;
 			}
-		} else { // only one generator
-			result = currentIntervalGenerator.evaluate(arg0);	
 		}
 		return result;
 	}
