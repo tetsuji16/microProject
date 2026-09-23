@@ -26,7 +26,6 @@ package com.microproject.algorithm.buffer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.TreeMap;
@@ -41,7 +40,7 @@ import com.microproject.pm.calendar.WorkCalendar;
 public class GroupedCalculatedValues implements CalculatedValues, Serializable {
 	static final long serialVersionUID = 8900927827L;
 	private static final Logger logger = Logger.getLogger(GroupedCalculatedValues.class.getName());
-	ArrayList<Point> values = new ArrayList<Point>(); //(x,y pairs) //TODO a set would be better because this is often sparse
+	ArrayList<Point> values = new ArrayList<>(); //(x,y pairs) //TODO a set would be better because this is often sparse
 	double yScale;
 	private static final Double ZERO = Double.valueOf(0.0D);
 //	boolean dayByDay;
@@ -124,20 +123,12 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
 	
 	
 	public void makeSeries(boolean cumulative, SeriesCallback callback) {
-		Long[] d = new Long[values.size()];
-		Double[] v = new Double[values.size()];
-		Point point=null;
-		//long lastDate=-10L;
 		double sum = 0;
-		//int deltai=0;
 		for (int i = 0; i < values.size(); i++) {
-			point = values.get(i);
-//			}
-			callback.add(i/*+deltai*/,point.date,point.value + (cumulative ? sum : 0));
+			Point point = values.get(i);
+			callback.add(i, point.date, point.value + (cumulative ? sum : 0));
 			sum += point.value;
-//			lastDate=point.date;
 		}
-//		if (dayByDay&&point!=null) callback.add(values.size()+deltai,point.date+DateUtils.MILLIS_PER_DAY,0.0);
 	}	
 	
 	public void makeRectilinearSeries(SeriesCallback callback) {
@@ -159,7 +150,7 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
 		double sum = 0;
 		Point point;
 		for (int i = 0; i < values.size(); i++) {
-			point = (Point) values.get(i);
+			point = values.get(i);
 			if (cumulative) {
 				sum += point.value;
 				point.value = sum;
@@ -217,8 +208,8 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
  							basePoint.value += (previousAddPoint.value * proratedAmount);
  					}
  				}
- 				previousAddPoint = addPoint;
- 	 			addPoint = addIterator.hasNext() ? (Point)addIterator.next() : null;
+				previousAddPoint = addPoint;
+			addPoint = addIterator.hasNext() ? addIterator.next() : null;
  	 			continue;
  			}
  			
@@ -240,10 +231,8 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
  	public GroupedCalculatedValues dayByDayConvert(){
  		GroupedCalculatedValues c=new GroupedCalculatedValues();
 		//c.setDayByDay(true);
- 		for (Iterator<Point> i=values.iterator();i.hasNext();){
- 			Point p=i.next();
- 			c.values.add(new Point(p.date,p.value*DateUtils.MILLIS_PER_HOUR));
- 		}
+		for (Point point : values)
+			c.values.add(new Point(point.date, point.value * DateUtils.MILLIS_PER_HOUR));
  		return c;
  	}
 
