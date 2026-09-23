@@ -158,6 +158,28 @@ class DefaultNodeModelTest {
 		assertNodeOrder(levelOrder, first, second, firstChild, secondChild);
 	}
 
+	@Test
+	void hierarchyNavigationMovesInPreorderAndSkipsVirtualRoot() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node firstParent = NodeFactory.getInstance().createNode(new Object());
+		Node firstChild = NodeFactory.getInstance().createNode(new Object());
+		Node lastChild = NodeFactory.getInstance().createNode(new Object());
+		Node nextParent = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, firstParent, NodeModel.SILENT);
+		model.add(firstParent, firstChild, NodeModel.SILENT);
+		model.add(firstParent, lastChild, NodeModel.SILENT);
+		model.add(root, nextParent, NodeModel.SILENT);
+
+		assertSame(firstChild, model.getHierarchy().getNext(firstParent));
+		assertSame(nextParent, model.getHierarchy().getNext(lastChild));
+		assertSame(lastChild, model.getHierarchy().getPrevious(nextParent));
+		assertSame(firstParent, model.getHierarchy().getPrevious(firstChild));
+		assertNull(model.getHierarchy().getPrevious(firstParent));
+		assertNull(model.getHierarchy().getNext(nextParent));
+	}
+
 	private static void assertNodeOrder(List<Object> actual, Node... expected) {
 		assertEquals(expected.length, actual.size());
 		for (int i = 0; i < expected.length; i++)

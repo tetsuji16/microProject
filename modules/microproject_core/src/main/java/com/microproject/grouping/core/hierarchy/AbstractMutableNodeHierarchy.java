@@ -215,14 +215,14 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	Node node = current;
     	while (true) {
     		node = getNext(node,true);
-    		if (node == null || !node.isVirtual())
-    			break;
+			if (node == null || (!node.isVirtual() && !node.isRoot()))
+				break;
     	}
     	return node;
     }
     
     private Node getNext(Node current, boolean doChildren) {
-    	List children;
+    	List<?> children;
     	if (doChildren) { // if haven't visited children yet
     		children = getChildren(current);
        		if (children != null && children.size() > 0) // if parent, next is first child
@@ -232,7 +232,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
        		return null;
    		Node parent =getParent(current);
 		children = getChildren(parent);
-		Iterator i = children.iterator();
+		Iterator<?> i = children.iterator();
         while (i.hasNext()) { // get next element after this one.  If it is the last then try its parent
         	if (i.next() == current) {
         		if (i.hasNext())
@@ -247,21 +247,21 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     	Node node = current;
     	while (true) {
     		node = getPrevious(node,true);
-    		if (node == null || !node.isVirtual())
-    			break;
+			if (node == null || (!node.isVirtual() && !node.isRoot()))
+				break;
     	}
     	return node;
     }
     
     private Node getPrevious(Node current, boolean doChildren) {
-       	if (current == null) // null parent has no parent
-       		return null;
-    	List children;
+        	if (current == null || current.isRoot()) // the root has no preceding visible node
+        		return null;
+    	List<?> children;
 
     	Node parent =getParent(current);
 		children = getChildren(parent);
     	if (doChildren) { // if haven't visited children yet
-			ListIterator i = children.listIterator(children.size()); // reverse iterator
+			ListIterator<?> i = children.listIterator(children.size()); // reverse iterator
 	        while (i.hasPrevious()) { // get next element after this one.  If it is the last then try its parent
 	        	if (i.previous() == current) {
 	        		if (i.hasPrevious())
@@ -298,7 +298,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     		c.accept(indent + ">"+parent.toString());
     	Collection children = getChildren(parent);
     	if (children != null) {
-        	Iterator i = children.iterator();
+		Iterator<?> i = children.iterator();
         	while (i.hasNext()) {
         		dump((Node)i.next(),indent+"--",c);
         	}
