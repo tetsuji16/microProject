@@ -66,6 +66,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Summary dependency cycle detection | `Task.dependsOn` child-predecessor traversal | Confirmed the child-task type narrowing matches OpenProj; replaced the iterator/cast branch with enhanced-for and pattern matching. A focused dependency test verifies an indirect parent/child cycle is rejected without adding a partial edge. |
 | Weighted completion calculation | `ScheduleUtil.percentCompleteClosureInstance` | Confirmed both schedule dispatch hunks match OpenProj; replaced cast-after-`instanceof` with pattern bindings and tested weighted percent calculation plus ignored non-schedule input. |
 | Common-key equality | `HasCommonKeyImpl.equals` | Confirmed the equality hunk matches OpenProj; replaced the type check/cast with a pattern binding and expanded existing unique-ID equality/hash tests with null and unrelated-object inputs. Existing fork hashCode fix remains intact. |
+| Schedule bar interval boundary | `BarClosure.accept` | Confirmed the file is normalized-identical to OpenProj; replaced the `ScheduleWindow` check/cast with pattern binding and tested both the resume/unsplit stop adjustment and unchanged non-window intervals. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -144,6 +145,9 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   The focused `HasCommonKeyImpl` equality/hash contract test and full core
   suite passed after pattern-binding the OpenProj equality hunk; application,
   exchange, UI, and reports compilation passed.
+  `BarClosureTest` and the full core suite passed for the schedule-window
+  boundary modernization; application, exchange, UI, and reports compilation
+  passed.
 - Application, exchange, UI, and reports compilation passed at an earlier
   calendar-clone integration checkpoint. No GUI route, layout, or Swing behavior
   was changed, so Robot/GUI tests were not repeated.
