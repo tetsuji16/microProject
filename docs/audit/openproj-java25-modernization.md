@@ -35,6 +35,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Duration and rates | `Duration`, `DurationFormat`, `Rate`, `RateFormat`, `PercentFormat` | Pattern matching and switch expressions; removed dead duration conversion calculations and redundant string copying; made encoding masks and formatter mode state immutable; fixed parse-position end-of-input exceptions and fractional/large-rate comparison. |
 | Distribution identity | `DistributionData` | Pattern matching and hash/equality alignment with the active `DistributionComparator` key, including `projectId`; added focused identity/payload tests. |
 | Personal contour | `PersonalContourMaker` | Replaced raw collection types with `List<PersonalContourBucket>` / typed `Collection`; used pattern matching for bucket narrowing. |
+| Scripting configuration | `ScriptConfiguration` | Replaced raw `Set` with `Set<String>` and diamond construction; added configured/unlisted class-name behavior coverage. |
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
@@ -47,7 +48,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   project-key tests were observed failing before their fixes.
 - `:microproject_core:test` and `:microproject_exchange:test` passed at the
   distribution-identity checkpoint; core tests and exchange compilation passed
-  at the contour checkpoint.
+  at the contour checkpoint; the core full suite passed again after the
+  `ScriptConfiguration` type-safety change.
 - Application, exchange, UI, and reports compilation passed at an earlier
   calendar-clone integration checkpoint. No GUI route, layout, or Swing behavior
   was changed, so Robot/GUI tests were not repeated.

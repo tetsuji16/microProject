@@ -35,7 +35,7 @@ import com.microproject.contrib.ClassResolverFilter;
  * Stores configuration info for scripts read in from config
  */
 public class ScriptConfiguration implements ClassResolverFilter{
-	protected Set classesToResolve=new HashSet();
+	protected Set<String> classesToResolve = new HashSet<>();
 	public static ScriptConfiguration getInstance(){
 		return Configuration.getInstance().getScriptConfiguration();
 	}
