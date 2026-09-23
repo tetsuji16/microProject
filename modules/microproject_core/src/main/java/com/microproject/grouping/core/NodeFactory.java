@@ -49,14 +49,14 @@ public class NodeFactory {
 	 * consolidated node
 	 * @param nodeClass
 	 */
-	public Node createVirtualNode(Class nodeClass){
+	public Node createVirtualNode(Class<?> nodeClass){
 		Node node=createNode(nodeClass);
 		node.setVirtual(true);
 		return node;
 	}
-	public Node createNode(Class nodeClass){
+	public Node createNode(Class<?> nodeClass){
 		try{
-			Node node=(Node)nodeClass.getConstructor(new Class[]{}).newInstance(new Object[]{});
+			Node node=(Node)nodeClass.getConstructor().newInstance();
 			return new NodeBridge(node);
 		}catch (Exception e) {return null;}
 	}
