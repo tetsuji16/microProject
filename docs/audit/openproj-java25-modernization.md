@@ -13,7 +13,8 @@ Git and summarized in [issue #595](https://github.com/tetsuji16/ProjectLibre/iss
 `python scripts/audit/openproj_java25_inventory.py --ref origin/master` to
 reconcile its `projectlibre_core` production-Java rows marked
 `normalized_openproj_match=true` against the current source tree and OpenProj
-baseline. On the pinned base (`origin/master` =
+baseline. Add `--details` to list each row's status and mapped paths. On the
+pinned base (`origin/master` =
 `59eb4e0dc1157b382d754deb0acc79fd3384ac5b`), the script reports 280 ledger
 rows: 212 mapped files have normalized content matching the OpenProj source,
 55 mapped files differ, and 13 mapped paths are absent. Of those 13, two source

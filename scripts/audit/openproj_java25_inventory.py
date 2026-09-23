@@ -83,6 +83,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ref", default="origin/master", help="current source ref to compare (default: origin/master)")
     parser.add_argument("--ledger", type=Path, default=ROOT / "docs/legal/license-provenance.csv")
+    parser.add_argument("--details", action="store_true", help="list each candidate's comparison status and paths")
     args = parser.parse_args()
 
     with args.ledger.open(encoding="utf-8", newline="") as handle:
@@ -111,6 +112,7 @@ def main() -> int:
 
     counts: Counter[str] = Counter()
     missing: list[tuple[str, str]] = []
+    details: list[tuple[str, str, str]] = []
     for row in candidates:
         old_path = row["current_path"]
         mapped = mapped_paths[old_path]
@@ -119,14 +121,18 @@ def main() -> int:
         if current_oid is None:
             counts["missing_current_path"] += 1
             missing.append((mapped, row["openproj_path"]))
+            details.append(("missing_current_path", old_path, mapped))
         elif upstream_oid is None:
             counts["missing_openproj_path"] += 1
+            details.append(("missing_openproj_path", old_path, mapped))
         elif normalized(contents[current_oid]) == strip_header(
             contents[upstream_oid].decode("utf-8", errors="replace")
         ):
             counts["normalized_content_match"] += 1
+            details.append(("normalized_content_match", old_path, mapped))
         else:
             counts["content_differs"] += 1
+            details.append(("content_differs", old_path, mapped))
 
     print(f"ref: {args.ref}")
     print(f"ledger candidates: {len(candidates)}")
@@ -136,6 +142,10 @@ def main() -> int:
         print("\nMissing mapped paths (not evidence of dead code):")
         for mapped, upstream in missing:
             print(f"{mapped} | {upstream}")
+    if args.details:
+        print("\nCandidate details (status | ledger path | mapped current path):")
+        for status, ledger_path, mapped in sorted(details):
+            print(f"{status} | {ledger_path} | {mapped}")
     print("\nPath/content comparison is not a caller audit, hunk-level provenance review, or legal conclusion.")
     return 0
 
