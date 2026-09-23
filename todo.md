@@ -274,7 +274,6 @@
 - `modules/projectlibre_core/src/main/java/com/projectlibre1/algorithm/RangeIntervalGenerator.java`
 - `modules/projectlibre_core/src/main/java/com/projectlibre1/algorithm/SelectFrom.java`
 - `modules/projectlibre_core/src/main/java/com/projectlibre1/algorithm/TimeIteratorGenerator.java`
-- `modules/projectlibre_core/src/main/java/com/projectlibre1/algorithm/ValueDivision.java`
 
 残課題:
 
@@ -296,6 +295,7 @@
 - `RangeIntervalGenerator` / `InstantIntervalGenerator` の `current()` が null を返す問題を修正し、`IntervalGeneratorContractTest` で現在区間の契約を固定した
 - `Query.execute()` / `Query.create()` が訪問した区間を配列で返すようにし、`QueryTest` で実行結果の契約を固定した
 - `GroupedCalculatedValues.union()` の手書きマージを JDK 標準の `TreeMap.merge` に置き換え、日付順・同日加算・入力との独立性を回帰テストで固定した
+- `ValueDivision` は現行production/test/resource/configuration経路から参照されず、serialization対象でもないことを確認して削除した
 
 検討メモ:
 

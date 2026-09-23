@@ -112,6 +112,13 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   direct application/exchange/UI/reports compilations passed after removal.
   The provenance CSV row is retained as historical origin evidence, not as a
   statement that the deleted class remains in the current runtime.
+- Removed `ValueDivision`: a repository-wide search found no production/test
+  caller, FQCN string, reflection/configuration registration, ServiceLoader
+  entry, or serialized form. It does not implement `Serializable`, the core
+  module has no declared public API dependency/export or separate publication,
+  and its public factory is unused. Removed the stale algorithm/query backlog
+  entry as well. Full `:microproject_core:test`, application/exchange/UI/reports
+  `compileJava`, and `verifyArchitectureBoundaries` passed after removal.
 
 ## Verification evidence to date
 
