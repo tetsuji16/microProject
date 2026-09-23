@@ -74,6 +74,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Date cell rendering | `DateRenderer.getTableCellRendererComponent` | Replaced the redundant null-plus-`instanceof` check and cast with a pattern binding; retained the same date-formatting and superclass-rendering path. UI compilation passed; no Robot scenario was added for this behavior-preserving local refactor. |
 | Split-view component narrowing | `MainView` split synchronization methods | Replaced the `SplittedView` check/cast pairs with pattern bindings in parent assignment, divider synchronization, and synchronization setup/removal; simplified the synchronizability predicate because `instanceof` already rejects null. Also replaced the stale captured-component null branch with a check of the current split components. `SplittedViewLifecycleTest` and UI compilation passed; no command or layout contract changed. |
 | Deep child traversal | `DeepChildWalker.accept` | Replaced the raw collection plus iterator utility call with `List<?>` and enhanced-for recursion; preserved parent-first and child-list order. A proxy-backed focused test verifies the recursive visitation order. |
+| Deep hierarchy search | `DeepChildSearcher.accept` | Replaced the raw child collection and iterator utility with `List<?>` and enhanced-for recursion, stopping sibling iteration once the first result is found. A proxy-backed test verifies the first depth-first match. |
 | Collaboration link identity | `LinkData.equals` | Replaced the cast-after-`instanceof` with a pattern binding and expanded the existing equality contract test for null, unrelated values, and a different serialized-data subtype. |
 | Filtered graphic-node iteration | `GeneralFilteredIterator.next` | Replaced the GraphicNode check/cast with a pattern binding and added a headless focused test that confirms node-based iteration still returns the underlying Node. |
 
@@ -187,6 +188,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 - `DeepChildWalkerTest` and the full core suite passed after typing the local
   child list and replacing the generic iterator helper; application, exchange,
   UI, and reports `compileJava` passed.
+- `DeepChildSearcherTest` passed for the first depth-first match; the full core
+  suite and application, exchange, UI, and reports `compileJava` passed.
 - `DataObjectEqualsHashCodeTest` passed after the `LinkData` pattern-binding
   cleanup. `GeneralFilteredIteratorTest` passed after explicitly installing
   its documented null-as-accept-all predicate; the initial run exposed a test
