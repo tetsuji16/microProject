@@ -29,7 +29,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
@@ -660,13 +659,13 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 	public static ArrayList<WorkingCalendar> extractCalendars(NodeHierarchy hierarchy) {
 		ArrayList<HasCalendar> list = new ArrayList<>();
-		hierarchy.visitAll(new Consumer<Object>() { public void accept(Object arg0) {
-				if (arg0 != null) {
-					Object impl = ((Node)arg0).getImpl();
-					if (impl instanceof HasCalendar hasCalendar)
-						list.add(hasCalendar);
-				}
-			}});
+		hierarchy.visitAll(arg0 -> {
+			if (arg0 != null) {
+				Object impl = ((Node) arg0).getImpl();
+				if (impl instanceof HasCalendar hasCalendar)
+					list.add(hasCalendar);
+			}
+		});
 		return WorkingCalendar.extractCalendars(list);
 	}
 
