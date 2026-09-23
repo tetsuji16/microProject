@@ -243,6 +243,20 @@ public class CollaborationMetadataStore {
 		}
 	}
 
+	/** Package-private diagnostic used to ensure a waiter joined a lock entry. */
+	static int jvmLockReferenceCountForTests(File projectFile) {
+		String key;
+		try {
+			key = buildLockFile(buildSidecarFile(projectFile)).getCanonicalPath();
+		} catch (IOException e) {
+			key = buildLockFile(buildSidecarFile(projectFile)).getAbsolutePath();
+		}
+		synchronized (JVM_LOCK_REGISTRY_GUARD) {
+			JvmLockEntry entry = JVM_LOCKS.get(key);
+			return entry == null ? 0 : entry.references.get();
+		}
+	}
+
 	private <T> T withLockedMetadataUnderJvmLock(MetadataCallback<T> callback) {
 		FileChannel channel = null;
 		FileLock lock = null;
