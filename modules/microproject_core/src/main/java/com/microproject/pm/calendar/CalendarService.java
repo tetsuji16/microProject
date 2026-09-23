@@ -95,7 +95,7 @@ public class CalendarService {
 	 * @param intervals
 	 * @return Common day or null
 	 */
-	public DayDescriptor getDay(WorkingCalendar workingCalendar, Set<?> intervals, boolean selectedWeekDays[]){
+	public DayDescriptor getDay(WorkingCalendar workingCalendar, Set<?> intervals, boolean[] selectedWeekDays){
 		CalendarUtil.DayIterator days=new CalendarUtil.DayIterator();
 	    DayDescriptor common=null;
 	    DayDescriptor current;
@@ -240,7 +240,7 @@ public class CalendarService {
 			workingCalendar.setDayWorkingHours(date,workingHours);
 	}
 
-	public void setDaysWorkingHours(WorkingCalendar workingCalendar, Set<?> intervals, boolean selectedDays[], WorkingHours workingHours)  throws WorkRangeException, InvalidCalendarException{
+	public void setDaysWorkingHours(WorkingCalendar workingCalendar, Set<?> intervals, boolean[] selectedDays, WorkingHours workingHours)  throws WorkRangeException, InvalidCalendarException{
 		for (int i = 0; i < 7; i++) {
 			if (selectedDays[i]) {
 				setWeekDayWorkingHours(workingCalendar, i+1,workingHours);

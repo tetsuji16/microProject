@@ -48,7 +48,7 @@ public class WorkingHours implements Cloneable, Serializable {
 	 */
 	long duration = 0;
 
-	WorkRange workRange[] = new WorkRange[Settings.CALENDAR_INTERVALS];
+	WorkRange[] workRange = new WorkRange[Settings.CALENDAR_INTERVALS];
 	private static GregorianCalendar helper = DateTime.calendarInstance();;
 	
 	

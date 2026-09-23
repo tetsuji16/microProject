@@ -32,7 +32,7 @@ public class WorkWeek implements Cloneable,Serializable {
 	static final long serialVersionUID = 2555674567677L;
     public static final int DAYS_IN_WEEK = 7;
 	public static final long MS_IN_WEEK = DAYS_IN_WEEK * 24L*60*60*1000;
-    WorkDay workDay[] = new WorkDay[DAYS_IN_WEEK];
+	WorkDay[] workDay = new WorkDay[DAYS_IN_WEEK];
 	private static final String WEEKDAY_MASK = Messages.getString("Calendar.WeekdayBitMaskFromSundayToSaturday");
 	@Override
 	public WorkWeek clone() {
