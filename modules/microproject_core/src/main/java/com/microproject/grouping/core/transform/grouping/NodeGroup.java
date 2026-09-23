@@ -45,8 +45,7 @@ public class NodeGroup{
 		if (sorter!=null) return sorter;
 		if (sorterId==null) return null;
 		Object transform=TransformList.getInstance("user_sorters").getTransform(sorterId);
-		if (transform==null||!(transform instanceof NodeSorter)) return null;
-		NodeSorter sorter=(NodeSorter)transform;
-		return sorter;
+		if (transform instanceof NodeSorter sorter) return sorter;
+		return null;
 	}
 }
