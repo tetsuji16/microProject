@@ -42,6 +42,9 @@ are recorded below. Progress is summarized in
 - PR [#607](https://github.com/tetsuji16/ProjectLibre/pull/607) merged as
   `1e28c3df1606aed06a2fffbb4bc32e17ccaa9a2a` after full CI success; removed the
   unreferenced `TestFilter`.
+- PR [#608](https://github.com/tetsuji16/ProjectLibre/pull/608) merged as
+  `fb7ad67ade2c24cc11f287b7acf25879265bccae` after full CI success; typed
+  Digester-populated form configuration collections end-to-end.
 
 ## Inventory caveat
 
@@ -69,8 +72,8 @@ artifact would be compatible.
 
 The initial-base counts above are historical. Re-running the inventory at the
 latest integrated checkpoint (`origin/master` =
-`1e28c3df1606aed06a2fffbb4bc32e17ccaa9a2a`) reports 280 ledger rows: 187
-normalized matches, 76 content-different files, and 17 absent mapped paths.
+`fb7ad67ade2c24cc11f287b7acf25879265bccae`) reports 280 ledger rows: 186
+normalized matches, 77 content-different files, and 17 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the
 current module graph, and the four intentionally deleted unreferenced classes
 `PeakUnitsFunctor`, `NumericMaximum`, `NodeFieldList`, and `TestFilter`. These
@@ -172,6 +175,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Unreferenced node-field list | `NodeFieldList` | Removed after repository-wide symbol search found only its definition (plus the historical provenance ledger row); no configuration/reflection registration or project persistence route references it. It is an application-internal class, not a separately published core API. It inherits `Serializable` from `LinkedList`, so unknown external serialized consumers remain a compatibility risk; no in-repository serialized use exists. The historical provenance row remains unchanged. |
 | Unreferenced test filter | `TestFilter` | Removed after full source/configuration search found no caller, configuration registration, or reflective class-name reference beyond its own declaration. The class always accepted every value and had no active summary-filter use. Historical provenance remains recorded; this deletion does not change the configured summary or filtering behavior. |
 | Form configuration collections | `FormFormat.boxes`, `layouts` | Confirmed normalized OpenProj provenance, the Apache Digester `addBox`/`addLayout` rules, and the active UI `FormComponent` consumer. Replaced raw collections and casts with `List<FormBox>`/`List<FormBoxLayout>` while preserving `List` erasure and XML element names. A Digester regression verifies order, default zoom selection, and typed UI configuration access. |
+| Association container boundary | `AssociationFormat.getContainer` | Confirmed normalized OpenProj provenance and both active overrides (`Collection<Task>` and `Collection<Resource>`); narrowed the abstract return to `Collection<?>`, removing a raw parent contract without changing its erased `Collection` descriptor or either subclass's behavior. Existing association-format tests and the full core suite cover the formatter boundary. |
 
 ## Fork-specific correctness defect found during the audit
 
@@ -374,10 +378,10 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 
 ## Remaining work
 
-- Hunk-provenance and active-caller review remains for the 76 content-different
+- Hunk-provenance and active-caller review remains for the 77 content-different
   candidates; the 17 absent paths are classified above and do not all represent
   active source requiring modernization.
-- Search the 187 matching files and OpenProj-origin hunks within the 76
+- Search the 186 matching files and OpenProj-origin hunks within the 77
   differing files for production callers and compatibility boundaries; do not
   treat file-level equality as proof of an active eligible hunk.
 - Audit remaining eligible Java in exchange, UI, reports, and other core

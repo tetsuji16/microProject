@@ -42,6 +42,6 @@ public abstract class AssociationFormat extends java.text.Format{
 		return parameters;
 	}
 	
-	protected abstract Collection getContainer(boolean left);
+	protected abstract Collection<?> getContainer(boolean left);
 	protected abstract Object createNewObject(boolean left);
 }
