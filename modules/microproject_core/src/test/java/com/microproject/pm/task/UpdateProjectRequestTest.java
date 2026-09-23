@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +40,7 @@ class UpdateProjectRequestTest {
 			true, false, false);
 		long originalStatusDate = project.getStatusDate();
 		UpdateProjectCommand command = new UpdateProjectCommand(project, request);
+		assertSame(project, command.getDocument());
 		UndoableEditSupport editSupport = new UndoableEditSupport();
 		UndoManager undoManager = new UndoManager();
 		editSupport.addUndoableEditListener(undoManager);

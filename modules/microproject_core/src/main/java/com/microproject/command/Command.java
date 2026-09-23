@@ -33,8 +33,8 @@ import com.microproject.document.Document;
  * Base class for commands - could be used with undo in the future
  */
 public abstract class Command implements Consumer<Object> {
-	private String text;
-	private Document document;
+	private final String text;
+	private final Document document;
 	
 	protected Command(String text, Document document) {
 		this.text = text;
