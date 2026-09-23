@@ -31,6 +31,14 @@ are recorded below. Progress is summarized in
 - PR [#603](https://github.com/tetsuji16/ProjectLibre/pull/603) merged as
   `e2df4e960f844df8d2c49ebd34c7c96d5af50323` after a successful CI rerun; used
   modern reflective construction for `NodeFactory` while preserving behavior.
+- PR [#604](https://github.com/tetsuji16/ProjectLibre/pull/604) merged as
+  `6216e76ed68d97d2850c1bfc6350e145fc8e2bc8` after a successful CI rerun; removed
+  the unreferenced serializable `NodeFieldList` class and documented residual
+  external serialization risk.
+- PR [#606](https://github.com/tetsuji16/ProjectLibre/pull/606) merged as
+  `fbd6271dcb5887fa3b0758eb69a25c18e984c307`; made the collaboration lock
+  contention test deterministic after its timing race was found in this work.
+  The product locking behavior was not changed.
 
 ## Inventory caveat
 
@@ -58,12 +66,12 @@ artifact would be compatible.
 
 The initial-base counts above are historical. Re-running the inventory at the
 latest integrated checkpoint (`origin/master` =
-`e2df4e960f844df8d2c49ebd34c7c96d5af50323`) reports 280 ledger rows: 189
-normalized matches, 76 content-different files, and 15 absent mapped paths.
+`fbd6271dcb5887fa3b0758eb69a25c18e984c307`) reports 280 ledger rows: 188
+normalized matches, 76 content-different files, and 16 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the
-current module graph, and the two intentionally deleted unreferenced classes
-`PeakUnitsFunctor` and `NumericMaximum`. These are still path/content counts,
-not proof that every remaining file is active or eligible.
+current module graph, and the three intentionally deleted unreferenced classes
+`PeakUnitsFunctor`, `NumericMaximum`, and `NodeFieldList`. These are still
+path/content counts, not proof that every remaining file is active or eligible.
 
 These are path/content reconciliation results, not an active-caller or hunk
 provenance audit. A matching file may contain a narrow fork delta; a differing
@@ -158,6 +166,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Unused numeric maximum visitor | `NumericMaximum` | Removed after repository-wide search found no production/test caller, class-name string, reflective/configuration registration, or serialization route. Unlike `Maximum`, this class is not registered in `SummaryVisitorFactory` or configuration XML. It does not implement `Serializable`, and the active application core has no documented external plugin/API contract. Its historical provenance row remains in the ledger; deletion is not a licensing conclusion. |
 | Node factory reflection | `NodeFactory.createNode(Class)` | Replaced zero-length reflective argument arrays with `Class.getConstructor().newInstance()` and parameterized the `Class` as `Class<?>` without changing the erased descriptor. Focused tests verify virtual-node construction and preserve the existing null-on-unsupported-class behavior. |
 | Unreferenced node-field list | `NodeFieldList` | Removed after repository-wide symbol search found only its definition (plus the historical provenance ledger row); no configuration/reflection registration or project persistence route references it. It is an application-internal class, not a separately published core API. It inherits `Serializable` from `LinkedList`, so unknown external serialized consumers remain a compatibility risk; no in-repository serialized use exists. The historical provenance row remains unchanged. |
+| Unreferenced test filter | `TestFilter` | Removed after full source/configuration search found no caller, configuration registration, or reflective class-name reference beyond its own declaration. The class always accepted every value and had no active summary-filter use. Historical provenance remains recorded; this deletion does not change the configured summary or filtering behavior. |
 
 ## Fork-specific correctness defect found during the audit
 
@@ -360,10 +369,10 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 
 ## Remaining work
 
-- Hunk-provenance and active-caller review remains for the 75 content-different
-  candidates; the 15 absent paths are classified above and do not all represent
+- Hunk-provenance and active-caller review remains for the 76 content-different
+  candidates; the 16 absent paths are classified above and do not all represent
   active source requiring modernization.
-- Search the 190 matching files and OpenProj-origin hunks within the 75
+- Search the 188 matching files and OpenProj-origin hunks within the 76
   differing files for production callers and compatibility boundaries; do not
   treat file-level equality as proof of an active eligible hunk.
 - Audit remaining eligible Java in exchange, UI, reports, and other core
