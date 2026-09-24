@@ -1108,11 +1108,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void adjustActualStartFromAssignments() {
 		importedPercentComplete = null;
 		importedPercentWorkComplete = null;
-		Assignment assignment;
-		Iterator i = getAssignments().iterator();
 		long start = 0L;
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			if (assignment.getPercentComplete() > 0.0D ) {
 				start= getStart();
 				break;

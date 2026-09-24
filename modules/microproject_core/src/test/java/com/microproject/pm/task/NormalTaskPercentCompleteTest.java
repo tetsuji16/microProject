@@ -136,6 +136,21 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void adjustingActualStartFromAssignmentsUsesAnyStartedAssignment() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = firstAssignment(task);
+
+		assignment.setPercentComplete(0.0d);
+		task.adjustActualStartFromAssignments();
+		assertEquals(0L, task.getActualStart());
+
+		assignment.setPercentComplete(0.01d);
+		task.adjustActualStartFromAssignments();
+		assertEquals(task.getStart(), task.getActualStart());
+	}
+
+	@Test
 	void percentCompleteCalculatesExactRemainingDurationAtBoundariesAndIntermediateProgress() {
 		Project project = createProject();
 		NormalTask task = createTask(project);

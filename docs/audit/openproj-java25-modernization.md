@@ -1094,3 +1094,11 @@ Follow-up #692 starts from the latest integrated `origin/master` after #691
 filtering behavior. Added focused coverage that ignores non-Task entries and
 tasks not assigned to the resource. Focused/full core tests, application
 compilation, and diff check passed.
+
+Follow-up #693 starts from the latest integrated `origin/master` after #692
+(HEAD and merge-base verified). Modernized the OpenProj-origin assignment
+traversal in `NormalTask.adjustActualStartFromAssignments` to enhanced-for over
+the typed `AssociationList`, preserving the existing percentage predicate and
+early-exit behavior. Added a focused test for 0% and started-assignment actual
+start behavior. Focused/full core tests, application compilation, and diff
+check passed.
