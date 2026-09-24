@@ -45,6 +45,9 @@ are recorded below. Progress is summarized in
 - PR [#608](https://github.com/tetsuji16/ProjectLibre/pull/608) merged as
   `fb7ad67ade2c24cc11f287b7acf25879265bccae` after full CI success; typed
   Digester-populated form configuration collections end-to-end.
+- PR [#609](https://github.com/tetsuji16/ProjectLibre/pull/609) merged as
+  `98563696ffe8a15705195ff345365f2858073fd3` after full CI success; narrowed an
+  association-format collection boundary to a wildcard type.
 
 ## Inventory caveat
 
@@ -72,8 +75,8 @@ artifact would be compatible.
 
 The initial-base counts above are historical. Re-running the inventory at the
 latest integrated checkpoint (`origin/master` =
-`fb7ad67ade2c24cc11f287b7acf25879265bccae`) reports 280 ledger rows: 186
-normalized matches, 77 content-different files, and 17 absent mapped paths.
+`98563696ffe8a15705195ff345365f2858073fd3`) reports 280 ledger rows: 185
+normalized matches, 78 content-different files, and 17 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the
 current module graph, and the four intentionally deleted unreferenced classes
 `PeakUnitsFunctor`, `NumericMaximum`, `NodeFieldList`, and `TestFilter`. These
@@ -176,6 +179,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Unreferenced test filter | `TestFilter` | Removed after full source/configuration search found no caller, configuration registration, or reflective class-name reference beyond its own declaration. The class always accepted every value and had no active summary-filter use. Historical provenance remains recorded; this deletion does not change the configured summary or filtering behavior. |
 | Form configuration collections | `FormFormat.boxes`, `layouts` | Confirmed normalized OpenProj provenance, the Apache Digester `addBox`/`addLayout` rules, and the active UI `FormComponent` consumer. Replaced raw collections and casts with `List<FormBox>`/`List<FormBoxLayout>` while preserving `List` erasure and XML element names. A Digester regression verifies order, default zoom selection, and typed UI configuration access. |
 | Association container boundary | `AssociationFormat.getContainer` | Confirmed normalized OpenProj provenance and both active overrides (`Collection<Task>` and `Collection<Resource>`); narrowed the abstract return to `Collection<?>`, removing a raw parent contract without changing its erased `Collection` descriptor or either subclass's behavior. Existing association-format tests and the full core suite cover the formatter boundary. |
+| Shared object-reference collection contract | `ObjectRef.getCollection`, `Field` collection consumers | Confirmed normalized OpenProj provenance and the active implementations in UI `FieldComponentMap` and reports `DataSource`; typed the interface return as `Collection<?>`, the reports override, and `Field` iterators without changing erasure or heterogeneous item semantics. |
 
 ## Fork-specific correctness defect found during the audit
 
@@ -378,10 +382,10 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 
 ## Remaining work
 
-- Hunk-provenance and active-caller review remains for the 77 content-different
+- Hunk-provenance and active-caller review remains for the 78 content-different
   candidates; the 17 absent paths are classified above and do not all represent
   active source requiring modernization.
-- Search the 186 matching files and OpenProj-origin hunks within the 77
+- Search the 185 matching files and OpenProj-origin hunks within the 78
   differing files for production callers and compatibility boundaries; do not
   treat file-level equality as proof of an active eligible hunk.
 - Audit remaining eligible Java in exchange, UI, reports, and other core

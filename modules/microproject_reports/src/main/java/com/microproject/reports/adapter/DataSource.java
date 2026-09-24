@@ -145,7 +145,7 @@ public Object getFieldValue(JRField jrField) throws JRException {
 		interval.setStart(start);
 		interval.setEnd(end);
 	}
-public Collection getCollection() {
+public Collection<?> getCollection() {
 		return null;
 	}
 	public NodeModelDataFactory getDataFactory() {
