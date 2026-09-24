@@ -100,6 +100,12 @@ are recorded below. Progress is summarized in
 - PR [#626](https://github.com/tetsuji16/ProjectLibre/pull/626) merged as
   `b825b936edf55f3d8090b72e00121bf11ac6483d` after full CI success; typed
   configured time-scale collections and added toggle/clone regressions.
+- PR [#627](https://github.com/tetsuji16/ProjectLibre/pull/627) merged as
+  `23d396de3cea75e5b39a9568de2ad8822d70c58f` after full CI success; modernized
+  task hierarchy/predecessor traversal and added ordering coverage.
+- PR [#628](https://github.com/tetsuji16/ProjectLibre/pull/628) merged as
+  `e2db4e5ce15cbc76ccf8788b438e78c71f698157` after full CI success; modernized
+  task invalidation and free-slack traversal.
 
 ## Inventory caveat
 
@@ -162,7 +168,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Task hierarchy/predecessor traversal | `Task.isWbsParent`, `arrangeTask`, `arrangeChildren` | Typed WBS child iteration as `Node`, traversed predecessor associations with enhanced-for, and retained the explicit `Dependency` cast and disabled-dependency behavior. Added predecessor-before-task ordering coverage alongside the existing summary-marker ordering test. These exact loops are present in baseline `d2fa3c20a`. |
 | Task invalidation/slack traversal | `Task.markDependentTasks`, `getFreeSlack` | Typed successor association traversal and WBS child iteration, using pattern matching for task implementations. Reused `TaskDependencyInvalidationTest`'s affected-closure assertions; no scheduling invalidation behavior changed. Focused invalidation/dependency tests, full core suite, and application/exchange/UI/reports compilation passed. These traversals match the OpenProj baseline `d2fa3c20a`. |
 | Project root-node query | `Project.getRootNodes` | PR #618 typed `List<Task>` input and `List<Node>` output and used enhanced-for. The implementation corresponds to the OpenProj-derived source excerpt ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Project.java#L3420-L3427)); no production callers were found, so a focused contract test was added. |
-| Filter iterator API | `NodeFilter.filteredListIterator` / `filteredIterator` | In progress in PR #617: type the input and output iterator references as wildcards; Apache Commons raw API remains at the adapter edge. Corresponding raw methods are present in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/transform/filtering/NodeFilter.java#L2088-L2095)). |
+| Filter iterator API | `NodeFilter.filteredListIterator` / `filteredIterator` | PR #617 typed the input and output iterator references as wildcards; Apache Commons raw API remains at the adapter edge. Corresponding raw methods are present in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/transform/filtering/NodeFilter.java#L2088-L2095)). |
 | CSS style hierarchy contract | `HasCssStyle.getHierarchy` | PR #616 changed the raw collection return to `Collection<?>`, preserving erasure and leaving the heterogeneous element contract unspecified rather than guessing a concrete type. The interface is a normalized-content match to OpenProj; caller search found the `TimesheetAssignment` implementation and no active consumer of this method. |
 | General options singleton | `GeneralOption.getInstance` | PR #615 replaced racy lazy initialization with class-initialized `static final`; public construction and option defaults remain unchanged. The ledger marks the file's normalized contents as matching the OpenProj baseline. |
 | Hierarchy indent traversal | `MutableNodeHierarchy.internalIndent` | PR #613 typed its selected-node and temporary void-node lists and iterators without changing traversal order. The corresponding raw traversal appears in the ProjectLibre mirror's OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/hierarchy/MutableNodeHierarchy.java#L2546-L2635)); this comparison confirms code correspondence, not a legal conclusion. |
@@ -247,7 +253,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Association container boundary | `AssociationFormat.getContainer` | Confirmed normalized OpenProj provenance and both active overrides (`Collection<Task>` and `Collection<Resource>`); narrowed the abstract return to `Collection<?>`, removing a raw parent contract without changing its erased `Collection` descriptor or either subclass's behavior. Existing association-format tests and the full core suite cover the formatter boundary. |
 | Shared object-reference collection contract | `ObjectRef.getCollection`, `Field` collection consumers | Confirmed normalized OpenProj provenance and the active implementations in UI `FieldComponentMap` and reports `DataSource`; typed the interface return as `Collection<?>`, the reports override, and `Field` iterators without changing erasure or heterogeneous item semantics. |
 
-## Fork-specific correctness defect found during the audit
+## Correctness defects found during the audit
 
 - `DictionaryCategory.equals` comes from later ProjectLibre code, not the
   OpenProj baseline, and is not counted as a modernization candidate. While
@@ -260,6 +266,22 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 
 Separate work in `com.microproject.core.time` is bridge/fork code, not counted as
 an OpenProj-origin modernization result unless hunk provenance is established.
+
+- `CompositeCacheEvent.generateDiffLists` is a normalized-content match to the
+  OpenProj baseline. Its insert/remove reconciliation mutated the original
+  inserted `CacheEvent` node list while generating the derived diff, despite
+  that payload remaining exposed through `getNodeEvents()`. This made diff
+  generation observably destructive to its input; a focused regression failed
+  before the fix because the source insertion list lost the reinserted node.
+  A null inserted-node payload after a prior removal also reached an
+  intersection call and could throw. The implementation now uses typed
+  event/diff lists, enhanced-for, and a local copy for reconciliation,
+  preserving source payloads and tolerating null node data. Focused tests verify
+  generated inserted/removed/updated sets, source-list immutability, and null
+  payload behavior. Caller review confirmed the existing spreadsheet model
+  emits its row notifications from event intervals, so no claim is made that
+  its row notifications were lost. No physical route, selection contract, or
+  layout changed; no Robot rerun is needed.
 
 ## Fork-only code explicitly excluded from this issue
 
@@ -485,8 +507,8 @@ had one timing-sensitive failure in
 that test passed when run alone and the full core suite passed on one retry.
 No GUI route or visual surface changed, so no Robot rerun was warranted.
 
-PR #627 passed CI and was squash-merged as
-`23d396de3cea75e5b39a9568de2ad8822d70c58f`. Follow-up #628 started directly
-from that latest `origin/master`; the focused task invalidation/dependency
-tests, full core suite, and application/exchange/UI/reports compilation passed.
-No GUI route or visual surface changed.
+PRs #627 and #628 passed CI and were squash-merged as recorded above. Follow-up
+#629 starts directly from latest `origin/master` at
+`e2db4e5ce15cbc76ccf8788b438e78c71f698157` (verified by merge-base). The
+`CompositeCacheEvent` regression was first run against the old implementation
+and failed, then passed after the fix. No GUI route or visual surface changed.

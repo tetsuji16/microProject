@@ -26,40 +26,37 @@ package com.microproject.pm.graphic.model.event;
 
 import java.util.ArrayList;
 import java.util.EventObject;
-import java.util.Iterator;
 import java.util.List;
-
-import org.apache.commons.collections.ListUtils;
 
 /**
  *
  */
 public class CompositeCacheEvent extends EventObject {
-    protected List nodeEvents;
-    protected List edgeEvents;
+    protected List<CacheEvent> nodeEvents;
+    protected List<CacheEvent> edgeEvents;
    
     /**
      * @param source
      * @param nodeEvents
      * @param edgeEvents
      */
-    public CompositeCacheEvent(Object source,List nodeEvents,
-            List edgeEvents) {
+    public CompositeCacheEvent(Object source, List<CacheEvent> nodeEvents,
+            List<CacheEvent> edgeEvents) {
         super(source);
         this.nodeEvents = nodeEvents;
         this.edgeEvents = edgeEvents;
     }
    
-    public List getEdgeEvents() {
+    public List<CacheEvent> getEdgeEvents() {
         return edgeEvents;
     }
-    public void setEdgeEvents(List edgeEvents) {
+    public void setEdgeEvents(List<CacheEvent> edgeEvents) {
         this.edgeEvents = edgeEvents;
     }
-    public List getNodeEvents() {
+    public List<CacheEvent> getNodeEvents() {
         return nodeEvents;
     }
-    public void setNodeEvents(List nodeEvents) {
+    public void setNodeEvents(List<CacheEvent> nodeEvents) {
         this.nodeEvents = nodeEvents;
     }
     
@@ -75,52 +72,58 @@ public class CompositeCacheEvent extends EventObject {
     }
 
     
-    protected List insertedNodes;
-    protected List removedNodes;
-    protected List updatedNodes;
-    protected List insertedEdges;
-    protected List removedEdges;
-    protected List updatedEdges;
+    protected List<Object> insertedNodes;
+    protected List<Object> removedNodes;
+    protected List<Object> updatedNodes;
+    protected List<Object> insertedEdges;
+    protected List<Object> removedEdges;
+    protected List<Object> updatedEdges;
     protected boolean diffListsGenerated=false;
     private void generateDiffLists(){
         if (diffListsGenerated) return;
         
         
         //nodes
-        CacheEvent event;
-        List nodes;
-        for (Iterator i=nodeEvents.iterator();i.hasNext();){
-            event=(CacheEvent)i.next();
-            nodes=event.getNodes();
+        for (CacheEvent event : nodeEvents) {
+            List<?> nodes = event.getNodes();
             switch (event.getType()) {
             case CacheEvent.NODES_CHANGED:
-                if (nodes!=null&&nodes.size()>0){
-                    if (updatedNodes==null) updatedNodes=new ArrayList(nodes.size());
+                if (nodes != null && !nodes.isEmpty()) {
+                    if (updatedNodes == null) updatedNodes = new ArrayList<>(nodes.size());
                     updatedNodes.addAll(nodes);
                 }
                 break;
             case CacheEvent.NODES_INSERTED:
 //              check for hidden updates
-                if (removedNodes!=null){
-                    List inter=ListUtils.intersection(nodes,removedNodes);
-                    if (inter.size()>0){
-                        removedNodes.removeAll(inter);
-                        nodes.removeAll(inter);
-                        if (updatedNodes==null) updatedNodes=new ArrayList(nodes.size());
-                        updatedNodes.addAll(inter);
+                if (nodes != null && !nodes.isEmpty()) {
+                    if (removedNodes != null) {
+                        List<Object> intersection = new ArrayList<>();
+                        for (Object node : nodes) {
+                            if (removedNodes.contains(node)) {
+                                intersection.add(node);
+                            }
+                        }
+                        if (!intersection.isEmpty()) {
+                            removedNodes.removeAll(intersection);
+                            List<Object> remainingNodes = new ArrayList<>(nodes);
+                            remainingNodes.removeAll(intersection);
+                            if (updatedNodes == null) updatedNodes = new ArrayList<>(nodes.size());
+                            updatedNodes.addAll(intersection);
+                            nodes = remainingNodes;
+                        }
                     }
                 }
                 
-                if (nodes!=null&&nodes.size()>0){
-                    if (insertedNodes==null) insertedNodes=new ArrayList(nodes.size());
+                if (nodes != null && !nodes.isEmpty()) {
+                    if (insertedNodes == null) insertedNodes = new ArrayList<>(nodes.size());
                     insertedNodes.addAll(nodes);
                 }
                 break;
             case CacheEvent.NODES_REMOVED:
                 //INSERT FOLLOWED BY REMOVE NEVER HAPPENS
                 //nothing special to handle
-                if (nodes!=null&&nodes.size()>0){
-                    if (removedNodes==null) removedNodes=new ArrayList(nodes.size());
+                if (nodes != null && !nodes.isEmpty()) {
+                    if (removedNodes == null) removedNodes = new ArrayList<>(nodes.size());
                     removedNodes.addAll(nodes);
                 }
                 break;
@@ -131,25 +134,24 @@ public class CompositeCacheEvent extends EventObject {
         
         
         //edges
-        for (Iterator i=edgeEvents.iterator();i.hasNext();){
-            event=(CacheEvent)i.next();
-            nodes=event.getNodes();
+        for (CacheEvent event : edgeEvents) {
+            List<?> nodes = event.getNodes();
             switch (event.getType()) {
             case CacheEvent.NODES_CHANGED:
-                if (nodes!=null&&nodes.size()>0){
-                    if (updatedEdges==null) updatedEdges=new ArrayList(nodes.size());
+                if (nodes != null && !nodes.isEmpty()) {
+                    if (updatedEdges == null) updatedEdges = new ArrayList<>(nodes.size());
                     updatedEdges.addAll(nodes);
                 }
                 break;
             case CacheEvent.NODES_INSERTED:
-                if (nodes!=null&&nodes.size()>0){
-                    if (insertedEdges==null) insertedEdges=new ArrayList(nodes.size());
+                if (nodes != null && !nodes.isEmpty()) {
+                    if (insertedEdges == null) insertedEdges = new ArrayList<>(nodes.size());
                     insertedEdges.addAll(nodes);
                 }
                 break;
             case CacheEvent.NODES_REMOVED:
-                if (nodes!=null&&nodes.size()>0){
-                    if (removedEdges==null) removedEdges=new ArrayList(nodes.size());
+                if (nodes != null && !nodes.isEmpty()) {
+                    if (removedEdges == null) removedEdges = new ArrayList<>(nodes.size());
                     removedEdges.addAll(nodes);
                 }
                 break;
@@ -163,27 +165,27 @@ public class CompositeCacheEvent extends EventObject {
 
     
     
-    public List getInsertedNodes() {
+    public List<Object> getInsertedNodes() {
         generateDiffLists();
         return insertedNodes;
     }
-    public List getRemovedNodes() {
+    public List<Object> getRemovedNodes() {
         generateDiffLists();
         return removedNodes;
     }
-    public List getUpdatedNodes() {
+    public List<Object> getUpdatedNodes() {
         generateDiffLists();
         return updatedNodes;
     }
-    public List getInsertedEdges() {
+    public List<Object> getInsertedEdges() {
         generateDiffLists();
         return insertedEdges;
     }
-    public List getRemovedEdges() {
+    public List<Object> getRemovedEdges() {
         generateDiffLists();
         return removedEdges;
     }
-    public List getUpdatedEdges() {
+    public List<Object> getUpdatedEdges() {
         generateDiffLists();
         return updatedEdges;
     }
