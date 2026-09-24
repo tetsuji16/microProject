@@ -1438,7 +1438,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	private void initSubprojectHandler() {
 		try {
-			subprojectHandler = (SubprojectHandler) Class.forName(Messages.getMetaString("SubprojectHandler")).getConstructor(new Class[]{Project.class}).newInstance(this);
+			subprojectHandler = (SubprojectHandler) Class.forName(Messages.getMetaString("SubprojectHandler")).getConstructor(Project.class).newInstance(this);
 		} catch (Exception e) {
 			ErrorLogger.log("SubprojectHandler initialization failed", e);
 			logger.warning("SubprojectHandler not valid in meta.properties");
@@ -2411,7 +2411,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	public void resetRoles(boolean publicRoles) {
 		try {
-			Class.forName(Messages.getMetaString("ProjectRoleManager")).getDeclaredMethod("resetRoles", new Class[] {Project.class, Boolean.class}).invoke(null, new Object[] {this,publicRoles});
+			Class.forName(Messages.getMetaString("ProjectRoleManager")).getDeclaredMethod("resetRoles", Project.class, Boolean.class).invoke(null, this, publicRoles);
 		} catch (Exception e) {
 			ErrorLogger.log("ProjectRoleManager initialization failed", e);
 			logger.warning("ProjectRoleManager not valid in meta.properties");
