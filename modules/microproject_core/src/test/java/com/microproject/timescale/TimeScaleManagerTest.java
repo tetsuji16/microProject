@@ -26,11 +26,14 @@ package com.microproject.timescale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Calendar;
 
 import org.junit.jupiter.api.Test;
+
+import com.microproject.configuration.Configuration;
 
 class TimeScaleManagerTest {
 	@Test
@@ -57,6 +60,36 @@ class TimeScaleManagerTest {
 		assertEquals(2, manager.getCurrentScaleIndex());
 	}
 
+	@Test
+	void widthToggleVisitsEveryConfiguredScale() {
+		TimeScaleManager manager = managerAtScale(2);
+
+		assertTrue(manager.toggleMinWidth(false));
+		for (int index = 0; index < manager.getScaleCount(); index++)
+			assertEquals(3, manager.getScale(index).getMinWidth());
+		assertFalse(manager.toggleMinWidth(false));
+		assertTrue(manager.toggleMinWidth(true));
+		for (int index = 0; index < manager.getScaleCount(); index++)
+			assertEquals(1, manager.getScale(index).getMinWidth());
+	}
+
+	@Test
+	void createInstanceClonesConfiguredScales() {
+		Configuration configuration = Configuration.getInstance();
+		TimeScaleManager previous = configuration.getTimeScales();
+		TimeScaleManager configured = managerAtScale(2);
+		configuration.setTimeScales(configured);
+		try {
+			TimeScaleManager copy = TimeScaleManager.createInstance();
+
+			assertEquals(configured.getScaleCount(), copy.getScaleCount());
+			assertEquals(configured.getCurrentScaleIndex(), copy.getCurrentScaleIndex());
+			assertNotSame(configured.getScale(0), copy.getScale(0));
+		} finally {
+			configuration.setTimeScales(previous);
+		}
+	}
+
 	private static TimeScaleManager managerAtScale(int currentScaleIndex) {
 		TimeScaleManager manager = new TimeScaleManager();
 		manager.addTimeScale(scale(Calendar.HOUR_OF_DAY, 2));
@@ -73,6 +106,7 @@ class TimeScaleManagerTest {
 		scale.setCalendarField1(calendarField1);
 		scale.setNumber1(number1);
 		scale.setNormalMinWidth(1);
+		scale.setTableMinWidth(3);
 		return scale;
 	}
 }
