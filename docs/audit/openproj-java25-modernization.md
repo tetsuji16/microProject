@@ -1029,3 +1029,11 @@ collection iterators in `TaskSchedule.flagChildren` and
 casts, order, and scheduling calculations unchanged because the child
 collection API remains raw. Full core tests, application compilation, and diff
 check passed.
+
+Follow-up #685 starts from the latest integrated `origin/master` after #684
+(HEAD and merge-base verified). Modernized the same OpenProj-origin child
+traversals in `TaskSchedule` to enhanced-for over the actual
+`Collection<Node>` API and Java pattern matching for task implementations.
+Added a non-task child node to the existing aggregation regression scenario to
+verify it remains ignored. Focused and full core tests, application compilation,
+and diff check passed; no scheduling bug was found in this scope.

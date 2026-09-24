@@ -79,6 +79,7 @@ class TaskScheduleTest {
 		configureTask(firstChild, project.getStart(), day);
 		configureTask(secondChild, firstChild.getEnd() + day, 2L * day);
 		attachChildren(parent, firstChild, secondChild);
+		parent.getWbsChildrenNodes().add(new TestNode(new Object()));
 
 		TaskSchedule schedule = parent.getCurrentSchedule();
 		schedule.assignDatesFromChildren(null);

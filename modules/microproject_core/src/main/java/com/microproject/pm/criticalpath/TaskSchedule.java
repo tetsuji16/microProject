@@ -29,7 +29,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang.builder.ToStringBuilder;
@@ -415,16 +414,12 @@ public final class TaskSchedule implements Cloneable {
 
 	private void flagChildren() {
 		int stateCount = task.getCalculationStateCount();
-		Collection children = task.getWbsChildrenNodes();
+		Collection<Node> children = task.getWbsChildrenNodes();
 		if (children == null)
 			return;
-		Object current;
-		Iterator<?> i = children.iterator();
-		while (i.hasNext()) {
-			current = ((Node) i.next()).getImpl();
-			if (! (current instanceof Task))
-				continue;
-			((Task) current).setCalculationStateCount(stateCount); // mark parent
+		for (Node node : children) {
+			if (node.getImpl() instanceof Task child)
+				child.setCalculationStateCount(stateCount); // mark parent
 		}
 		
 	}
@@ -435,27 +430,22 @@ public final class TaskSchedule implements Cloneable {
 	}
 	
 	public void assignDatesFromChildren(CalculationContext context) {
-		Collection children = task.getWbsChildrenNodes();
+		Collection<Node> children = task.getWbsChildrenNodes();
 		if (children == null)
 			return;
 		long begin = Long.MAX_VALUE;
 		long end = Long.MIN_VALUE;
 
-		Iterator<?> i = children.iterator();
-		NormalTask child;
-		Object current;
 		TaskSchedule childSchedule;
 		boolean estimated = false;
 		int t = type;
 		if (context !=  null && context.pass == 3) 
 			t = CURRENT;
 //System.out.println("assign from children top ass" + assign + " " + this);		
-		while (i.hasNext()) {
-			current = ((Node) i.next()).getImpl();
-			if (! (current instanceof NormalTask))
+		for (Node node : children) {
+			if (!(node.getImpl() instanceof NormalTask child))
 				continue;
-			
-			child = (NormalTask) current;
+
 			if (child.isInactiveTask())
 				continue;
 			estimated |= child.isEstimated();
