@@ -268,17 +268,20 @@ Separate work in `com.microproject.core.time` is bridge/fork code, not counted a
 an OpenProj-origin modernization result unless hunk provenance is established.
 
 - `CompositeCacheEvent.generateDiffLists` is a normalized-content match to the
-  OpenProj baseline and sends one composite event instance to multiple active
-  UI listeners. Its insert/remove reconciliation mutated the original inserted
-  `CacheEvent` node list while generating the first listener's diff, making the
-  next listener's result depend on listener order. It also attempted an
-  intersection when an inserted event had a null node payload after a prior
-  removal. The regression failed before the fix on source-list preservation;
-  the implementation now uses typed event/diff lists, enhanced-for, and a
-  local copy for reconciliation, preserving source payloads and tolerating the
-  null payload. Focused tests verify generated inserted/removed/updated sets,
-  source-list immutability, and null payload behavior. This changes no physical
-  UI route or layout; no Robot rerun is needed.
+  OpenProj baseline. Its insert/remove reconciliation mutated the original
+  inserted `CacheEvent` node list while generating the derived diff, despite
+  that payload remaining exposed through `getNodeEvents()`. This made diff
+  generation observably destructive to its input; a focused regression failed
+  before the fix because the source insertion list lost the reinserted node.
+  A null inserted-node payload after a prior removal also reached an
+  intersection call and could throw. The implementation now uses typed
+  event/diff lists, enhanced-for, and a local copy for reconciliation,
+  preserving source payloads and tolerating null node data. Focused tests verify
+  generated inserted/removed/updated sets, source-list immutability, and null
+  payload behavior. Caller review confirmed the existing spreadsheet model
+  emits its row notifications from event intervals, so no claim is made that
+  its row notifications were lost. No physical route, selection contract, or
+  layout changed; no Robot rerun is needed.
 
 ## Fork-only code explicitly excluded from this issue
 
