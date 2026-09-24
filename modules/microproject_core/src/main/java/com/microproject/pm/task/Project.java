@@ -1362,10 +1362,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
     public void structureChanged(HierarchyEvent e) {
     }
 
-    public List getRootNodes(List tasks){
-        List roots=new LinkedList();
-        for (Iterator i=tasks.iterator();i.hasNext();){
-            Task task=(Task)i.next();
+    public List<Node> getRootNodes(List<Task> tasks){
+        List<Node> roots=new LinkedList<>();
+        for (Task task : tasks){
             if (task.getWbsParentTask()==null) roots.add(taskOutlines.getDefaultOutline().search(task));
         }
         return roots;
