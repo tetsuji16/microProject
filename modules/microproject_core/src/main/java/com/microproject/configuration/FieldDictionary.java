@@ -230,7 +230,7 @@ public class FieldDictionary {
 		// instead of setName(...). That spurious entry became the first dropdown item of every
 		// static select (constraintType, taskType, earnedValueMethod, ...). Use an explicit
 		// call-method rule so setName is invoked directly and no bogus option is injected.
-		digester.addCallMethod("*/field/select", "setName", 1, new Class[] { String.class });
+		digester.addCallMethod("*/field/select", "setName", 1, new Class<?>[] { String.class });
 		digester.addCallParam("*/field/select", 0, "name");
 		digester.addSetNext("*/field/select", "setSelect", "com.microproject.field.StaticSelect"); // attach to field
 		
@@ -240,11 +240,11 @@ public class FieldDictionary {
 		// choice attributes (list/finder/allowNull) were not applied by SetPropertiesRule,
 		// leaving listMethod null and the combo empty. CallMethodRule resolves setters by
 		// reflection directly and works regardless of any BeanInfo on Select.
-		digester.addCallMethod("*/field/choice", "setList", 1, new Class[] { String.class });
+		digester.addCallMethod("*/field/choice", "setList", 1, new Class<?>[] { String.class });
 		digester.addCallParam("*/field/choice", 0, "list");
-		digester.addCallMethod("*/field/choice", "setFinder", 1, new Class[] { String.class });
+		digester.addCallMethod("*/field/choice", "setFinder", 1, new Class<?>[] { String.class });
 		digester.addCallParam("*/field/choice", 0, "finder");
-		digester.addCallMethod("*/field/choice", "setAllowNull", 1, new Class[] { boolean.class });
+		digester.addCallMethod("*/field/choice", "setAllowNull", 1, new Class<?>[] { boolean.class });
 		digester.addCallParam("*/field/choice", 0, "allowNull");
 		digester.addSetNext("*/field/choice", "setSelect", "com.microproject.field.DynamicSelect"); // attach to field
 		
