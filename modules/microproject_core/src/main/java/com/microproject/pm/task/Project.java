@@ -2181,7 +2181,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public boolean renumber(boolean localOnly){
 		boolean r=false;
 		long uniqueId=getUniqueId();
-        for (Iterator i=getTaskOutlineIterator();i.hasNext();){
+        for (Iterator<Task> i=getTaskOutlineIterator();i.hasNext();){
             NormalTask task=(NormalTask)i.next(); //ResourceImpl to have the EnterpriseResource link
             if (task.getProjectId() != uniqueId) // skip if in another project
             	continue;
@@ -2191,7 +2191,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		r|=identityFacade.renumber(localOnly);
 		if (!r) return false;
 		uniqueId=getUniqueId();
-        for (Iterator i=getTaskOutlineIterator();i.hasNext();){
+        for (Iterator<Task> i=getTaskOutlineIterator();i.hasNext();){
             NormalTask task=(NormalTask)i.next();
             task.setProjectId(uniqueId);
         }
@@ -2497,7 +2497,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public void forTasks(Consumer<Object> c){
-		for (Iterator i=getTaskOutlineIterator();i.hasNext();){
+		for (Iterator<Task> i=getTaskOutlineIterator();i.hasNext();){
 			c.accept(i.next());
 		}
 	}
@@ -2629,8 +2629,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public int getRowHeight(SortedSet baseLines){
-        for (Iterator i=getTaskOutlineIterator();i.hasNext();){
-            Task task=(Task)i.next();
+        for (Iterator<Task> i=getTaskOutlineIterator();i.hasNext();){
+            Task task=i.next();
             int current=Snapshottable.CURRENT.intValue();
             for (int s=0;s<Settings.numGanttBaselines();s++){
                 if (s==current) continue;

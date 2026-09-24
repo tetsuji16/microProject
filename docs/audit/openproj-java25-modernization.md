@@ -1014,3 +1014,10 @@ Follow-up #682 starts from the latest integrated `origin/master` after #681
 `LinkedList<Task>`, retaining the `NormalTask` cast and repair behavior.
 Forward/reverse schedule compatibility is covered by the full core suite;
 application compilation and diff check passed.
+
+Follow-up #683 starts from the latest integrated `origin/master` after #682
+(HEAD and merge-base verified). Parameterized the existing task-outline
+iterators in OpenProj-origin `Project.renumber`, `forTasks`, and `getRowHeight`
+as `Iterator<Task>`, removing only a redundant `Task` cast. Retained the
+`NormalTask` casts, traversal order, and callback contract. Full core tests,
+application compilation, and diff check passed.
