@@ -39,7 +39,6 @@ import javax.swing.tree.TreePath;
 
 import com.microproject.pm.graphic.model.event.CacheListener;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
-import com.microproject.pm.graphic.model.transform.DependencyCacheTransformer;
 import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.grouping.core.Node;
@@ -67,7 +66,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
     ViewNodeModelCache(ReferenceNodeModelCache reference,String viewName,Consumer<Object> transformerClosure) {
         this(reference,new VisibleNodes(viewName,new NodeCacheTransformer(viewName,reference,transformerClosure)),
-                new VisibleDependencies(viewName,new DependencyCacheTransformer(viewName,reference)));
+                new VisibleDependencies(viewName));
         this.viewName=viewName;
     }
     /**
