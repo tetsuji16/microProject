@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
+import com.microproject.association.Association;
 import com.microproject.association.AssociationList;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.criticalpath.TaskSchedule;
@@ -49,11 +50,9 @@ public class TaskSnapshotBackup {
 	public static TaskSnapshotBackup backup(TaskSnapshot snapshot,boolean backupSchedule){
 		if (snapshot==null) return null;
 		AssociationList assignments=snapshot.getAssignments();
-		Iterator i = assignments.iterator();
-		Assignment assignment;
 		ArrayList<Object> detail = new ArrayList<>(assignments.size());
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) association;
 			detail.add(assignment.backupDetail());
 		}
 		TaskSchedule scheduleBackup = snapshot.getCurrentSchedule();
@@ -66,11 +65,9 @@ public class TaskSnapshotBackup {
 		if (backup==null||snapshot==null) return;
 		if (backup.getAssignmentDetails()!=null) snapshot.setCurrentSchedule(backup.getCurrentSchedule());
 		AssociationList assignments=snapshot.getAssignments();
-		Iterator i = assignments.iterator();
-		Assignment assignment;
 		Iterator<?> j=backup.getAssignmentDetails().iterator();
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) association;
 			assignment.restoreDetail(j.next());
 		}
 	}

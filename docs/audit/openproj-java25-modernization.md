@@ -958,3 +958,11 @@ their raw iterator loops with enhanced-for over `Association`. Retained the
 cast to `Dependency` because it is a domain conversion from the collection's
 declared `Association` element type. Critical-path, project-schedule, and
 forward/reverse compatibility tests passed; diff check passed.
+
+Follow-up #677 starts from the latest integrated `origin/master` after #676
+(HEAD and merge-base verified). Converted the two OpenProj-origin assignment
+loops in `TaskSnapshotBackup` to enhanced-for over the existing
+`AssociationList`, retaining the assignment domain cast and preserving list
+order. In restore, the saved detail iterator remains paired one-for-one with
+that ordered assignment traversal. Schedule backup/undo focused tests and diff
+check passed.
