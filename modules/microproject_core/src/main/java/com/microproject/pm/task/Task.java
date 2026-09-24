@@ -668,11 +668,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		Dependency dep;
 
 		Collection<?> children;
-		Iterator i;
 
-		i = getPredecessorList().iterator();
-		while (i.hasNext()) {
-			dep = (Dependency)i.next();
+		for (Association association : getPredecessorList()) {
+			dep = (Dependency) association;
 			if (dep.isDisabled())
 				continue;
 			predecessor = (Task)dep.getPredecessor(); // I depend on my predecessors
@@ -694,9 +692,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		}
 
 		children = getWbsChildrenNodes();
-		Iterator j;
-
-
 		// I depend on my children's preds
 		if (children != null) {
 			for (Object childNode : children) {
@@ -704,9 +699,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 				if (!(current instanceof Task child))
 					continue;
 
-				j = child.getPredecessorList().iterator();
-				while (j.hasNext()) {
-					dep = (Dependency)j.next();
+				for (Association association : child.getPredecessorList()) {
+					dep = (Dependency) association;
 					if (dep.isDisabled())
 						continue;
 					predecessor = (Task)dep.getPredecessor(); // I depend on my predecessors
