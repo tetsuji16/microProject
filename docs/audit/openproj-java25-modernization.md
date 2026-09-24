@@ -746,3 +746,13 @@ runtime. Typed its internally copied mutable keys and read-only option values,
 then added a focused reflective-callback regression proving key filtering
 still works without mutating the supplied values. Full core tests,
 application/exchange/reports/UI compilation, and diff check passed.
+
+Follow-up #652 starts directly from the latest `origin/master` (verified by
+merge-base). `FieldValues.getValues` is active in POD serialization and
+deliberately constructs a `LinkedHashMap` to preserve byte-stable field order.
+Typed its field collection and string-key/object-value map boundaries, replaced
+raw iterators with enhanced for, and used pattern matching for Serializable
+values without changing insertion order or the HashMap erased return type.
+Full core tests, the `PodRoundTripTest` format-specific byte-stability/save-
+reload suite, downstream application/reports/UI compilation, and diff check
+passed.
