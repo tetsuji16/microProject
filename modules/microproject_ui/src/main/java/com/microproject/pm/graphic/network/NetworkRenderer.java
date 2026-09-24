@@ -280,7 +280,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			//Modif for offline graphics
 			
 			GraphicDependency dependency;
-			for (Iterator i=getDependenciesIterator();i.hasNext();){
+			for (Iterator<?> i=getDependenciesIterator();i.hasNext();){
 				dependency=(GraphicDependency)i.next();
 				paintLink(g2,dependency);
 			}
@@ -288,7 +288,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			
 			GraphicNode node;
 			Rectangle bounds;
-			for (ListIterator i=graphInfo.getCache().getIterator();i.hasNext();){
+			for (ListIterator<?> i=graphInfo.getCache().getIterator();i.hasNext();){
 				node=(GraphicNode)i.next();
 				bounds=getBounds(node);
 				if (bounds==null) continue;
