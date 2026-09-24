@@ -810,3 +810,11 @@ canonical `Node.getType()` contract is `Class<?>`. Narrowed the return
 signature while preserving the erased `Class` descriptor and added a focused
 runtime-type identity assertion. `ProjectScheduleBehaviorTest`, downstream
 application/exchange/reports/UI compilation, and diff check passed.
+
+Follow-up #659 starts from the latest integrated `origin/master` (verified by
+merge-base). Modernized `CommonTransformFactory`'s reflective constructor call
+to use the `Class<?>` parameter overload and direct varargs argument. This is
+the shared factory behind XML-configured filters, sorters, groupers, and
+transformers; constructor selection, configured string (including null), and
+exception wrapping remain unchanged. Added focused checks for both configured
+and null arguments. Core focused test and diff check passed.

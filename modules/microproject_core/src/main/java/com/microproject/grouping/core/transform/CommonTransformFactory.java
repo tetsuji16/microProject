@@ -54,10 +54,9 @@ public abstract class CommonTransformFactory extends CommonTransform{
 	public CommonTransform getTransformFromDefinition()  throws InvalidFormulaException{
 	    if (definition!=null){
 	        try {
-	            /*if (arguments==null)
-	                return (CommonTransform)Class.forName(definition).newInstance();
-	            else*/ return (CommonTransform)Class.forName(definition).
-	            	getConstructor(new Class[]{String.class}).newInstance(new Object[]{arguments});
+			return (CommonTransform) Class.forName(definition)
+				.getConstructor(String.class)
+				.newInstance(arguments);
             } catch (Exception e) {
                 throw new InvalidFormulaException(e);
             }
