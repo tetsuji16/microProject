@@ -1086,3 +1086,11 @@ traversals in `NormalTask.getPercentComplete`, `getDuration`, and `hasDuration`
 to enhanced-for over `AssociationList`, retaining assignment casts, counting,
 max-end selection, and early return semantics. Scheduling-focused and full
 core tests, application compilation, and diff check passed.
+
+Follow-up #692 starts from the latest integrated `origin/master` after #691
+(HEAD and merge-base verified). Replaced the OpenProj-origin iterator/cast in
+`AssignmentEntry.setAssignmentsFromTaskList` with enhanced-for and an
+`instanceof Task` pattern variable, preserving the raw public `List` API and
+filtering behavior. Added focused coverage that ignores non-Task entries and
+tasks not assigned to the resource. Focused/full core tests, application
+compilation, and diff check passed.
