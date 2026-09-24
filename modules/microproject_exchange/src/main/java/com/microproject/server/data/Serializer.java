@@ -573,7 +573,7 @@ public class Serializer {
 
 
     	// send project field values to server too
-        HashMap fieldValues = FieldValues.getValues(FieldDictionary.getInstance().getProjectFields(),project);
+        HashMap<String, Object> fieldValues = FieldValues.getValues(FieldDictionary.getInstance().getProjectFields(),project);
         if (project.getContainingSubprojectTask() != null) { // special case in which we want to use the duration from subproject task
         	Object durationFieldValue = Configuration.getFieldFromId("Field.duration").getValue(project.getContainingSubprojectTask(), null);
         	fieldValues.put("Field.duration", durationFieldValue);
@@ -1608,8 +1608,8 @@ public class Serializer {
 
     public static void buildStructure(ProjectData projectData,Collection<DataObject> resources,Collection<DataObject> tasks,Collection<DataObject> assignments,Collection<DataObject> links, Collection<DataObject> externalTasks, Collection<DataObject> referringSubprojectTasks,boolean ignoreResourcesForAssignments){
     	if (externalTasks!=null) tasks.addAll(externalTasks);
-    	Map resourceMap=createIdMap(resources);
-    	Map taskMap=createIdMap(tasks);
+		Map<Long, DataObject> resourceMap=createIdMap(resources);
+		Map<Long, DataObject> taskMap=createIdMap(tasks);
     	buildTaskStructure(projectData, tasks, taskMap);
     	projectData.setTasks(tasks);
         projectData.setResources(resources);
