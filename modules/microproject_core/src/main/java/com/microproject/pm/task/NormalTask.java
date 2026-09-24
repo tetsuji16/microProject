@@ -1036,9 +1036,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		double u = newRemainingUnits;
 		double remaining = getRemainingUnits();
 		double factor= u/remaining;
-		Iterator i = getAssignments().iterator();
-		while (i.hasNext()) {
-			Assignment assignment = (Assignment) i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			double r = assignment.getLaborUnits();
 //			if (!assignment.isLabor())
 //				continue;
@@ -1055,9 +1054,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 //		long newDuration = (long) (getDurationMillis() * multiplier);
 //~~		setRawDuration(newDuration);
 		//need to always do children regardless of doChildren flag
-		Iterator i = getAssignments().iterator();
-		while (i.hasNext()) {
-			Assignment assignment = (Assignment) i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			if (!assignment.isLabor())
 				continue;
 			getSchedulingRule().adjustRemainingWork(assignment,(long) (assignment.getRemainingWork()*multiplier),false);
@@ -1831,10 +1829,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (getActualStart() == 0L)
 			setStart(date); // if not started, change start
 		else if (inProgress()) {
-			Iterator i = getAssignments().iterator();
-			Assignment assignment;
-			while (i.hasNext()) {
-				assignment = (Assignment)i.next();
+			for (Association association : getAssignments()) {
+				Assignment assignment = (Assignment) association;
 				assignment.moveRemainingToDate(date);
 			}
 		} // do nothing for completed tasks
@@ -2267,13 +2263,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				if (! (nodeImpl  instanceof Schedule))
 					continue;
 				s = (Schedule)nodeImpl;
-				stop = Math.min(stop,s.getEarliestStop());
+			stop = Math.min(stop,s.getEarliestStop());
 			}
 		} else {
-			Iterator i = getAssignments().iterator();
-			while (i.hasNext()) {
-				Assignment ass = (Assignment)i.next();
-				stop = Math.min(stop,ass.getEarliestStop());
+			for (Association association : getAssignments()) {
+				Assignment assignment = (Assignment) association;
+				stop = Math.min(stop, assignment.getEarliestStop());
 			}
 		}
 		return stop;
