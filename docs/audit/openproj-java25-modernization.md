@@ -585,3 +585,17 @@ preorder plus removal behavior. Full core tests and downstream
 application/exchange/UI/reports compilation passed; the focused hierarchy test
 also passed after its additional assertion. No GUI route or visual contract
 changed, so no Robot run was needed.
+
+PR #636 passed CI and merged as
+`80ee53cc72dbcf1399c0c5efc9d00a438662c5cb`. Follow-up #637 starts directly
+from that latest `origin/master` (verified by merge-base). A direct comparison
+against OpenProj's `Portfolio.forProjects` confirmed its raw node iterator and
+Project type filter are inherited behavior. The method now uses
+`Iterator<Node>` and pattern matching, and its callback contract is
+`Consumer<? super Project>` because it only emits Projects. All production
+callers in core/UI were migrated to typed consumers; a focused test verifies
+that the callback receives the project from the portfolio. The first test
+compile exposed the former `Consumer<Object>` mismatch, which was corrected at
+the API contract rather than weakening the assertion. `DefaultSubprojectHandlerTest`
+and application/exchange/UI/reports compilation passed. No GUI route or visual
+contract changed, so Robot was not repeated.

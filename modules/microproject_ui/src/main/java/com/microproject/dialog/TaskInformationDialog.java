@@ -681,8 +681,8 @@ public class TaskInformationDialog extends InformationDialog {
 					&& !projects.contains(subproject.getSubproject()))
 				projects.add(subproject.getSubproject());
 		}
-		ProjectFactory.getInstance().getPortfolio().forProjects(value -> {
-			if (value instanceof Project project && !projects.contains(project))
+		ProjectFactory.getInstance().getPortfolio().forProjects(project -> {
+			if (!projects.contains(project))
 				projects.add(project);
 		});
 		GraphicManager manager = GraphicManager.getInstance(this);
