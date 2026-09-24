@@ -586,17 +586,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void buildReverseQuery(ReverseQuery reverseQuery) {
 		//Do this ones assignments
 		((TaskSnapshot) getCurrentSnapshot()).buildReverseQuery(reverseQuery);
-		Collection children = getWbsChildrenNodes();
-		Object current;
+		Collection<Node> children = getWbsChildrenNodes();
 		if (children != null) { //  do for all children as well
-			Iterator i = children.iterator();
-			Task child;
-			while (i.hasNext()) {
-				current = ((Node) i.next()).getImpl();
-				if (! (current instanceof NormalTask))
-					continue;
-				child = (Task)current;
-				child.buildReverseQuery(reverseQuery);
+			for (Node childNode : children) {
+				if (childNode.getImpl() instanceof NormalTask child)
+					child.buildReverseQuery(reverseQuery);
 			}
 		}
 
@@ -738,17 +732,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	private void updateEstimatedStatus() {
-		Collection children = getWbsChildrenNodes();
-		Iterator i = children.iterator();
-		Object current;
-		NormalTask child;
+		Collection<Node> children = getWbsChildrenNodes();
 		boolean childEstimated = false;
-		while (i.hasNext()) {
-			current = ((Node) i.next()).getImpl();
-			if (! (current instanceof NormalTask))
-				continue;
-			child = (NormalTask) current;
-			childEstimated |= child.isEstimated();
+		for (Node childNode : children) {
+			if (childNode.getImpl() instanceof NormalTask child)
+				childEstimated |= child.isEstimated();
 		}
 		setEstimated(childEstimated);
 	}
@@ -774,17 +762,14 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void assignActualDatesFromChildren() {
 		long computedActualStart = Long.MAX_VALUE;
 		long stop = 0;
-		Collection children = getWbsChildrenNodes();
-		Iterator i = children.iterator();
+		Collection<Node> children = getWbsChildrenNodes();
 		Task child;
 		long currentActualStart;
 		long oldActualDuration = Duration.millis(getActualDuration());
-		Object current;
-		while (i.hasNext()) {
-			current = ((Node) i.next()).getImpl();
-			if (! (current instanceof NormalTask))
+		for (Node childNode : children) {
+			if (!(childNode.getImpl() instanceof NormalTask normalChild))
 				continue;
-			child = (NormalTask) current;
+			child = normalChild;
 			// Completed children also contribute the parent's actual span.  Excluding
 			// them leaves a summary with no active children at 0% in its stored
 			// schedule, even though every leaf is complete.
@@ -2278,13 +2263,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		Schedule s;
 		Object nodeImpl;
 		if (isWbsParent()) {
-			Collection children = getWbsChildrenNodes();
-			Iterator i = children.iterator();
-			while (i.hasNext()) {
-				Object x = i.next();
-				if (!(x instanceof Node))
-					continue;
-				nodeImpl = ((Node)x).getImpl();
+			Collection<Node> children = getWbsChildrenNodes();
+			for (Node childNode : children) {
+				nodeImpl = childNode.getImpl();
 				if (! (nodeImpl  instanceof Schedule))
 					continue;
 				s = (Schedule)nodeImpl;
