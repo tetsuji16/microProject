@@ -1112,3 +1112,14 @@ passed. The first full core run had one failure in the unrelated
 `CriticalChainServiceTest.previewScalesToLargeSharedResourceWithoutQuadraticExpiryScan`;
 its isolated rerun passed. Diff check passed. This transient full-suite failure
 is disclosed for review and CI remains the merge gate.
+
+Follow-up #695 starts from the latest integrated `origin/master` after #694
+(HEAD and merge-base verified). Modernized the OpenProj-origin assignment loop
+in `NormalTask.setStop` to enhanced-for over the typed `AssociationList`,
+preserving the stop update and earliest-nonzero-actual-start reduction. Added a
+focused regression test using a multi-day assignment and a mid-task stop.
+Focused `NormalTaskPercentCompleteTest` and application compilation passed.
+The full core suite currently fails the unrelated
+`CriticalChainServiceTest.previewScalesToLargeSharedResourceWithoutQuadraticExpiryScan`
+runtime assertion (16.4 s vs. its 10 s limit in an isolated local run); PR CI
+must pass before merge. No GUI behavior is changed.
