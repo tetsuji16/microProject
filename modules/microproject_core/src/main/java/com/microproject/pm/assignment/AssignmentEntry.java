@@ -150,14 +150,9 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 	 */
 	public void setAssignmentsFromTaskList(List taskList) {
 		assignments = null;
-		Iterator t = taskList.iterator();
-		Task task;
-		Object current;
-		while (t.hasNext()) {
-			current = t.next();
-			if (!(current instanceof Task))
+		for (Object value : taskList) {
+			if (!(value instanceof Task task))
 				continue;
-			task = (Task)current;
 			Assignment assignment = resource.findAssignment(task);
 			if (assignment != null)
 				addAssignment(assignment);
