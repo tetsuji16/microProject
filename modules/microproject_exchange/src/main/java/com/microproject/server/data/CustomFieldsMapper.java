@@ -45,7 +45,7 @@ public class CustomFieldsMapper {
 		public FieldType[] startMap;
 		public FieldType[] textMap;
 
-		Maps(Class clazz) {
+		Maps(Class<?> clazz) {
 			costMap = mapMpxIndexes(clazz,COST,CustomFieldsImpl.NUM_COST);
 			dateMap = mapMpxIndexes(clazz,DATE,CustomFieldsImpl.NUM_DATE);
 			durationMap = mapMpxIndexes(clazz,DURATION,CustomFieldsImpl.NUM_DURATION);
@@ -55,7 +55,7 @@ public class CustomFieldsMapper {
 			startMap = mapMpxIndexes(clazz,START,CustomFieldsImpl.NUM_START);
 			textMap = mapMpxIndexes(clazz,TEXT,CustomFieldsImpl.NUM_TEXT);
 		}
-		private FieldType[] mapMpxIndexes(Class clazz, String text, int count) {
+		private FieldType[] mapMpxIndexes(Class<?> clazz, String text, int count) {
 			FieldType result[] = new FieldType[count];
 			for (int i = 0;i < count ;i++) {
 				try {

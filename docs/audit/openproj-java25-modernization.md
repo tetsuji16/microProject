@@ -154,7 +154,7 @@ are still path/content counts, not proof that every remaining file is active or
 eligible.
 
 At the latest integrated checkpoint for the 2026-09-25 follow-up tranche
-(`origin/master` = `5280704816ead3c91c4dac199177508311c39559`), rerunning the
+(`origin/master` = `a33b1d76ebb0a8e28592f3eb3db1787a960b499f`), rerunning the
 inventory reports 280 ledger rows: 180 normalized matches, 83 content-different
 files, and 17 absent mapped paths. The absent set still includes two active
 relocations and four previously verified removals; the remaining paths must
@@ -780,18 +780,26 @@ those implementation overrides raw until the conversion SPI/adapters can be
 redesigned and characterized separately.
 Core tests, application/exchange/reports/UI compilation, and diff check passed.
 
-Follow-up #654 starts directly from the latest `origin/master` (verified by
+Follow-up #654 started directly from the latest `origin/master` (verified by
 merge-base). The active Digester configuration readers in `Configuration` and
 `FieldDictionary` pass explicit reflective parameter signatures; changed those
 `Class[]` arrays to `Class<?>[]` without altering XML paths, method names,
 parameter order, or runtime descriptors. Full core tests,
 application/exchange/reports/UI compilation, and diff check passed.
 
-Follow-up #656 corrects a false failure in the existing
+Follow-up #655 starts directly from the latest `origin/master` (verified by
+merge-base). `CustomFieldsMapper` reflects over MPXJ `TaskField` and
+`ResourceField` constants to populate import/export mapping tables. Narrowed
+those reflection inputs to `Class<?>` and added focused checks for representative
+task and resource text-field mappings; field names, array ordering, and format
+mapping behavior are unchanged. Full exchange tests, downstream
+application/reports/UI compilation, and diff check passed.
+
+Follow-up #656 corrected a false failure in the existing
 `ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnchored` regression.
 The test had compared against the requested initial viewport x-coordinate
 without reading back Swing's actual position after layout/scroll-range
 adjustment. It now measures the visible left date from the observed pre-change
-viewport position. The focused test passes; no GUI product behavior changed and
-no Robot rerun is warranted. PR #655's full-CI rerun is still required after
-this fixture correction is integrated.
+viewport position. The focused test and full CI passed; no GUI product behavior
+changed, so no Robot rerun was warranted. This test-only fix was merged in
+PR #657, after which PR #655's full CI rerun also passed.
