@@ -63,6 +63,15 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void earliestStopMatchesTheTaskAssignmentForLeafTasks() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = firstAssignment(task);
+
+		assertEquals(assignment.getEarliestStop(), task.getEarliestStop());
+	}
+
+	@Test
 	void settingPercentCompleteSynchronizesAssignmentPercentages() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
