@@ -872,3 +872,14 @@ unused `GraphicManager` local in the login callback after confirming it had no
 reads. UI module tests/compilation, downstream compilation, and diff check
 passed. No GUI contract or physical route changed, so no Robot rerun was
 needed.
+
+Bug found while reviewing #666: `GraphicManager.getInstance(Component)` used
+`Class.forName("com.microproject.bootstrap.BootstrapApplet.class")` for its
+optional component-wrapper lookup, so that branch could never resolve the
+class name and silently returned null. Corrected the class name and retained
+the string-based optional integration boundary. Added one headless route test
+whose test-only wrapper verifies the owning manager identity. This internal
+lookup changes no physical command route or visible UI contract, so no Robot
+run was warranted. The regression failed with the original class name and
+passed after the correction. The new test fixtures carry the required MIT
+header; this also corrects the missing header on the prior `CommonTransformFactoryTest`.
