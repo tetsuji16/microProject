@@ -40,8 +40,8 @@ public class CacheEvent extends GraphicEvent {
     public static final int NODES_REMOVED = 2;
     
     protected int type;
-    protected List nodes;
-    protected List intervals;
+    protected List<?> nodes;
+    protected List<?> intervals;
    
     
     
@@ -51,17 +51,17 @@ public class CacheEvent extends GraphicEvent {
      * @param type
      * @param nodes
      */
-    public CacheEvent(Object source, int type, List nodes, List intervals) {
+    public CacheEvent(Object source, int type, List<?> nodes, List<?> intervals) {
         super(source);
         this.type = type;
         this.nodes = nodes;
         this.intervals = intervals;
     }
     
-    public List getNodes() {
+    public List<?> getNodes() {
         return nodes;
     }
-    public void setNodes(List nodes) {
+    public void setNodes(List<?> nodes) {
         this.nodes = nodes;
     }
     public int getType() {
@@ -74,10 +74,10 @@ public class CacheEvent extends GraphicEvent {
     
     public void forIntervals(Consumer<Object> f){
         if (type==NODES_REMOVED){
-			for (ListIterator i=intervals.listIterator(intervals.size());i.hasPrevious();)
+			for (ListIterator<?> i=intervals.listIterator(intervals.size());i.hasPrevious();)
 				f.accept(i.previous());
         }else{
-			for (ListIterator i=intervals.listIterator();i.hasNext();)
+			for (ListIterator<?> i=intervals.listIterator();i.hasNext();)
 				f.accept(i.next());            
         }
     }
