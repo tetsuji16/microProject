@@ -94,7 +94,7 @@ public class NodeCache extends CellCache {
 //	}
 
 	
-	public static void applyUpdates(ArrayList oldList, ArrayList newList, Set updates, List events, Object source){
+	public static void applyUpdates(ArrayList oldList, ArrayList newList, Set updates, List<CacheEvent> events, Object source){
 	    ArrayList o =(ArrayList) oldList.clone();
 		ArrayList n =(ArrayList) newList.clone();
 		
@@ -266,7 +266,7 @@ public class NodeCache extends CellCache {
 //	    }
 //	}
 
-	protected void fireEvents(Object source, List nodeEvents, List edgeEvents) {
+	protected void fireEvents(Object source, List<CacheEvent> nodeEvents, List<CacheEvent> edgeEvents) {
         if (nodeEvents.size()>0||edgeEvents.size()>0)
 	    for (Iterator i=visibleElements.iterator();i.hasNext();)
 	        ((VisibleNodes)i.next()).fireGraphicNodesCompositeEvent(source,nodeEvents,edgeEvents);
@@ -280,8 +280,8 @@ public class NodeCache extends CellCache {
 //	        ((VisibleNodes)i.next()).fireGraphicNodesCompositeEvent(source,null,null,null, objectEvent);
 //	}
 	public void fireEvents(Object source, VisibleNodes nodes) {
-        List nodeEvents=nodes.getEvents();
-        List edgeEvents=nodes.getVisibleDependencies().getEvents();
+	    List<CacheEvent> nodeEvents=nodes.getEvents();
+	    List<CacheEvent> edgeEvents=nodes.getVisibleDependencies().getEvents();
         if (nodeEvents.size()>0||edgeEvents.size()>0){
 		    nodes.fireGraphicNodesCompositeEvent(source,nodeEvents,edgeEvents);
 	        nodes.clearEvents();
@@ -292,8 +292,8 @@ public class NodeCache extends CellCache {
 	public void fireEvents(Object source) {
 	    for (Iterator i=visibleElements.iterator();i.hasNext();){
 	        VisibleNodes v=(VisibleNodes)i.next();
-	        List nodeEvents=v.getEvents();
-	        List edgeEvents=v.getVisibleDependencies().getEvents();
+	        List<CacheEvent> nodeEvents=v.getEvents();
+	        List<CacheEvent> edgeEvents=v.getVisibleDependencies().getEvents();
 	        if (nodeEvents.size()>0||edgeEvents.size()>0){
 	            v.fireGraphicNodesCompositeEvent(source,nodeEvents,edgeEvents);
 	            v.clearEvents();

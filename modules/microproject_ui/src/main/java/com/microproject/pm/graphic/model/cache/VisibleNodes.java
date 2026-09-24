@@ -29,6 +29,7 @@ import java.util.List;
 
 import javax.swing.event.EventListenerList;
 
+import com.microproject.pm.graphic.model.event.CacheEvent;
 import com.microproject.pm.graphic.model.event.CacheListener;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.model.transform.CacheTransformer;
@@ -69,7 +70,7 @@ public class VisibleNodes extends VisibleElements {
 	public CacheListener[] getNodeModelListeners() {
 		return (CacheListener[]) listenerList.getListeners(CacheListener.class);
 	}
-	 protected void fireGraphicNodesCompositeEvent(Object source, List nodeEvents, List edgeEvents) {
+	 protected void fireGraphicNodesCompositeEvent(Object source, List<CacheEvent> nodeEvents, List<CacheEvent> edgeEvents) {
 			//System.out.println("fireGraphicNodesCompositeEvent: \n\t"+nodeEvents+"\n\t"+edgeEvents/*+", source="+source*/);
 			Object[] listeners = listenerList.getListenerList();
 			CompositeCacheEvent e = null;

@@ -599,3 +599,18 @@ compile exposed the former `Consumer<Object>` mismatch, which was corrected at
 the API contract rather than weakening the assertion. `DefaultSubprojectHandlerTest`
 and application/exchange/UI/reports compilation passed. No GUI route or visual
 contract changed, so Robot was not repeated.
+
+PR #637 CI's initial full build encountered the known intermittent
+`ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnchored` failure
+(886 UI tests: 1 failed, 7 skipped). The failed-job rerun passed; no production
+changes were made in response to the unrelated flaky assertion. PR #637 was
+merged as `df94fff3de7a85375b7af3f0273c5925325aa519`.
+
+Follow-up #638 starts directly from that latest `origin/master` (verified by
+merge-base). The node/dependency cache event queue producers create only
+`CacheEvent`, and its consumers pass that same event list into
+`CompositeCacheEvent`. The OpenProj-derived event pipeline now uses
+`List<CacheEvent>` at storage, enqueue, diff-generation, and listener-dispatch
+boundaries. A focused test asserts event source, type, payload, and removal-then-
+insertion order. UI focused test passed; no user route or visual contract
+changed, so no Robot run was needed.
