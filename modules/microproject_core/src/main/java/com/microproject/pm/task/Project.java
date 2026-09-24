@@ -1056,17 +1056,13 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return this;
 	}
 	public void buildReverseQuery(ReverseQuery reverseQuery) {
-		Iterator i = tasks.iterator();
-		while (i.hasNext()) {
-			((Task)i.next()).buildReverseQuery(reverseQuery);
-		}
+		for (Task task : tasks)
+			task.buildReverseQuery(reverseQuery);
 	}
 
 	public void forEachWorkingInterval(Consumer<Object> visitor, boolean mergeWorking, WorkCalendar workCalendar) {
-		Iterator i = tasks.iterator();
-		while (i.hasNext()) {
-			((Task)i.next()).forEachWorkingInterval(visitor,mergeWorking, workCalendar);
-		}
+		for (Task task : tasks)
+			task.forEachWorkingInterval(visitor,mergeWorking, workCalendar);
 	}
 
 	public double acwp(long start, long end) {
