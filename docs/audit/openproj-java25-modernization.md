@@ -730,3 +730,11 @@ Narrowed the signature and reflective parameter array to `Class<?>[]` while
 preserving the erased `Class[]` descriptor, with focused method-resolution
 coverage. The focused test, application/exchange/reports/UI compilation, and
 diff check passed.
+
+Follow-up #650 starts directly from the latest `origin/master` (verified by
+merge-base). `FieldDictionary` resolves configured Java classes and passes
+them to `Field.isApplicable`; all its production callers were checked. Typed
+the stored class, public overloads, helper arrays, and internal class lists as
+`Class<?>` / `Class<?>[]` without changing runtime resolution or erased
+descriptors. Full core tests, downstream module compilation, and diff check
+passed.
