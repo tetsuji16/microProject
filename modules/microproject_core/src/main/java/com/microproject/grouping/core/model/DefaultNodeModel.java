@@ -40,6 +40,7 @@ import java.util.Set;
 
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeNode;
 import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
 
@@ -459,7 +460,7 @@ public class DefaultNodeModel implements NodeModel {
 		return parentNodes;
 	}
 	private void cloneBranch(Node parent,Node newParent,Set assignedNodes,Map implMap,Set<Dependency> predecessors,Set<Dependency> successors){
-		for (Iterator i=parent.childrenIterator();i.hasNext();){
+		for (Iterator<TreeNode> i=parent.childrenIterator();i.hasNext();){
 				Node child=(Node)i.next();
 				if (child.getImpl() instanceof Assignment){
 					assignedNodes.add(newParent);
@@ -508,7 +509,7 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	private void cleanBranch(Node parent){
-		for (Iterator i=parent.childrenIterator();i.hasNext();){
+		for (Iterator<TreeNode> i=parent.childrenIterator();i.hasNext();){
 				Node child=(Node)i.next();
 				cleanNodeImpl(child.getImpl());
 				cleanBranch(child);
@@ -804,7 +805,7 @@ public class DefaultNodeModel implements NodeModel {
 				SubProj subproject = (SubProj) node.getImpl();
 				subprojects.add(new SubprojectState(node, subproject.getSubproject()));
 			}
-			for (Iterator i = node.childrenIterator(); i.hasNext();)
+			for (Iterator<TreeNode> i = node.childrenIterator(); i.hasNext();)
 				collectSubprojects((Node) i.next(), subprojects);
 		}
 
@@ -895,7 +896,7 @@ public class DefaultNodeModel implements NodeModel {
 		if (node == null)
 			return;
 		searchIndex.put(node.getImpl(), node);
-		for (Iterator i = node.childrenIterator(); i.hasNext();) {
+		for (Iterator<TreeNode> i = node.childrenIterator(); i.hasNext();) {
 			registerNodeSubtree((Node)i.next());
 		}
 	}
@@ -910,7 +911,7 @@ public class DefaultNodeModel implements NodeModel {
 		if (node == null)
 			return;
 		searchIndex.remove(node.getImpl());
-		for (Iterator i = node.childrenIterator(); i.hasNext();) {
+		for (Iterator<TreeNode> i = node.childrenIterator(); i.hasNext();) {
 			unregisterNodeSubtree((Node)i.next());
 		}
 	}

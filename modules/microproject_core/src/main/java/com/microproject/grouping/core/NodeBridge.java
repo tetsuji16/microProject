@@ -27,12 +27,10 @@ package com.microproject.grouping.core;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Collections;
 
 import javax.swing.tree.DefaultMutableTreeNode;
-
-import org.apache.commons.collections.IteratorUtils;
-import org.apache.commons.collections.iterators.EmptyIterator;
-import org.apache.commons.collections.iterators.EmptyListIterator;
+import javax.swing.tree.TreeNode;
 
 import com.microproject.grouping.core.model.NodeModelUtil;
 import com.microproject.pm.assignment.Assignment;
@@ -123,41 +121,11 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 		setUserObject(impl);
 	}
 
-	static ListIterator emptyListIterator(){
-		return new ListIterator(){
-			public boolean hasNext() {
-				return false;
-			}
-			public Object next() {
-				return null;
-			}
-			public void remove() {
-				throw new UnsupportedOperationException();
-			}
-			public void add(Object o) {
-			}
-			public boolean hasPrevious() {
-				return false;
-			}
-			public int nextIndex() {
-				return 0;
-			}
-			public Object previous() {
-				return null;
-			}
-			public int previousIndex() {
-				return -1;
-			}
-			public void set(Object o) {
-			}
-		};
-	}
-
-    public ListIterator childrenIterator(){
-    	return (children==null)?emptyListIterator():children.listIterator();
+    public ListIterator<TreeNode> childrenIterator(){
+	return (children==null)?Collections.<TreeNode>emptyList().listIterator():children.listIterator();
     }
-    public ListIterator childrenIterator(int i){
-    	return (children==null)?emptyListIterator():children.listIterator(i);
+    public ListIterator<TreeNode> childrenIterator(int i){
+	return (children==null)?Collections.<TreeNode>emptyList().listIterator(i):children.listIterator(i);
     }
     public List getChildren(){
     	return children;
