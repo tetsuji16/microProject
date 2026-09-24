@@ -188,8 +188,8 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 //				return;
 //			}
 			try {
-				Class generator=ClassLoaderUtils.forName("com.microproject.export.ImageExport");
-				generator.getMethod("export", new Class[]{GraphPageable.class,Component.class}).invoke(null,new Object[]{document,PrintPreviewFrame.this});
+				Class<?> generator=ClassLoaderUtils.forName("com.microproject.export.ImageExport");
+				generator.getMethod("export", GraphPageable.class, Component.class).invoke(null, document, PrintPreviewFrame.this);
 			} catch (Exception e) {
 				logger.log(Level.WARNING, "Failed to export PDF preview", e);
 			}
