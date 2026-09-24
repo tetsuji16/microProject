@@ -147,11 +147,11 @@ public class Configuration implements ProvidesDigesterEvents {
 	}
 	
 	private void addGlobalDigesterEvents(Digester dg){
-		dg.addCallMethod("configuration/constants/int","setIntConstant", 2, new Class[] {String.class, Integer.class});
+		dg.addCallMethod("configuration/constants/int","setIntConstant", 2, new Class<?>[] {String.class, Integer.class});
 		dg.addCallParam("configuration/constants/int/name",0);
 		dg.addCallParam("configuration/constants/int/value",1);
 
-		dg.addCallMethod("configuration/constants/String","setStringConstant", 2, new Class[] {String.class, String.class});
+		dg.addCallMethod("configuration/constants/String","setStringConstant", 2, new Class<?>[] {String.class, String.class});
 		dg.addCallParam("configuration/constants/String/name",0);
 		dg.addCallParam("configuration/constants/String/value",1);
 	}

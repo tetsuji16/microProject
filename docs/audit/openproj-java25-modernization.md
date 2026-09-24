@@ -153,6 +153,14 @@ current module graph, and the four intentionally deleted unreferenced classes
 are still path/content counts, not proof that every remaining file is active or
 eligible.
 
+At the latest integrated checkpoint for the 2026-09-25 follow-up tranche
+(`origin/master` = `5280704816ead3c91c4dac199177508311c39559`), rerunning the
+inventory reports 280 ledger rows: 180 normalized matches, 83 content-different
+files, and 17 absent mapped paths. The absent set still includes two active
+relocations and four previously verified removals; the remaining paths must
+not be inferred dead from path absence alone. These path/content metrics do not
+measure completion; the hunk-level and production-caller audit remains open.
+
 These are path/content reconciliation results, not an active-caller or hunk
 provenance audit. A matching file may contain a narrow fork delta; a differing
 file may still contain eligible OpenProj-origin hunks. The results do **not**
@@ -771,3 +779,10 @@ forcing generic return casts would add unchecked runtime assumptions. Keep
 those implementation overrides raw until the conversion SPI/adapters can be
 redesigned and characterized separately.
 Core tests, application/exchange/reports/UI compilation, and diff check passed.
+
+Follow-up #654 starts directly from the latest `origin/master` (verified by
+merge-base). The active Digester configuration readers in `Configuration` and
+`FieldDictionary` pass explicit reflective parameter signatures; changed those
+`Class[]` arrays to `Class<?>[]` without altering XML paths, method names,
+parameter order, or runtime descriptors. Full core tests,
+application/exchange/reports/UI compilation, and diff check passed.
