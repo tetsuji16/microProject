@@ -916,3 +916,13 @@ existing `FieldValues` and `createIdMap` generic contracts. Keys, values,
 insertion/order semantics, serialized map implementation, and POD format are
 unchanged. POD round-trip and exchange tests, downstream compilation, and diff
 check passed.
+
+Follow-up #672 starts from the latest integrated `origin/master` after #671
+(HEAD and merge-base verified). Typed `Job`'s OpenProj-origin runnable queue
+and its iterator as `InternalRunnable`, removing casts from the queue traversal
+and using enhanced-for in `addJob`. Repository-wide production search found no
+external access to this protected queue; list ordering, iterator transitions,
+and runnable execution order are unchanged. Focused job critical-section and
+exception-handler tests plus application/exchange/reports/UI downstream
+compilation passed. This is source-only core work, so no GUI/Robot repetition
+was needed.
