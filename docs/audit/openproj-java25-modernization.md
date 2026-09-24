@@ -1000,3 +1000,10 @@ to build diagnostic text with `StringBuilder` and iterate its typed
 entries, and exception entries. Existing concatenation format and exception
 ordering are preserved; `WorkingCalendarTest` and `CalendarDefinitionTest`
 passed, as did diff check.
+
+Follow-up #681 starts from the latest integrated `origin/master` after #680
+(will rebase and verify merge-base). Replaced raw iterators and casts in
+`Project.buildReverseQuery` and `Project.forEachWorkingInterval` with enhanced-
+for over the existing `LinkedList<Task>` field. Traversal order and per-task
+dispatch remain unchanged. Full core tests, application compilation, and diff
+check passed.
