@@ -151,6 +151,23 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void setStopRecomputesActualStartFromAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+		Assignment assignment = firstAssignment(task);
+		assignment.setPercentComplete(0.25d);
+		long assignmentActualStart = assignment.getActualStart();
+
+		long laterStop = task.getEffectiveWorkCalendar().add(task.getStart(), 4L * day, false);
+		task.setStop(laterStop);
+
+		assertEquals(assignment.getActualStart(), task.getActualStart());
+		assertEquals(assignmentActualStart, task.getActualStart());
+	}
+
+	@Test
 	void percentCompleteCalculatesExactRemainingDurationAtBoundariesAndIntermediateProgress() {
 		Project project = createProject();
 		NormalTask task = createTask(project);

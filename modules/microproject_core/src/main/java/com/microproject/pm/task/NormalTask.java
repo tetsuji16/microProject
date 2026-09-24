@@ -1131,14 +1131,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		stop = DateTime.closestDate(stop);
 		stop = Math.min(stop,getEnd());
 
-		Iterator i = getAssignments().iterator();
-		Assignment assignment;
 		long computedActualStart = Long.MAX_VALUE;
-		long assignmentActualStart;
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			assignment.setStop(stop);
-			assignmentActualStart = assignment.getActualStart();
+			long assignmentActualStart = assignment.getActualStart();
 			if (assignmentActualStart != 0 && assignmentActualStart < computedActualStart)
 				computedActualStart = assignmentActualStart;
 		}
