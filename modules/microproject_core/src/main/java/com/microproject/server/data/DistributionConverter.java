@@ -41,7 +41,7 @@ import com.microproject.util.Environment;
 public class DistributionConverter {
 	private static final Logger logger = Logger.getLogger(DistributionConverter.class.getName());
 	protected Object delegate;
-	protected Class delegateClass;
+	protected Class<?> delegateClass;
 	private Method createDistributionDataMethod;
 	private Method subtractDistributionMethod;
 	public DistributionConverter(){
