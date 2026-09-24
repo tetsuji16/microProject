@@ -52,11 +52,15 @@ are recorded below. Progress is summarized in
   `b5145b32aec4720b3a7ac504e166dad5b821a478` after full CI success; typed the
   shared object-reference collection boundary and its reports consumer.
 - PR [#611](https://github.com/tetsuji16/ProjectLibre/pull/611) merged as
-  `f887394942562c743ad5893ddd2c4be8ef5ee355` after full CI success; typed
-  collaboration sidecar decoding's dynamic map boundary.
+  `f887394942562c743ad5893ddd2c4be8ef5ee355` after full CI success; this
+  adjacent fork-owned cleanup is excluded from issue #595 progress (see scope
+  correction below).
 - PR [#612](https://github.com/tetsuji16/ProjectLibre/pull/612) merged as
-  `bed064083051d16e3fd07a2586e98b27862cd44e` after full CI success; typed the
-  hierarchy indent undo-position bookkeeping.
+  `bed064083051d16e3fd07a2586e98b27862cd44e` after full CI success; its
+  fork-added undo-position bookkeeping is excluded from issue #595 progress.
+- PR [#613](https://github.com/tetsuji16/ProjectLibre/pull/613) merged as
+  `63f7e0cd287964b657894429ef6ecbdb6d638d86` after full CI success; typed the
+  OpenProj-derived private hierarchy indent traversal.
 
 ## Inventory caveat
 
@@ -109,8 +113,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 
 | Area | Classes / responsibility | Outcome |
 |---|---|---|
-| Hierarchy indent undo bookkeeping | `MutableNodeHierarchy.createPositionMap` / `createPositions`; private indent traversal | PR #612 typed the private node-to-position map and position result list. In progress in PR #613: typed the local selected-node and temporary void-node lists and their iterators without changing indent/outdent traversal. |
-| Collaboration sidecar decoding | `CollaborationMetadataStore.Metadata`, `UserRecord`, `LockRecord` | In progress in PR #611: typed dynamic JSON map boundaries as `Map<?, ?>` and entries as `Map.Entry<?, ?>`; retained permissive value conversion and null-on-non-map behavior. |
+| Hierarchy indent traversal | `MutableNodeHierarchy.internalIndent` | PR #613 typed its selected-node and temporary void-node lists and iterators without changing traversal order. The corresponding raw traversal appears in the ProjectLibre mirror's OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/hierarchy/MutableNodeHierarchy.java#L2546-L2635)); this comparison confirms code correspondence, not a legal conclusion. |
 | Calendar intervals | `WorkDay`, `WorkRange`, `WorkingHours`, `WorkWeek`, `WorkingCalendar`, `CalendarService`, `CalendarDefinition`, `Interval`, `CalendarEvent` | Typed collection / clone / comparison modernization; removed the unused calendar-cache list; fixed incorrect working-day intersection, lost overtime state in a range constructor, long-comparison overflow, equality asymmetry, and a strong-reference calendar-cache registry leak. |
 | Duration and rates | `Duration`, `DurationFormat`, `Rate`, `RateFormat`, `PercentFormat` | Pattern matching and switch expressions; removed dead duration conversion calculations and redundant string copying; made encoding masks and formatter mode state immutable; fixed parse-position end-of-input exceptions and fractional/large-rate comparison. |
 | Distribution identity | `DistributionData` | Pattern matching and hash/equality alignment with the active `DistributionComparator` key, including `projectId`; added focused identity/payload tests. |
@@ -393,6 +396,19 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 
 ## Remaining work
 
+### Scope correction
+
+The issue's target excludes fork-origin code unless its specific responsibility
+is independently confirmed as OpenProj-derived. PR #611's
+`CollaborationMetadataStore` has no corresponding OpenProj source path in the
+provenance ledger, and PR #612's `createPositionMap` / `createPositions`
+undo-position helpers do not occur in the compared OpenProj implementation.
+Both changes are already integrated, but are adjacent cleanups and are **not**
+counted as issue #595 modernization progress. PR #613's separate
+`internalIndent` collection typing is retained as in-scope because that exact
+raw traversal is present in the checked source excerpt linked above. No
+OpenProj coverage or completion percentage is inferred from the adjacent PRs.
+
 - Hunk-provenance and active-caller review remains for the 78 content-different
   candidates; the 17 absent paths are classified above and do not all represent
   active source requiring modernization.
@@ -408,7 +424,7 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #613 is based directly on `origin/master` at
-`bed064083051d16e3fd07a2586e98b27862cd44e` (verified by merge-base). The
-focused `DefaultNodeModelTest` passes; PR CI is pending. No GUI route or visual
-surface changed, so no GUI/Robot test was run.
+Latest follow-up #614 is an audit correction based directly on `origin/master`
+at `63f7e0cd287964b657894429ef6ecbdb6d638d86` (verified by merge-base). PR #613's
+`DefaultNodeModelTest` and CI passed. No GUI route or visual surface changed,
+so no GUI/Robot test was run.
