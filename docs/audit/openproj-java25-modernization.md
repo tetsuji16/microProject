@@ -1072,3 +1072,10 @@ Follow-up #689 starts from the latest integrated `origin/master` after #688
 `Association` values, removing an unnecessary size pre-check while retaining
 the assignment cast and `Consumer<Object>` callback contract. Full core tests,
 application compilation, and diff check passed.
+
+Follow-up #690 starts from the latest integrated `origin/master` after #689
+(HEAD and merge-base verified). Modernized the OpenProj-origin assignment and
+dependency dirty-state loops in `Project.setAllTasksAsUnchangedFromPersisted`
+to enhanced-for over the existing `AssociationList` API, retaining the domain
+casts and all dirty-state updates. Full core tests, application compilation,
+and diff check passed.
