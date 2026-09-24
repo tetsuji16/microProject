@@ -48,17 +48,17 @@ import com.microproject.util.DateTime;
  */
 public class FieldConverter  {
 	private static final Logger logger = Logger.getLogger(FieldConverter.class.getName());
-	HashMap<FieldContext,HashMap<Class,Converter>> contextMaps = new HashMap<FieldContext, HashMap<Class,Converter>>();
+	HashMap<FieldContext,HashMap<Class<?>,Converter>> contextMaps = new HashMap<>();
 	private StringConverter stringConverter;
 	private StringConverter compactStringConverter;
 	
-	public static String toString(Object value, Class clazz, FieldContext context ) {
+	public static String toString(Object value, Class<?> clazz, FieldContext context ) {
 		return getInstance()._toString(value,clazz,context);
 	}
 	public static String toString(Object value ) {
 		return getInstance()._toString(value,value.getClass(),null);
 	}
-	public static Object fromString(String value, Class clazz) {
+	public static Object fromString(String value, Class<?> clazz) {
 		return ConvertUtils.convert(value, clazz);
 	}
 
@@ -71,7 +71,7 @@ public class FieldConverter  {
 	 * @return object of type clazz.
 	 * @throws FieldParseException
 	 */
-	public static Object convert(Object value, Class clazz, FieldContext context) throws FieldParseException {
+	public static Object convert(Object value, Class<?> clazz, FieldContext context) throws FieldParseException {
 		return getInstance()._convert(value,clazz,context);
 	}
         
@@ -93,7 +93,7 @@ public class FieldConverter  {
 	 * @return object of type clazz.
 	 * @throws FieldParseException
 	 */
-	private Object _convert(Object value, Class clazz, FieldContext context) throws FieldParseException {
+	private Object _convert(Object value, Class<?> clazz, FieldContext context) throws FieldParseException {
 		try {
 			if (value instanceof String) { 
 				Object result = null;
@@ -101,7 +101,7 @@ public class FieldConverter  {
 					result = ConvertUtils.convert((String) value,clazz);
 				else {
 					Converter contextConverter = null;
-					HashMap<Class, Converter> contextMap = contextMaps.get(context);
+					HashMap<Class<?>, Converter> contextMap = contextMaps.get(context);
 					if (contextMap != null)
 						contextConverter = contextMap.get(clazz);
 					if (contextConverter != null) {
@@ -135,7 +135,7 @@ public class FieldConverter  {
         
 	
 	
-	private String _toString(Object value, Class clazz, FieldContext context) {
+	private String _toString(Object value, Class<?> clazz, FieldContext context) {
 		if (context == COMPACT_CONVERTER_CONTEXT)
 			return (String) compactStringConverter.convert(clazz, value);
 		else
@@ -168,7 +168,7 @@ public class FieldConverter  {
 		
 
 		// short context converters
-		HashMap<Class, Converter> compactMap = new HashMap<Class, Converter>();
+		HashMap<Class<?>, Converter> compactMap = new HashMap<>();
 		contextMaps.put(COMPACT_CONVERTER_CONTEXT, compactMap);
 		compactMap.put(String.class,compactStringConverter);
 		// no need for duration or money as parsing is done in long form
@@ -278,7 +278,7 @@ public class FieldConverter  {
 		}
 	};		
 	private static class DurationConverter implements Converter {
-		public Object convert(Class type, Object value) throws ConversionException {
+			public Object convert(Class type, Object value) throws ConversionException {
 			if (value == null)
 				return Duration.getInstanceFromDouble(null);
 			
