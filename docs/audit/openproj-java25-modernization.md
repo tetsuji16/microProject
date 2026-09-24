@@ -883,3 +883,12 @@ lookup changes no physical command route or visible UI contract, so no Robot
 run was warranted. The regression failed with the original class name and
 passed after the correction. The new test fixtures carry the required MIT
 header; this also corrects the missing header on the prior `CommonTransformFactoryTest`.
+
+Follow-up #668 starts from the latest integrated `origin/master` after #667
+(merge-base verified). `BrowserControl` still carried the fully commented-out
+OpenProj 1.4 OS-specific browser launcher alongside its active `Desktop.browse`
+implementation. Confirmed the commented block against the archived OpenProj
+source and searched all 15 production callers; removed only the dead block and
+its now-unused `Method`/`JOptionPane` imports. The active public method and all
+callers remain unchanged. Core tests, downstream compilation, and diff check
+passed; no GUI route behavior changed.
