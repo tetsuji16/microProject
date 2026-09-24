@@ -826,3 +826,10 @@ data retrieval. Narrowed both signature arrays to `Class<?>[]`; method names,
 parameter order, argument values, and session compatibility fallbacks are
 unchanged. Focused `ProjectFactoryClosingTest`, downstream compilation, and
 diff check passed.
+
+Follow-up #661 starts from the latest integrated `origin/master` after #660
+(merge-base verified). `SimpleEditor` and `TimeSimpleEditor` store a runtime
+conversion target and pass it to `FieldConverter`, whose API already accepts
+`Class<?>`. Typed both editor fields and constructor parameters while retaining
+the same constructor erasures and conversion behavior. Focused editor tests,
+downstream compilation, and diff check passed.
