@@ -55,6 +55,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 
 import com.microproject.algorithm.ReverseQuery;
+import com.microproject.association.Association;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.configuration.CircularDependencyException;
 import com.microproject.configuration.Dictionary;
@@ -1575,14 +1576,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 					task.setDirty(false);
 					task.setLastSavedStart(task.getStart());
 					task.setLastSavedFinish(task.getEnd());
-					Iterator j = task.getAssignments().iterator();
-					while (j.hasNext())
-						((Assignment)j.next()).setDirty(false);
+					for (Association association : task.getAssignments())
+						((Assignment) association).setDirty(false);
 
 
-					j=task.getDependencyList(true).iterator();
-					while (j.hasNext())
-						((Dependency)j.next()).setDirty(false);
+					for (Association association : task.getDependencyList(true))
+						((Dependency) association).setDirty(false);
 
 					Node parent=(Node)node.getParent();
 					if (parent==null||parent.isRoot()) task.setLastSavedParentId(-1L);
