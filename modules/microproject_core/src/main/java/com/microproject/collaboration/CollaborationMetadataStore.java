@@ -422,38 +422,35 @@ public class CollaborationMetadataStore {
 		private Map<String, LockRecord> locks = new LinkedHashMap<String, LockRecord>();
 		private Map<String, UserWorkspaceState> perUserWorkspace = new LinkedHashMap<String, UserWorkspaceState>();
 
-		public static Metadata fromMap(Map map) {
+		public static Metadata fromMap(Map<?, ?> map) {
 			Metadata metadata = new Metadata();
 			metadata.schemaVersion = asInt(map.get("schemaVersion"), SCHEMA_VERSION);
 			metadata.projectFingerprint = asString(map.get("projectFingerprint"));
 			metadata.projectFileName = asString(map.get("projectFileName"));
 			metadata.projectFileLastModified = asLong(map.get("projectFileLastModified"));
 			metadata.projectFileLength = asLong(map.get("projectFileLength"));
-			Map usersMap = asMap(map.get("users"));
+			Map<?, ?> usersMap = asMap(map.get("users"));
 			if (usersMap != null) {
-				for (Object entryObject : usersMap.entrySet()) {
-					Map.Entry entry = (Map.Entry) entryObject;
+				for (Map.Entry<?, ?> entry : usersMap.entrySet()) {
 					metadata.users.put(String.valueOf(entry.getKey()), UserRecord.fromMap(asMap(entry.getValue())));
 				}
 			}
-			Map locksMap = asMap(map.get("locks"));
+			Map<?, ?> locksMap = asMap(map.get("locks"));
 			if (locksMap != null) {
-				for (Object entryObject : locksMap.entrySet()) {
-					Map.Entry entry = (Map.Entry) entryObject;
+				for (Map.Entry<?, ?> entry : locksMap.entrySet()) {
 					metadata.locks.put(String.valueOf(entry.getKey()), LockRecord.fromMap(asMap(entry.getValue())));
 				}
 			}
-			Map workspaceMap = asMap(map.get("perUserWorkspace"));
+			Map<?, ?> workspaceMap = asMap(map.get("perUserWorkspace"));
 			if (workspaceMap != null) {
-				for (Object entryObject : workspaceMap.entrySet()) {
-					Map.Entry entry = (Map.Entry) entryObject;
+				for (Map.Entry<?, ?> entry : workspaceMap.entrySet()) {
 					metadata.perUserWorkspace.put(String.valueOf(entry.getKey()), fromWorkspaceMap(asMap(entry.getValue())));
 				}
 			}
 			return metadata;
 		}
 
-		private static UserWorkspaceState fromWorkspaceMap(Map map) {
+		private static UserWorkspaceState fromWorkspaceMap(Map<?, ?> map) {
 			UserWorkspaceState state = new UserWorkspaceState();
 			if (map == null) {
 				return state;
@@ -568,7 +565,7 @@ public class CollaborationMetadataStore {
 		private String clientInstanceId;
 		private long lastSeenAt;
 
-		public static UserRecord fromMap(Map map) {
+		public static UserRecord fromMap(Map<?, ?> map) {
 			UserRecord record = new UserRecord();
 			if (map == null) {
 				return record;
@@ -632,7 +629,7 @@ public class CollaborationMetadataStore {
 		private long leaseUntil;
 		private long updatedAt;
 
-		public static LockRecord fromMap(Map map) {
+		public static LockRecord fromMap(Map<?, ?> map) {
 			LockRecord record = new LockRecord();
 			if (map == null) {
 				return record;
@@ -716,8 +713,8 @@ public class CollaborationMetadataStore {
 		}
 	}
 
-	private static Map asMap(Object value) {
-		return value instanceof Map ? (Map) value : null;
+	private static Map<?, ?> asMap(Object value) {
+		return value instanceof Map<?, ?> map ? map : null;
 	}
 
 	private static String asString(Object value) {

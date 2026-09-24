@@ -48,6 +48,9 @@ are recorded below. Progress is summarized in
 - PR [#609](https://github.com/tetsuji16/ProjectLibre/pull/609) merged as
   `98563696ffe8a15705195ff345365f2858073fd3` after full CI success; narrowed an
   association-format collection boundary to a wildcard type.
+- PR [#610](https://github.com/tetsuji16/ProjectLibre/pull/610) merged as
+  `b5145b32aec4720b3a7ac504e166dad5b821a478` after full CI success; typed the
+  shared object-reference collection boundary and its reports consumer.
 
 ## Inventory caveat
 
@@ -75,8 +78,8 @@ artifact would be compatible.
 
 The initial-base counts above are historical. Re-running the inventory at the
 latest integrated checkpoint (`origin/master` =
-`98563696ffe8a15705195ff345365f2858073fd3`) reports 280 ledger rows: 185
-normalized matches, 78 content-different files, and 17 absent mapped paths.
+`b5145b32aec4720b3a7ac504e166dad5b821a478`) reports 280 ledger rows: 184
+normalized matches, 79 content-different files, and 17 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the
 current module graph, and the four intentionally deleted unreferenced classes
 `PeakUnitsFunctor`, `NumericMaximum`, `NodeFieldList`, and `TestFilter`. These
@@ -100,6 +103,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 
 | Area | Classes / responsibility | Outcome |
 |---|---|---|
+| Collaboration sidecar decoding | `CollaborationMetadataStore.Metadata`, `UserRecord`, `LockRecord` | In progress in PR #611: typed dynamic JSON map boundaries as `Map<?, ?>` and entries as `Map.Entry<?, ?>`; retained permissive value conversion and null-on-non-map behavior. |
 | Calendar intervals | `WorkDay`, `WorkRange`, `WorkingHours`, `WorkWeek`, `WorkingCalendar`, `CalendarService`, `CalendarDefinition`, `Interval`, `CalendarEvent` | Typed collection / clone / comparison modernization; removed the unused calendar-cache list; fixed incorrect working-day intersection, lost overtime state in a range constructor, long-comparison overflow, equality asymmetry, and a strong-reference calendar-cache registry leak. |
 | Duration and rates | `Duration`, `DurationFormat`, `Rate`, `RateFormat`, `PercentFormat` | Pattern matching and switch expressions; removed dead duration conversion calculations and redundant string copying; made encoding masks and formatter mode state immutable; fixed parse-position end-of-input exceptions and fractional/large-rate comparison. |
 | Distribution identity | `DistributionData` | Pattern matching and hash/equality alignment with the active `DistributionComparator` key, including `projectId`; added focused identity/payload tests. |
@@ -396,3 +400,8 @@ an OpenProj-origin modernization result unless hunk provenance is established.
 - Update this inventory and issue #595 after each meaningful audited batch; do
   not close the issue while any required phase or unresolved in-scope work
   remains.
+
+Latest follow-up #611 is based directly on `origin/master` at
+`b5145b32aec4720b3a7ac504e166dad5b821a478` (verified by merge-base). The focused
+`CollaborationMetadataStoreTest` passes; full core and CI verification are
+pending. No GUI route or visual surface changed, so no GUI/Robot test was run.
