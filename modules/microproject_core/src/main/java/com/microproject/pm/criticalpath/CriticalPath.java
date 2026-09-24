@@ -124,10 +124,10 @@ public class CriticalPath implements SchedulingAlgorithm {
  *
  */
 	private void initSentinelsFromTasks() {
-		Iterator i = predecessorTaskList.listIterator();
+		ListIterator<PredecessorTaskList.TaskReference> i = predecessorTaskList.listIterator();
 		Task task;
 		while (i.hasNext()) {
-			task = ((PredecessorTaskList.TaskReference)i.next()).getTask();
+			task = i.next().getTask();
 			if (task.getPredecessorList().size() == 0)
 				addStartSentinelDependency(task);
 			if (task.getSuccessorList().size() == 0)
