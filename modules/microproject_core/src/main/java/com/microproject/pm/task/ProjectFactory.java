@@ -141,7 +141,7 @@ public class ProjectFactory {
 				else if (hasSessionMethod(session, "getLoadResourceHierarchyJob", boolean.class, List.class)){
 					resources=new ArrayList();
 
-					Job job=(Job)SessionFactory.callNoEx(session,"getLoadResourceHierarchyJob", new Class[]{boolean.class,List.class},new Object[]{true,resources});
+					Job job=(Job)SessionFactory.callNoEx(session,"getLoadResourceHierarchyJob", new Class<?>[]{boolean.class,List.class},new Object[]{true,resources});
 					if (job != null) {
 						job.addSync();
 						session.schedule(job);
@@ -932,7 +932,7 @@ public class ProjectFactory {
 	}
 	public static Object getProjectData(long projectId) {
 		Session session = SessionFactory.getInstance().getSession(false);
-		return SessionFactory.callNoEx(session, "getProjectData", new Class[] {Long.class}, new Object[] {projectId});
+		return SessionFactory.callNoEx(session, "getProjectData", new Class<?>[] {Long.class}, new Object[] {projectId});
 
 
 	//	getProjectData(projectId);
