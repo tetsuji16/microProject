@@ -48,13 +48,13 @@ public class UniqueIdPool {
 		return instance;
 	}
 	
-	protected List serverIntervals;
+	protected List<MutableInterval> serverIntervals;
 	protected int reservationSem;
 	
 	protected long lastIdReservation=-1;
 	
 	protected UniqueIdPool(){
-		serverIntervals=new LinkedList();
+		serverIntervals = new LinkedList<>();
 	}
 	
 	public synchronized long getId(Session session) throws UniqueIdException{
@@ -71,12 +71,11 @@ public class UniqueIdPool {
 //			else makeServerReservationAsync(idCount);
 		}
 		
-		MutableInterval interval;
 		long id=-1;
 		int size=0;
 		synchronized(serverIntervals){
-			for (Iterator i=serverIntervals.iterator();i.hasNext();){
-				interval=(MutableInterval)i.next();
+			for (Iterator<MutableInterval> i = serverIntervals.iterator(); i.hasNext();) {
+				MutableInterval interval = i.next();
 				if (id==-1){
 					id=interval.getStart();
 					interval.setStart(id+1);
@@ -108,23 +107,32 @@ public class UniqueIdPool {
 	protected void makeServerReservationAsync(final int count,final Session session){
 		Thread idBookingThread=new Thread(){
 			public void run(){
-				synchronized(this){
-					if (reservationSem>0) return;
-					reservationSem++;
-				}
+				if (!tryStartAsyncReservation()) return;
 				try {
 					makeServerReservation(count,session);
 				} catch (Exception e) {
 					logger.log(Level.WARNING, "Id cannot be retrieved", e);
 				}finally{
-					synchronized(this){
-						reservationSem--;
-					}
+					finishAsyncReservation();
 				}
 
 			}
 		};
 		idBookingThread.start();
+	}
+
+	boolean tryStartAsyncReservation() {
+		synchronized(this){
+			if (reservationSem>0) return false;
+			reservationSem++;
+			return true;
+		}
+	}
+
+	void finishAsyncReservation() {
+		synchronized(this){
+			reservationSem--;
+		}
 	}
 	
 	protected void makeServerReservationSync(final int count,Session session) throws Exception{
@@ -152,8 +160,8 @@ public class UniqueIdPool {
 		StringBuilder buf = new StringBuilder();
 		buf.append('{');
 		synchronized(serverIntervals){
-			for (Iterator i=serverIntervals.iterator();i.hasNext();){
-				MutableInterval interval=(MutableInterval)i.next();
+			for (Iterator<MutableInterval> i = serverIntervals.iterator(); i.hasNext();) {
+				MutableInterval interval = i.next();
 				buf.append('[').append(interval.getStart()).append(',').append(interval.getEnd()).append(']');
 				if (i.hasNext()) buf.append(',');
 			}
