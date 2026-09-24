@@ -826,7 +826,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (context == null)
 			context = specialFieldContext;
 		if (objectRef.getCollection() != null) {
-			Iterator i = objectRef.getCollection().iterator();
+			Iterator<?> i = objectRef.getCollection().iterator();
 			while (i.hasNext()) {
 				setText(i.next(), textValue, context);
 			}
@@ -911,7 +911,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (context == null)
 			context = specialFieldContext;
 		if (objectRef.getCollection() != null) {
-			Iterator i = objectRef.getCollection().iterator();
+			Iterator<?> i = objectRef.getCollection().iterator();
 			while (i.hasNext()) {
 				setValue(i.next(), source, value, context);
 			}
@@ -1085,7 +1085,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (context == null)
 			context = specialFieldContext;
 		if (objectRef.getCollection() != null) {
-			Iterator i = objectRef.getCollection().iterator();
+			Iterator<?> i = objectRef.getCollection().iterator();
 			while (i.hasNext()) {
 				if (isReadOnly(i.next(), context))
 					return true;

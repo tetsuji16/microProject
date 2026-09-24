@@ -37,7 +37,7 @@ public interface ObjectRef {
 	public Node getNode();
 	public WalkersNodeModel getNodeModel();
 	public Object getObject();
-	Collection getCollection();
+	Collection<?> getCollection();
 	
 	public NodeModelDataFactory getDataFactory();
 
