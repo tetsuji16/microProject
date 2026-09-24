@@ -932,6 +932,17 @@ call. No runtime or public API behavior changed, and the PERT tree class itself
 remains because internal non-use alone does not justify deleting a public type.
 `microproject_core:compileJava` and diff check passed.
 
+Follow-up #680 starts from the latest integrated `origin/master` after #679
+(HEAD and merge-base verified). Typed the closure execution chain as
+`List<Consumer<Object>>`, removed raw iterators from initialization and value
+calculations, and kept the externally supplied `Collection<?>` reference live
+because `ReverseQuery` passes a `List<Object>`. Preserved consumer-only entries
+for `accept()` with a localized unchecked cast; compile exposed why narrowing
+the contract to `AssignmentFieldFunctor` would break both source compatibility
+and existing consumer behavior. Focused tests pin live-view aggregation,
+last-nonzero caching, and consumer-only invocation. Core focused tests,
+ReverseQuery caller compilation, and diff check passed.
+
 Follow-up #672 starts from the latest integrated `origin/master` after #671
 (HEAD and merge-base verified). Typed `Job`'s OpenProj-origin runnable queue
 and its iterator as `InternalRunnable`, removing casts from the queue traversal

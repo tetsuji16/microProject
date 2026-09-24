@@ -26,40 +26,41 @@ package com.microproject.pm.assignment.functor;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.Iterator;
-import java.util.LinkedList;
 
 /**
  *
  */
 public class AssignmentFieldClosureCollection extends AssignmentFieldFunctor {
-	Collection closures;
-	List<Consumer<Object>> chain = null;
+	Collection<?> closures;
+	List<Consumer<Object>> chain;
 	AssignmentFieldFunctor aNonZeroFunctor = null;
 	
 	public static AssignmentFieldClosureCollection getInstance(AssignmentFieldFunctor child) {
 		return new AssignmentFieldClosureCollection(child);
 	}
 
-	public static AssignmentFieldClosureCollection getInstance(Collection closures) {
+	public static AssignmentFieldClosureCollection getInstance(Collection<?> closures) {
 		return new AssignmentFieldClosureCollection(closures);
 	}
 
 	private AssignmentFieldClosureCollection(AssignmentFieldFunctor child) {
 		super();
-		closures = new LinkedList();
+		List<AssignmentFieldFunctor> closures = new LinkedList<>();
 		closures.add(child);
-		chain = new ArrayList<Consumer<Object>>();
+		this.closures = closures;
+		chain = new ArrayList<>();
 		chain.add(child);
 	}
 	
-	private AssignmentFieldClosureCollection(Collection closures) {
+	@SuppressWarnings("unchecked") // Preserve support for Consumer-only entries used exclusively through accept().
+	private AssignmentFieldClosureCollection(Collection<?> closures) {
 		this.closures = closures;
-		chain = new ArrayList<Consumer<Object>>(closures.size());
-		for (Iterator i = closures.iterator(); i.hasNext();)
-			chain.add((Consumer<Object>) i.next());
+		chain = new ArrayList<>(closures.size());
+		for (Object closure : closures)
+			chain.add((Consumer<Object>) closure);
 	}
 
 	
@@ -69,18 +70,14 @@ public class AssignmentFieldClosureCollection extends AssignmentFieldFunctor {
 	}
 
 	public void initialize() {
-		Iterator i = closures.iterator();
-		while (i.hasNext()) {
-			((AssignmentFieldFunctor)i.next()).initialize();
-		}
+		for (Object closure : closures)
+			((AssignmentFieldFunctor) closure).initialize();
 	}
 
 	public double getFixedValue() {
 		value = 0;
-		Iterator i = closures.iterator();
-		AssignmentFieldFunctor current;
-		while (i.hasNext()) {
-			current = (AssignmentFieldFunctor)i.next();
+		for (Object closure : closures) {
+			AssignmentFieldFunctor current = (AssignmentFieldFunctor) closure;
 		    if (current instanceof CostFunctor costFunctor)
 				value += costFunctor.getFixedValue();
 		}
@@ -89,11 +86,9 @@ public class AssignmentFieldClosureCollection extends AssignmentFieldFunctor {
 	
 	public double getValue() {
 		value = 0;
-		Iterator i = closures.iterator();
-		AssignmentFieldFunctor current;
 		aNonZeroFunctor = null;
-		while (i.hasNext()) {
-			current = (AssignmentFieldFunctor)i.next();
+		for (Object closure : closures) {
+			AssignmentFieldFunctor current = (AssignmentFieldFunctor) closure;
 			double v = current.getValue();
 			if (v != 0)
 				aNonZeroFunctor = current; // cache a non zero functor for later use
