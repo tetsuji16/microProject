@@ -1021,3 +1021,11 @@ iterators in OpenProj-origin `Project.renumber`, `forTasks`, and `getRowHeight`
 as `Iterator<Task>`, removing only a redundant `Task` cast. Retained the
 `NormalTask` casts, traversal order, and callback contract. Full core tests,
 application compilation, and diff check passed.
+
+Follow-up #684 starts from the latest integrated `origin/master` after #683
+(HEAD and merge-base verified). Parameterized the two OpenProj-origin child
+collection iterators in `TaskSchedule.flagChildren` and
+`assignDatesFromChildren` as `Iterator<?>`. Kept runtime node/task filtering,
+casts, order, and scheduling calculations unchanged because the child
+collection API remains raw. Full core tests, application compilation, and diff
+check passed.
