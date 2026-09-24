@@ -972,22 +972,23 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 
 	void cleanUp(Object eventSource,boolean deep,boolean undo,boolean cleanDependencies) {
-		markAllDependentTasksAsNeedingRecalculation(false);
+		if (cleanDependencies) {
+			markAllDependentTasksAsNeedingRecalculation(false);
 
-		// remove sentinel dependencies if any
-		project.removeStartSentinelDependency(this);
-		project.removeEndSentinelDependency(this);
+			// remove sentinel dependencies if any
+			project.removeStartSentinelDependency(this);
+			project.removeEndSentinelDependency(this);
 
-		// remove all links to or from
-		LinkedList toRemove=new LinkedList(); //fix
-		DependencyService.getInstance().remove(getPredecessorList(),toRemove);
-		for(Iterator j=toRemove.iterator();j.hasNext();){
-			DependencyService.getInstance().remove((Dependency)j.next(),eventSource,undo); //fix
-		}
-		toRemove.clear();
-		DependencyService.getInstance().remove(getSuccessorList(),toRemove);
-		for(Iterator j=toRemove.iterator();j.hasNext();){
-			DependencyService.getInstance().remove((Dependency)j.next(),eventSource,undo); //fix
+			// Snapshot both sides before removal because removing a dependency mutates both lists.
+			LinkedList<Dependency> toRemove = new LinkedList<>();
+			DependencyService.getInstance().remove(getPredecessorList(), toRemove);
+			for (Dependency dependency : toRemove)
+				DependencyService.getInstance().remove(dependency, eventSource, undo);
+
+			toRemove.clear();
+			DependencyService.getInstance().remove(getSuccessorList(), toRemove);
+			for (Dependency dependency : toRemove)
+				DependencyService.getInstance().remove(dependency, eventSource, undo);
 		}
 
 	}

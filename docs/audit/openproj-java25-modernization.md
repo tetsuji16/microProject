@@ -1037,3 +1037,12 @@ traversals in `TaskSchedule` to enhanced-for over the actual
 Added a non-task child node to the existing aggregation regression scenario to
 verify it remains ignored. Focused and full core tests, application compilation,
 and diff check passed; no scheduling bug was found in this scope.
+
+Follow-up #686 starts from the latest integrated `origin/master` after #685
+(HEAD and merge-base verified). Modernized `Task.cleanUp`'s dependency snapshot
+loops with `LinkedList<Dependency>` and enhanced-for, and fixed a reproduced
+bug: `cleanDependencies=false` was ignored, so undoing pasted tasks could delete
+their dependency links despite `NodePasteEdit` explicitly requesting that they
+be retained. Added tests for both preserve and remove paths; the preserve test
+failed before the fix and both pass after it. Full core tests, application
+compilation, and diff check passed.
