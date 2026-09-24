@@ -93,9 +93,9 @@ public interface NodeModel extends TreeModel, WalkersNodeModel{
 	public boolean hasChildren(Node node);
 	public boolean isSummary(Node node);
 
-	public Iterator iterator();
-	public Iterator iterator(Node rootNode);
-	public Iterator shallowIterator(int maxLevel,boolean returnRoot);
+	public Iterator<Node> iterator();
+	public Iterator<Node> iterator(Node rootNode);
+	public Iterator<Node> shallowIterator(int maxLevel,boolean returnRoot);
 	public NodeHierarchy getHierarchy();
 	public void setHierarchy(NodeHierarchy hierarchy);
 

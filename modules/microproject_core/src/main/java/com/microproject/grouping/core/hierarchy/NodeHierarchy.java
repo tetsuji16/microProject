@@ -73,9 +73,9 @@ public interface NodeHierarchy extends TreeModel{
 	public List getChildren(Node parent);
 	public int getLevel(Node node);
 	public Object clone();
-	public Iterator iterator();
-	public Iterator iterator(Node rootNode);
-	public Iterator shallowIterator(int maxLevel,boolean returnRoot);
+	public Iterator<Node> iterator();
+	public Iterator<Node> iterator(Node rootNode);
+	public Iterator<Node> shallowIterator(int maxLevel,boolean returnRoot);
 	public void visitAll(Consumer<Object> visitor);
 	public void visitAll(Node parent, Consumer<Object> visitor);
     public void visitAllLevelOrder(Node root, boolean skipLazyParents,Consumer<Object> visitor);

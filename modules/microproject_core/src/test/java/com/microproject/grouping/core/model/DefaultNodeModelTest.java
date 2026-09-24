@@ -152,12 +152,17 @@ class DefaultNodeModelTest {
 		model.add(second, secondChild, NodeModel.SILENT);
 		List<Object> preorder = new ArrayList<>();
 		List<Object> levelOrder = new ArrayList<>();
+		List<Node> iteratorOrder = new ArrayList<>();
 
 		model.getHierarchy().visitAll(root, true, preorder::add);
 		model.getHierarchy().visitAllLevelOrder(root, false, levelOrder::add);
+		Iterator<Node> nodeIterator = model.iterator();
+		nodeIterator.forEachRemaining(iteratorOrder::add);
 
 		assertNodeOrder(preorder, first, firstChild, second, secondChild);
 		assertNodeOrder(levelOrder, first, second, firstChild, secondChild);
+		assertEquals(List.of(root, first, firstChild, second, secondChild), iteratorOrder);
+		assertThrows(UnsupportedOperationException.class, () -> model.iterator().remove());
 	}
 
 	@Test
@@ -194,21 +199,21 @@ class DefaultNodeModelTest {
 		model.add(root, second, NodeModel.SILENT);
 		model.add(first, grandchild, NodeModel.SILENT);
 
-		Iterator<?> includingRoot = model.shallowIterator(1, true);
+		Iterator<Node> includingRoot = model.shallowIterator(1, true);
 		assertSame(root, includingRoot.next());
 		assertSame(first, includingRoot.next());
 		assertSame(second, includingRoot.next());
 		assertFalse(includingRoot.hasNext());
 		assertThrows(NoSuchElementException.class, includingRoot::next);
 
-		Iterator<?> excludingRoot = model.shallowIterator(2, false);
+		Iterator<Node> excludingRoot = model.shallowIterator(2, false);
 		assertSame(first, excludingRoot.next());
 		assertSame(grandchild, excludingRoot.next());
 		assertSame(second, excludingRoot.next());
 		assertFalse(excludingRoot.hasNext());
 		assertThrows(NoSuchElementException.class, excludingRoot::next);
 
-		Iterator<?> excludingOnlyRoot = model.shallowIterator(0, false);
+		Iterator<Node> excludingOnlyRoot = model.shallowIterator(0, false);
 		assertFalse(excludingOnlyRoot.hasNext());
 		assertThrows(NoSuchElementException.class, excludingOnlyRoot::next);
 	}
