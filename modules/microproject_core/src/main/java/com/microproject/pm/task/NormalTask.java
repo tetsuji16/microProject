@@ -1885,10 +1885,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			setCurrentScheduleStart(newTaskStart);
 			setCurrentScheduleFinish(newTaskEnd);
 
-			Iterator i = getAssignments().iterator();
-			Assignment assignment;
-			while (i.hasNext()) {
-				assignment = (Assignment)i.next();
+			for (Association association : getAssignments()) {
+				Assignment assignment = (Assignment) association;
 				long assignmentStartBeforeMove = assignment.getStart();
 				long assignmentEndBeforeMove = assignment.getEnd();
 				assignment.moveInterval(
@@ -1904,10 +1902,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			if (amount == 0L) // skip if nothing moved
 				return;
 
-			Iterator i = getAssignments().iterator();
-			Assignment assignment;
-			while (i.hasNext()) {
-				assignment = (Assignment)i.next();
+			for (Association association : getAssignments()) {
+				Assignment assignment = (Assignment) association;
 				assignment.moveInterval(eventSource,start,end,oldInterval, true);
 			}
 		}
@@ -1935,10 +1931,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			to = getEffectiveWorkCalendar().add(from,CalendarOption.getInstance().getMillisPerDay(),false);
 		}
 
-		Iterator i = getAssignments().iterator();
-		Assignment assignment;
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			assignment.split(eventSource,from,to);
 		}
 		recalculate(eventSource); // need to recalculate
