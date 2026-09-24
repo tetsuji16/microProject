@@ -42,6 +42,7 @@ import javax.swing.SwingUtilities;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 
+import com.microproject.association.Association;
 import com.microproject.association.AssociationFormatParameters;
 import com.microproject.association.AssociationList;
 import com.microproject.association.AssociationListFormat;
@@ -549,11 +550,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 			return false;
 		}
 
-		Iterator i = wbsChildrenNodes.iterator();
-		Object current;
-		while (i.hasNext()) {
-			current = ((Node) i.next()).getImpl();
-			if (current instanceof Task) {
+		for (Node childNode : wbsChildrenNodes) {
+			if (childNode.getImpl() instanceof Task) {
 				return true;
 			}
 		}
@@ -577,10 +575,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		// Arrange my parent
 
 		// Arrange my predecessors
-		Iterator i = getPredecessorList().iterator();
-		Task predecessor;
-		Dependency dep;
-
 		Task parent = getWbsParentTask();
 		if (parent != null) {
 			parent.arrangeTask(addTo,markerStatus,depth+1);
@@ -590,11 +584,11 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		// If it is put at the top, you can get into situations where the PARENT_END is added before all children are added
 		this.markerStatus = markerStatus;
 
-		while (i.hasNext()) {
-			dep = (Dependency)i.next();
+		for (Association association : getPredecessorList()) {
+			Dependency dep = (Dependency) association;
 			if (dep.isDisabled())
 				continue;
-			predecessor = (Task) dep.getPredecessor();
+			Task predecessor = (Task) dep.getPredecessor();
 			predecessor.arrangeTask(addTo,markerStatus,depth+1);
 			predecessor.arrangeChildren(addTo,markerStatus,depth);
 		}
@@ -622,11 +616,10 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 		//note that it is possible that this is called for non parents
 
-		Collection<?> children = getWbsChildrenNodes(); // I depend on my predecessors children
+		Collection<Node> children = getWbsChildrenNodes(); // I depend on my predecessors children
 		if (children != null) {
-			for (Object childNode : children) {
-				Object current = ((Node) childNode).getImpl();
-				if (!(current instanceof Task child))
+			for (Node childNode : children) {
+				if (!(childNode.getImpl() instanceof Task child))
 					continue;
 
 				child.arrangeTask(addTo,markerStatus,depth+1);

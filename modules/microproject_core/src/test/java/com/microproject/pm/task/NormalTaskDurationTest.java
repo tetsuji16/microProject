@@ -80,6 +80,23 @@ class NormalTaskDurationTest {
 	}
 
 	@Test
+	void arrangeTaskVisitsEnabledPredecessorBeforeTask() throws InvalidAssociationException {
+		Project project = createProject();
+		NormalTask predecessor = createTask(project);
+		NormalTask successor = createTask(project);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		predecessor.setMarkerStatus(false);
+		successor.setMarkerStatus(false);
+		List<Object> ordered = new ArrayList<>();
+
+		successor.arrangeTask(ordered, true, 0);
+
+		assertEquals(2, ordered.size());
+		assertSame(predecessor, ((PredecessorTaskList.TaskReference) ordered.get(0)).getTask());
+		assertSame(successor, ((PredecessorTaskList.TaskReference) ordered.get(1)).getTask());
+	}
+
+	@Test
 	void durationInputKeepsStartAndMovesFinishForRegularTask() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
