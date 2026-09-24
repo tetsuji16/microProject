@@ -1123,3 +1123,13 @@ The full core suite currently fails the unrelated
 `CriticalChainServiceTest.previewScalesToLargeSharedResourceWithoutQuadraticExpiryScan`
 runtime assertion (16.4 s vs. its 10 s limit in an isolated local run); PR CI
 must pass before merge. No GUI behavior is changed.
+
+Follow-up #696 starts from the latest integrated `origin/master` after #695
+(HEAD and merge-base verified). Modernized the OpenProj-origin assignment
+reduction in `NormalTask.calcOffsetFrom` to enhanced-for over the existing
+typed `AssociationList`, retaining the task-duration fallback for unassigned
+tasks and max/min selection. Added coverage comparing task and real-assignment
+offsets for 0%/25% progress and ahead/behind calculations. The focused test
+class and application compilation passed. The full core suite has the same
+unrelated CriticalChain runtime-threshold failure noted above; PR CI is the
+merge gate.

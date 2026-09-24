@@ -1789,15 +1789,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 //
 //		This is an assignment based implementation
 
-		Iterator i = getAssignments().iterator();
 		long result;
-		Assignment assignment;
 		if (startDate < 0)
 			result = ahead ? Long.MIN_VALUE : 0;
 		else
 			result = ahead ? 0 : Long.MAX_VALUE;
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			long offsetDate = assignment.calcOffsetFrom(startDate,dependencyDate,ahead,remainingOnly,useSooner);
 			result = ahead ? Math.max(result,offsetDate) : Math.min(result,offsetDate);
 		}

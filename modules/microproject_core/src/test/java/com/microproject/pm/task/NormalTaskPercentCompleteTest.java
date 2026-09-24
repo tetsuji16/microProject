@@ -168,6 +168,29 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void taskOffsetMatchesAssignmentOffsetForStartedAndUnstartedAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Offset test resource");
+		AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		Assignment assignment = firstAssignment(task);
+		long startDate = task.getStart();
+		long dependencyDate = task.getEffectiveWorkCalendar().add(startDate, 2L * day, false);
+
+		for (double percentComplete : new double[] { 0.0d, 0.25d }) {
+			assignment.setPercentComplete(percentComplete);
+			for (boolean ahead : new boolean[] { false, true }) {
+				assertEquals(assignment.calcOffsetFrom(startDate, dependencyDate, ahead, false, false),
+					task.calcOffsetFrom(startDate, dependencyDate, ahead, false, false),
+					"percentComplete=" + percentComplete + ", ahead=" + ahead);
+			}
+		}
+	}
+
+	@Test
 	void percentCompleteCalculatesExactRemainingDurationAtBoundariesAndIntermediateProgress() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
