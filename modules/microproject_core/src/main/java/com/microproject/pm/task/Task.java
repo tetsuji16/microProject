@@ -950,12 +950,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 			if (includeSelf)
 				markTaskAsNeedingRecalculation();
 
-			Iterator succ = getSuccessorList().iterator();
-			if (!succ.hasNext()) {
+			AssociationList successors = getSuccessorList();
+			if (successors.isEmpty()) {
 				getProject().getSchedulingAlgorithm().markBoundsAsDirty();
 			} else {
-				while (succ.hasNext()) {
-					Task successor = (Task)((Dependency)succ.next()).getSuccessor();
+				for (Association association : successors) {
+					Task successor = (Task) ((Dependency) association).getSuccessor();
 					successor.markDependentTasks(visited, true);
 				}
 			}
@@ -966,13 +966,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 				parent = parent.getWbsParentTask();
 			}
 
-			Collection children = getWbsChildrenNodes();
+			Collection<Node> children = getWbsChildrenNodes();
 			if (children != null) {
-				Iterator i = children.iterator();
-				while (i.hasNext()) {
-					Object child = ((Node) i.next()).getImpl();
-					if (child instanceof Task)
-						((Task)child).markDependentTasks(visited, true);
+				for (Node childNode : children) {
+					if (childNode.getImpl() instanceof Task child) {
+						child.markDependentTasks(visited, true);
+					}
 				}
 			}
 		}
@@ -1622,10 +1621,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 */
 	public long getFreeSlack() {
 		long least = getTotalSlack(); // free slack is at most the total slack
-		Dependency dependency;
-		for (Iterator i = getSuccessorList().iterator(); i
-				.hasNext();) {
-			dependency = (Dependency) i.next();
+		for (Association association : getSuccessorList()) {
+			Dependency dependency = (Dependency) association;
 			least = Math.min(least, calcFreeSlack(dependency));
 		}
 		return least;
