@@ -71,7 +71,7 @@ public class DynamicSelect extends Select implements Finder {
 			logger.severe("invalid method in select:" + methodName);
 	}
 	public void setFinder(String finderName) {
-		finderMethod = ClassUtils.staticMethodFromFullName(finderName, new Class[] {String.class});
+		finderMethod = ClassUtils.staticMethodFromFullName(finderName, new Class<?>[] {String.class});
 		if (finderMethod == null)
 			logger.severe("invalid method in select:" + finderName);
 	}
