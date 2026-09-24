@@ -950,3 +950,11 @@ typed `AssociationList`. Kept the `Association` to `Dependency` cast because
 the list contract intentionally exposes the broader association type and the
 prior code had the same runtime check behavior. The full core test suite and
 diff check passed; no user-visible UI route changed.
+
+Follow-up #676 starts from the latest integrated `origin/master` after #675
+(HEAD and merge-base verified). Typed `TaskSchedule`'s two OpenProj-origin
+dependency collections as the actual `AssociationList` return type and replaced
+their raw iterator loops with enhanced-for over `Association`. Retained the
+cast to `Dependency` because it is a domain conversion from the collection's
+declared `Association` element type. Critical-path, project-schedule, and
+forward/reverse compatibility tests passed; diff check passed.
