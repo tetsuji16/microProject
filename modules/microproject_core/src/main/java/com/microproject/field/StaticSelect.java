@@ -25,7 +25,6 @@
 package com.microproject.field;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.collections4.MapIterator;
@@ -37,10 +36,10 @@ import org.apache.commons.lang.ObjectUtils;
  * It is used by Field class
  */
 public class StaticSelect extends Select {
-	DualHashBidiMap stringMap = new DualHashBidiMap();
-	DualHashBidiMap objectMap = null;
+	DualHashBidiMap<Object, Object> stringMap = new DualHashBidiMap<>();
+	DualHashBidiMap<Object, Object> objectMap = null;
 	Object[] keyArray = null;
-	ArrayList orderedValueList = new ArrayList();
+	ArrayList<Object> orderedValueList = new ArrayList<>();
 	boolean integerValues = true;
 	
 	public StaticSelect() {
@@ -57,7 +56,7 @@ public class StaticSelect extends Select {
 		Object staticObject = option.getStaticObject();
 		if (staticObject != null) { // if object associated, use it
 			if (objectMap == null)
-				objectMap = new DualHashBidiMap();
+				objectMap = new DualHashBidiMap<>();
 			objectMap.put(option.value,staticObject);
 		}
 	}
@@ -67,6 +66,7 @@ public class StaticSelect extends Select {
 	 * @return
 	 */
 	public Object put(Object arg0, Object arg1) {
+		keyArray = null;
 		orderedValueList.add(arg1);
 		return stringMap.put(arg0, arg1);
 	}
@@ -85,10 +85,8 @@ public class StaticSelect extends Select {
 		synchronized(this) {
 			if (keyArray == null) {
 				keyArray = new Object[orderedValueList.size()];
-				Iterator i = orderedValueList.iterator();
 				int index = 0;
-				while (i.hasNext()) {
-					Object n = i.next();
+				for (Object n : orderedValueList) {
 					keyArray[index++] = stringMap.getKey(n);
 				}
 			}
