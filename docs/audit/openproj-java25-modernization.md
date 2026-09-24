@@ -91,6 +91,9 @@ are recorded below. Progress is summarized in
 - PR [#623](https://github.com/tetsuji16/ProjectLibre/pull/623) merged as
   `e0a8272bf6b5e07e09d78203cb5875ba58c5fe88` after full CI success; modernized
   the assignment percent-complete propagation loop.
+- PR [#624](https://github.com/tetsuji16/ProjectLibre/pull/624) merged as
+  `67ee7014cac5bd0b2c4c9181a847eb9ca378bf69` after full CI success; modernized
+  task resume iteration and added a focused setter/query regression.
 
 ## Inventory caveat
 
@@ -148,6 +151,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Assignment iteration | `NormalTask.isAssignedToMe`, interval `setWork`, `getMostLoadedAssignmentUnits`, `adjustRemainingDuration`, `adjustRemainingUnits`, `adjustRemainingWork`, `moveRemainingToDate`, `getEarliestStop` | Replaced raw `Iterator`/cast loops with enhanced-for traversal over the already typed `AssociationList` iterator, retaining assignment casts, traversal order, and the labor-only check. No scheduling rule or mutation semantics changed. Focused tests create an actual labor assignment and verify the most-loaded-units query, and verify a leaf task's earliest stop against its assignment. |
 | Assignment progress propagation | `NormalTask.updateAssignmentPercentComplete` | Replaced the raw iterator and per-element cast-after-next with enhanced-for traversal over the existing typed association iterator. The existing progress synchronization test exercises the task-to-assignment update and remains green. |
 | Assignment resume access | `NormalTask.getResume`, `setResume` | Replaced paired raw iterator loops with enhanced-for traversal over the typed association iterator. A focused setter/query test verifies task resume aggregation agrees with its assignment. |
+| Interval-value table traversal | `ValueObjectForIntervalTable` | Typed the internal `ArrayList<ValueObjectForInterval>` and its list view, replaced raw iterator/casts with enhanced-for and typed indexed access, and modernized clone ownership traversal. Kept raw `getValueObjects`/serialization constructor descriptors and serialized ArrayList contents as compatibility adapters. Added bounds/clone-rebinding regression coverage; core tests, application/exchange/UI/reports compilation, and `PodRoundTripTest` (including the resource-calendar round-trip) passed. The transformed traversal and clone hunks correspond to baseline `d2fa3c20a`; unrelated post-fork `findActive` code is not claimed as OpenProj work. |
 | Project root-node query | `Project.getRootNodes` | PR #618 typed `List<Task>` input and `List<Node>` output and used enhanced-for. The implementation corresponds to the OpenProj-derived source excerpt ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Project.java#L3420-L3427)); no production callers were found, so a focused contract test was added. |
 | Filter iterator API | `NodeFilter.filteredListIterator` / `filteredIterator` | In progress in PR #617: type the input and output iterator references as wildcards; Apache Commons raw API remains at the adapter edge. Corresponding raw methods are present in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/transform/filtering/NodeFilter.java#L2088-L2095)). |
 | CSS style hierarchy contract | `HasCssStyle.getHierarchy` | PR #616 changed the raw collection return to `Collection<?>`, preserving erasure and leaving the heterogeneous element contract unspecified rather than guessing a concrete type. The interface is a normalized-content match to OpenProj; caller search found the `TimesheetAssignment` implementation and no active consumer of this method. |
@@ -463,8 +467,8 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #624 is based directly on `origin/master` at
-`e0a8272bf6b5e07e09d78203cb5875ba58c5fe88` (verified by merge-base). The
-focused `NormalTaskPercentCompleteTest` and complete `:microproject_core:test`
-suite passed. Only core iteration code changed; no GUI route or visual surface
-changed, so no GUI/Robot test is planned.
+Latest follow-up #625 is based directly on `origin/master` at
+`67ee7014cac5bd0b2c4c9181a847eb9ca378bf69` (verified by merge-base). The
+focused interval-table test, complete core suite, application/exchange/UI/
+reports compilation, and `PodRoundTripTest` passed. The custom serialization
+bridge is unchanged. No GUI route or visual surface changed.

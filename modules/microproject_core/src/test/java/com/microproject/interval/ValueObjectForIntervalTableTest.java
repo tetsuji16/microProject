@@ -24,7 +24,10 @@
  *******************************************************************************/
 package com.microproject.interval;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
@@ -43,5 +46,23 @@ class ValueObjectForIntervalTableTest {
 		AvailabilityTable table = new AvailabilityTable();
 		assertNull(table.findActive(System.currentTimeMillis()));
 		assertNull(table.findCurrent());
+	}
+
+	@Test
+	void typedIntervalTraversalPreservesBoundsAndCloneOwnership() throws Exception {
+		AvailabilityTable table = new AvailabilityTable("test");
+		ValueObjectForInterval first = table.findActive(ValueObjectForInterval.NA_TIME);
+		ValueObjectForInterval second = table.newValueObject(ValueObjectForInterval.NA_TIME + 1_000L);
+		first.setEnd(2_000L);
+		second.setEnd(5_000L);
+
+		assertEquals(ValueObjectForInterval.NA_TIME, table.getStart());
+		assertEquals(5_000L, table.getEnd());
+
+		AvailabilityTable clone = (AvailabilityTable) table.clone();
+		clone.initAfterCloning();
+		assertNotSame(table.getList().get(0), clone.getList().get(0));
+		for (ValueObjectForInterval valueObject : clone.getList())
+			assertSame(clone, valueObject.getTable());
 	}
 }
