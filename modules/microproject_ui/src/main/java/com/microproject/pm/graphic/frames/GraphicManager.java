@@ -386,7 +386,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //		else if (container instanceof BootstrapApplet){
 		else{
 			try {
-				FrameHolder holder=(FrameHolder)Class.forName("com.microproject.bootstrap.BootstrapApplet").getMethod("getObject", new Class[0]).invoke(container, new Object[0]);
+				FrameHolder holder=(FrameHolder)Class.forName("com.microproject.bootstrap.BootstrapApplet").getMethod("getObject").invoke(container);
 				holder.setGraphicManager(this);
 			} catch (Exception e) {
 			}
