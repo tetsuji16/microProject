@@ -570,3 +570,18 @@ identity behavior for dependency elements, and deleted the unused class. Added
 a focused regression assertion for element/order preservation; the focused UI
 test passed. No GUI interaction or visual contract changed, so no Robot run was
 needed.
+
+PR #635 passed CI and merged as
+`04823213aace6bd5ec7a6d6d079ba759df5e6dea`. Follow-up #636 starts directly
+from that latest `origin/master` (verified by merge-base). The OpenProj-matched
+`NodeHierarchy`/`NodeModel` traversal API and corresponding implementation
+methods exposed raw iterators even though both full and shallow traversals
+yield `Node` exclusively. The directly compared OpenProj methods have the same
+preorder and adapter behavior. Their signatures now expose `Iterator<Node>`;
+the enumeration adapter preserves traversal order and unsupported removal,
+and shallow traversal keeps its existing depth/root semantics. The existing
+focused hierarchy test now statically checks the generic type and asserts
+preorder plus removal behavior. Full core tests and downstream
+application/exchange/UI/reports compilation passed; the focused hierarchy test
+also passed after its additional assertion. No GUI route or visual contract
+changed, so no Robot run was needed.

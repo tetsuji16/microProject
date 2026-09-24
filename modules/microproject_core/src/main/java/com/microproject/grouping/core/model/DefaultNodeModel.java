@@ -546,13 +546,13 @@ public class DefaultNodeModel implements NodeModel {
 		return new DefaultNodeModel((NodeHierarchy)hierarchy.clone(), dataFactory);
 	}
 
-	public Iterator iterator(){
+	public Iterator<Node> iterator(){
 		return hierarchy.iterator();
 	}
-	public Iterator iterator(Node rootNode){
+	public Iterator<Node> iterator(Node rootNode){
 		return hierarchy.iterator(rootNode);
 	}
-	public Iterator shallowIterator(int maxLevel,boolean returnRoot){
+	public Iterator<Node> shallowIterator(int maxLevel,boolean returnRoot){
 		return hierarchy.shallowIterator(maxLevel,returnRoot);
 	}
 	/**
