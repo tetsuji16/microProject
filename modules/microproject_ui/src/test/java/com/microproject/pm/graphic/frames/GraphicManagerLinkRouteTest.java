@@ -27,6 +27,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
@@ -39,6 +40,7 @@ import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.bootstrap.BootstrapApplet;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Project;
 import com.microproject.ribbon.RibbonCommandResult;
@@ -46,6 +48,20 @@ import com.microproject.ribbon.RibbonCommandResult;
 import sun.misc.Unsafe;
 
 class GraphicManagerLinkRouteTest {
+	@Test
+	void componentLookupResolvesBootstrapAppletManagerThroughItsStaticAccessor() {
+		GraphicManager manager = new GraphicManager(new JPanel());
+		BootstrapApplet applet = new BootstrapApplet();
+		applet.setName("BootstrapApplet");
+		BootstrapApplet.setGraphicManager(manager);
+
+		try {
+			assertSame(manager, GraphicManager.getInstance(applet));
+		} finally {
+			BootstrapApplet.setGraphicManager(null);
+		}
+	}
+
 	@Test
 	void externalLoadFailureDetailPreservesTheImporterReasonOnOneLine() {
 		assertEquals(" Details: malformed MPO archive.",
