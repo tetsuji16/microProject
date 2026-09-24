@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
+import com.microproject.pm.graphic.model.event.CacheEvent;
 import com.microproject.pm.graphic.model.transform.CacheTransformer;
 
 /**
@@ -37,7 +38,7 @@ import com.microproject.pm.graphic.model.transform.CacheTransformer;
 public abstract class VisibleElements{
 	protected ArrayList elements;
     protected CacheTransformer transformer;
-    protected List<Object> events;
+    protected List<CacheEvent> events;
     protected String viewName;
 
     public VisibleElements(String viewName,CacheTransformer transformer) {
@@ -100,10 +101,10 @@ public abstract class VisibleElements{
 	//public abstract void sendEvents();
 	
 	
-    public List<Object> getEvents() {
+    public List<CacheEvent> getEvents() {
         return events;
     }
-    public void addEvent(Object event) {
+    public void addEvent(CacheEvent event) {
         events.add(event);
     }
     public void clearEvents() {
