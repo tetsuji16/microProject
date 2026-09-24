@@ -1079,3 +1079,10 @@ dependency dirty-state loops in `Project.setAllTasksAsUnchangedFromPersisted`
 to enhanced-for over the existing `AssociationList` API, retaining the domain
 casts and all dirty-state updates. Full core tests, application compilation,
 and diff check passed.
+
+Follow-up #691 starts from the latest integrated `origin/master` after #690
+(HEAD and merge-base verified). Modernized the OpenProj-origin assignment
+traversals in `NormalTask.getPercentComplete`, `getDuration`, and `hasDuration`
+to enhanced-for over `AssociationList`, retaining assignment casts, counting,
+max-end selection, and early return semantics. Scheduling-focused and full
+core tests, application compilation, and diff check passed.

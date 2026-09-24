@@ -210,10 +210,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (isZeroDuration()) { // special case for completion on milestones
 			int count = 0;
 			double pc = 0;
-			Assignment ass;
-			Iterator i =getAssignments().iterator();
-			while (i.hasNext()) {
-				ass = ((Assignment)i.next());
+			for (Association association : getAssignments()) {
+				Assignment ass = (Assignment) association;
 				pc += ass.getPercentComplete();
 				count++;
 			}
@@ -250,12 +248,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			} else if (assignments.size() == 1) {
 				duration = ((Assignment)assignments.getFirst()).getDurationMillis();
 			} else {
-				Iterator i = assignments.iterator();
 				long end = 0;
 				// get the latest ending assignment
-				while (i.hasNext()) {
-					end = Math.max(end,((Assignment)i.next()).getEnd());
-				}
+				for (Association association : assignments)
+					end = Math.max(end, ((Assignment) association).getEnd());
 				// duration is calendar time between assignment end and task start
 				duration = getEffectiveWorkCalendar().compare(end,getStart(),false);
 			}
@@ -277,9 +273,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			AssociationList assignments =getAssignments();
 			if (assignments.size() == 1)
 				return ((Assignment)assignments.getFirst()).hasDuration();
-			Iterator i = assignments.iterator();
-			while (i.hasNext()) {
-				if (((Assignment)i.next()).hasDuration())
+			for (Association association : assignments) {
+				if (((Assignment) association).hasDuration())
 					return true;
 			}
 		}
