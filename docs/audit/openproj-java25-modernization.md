@@ -187,6 +187,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Timesheet aggregation | `TimesheetHelper` | Replaced raw iterators with enhanced-for loops and wildcard collection parameters; retained per-element casts required by `AssociationList`'s `Association` declaration and preserved processing/early-return behavior. Expanded existing timesheet aggregation tests. |
 | Object event delivery and pooling | `ObjectEvent`, `ObjectEventManager` | Typed assignment iteration; fixed a pooled-event stale-state bug by resetting `field`/`info`, and now recycles in `finally` when a listener throws. Regression test asserts exception propagation, object reuse, and cleared state. |
 | Script field arrays | `FieldArrayUtil` | Typed the iterator over `SpreadSheetFieldArray`'s `Field` elements; tests verify excluded IDs by category and that filtering mutates only the clone, not the configured source. |
+| Selected time-spreadsheet fields event | `FieldArrayEvent` | Confirmed the payload is an `ArrayList<Field>` at its active producer (`TimeSpreadSheetModel.getSelectedFieldArray`) and consumer (`UsageDetailView`). Typed the stored value, constructor, getter, and setter without changing the erased `ArrayList` descriptor or the existing shared-reference behavior. A focused event test verifies constructor/setter reference identity. |
 | Session save delegation | `AbstractSession` | Replaced the raw diamond for its `List<Project>` delegation with `new ArrayList<>()`; a recording session test verifies one-item and options-preserving delegation. |
 | Typed node iteration | `TypedNodeIterator` | Added `Iterator<Object>` / `Class<?>` generics and fixed lookahead removal deleting the wrong selected node, null-implementation dereference, and exhausted `next()` contract. Removal rewinds list-backed selections by source index; non-list removal explicitly throws `UnsupportedOperationException` rather than risking a wrong deletion. |
 | Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
@@ -512,3 +513,8 @@ PRs #627 and #628 passed CI and were squash-merged as recorded above. Follow-up
 `e2db4e5ce15cbc76ccf8788b438e78c71f698157` (verified by merge-base). The
 `CompositeCacheEvent` regression was first run against the old implementation
 and failed, then passed after the fix. No GUI route or visual surface changed.
+
+PR #629 passed CI and was merged as
+`795aa6f6b7e4759f48520b8842a61cda9952ad71`. Follow-up #630 starts directly
+from that latest `origin/master` (verified by merge-base); the focused
+`FieldArrayEventTest` passed after typing its `ArrayList<Field>` payload.

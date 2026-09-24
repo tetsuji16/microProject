@@ -27,26 +27,28 @@ package com.microproject.pm.graphic.spreadsheet.time;
 import java.util.ArrayList;
 import java.util.EventObject;
 
+import com.microproject.field.Field;
+
 /**
  *
  */
 public class FieldArrayEvent extends EventObject {
-	protected ArrayList fieldArray;
+	protected ArrayList<Field> fieldArray;
 	
 	/**
 	 * @param source
 	 * @param fieldArray
 	 */
-	public FieldArrayEvent(Object source, ArrayList fieldArray) {
+	public FieldArrayEvent(Object source, ArrayList<Field> fieldArray) {
 		super(source);
 		this.fieldArray = fieldArray;
 	}
 	
 	
-	public ArrayList getFieldArray() {
+	public ArrayList<Field> getFieldArray() {
 		return fieldArray;
 	}
-	public void setFieldArray(ArrayList fieldArray) {
+	public void setFieldArray(ArrayList<Field> fieldArray) {
 		this.fieldArray = fieldArray;
 	}
 }
