@@ -1054,3 +1054,14 @@ and removed casts/iterator boilerplate in OpenProj-origin
 read-only filtering, circularity checks, pair-validation order, and sequential
 link selection. Existing focused `DependencyServiceTest`, full core tests,
 application compilation, and diff check passed; no behavior defect was found.
+
+Follow-up #688 starts from the latest integrated `origin/master` after #687
+(HEAD and merge-base verified). Typed `UniqueIdPool.serverIntervals` as
+`List<MutableInterval>` and its removal-aware iterators accordingly, preserving
+reservation order and exhausted-interval removal. Added a focused test for ID
+consumption and diagnostic dump order across two intervals. Review also found
+that async reservation admission synchronized on each anonymous `Thread`, not
+on the shared pool, so concurrent callers were not mutually excluded. Routed
+admission and release through a shared pool monitor and added a concurrent
+admission test. Focused/full core tests, application compilation, and diff
+check passed.
