@@ -594,7 +594,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     public void indent(List nodes,int deltaLevel, NodeModel model,int actionType){
     	boolean doTransaction = model.getDocument() != null;
     	int transactionId = 0;
-    	Map beforePositions = null;
+	Map<Node, NodeIndentEdit.Position> beforePositions = null;
     	if (model.getUndoableEditSupport()!=null&&isUndo(actionType))
     		beforePositions = createPositionMap();
     	if (doTransaction)
@@ -608,13 +608,12 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 		}
     }
 
-    private Map createPositionMap() {
-    	Map positions = new HashMap();
-    	for (Iterator i = iterator(); i.hasNext();) {
-    		Object current = i.next();
-    		if (!(current instanceof Node))
-    			continue;
-    		Node node = (Node)current;
+    private Map<Node, NodeIndentEdit.Position> createPositionMap() {
+	Map<Node, NodeIndentEdit.Position> positions = new HashMap<>();
+	for (Iterator<?> i = iterator(); i.hasNext();) {
+		Object current = i.next();
+		if (!(current instanceof Node node))
+			continue;
     		Node parent = (Node)node.getParent();
     		if (parent != null)
     			positions.put(node, new NodeIndentEdit.Position(parent, node, parent.getIndex(node)));
@@ -622,13 +621,13 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	return positions;
     }
 
-    private List createPositions(List nodes, Map positionsByNode) {
-    	List positions = new ArrayList();
+    private List<NodeIndentEdit.Position> createPositions(List<?> nodes,
+		Map<Node, NodeIndentEdit.Position> positionsByNode) {
+	List<NodeIndentEdit.Position> positions = new ArrayList<>();
     	if (nodes == null || positionsByNode == null)
     		return positions;
-    	for (Iterator i = nodes.iterator(); i.hasNext();) {
-    		Object node = i.next();
-    		Object position = positionsByNode.get(node);
+	for (Object node : nodes) {
+		NodeIndentEdit.Position position = positionsByNode.get(node);
     		if (position != null)
     			positions.add(position);
     	}
