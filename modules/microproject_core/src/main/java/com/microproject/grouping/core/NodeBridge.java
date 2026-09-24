@@ -90,7 +90,7 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 	/**
 	 * @see com.microproject.analysis.core.Node#getType()
 	 */
-	public Class getType() throws NodeException {
+	public Class<?> getType() throws NodeException {
 		Object impl=getUserObject();
 		if (impl == null)
 			throw new NodeException("No Implementation");

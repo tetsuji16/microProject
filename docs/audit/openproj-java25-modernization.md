@@ -634,3 +634,10 @@ standard iterator contract. Replaced that bespoke implementation with the
 standard empty-list iterator and added coverage for traversal, mutation, and
 index bounds. Full core tests and downstream UI compilation passed. No GUI
 route or visual contract changed, so no Robot run was needed.
+
+Follow-up #641 starts directly from the latest `origin/master` (verified by
+merge-base). The OpenProj-derived `Node.getType()` contract returned a runtime
+class but exposed raw `Class`; it now returns `Class<?>`. `NodeBridge` and the
+test implementation were migrated without changing runtime behavior. Full
+core tests and `git diff --check` passed. No GUI route or visual contract
+changed, so no Robot run was needed.

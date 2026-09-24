@@ -193,7 +193,7 @@ class SummaryVisitorFactoryTest {
 			visitor.accept(this);
 		}
 
-		public Class getType() throws NodeException {
+		public Class<?> getType() throws NodeException {
 			return impl == null ? Object.class : impl.getClass();
 		}
 
