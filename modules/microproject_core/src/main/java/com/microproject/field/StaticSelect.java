@@ -95,7 +95,7 @@ public class StaticSelect extends Select {
 		}
 		return keyArray;
 	}
-	public List getValueListWithoutNull() {
+	public List<Object> getValueListWithoutNull() {
 		return orderedValueList;
 	}
 

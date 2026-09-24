@@ -59,7 +59,7 @@ public class DynamicSelect extends Select implements Finder {
 		}
 	}
 	
-	public List getValueListWithoutNull(){
+	public List<Object> getValueListWithoutNull(){
 		throw new RuntimeException ("Not implemented");
 	}
 	
