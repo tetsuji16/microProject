@@ -30,7 +30,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -218,6 +220,18 @@ class DefaultSubprojectHandlerTest {
 		assertSame(replacement, portfolio.findByUniqueId(previous.getUniqueId()));
 		assertFalse(previous.getResourcePool().getProjects().contains(previous));
 		assertTrue(replacement.getResourcePool().getProjects().contains(replacement));
+	}
+
+	@Test
+	void portfolioProjectTraversalReturnsOnlyProjectImplementations() {
+		Portfolio portfolio = new Portfolio(null);
+		Project project = newProject("portfolio-project");
+		portfolio.addProject(project, false, false);
+		List<Project> visited = new ArrayList<>();
+
+		portfolio.forProjects(visited::add);
+
+		assertEquals(List.of(project), visited);
 	}
 
 	@Test

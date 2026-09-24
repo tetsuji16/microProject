@@ -96,11 +96,8 @@ public final class OpenProjectDialog extends AbstractDialog {
 	    if (anyProjectButThisOne != null) {
 	    	currentProjectIds.add(Long.valueOf(anyProjectButThisOne.getUniqueId()));
 	    } else {
-	    	ProjectFactory.getInstance().getPortfolio().forProjects(new Consumer<Object>() { public void accept(Object impl) {
-	    			Project project=(Project)impl;
-	    			currentProjectIds.add(Long.valueOf(project.getUniqueId()));
-	    		}
-	    	});
+		ProjectFactory.getInstance().getPortfolio().forProjects(project ->
+				currentProjectIds.add(Long.valueOf(project.getUniqueId())));
 	    }
 	}
 

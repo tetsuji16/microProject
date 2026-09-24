@@ -187,18 +187,17 @@ public class Portfolio implements Document, NodeModelDataFactory {
 
 	private void resolveSharedResourcePools() {
 		List<Project> projects = new ArrayList<Project>();
-		forProjects(value -> projects.add((Project)value));
+		forProjects(projects::add);
 		for (Project project : projects)
 			SharedResourcePoolService.getInstance().resolve(project, projects);
 	}
 
 	void handleExternalTasks(final Project project, final boolean opening, final boolean saving) {
 		// external link handling
-		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
-				Project p = (Project)arg0;
-				if (p != project)
-					p.handleExternalTasks(project, opening, saving);
-			}});
+		forProjects(p -> {
+			if (p != project)
+				p.handleExternalTasks(project, opening, saving);
+		});
 
 	}
 	public void addSubproject(final Project child, Project parent, Project owning) {
@@ -301,30 +300,28 @@ public class Portfolio implements Document, NodeModelDataFactory {
 		return nodeModel;
 	}
 
-	public void forProjects(Consumer<Object> c){
-    	Object impl;
-    	for (Iterator i=getNodeModel().iterator();i.hasNext();){
-    		impl=((Node)i.next()).getImpl();
-    		if (!(impl instanceof Project)) continue;
-    		c.accept(impl);
-    	}
+	public void forProjects(Consumer<? super Project> c){
+		for (Iterator<Node> iterator = getNodeModel().iterator(); iterator.hasNext();) {
+			if (iterator.next().getImpl() instanceof Project project)
+				c.accept(project);
+		}
 	}
 
 	public Collection getDirtyProjectList() {
-		final ArrayList list = new ArrayList();
-		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
-				if (((Project)arg0).needsSaving())
-					list.add(arg0);
-			}});
+		final ArrayList<Project> list = new ArrayList<>();
+		forProjects(project -> {
+			if (project.needsSaving())
+				list.add(project);
+		});
 		return list;
 	}
 
 	public Collection getWritableProjectList() {
-		final ArrayList list = new ArrayList();
-		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
-				if (!((Project)arg0).isReadOnly())
-					list.add(arg0);
-			}});
+		final ArrayList<Project> list = new ArrayList<>();
+		forProjects(project -> {
+			if (!project.isReadOnly())
+				list.add(project);
+		});
 		return list;
 	}
 
@@ -366,20 +363,14 @@ public class Portfolio implements Document, NodeModelDataFactory {
 
 	public void setAllChildrenDirty(boolean dirty) {
 		setGroupDirty(dirty);
-		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
-				((Project) arg0).setGroupDirty(dirty);
-			}
-		});
+		forProjects(project -> project.setGroupDirty(dirty));
 	}
 
 	public boolean containsAssignments(){
 		if (nodeModel == null)
 			return false;
 		final boolean[] result = new boolean[] {false};
-		forProjects(new Consumer<Object>() { public void accept(Object arg0) {
-				result[0] |= ((Project) arg0).containsAssignments();
-			}
-		});
+		forProjects(project -> result[0] |= project.containsAssignments());
 		return result[0];
 	}
 	public boolean evaluate(Object arg0) {

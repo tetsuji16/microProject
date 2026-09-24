@@ -225,11 +225,8 @@ public class ProjectFactory {
 	private final Map<Long, List<Runnable>> projectClosedCallbacks = new HashMap<>();
 	public synchronized Set getOpenOrLoadingProjects(){
 		final Set projectIds=new HashSet();
-    	ProjectFactory.getInstance().getPortfolio().forProjects(new Consumer<Object>() { public void accept(Object impl) {
-    			Project project=(Project)impl;
-        		projectIds.add(Long.valueOf(project.getUniqueId()));
-    		}
-    	});
+		ProjectFactory.getInstance().getPortfolio().forProjects(project ->
+				projectIds.add(Long.valueOf(project.getUniqueId())));
     	projectIds.addAll(loadingProjects);
     	projectIds.removeAll(closingProjects);
     	return projectIds;
