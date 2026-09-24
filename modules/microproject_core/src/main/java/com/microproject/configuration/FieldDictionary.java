@@ -97,7 +97,7 @@ public class FieldDictionary {
 		return (Field) map.get(id);
 	}
 	
-	private Class clazz;
+	private Class<?> clazz;
 	public void setClassName(String className) {
 		//System.out.println("						<include name=\""+className+"\"/>");
 		try {
@@ -107,8 +107,8 @@ public class FieldDictionary {
 		}
 	}
 	
-	public void populateListWithFieldsOfType(List<Field> list, Class clazz) {
-		populateListWithFieldsOfType(list,new Class[] {clazz});
+	public void populateListWithFieldsOfType(List<Field> list, Class<?> clazz) {
+		populateListWithFieldsOfType(list,new Class<?>[] {clazz});
 	}
 
 	/** Fill a collection with all fields that are applicable to one or more types
@@ -117,7 +117,7 @@ public class FieldDictionary {
 	 * @param collection - collection to fill
 	 * @param clazz - array of class types
 	 */
-	public void populateListWithFieldsOfType(List<Field> list, Class[] clazz) {
+	public void populateListWithFieldsOfType(List<Field> list, Class<?>[] clazz) {
 		MapIterator i = map.mapIterator();
 		while (i.hasNext()) {
 			Object key = i.next();
@@ -155,8 +155,8 @@ public class FieldDictionary {
 		populateListWithFieldsOfType(assignmentFields,Assignment.class);
 		populateListWithFieldsOfType(dependencyFields,Dependency.class);
 		populateListWithFieldsOfType(projectFields,Project.class);
-		populateListWithFieldsOfType(taskAndAssignmentFields,new Class[] {NormalTask.class,Assignment.class});		
-		populateListWithFieldsOfType(resourceAndAssignmentFields,new Class[] {Resource.class,Assignment.class});		
+		populateListWithFieldsOfType(taskAndAssignmentFields,new Class<?>[] {NormalTask.class,Assignment.class});
+		populateListWithFieldsOfType(resourceAndAssignmentFields,new Class<?>[] {Resource.class,Assignment.class});
 	}
 
 	/**
