@@ -79,6 +79,9 @@ are recorded below. Progress is summarized in
 - PR [#619](https://github.com/tetsuji16/ProjectLibre/pull/619) merged as
   `a629d8d2ea6057b314c2b3d6147bbe2ad09aa508` after full CI success; typed the
   OpenProj-derived WBS child cache and implementation-list conversion.
+- PR [#620](https://github.com/tetsuji16/ProjectLibre/pull/620) merged as
+  `718c3f6e14df0a5b87c8eb475e32792bcc199774` after full CI success; modernized
+  four OpenProj-derived summary-task child traversals.
 
 ## Inventory caveat
 
@@ -133,6 +136,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 |---|---|---|
 | WBS child caches | `Task.getWbsChildrenNodes`, `setWbsChildrenNodes`, `getWbsChildrenTasks` | PR #619 typed the node cache as `Collection<Node>`, exposed returned implementations as `List<Object>` (matching `NodeList`), and removed a redundant cast; caller/test setup search found cached entries are node wrappers. These exact raw boundaries occur in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Task.java#L2465-L2486)). |
 | Summary-task WBS traversals | `NormalTask.buildReverseQuery`, `updateEstimatedStatus`, `assignActualDatesFromChildren`, `getEarliestStop` | Typed child-node collections and replaced raw iterator/cast loops with enhanced-for and pattern matching, retaining traversal order and the existing NormalTask/Schedule filters. Each exact raw loop is present in the OpenProj baseline `d2fa3c20a`; `:microproject_core:test` passed. |
+| Assignment iteration | `NormalTask.isAssignedToMe`, interval `setWork`, `getMostLoadedAssignmentUnits`, `adjustRemainingDuration` | Replaced four raw `Iterator`/cast loops with enhanced-for traversal over the already typed `AssociationList` iterator, retaining the assignment cast and visitation order. No scheduling rule or mutation semantics changed. |
 | Project root-node query | `Project.getRootNodes` | PR #618 typed `List<Task>` input and `List<Node>` output and used enhanced-for. The implementation corresponds to the OpenProj-derived source excerpt ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Project.java#L3420-L3427)); no production callers were found, so a focused contract test was added. |
 | Filter iterator API | `NodeFilter.filteredListIterator` / `filteredIterator` | In progress in PR #617: type the input and output iterator references as wildcards; Apache Commons raw API remains at the adapter edge. Corresponding raw methods are present in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/transform/filtering/NodeFilter.java#L2088-L2095)). |
 | CSS style hierarchy contract | `HasCssStyle.getHierarchy` | PR #616 changed the raw collection return to `Collection<?>`, preserving erasure and leaving the heterogeneous element contract unspecified rather than guessing a concrete type. The interface is a normalized-content match to OpenProj; caller search found the `TimesheetAssignment` implementation and no active consumer of this method. |
@@ -448,7 +452,8 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #620 is based directly on `origin/master` at
-`a629d8d2ea6057b314c2b3d6147bbe2ad09aa508` (verified by merge-base). The
-complete core test suite passed. Only core hierarchy traversal code changed;
-no GUI route or visual surface changed, so no GUI/Robot test is planned.
+Latest follow-up #621 is based directly on `origin/master` at
+`718c3f6e14df0a5b87c8eb475e32792bcc199774` (verified by merge-base). The
+complete core test suite passed for #620. #621's core test run is in progress.
+Only core iteration code changed; no GUI route or visual surface changed, so no
+GUI/Robot test is planned.
