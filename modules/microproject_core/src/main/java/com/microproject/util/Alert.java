@@ -118,10 +118,10 @@ public class Alert {
 			// hidden shared owner.  Prefer the visible document frame so modal
 			// errors are attached to the window the user is actually editing.
 			Object documentFrame = managerType.getMethod("getDocumentFrameInstance")
-				.invoke(null, new Object[0]);
+				.invoke(null);
 			if (documentFrame instanceof Frame frame && frame.isShowing())
 				return frame;
-			Object fallback = managerType.getMethod("getFrameInstance", new Class<?>[0]).invoke(null, new Object[0]);
+			Object fallback = managerType.getMethod("getFrameInstance").invoke(null);
 			if (fallback instanceof Frame frame && frame.isShowing()) return frame;
 			} catch (Exception e) {
 			logger.log(Level.FINE, "No GraphicManager document frame available", e);
@@ -138,7 +138,7 @@ public class Alert {
 	}
 	public static Object getGraphicManager(){
 		try {
-		    return Class.forName(GRAPHIC_MANAGER).getMethod("getInstance", new Class<?>[0]).invoke(null, new Object[0]);
+		    return Class.forName(GRAPHIC_MANAGER).getMethod("getInstance").invoke(null);
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to get GraphicManager", e);
 			return null;
@@ -149,7 +149,7 @@ public class Alert {
 	}
 	public static Object getGraphicManagerMethod(String method) {
 		try {
-			return Class.forName(GRAPHIC_MANAGER).getMethod(method, new Class<?>[0]).invoke(null, new Object[0]);
+			return Class.forName(GRAPHIC_MANAGER).getMethod(method).invoke(null);
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to invoke GraphicManager method: " + method, e);
 			return null;

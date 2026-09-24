@@ -892,3 +892,10 @@ source and searched all 15 production callers; removed only the dead block and
 its now-unused `Method`/`JOptionPane` imports. The active public method and all
 callers remain unchanged. Core tests, downstream compilation, and diff check
 passed; no GUI route behavior changed.
+
+Follow-up #669 starts from the latest integrated `origin/master` after #668
+(merge-base verified). Removed redundant empty signature/argument arrays from
+zero-argument reflective calls in core `Alert`, `JobQueue`, and `DynamicSelect`,
+using reflection varargs directly. Class-name boundaries, target names,
+exception handling, and return values are unchanged. Core tests, downstream
+compilation, and diff check passed.

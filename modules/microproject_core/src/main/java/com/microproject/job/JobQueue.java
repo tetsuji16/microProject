@@ -235,7 +235,7 @@ public class JobQueue extends ThreadGroup{
 			return null;
 		String methodName = documentBased ? "getDocumentFrameInstance" : "getFrameInstance";
 		try {
-		    return (Frame)Class.forName(GRAPHIC_MANAGER).getMethod(methodName, new Class<?>[0]).invoke(null, new Object[0]);
+		    return (Frame)Class.forName(GRAPHIC_MANAGER).getMethod(methodName).invoke(null);
 		} catch (ClassNotFoundException e) {
 			// The core/exchange test runtime intentionally has no UI module.  A
 			// progress monitor is optional there, so do not turn the absent UI
