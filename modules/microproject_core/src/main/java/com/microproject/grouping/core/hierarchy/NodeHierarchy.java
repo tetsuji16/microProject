@@ -70,7 +70,7 @@ public interface NodeHierarchy extends TreeModel{
 	
 	
 	public Node getParent(Node child);
-	public List getChildren(Node parent);
+	public List<Node> getChildren(Node parent);
 	public int getLevel(Node node);
 	public Object clone();
 	public Iterator<Node> iterator();

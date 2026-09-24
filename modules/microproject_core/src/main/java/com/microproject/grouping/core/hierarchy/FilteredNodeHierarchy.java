@@ -140,7 +140,7 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	}
 	
 	
-	public List getChildren(Node parent) {
+	public List<Node> getChildren(Node parent) {
 		return filter.filterList(hierarchy.getChildren(parent));
 	}
 	public Node search(Object key, Comparator c) {
