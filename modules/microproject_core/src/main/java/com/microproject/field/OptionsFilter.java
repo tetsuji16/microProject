@@ -42,8 +42,7 @@ public  class OptionsFilter {
 	private String method;
 
 	public Object[] getOptionValues(Object obj, String method, String[] optionKeys, Object[] optionValues) {
-		List keys=new ArrayList(optionKeys.length);
-		keys.addAll(Arrays.asList(optionKeys));
+		List<Object> keys = new ArrayList<>(Arrays.asList(optionKeys));
 		try {
 			Method m=findMethod(obj, method);
 			m.invoke(obj, new Object[]{keys,optionValues});
@@ -57,10 +56,9 @@ public  class OptionsFilter {
 		this.method = method;
 	}
 
-	public Object[] getOptions(Object[] optionKeys, List optionValues, Object obj){
+	public Object[] getOptions(Object[] optionKeys, List<?> optionValues, Object obj){
 		if (obj==null) return optionKeys;
-		List keys=new ArrayList(optionKeys.length);
-		keys.addAll(Arrays.asList(optionKeys));
+		List<Object> keys = new ArrayList<>(Arrays.asList(optionKeys));
 		try {
 			Method m=findMethod(obj, method);
 			m.invoke(obj, new Object[]{keys,optionValues});

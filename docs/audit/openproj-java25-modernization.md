@@ -738,3 +738,11 @@ the stored class, public overloads, helper arrays, and internal class lists as
 `Class<?>` / `Class<?>[]` without changing runtime resolution or erased
 descriptors. Full core tests, downstream module compilation, and diff check
 passed.
+
+Follow-up #651 starts directly from the latest `origin/master` (verified by
+merge-base). `OptionsFilter` is instantiated and wired by the Digester from
+configuration XML; its reflective callback contract remains `List,List` at
+runtime. Typed its internally copied mutable keys and read-only option values,
+then added a focused reflective-callback regression proving key filtering
+still works without mutating the supplied values. Full core tests,
+application/exchange/reports/UI compilation, and diff check passed.
