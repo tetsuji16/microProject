@@ -33,18 +33,18 @@ import com.microproject.pm.graphic.event.GraphicEvent;
  */
 public class GraphEvent extends GraphicEvent {
 	private static final long serialVersionUID = -299188704449031480L;
-	protected List nodes;
+	protected List<?> nodes;
 	/**
      * @param source
      */
-    public GraphEvent(Object source,List nodes) {
+    public GraphEvent(Object source, List<?> nodes) {
         super(source);
         this.nodes=nodes;
     }
-	public List getNodes() {
+	public List<?> getNodes() {
 		return nodes;
 	}
-	public void setNodes(List nodes) {
+	public void setNodes(List<?> nodes) {
 		this.nodes = nodes;
 	}
     

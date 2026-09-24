@@ -112,6 +112,9 @@ are recorded below. Progress is summarized in
 - PR [#630](https://github.com/tetsuji16/ProjectLibre/pull/630) merged as
   `dfba55c94a26afd3c89042ebb02c3294c142d790` after a successful CI rerun;
   typed the selected time-spreadsheet field-array event payload.
+- PR [#631](https://github.com/tetsuji16/ProjectLibre/pull/631) merged as
+  `e6ece1c1e38f20e0d02b5e656580bce9214979d4` after a successful failed-job
+  rerun; typed cache-event payloads and interval iterators.
 
 ## Inventory caveat
 
@@ -195,6 +198,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Script field arrays | `FieldArrayUtil` | Typed the iterator over `SpreadSheetFieldArray`'s `Field` elements; tests verify excluded IDs by category and that filtering mutates only the clone, not the configured source. |
 | Selected time-spreadsheet fields event | `FieldArrayEvent` | Confirmed the payload is an `ArrayList<Field>` at its active producer (`TimeSpreadSheetModel.getSelectedFieldArray`) and consumer (`UsageDetailView`). Typed the stored value, constructor, getter, and setter without changing the erased `ArrayList` descriptor or the existing shared-reference behavior. A focused event test verifies constructor/setter reference identity. |
 | Cache event payload and interval traversal | `CacheEvent` | Typed node/interval list boundaries as `List<?>` and removal/insertion `ListIterator` loops without changing list descriptors, shared-reference semantics, callback contract, or traversal order. Focused tests assert removals visit intervals in reverse while insertions visit forward, and node-list replacement retains the supplied reference. |
+| Graph update event payload | `GraphEvent` | Typed the node payload as `List<?>` through its stored field, constructor, getter, and setter. GraphModel and Graph consumers use the erased List contract; focused test preserves the existing shared-reference behavior. |
 | Session save delegation | `AbstractSession` | Replaced the raw diamond for its `List<Project>` delegation with `new ArrayList<>()`; a recording session test verifies one-item and options-preserving delegation. |
 | Typed node iteration | `TypedNodeIterator` | Added `Iterator<Object>` / `Class<?>` generics and fixed lookahead removal deleting the wrong selected node, null-implementation dereference, and exhausted `next()` contract. Removal rewinds list-backed selections by source index; non-list removal explicitly throws `UnsupportedOperationException` rather than risking a wrong deletion. |
 | Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
@@ -532,3 +536,8 @@ successful failed-job rerun; the lone first-run failure was an unrelated
 on a focused retry of the PR branch. Follow-up #631 starts from latest
 `origin/master` at `dfba55c94a26afd3c89042ebb02c3294c142d790` (verified by
 merge-base); focused `CacheEventTest` passed.
+
+PR #631 passed its failed-job rerun and merged as recorded above. Follow-up
+#632 starts from latest `origin/master` at
+`e6ece1c1e38f20e0d02b5e656580bce9214979d4` (verified by merge-base); focused
+`GraphEventTest` passed.
