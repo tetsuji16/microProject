@@ -917,6 +917,21 @@ insertion/order semantics, serialized map implementation, and POD format are
 unchanged. POD round-trip and exchange tests, downstream compilation, and diff
 check passed.
 
+Follow-up #678 starts from the latest integrated `origin/master` after #677
+(HEAD and merge-base verified). Modernized OpenProj-origin `WorkingCalendar.dump`
+to build diagnostic text with `StringBuilder` and iterate its typed
+`TreeSet<WorkDay>` directly. Added a focused assertion for header, all weekday
+entries, and exception entries. Existing output format and exception ordering
+are preserved; `WorkingCalendarTest` and `CalendarDefinitionTest` passed, as
+did diff check. Full CI passed before merge.
+
+Follow-up #679 starts from the latest integrated `origin/master` after #678
+(rebased and merge-base verified). Removed the fully commented-out OpenProj-
+origin `PredecessorTaskTree.cleanTree` implementation and its sole commented
+call. No runtime or public API behavior changed, and the PERT tree class itself
+remains because internal non-use alone does not justify deleting a public type.
+`microproject_core:compileJava` and diff check passed.
+
 Follow-up #672 starts from the latest integrated `origin/master` after #671
 (HEAD and merge-base verified). Typed `Job`'s OpenProj-origin runnable queue
 and its iterator as `InternalRunnable`, removing casts from the queue traversal
