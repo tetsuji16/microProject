@@ -90,6 +90,23 @@ class WorkingCalendarTest {
 		assertEquals(3L * 60L * 60L * 1000L, descriptor.getWorkingHours().getDuration());
 	}
 
+	@Test
+	void dumpPreservesWeekdayAndExceptionEntries() {
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		WorkDay exception = new WorkDay(timestamp(2024, Calendar.JUNE, 4));
+		calendar.addOrReplaceException(exception);
+
+		String dump = calendar.dump();
+
+		assertTrue(dump.startsWith("Calendar " + calendar.getName() + "\nweekdays\n"));
+		for (int day = 0; day < 7; day++) {
+			assertTrue(dump.contains("day[" + day + "]"));
+		}
+		for (WorkDay exceptionDay : calendar.getExceptionDays()) {
+			assertTrue(dump.contains("exception" + exceptionDay));
+		}
+	}
+
 	private static long timestamp(int year, int month, int dayOfMonth) {
 		return DateTime.calendarInstance(year, month, dayOfMonth).getTimeInMillis();
 	}
