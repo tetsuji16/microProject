@@ -908,3 +908,11 @@ headless assertion that container construction stores the exact manager on its
 FrameHolder; existing missing-wrapper fallback remains unchanged. Core/UI
 focused tests, downstream compilation, and diff check passed; no Robot route
 was added for this non-command legacy embedding adapter.
+
+Follow-up #671 starts from the latest integrated `origin/master` after #670
+(merge-base verified). Typed the serialized project field-value map and the
+resource/task ID maps built during exchange structure reconstruction, using the
+existing `FieldValues` and `createIdMap` generic contracts. Keys, values,
+insertion/order semantics, serialized map implementation, and POD format are
+unchanged. POD round-trip and exchange tests, downstream compilation, and diff
+check passed.
