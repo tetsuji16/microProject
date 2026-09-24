@@ -1168,10 +1168,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 */
 	public long getResume() {
 		long resume = Long.MAX_VALUE;
-		Assignment assignment;
-		Iterator i = getAssignments().iterator();
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			resume = Math.min(resume,assignment.getResume());
 		}
 		return resume;
@@ -1180,10 +1178,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param resume
 	 */
 	public void setResume(long resume) {
-		Assignment assignment;
-		Iterator i = getAssignments().iterator();
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			assignment.setResume(resume);
 		}
 	}

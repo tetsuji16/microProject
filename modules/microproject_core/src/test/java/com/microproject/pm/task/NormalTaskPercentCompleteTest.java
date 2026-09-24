@@ -72,6 +72,17 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void resumeSetterAndQueryUseTheTaskAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = firstAssignment(task);
+
+		task.setResume(task.getStart());
+
+		assertEquals(assignment.getResume(), task.getResume());
+	}
+
+	@Test
 	void settingPercentCompleteSynchronizesAssignmentPercentages() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
