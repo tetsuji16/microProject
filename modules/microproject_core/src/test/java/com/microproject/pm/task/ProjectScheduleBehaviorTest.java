@@ -45,6 +45,13 @@ import com.microproject.undo.ProjectStartDateEdit;
 
 class ProjectScheduleBehaviorTest {
 	@Test
+	void projectTypeMetadataUsesWildcardClass() throws Exception {
+		Project project = createProject();
+
+		assertSame(Project.class, project.getType());
+	}
+
+	@Test
 	void moveIntervalUpdatesProjectSpan() {
 		Project project = createProject();
 		long start = project.getStart();

@@ -593,7 +593,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		visitor.accept(this);
 	}
 
-	public Class getType() throws NodeException {
+	public Class<?> getType() throws NodeException {
 		return getClass();
 	}
 

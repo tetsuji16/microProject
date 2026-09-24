@@ -803,3 +803,10 @@ adjustment. It now measures the visible left date from the observed pre-change
 viewport position. The focused test and full CI passed; no GUI product behavior
 changed, so no Robot rerun was warranted. This test-only fix was merged in
 PR #657, after which PR #655's full CI rerun also passed.
+
+Follow-up #658 starts from the latest integrated `origin/master` (verified by
+merge-base). `Project.getType()` still exposed raw `Class` even though the
+canonical `Node.getType()` contract is `Class<?>`. Narrowed the return
+signature while preserving the erased `Class` descriptor and added a focused
+runtime-type identity assertion. `ProjectScheduleBehaviorTest`, downstream
+application/exchange/reports/UI compilation, and diff check passed.
