@@ -847,3 +847,10 @@ Follow-up #663 starts from the latest integrated `origin/master` after #662
 than allocating a raw reflection signature array. The configured class name,
 constructor order/types, and serialized format are unchanged. POD subproject
 round-trip tests, exchange tests, downstream compilation, and diff check passed.
+
+Follow-up #664 starts from the latest integrated `origin/master` after #663
+(merge-base verified). Modernized `Project`'s configured subproject-handler
+constructor lookup and project-role reset lookup to pass parameter classes and
+invocation arguments directly through reflection's varargs APIs. Configuration
+keys, parameter order/types, and error handling are unchanged. Core tests,
+downstream compilation, and diff check passed.
