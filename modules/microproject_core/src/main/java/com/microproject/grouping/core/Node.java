@@ -52,7 +52,7 @@ public interface Node extends MutableTreeNode{
      * Equivalent to getImpl().getClass(). This is used by NodeFactory
      * @throws NodeException if implementation is not set
      */
-    public Class getType() throws NodeException;
+    public Class<?> getType() throws NodeException;
     
     /**
      * Consolidation node
