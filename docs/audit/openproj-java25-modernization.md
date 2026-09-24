@@ -1102,3 +1102,13 @@ the typed `AssociationList`, preserving the existing percentage predicate and
 early-exit behavior. Added a focused test for 0% and started-assignment actual
 start behavior. Focused/full core tests, application compilation, and diff
 check passed.
+
+Follow-up #694 starts from the latest integrated `origin/master` after #693
+(HEAD and merge-base verified). Modernized the three OpenProj-origin assignment
+traversals in `NormalTask.moveInterval` and `NormalTask.split` to enhanced-for
+over the existing typed `AssociationList`, preserving mutation order and
+arguments. Relevant scheduling/assignment tests and application compilation
+passed. The first full core run had one failure in the unrelated
+`CriticalChainServiceTest.previewScalesToLargeSharedResourceWithoutQuadraticExpiryScan`;
+its isolated rerun passed. Diff check passed. This transient full-suite failure
+is disclosed for review and CI remains the merge gate.
