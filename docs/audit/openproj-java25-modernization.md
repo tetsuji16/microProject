@@ -840,3 +840,10 @@ by configured name and uses it only to resolve extension methods. Typed the
 protected delegate-class metadata as `Class<?>`; reflective extension lookup,
 configuration, and erased field descriptor remain unchanged. Full core tests,
 downstream compilation, and diff check passed.
+
+Follow-up #663 starts from the latest integrated `origin/master` after #662
+(merge-base verified). Modernized the legacy subproject migration fallback in
+`Serializer` by passing its two constructor parameter classes directly rather
+than allocating a raw reflection signature array. The configured class name,
+constructor order/types, and serialized format are unchanged. POD subproject
+round-trip tests, exchange tests, downstream compilation, and diff check passed.
