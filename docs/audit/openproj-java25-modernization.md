@@ -54,6 +54,9 @@ are recorded below. Progress is summarized in
 - PR [#611](https://github.com/tetsuji16/ProjectLibre/pull/611) merged as
   `f887394942562c743ad5893ddd2c4be8ef5ee355` after full CI success; typed
   collaboration sidecar decoding's dynamic map boundary.
+- PR [#612](https://github.com/tetsuji16/ProjectLibre/pull/612) merged as
+  `bed064083051d16e3fd07a2586e98b27862cd44e` after full CI success; typed the
+  hierarchy indent undo-position bookkeeping.
 
 ## Inventory caveat
 
@@ -81,7 +84,7 @@ artifact would be compatible.
 
 The initial-base counts above are historical. Re-running the inventory at the
 latest integrated checkpoint (`origin/master` =
-`f887394942562c743ad5893ddd2c4be8ef5ee355`) reports 280 ledger rows: 184
+`bed064083051d16e3fd07a2586e98b27862cd44e`) reports 280 ledger rows: 184
 normalized matches, 79 content-different files, and 17 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the
 current module graph, and the four intentionally deleted unreferenced classes
@@ -106,7 +109,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 
 | Area | Classes / responsibility | Outcome |
 |---|---|---|
-| Hierarchy indent undo bookkeeping | `MutableNodeHierarchy.createPositionMap` / `createPositions` | In progress in PR #612: typed the private node-to-position map and position result list, enhanced-for over requested nodes, and used Java 25 pattern binding while retaining the existing skip-non-node behavior. |
+| Hierarchy indent undo bookkeeping | `MutableNodeHierarchy.createPositionMap` / `createPositions`; private indent traversal | PR #612 typed the private node-to-position map and position result list. In progress in PR #613: typed the local selected-node and temporary void-node lists and their iterators without changing indent/outdent traversal. |
 | Collaboration sidecar decoding | `CollaborationMetadataStore.Metadata`, `UserRecord`, `LockRecord` | In progress in PR #611: typed dynamic JSON map boundaries as `Map<?, ?>` and entries as `Map.Entry<?, ?>`; retained permissive value conversion and null-on-non-map behavior. |
 | Calendar intervals | `WorkDay`, `WorkRange`, `WorkingHours`, `WorkWeek`, `WorkingCalendar`, `CalendarService`, `CalendarDefinition`, `Interval`, `CalendarEvent` | Typed collection / clone / comparison modernization; removed the unused calendar-cache list; fixed incorrect working-day intersection, lost overtime state in a range constructor, long-comparison overflow, equality asymmetry, and a strong-reference calendar-cache registry leak. |
 | Duration and rates | `Duration`, `DurationFormat`, `Rate`, `RateFormat`, `PercentFormat` | Pattern matching and switch expressions; removed dead duration conversion calculations and redundant string copying; made encoding masks and formatter mode state immutable; fixed parse-position end-of-input exceptions and fractional/large-rate comparison. |
@@ -405,7 +408,7 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #612 is based directly on `origin/master` at
-`f887394942562c743ad5893ddd2c4be8ef5ee355` (verified by merge-base). The
-focused `DefaultNodeModelTest` passes; full core and CI verification are
-pending. No GUI route or visual surface changed, so no GUI/Robot test was run.
+Latest follow-up #613 is based directly on `origin/master` at
+`bed064083051d16e3fd07a2586e98b27862cd44e` (verified by merge-base). The
+focused `DefaultNodeModelTest` passes; PR CI is pending. No GUI route or visual
+surface changed, so no GUI/Robot test was run.
