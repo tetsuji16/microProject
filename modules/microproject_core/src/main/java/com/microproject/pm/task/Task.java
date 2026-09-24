@@ -2264,13 +2264,11 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		if (s==-1) snapshot=(TaskSnapshot)getCurrentSnapshot();
 		else snapshot=(TaskSnapshot)getSnapshot(Integer.valueOf(s));
         if (snapshot==null) return;
-        AssociationList snapshotAssignments=snapshot.getHasAssignments().getAssignments();
-        if (snapshotAssignments.size()>0){
-            for (Iterator j=snapshotAssignments.iterator();j.hasNext();){
-                Assignment assignment=(Assignment)j.next();
-                c.accept(assignment);
-            }
-        }
+		AssociationList snapshotAssignments = snapshot.getHasAssignments().getAssignments();
+		for (Association association : snapshotAssignments) {
+			Assignment assignment = (Assignment) association;
+			c.accept(assignment);
+		}
 	}
 	public void forSnapshots(Consumer<Object> c){
 	}

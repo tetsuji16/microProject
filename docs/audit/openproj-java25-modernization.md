@@ -1065,3 +1065,10 @@ on the shared pool, so concurrent callers were not mutually excluded. Routed
 admission and release through a shared pool monitor and added a concurrent
 admission test. Focused/full core tests, application compilation, and diff
 check passed.
+
+Follow-up #689 starts from the latest integrated `origin/master` after #688
+(HEAD and merge-base verified). Modernized OpenProj-origin
+`Task.forSnapshotsAssignments` to iterate its `AssociationList` as
+`Association` values, removing an unnecessary size pre-check while retaining
+the assignment cast and `Consumer<Object>` callback contract. Full core tests,
+application compilation, and diff check passed.
