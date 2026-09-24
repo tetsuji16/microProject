@@ -54,4 +54,17 @@ class ProjectHierarchyQueriesTest {
 		assertEquals(1, roots.size());
 		assertSame(task, roots.getFirst().getImpl());
 	}
+
+	@Test
+	void wbsChildrenTasksReturnsImplementationsFromNodeCache() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("wbs-children", undo), undo);
+		project.initialize(false, false);
+		NormalTask parent = project.createScriptedTask();
+		NormalTask child = project.createScriptedTask();
+		Node childNode = project.getTaskModel().search(child);
+		parent.setWbsChildrenNodes(List.of(childNode));
+
+		assertEquals(List.of(child), parent.getWbsChildrenTasks());
+	}
 }

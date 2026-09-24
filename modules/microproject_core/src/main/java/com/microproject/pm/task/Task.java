@@ -490,27 +490,26 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public boolean isSubproject() {
 		return false;
 	}
-	transient Collection wbsChildrenNodes = null;
+	transient Collection<Node> wbsChildrenNodes = null;
 	transient Task wbsParentTask = null;
 	transient Resource delegatedTo = null;
 
 	/**
 	 * @return Returns the wbsChildrenNodes.
 	 */
-	public Collection getWbsChildrenNodes() {
+	public Collection<Node> getWbsChildrenNodes() {
 		return wbsChildrenNodes;
 	}
 	/**
 	 * @param wbsChildrenNodes The wbsChildrenNodes to set.
 	 */
-	public void setWbsChildrenNodes(Collection wbsChildrenNodes) {
+	public void setWbsChildrenNodes(Collection<Node> wbsChildrenNodes) {
 //System.out.println(this + " setWbsChildrenNodes " + wbsChildrenNodes);
 		this.wbsChildrenNodes = wbsChildrenNodes;
 	}
 
-	public List getWbsChildrenTasks() {
-		List children = (List) getWbsChildrenNodes();
-		return NodeList.nodeListToImplList(children);
+	public List<Object> getWbsChildrenTasks() {
+		return NodeList.nodeListToImplList(getWbsChildrenNodes());
 	}
 	/**
 	 * @return Returns the wbsParent.
