@@ -756,3 +756,18 @@ values without changing insertion order or the HashMap erased return type.
 Full core tests, the `PodRoundTripTest` format-specific byte-stability/save-
 reload suite, downstream application/reports/UI compilation, and diff check
 passed.
+
+Follow-up #653 starts directly from the latest `origin/master` (verified by
+merge-base). `FieldConverter` is active throughout field display, parsing, and
+assignment callers. Typed its conversion-target and BeanUtils converter class
+parameters and its per-context converter map, preserving the erased runtime
+contracts. Added a focused parse/convert regression.
+
+Compatibility exception: the bundled BeanUtils `Converter` SPI declares a
+generic method `<T> T convert(Class<T>, Object)`. Its converter implementations
+currently produce several target-specific types (and null) through that
+boundary; changing them to wildcard parameters does not override the SPI, and
+forcing generic return casts would add unchecked runtime assumptions. Keep
+those implementation overrides raw until the conversion SPI/adapters can be
+redesigned and characterized separately.
+Core tests, application/exchange/reports/UI compilation, and diff check passed.
