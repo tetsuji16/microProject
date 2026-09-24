@@ -30,7 +30,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.GregorianCalendar;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,9 +45,9 @@ import com.microproject.util.DateTime;
 public abstract class ValueObjectForIntervalTable implements NodeModelDataFactory, Serializable, Cloneable {
 	static final long serialVersionUID = 7728399282882L;
 	private static final Logger logger = Logger.getLogger(ValueObjectForIntervalTable.class.getName());
-	protected ArrayList valueObjects = new ArrayList();
+	protected ArrayList<ValueObjectForInterval> valueObjects = new ArrayList<>();
 	protected String name;
-	public List getList() {
+	public List<ValueObjectForInterval> getList() {
 		return Collections.unmodifiableList(valueObjects);
 	}
 	public ArrayList getValueObjects(){ //serialization
@@ -57,9 +56,10 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	public ValueObjectForIntervalTable() {
 		
 	}
+	@SuppressWarnings("unchecked") // legacy serialization constructor retains its erased ArrayList API
 	public ValueObjectForIntervalTable(String name, ArrayList valueObjects) { //serialization
 		this.name=name;
-		this.valueObjects=valueObjects;
+		this.valueObjects = (ArrayList<ValueObjectForInterval>) valueObjects;
 	}
 	public ValueObjectForIntervalTable(String name) {
 		this.name = name;
@@ -79,7 +79,7 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 
 		int index = Collections.binarySearch(valueObjects, newOne, newOne); // find where to insert
 		if (index < 0) { // if doesn't already exist
-			ValueObjectForInterval previous = (ValueObjectForInterval)valueObjects.get(-index-2); // get previous element
+			ValueObjectForInterval previous = valueObjects.get(-index-2); // get previous element
 			valueObjects.add(-index-1, newOne); // add new in place
 			newOne.setEnd( previous.getEnd()); //set new one's end to prevous end
 			previous.setEnd(start); // set previous end to this start
@@ -91,10 +91,8 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	
 	public long getEnd() {
 		long end = 0;
-		Iterator i = valueObjects.iterator();
-		while (i.hasNext()) {
-			end = Math.max(end,((ValueObjectForInterval)i.next()).getEnd());
-		}
+		for (ValueObjectForInterval valueObject : valueObjects)
+			end = Math.max(end, valueObject.getEnd());
 		return end;
 	}
 	
@@ -108,7 +106,7 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 		int index = valueObjects.indexOf(valueObject);
 		if (index == 0)
 			return;
-		ValueObjectForInterval previous = (ValueObjectForInterval) valueObjects.get(index -1);
+		ValueObjectForInterval previous = valueObjects.get(index -1);
 		if (newStart <= previous.getStart())
 			throw new InvalidValueObjectForIntervalException(Messages.getString("ValueObjectForIntervalTable.ThisDateMustBeAfter")); //$NON-NLS-1$
 		if (newStart >= valueObject.getEnd()) // see if this would disappear
@@ -121,10 +119,8 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	
 	public long getStart() {
 		long start = DateTime.getMaxDate().getTime();
-		Iterator i = valueObjects.iterator();
-		while (i.hasNext()) {
-			start = Math.min(start,((ValueObjectForInterval)i.next()).getStart());
-		}
+		for (ValueObjectForInterval valueObject : valueObjects)
+			start = Math.min(start, valueObject.getStart());
 		return start;
 	}
 		
@@ -137,7 +133,7 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 		if (removeMe.isFirst()) // don't allow removal of first value
 			throw new InvalidValueObjectForIntervalException(Messages.getString("ValueObjectForIntervalTable.YouCannotRemoveTheFirst"));			 //$NON-NLS-1$
 		int index = valueObjects.indexOf(removeMe);
-		ValueObjectForInterval previous = (ValueObjectForInterval) valueObjects.get(index-1); // set previous end to this end
+		ValueObjectForInterval previous = valueObjects.get(index-1); // set previous end to this end
 		previous.setEnd(removeMe.getEnd());
 		valueObjects.remove(removeMe);
 	}
@@ -161,7 +157,7 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 		int index = findActiveIndex(date);
 		if (index < 0 || index >= valueObjects.size()) // issue #167: get(-1) used to throw
 			return null;
-		return (ValueObjectForInterval) valueObjects.get(index);
+		return valueObjects.get(index);
 	}
 	
 	public ValueObjectForInterval findCurrent() {
@@ -176,7 +172,7 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	 */		
 	public Object createUnvalidatedObject(NodeModel nodeModel, Object parent) {
 		long baseDate = DateTime.midnightToday();
-		ValueObjectForInterval last = (ValueObjectForInterval) valueObjects.get(valueObjects.size()-1); // get last one
+		ValueObjectForInterval last = valueObjects.get(valueObjects.size()-1); // get last one
 		baseDate = Math.max(baseDate,last.getStart()); // latest of today or last entry
 		GregorianCalendar cal = DateTime.calendarInstance();
 		cal.setTimeInMillis(baseDate);
@@ -223,9 +219,10 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	}
 	
 	
+	@SuppressWarnings("unchecked") // legacy serialized payload stores an ArrayList without generic metadata
 	protected static ValueObjectForIntervalTable deserialize(ObjectInputStream s,ValueObjectForIntervalTable v) throws IOException, ClassNotFoundException  {
 		v.name=(String)s.readObject();
-		v.valueObjects=(ArrayList) s.readObject();
+		v.valueObjects = (ArrayList<ValueObjectForInterval>) s.readObject();
 		return v;
 	}
 	
@@ -233,10 +230,9 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 		try {
 			ValueObjectForIntervalTable v=(ValueObjectForIntervalTable)super.clone();
 			v.name=(name==null)?null:new String(name);
-			ArrayList newList = new ArrayList();
-			for (Iterator i=valueObjects.iterator();i.hasNext();){
-				newList.add(((ValueObjectForInterval)i.next()).clone());
-			}
+			ArrayList<ValueObjectForInterval> newList = new ArrayList<>(valueObjects.size());
+			for (ValueObjectForInterval valueObject : valueObjects)
+				newList.add((ValueObjectForInterval) valueObject.clone());
 			v.valueObjects=newList;
 			return v;
 		} catch (CloneNotSupportedException e) {
@@ -245,9 +241,8 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	}
 	
 	public void initAfterCloning(){
-		for (Iterator i=valueObjects.iterator();i.hasNext();){
-			((ValueObjectForInterval)i.next()).setTable(this);
-		}
+		for (ValueObjectForInterval valueObject : valueObjects)
+			valueObject.setTable(this);
 		
 	}
 
