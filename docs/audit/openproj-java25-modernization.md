@@ -818,3 +818,11 @@ the shared factory behind XML-configured filters, sorters, groupers, and
 transformers; constructor selection, configured string (including null), and
 exception wrapping remain unchanged. Added focused checks for both configured
 and null arguments. Core focused test and diff check passed.
+
+Follow-up #660 starts from the newly updated `origin/master` after #659
+(merge-base verified). `ProjectFactory` passes reflection signatures into the
+existing `SessionFactory` adapter for optional resource loading and project
+data retrieval. Narrowed both signature arrays to `Class<?>[]`; method names,
+parameter order, argument values, and session compatibility fallbacks are
+unchanged. Focused `ProjectFactoryClosingTest`, downstream compilation, and
+diff check passed.
