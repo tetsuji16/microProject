@@ -73,7 +73,7 @@ public class DecoratedField {
 	private String fieldName = "";
 	private boolean textField = false;
 	private boolean subField = false;
-	private Class clazz = null;
+	private Class<?> clazz = null;
 	private String method = "";
 	/**
 	 * @return Returns the timeBased.
@@ -133,13 +133,13 @@ public class DecoratedField {
 	/**
 	 * @return Returns the clazz.
 	 */
-	public Class getClazz() {
+	public Class<?> getClazz() {
 		return clazz;
 	}
 	/**
 	 * @param clazz The clazz to set.
 	 */
-	private void setClazz(Class clazz) {
+	private void setClazz(Class<?> clazz) {
 		this.clazz = clazz;
 	}
 	

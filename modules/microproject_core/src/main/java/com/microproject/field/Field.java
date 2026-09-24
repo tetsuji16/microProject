@@ -119,15 +119,15 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	private String extraCategory = null; // for extra fields, such as those from salesforce
 	// reflection info - these do not change, so that can be reused across all
 	// fields
-	private static Class[] getterParams = new Class[] {};
-	private static Class[] getterIndexedParams = new Class[] { int.class };
-	private static Class[] getterContextParams = new Class[] { FieldContext.class }; // context
-	private static Class[] getterIndexedContextParams = new Class[] { int.class, FieldContext.class }; // context
+	private static final Class<?>[] getterParams = new Class<?>[0];
+	private static final Class<?>[] getterIndexedParams = new Class<?>[] { int.class };
+	private static final Class<?>[] getterContextParams = new Class<?>[] { FieldContext.class }; // context
+	private static final Class<?>[] getterIndexedContextParams = new Class<?>[] { int.class, FieldContext.class }; // context
 	private String property;
 	private String referencedObjectProperty = null;
 	private String referencedIdProperty = null;
 	private String finder = null;
-	private Class clazz = null;
+	private Class<?> clazz = null;
 	private Method methodGet = null;
 	private Method methodSet = null;
 	private Method methodReset = null;
@@ -135,11 +135,11 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	private Method methodHide = null;
 	private Method methodOptions = null;
 	private Method finderMethod = null;
-	private Class internalType = null; // return type of getter
-	private Class externalType = null; // if non null then its the logical
+	private Class<?> internalType = null; // return type of getter
+	private Class<?> externalType = null; // if non null then its the logical
 										// type. For example, externalType=Date,
 										// internalType=long for date values
-	private Class displayType = null;
+	private Class<?> displayType = null;
 	private Object defaultValue = null;
 	private String errorMessage = null;
 	private int textWidth = Integer.MAX_VALUE;
@@ -219,11 +219,11 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		this.property = property;
 	}
 
-	public final void setClass(Class clazz) {
+	public final void setClass(Class<?> clazz) {
 		this.clazz = clazz;
 	}
 
-	public final Class getClazz() {
+	public final Class<?> getClazz() {
 		return clazz;
 	}
 
@@ -245,7 +245,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		return isApplicable(object.getClass());
 	}
 
-	public boolean isApplicable(Class type) {
+	public boolean isApplicable(Class<?> type) {
 		return clazz.isAssignableFrom(type);
 	}
 
@@ -255,7 +255,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	 * @param types
 	 * @return
 	 */
-	public boolean isApplicable(Class[] types) {
+	public boolean isApplicable(Class<?>[] types) {
 		for (int i = 0; i < types.length; i++) {
 			if (isApplicable(types[i]))
 				return true;
@@ -307,7 +307,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			logger.warning("unknown summary type: " + summaryType + " for field " + getName());
 	}
 
-	public final void setExternalType(Class externalType) {
+	public final void setExternalType(Class<?> externalType) {
 		this.externalType = externalType;
 	}
 
@@ -419,7 +419,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	 *         dialogs.
 	 *
 	 */
-	public Class getDisplayType() {
+	public Class<?> getDisplayType() {
 		return displayType;
 	}
 
@@ -1245,14 +1245,14 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 				logger.severe("Not getter found for field " + getId());
 
 			// First look for a setter that has a context (indexed or not)
-			methodSet = MethodUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class[] { int.class, internalType,
-					FieldContext.class } : new Class[] { internalType, FieldContext.class }));
+			methodSet = MethodUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class<?>[] { int.class, internalType,
+					FieldContext.class } : new Class<?>[] { internalType, FieldContext.class }));
 
 			// If not found, then use standard setter (indexed or not)
 			if (methodSet == null) {
 				setHasNoContext = true;
-				methodSet = MethodUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class[] { int.class, internalType }
-						: new Class[] { internalType }));
+				methodSet = MethodUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class<?>[] { int.class, internalType }
+						: new Class<?>[] { internalType }));
 			}
 			if (methodSet == null && !readOnly) {
 				logger.warning("No setter found for non-read-only field: " + getId());
@@ -1386,7 +1386,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			externalType = displayType; // is this necessary?
 		}
 		if (finder != null) {
-			finderMethod = ClassUtils.staticMethodFromFullName(finder, new Class[] { Object.class, Object.class });
+			finderMethod = ClassUtils.staticMethodFromFullName(finder, new Class<?>[] { Object.class, Object.class });
 			if (finderMethod == null)
 				Field.logger.severe("invalid finder method " + finder + " for field" + name);
 

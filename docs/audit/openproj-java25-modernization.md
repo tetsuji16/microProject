@@ -691,3 +691,14 @@ reassignment path and is now final. A focused test verifies defaults, the
 MS_PROJECT true/true preset, and active-instance identity. Full core tests and
 application/exchange/UI compilation passed. No GUI or persisted format
 contract changed.
+
+Follow-up #646 starts directly from the latest `origin/master` (verified by
+merge-base). `Field`'s raw `Class` fields, metadata accessors, applicability
+checks, and reflection parameter arrays correspond to the OpenProj source; the
+active consumers include field conversion, applicability, and spreadsheet
+rendering. Replaced those raw types with `Class<?>` / `Class<?>[]` and made the
+private fixed reflection signature arrays final. Updated the reports
+`DecoratedField` adapter and added a focused applicability/type regression.
+Erased descriptors remain unchanged. Full core tests and application,
+exchange, reports, and UI compilation passed. No GUI route or visual contract
+changed.

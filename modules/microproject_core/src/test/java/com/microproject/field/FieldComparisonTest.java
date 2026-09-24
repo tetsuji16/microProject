@@ -24,11 +24,23 @@
 package com.microproject.field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
 class FieldComparisonTest {
+	@Test
+	void fieldClassAccessorsAndApplicabilityUseWildcardClassTypes() {
+		Field field = new Field();
+		field.setClass(Number.class);
+		Class<?> fieldClass = field.getClazz();
+
+		assertSame(Number.class, fieldClass);
+		assertTrue(field.isApplicable(Integer.class));
+		assertTrue(field.isApplicable(new Class<?>[] { String.class, Integer.class }));
+	}
+
 	@Test
 	void ordersIndexedFieldsWithoutIntegerOverflow() {
 		Field first = new Field();
