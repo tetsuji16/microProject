@@ -1046,3 +1046,11 @@ their dependency links despite `NodePasteEdit` explicitly requesting that they
 be retained. Added tests for both preserve and remove paths; the preserve test
 failed before the fix and both pass after it. Full core tests, application
 compilation, and diff check passed.
+
+Follow-up #687 starts from the latest integrated `origin/master` after #686
+(HEAD and merge-base verified). Typed the local task/dependency staging lists
+and removed casts/iterator boilerplate in OpenProj-origin
+`DependencyService.connect`, retaining the public raw-List signature and its
+read-only filtering, circularity checks, pair-validation order, and sequential
+link selection. Existing focused `DependencyServiceTest`, full core tests,
+application compilation, and diff check passed; no behavior defect was found.
