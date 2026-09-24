@@ -862,3 +862,13 @@ varargs, while retaining string-based optional Groovy and GraphicManager
 lookups (and therefore the module boundary). Typed the remaining
 `UniqueIdPool` signature array passed through the fixed `SessionFactory` API.
 Core tests, downstream compilation, and diff check passed.
+
+Follow-up #666 starts from the latest integrated `origin/master` after #665
+(merge-base verified). Modernized active UI-module reflection calls across
+printing, optional JNLP persistence, reports, LAF, startup, and project
+descriptor adapters. String/classloader integration boundaries remain intact;
+SessionFactory signature arrays are now `Class<?>[]`. Removed the adjacent
+unused `GraphicManager` local in the login callback after confirming it had no
+reads. UI module tests/compilation, downstream compilation, and diff check
+passed. No GUI contract or physical route changed, so no Robot rerun was
+needed.

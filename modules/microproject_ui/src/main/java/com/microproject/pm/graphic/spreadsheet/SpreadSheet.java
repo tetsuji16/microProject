@@ -1878,7 +1878,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			if (selectedNodes == null || selectedNodes.isEmpty()) return;
 			final ArrayList descriptors = new ArrayList();
 			Session session = SessionFactory.getInstance().getSession(false);
-			Job job = (Job) SessionFactory.callNoEx(session, "getLoadProjectDescriptorsJob", new Class[]{boolean.class, java.util.List.class, boolean.class}, new Object[]{true, descriptors, true});
+			Job job = (Job) SessionFactory.callNoEx(session, "getLoadProjectDescriptorsJob", new Class<?>[]{boolean.class, java.util.List.class, boolean.class}, new Object[]{true, descriptors, true});
 			job.addSwingRunnable(new JobRunnable("Local: addNodes"){
 				public Object run() throws Exception{
 					final Consumer<Object> setter = new Consumer<Object>() { public void accept(Object obj) {

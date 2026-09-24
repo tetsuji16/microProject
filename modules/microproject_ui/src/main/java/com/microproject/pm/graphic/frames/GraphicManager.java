@@ -429,7 +429,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (lafManager==null){
 			try {
 				String lafName=Messages.getMetaString("LafManager");
-				lafManager=(LafManager)Class.forName(lafName).getConstructor(new Class[]{GraphicManager.class}).newInstance(new Object[]{this});
+				lafManager=(LafManager)Class.forName(lafName).getConstructor(GraphicManager.class).newInstance(this);
 			} catch (IllegalArgumentException e) {
 				logger.log(Level.WARNING, "Failed to instantiate LAF manager", e);
 			} catch (SecurityException e) {
@@ -1386,7 +1386,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		final OpenProjectDialog dialog = OpenProjectDialog.getInstance(getFrame(),descriptors,Messages.getString("Text.openProject"),allowMasterProjects,true,null); //$NON-NLS-1$
 
     	Session session=SessionFactory.getInstance().getSession(localDescriptorSession);
-		Job job=(Job)SessionFactory.callNoEx(session,"getLoadProjectDescriptorsJob",new Class[]{boolean.class,java.util.List.class,boolean.class},new Object[]{true,descriptors,Environment.getUser() != null && !Environment.isAdministrator()});
+		Job job=(Job)SessionFactory.callNoEx(session,"getLoadProjectDescriptorsJob",new Class<?>[]{boolean.class,java.util.List.class,boolean.class},new Object[]{true,descriptors,Environment.getUser() != null && !Environment.isAdministrator()});
 		if (job == null) {
 			dialog.refreshProjects();
 			doingOpenDialog = false;
@@ -1453,7 +1453,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		final ArrayList descriptors = new ArrayList();
 		final boolean localDescriptorSession = Environment.getStandAlone() || Environment.getUser() == null;
     	Session session=SessionFactory.getInstance().getSession(localDescriptorSession);
-		Job job=(Job)SessionFactory.callNoEx(session,"getLoadProjectDescriptorsJob",new Class[]{boolean.class,java.util.List.class,boolean.class},new Object[]{true,descriptors,true});
+		Job job=(Job)SessionFactory.callNoEx(session,"getLoadProjectDescriptorsJob",new Class<?>[]{boolean.class,java.util.List.class,boolean.class},new Object[]{true,descriptors,true});
 		if (job == null) {
 			doingOpenDialog = false;
 			return;
@@ -4156,8 +4156,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	void savePDF() {
 		GraphPageable document=PrintDocumentFactory.getInstance().createDocument(getCurrentFrame(),false,false);
 		try {
-			Class generator=ClassLoaderUtils.forName("com.microproject.export.ImageExport"); //claur
-			generator.getMethod("export", new Class[]{GraphPageable.class,Component.class}).invoke(null,new Object[]{document,getContainer()});
+			Class<?> generator=ClassLoaderUtils.forName("com.microproject.export.ImageExport"); //claur
+				generator.getMethod("export", GraphPageable.class, Component.class).invoke(null, document, getContainer());
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to export PDF", e);
 		}

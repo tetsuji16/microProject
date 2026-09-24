@@ -141,7 +141,7 @@ public final class LookupDialog extends AbstractDialog {
 				Session session = SessionFactory.getInstance().getSession(false);
 				if (session != null)
 					try {
-						resultMap = (LinkedHashMap<String, Object>)SessionFactory.call(session,"queryLike",new Class[]{String.class,String.class},new Object[]{ types.getSelectedItem(), match.getText()});
+						resultMap = (LinkedHashMap<String, Object>)SessionFactory.call(session,"queryLike",new Class<?>[]{String.class,String.class},new Object[]{ types.getSelectedItem(), match.getText()});
 						results= new ActionJList(resultMap.values().toArray());
 						((ActionJList)results).addActionListener(new ActionListener(){
 							public void actionPerformed(ActionEvent e) {

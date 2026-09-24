@@ -326,8 +326,7 @@ public abstract class StartupFactory {
 				try {
 					Session session = SessionFactory.getInstance().getSession(false);
 					logger.fine("logging in");
-					final GraphicManager gm = graphicManager;
-					SessionFactory.callNoEx(session,"login",new Class[]{Consumer.class},new Object[]{new Consumer<Object>() { public void accept(Object arg0) {
+					SessionFactory.callNoEx(session,"login",new Class<?>[]{Consumer.class},new Object[]{new Consumer<Object>() { public void accept(Object arg0) {
 							Map<String,String> env=(Map<String,String>)arg0;
 							if (env!=null){
 								String serverVersion=env.get("serverVersion");
@@ -377,10 +376,10 @@ public abstract class StartupFactory {
 		String jnlpUrl="";//https://www.projectlibre.com/web/jnlp/projectlibre.jnlp";
 		if (Alert.okCancel(Messages.getString("Text.newPODVersion"))){
 			try {
-				Object basicService = ClassLoaderUtils.forName("javax.jnlp.ServiceManager").getMethod("lookup", new Class[]{String.class})
-				.invoke(null, new Object[] {"javax.jnlp.BasicService"});
-				ClassLoaderUtils.forName("javax.jnlp.BasicService").getMethod("showDocument", new Class[]{URL.class})
-				.invoke(basicService, new Object[] {new URL(jnlpUrl)});
+				Object basicService = ClassLoaderUtils.forName("javax.jnlp.ServiceManager").getMethod("lookup", String.class)
+				.invoke(null, "javax.jnlp.BasicService");
+				ClassLoaderUtils.forName("javax.jnlp.BasicService").getMethod("showDocument", URL.class)
+				.invoke(basicService, new URL(jnlpUrl));
 			} catch(Exception e) {
 				//e.printStackTrace();
 				// Not running in JavaWebStart or service is not supported.

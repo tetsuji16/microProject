@@ -1255,9 +1255,9 @@ public class DocumentFrame extends NamedFrame implements
 				} catch (ClassNotFoundException missingCompiler) {
 					return null;
 				}
-				Class clazz=ClassUtils.forName("com.microproject.reports.view.ReportView");
-				reportView=(BaseView)clazz.getConstructor(new Class[]{DocumentFrame.class}).newInstance(new Object[]{this});
-				clazz.getMethod("init", new Class[]{CoordinatesConverter.class}).invoke(reportView, new Object[]{coord});
+				Class<?> clazz=ClassUtils.forName("com.microproject.reports.view.ReportView");
+				reportView=(BaseView)clazz.getConstructor(DocumentFrame.class).newInstance(this);
+				clazz.getMethod("init", CoordinatesConverter.class).invoke(reportView, coord);
 				if (reportView!=null) restoreWorkspaceFor(reportView);
 			}
 		} catch (Exception e) {

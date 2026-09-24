@@ -92,10 +92,10 @@ public final class LoginDialog extends AbstractDialog {
 		LoginForm form=null;
 		if (serverUrl!=null)
 		try {
-			Object ps=ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.ServiceManager").getMethod("lookup",new Class[]{String.class}).invoke(null,new Object[]{"javax.jnlp.PersistenceService"}); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+			Object ps=ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.ServiceManager").getMethod("lookup", String.class).invoke(null, "javax.jnlp.PersistenceService"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 //			Object ps=Class.forName("javax.jnlp.ServiceManager").getMethod("lookup",new Class[]{String.class}).invoke(null,new Object[]{"javax.jnlp.PersistenceService"});
-			Object contents=ps.getClass().getMethod("get",new Class[]{URL.class}).invoke(ps,new Object[]{serverUrl}); //$NON-NLS-1$
-			try (var in = SafeObjectInput.create((InputStream)ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.FileContents").getMethod("getInputStream", new Class[0]).invoke(contents, new Object[0]))) { //$NON-NLS-1$ //$NON-NLS-2$
+			Object contents=ps.getClass().getMethod("get", URL.class).invoke(ps, serverUrl); //$NON-NLS-1$
+			try (var in = SafeObjectInput.create((InputStream)ClassLoaderUtils.getLocalClassLoader().loadClass("javax.jnlp.FileContents").getMethod("getInputStream").invoke(contents))) { //$NON-NLS-1$ //$NON-NLS-2$
 //			ObjectInputStream in=new ObjectInputStream((InputStream)Class.forName("javax.jnlp.FileContents").getMethod("getInputStream",null).invoke(contents,null));
 			form=(LoginForm)in.readObject();
 			}
@@ -115,15 +115,15 @@ public final class LoginDialog extends AbstractDialog {
 		
 		if (serverUrl!=null)
 		try {			
-			Object ps=Class.forName("javax.jnlp.ServiceManager").getMethod("lookup",new Class[]{String.class}).invoke(null,new Object[]{"javax.jnlp.PersistenceService"}); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+			Object ps=Class.forName("javax.jnlp.ServiceManager").getMethod("lookup", String.class).invoke(null, "javax.jnlp.PersistenceService"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 			if (dlg.form.isStoreCredentials()){
 				
-				if (form==null) ps.getClass().getMethod("create",new Class[]{URL.class,long.class}).invoke(ps,new Object[]{serverUrl,Long.valueOf(1000)}); //$NON-NLS-1$
-				Object contents=ps.getClass().getMethod("get",new Class[]{URL.class}).invoke(ps,new Object[]{serverUrl}); //$NON-NLS-1$
-				ObjectOutputStream out=new ObjectOutputStream((OutputStream)Class.forName("javax.jnlp.FileContents").getMethod("getOutputStream",new Class[]{boolean.class}).invoke(contents,new Object[]{Boolean.TRUE})); //$NON-NLS-1$ //$NON-NLS-2$
+				if (form==null) ps.getClass().getMethod("create", URL.class, long.class).invoke(ps, serverUrl, 1000L); //$NON-NLS-1$
+				Object contents=ps.getClass().getMethod("get", URL.class).invoke(ps, serverUrl); //$NON-NLS-1$
+				ObjectOutputStream out=new ObjectOutputStream((OutputStream)Class.forName("javax.jnlp.FileContents").getMethod("getOutputStream", boolean.class).invoke(contents, Boolean.TRUE)); //$NON-NLS-1$ //$NON-NLS-2$
 				out.writeObject(dlg.form);
 				out.close();
-			} else if (form!=null) ps.getClass().getMethod("delete",new Class[]{URL.class}).invoke(ps,new Object[]{serverUrl}); //$NON-NLS-1$
+			} else if (form!=null) ps.getClass().getMethod("delete", URL.class).invoke(ps, serverUrl); //$NON-NLS-1$
 			
 		} catch (Exception e) {
 			logger.log(Level.FINE, "Failed to store login form in JNLP persistence service", e);
