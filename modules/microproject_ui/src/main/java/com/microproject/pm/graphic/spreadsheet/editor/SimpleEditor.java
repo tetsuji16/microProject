@@ -47,7 +47,7 @@ import com.microproject.field.FieldParseException;
  */
 public class SimpleEditor extends DefaultCellEditor   {
 	protected ChangeAwareTextField component;
-	protected Class clazz;
+	protected Class<?> clazz;
 	protected Format useFormat = null;
 	JTable cachedTable = null;
 	/**
@@ -59,11 +59,11 @@ public class SimpleEditor extends DefaultCellEditor   {
 		clazz = String.class;
 		
 	}
-	public SimpleEditor(Class clazz) {
+	public SimpleEditor(Class<?> clazz) {
 		this();
 		this.clazz=clazz;
 	}
-	public SimpleEditor(Class arg0, Format arg1) {
+	public SimpleEditor(Class<?> arg0, Format arg1) {
 		this(arg0);		
 		useFormat = arg1;
 	}

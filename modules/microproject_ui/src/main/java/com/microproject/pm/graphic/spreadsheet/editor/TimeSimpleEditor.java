@@ -43,7 +43,7 @@ import com.microproject.util.FlatUiSupport;
  */
 public class TimeSimpleEditor extends DefaultCellEditor {
 	protected ChangeAwareTextField component;
-	protected Class clazz;
+	protected Class<?> clazz;
 	protected Format useFormat = null;
 	/**
 	 * 
@@ -53,11 +53,11 @@ public class TimeSimpleEditor extends DefaultCellEditor {
 		component = (ChangeAwareTextField) getComponent();
 		clazz = String.class;
 	}
-	public TimeSimpleEditor(Class clazz) {
+	public TimeSimpleEditor(Class<?> clazz) {
 		this();
 		this.clazz=clazz;
 	}
-	public TimeSimpleEditor(Class arg0, Format arg1) {
+	public TimeSimpleEditor(Class<?> arg0, Format arg1) {
 		this(arg0);		
 		useFormat = arg1;
 	}
