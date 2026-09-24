@@ -614,3 +614,11 @@ merge-base). The node/dependency cache event queue producers create only
 boundaries. A focused test asserts event source, type, payload, and removal-then-
 insertion order. UI focused test passed; no user route or visual contract
 changed, so no Robot run was needed.
+
+PR #638 passed CI and merged as
+`97bb4815a3ee437974646f743647e1f53fdfd3ee`. Follow-up #639 starts directly
+from that latest `origin/master` (verified by merge-base). In the directly
+OpenProj-matched `NetworkRenderer.paint`, the dependency and graphic-node
+traversal locals are now `Iterator<?>`/`ListIterator<?>`; casts, iteration
+order, hit testing, and painting are unchanged. UI `compileJava` and diff check
+passed. No GUI route or visual contract changed, so no Robot run was needed.
