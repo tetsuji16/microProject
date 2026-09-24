@@ -419,7 +419,7 @@ public final class TaskSchedule implements Cloneable {
 		if (children == null)
 			return;
 		Object current;
-		Iterator i = children.iterator();
+		Iterator<?> i = children.iterator();
 		while (i.hasNext()) {
 			current = ((Node) i.next()).getImpl();
 			if (! (current instanceof Task))
@@ -441,7 +441,7 @@ public final class TaskSchedule implements Cloneable {
 		long begin = Long.MAX_VALUE;
 		long end = Long.MIN_VALUE;
 
-		Iterator i = children.iterator();
+		Iterator<?> i = children.iterator();
 		NormalTask child;
 		Object current;
 		TaskSchedule childSchedule;
