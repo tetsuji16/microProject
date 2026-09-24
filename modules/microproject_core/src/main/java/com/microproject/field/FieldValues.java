@@ -27,7 +27,6 @@ package com.microproject.field;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -43,18 +42,16 @@ import com.microproject.server.access.ErrorLogger;
 public class FieldValues {
 	private static final Logger logger = Logger.getLogger(FieldValues.class.getName());
 	
-	public static HashMap getValues(Collection fields, Object object) {
-		Iterator i = fields.iterator();
+	public static HashMap<String, Object> getValues(Collection<Field> fields, Object object) {
 		FieldContext context = null;
 		// LinkedHashMap preserves insertion order so the serialized POD is byte-stable
 		// across load/save round-trips (see issue #227: non-deterministic map order caused drift).
-		HashMap map = new LinkedHashMap();
-		while (i.hasNext()) {
-			Field field = (Field)i.next();
+		HashMap<String, Object> map = new LinkedHashMap<>();
+		for (Field field : fields) {
 			try {
 				Object value = field.getValue(object,context);
-				if (value != null && value instanceof Serializable)
-					map.put(field.getId(), value);
+				if (value instanceof Serializable serializable)
+					map.put(field.getId(), serializable);
 			} catch (Exception e) {
 				ErrorLogger.logOnce(field.getName(),"Problem getting field value in FieldValues",e); // a user had a strange java.lang.NumberFormatException: Infinite or NaN on a Money field
 			}
@@ -62,13 +59,11 @@ public class FieldValues {
 		return map;
 	}
 	
-	public static void setValuesFromFieldIds(Map map, Object object) {
+	public static void setValuesFromFieldIds(Map<String, ?> map, Object object) {
 		if (map == null)
 			return;
-		Iterator i = map.keySet().iterator();
 		FieldContext context = FieldContext.getNoDirtyInstance();
-		while (i.hasNext()) {
-			String fieldId = (String)i.next();
+		for (String fieldId : map.keySet()) {
 			Field f = Configuration.getFieldFromId(fieldId);
 			if (f==null) continue; //LC fix
 			try {
@@ -81,10 +76,8 @@ public class FieldValues {
 			}
 		}
 	}
-	public static void dump(Map map) {
-		Iterator i = map.keySet().iterator();
-		while (i.hasNext()) {
-			String fieldId = (String)i.next();
+	public static void dump(Map<String, ?> map) {
+		for (String fieldId : map.keySet()) {
 			logger.log(Level.INFO, "Field {0} value {1}", new Object[] {Configuration.getFieldFromId(fieldId), map.get(fieldId)});
 		}
 	}
