@@ -99,10 +99,10 @@ public abstract class NodeFilter extends CommonTransform implements Predicate{
     
     
 	//util
-	public ListIterator filteredListIterator(ListIterator i){
+	public ListIterator<?> filteredListIterator(ListIterator<?> i){
 		return IteratorUtils.filteredListIterator(i,this);
 	}
-	public Iterator filteredIterator(Iterator i){
+	public Iterator<?> filteredIterator(Iterator<?> i){
 		return IteratorUtils.filteredIterator(i,this);
 	}
 	
