@@ -1512,10 +1512,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		if (forward == this.forward)
 			return;
 		this.forward = forward;
-		Iterator i = tasks.iterator();
-		while (i.hasNext()) {
-			((Task)i.next()).setForward(forward);
-		}
+		for (Task task : tasks)
+			task.setForward(forward);
 		markAllTasksAsNeedingRecalculation(false);
 		schedulingAlgorithm.setForward(forward);
 		schedulingAlgorithm.reset();
@@ -1544,11 +1542,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 
 	private void repairTasks() {
-		Iterator i = tasks.iterator();
-		NormalTask task;
 		int repairedAssignments = 0;
-		while (i.hasNext()) {
-			task = (NormalTask)i.next();
+		for (Task candidate : tasks) {
+			NormalTask task = (NormalTask) candidate;
 			if (task.validateConstraints())
 				addRepaired(task);
 			if (task.getAssignments().isEmpty()) {

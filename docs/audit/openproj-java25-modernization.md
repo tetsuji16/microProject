@@ -1007,3 +1007,10 @@ Follow-up #681 starts from the latest integrated `origin/master` after #680
 for over the existing `LinkedList<Task>` field. Traversal order and per-task
 dispatch remain unchanged. Full core tests, application compilation, and diff
 check passed.
+
+Follow-up #682 starts from the latest integrated `origin/master` after #681
+(HEAD and merge-base verified). Replaced raw task iterators in OpenProj-origin
+`Project.setForward` and `repairTasks` with enhanced-for over the existing
+`LinkedList<Task>`, retaining the `NormalTask` cast and repair behavior.
+Forward/reverse schedule compatibility is covered by the full core suite;
+application compilation and diff check passed.
