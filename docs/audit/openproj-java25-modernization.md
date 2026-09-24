@@ -550,3 +550,12 @@ PR #632 passed CI and merged as recorded above. Follow-up #633 starts from
 latest `origin/master` at `9805ecaf2ab4753bd860172cb2f1742edd890b24` (verified
 by merge-base); focused `NodeListTransfertActionTest` passed after running the
 Swing component setup/assertions on the EDT.
+
+PR #633 passed CI and merged as
+`2e5d2817e43f1642b42741f20b9ac7b22052c49c`. Follow-up #634 starts directly
+from this latest `origin/master` (verified by merge-base). The provenance
+ledger identifies `NetworkUI` as normalized content matching OpenProj; its
+`getNodeAt` loop now declares the iterator as `ListIterator<?>`, preserving
+the existing traversal order, cast behavior, hit test, and return value. UI
+`compileJava` passed. This is behavior-preserving Swing source modernization;
+no GUI route or visual contract changed, so no Robot run was needed.
