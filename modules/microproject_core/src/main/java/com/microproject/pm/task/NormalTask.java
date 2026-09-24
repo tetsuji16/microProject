@@ -1622,10 +1622,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	private void updateAssignmentPercentComplete(double percentComplete) {
 		final double pc = percentComplete;
-		Iterator i = getAssignments().iterator();
-		while (i.hasNext()) {
-			((Assignment) i.next()).setPercentComplete(pc);
-		}
+		for (Association association : getAssignments())
+			((Assignment) association).setPercentComplete(pc);
 	}
 
 	public double getPercentWorkComplete() {

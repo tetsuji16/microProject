@@ -85,6 +85,9 @@ are recorded below. Progress is summarized in
 - PR [#621](https://github.com/tetsuji16/ProjectLibre/pull/621) merged as
   `42cfaeffda1a29d4e006b274fe7f41e5ca8889a0` after full CI success; modernized
   simple assignment iteration and added focused regressions.
+- PR [#622](https://github.com/tetsuji16/ProjectLibre/pull/622) merged as
+  `a113f4b40a254f2de597179c08f041acb9f3c2dc` after full CI success; modernized
+  four more assignment traversals and added an earliest-stop regression.
 
 ## Inventory caveat
 
@@ -140,6 +143,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | WBS child caches | `Task.getWbsChildrenNodes`, `setWbsChildrenNodes`, `getWbsChildrenTasks` | PR #619 typed the node cache as `Collection<Node>`, exposed returned implementations as `List<Object>` (matching `NodeList`), and removed a redundant cast; caller/test setup search found cached entries are node wrappers. These exact raw boundaries occur in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Task.java#L2465-L2486)). |
 | Summary-task WBS traversals | `NormalTask.buildReverseQuery`, `updateEstimatedStatus`, `assignActualDatesFromChildren`, `getEarliestStop` | Typed child-node collections and replaced raw iterator/cast loops with enhanced-for and pattern matching, retaining traversal order and the existing NormalTask/Schedule filters. Each exact raw loop is present in the OpenProj baseline `d2fa3c20a`; `:microproject_core:test` passed. |
 | Assignment iteration | `NormalTask.isAssignedToMe`, interval `setWork`, `getMostLoadedAssignmentUnits`, `adjustRemainingDuration`, `adjustRemainingUnits`, `adjustRemainingWork`, `moveRemainingToDate`, `getEarliestStop` | Replaced raw `Iterator`/cast loops with enhanced-for traversal over the already typed `AssociationList` iterator, retaining assignment casts, traversal order, and the labor-only check. No scheduling rule or mutation semantics changed. Focused tests create an actual labor assignment and verify the most-loaded-units query, and verify a leaf task's earliest stop against its assignment. |
+| Assignment progress propagation | `NormalTask.updateAssignmentPercentComplete` | Replaced the raw iterator and per-element cast-after-next with enhanced-for traversal over the existing typed association iterator. The existing progress synchronization test exercises the task-to-assignment update and remains green. |
 | Project root-node query | `Project.getRootNodes` | PR #618 typed `List<Task>` input and `List<Node>` output and used enhanced-for. The implementation corresponds to the OpenProj-derived source excerpt ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Project.java#L3420-L3427)); no production callers were found, so a focused contract test was added. |
 | Filter iterator API | `NodeFilter.filteredListIterator` / `filteredIterator` | In progress in PR #617: type the input and output iterator references as wildcards; Apache Commons raw API remains at the adapter edge. Corresponding raw methods are present in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/transform/filtering/NodeFilter.java#L2088-L2095)). |
 | CSS style hierarchy contract | `HasCssStyle.getHierarchy` | PR #616 changed the raw collection return to `Collection<?>`, preserving erasure and leaving the heterogeneous element contract unspecified rather than guessing a concrete type. The interface is a normalized-content match to OpenProj; caller search found the `TimesheetAssignment` implementation and no active consumer of this method. |
@@ -455,8 +459,8 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #622 is based directly on `origin/master` at
-`42cfaeffda1a29d4e006b274fe7f41e5ca8889a0` (verified by merge-base). The
-complete core test suite and focused `NormalTaskPercentCompleteTest` passed for
-this batch. Only core iteration code changed; no GUI route or visual surface
-changed, so no GUI/Robot test is planned.
+Latest follow-up #623 is based directly on `origin/master` at
+`a113f4b40a254f2de597179c08f041acb9f3c2dc` (verified by merge-base). The
+focused progress suite passed; the complete core test suite is running. Only
+core iteration code changed; no GUI route or visual surface changed, so no
+GUI/Robot test is planned.
