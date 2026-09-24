@@ -76,6 +76,9 @@ are recorded below. Progress is summarized in
 - PR [#618](https://github.com/tetsuji16/ProjectLibre/pull/618) merged as
   `2b177c667a48703c668bc9d4a813cf470305268b` after full CI success; typed the
   OpenProj-derived project root-node query.
+- PR [#619](https://github.com/tetsuji16/ProjectLibre/pull/619) merged as
+  `a629d8d2ea6057b314c2b3d6147bbe2ad09aa508` after full CI success; typed the
+  OpenProj-derived WBS child cache and implementation-list conversion.
 
 ## Inventory caveat
 
@@ -128,7 +131,8 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 
 | Area | Classes / responsibility | Outcome |
 |---|---|---|
-| WBS child caches | `Task.getWbsChildrenNodes`, `setWbsChildrenNodes`, `getWbsChildrenTasks` | In progress in PR #619: type the node cache as `Collection<Node>`, expose returned implementations as `List<Object>` (matching `NodeList`), and remove a redundant cast; caller/test setup search found cached entries are node wrappers. These exact raw boundaries occur in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Task.java#L2465-L2486)). |
+| WBS child caches | `Task.getWbsChildrenNodes`, `setWbsChildrenNodes`, `getWbsChildrenTasks` | PR #619 typed the node cache as `Collection<Node>`, exposed returned implementations as `List<Object>` (matching `NodeList`), and removed a redundant cast; caller/test setup search found cached entries are node wrappers. These exact raw boundaries occur in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Task.java#L2465-L2486)). |
+| Summary-task WBS traversals | `NormalTask.buildReverseQuery`, `updateEstimatedStatus`, `assignActualDatesFromChildren`, `getEarliestStop` | Typed child-node collections and replaced raw iterator/cast loops with enhanced-for and pattern matching, retaining traversal order and the existing NormalTask/Schedule filters. Each exact raw loop is present in the OpenProj baseline `d2fa3c20a`; `:microproject_core:test` passed. |
 | Project root-node query | `Project.getRootNodes` | PR #618 typed `List<Task>` input and `List<Node>` output and used enhanced-for. The implementation corresponds to the OpenProj-derived source excerpt ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Project.java#L3420-L3427)); no production callers were found, so a focused contract test was added. |
 | Filter iterator API | `NodeFilter.filteredListIterator` / `filteredIterator` | In progress in PR #617: type the input and output iterator references as wildcards; Apache Commons raw API remains at the adapter edge. Corresponding raw methods are present in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/transform/filtering/NodeFilter.java#L2088-L2095)). |
 | CSS style hierarchy contract | `HasCssStyle.getHierarchy` | PR #616 changed the raw collection return to `Collection<?>`, preserving erasure and leaving the heterogeneous element contract unspecified rather than guessing a concrete type. The interface is a normalized-content match to OpenProj; caller search found the `TimesheetAssignment` implementation and no active consumer of this method. |
@@ -444,7 +448,7 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #619 is based directly on `origin/master` at
-`2b177c667a48703c668bc9d4a813cf470305268b` (verified by merge-base). The
-focused hierarchy-query tests and core/UI verification are pending. No GUI
-route or visual surface changed, so no GUI/Robot test is planned.
+Latest follow-up #620 is based directly on `origin/master` at
+`a629d8d2ea6057b314c2b3d6147bbe2ad09aa508` (verified by merge-base). The
+complete core test suite passed. Only core hierarchy traversal code changed;
+no GUI route or visual surface changed, so no GUI/Robot test is planned.
