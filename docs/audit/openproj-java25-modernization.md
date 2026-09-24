@@ -833,3 +833,10 @@ conversion target and pass it to `FieldConverter`, whose API already accepts
 `Class<?>`. Typed both editor fields and constructor parameters while retaining
 the same constructor erasures and conversion behavior. Focused editor tests,
 downstream compilation, and diff check passed.
+
+Follow-up #662 starts from the latest integrated `origin/master` after #661
+(merge-base verified). `DistributionConverter` loads an optional delegate class
+by configured name and uses it only to resolve extension methods. Typed the
+protected delegate-class metadata as `Class<?>`; reflective extension lookup,
+configuration, and erased field descriptor remain unchanged. Full core tests,
+downstream compilation, and diff check passed.
