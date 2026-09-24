@@ -36,7 +36,7 @@ import java.util.Set;
 /**
  * abastract Base class for selection lists
  */
-public abstract class Select implements Map {
+public abstract class Select implements Map<Object, Object> {
 
 	private String name;
 	private boolean allowNull = false;
@@ -68,15 +68,16 @@ public abstract class Select implements Map {
 		return resultWithNull;
 	}
 
-	public abstract List getValueListWithoutNull();
+	public abstract List<Object> getValueListWithoutNull();
 	
-	public List getValueList() {
-		List result = getValueListWithoutNull();
+	public List<Object> getValueList() {
+		List<Object> result = getValueListWithoutNull();
 		if (result == null || !allowNull)
 			return result;
 		// if a null element should be added, add it at front
-		List resultWithNull=new ArrayList(result.size()+1);
+		List<Object> resultWithNull=new ArrayList<>(result.size()+1);
 		resultWithNull.add(null);
+		resultWithNull.addAll(result);
 		return resultWithNull;
 	}
 
@@ -146,18 +147,18 @@ public abstract class Select implements Map {
 		return false;
 	}
 
-	public Collection values() {
+	public Collection<Object> values() {
 		return null;
 	}
 
-	public void putAll(Map arg0) {
+	public void putAll(Map<?, ?> arg0) {
 	}
 
-	public Set entrySet() {
+	public Set<Map.Entry<Object, Object>> entrySet() {
 		return null;
 	}
 
-	public Set keySet() {
+	public Set<Object> keySet() {
 		return null;
 	}
 
@@ -188,15 +189,15 @@ public abstract class Select implements Map {
 	public void setAllowNull(boolean allowNull) {
 		this.allowNull = allowNull;
 	}
-	public static String toConfigurationXMLOptions(LinkedHashMap map, String keyPrefix) {
+	public static String toConfigurationXMLOptions(LinkedHashMap<String, String> map, String keyPrefix) {
 //		MapIterator i = map.i();
-		Iterator i = map.keySet().iterator();
+		Iterator<String> i = map.keySet().iterator();
 		StringBuilder buf = new StringBuilder();
-		HashSet duplicateSet = new HashSet(); // don't allow duplicate keys
+		HashSet<String> duplicateSet = new HashSet<>(); // don't allow duplicate keys
 		while (i.hasNext()) {
-			String key = (String) i.next();
+			String key = i.next();
 			// notion of key and value is switched
-			String value = (String)map.get(key);
+			String value = map.get(key);
 			int dupCount = 2;
 			String newKey = key;
 			while (duplicateSet.contains(newKey)) {

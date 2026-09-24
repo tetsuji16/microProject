@@ -702,3 +702,14 @@ private fixed reflection signature arrays final. Updated the reports
 Erased descriptors remain unchanged. Full core tests and application,
 exchange, reports, and UI compilation passed. No GUI route or visual contract
 changed.
+
+Follow-up #647 starts directly from the latest `origin/master` (verified by
+merge-base). `Select` and its active `StaticSelect`/`DynamicSelect` subclasses
+exposed raw list/map types although the options are represented as Objects and
+the configuration XML helper specifically consumes string keys and values.
+Added those generic boundaries without changing erased method descriptors.
+Reviewing the null-allowed option-list path exposed a functional defect: it
+created a list with a leading null but omitted every real option. The method
+now copies the original options after null, with a focused order regression.
+Full core tests and application/exchange/reports/UI compilation passed. No GUI
+route or persisted format contract changed.
