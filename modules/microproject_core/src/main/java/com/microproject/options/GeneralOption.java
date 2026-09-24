@@ -28,11 +28,10 @@ package com.microproject.options;
  * Corresponds to General tab on options dialog in MSProject
  */
 public class GeneralOption {
-	private static GeneralOption instance = null;
+	private static final GeneralOption INSTANCE = new GeneralOption();
+
 	public static GeneralOption getInstance() {
-		if (instance == null)
-			instance = new GeneralOption();
-		return instance;
+		return INSTANCE;
 	}
 
 	/**
