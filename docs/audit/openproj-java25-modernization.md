@@ -942,3 +942,11 @@ contract. Kept the `Dependency`/`Task` conversions because `Dependency.getTask`
 returns the broader `HasDependencies` type; removing that cast was rejected
 after the compiler exposed the mismatch. Focused critical-path scheduling
 compatibility tests and diff check passed.
+
+Follow-up #675 starts from the latest integrated `origin/master` after #674
+(HEAD and merge-base verified). In `Task.dependsOn`, converted the two
+OpenProj-origin raw predecessor iterators to enhanced-for over the existing
+typed `AssociationList`. Kept the `Association` to `Dependency` cast because
+the list contract intentionally exposes the broader association type and the
+prior code had the same runtime check behavior. The full core test suite and
+diff check passed; no user-visible UI route changed.
