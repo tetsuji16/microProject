@@ -926,3 +926,10 @@ and runnable execution order are unchanged. Focused job critical-section and
 exception-handler tests plus application/exchange/reports/UI downstream
 compilation passed. This is source-only core work, so no GUI/Robot repetition
 was needed.
+
+Follow-up #673 starts from the latest integrated `origin/master` after #672
+(HEAD and merge-base verified). Typed the OpenProj-origin iterator over
+`PredecessorTaskList.TaskReference` in critical-path sentinel initialization;
+the iterator comes from an already-typed `ListIterator` API. Removed only its
+redundant cast; order and sentinel dependency decisions are unchanged. Focused
+critical-path scheduling compatibility tests and diff check passed.
