@@ -786,3 +786,12 @@ merge-base). The active Digester configuration readers in `Configuration` and
 `Class[]` arrays to `Class<?>[]` without altering XML paths, method names,
 parameter order, or runtime descriptors. Full core tests,
 application/exchange/reports/UI compilation, and diff check passed.
+
+Follow-up #656 corrects a false failure in the existing
+`ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnchored` regression.
+The test had compared against the requested initial viewport x-coordinate
+without reading back Swing's actual position after layout/scroll-range
+adjustment. It now measures the visible left date from the observed pre-change
+viewport position. The focused test passes; no GUI product behavior changed and
+no Robot rerun is warranted. PR #655's full-CI rerun is still required after
+this fixture correction is integrated.

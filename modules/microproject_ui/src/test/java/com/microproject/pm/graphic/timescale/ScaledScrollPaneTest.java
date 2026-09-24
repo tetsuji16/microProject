@@ -86,18 +86,25 @@ class ScaledScrollPaneTest {
 		JViewport viewport = pane.getViewport();
 		viewport.setViewSize(new Dimension(4_000, 300));
 		viewport.setViewPosition(new Point(initialX, 0));
-		double leftDateBefore = coord.toTime(initialX);
+		int viewportXBefore = viewport.getViewPosition().x;
+		double leftDateBefore = coord.toTime(viewportXBefore);
+		long originBefore = coord.getOrigin();
 
 			// This is the same origin change produced when an edit moves the
 			// earliest scheduled task, and also exercises the leading-edge path.
 		coord.extendViewBefore(10);
 
 		double leftDateAfter = coord.toTime(viewport.getViewPosition().x);
-		double onePixel = Math.abs(coord.toTime(initialX + 1) - coord.toTime(initialX));
+		double onePixel = Math.abs(coord.toTime(viewportXBefore + 1) - coord.toTime(viewportXBefore));
 		assertTrue(Math.abs(leftDateAfter - leftDateBefore) <= onePixel,
 			"an origin change must preserve the visible left date (before="
 					+ leftDateBefore + ", after=" + leftDateAfter + ", x="
-					+ viewport.getViewPosition().x + ")");
+					+ viewport.getViewPosition().x + ", viewportXBefore=" + viewportXBefore
+					+ ", originBefore=" + originBefore
+					+ ", originAfter=" + coord.getOrigin() + ", scaleOffsetBefore="
+					+ coord.getTimescaleManager().getScale().toTime(initialX)
+					+ ", scaleOffsetAfter=" + coord.getTimescaleManager().getScale()
+							.toTime(viewport.getViewPosition().x) + ")");
 	}
 
 	private static final class TestScaledComponent extends JPanel implements ScaledComponent {
