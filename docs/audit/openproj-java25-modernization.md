@@ -64,6 +64,9 @@ are recorded below. Progress is summarized in
 - PR [#614](https://github.com/tetsuji16/ProjectLibre/pull/614) merged as
   `c437fe9551906c1ef976c222510a5fb0472aa3fe` after full CI success; corrected
   attribution and excluded adjacent fork-origin work from issue progress.
+- PR [#615](https://github.com/tetsuji16/ProjectLibre/pull/615) merged as
+  `d0d7e3c1be4d243f51a0deb6e98b0af7785a24b8` after full CI success; safely
+  initialized the OpenProj-matching general-options singleton.
 
 ## Inventory caveat
 
@@ -116,6 +119,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 
 | Area | Classes / responsibility | Outcome |
 |---|---|---|
+| CSS style hierarchy contract | `HasCssStyle.getHierarchy` | In progress in PR #616: changed the raw collection return to `Collection<?>`, preserving erasure and leaving the heterogeneous element contract unspecified rather than guessing a concrete type. The interface is a normalized-content match to OpenProj; caller search found the `TimesheetAssignment` implementation and no active consumer of this method. |
 | General options singleton | `GeneralOption.getInstance` | In progress in PR #615: replace racy lazy initialization with class-initialized `static final`; public construction and option defaults remain unchanged. The ledger marks the file's normalized contents as matching the OpenProj baseline. |
 | Hierarchy indent traversal | `MutableNodeHierarchy.internalIndent` | PR #613 typed its selected-node and temporary void-node lists and iterators without changing traversal order. The corresponding raw traversal appears in the ProjectLibre mirror's OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/hierarchy/MutableNodeHierarchy.java#L2546-L2635)); this comparison confirms code correspondence, not a legal conclusion. |
 | Calendar intervals | `WorkDay`, `WorkRange`, `WorkingHours`, `WorkWeek`, `WorkingCalendar`, `CalendarService`, `CalendarDefinition`, `Interval`, `CalendarEvent` | Typed collection / clone / comparison modernization; removed the unused calendar-cache list; fixed incorrect working-day intersection, lost overtime state in a range constructor, long-comparison overflow, equality asymmetry, and a strong-reference calendar-cache registry leak. |
@@ -428,7 +432,7 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #615 is based directly on `origin/master` at
-`c437fe9551906c1ef976c222510a5fb0472aa3fe` (verified by merge-base). A focused
-`GeneralOptionTest` and full core test run are pending. No GUI route or visual
-surface changed, so no GUI/Robot test is planned.
+Latest follow-up #616 is based directly on `origin/master` at
+`d0d7e3c1be4d243f51a0deb6e98b0af7785a24b8` (verified by merge-base). Core tests
+and UI compilation are pending. No GUI route or visual surface changed, so no
+GUI/Robot test is planned.

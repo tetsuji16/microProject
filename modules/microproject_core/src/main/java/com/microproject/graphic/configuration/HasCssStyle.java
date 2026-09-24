@@ -28,5 +28,5 @@ import java.util.Collection;
 
 public interface HasCssStyle {
 	String getCssStyleClass();
-	Collection getHierarchy();
+	Collection<?> getHierarchy();
 }
