@@ -43,7 +43,7 @@ public class Init {
 		FieldConverter.getInstance();
 		if (!Environment.getStandAlone()){
 			try {
-				Class.forName("org.codehaus.groovy.control.ResolveVisitor").getMethod("setClassResolverFilter", new Class[]{ClassResolverFilter.class}).invoke(null,new Object[]{ScriptConfiguration.getInstance()});
+				Class.forName("org.codehaus.groovy.control.ResolveVisitor").getMethod("setClassResolverFilter", ClassResolverFilter.class).invoke(null, ScriptConfiguration.getInstance());
 			} catch (Exception e) {
 				logger.log(Level.FINE, "Groovy resolver filtering hook is unavailable", e);
 			}

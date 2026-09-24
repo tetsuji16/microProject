@@ -102,7 +102,7 @@ public class Alert {
 
 	public static String renameProject(final String name,Set projectNames,boolean saveAs){
 		try {
-			return (String)Class.forName(GRAPHIC_MANAGER).getMethod("doRenameProjectDialog",new Class[]{String.class,Set.class,boolean.class}).invoke(getGraphicManager(),new Object[]{name,projectNames,saveAs});
+			return (String)Class.forName(GRAPHIC_MANAGER).getMethod("doRenameProjectDialog", String.class, Set.class, boolean.class).invoke(getGraphicManager(), name, projectNames, saveAs);
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to open rename project dialog", e);
 			return null;
@@ -157,7 +157,7 @@ public class Alert {
 	}
 	public static void setGraphicManagerMethod(String method,Object value) {
 		try {
-			Class.forName(GRAPHIC_MANAGER).getMethod(method,new Class[] {Object.class}).invoke(null,new Object[] {value});
+			Class.forName(GRAPHIC_MANAGER).getMethod(method, Object.class).invoke(null, value);
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to invoke GraphicManager setter: " + method, e);
 		}

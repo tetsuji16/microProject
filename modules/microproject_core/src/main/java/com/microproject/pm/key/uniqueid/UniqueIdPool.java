@@ -143,7 +143,7 @@ public class UniqueIdPool {
 	protected void makeServerReservation(final int count,Session session) throws Exception{
 		logger.fine("ID reservation...");
 		lastIdReservation=System.currentTimeMillis();
-		MutableInterval interval=(MutableInterval)SessionFactory.call(session,"bookUIDInterval",new Class[]{int.class},new Object[]{count});
+		MutableInterval interval=(MutableInterval)SessionFactory.call(session,"bookUIDInterval",new Class<?>[]{int.class},new Object[]{count});
 		synchronized(serverIntervals){serverIntervals.add(interval);}
 		logger.fine("ID reservation, new pool: " + dump());
 	}
