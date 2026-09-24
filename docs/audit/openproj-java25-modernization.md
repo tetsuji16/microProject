@@ -966,3 +966,11 @@ loops in `TaskSnapshotBackup` to enhanced-for over the existing
 order. In restore, the saved detail iterator remains paired one-for-one with
 that ordered assignment traversal. Schedule backup/undo focused tests and diff
 check passed.
+
+Follow-up #678 starts from the latest integrated `origin/master` after #677
+(HEAD and merge-base verified). Modernized OpenProj-origin `WorkingCalendar.dump`
+to build diagnostic text with `StringBuilder` and iterate its typed
+`TreeSet<WorkDay>` directly. Added a focused assertion for header, all weekday
+entries, and exception entries. Existing concatenation format and exception
+ordering are preserved; `WorkingCalendarTest` and `CalendarDefinitionTest`
+passed, as did diff check.

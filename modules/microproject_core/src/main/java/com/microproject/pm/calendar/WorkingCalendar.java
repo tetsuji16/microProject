@@ -34,7 +34,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -500,17 +499,15 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	}
 
 	public String dump() {
-		String result = "Calendar " + getName() + "\n";
-		result += "weekdays\n";
+		StringBuilder result = new StringBuilder("Calendar ").append(getName()).append("\nweekdays\n");
 		for (int i = 0; i < 7; i++) {
-			result += "day[" + i +"]" + getWeekDay(i) +  "\n";
+			result.append("day[").append(i).append("]").append(getWeekDay(i)).append("\n");
 		}
-		result += "There are " + differences.dayExceptions + " exceptions\n";
-		Iterator i = differences.dayExceptions.iterator();
-		while (i.hasNext()) {
-			result += "exception" + i.next().toString();
+		result.append("There are ").append(differences.dayExceptions).append(" exceptions\n");
+		for (WorkDay exception : differences.dayExceptions) {
+			result.append("exception").append(exception.toString());
 		}
-		return result;
+		return result.toString();
 
 	}
 
