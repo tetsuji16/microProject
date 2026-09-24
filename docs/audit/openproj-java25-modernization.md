@@ -651,3 +651,22 @@ nodes (including WBS-cache rebuilds). Narrowed the API and filtered facade to
 Updated hierarchy integration assertions to use the declared element type.
 Full core tests and application/exchange/UI/reports compilation passed. No GUI
 route or visual contract changed, so no Robot run was needed.
+
+Follow-up #643 starts directly from the latest `origin/master` (verified by
+merge-base). `SummaryVisitorFactory.getInstance` is active through
+`Field.getSummaryVisitor`; the factory source matches the OpenProj baseline for
+its raw `Class` parameters. Both class parameters are now `Class<?>`, and the
+factory's summary-name bidirectional maps use `BidiMap<String, Integer>` with
+typed entry construction. The public `getMap` method currently has no in-repo
+caller, so it was retained rather than treated as dead code. A focused test
+checks the Boolean summary reverse lookup and immutability. The focused
+`SummaryVisitorFactoryTest` and application/UI/reports compilation passed. No
+GUI route or visual contract changed, so no Robot run was needed.
+
+Review note: a proposed generic `PredicatedNodeFilterIterator<T>` migration was
+rejected after compilation showed that the active `GeneralFilteredIterator`
+inherits Apache Commons Collections' raw `FilterIterator` and cannot also
+implement `Iterator<Object>` without resolving the superclass boundary. The
+experiment was reverted; a future change would need to replace or wrap that
+adapter and preserve its filtering/removal semantics, rather than merely
+parameterize the marker interface.

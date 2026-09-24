@@ -26,6 +26,8 @@ package com.microproject.grouping.core.summaries;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +41,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreeNode;
 
+import org.apache.commons.collections4.BidiMap;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.document.Document;
@@ -50,6 +53,15 @@ import com.microproject.grouping.core.NodeVisitor;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 
 class SummaryVisitorFactoryTest {
+	@Test
+	void summaryMapsExposeTypedImmutableEntries() {
+		BidiMap<String, Integer> flags = SummaryVisitorFactory.getMap(Boolean.class, false);
+
+		assertNotNull(flags.getKey(SummaryNames.OR));
+		assertThrows(UnsupportedOperationException.class,
+			() -> flags.put("custom", Integer.valueOf(99)));
+	}
+
 	@Test
 	void thisSummaryUsesCurrentNodeValueEvenForSummaryRows() {
 		TestNode parent = new TestNode("parent");
