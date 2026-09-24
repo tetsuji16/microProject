@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.timescale;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -39,14 +38,14 @@ public class TimeScaleManager {
 	private static final int MIN_ZOOM_IN_SCALE_INDEX = 2;
 	
 	protected int currentScaleIndex=-1;
-	protected List scales;
+	protected List<TimeScale> scales;
 	protected int defaultIndex;
 	protected boolean normalWidth;
 	/**
 	 * 
 	 */
 	public TimeScaleManager() {
-		scales=new LinkedList();
+		scales = new LinkedList<>();
 		normalWidth=true;
 	}
 	
@@ -58,12 +57,12 @@ public class TimeScaleManager {
 	 * @return Returns the scale.
 	 */
 	public TimeScale getScale() {
-		return (TimeScale)scales.get(getCurrentScaleIndex());
+		return scales.get(getCurrentScaleIndex());
 	}
 
 	/** Returns the configured scale at a zero-based position. */
 	public TimeScale getScale(int index) {
-		return (TimeScale) scales.get(index);
+		return scales.get(index);
 	}
 	
 	public int getMinWidth() {
@@ -99,9 +98,8 @@ public class TimeScaleManager {
     public boolean toggleMinWidth(boolean normal){
     	if (normal!=normalWidth){
     		normalWidth=normal;
-    		for (Iterator i=scales.iterator();i.hasNext();){
-    			TimeScale scale=(TimeScale)i.next();
-    			scale.toggleWidth(normal);
+			for (TimeScale scale : scales) {
+				scale.toggleWidth(normal);
     		}
     		return true;
     	}else return false;
@@ -148,9 +146,8 @@ public class TimeScaleManager {
 		TimeScaleManager ref=Configuration.getInstance().getTimeScales();
 		tsManager.defaultIndex=ref.defaultIndex;
 		tsManager.currentScaleIndex=ref.currentScaleIndex;
-		for (Iterator i=ref.scales.iterator();i.hasNext();){
-			tsManager.scales.add(((TimeScale)i.next()).clone());
-		}
+		for (TimeScale scale : ref.scales)
+			tsManager.scales.add((TimeScale) scale.clone());
 		return tsManager;
 	}
 	

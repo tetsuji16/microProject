@@ -94,6 +94,9 @@ are recorded below. Progress is summarized in
 - PR [#624](https://github.com/tetsuji16/ProjectLibre/pull/624) merged as
   `67ee7014cac5bd0b2c4c9181a847eb9ca378bf69` after full CI success; modernized
   task resume iteration and added a focused setter/query regression.
+- PR [#625](https://github.com/tetsuji16/ProjectLibre/pull/625) merged as
+  `d140852a35c8bca3d69c86fbf766a65e6581c950` after full CI success; typed the
+  interval-value table and verified core, downstream compilation, and POD round-trip.
 
 ## Inventory caveat
 
@@ -152,6 +155,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Assignment progress propagation | `NormalTask.updateAssignmentPercentComplete` | Replaced the raw iterator and per-element cast-after-next with enhanced-for traversal over the existing typed association iterator. The existing progress synchronization test exercises the task-to-assignment update and remains green. |
 | Assignment resume access | `NormalTask.getResume`, `setResume` | Replaced paired raw iterator loops with enhanced-for traversal over the typed association iterator. A focused setter/query test verifies task resume aggregation agrees with its assignment. |
 | Interval-value table traversal | `ValueObjectForIntervalTable` | Typed the internal `ArrayList<ValueObjectForInterval>` and its list view, replaced raw iterator/casts with enhanced-for and typed indexed access, and modernized clone ownership traversal. Kept raw `getValueObjects`/serialization constructor descriptors and serialized ArrayList contents as compatibility adapters. Added bounds/clone-rebinding regression coverage; core tests, application/exchange/UI/reports compilation, and `PodRoundTripTest` (including the resource-calendar round-trip) passed. The transformed traversal and clone hunks correspond to baseline `d2fa3c20a`; unrelated post-fork `findActive` code is not claimed as OpenProj work. |
+| Time-scale collections | `TimeScaleManager` | Typed the configured scale list, removed casts/raw iterator loops, and used enhanced-for for width toggling and defensive instance cloning. Config-Digester entry points and the collection implementation/order are unchanged. Added tests for all-scale width toggling and independent cloned scales. The exact raw loops occur in baseline `d2fa3c20a`; downstream UI compilation checks consumers. |
 | Project root-node query | `Project.getRootNodes` | PR #618 typed `List<Task>` input and `List<Node>` output and used enhanced-for. The implementation corresponds to the OpenProj-derived source excerpt ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Project.java#L3420-L3427)); no production callers were found, so a focused contract test was added. |
 | Filter iterator API | `NodeFilter.filteredListIterator` / `filteredIterator` | In progress in PR #617: type the input and output iterator references as wildcards; Apache Commons raw API remains at the adapter edge. Corresponding raw methods are present in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/transform/filtering/NodeFilter.java#L2088-L2095)). |
 | CSS style hierarchy contract | `HasCssStyle.getHierarchy` | PR #616 changed the raw collection return to `Collection<?>`, preserving erasure and leaving the heterogeneous element contract unspecified rather than guessing a concrete type. The interface is a normalized-content match to OpenProj; caller search found the `TimesheetAssignment` implementation and no active consumer of this method. |
@@ -467,8 +471,7 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #625 is based directly on `origin/master` at
-`67ee7014cac5bd0b2c4c9181a847eb9ca378bf69` (verified by merge-base). The
-focused interval-table test, complete core suite, application/exchange/UI/
-reports compilation, and `PodRoundTripTest` passed. The custom serialization
-bridge is unchanged. No GUI route or visual surface changed.
+Latest follow-up #626 is based directly on `origin/master` at
+`d140852a35c8bca3d69c86fbf766a65e6581c950` (verified by merge-base). The
+focused `TimeScaleManagerTest`, complete core suite, and application/exchange/
+UI/reports compilation passed. No GUI route or visual surface changed.
