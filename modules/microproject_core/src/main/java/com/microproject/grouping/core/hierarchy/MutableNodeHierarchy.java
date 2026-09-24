@@ -647,19 +647,19 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
         //exclude Assignments and VoidNodes
         if (deltaLevel>0){
-	        for (ListIterator<Node> i=nodesToChange.listIterator();i.hasNext();){
-	        	if (!internalIndent(i.next(),deltaLevel,actionType&NodeModel.UNDO,modifiedVoids))
+		for (ListIterator<Node> i=nodesToChange.listIterator();i.hasNext();){
+			if (!internalIndent(i.next(),deltaLevel,actionType&NodeModel.UNDO,modifiedVoids))
 	        		i.remove();
-	        	for (Iterator<Node> j=modifiedVoids.iterator();j.hasNext();){
+			for (Iterator<Node> j=modifiedVoids.iterator();j.hasNext();){
 	        		i.add(j.next());
 	        	}
 	        	modifiedVoids.clear();
 	        }
         }else{
-	        for (ListIterator<Node> i=nodesToChange.listIterator(nodesToChange.size());i.hasPrevious();){
-	        	if (!internalIndent(i.previous(),deltaLevel,actionType&NodeModel.UNDO,modifiedVoids))
+		for (ListIterator<Node> i=nodesToChange.listIterator(nodesToChange.size());i.hasPrevious();){
+			if (!internalIndent(i.previous(),deltaLevel,actionType&NodeModel.UNDO,modifiedVoids))
 	        		i.remove();
-	        	for (Iterator<Node> j=modifiedVoids.iterator();j.hasNext();){
+			for (Iterator<Node> j=modifiedVoids.iterator();j.hasNext();){
 	        		i.add(j.next());
 	        	}
 	        	modifiedVoids.clear();
@@ -685,7 +685,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         	Node sibling;
         	Node previous=null;
 
-        	for (ListIterator<Node> i=parent.childrenIterator(index);i.hasPrevious();){
+			for (ListIterator<Node> i=parent.childrenIterator(index);i.hasPrevious();){
         			sibling=(Node)i.previous();
         			if (node.canBeChildOf(sibling)){
         				previous=sibling;
@@ -698,8 +698,8 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
         			return false;
         		}
-        	for (ListIterator<Node> i=modifiedVoids.listIterator(modifiedVoids.size());i.hasPrevious();){
-        		previous.add(i.previous());
+			for (ListIterator<Node> i=modifiedVoids.listIterator(modifiedVoids.size());i.hasPrevious();){
+				previous.add(i.previous());
         	}
         		previous.add(node);
         		if (isEvent(actionType)) fireNodesChanged(this,new Node[]{node});
@@ -714,7 +714,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
        		int index=parent.getIndex(node);
        		if (index>0){
        			Node sibling;
-            for (ListIterator<Node> i=parent.childrenIterator(index);i.hasPrevious();){
+			for (ListIterator<Node> i=parent.childrenIterator(index);i.hasPrevious();){
             		sibling=(Node)i.previous();
             		if (sibling.isVoid()){
             			modifiedVoids.add(sibling);
@@ -724,8 +724,8 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
        		index=grandParent.getIndex(parent)+1;
       		grandParent.insert(node,index);
-        for (Iterator<Node> i=modifiedVoids.iterator();i.hasNext();){
-          		grandParent.insert(i.next(),index);
+		for (Iterator<Node> i=modifiedVoids.iterator();i.hasNext();){
+			grandParent.insert(i.next(),index);
         	}
     		if (isEvent(actionType)) fireNodesChanged(this,new Node[]{node});
     	}
