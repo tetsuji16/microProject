@@ -854,3 +854,11 @@ constructor lookup and project-role reset lookup to pass parameter classes and
 invocation arguments directly through reflection's varargs APIs. Configuration
 keys, parameter order/types, and error handling are unchanged. Core tests,
 downstream compilation, and diff check passed.
+
+Follow-up #665 starts from the latest integrated `origin/master` after #664
+(merge-base verified). Modernized the remaining active core reflection
+signature/argument wrappers in `Init` and `Alert` to use class/argument
+varargs, while retaining string-based optional Groovy and GraphicManager
+lookups (and therefore the module boundary). Typed the remaining
+`UniqueIdPool` signature array passed through the fixed `SessionFactory` API.
+Core tests, downstream compilation, and diff check passed.
