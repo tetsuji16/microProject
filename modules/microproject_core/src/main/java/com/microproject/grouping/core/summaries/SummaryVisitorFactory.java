@@ -52,7 +52,7 @@ public class SummaryVisitorFactory implements SummaryNames {
 		}
 	};
 	
-	public static SummaryVisitor getInstance(int type, Class clazz, boolean forceDeep) {
+	public static SummaryVisitor getInstance(int type, Class<?> clazz, boolean forceDeep) {
 		if (type==SAME){
 		    return new ShallowChildWalker(new Same());
 		}
@@ -104,32 +104,33 @@ public class SummaryVisitorFactory implements SummaryNames {
 	}
 
 
-	private static final BidiMap COST_SUMMARY_MAP = immutableMap(
+	private static final BidiMap<String, Integer> COST_SUMMARY_MAP = immutableMap(
 			entry("Summary.None", NONE), entry("Summary.Average", AVERAGE),
 			entry("Summary.AverageFirstSublevel", AVERAGE_FIRST_SUBLEVEL), entry("Summary.Maximum", MAXIMUM),
 			entry("Summary.Minimum", MINIMUM), entry("Summary.Sum", SUM));
-	private static final BidiMap DATE_SUMMARY_MAP = immutableMap(
+	private static final BidiMap<String, Integer> DATE_SUMMARY_MAP = immutableMap(
 			entry("Summary.None", NONE), entry("Summary.Maximum", MAXIMUM), entry("Summary.Minimum", MINIMUM));
-	private static final BidiMap DURATION_SUMMARY_MAP = COST_SUMMARY_MAP;
-	private static final BidiMap FLAG_SUMMARY_MAP = immutableMap(
+	private static final BidiMap<String, Integer> DURATION_SUMMARY_MAP = COST_SUMMARY_MAP;
+	private static final BidiMap<String, Integer> FLAG_SUMMARY_MAP = immutableMap(
 			entry("Summary.None", NONE), entry("Summary.OR", OR), entry("Summary.AND", AND));
-	private static final BidiMap NUMBER_SUMMARY_MAP = immutableMap(
+	private static final BidiMap<String, Integer> NUMBER_SUMMARY_MAP = immutableMap(
 			entry("Summary.None", NONE), entry("Summary.Average", AVERAGE),
 			entry("Summary.AverageFirstSublevel", AVERAGE_FIRST_SUBLEVEL), entry("Summary.CountAll", COUNT_ALL),
 			entry("Summary.CountFirstSublevel", COUNT_FIRST_SUBLEVEL),
 			entry("Summary.CountNonsummaries", COUNT_NONSUMMARIES), entry("Summary.Maximum", MAXIMUM),
 			entry("Summary.Minimum", MINIMUM), entry("Summary.Sum", SUM));
-	private static final BidiMap TEXT_SUMMARY_MAP = immutableMap(
+	private static final BidiMap<String, Integer> TEXT_SUMMARY_MAP = immutableMap(
 			entry("Summary.None", NONE), entry("Summary.List", LIST));
 
-	private static Object[] entry(String key, int value) {
-		return new Object[] { Messages.getString(key), Integer.valueOf(value) };
+	private static Map.Entry<String, Integer> entry(String key, int value) {
+		return Map.entry(Messages.getString(key), value);
 	}
 
-	private static BidiMap immutableMap(Object[]... entries) {
-		BidiMap map = new DualHashBidiMap();
-		for (Object[] entry : entries)
-			map.put(entry[0], entry[1]);
+	@SafeVarargs
+	private static BidiMap<String, Integer> immutableMap(Map.Entry<String, Integer>... entries) {
+		BidiMap<String, Integer> map = new DualHashBidiMap<>();
+		for (Map.Entry<String, Integer> entry : entries)
+			map.put(entry.getKey(), entry.getValue());
 		return UnmodifiableBidiMap.unmodifiableBidiMap(map);
 	}
 	
@@ -164,7 +165,7 @@ public class SummaryVisitorFactory implements SummaryNames {
 		return id.intValue();
 	}
 	
-	public static BidiMap getMap(Class clazz, boolean cost) {
+	public static BidiMap<String, Integer> getMap(Class<?> clazz, boolean cost) {
 		if (clazz == Double.class) {
 			return cost ? COST_SUMMARY_MAP : NUMBER_SUMMARY_MAP;
 		} else if (clazz == Date.class) {
