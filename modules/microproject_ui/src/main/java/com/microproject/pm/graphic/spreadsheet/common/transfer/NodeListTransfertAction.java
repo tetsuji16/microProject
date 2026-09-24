@@ -42,7 +42,7 @@ public class NodeListTransfertAction implements CommonSpreadSheetAction {
 	protected Action action;
 	protected SpreadSheet.SpreadSheetAction spreadSheetAction;
 	protected CommonSpreadSheet spreadSheet;
-	protected Map map=new HashMap();
+	protected Map<String, Object> map = new HashMap<>();
 	/**
 	 * 
 	 */

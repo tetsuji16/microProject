@@ -115,6 +115,9 @@ are recorded below. Progress is summarized in
 - PR [#631](https://github.com/tetsuji16/ProjectLibre/pull/631) merged as
   `e6ece1c1e38f20e0d02b5e656580bce9214979d4` after a successful failed-job
   rerun; typed cache-event payloads and interval iterators.
+- PR [#632](https://github.com/tetsuji16/ProjectLibre/pull/632) merged as
+  `9805ecaf2ab4753bd860172cb2f1742edd890b24` after full CI success; typed the
+  graph event node-payload contract.
 
 ## Inventory caveat
 
@@ -199,6 +202,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Selected time-spreadsheet fields event | `FieldArrayEvent` | Confirmed the payload is an `ArrayList<Field>` at its active producer (`TimeSpreadSheetModel.getSelectedFieldArray`) and consumer (`UsageDetailView`). Typed the stored value, constructor, getter, and setter without changing the erased `ArrayList` descriptor or the existing shared-reference behavior. A focused event test verifies constructor/setter reference identity. |
 | Cache event payload and interval traversal | `CacheEvent` | Typed node/interval list boundaries as `List<?>` and removal/insertion `ListIterator` loops without changing list descriptors, shared-reference semantics, callback contract, or traversal order. Focused tests assert removals visit intervals in reverse while insertions visit forward, and node-list replacement retains the supplied reference. |
 | Graph update event payload | `GraphEvent` | Typed the node payload as `List<?>` through its stored field, constructor, getter, and setter. GraphModel and Graph consumers use the erased List contract; focused test preserves the existing shared-reference behavior. |
+| Spreadsheet transfer action values | `NodeListTransfertAction.map` | Confirmed the OpenProj-matching action wrapper is created only by `NodeListTransferHandler` for cut/copy/paste. Typed its local action-value override map as `Map<String, Object>` with diamond inference, preserving local-key precedence (including stored null), delegate fallback, enabled-state delegation, and spreadsheet event-source remapping. Focused tests cover these adapter contracts; the physical routes and underlying TransferHandler are unchanged. |
 | Session save delegation | `AbstractSession` | Replaced the raw diamond for its `List<Project>` delegation with `new ArrayList<>()`; a recording session test verifies one-item and options-preserving delegation. |
 | Typed node iteration | `TypedNodeIterator` | Added `Iterator<Object>` / `Class<?>` generics and fixed lookahead removal deleting the wrong selected node, null-implementation dereference, and exhausted `next()` contract. Removal rewinds list-backed selections by source index; non-list removal explicitly throws `UnsupportedOperationException` rather than risking a wrong deletion. |
 | Scheduling field notifications | `AlgorithmFieldUpdater`, `CriticalPathFields` | Typed input/output sets and iteration as `Field`, including the subclass's shared cached sets; core tests and all direct downstream module compilations passed. |
@@ -541,3 +545,8 @@ PR #631 passed its failed-job rerun and merged as recorded above. Follow-up
 #632 starts from latest `origin/master` at
 `e6ece1c1e38f20e0d02b5e656580bce9214979d4` (verified by merge-base); focused
 `GraphEventTest` passed.
+
+PR #632 passed CI and merged as recorded above. Follow-up #633 starts from
+latest `origin/master` at `9805ecaf2ab4753bd860172cb2f1742edd890b24` (verified
+by merge-base); focused `NodeListTransfertActionTest` passed after running the
+Swing component setup/assertions on the EDT.
