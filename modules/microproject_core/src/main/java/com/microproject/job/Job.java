@@ -58,7 +58,7 @@ public class Job extends Thread {
 	protected JobQueue jobQueue;
 	protected String title;
 	protected boolean showProgess, sync;
-	protected List runnables=new ArrayList();
+	protected List<InternalRunnable> runnables=new ArrayList<>();
 	private final List<Runnable> completionRunnables = new ArrayList<>();
 	private boolean completionRunnablesExecuted;
 	protected InternalRunnable exceptionHandlerRunnable;
@@ -191,7 +191,7 @@ public class Job extends Thread {
 		//((JobQueue)getThreadGroup()).startNext();
 	}
 
-	ListIterator runnableIterator;
+	ListIterator<InternalRunnable> runnableIterator;
 	InternalRunnable freeRunnable=null;
 	InternalRunnable lastRunnable=null;
 	public void execute(){
@@ -206,7 +206,7 @@ public class Job extends Thread {
 			boolean async=false;
 			InternalRunnable r;
 			while (runnableIterator.hasNext()){
-				r=(InternalRunnable)runnableIterator.next();
+				r=runnableIterator.next();
 				if (r.isExceptionHandler()) continue;
 				if (r.isSync()==true){
 					beginSync=true;
@@ -218,7 +218,7 @@ public class Job extends Thread {
 				}
 			}
 			while (runnableIterator.hasNext()){
-				r=(InternalRunnable)runnableIterator.next();
+				r=runnableIterator.next();
 				if (r.isExceptionHandler()) continue;
 				if (r.isSync()==false){
 					async=true;
@@ -231,7 +231,7 @@ public class Job extends Thread {
 				}
 			}
 			if (runnableIterator.hasNext()){
-				r=(InternalRunnable)runnableIterator.next();
+				r=runnableIterator.next();
 				if (!r.isExceptionHandler()){
 					lastRunnable=r;
 					endSync=true;
@@ -328,7 +328,7 @@ public class Job extends Thread {
 					log("Job canceled");
 					return;
 				}
-				InternalRunnable runnable=(InternalRunnable)runnableIterator.next();
+				InternalRunnable runnable=runnableIterator.next();
 				if (previousRunnable!=null&&previousRunnable.getException()!=null){//an exception occured
 					if (!runnable.isExceptionHandler()) continue;
 				}else{
@@ -617,8 +617,7 @@ public class Job extends Thread {
 	}
 
 	public void addJob(Job job){
-		for (Iterator i=job.runnables.iterator();i.hasNext();){
-			InternalRunnable runnable=(InternalRunnable)i.next();
+		for (InternalRunnable runnable : job.runnables) {
 			runnable.getRunnable().setJob(this);
 			runnables.add(runnable);
 			weight+=runnable.getRunnable().getWeight();
