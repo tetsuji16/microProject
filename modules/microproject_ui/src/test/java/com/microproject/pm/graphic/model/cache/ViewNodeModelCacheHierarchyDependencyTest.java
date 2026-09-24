@@ -24,7 +24,10 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.model.cache;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +39,18 @@ import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ViewNodeModelCacheHierarchyDependencyTest {
+	@Test
+	void dependencyElementsRemainUntransformed() {
+		VisibleDependencies visibleDependencies = new VisibleDependencies("dependency-test");
+		Object first = new Object();
+		Object second = new Object();
+		visibleDependencies.getElements().addAll(List.of(first, second));
+
+		visibleDependencies.applyTransformer();
+
+		assertEquals(List.of(first, second), visibleDependencies.getElements());
+	}
+
 	@Test
 	void createHierarchyDependencyMovesChildUnderParent() throws Exception {
 		Project project = createProject();

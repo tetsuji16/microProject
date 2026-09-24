@@ -31,11 +31,9 @@ import com.microproject.pm.graphic.model.transform.CacheTransformer;
  */
 public class VisibleDependencies extends VisibleElements {
     protected VisibleNodes visibleNodes;
-    /**
-     * @param transformer
-     */
-    public VisibleDependencies(String viewName,CacheTransformer transformer) {
-        super(viewName,transformer);
+    /** Keeps dependency elements unchanged while the shared cache refreshes. */
+    public VisibleDependencies(String viewName) {
+        super(viewName,ignored -> { });
     }
     
     

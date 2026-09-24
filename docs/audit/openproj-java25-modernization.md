@@ -559,3 +559,14 @@ ledger identifies `NetworkUI` as normalized content matching OpenProj; its
 the existing traversal order, cast behavior, hit test, and return value. UI
 `compileJava` passed. This is behavior-preserving Swing source modernization;
 no GUI route or visual contract changed, so no Robot run was needed.
+
+PR #634 passed CI and merged as
+`e13973ca0602cdb591e382dd8af857cebaf19473`. Follow-up #635 starts directly
+from that latest `origin/master` (verified by merge-base). The OpenProj-matched
+`DependencyCacheTransformer` had one production construction site, no external
+or reflective references, no state use, and an empty `transfrom` body. Replaced
+it with an explicit no-op lambda in `VisibleDependencies`, preserving the
+identity behavior for dependency elements, and deleted the unused class. Added
+a focused regression assertion for element/order preservation; the focused UI
+test passed. No GUI interaction or visual contract changed, so no Robot run was
+needed.
