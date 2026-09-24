@@ -97,17 +97,7 @@ public class PredecessorTaskTree {
 		return root.preorderEnumeration();
 	}
 	
-	/*protected void cleanTree(){
-		//removeChildren(root);
-		for (Iterator i=taskMap.values().iterator();i.hasNext();){
-			PertLayoutTreeNode node=(PertLayoutTreeNode)i.next();
-			node.removeFromParent();
-			node.removeAllChildren();
-		}
-	}*/
-	
 	public void rearrangeAll() {
-		//cleanTree();
 	}
 	
 	
