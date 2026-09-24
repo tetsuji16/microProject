@@ -363,7 +363,7 @@ class DefaultNodeModelTest {
 
 		model.paste(root, Arrays.asList(pastedNode), 3, NodeModel.SILENT);
 
-		List children = model.getHierarchy().getChildren(root);
+		List<Node> children = model.getHierarchy().getChildren(root);
 		assertEquals(4, children.size());
 		assertTrue(children.get(0) != children.get(1));
 		assertTrue(children.get(1) != children.get(2));
@@ -461,7 +461,7 @@ class DefaultNodeModelTest {
 
 		model.getHierarchy().indent(Arrays.asList(child), -1, model, NodeModel.SILENT);
 
-		List children = model.getHierarchy().getChildren(root);
+		List<Node> children = model.getHierarchy().getChildren(root);
 		assertSame(parent, children.get(0));
 		assertSame(firstVoid, children.get(1));
 		assertSame(secondVoid, children.get(2));
@@ -486,7 +486,7 @@ class DefaultNodeModelTest {
 
 		model.getHierarchy().indent(Arrays.asList(child), 1, model, NodeModel.SILENT);
 
-		List previousChildren = model.getHierarchy().getChildren(previous);
+		List<Node> previousChildren = model.getHierarchy().getChildren(previous);
 		assertSame(firstVoid, previousChildren.get(0));
 		assertSame(secondVoid, previousChildren.get(1));
 		assertSame(child, previousChildren.get(2));
