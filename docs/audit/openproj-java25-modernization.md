@@ -713,3 +713,12 @@ created a list with a leading null but omitted every real option. The method
 now copies the original options after null, with a focused order regression.
 Full core tests and application/exchange/reports/UI compilation passed. No GUI
 route or persisted format contract changed.
+
+Follow-up #648 starts directly from the latest `origin/master` (verified by
+merge-base). `StaticSelect` stores string option keys and heterogeneous object
+values in its bidirectional maps and ordered option list; added those concrete
+generic types and replaced its raw iterator with enhanced for. The targeted
+cache review also showed `put` did not invalidate `keyArray`, so adding options
+after the first key-array read silently returned stale choices. Invalidate
+that derived cache on every put and cover the sequence in `SelectTest`. Focused
+`SelectTest`, application/exchange/reports/UI compilation, and diff check passed.

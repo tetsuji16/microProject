@@ -22,4 +22,15 @@ class SelectTest {
 		assertNull(values.getFirst());
 		assertEquals(List.of("First", "Second"), values.subList(1, values.size()));
 	}
+
+	@Test
+	void keyArrayCacheIsInvalidatedWhenAnOptionIsAdded() {
+		StaticSelect select = new StaticSelect();
+		select.add("first", "First");
+		assertEquals(List.of("first"), List.of(select.getKeyArrayWithoutNull()));
+
+		select.add("second", "Second");
+
+		assertEquals(List.of("first", "second"), List.of(select.getKeyArrayWithoutNull()));
+	}
 }
