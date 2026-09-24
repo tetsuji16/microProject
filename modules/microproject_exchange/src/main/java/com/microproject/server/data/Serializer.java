@@ -953,7 +953,7 @@ public class Serializer {
     				} catch (Exception e) {
     					if (taskData.isSubproject()){ //For migration
      						try {
-     							task = (NormalTask) Class.forName(Messages.getMetaString("Subproject")).getConstructor(new Class[]{Project.class,Long.class}).newInstance(project,taskData.getSubprojectId());
+							task = (NormalTask) Class.forName(Messages.getMetaString("Subproject")).getConstructor(Project.class, Long.class).newInstance(project,taskData.getSubprojectId());
      						} catch (Exception e1) {
     							logger.log(Level.WARNING, "Failed to instantiate subproject task", e1);
      						}
