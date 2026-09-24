@@ -899,3 +899,12 @@ zero-argument reflective calls in core `Alert`, `JobQueue`, and `DynamicSelect`,
 using reflection varargs directly. Class-name boundaries, target names,
 exception handling, and return values are unchanged. Core tests, downstream
 compilation, and diff check passed.
+
+Follow-up #670 starts from the latest integrated `origin/master` after #669
+(merge-base verified). Completed the matching optional BootstrapApplet
+`GraphicManager(Container)` binding path by replacing its empty signature and
+argument arrays with direct zero-argument reflection varargs. Added a focused
+headless assertion that container construction stores the exact manager on its
+FrameHolder; existing missing-wrapper fallback remains unchanged. Core/UI
+focused tests, downstream compilation, and diff check passed; no Robot route
+was added for this non-command legacy embedding adapter.

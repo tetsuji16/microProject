@@ -63,6 +63,19 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
+	void constructionBindsGraphicManagerToBootstrapAppletFrameHolder() {
+		BootstrapApplet applet = new BootstrapApplet();
+		GraphicManager manager = new GraphicManager(applet);
+
+		try {
+			assertSame(manager, BootstrapApplet.getObject().getGraphicManager());
+		} finally {
+			manager.cleanUp();
+			BootstrapApplet.setGraphicManager(null);
+		}
+	}
+
+	@Test
 	void externalLoadFailureDetailPreservesTheImporterReasonOnOneLine() {
 		assertEquals(" Details: malformed MPO archive.",
 			GraphicManager.externalLoadFailureDetail(new java.io.IOException("malformed\nMPO archive")));
