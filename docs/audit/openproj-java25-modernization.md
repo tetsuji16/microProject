@@ -933,3 +933,12 @@ Follow-up #673 starts from the latest integrated `origin/master` after #672
 the iterator comes from an already-typed `ListIterator` API. Removed only its
 redundant cast; order and sentinel dependency decisions are unchanged. Focused
 critical-path scheduling compatibility tests and diff check passed.
+
+Follow-up #674 starts from the latest integrated `origin/master` after #673
+(HEAD and merge-base verified). Typed the forward/reverse `TaskReference`
+iterator in critical-path scheduling and converted the two sentinel-boundary
+association traversals to enhanced-for over the existing `Association` list
+contract. Kept the `Dependency`/`Task` conversions because `Dependency.getTask`
+returns the broader `HasDependencies` type; removing that cast was rejected
+after the compiler exposed the mismatch. Focused critical-path scheduling
+compatibility tests and diff check passed.

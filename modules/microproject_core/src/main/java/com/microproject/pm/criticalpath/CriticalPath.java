@@ -24,12 +24,12 @@
  *******************************************************************************/
 package com.microproject.pm.criticalpath;
 
-import java.util.Iterator;
 import java.util.logging.Logger;
 import java.util.ListIterator;
 
 import org.apache.commons.lang.builder.ToStringBuilder;
 
+import com.microproject.association.Association;
 import com.microproject.configuration.Configuration;
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
@@ -241,7 +241,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 
 		PredecessorTaskList.TaskReference taskReference;
 		boolean forward = context.forward;
-		ListIterator i = forward ? predecessorTaskList.listIterator() : predecessorTaskList.reverseIterator();
+		ListIterator<PredecessorTaskList.TaskReference> i = forward ? predecessorTaskList.listIterator() : predecessorTaskList.reverseIterator();
 		Task task;
 		TaskSchedule schedule;
 
@@ -249,7 +249,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 //		long z = System.currentTimeMillis();
 		boolean projectForward = project.isForward();
 		while (forward ? i.hasNext() : i.hasPrevious()) {
-			taskReference = (PredecessorTaskList.TaskReference)(forward ? i.next() : i.previous());
+			taskReference = forward ? i.next() : i.previous();
 			traceTask = task = taskReference.getTask();
 			context.taskReferenceType = taskReference.getType();
 			schedule = task.getSchedule(context.scheduleType);
@@ -485,17 +485,14 @@ public class CriticalPath implements SchedulingAlgorithm {
 		// mark all tasks without preds or without succs as dirty 
 		// the purpose of this is to handle cases where a task that determines the project bounds is deleted.
 		
-		Iterator i = startSentinel.getSuccessorList().iterator();
-		Task task;
-		while (i.hasNext()) {
-			task = ((Task)((Dependency)i.next()).getTask(false));
+		for (Association association : startSentinel.getSuccessorList()) {
+			Task task = (Task) ((Dependency) association).getTask(false);
 			task.invalidateSchedules();
 			task.markTaskAsNeedingRecalculation();
 		}
 
-		i = finishSentinel.getPredecessorList().iterator();
-		while (i.hasNext()) {
-			task = ((Task)((Dependency)i.next()).getTask(true));
+		for (Association association : finishSentinel.getPredecessorList()) {
+			Task task = (Task) ((Dependency) association).getTask(true);
 			task.invalidateSchedules();
 			task.markTaskAsNeedingRecalculation();
 		}
