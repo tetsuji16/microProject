@@ -41,6 +41,7 @@ import java.util.Set;
 import javax.swing.event.EventListenerList;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeNode;
 
 import com.microproject.association.AssociationList;
 import com.microproject.configuration.Settings;
@@ -379,7 +380,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	cleanVoidChildren(root);
     }
     private void cleanVoidChildren(Node node){
-    	for (Iterator i=node.childrenIterator();i.hasNext();){
+	for (Iterator<TreeNode> i=node.childrenIterator();i.hasNext();){
     		Node child=(Node)i.next();
     		if (child.isVoid()) i.remove();
     		else cleanVoidChildren(child);
@@ -685,7 +686,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         	Node sibling;
         	Node previous=null;
 
-			for (ListIterator<Node> i=parent.childrenIterator(index);i.hasPrevious();){
+			for (ListIterator<TreeNode> i=parent.childrenIterator(index);i.hasPrevious();){
         			sibling=(Node)i.previous();
         			if (node.canBeChildOf(sibling)){
         				previous=sibling;
@@ -714,7 +715,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
        		int index=parent.getIndex(node);
        		if (index>0){
        			Node sibling;
-			for (ListIterator<Node> i=parent.childrenIterator(index);i.hasPrevious();){
+			for (ListIterator<TreeNode> i=parent.childrenIterator(index);i.hasPrevious();){
             		sibling=(Node)i.previous();
             		if (sibling.isVoid()){
             			modifiedVoids.add(sibling);
@@ -977,7 +978,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 		//int nbEndVoids=nbEndVoidNodes;
 		int count=0;
 		Node node;
-		for (ListIterator i=root.childrenIterator(root.getChildCount());i.hasPrevious();){
+		for (ListIterator<TreeNode> i=root.childrenIterator(root.getChildCount());i.hasPrevious();){
 			node=(Node)i.previous();
 			if (node.isVoid()) count++;
 			else break;
@@ -991,7 +992,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 			}
 		} else if (count > nbEndVoids) { // remove void nodes if they shouldt be there
 			int removeCount = count -  nbEndVoids;
-			for (ListIterator i=root.childrenIterator(root.getChildCount());i.hasPrevious();){
+			for (ListIterator<TreeNode> i=root.childrenIterator(root.getChildCount());i.hasPrevious();){
 				node=(Node)i.previous();
 				if (node.isVoid()) {
 					i.remove();

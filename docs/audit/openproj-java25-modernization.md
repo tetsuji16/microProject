@@ -622,3 +622,15 @@ OpenProj-matched `NetworkRenderer.paint`, the dependency and graphic-node
 traversal locals are now `Iterator<?>`/`ListIterator<?>`; casts, iteration
 order, hit testing, and painting are unchanged. UI `compileJava` and diff check
 passed. No GUI route or visual contract changed, so no Robot run was needed.
+
+Follow-up #640 starts directly from that latest `origin/master` (verified by
+merge-base). `Node.childrenIterator` was OpenProj-derived and exposed raw
+`ListIterator` values even though its backing children are tree nodes. The API
+and every production caller now use `ListIterator<TreeNode>`/`Iterator<TreeNode>`.
+During the migration, a focused test reproduced a defect in `NodeBridge`'s
+custom empty iterator: `next()` and `previous()` returned `null` instead of
+throwing `NoSuchElementException`, and its mutation methods did not follow the
+standard iterator contract. Replaced that bespoke implementation with the
+standard empty-list iterator and added coverage for traversal, mutation, and
+index bounds. Full core tests and downstream UI compilation passed. No GUI
+route or visual contract changed, so no Robot run was needed.

@@ -39,6 +39,8 @@ import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.swing.tree.TreeNode;
+
 import org.apache.commons.collections.CollectionUtils;
 
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
@@ -173,7 +175,7 @@ public class NodeListTransferable implements Transferable {
 			//System.out.println("s="+s);
 		}
 		sb.append('\n');
-		for (Iterator i=node.childrenIterator();i.hasNext();)
+		for (Iterator<TreeNode> i=node.childrenIterator();i.hasNext();)
 			nodeToString((Node)i.next(),sb,spreadsheet,fields);
 	}
 	

@@ -29,6 +29,7 @@ import java.util.ListIterator;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.MutableTreeNode;
+import javax.swing.tree.TreeNode;
 
 
 
@@ -67,8 +68,8 @@ public interface Node extends MutableTreeNode{
     public Object getImpl();
     public void setImpl(Object imp);
     
-    public ListIterator childrenIterator();
-    public ListIterator childrenIterator(int i);
+    public ListIterator<TreeNode> childrenIterator();
+    public ListIterator<TreeNode> childrenIterator(int i);
     public List getChildren();
     
     public void add(MutableTreeNode node);
