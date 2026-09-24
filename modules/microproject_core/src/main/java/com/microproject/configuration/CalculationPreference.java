@@ -28,9 +28,19 @@ package com.microproject.configuration;
  * These values represent overall behavior of product. These options are not user modifiable.
  */
 public class CalculationPreference {
-	private boolean assignmentDurationExcludesNonWorkPeriods;
-	private boolean nonWorkContourPeriodsStayFixedLength;
+	private final boolean assignmentDurationExcludesNonWorkPeriods;
+	private final boolean nonWorkContourPeriodsStayFixedLength;
 	private double earnedValueDivideByZeroValue = 0;
+
+	public CalculationPreference() {
+		this(false, false);
+	}
+
+	private CalculationPreference(boolean assignmentDurationExcludesNonWorkPeriods,
+			boolean nonWorkContourPeriodsStayFixedLength) {
+		this.assignmentDurationExcludesNonWorkPeriods = assignmentDurationExcludesNonWorkPeriods;
+		this.nonWorkContourPeriodsStayFixedLength = nonWorkContourPeriodsStayFixedLength;
+	}
 
 	/**
 	 * @return Returns the assignmentDurationExcludesNonWorkPeriods.
@@ -46,13 +56,9 @@ public class CalculationPreference {
 		return nonWorkContourPeriodsStayFixedLength;
 	}
 
-	public static final CalculationPreference MS_PROJECT = new CalculationPreference();
-	static {
-		MS_PROJECT.assignmentDurationExcludesNonWorkPeriods = true;
-		MS_PROJECT.nonWorkContourPeriodsStayFixedLength = true;
-	}
+	public static final CalculationPreference MS_PROJECT = new CalculationPreference(true, true);
 	
-	private static CalculationPreference active = MS_PROJECT;
+	private static final CalculationPreference active = MS_PROJECT;
 	/**
 	 * @return Returns the active.
 	 */

@@ -680,3 +680,14 @@ migrated those two dependency-construction casts; retained the old Object
 getter and its descriptor for compatibility. A focused test asserts both
 accessors return the same endpoint. Association-format tests and downstream
 exchange/UI compilation passed. No GUI or persisted format contract changed.
+
+Follow-up #645 starts directly from the latest `origin/master` (verified by
+merge-base). `CalculationPreference` is a normalized OpenProj match. The two
+calculation policy flags were assigned after construction only in the static
+initializer and have no production setters; moved them into a private
+parameterized constructor and made them final. The public no-arg constructor
+and its false/false defaults remain intact. The active reference has no
+reassignment path and is now final. A focused test verifies defaults, the
+MS_PROJECT true/true preset, and active-instance identity. Full core tests and
+application/exchange/UI compilation passed. No GUI or persisted format
+contract changed.
