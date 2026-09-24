@@ -84,6 +84,12 @@ public class AssociationFormatParameters {
 		return thisObject;
 	}
 	/**
+	 * Returns the association endpoint supplied when these parameters were created.
+	 */
+	public HasDependencies getAssociationObject() {
+		return (HasDependencies) thisObject;
+	}
+	/**
 	 * @return Returns the allowDetailsEntry.
 	 */
 	public boolean isAllowDetailsEntry() {

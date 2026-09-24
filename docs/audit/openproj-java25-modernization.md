@@ -670,3 +670,13 @@ implement `Iterator<Object>` without resolving the superclass boundary. The
 experiment was reverted; a future change would need to replace or wrap that
 adapter and preserve its filtering/removal semantics, rather than merely
 parameterize the marker interface.
+
+Follow-up #644 starts directly from the latest `origin/master` (verified by
+merge-base). `AssociationFormatParameters` is a normalized OpenProj match and
+its constructor guarantees a `HasDependencies` association endpoint, while
+`DependencyFormat` repeated casts the legacy `Object getThisObject()` result
+back to that type. Added `getAssociationObject()` as a typed accessor and
+migrated those two dependency-construction casts; retained the old Object
+getter and its descriptor for compatibility. A focused test asserts both
+accessors return the same endpoint. Association-format tests and downstream
+exchange/UI compilation passed. No GUI or persisted format contract changed.

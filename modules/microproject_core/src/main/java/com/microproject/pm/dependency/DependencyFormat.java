@@ -90,8 +90,8 @@ public class DependencyFormat extends AssociationFormat {
 			if (duration == null)
 				throw new ParseException(getErrorMessage(string), pos.getIndex());
 		}
-		return Dependency.getInstance(	parameters.isLeftAssociation() ? (HasDependencies)found : (HasDependencies)parameters.getThisObject(),
-										parameters.isLeftAssociation() ? (HasDependencies)parameters.getThisObject() : (HasDependencies)found,
+		return Dependency.getInstance(	parameters.isLeftAssociation() ? (HasDependencies)found : parameters.getAssociationObject(),
+										parameters.isLeftAssociation() ? parameters.getAssociationObject() : (HasDependencies)found,
 									  	type.intValue(),
 										duration.getEncodedMillis());
 		
