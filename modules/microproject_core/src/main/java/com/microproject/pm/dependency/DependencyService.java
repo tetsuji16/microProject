@@ -216,23 +216,17 @@ public class DependencyService {
 	 * @throws InvalidAssociationException
 	 */
 	public void connect(List tasks, Object eventSource, Predicate canBeSuccessorCondition) throws InvalidAssociationException {
-		ArrayList newDependencies = new ArrayList(Math.max(0, tasks.size() - 1));
-		ArrayList connectableTasks = new ArrayList(tasks.size());
+		ArrayList<Dependency> newDependencies = new ArrayList<>(Math.max(0, tasks.size() - 1));
+		ArrayList<HasDependencies> connectableTasks = new ArrayList<>(tasks.size());
 		for (Object task : tasks) {
-			if (task instanceof HasDependencies && !ClassUtils.isObjectReadOnly(task)) {
-				connectableTasks.add(task);
-			}
+			if (task instanceof HasDependencies hasDependencies && !ClassUtils.isObjectReadOnly(task))
+				connectableTasks.add(hasDependencies);
 		}
 		// try making new dependencies between all items earlier to all items later, thereby checking all possible circularities
-		HasDependencies pred;
-		HasDependencies succ;
-		Object temp;
 		for (int i = 0; i < connectableTasks.size()-1; i++) {
-			temp = connectableTasks.get(i);
-			pred = (HasDependencies)temp;
+			HasDependencies pred = connectableTasks.get(i);
 			for (int j = i+1; j < connectableTasks.size(); j++) {
-				temp = connectableTasks.get(j);
-				succ = (HasDependencies)temp;
+				HasDependencies succ = connectableTasks.get(j);
 				if (canBeSuccessorCondition != null && !canBeSuccessorCondition.evaluate(succ)) // allow exclusion of certain nodes that we don't want to be successors
 					continue;
 				if (succ.getPredecessorList().findLeft(pred) != null) // if dependency already exists, skip it
@@ -243,10 +237,8 @@ public class DependencyService {
 					newDependencies.add(test);
 			}
 		}
-		Iterator d = newDependencies.iterator();
-		while (d.hasNext()) {
-			connect((Dependency)d.next(),eventSource);
-		}
+		for (Dependency dependency : newDependencies)
+			connect(dependency, eventSource);
 
 
 	}
