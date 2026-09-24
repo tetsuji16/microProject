@@ -36,6 +36,8 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 
 import com.microproject.datatype.Duration;
 import com.microproject.grouping.core.Node;
+import com.microproject.association.Association;
+import com.microproject.association.AssociationList;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.SubProj;
@@ -331,7 +333,7 @@ public final class TaskSchedule implements Cloneable {
 			newBegin = oldBegin;
 			newEnd = oldEnd;
 		}
-		Collection list = task.getDependencyList(!forward);
+		AssociationList list = task.getDependencyList(!forward);
 		Task parent = task.getWbsParentTask();
 		TaskSchedule parentSchedule = null;
 		long parentEnd = 0;
@@ -370,11 +372,11 @@ public final class TaskSchedule implements Cloneable {
 //			Go Thru Successors (Predecessors) and calculate a dependency date for them and mark them for further treatment.  There is an optimization here:
 //			If the successor(pred) task only has one predecessor(succ), then just set its dependency date instead of calculating it.  This avoids reprocessing
 //			the predecessor(successor) list of that task later on.  Since in most cases, a task has only one predecessor, this saves time.
-			for (Iterator d = list.iterator(); d.hasNext();) {
+			for (Association association : list) {
 				Task dependencyTask;
 				TaskSchedule dependencyTaskSchedule;
 				
-				dependency = (Dependency) d.next();
+				dependency = (Dependency) association;
 				if (dependency.isDisabled())
 					continue;
 				dependencyTask = (Task) dependency.getTask(!forward);				// get the successor(pred) task
@@ -502,9 +504,9 @@ public final class TaskSchedule implements Cloneable {
 		long result = 0;
 		Dependency dependency;
 		long current;
-		Collection list = task.getDependencyList(forward);
-		for (Iterator i = list.iterator(); i.hasNext();) {
-			dependency = (Dependency) i.next();
+		AssociationList list = task.getDependencyList(forward);
+		for (Association association : list) {
+			dependency = (Dependency) association;
 			if (dependency.isDisabled())
 				continue;
 			Task predecessor = (Task) dependency.getTask(true);
