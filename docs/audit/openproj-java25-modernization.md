@@ -61,6 +61,9 @@ are recorded below. Progress is summarized in
 - PR [#613](https://github.com/tetsuji16/ProjectLibre/pull/613) merged as
   `63f7e0cd287964b657894429ef6ecbdb6d638d86` after full CI success; typed the
   OpenProj-derived private hierarchy indent traversal.
+- PR [#614](https://github.com/tetsuji16/ProjectLibre/pull/614) merged as
+  `c437fe9551906c1ef976c222510a5fb0472aa3fe` after full CI success; corrected
+  attribution and excluded adjacent fork-origin work from issue progress.
 
 ## Inventory caveat
 
@@ -88,7 +91,7 @@ artifact would be compatible.
 
 The initial-base counts above are historical. Re-running the inventory at the
 latest integrated checkpoint (`origin/master` =
-`bed064083051d16e3fd07a2586e98b27862cd44e`) reports 280 ledger rows: 184
+`c437fe9551906c1ef976c222510a5fb0472aa3fe`) reports 280 ledger rows: 184
 normalized matches, 79 content-different files, and 17 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the
 current module graph, and the four intentionally deleted unreferenced classes
@@ -113,6 +116,7 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 
 | Area | Classes / responsibility | Outcome |
 |---|---|---|
+| General options singleton | `GeneralOption.getInstance` | In progress in PR #615: replace racy lazy initialization with class-initialized `static final`; public construction and option defaults remain unchanged. The ledger marks the file's normalized contents as matching the OpenProj baseline. |
 | Hierarchy indent traversal | `MutableNodeHierarchy.internalIndent` | PR #613 typed its selected-node and temporary void-node lists and iterators without changing traversal order. The corresponding raw traversal appears in the ProjectLibre mirror's OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/grouping/core/hierarchy/MutableNodeHierarchy.java#L2546-L2635)); this comparison confirms code correspondence, not a legal conclusion. |
 | Calendar intervals | `WorkDay`, `WorkRange`, `WorkingHours`, `WorkWeek`, `WorkingCalendar`, `CalendarService`, `CalendarDefinition`, `Interval`, `CalendarEvent` | Typed collection / clone / comparison modernization; removed the unused calendar-cache list; fixed incorrect working-day intersection, lost overtime state in a range constructor, long-comparison overflow, equality asymmetry, and a strong-reference calendar-cache registry leak. |
 | Duration and rates | `Duration`, `DurationFormat`, `Rate`, `RateFormat`, `PercentFormat` | Pattern matching and switch expressions; removed dead duration conversion calculations and redundant string copying; made encoding masks and formatter mode state immutable; fixed parse-position end-of-input exceptions and fractional/large-rate comparison. |
@@ -412,7 +416,7 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
 - Hunk-provenance and active-caller review remains for the 78 content-different
   candidates; the 17 absent paths are classified above and do not all represent
   active source requiring modernization.
-- Search the 185 matching files and OpenProj-origin hunks within the 78
+- Search the 184 matching files and OpenProj-origin hunks within the 79
   differing files for production callers and compatibility boundaries; do not
   treat file-level equality as proof of an active eligible hunk.
 - Audit remaining eligible Java in exchange, UI, reports, and other core
@@ -424,7 +428,7 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
   not close the issue while any required phase or unresolved in-scope work
   remains.
 
-Latest follow-up #614 is an audit correction based directly on `origin/master`
-at `63f7e0cd287964b657894429ef6ecbdb6d638d86` (verified by merge-base). PR #613's
-`DefaultNodeModelTest` and CI passed. No GUI route or visual surface changed,
-so no GUI/Robot test was run.
+Latest follow-up #615 is based directly on `origin/master` at
+`c437fe9551906c1ef976c222510a5fb0472aa3fe` (verified by merge-base). A focused
+`GeneralOptionTest` and full core test run are pending. No GUI route or visual
+surface changed, so no GUI/Robot test is planned.
