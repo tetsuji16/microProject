@@ -243,7 +243,7 @@ public class ClassUtils {
 		return staticMethodFromFullName(nameAndField,null);
 	}
 	
-	public static Method staticMethodFromFullName(String nameAndField, Class[] args) {
+	public static Method staticMethodFromFullName(String nameAndField, Class<?>[] args) {
 		String cacheKey = nameAndField + Arrays.toString(args == null ? new Class<?>[0] : args);
 		Method cached = STATIC_METHODS.get(cacheKey);
 		if (cached != null)

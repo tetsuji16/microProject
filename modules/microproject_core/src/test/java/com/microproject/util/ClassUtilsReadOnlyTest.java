@@ -25,6 +25,8 @@
 package com.microproject.util;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,15 @@ import org.junit.jupiter.api.Test;
 import com.microproject.field.Field;
 
 class ClassUtilsReadOnlyTest {
+	@Test
+	void resolvesStaticMethodWithTypedParameterClasses() {
+		var method = ClassUtils.staticMethodFromFullName(
+				ReadOnlyBean.class.getName() + ".accepts", new Class<?>[] { String.class });
+
+		assertNotNull(method);
+		assertEquals(boolean.class, method.getReturnType());
+	}
+
     @Test
     void resolvesSupportedReadOnlyContracts() {
         ReadOnlyBean bean = new ReadOnlyBean();
@@ -47,6 +58,10 @@ class ClassUtilsReadOnlyTest {
     }
 
     public static final class ReadOnlyBean {
+        public static boolean accepts(String value) {
+            return value != null;
+        }
+
         public boolean isReadOnly() {
             return true;
         }

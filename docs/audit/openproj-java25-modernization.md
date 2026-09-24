@@ -722,3 +722,11 @@ cache review also showed `put` did not invalidate `keyArray`, so adding options
 after the first key-array read silently returned stale choices. Invalidate
 that derived cache on every put and cover the sequence in `SelectTest`. Focused
 `SelectTest`, application/exchange/reports/UI compilation, and diff check passed.
+
+Follow-up #649 starts directly from the latest `origin/master` (verified by
+merge-base). The active `DynamicSelect` reflection lookup and `ClassUtils`
+resolver passed runtime parameter classes through raw `Class[]` signatures.
+Narrowed the signature and reflective parameter array to `Class<?>[]` while
+preserving the erased `Class[]` descriptor, with focused method-resolution
+coverage. The focused test, application/exchange/reports/UI compilation, and
+diff check passed.
