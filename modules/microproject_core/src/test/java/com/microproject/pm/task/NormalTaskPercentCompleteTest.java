@@ -54,6 +54,15 @@ import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskPercentCompleteTest {
 	@Test
+	void mostLoadedAssignmentUnitsIncludesAssignedResources() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assignWork(project, task, Duration.millis(3_600_000L));
+
+		assertEquals(1.0d, task.getMostLoadedAssignmentUnits());
+	}
+
+	@Test
 	void settingPercentCompleteSynchronizesAssignmentPercentages() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

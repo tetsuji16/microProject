@@ -40,6 +40,7 @@ import java.util.logging.Logger;
 import com.microproject.algorithm.ReverseQuery;
 import com.microproject.algorithm.TimeIteratorGenerator;
 import com.microproject.algorithm.buffer.CalculatedValues;
+import com.microproject.association.Association;
 import com.microproject.association.AssociationFormatParameters;
 import com.microproject.association.AssociationList;
 import com.microproject.association.AssociationListFormat;
@@ -467,9 +468,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public boolean isAssignedToMe(){
-		for (Iterator i=getAssignments().iterator();i.hasNext();){
-			Assignment a=(Assignment)i.next();
-			if (a.isMine()) return true;
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
+			if (assignment.isMine()) return true;
 		}
 		return false;
 	}
@@ -970,9 +971,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void setWork(long work, FieldContext context) {
 
 		if (FieldContext.hasInterval(context)) {
-			Iterator i = getAssignments().iterator();
-			while (i.hasNext()) {
-				Assignment assignment = (Assignment) i.next();
+			for (Association association : getAssignments()) {
+				Assignment assignment = (Assignment) association;
 				assignment.setWork(work,context);
 			}
 		} else {
@@ -998,9 +998,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	public double getMostLoadedAssignmentUnits() {
 		double result = 0;
-		Iterator i = getAssignments().iterator();
-		while (i.hasNext())
-			result = Math.max(result,((Assignment) i.next()).getLaborUnits());
+		for (Association association : getAssignments())
+			result = Math.max(result, ((Assignment) association).getLaborUnits());
 
 		return result;
 	}
@@ -1009,9 +1008,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 //hk		long newRemainingDuration = Duration.millis(newDuration) - getActualDuration(); // assignments dont treqt
 		long newRemainingDuration = Duration.millis(newDuration); // - getActualDuration(); // assignments dont treqt
 													// units
-		Iterator i = getAssignments().iterator();
-		while (i.hasNext())
-			((Assignment) i.next()).adjustRemainingDurationIfWorkingAtTaskEnd(newRemainingDuration);
+		for (Association association : getAssignments())
+			((Assignment) association).adjustRemainingDurationIfWorkingAtTaskEnd(newRemainingDuration);
 
 	}
 
