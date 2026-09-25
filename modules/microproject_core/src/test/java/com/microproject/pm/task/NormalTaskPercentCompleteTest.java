@@ -25,6 +25,7 @@
 package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -49,6 +50,9 @@ import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeVisitor;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleInterval;
@@ -324,6 +328,24 @@ class NormalTaskPercentCompleteTest {
 		task.setActualWork(actualWork, context);
 
 		assertEquals(actualWork, task.getActualWork(context));
+	}
+
+	@Test
+	void repairedTaskMarksAssignmentsDirtyAndPredecessorsClean() throws Exception {
+		Project project = createProject();
+		NormalTask predecessor = createTask(project);
+		NormalTask task = createTask(project);
+		Dependency dependency = DependencyService.getInstance()
+			.newDependency(predecessor, task, DependencyType.FS, 0L, this);
+		Assignment assignment = firstAssignment(task);
+		assignment.setDirty(false);
+		dependency.setDirty(true);
+
+		task.setTaskAssignementAndPredsDirty();
+
+		assertTrue(task.isDirty());
+		assertTrue(assignment.isDirty());
+		assertFalse(dependency.isDirty());
 	}
 
 	@Test
