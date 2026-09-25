@@ -1166,3 +1166,11 @@ in `NormalTask.isInvalidIntersectionCalendar` to enhanced-for over the typed
 headless invalid-calendar regression to assert the task indicator exposes the
 invalid intersection cached on its assignment. `InvalidIntersectionFreezeTest`,
 application compilation, and diff check passed.
+
+Follow-up #701 starts from the latest integrated `origin/master` after #700
+(HEAD and merge-base verified). Modernized the OpenProj-origin repair-state
+loops in `NormalTask.setTaskAssignementAndPredsDirty` to enhanced-for over the
+typed assignment/dependency association lists, preserving the distinct dirty
+flag values (assignments true, predecessor dependencies false). Added focused
+coverage for both flags. The focused regression, full
+`NormalTaskPercentCompleteTest`, application compilation, and diff check passed.

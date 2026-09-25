@@ -2352,12 +2352,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 	public void setTaskAssignementAndPredsDirty() {
 		setDirty(true);
-		Iterator a = getAssignments().iterator();
-		while (a.hasNext())
-			((Assignment)a.next()).setDirty(true);
-		Iterator d=getDependencyList(true).iterator();
-		while (d.hasNext())
-			((Dependency)d.next()).setDirty(false);
+		for (Association association : getAssignments())
+			((Assignment) association).setDirty(true);
+		for (Association association : getDependencyList(true))
+			((Dependency) association).setDirty(false);
 
 	}
 	//			task.setDirty(false);
