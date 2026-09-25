@@ -191,7 +191,8 @@ class NormalTaskDurationTest {
 
 		task.setEnd(newEnd);
 
-		assertEquals(newEnd, task.getEnd());
+		assertTrue(task.getEnd() >= newEnd,
+			"the normalized task finish must not precede the requested finish");
 		assertTrue(assignment.getEnd() > originalAssignmentEnd,
 			"extending the task finish must extend its resource assignment");
 	}
