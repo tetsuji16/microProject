@@ -72,10 +72,8 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 	public void setRequestDemandType(int requestDemandType) {
 		if (!isAssigned()) //requestDemand type only settable if already assigned 
 			return;
-		Iterator i = assignments.iterator();
-		Assignment assignment;
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Object value : assignments) {
+			Assignment assignment = (Assignment) value;
 			assignment.setRequestDemandType(requestDemandType);
 		}
 	}

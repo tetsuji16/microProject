@@ -1174,3 +1174,12 @@ typed assignment/dependency association lists, preserving the distinct dirty
 flag values (assignments true, predecessor dependencies false). Added focused
 coverage for both flags. The focused regression, full
 `NormalTaskPercentCompleteTest`, application compilation, and diff check passed.
+
+Follow-up #702 starts from the latest integrated `origin/master` after #701
+(HEAD and merge-base verified). Confirmed `AssignmentEntry` matches the
+OpenProj baseline and remains active through resource-team filtering and
+assignment-entry UI models. Modernized `setRequestDemandType` iteration over
+its legacy raw `ArrayList` using enhanced-for while preserving the raw public
+constructor/API and cast behavior. Added focused coverage that the request type
+reaches the assignment. `AssignmentEntryTest`, application compilation, and
+diff check passed.

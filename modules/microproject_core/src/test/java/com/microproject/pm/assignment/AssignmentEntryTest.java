@@ -54,6 +54,22 @@ class AssignmentEntryTest {
 		assertEquals(1, entry.getAssignmentCount());
 	}
 
+	@Test
+	void setRequestDemandTypeUpdatesEveryAssignment() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = createTask(project);
+		ResourceImpl resource = resourcePool.newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		AssignmentEntry entry = new AssignmentEntry(resource, new ArrayList<>(Arrays.asList(assignment)), project);
+
+		entry.setRequestDemandType(RequestDemandType.REQUEST);
+
+		assertEquals(RequestDemandType.REQUEST, assignment.getRequestDemandType());
+	}
+
 	private NormalTask createTask(Project project) {
 		NormalTask task = new NormalTask(project);
 		project.connectTask(task);
