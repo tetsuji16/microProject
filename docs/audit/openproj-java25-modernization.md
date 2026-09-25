@@ -1150,3 +1150,11 @@ focused regression test asserting that extending a task finish extends its
 assigned resource's finish. `NormalTaskDurationTest`, application compilation,
 and diff check passed. The unrelated full-core CriticalChain timing instability
 remains disclosed in #695/#696 and is guarded by required PR CI.
+
+Follow-up #699 starts from the latest integrated `origin/master` after #698
+(HEAD and merge-base verified). Modernized the interval-specific OpenProj-
+origin `NormalTask.setActualWork` assignment traversal to enhanced-for over the
+typed `AssociationList`, preserving per-assignment interval updates. Added a
+focused interval-work regression with an explicitly scheduled task and
+assignment. Focused `NormalTaskPercentCompleteTest`, application compilation,
+and diff check passed.

@@ -2105,9 +2105,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		double durationPercentComplete = getPercentComplete();
 
 		if (FieldContext.hasInterval(context)) {
-			Iterator i = getAssignments().iterator();
-			while (i.hasNext()) {
-				Assignment assignment = (Assignment) i.next();
+			for (Association association : getAssignments()) {
+				Assignment assignment = (Assignment) association;
 				assignment.setActualWork(actualWork,context);
 			}
 		} else {

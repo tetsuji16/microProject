@@ -43,6 +43,7 @@ import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
+import com.microproject.field.FieldContext;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeVisitor;
@@ -50,6 +51,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskPercentCompleteTest {
@@ -307,6 +309,21 @@ class NormalTaskPercentCompleteTest {
 		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
 		assertEquals(2L * 60L * 60L * 1000L, task.getActualWork(null));
 		assertEquals(6L * 60L * 60L * 1000L, task.getRemainingWork(null));
+	}
+
+	@Test
+	void intervalActualWorkUpdateIsAppliedToTaskAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(8L * 60L * 60L * 1000L);
+		assignWork(project, task, 8L * 60L * 60L * 1000L);
+		FieldContext context = new FieldContext();
+		context.setInterval(new ScheduleInterval(task.getStart(), task.getEnd()));
+		long actualWork = 2L * 60L * 60L * 1000L;
+
+		task.setActualWork(actualWork, context);
+
+		assertEquals(actualWork, task.getActualWork(context));
 	}
 
 	@Test
