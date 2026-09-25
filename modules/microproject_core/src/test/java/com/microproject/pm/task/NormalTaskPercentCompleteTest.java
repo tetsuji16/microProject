@@ -191,6 +191,24 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void completedThroughUpdatePropagatesAssignmentActualStart() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Completion test resource");
+		AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		Assignment assignment = firstAssignment(task);
+		long completedThrough = task.getEffectiveWorkCalendar().add(task.getStart(), 4L * day, false);
+
+		task.setCompletedThrough(completedThrough);
+
+		assertEquals(assignment.getCompletedThrough(), task.getCompletedThrough());
+		assertEquals(assignment.getActualStart(), task.getActualStart());
+	}
+
+	@Test
 	void percentCompleteCalculatesExactRemainingDurationAtBoundariesAndIntermediateProgress() {
 		Project project = createProject();
 		NormalTask task = createTask(project);

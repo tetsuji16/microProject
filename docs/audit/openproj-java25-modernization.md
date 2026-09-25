@@ -1133,3 +1133,11 @@ offsets for 0%/25% progress and ahead/behind calculations. The focused test
 class and application compilation passed. The full core suite has the same
 unrelated CriticalChain runtime-threshold failure noted above; PR CI is the
 merge gate.
+
+Follow-up #697 starts from the latest integrated `origin/master` after #696
+(HEAD and merge-base verified). Modernized the OpenProj-origin assignment
+traversal in `NormalTask.setCompletedThrough` to enhanced-for over the typed
+`AssociationList`, preserving earliest actual-start reduction and schedule
+notifications. Added focused coverage for propagating the completed-through
+date and actual start from a real resource assignment. Focused
+`NormalTaskPercentCompleteTest`, application compilation, and diff check passed.
