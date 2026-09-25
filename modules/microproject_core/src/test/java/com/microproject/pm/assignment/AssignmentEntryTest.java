@@ -30,6 +30,8 @@ import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.datatype.Rate;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
@@ -68,6 +70,26 @@ class AssignmentEntryTest {
 		entry.setRequestDemandType(RequestDemandType.REQUEST);
 
 		assertEquals(RequestDemandType.REQUEST, assignment.getRequestDemandType());
+	}
+
+	@Test
+	void setRateUpdatesEveryAssignment() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask firstTask = createTask(project);
+		NormalTask secondTask = createTask(project);
+		ResourceImpl resource = resourcePool.newResourceInstance();
+		Assignment first = AssignmentService.getInstance().newAssignment(firstTask, resource, 1.0d, 0L, this);
+		Assignment second = AssignmentService.getInstance().newAssignment(secondTask, resource, 1.0d, 0L, this);
+		AssignmentEntry entry = new AssignmentEntry(resource, new ArrayList<>(Arrays.asList(first, second)), project);
+		Rate rate = new Rate(0.5d, TimeUnit.HOURS);
+
+		entry.setRate(rate);
+
+		assertEquals(rate.getValue(), first.getRate().getValue());
+		assertEquals(rate.getValue(), second.getRate().getValue());
 	}
 
 	private NormalTask createTask(Project project) {
