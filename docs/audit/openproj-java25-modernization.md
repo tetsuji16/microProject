@@ -1158,3 +1158,11 @@ typed `AssociationList`, preserving per-assignment interval updates. Added a
 focused interval-work regression with an explicitly scheduled task and
 assignment. Focused `NormalTaskPercentCompleteTest`, application compilation,
 and diff check passed.
+
+Follow-up #700 starts from the latest integrated `origin/master` after #699
+(HEAD and merge-base verified). Modernized the OpenProj-origin predicate loop
+in `NormalTask.isInvalidIntersectionCalendar` to enhanced-for over the typed
+`AssociationList`, preserving short-circuit behavior. Strengthened the existing
+headless invalid-calendar regression to assert the task indicator exposes the
+invalid intersection cached on its assignment. `InvalidIntersectionFreezeTest`,
+application compilation, and diff check passed.
