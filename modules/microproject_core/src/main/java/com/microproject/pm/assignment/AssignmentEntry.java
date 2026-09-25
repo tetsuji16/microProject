@@ -26,7 +26,6 @@ package com.microproject.pm.assignment;
 
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import com.microproject.configuration.Configuration;
@@ -107,11 +106,9 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 	}
 	
 	public void setRate(Rate rate) throws ParseException {
-		Iterator i = assignments.iterator();
-		Assignment assignment;
 		int timeUnit = rate.getTimeUnit();
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Object value : assignments) {
+			Assignment assignment = (Assignment) value;
 			if (timeUnit != TimeUnit.NON_TEMPORAL)
 				if (assignment.isLabor()) {
 					assignment.adjustRemainingUnits(rate.getValue(), 0, true, false);

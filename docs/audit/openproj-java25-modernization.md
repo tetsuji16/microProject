@@ -1183,3 +1183,12 @@ its legacy raw `ArrayList` using enhanced-for while preserving the raw public
 constructor/API and cast behavior. Added focused coverage that the request type
 reaches the assignment. `AssignmentEntryTest`, application compilation, and
 diff check passed.
+
+Follow-up #703 starts from the latest integrated `origin/master` after #702
+(HEAD and merge-base verified). Modernized the OpenProj-origin `AssignmentEntry.setRate`
+loop over its legacy raw `ArrayList` to enhanced-for, preserving per-assignment
+labor/non-labor branches, units handling, and rate event dispatch. Added a test
+that applies one rate through an entry containing two assignments and verifies
+both update. Removed the now-unused `Iterator` import after both active loops
+were modernized. `AssignmentEntryTest`, application compilation, and diff check
+passed; the public raw collection boundary remains unchanged.
