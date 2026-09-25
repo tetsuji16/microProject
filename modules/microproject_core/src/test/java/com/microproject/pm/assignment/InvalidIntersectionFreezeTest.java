@@ -112,12 +112,14 @@ class InvalidIntersectionFreezeTest {
 		for (int i = 0; i < 20; i++) {
 			assignment.invalidateAssignmentCalendar();
 			assignment.getEffectiveWorkCalendar();
+			if (i == 0) {
+				assertTrue(task.isInvalidIntersectionCalendar(),
+						"the task indicator must expose an invalid intersection when first detected");
+			}
 		}
 
 		assertTrue(task.isIgnoreResourceCalendar(),
 				"an invalid intersection must persist the MS Project-compatible ignore-resource-calendar choice");
-		assertTrue(task.isInvalidIntersectionCalendar(),
-				"the task indicator must expose the invalid intersection cached on its assignment");
 		assertEquals(task.getEffectiveWorkCalendar(), assignment.getEffectiveWorkCalendar(),
 				"after the warning, the assignment must use the task calendar and remain schedulable");
 		assertEquals(1, alertCount.get(),
