@@ -49,6 +49,9 @@ import com.microproject.options.CalendarOption;
 import com.microproject.pm.criticalpath.PredecessorTaskList;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleInterval;
@@ -174,6 +177,24 @@ class NormalTaskDurationTest {
 		assertEquals(expectedStart, task.getStart());
 		assertEquals(newFinish, task.getEnd());
 		assertEquals(2L * day(), task.getDuration());
+	}
+
+	@Test
+	void setEndUpdatesEachAssignedResourceEnd() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * day());
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		long originalAssignmentEnd = assignment.getEnd();
+		long newEnd = task.getEffectiveWorkCalendar().add(task.getEnd(), day(), false);
+
+		task.setEnd(newEnd);
+
+		assertTrue(task.getEnd() >= newEnd,
+			"the normalized task finish must not precede the requested finish");
+		assertTrue(assignment.getEnd() > originalAssignmentEnd,
+			"extending the task finish must extend its resource assignment");
 	}
 
 	@Test

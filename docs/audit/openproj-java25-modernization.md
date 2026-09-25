@@ -1141,3 +1141,12 @@ traversal in `NormalTask.setCompletedThrough` to enhanced-for over the typed
 notifications. Added focused coverage for propagating the completed-through
 date and actual start from a real resource assignment. Focused
 `NormalTaskPercentCompleteTest`, application compilation, and diff check passed.
+
+Follow-up #698 starts from the latest integrated `origin/master` after #697
+(HEAD and merge-base verified). Modernized the OpenProj-origin assignment loop
+in `NormalTask.setEnd` to enhanced-for over the typed `AssociationList`,
+preserving the assignment-end update and later duration handling. Added a
+focused regression test asserting that extending a task finish extends its
+assigned resource's finish. `NormalTaskDurationTest`, application compilation,
+and diff check passed. The unrelated full-core CriticalChain timing instability
+remains disclosed in #695/#696 and is guarded by required PR CI.

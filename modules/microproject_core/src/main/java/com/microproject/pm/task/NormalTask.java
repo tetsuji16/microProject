@@ -1962,10 +1962,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		long oldEnd = getEnd();
 		if (end != oldEnd) {
 			super.setEnd(end);
-			Iterator i = getAssignments().iterator();
-			Assignment assignment;
-			while (i.hasNext()) {
-				assignment = (Assignment)i.next();
+			for (Association association : getAssignments()) {
+				Assignment assignment = (Assignment) association;
 				assignment.setEnd(end);
 			}
 //			System.out.println("Old End"  + new Date(oldEnd) + " input end " + new Date(end )+ " resulting End " + new Date(getEnd()) + " duration " + DurationFormat.format(getDuration()));
