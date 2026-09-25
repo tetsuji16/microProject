@@ -2256,14 +2256,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (completedThrough == getCompletedThrough())
 			return;
 
-		Iterator i = getAssignments().iterator();
-		Assignment assignment;
 		long computedActualStart = Long.MAX_VALUE;
-		long assignmentActualStart;
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
 			assignment.setCompletedThrough(completedThrough);
-			assignmentActualStart = assignment.getActualStart();
+			long assignmentActualStart = assignment.getActualStart();
 			if (assignmentActualStart != 0 && assignmentActualStart < computedActualStart)
 				computedActualStart = assignmentActualStart;
 		}
