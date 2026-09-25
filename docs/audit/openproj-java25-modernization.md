@@ -1192,3 +1192,10 @@ that applies one rate through an entry containing two assignments and verifies
 both update. Removed the now-unused `Iterator` import after both active loops
 were modernized. `AssignmentEntryTest`, application compilation, and diff check
 passed; the public raw collection boundary remains unchanged.
+
+Follow-up #704 starts from the latest integrated `origin/master` after #703
+(HEAD and merge-base verified). Modernized the active OpenProj-origin
+`DependencyService.remove(Collection, Collection)` snapshot loop to enhanced-for,
+preserving the raw public Collection signatures and the copy-before-remove
+semantics used by `Task.cleanUp`. Existing `TaskCleanupTest` and
+`DependencyServiceTest`, application compilation, and diff check passed.
