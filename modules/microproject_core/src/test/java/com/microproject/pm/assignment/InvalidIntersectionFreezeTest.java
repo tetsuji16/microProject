@@ -112,6 +112,10 @@ class InvalidIntersectionFreezeTest {
 		for (int i = 0; i < 20; i++) {
 			assignment.invalidateAssignmentCalendar();
 			assignment.getEffectiveWorkCalendar();
+			if (i == 0) {
+				assertTrue(task.isInvalidIntersectionCalendar(),
+						"the task indicator must expose an invalid intersection when first detected");
+			}
 		}
 
 		assertTrue(task.isIgnoreResourceCalendar(),

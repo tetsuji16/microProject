@@ -2181,9 +2181,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 
 	public boolean isInvalidIntersectionCalendar() {
-		Iterator i = getAssignments().iterator();
-		while (i.hasNext()) {
-			if (((Assignment)i.next()).isInvalidIntersectionCalendar())
+		for (Association association : getAssignments()) {
+			Assignment assignment = (Assignment) association;
+			if (assignment.isInvalidIntersectionCalendar())
 				return true;
 		}
 		return false;
