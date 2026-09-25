@@ -321,9 +321,8 @@ public class DependencyService {
 
 	//fix
 	public void remove(Collection dependencyList, Collection toRemove) {
-		Iterator i = dependencyList.iterator();
-		while (i.hasNext())
-			toRemove.add(i.next());
+		for (Object dependency : dependencyList)
+			toRemove.add(dependency);
 	}
 
 
