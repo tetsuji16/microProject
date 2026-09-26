@@ -1345,6 +1345,12 @@ enhanced-for, preserving item and separator order. This matches
 `d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/ToolBarFactory.java`.
 The focused `RibbonAndToolbarButtonTest` passed.
 
+`Intervals` now uses enhanced-for for source interval copying, bulk addition, and
+date containment lookup. The range-merging and weekday-pruning loops retain
+explicit iterators because they call `Iterator.remove()`. The conversion matches
+`d2fa3c20a:openproj_ui/src/com/projity/dialog/calendar/Intervals.java`;
+`IntervalsTraversalTest` passed.
+
 `DefaultFrameManager` now traverses its frame list during cleanup and persisted
 workspace entries during restoration with enhanced-for, preserving their list
 order. Both loops match

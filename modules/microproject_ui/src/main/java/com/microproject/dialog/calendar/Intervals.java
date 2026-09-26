@@ -56,8 +56,8 @@ public class Intervals extends TreeSet implements HasStartAndEnd{
 			}
 		});
 		if (c!=null)
-			for (Iterator i=c.iterator();i.hasNext();){
-				DateSpan d=(DateSpan)i.next();
+			for (Object interval : c) {
+				DateSpan d=(DateSpan)interval;
 				if (super.add(new CalendarInterval(d.getStart(),d.getEnd())));
 			}
 	}
@@ -90,8 +90,8 @@ public class Intervals extends TreeSet implements HasStartAndEnd{
 	public boolean addAll(Collection c) {
 		if (c==null) return false;
 		boolean added=false;
-		for (Iterator i=c.iterator();i.hasNext();){
-			if (super.add(i.next())) added=true;
+		for (Object interval : c) {
+			if (super.add(interval)) added=true;
 		}
 		return added;
 	}
@@ -104,8 +104,8 @@ public class Intervals extends TreeSet implements HasStartAndEnd{
 	}
 
 	public boolean containsDate(long date){
-		for (Iterator i=iterator();i.hasNext();){ //a more optimized version can be found
-			HasStartAndEnd interval=(HasStartAndEnd)i.next();
+		for (Object item : this) { //a more optimized version can be found
+			HasStartAndEnd interval=(HasStartAndEnd)item;
 			if (interval.getStart()<=date&&date<=interval.getEnd()) return true;
 		}
 		return false;
@@ -168,4 +168,3 @@ public class Intervals extends TreeSet implements HasStartAndEnd{
 
 	}*/
 }
-
