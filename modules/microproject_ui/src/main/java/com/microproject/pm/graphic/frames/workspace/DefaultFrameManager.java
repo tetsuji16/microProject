@@ -39,7 +39,6 @@ import java.awt.Rectangle;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.AbstractList;
-import java.util.Iterator;
 import java.util.LinkedList;
 
 import javax.swing.DefaultComboBoxModel;
@@ -94,9 +93,8 @@ public class DefaultFrameManager implements FrameManager {
 		GraphicManager.getInstance().getLafManager().setColorScheme(projectComboPanel);
 	}
 	public void cleanUp() {
-		Iterator i = getAllFrames().iterator();
-		while (i.hasNext()) {
-			((DocumentFrame)i.next()).cleanUp();
+		for (Object frame : getAllFrames()) {
+			((DocumentFrame)frame).cleanUp();
 		}
 		projectComboBox.removeAll();
 		for (JFrame documentWindow : documentWindows.values())
@@ -552,9 +550,8 @@ public class DefaultFrameManager implements FrameManager {
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		FrameWorkspace ws = (FrameWorkspace) w;
 		workspace = ws;
-		Iterator i = ws.list.iterator();
-		while (i.hasNext()) {
-			DocumentFrame.Workspace documentFrameWorkspace = (DocumentFrame.Workspace) i.next();
+		for (Object item : ws.list) {
+			DocumentFrame.Workspace documentFrameWorkspace = (DocumentFrame.Workspace) item;
 			long projectId = documentFrameWorkspace.getProjectId();
 			Project project = ProjectFactory.getInstance().findFromId(projectId);
 			if (project == null){
