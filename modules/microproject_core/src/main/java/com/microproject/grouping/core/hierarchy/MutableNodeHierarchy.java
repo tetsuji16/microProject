@@ -153,12 +153,9 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     public void paste(Node parent,List children,int position,NodeModel model,int actionType){
     	Node p=(parent==null)?root:parent;
 
-    	Project project=null;
-    	ResourcePool resourcePool=null;
-    	if (model.getDataFactory() instanceof Project)
-        	project=(Project)model.getDataFactory();
-    	else if(model.getDataFactory() instanceof ResourcePool)
-        	resourcePool=(ResourcePool)model.getDataFactory();
+	Object dataFactory = model.getDataFactory();
+	Project project = dataFactory instanceof Project projectFactory ? projectFactory : null;
+	ResourcePool resourcePool = dataFactory instanceof ResourcePool poolFactory ? poolFactory : null;
 
     	int subprojectLevel=getChildrenSubprojectLevel(parent);
 
