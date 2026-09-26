@@ -46,7 +46,9 @@ public class FieldValues {
 		FieldContext context = null;
 		// LinkedHashMap preserves insertion order so the serialized POD is byte-stable
 		// across load/save round-trips (see issue #227: non-deterministic map order caused drift).
-		HashMap<String, Object> map = new LinkedHashMap<>();
+		// The field list is known up front; leave room for one entry per field at
+		// the default load factor while preserving the insertion order required by POD.
+		HashMap<String, Object> map = new LinkedHashMap<>(Math.max(4, fields.size() * 4 / 3 + 1));
 		for (Field field : fields) {
 			try {
 				Object value = field.getValue(object,context);
