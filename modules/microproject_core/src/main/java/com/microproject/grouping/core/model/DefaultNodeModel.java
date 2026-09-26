@@ -146,7 +146,7 @@ public class DefaultNodeModel implements NodeModel {
 		add(parent,child,-1,actionType);
 	}
 	public void add(Node parent,Node child,int position,int actionType){
-		ArrayList children = new ArrayList(1);
+		ArrayList<Node> children = new ArrayList<>(1);
 		children.add(child);
 		add(parent,children,position,actionType);
 		//hierarchy.add(parent,child,position,actionType);
