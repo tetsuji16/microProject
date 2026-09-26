@@ -41,7 +41,7 @@ import com.microproject.util.FilePathUtils;
 public class DefaultSubprojectHandler implements SubprojectHandler {
 	private final Project dummyProject;
 	private Task containingSubprojectTask;
-	private Collection referringSubprojectTasks = new ArrayList();
+	private Collection<Object> referringSubprojectTasks = new ArrayList<>();
 
 	public DefaultSubprojectHandler(Project dummy) {
 		this.dummyProject = dummy;
@@ -59,7 +59,7 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 		return result;
 	}
 
-	public Collection getReferringSubprojectTasks() {
+	public Collection<Object> getReferringSubprojectTasks() {
 		return referringSubprojectTasks;
 	}
 
@@ -71,10 +71,10 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 		this.containingSubprojectTask = containingSubprojectTask;
 	}
 
-	public void setReferringSubprojectTasks(Collection referringSubprojectTasks) {
+	public void setReferringSubprojectTasks(Collection<?> referringSubprojectTasks) {
 		this.referringSubprojectTasks = referringSubprojectTasks == null
-				? new ArrayList()
-				: new ArrayList(referringSubprojectTasks);
+				? new ArrayList<>()
+				: new ArrayList<>(referringSubprojectTasks);
 	}
 
 	public void switchToResourcesOfProject(Project useMe) {
@@ -97,7 +97,7 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 			}
 			if (task.getName() == null || task.getName().isBlank())
 				task.setName(ProjectFactory.getDisplayNameForSavePrompt(subproject));
-			Collection referringTasks = subproject.getReferringSubprojectTasks();
+			Collection<Object> referringTasks = subproject.getReferringSubprojectTasks();
 			if (!referringTasks.contains(task))
 				referringTasks.add(task);
 			attachLoadedTasks(subproject, subprojectNode);

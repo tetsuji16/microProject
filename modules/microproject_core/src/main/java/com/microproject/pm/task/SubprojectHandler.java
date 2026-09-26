@@ -30,8 +30,8 @@ import com.microproject.grouping.core.Node;
 
 public interface SubprojectHandler {
 	void switchToResourcesOfProject(Project useMe);
-	Collection getReferringSubprojectTasks();
-	void setReferringSubprojectTasks(Collection referringSubprojectTasks);
+	Collection<Object> getReferringSubprojectTasks();
+	void setReferringSubprojectTasks(Collection<?> referringSubprojectTasks);
 	Task getContainingSubprojectTask();
 	void setContainingSubprojectTask(Task containingSubprojectTask);
 	long getReferringSubprojectTaskDependencyDate();

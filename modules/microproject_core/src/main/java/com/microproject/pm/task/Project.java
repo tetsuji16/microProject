@@ -2058,11 +2058,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		this.readOnly = readOnly;
 	}
 
-	public final Collection getReferringSubprojectTasks() {
+	public final Collection<Object> getReferringSubprojectTasks() {
 		return subprojectFacade.getReferringSubprojectTasks();
 	}
 
-	public final void setReferringSubprojectTasks(Collection referringSubprojectTasks) {
+	public final void setReferringSubprojectTasks(Collection<?> referringSubprojectTasks) {
 		subprojectFacade.setReferringSubprojectTasks(referringSubprojectTasks);
 	}
 
@@ -2770,11 +2770,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			return late;
 		}
 
-		Collection getReferringSubprojectTasks() {
+		Collection<Object> getReferringSubprojectTasks() {
 			return subprojectHandler.getReferringSubprojectTasks();
 		}
 
-		void setReferringSubprojectTasks(Collection referringSubprojectTasks) {
+		void setReferringSubprojectTasks(Collection<?> referringSubprojectTasks) {
 			subprojectHandler.setReferringSubprojectTasks(referringSubprojectTasks);
 		}
 
