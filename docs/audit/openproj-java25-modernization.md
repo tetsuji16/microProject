@@ -1472,3 +1472,8 @@ graphics context and texture flag.
 backing linked lists. They retain identity comparisons, exclusion behavior,
 first-match selection, and encounter order. Both loops match the OpenProj
 `AssociationList` source; the focused association lookup regression passed.
+
+`TaskFormula.evaluate` and `AssignmentFormula.evaluate` now bind their expected
+domain types with `instanceof` patterns while retaining `Boolean.FALSE` for
+other and null inputs. The methods correspond to the OpenProj formula sources;
+`TaskFormulaTest` covers task dispatch and both rejection cases.

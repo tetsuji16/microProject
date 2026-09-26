@@ -30,8 +30,9 @@ import com.microproject.scripting.Formula;
 
 public class AssignmentFormula extends Formula {
 	public Object evaluate(Object object) throws InvalidFormulaException {
-		if (!(object instanceof Assignment)) return Boolean.FALSE;
-		return Boolean.valueOf(evaluateTask((Assignment)object));
+		if (object instanceof Assignment assignment)
+			return Boolean.valueOf(evaluateTask(assignment));
+		return Boolean.FALSE;
 	}
 	public boolean evaluateTask(Assignment task){
 		return task.isAssignment();

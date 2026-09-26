@@ -30,8 +30,9 @@ import com.microproject.scripting.Formula;
 
 public abstract class TaskFormula extends Formula {
 	public Object evaluate(Object object) throws InvalidFormulaException {
-		if (!(object instanceof Task)) return Boolean.FALSE;
-		return Boolean.valueOf(evaluateTask((Task)object));
+		if (object instanceof Task task)
+			return Boolean.valueOf(evaluateTask(task));
+		return Boolean.FALSE;
 	}
 	public abstract boolean evaluateTask(Task task);
 
