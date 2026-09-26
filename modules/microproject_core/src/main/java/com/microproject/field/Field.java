@@ -622,7 +622,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 
 	private Object getGroupDuration(Node node, WalkersNodeModel nodeModel, FieldContext context) {
 		Document document = nodeModel.getDocument();
-		if (!(document instanceof Project))
+		if (!(document instanceof Project project))
 			return null;
 		Field startField = FieldDictionary.getInstance().getFieldFromId("Field.start");
 		Field endField = FieldDictionary.getInstance().getFieldFromId("Field.finish");
@@ -630,7 +630,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		Date end = (Date) getSummarizedValueForField(endField, node, nodeModel, context);
 		if (start == null || end == null)
 			return null;
-		WorkingCalendar calendar = (WorkingCalendar) ((Project) document).getWorkCalendar();
+		WorkingCalendar calendar = (WorkingCalendar) project.getWorkCalendar();
 		double millis = calendar.compare(end.getTime(), start.getTime(), false);
 		return new Duration(Duration.getInstance(
 			millis / CalendarOption.getInstance().getMillisPerDay(), TimeUnit.DAYS));
