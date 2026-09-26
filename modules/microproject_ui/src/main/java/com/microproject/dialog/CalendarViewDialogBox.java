@@ -198,18 +198,21 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			g.setColor(currentMonth ? FlatUiSupport.tableForeground() : FlatUiSupport.disabledForeground());
 			g.drawString(Integer.toString(day.getDayOfMonth()), x + 7, y + 17);
 			String companionDay = AlternativeCalendarDisplay.companionDay(day, Locale.getDefault(Locale.Category.FORMAT));
+			int taskCardTop = 23;
+			int maxVisibleTasks = 3;
 			if (!companionDay.isEmpty()) {
 				Font baseFont = g.getFont();
 				g.setFont(baseFont.deriveFont(Math.max(9F, baseFont.getSize2D() - 2F)));
-				int companionWidth = g.getFontMetrics().stringWidth(companionDay);
 				g.setColor(FlatUiSupport.disabledForeground());
-				g.drawString(companionDay, x + width - companionWidth - 7, y + 17);
+				g.drawString(companionDay, x + 7, y + 31);
 				g.setFont(baseFont);
+				taskCardTop = 38;
+				maxVisibleTasks = 2;
 			}
 			List<Task> onDay = tasksOn(day);
-			int visible = Math.min(3, onDay.size());
+			int visible = Math.min(maxVisibleTasks, onDay.size());
 			for (int i = 0; i < visible; i++) {
-				Task task = onDay.get(i); Rectangle bounds = new Rectangle(x + 5, y + 23 + i * 23, Math.max(20, width - 10), 19);
+				Task task = onDay.get(i); Rectangle bounds = new Rectangle(x + 5, y + taskCardTop + i * 23, Math.max(20, width - 10), 19);
 				g.setColor(task.isInactiveTask() ? FlatUiSupport.disabledForeground() : task.isManuallyScheduled() ? FlatUiSupport.accentColor().darker() : FlatUiSupport.ribbonAccentColor());
 				g.fillRoundRect(bounds.x, bounds.y, bounds.width, bounds.height, 7, 7);
 				g.setColor(FlatUiSupport.tableSelectionForeground()); String name = PrivacyDisplayMode.taskName(task);

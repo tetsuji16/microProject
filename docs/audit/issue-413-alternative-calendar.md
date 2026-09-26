@@ -21,7 +21,10 @@
 ## Current implementation and evidence
 
 `CalendarViewDialogBox` keeps Gregorian day numbers and adds the selected
-chronology's month label and day number as secondary display. The Windows
+chronology's month label and a second-line day number under each Gregorian
+date. To leave room for that line, alternative-calendar cells show at most two
+task cards before the existing `+N more` indicator; ISO-only cells retain three
+visible cards. The Windows
 current-user setting is read once from `HKCU\Control Panel\International`;
 IDs are mapped only where Java's built-in chronology represents the same
 calendar. Other Windows IDs and unsupported locale extensions fall back to
