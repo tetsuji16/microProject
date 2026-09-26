@@ -108,8 +108,8 @@ public abstract class CellCache{
 	
 	public void clear(){
 		cache.clear();
-		for (Iterator i=visibleElements.iterator();i.hasNext();){
-		    ((VisibleElements)i.next()).clear();
+		for (Object element : visibleElements) {
+		    ((VisibleElements)element).clear();
 		}
 		baseIndex.clear();
 	}
@@ -156,4 +156,3 @@ public abstract class CellCache{
 	
 	
 }
-

@@ -44,6 +44,22 @@ class NodeCacheEventTraversalTest {
 		assertTrue(nodes.getElements().isEmpty());
 	}
 
+	@Test
+	void clearsEveryRegisteredVisibleView() {
+		NodeCache cache = new NodeCache();
+		VisibleNodes first = visibleNodes("first");
+		VisibleNodes second = visibleNodes("second");
+		first.getElements().add("first row");
+		second.getElements().add("second row");
+		cache.addVisibleElements(first);
+		cache.addVisibleElements(second);
+
+		cache.clear();
+
+		assertTrue(first.getElements().isEmpty());
+		assertTrue(second.getElements().isEmpty());
+	}
+
 	private static VisibleNodes visibleNodes(String name) {
 		VisibleNodes nodes = new VisibleNodes(name, ignored -> { });
 		nodes.setVisibleDependencies(new VisibleDependencies(name));

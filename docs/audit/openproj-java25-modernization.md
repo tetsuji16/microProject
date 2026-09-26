@@ -1364,6 +1364,11 @@ capacity branch accepted a null update set, but `addAll` then dereferenced it.
 `updateVisibleElements` now treats null as an empty incremental change set, and
 the test verifies this call completes with an empty visible cache.
 
+`CellCache.clear` now traverses registered visible elements with enhanced-for,
+still clearing each view after the backing cache and before the base index.
+The loop matches `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/model/cache/CellCache.java`.
+`NodeCacheEventTraversalTest` verifies that every registered view is cleared.
+
 `Intervals` now uses enhanced-for for source interval copying, bulk addition, and
 date containment lookup. The range-merging and weekday-pruning loops retain
 explicit iterators because they call `Iterator.remove()`. The conversion matches
