@@ -379,12 +379,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		//this.projectUrl = projectUrl;
 		GraphicManager.server = server;
 		this.container=container;
-		if (container instanceof Frame)
-			frame=(Frame)container;
+		if (container instanceof Frame ownerFrame)
+			frame=ownerFrame;
 //		else if (container instanceof JApplet)
 //			frame = JOptionPane.getFrameForComponent(container);
-		if (container instanceof FrameHolder)
-			((FrameHolder)container).setGraphicManager(this);
+		if (container instanceof FrameHolder frameHolder)
+			frameHolder.setGraphicManager(this);
 //		else if (container instanceof BootstrapApplet){
 		else{
 			try {
