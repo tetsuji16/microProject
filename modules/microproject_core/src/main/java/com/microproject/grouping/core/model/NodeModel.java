@@ -54,38 +54,38 @@ public interface NodeModel extends TreeModel, WalkersNodeModel{
 	public void add(Node child,int actionType);
 	public void add(Node parent,Node child,int position,int actionType);
 	public void add(Node parent,Node child,int actionType);
-	public void add(Node parent,List children,int actionType);
-	public void add(Node parent,List children,int position,int actionType);
-	public void addBefore(LinkedList siblings,Node newNode,int actionType);
+	public void add(Node parent,List<Node> children,int actionType);
+	public void add(Node parent,List<Node> children,int position,int actionType);
+	public void addBefore(LinkedList<Node> siblings,Node newNode,int actionType);
 	public void addBefore(Node sibling,Node newNode,int actionType);
-	public void addBefore(Node sibling,List newNodes,int actionType);
+	public void addBefore(Node sibling,List<Node> newNodes,int actionType);
 	public void addImplCollection(Node parent, Collection<?> collection,int actionType);
 	public Node newNode(Node parent,int position,int actionType);
 
-	public void paste(Node parent,List nodes,int position,int actionType);
+	public void paste(Node parent,List<Node> nodes,int position,int actionType);
 
 	public void remove(Node node,int actionType);
-	public void remove(List nodes,int actionType);
+	public void remove(List<Node> nodes,int actionType);
 	public void remove(Node node,int actionType,boolean removeDependencies);
-	public void remove(List nodes,int actionType,boolean removeDependencies);
+	public void remove(List<Node> nodes,int actionType,boolean removeDependencies);
 	public void removeAll(int actionType);
 	//internal
 	public boolean removeApartFromHierarchy(Node node,boolean cleanAssignment,int actionType,boolean removeDependencies);
-	boolean confirmRemove(List nodes);
-	public List cut(List nodes,int actionType);
-	public List copy(List nodes,int actionType);
+	boolean confirmRemove(List<Node> nodes);
+	public List<Node> cut(List<Node> nodes,int actionType);
+	public List<Node> copy(List<Node> nodes,int actionType);
 
 	public void move(Node parent,List<Node> nodes,int position,int actionType);
-	public boolean canRelocate(List nodes,Node parent,int position);
-	public boolean relocate(List nodes,Node parent,int position,int actionType);
-	public boolean canMoveSelectedNodes(List nodes,int direction);
-	public boolean moveSelectedNodes(List nodes,int direction,int actionType);
+	public boolean canRelocate(List<Node> nodes,Node parent,int position);
+	public boolean relocate(List<Node> nodes,Node parent,int position,int actionType);
+	public boolean canMoveSelectedNodes(List<Node> nodes,int direction);
+	public boolean moveSelectedNodes(List<Node> nodes,int direction,int actionType);
 
 
 	//Node implementation or field modifications
 	public void setFieldValue(Field field, Node node, Object eventSource, Object value, FieldContext context,int actionType) throws FieldParseException;
-	public Node replaceImplAndSetFieldValue(Node node, LinkedList previous, Object newImpl, Field field, Object eventSource, Object value, FieldContext context,int actionType) throws FieldParseException;
-	public Node replaceImplAndSetFieldValue(Node node, LinkedList previous, Field field, Object eventSource, Object value, FieldContext context,int actionType) throws FieldParseException;
+	public Node replaceImplAndSetFieldValue(Node node, LinkedList<Node> previous, Object newImpl, Field field, Object eventSource, Object value, FieldContext context,int actionType) throws FieldParseException;
+	public Node replaceImplAndSetFieldValue(Node node, LinkedList<Node> previous, Field field, Object eventSource, Object value, FieldContext context,int actionType) throws FieldParseException;
 	public Node replaceImpl(Node node, Object nodeImpl, Object eventSource,int actionType);
 
 
@@ -109,7 +109,7 @@ public interface NodeModel extends TreeModel, WalkersNodeModel{
 	public void setDataFactory(NodeModelDataFactory dataFactory);
 
 	//shortcut used by walkers
-	public List getChildren(Node parent);
+	public List<Node> getChildren(Node parent);
 	public Node getParent(Node child);
 
 	public void setUndoController(UndoController undoController);

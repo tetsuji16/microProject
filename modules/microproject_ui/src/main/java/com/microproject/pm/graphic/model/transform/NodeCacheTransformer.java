@@ -509,7 +509,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 	    protected MultiMap childrenMap=new MultiHashMap();
 	    protected Map<Node,Node> parentMap=new HashMap<>();
 
-		public List<GraphicNode> getChildren(Node node) {
+		public List<?> getChildren(Node node) {
 			if (node.getImpl() instanceof GroupNodeImpl){
 				return (List<GraphicNode>)childrenMap.get(node);
 			}

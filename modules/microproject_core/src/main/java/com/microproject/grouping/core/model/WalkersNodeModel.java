@@ -33,7 +33,7 @@ import com.microproject.grouping.core.Node;
  * 
  */
 public interface WalkersNodeModel {
-	public List getChildren(Node parent);
+	public List<?> getChildren(Node parent);
 	public Node getParent(Node child);
 	public Node search(Object key); 
 	public boolean isSummary(Node node);

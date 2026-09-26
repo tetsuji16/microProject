@@ -1965,3 +1965,16 @@ a regression for rejecting a parent/child pair while accepting siblings and an
 empty selection. Verification passed: full `:microproject_core:test`,
 `:microproject_ui:compileJava`, focused `DefaultNodeModelTest`, and
 `git diff --check`. Commit: recorded in this changeset.
+
+Typed the remaining `NodeModel` node-list contract across add/paste/remove/copy,
+move/relocate, children, and implementation-replacement history. The
+`NodeImplChangeAndValueSetEdit` snapshot lists and `DefaultNodeModel` traversal
+now use `Node` and its `Position` type directly. `WalkersNodeModel.getChildren`
+uses `List<?>` because its active `NodeCacheTransformer` implementation returns
+virtual `GraphicNode` values for grouped views and real `Node` children for the
+base view; the wildcard keeps that union explicit without unchecked client
+casts. `git blame` identifies the core node-model methods as OpenProj-derived,
+and all repository callers compiled. Full core and UI suites passed, as did
+application/exchange/reports compilation. The generic signature changes retain
+JVM erasure and do not change runtime behavior. Commit: recorded in this
+changeset.

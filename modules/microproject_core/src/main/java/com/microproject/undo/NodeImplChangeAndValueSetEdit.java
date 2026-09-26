@@ -47,8 +47,8 @@ public class NodeImplChangeAndValueSetEdit extends AbstractUndoableEdit{
 	private static final Logger logger = Logger.getLogger(NodeImplChangeAndValueSetEdit.class.getName());
 	protected NodeModel model;
 	protected Node node;
-	protected LinkedList previous;
-	protected List previousPosition;
+	protected LinkedList<Node> previous;
+	protected List<Position> previousPosition;
 	protected Object oldImpl,newImpl;
 	protected Field field;
 	protected Object value;
@@ -64,7 +64,7 @@ public class NodeImplChangeAndValueSetEdit extends AbstractUndoableEdit{
 	 * @param context
 	 * @param source
 	 */
-	public NodeImplChangeAndValueSetEdit(NodeModel model, Node node, LinkedList previous, List previousPosition,
+	public NodeImplChangeAndValueSetEdit(NodeModel model, Node node, LinkedList<Node> previous, List<Position> previousPosition,
 			Object oldImpl, Field field, Object value,
 			FieldContext context, Object source) {
 		super();
@@ -90,8 +90,7 @@ public class NodeImplChangeAndValueSetEdit extends AbstractUndoableEdit{
 	public void undo() throws CannotUndoException {
 		super.undo();
 		if (previousPosition!=null){
-			for (Iterator i=previousPosition.iterator();i.hasNext();){
-				Position p=(Position)i.next();
+			for (Position p : previousPosition) {
 				model.remove(p.child, NodeModel.SILENT);
 				model.add(p.parent, p.child, p.index,NodeModel.SILENT);
 			}

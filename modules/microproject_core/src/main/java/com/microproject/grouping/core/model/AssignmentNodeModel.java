@@ -209,7 +209,7 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 		}
 	}
 
-	public boolean confirmRemove(List nodes) {
+	public boolean confirmRemove(List<Node> nodes) {
 		return true;
 // This code is commented out since the user was getting prompted multiple times.  With Undo, it's less important
 //		if (Environment.isBatchMode())
@@ -234,7 +234,7 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 
 
 
-	public void paste(Node parent,List nodes,int position,int actionType){
+	public void paste(Node parent,List<Node> nodes,int position,int actionType){
 		super.paste(parent, nodes, position, actionType);
 		ArrayList roots = new ArrayList();
 		HierarchyUtils.extractParents(nodes, roots);

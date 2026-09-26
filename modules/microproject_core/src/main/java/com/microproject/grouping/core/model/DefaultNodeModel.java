@@ -109,7 +109,7 @@ public class DefaultNodeModel implements NodeModel {
 		rebuildSearchIndex();
 	}
 
-	public void addBefore(LinkedList siblings,Node newNode,int actionType){
+	public void addBefore(LinkedList<Node> siblings,Node newNode,int actionType){
 		Node previous,next,parent;
 		boolean firstChild;
 		if (siblings.size()==0){
@@ -138,7 +138,7 @@ public class DefaultNodeModel implements NodeModel {
 		Node parent=(Node)sibling.getParent();
 		add(parent,newNode,parent.getIndex(sibling),actionType);
 	}
-	public void addBefore(Node sibling,List newNodes,int actionType){
+	public void addBefore(Node sibling,List<Node> newNodes,int actionType){
 		Node parent=(Node)sibling.getParent();
 		add(parent,newNodes,parent.getIndex(sibling),actionType);
 	}
@@ -151,11 +151,11 @@ public class DefaultNodeModel implements NodeModel {
 		add(parent,children,position,actionType);
 		//hierarchy.add(parent,child,position,actionType);
 	}
-	public void add(Node parent,List children,int actionType){
+	public void add(Node parent,List<Node> children,int actionType){
 		add(parent,children,-1,actionType);
 		//hierarchy.add(parent,children,actionType);
 	}
-	public void add(Node parent,List children,int position,int actionType){
+	public void add(Node parent,List<Node> children,int position,int actionType){
 		hierarchy.add(parent,children,position,actionType);
 		registerNodes(children);
 		//Undo
@@ -190,7 +190,7 @@ public class DefaultNodeModel implements NodeModel {
 
 	}
 
-	public void paste(Node parent,List nodes,int position,int actionType){
+	public void paste(Node parent,List<Node> nodes,int position,int actionType){
 		//nodes=copy(nodes,NodeModel.SILENT); //make an other copy, in case it is copied more than one time
 		//done in transfert handler
 
@@ -223,7 +223,7 @@ public class DefaultNodeModel implements NodeModel {
 	public void move(Node parent,List<Node> nodes,int position,int actionType){
 		if (!testAncestorOrDescendant(parent,nodes)) // don't allow circular
 			return;
-		List cutNodes=cut(nodes,false,actionType);
+		List<Node> cutNodes=cut(nodes,false,actionType);
 		paste(parent,cutNodes,position,actionType);
 	}
 
@@ -231,7 +231,7 @@ public class DefaultNodeModel implements NodeModel {
 	 * Moves a contiguous set of sibling outline branches while preserving the task
 	 * instances, unique IDs, dependencies, assignments, baselines, and notes.
 	 */
-	public boolean canRelocate(List nodes,Node parent,int position){
+	public boolean canRelocate(List<Node> nodes,Node parent,int position){
 		ArrayList<Node> branches=collectRelocationRoots(nodes);
 		if (branches.isEmpty()) return false;
 		Node sourceParent=(Node)branches.get(0).getParent();
@@ -245,7 +245,7 @@ public class DefaultNodeModel implements NodeModel {
 		return sourceParent!=destination||sourceParent.getIndex(branches.get(0))!=finalPosition;
 	}
 
-	public boolean relocate(List nodes,Node parent,int position,int actionType){
+	public boolean relocate(List<Node> nodes,Node parent,int position,int actionType){
 		if (!canRelocate(nodes,parent,position)) return false;
 		ArrayList<Node> branches=collectRelocationRoots(nodes);
 		Node sourceParent=(Node)branches.get(0).getParent();
@@ -274,7 +274,7 @@ public class DefaultNodeModel implements NodeModel {
 		return true;
 	}
 
-	public boolean canMoveSelectedNodes(List nodes,int direction){
+	public boolean canMoveSelectedNodes(List<Node> nodes,int direction){
 		if (direction!=-1&&direction!=1) return false;
 		ArrayList<Node> branches=collectRelocationRoots(nodes);
 		if (branches.isEmpty()) return false;
@@ -285,7 +285,7 @@ public class DefaultNodeModel implements NodeModel {
 		return direction<0?start>0:end<parent.getChildCount()-1;
 	}
 
-	public boolean moveSelectedNodes(List nodes,int direction,int actionType){
+	public boolean moveSelectedNodes(List<Node> nodes,int direction,int actionType){
 		if (!canMoveSelectedNodes(nodes,direction)) return false;
 		ArrayList<Node> branches=collectRelocationRoots(nodes);
 		Node parent=(Node)branches.get(0).getParent();
@@ -293,7 +293,7 @@ public class DefaultNodeModel implements NodeModel {
 		return relocate(branches,parent,direction<0?start-1:start+1,actionType);
 	}
 
-	private ArrayList<Node> collectRelocationRoots(List nodes){
+	private ArrayList<Node> collectRelocationRoots(List<Node> nodes){
 		ArrayList<Node> branches=new ArrayList<Node>(nodes == null ? 0 : nodes.size());
 		if (nodes==null) return branches;
 		HierarchyUtils.extractParents(nodes,branches);
@@ -357,13 +357,13 @@ public class DefaultNodeModel implements NodeModel {
 		//hierarchy.remove(node,this,actionType);
 		//it calls back removeApartFromHierarchy for each node to remove
 	}
-	public void remove(List nodes,int actionType){
+	public void remove(List<Node> nodes,int actionType){
 		remove(nodes, actionType, true);
 	}
-	public void remove(List nodes,int actionType,boolean removeDependencies){
+	public void remove(List<Node> nodes,int actionType,boolean removeDependencies){
 		remove(nodes, actionType, true,removeDependencies);
 	}
-	public void remove(List nodes,int actionType,boolean filterAssignments,boolean removeDependencies){
+	public void remove(List<Node> nodes,int actionType,boolean filterAssignments,boolean removeDependencies){
 		beginUndoUpdate(actionType);
 		try {
 			ArrayList roots = collectRemovalRoots(nodes, filterAssignments);
@@ -408,11 +408,11 @@ public class DefaultNodeModel implements NodeModel {
 		return true;
 	}
 
-	public List cut(List nodes,int actionType){
+	public List<Node> cut(List<Node> nodes,int actionType){
 		return cut(nodes,true,actionType);
 	}
-	public List cut(List nodes,boolean clone,int actionType){
-		List newNodes=copy(nodes,clone,actionType);
+	public List<Node> cut(List<Node> nodes,boolean clone,int actionType){
+		List<Node> newNodes=copy(nodes,clone,actionType);
 		remove(nodes,actionType);
 		return newNodes;
 //		ArrayList parentNodes =new Vector(nodes.size());
@@ -422,11 +422,11 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 
-	public List copy(List nodes,int actionType){
+	public List<Node> copy(List<Node> nodes,int actionType){
 		return copy(nodes,true,actionType);
 	}
 
-	public List copy(List nodes,boolean clone,int actionType){
+	public List<Node> copy(List<Node> nodes,boolean clone,int actionType){
 		ArrayList parentNodes = new ArrayList(nodes.size());
 		HierarchyUtils.extractParents(nodes,parentNodes);
 		if (!clone) return parentNodes;
@@ -689,17 +689,17 @@ public class DefaultNodeModel implements NodeModel {
 
 	}
 
-	public Node replaceImplAndSetFieldValue(Node node, LinkedList previous, Field field, Object eventSource, Object value,FieldContext context,int actionType) throws FieldParseException {
+	public Node replaceImplAndSetFieldValue(Node node, LinkedList<Node> previous, Field field, Object eventSource, Object value,FieldContext context,int actionType) throws FieldParseException {
 		//the line following a subproject is connected to the main project
 		if (previous!=null&&previous.size()>0){
 			Node p=(Node)previous.getFirst();
 			if (p!=null&&p.isInSubproject()&&node.getSubprojectLevel()<p.getSubprojectLevel()){
 				while (node.getSubprojectLevel()<p.getSubprojectLevel()) p=(Node)p.getParent();
-				LinkedList newPrevious=new LinkedList();
+				LinkedList<Node> newPrevious=new LinkedList<>();
 				newPrevious.add(p);
 				Node vn,pvn;
-				for (Iterator i=previous.iterator();i.hasNext();){
-					vn=(Node)i.next();
+				for (Node previousNode : previous) {
+					vn=previousNode;
 					pvn=(Node)vn.getParent();
 					while(pvn!=null&&pvn!=p) pvn=(Node)pvn.getParent();
 					if (pvn!=p) newPrevious.add(vn);
@@ -965,8 +965,8 @@ public class DefaultNodeModel implements NodeModel {
 		return d;
 	}
 
-	public Node replaceImplAndSetFieldValue(Node node, LinkedList previous, Object newImpl, Field field, Object eventSource, Object value,FieldContext context,int actionType) throws FieldParseException {
-		List previousPosition = repositionPreviousNodes(node, previous, actionType);
+	public Node replaceImplAndSetFieldValue(Node node, LinkedList<Node> previous, Object newImpl, Field field, Object eventSource, Object value,FieldContext context,int actionType) throws FieldParseException {
+		List<NodeImplChangeAndValueSetEdit.Position> previousPosition = repositionPreviousNodes(node, previous, actionType);
 
 		Node parent=(Node)node.getParent();
 
@@ -1031,18 +1031,17 @@ public class DefaultNodeModel implements NodeModel {
 		getHierarchy().fireUpdate(new Node[]{node});
 	}
 
-	private List repositionPreviousNodes(Node node, LinkedList previous, int actionType) {
+	private List<NodeImplChangeAndValueSetEdit.Position> repositionPreviousNodes(Node node, LinkedList<Node> previous, int actionType) {
 		if (previous == null)
 			return null;
-		LinkedList p=(LinkedList)previous.clone();
-		Node sibling=(Node)p.removeFirst();
+		LinkedList<Node> p=new LinkedList<>(previous);
+		Node sibling=p.removeFirst();
 		Node parent=(Node)sibling.getParent();
 		p.add(node);
-		List previousPosition = null;
+		List<NodeImplChangeAndValueSetEdit.Position> previousPosition = null;
 		if (getUndoableEditSupport()!=null&isUndo(actionType)){
-			previousPosition=new ArrayList(p.size());
-			for (Iterator i=p.iterator();i.hasNext();){
-				Node n=(Node)i.next();
+			previousPosition=new ArrayList<>(p.size());
+			for (Node n : p) {
 				previousPosition.add(new NodeImplChangeAndValueSetEdit.Position((Node)n.getParent(),n,n.getParent().getIndex(n)));
 			}
 		}
@@ -1057,7 +1056,7 @@ public class DefaultNodeModel implements NodeModel {
 		this.dataFactory = dataFactory;
 	}
 
-	public List getChildren(Node parent){
+	public List<Node> getChildren(Node parent){
 		return getHierarchy().getChildren(parent);
 	}
 	public Node getParent(Node child){
@@ -1103,7 +1102,7 @@ public class DefaultNodeModel implements NodeModel {
 
 	}
 
-	public boolean confirmRemove(List nodes) {
+	public boolean confirmRemove(List<Node> nodes) {
 		return true;
 	}
 
