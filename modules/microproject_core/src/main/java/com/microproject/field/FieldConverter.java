@@ -225,15 +225,15 @@ public class FieldConverter  {
 		public Object convert(Class type, Object value) throws ConversionException {
 			if (value == null)
 				return null;
-			if (value instanceof Long) {
-				long longValue =  ((Long)value).longValue();
+			if (value instanceof Long longValueObject) {
+				long longValue = longValueObject.longValue();
 				if (longValue == 0)
 					return null;
 				return new Date(longValue);
-			} else if (value instanceof Date) {
-				return value;
-			} else if (value instanceof Calendar) {
-				return ((Calendar)value).getTime();
+			} else if (value instanceof Date date) {
+				return date;
+			} else if (value instanceof Calendar calendar) {
+				return calendar.getTime();
 			} else if (value instanceof String dateText) {
 				try {
 					return EditOption.getInstance().getDateFormat().parse(dateText);
@@ -257,15 +257,15 @@ public class FieldConverter  {
 			GregorianCalendar cal = DateTime.calendarInstance();
 			if (value == null) {
 				return null;
-			} else if (value instanceof Long) {
-				long longValue =  ((Long)value).longValue();
+			} else if (value instanceof Long longValueObject) {
+				long longValue = longValueObject.longValue();
 				if (longValue == 0)
 					return null;
 		
 				cal.setTimeInMillis(longValue);
 				return cal;
-			} else if (value instanceof Date) {
-				cal.setTime((Date)value);
+			} else if (value instanceof Date date) {
+				cal.setTime(date);
 				return cal;
 			} else if (value instanceof String dateText) {
 				Date d = (Date) dateConverter.convert(Date.class,dateText);
@@ -280,12 +280,12 @@ public class FieldConverter  {
 			if (value == null)
 				return Duration.getInstanceFromDouble(null);
 			
-			if (value instanceof Number) {
-				return new Duration(((Number)value).longValue());
-			} else if (value instanceof Work) {
-				return new Duration(((Work)value).longValue());
-			} else if (value instanceof Duration) {
-				return value;
+			if (value instanceof Number number) {
+				return new Duration(number.longValue());
+			} else if (value instanceof Work work) {
+				return new Duration(work.longValue());
+			} else if (value instanceof Duration duration) {
+				return duration;
 			} else if (value instanceof String durationText) {
 				try {
 					return DurationFormat.getInstance().parseObject(durationText);
@@ -302,12 +302,12 @@ public class FieldConverter  {
 			if (value == null)
 				return Duration.getInstanceFromDouble(null);
 			
-			if (value instanceof Number) {
-				return new Work(((Number)value).longValue());
-			} else if (value instanceof Work) {
-				return new Work(((Work)value).longValue());
-			} else if (value instanceof Duration) {
-				return value;
+			if (value instanceof Number number) {
+				return new Work(number.longValue());
+			} else if (value instanceof Work work) {
+				return new Work(work.longValue());
+			} else if (value instanceof Duration duration) {
+				return duration;
 			} else if (value instanceof String workText) {
 				try {
 					return DurationFormat.getWorkInstance().parseObject(workText);
@@ -322,10 +322,10 @@ public class FieldConverter  {
 		Converter baseConverter = new org.apache.commons.beanutils.converters.DoubleConverter(); 
 		public Object convert(Class type, Object value) throws ConversionException {
 			if (value != null) {
-				if (value instanceof Double) {
-					return value;
-				} else if (value instanceof Money) {
-					double num = ((Number)value).doubleValue();
+				if (value instanceof Double doubleValue) {
+					return doubleValue;
+				} else if (value instanceof Money money) {
+					double num = money.doubleValue();
 				 	if (Double.isInfinite(num) || Double.isNaN(num)) {
 				 		logger.log(Level.WARNING, "Error: number is invalid double in MoneyConverter {0}", value);
 				 		num = 0.0;
@@ -347,10 +347,10 @@ public class FieldConverter  {
 		public Object convert(Class type, Object value) throws ConversionException {
 			if (value == null)
 				return Money.getInstance(0);
-			if (value instanceof Money) {
-				return value;
-			} else if (value instanceof Number) {
-				double num = ((Number)value).doubleValue();
+			if (value instanceof Money money) {
+				return money;
+			} else if (value instanceof Number number) {
+				double num = number.doubleValue();
 			 	if (Double.isInfinite(num) || Double.isNaN(num)) {
 			 		logger.log(Level.WARNING, "Error: number is invalid double in MoneyConverter {0}", value);
 			 		num = 0.0;

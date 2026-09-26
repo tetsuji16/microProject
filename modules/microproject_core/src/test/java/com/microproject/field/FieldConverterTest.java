@@ -19,6 +19,7 @@
 package com.microproject.field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.Calendar;
@@ -100,6 +101,12 @@ class FieldConverterTest {
 		calendar.setTime(date);
 		assertEquals(date.getTime(), FieldConverter.convert(calendar, Long.class, null));
 		assertEquals(work.getEncodedMillis(), FieldConverter.convert(work, Long.class, null));
+		assertSame(date, FieldConverter.convert(date, Date.class, null));
+		assertSame(money, FieldConverter.convert(money, Money.class, null));
+		assertEquals(work.longValue(),
+			((Duration) FieldConverter.convert(work, Duration.class, null)).getEncodedMillis());
+		assertNull(FieldConverter.convert(0L, Date.class, null));
+		assertNull(FieldConverter.convert(0L, GregorianCalendar.class, null));
 	}
 
 	private static final class OptionField extends Field {

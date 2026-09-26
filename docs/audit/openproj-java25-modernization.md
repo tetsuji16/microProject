@@ -1717,3 +1717,12 @@ verifies dispatch without opening a browser; the focused test passed.
 rendering callers are unchanged. `FieldConverterTest.formatsAndConvertsOpenProjTimeValuesWithoutChangingTheirValues`
 verifies Work, Money, and Date formatting plus epoch-millisecond values for
 Date, Calendar, and Work; the focused test passed.
+
+The same OpenProj-derived converter family now uses pattern bindings in
+`DateConverter`, `CalendarConverter`, `DurationConverter`, `WorkConverter`,
+`DoubleConverter`, and `MoneyConverter`. Conversion ordering and results are
+unchanged, including zero-millisecond dates mapping to null and Work retaining
+its millisecond value when converted to Duration. These converters remain behind
+the existing `FieldConverter.convert` entry point used by field parsing and
+display. The expanded `FieldConverterTest` also checks converter identity and
+zero-date behavior; focused and core-module tests passed.
