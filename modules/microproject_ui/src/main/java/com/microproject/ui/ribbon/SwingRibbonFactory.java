@@ -57,8 +57,9 @@ public final class SwingRibbonFactory {
 
 	public SwingRibbonModel createModel(String ribbonId, CustomRibbonBandGenerator customBandsGenerator) {
 		Objects.requireNonNull(ribbonId);
-		List<SwingRibbonModel.RibbonTab> tabs = new ArrayList<>();
-		for (String tabId : resolveList(ribbonId)) {
+		List<String> tabIds = resolveList(ribbonId);
+		List<SwingRibbonModel.RibbonTab> tabs = new ArrayList<>(tabIds.size());
+		for (String tabId : tabIds) {
 			tabs.add(createTab(tabId, customBandsGenerator));
 		}
 		List<String> taskBarButtons = resolveList(ribbonId + ".TaskBar");
@@ -96,8 +97,9 @@ public final class SwingRibbonFactory {
 	}
 
 	private SwingRibbonModel.RibbonTab createTab(String tabId, CustomRibbonBandGenerator customBandsGenerator) {
-		List<SwingRibbonModel.RibbonBand> bands = new ArrayList<>();
-		for (String bandId : resolveList(tabId)) {
+		List<String> bandIds = resolveList(tabId);
+		List<SwingRibbonModel.RibbonBand> bands = new ArrayList<>(bandIds.size());
+		for (String bandId : bandIds) {
 			bands.add(createBand(bandId, customBandsGenerator));
 		}
 		return new SwingRibbonModel.RibbonTab(tabId, resolveString(tabId + ".title"), bands,
@@ -115,8 +117,9 @@ public final class SwingRibbonFactory {
 			}
 		}
 
-		List<SwingRibbonModel.RibbonButton> buttons = new ArrayList<>();
-		for (String token : resolveList(bandId)) {
+		List<String> tokens = resolveList(bandId);
+		List<SwingRibbonModel.RibbonButton> buttons = new ArrayList<>(tokens.size());
+		for (String token : tokens) {
 			if ("-".equals(token)) {
 				continue;
 			}
