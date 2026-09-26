@@ -1534,3 +1534,9 @@ null/type checks and casts with an `instanceof` pattern. Both action prefixes
 and the fallback label are covered by `SplitEditTest`. The `SplitEdit` display
 path matches OpenProj; fork-specific `source` versus `this` arguments in
 undo/redo were intentionally left untouched.
+
+`SelectionFilter.evaluate` now binds its OpenProj-derived `Assignment` branch
+with `instanceof` pattern matching, retaining task-or-resource membership
+semantics. The type-check/cast branch matches the OpenProj implementation;
+`SelectionFilterTest` now covers selected-task, selected-resource, and unrelated
+task outcomes.

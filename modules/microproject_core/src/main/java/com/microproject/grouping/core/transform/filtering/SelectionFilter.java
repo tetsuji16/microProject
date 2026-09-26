@@ -61,9 +61,8 @@ public class SelectionFilter extends NodeFilter {
 			return false;
         if (impl instanceof HasAssignments)
             return implToShow.contains(impl);
-        else if (impl instanceof Assignment){
-            Assignment a=(Assignment)impl;
-            return selectedImpl.contains(a.getTask())||selectedImpl.contains(a.getResource());
+        else if (impl instanceof Assignment assignment){
+            return selectedImpl.contains(assignment.getTask())||selectedImpl.contains(assignment.getResource());
         }
         else return false;
     }

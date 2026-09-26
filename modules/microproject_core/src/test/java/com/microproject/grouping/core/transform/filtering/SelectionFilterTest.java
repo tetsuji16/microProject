@@ -34,7 +34,11 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
 
 class SelectionFilterTest {
 	@Test
@@ -73,5 +77,28 @@ class SelectionFilterTest {
         Node empty = NodeFactory.getInstance().createNode((Object) null);
 
         assertFalse(filter.evaluate(empty));
+    }
+
+    @Test
+    void assignmentSelectionMatchesItsTaskOrResource() {
+        DataFactoryUndoController undoController = new DataFactoryUndoController();
+        ResourcePool resourcePool = ResourcePool.createRourcePool("filter-test", undoController);
+        Project project = Project.createProject(resourcePool, undoController);
+        project.initialize(false, false);
+        NormalTask task = new NormalTask(project);
+        project.connectTask(task);
+        var resource = resourcePool.newResourceInstance();
+        Assignment assignment = Assignment.getInstance(task, resource, 1.0D, 0);
+        Node assignmentNode = NodeFactory.getInstance().createNode(assignment);
+        SelectionFilter filter = new SelectionFilter("true");
+
+        filter.setSelectedNodesImpl(List.of(task), true);
+        assertTrue(filter.evaluate(assignmentNode));
+
+        filter.setSelectedNodesImpl(List.of(resource), true);
+        assertTrue(filter.evaluate(assignmentNode));
+
+        filter.setSelectedNodesImpl(List.of(new NormalTask(project)), true);
+        assertFalse(filter.evaluate(assignmentNode));
     }
 }
