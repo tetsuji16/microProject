@@ -1603,16 +1603,15 @@ branch uses the same type guard and name lookup; the existing fork value
 comparison is preserved. `SpreadSheetFieldArrayTest` covers equal names,
 matching hash codes, and rejection of null/foreign types.
 
-`NodeModelUtil.nodeIsSubproject` now binds the OpenProj-derived `Task` type
-before reading its subproject flag. The additional `SubProj` branch remains
-in place as an existing `SubProj`-interface check; repository history shows
-that check predates the current module-name correction, so its origin is not
-asserted here. A non-Task object can implement `SubProj`, so the interface test
-is not redundant for every supported reference. For Task subprojects, the
-current `TaskSchedule.invalidate` contract assumes `isSubproject() == true`
-implies `SubProj`; violating that invariant throws `ClassCastException` there.
-`NodeModelUtilTest` covers an interface-only reference, the built-in Task plus
-SubProj placeholder, and an ordinary task. Active callers include
+`NodeModelUtil.nodeIsSubproject` now uses the `SubProj` contract as its single
+classification rule. `Task.isSubproject()` already derives its value from that
+same contract, so the previous second branch duplicated the predicate and
+allowed an invalid `Task` override to classify a non-`SubProj` object as a
+subproject. `TaskSchedule.invalidate` assumes a subproject task implements
+`SubProj`; violating that invariant throws `ClassCastException`. A non-Task
+object can implement `SubProj`, so the interface check still covers that valid
+case. `NodeModelUtilTest` covers an interface-only reference, the built-in
+Task plus SubProj placeholder, and an ordinary task. Active callers include
 `MutableNodeHierarchy` and `NodeBridge`. `NodeModelUtil.canBeChildOf` now binds
 both task implementations
 before comparing their owning projects; the original same-project restriction
