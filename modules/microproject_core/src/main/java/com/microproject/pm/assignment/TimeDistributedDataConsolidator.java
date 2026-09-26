@@ -25,7 +25,6 @@
 package com.microproject.pm.assignment;
 
 import java.util.Collection;
-import java.util.Iterator;
 
 import com.microproject.pm.costing.EarnedValueValues;
 
@@ -37,36 +36,32 @@ public class TimeDistributedDataConsolidator {
 
 	public static double acwp(long start, long end, Collection<? extends EarnedValueValues> collection) {
 		double result = 0.0;
-		Iterator<? extends EarnedValueValues> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().acwp(start,end);
+		for (EarnedValueValues values : collection) {
+			result += values.acwp(start,end);
 		}
 		return result;
 	}
 
 	public static double bac(long start, long end, Collection<? extends EarnedValueValues> collection){
 		double result = 0.0;
-		Iterator<? extends EarnedValueValues> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().bac(start,end);
+		for (EarnedValueValues values : collection) {
+			result += values.bac(start,end);
 		}
 		return result;
 	}
 
 	public static double bcwp(long start, long end, Collection<? extends EarnedValueValues> collection){
 		double result = 0.0;
-		Iterator<? extends EarnedValueValues> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().bcwp(start,end);
+		for (EarnedValueValues values : collection) {
+			result += values.bcwp(start,end);
 		}
 		return result;
 	}
 
 	public static double bcws(long start, long end, Collection<? extends EarnedValueValues> collection){
 		double result = 0.0;
-		Iterator<? extends EarnedValueValues> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().bcws(start,end);
+		for (EarnedValueValues values : collection) {
+			result += values.bcws(start,end);
 		}
 		return result;
 	}
@@ -74,44 +69,38 @@ public class TimeDistributedDataConsolidator {
 
 	public static double cost(long start, long end, Collection<? extends HasTimeDistributedData> collection){
 		double result = 0.0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().cost(start,end);
+		for (HasTimeDistributedData data : collection) {
+			result += data.cost(start,end);
 		}
 		return result;
 	}
 
 	public static double actualCost(long start, long end, Collection<? extends HasTimeDistributedData> collection){
 		double result = 0.0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().actualCost(start,end);
+		for (HasTimeDistributedData data : collection) {
+			result += data.actualCost(start,end);
 		}
 		return result;
 	}
 	
 	public static double actualFixedCost(long start, long end, Collection<? extends HasTimeDistributedData> collection){
 		double result = 0.0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().actualFixedCost(start,end);
+		for (HasTimeDistributedData data : collection) {
+			result += data.actualFixedCost(start,end);
 		}
 		return result;
 	}	
 	public static double fixedCost(long start, long end, Collection<? extends HasTimeDistributedData> collection){
 		double result = 0.0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().fixedCost(start,end);
+		for (HasTimeDistributedData data : collection) {
+			result += data.fixedCost(start,end);
 		}
 		return result;
 	}
 
 	public static long work(long start, long end, Collection<? extends HasTimeDistributedData> collection, boolean laborOnly){
 		long result = 0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			HasTimeDistributedData data = i.next();
+		for (HasTimeDistributedData data : collection) {
 			if (laborOnly && !data.isLabor())
 				continue;
 			result += data.work(start,end);
@@ -121,9 +110,7 @@ public class TimeDistributedDataConsolidator {
 
 	public static long actualWork(long start, long end, Collection<? extends HasTimeDistributedData> collection, boolean laborOnly){
 		long result = 0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			HasTimeDistributedData data = i.next();
+		for (HasTimeDistributedData data : collection) {
 			if (laborOnly && !data.isLabor())
 				continue;
 			result += data.actualWork(start,end);
@@ -134,9 +121,7 @@ public class TimeDistributedDataConsolidator {
 
 	public static long remainingWork(long start, long end, Collection<? extends HasTimeDistributedData> collection, boolean laborOnly){
 		long result = 0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			HasTimeDistributedData data = i.next();
+		for (HasTimeDistributedData data : collection) {
 			if (laborOnly && !data.isLabor())
 				continue;
 			result += data.remainingWork(start,end);
@@ -146,18 +131,15 @@ public class TimeDistributedDataConsolidator {
 		
 	public static double baselineCost(long start, long end, Collection<? extends HasTimeDistributedData> collection){
 		long result = 0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			result += i.next().baselineCost(start,end);
+		for (HasTimeDistributedData data : collection) {
+			result += data.baselineCost(start,end);
 		}
 		return result;
 	}
 		
 	public static long baselineWork(long start, long end, Collection<? extends HasTimeDistributedData> collection, boolean laborOnly){
 		long result = 0;
-		Iterator<? extends HasTimeDistributedData> i = collection.iterator();
-		while (i.hasNext()) {
-			HasTimeDistributedData data = i.next();
+		for (HasTimeDistributedData data : collection) {
 			if (laborOnly && !data.isLabor())
 				continue;
 			result += data.baselineWork(start,end);
