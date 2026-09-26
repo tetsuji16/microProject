@@ -1435,6 +1435,11 @@ the cut-specific warning and move hint. The focused `ResourceViewChildPolicyTest
 passed. The surrounding implementation matches the OpenProj `ResourceView`
 source; no physical route or selection behavior changed.
 
+`GraphModel.searchJustModifiedNodes` now uses `instanceof` pattern matching for
+task implementations, preserving the modified-task filter and encounter order.
+Its implementation matches
+`d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/graph/GraphModel.java`.
+
 Adjacent cleanup, excluded from issue #595: `MenuFactory` menu-bar,
 popup-menu, and menu-item list traversal uses enhanced-for, preserving configured
 item order and visibility filtering. Its matching source is under

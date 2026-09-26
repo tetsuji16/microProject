@@ -113,10 +113,11 @@ public class GraphModel implements Serializable, /*ScheduleEventListener,*/ Cach
 		for (Iterator<?> i=getCache().getIterator();i.hasNext();){
 			gnode=(GraphicNode)i.next();
 			impl=gnode.getNode().getImpl();
-			if (impl instanceof Task){
-				if (((Task)impl).isJustModified()) gnodes.add(gnode);
+			if (impl instanceof Task task){
+				if (task.isJustModified()) gnodes.add(gnode);
 			}else if (impl instanceof Assignment){ //assignment
-				if (((Task)getCache().getModel().getParent(gnode.getNode()).getImpl()).isJustModified()) gnodes.add(gnode);
+				Task parentTask = (Task)getCache().getModel().getParent(gnode.getNode()).getImpl();
+				if (parentTask.isJustModified()) gnodes.add(gnode);
 			}
 		}
 		return gnodes;
