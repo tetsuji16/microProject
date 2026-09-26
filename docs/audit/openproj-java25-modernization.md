@@ -1606,10 +1606,14 @@ matching hash codes, and rejection of null/foreign types.
 before reading its subproject flag. The additional `SubProj` branch remains
 in place as an existing `SubProj`-interface check; repository history shows
 that check predates the current module-name correction, so its origin is not
-asserted here. `SubProj` is a reference contract that can be handled separately
-from task state. `NodeModelUtilTest` verifies both a subproject placeholder and a
-regular task node; active callers include `MutableNodeHierarchy` and
-`NodeBridge`. `NodeModelUtil.canBeChildOf` now binds both task implementations
+asserted here. A non-Task object can implement `SubProj`, so the interface test
+is not redundant for every supported reference. For Task subprojects, the
+current `TaskSchedule.invalidate` contract assumes `isSubproject() == true`
+implies `SubProj`; violating that invariant throws `ClassCastException` there.
+`NodeModelUtilTest` covers an interface-only reference, the built-in Task plus
+SubProj placeholder, and an ordinary task. Active callers include
+`MutableNodeHierarchy` and `NodeBridge`. `NodeModelUtil.canBeChildOf` now binds
+both task implementations
 before comparing their owning projects; the original same-project restriction
 and non-task behavior are unchanged. The expanded test covers same-project,
 cross-project, and subproject-parent cases through the `NodeBridge` caller.

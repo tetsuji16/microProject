@@ -32,15 +32,24 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.SubProj;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NodeModelUtilTest {
 	@Test
 	void identifiesSubprojectAndRegularTaskNodes() {
-		assertTrue(NodeModelUtil.nodeIsSubproject(
-			NodeFactory.getInstance().createNode(new DefaultSubProj(null, 42L))));
+		DefaultSubProj subproject = new DefaultSubProj(null, 42L);
+		assertTrue(subproject instanceof SubProj);
+		assertTrue(subproject.isSubproject());
+		assertTrue(NodeModelUtil.nodeIsSubproject(NodeFactory.getInstance().createNode(subproject)));
 		assertFalse(NodeModelUtil.nodeIsSubproject(NodeFactory.getInstance().createNode(new NormalTask())));
+	}
+
+	@Test
+	void recognizesSubprojectInterfaceWithoutTaskImplementation() {
+		assertTrue(NodeModelUtil.nodeIsSubproject(
+			NodeFactory.getInstance().createNode(new InterfaceOnlySubproject())));
 	}
 
 	@Test
@@ -69,5 +78,18 @@ class NodeModelUtilTest {
 	private Project createProject(String name) {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		return Project.createProject(ResourcePool.createRourcePool(name, undoController), undoController);
+	}
+
+	private static final class InterfaceOnlySubproject implements SubProj {
+		public Project getSubproject() { return null; }
+		public boolean isSubprojectOpen() { return false; }
+		public boolean isValidAndOpen() { return false; }
+		public boolean isWritable() { return false; }
+		public long getSubprojectUniqueId() { return 0L; }
+		public void setFetching(boolean fetching) { }
+		public boolean isValid() { return false; }
+		public void setSubprojectFieldValues(java.util.Map values) { }
+		public void setSubprojectUniqueId(long subprojectId) { }
+		public void setSchedulesFromSubprojectFieldValues() { }
 	}
 }
