@@ -1318,3 +1318,9 @@ enhanced-for, preserving map encounter order and each option's indexed argument
 logging. The method matches `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/frames/ApplicationStartupFactory.java`.
 `ApplicationStartupFactoryProjectIdTest.startupOptionLoggingPreservesMapAndArgumentOrder`
 and the focused startup-factory test class passed.
+
+`ChangeWorkingTimeDialogBox` now filters the extracted project calendars with
+enhanced-for, retaining the order and exclusion of base calendars. The loop
+matches `d2fa3c20a:openproj_ui/src/com/projity/dialog/calendar/ChangeWorkingTimeDialogBox.java`.
+The existing focused `ChangeWorkingTimeDialogBoxSaveTest` passed; its
+non-headless dialog case constructs this calendar list.

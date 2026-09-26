@@ -192,10 +192,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		ProjectFactory projectFactory = GraphicManager.getInstance(this).getProjectFactory();
 		ArrayList<WorkingCalendar> projCals = projectFactory.getPortfolio().extractCalendars();
 		projectCalendars = new ArrayList<>();
-		Iterator<WorkingCalendar> i = projCals.iterator();
-		WorkingCalendar current;
-		while (i.hasNext()) { // add all non base cals that are project cals
-			current =(WorkingCalendar)i.next();
+		for (WorkingCalendar current : projCals) { // add all non base cals that are project cals
 			if (!current.isBaseCalendar())
 				projectCalendars.add(current);
 		}
