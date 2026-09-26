@@ -1659,3 +1659,9 @@ preserving the free-assignment check and reconnection path. The original
 `instanceof` branches match OpenProj; core tests validate the owning model and
 assignment services after this behavior-preserving syntax change.
 
+`ResourcePool.initializeOutlines` now binds `AssignmentNodeModel` in its
+OpenProj-derived setup branch. The active path is `ResourcePool.createRourcePool`
+through outline initialization; it must set the pool as the outline document
+before resource assignment events are processed. `ResourcePoolIdentityTest`
+asserts that binding, and the focused resource-pool test class passed.
+

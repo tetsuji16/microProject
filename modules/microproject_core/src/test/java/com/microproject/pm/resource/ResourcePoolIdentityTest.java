@@ -30,9 +30,17 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.grouping.core.model.AssignmentNodeModel;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ResourcePoolIdentityTest {
+    @Test
+    void assignmentOutlineIsBoundToItsResourcePoolDuringInitialization() {
+        ResourcePool pool = ResourcePool.createRourcePool("test", new DataFactoryUndoController());
+
+        assertSame(pool, ((AssignmentNodeModel) pool.getResourceOutline()).getDocument());
+    }
+
     @Test
     void generatedDisplayIdsContinueAfterImportedResources() {
         ResourcePool pool = ResourcePool.createRourcePool("test", new DataFactoryUndoController());

@@ -110,8 +110,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		for (int i=0;i<count;i++){
 			NodeModel model=resourceOutlines.getOutline(i);
 			if (model==null) continue;
-			if (model instanceof AssignmentNodeModel){
-				AssignmentNodeModel aModel=(AssignmentNodeModel)model;
+			if (model instanceof AssignmentNodeModel aModel){
 				aModel.setDocument(this);
 			}
 			initOutline(model);
