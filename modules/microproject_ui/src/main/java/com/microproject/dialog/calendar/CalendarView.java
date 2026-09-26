@@ -27,17 +27,24 @@ package com.microproject.dialog.calendar;
 import java.awt.Color;
 import java.awt.Font;
 import java.util.Calendar;
+import java.util.GregorianCalendar;
+
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 
 import javax.swing.UIManager;
 
 import com.microproject.contrib.calendar.ContribIntervals;
 import com.microproject.contrib.calendar.JXXMonthView;
+import com.microproject.util.FlatUiSupport;
 
 
 /**
  *
  */
 public class CalendarView extends JXXMonthView {
+	private final Font baseFont;
+	private static final float MAX_READABLE_SCALE = 2.0f;
 
 	/**
 	 *
@@ -53,19 +60,38 @@ public class CalendarView extends JXXMonthView {
 		super(initialTime);
 		Font uiFont = UIManager.getFont("Label.font");
 		if (uiFont != null) setFont(uiFont);
+		baseFont = getFont();
 		// JXXMonthView predates HiDPI Swing and disables text antialiasing by
 		// default.  Keep its selection/date model, but opt this user-facing
 		// calendar into the platform's high-quality text rasterisation.
 		setAntialiased(true);
 		setPreferredCols(1);
 		setPreferredRows(1);
+		setExpandToFitAvailableSpace(false);
+		addComponentListener(new ComponentAdapter() {
+			@Override
+			public void componentResized(ComponentEvent event) {
+				fitReadableMonth();
+			}
+		});
+	}
+
+	private void fitReadableMonth() {
+		if (getWidth() <= 0 || getHeight() <= 0 || baseFont == null) return;
+		if (!baseFont.equals(getFont())) setFont(baseFont);
+		java.awt.Dimension monthSize = getPreferredSize();
+		float scale = Math.min(getWidth() / (float) monthSize.width,
+				getHeight() / (float) monthSize.height);
+		scale = Math.max(1.0f, Math.min(MAX_READABLE_SCALE, scale));
+		Font readableFont = baseFont.deriveFont(baseFont.getSize2D() * scale);
+		if (!readableFont.equals(getFont())) setFont(readableFont);
 	}
 
 	static Color weekDayColor(int calendarDayOfWeek) {
 		return switch (calendarDayOfWeek) {
-			case Calendar.SUNDAY -> Color.RED;
-			case Calendar.SATURDAY -> Color.BLUE;
-			default -> Color.BLACK;
+			case Calendar.SUNDAY -> FlatUiSupport.errorForeground();
+			case Calendar.SATURDAY -> FlatUiSupport.accentColor();
+			default -> FlatUiSupport.labelForeground();
 		};
 	}
 

@@ -200,15 +200,17 @@ public class JXXMonthView extends JComponent {
 
 	private int _minCalRows = 1;
 
+	private boolean _expandToFitAvailableSpace = true;
+
 	private long _today;
 
 	private long[] _flaggedDates;
 
 	private long[] _coloredDates;
 
-	private boolean[] _flaggedWeekDates;
+	private boolean[] _flaggedWeekDates = new boolean[DAYS_IN_WEEK];
 
-	private boolean[] _coloredWeekDates;
+	private boolean[] _coloredWeekDates = new boolean[DAYS_IN_WEEK];
 
 	private boolean[] _selectedWeekDays = new boolean [7];
 
@@ -626,10 +628,8 @@ public class JXXMonthView extends JComponent {
  */
 //	PROJECTLIBRE_MODIFICATION
 	public void setFlaggedWeekDates(boolean[] flaggedWeekDates) {
-		_flaggedWeekDates = flaggedWeekDates;
-		if (_flaggedWeekDates == null) {
-			repaint();
-		}
+		_flaggedWeekDates = flaggedWeekDates == null ? new boolean[DAYS_IN_WEEK] : flaggedWeekDates;
+		repaint();
 	}
 
 
@@ -639,11 +639,8 @@ public class JXXMonthView extends JComponent {
  */
 //	PROJECTLIBRE_MODIFICATION
 	public void setColorWeekDates(boolean[] coloredWeekDates) {
-		_coloredWeekDates = coloredWeekDates;
-
-		if (_coloredWeekDates == null) {
-			repaint();
-		}
+		_coloredWeekDates = coloredWeekDates == null ? new boolean[DAYS_IN_WEEK] : coloredWeekDates;
+		repaint();
 	}
 	/**
 	 * Returns the padding used between days in the calendar.
@@ -1531,6 +1528,23 @@ public class JXXMonthView extends JComponent {
 		return getForeground();
 	}
 
+	/**
+	 * Controls whether the month grid grows beyond its preferred row and column
+	 * counts to fill the component bounds. The default preserves the historical
+	 * auto-fill behavior.
+	 *
+	 * @param expand true to display as many calendars as fit; false to keep the
+	 *        preferred calendar grid
+	 */
+	public void setExpandToFitAvailableSpace(boolean expand) {
+		if (_expandToFitAvailableSpace == expand) return;
+		_expandToFitAvailableSpace = expand;
+		calculateNumDisplayedCals();
+		calculateStartPosition();
+		revalidate();
+		repaint();
+	}
+
 	private void drawWeekDay(boolean colored, int calendarDayOfWeek, Graphics g, String text, int x, int y) {
 		Color defaultColor = g.getColor();
 		if (colored) {
@@ -1662,6 +1676,15 @@ public class JXXMonthView extends JComponent {
 		int oldNumCalCols = _numCalCols;
 		int oldNumCalRows = _numCalRows;
 
+		if (!_expandToFitAvailableSpace) {
+			_numCalCols = _minCalCols;
+			_numCalRows = _minCalRows;
+			if (oldNumCalCols != _numCalCols || oldNumCalRows != _numCalRows) {
+				calculateLastDisplayedDate();
+			}
+			return;
+		}
+
 		// Determine how many columns of calendars we want to paint.
 		_numCalCols = 1;
 		_numCalCols += (getWidth() - _calendarWidth)
@@ -1770,6 +1793,9 @@ public class JXXMonthView extends JComponent {
 	 */
 //	PROJECTLIBRE_MODIFICATION
 	public long getDayAt(int x, int y) {
+		// Font changes invalidate the cached calendar geometry. Keep hit-testing
+		// in sync even when callers query a cell before the next paint.
+		updateIfNecessary();
 		if (_ltr ? (_startX > x) : (_startX < x) || _startY > y) {
 			return -1;
 		}

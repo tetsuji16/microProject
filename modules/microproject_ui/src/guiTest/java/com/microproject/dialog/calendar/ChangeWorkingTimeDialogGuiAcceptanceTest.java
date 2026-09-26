@@ -19,8 +19,14 @@ import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
+import java.nio.file.Path;
 import java.nio.file.Files;
 import java.lang.reflect.Field;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
@@ -34,6 +40,7 @@ import javax.swing.JScrollPane;
 import javax.swing.text.JTextComponent;
 import javax.swing.SwingUtilities;
 import javax.swing.JTabbedPane;
+import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -120,6 +127,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		assertSingleReadableCalendarMonth();
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Change Working Time dialog (#590 body image 1)");
 		assertVisibleComponentsFit(dialog, "Change Working Time Calendar tab");
 		Robot robot = new Robot();
@@ -167,6 +175,42 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Cancel did not close working-time dialog");
 		assertFalse(dialog.isCalendarCommitted(), "Cancel must not commit calendar changes");
 		assertTrue(frame.isVisible(), "Cancel must return to the project window");
+	}
+
+	private void assertSingleReadableCalendarMonth() throws Exception {
+		BufferedImage[] rendered = new BufferedImage[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Calendar first = dateTimeCalendar(dialog.sdCalendar.getFirstDisplayedDate());
+			Calendar last = dateTimeCalendar(dialog.sdCalendar.getLastDisplayedDate());
+			assertEquals(first.get(Calendar.YEAR), last.get(Calendar.YEAR),
+				"the working-time calendar should show one readable month");
+			assertEquals(first.get(Calendar.MONTH), last.get(Calendar.MONTH),
+				"the working-time calendar should show one readable month; first=" + first.getTime()
+					+ ", last=" + last.getTime() + ", size=" + dialog.sdCalendar.getSize());
+			assertTrue(dialog.sdCalendar.getFont().getSize2D() > javax.swing.UIManager.getFont("Label.font").getSize2D(),
+				"calendar text should grow to use the available month area");
+			rendered[0] = new BufferedImage(dialog.sdCalendar.getWidth(), dialog.sdCalendar.getHeight(), BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = rendered[0].createGraphics();
+			dialog.sdCalendar.printAll(graphics);
+			graphics.dispose();
+		});
+		int foregroundPixels = 0;
+		int background = rendered[0].getRGB(0, 0);
+		for (int y = 0; y < rendered[0].getHeight(); y++) {
+			for (int x = 0; x < rendered[0].getWidth(); x++) {
+				if (rendered[0].getRGB(x, y) != background) foregroundPixels++;
+			}
+		}
+		assertTrue(foregroundPixels > 100, "the calendar capture should include rendered month text and date cells");
+		Path artifactDirectory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(artifactDirectory);
+		ImageIO.write(rendered[0], "png", artifactDirectory.resolve("working-time-calendar-readable.png").toFile());
+	}
+
+	private static Calendar dateTimeCalendar(long value) {
+		Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+		calendar.setTimeInMillis(value);
+		return calendar;
 	}
 
 	@Test
