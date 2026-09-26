@@ -5,6 +5,7 @@
 package com.microproject.pm.task;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -27,7 +28,9 @@ public final class ProjectHierarchyQueries {
 
 	/** Returns descendants depth-first, excluding the supplied root task. */
 	public static List<Task> descendants(Task root) {
-		List<Task> result = new ArrayList<>();
+		Collection<Node> children = root == null ? null : root.getWbsChildrenNodes();
+		int initialCapacity = children == null ? 0 : children.size();
+		List<Task> result = new ArrayList<>(initialCapacity);
 		if (root != null) collect(root, result);
 		return List.copyOf(result);
 	}

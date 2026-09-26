@@ -67,4 +67,19 @@ class ProjectHierarchyQueriesTest {
 
 		assertEquals(List.of(child), parent.getWbsChildrenTasks());
 	}
+
+	@Test
+	void descendantsReturnsDepthFirstTasksInStableOrder() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("descendants", undo), undo);
+		project.initialize(false, false);
+		NormalTask root = project.createScriptedTask();
+		NormalTask firstChild = project.createScriptedTask();
+		NormalTask grandchild = project.createScriptedTask();
+		NormalTask secondChild = project.createScriptedTask();
+		root.setWbsChildrenNodes(List.of(project.getTaskModel().search(firstChild), project.getTaskModel().search(secondChild)));
+		firstChild.setWbsChildrenNodes(List.of(project.getTaskModel().search(grandchild)));
+
+		assertEquals(List.of(firstChild, grandchild, secondChild), ProjectHierarchyQueries.descendants(root));
+	}
 }
