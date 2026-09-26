@@ -34,6 +34,24 @@ class NodeCacheEventTraversalTest {
 	}
 
 	@Test
+	void firesSharedEventsInRegistrationOrder() {
+		NodeCache cache = new NodeCache();
+		List<String> delivered = new ArrayList<>();
+		VisibleNodes first = visibleNodes("first");
+		VisibleNodes second = visibleNodes("second");
+		first.addNodeModelListener(event -> delivered.add("first"));
+		second.addNodeModelListener(event -> delivered.add("second"));
+		cache.addVisibleElements(first);
+		cache.addVisibleElements(second);
+		List<CacheEvent> nodeEvents = List.of(
+				new CacheEvent(this, CacheEvent.NODES_CHANGED, List.of("task"), List.of()));
+
+		cache.fireEvents(this, nodeEvents, List.of());
+
+		assertEquals(List.of("first", "second"), delivered);
+	}
+
+	@Test
 	void acceptsNullChangeSetAsNoIncrementalChanges() {
 		NodeCache cache = new NodeCache();
 		VisibleNodes nodes = visibleNodes("empty");

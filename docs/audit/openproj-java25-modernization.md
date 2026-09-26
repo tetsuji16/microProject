@@ -1388,6 +1388,11 @@ intervals. It matches the OpenProj NodeCache source; the existing
 `NodeCacheEventTest.changedRowsRetainEncounterPositionsAndContiguousRanges`
 asserts changed-node order and exact row ranges.
 
+The shared-event overload `NodeCache.fireEvents(source, nodeEvents, edgeEvents)`
+also uses enhanced-for across registered views. Event delivery remains in view
+registration order; `NodeCacheEventTraversalTest.firesSharedEventsInRegistrationOrder`
+passed against the matching OpenProj implementation.
+
 `Intervals` now uses enhanced-for for source interval copying, bulk addition, and
 date containment lookup. The range-merging and weekday-pruning loops retain
 explicit iterators because they call `Iterator.remove()`. The conversion matches

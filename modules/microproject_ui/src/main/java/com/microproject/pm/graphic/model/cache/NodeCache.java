@@ -268,8 +268,8 @@ public class NodeCache extends CellCache {
 
 	protected void fireEvents(Object source, List<CacheEvent> nodeEvents, List<CacheEvent> edgeEvents) {
         if (nodeEvents.size()>0||edgeEvents.size()>0)
-	    for (Iterator i=visibleElements.iterator();i.hasNext();)
-	        ((VisibleNodes)i.next()).fireGraphicNodesCompositeEvent(source,nodeEvents,edgeEvents);
+	    for (Object element : visibleElements)
+	        ((VisibleNodes)element).fireGraphicNodesCompositeEvent(source,nodeEvents,edgeEvents);
 	}
 //	protected void fireScheduleEvent(Object source, ScheduleEvent scheduleEvent) {
 //	    for (Iterator i=visibleElements.iterator();i.hasNext();)
