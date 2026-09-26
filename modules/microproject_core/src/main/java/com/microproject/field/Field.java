@@ -1015,9 +1015,9 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 						: new Object[] { value, context }));
 			}
 			//LC
-			if (object instanceof DataObject){
+			if (object instanceof DataObject dataObject){
 				if (context == null || !context.isNoDirty())
-					((DataObject)object).setDirty(true);
+					dataObject.setDirty(true);
 			}
 
 		} catch (IllegalArgumentException e) {

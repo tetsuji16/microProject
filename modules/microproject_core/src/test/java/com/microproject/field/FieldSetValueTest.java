@@ -23,10 +23,14 @@
  *******************************************************************************/
 package com.microproject.field;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+
+import com.microproject.server.data.DataObject;
 
 class FieldSetValueTest {
 	@Test
@@ -44,6 +48,22 @@ class FieldSetValueTest {
 		assertSame(expected, actual);
 	}
 
+	@Test
+	void marksDataObjectDirtyAfterReflectiveFieldSet() throws Exception {
+		Field field = new Field();
+		field.setClass(MutableDataObject.class);
+		field.setProperty("name");
+		field.setId("Field.testName");
+		field.build();
+		MutableDataObject target = new MutableDataObject();
+		target.setDirty(false);
+
+		field.setValue(target, this, "updated", null);
+
+		assertEquals("updated", target.getName());
+		assertTrue(target.isDirty());
+	}
+
 	public static final class ThrowingSetter {
 		private final FieldParseException failure;
 
@@ -58,5 +78,18 @@ class FieldSetValueTest {
 		public void setValue(String value, FieldContext context) throws FieldParseException {
 			throw failure;
 		}
+	}
+
+	public static final class MutableDataObject implements DataObject {
+		private String name = "initial";
+		private long uniqueId;
+		private boolean dirty;
+
+		@Override public String getName() { return name; }
+		@Override public void setName(String name) { this.name = name; }
+		@Override public long getUniqueId() { return uniqueId; }
+		@Override public void setUniqueId(long uniqueId) { this.uniqueId = uniqueId; }
+		@Override public boolean isDirty() { return dirty; }
+		@Override public void setDirty(boolean dirty) { this.dirty = dirty; }
 	}
 }

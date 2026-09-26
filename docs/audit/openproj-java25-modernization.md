@@ -1698,3 +1698,9 @@ The traversal still calls `AssignmentService.remove` with the original cleanup,
 undo, and dependency flags. `DefaultNodeModelTest.removingAssignedTaskCleansResourceAssignmentAndUndoState`
 verifies task deletion removes its resource assignment and Undo/Redo restores and
 removes both sides. The focused test passed.
+
+`Field.setValue` now binds `DataObject` in its OpenProj-derived reflective-setter
+path before marking the object dirty. The separate task-sheet scheduling path is
+fork-owned and remains untouched. `FieldSetValueTest.marksDataObjectDirtyAfterReflectiveFieldSet`
+verifies a successful reflected write still marks the target dirty; the focused
+test passed.
