@@ -1773,3 +1773,15 @@ values, editable pairs, and a single selected incident endpoint.
 their stop dates. It continues to ignore non-Schedule node implementations and
 uses assignment dates for leaf tasks. `NormalTaskPercentCompleteTest` verifies
 both leaf assignment and summary child results.
+
+`HasAssignmentsImpl.updateAssignment` now binds the matching `Assignment` in
+its existing `instanceof` guard. The `ListIterator` remains necessary because
+the method replaces the matching list entry; task/resource identity matching,
+first-match behavior, and replacement order are unchanged. The full core test
+suite passed.
+
+The descendant traversal in `NormalTask.setStop` now binds `NormalTask` values
+in the existing guard. Assignment nodes continue to be skipped, and the stop
+date remains clamped to each descendant's end. `NormalTaskPercentCompleteTest`
+passed. The core module suite passed immediately before this syntax-only
+change.
