@@ -138,8 +138,10 @@ import org.apache.commons.beanutils.PropertyUtils;
 
 		public void setMergeField(MergeField mergeField) {
 			this.mergeField = mergeField;
-			Map<Object, Object> mergeFieldMap=new HashMap<>();
-			Set<Object> notMergedValues=new HashSet<>();
+			int resourceCount = resources == null ? 0 : resources.size();
+			int expectedEntries = resourceCount * 4 / 3 + 1;
+			Map<Object, Object> mergeFieldMap=new HashMap<>(expectedEntries);
+			Set<Object> notMergedValues=new HashSet<>(expectedEntries);
 			if (mergeField!=NO_MERGE) {
 			for (Object resource : resources){
 				try {
