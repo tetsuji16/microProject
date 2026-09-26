@@ -86,9 +86,9 @@ public class ValueObjectForInterval implements MutableHasStartAndEnd, Comparable
 		return Long.compare(first.start, second.start);
 	}
 	public boolean equals(Object arg0) {
-		if (! (arg0 instanceof ValueObjectForInterval))
+		if (!(arg0 instanceof ValueObjectForInterval other))
 			return false;
-		return start == ((ValueObjectForInterval)arg0).start;
+		return start == other.start;
 	}
 
 	@Override
