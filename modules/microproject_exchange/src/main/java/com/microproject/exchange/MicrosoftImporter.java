@@ -179,6 +179,14 @@ public class MicrosoftImporter extends ServerFileImporter{
 		convertToProjectLibre1();
 	}
 	public void parse(InputStream in, String extension) throws Exception {
+		try {
+			parseInput(in, extension);
+		} finally {
+			Environment.setImporting(false);
+		}
+	}
+
+	private void parseInput(InputStream in, String extension) throws Exception {
 		logger.info("MicrosoftImporter.parse()");
 
 		Environment.setImporting(true); // will avoid certain popups
@@ -188,7 +196,10 @@ public class MicrosoftImporter extends ServerFileImporter{
 		
 		MspImporter plImporter=new MspImporter();
 		if ("xlsx".equalsIgnoreCase(extension)) {
-			byte[] data = in.readAllBytes();
+			byte[] data;
+			try (InputStream source = in) {
+				data = BoundedInput.readXlsxImport(source);
+			}
 			Project nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(new java.io.ByteArrayInputStream(data));
 			if (nativeProject != null) {
 				project = nativeProject;
@@ -212,7 +223,6 @@ public class MicrosoftImporter extends ServerFileImporter{
 				jobRunnable.getJob().cancel();
 			}
 
-			Environment.setImporting(false); // will avoid certain popups
 			throw lastException == null ? new Exception("Failed to import file") : lastException; //$NON-NLS-1$
 		}
 		logger.info(plProject.toString());
@@ -222,6 +232,14 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 	}
 	public void parse() throws Exception {
+		try {
+			parseFile();
+		} finally {
+			Environment.setImporting(false);
+		}
+	}
+
+	private void parseFile() throws Exception {
 		logger.info("MicrosoftImporter.parse()");
 
 		Environment.setImporting(true); // will avoid certain popups
@@ -230,30 +248,32 @@ public class MicrosoftImporter extends ServerFileImporter{
 		
 		
 		MspImporter plImporter=new MspImporter();
+		MspImporter.ProgressClosure progress = new MspImporter.ProgressClosure() {
+			@Override
+			public void updateProgress(float progress, String label) {
+				setProgress(progress*0.1f);
+			}
+		};
 		if (fileInputStream == null && "xlsx".equals(getFileExtension())) {
-			Project nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(new File(fileName));
+			byte[] data;
+			try (InputStream input = Files.newInputStream(Path.of(fileName))) {
+				data = BoundedInput.readXlsxImport(input);
+			}
+			Project nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(
+				new java.io.ByteArrayInputStream(data));
 			if (nativeProject != null) {
 				project = nativeProject;
 				plProject = null;
 				setProgress(1f);
 				return;
 			}
+			plProject = plImporter.importProject(new java.io.ByteArrayInputStream(data),
+				getFileExtension(), progress);
+		} else if (fileInputStream == null) {
+			plProject=plImporter.importProject(fileName, progress);
+		} else {
+			plProject=plImporter.importProject(fileInputStream, getFileExtension(), progress);
 		}
-		if (fileInputStream==null)
-			plProject=plImporter.importProject(fileName, new MspImporter.ProgressClosure() {
-				@Override
-				public void updateProgress(float progress, String label) {
-					setProgress(progress*0.1f);
-					
-				}
-			});
-		else plProject=plImporter.importProject(fileInputStream, getFileExtension(), new MspImporter.ProgressClosure() {
-			@Override
-			public void updateProgress(float progress, String label) {
-				setProgress(progress*0.1f);
-				
-			}
-		});
 
 		if (plProject == null) {
 			String errorText = (errorDescription == null) ? Messages.getString("Message.ImportError") : errorDescription; //$NON-NLS-1$
@@ -262,7 +282,6 @@ public class MicrosoftImporter extends ServerFileImporter{
 				jobRunnable.getJob().cancel();
 			}
 
-			Environment.setImporting(false); // will avoid certain popups
 			throw lastException == null ? new Exception("Failed to import file") : lastException; //$NON-NLS-1$
 		}
 		logger.info(plProject.toString());

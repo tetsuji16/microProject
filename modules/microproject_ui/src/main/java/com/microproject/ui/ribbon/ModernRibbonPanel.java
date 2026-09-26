@@ -213,6 +213,12 @@ public final class ModernRibbonPanel extends JPanel {
 		return displayMode;
 	}
 
+	/** Toggles the Office-style command band visibility used by Ctrl+F1. */
+	public void toggleRibbonCollapseMode() {
+		setRibbonDisplayMode(displayMode == RibbonDisplayMode.ALWAYS_SHOW
+			? RibbonDisplayMode.TABS_ONLY : RibbonDisplayMode.ALWAYS_SHOW);
+	}
+
 	/** Whether command bands, rather than just tab navigation, are currently exposed. */
 	public boolean isCommandSurfaceVisible() {
 		return cards.isVisible();
@@ -1013,8 +1019,7 @@ public final class ModernRibbonPanel extends JPanel {
 		popup.setName(DISPLAY_MODE_POPUP_NAME);
 		javax.swing.JMenuItem item = new javax.swing.JMenuItem(UsabilityStrings.text(displayMode == RibbonDisplayMode.TABS_ONLY
 			? "chrome.ribbonShow" : "chrome.ribbonCollapse"));
-		item.addActionListener(action -> setRibbonDisplayMode(displayMode == RibbonDisplayMode.TABS_ONLY
-			? RibbonDisplayMode.ALWAYS_SHOW : RibbonDisplayMode.TABS_ONLY));
+		item.addActionListener(action -> toggleRibbonCollapseMode());
 		popup.add(item);
 		popup.show(event.getComponent(), event.getX(), event.getY());
 	}

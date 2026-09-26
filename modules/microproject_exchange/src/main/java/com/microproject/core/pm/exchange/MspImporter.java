@@ -61,6 +61,7 @@ import com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverte
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
 import com.microproject.exchange.ImportedCalendarService;
+import com.microproject.exchange.BoundedInput;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
@@ -168,7 +169,7 @@ public class MspImporter {
 				// ProjectLibre XLSX contains both a lossless native payload and an
 				// MSPDI payload. Keep a replayable copy so native failure can use the
 				// established MSPDI fallback reader.
-				byte[] data = in.readAllBytes();
+				byte[] data = BoundedInput.readXlsxImport(in);
 				try {
 					nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(
 						new ByteArrayInputStream(data));

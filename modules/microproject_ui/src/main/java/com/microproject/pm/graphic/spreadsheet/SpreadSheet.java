@@ -143,7 +143,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		// Issue #47: prevent the TransferHandler from also binding ctrl C/X/V on the
 		// component's WHEN_FOCUSED input map. Those keys are wired globally to
 		// ACTION_COPY/CUT/PASTE on the root-pane WHEN_IN_FOCUSED_WINDOW by
-		// GraphicManager.applyDocumentShortcuts. Leaving both layers bound makes
+		// GraphicManager.applyMicrosoftShortcuts. Leaving both layers bound makes
 		// ctrl+V non-deterministic ("paste doesn't work well"). The real paste logic
 		// (NodeListTransferHandler.importData) stays reachable via ACTION_PASTE, so we
 		// only remove the duplicate keyboard bindings here.

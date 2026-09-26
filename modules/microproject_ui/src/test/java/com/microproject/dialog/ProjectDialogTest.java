@@ -92,6 +92,44 @@ class ProjectDialogTest {
 		assertAtLeastPreferredHeight(second);
 	}
 
+	@Test
+	void nextLineUsesTheRequestedGridRowCountForAllSupportedGaps() {
+		FormLayout layout = new FormLayout("default",
+			"p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p");
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		JLabel first = new JLabel("first");
+		JLabel second = new JLabel("second");
+		JLabel fourth = new JLabel("fourth");
+		JLabel eighth = new JLabel("eighth");
+		builder.append(first);
+		builder.nextLine(2);
+		builder.append(second);
+		builder.nextLine(2);
+		builder.nextLine(4);
+		builder.append(fourth);
+		builder.nextLine(8);
+		builder.append(eighth);
+
+		assertEquals(1, layout.getConstraints(first).gridY);
+		assertEquals(3, layout.getConstraints(second).gridY);
+		assertEquals(9, layout.getConstraints(fourth).gridY);
+		assertEquals(17, layout.getConstraints(eighth).gridY);
+	}
+
+	@Test
+	void nextLineZeroStillAdvancesOneGridRow() {
+		FormLayout layout = new FormLayout("default", "p,p");
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		JLabel first = new JLabel("first");
+		JLabel second = new JLabel("second");
+		builder.append(first);
+		builder.nextLine(0);
+		builder.append(second);
+
+		assertEquals(1, layout.getConstraints(first).gridY);
+		assertEquals(2, layout.getConstraints(second).gridY);
+	}
+
 	private static void assertAtLeastPreferredHeight(java.awt.Component component) {
 		Dimension preferred = component.getPreferredSize();
 		assertTrue(component.getHeight() >= preferred.height,

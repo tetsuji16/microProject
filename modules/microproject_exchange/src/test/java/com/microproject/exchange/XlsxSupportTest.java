@@ -49,6 +49,7 @@ import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
 
 import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.exchange.MicrosoftImporter;
+import com.microproject.exchange.BoundedInput;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.core.pm.exchange.MspImporter;
@@ -61,6 +62,131 @@ import com.microproject.session.FileHelper;
 import com.microproject.undo.DataFactoryUndoController;
 
 public class XlsxSupportTest extends TestCase {
+	public void testXlsxInputReaderAcceptsExactLimitAndRejectsTheNextByte() throws Exception {
+		String property = BoundedInput.XLSX_MAX_IMPORT_BYTES_PROPERTY;
+		String previous = System.getProperty(property);
+		try {
+			System.setProperty(property, "4");
+			assertEquals(4, BoundedInput.readXlsxImport(new ByteArrayInputStream(new byte[] {1, 2, 3, 4})).length);
+			try {
+				BoundedInput.readXlsxImport(new ByteArrayInputStream(new byte[] {1, 2, 3, 4, 5}));
+				fail("Input over the configured limit must be rejected");
+			} catch (java.io.IOException expected) {
+				assertTrue(expected.getMessage().contains("4 bytes"));
+			}
+		} finally {
+			if (previous == null) {
+				System.clearProperty(property);
+			} else {
+				System.setProperty(property, previous);
+			}
+		}
+	}
+
+	public void testBothXlsxImportersRejectOverLimitBeforeParsing() throws Exception {
+		String property = BoundedInput.XLSX_MAX_IMPORT_BYTES_PROPERTY;
+		String previous = System.getProperty(property);
+		try {
+			System.setProperty(property, "4");
+			try {
+				new MspImporter().importProject(new ByteArrayInputStream(new byte[5]), "xlsx",
+					(progress, label) -> {});
+				fail("Direct importer must reject over-limit XLSX input");
+			} catch (java.io.IOException expected) {
+				assertTrue(expected.getMessage().contains("configured limit"));
+			}
+
+			MicrosoftImporter importer = new MicrosoftImporter();
+			importer.setFileName("oversized.xlsx");
+			final boolean[] streamClosed = {false};
+			try {
+				importer.loadProject(new ByteArrayInputStream(new byte[5]) {
+					@Override
+					public void close() throws java.io.IOException {
+						streamClosed[0] = true;
+						super.close();
+					}
+				});
+				fail("Microsoft importer must reject over-limit XLSX input");
+			} catch (java.io.IOException expected) {
+				assertTrue(expected.getMessage().contains("configured limit"));
+			}
+			assertFalse(com.microproject.util.Environment.isImporting());
+			assertTrue("rejected input must release the caller's stream", streamClosed[0]);
+
+			System.setProperty(property, "invalid");
+			final boolean[] invalidConfigStreamClosed = {false};
+			try {
+				new MicrosoftImporter().parse(new ByteArrayInputStream(new byte[1]) {
+					@Override
+					public void close() throws java.io.IOException {
+						invalidConfigStreamClosed[0] = true;
+						super.close();
+					}
+				}, "xlsx");
+				fail("Invalid byte-limit configuration must be reported");
+			} catch (IllegalArgumentException expected) {
+				assertTrue(expected.getMessage().contains("microproject.xlsx.maxImportBytes"));
+			}
+			assertFalse(com.microproject.util.Environment.isImporting());
+			assertTrue("invalid configuration must release the caller's stream", invalidConfigStreamClosed[0]);
+			System.setProperty(property, "4");
+
+			File oversizedFile = File.createTempFile("oversized-xlsx", ".xlsx");
+			oversizedFile.deleteOnExit();
+			try (FileOutputStream output = new FileOutputStream(oversizedFile)) {
+				output.write(new byte[5]);
+			}
+			MicrosoftImporter fileImporter = new MicrosoftImporter();
+			fileImporter.setFileName(oversizedFile.getAbsolutePath());
+			try {
+				fileImporter.importFile();
+				fail("File-based Microsoft importer must reject over-limit XLSX input");
+			} catch (java.io.IOException expected) {
+				assertTrue(expected.getMessage().contains("configured limit"));
+			}
+			assertFalse(com.microproject.util.Environment.isImporting());
+		} finally {
+			if (previous == null) {
+				System.clearProperty(property);
+			} else {
+				System.setProperty(property, previous);
+			}
+		}
+	}
+
+	public void testMalformedXlsxResetsImportingStateAndClosesInput() throws Exception {
+		String property = BoundedInput.XLSX_MAX_IMPORT_BYTES_PROPERTY;
+		String previous = System.getProperty(property);
+		try {
+			System.setProperty(property, "1024");
+			MicrosoftImporter importer = new MicrosoftImporter();
+			importer.setFileName("malformed.xlsx");
+			final boolean[] streamClosed = {false};
+			try {
+				importer.loadProject(new ByteArrayInputStream(new byte[] {1, 2, 3, 4}) {
+					@Override
+					public void close() throws java.io.IOException {
+						streamClosed[0] = true;
+						super.close();
+					}
+				});
+				fail("Malformed XLSX must fail import");
+			} catch (Exception expected) {
+				assertFalse("failure must occur before domain conversion", importer.getProject() != null);
+			}
+			assertTrue("import must close the caller's stream", streamClosed[0]);
+			assertFalse("failed parsing must not leave the global importing flag set",
+				com.microproject.util.Environment.isImporting());
+		} finally {
+			if (previous == null) {
+				System.clearProperty(property);
+			} else {
+				System.setProperty(property, previous);
+			}
+		}
+	}
+
 	public void testFileHelperAcceptsMppForReadOnlyImport() {
 		assertTrue(FileHelper.isFileNameAllowed("plan.mpp", false));
 		assertFalse(FileHelper.isFileNameAllowed("plan.mpp", true));
@@ -207,9 +333,17 @@ public class XlsxSupportTest extends TestCase {
 		MicrosoftImporter microsoftImporter = new MicrosoftImporter();
 		microsoftImporter.setFileName(tempFile.getAbsolutePath());
 		com.microproject.pm.task.Project microsoftProject;
-		try (InputStream in = new java.io.FileInputStream(tempFile)) {
-			microsoftProject = microsoftImporter.loadProject(in);
-		}
+		byte[] nativeWorkbook = java.nio.file.Files.readAllBytes(tempFile.toPath());
+		final boolean[] streamClosed = {false};
+		InputStream in = new ByteArrayInputStream(nativeWorkbook) {
+			@Override
+			public void close() throws java.io.IOException {
+				streamClosed[0] = true;
+				super.close();
+			}
+		};
+		microsoftProject = microsoftImporter.loadProject(in);
+		assertTrue("native XLSX import must release its source stream", streamClosed[0]);
 		MspImporter directImporter = new MspImporter();
 		com.microproject.pm.task.Project directProject = directImporter.importProject(tempFile.getAbsolutePath(),
 			new MspImporter.ProgressClosure() {

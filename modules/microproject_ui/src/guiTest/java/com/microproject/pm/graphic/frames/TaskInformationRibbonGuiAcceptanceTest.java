@@ -26,6 +26,8 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ResourceBundle;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -281,8 +283,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static void assertTextStyleTabComponentsFit(TaskInformationDialog dialog) throws Exception {
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Task Information dialog");
-		String tabTitle = Messages.getString("TaskInformationDialog.TextStyle");
-		final java.awt.Container[] selectedTab = new java.awt.Container[1];
+		final List<String> tabTitles = new ArrayList<>();
+		final List<java.awt.Container> tabContainers = new ArrayList<>();
 		SwingUtilities.invokeAndWait(() -> {
 			JTabbedPane tabs = findTabbedPane(dialog);
 			assertNotNull(tabs, "Task Information must expose its tabs");
@@ -290,18 +292,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertNotNull(help, "Task Information must expose its online Help button");
 			assertTrue(help.getHeight() >= help.getPreferredSize().height,
 				"online Help button must retain its font-derived preferred height");
-			int tabIndex = tabs.indexOfTab(tabTitle);
-			assertTrue(tabIndex >= 0, "Text Style tab is missing: " + tabTitle);
-			tabs.setSelectedIndex(tabIndex);
-			layoutTree(dialog);
-			Component tab = tabs.getComponentAt(tabIndex);
-			if (tab instanceof JScrollPane scrollPane && scrollPane.getViewport().getView() instanceof java.awt.Container view)
-				tab = view;
-			if (tab instanceof java.awt.Container container)
-				selectedTab[0] = container;
+			for (int tabIndex = 0; tabIndex < tabs.getTabCount(); tabIndex++) {
+				tabs.setSelectedIndex(tabIndex);
+				layoutTree(dialog);
+				Component tab = tabs.getComponentAt(tabIndex);
+				if (tab instanceof JScrollPane scrollPane
+						&& scrollPane.getViewport().getView() instanceof java.awt.Container view)
+					tab = view;
+				assertTrue(tab instanceof java.awt.Container,
+					"Task Information tab has no layout container: " + tabs.getTitleAt(tabIndex));
+				tabTitles.add(tabs.getTitleAt(tabIndex));
+				tabContainers.add((java.awt.Container) tab);
+			}
 		});
-		assertNotNull(selectedTab[0], "Text Style tab has no layout container");
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(selectedTab[0], "Task Information Text Style tab");
+		assertTrue(tabContainers.size() >= 3, "Task Information must expose all expected tabs");
+		for (int tabIndex = 0; tabIndex < tabContainers.size(); tabIndex++)
+			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(tabContainers.get(tabIndex),
+				"Task Information tab " + tabTitles.get(tabIndex));
 	}
 
 	private static JTabbedPane findTabbedPane(java.awt.Container root) {

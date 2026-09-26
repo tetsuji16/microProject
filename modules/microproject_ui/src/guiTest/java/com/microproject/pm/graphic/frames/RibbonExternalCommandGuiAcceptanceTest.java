@@ -35,7 +35,9 @@ import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
+import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
@@ -43,6 +45,7 @@ import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.util.Environment;
 import com.microproject.util.UiServices;
+import com.microproject.undo.DataFactoryUndoController;
 
 /**
  * Verifies the real File-ribbon command pipeline rather than a recording
@@ -183,6 +186,50 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		clickAndClose(robot, "RibbonLocale", LocaleDialog.class);
 		clickAndClose(robot, "RibbonProjectLibreDocumentation", HelpDialog.class);
 		clickAndClose(robot, "RibbonAboutProjectLibre", AboutDialog.class);
+	}
+
+	/** MSP documents returning from a report by switching back to View > Gantt Chart. */
+	@Test
+	void robotReturnsFromReportToGanttThroughTheDocumentedViewRoute() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousStandalone = Environment.getStandAlone();
+		Environment.setStandAlone(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+
+		createWindow("microProject — Report to Gantt navigation acceptance");
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("report-navigation-gui", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.setName("Report navigation GUI");
+		SwingUtilities.invokeAndWait(() -> manager.addProjectFrame(project));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+			&& manager.getCurrentFrame().getProject() == project, "report navigation project did not open");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		AbstractButton reportTab = findRibbonTab(window.getRibbonPanel(), "Report", "レポート");
+		click(robot, reportTab);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(reportTab::isSelected, "Report ribbon tab did not become selected");
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonReport"));
+		GuiAcceptanceSupport.await(() -> MenuActionConstants.ACTION_REPORT.equals(manager.getTopViewId()),
+			"Report command did not activate the report view");
+
+		AbstractButton viewTab = findRibbonTab(window.getRibbonPanel(), "View", "ビュー");
+		click(robot, viewTab);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(viewTab::isSelected, "View ribbon tab did not become selected");
+		AbstractButton gantt = findCommandButton(window.getRibbonPanel(), "RibbonGantt");
+		assertTrue(gantt.isShowing() && gantt.isEnabled(),
+			"View > Gantt Chart must remain an available return route from Report");
+		click(robot, gantt);
+		GuiAcceptanceSupport.await(() -> MenuActionConstants.ACTION_GANTT.equals(manager.getTopViewId()),
+			"View > Gantt Chart did not return from Report to the task schedule");
 	}
 
 	/**
