@@ -22,7 +22,7 @@ final class TaskVisibilitySelectionResolver {
 	}
 
 	static List<Node> resolve(Collection<Node> selectedNodes, WalkersNodeModel viewModel) {
-		List<Node> result = new ArrayList<>();
+		List<Node> result = new ArrayList<>(selectedNodes == null ? 0 : selectedNodes.size());
 		if (selectedNodes == null) return result;
 		IdentityHashMap<Node, Boolean> visited = new IdentityHashMap<>();
 		for (Node node : selectedNodes)
