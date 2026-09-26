@@ -27,7 +27,6 @@ package com.microproject.pm.graphic.spreadsheet.selection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
@@ -69,8 +68,8 @@ public class TimeSpreadSheetColumnsPopupMenu extends JPopupMenu {
 		Object columnDefinitions[] = Dictionary.getAll(type);
 		//if (columnDefinitions==null||columnDefinitions.length==0) return;
 		ArrayList fieldArray =(ArrayList) columnDefinitions[0];
-		for (Iterator i=fieldArray.iterator();i.hasNext();) {
-			Field field=(Field)i.next();
+		for (Object definition : fieldArray) {
+			Field field=(Field)definition;
 			boolean selected = (spreadSheet.getSelectedFieldArray().contains(field));
 			add(new MenuAction(field.toString(),spreadSheet,field, selected));
 		}
