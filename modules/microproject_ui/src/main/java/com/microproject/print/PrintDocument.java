@@ -106,8 +106,7 @@ public abstract class PrintDocument implements Pageable{
 		List<ViewSettings> viewSettings=printSettings.getViewSettings();
 		if (viewSettings!=null){
 			for (ViewSettings v: viewSettings){
-				if (v instanceof GanttSettings){
-					GanttSettings gs=(GanttSettings)v;
+				if (v instanceof GanttSettings gs){
 					showGantt=gs.isGanttVisible();
 					showSpreadsheet=gs.isSpreadSheetVisible();
 				}
@@ -118,12 +117,12 @@ public abstract class PrintDocument implements Pageable{
 		if (scalingSettings!=null){
 			int index=0;
 			for (ScalingSettings s:scalingSettings){
-				if (s instanceof ScaleToSettings){
-					scaleToSettings=(ScaleToSettings)s;
+				if (s instanceof ScaleToSettings scaleTo){
+					scaleToSettings=scaleTo;
 					if (printSettings.scalingIndex==index) scaleToSelected=true;
 				}
-				else if (s instanceof FitToSettings){
-					fitToSettings=(FitToSettings)s;
+				else if (s instanceof FitToSettings fitTo){
+					fitToSettings=fitTo;
 					if (printSettings.scalingIndex==index) scaleToSelected=false;
 				}
 				index++;

@@ -1802,3 +1802,9 @@ visitors and the subproject reference map now bind `HasId` / `SubProj` values
 in their existing guards. Renumbering order, nonpositive ID handling,
 subproject keys, and outline insertion order are unchanged. The full
 `:microproject_exchange:test` suite passed, including POD round-trip cases.
+
+`PrintDocument` now binds `GanttSettings`, `ScaleToSettings`, and
+`FitToSettings` in the existing settings scan. The serialized settings classes,
+list order, selected scaling index, and visibility values are unchanged. The
+full `:microproject_ui:test` suite passed; no physical GUI route or visual
+surface changed.
