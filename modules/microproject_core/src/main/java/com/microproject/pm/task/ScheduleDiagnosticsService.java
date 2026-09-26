@@ -45,7 +45,8 @@ public final class ScheduleDiagnosticsService {
 
 	public List<Issue> diagnose(Task task) {
 		Objects.requireNonNull(task, "task");
-		List<Issue> result = new ArrayList<>();
+		// Each diagnostic type contributes at most one result; NO_ISSUES is exclusive.
+		List<Issue> result = new ArrayList<>(Type.values().length - 1);
 		if (task.isInactiveTask()) {
 			result.add(new Issue(Type.INACTIVE, Severity.INFO, "Task is inactive",
 				"Inactive tasks are retained for comparison but do not drive dependencies or rollups.",
