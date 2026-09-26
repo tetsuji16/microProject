@@ -1603,8 +1603,11 @@ comparison is preserved. `SpreadSheetFieldArrayTest` covers equal names,
 matching hash codes, and rejection of null/foreign types.
 
 `NodeModelUtil.nodeIsSubproject` now binds the OpenProj-derived `Task` type
-before reading its subproject flag. The fork-specific `SubProj` branch remains
-in place. `NodeModelUtilTest` verifies both a subproject placeholder and a
+before reading its subproject flag. The additional `SubProj` branch remains
+in place as an existing `SubProj`-interface check; repository history shows
+that check predates the current module-name correction, so its origin is not
+asserted here. `SubProj` is a reference contract that can be handled separately
+from task state. `NodeModelUtilTest` verifies both a subproject placeholder and a
 regular task node; active callers include `MutableNodeHierarchy` and
 `NodeBridge`. `NodeModelUtil.canBeChildOf` now binds both task implementations
 before comparing their owning projects; the original same-project restriction
