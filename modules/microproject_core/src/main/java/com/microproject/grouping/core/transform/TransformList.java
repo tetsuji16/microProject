@@ -26,7 +26,6 @@ package com.microproject.grouping.core.transform;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -132,10 +131,8 @@ public class TransformList implements NamedItem {
 	        if (authorizedList==null) return factories;
 	    }
 	    List<CommonTransformFactory> filtered=new ArrayList<>();
-	    CommonTransformFactory f;
-	    for (Iterator<CommonTransformFactory> i=factories.iterator();i.hasNext();){
-	        f=i.next();
-	        if (authorizedList.contains(f.getId())) filtered.add(f);
+	    for (CommonTransformFactory factory : factories){
+	        if (authorizedList.contains(factory.getId())) filtered.add(factory);
 	    }
 		return filtered;
 	}

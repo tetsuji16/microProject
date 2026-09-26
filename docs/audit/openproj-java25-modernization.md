@@ -1488,3 +1488,8 @@ its iterator because it removes exhausted intervals in place.
 redundant casts while preserving its non-number skip and lower/upper bound
 errors. The conditional matches OpenProj `Range`; focused `RangeTest` covers
 non-numeric, in-range, and both out-of-range cases.
+
+`TransformList.getFactories` now uses enhanced-for over its typed factory
+list, preserving authorization filtering and factory order. The traversal
+matches the OpenProj `TransformList`; `TransformListTest` verifies that only
+the authorized no-filter factory is returned.
