@@ -1564,3 +1564,9 @@ and descendant resources directly in their OpenProj-derived `instanceof`
 branches, removing three immediate casts without changing validation, project
 assignment, resource initialization, or insertion order. The full core tests
 were run for this hierarchy modernization batch.
+
+`AssignmentNodeModel.paste` now binds leaf assignments and parent tasks in its
+OpenProj-derived matching branches, removing the adjacent casts while
+preserving the free-assignment check and reconnection path. The original
+`instanceof` branches match OpenProj; core tests validate the owning model and
+assignment services after this behavior-preserving syntax change.

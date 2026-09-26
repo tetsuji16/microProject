@@ -242,11 +242,9 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 		for (Iterator i=roots.iterator();i.hasNext();)
 			hierarchy.visitLeaves((Node)i.next(), new Consumer<Object>() { public void accept(Object o) {
 					Node node=(Node)o;
-					if (node.getImpl() instanceof Assignment){
-						Assignment assignment=(Assignment)node.getImpl();
+					if (node.getImpl() instanceof Assignment assignment){
 						Node parent=(Node)node.getParent();
-						if (parent.getImpl() instanceof NormalTask){
-							NormalTask task=(NormalTask)parent.getImpl();
+						if (parent.getImpl() instanceof NormalTask task){
 							if (task.findAssignment(assignment.getResource())==null){
 								freeAssignments.add(node);
 							}
