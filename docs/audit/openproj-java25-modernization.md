@@ -1761,3 +1761,10 @@ event paths; the core module suite verifies the full dispatch family.
 OpenProj-derived scheduling fields. Targets of other Task subtypes still skip
 that subtype-specific copy. `TaskFontPropertiesTest` and
 `TaskVisibilityStateTest` exercise the active NormalTask clone path.
+
+`DependencyService.removeAnyDependencies` now routes its OpenProj pairwise
+selection path and the later #266 incident-link path through one
+`writableDependencies` resolver. It preserves the interface check and existing
+read-only guard while removing three copies of that eligibility decision.
+`DependencyServiceTest` covers read-only selections, non-`HasDependencies`
+values, editable pairs, and a single selected incident endpoint.

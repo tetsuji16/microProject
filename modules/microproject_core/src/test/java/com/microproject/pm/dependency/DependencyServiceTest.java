@@ -439,8 +439,10 @@ class DependencyServiceTest {
 		project.connectTask(successor);
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
 		readOnly.setExternal(true);
+		Object unsupportedSelection = new Object();
 
-		DependencyService.getInstance().removeAnyDependencies(Arrays.asList(predecessor, readOnly, successor), this);
+		DependencyService.getInstance().removeAnyDependencies(
+			Arrays.asList(unsupportedSelection, predecessor, readOnly, successor), this);
 
 		assertFalse(predecessor.getSuccessorList().iterator().hasNext());
 		assertFalse(successor.getPredecessorList().iterator().hasNext());

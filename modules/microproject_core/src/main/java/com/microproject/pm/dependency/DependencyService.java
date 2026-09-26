@@ -251,24 +251,15 @@ public class DependencyService {
 	 * @param eventSource
 	 */
 	public void removeAnyDependencies(List tasks, Object eventSource) {
-		HasDependencies pred;
-		HasDependencies succ;
-		Object temp;
 		// Remove dependencies between any two selected tasks (pairwise).
 		for (int i = 0; i < tasks.size()-1; i++) {
-			temp = tasks.get(i);
-			if (!(temp instanceof HasDependencies))
+			HasDependencies pred = writableDependencies(tasks.get(i));
+			if (pred == null)
 				continue;
-			if (ClassUtils.isObjectReadOnly(temp))
-				continue;
-			pred = (HasDependencies)temp;
 			for (int j = i+1; j < tasks.size(); j++) {
-				temp = tasks.get(j);
-				if (!(temp instanceof HasDependencies))
+				HasDependencies succ = writableDependencies(tasks.get(j));
+				if (succ == null)
 					continue;
-				if (ClassUtils.isObjectReadOnly(temp))
-					continue;
-				succ = (HasDependencies)temp;
 				removeAnyDependencies(pred,succ,eventSource);
 			}
 		}
@@ -277,14 +268,18 @@ public class DependencyService {
 		// task whose only links point to unselected tasks) removed nothing, so "Unlink" did
 		// nothing. Snapshot the incident dependencies first because remove() mutates the lists.
 		for (int i = 0; i < tasks.size(); i++) {
-			temp = tasks.get(i);
-			if (!(temp instanceof HasDependencies))
+			HasDependencies selected = writableDependencies(tasks.get(i));
+			if (selected == null)
 				continue;
-			if (ClassUtils.isObjectReadOnly(temp))
-				continue;
-			for (Dependency d : getIncidentDependencies((HasDependencies) temp))
+			for (Dependency d : getIncidentDependencies(selected))
 				remove(d, eventSource, true);
 		}
+	}
+
+	private HasDependencies writableDependencies(Object value) {
+		if (value instanceof HasDependencies dependencies && !ClassUtils.isObjectReadOnly(value))
+			return dependencies;
+		return null;
 	}
 
 	/** Returns a stable snapshot of every dependency touching the supplied task. */
