@@ -40,7 +40,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,6 +67,7 @@ import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
 import com.microproject.util.DateTime;
+import com.microproject.util.AlternativeCalendarDisplay;
 
 /** Month calendar with task cards and drag-to-reschedule support. */
 public final class CalendarViewDialogBox extends FlatLafDialog {
@@ -108,7 +108,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 
 	private void setMonth(YearMonth value) {
 		month = value;
-		monthLabel.setText(month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())));
+		monthLabel.setText(AlternativeCalendarDisplay.monthLabel(month, Locale.getDefault(Locale.Category.FORMAT)));
 		canvas.repaint();
 	}
 
@@ -195,7 +195,17 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			g.setColor(currentMonth ? FlatUiSupport.dataSurfaceBackground() : FlatUiSupport.panelBackground()); g.fillRect(x, y, width, CELL_HEIGHT);
 			g.setColor(FlatUiSupport.borderColor()); g.drawRect(x, y, width, CELL_HEIGHT);
 			if (day.equals(LocalDate.now(zone))) { g.setColor(FlatUiSupport.errorForeground()); g.setStroke(new BasicStroke(2F)); g.drawRect(x + 1, y + 1, width - 2, CELL_HEIGHT - 2); }
-			g.setColor(currentMonth ? FlatUiSupport.tableForeground() : FlatUiSupport.disabledForeground()); g.drawString(Integer.toString(day.getDayOfMonth()), x + 7, y + 17);
+			g.setColor(currentMonth ? FlatUiSupport.tableForeground() : FlatUiSupport.disabledForeground());
+			g.drawString(Integer.toString(day.getDayOfMonth()), x + 7, y + 17);
+			String companionDay = AlternativeCalendarDisplay.companionDay(day, Locale.getDefault(Locale.Category.FORMAT));
+			if (!companionDay.isEmpty()) {
+				Font baseFont = g.getFont();
+				g.setFont(baseFont.deriveFont(Math.max(9F, baseFont.getSize2D() - 2F)));
+				int companionWidth = g.getFontMetrics().stringWidth(companionDay);
+				g.setColor(FlatUiSupport.disabledForeground());
+				g.drawString(companionDay, x + width - companionWidth - 7, y + 17);
+				g.setFont(baseFont);
+			}
 			List<Task> onDay = tasksOn(day);
 			int visible = Math.min(3, onDay.size());
 			for (int i = 0; i < visible; i++) {

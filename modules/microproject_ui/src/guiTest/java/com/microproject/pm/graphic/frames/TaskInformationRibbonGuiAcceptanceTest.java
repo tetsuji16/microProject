@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.util.ResourceBundle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -105,6 +106,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private boolean previousNewLook;
 	private String previousUiDebug;
 	private JobQueue previousJobQueue;
+	private Locale previousFormatLocale;
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -128,6 +130,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		else
 			System.setProperty("microproject.ui.debug", previousUiDebug);
 		SessionFactory.getInstance().setJobQueue(previousJobQueue);
+		if (previousFormatLocale != null)
+			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
 	}
 
 	@Test
@@ -645,6 +649,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void robotCalendarCommandOpensUsableCalendarDialog() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
+		previousFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("ja-JP-u-ca-japanese"));
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
@@ -684,6 +690,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			displayedMonth[0] = dialog.getDisplayedMonth();
 		});
 		assertTrue(cardCount[0] > 0, "task fixture must render at least one calendar card");
+		assertTrue(displayedMonth[0].contains("令和"),
+			"the visible calendar month header must include the FORMAT-locale Japanese calendar date");
 		AbstractButton[] navigation = UiComponentWalker.flatten(dialog).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
 			.filter(AbstractButton::isShowing).toArray(AbstractButton[]::new);
