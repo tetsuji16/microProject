@@ -19,5 +19,7 @@ class FilePathUtilsTest {
 	void resolvesRelativeWindowsPathOnTheSameDrive() {
 		assertEquals("child.mpo",
 			FilePathUtils.relativePath("C:\\projects\\master.mpo", "C:\\projects\\child.mpo"));
+		assertEquals("..\\child\\child.mpo",
+			FilePathUtils.relativePath("C:\\projects\\master\\master.mpo", "C:\\projects\\child\\child.mpo"));
 	}
 }

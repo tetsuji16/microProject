@@ -82,7 +82,9 @@ public final class FilePathUtils {
 		while (common < parentParts.length && common < childParts.length
 				&& parentParts[common].equalsIgnoreCase(childParts[common]))
 			common++;
-		List<String> result = new ArrayList<>();
+		int parentSteps = Math.max(0, parentParts.length - 1 - common);
+		int childSteps = childParts.length - common;
+		List<String> result = new ArrayList<>(parentSteps + childSteps);
 		for (int i = common; i < parentParts.length - 1; i++)
 			result.add("..");
 		for (int i = common; i < childParts.length; i++)
