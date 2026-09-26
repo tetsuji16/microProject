@@ -47,14 +47,14 @@ public interface NodeHierarchy extends TreeModel{
 //	public void add(Node parent,Node child,int actionType);
     //public void add(Node parent,Node child,int position,int actionType);
     //public void add(Node parent,List children,int actionType);
-    public void add(Node parent,List children,int position,int actionType);
-    public void paste(Node parent,List children,int position,NodeModel model,int actionType);
+    public void add(Node parent,List<Node> children,int position,int actionType);
+    public void paste(Node parent,List<Node> children,int position,NodeModel model,int actionType);
     public void cleanVoidChildren();
 	public void checkEndVoidNodes(int actionType);
 	public void checkEndVoidNodes(boolean subproject,int actionType);
 
     //public void remove(Node node,NodeModel model,int actionType);
-	public void remove(List nodes,NodeModel model,int actionType,boolean removeDependencies);
+	public void remove(List<Node> nodes,NodeModel model,int actionType,boolean removeDependencies);
 	public void removeAll(NodeModel model,int actionType);
 	
 //    public void move(Node node,Node newParent);
@@ -62,7 +62,7 @@ public interface NodeHierarchy extends TreeModel{
     public void move(Node node,Node newParent,int actionType);	
 	public boolean relocate(Node parent,List nodes,int position,int actionType);
 //	public void indent(Node node,int deltaLevel,int actionType);
-	public void indent(List nodes,int deltaLevel, NodeModel model, int actionType);
+	public void indent(List<Node> nodes,int deltaLevel, NodeModel model, int actionType);
 	
 	public void renumber();
 	

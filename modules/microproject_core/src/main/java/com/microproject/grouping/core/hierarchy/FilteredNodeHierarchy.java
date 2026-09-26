@@ -65,10 +65,10 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 		fireStructureChanged(this);
 	}
 	
-   public void add(Node parent,List children,int position,int actionType){
+	public void add(Node parent,List<Node> children,int position,int actionType){
 		hierarchy.add(parent, children, position,actionType);
     }
-    public void paste(Node parent,List children,int position, NodeModel model, int actionType){
+	public void paste(Node parent,List<Node> children,int position, NodeModel model, int actionType){
 		hierarchy.paste(parent, children, position, model, actionType);
 	}
 	public boolean relocate(Node parent,List nodes,int position,int actionType){
@@ -90,7 +90,7 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public Object getRoot() {
 		return hierarchy.getRoot();
 	}
-	public void indent(List nodes, int deltaLevel, NodeModel nodeModel,int actionType) {
+	public void indent(List<Node> nodes, int deltaLevel, NodeModel nodeModel,int actionType) {
 		hierarchy.indent(nodes, deltaLevel, nodeModel,actionType);
 	}
 //	public int insertVoidNodesAfter(NodeHierarchyLocation location, int n,
@@ -103,7 +103,7 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public boolean isSummary(Node node) {
 		return hierarchy.isSummary(node);
 	}
-	public void remove(List nodes, NodeModel model, int actionType,boolean removeDependencies) {
+	public void remove(List<Node> nodes, NodeModel model, int actionType,boolean removeDependencies) {
 		hierarchy.remove(nodes, model, actionType,removeDependencies);
 	}
     public void move(Node node,Node newParent, int actionType){

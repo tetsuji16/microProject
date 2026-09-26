@@ -117,7 +117,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     		return parent.getSubprojectLevel();
     }
 
-    public void add(Node parent,List children,int position,int actionType){
+    public void add(Node parent,List<Node> children,int position,int actionType){
     	Node p=(parent==null)?root:parent;
 //    	ArrayList trees =new Vector();
 //    	extractParents(children,trees);
@@ -136,8 +136,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	}
 
     	int j=position;
-       	for (Iterator i=/*trees*/children.iterator();i.hasNext();){
-       		Node node=(Node)i.next();
+        for (Node node : children){
         	//if (node.getImpl() instanceof Task) System.out.println("ADD parent="+parent+":"+(parent==null?"X":parent.isInSubproject())+", node="+node+":"+node.isInSubproject());
 			setSubprojectLevel(node,subprojectLevel);
 			//if (node.getImpl() instanceof Task) System.out.println("ADD node in sub="+node.isInSubproject());
@@ -150,7 +149,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	}
     }
 
-    public void paste(Node parent,List children,int position,NodeModel model,int actionType){
+    public void paste(Node parent,List<Node> children,int position,NodeModel model,int actionType){
     	Node p=(parent==null)?root:parent;
 
 	Object dataFactory = model.getDataFactory();
@@ -176,8 +175,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
 
     	int j=position;
-       	for (Iterator i=/*trees*/children.iterator();i.hasNext();){
-       		Node node=(Node)i.next();
+        for (Node node : children){
 		if ((project!=null && (node.getImpl() instanceof Task || node.getImpl() instanceof SubProj))||
        				(resourcePool!=null && node.getImpl() instanceof Resource)||
        				node.isVoid()){
@@ -431,7 +429,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
   * not to recalculate each time.  In case end void nodes were removed, they will be put back
   *
   */
-    public void remove(List nodes,NodeModel model,int actionType,boolean removeDependencies){
+    public void remove(List<Node> nodes,NodeModel model,int actionType,boolean removeDependencies){
         if (nodes!=null) {
 
         	boolean doTransaction = model.getDocument() != null && nodes.size() > 0 && isEvent(actionType);
@@ -439,10 +437,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         	if (doTransaction)
         		transactionId = model.getDocument().fireMultipleTransaction(0,true);
 	 	    ArrayList<Node> removed = new ArrayList<Node>(nodes.size());
- 		    for (Iterator i=nodes.iterator();i.hasNext();){
- 		        	LinkedList<Node> toRemove=new LinkedList<Node>();
- 		            removeSubTree((Node)i.next(),model,toRemove,actionType, removeDependencies);
- 		            removed.addAll(toRemove);
+			for (Node node : nodes) {
+				LinkedList<Node> toRemove = new LinkedList<>();
+				removeSubTree(node, model, toRemove, actionType, removeDependencies);
+				removed.addAll(toRemove);
 	        }
 	    	if (isEvent(actionType)){
 	    		renumber();
@@ -586,7 +584,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 //    public void indent(Node node,int deltaLevel,int actionType){
 //    	internalIndent(node,deltaLevel,actionType);
 //    }
-    public void indent(List nodes,int deltaLevel, NodeModel model,int actionType){
+    public void indent(List<Node> nodes,int deltaLevel, NodeModel model,int actionType){
     	boolean doTransaction = model.getDocument() != null;
     	int transactionId = 0;
 	Map<Node, NodeIndentEdit.Position> beforePositions = null;
