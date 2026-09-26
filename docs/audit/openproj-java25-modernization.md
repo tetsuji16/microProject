@@ -1340,10 +1340,13 @@ are unchanged. Both loops match
 `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/chart/ChartLegend.java`; the
 full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
 
-`ToolBarFactory.initJComponent` now traverses its configured toolbar items with
-enhanced-for, preserving item and separator order. This matches
-`d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/ToolBarFactory.java`.
-The focused `RibbonAndToolbarButtonTest` passed.
+Adjacent cleanup, excluded from issue #595: `ToolBarFactory.initJComponent`
+traverses configured toolbar items with enhanced-for, preserving item and
+separator order. Its matching source is under
+`d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/ToolBarFactory.java`,
+which is bundled Apache Batik code rather than OpenProj-derived code. The
+focused `RibbonAndToolbarButtonTest` passed; this change is not counted toward
+the #595 modernization scope.
 
 `Intervals` now uses enhanced-for for source interval copying, bulk addition, and
 date containment lookup. The range-merging and weekday-pruning loops retain
@@ -1357,7 +1360,10 @@ order. Both loops match
 `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/frames/workspace/DefaultFrameManager.java`.
 The focused `DefaultFrameManagerTest` passed.
 
-`MenuFactory` menu-bar, popup-menu, and menu-item list traversal now uses
-enhanced-for, preserving configured item order and visibility filtering. These
-loops match `d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/MenuFactory.java`.
-The focused `RibbonAndToolbarButtonTest` passed.
+Adjacent cleanup, excluded from issue #595: `MenuFactory` menu-bar,
+popup-menu, and menu-item list traversal uses enhanced-for, preserving configured
+item order and visibility filtering. Its matching source is under
+`d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/MenuFactory.java`,
+which is bundled Apache Batik code rather than OpenProj-derived code. The
+focused `RibbonAndToolbarButtonTest` passed; this change is not counted toward
+the #595 modernization scope.
