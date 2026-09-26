@@ -133,3 +133,7 @@ core全体テストが成功した。
 `ResourcePool.userResources()`は全リソースを走査するため、結果リスト容量に全件数を
 上限として指定した。ユーザーアカウントの有無による抽出と順序を
 `ResourcePoolIdentityTest`で確認した。
+
+POD `Serializer.saveTasks` の外部 predecessor 用索引 Map はプロジェクトの task list 件数が
+上限となるため、その件数に基づく初期容量を設定した。POD round-trip テスト
+（`PodRoundTripTest`）が成功し、保存・再読込を確認した。

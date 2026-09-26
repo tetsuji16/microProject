@@ -354,7 +354,7 @@ public class Serializer {
 		taskLinker.addOutline(project.getTaskOutlineRoot());
 		long projectId = project.getUniqueId();
 		Collection<TaskData> taskDataCollection=getTaskDataCollection(projectData);
-		Map<Task, TaskData> externalTaskData=new HashMap<Task, TaskData>();
+		Map<Task, TaskData> externalTaskData=new HashMap<>(project.getTaskList().size() * 4 / 3 + 1);
         //dependencies
         //Count depCount=new Count("Dependencies");
         for (Task outlineTask : ProjectHierarchyQueries.outline(project)) {
