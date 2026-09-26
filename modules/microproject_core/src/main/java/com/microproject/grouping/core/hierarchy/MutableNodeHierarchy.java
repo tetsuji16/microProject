@@ -218,15 +218,13 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     		}
 
     		Project owningProject;
-    		if (parent!=null && parent.getImpl() instanceof Task){
-    			Task task=(Task)parent.getImpl();
+    		if (parent!=null && parent.getImpl() instanceof Task task){
     			if (task.isSubproject()) owningProject=((SubProj)task).getSubproject();
     			else owningProject=task.getOwningProject();
     		}else owningProject=(Project)model.getDataFactory();
 
         	for (int i=0;i<descendants.length;i++){
-        		if (descendants[i].getImpl() instanceof Task){
-        			Task task=(Task)descendants[i].getImpl();
+        		if (descendants[i].getImpl() instanceof Task task){
 
         			Node parentSubproject=getParentSubproject((Node)descendants[i].getParent());
         			if (parentSubproject!=null) owningProject=((SubProj)parentSubproject.getImpl()).getSubproject();
@@ -328,8 +326,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         	}
     	}else if (resourcePool!=null){
         	for (int i=0;i<descendants.length;i++){
-        		if (descendants[i].getImpl() instanceof Resource){
-        			Resource resource=(Resource)descendants[i].getImpl();
+        		if (descendants[i].getImpl() instanceof Resource resource){
         			model.getDataFactory().validateObject(resource,model,this,null,false);
         			resourcePool.initializeId(resource);
     	    		insertedNodes.add(descendants[i]);
