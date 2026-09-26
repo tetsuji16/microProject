@@ -202,8 +202,8 @@ public class NodeListTransferable implements Transferable {
 	
 
 	public static ArrayList<Node> stringToNodeList(String s,SpreadSheet spreadsheet,List<Field> fields,NodeModelDataFactory factory){
-		ArrayList<Node> list = new ArrayList<>();
 		StringTokenizer st=new StringTokenizer(s,"\n\r");
+		ArrayList<Node> list = new ArrayList<>(st.countTokens());
 		Node node;
 		while (st.hasMoreTokens()){
 			node=stringToNode(st.nextToken(),spreadsheet,fields,factory);
