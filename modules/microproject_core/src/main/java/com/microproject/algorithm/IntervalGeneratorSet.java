@@ -77,12 +77,8 @@ public class IntervalGeneratorSet implements IntervalGenerator {
 		long minEnd = Long.MAX_VALUE;
 		IntervalGenerator result = null;
 		if (generators != null) {
-			long generatorEnd;
-			Iterator<IntervalGenerator> i = generators.iterator();
-			IntervalGenerator current;
-			while (i.hasNext()) {
-				current = i.next();
-				generatorEnd = current.currentEnd();
+			for (IntervalGenerator current : generators) {
+				long generatorEnd = current.currentEnd();
 				if (result == null || generatorEnd < minEnd) {
 					minEnd = generatorEnd;
 					result = current;

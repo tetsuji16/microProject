@@ -1546,3 +1546,10 @@ passes that binding to both configured and fallback converters, removing
 redundant casts without changing converter selection. The branch matches the
 OpenProj implementation; `FieldConverterTest` covers conversion through the
 public API.
+
+`IntervalGeneratorSet.earliestEndingGenerator` now uses enhanced-for over its
+typed generator list. The traversal is read-only; the current earliest-end
+selection and encounter-order tie behavior are unchanged. The active loop
+corresponds to the OpenProj traversal, while its fork-specific selection logic
+remains as implemented. `IntervalGeneratorContractTest` covers unique and tied
+earliest endpoints.
