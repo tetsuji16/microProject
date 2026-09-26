@@ -48,9 +48,15 @@ public final class TeamPlannerService {
 
 	public List<Slot> slots(Project project) {
 		Objects.requireNonNull(project, "project");
-		List<Slot> slots = new ArrayList<>();
+		List<Project> sourceProjects = projectsFor(project);
+		long expectedTaskCount = 0L;
+		for (Project sourceProject : sourceProjects) {
+			expectedTaskCount += sourceProject.getTaskList().size();
+		}
+		int initialCapacity = (int) Math.min(expectedTaskCount, Integer.MAX_VALUE - 8L);
+		List<Slot> slots = new ArrayList<>(initialCapacity);
 		Set<Task> seenTasks = java.util.Collections.newSetFromMap(new IdentityHashMap<Task, Boolean>());
-		for (Project sourceProject : projectsFor(project)) {
+		for (Project sourceProject : sourceProjects) {
 			for (Task task : ProjectHierarchyQueries.outline(sourceProject)) {
 				if (!seenTasks.add(task) || !(task instanceof NormalTask normalTask) || task.isSummary()) {
 					continue;
