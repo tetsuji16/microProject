@@ -1559,6 +1559,14 @@ configuration. `TimeDistributedHelperTest` covers field classification,
 numeric boundaries, null handling, and string/field ID resolution; the change
 does not alter those contracts.
 
+`NumericMinimum.addToSummary` now binds the accepted `Number` and reuses it for
+conversion. The OpenProj source has the same `Number` type check and numeric
+conversion, but its non-number path differs from this fork: microProject's
+existing early return is retained so non-numeric values remain ignored. The
+[OpenProj source](https://github.com/OldRepoPreservation/projectlibre/blob/master/openproj_core/src/com/projity/grouping/core/summaries/NumericMinimum.java)
+provides provenance for the typed branch; `SummaryVisitorFactoryTest` verifies
+the fork's ignore-and-minimize behavior.
+
 `IntervalGeneratorSet.earliestEndingGenerator` now uses enhanced-for over its
 typed generator list. The traversal is read-only; the current earliest-end
 selection and encounter-order tie behavior are unchanged. The active loop

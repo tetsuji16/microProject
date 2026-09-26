@@ -32,10 +32,10 @@ public class NumericMinimum extends NumberSummaryVisitor {
 		summary = Double.MAX_VALUE;
 	}
 	public void addToSummary(Object value) {
-	    if (!(value instanceof Number)){
+	    if (!(value instanceof Number number)){
 	        return;
 	    }
-		double doubleValue = ((Number)value).doubleValue();
+		double doubleValue = number.doubleValue();
 		summary = Math.min(summary,doubleValue);
 	}
 }

@@ -54,6 +54,17 @@ import com.microproject.grouping.core.model.WalkersNodeModel;
 
 class SummaryVisitorFactoryTest {
 	@Test
+	void numericMinimumIgnoresNonNumbersAndKeepsTheLowestNumber() {
+		NumericMinimum minimum = new NumericMinimum();
+
+		minimum.addToSummary("ignored");
+		minimum.addToSummary(Double.valueOf(8.5D));
+		minimum.addToSummary(Integer.valueOf(3));
+
+		assertEquals(Double.valueOf(3.0D), minimum.getSummary());
+	}
+
+	@Test
 	void summaryMapsExposeTypedImmutableEntries() {
 		BidiMap<String, Integer> flags = SummaryVisitorFactory.getMap(Boolean.class, false);
 
