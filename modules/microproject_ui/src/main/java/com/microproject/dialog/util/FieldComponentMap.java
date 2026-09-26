@@ -74,7 +74,8 @@ public class FieldComponentMap implements ObjectRef {
 	}
 	
 	private void setDataFactoryFromObject(Object object){
-		if (object instanceof BelongsToDocument) dataFactory=(NodeModelDataFactory)((BelongsToDocument)object).getDocument();
+		if (object instanceof BelongsToDocument documentObject)
+			dataFactory=(NodeModelDataFactory)documentObject.getDocument();
 	}
 	
 	public JComponent getComponent(String fieldId, int flag) {
