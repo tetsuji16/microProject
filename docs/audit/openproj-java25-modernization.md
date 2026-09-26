@@ -1675,3 +1675,8 @@ type-check/cast branches correspond to OpenProj `Project` lifecycle code;
 `PodRoundTripTest` verifies the deserialization route. Both focused suites
 passed.
 
+`Serializer`'s outline writer now binds `Task` in its OpenProj-source-matching
+`instanceof` branch instead of immediately casting `outlineChild`. The active
+caller is project serialization during POD save; `PodRoundTripTest` verifies
+that the persisted task outline still reloads correctly.
+

@@ -306,8 +306,7 @@ public class Serializer {
 				taskData.setParentTask(parentData);
 				taskData.setChildPosition(position);
 			//}
-			if (outlineChild instanceof Task){
-				Task task=(Task)outlineChild;
+			if (outlineChild instanceof Task task){
 				long parentId=parentData==null?-1L:parentData.getUniqueId();
 				if (parentId!=task.getLastSavedParentId()||position!=task.getLastSavedPosistion()) taskData.setMoved(true);
 			}
