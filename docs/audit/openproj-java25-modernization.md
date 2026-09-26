@@ -1709,3 +1709,11 @@ test passed.
 configured field before invoking it. Its active UI caller is
 `GraphicManager`'s field-action route. `FieldSetValueTest.invokesHyperlinkReturnedByConfiguredField`
 verifies dispatch without opening a browser; the focused test passed.
+
+`FieldConverter.StringConverter` now binds OpenProj-derived `Work`, `Duration`,
+`Money`, and `Date` values before formatting. `LongConverter` binds `Date` and
+`GregorianCalendar`; its duration branch binds `Duration`, which also covers
+`Work` because `Work extends Duration`. Existing public conversion and field
+rendering callers are unchanged. `FieldConverterTest.formatsAndConvertsOpenProjTimeValuesWithoutChangingTheirValues`
+verifies Work, Money, and Date formatting plus epoch-millisecond values for
+Date, Calendar, and Work; the focused test passed.

@@ -83,6 +83,25 @@ class FieldConverterTest {
 		assertEquals(Money.getFormat(false).parse(moneyText), convertedMoney);
 	}
 
+	@Test
+	void formatsAndConvertsOpenProjTimeValuesWithoutChangingTheirValues() throws Exception {
+		Work work = new Work(Duration.getInstance(3.0D, TimeUnit.HOURS));
+		String expectedWorkText = DurationFormat.getWorkInstance().format(work);
+		assertEquals(expectedWorkText, FieldConverter.toString(work, Work.class, null));
+		Money money = Money.getInstance(123.45D);
+		assertEquals(Money.formatCurrency(money.doubleValue(), false),
+			FieldConverter.toString(money, Money.class, null));
+
+		Date date = new Date(1_700_000_000_000L);
+		assertEquals(EditOption.getInstance().getDateFormat().format(date),
+			FieldConverter.toString(date, Date.class, null));
+		assertEquals(date.getTime(), FieldConverter.convert(date, Long.class, null));
+		GregorianCalendar calendar = new GregorianCalendar();
+		calendar.setTime(date);
+		assertEquals(date.getTime(), FieldConverter.convert(calendar, Long.class, null));
+		assertEquals(work.getEncodedMillis(), FieldConverter.convert(work, Long.class, null));
+	}
+
 	private static final class OptionField extends Field {
 		private Object target;
 		private Object storedValue;

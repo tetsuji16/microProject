@@ -180,22 +180,22 @@ public class FieldConverter  {
 			this.compact = compact;
 		}
 		public Object convert(Class clazz, Object value) {
-			if (value instanceof Work) {
+			if (value instanceof Work work) {
 				if (compact) 
-					return ((DurationFormat)DurationFormat.getWorkInstance()).formatCompact(value);
+					return ((DurationFormat)DurationFormat.getWorkInstance()).formatCompact(work);
 				else 
-					return ((DurationFormat)DurationFormat.getWorkInstance()).format(value);
-			} else if (value instanceof Duration) {
+					return ((DurationFormat)DurationFormat.getWorkInstance()).format(work);
+			} else if (value instanceof Duration duration) {
 				if (compact) 
-					return ((DurationFormat)DurationFormat.getInstance()).formatCompact(value);
+					return ((DurationFormat)DurationFormat.getInstance()).formatCompact(duration);
 				else 
-					return ((DurationFormat)DurationFormat.getInstance()).format(value);
-			} else if (value instanceof Money) {
-				return Money.formatCurrency(((Money)value).doubleValue(),compact);
-			} else if (value instanceof Date) {
+					return ((DurationFormat)DurationFormat.getInstance()).format(duration);
+			} else if (value instanceof Money money) {
+				return Money.formatCurrency(money.doubleValue(),compact);
+			} else if (value instanceof Date date) {
 				if (value.equals(DateTime.getZeroDate()))
 					return null;
-				return EditOption.getInstance().getDateFormat().format(value);
+				return EditOption.getInstance().getDateFormat().format(date);
 			} else {
 				if (value == null)
 					return null;
@@ -210,14 +210,12 @@ public class FieldConverter  {
 		public Object convert(Class type, Object value) throws ConversionException {
 			if (value == null)
 				return null;
-			if (value != null) {
-				if (value instanceof Date) {
-					return Long.valueOf(((Date)value).getTime());
-				} else if (value instanceof GregorianCalendar) {
-					return Long.valueOf(((GregorianCalendar)value).getTimeInMillis());
-				} else if (value instanceof Duration || value instanceof Work) {
-					return Long.valueOf(((Duration)value).getEncodedMillis());
-				}
+			if (value instanceof Date date) {
+				return Long.valueOf(date.getTime());
+			} else if (value instanceof GregorianCalendar calendar) {
+				return Long.valueOf(calendar.getTimeInMillis());
+			} else if (value instanceof Duration duration) {
+				return Long.valueOf(duration.getEncodedMillis());
 			}
 			return baseConverter.convert(type,value);
 		}
