@@ -384,7 +384,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	public boolean containsAssignments(){return true;}
 
 	public static final Object[] userResources() {
-		ArrayList result = new ArrayList(globalPool.getResourceList().size());
+		ArrayList<Resource> result = new ArrayList<>(globalPool.getResourceList().size());
 		for (Resource resource : globalPool.getResourceList()) {
 			if (resource.isUser())
 				result.add(resource);
@@ -426,7 +426,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		Node oldParentNode = getResourceOutline().search(getRbsParentResource(child));
 		if (oldParentNode != null)
 			oldParentNode.getChildren().remove(childNode);
-		ArrayList temp = new ArrayList(1);
+		ArrayList<Node> temp = new ArrayList<>(1);
 		temp.add(childNode);
 		getResourceOutline().move(parentNode, temp, -1,NodeModel.NORMAL);
 	}
