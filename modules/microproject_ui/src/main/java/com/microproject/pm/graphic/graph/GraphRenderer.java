@@ -29,6 +29,8 @@ import java.awt.Stroke;
 import java.util.List;
 import java.util.ListIterator;
 
+import javax.swing.JComponent;
+
 import com.microproject.pm.graphic.Renderer;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.graphic.configuration.shape.Colors;
@@ -44,6 +46,10 @@ public abstract class GraphRenderer extends Renderer{
 	}
 	public GraphRenderer(){
 		super();
+	}
+
+	protected final JComponent graphInfoContainer(JComponent currentContainer) {
+		return graphInfo instanceof JComponent component ? component : currentContainer;
 	}
 	
 	public boolean useTextures(){

@@ -142,8 +142,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	public GanttRenderer(GraphParams graphInfo){
 		super(graphInfo);
 		config=GraphicConfiguration.getInstance();
-		if (graphInfo instanceof JComponent)
-			container=(JComponent)graphInfo;
+		container=graphInfoContainer(container);
 	}
 
     private Color getProgressLineColor() {
