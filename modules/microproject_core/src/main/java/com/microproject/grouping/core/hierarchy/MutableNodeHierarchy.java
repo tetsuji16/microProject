@@ -102,7 +102,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     private void setSubprojectLevel(Node node,int level){
     	node.setSubprojectLevel(level);
     	int subprojectLevel=getChildrenSubprojectLevel(node);
-    	for (Enumeration e=node.children();e.hasMoreElements();){
+            for (Enumeration<?> e=node.children();e.hasMoreElements();){
     		Node child=(Node)e.nextElement();
     		setSubprojectLevel(child, subprojectLevel);
     	}
