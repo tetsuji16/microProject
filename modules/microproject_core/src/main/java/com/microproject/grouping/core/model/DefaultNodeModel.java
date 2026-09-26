@@ -366,7 +366,7 @@ public class DefaultNodeModel implements NodeModel {
 	public void remove(List<Node> nodes,int actionType,boolean filterAssignments,boolean removeDependencies){
 		beginUndoUpdate(actionType);
 		try {
-			ArrayList roots = collectRemovalRoots(nodes, filterAssignments);
+			List<Node> roots = collectRemovalRoots(nodes, filterAssignments);
 			RemovalSnapshot removalSnapshot = RemovalSnapshot.capture(roots);
 			if (!confirmRemove(roots))
 				return;
@@ -759,17 +759,11 @@ public class DefaultNodeModel implements NodeModel {
 		}
 	}
 
-	private ArrayList collectRemovalRoots(List nodes, boolean filterAssignments) {
-		ArrayList roots = new ArrayList(nodes == null ? 0 : nodes.size());
+	private List<Node> collectRemovalRoots(List<Node> nodes, boolean filterAssignments) {
+		List<Node> roots = new ArrayList<>(nodes == null ? 0 : nodes.size());
 		HierarchyUtils.extractParents(nodes, roots);
-		if (filterAssignments){
-			for (Iterator i=roots.iterator();i.hasNext();){
-				Node node=(Node)i.next();
-				if (node.getImpl() instanceof Assignment){
-					i.remove();
-				}
-			}
-		}
+		if (filterAssignments)
+			roots.removeIf(node -> node.getImpl() instanceof Assignment);
 		return roots;
 	}
 

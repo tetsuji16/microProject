@@ -2041,3 +2041,11 @@ active construction is through `NodeModelFactory`. Child encounter order,
 identity matching, insertion position, and event/undo behavior are unchanged.
 Full `:microproject_core:test --console=plain` passed. Commit: recorded in this
 changeset.
+
+`DefaultNodeModel.collectRemovalRoots` now uses `List<Node>` and removes
+assignment roots with `removeIf`, preserving the remaining roots' encounter
+order. Its assignment-filtering behavior matches OpenProj at `d2fa3c20a`; the
+active path is `DefaultNodeModel.remove(List<Node>, ...)`. Added a regression
+that tries to remove an assignment outline node through the default filtering
+route and confirms it remains under its task. Focused `DefaultNodeModelTest`
+and `git diff --check` passed. Commit: recorded in this changeset.

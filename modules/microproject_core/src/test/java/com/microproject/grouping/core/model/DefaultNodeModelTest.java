@@ -626,6 +626,23 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void removingAssignmentNodeWithDefaultFilteringKeepsItInOutline() {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask task = createTask(project, "assigned task");
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance()
+				.newAssignment(task, resource, 1.0D, 0L, this);
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		Node assignmentNode = model.search(assignment);
+
+		assertNotNull(assignmentNode);
+		model.remove(assignmentNode, NodeModel.NORMAL);
+
+		assertSame(assignmentNode, model.search(assignment));
+		assertSame(assignmentNode.getParent(), model.search(task));
+	}
+
+	@Test
 	void copyRebuildsWbsChildrenForCopiedSummaryTask() {
 		Project project = createProjectWithoutVoidRows();
 		NormalTask parent = createTask(project, "parent");
