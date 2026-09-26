@@ -29,8 +29,9 @@ public final class RecurringCalendarException implements Serializable, Cloneable
 	public List<WorkDay> getOccurrences() {
 		long spanDays = (DateTime.dayFloor(template.getEnd()) - DateTime.dayFloor(template.getStart()))
 			/ WorkCalendar.MILLIS_IN_DAY;
-		ArrayList<WorkDay> result = new ArrayList<>();
-		for (long start : recurrence.occurrenceDates()) {
+		List<Long> occurrenceDates = recurrence.occurrenceDates();
+		ArrayList<WorkDay> result = new ArrayList<>(occurrenceDates.size());
+		for (long start : occurrenceDates) {
 			WorkDay occurrence = new WorkDay(start, DateTime.dayFloor(start) + spanDays * WorkCalendar.MILLIS_IN_DAY,
 				template.getDescription());
 			occurrence.setWorkingHours(template.getWorkingHours().clone());
