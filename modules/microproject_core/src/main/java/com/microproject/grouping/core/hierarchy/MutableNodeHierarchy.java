@@ -417,7 +417,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 //
 //    	}else{
     	descendants.add(parent);
-	    	for (Enumeration e=parent.children();e.hasMoreElements();){
+            for (Enumeration<?> e=parent.children();e.hasMoreElements();){
 	    		Node current=(Node)e.nextElement();
 	    		extractSameProjectBranch(current,descendants);
 	    	}
@@ -515,7 +515,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 				Node current;
 				int badCount = 0;
 				LinkedList<Node> enumeratedNodes=new LinkedList<Node>();
-				for (Enumeration e=((NodeBridge)node).postorderEnumeration();e.hasMoreElements();){
+				for (Enumeration<?> e=((NodeBridge)node).postorderEnumeration();e.hasMoreElements();){
 					enumeratedNodes.add((Node)e.nextElement());
 				}
 //				System.out.println("removeApartFromHierarchy("+enumeratedNodes+")");
@@ -542,7 +542,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 		setSubprojectLevel(node,getChildrenSubprojectLevel(newParent));
     	newParent.add(node);
 	    	ArrayList<Node> change = new ArrayList<Node>(1);
-    	for (Enumeration e=((NodeBridge)node).preorderEnumeration();e.hasMoreElements();)
+            for (Enumeration<?> e=((NodeBridge)node).preorderEnumeration();e.hasMoreElements();)
     		change.add((Node)e.nextElement());
 
     	if (isEvent(actionType)) fireNodesChanged(this,change.toArray());
