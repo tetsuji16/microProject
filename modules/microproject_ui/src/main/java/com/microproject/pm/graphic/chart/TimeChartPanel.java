@@ -123,8 +123,7 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 		NumberFormat numberFormat = NumberFormat.getPercentInstance(); // default
 		Object[] traces = chartInfo.getTraces();
 		// chartInfo.getModel().dumpDataset(traces);
-		if (!chartInfo.isResourceGraph() && (traces.length > 0 && traces[0] instanceof Field)) {
-			Field field = (Field) traces[0];
+		if (!chartInfo.isResourceGraph() && (traces.length > 0 && traces[0] instanceof Field field)) {
 			if (field.isMoney()){
 				numberFormat=new NumberFormat(){
 
@@ -145,8 +144,8 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 				};
 			}else{
 				Format format = field.getFormat();
-				if (format instanceof NumberFormat)
-					numberFormat = (NumberFormat) format;
+				if (format instanceof NumberFormat formattedNumber)
+					numberFormat = formattedNumber;
 				else
 					numberFormat = NumberFormat.getNumberInstance();
 			}
