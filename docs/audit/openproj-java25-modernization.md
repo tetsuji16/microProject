@@ -1596,6 +1596,12 @@ has the same guard and comparison. This equality is inherited by key wrappers su
 `HasKeyImpl`; `EqualsHashCodeContractTest` verifies equal IDs, matching hash
 codes, and rejection of null/foreign types.
 
+`SpreadSheetFieldArray.equals` now binds its matching type with Java pattern
+matching and compares the name through that binding. The corresponding OpenProj
+branch uses the same type guard and name lookup; the existing fork value
+comparison is preserved. `SpreadSheetFieldArrayTest` covers equal names,
+matching hash codes, and rejection of null/foreign types.
+
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
 same. The loop matches the OpenProj implementation; `FieldDictionaryTest`

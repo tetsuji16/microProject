@@ -25,6 +25,7 @@
 package com.microproject.graphic.configuration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -61,6 +62,8 @@ class SpreadSheetFieldArrayTest {
 
         assertEquals(first, second);
         assertEquals(first.hashCode(), second.hashCode());
+        assertFalse(first.equals(null));
+        assertFalse(first.equals("Shared"));
     }
 
     @Test

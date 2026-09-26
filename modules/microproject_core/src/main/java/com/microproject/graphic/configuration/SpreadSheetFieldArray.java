@@ -159,10 +159,10 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	/**
 	 * Equality is based on name, not on contents
 	 */
-	public boolean equals(Object arg0) {
-		if (! (arg0 instanceof SpreadSheetFieldArray))
+	public boolean equals(Object other) {
+		if (!(other instanceof SpreadSheetFieldArray fields))
 			return false;
-		return Objects.equals(name, ((SpreadSheetFieldArray)arg0).getName());
+		return Objects.equals(name, fields.getName());
 	}
 
 	@Override
