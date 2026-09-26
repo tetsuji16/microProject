@@ -57,7 +57,7 @@ public final class FilePathUtils {
 		String normalized = value.replace('/', '\\');
 		String root = normalized.substring(0, 3);
 		String[] parts = normalized.substring(3).split("\\\\+");
-		List<String> result = new ArrayList<>();
+		List<String> result = new ArrayList<>(parts.length);
 		for (String part : parts) {
 			if (part.isEmpty() || ".".equals(part))
 				continue;
