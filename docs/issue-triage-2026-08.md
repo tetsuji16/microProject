@@ -116,6 +116,11 @@ SUCCESSFUL、13秒）で回帰がないことを確認した。
 既知になった時点でバックアップMapを事前確保するようにした。Collection入力を使う
 undoテストとcore全体テストが成功した。
 
+`CalendarRecurrence.occurrenceDates()` は `AFTER_OCCURRENCES` の場合、検証済みの
+発生回数を結果件数の上限として初期容量に使う。`BY_DATE` は生成件数が事前に
+確定しないため従来どおりとし、`CalendarRecurrenceTest` とcore全体テストで
+日次・週次・月次・年次の既存日付結果を確認した。
+
 依存関係の切断時に作る incident snapshot も、先行リンク数と後続リンク数の合計で
 初期容量を確保するようにした。順序と重複を保ったまま、`DependencyServiceTest` と
 `:microproject_core:test` 全体が成功した。

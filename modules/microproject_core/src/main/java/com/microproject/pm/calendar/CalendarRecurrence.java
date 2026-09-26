@@ -126,7 +126,8 @@ public final class CalendarRecurrence implements Serializable, Cloneable {
 		validate();
 		LocalDate start = localDate(startDate);
 		LocalDate finish = endMode == EndMode.BY_DATE ? localDate(finishDate) : LocalDate.MAX;
-		ArrayList<Long> result = new ArrayList<>();
+		ArrayList<Long> result = endMode == EndMode.AFTER_OCCURRENCES
+			? new ArrayList<>(occurrenceCount) : new ArrayList<>();
 		switch (pattern) {
 			case DAILY -> generateDaily(start, finish, result);
 			case WEEKLY -> generateWeekly(start, finish, result);
