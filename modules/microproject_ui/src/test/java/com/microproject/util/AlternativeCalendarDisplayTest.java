@@ -6,6 +6,7 @@ package com.microproject.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
@@ -42,6 +43,25 @@ class AlternativeCalendarDisplayTest {
 
 		assertEquals("January 2026", AlternativeCalendarDisplay.monthLabel(YearMonth.of(2026, 1), locale));
 		assertEquals("", AlternativeCalendarDisplay.companionDay(LocalDate.of(2026, 1, 12), locale));
+	}
+
+	@Test
+	void windowsCalendarIdentifiersMapOnlyToEquivalentChronologies() {
+		assertEquals("Japanese", AlternativeCalendarDisplay.chronologyForWindowsCalendarId("3").getId());
+		assertEquals("Minguo", AlternativeCalendarDisplay.chronologyForWindowsCalendarId("4").getId());
+		assertEquals("ThaiBuddhist", AlternativeCalendarDisplay.chronologyForWindowsCalendarId("7").getId());
+		assertEquals("Hijrah-umalqura", AlternativeCalendarDisplay.chronologyForWindowsCalendarId("23").getId());
+		assertNull(AlternativeCalendarDisplay.chronologyForWindowsCalendarId("6"));
+		assertNull(AlternativeCalendarDisplay.chronologyForWindowsCalendarId("8"));
+	}
+
+	@Test
+	void parsesCurrentWindowsCalendarValueWithoutAssumingTheRegistryDefault() {
+		String output = "HKEY_CURRENT_USER\\Control Panel\\International\n"
+			+ "    iCalendarType    REG_SZ    23\n";
+
+		assertEquals("23", AlternativeCalendarDisplay.parseWindowsCalendarId(output));
+		assertNull(AlternativeCalendarDisplay.parseWindowsCalendarId("iCalendarType REG_SZ invalid"));
 	}
 
 	@Test

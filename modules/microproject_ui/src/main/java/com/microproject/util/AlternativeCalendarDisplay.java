@@ -4,6 +4,8 @@
  *******************************************************************************/
 package com.microproject.util;
 
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -13,9 +15,15 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Formats a secondary calendar date while keeping the ISO date authoritative. */
 public final class AlternativeCalendarDisplay {
+	private static final Pattern WINDOWS_CALENDAR_VALUE = Pattern.compile(
+		"(?im)^\\s*iCalendarType\\s+REG_\\w+\\s+(\\d+)\\s*$");
+	private static final Chronology WINDOWS_CALENDAR = readWindowsCalendar();
+
 	private AlternativeCalendarDisplay() {
 	}
 
@@ -48,10 +56,56 @@ public final class AlternativeCalendarDisplay {
 
 	private static Chronology chronology(Locale locale) {
 		try {
-			return Chronology.ofLocale(locale);
+			Chronology selected = Chronology.ofLocale(locale);
+			if (!IsoChronology.INSTANCE.equals(selected))
+				return selected;
 		} catch (DateTimeException exception) {
-			// Unsupported OS calendar extensions leave the established ISO display intact.
-			return IsoChronology.INSTANCE;
+			// An unsupported locale calendar may still have a supported Windows selection.
+		}
+		return WINDOWS_CALENDAR == null ? IsoChronology.INSTANCE : WINDOWS_CALENDAR;
+	}
+
+	static Chronology chronologyForWindowsCalendarId(String calendarId) {
+		String chronologyId = switch (calendarId == null ? "" : calendarId) {
+			case "3" -> "Japanese";
+			case "4" -> "Minguo";
+			case "7" -> "ThaiBuddhist";
+			case "23" -> "Hijrah-umalqura";
+			default -> null;
+		};
+		if (chronologyId == null)
+			return null;
+		try {
+			return Chronology.of(chronologyId);
+		} catch (DateTimeException exception) {
+			return null;
+		}
+	}
+
+	static String parseWindowsCalendarId(String commandOutput) {
+		Matcher matcher = WINDOWS_CALENDAR_VALUE.matcher(commandOutput == null ? "" : commandOutput);
+		return matcher.find() ? matcher.group(1) : null;
+	}
+
+	private static Chronology readWindowsCalendar() {
+		if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("windows"))
+			return null;
+		try {
+			Process process = new ProcessBuilder("reg.exe", "query", "HKCU\\Control Panel\\International",
+				"/v", "iCalendarType").redirectErrorStream(true).start();
+			if (!process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
+				process.destroyForcibly();
+				return null;
+			}
+			if (process.exitValue() != 0)
+				return null;
+			String output = new String(process.getInputStream().readAllBytes(), Charset.defaultCharset());
+			return chronologyForWindowsCalendarId(parseWindowsCalendarId(output));
+		} catch (IOException exception) {
+			return null;
+		} catch (InterruptedException exception) {
+			Thread.currentThread().interrupt();
+			return null;
 		}
 	}
 }
