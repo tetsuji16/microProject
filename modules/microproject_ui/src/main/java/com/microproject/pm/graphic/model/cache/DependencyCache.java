@@ -42,9 +42,8 @@ public class DependencyCache extends CellCache {
 	}
 	
 	public void updateAllVisibleElements(){
-	    VisibleDependencies v;
-	    for (Iterator i=visibleElements.iterator();i.hasNext();){
-	        updateAllVisibleElements((VisibleDependencies)i.next());
+	    for (Object element : visibleElements) {
+	        updateAllVisibleElements((VisibleDependencies)element);
 	    }
 	}
 	public void updateAllVisibleElements(VisibleDependencies v){	    
@@ -52,8 +51,8 @@ public class DependencyCache extends CellCache {
 		ArrayList visibleNodes =v.getVisibleNodes().getElements();
 		Collection visibleNodesCol=getContainsCollection(visibleNodes);
 		visibleDependencies.clear();
-		for(Iterator i=getCacheIterator();i.hasNext();){
-			GraphicDependency dep=(GraphicDependency)i.next();
+		for (Object element : cache) {
+			GraphicDependency dep=(GraphicDependency)element;
 			if (visibleNodesCol.contains(dep.getPredecessor())&&
 					visibleNodesCol.contains(dep.getSuccessor()))
 			    visibleDependencies.add(dep);
@@ -63,9 +62,8 @@ public class DependencyCache extends CellCache {
 	
 	
 	public void updateVisibleElements(Set change){
-	    VisibleDependencies v;
-	    for (Iterator i=visibleElements.iterator();i.hasNext();){
-	        updateVisibleElements((VisibleDependencies)i.next(),change);
+	    for (Object element : visibleElements) {
+	        updateVisibleElements((VisibleDependencies)element,change);
 	    }
 	}
 	public void updateVisibleElements(VisibleDependencies v,Set change){
@@ -73,7 +71,7 @@ public class DependencyCache extends CellCache {
 		ArrayList removed = new ArrayList();
 		ArrayList inserted = new ArrayList();
 		ArrayList changed = new ArrayList(change == null ? 0 : change.size());
-		changed.addAll(change);
+		if (change != null) changed.addAll(change);
         updateVisibleElements(v.getElements(),visibleNodes,removed,inserted,changed);
 		if (removed.size()>0) v.addEvent(new CacheEvent(this,CacheEvent.NODES_REMOVED,removed,null));
 		if (inserted.size()>0) v.addEvent(new CacheEvent(this,CacheEvent.NODES_INSERTED,inserted,null));
@@ -87,8 +85,8 @@ public class DependencyCache extends CellCache {
 		
 //		long t0=System.currentTimeMillis();
 		boolean containsPredecessor,containsSuccessor,containsDependency;
-		for(Iterator i=getCacheIterator();i.hasNext();){
-			GraphicDependency dep=(GraphicDependency)i.next();
+		for (Object element : cache) {
+			GraphicDependency dep=(GraphicDependency)element;
 			containsPredecessor=visibleNodesSet.contains(dep.getPredecessor());
 			containsSuccessor=visibleNodesSet.contains(dep.getSuccessor());
 			containsDependency=visibleDependenciesSet.contains(dep);
