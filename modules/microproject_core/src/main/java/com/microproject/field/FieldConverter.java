@@ -236,12 +236,12 @@ public class FieldConverter  {
 				return value;
 			} else if (value instanceof Calendar) {
 				return ((Calendar)value).getTime();
-			} else if (value instanceof String) {
+			} else if (value instanceof String dateText) {
 				try {
-					return EditOption.getInstance().getDateFormat().parse((String)value);
+					return EditOption.getInstance().getDateFormat().parse(dateText);
 				} catch (ParseException e) {
 					try {
-						return DateTime.utcShortDateFormatInstance().parse((String)value); // try without time
+						return DateTime.utcShortDateFormatInstance().parse(dateText); // try without time
 					} catch (ParseException e1) {
 						throw new ConversionException(Messages.getString("Message.invalidDate"));
 					}
@@ -288,9 +288,9 @@ public class FieldConverter  {
 				return new Duration(((Work)value).longValue());
 			} else if (value instanceof Duration) {
 				return value;
-			} else if (value instanceof String) {
+			} else if (value instanceof String durationText) {
 				try {
-					return DurationFormat.getInstance().parseObject((String) value);
+					return DurationFormat.getInstance().parseObject(durationText);
 				} catch (ParseException e) {
 					throw new ConversionException(Messages.getString("Message.invalidDuration"));
 				}
@@ -310,9 +310,9 @@ public class FieldConverter  {
 				return new Work(((Work)value).longValue());
 			} else if (value instanceof Duration) {
 				return value;
-			} else if (value instanceof String) {
+			} else if (value instanceof String workText) {
 				try {
-					return DurationFormat.getWorkInstance().parseObject((String) value);
+					return DurationFormat.getWorkInstance().parseObject(workText);
 				} catch (ParseException e) {
 					throw new ConversionException(Messages.getString("Message.invalidDuration"));
 				}
@@ -358,9 +358,9 @@ public class FieldConverter  {
 			 		num = 0.0;
 			 	}
 				return Money.getInstance(num);
-			} else if (value instanceof String) {
+			} else if (value instanceof String moneyText) {
 				try {
-					return Money.getFormat(false).parseObject((String) value);
+					return Money.getFormat(false).parseObject(moneyText);
 				} catch (ParseException e) {
 					throw new ConversionException(Messages.getString("Message.invalidDuration"));
 				}

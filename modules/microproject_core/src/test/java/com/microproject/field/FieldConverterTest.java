@@ -26,6 +26,11 @@ import java.util.GregorianCalendar;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.Money;
+import com.microproject.datatype.Work;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.options.EditOption;
 
 class FieldConverterTest {
@@ -46,4 +51,23 @@ class FieldConverterTest {
 
 		assertEquals(expected, converted.getTime());
 	}
+
+	@Test
+	void parsesDateWorkAndMoneyStringsThroughTheirRegisteredConverters() throws Exception {
+		Date sourceDate = new Date(1_700_000_000_000L);
+		var dateFormat = EditOption.getInstance().getDateFormat();
+		String dateText = dateFormat.format(sourceDate);
+		assertEquals(dateFormat.parse(dateText), FieldConverter.convert(dateText, Date.class, null));
+
+		Work sourceWork = new Work(Duration.getInstance(3.0D, TimeUnit.HOURS));
+		String workText = DurationFormat.getWorkInstance().format(sourceWork);
+		Duration convertedWork = (Duration) FieldConverter.convert(workText, Work.class, null);
+		assertEquals(sourceWork.getEncodedMillis(), convertedWork.getEncodedMillis());
+
+		Money sourceMoney = Money.getInstance(123.45D);
+		String moneyText = Money.getFormat(false).format(sourceMoney);
+		Number convertedMoney = (Number) FieldConverter.convert(moneyText, Money.class, null);
+		assertEquals(Money.getFormat(false).parse(moneyText), convertedMoney);
+	}
 }
+
