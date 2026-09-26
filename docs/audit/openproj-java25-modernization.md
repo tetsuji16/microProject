@@ -1452,3 +1452,8 @@ the #595 modernization scope.
 the mode to predicated iterators without a redundant cast. This conditional
 matches `d2fa3c20a:openproj_reports/src/com/projity/reports/adapter/DataSource.java`.
 `DataSourceTest` verifies the mode reaches the iterator.
+
+`FontUtil` now types its Swing defaults enumerations, uses pattern matching when
+returning a `FontUIResource`, and traverses available-font arrays with
+enhanced-for. These implementations match the OpenProj `FontUtil` source; font
+selection priority and enumeration order remain unchanged.

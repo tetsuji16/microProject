@@ -38,7 +38,7 @@ public class FontUtil {
 	private static final Logger logger = Logger.getLogger(FontUtil.class.getName());
 	public static void setUIFont (String font){
 		
-		for (Enumeration e=UIManager.getDefaults().keys();e.hasMoreElements();) {
+		for (Enumeration<?> e=UIManager.getDefaults().keys();e.hasMoreElements();) {
 			Object key = e.nextElement();
 			Object value = UIManager.get (key);
 			if (value instanceof FontUIResource)
@@ -46,21 +46,21 @@ public class FontUtil {
 		}
 	}    
 	public static Font getUIFont(){
-		Enumeration keys = UIManager.getDefaults().keys();
+		Enumeration<?> keys = UIManager.getDefaults().keys();
 		while (keys.hasMoreElements()) {
 			Object key = keys.nextElement();
 			Object value = UIManager.get (key);
-			if (value instanceof FontUIResource)
-				return (FontUIResource)value;
+			if (value instanceof FontUIResource font)
+				return font;
 		}
 		return null;
 	}
 	
 	public static String getValidFont(String[] fonts){
 		String[] f=GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-		for (int j=0;j<fonts.length;j++){
-			for (int i=0;i<f.length;i++){
-			if (f[i].equals(fonts[j])) return fonts[j];
+		for (String font : fonts){
+			for (String availableFont : f){
+			if (availableFont.equals(font)) return font;
 			}
 		}
 		return null;
@@ -72,8 +72,8 @@ public class FontUtil {
 		logger.info("Current font: " + current);
 		logger.info("Available fonts:");
 		String[] fonts=GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-		for (int i=0;i<fonts.length;i++){
-			logger.info("\t" + fonts[i]);
+		for (String font : fonts){
+			logger.info("\t" + font);
 		}
 	}
 	
