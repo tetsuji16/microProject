@@ -126,18 +126,22 @@ public class PageSizes extends MediaSizeName{
 		return sizes;
 	}
 
+	private static Format asFormat(Object value) {
+		return value instanceof Format format ? format : null;
+	}
+
 	public Dimension getPageDimension(Object ps){
-		if (ps==null || ! (ps instanceof Format)) return null;
-		return ((PageSizes.Format)ps).getDimension();
+		Format format = asFormat(ps);
+		return format == null ? null : format.getDimension();
 
 	}
 	public boolean isCustomPageSize(Object ps){
-		if (ps==null || ! (ps instanceof Format)) return false;
-		return ((PageSizes.Format)ps).getType()==CUSTOM;
+		Format format = asFormat(ps);
+		return format != null && format.getType() == CUSTOM;
 	}
 	public boolean isBigPageSize(Object ps){
-		if (ps==null || ! (ps instanceof Format)) return false;
-		return ((PageSizes.Format)ps).getType()==BIG_PAGE;
+		Format format = asFormat(ps);
+		return format != null && format.getType() == BIG_PAGE;
 	}
 
 	public Format getPageSize(ExtendedPageFormat pageFormat){

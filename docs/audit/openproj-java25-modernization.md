@@ -1838,3 +1838,10 @@ operand in the existing type guard. The `super.equals` check, equality fields,
 and false result for null or unrelated types are unchanged. Extended
 `DataObjectEqualsHashCodeTest` to retain explicit null/foreign-type coverage;
 the focused exchange test passed.
+
+`PageSizes` now resolves `Format` through one private pattern-binding helper,
+used by dimension, custom-size, and single-page queries. `git blame` traces
+the original guards to OpenProj. Null and foreign-object fallbacks and all
+three query results remain covered by `PageSizesTest`; the focused UI test
+passed. This consolidation removes three copies of the same type-resolution
+rule.
