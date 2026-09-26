@@ -174,18 +174,18 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 	public void setObject(Object object) {
 		if (object == this.object)
 			return;
-		if (this.object != null && this.object instanceof BelongsToDocument) {
-			Document document=((BelongsToDocument)this.object).getDocument();
+		if (this.object instanceof BelongsToDocument belongsToDocument) {
+			Document document = belongsToDocument.getDocument();
 			document.removeObjectListener(this);
-			if (document instanceof Project)
-				((Project)document).removeScheduleListener(this);
+			if (document instanceof Project project)
+				project.removeScheduleListener(this);
 		}
 		this.object = object;
-		if (object != null && object instanceof BelongsToDocument) {
-			Document document=((BelongsToDocument)this.object).getDocument();
+		if (object instanceof BelongsToDocument belongsToDocument) {
+			Document document = belongsToDocument.getDocument();
 			document.addObjectListener(this);
-			if (document instanceof Project)
-				((Project)document).addScheduleListener(this);
+			if (document instanceof Project project)
+				project.addScheduleListener(this);
 		}
 	}
 
@@ -237,4 +237,3 @@ protected JComponent createFieldsPanel(FieldComponentMap map, Collection<Field> 
 	return builder.getPanel();
 }
 }
-

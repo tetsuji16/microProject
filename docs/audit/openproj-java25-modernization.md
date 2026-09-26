@@ -1852,3 +1852,10 @@ confirms these guarded paths derive from OpenProj; the menu/ribbon behavior
 and command routes are unchanged. Existing `RibbonAndToolbarButtonTest` covers
 the active enabled/selected paths, and the full UI test suite is used for this
 shared menu manager update.
+
+`FieldDialog.setObject` now pattern-binds its previous and incoming
+`BelongsToDocument` objects and their `Project` listeners. Listener detach,
+assignment order, and listener attach remain unchanged; null still skips the
+incoming-document branch through the pattern match. These guards trace to
+OpenProj. No headless `FieldDialog` test fixture exists, so verification uses
+the full UI suite; no visible dialog route or layout changed.
