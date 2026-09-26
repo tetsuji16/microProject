@@ -1685,3 +1685,9 @@ dependency collection and parent WBS-cache rebuilding. Its active task-copy
 caller is covered by `DefaultNodeModelTest`, including a nested summary-task
 copy that verifies the copied parent cache points at the copied child node.
 The focused test class passed with these copy-path assertions.
+
+`DefaultNodeModel.cloneNodeImpl` and `cleanNodeImpl` now bind OpenProj-derived
+`NormalTask` and `ResourceImpl` branches instead of recasting their inputs. The
+active task-copy path invokes both methods through `cloneNode` and `cleanBranch`;
+`DefaultNodeModelTest` verifies copied assignment reconstruction and nested WBS
+cache rebuilding. The focused test class passed.

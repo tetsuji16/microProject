@@ -499,10 +499,10 @@ public class DefaultNodeModel implements NodeModel {
 	private Object cloneNodeImpl(Object impl){
 				if (impl instanceof VoidNodeImpl){
 					return new VoidNodeImpl();
-				}else if (impl instanceof NormalTask){
-					return ((NormalTask)impl).clone();
-				}else if (impl instanceof ResourceImpl){
-					return ((ResourceImpl)impl).clone();
+				}else if (impl instanceof NormalTask task){
+					return task.clone();
+				}else if (impl instanceof ResourceImpl resource){
+					return resource.clone();
 				}//TOTO assignments
 		return null;
 	}
@@ -515,10 +515,10 @@ public class DefaultNodeModel implements NodeModel {
 		}
 	}
 	private void cleanNodeImpl(Object impl){
-		if (impl instanceof NormalTask){
-			((NormalTask)impl).cleanClone();
-		}else if (impl instanceof ResourceImpl){
-			((ResourceImpl)impl).cleanClone();
+		if (impl instanceof NormalTask task){
+			task.cleanClone();
+		}else if (impl instanceof ResourceImpl resource){
+			resource.cleanClone();
 		}
 	}
 
