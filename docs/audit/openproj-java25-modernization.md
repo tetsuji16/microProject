@@ -1528,8 +1528,9 @@ retaining node casts, result order, and duplicate suppression. The loop matches
 OpenProj `DataUtils`; `DataUtilsTest` verifies ordered extraction and duplicate
 handling.
 
-`SplitEdit.getPresentationName` now binds `DataObject` with an `instanceof`
-pattern instead of a separate null/type check and cast. The displayed name and
-ID path matches OpenProj `SplitEdit`; focused tests cover both a `DataObject`
-schedule and the fallback label. The fork-specific `source` versus `this`
-arguments in undo/redo were intentionally left untouched.
+`SplitEdit` and `ScheduleEdit` now share `UndoEditPresentationName` for their
+`DataObject` type check and displayed class/name/ID, replacing the duplicated
+null/type checks and casts with an `instanceof` pattern. Both action prefixes
+and the fallback label are covered by `SplitEditTest`. The `SplitEdit` display
+path matches OpenProj; fork-specific `source` versus `this` arguments in
+undo/redo were intentionally left untouched.

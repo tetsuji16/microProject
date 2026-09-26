@@ -30,7 +30,6 @@ import javax.swing.undo.CannotUndoException;
 
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleService;
-import com.microproject.server.data.DataObject;
 
 /**
  *
@@ -61,13 +60,7 @@ public class SplitEdit extends AbstractUndoableEdit{
 		return super.canUndo();
 	}
 	public String getPresentationName() {
-		String s="Split";
-		if (schedule instanceof DataObject data){
-			String cn=schedule.getClass().getName();
-			cn=cn.substring(cn.lastIndexOf('.')+1);
-			s+=": "+cn+" "+data.getName()+"("+data.getUniqueId()+")";
-		}
-		return s;
+		return UndoEditPresentationName.forSchedule("Split", schedule);
 	}
 	public void redo() throws CannotRedoException {
 		super.redo();

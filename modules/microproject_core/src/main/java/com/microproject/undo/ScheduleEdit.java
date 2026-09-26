@@ -31,7 +31,6 @@ import javax.swing.undo.CannotUndoException;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleService;
-import com.microproject.server.data.DataObject;
 
 /**
  *
@@ -66,14 +65,7 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 		return super.canUndo();
 	}
 	public String getPresentationName() {
-		String s="Schedule";
-		if (schedule!=null&&schedule instanceof DataObject){
-			DataObject data=(DataObject)schedule;
-			String cn=schedule.getClass().getName();
-			cn=cn.substring(cn.lastIndexOf('.')+1);
-			s+=": "+cn+" "+data.getName()+"("+data.getUniqueId()+")";
-		}
-		return s;
+		return UndoEditPresentationName.forSchedule("Schedule", schedule);
 	}
 	public void redo() throws CannotRedoException {
 		super.redo();

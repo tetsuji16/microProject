@@ -42,6 +42,8 @@ class SplitEditTest {
 		SplitEdit edit = new SplitEdit(schedule, null, 0L, 0L, this);
 
 		assertEquals("Split: " + simpleClassName + " Sample(42)", edit.getPresentationName());
+		assertEquals("Schedule: " + simpleClassName + " Sample(42)",
+			new ScheduleEdit(schedule, null, 0L, 0L, null, false, this).getPresentationName());
 	}
 
 	@Test
@@ -50,5 +52,7 @@ class SplitEditTest {
 			new Class<?>[] { Schedule.class }, (proxy, method, arguments) -> null);
 
 		assertEquals("Split", new SplitEdit(schedule, null, 0L, 0L, this).getPresentationName());
+		assertEquals("Schedule",
+			new ScheduleEdit(schedule, null, 0L, 0L, null, false, this).getPresentationName());
 	}
 }
