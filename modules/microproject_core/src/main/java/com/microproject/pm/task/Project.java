@@ -964,7 +964,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		Iterator<?> i = getSnapshotIterator(entireProject, selection);
 
 		final boolean[] foundSnapshot = new boolean[1]; // no undo edit if there is no snapshot
-		final Collection<?> snapshotDetails = undo ? collectSnapshotDetails(snapshotId, i, foundSnapshot) : null;
+		int snapshotTaskCount = entireProject ? getTaskList().size() : selection == null ? 0 : selection.size();
+		final Collection<?> snapshotDetails = undo
+			? collectSnapshotDetails(snapshotId, i, foundSnapshot, snapshotTaskCount) : null;
 
 		if (entireProject) forTasks(new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
@@ -979,11 +981,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	}
 
-	private Collection<?> collectSnapshotDetails(Object snapshotId, Iterator<?> tasks, boolean[] foundSnapshot) {
+	private Collection<?> collectSnapshotDetails(Object snapshotId, Iterator<?> tasks, boolean[] foundSnapshot,
+		int expectedTaskCount) {
 		if (tasks == null || !tasks.hasNext()) {
 			return null;
 		}
-		Collection<TaskBackup> snapshotDetails = new ArrayList<>();
+		Collection<TaskBackup> snapshotDetails = new ArrayList<>(Math.max(0, expectedTaskCount));
 		while (tasks.hasNext()) {
 			NormalTask task = (NormalTask) tasks.next();
 			TaskBackup taskBackup = (TaskBackup) task.backupDetail(snapshotId);
