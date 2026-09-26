@@ -63,16 +63,6 @@ public class TaskData extends SerializedDataObject {
     protected String notes;
     protected transient Map<String, Object> attributes;
 
-// this code is to set fields which are exposed in database
-//    protected long start;
-//	  protected long finish;
-//    protected long baselineStart;
-//    protected long baselineFinish;
-//    protected long completedThrough;
-//    protected double percentComplete;
-
-
-
     public static final SerializedDataObjectFactory FACTORY=new SerializedDataObjectFactory(){
         public SerializedDataObject createSerializedDataObject(){
             return new TaskData();
@@ -248,43 +238,5 @@ public class TaskData extends SerializedDataObject {
 	public void setAttributes(Map<String, Object> attributes) {
 		this.attributes = attributes;
 	}
-
-// this code is to set fields which are exposed in database
-//    public long getStart() {
-//		return start;
-//	}
-//	public void setStart(long start) {
-//		this.start = start;
-//	}
-//	public long getFinish() {
-//		return finish;
-//	}
-//	public void setFinish(long finish) {
-//		this.finish = finish;
-//	}
-//	public long getBaselineStart() {
-//		return baselineStart;
-//	}
-//	public void setBaselineStart(long baselineStart) {
-//		this.baselineStart = baselineStart;
-//	}
-//	public long getBaselineFinish() {
-//		return baselineFinish;
-//	}
-//	public void setBaselineFinish(long baselineFinish) {
-//		this.baselineFinish = baselineFinish;
-//	}
-//	public long getCompletedThrough() {
-//		return completedThrough;
-//	}
-//	public void setCompletedThrough(long completedThrough) {
-//		this.completedThrough = completedThrough;
-//	}
-//	public double getPercentComplete() {
-//		return percentComplete;
-//	}
-//	public void setPercentComplete(double percentComplete) {
-//		this.percentComplete = percentComplete;
-//	}
 
 }
