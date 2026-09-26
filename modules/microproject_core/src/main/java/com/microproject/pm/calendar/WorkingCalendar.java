@@ -193,15 +193,17 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 	/** Returns local named exception recurrence rules, not their expanded occurrences. */
 	public ArrayList<RecurringCalendarException> getRecurringExceptions() {
-		ArrayList<RecurringCalendarException> result = new ArrayList<>();
-		for (RecurringCalendarException exception : differences.getRecurringExceptions()) result.add(exception.clone());
+		var exceptions = differences.getRecurringExceptions();
+		ArrayList<RecurringCalendarException> result = new ArrayList<>(exceptions.size());
+		for (RecurringCalendarException exception : exceptions) result.add(exception.clone());
 		return result;
 	}
 
 	/** Returns inherited and local recurrence rules in effect. */
 	public ArrayList<RecurringCalendarException> getEffectiveRecurringExceptions() {
-		ArrayList<RecurringCalendarException> result = new ArrayList<>();
-		for (RecurringCalendarException exception : getConcreteInstance().getRecurringExceptions()) result.add(exception.clone());
+		var exceptions = getConcreteInstance().getRecurringExceptions();
+		ArrayList<RecurringCalendarException> result = new ArrayList<>(exceptions.size());
+		for (RecurringCalendarException exception : exceptions) result.add(exception.clone());
 		return result;
 	}
 
@@ -219,15 +221,17 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 	/** Returns this calendar's local dated work-week overrides. */
 	public ArrayList<WorkWeekPeriod> getWorkWeekPeriods() {
-		ArrayList<WorkWeekPeriod> result = new ArrayList<>();
-		for (WorkWeekPeriod period : differences.getWorkWeekPeriods()) result.add(period.clone());
+		var periods = differences.getWorkWeekPeriods();
+		ArrayList<WorkWeekPeriod> result = new ArrayList<>(periods.size());
+		for (WorkWeekPeriod period : periods) result.add(period.clone());
 		return result;
 	}
 
 	/** Returns inherited and local dated work-week patterns in effect. */
 	public ArrayList<WorkWeekPeriod> getEffectiveWorkWeekPeriods() {
-		ArrayList<WorkWeekPeriod> result = new ArrayList<>();
-		for (WorkWeekPeriod period : getConcreteInstance().getWorkWeekPeriods()) result.add(period.clone());
+		var periods = getConcreteInstance().getWorkWeekPeriods();
+		ArrayList<WorkWeekPeriod> result = new ArrayList<>(periods.size());
+		for (WorkWeekPeriod period : periods) result.add(period.clone());
 		return result;
 	}
 

@@ -88,6 +88,18 @@ class CalendarRecurrenceTest {
 	}
 
 	@Test
+	void workingCalendarReturnsLocalAndEffectiveRecurringRules() {
+		long start = day(2024, Calendar.JANUARY, 1);
+		CalendarRecurrence recurrence = CalendarRecurrence.yearly(start, 1, false,
+			Calendar.JANUARY + 1, 1, 1, 1, CalendarRecurrence.EndMode.AFTER_OCCURRENCES, 0, 2);
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		calendar.addOrReplaceRecurringException(new RecurringCalendarException(nonWorkingDay(start, "New Year"), recurrence));
+
+		assertEquals(1, calendar.getRecurringExceptions().size());
+		assertEquals(1, calendar.getEffectiveRecurringExceptions().size());
+	}
+
+	@Test
 	void invalidOrUnboundedRecurrenceIsRejected() {
 		assertThrows(IllegalArgumentException.class, () -> CalendarRecurrence.daily(day(2024, 0, 1), 0, false,
 			CalendarRecurrence.EndMode.AFTER_OCCURRENCES, 0, 1));
