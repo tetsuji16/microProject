@@ -1333,3 +1333,9 @@ loops using `Iterator.remove()` or `ListIterator.add()` remain explicit.
 `PredecessorTaskListTraversalTest.taskPositionsMatchListEncounterOrder` and the
 focused critical-path tests passed. The changed traversal structure corresponds
 to `d2fa3c20a:openproj_core/src/com/projity/pm/criticalpath/PredecessorTaskList.java`.
+
+`ChartLegend` now uses enhanced-for for Project expansion and resource filtering
+in selection handling. Project traversal and filtered resource encounter order
+are unchanged. Both loops match
+`d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/chart/ChartLegend.java`; the
+full `:microproject_ui:test --console=plain --max-workers=1` suite passed.

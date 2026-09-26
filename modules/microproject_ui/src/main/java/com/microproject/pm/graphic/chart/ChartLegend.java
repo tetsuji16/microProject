@@ -34,7 +34,6 @@ import java.awt.event.ItemListener;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.function.Consumer;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -422,9 +421,8 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 			return implList;
 	
 		final List resultList = new ArrayList();
-		Iterator i = implList.iterator();
-		while (i.hasNext()) {
-			((Project)i.next()).forTasks(new Consumer<Object>() { public void accept(Object arg0) {
+		for (Object item : implList) {
+			((Project)item).forTasks(new Consumer<Object>() { public void accept(Object arg0) {
 					resultList.add(arg0);
 				}
 			});
@@ -452,10 +450,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	
 	private List extractResources(List list) {
 		ArrayList resList = new ArrayList();
-		Iterator i = list.iterator();
-		Object obj;
-		while (i.hasNext()) {
-			obj = i.next();
+		for (Object obj : list) {
 			if (obj instanceof Resource)
 				resList.add(obj);
 		}
