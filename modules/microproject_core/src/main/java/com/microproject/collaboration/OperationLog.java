@@ -70,7 +70,7 @@ public final class OperationLog {
 		}
 		List<Operation> ordered = new ArrayList<>(unique.values());
 		ordered.sort(Comparator.comparingLong(Operation::sequence).thenComparing(Operation::actorId).thenComparing(Operation::id));
-		Set<String> applied = new LinkedHashSet<>();
+		Set<String> applied = new LinkedHashSet<>(ordered.size() * 4 / 3 + 1);
 		List<Operation> ready = new ArrayList<>(ordered.size());
 		boolean advanced;
 		do {
@@ -202,7 +202,7 @@ public final class OperationLog {
 			JsonNode value = JSON.readTree(lines[i]);
 			if (value == null || !value.isObject() || value.has("type")) throw new java.io.IOException("Invalid JSONL operation record");
 			try {
-				Set<String> parents = new LinkedHashSet<>();
+				Set<String> parents = new LinkedHashSet<>(value.path("parents").size() * 4 / 3 + 1);
 				if (!value.path("parents").isArray()) throw new IllegalArgumentException("parents");
 				for (JsonNode parent : value.path("parents")) if (!parent.isTextual() || !parents.add(parent.textValue())) throw new IllegalArgumentException("parent");
 				@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
@@ -234,14 +234,14 @@ public final class OperationLog {
 		try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
 		List<Operation> result = new ArrayList<>(root.path("operations").size()); for (JsonNode value : root.path("operations")) {
 			if (!value.isObject() || !value.path("parents").isArray() || !value.path("sequence").isIntegralNumber() || !value.path("sequence").canConvertToLong() || !value.path("payload").isObject()) throw new java.io.IOException("Invalid operation");
-			Set<String> parents = new LinkedHashSet<>(); for (JsonNode parent : value.path("parents")) { if (!parent.isTextual() || !parents.add(parent.textValue())) throw new java.io.IOException("Invalid operation parent"); }
+			Set<String> parents = new LinkedHashSet<>(value.path("parents").size() * 4 / 3 + 1); for (JsonNode parent : value.path("parents")) { if (!parent.isTextual() || !parents.add(parent.textValue())) throw new java.io.IOException("Invalid operation parent"); }
 			@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
 			try { result.add(new Operation(text(value,"id"), text(value,"actorId"), value.path("sequence").longValue(), parents, text(value,"kind"), text(value,"entityId"), payload)); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation", exception); }
 		}
 		MergeResult merged = merge(result);
-		Set<String> expectedConflicts = new LinkedHashSet<>();
+		Set<String> expectedConflicts = new LinkedHashSet<>(merged.conflicts().size() * 4 / 3 + 1);
 		for (Conflict conflict : merged.conflicts()) expectedConflicts.add(conflictKey(conflict));
-		Set<String> declaredConflicts = new LinkedHashSet<>();
+		Set<String> declaredConflicts = new LinkedHashSet<>(root.path("conflicts").size() * 4 / 3 + 1);
 		for (JsonNode conflict : root.path("conflicts")) {
 			List<String> ids = new ArrayList<>(conflict.path("operationIds").size());
 			for (JsonNode id : conflict.path("operationIds")) ids.add(id.textValue());
@@ -250,8 +250,10 @@ public final class OperationLog {
 		}
 		if (!expectedConflicts.equals(declaredConflicts)) throw new java.io.IOException("Operation conflict metadata does not match operations");
 		List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
-		Set<String> appliedIds = new LinkedHashSet<>();
 		JsonNode appliedNode = root.get("appliedOperationIds");
+		int appliedIdCount = appliedNode == null ? merged.ready().size()
+			: appliedNode.isArray() ? appliedNode.size() : 0;
+		Set<String> appliedIds = new LinkedHashSet<>(appliedIdCount * 4 / 3 + 1);
 		if (appliedNode == null) {
 			// Logs written before generation tracking are interpreted conservatively:
 			// only causally ready operations are considered applied.
@@ -262,7 +264,7 @@ public final class OperationLog {
 				if (!id.isTextual() || !result.stream().anyMatch(operation -> operation.id().equals(id.textValue())) || !appliedIds.add(id.textValue()))
 					throw new java.io.IOException("Invalid applied operation generation");
 			}
-			Set<String> readyIds = new LinkedHashSet<>();
+			Set<String> readyIds = new LinkedHashSet<>(merged.ready().size() * 4 / 3 + 1);
 			for (Operation operation : merged.ready()) readyIds.add(operation.id());
 			if (!readyIds.equals(appliedIds)) throw new java.io.IOException("Applied operation generation does not match causal readiness");
 		}
