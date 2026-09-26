@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -45,6 +46,59 @@ import com.microproject.transaction.MultipleTransaction;
 import com.microproject.undo.DataFactoryUndoController;
 
 class AssignmentServiceTest {
+	@Test
+	void assignmentRemovalSnapshotPreservesSourceOrderAndContents() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assigned = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+		List<?> source = new ArrayList<>(task.getAssignments());
+		List<Object> snapshot = new ArrayList<>();
+
+		AssignmentService.getInstance().remove(source, snapshot);
+
+		assertEquals(source, snapshot);
+		assertEquals(source.size(), task.getAssignments().size());
+		assertSame(assigned, snapshot.get(0));
+	}
+
+	@Test
+	void removesAssignmentsFromDetachedBatchCollection() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl firstResource = project.getResourcePool().newResourceInstance();
+		ResourceImpl secondResource = project.getResourcePool().newResourceInstance();
+		Assignment first = AssignmentService.getInstance().newAssignment(task, firstResource, 1.0D, 0L, this);
+		Assignment second = AssignmentService.getInstance().newAssignment(task, secondResource, 1.0D, 0L, this);
+
+		AssignmentService.getInstance().remove(List.of(first, second), null, false);
+
+		assertNull(task.findAssignment(firstResource));
+		assertNull(task.findAssignment(secondResource));
+		assertNull(firstResource.findAssignment(task));
+		assertNull(secondResource.findAssignment(task));
+	}
+
+	@Test
+	void singleEventSourceRemovalPreservesInputSnapshotAndRemovesAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl firstResource = project.getResourcePool().newResourceInstance();
+		ResourceImpl secondResource = project.getResourcePool().newResourceInstance();
+		Assignment first = AssignmentService.getInstance().newAssignment(task, firstResource, 1.0D, 0L, this);
+		Assignment second = AssignmentService.getInstance().newAssignment(task, secondResource, 1.0D, 0L, this);
+		List<Assignment> source = new ArrayList<>(List.of(first, second));
+		List<Assignment> expected = List.copyOf(source);
+
+		AssignmentService.getInstance().remove(source, this);
+
+		assertEquals(expected, source);
+		assertNull(task.findAssignment(firstResource));
+		assertNull(task.findAssignment(secondResource));
+		assertNull(firstResource.findAssignment(task));
+		assertNull(secondResource.findAssignment(task));
+	}
+
 	@Test
 	void newAssignmentConnectsTaskAndResource() {
 		Project project = createProject();

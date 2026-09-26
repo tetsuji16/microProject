@@ -27,7 +27,6 @@ package com.microproject.pm.assignment;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -134,7 +133,8 @@ public class AssignmentService {
 		ResourcePool resourcePool = resourcePoolOf(replacements.get(0));
 		BatchUpdate batchUpdate = new BatchUpdate();
 		List<Assignment> created = new ArrayList<Assignment>(replacements.size());
-		Map<Assignment, Object> detailBefore = new LinkedHashMap<>();
+		int detailCapacity = undo ? replacements.size() + 1 : 0;
+		Map<Assignment, Object> detailBefore = new LinkedHashMap<>(Math.max(4, detailCapacity * 4 / 3 + 1));
 		if (undo)
 			detailBefore.put(source, source.backupDetail());
 		boolean sourceHasActualWork = source.getActualWork(null) > 0L;
@@ -242,7 +242,7 @@ public class AssignmentService {
 			return TaskState.noop();
 		}
 		TaskState state = new TaskState(task.getSchedulingType(), task.isEffortDriven());
-		task.setSchedulingType(SchedulingType.FIXED_DURATION);
+		task.setSchedulingType(SchedulingType.Kind.FIXED_DURATION);
 		task.setEffortDriven(false);
 		return state;
 	}
@@ -407,8 +407,8 @@ public class AssignmentService {
 		UndoableEditSupport undoableEditSupport=null;
 		
 		try {
-			for (Iterator<?> i=assignments.iterator();i.hasNext();){
-				Assignment assignment=(Assignment)i.next();
+			for (Object value : assignments) {
+				Assignment assignment = (Assignment) value;
 //				if (undoableEditSupport==null&&undo){
 //					undoableEditSupport=getUndoableEditSupport(assignment);
 //					if (undoableEditSupport!=null){
@@ -469,19 +469,16 @@ public class AssignmentService {
 	}
 
 	public void remove(Collection assignmentList, Object eventSource) {
-		Assignment assignment;
-		Iterator<?> i = assignmentList.iterator();
-		while (i.hasNext()) {
-			assignment = (Assignment)i.next();
+		for (Object item : assignmentList) {
+			Assignment assignment = (Assignment) item;
 			remove(assignment,true,eventSource,null);
 		}
 	}
 	
 	//fix
 	public void remove(Collection assignmentList, Collection toRemove) {
-		Iterator<?> i = assignmentList.iterator();
-		while (i.hasNext())
-			toRemove.add(i.next());
+		for (Object assignment : assignmentList)
+			toRemove.add(assignment);
 	}
 	
 	

@@ -1289,3 +1289,10 @@ casts and task/link encounter order. The method matches the OpenProj baseline
 `DependencyServiceTest.fireTaskPredecessorsPreservesTaskAndLinkEncounterOrder`
 and the focused `:microproject_core:test --tests
 "com.microproject.pm.dependency.DependencyServiceTest"` passed.
+
+`AssignmentService.remove(Collection, Object)` now uses enhanced-for over its
+read-only input snapshot, retaining the per-item `Assignment` cast and removal
+order. This loop matches the OpenProj baseline
+`d2fa3c20a:openproj_core/src/com/projity/pm/assignment/AssignmentService.java`.
+`AssignmentServiceTest.singleEventSourceRemovalPreservesInputSnapshotAndRemovesAssignments`
+and the focused AssignmentService test class passed.
