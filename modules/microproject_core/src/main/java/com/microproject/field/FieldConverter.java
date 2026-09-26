@@ -269,8 +269,8 @@ public class FieldConverter  {
 			} else if (value instanceof Date) {
 				cal.setTime((Date)value);
 				return cal;
-			} else if (value instanceof String) {
-				Date d = (Date) dateConverter.convert(Date.class,value);
+			} else if (value instanceof String dateText) {
+				Date d = (Date) dateConverter.convert(Date.class,dateText);
 				cal.setTime(d);
 				return cal;
 			}

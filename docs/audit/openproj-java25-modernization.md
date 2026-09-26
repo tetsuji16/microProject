@@ -1545,7 +1545,8 @@ task outcomes.
 passes that binding to both configured and fallback converters, removing
 redundant casts without changing converter selection. The branch matches the
 OpenProj implementation; `FieldConverterTest` covers conversion through the
-public API.
+public API. The calendar converter's String branch also binds the input once;
+`FieldConverterTest` verifies parsing through the registered calendar converter.
 
 `IntervalGeneratorSet.earliestEndingGenerator` now uses enhanced-for over its
 typed generator list. The traversal is read-only; the current earliest-end
