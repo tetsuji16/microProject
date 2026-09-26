@@ -2033,3 +2033,11 @@ The active caller is `ViewNodeModelCache.paste`, which dispatches to the
 assignment-aware model. The filter, detach-before-connect order, and undo flag
 are unchanged. Full core tests and the UI `NodeListTransferablePasteFailureTest`
 passed, as did `git diff --check`. Commit: recorded in this changeset.
+
+`AssignmentNodeModel.objectChanged` now uses pattern matching for the assignment
+event object and wildcard-typed `Enumeration` variables for child traversals.
+`git blame` traces these event and child-scan paths to OpenProj (`d2fa3c20a`);
+active construction is through `NodeModelFactory`. Child encounter order,
+identity matching, insertion position, and event/undo behavior are unchanged.
+Full `:microproject_core:test --console=plain` passed. Commit: recorded in this
+changeset.

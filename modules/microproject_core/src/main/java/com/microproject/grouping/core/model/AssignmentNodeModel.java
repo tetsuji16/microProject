@@ -80,8 +80,7 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 
 
 	public void objectChanged(ObjectEvent objectEvent) {
-		if (objectEvent.getObject() instanceof Assignment) {
-			Assignment assignment = ((Assignment)objectEvent.getObject());
+		if (objectEvent.getObject() instanceof Assignment assignment) {
 			if (assignment.isDefault()) return;
 			if (assignment.getDocument(containsLeftObjects) == document) { //TODO check if it's correct
 				if (objectEvent.isCreate()) {
@@ -96,8 +95,8 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 						}
 						else{
 							//search if assignment already exists in hierarchy
-							for (Enumeration e=parent.children();e.hasMoreElements();){
-								Node c=(Node)e.nextElement();
+							for (Enumeration<?> children=parent.children();children.hasMoreElements();){
+								Node c=(Node) children.nextElement();
 								if (c.getImpl()==assignment){
 									child=c;
 									break;
@@ -111,8 +110,8 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 						boolean added = false;
 						if (child.getParent() != parent) {
 							int position=0;
-							for (Enumeration e=parent.children();e.hasMoreElements();position++){
-								if (!(((Node)e.nextElement()).getImpl() instanceof Assignment))
+							for (Enumeration<?> children=parent.children();children.hasMoreElements();position++){
+								if (!(((Node) children.nextElement()).getImpl() instanceof Assignment))
 									break;
 							}
 							position = Math.min(position, parent.getChildCount());
