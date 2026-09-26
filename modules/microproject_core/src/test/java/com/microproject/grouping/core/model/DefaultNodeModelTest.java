@@ -572,6 +572,24 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void copyRebuildsWbsChildrenForCopiedSummaryTask() {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask parent = createTask(project, "parent");
+		NormalTask child = createTask(project, "child");
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		Node parentNode = model.search(parent);
+		Node childNode = model.search(child);
+
+		assertTrue(model.relocate(List.of(childNode), parentNode, 0, NodeModel.SILENT));
+		List copiedNodes = model.copy(List.of(parentNode), NodeModel.SILENT);
+		Node copiedParentNode = (Node) copiedNodes.getFirst();
+		NormalTask copiedParent = (NormalTask) copiedParentNode.getImpl();
+		Node copiedChildNode = (Node) copiedParentNode.getChildAt(0);
+
+		assertSame(copiedChildNode, copiedParent.getWbsChildrenNodes().iterator().next());
+	}
+
+	@Test
 	void moveSelectedTaskPreservesIdentityUniqueIdDependencyAndUndoRedo() throws Exception {
 		Project project = createProjectWithoutVoidRows();
 		NormalTask first = createTask(project, "First");

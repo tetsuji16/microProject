@@ -474,10 +474,9 @@ public class DefaultNodeModel implements NodeModel {
 		Object oldNodeImpl=oldNode.getImpl();
 		Object newNodeImpl=cloneNodeImpl(oldNodeImpl);
 		implMap.put(oldNodeImpl, newNodeImpl);
-		if (oldNodeImpl instanceof Task){
-			Task t=(Task)oldNodeImpl;
-			addDependencies(predecessors, t.getDependencyList(true));
-			addDependencies(successors, t.getDependencyList(false));
+		if (oldNodeImpl instanceof Task task){
+			addDependencies(predecessors, task.getDependencyList(true));
+			addDependencies(successors, task.getDependencyList(false));
 		}
 		Object parentImpl = (newParent==null)?null:newParent.getImpl();
 		NodeModelDataFactory factory = getFactory(parentImpl);
@@ -487,8 +486,8 @@ public class DefaultNodeModel implements NodeModel {
 		Node newNode=NodeFactory.getInstance().createNode(newNodeImpl);
 		if (newParent!=null) newParent.add(newNode);
 		registerNodeSubtree(newNode);
-		if (parentImpl != null&& parentImpl instanceof Task)
-			((Task)parentImpl).setWbsChildrenNodes(getHierarchy().getChildren(newParent)); //rebuild children task's wbs cache
+		if (parentImpl instanceof Task parentTask)
+			parentTask.setWbsChildrenNodes(getHierarchy().getChildren(newParent)); //rebuild children task's wbs cache
 		return newNode;
 	}
 	private static void addDependencies(Set<Dependency> target, AssociationList source) {

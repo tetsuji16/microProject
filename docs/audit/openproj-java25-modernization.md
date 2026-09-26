@@ -1679,3 +1679,9 @@ in original order. `DefaultNodeModelTest.copyRebuildsAssignmentRowsForCopiedTask
 checks that the copy has a distinct assignment connected to the same resource;
 the focused test passed.
 
+
+`DefaultNodeModel.cloneNode` now binds the OpenProj-derived task checks for
+dependency collection and parent WBS-cache rebuilding. Its active task-copy
+caller is covered by `DefaultNodeModelTest`, including a nested summary-task
+copy that verifies the copied parent cache points at the copied child node.
+The focused test class passed with these copy-path assertions.
