@@ -1756,3 +1756,8 @@ Assignment, and BelongsToDocument event payloads. Event ordering, early returns,
 recalculation, and cross-document filtering are preserved. Existing
 `DependencyServiceTest` and core scheduling tests exercise dependency and task
 event paths; the core module suite verifies the full dispatch family.
+
+`NormalTask.cloneTo` now binds a NormalTask destination before copying the
+OpenProj-derived scheduling fields. Targets of other Task subtypes still skip
+that subtype-specific copy. `TaskFontPropertiesTest` and
+`TaskVisibilityStateTest` exercise the active NormalTask clone path.

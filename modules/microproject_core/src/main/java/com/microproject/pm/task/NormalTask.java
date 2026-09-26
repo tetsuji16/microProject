@@ -2082,8 +2082,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return task;
 	}
 	public void cloneTo(Task task){
-		if (task instanceof NormalTask){
-			NormalTask n=(NormalTask)task;
+		if (task instanceof NormalTask n){
 			n.estimated=estimated;
 			n.priority = priority;
 			n.version=version;
