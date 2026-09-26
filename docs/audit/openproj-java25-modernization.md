@@ -1428,6 +1428,13 @@ order. Both loops match
 `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/frames/workspace/DefaultFrameManager.java`.
 The focused `DefaultFrameManagerTest` passed.
 
+`ResourceView` now shares the child-policy traversal used by delete and cut
+eligibility. This exposed and fixes a pre-existing copy/paste defect: recursive
+cut eligibility previously called the delete policy for descendants, suppressing
+the cut-specific warning and move hint. The focused `ResourceViewChildPolicyTest`
+passed. The surrounding implementation matches the OpenProj `ResourceView`
+source; no physical route or selection behavior changed.
+
 Adjacent cleanup, excluded from issue #595: `MenuFactory` menu-bar,
 popup-menu, and menu-item list traversal uses enhanced-for, preserving configured
 item order and visibility filtering. Its matching source is under

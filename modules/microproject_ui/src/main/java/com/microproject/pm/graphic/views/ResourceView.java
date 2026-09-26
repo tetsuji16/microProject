@@ -25,9 +25,8 @@
 package com.microproject.pm.graphic.views;
 
 import java.awt.Component;
-import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.List;
+import java.util.function.Predicate;
 
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
@@ -68,6 +67,18 @@ public class ResourceView extends JScrollPane implements BaseView {
 		if (includeMoveHint)
 			message += "\n" + Messages.getString("ResourceView.ToMoveAProtectedResource");
 		return message;
+	}
+	static boolean areChildrenAllowed(Node node, Predicate<Node> allowed) {
+		List<Node> children = node.getChildren();
+		if (children == null) {
+			return true;
+		}
+		for (Node child : children) {
+			if (!allowed.test(child)) {
+				return false;
+			}
+		}
+		return true;
 	}
 	public static final String spreadsheetCategory=resourceSpreadsheetCategory;
 	protected SpreadSheet spreadSheet;
@@ -158,12 +169,7 @@ public class ResourceView extends JScrollPane implements BaseView {
 						Alert.warn(resourceWarning("ResourceView.ThisResourceCurrentlyHasAssignments", r, false)); //$NON-NLS-1$
     	    			return false;
     	    		}
-	    		List<Node> children=node.getChildren();
-	    		if (children!=null)
-	    		for (Iterator<Node> i=children.listIterator();i.hasNext();){
-	    			Node child=i.next();
-	    			if (!isNodeDeletable(child)) return false;
-	    		}
+				if (!areChildrenAllowed(node, this::isNodeDeletable)) return false;
     	    	}
     	    	return true;
     	    }
@@ -178,12 +184,7 @@ public class ResourceView extends JScrollPane implements BaseView {
 						Alert.warn(resourceWarning("ResourceView.ThisResourceCurrentlyHasAssignments", r, true)); //$NON-NLS-1$
     	    			return false;
     	    		}
-	    		List<Node> children=node.getChildren();
-	    		if (children!=null)
-	    		for (Iterator<Node> i=children.listIterator();i.hasNext();){
-	    			Node child=i.next();
-	    			if (!isNodeDeletable(child)) return false;
-	    		}
+				if (!areChildrenAllowed(node, this::isNodeCuttable)) return false;
     	    	}
     	    	return true;
     	    }
