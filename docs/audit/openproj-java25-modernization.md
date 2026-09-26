@@ -1462,3 +1462,8 @@ selection priority and enumeration order remain unchanged.
 matching, keeping the existing visitor selection contract. The constructor
 matches the OpenProj `NodeWalker` source; existing child-walker tests exercise
 the visitor path.
+
+`TexturedShape.applyPaint` now binds a `PredefinedPaint` with pattern matching
+and removes its immediate cast. The type-check/cast branch matches the OpenProj
+source and continues to call the same paint implementation with the same
+graphics context and texture flag.

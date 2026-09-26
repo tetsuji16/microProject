@@ -200,9 +200,8 @@ public class TexturedShape {
 		if (texture)
 			g2.setPaint(paint); // the paint already has the color set
 		else {
-			if (paint instanceof PredefinedPaint) {
-				PredefinedPaint p = (PredefinedPaint) paint;
-				p.applyPaint(g2, texture);
+			if (paint instanceof PredefinedPaint predefinedPaint) {
+				predefinedPaint.applyPaint(g2, texture);
 			} else
 				g2.setPaint(paint);
 		}
