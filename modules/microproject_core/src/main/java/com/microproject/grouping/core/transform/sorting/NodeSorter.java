@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.logging.Level;
@@ -114,8 +113,8 @@ public class NodeSorter extends CommonTransform implements Comparator{
 	public List sortList(List list,Comparator comparator,boolean preserveHierarchy){
 		Collections.sort(list,comparator);
 		if (preserveHierarchy)
-		for (Iterator i=list.iterator();i.hasNext();){
-			HierarchicObject child=(HierarchicObject)i.next();
+		for (Object value : list){
+			HierarchicObject child=(HierarchicObject)value;
 			if (child.getChildren().size()>0) sortList(child.getChildren(), comparator,true);
 		}
 		return list;

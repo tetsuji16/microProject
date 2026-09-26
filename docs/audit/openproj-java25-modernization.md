@@ -1493,3 +1493,8 @@ non-numeric, in-range, and both out-of-range cases.
 list, preserving authorization filtering and factory order. The traversal
 matches the OpenProj `TransformList`; `TransformListTest` verifies that only
 the authorized no-filter factory is returned.
+
+`NodeSorter.sortList` now uses enhanced-for over the supplied list while
+retaining its element cast, recursive child sorting, and comparator order. The
+loop matches OpenProj `NodeSorter`; `NodeSorterTraversalTest` checks root and
+nested sort order.
