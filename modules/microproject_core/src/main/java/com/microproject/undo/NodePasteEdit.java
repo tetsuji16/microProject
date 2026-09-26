@@ -62,7 +62,7 @@ public class NodePasteEdit extends AbstractUndoableEdit{
 		this.children = children;
 		this.position = position;
 		//this.undoController=undoController;
-		roots=new ArrayList<>();
+		roots=new ArrayList<>(children.size());
 		HierarchyUtils.extractParents(children, roots);
 	}
 	public void redo() throws CannotRedoException {
