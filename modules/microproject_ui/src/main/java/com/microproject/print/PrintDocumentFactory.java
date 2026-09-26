@@ -98,9 +98,8 @@ public class PrintDocumentFactory {
 			renderer=new NetworkSVGRenderer();
 			cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(true),"Network",null);
 			((NetworkSVGRenderer)renderer).init(frame.getProject(),cache,NetworkSVGRenderer.PERT,frame.getScale());
-		}else if (view instanceof TreeView){
+		}else if (view instanceof TreeView treeView){
 			renderer=new NetworkSVGRenderer();
-			TreeView treeView=(TreeView)view;
 			if ("WBS".equals(treeView.getViewName())){
 				cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(true),"WBS",null);
 				((NetworkSVGRenderer)renderer).init(frame.getProject(),cache,NetworkSVGRenderer.WBS,frame.getScale());
@@ -131,4 +130,3 @@ public class PrintDocumentFactory {
 //		return colWidth;
 //	}
 }
-

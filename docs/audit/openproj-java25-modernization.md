@@ -1808,3 +1808,9 @@ subproject keys, and outline insertion order are unchanged. The full
 list order, selected scaling index, and visibility values are unchanged. The
 full `:microproject_ui:test` suite passed; no physical GUI route or visual
 surface changed.
+
+`PrintDocumentFactory.createDocument` now binds the OpenProj-derived `TreeView`
+inside its existing view dispatch, removing the follow-up cast. WBS/RBS cache
+selection and renderer configuration are unchanged. The full
+`:microproject_ui:test` suite passed; no physical GUI route or visual surface
+changed.
