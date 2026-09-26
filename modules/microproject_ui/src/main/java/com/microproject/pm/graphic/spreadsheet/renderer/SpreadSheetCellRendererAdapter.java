@@ -54,10 +54,9 @@ public class SpreadSheetCellRendererAdapter implements OfflineRenderer {
 		Object cvalue = value;
 		if (table != null && table.getModel() instanceof com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model) {
 			var node = model.getNodeForDisplayRow(table.convertRowIndexToModel(row));
-			if (node != null && node.getImpl() instanceof Task task && PrivacyDisplayMode.isMasked(task.getProject())) {
+			if (node != null && node.getImpl() instanceof Task task) {
 				Field field = model.getFieldInViewColumn(column);
-				if (field != null && "Field.resourceNames".equals(field.getId()))
-					cvalue = PrivacyDisplayMode.resourceNames(task.getProject(), String.valueOf(value));
+				cvalue = maskResourceNames(value, task, field);
 			}
 		}
 		JComponent component=(JComponent)renderer.getTableCellRendererComponent(table,cvalue,isSelected,hasFocus,row,column);
@@ -66,9 +65,20 @@ public class SpreadSheetCellRendererAdapter implements OfflineRenderer {
 	}
 	//To use only if renderer is an OfflineRenderer 
 	public Component getComponent(Object value, GraphicNode node,Field field,SpreadSheetParams params){
-		JComponent component=(JComponent)((OfflineRenderer)renderer).getComponent(value, node, field, params);
+		Object cvalue = value;
+		if (node != null && node.getNode() != null && node.getNode().getImpl() instanceof Task task)
+			cvalue = maskResourceNames(value, task, field);
+		JComponent component=(JComponent)((OfflineRenderer)renderer).getComponent(cvalue, node, field, params);
 		CellUtility.setAppearance(params.getFieldArray().getCellStyle().getCellFormat(node), component);
 		return component;
+	}
+
+	static Object maskResourceNames(Object value, Task task, Field field) {
+		if (task == null || field == null || !"Field.resourceNames".equals(field.getId())
+				|| !PrivacyDisplayMode.isMasked(task.getProject()) || value == null) {
+			return value;
+		}
+		return PrivacyDisplayMode.resourceNames(task.getProject(), value.toString());
 	}
 
 }

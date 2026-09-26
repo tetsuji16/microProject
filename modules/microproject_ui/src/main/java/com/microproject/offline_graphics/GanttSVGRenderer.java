@@ -53,6 +53,7 @@ import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.workspace.SavableToWorkspace;
 
 /*
@@ -167,19 +168,19 @@ public class GanttSVGRenderer implements SVGRenderer,Cloneable{
 				g.drawLine(0, rowH, spreadsheetPrintBounds.width, rowH);
 				g.drawLine(0, spreadsheetPrintBounds.height+rowH, spreadsheetPrintBounds.width, spreadsheetPrintBounds.height+rowH);
 				g.drawLine(0, footerY, spreadsheetPrintBounds.width, footerY);
-				footerRenderer.paint(g, prow*nbCols+pcol, new Rectangle(0,footerY,spreadsheetPrintBounds.width,footerH),project.getName());
+				footerRenderer.paint(g, prow*nbCols+pcol, new Rectangle(0,footerY,spreadsheetPrintBounds.width,footerH),PrivacyDisplayMode.projectName(project));
 			}else if (!drawSpreadsheet&&drawGantt){
 				g.drawRect(0, 0, ganttPrintBounds.width, printBounds.height);
 				g.drawLine(0, rowH, ganttPrintBounds.width, rowH);
 				g.drawLine(0, ganttPrintBounds.height+rowH, ganttPrintBounds.width, ganttPrintBounds.height+rowH);
 				g.drawLine(0, footerY, ganttPrintBounds.width, footerY);
-				footerRenderer.paint(g, prow*nbCols+pcol, new Rectangle(0,footerY,ganttPrintBounds.width,footerH),project.getName());
+				footerRenderer.paint(g, prow*nbCols+pcol, new Rectangle(0,footerY,ganttPrintBounds.width,footerH),PrivacyDisplayMode.projectName(project));
 			}else if (drawSpreadsheet&&drawGantt){
 				g.drawRect(0, 0, spreadsheetPrintBounds.width+ganttPrintBounds.width, printBounds.height);
 				g.drawLine(0, rowH, spreadsheetPrintBounds.width+ganttPrintBounds.width, rowH);
 				g.drawLine(0, spreadsheetPrintBounds.height+rowH, spreadsheetPrintBounds.width+ganttPrintBounds.width, spreadsheetPrintBounds.height+rowH);
 				g.drawLine(0, footerY, spreadsheetPrintBounds.width+ganttPrintBounds.width, footerY);
-				footerRenderer.paint(g, prow*nbCols+pcol, new Rectangle(0,footerY,spreadsheetPrintBounds.width+ganttPrintBounds.width,footerH),project.getName());
+				footerRenderer.paint(g, prow*nbCols+pcol, new Rectangle(0,footerY,spreadsheetPrintBounds.width+ganttPrintBounds.width,footerH),PrivacyDisplayMode.projectName(project));
 			}
 
 
