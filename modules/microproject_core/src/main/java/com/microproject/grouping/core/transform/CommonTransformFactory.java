@@ -26,7 +26,6 @@ package com.microproject.grouping.core.transform;
 
 import java.util.ArrayList;
 import java.util.function.Consumer;
-import java.util.Iterator;
 
 import org.apache.commons.collections.Transformer;
 
@@ -176,9 +175,9 @@ public abstract class CommonTransformFactory extends CommonTransform{
 	    t.setShowAssignments(isShowAssignments());
 	    t.setPreserveHierarchy(isPreserveHierarchy());
 	    if (subTransforms!=null){
-	        ArrayList sub = new ArrayList();
-	        for (Iterator i=subTransforms.iterator();i.hasNext();)
-	            sub.add(((CommonTransformFactory)i.next()).getTransform());
+	        ArrayList<Object> sub = new ArrayList<>(subTransforms.size());
+	        for (Object subTransform : subTransforms)
+	            sub.add(((CommonTransformFactory) subTransform).getTransform());
 	        t.setSubTransforms(sub);
 	    }
 	    t.setParameters(getParameters());
@@ -195,7 +194,7 @@ public abstract class CommonTransformFactory extends CommonTransform{
     
     public void addFactory(CommonTransformFactory factory){
     	if (factory.isServer()&&Environment.getStandAlone()) return;
-        if (subTransforms==null) subTransforms=new ArrayList();
+        if (subTransforms==null) subTransforms=new ArrayList<>();
         subTransforms.add(factory);
     }
     
