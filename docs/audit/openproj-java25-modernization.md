@@ -1589,6 +1589,13 @@ appear in the [OpenProj source](https://github.com/OldRepoPreservation/projectli
 to traverse selected objects; `SnapshottableImplTest` verifies snapshot save,
 clear, and ignoring unrelated objects.
 
+`HasUniqueIdImpl.equals` now binds a matching identifier implementation and
+uses it to compare IDs without a cast. The
+[OpenProj implementation](https://github.com/OldRepoPreservation/projectlibre/blob/master/openproj_core/src/com/projity/pm/key/HasUniqueIdImpl.java)
+has the same guard and comparison. This equality is inherited by key wrappers such as
+`HasKeyImpl`; `EqualsHashCodeContractTest` verifies equal IDs, matching hash
+codes, and rejection of null/foreign types.
+
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
 same. The loop matches the OpenProj implementation; `FieldDictionaryTest`

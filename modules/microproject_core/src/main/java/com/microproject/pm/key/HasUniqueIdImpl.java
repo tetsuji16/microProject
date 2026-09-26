@@ -76,9 +76,9 @@ public class HasUniqueIdImpl implements Serializable{
 	}
 
 	public boolean equals(Object other) {
-		if (! (other instanceof HasUniqueIdImpl))
+		if (!(other instanceof HasUniqueIdImpl uniqueIdImpl))
 			return false;
-		return uniqueId == ((HasUniqueIdImpl)other).getUniqueId();
+		return uniqueId == uniqueIdImpl.getUniqueId();
 	}
 
 	@Override

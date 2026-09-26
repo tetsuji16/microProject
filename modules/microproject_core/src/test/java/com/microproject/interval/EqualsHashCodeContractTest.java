@@ -123,6 +123,8 @@ class EqualsHashCodeContractTest {
 		HasUniqueIdImpl b = new HasUniqueIdImpl(null, 42L);
 		assertEquals(a, b);
 		assertEquals(a.hashCode(), b.hashCode());
+		assertFalse(a.equals(null));
+		assertFalse(a.equals("not a unique ID"));
 
 		HasKeyImpl ka = new HasKeyImpl(null, 42L);
 		HasKeyImpl kb = new HasKeyImpl(null, 42L);
