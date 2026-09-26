@@ -1296,3 +1296,11 @@ order. This loop matches the OpenProj baseline
 `d2fa3c20a:openproj_core/src/com/projity/pm/assignment/AssignmentService.java`.
 `AssignmentServiceTest.singleEventSourceRemovalPreservesInputSnapshotAndRemovesAssignments`
 and the focused AssignmentService test class passed.
+
+`ReportAdapter` now uses typed enhanced-for traversal for active report field
+generation, aggregate-variable creation, headers, detail rows, and footers.
+Private raw `ArrayList` parameters now accept `SpreadSheetFieldArray`, the type
+used by every caller. Field order and generated Jasper field names are covered
+by `ReportAdapterTest.designFieldTraversalPreservesConfiguredFieldOrder`; the
+full `:microproject_reports:test` suite passed. All converted loops match the
+OpenProj source at `d2fa3c20a:openproj_reports/src/com/projity/reports/adapter/ReportAdapter.java`.

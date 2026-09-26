@@ -26,7 +26,6 @@ package com.microproject.reports.adapter;
 
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JRGroup;
@@ -97,11 +96,8 @@ public class ReportAdapter {
 		// LEGAL: 612x1008
 		// BORDERS: 20x30x20x30
 		
-		Iterator iterator = fields.iterator();
-		while(iterator.hasNext()) {
-			Field field = (Field)iterator.next();
+		for (Field field : fields) {
 			width += field.getColumnWidth();
-			
 		}
 		return width;
 	}
@@ -231,10 +227,8 @@ public class ReportAdapter {
 		}
 	}
 	
-	private void addFields(ArrayList fields) throws JRException {
-		Iterator iterator = fields.iterator();
-		while(iterator.hasNext()) {
-			Field field = (Field)iterator.next();
+	private void addFields(SpreadSheetFieldArray fields) throws JRException {
+		for (Field field : fields) {
 			
 			JRDesignField designField = new JRDesignField();
 			designField.setName(getFieldName(field, false));
@@ -269,10 +263,8 @@ public class ReportAdapter {
  * @param group
  * @throws JRException
  */
-	private void addAggregableFields(ArrayList fields, JRDesignGroup group) throws JRException {
-		Iterator iterator = fields.iterator();
-		while(iterator.hasNext()) {
-			Field field = (Field)iterator.next();
+	private void addAggregableFields(SpreadSheetFieldArray fields, JRDesignGroup group) throws JRException {
+		for (Field field : fields) {
 
 			if(isAggregable(field)) {
 				String fieldName = getFieldName(field, true);
@@ -313,10 +305,8 @@ public class ReportAdapter {
 //		band.addElement(rectangle);
 		
 		// columns in page header
-		Iterator iterator = fields.iterator();
 		int x = 0;
-		while(iterator.hasNext()) {
-			Field field = (Field)iterator.next();
+		for (Field field : fields) {
 			JRDesignStaticText staticText = new JRDesignStaticText();
 			staticText.setX(x);
 			if(isSub) {
@@ -352,15 +342,13 @@ public class ReportAdapter {
 	}
 	
 	private JRDesignBand addDetail(JRDesignBand band, SpreadSheetFieldArray fields, JRGroup group) throws JRException {
-		Iterator iterator = fields.iterator();
 		int x = 0;
 		if(null != group) {
 			band.setHeight(40);
 		} else {
 			band.setHeight(15);
 		}
-		while(iterator.hasNext()) {
-			Field field = (Field)iterator.next();
+		for (Field field : fields) {
 			JRDesignTextField textField = new JRDesignTextField();
 			if(null != group) {
 				textField.setEvaluationTime(EvaluationTimeEnum.GROUP);
@@ -408,10 +396,8 @@ public class ReportAdapter {
 		
 		JRDesignBand band = new JRDesignBand();
 		band.setHeight(40);
-		Iterator iterator = fields.iterator();
 		int x = 0;
-		while(iterator.hasNext()) {
-			Field field = (Field)iterator.next();
+		for (Field field : fields) {
 			if(isAggregable(field)) {
 				JRDesignLine line = new JRDesignLine();
 				line.setX(x);
@@ -535,9 +521,7 @@ public class ReportAdapter {
 			group.setStartNewPage(false);
 			JRDesignExpression expression = new JRDesignExpression();
 			
-			Iterator iterator = mainFields.iterator();
-			while(iterator.hasNext()) {
-				Field f = (Field)iterator.next();
+			for (Field f : mainFields) {
 
 				if(groupByField.equals(f.getId())) 
 				{
