@@ -138,6 +138,19 @@ class ProjectScheduleBehaviorTest {
 	}
 
 	@Test
+	void markingProjectTasksUnchangedClearsNormalTaskDirtyState() {
+		Project project = createProject();
+		NormalTask task = project.createScriptedTask();
+		task.setDirty(true);
+
+		project.setAllTasksAsUnchangedFromPersisted(true);
+
+		assertFalse(task.isDirty());
+		assertEquals(task.getStart(), task.getLastSavedStart());
+		assertEquals(task.getEnd(), task.getLastSavedFinish());
+	}
+
+	@Test
 	void uniqueIdRoundTripsThroughIdentityFacade() {
 		Project project = createProject();
 

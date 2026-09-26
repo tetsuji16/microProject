@@ -1562,8 +1562,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			int id=1;
 			public void accept(Object o) {
 				Node node=(Node)o;
-				if (node.getImpl() instanceof NormalTask){
-					NormalTask task=(NormalTask)node.getImpl();
+				if (node.getImpl() instanceof NormalTask task){
 					task.setDirty(false);
 					task.setLastSavedStart(task.getStart());
 					task.setLastSavedFinish(task.getEnd());

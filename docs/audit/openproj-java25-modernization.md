@@ -1738,3 +1738,9 @@ task belonging to another project selects that enclosing project.
 names. `ProjectScheduleBehaviorTest.projectEqualityUsesNameOnlyForDataObjects`
 verifies equal names remain equal across Project instances and non-DataObject
 values remain unequal.
+
+`Project.setAllTasksAsUnchangedFromPersisted` now binds the OpenProj-derived
+`NormalTask` node implementation before clearing its dirty state and recording
+the persisted schedule boundaries. The task-outline traversal and repaired-task
+path are unchanged. `ProjectScheduleBehaviorTest.markingProjectTasksUnchangedClearsNormalTaskDirtyState`
+verifies dirty-state clearing and saved start/finish values.
