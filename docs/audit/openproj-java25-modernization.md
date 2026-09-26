@@ -1621,6 +1621,12 @@ cross-project, and subproject-parent cases through the `NodeBridge` caller.
 the projected-child test verifies the cached WBS parent through the active
 `DefaultSubprojectHandler` path.
 
+`FieldEdit` now binds `ObjectRef` once in its undo and redo dispatch. The
+branches match OpenProj; `FieldEditTest` verifies both reference and plain
+object targets preserve the target, source, and old/new values on both routes.
+Active callers include `FieldVerifier` for spreadsheet/dialog edits and
+`ScheduleService` for scheduling field undo.
+
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
 same. The loop matches the OpenProj implementation; `FieldDictionaryTest`

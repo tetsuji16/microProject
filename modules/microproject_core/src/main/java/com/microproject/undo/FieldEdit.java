@@ -65,7 +65,7 @@ public class FieldEdit extends AbstractUndoableEdit{
 	public void redo() throws CannotRedoException {
 		super.redo();
 		try {
-			if (object instanceof ObjectRef) field.setValue((ObjectRef)object,source,value,context);
+			if (object instanceof ObjectRef objectRef) field.setValue(objectRef,source,value,context);
 			else field.setValue(object,source,value,context);
 		} catch (FieldParseException e) {
 			logger.log(Level.WARNING, "Failed to redo field edit", e);
@@ -77,7 +77,7 @@ public class FieldEdit extends AbstractUndoableEdit{
 	public void undo() throws CannotUndoException {
 		super.undo();
 		try {
-			if (object instanceof ObjectRef) field.setValue((ObjectRef)object,source,oldValue,context);
+			if (object instanceof ObjectRef objectRef) field.setValue(objectRef,source,oldValue,context);
 			else field.setValue(object,source,oldValue,context);
 		} catch (FieldParseException e) {
 			logger.log(Level.WARNING, "Failed to undo field edit", e);
