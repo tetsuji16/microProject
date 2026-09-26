@@ -51,7 +51,7 @@ import com.microproject.pm.task.Portfolio;
 
 public class PrintDocumentFactory {
 	protected static PrintDocumentFactory instance;
-	public static PrintDocumentFactory getInstance(){
+	public static synchronized PrintDocumentFactory getInstance(){
 		if (instance==null) instance=new PrintDocumentFactory();
 		return instance;
 	}

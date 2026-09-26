@@ -309,6 +309,12 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   its row notifications were lost. No physical route, selection contract, or
   layout changed; no Robot rerun is needed.
 
+- `PrintDocumentFactory.getInstance` is an OpenProj-derived unsynchronized
+  lazy singleton. Concurrent print/export callers could each observe a null
+  field and publish separate instances. The getter is now synchronized while
+  retaining the protected field and public construction surface. A focused
+  identity test and the full UI module test suite passed.
+
 ## Fork-only code explicitly excluded from this issue
 
 - `Project.isBaselineFieldHidden` and `EnterpriseResource.isBaselineFieldHidden`
@@ -1814,3 +1820,8 @@ inside its existing view dispatch, removing the follow-up cast. WBS/RBS cache
 selection and renderer configuration are unchanged. The full
 `:microproject_ui:test` suite passed; no physical GUI route or visual surface
 changed.
+
+`PrintDocumentFactory.getInstance` now synchronizes lazy initialization to
+prevent concurrent callers from publishing separate factories. Its protected
+field and public constructor remain unchanged. `PrintDocumentFactoryTest`
+verifies shared instance identity; the full `:microproject_ui:test` suite passed.
