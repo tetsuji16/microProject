@@ -78,8 +78,8 @@ public abstract class NetworkRenderer extends GraphRenderer{
 	
 	public void init(){
 		GraphParams graphInfo=getGraphInfo();
-		if (graphInfo instanceof JComponent)
-			container=(JComponent)graphInfo;
+		if (graphInfo instanceof JComponent component)
+			container=component;
 		config=GraphicConfiguration.getInstance();
 		linkRenderer = new LinkRenderer();
 		renderer=new NetworkCellRenderer(graphInfo);
