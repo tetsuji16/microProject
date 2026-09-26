@@ -525,9 +525,11 @@ public class Serializer {
     	}
     	//remove dist
     	if (incrementalDistributions&&distMap.size()>0){
-        	Set<Long> noChangeTaskIds=new HashSet<Long>();
+			List<Task> outline = ProjectHierarchyQueries.outline(project);
+			int expectedUnchangedTasks = incremental ? outline.size() : 0;
+			Set<Long> noChangeTaskIds=new HashSet<>(Math.max(4, expectedUnchangedTasks * 4 / 3 + 1));
 
-			for (Task task : ProjectHierarchyQueries.outline(project)) {
+			for (Task task : outline) {
 				if(incremental&&!task.isDirty()) noChangeTaskIds.add(task.getUniqueId());
 			}
 //        	for (Iterator i=projectData.getTasks().iterator();i.hasNext();){
