@@ -160,10 +160,11 @@ public class UniqueIdPool {
 		StringBuilder buf = new StringBuilder();
 		buf.append('{');
 		synchronized(serverIntervals){
-			for (Iterator<MutableInterval> i = serverIntervals.iterator(); i.hasNext();) {
-				MutableInterval interval = i.next();
+			boolean first = true;
+			for (MutableInterval interval : serverIntervals) {
+				if (!first) buf.append(',');
+				first = false;
 				buf.append('[').append(interval.getStart()).append(',').append(interval.getEnd()).append(']');
-				if (i.hasNext()) buf.append(',');
 			}
 		}
 		buf.append('}');

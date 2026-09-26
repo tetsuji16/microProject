@@ -1477,3 +1477,9 @@ first-match selection, and encounter order. Both loops match the OpenProj
 domain types with `instanceof` patterns while retaining `Boolean.FALSE` for
 other and null inputs. The methods correspond to the OpenProj formula sources;
 `TaskFormulaTest` covers task dispatch and both rejection cases.
+
+`UniqueIdPool.dump` now traverses reserved intervals with enhanced-for and an
+explicit separator flag, preserving interval order and the exact dump format.
+The loop matches OpenProj `UniqueIdPool`; existing `UniqueIdPoolTest` assertions
+cover empty, single, and multiple intervals. The mutating `getId` loop retains
+its iterator because it removes exhausted intervals in place.
