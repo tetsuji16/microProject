@@ -1353,6 +1353,11 @@ with enhanced-for, preserving menu item order and selected-state lookup. The
 source matches `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/spreadsheet/selection/TimeSpreadSheetColumnsPopupMenu.java`;
 the full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
 
+`AssignmentEntryPane` now traverses the selected assignment entries with
+enhanced-for, preserving selection order and the `assignedOnly` filter. The
+loop matches `d2fa3c20a:openproj_ui/src/com/projity/dialog/assignment/AssignmentEntryPane.java`;
+the full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
+
 `GraphicNode` cached-schedule interval consumption and containment now use
 enhanced-for over the existing interval list, preserving encounter order and
 early return behavior. The source matches

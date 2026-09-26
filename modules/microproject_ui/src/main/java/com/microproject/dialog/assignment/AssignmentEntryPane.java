@@ -28,7 +28,6 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.function.Consumer;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.JLabel;
@@ -131,10 +130,8 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
  */	 	List<Resource> getSelectedResources(boolean assignedOnly){
 	 		List<?> list = NodeList.nodeListToImplList(getSelectedNodes());
 	 		ArrayList<Resource> resourceList = new ArrayList<>();
-			Iterator<?> i = list.iterator();
-			AssignmentEntry entry;
-			while (i.hasNext()) {
-				entry = (AssignmentEntry)i.next();
+			for (Object item : list) {
+				AssignmentEntry entry = (AssignmentEntry)item;
 				if (!assignedOnly || entry.isAssigned()) // see if should add.
 					resourceList.add((Resource) entry.getResource());
 			}
