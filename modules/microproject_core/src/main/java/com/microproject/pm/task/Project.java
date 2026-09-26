@@ -330,27 +330,29 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public void initializeOutlines(){
+		bindAssignmentOutlines();
+		initializeDefaultOutline();
+	}
+
+	private void bindAssignmentOutlines() {
 		int count=Settings.numHierarchies();
 		for (int i=0;i<count;i++){
 			NodeModel model=taskOutlines.getOutline(i);
 			if (model==null) continue;
-			if (model instanceof AssignmentNodeModel){
-				AssignmentNodeModel aModel=(AssignmentNodeModel)model;
-				aModel.setContainsLeftObjects(true);
-				aModel.setDocument(this);
+			if (model instanceof AssignmentNodeModel assignmentModel){
+				assignmentModel.setContainsLeftObjects(true);
+				assignmentModel.setDocument(this);
 			}
 			model.setUndoController(undoController);
 		}
-		initializeDefaultOutline();
 	}
 
 	public void disconnectOutlines(){
 		int count=Settings.numHierarchies();
 		for (int i=0;i<count;i++){
 			NodeModel model=taskOutlines.getOutline(i);
-			if (model instanceof AssignmentNodeModel){
-				AssignmentNodeModel aModel=(AssignmentNodeModel)model;
-				aModel.setDocument(null); //remove ObjectListener
+			if (model instanceof AssignmentNodeModel assignmentModel){
+				assignmentModel.setDocument(null); //remove ObjectListener
 			}
 		}
 		disconnectDefaultOutline();
@@ -1446,17 +1448,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		initSubprojectHandler();	    //this is created transiently
 	    setSchedulingAlgorithm(new CriticalPath(this)); // Critical path needs objectEventManager
 
-	    int count=Settings.numHierarchies();
-		for (int i=0;i<count;i++){
-			NodeModel model=taskOutlines.getOutline(i);
-			if (model==null) continue;
-			if (model instanceof AssignmentNodeModel){
-				AssignmentNodeModel aModel=(AssignmentNodeModel)model;
-				aModel.setContainsLeftObjects(true);
-				aModel.setDocument(this);
-			}
-			model.setUndoController(undoController);
-		}
+		bindAssignmentOutlines();
 
 		initializeDefaultOutline();
 		setInitialized(true);

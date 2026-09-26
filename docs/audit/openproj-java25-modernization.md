@@ -1665,3 +1665,13 @@ through outline initialization; it must set the pool as the outline document
 before resource assignment events are processed. `ResourcePoolIdentityTest`
 asserts that binding, and the focused resource-pool test class passed.
 
+`Project.initializeOutlines` and `postDeserialization` repeated the same
+assignment-outline binding and undo-controller loop. Consolidated that shared
+responsibility in `bindAssignmentOutlines`, preserving both lifecycle call
+orders and the following default-outline initialization. `disconnectOutlines`
+also binds the assignment model before detaching its document listener. The
+type-check/cast branches correspond to OpenProj `Project` lifecycle code;
+`ProjectScheduleBehaviorTest` verifies attach/detach/re-attach, and
+`PodRoundTripTest` verifies the deserialization route. Both focused suites
+passed.
+

@@ -35,6 +35,7 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.field.FieldContext;
+import com.microproject.grouping.core.model.AssignmentNodeModel;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleInterval;
@@ -44,6 +45,19 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.ProjectStartDateEdit;
 
 class ProjectScheduleBehaviorTest {
+	@Test
+	void outlineLifecycleSharesAssignmentDocumentBinding() {
+		Project project = createProject();
+		AssignmentNodeModel assignments = (AssignmentNodeModel) project.getTaskOutline();
+
+		assertSame(project, assignments.getDocument());
+		project.disconnectOutlines();
+		assertNull(assignments.getDocument());
+
+		project.initializeOutlines();
+		assertSame(project, assignments.getDocument());
+	}
+
 	@Test
 	void projectTypeMetadataUsesWildcardClass() throws Exception {
 		Project project = createProject();
