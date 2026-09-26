@@ -213,8 +213,8 @@ public class MenuManager {
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
 			for (Object button : buttons) {
-				if (button instanceof AbstractButton)
-					((AbstractButton)button).setEnabled(enable);
+				if (button instanceof AbstractButton abstractButton)
+					abstractButton.setEnabled(enable);
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
@@ -225,8 +225,8 @@ public class MenuManager {
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
 			for (Object button : buttons) {
-				if (button instanceof AbstractButton)
-					((AbstractButton)button).setVisible(enable);
+				if (button instanceof AbstractButton abstractButton)
+					abstractButton.setVisible(enable);
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
@@ -240,13 +240,13 @@ public class MenuManager {
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
 			for (Object button : buttons) {
-				if (button instanceof AbstractButton) {
-					((AbstractButton)button).setSelected(enable);
+				if (button instanceof AbstractButton abstractButton) {
+					abstractButton.setSelected(enable);
 					if (button instanceof JToggleButton) {
 					//	button.setBackground(enable ? Color.GRAY : ExtButtonFactory.BACKGROUND_COLOR);
 					}
-				} else if (button instanceof JCommandToggleButton) {
-					((JCommandToggleButton)button).getActionModel().setSelected(enable);
+				} else if (button instanceof JCommandToggleButton commandToggleButton) {
+					commandToggleButton.getActionModel().setSelected(enable);
 				}
 			}
 		}
@@ -262,8 +262,8 @@ public class MenuManager {
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
 			for (Object button : buttons) {
-				if (button instanceof AbstractButton)
-					((AbstractButton)button).setToolTipText(text);
+				if (button instanceof AbstractButton abstractButton)
+					abstractButton.setToolTipText(text);
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);

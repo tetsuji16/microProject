@@ -1845,3 +1845,10 @@ the original guards to OpenProj. Null and foreign-object fallbacks and all
 three query results remain covered by `PageSizesTest`; the focused UI test
 passed. This consolidation removes three copies of the same type-resolution
 rule.
+
+`MenuManager` now binds `AbstractButton` and `JCommandToggleButton` values in
+the existing enabled, visible, selected, and tooltip updates. `git blame`
+confirms these guarded paths derive from OpenProj; the menu/ribbon behavior
+and command routes are unchanged. Existing `RibbonAndToolbarButtonTest` covers
+the active enabled/selected paths, and the full UI test suite is used for this
+shared menu manager update.
