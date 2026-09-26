@@ -1339,3 +1339,8 @@ in selection handling. Project traversal and filtered resource encounter order
 are unchanged. Both loops match
 `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/chart/ChartLegend.java`; the
 full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
+
+`ToolBarFactory.initJComponent` now traverses its configured toolbar items with
+enhanced-for, preserving item and separator order. This matches
+`d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/ToolBarFactory.java`.
+The focused `RibbonAndToolbarButtonTest` passed.

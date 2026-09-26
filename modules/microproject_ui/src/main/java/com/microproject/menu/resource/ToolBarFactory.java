@@ -74,7 +74,6 @@
 
 package com.microproject.menu.resource;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
@@ -161,10 +160,8 @@ public class ToolBarFactory extends ResourceManager {
 			throws MissingResourceException, ResourceFormatException,
 			MissingListenerException {
 		List buttons = getStringList(name);
-		Iterator it = buttons.iterator();
-		
-		while (it.hasNext()) {
-			String s = (String) it.next();
+		for (Object item : buttons) {
+			String s = (String) item;
 			if (s.equals(SEPARATOR)) {
 			    buttonGroup = null;
 			    component.add(new JToolbarSeparator());
