@@ -51,11 +51,13 @@ public final class RecentProjectStore {
 	}
 
 	public List<Entry> entries() {
-		List<Entry> result = new ArrayList<>();
+		ArrayList<Entry> result = new ArrayList<>();
 		try {
 			Preferences items = root.node("items");
-			List<String> staleEntries = new ArrayList<>();
-			for (String child : items.childrenNames()) {
+			String[] children = items.childrenNames();
+			List<String> staleEntries = new ArrayList<>(children.length);
+			result.ensureCapacity(children.length);
+			for (String child : children) {
 				Preferences node = items.node(child); Path path = normalize(node.get("path", null));
 				if (path == null || !Files.isRegularFile(path)) { staleEntries.add(child); continue; }
 				result.add(new Entry(path, node.getLong("opened", 0L), node.getBoolean("pinned", false), true));
