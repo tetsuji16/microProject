@@ -1680,3 +1680,8 @@ passed.
 caller is project serialization during POD save; `PodRoundTripTest` verifies
 that the persisted task outline still reloads correctly.
 
+The same POD save path now sizes each per-task assignment output list from the
+current assignment count. Older baseline snapshots can contribute additional
+entries, so that count is an estimate rather than a cap; `PodRoundTripTest`
+passed after the allocation change.
+

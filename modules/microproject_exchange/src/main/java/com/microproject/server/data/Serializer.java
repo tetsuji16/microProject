@@ -238,7 +238,7 @@ public class Serializer {
 
 
             //assignments
-            final Collection<AssignmentData> assignments=(flatAssignments==null)?new ArrayList<AssignmentData>():flatAssignments;
+            final Collection<AssignmentData> assignments=(flatAssignments==null)?new ArrayList<>(task.getAssignments().size()):flatAssignments;
             if (taskDirty)
             forAssignments(task, new AssignmentClosure(){ //claur
                 public void execute(Assignment assignment,int s) throws IOException {

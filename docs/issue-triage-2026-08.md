@@ -137,3 +137,7 @@ core全体テストが成功した。
 POD `Serializer.saveTasks` の外部 predecessor 用索引 Map はプロジェクトの task list 件数が
 上限となるため、その件数に基づく初期容量を設定した。POD round-trip テスト
 （`PodRoundTripTest`）が成功し、保存・再読込を確認した。
+
+同じ保存経路でタスクの割当出力リストも現在割当数を初期容量に使うようにした。
+過去 baseline にだけ残る割当はその後追加されるため、これは見積りであり上限ではない。
+`PodRoundTripTest` が成功した。
