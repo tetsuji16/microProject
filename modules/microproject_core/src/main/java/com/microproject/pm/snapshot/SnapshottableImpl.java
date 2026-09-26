@@ -78,8 +78,8 @@ public class SnapshottableImpl implements Snapshottable, Serializable {
 			this.snapshotId = snapshotId;
 		}
 		public void accept(Object arg0) {
-			if (arg0 instanceof Snapshottable)
-				((Snapshottable) arg0).saveCurrentToSnapshot(snapshotId);
+			if (arg0 instanceof Snapshottable snapshottable)
+				snapshottable.saveCurrentToSnapshot(snapshotId);
 		}
 	}
 
@@ -89,8 +89,8 @@ public class SnapshottableImpl implements Snapshottable, Serializable {
 			this.snapshotId = snapshotId;
 		}
 		public void accept(Object arg0) {
-			if (arg0 instanceof Snapshottable)			
-				((Snapshottable) arg0).clearSnapshot(snapshotId);
+			if (arg0 instanceof Snapshottable snapshottable)
+				snapshottable.clearSnapshot(snapshotId);
 		}
 	}
 

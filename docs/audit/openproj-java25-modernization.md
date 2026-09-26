@@ -1582,6 +1582,13 @@ corresponds to the OpenProj traversal, while its fork-specific selection logic
 remains as implemented. `IntervalGeneratorContractTest` covers unique and tied
 earliest endpoints.
 
+`SnapshottableImpl`'s save/clear consumer closures now bind accepted
+`Snapshottable` values and call through the bindings. The same guarded calls
+appear in the [OpenProj source](https://github.com/OldRepoPreservation/projectlibre/blob/master/openproj_core/src/com/projity/pm/snapshot/SnapshottableImpl.java).
+`Project.saveCurrentToSnapshot` and `Project.clearSnapshot` use these closures
+to traverse selected objects; `SnapshottableImplTest` verifies snapshot save,
+clear, and ignoring unrelated objects.
+
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
 same. The loop matches the OpenProj implementation; `FieldDictionaryTest`
