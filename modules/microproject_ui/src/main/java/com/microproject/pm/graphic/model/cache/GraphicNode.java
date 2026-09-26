@@ -28,7 +28,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
@@ -302,8 +301,8 @@ public class GraphicNode implements HierarchicObject{
 
 	public void consumeIntervals(IntervalConsumer consumer) {
 		if (scheduleCaching){
-			for (Iterator i=intervals.iterator();i.hasNext();){
-				consumer.consumeInterval((ScheduleInterval)i.next());
+			for (Object interval : intervals) {
+				consumer.consumeInterval((ScheduleInterval)interval);
 			}
 		}else{
 			Object impl=node.getImpl();
@@ -340,8 +339,8 @@ public class GraphicNode implements HierarchicObject{
 	public ScheduleInterval contains(double t,double deltaT1,double deltaT2,CoordinatesConverter coord){
 		if (scheduleCaching){
 			ScheduleInterval interval;
-			for (Iterator i=intervals.iterator();i.hasNext();){
-				interval=(ScheduleInterval)i.next();
+			for (Object cachedInterval : intervals) {
+				interval=(ScheduleInterval)cachedInterval;
 				if (coord!=null) interval=coord.adaptSmallBarTimeInterval(interval, this, null);
 				if (t>=interval.getStart()-deltaT1&&t<=interval.getEnd()+deltaT2) return interval;
 			}

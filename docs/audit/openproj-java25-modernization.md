@@ -1348,6 +1348,12 @@ which is bundled Apache Batik code rather than OpenProj-derived code. The
 focused `RibbonAndToolbarButtonTest` passed; this change is not counted toward
 the #595 modernization scope.
 
+`GraphicNode` cached-schedule interval consumption and containment now use
+enhanced-for over the existing interval list, preserving encounter order and
+early return behavior. The source matches
+`d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/model/cache/GraphicNode.java`.
+`GraphicNodeIntervalTraversalTest` verifies both consumers.
+
 `Intervals` now uses enhanced-for for source interval copying, bulk addition, and
 date containment lookup. The range-merging and weekday-pruning loops retain
 explicit iterators because they call `Iterator.remove()`. The conversion matches
