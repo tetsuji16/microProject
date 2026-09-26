@@ -96,6 +96,8 @@ def strip_header(text: str) -> str:
         text = "\n".join(lines)
     text = re.sub(r"(?i)com\.projectlibre1", "com.projity", text)
     text = re.sub(r"(?i)org\.projectlibre1", "org.projity", text)
+    text = re.sub(r"(?i)com\.microproject", "com.projity", text)
+    text = re.sub(r"(?i)org\.microproject", "org.projity", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -109,7 +111,10 @@ def old_candidates(current: str) -> list[str]:
     variants = [rest]
     variants.append(rest.replace("com/projectlibre1", "com/projity"))
     variants.append(rest.replace("org/projectlibre1", "org/projity"))
+    variants.append(rest.replace("com/microproject", "com/projity"))
+    variants.append(rest.replace("org/microproject", "org/projity"))
     variants.append(rest.replace("com/projectlibre1", "com/projity").replace("org/projectlibre1", "org/projity"))
+    variants.append(rest.replace("com/microproject", "com/projity").replace("org/microproject", "org/projity"))
     return [f"{MODULE_MAP[module]}/{item}" for item in dict.fromkeys(variants)]
 
 

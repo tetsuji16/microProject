@@ -25,11 +25,9 @@ The planned independent product name is **microProject**. Do not rename packages
 
 ## Current generated inventory
 
-The current conservative run is in `license-provenance.csv` and its counts are in `license-provenance-summary.md`. As of the generated run:
-
-- 505 rows match the repository's normalized OpenProj baseline;
-- 48 rows contain a detectable third-party notice;
-- 1,364 rows remain `REVIEW`;
-- zero rows are classified as ProjectLibre delta until a human hunk review supplies evidence.
-
-The 1,364 `REVIEW` rows are not a claim that 1,364 files must be rewritten.
+The current conservative run is in `license-provenance.csv` and its counts are
+in `license-provenance-summary.md`. The current run covers 2,212 tracked files:
+347 normalized OpenProj matches, 56 rows with detectable third-party notices,
+and 1,809 `REVIEW` rows. Zero rows are classified as ProjectLibre delta until a
+human hunk review supplies evidence. A `REVIEW` row does not mean the file must
+be rewritten.

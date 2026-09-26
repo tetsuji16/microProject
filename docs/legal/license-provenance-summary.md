@@ -12,13 +12,15 @@
 
 | Module | Total | KEEP_OPENPROJ | KEEP_THIRD_PARTY | KEEP_FORK_ORIGINAL | DELETE_PROJECTLIBRE_DELTA | REIMPLEMENT_PROJECTLIBRE_DELTA | REVIEW |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| packaging | 26 | 0 | 4 | 0 | 0 | 0 | 22 |
-| projectlibre_application | 11 | 0 | 0 | 0 | 0 | 0 | 11 |
-| projectlibre_contrib | 32 | 15 | 5 | 0 | 0 | 0 | 12 |
-| projectlibre_core | 802 | 281 | 0 | 0 | 0 | 0 | 521 |
-| projectlibre_exchange | 111 | 16 | 0 | 0 | 0 | 0 | 95 |
-| projectlibre_reports | 13 | 0 | 1 | 0 | 0 | 0 | 12 |
-| projectlibre_ui | 922 | 193 | 38 | 0 | 0 | 0 | 691 |
+| microproject_application | 14 | 0 | 0 | 0 | 0 | 0 | 14 |
+| microproject_bootstrap | 7 | 0 | 0 | 0 | 0 | 0 | 7 |
+| microproject_contrib | 22 | 13 | 2 | 0 | 0 | 0 | 7 |
+| microproject_core | 883 | 168 | 0 | 0 | 0 | 0 | 715 |
+| microproject_exchange | 113 | 11 | 0 | 0 | 0 | 0 | 102 |
+| microproject_reports | 15 | 0 | 9 | 0 | 0 | 0 | 6 |
+| microproject_ribbon | 11 | 0 | 0 | 0 | 0 | 0 | 11 |
+| microproject_ui | 1118 | 155 | 41 | 0 | 0 | 0 | 922 |
+| packaging | 29 | 0 | 4 | 0 | 0 | 0 | 25 |
 
 ## Required human follow-up
 

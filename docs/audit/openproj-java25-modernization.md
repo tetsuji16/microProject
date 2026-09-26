@@ -121,30 +121,17 @@ are recorded below. Progress is summarized in
 
 ## Inventory caveat
 
-`docs/legal/license-provenance.csv` uses the former `projectlibre_*` module and
-`com.projectlibre1` package paths. Run
-`python scripts/audit/openproj_java25_inventory.py --ref origin/master` to
-reconcile its `projectlibre_core` production-Java rows marked
-`normalized_openproj_match=true` against the current source tree and OpenProj
-baseline. Add `--details` to list each row's status and mapped paths. On the
-pinned base (`origin/master` =
-`59eb4e0dc1157b382d754deb0acc79fd3384ac5b`), the script reports 280 ledger
-rows: 212 mapped files have normalized content matching the OpenProj source,
-55 mapped files differ, and 13 mapped paths are absent. Of those 13, two source
-files have active same-module relocations (`IntervalConsumer` and
-`ScheduleIntervalGenerator`) under `com.microproject.pm.scheduling`. The other
-11 legacy source paths were moved into the retired `projectlibre_core` module by
-the namespace-migration commit, but were not carried into the active
-`microproject_core` source tree. `settings.gradle.kts` includes only the active
-`microproject_*` modules, and searches of current modules found none of these 11
-type names or references. They are therefore excluded from this issue's current
-runtime modernization scope; their provenance-ledger rows remain historical
-records and are not treated as deletion candidates. This classification does
-not claim that removing these APIs from any separately distributed historical
-artifact would be compatible.
+`docs/legal/license-provenance.csv` now records current `microproject_*` paths.
+The ledger generator normalizes the `com.microproject` package when comparing
+against the OpenProj tree, and the reconciliation tool accepts both current and
+legacy module names. Running `python scripts/audit/openproj_java25_inventory.py --ref HEAD`
+reports 168 core production-Java candidates, all with normalized content
+matching the OpenProj source. Mapping tests cover the current module and package
+paths. This is path/content evidence only; it is not a caller audit, hunk-level
+provenance review, or legal conclusion.
 
-The initial-base counts above are historical. Re-running the inventory at the
-latest integrated checkpoint (`origin/master` =
+The following pinned-checkpoint counts are historical. Re-running the inventory
+at the latest integrated checkpoint (`origin/master` =
 `7860a5aee7cb296bf75596f98860c871ee11d457`) reports 280 ledger rows: 183
 normalized matches, 80 content-different files, and 17 absent mapped paths.
 The absent paths include two active relocations, 11 files absent from the

@@ -25,6 +25,7 @@ from scripts.license_audit import strip_header  # noqa: E402
 
 MODULES = {
     "projectlibre_core": "microproject_core",
+    "microproject_core": "microproject_core",
     "projectlibre_exchange": "microproject_exchange",
     "projectlibre_ui": "microproject_ui",
     "projectlibre_reports": "microproject_reports",
@@ -90,7 +91,7 @@ def main() -> int:
         candidates = [
             row
             for row in csv.DictReader(handle)
-            if row["module"] == "projectlibre_core"
+            if row["module"] in {"projectlibre_core", "microproject_core"}
             and row["kind"] == "java"
             and row["normalized_openproj_match"] == "true"
             and "/src/main/java/" in row["current_path"]
