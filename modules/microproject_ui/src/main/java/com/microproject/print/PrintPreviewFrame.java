@@ -375,8 +375,7 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 	}
 
 	protected void toggleLeftView(){
-		if (document instanceof GraphPageable){
-			GraphPageable gp=(GraphPageable)document;
+		if (document instanceof GraphPageable gp){
 			boolean visible=gp.getRenderer().getParams().isLeftPartVisible();
 			gp.getRenderer().getParams().setLeftPartVisible(!visible);
 			if (visible) gp.getRenderer().getParams().setRightPartVisible(true);
@@ -386,8 +385,7 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		}
 	}
 	protected void toggleRightView(){
-		if (document instanceof GraphPageable){
-			GraphPageable gp=(GraphPageable)document;
+		if (document instanceof GraphPageable gp){
 			boolean visible=gp.getRenderer().getParams().isRightPartVisible();
 			gp.getRenderer().getParams().setRightPartVisible(!visible);
 			if (visible) gp.getRenderer().getParams().setLeftPartVisible(true);
@@ -398,8 +396,7 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 	}
 
 	protected void updateButtons(){
-		if (document instanceof GraphPageable){
-			GraphPageable gp=(GraphPageable)document;
+		if (document instanceof GraphPageable gp){
 
 			boolean visible=gp.getRenderer().getParams().isLeftPartVisible();
 			List<?> buttons = menuManager.getToolBarFactory().getButtonsFromId("PrintPreviewLeftView");

@@ -1825,3 +1825,10 @@ changed.
 prevent concurrent callers from publishing separate factories. Its protected
 field and public constructor remain unchanged. `PrintDocumentFactoryTest`
 verifies shared instance identity; the full `:microproject_ui:test` suite passed.
+
+`PrintPreviewFrame` now binds `GraphPageable` directly in its existing type
+guards for left/right preview toggles and button-state updates. `git blame`
+traces all three guards to the OpenProj source, and the branch bodies and
+rendering calls are unchanged. No dedicated preview-frame test exists; the
+full UI module suite is the proportionate verification for this syntax-only
+change. No physical GUI route or visual surface changed.
