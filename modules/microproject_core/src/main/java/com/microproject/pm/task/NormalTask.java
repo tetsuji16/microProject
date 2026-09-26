@@ -1580,8 +1580,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 								return;
 							}
 							Object nodeObject = ((Node) arg0).getImpl();
-							if (nodeObject instanceof NormalTask) { // do not treat assignments
-								NormalTask task = ((NormalTask)nodeObject);
+							if (nodeObject instanceof NormalTask task) { // do not treat assignments
 								task.setStop(Math.min(stop,task.getEnd())); // do within range of task
 							}
 						}
