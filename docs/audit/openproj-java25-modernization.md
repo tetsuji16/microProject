@@ -1602,6 +1602,12 @@ branch uses the same type guard and name lookup; the existing fork value
 comparison is preserved. `SpreadSheetFieldArrayTest` covers equal names,
 matching hash codes, and rejection of null/foreign types.
 
+`NodeModelUtil.nodeIsSubproject` now binds the OpenProj-derived `Task` type
+before reading its subproject flag. The fork-specific `SubProj` branch remains
+in place. `NodeModelUtilTest` verifies both a subproject placeholder and a
+regular task node; active callers include `MutableNodeHierarchy` and
+`NodeBridge`.
+
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
 same. The loop matches the OpenProj implementation; `FieldDictionaryTest`
