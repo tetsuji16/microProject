@@ -136,6 +136,19 @@ class GanttRendererProgressTest {
 	}
 
 	@Test
+	void normalizeIntervalsSortsMergesAndFiltersInvalidRanges() {
+		List<ScheduleInterval> intervals = GanttBarSupport.normalizeIntervals(List.of(
+				new ScheduleInterval(30L, 40L),
+				new ScheduleInterval(10L, 20L),
+				new ScheduleInterval(20L, 25L),
+				new ScheduleInterval(50L, 49L)));
+
+		assertEquals(2, intervals.size());
+		assertInterval(intervals.get(0), 10L, 25L);
+		assertInterval(intervals.get(1), 30L, 40L);
+	}
+
+	@Test
 	void splitTaskKeepsItsSectionsInsteadOfUsingThePlannedEnvelope() {
 		BarFormat task = barFormat("Bar.task");
 		List<ScheduleInterval> intervals = GanttBarSupport.displayIntervals(task, List.of(

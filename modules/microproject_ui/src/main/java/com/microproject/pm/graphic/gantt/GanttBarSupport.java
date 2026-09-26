@@ -26,6 +26,7 @@ package com.microproject.pm.graphic.gantt;
 
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
@@ -148,7 +149,8 @@ final class GanttBarSupport {
 		if (intervals == null) {
 			return List.of();
 		}
-		ArrayList<ScheduleInterval> sorted = new ArrayList<>();
+		int inputSize = intervals instanceof Collection<?> collection ? collection.size() : 0;
+		ArrayList<ScheduleInterval> sorted = new ArrayList<>(inputSize);
 		for (ScheduleInterval interval : intervals) {
 			if (interval != null && interval.getStart() <= interval.getEnd()) {
 				sorted.add(new ScheduleInterval(interval.getStart(), interval.getEnd()));
@@ -160,7 +162,7 @@ final class GanttBarSupport {
 			return List.of();
 		}
 
-		ArrayList<ScheduleInterval> normalized = new ArrayList<>();
+		ArrayList<ScheduleInterval> normalized = new ArrayList<>(sorted.size());
 		long start = sorted.get(0).getStart();
 		long end = sorted.get(0).getEnd();
 		for (int i = 1; i < sorted.size(); i++) {
