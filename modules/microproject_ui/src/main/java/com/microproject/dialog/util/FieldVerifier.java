@@ -83,12 +83,12 @@ public class FieldVerifier extends InputVerifier {
 	static JComponent valueHoldingComponent(JComponent component) {
 		Object p = component.getParent();
 		// for spinners and dates, need to go up to grandparent to get the control which holds the value
-		if (p != null && p instanceof LookupField)
-			p = ((LookupField)p).getDisplay();
-		else if (p != null && p instanceof Component)
-			p = ((Component)p).getParent();
-		if (p instanceof JSpinner || p instanceof ExtDateField)
-			component = (JComponent) p;
+		if (p instanceof LookupField lookupField)
+			p = lookupField.getDisplay();
+		else if (p instanceof Component parent)
+			p = parent.getParent();
+		if (p instanceof JComponent valueComponent && (p instanceof JSpinner || p instanceof ExtDateField))
+			component = valueComponent;
 		return component;
 	}
 

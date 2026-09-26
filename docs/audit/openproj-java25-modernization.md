@@ -1872,3 +1872,9 @@ and parent traversal still returns the nearest containing dialog. `git blame`
 traces both guards to OpenProj. One full UI test run had a failure in the
 unrelated `ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnchored`;
 the focused test and the next full `:microproject_ui:test` run passed.
+
+`FieldVerifier.valueHoldingComponent` now binds the LookupField, parent
+Component, and resolved spinner/date value component. The parent traversal and
+null fallback are unchanged; `git blame` traces this helper to OpenProj. Added
+`FieldVerifierTest` for spinner-editor resolution and a parentless component.
+The fork-added date parsing branch in `verify` remains untouched.
