@@ -141,3 +141,9 @@ POD `Serializer.saveTasks` の外部 predecessor 用索引 Map はプロジェ�
 同じ保存経路でタスクの割当出力リストも現在割当数を初期容量に使うようにした。
 過去 baseline にだけ残る割当はその後追加されるため、これは見積りであり上限ではない。
 `PodRoundTripTest` が成功した。
+
+`ResourceLevelingService.Plan` の分割タスク詳細バックアップ用
+`IdentityHashMap` は、生成時に分割候補数を見積り容量として使うようにした。
+実際にバックアップされる異なるタスク数は分割候補数以下である。
+`:microproject_core:test` と `ResourceLevelingServiceTest` の既存 apply/revert 経路で
+回帰がないことを確認した。

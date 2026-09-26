@@ -90,12 +90,13 @@ public final class ResourceLevelingService {
 		private final List<Change> changes;
 		private final List<Conflict> unresolved;
 		private final List<Split> splits;
-		private final Map<Task, Object> detailBackups = new IdentityHashMap<>();
+		private final Map<Task, Object> detailBackups;
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits) {
 			this.changes = List.copyOf(changes);
 			this.unresolved = List.copyOf(unresolved);
 			this.splits = List.copyOf(splits);
+			this.detailBackups = new IdentityHashMap<>(splits.size());
 		}
 
 		public List<Change> changes() {
