@@ -2005,3 +2005,12 @@ is the active caller for both paths. Assignment population and the returned
 model identity are unchanged. The existing `ProjectScheduleBehaviorTest` covers
 outline initialization; focused and full core tests passed. Commit: recorded in
 this changeset.
+
+`DefaultNodeModel.copy` now types its copied parent list, assigned-node set,
+implementation map, and list iterators. The related clone/dependency-rebuild
+helpers accept `Map<Object, Object>`; `git blame` confirms the raw collection
+responsibility is OpenProj-derived (`d2fa3c20a`). The active UI copy routes use
+`NodeModel.copy`, and the existing `DefaultNodeModelTest` covers copied task
+dependencies, assignment rows, and summary WBS children. Encounter order,
+iterator-based replacement, and dependency-map lookups are unchanged. Focused
+and full core tests passed. Commit: recorded in this changeset.

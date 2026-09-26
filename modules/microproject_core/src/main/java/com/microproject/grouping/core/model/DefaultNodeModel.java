@@ -427,15 +427,15 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public List<Node> copy(List<Node> nodes,boolean clone,int actionType){
-		ArrayList parentNodes = new ArrayList(nodes.size());
+		ArrayList<Node> parentNodes = new ArrayList<>(nodes.size());
 		HierarchyUtils.extractParents(nodes,parentNodes);
 		if (!clone) return parentNodes;
-		Set assignedNodes=new HashSet();
-		Map implMap=new HashMap();
+		Set<Node> assignedNodes=new HashSet<>();
+		Map<Object, Object> implMap=new HashMap<>();
 		Set<Dependency> predecessors=new HashSet<Dependency>();
 		Set<Dependency> successors=new HashSet<Dependency>();
-		for (ListIterator i=parentNodes.listIterator();i.hasNext();){
-			Node parent=(Node)i.next();
+		for (ListIterator<Node> i=parentNodes.listIterator();i.hasNext();){
+			Node parent=i.next();
 			Node newParent=cloneNode(parent,null,implMap,predecessors,successors);
 			cloneBranch(parent,newParent,assignedNodes,implMap,predecessors,successors);
 			i.remove();
@@ -444,18 +444,18 @@ public class DefaultNodeModel implements NodeModel {
 
 		rebuildCopiedDependencies(implMap, predecessors, successors);
 
-		for (Iterator i=assignedNodes.iterator();i.hasNext();){
-			addAssignments((Node)i.next());
+		for (Node assignedNode : assignedNodes) {
+			addAssignments(assignedNode);
 		}
 
-		for (ListIterator i=parentNodes.listIterator();i.hasNext();){
-			Node node=(Node)i.next();
+		for (ListIterator<Node> i=parentNodes.listIterator();i.hasNext();){
+			Node node=i.next();
 			cleanBranch(node);
 		}
 
 		return parentNodes;
 	}
-	private void cloneBranch(Node parent,Node newParent,Set assignedNodes,Map implMap,Set<Dependency> predecessors,Set<Dependency> successors){
+	private void cloneBranch(Node parent,Node newParent,Set<Node> assignedNodes,Map<Object, Object> implMap,Set<Dependency> predecessors,Set<Dependency> successors){
 		for (Iterator<TreeNode> i=parent.childrenIterator();i.hasNext();){
 				Node child=(Node)i.next();
 				if (child.getImpl() instanceof Assignment){
@@ -466,7 +466,7 @@ public class DefaultNodeModel implements NodeModel {
 				}
 		}
 	}
-	private Node cloneNode(Node oldNode,Node newParent,Map implMap,Set<Dependency> predecessors,Set<Dependency> successors){
+	private Node cloneNode(Node oldNode,Node newParent,Map<Object, Object> implMap,Set<Dependency> predecessors,Set<Dependency> successors){
 		Object oldNodeImpl=oldNode.getImpl();
 		Object newNodeImpl=cloneNodeImpl(oldNodeImpl);
 		implMap.put(oldNodeImpl, newNodeImpl);
@@ -911,7 +911,7 @@ public class DefaultNodeModel implements NodeModel {
 		}
 	}
 
-	private void rebuildCopiedDependencies(Map implMap, Set<Dependency> predecessors, Set<Dependency> successors) {
+	private void rebuildCopiedDependencies(Map<Object, Object> implMap, Set<Dependency> predecessors, Set<Dependency> successors) {
 		//rebuild dependencies
 		if (Environment.isKeepExternalLinks()){
 			rebuildCopiedDependenciesWithExternalLinks(implMap, predecessors, successors);
@@ -920,7 +920,7 @@ public class DefaultNodeModel implements NodeModel {
 		}
 	}
 
-	private void rebuildCopiedDependenciesWithExternalLinks(Map implMap, Set<Dependency> predecessors,
+	private void rebuildCopiedDependenciesWithExternalLinks(Map<Object, Object> implMap, Set<Dependency> predecessors,
 			Set<Dependency> successors) {
 		for (Dependency dependency : successors) {
 			Dependency copy = recreateDependencyLink(dependency, implMap);
@@ -931,7 +931,7 @@ public class DefaultNodeModel implements NodeModel {
 		}
 	}
 
-	private void rebuildCopiedDependenciesWithinProject(Map implMap, Set<Dependency> predecessors,
+	private void rebuildCopiedDependenciesWithinProject(Map<Object, Object> implMap, Set<Dependency> predecessors,
 			Set<Dependency> successors) {
 		for (Dependency dependency : predecessors) {
 			if (successors.contains(dependency)){
@@ -944,7 +944,7 @@ public class DefaultNodeModel implements NodeModel {
 		}
 	}
 
-	private Dependency recreateDependencyLink(Dependency dependency, Map implMap) {
+	private Dependency recreateDependencyLink(Dependency dependency, Map<Object, Object> implMap) {
 		TaskLinkReference pt=(TaskLinkReference)dependency.getPredecessor();
 		TaskLinkReference st=(TaskLinkReference)dependency.getSuccessor();
 
