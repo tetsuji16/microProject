@@ -1553,3 +1553,8 @@ selection and encounter-order tie behavior are unchanged. The active loop
 corresponds to the OpenProj traversal, while its fork-specific selection logic
 remains as implemented. `IntervalGeneratorContractTest` covers unique and tied
 earliest endpoints.
+
+`FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
+set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
+same. The loop matches the OpenProj implementation; `FieldDictionaryTest`
+verifies a known alias is applied and an unknown field is ignored.

@@ -323,9 +323,7 @@ public class FieldDictionary {
 	public static void setAliasMap(HashMap<String, String> aliasMap) {
 		if (aliasMap == null)
 			return;
-		Iterator<String> i = aliasMap.keySet().iterator();
-		while (i.hasNext()) {
-			String fieldId  = i.next();
+		for (String fieldId : aliasMap.keySet()) {
 			Field f = Configuration.getFieldFromId(fieldId);
 			if (f != null)
 				f.setAlias(aliasMap.get(fieldId));
