@@ -888,9 +888,9 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	public void fireEvent(Object object, Object source,FieldContext context) {
 		if (context == null)
 			context = specialFieldContext;
-		if (object instanceof BelongsToDocument && source != null) { // if no source then no update
+		if (object instanceof BelongsToDocument belongsToDocument && source != null) { // if no source then no update
 			if (!FieldContext.isNoUpdate(context)) {
-				Document document = ((BelongsToDocument) object).getDocument();
+				Document document = belongsToDocument.getDocument();
 				document.getObjectEventManager().fireUpdateEvent(source, object, this);
 				if (isDirtiesWholeDocument())
 					document.setAllChildrenDirty(true);
@@ -995,9 +995,9 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		Long taskSheetScheduleValue = toTaskSheetScheduleValue(value);
 		if (FieldContext.isTaskSheetUpdate(context) && TaskSheetScheduleWorkflow.isScheduleField(id) && taskSheetScheduleValue != null) {
 			if (TaskSheetScheduleWorkflow.apply(object, id, taskSheetScheduleValue.longValue())) {
-				if (object instanceof DataObject) {
+				if (object instanceof DataObject dataObject) {
 					if (context == null || !context.isNoDirty())
-						((DataObject) object).setDirty(true);
+						dataObject.setDirty(true);
 				}
 				return true;
 			}
