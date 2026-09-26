@@ -324,6 +324,14 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   fork-specific visibility behavior, so they are not included in this
   OpenProj-only refactor. Any correctness change to their shared policy should
   be reviewed as a separate fork-behavior task with its own regression contract.
+- `Field.toTaskSheetScheduleValue` was introduced in the ProjectLibre fork
+  (tracked to commit `54e5480390`), and `Field.getGroupDuration` was introduced
+  in commit `82de370c3d`; neither responsibility exists in the OpenProj source.
+  Commits `b2c7ae394` and `4849e197e` modernize those fork additions and are
+  excluded from #595 progress.
+- In commit `3c96088e2`, the `Field.fireEvent` guard is OpenProj-derived, but the
+  adjacent task-sheet `DataObject` dirty-state branch was added by the fork.
+  Only the `fireEvent` modernization counts toward #595.
 
 ## Exchange dead-code candidate retained for API compatibility
 
@@ -1893,3 +1901,19 @@ returns the `Resource` interface and the chart path requires the concrete
 global-resource calculation API. `git blame` traces the changed guards to
 OpenProj. The full UI suite verifies the chart module; aggregation formulas
 and filtering remain unchanged.
+
+## Local follow-up after the documented #632 checkpoint
+
+`Field.getSummarizedValueForField` now caches its OpenProj-derived
+`GroupNodeImpl` check and binds the `Double` result before display conversion.
+The summary selection and option conversion still use the same values and
+order. `git blame` traces these original guards to `openproj_core`; its active
+OpenProj caller is the task/node summary read path. A separate
+fork-specific group-duration caller is excluded above. The full
+`:microproject_core:test --console=plain` suite passed. Commit: `47eb17560`.
+
+`Field.fireEvent` now binds the OpenProj-derived `BelongsToDocument` guard,
+while keeping the source-null and no-update checks intact. Its caller remains
+`Field.setInternalValueAndUpdate`; the full core test suite passed. The
+task-sheet-only `DataObject` dirty branch in the same file is fork-origin and
+excluded above. Commit: `3c96088e2`.
