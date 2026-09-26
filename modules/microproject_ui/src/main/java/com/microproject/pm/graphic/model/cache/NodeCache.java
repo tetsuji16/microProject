@@ -290,8 +290,8 @@ public class NodeCache extends CellCache {
         }
 	}
 	public void fireEvents(Object source) {
-	    for (Iterator i=visibleElements.iterator();i.hasNext();){
-	        VisibleNodes v=(VisibleNodes)i.next();
+	    for (Object element : visibleElements) {
+	        VisibleNodes v=(VisibleNodes)element;
 	        List<CacheEvent> nodeEvents=v.getEvents();
 	        List<CacheEvent> edgeEvents=v.getVisibleDependencies().getEvents();
 	        if (nodeEvents.size()>0||edgeEvents.size()>0){
