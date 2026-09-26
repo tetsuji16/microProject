@@ -70,9 +70,7 @@ public class AssociationList implements List<Association> {
     }
 
     public Association find(boolean leftObject, Object object) {
-    	Association association;
-        for (Iterator<Association> i = list.iterator(); i.hasNext();) {
-			association = i.next();
+        for (Association association : list) {
             if (getObject(association,leftObject) == object)
                 return association;
         }
@@ -88,8 +86,7 @@ public class AssociationList implements List<Association> {
     }
     
     public static Association findAssociation(LinkedList<Association> findInList, Object left, Object right, Association exclude) {
-        for ( Iterator<Association> i = findInList.iterator(); i.hasNext();) {
-            Association association = i.next();
+        for (Association association : findInList) {
         	if (association == exclude)
         		continue;
             if (association.getLeft() == left && association.getRight() == right)

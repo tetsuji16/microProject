@@ -1467,3 +1467,8 @@ the visitor path.
 and removes its immediate cast. The type-check/cast branch matches the OpenProj
 source and continues to call the same paint implementation with the same
 graphics context and texture flag.
+
+`AssociationList.find` and `findAssociation` now use enhanced-for over their
+backing linked lists. They retain identity comparisons, exclusion behavior,
+first-match selection, and encounter order. Both loops match the OpenProj
+`AssociationList` source; the focused association lookup regression passed.

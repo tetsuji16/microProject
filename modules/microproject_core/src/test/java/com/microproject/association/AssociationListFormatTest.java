@@ -8,6 +8,7 @@ package com.microproject.association;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.text.FieldPosition;
 import java.text.Format;
@@ -57,6 +58,20 @@ class AssociationListFormatTest {
 		String formatted = format.format(associations, new StringBuffer(), new FieldPosition(0)).toString();
 
 		assertEquals("Alpha" + Settings.LIST_SEPARATOR + "Beta", formatted);
+	}
+
+	@Test
+	void associationLookupsPreserveIdentityMatchingAndExclusion() {
+		Object left = new String("Alpha");
+		Object right = new String("Beta");
+		Association target = new IdentityAssociation(left, right);
+		AssociationList associations = new AssociationList();
+		associations.add(target);
+		associations.add(new TestAssociation("other", false));
+
+		assertSame(target, associations.find(true, left));
+		assertSame(target, AssociationList.findAssociation(associations.list, left, right, null));
+		assertNull(AssociationList.findAssociation(associations.list, left, right, target));
 	}
 
 	private static final class TokenFormat extends Format {
@@ -111,6 +126,47 @@ class AssociationListFormatTest {
 		@Override
 		public boolean isDefault() {
 			return defaultAssociation;
+		}
+
+		@Override
+		public void replace(Object newOne, boolean leftObject) {
+		}
+	}
+
+	private record IdentityAssociation(Object left, Object right) implements Association {
+		@Override
+		public Object getLeft() {
+			return left;
+		}
+
+		@Override
+		public Object getRight() {
+			return right;
+		}
+
+		@Override
+		public void testValid(boolean allowDuplicate) {
+		}
+
+		@Override
+		public void copyPrincipalFieldsFrom(Association from) {
+		}
+
+		@Override
+		public void doAddService(Object eventSource) {
+		}
+
+		@Override
+		public void doRemoveService(Object eventSource) {
+		}
+
+		@Override
+		public void doUpdateService(Object eventSource) {
+		}
+
+		@Override
+		public boolean isDefault() {
+			return false;
 		}
 
 		@Override
