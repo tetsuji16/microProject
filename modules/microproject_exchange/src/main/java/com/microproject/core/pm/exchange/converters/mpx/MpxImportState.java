@@ -151,6 +151,16 @@ public class MpxImportState {
 	}
 	public void setMpxProjectFile(ProjectFile mpxProjectFile) {
 		this.mpxProjectFile = mpxProjectFile;
+		int taskCount = mpxProjectFile == null ? 0 : mpxProjectFile.getTasks().size();
+		int resourceCount = mpxProjectFile == null ? 0 : mpxProjectFile.getResources().size();
+		taskMap = new HashMap<>(mapCapacity(taskCount));
+		resourceMap = new HashMap<>(mapCapacity(resourceCount));
+	}
+
+	private static int mapCapacity(int expectedSize) {
+		if (expectedSize <= 12) return 16;
+		long capacity = ((long) expectedSize * 4 + 2) / 3;
+		return (int) Math.min(1L << 30, capacity);
 	}
 
 }
