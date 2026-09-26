@@ -1987,3 +1987,13 @@ are unchanged. Added a regression that confirms ordered validation and that
 later entries are not visited after a failure. Focused `AssociationListFormatTest`
 and full `:microproject_core:test --console=plain` passed. Commit: recorded in
 this changeset.
+
+`NodeModelFactory.replicate` now traverses the `List<Node>` returned by
+`NodeHierarchy.getChildren` directly, replacing its raw collection and iterator
+casts with enhanced-for. `git blame` and the OpenProj source at `d2fa3c20a`
+confirm the original traversal. Its active caller is `AssignmentEntryPane`'s
+resource-outline replication path. Child order, recursive structure, and the
+existing behavior of skipping a node and its descendants when the transformer
+returns null are unchanged. Added `NodeModelFactoryTest` for order and skipped
+transform results. Focused and full core tests passed. Commit: recorded in this
+changeset.

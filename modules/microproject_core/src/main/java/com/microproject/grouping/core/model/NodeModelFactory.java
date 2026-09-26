@@ -25,7 +25,7 @@
 package com.microproject.grouping.core.model;
 
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.collections.Transformer;
 
@@ -95,18 +95,16 @@ public class NodeModelFactory {
 	}
 	
     private void replicate(NodeModel source, Node sourceParentNode, Node newParentNode, NodeModel newModel, Transformer transformer) {
-    	Collection children = source.getHierarchy().getChildren(sourceParentNode);        	
-    	if (children != null) {
-        	Iterator i = children.iterator();
-        	while (i.hasNext()) {
-        		Node sourceNode = (Node)i.next();
-        		Object newImpl = transformer.transform(sourceNode.getImpl()); // make a new object from source
-        		if (newImpl==null) continue;
-        		Node newNode = NodeFactory.getInstance().createNode(newImpl); // make a new node
-        		newModel.add(newParentNode,newNode,NodeModel.SILENT);
-        		replicate(source,sourceNode,newNode,newModel,transformer);
-        	}
-    	}
+		List<Node> children = source.getHierarchy().getChildren(sourceParentNode);
+		if (children != null) {
+			for (Node sourceNode : children) {
+				Object newImpl = transformer.transform(sourceNode.getImpl()); // make a new object from source
+				if (newImpl==null) continue;
+				Node newNode = NodeFactory.getInstance().createNode(newImpl); // make a new node
+				newModel.add(newParentNode,newNode,NodeModel.SILENT);
+				replicate(source,sourceNode,newNode,newModel,transformer);
+			}
+		}
     	
     }
     
