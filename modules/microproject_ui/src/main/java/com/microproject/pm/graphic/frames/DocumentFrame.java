@@ -402,11 +402,10 @@ public class DocumentFrame extends NamedFrame implements
 		Object rowObject = getSelectedImpl();
 		WorkingCalendar wc = null;
 		List documentCalendars = null;
-		if (rowObject instanceof HasCalendar) {
-			wc = (WorkingCalendar) ((HasCalendar) rowObject).getWorkCalendar();
-			if (rowObject instanceof ResourceImpl) {
-				documentCalendars = ((ResourceImpl) rowObject)
-						.getResourcePool().extractCalendars();
+		if (rowObject instanceof HasCalendar hasCalendar) {
+			wc = (WorkingCalendar) hasCalendar.getWorkCalendar();
+			if (rowObject instanceof ResourceImpl resource) {
+				documentCalendars = resource.getResourcePool().extractCalendars();
 			}
 		}
 		if (wc == null)
