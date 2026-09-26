@@ -1785,3 +1785,8 @@ in the existing guard. Assignment nodes continue to be skipped, and the stop
 date remains clamped to each descendant's end. `NormalTaskPercentCompleteTest`
 passed. The core module suite passed immediately before this syntax-only
 change.
+
+`ProjectFactory.getSaveProjectJob` now binds the OpenProj-derived `Project`
+value in its existing type guard before applying the branch-save eligibility
+check. Project traversal order, date refresh, and the fork's dirty-child save
+rules are unchanged. The full core test suite passed.

@@ -624,8 +624,7 @@ public class ProjectFactory {
 			public void accept(Object arg0) {
 				Node n=(Node)arg0;
 				Object impl = n.getImpl();
-				if (impl instanceof Project){
-					Project p=(Project)impl;
+				if (impl instanceof Project p){
 					// A child may be modified while the master's own document stays
 					// clean.  Save each dirty member of the branch independently;
 					// inheriting only the root's dirty flag silently lost that child.
