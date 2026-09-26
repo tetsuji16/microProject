@@ -147,9 +147,8 @@ public class PredecessorTaskList {
 	}
 	
 	public void dump() {
-		ListIterator<TaskReference> i = list.listIterator();
-		while (i.hasNext()) {
-			logger.log(Level.FINE, "{0}", i.next());
+		for (TaskReference taskReference : list) {
+			logger.log(Level.FINE, "{0}", taskReference);
 		}
 	}
 	
@@ -200,10 +199,9 @@ public class PredecessorTaskList {
 		TaskReference endSentinel = list.removeLast();
 		list = new LinkedList<TaskReference>();
 			
-		Iterator<TaskReference> i = oldList.iterator();
 		toggleMarkerStatus();
-		while (i.hasNext()) {
-			Task task = i.next().getTask();
+		for (TaskReference taskReference : oldList) {
+			Task task = taskReference.getTask();
 			arrangeSingleTask(task);
 		}
 		list.addFirst(startSentinel);
@@ -263,9 +261,8 @@ public class PredecessorTaskList {
 	void recalculateReverseScheduledCount() {
 		numberOfReverseScheduledTasks = 0;
 		
-		Iterator<TaskReference> i = list.iterator();
-		while (i.hasNext()) {
-			Task task = i.next().getTask();
+		for (TaskReference taskReference : list) {
+			Task task = taskReference.getTask();
 	    	if (task.isReverseScheduled())
 				numberOfReverseScheduledTasks++;
 		}
@@ -292,11 +289,10 @@ public class PredecessorTaskList {
 		else
 			result = new int[1];
 			
-		Iterator<TaskReference> i = list.iterator();
 		int resultIndex = 0;
 		int pos = 0;
-		while (i.hasNext()) {
-			Task task = i.next().getTask();
+		for (TaskReference taskReference : list) {
+			Task task = taskReference.getTask();
 			if (task == t) {
 				result[resultIndex++]  = pos;
 				if (resultIndex == result.length)

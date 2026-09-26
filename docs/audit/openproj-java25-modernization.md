@@ -1324,3 +1324,12 @@ enhanced-for, retaining the order and exclusion of base calendars. The loop
 matches `d2fa3c20a:openproj_ui/src/com/projity/dialog/calendar/ChangeWorkingTimeDialogBox.java`.
 The existing focused `ChangeWorkingTimeDialogBoxSaveTest` passed; its
 non-headless dialog case constructs this calendar list.
+
+`PredecessorTaskList` read traversals in `dump`, `rearrangeAll`, reverse-
+scheduled-count recalculation, and `findTaskPosition` now use enhanced-for over
+the existing linked list. Encounter order, position counting, early termination,
+and the detached `oldList` traversal during rebuild are unchanged. Mutation
+loops using `Iterator.remove()` or `ListIterator.add()` remain explicit.
+`PredecessorTaskListTraversalTest.taskPositionsMatchListEncounterOrder` and the
+focused critical-path tests passed. The changed traversal structure corresponds
+to `d2fa3c20a:openproj_core/src/com/projity/pm/criticalpath/PredecessorTaskList.java`.
