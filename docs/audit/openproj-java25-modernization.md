@@ -1376,6 +1376,12 @@ contract instead of dereferencing null. The source matches
 `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/model/cache/DependencyCache.java`;
 `DependencyCacheTraversalTest` passed.
 
+`VisibleElements.getRow` now traverses elements with enhanced-for and an explicit
+position counter, preserving the first equal element's row and the `-1` miss
+result. It matches
+`d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/model/cache/VisibleElements.java`;
+`VisibleElementsTraversalTest` passed.
+
 `Intervals` now uses enhanced-for for source interval copying, bulk addition, and
 date containment lookup. The range-merging and weekday-pruning loops retain
 explicit iterators because they call `Iterator.remove()`. The conversion matches

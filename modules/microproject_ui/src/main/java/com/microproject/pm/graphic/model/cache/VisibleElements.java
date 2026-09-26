@@ -69,8 +69,9 @@ public abstract class VisibleElements{
     
 	public int getRow(Object element){
 	    int pos=0;
-	    for(Iterator i=elements.iterator();i.hasNext();pos++){
-	        if (i.next().equals(element)) return pos;
+	    for (Object current : elements) {
+	        if (current.equals(element)) return pos;
+	        pos++;
 	    }
 	    return -1;
 	}
