@@ -9,10 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.text.FieldPosition;
 import java.text.Format;
 import java.text.ParsePosition;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -72,6 +75,19 @@ class AssociationListFormatTest {
 		assertSame(target, associations.find(true, left));
 		assertSame(target, AssociationList.findAssociation(associations.list, left, right, null));
 		assertNull(AssociationList.findAssociation(associations.list, left, right, target));
+	}
+
+	@Test
+	void validationVisitsAssociationsInOrderAndStopsAtFirstFailure() {
+		List<String> validated = new ArrayList<>();
+		AssociationList associations = new AssociationList();
+		associations.add(new ValidationAssociation("first", validated, false));
+		associations.add(new ValidationAssociation("failing", validated, true));
+		associations.add(new ValidationAssociation("unvisited", validated, false));
+
+		assertThrows(InvalidAssociationException.class, () -> associations.testValid(false));
+
+		assertEquals(List.of("first:false", "failing:false"), validated);
 	}
 
 	private static final class TokenFormat extends Format {
@@ -172,5 +188,20 @@ class AssociationListFormatTest {
 		@Override
 		public void replace(Object newOne, boolean leftObject) {
 		}
+	}
+
+	private record ValidationAssociation(String id, List<String> validated, boolean fail) implements Association {
+		@Override public Object getLeft() { return id; }
+		@Override public Object getRight() { return id; }
+		@Override public void testValid(boolean allowDuplicate) throws InvalidAssociationException {
+			validated.add(id + ":" + allowDuplicate);
+			if (fail) throw new InvalidAssociationException(id);
+		}
+		@Override public void copyPrincipalFieldsFrom(Association from) { }
+		@Override public void doAddService(Object eventSource) { }
+		@Override public void doRemoveService(Object eventSource) { }
+		@Override public void doUpdateService(Object eventSource) { }
+		@Override public boolean isDefault() { return false; }
+		@Override public void replace(Object newOne, boolean leftObject) { }
 	}
 }

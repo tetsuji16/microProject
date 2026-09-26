@@ -108,11 +108,10 @@ public class AssociationList implements List<Association> {
     
     
     protected void testValid(boolean allowDuplicate) throws InvalidAssociationException {
-        for ( Iterator<Association> i = list.iterator(); i.hasNext();) {
-        	Association association = i.next();
-        	association.testValid(allowDuplicate); //throws if exception
-        }	
-    }    
+		for (Association association : list) {
+			association.testValid(allowDuplicate); //throws if exception
+		}
+    }
     
     public void replaceAll(Object object, boolean leftObject) {
         for ( Iterator<Association> i = list.iterator(); i.hasNext();) {

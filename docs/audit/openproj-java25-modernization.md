@@ -1978,3 +1978,12 @@ and all repository callers compiled. Full core and UI suites passed, as did
 application/exchange/reports compilation. The generic signature changes retain
 JVM erasure and do not change runtime behavior. Commit: recorded in this
 changeset.
+
+`AssociationList.testValid` now uses enhanced-for over its typed association list.
+`git blame` confirms the traversal is OpenProj-derived (`d2fa3c20a`), and its
+active caller is `AssociationList.setAssociations`. Encounter order, the
+`allowDuplicate` value, and propagation of the first `InvalidAssociationException`
+are unchanged. Added a regression that confirms ordered validation and that
+later entries are not visited after a failure. Focused `AssociationListFormatTest`
+and full `:microproject_core:test --console=plain` passed. Commit: recorded in
+this changeset.
