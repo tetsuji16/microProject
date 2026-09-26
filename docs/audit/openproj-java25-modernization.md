@@ -1997,3 +1997,11 @@ existing behavior of skipping a node and its descendants when the transformer
 returns null are unchanged. Added `NodeModelFactoryTest` for order and skipped
 transform results. Focused and full core tests passed. Commit: recorded in this
 changeset.
+
+`NodeModelFactory.createTaskModel` and `createResourceModel` now bind the
+`AssignmentNodeModel` pattern and invoke `addAssignments` without a follow-up
+cast. Both checks match OpenProj at `d2fa3c20a`; `Project.initializeOutlines`
+is the active caller for both paths. Assignment population and the returned
+model identity are unchanged. The existing `ProjectScheduleBehaviorTest` covers
+outline initialization; focused and full core tests passed. Commit: recorded in
+this changeset.

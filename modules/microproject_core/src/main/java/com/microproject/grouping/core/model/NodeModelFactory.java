@@ -112,17 +112,17 @@ public class NodeModelFactory {
     //for DocumentFrame and svg export
 	public static NodeModel createTaskModel(Project project) {
 		NodeModel taskModel = project.getTaskOutline();
-		if (taskModel instanceof AssignmentNodeModel)
-			((AssignmentNodeModel) taskModel).addAssignments();
+		if (taskModel instanceof AssignmentNodeModel assignmentModel)
+			assignmentModel.addAssignments();
 		return taskModel;
 	}
 
 	public static NodeModel createResourceModel(Project project) {
 		NodeModel resourceModel = project.getResourcePool().getResourceOutline();
-		if (resourceModel instanceof AssignmentNodeModel) {
+		if (resourceModel instanceof AssignmentNodeModel assignmentModel) {
 			//the bug is fixed elsewhere
 //			if (!resourceModel.hasChildren(null)) // if it is currently empty - fixes bug about adding a second assignment when the view is first shown
-				((AssignmentNodeModel) resourceModel).addAssignments();
+			assignmentModel.addAssignments();
 		}
 		return resourceModel;
 	}
