@@ -1865,3 +1865,10 @@ payloads before checking project/resource-pool identity. Event filtering and
 the conditional refresh are unchanged; `git blame` traces both branches to
 OpenProj. No dedicated headless test exists for this dialog callback, so the
 full UI suite is used. The user-visible dialog route and layout are unchanged.
+
+`AbstractDialog.containedInDialog` now binds the initial `Component` and
+ancestor `JDialog` values directly. Non-component input still returns null,
+and parent traversal still returns the nearest containing dialog. `git blame`
+traces both guards to OpenProj. One full UI test run had a failure in the
+unrelated `ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnchored`;
+the focused test and the next full `:microproject_ui:test` run passed.

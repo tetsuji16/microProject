@@ -362,12 +362,12 @@ public abstract class AbstractDialog extends FlatLafDialog {
 	}
 
 	public static JDialog containedInDialog(Object object) {
-		if (!(object instanceof Component))
+		if (!(object instanceof Component component))
 			return null;
-		Component c = (Component) object;
+		Component c = component;
 		while (c != null) {
-			if (c instanceof JDialog)
-				return (JDialog) c;
+			if (c instanceof JDialog dialog)
+				return dialog;
 			c = c.getParent();
 		}
 		return null;
