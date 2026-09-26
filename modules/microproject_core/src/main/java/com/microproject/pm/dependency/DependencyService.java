@@ -59,6 +59,12 @@ public class DependencyService {
 	}
 
 	public Dependency newDependency(HasDependencies predecessor, HasDependencies successor, int dependencyType, long lead, Object eventSource) throws InvalidAssociationException {
+		return newDependency(predecessor, successor, DependencyType.Kind.fromCode(dependencyType), lead, eventSource);
+	}
+
+	public Dependency newDependency(HasDependencies predecessor, HasDependencies successor,
+			DependencyType.Kind dependencyType, long lead, Object eventSource) throws InvalidAssociationException {
+		java.util.Objects.requireNonNull(dependencyType, "dependencyType");
 		if (predecessor == successor)
 			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToSelf"));
 		Task predecessorTask = (Task)predecessor;
@@ -82,12 +88,6 @@ public class DependencyService {
 		return dependency;
 	}
 
-	/** Type-safe entry point; the integer overload remains the persistence boundary. */
-	public Dependency newDependency(HasDependencies predecessor, HasDependencies successor,
-			DependencyType.Kind dependencyType, long lead, Object eventSource) throws InvalidAssociationException {
-		return newDependency(predecessor, successor,
-				java.util.Objects.requireNonNull(dependencyType, "dependencyType").code(), lead, eventSource);
-	}
 	//for deserialization
 	public void initDependency(Dependency dependency,HasDependencies predecessor, HasDependencies successor, Object eventSource) throws InvalidAssociationException {
 		dependency.setPredecessor(predecessor);
@@ -145,11 +145,11 @@ public class DependencyService {
 	}
 
 	public void fireTaskPredecessors(Collection list) {
-		Iterator i = list.iterator();
-		while (i.hasNext()) {
-			Iterator j =((Task)i.next()).getPredecessorList().iterator();
-			while (j.hasNext())
-				((Dependency)j.next()).fireCreateEvent(this);
+		for (Object taskValue : list) {
+			Task task = (Task) taskValue;
+			for (Object dependencyValue : task.getPredecessorList()) {
+				((Dependency) dependencyValue).fireCreateEvent(this);
+			}
 		}
 	}
 
@@ -170,6 +170,10 @@ public class DependencyService {
 
 	}
 	public void setFields(Dependency dependency, long lag, int type,Object eventSource) throws InvalidAssociationException{
+		setFields(dependency, lag, DependencyType.Kind.fromCode(type), eventSource);
+	}
+
+	public void setFields(Dependency dependency, long lag, DependencyType.Kind type,Object eventSource) throws InvalidAssociationException{
 
 //		if (eventSource != null)
 //			dependency.getDocument().getObjectEventManager().fireUpdateEvent(eventSource,dependency);
@@ -177,7 +181,7 @@ public class DependencyService {
 		int oldType=dependency.getDependencyType();
 		dependency.setLag(lag);
 		try {
-			dependency.setDependencyType(type);
+			dependency.setDependencyKind(type);
 		} catch (InvalidAssociationException e) {
 			dependency.setLag(oldLag);
 			dependency.setDependencyType(oldType);
@@ -231,7 +235,7 @@ public class DependencyService {
 					continue;
 				if (succ.getPredecessorList().findLeft(pred) != null) // if dependency already exists, skip it
 					continue;
-				Dependency test = Dependency.getInstance(pred,succ,DependencyType.FS,0); // make a new one
+				Dependency test = Dependency.getInstance(pred,succ,DependencyType.Kind.FS,0); // make a new one
 				test.testValid(false); // test for circularity, throws if bad
 				if (j == i+1) // only add sequential ones
 					newDependencies.add(test);
@@ -286,12 +290,13 @@ public class DependencyService {
 
 	/** Returns a stable snapshot of every dependency touching the supplied task. */
 	public java.util.List<Dependency> getIncidentDependencies(HasDependencies task) {
-		java.util.List<Dependency> incident = new java.util.ArrayList<Dependency>();
+		java.util.List<Dependency> incident = new java.util.ArrayList<Dependency>(
+				task == null ? 0 : task.getPredecessorList().size() + task.getSuccessorList().size());
 		if (task == null) return incident;
-		for (java.util.Iterator<?> it = task.getPredecessorList().iterator(); it.hasNext(); )
-			incident.add((Dependency) it.next());
-		for (java.util.Iterator<?> it = task.getSuccessorList().iterator(); it.hasNext(); )
-			incident.add((Dependency) it.next());
+		for (Object candidate : task.getPredecessorList())
+			incident.add((Dependency) candidate);
+		for (Object candidate : task.getSuccessorList())
+			incident.add((Dependency) candidate);
 		return incident;
 	}
 	public void removeAnyDependencies(HasDependencies first, HasDependencies second, Object eventSource) {
@@ -311,10 +316,8 @@ public class DependencyService {
 	}
 
 	public void remove(Collection dependencyList, Object eventSource) {
-		Dependency dependency;
-		Iterator i = dependencyList.iterator();
-		while (i.hasNext()) {
-			dependency = (Dependency)i.next();
+		for (Object item : dependencyList) {
+			Dependency dependency = (Dependency) item;
 			remove(dependency,eventSource,true);
 		}
 	}

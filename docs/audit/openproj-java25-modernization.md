@@ -181,6 +181,9 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | WBS child caches | `Task.getWbsChildrenNodes`, `setWbsChildrenNodes`, `getWbsChildrenTasks` | PR #619 typed the node cache as `Collection<Node>`, exposed returned implementations as `List<Object>` (matching `NodeList`), and removed a redundant cast; caller/test setup search found cached entries are node wrappers. These exact raw boundaries occur in the OpenProj-derived source ([source excerpt](https://www.javatips.net/api/ProjectLibre-master/openproj_core/src/com/projity/pm/task/Task.java#L2465-L2486)). |
 | Summary-task WBS traversals | `NormalTask.buildReverseQuery`, `updateEstimatedStatus`, `assignActualDatesFromChildren`, `getEarliestStop` | Typed child-node collections and replaced raw iterator/cast loops with enhanced-for and pattern matching, retaining traversal order and the existing NormalTask/Schedule filters. Each exact raw loop is present in the OpenProj baseline `d2fa3c20a`; `:microproject_core:test` passed. |
 | Assignment iteration | `NormalTask.isAssignedToMe`, interval `setWork`, `getMostLoadedAssignmentUnits`, `adjustRemainingDuration`, `adjustRemainingUnits`, `adjustRemainingWork`, `moveRemainingToDate`, `getEarliestStop` | Replaced raw `Iterator`/cast loops with enhanced-for traversal over the already typed `AssociationList` iterator, retaining assignment casts, traversal order, and the labor-only check. No scheduling rule or mutation semantics changed. Focused tests create an actual labor assignment and verify the most-loaded-units query, and verify a leaf task's earliest stop against its assignment. |
+| HasAssignments iteration | `HasAssignmentsImpl` constructor, `setScheduleForAssignments`, `buildReverseQuery`, `collectIntervals`, `calcDataBetween`, `extractOppositeList`, `hasLaborAssignment`, `invalidateAssignmentCalendars`, `hasActiveAssignment`, `getEarliestAssignmentStart`, shared `findAssignment` scan, and `copyAssignments` | Confirmed the legacy iterator/cast loops in the source-backed methods against `d2fa3c20a:openproj_core/src/com/projity/pm/assignment/HasAssignmentsImpl.java`. Read-only traversals use enhanced-for while preserving cast behavior, encounter order, early returns, mutation/invalidation order, and `Long.MAX_VALUE` for the empty earliest-start query. `updateAssignment` retains `ListIterator` because it replaces an element via `set`. `extractOppositeList` retains the current fork's `Assignment` filter. The resource/task lookup variants share one `AssignmentMatcher` scan. `HasAssignmentsImplTest` and the full `:microproject_core:test` suite passed. |
+| Time-distributed value aggregation | `TimeDistributedDataConsolidator` | All aggregation loops correspond to OpenProj source `d2fa3c20a:openproj_core/src/com/projity/pm/assignment/TimeDistributedDataConsolidator.java`. Replaced explicit typed iterators with enhanced-for while preserving each metric call, accumulation order, labor-only filtering, and existing numeric behavior. `TimeDistributedDataConsolidatorTest` covers sum, empty input, and labor filtering; focused and full core tests passed. |
+| Assignment removal batches | `AssignmentService.remove(Collection, Collection)` and `remove(Collection, Object, boolean)` | The source hunks match `d2fa3c20a:openproj_core/src/com/projity/pm/assignment/AssignmentService.java`. Enhanced-for retains the raw collection boundary, order, and snapshot/removal behavior. `NormalTask.cleanUp` first copies snapshot assignments into a detached `LinkedList` before batch removal. `AssignmentServiceTest` verifies both that snapshot copies preserve source contents/order and that a detached batch is fully removed from task/resource links. Focused and full core tests passed. |
 | Assignment progress propagation | `NormalTask.updateAssignmentPercentComplete` | Replaced the raw iterator and per-element cast-after-next with enhanced-for traversal over the existing typed association iterator. The existing progress synchronization test exercises the task-to-assignment update and remains green. |
 | Assignment resume access | `NormalTask.getResume`, `setResume` | Replaced paired raw iterator loops with enhanced-for traversal over the typed association iterator. A focused setter/query test verifies task resume aggregation agrees with its assignment. |
 | Interval-value table traversal | `ValueObjectForIntervalTable` | Typed the internal `ArrayList<ValueObjectForInterval>` and its list view, replaced raw iterator/casts with enhanced-for and typed indexed access, and modernized clone ownership traversal. Kept raw `getValueObjects`/serialization constructor descriptors and serialized ArrayList contents as compatibility adapters. Added bounds/clone-rebinding regression coverage; core tests, application/exchange/UI/reports compilation, and `PodRoundTripTest` (including the resource-calendar round-trip) passed. The transformed traversal and clone hunks correspond to baseline `d2fa3c20a`; unrelated post-fork `findActive` code is not claimed as OpenProj work. |
@@ -276,6 +279,10 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Form configuration collections | `FormFormat.boxes`, `layouts` | Confirmed normalized OpenProj provenance, the Apache Digester `addBox`/`addLayout` rules, and the active UI `FormComponent` consumer. Replaced raw collections and casts with `List<FormBox>`/`List<FormBoxLayout>` while preserving `List` erasure and XML element names. A Digester regression verifies order, default zoom selection, and typed UI configuration access. |
 | Association container boundary | `AssociationFormat.getContainer` | Confirmed normalized OpenProj provenance and both active overrides (`Collection<Task>` and `Collection<Resource>`); narrowed the abstract return to `Collection<?>`, removing a raw parent contract without changing its erased `Collection` descriptor or either subclass's behavior. Existing association-format tests and the full core suite cover the formatter boundary. |
 | Shared object-reference collection contract | `ObjectRef.getCollection`, `Field` collection consumers | Confirmed normalized OpenProj provenance and the active implementations in UI `FieldComponentMap` and reports `DataSource`; typed the interface return as `Collection<?>`, the reports override, and `Field` iterators without changing erasure or heterogeneous item semantics. |
+| Snapshot undo collection boundaries | `Project.saveCurrentToSnapshot`, `restoreSnapshot`, `clearSnapshot`, `collectSnapshotDetails`, `getSnapshotIterator`, `SaveSnapshotEdit` | Confirmed these raw traversal/helper hunks against `d2fa3c20a:openproj_core/src/com/projity/pm/task/Project.java`. Typed public generic parameters as `List<?>`/`Collection<?>` (retaining erased descriptors), plus private iterators and the snapshot-detail collection. Kept cast points, task/detail pairing, encounter order, and empty/null behavior. Repository-wide caller search found only core undo and UI document-frame routes; all accept the wildcard contract. Existing `ProjectScheduleBehaviorTest` covers selected-task restoration plus clear/undo/redo snapshot state; focused and full core suites passed. |
+| Project collection API boundaries | `Project.findTaskById`, `dump`, `applyTimesheet`, `UpdatesFromTimesheet` implementations | Matched the public raw collection methods to the OpenProj baseline. Narrowed their Java source contracts to `Collection<?>` without changing method erasures or consumer casts. The timesheet operation shares one wildcard contract across `UpdatesFromTimesheet`, `Project`, `NormalTask`, `Assignment`, `TimesheetAssignment`, `EnterpriseResource`, and `ResourceImpl`; all route their fields to wildcard-aware `TimesheetHelper` or `Field.copyData`. Caller search found task-ID lookup in core collaboration/tests and timesheet application in core/UI. `ProjectScheduleBehaviorTest` retains lookup coverage; full core tests and UI compilation passed. |
+| Workspace field aliases | `Project.Workspace.fieldAliasMap` | The saved `HashMap` is produced by `FieldDictionary.getAliasMap()` and consumed by `setAliasMap()`, both of which define `HashMap<String,String>`. Added matching generic arguments and diamond inference. Serialized field type remains `HashMap`; key/value representation is unchanged. Core and downstream UI compilation passed. |
+| Referring subproject collection contract | `SubprojectHandler`, `Project` facade, `DefaultSubprojectHandler` | Typed the shared getter as `Collection<Object>` and setter input as `Collection<?>`, preserving the intentionally heterogeneous backing list: task-date queries and Serializer still ignore non-Task values, while insertion retains existing duplicate checks and mutation behavior. Collection erasures are unchanged (`javap -s`). Added regression coverage for preserving a non-Task entry and retaining the zero dependency-date result. Full `:microproject_core:test` and `:microproject_exchange:test` passed, including POD round trips. |
 
 ## Correctness defects found during the audit
 
@@ -516,6 +523,16 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
 - Audit remaining eligible Java in exchange, UI, reports, and other core
   responsibilities; do not add GUI tests unless a physical GUI contract or
   visual surface is changed.
+- Exchange traversal follow-up: the remaining active explicit iterators in
+  `Serializer.saveTasks` remove unchanged `TaskData` entries while iterating;
+  distribution serialization removes unchanged `DistributionData`; and
+  assignment deserialization removes malformed entries from its working list.
+  These require `Iterator.remove()` to preserve the in-place filtering contract.
+  `MSPDISerializer` walks `project.getTaskOutline().iterator(exportRoot)`, a
+  hierarchy iterator with a caller-selected root and no `Iterable` traversal
+  contract. Keep these iterators; do not convert them to enhanced-for. DOM
+  `NodeList` loops in `MpoFileImporter` are indexed API traversals, not Java
+  collection iterators.
 - Record cleanup/deletion candidates only after checking reflection, resource
   configuration, serialization, ServiceLoader, action IDs, and format readers.
 - Update this inventory and issue #595 after each meaningful audited batch; do
@@ -1199,3 +1216,76 @@ Follow-up #704 starts from the latest integrated `origin/master` after #703
 preserving the raw public Collection signatures and the copy-before-remove
 semantics used by `Task.cleanUp`. Existing `TaskCleanupTest` and
 `DependencyServiceTest`, application compilation, and diff check passed.
+
+Worktree follow-up after #704 modernizes the OpenProj-origin
+`DependencyService.remove(Collection, Object)` traversal to enhanced-for,
+preserving the raw collection API, encounter order, and per-entry dependency
+cast. The loop matches `d2fa3c20a:openproj_core/src/com/projity/pm/dependency/DependencyService.java`.
+Added a focused regression that removes two incident links from an input
+snapshot; `DependencyServiceTest` and full `:microproject_core:test` passed.
+
+Additional worktree follow-up modernizes OpenProj-origin traversals in
+`Serializer.saveTasks` from `origin/master`'s equivalent method: task outline,
+predecessor-link, and successor-link traversals now use enhanced-for over the
+already materialized task list and typed `AssociationList`. The subsequent
+distribution cleanup traversal over `distMap.values()` also uses enhanced-for;
+the iterator that removes unchanged values from `dist` remains because it uses
+`Iterator.remove()`. Encounter order, project/external filters, dirty-link
+handling, predecessor accumulation, distribution statuses, and external-link
+serialization are preserved. The source paths were compared with
+`d2fa3c20a:openproj_exchange/src/com/projity/server/data/Serializer.java`.
+Full `:microproject_exchange:test` passed, including native POD and exchange
+round-trip coverage. In the resource/task deserialization path, the second
+assignment loop also now uses enhanced-for; the preceding filter loop retains
+its iterator because it removes entries. This loop matches the same OpenProj
+baseline, and the full exchange suite passed after the change.
+
+Core follow-up modernizes the OpenProj-origin `Project` baseline and task
+aggregation scans over the existing `LinkedList<Task>` to enhanced-for. The
+baseline paths retain the `NormalTask` cast; aggregation paths retain the
+zero handling, extrema, short-circuiting, and duration accumulation behavior.
+The exact methods were checked against
+`d2fa3c20a:openproj_core/src/com/projity/pm/task/Project.java`.
+`ProjectScheduleBehaviorTest`, `NormalTaskPercentCompleteTest`, and the full
+`:microproject_core:test` suite passed.
+
+Further Project follow-up converts the read-only `dump(Collection, String)` and
+`updateDistributionMap()` traversals to enhanced-for while keeping the raw
+collection boundary, cast points, encounter order, recursive output, and
+project-ID filter unchanged. Both methods match the OpenProj baseline
+`d2fa3c20a:openproj_core/src/com/projity/pm/task/Project.java`.
+The full `:microproject_core:test` suite passed.
+
+Resource follow-up modernizes the source-backed resource name/ID lookup scans in
+`ResourcePool` and the baseline-visibility scan in `EnterpriseResource` to
+enhanced-for. `ResourceImpl` assignment predicates also use enhanced-for over
+the existing raw `AssociationList`, retaining assignment casts and short-circuit
+behavior. `ResourcePoolIdentityTest` covers first-match and missing-value
+lookups; focused and full `:microproject_core:test` runs passed.
+
+`SharedResourcePoolService.rewireAssignments` now uses enhanced-for over the
+same detached `ArrayList` snapshot while it removes and reconnects each live
+assignment. This preserves the protection against mutating the source
+association list during traversal and its encounter order. The focused
+`SharedResourcePoolServiceTest` and full `:microproject_core:test` suite passed.
+
+Dependency snapshot collection in `DependencyService.getIncidentDependencies`
+and project baseline visibility traversal now use enhanced-for over their
+existing collections. The snapshot still lists predecessor links before
+successor links, including existing duplicate semantics; visibility retains
+the `foundChild` rule and early return. `DependencyServiceTest`,
+`ProjectScheduleBehaviorTest`, and the full `:microproject_core:test` suite
+passed.
+
+`Project` now traverses the repaired-task list with enhanced-for, preserving
+the `NormalTask` cast, encounter order, dirty-state update, and the subsequent
+list reset. This loop matches `d2fa3c20a:openproj_core/src/com/projity/pm/task/Project.java`.
+The full `:microproject_core:test` suite passed.
+
+`DependencyService.fireTaskPredecessors` now traverses the input task collection
+and each predecessor association list with enhanced-for, retaining the existing
+casts and task/link encounter order. The method matches the OpenProj baseline
+`d2fa3c20a:openproj_core/src/com/projity/pm/dependency/DependencyService.java`.
+`DependencyServiceTest.fireTaskPredecessorsPreservesTaskAndLinkEncounterOrder`
+and the focused `:microproject_core:test --tests
+"com.microproject.pm.dependency.DependencyServiceTest"` passed.

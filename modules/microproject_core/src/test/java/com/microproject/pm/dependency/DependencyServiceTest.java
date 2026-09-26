@@ -32,7 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -70,6 +72,20 @@ class DependencyServiceTest {
 	@Test
 	void unknownDependencyTypeFailsExplicitlyWhenFormatted() {
 		assertThrows(IllegalArgumentException.class, () -> DependencyType.toLongString(99));
+	}
+
+	@Test
+	void unknownIntegerDependencyTypeIsRejectedBeforeCreatingALink() {
+		Project project = createProject("unknown-dependency-kind");
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+
+		assertThrows(IllegalArgumentException.class,
+				() -> DependencyService.getInstance().newDependency(predecessor, successor, 99, 0L, this));
+		assertEquals(0, predecessor.getSuccessorList().size());
+		assertEquals(0, successor.getPredecessorList().size());
 	}
 
 	@Test
@@ -122,6 +138,51 @@ class DependencyServiceTest {
 			assertSame(successor, dependency.getSuccessor());
 			DependencyService.getInstance().remove(dependency, this, false);
 		}
+	}
+
+	@Test
+	void collectionRemovalUnlinksEveryDependencyInSnapshot() throws InvalidAssociationException {
+		Project project = createProject("remove-dependency-collection");
+		NormalTask first = new NormalTask(project);
+		NormalTask second = new NormalTask(project);
+		NormalTask third = new NormalTask(project);
+		project.connectTask(first);
+		project.connectTask(second);
+		project.connectTask(third);
+		Dependency firstLink = DependencyService.getInstance().newDependency(first, second, DependencyType.FS, 0L, this);
+		Dependency secondLink = DependencyService.getInstance().newDependency(second, third, DependencyType.SS, 0L, this);
+
+		DependencyService.getInstance().remove(Arrays.asList(firstLink, secondLink), this);
+
+		assertTrue(first.getSuccessorList().isEmpty());
+		assertTrue(second.getPredecessorList().isEmpty());
+		assertTrue(second.getSuccessorList().isEmpty());
+		assertTrue(third.getPredecessorList().isEmpty());
+	}
+
+	@Test
+	void fireTaskPredecessorsPreservesTaskAndLinkEncounterOrder() throws InvalidAssociationException {
+		Project project = createProject("fire-task-predecessors-order");
+		NormalTask firstPredecessor = new NormalTask(project);
+		NormalTask secondPredecessor = new NormalTask(project);
+		NormalTask firstSuccessor = new NormalTask(project);
+		NormalTask secondSuccessor = new NormalTask(project);
+		project.connectTask(firstPredecessor);
+		project.connectTask(secondPredecessor);
+		project.connectTask(firstSuccessor);
+		project.connectTask(secondSuccessor);
+		Dependency firstLink = DependencyService.getInstance().newDependency(
+			firstPredecessor, firstSuccessor, DependencyType.FS, 0L, this);
+		Dependency secondLink = DependencyService.getInstance().newDependency(
+			secondPredecessor, firstSuccessor, DependencyType.SS, 0L, this);
+		Dependency thirdLink = DependencyService.getInstance().newDependency(
+			firstSuccessor, secondSuccessor, DependencyType.FF, 0L, this);
+		List<Object> created = new ArrayList<>();
+		project.addObjectListener(event -> created.add(event.getObject()));
+
+		DependencyService.getInstance().fireTaskPredecessors(Arrays.asList(firstSuccessor, secondSuccessor));
+
+		assertEquals(Arrays.asList(firstLink, secondLink, thirdLink), created);
 	}
 
 	@Test
