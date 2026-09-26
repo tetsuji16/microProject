@@ -84,17 +84,15 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 		TimeIteratorGenerator generator;
 		Iterator<?> i = taskIterator;
 		Object current;
-		Assignment assignment;	
 		boolean hasValues = false;
 		while (i.hasNext()) { //loop thru tasks
 			current = i.next();
-			if (current instanceof HasAssignments) {
-				Iterator<Association> a = ((HasAssignments) current).getAssignments().iterator();
+			if (current instanceof HasAssignments hasAssignments) {
+				Iterator<Association> a = hasAssignments.getAssignments().iterator();
 				while (a.hasNext()) { // loop through assignments,
 					Association association = a.next();
-					if (!(association instanceof Assignment))
+					if (!(association instanceof Assignment assignment))
 						continue;
-					assignment = (Assignment) association;
 					if (histogram) {
 						timeIterator = coord.getProjectTimeIterator();
 						generator = histogram ? TimeIteratorGenerator.getInstance(timeIterator) : null;
@@ -149,10 +147,10 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 				//return calculatedValues; 
 			for (Object obj : otherProjectItems) {
 				ResourceImpl resource;
-				if (obj instanceof Assignment)
-					resource=(ResourceImpl)((Assignment)obj).getResource();
-				else if (obj instanceof ResourceImpl)
-					resource=(ResourceImpl)obj;
+				if (obj instanceof Assignment assignment)
+					resource=(ResourceImpl)assignment.getResource();
+				else if (obj instanceof ResourceImpl resourceImpl)
+					resource=resourceImpl;
 				else
 					continue;
 				GroupedCalculatedValues global=resource.getGlobalResource().getGlobalWorkVector();

@@ -1885,3 +1885,11 @@ transformer. The two dialog actions, visibility change, and assignment-entry
 construction remain unchanged; `git blame` traces these hunks to OpenProj.
 The full UI suite verifies the module; no command route or visible layout was
 changed by this source-only modernization.
+
+`ChartModel.computeTrace` now binds `HasAssignments` and `Assignment` values;
+`computeOtherProjects` binds its assignment/resource inputs. The historical
+`ResourceImpl` cast on `Assignment.getResource()` remains because that method
+returns the `Resource` interface and the chart path requires the concrete
+global-resource calculation API. `git blame` traces the changed guards to
+OpenProj. The full UI suite verifies the chart module; aggregation formulas
+and filtering remain unchanged.
