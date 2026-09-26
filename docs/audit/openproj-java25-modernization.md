@@ -1304,3 +1304,11 @@ used by every caller. Field order and generated Jasper field names are covered
 by `ReportAdapterTest.designFieldTraversalPreservesConfiguredFieldOrder`; the
 full `:microproject_reports:test` suite passed. All converted loops match the
 OpenProj source at `d2fa3c20a:openproj_reports/src/com/projity/reports/adapter/ReportAdapter.java`.
+
+`MenuManager` action-state propagation now traverses registered toolbar buttons
+with enhanced-for in the enabled, visible, selected, and tooltip paths. Existing
+`AbstractButton`/`JCommandToggleButton` handling and menu-item updates are
+unchanged. The methods match the OpenProj baseline
+`d2fa3c20a:openproj_ui/src/com/projity/menu/MenuManager.java`; the focused
+`:microproject_ui:test --tests
+"com.microproject.menu.RibbonAndToolbarButtonTest"` passed.

@@ -26,7 +26,6 @@ package com.microproject.menu;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Locale;
 import java.util.MissingResourceException;
@@ -213,9 +212,7 @@ public class MenuManager {
 			action.setEnabled(enable);
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
-			Iterator<?> i = buttons.iterator();
-			while (i.hasNext()) {
-				Object button = i.next();
+			for (Object button : buttons) {
 				if (button instanceof AbstractButton)
 					((AbstractButton)button).setEnabled(enable);
 			}
@@ -227,9 +224,7 @@ public class MenuManager {
 	public void setActionVisible(String id, boolean enable) {
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
-			Iterator<?> i = buttons.iterator();
-			while (i.hasNext()) {
-				Object button = i.next();
+			for (Object button : buttons) {
 				if (button instanceof AbstractButton)
 					((AbstractButton)button).setVisible(enable);
 			}
@@ -244,9 +239,7 @@ public class MenuManager {
 			action.putValue(Action.SELECTED_KEY, enable);
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
-			Iterator<?> i = buttons.iterator();
-			while (i.hasNext()) {
-				Object button = i.next();
+			for (Object button : buttons) {
 				if (button instanceof AbstractButton) {
 					((AbstractButton)button).setSelected(enable);
 					if (button instanceof JToggleButton) {
@@ -268,9 +261,7 @@ public class MenuManager {
 	public void setText(String id, String text) {
 		Collection<?> buttons = getToolButtonsFromId(id);
 		if (buttons != null) {
-			Iterator<?> i = buttons.iterator();
-			while (i.hasNext()) {
-				Object button = i.next();
+			for (Object button : buttons) {
 				if (button instanceof AbstractButton)
 					((AbstractButton)button).setToolTipText(text);
 			}
