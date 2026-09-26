@@ -230,12 +230,12 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 			newOne.dayExceptions.add(dayException.clone());
 		newOne.workWeekPeriods = null;
 		if (workWeekPeriods != null) {
-			newOne.workWeekPeriods = new ArrayList<>();
+			newOne.workWeekPeriods = new ArrayList<>(workWeekPeriods.size());
 			for (WorkWeekPeriod period : workWeekPeriods) newOne.workWeekPeriods.add(period.clone());
 		}
 		newOne.recurringExceptions = null;
 		if (recurringExceptions != null) {
-			newOne.recurringExceptions = new ArrayList<>();
+			newOne.recurringExceptions = new ArrayList<>(recurringExceptions.size());
 			for (RecurringCalendarException exception : recurringExceptions)
 				newOne.recurringExceptions.add(exception.clone());
 		}
