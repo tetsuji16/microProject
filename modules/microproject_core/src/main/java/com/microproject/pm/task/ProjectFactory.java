@@ -220,11 +220,11 @@ public class ProjectFactory {
 //		return null;
 //	}
 
-	protected Set loadingProjects=new HashSet();
-	protected Set closingProjects=new HashSet();
+	protected Set<Long> loadingProjects = new HashSet<>();
+	protected Set<Long> closingProjects = new HashSet<>();
 	private final Map<Long, List<Runnable>> projectClosedCallbacks = new HashMap<>();
-	public synchronized Set getOpenOrLoadingProjects(){
-		final Set projectIds=new HashSet();
+	public synchronized Set<Long> getOpenOrLoadingProjects(){
+		Set<Long> projectIds = new HashSet<>();
 		ProjectFactory.getInstance().getPortfolio().forProjects(project ->
 				projectIds.add(Long.valueOf(project.getUniqueId())));
     	projectIds.addAll(loadingProjects);
@@ -237,7 +237,7 @@ public class ProjectFactory {
 	public synchronized void removeLoadingProject(long id){
 		loadingProjects.remove(Long.valueOf(id));
 	}
-	public synchronized void addClosingProjects(Collection ids){
+	public synchronized void addClosingProjects(Collection<Long> ids){
 		closingProjects.addAll(ids);
 	}
 	private synchronized boolean beginClosingProjects(Collection<Long> ids) {

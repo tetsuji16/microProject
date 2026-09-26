@@ -120,6 +120,22 @@ class ProjectFactoryClosingTest {
 	}
 
 	@Test
+	void openOrLoadingProjectIdsExcludeProjectsBeingClosed() {
+		ProjectFactory factory = ProjectFactory.createInstance();
+		factory.addLoadingProject(6262L);
+		assertTrue(factory.getOpenOrLoadingProjects().contains(6262L));
+
+		factory.addClosingProject(6262L);
+		Set<Long> openOrLoading = factory.getOpenOrLoadingProjects();
+		assertFalse(openOrLoading.contains(6262L));
+
+		factory.completeProjectClosing(6262L);
+		assertTrue(factory.getOpenOrLoadingProjects().contains(6262L));
+		factory.removeLoadingProject(6262L);
+		assertFalse(factory.getOpenOrLoadingProjects().contains(6262L));
+	}
+
+	@Test
 	void closeCallbackRunsImmediatelyWhenNoCloseIsPending() {
 		ProjectFactory factory = ProjectFactory.createInstance();
 		List<String> events = new ArrayList<>();
