@@ -52,6 +52,17 @@ class ModernRibbonPanelDisplayModeTest {
 
 			ribbon.setRibbonDisplayMode(RibbonDisplayMode.AUTO_HIDE);
 			assertFalse(ribbon.isVisible(), "auto-hide must remove the ribbon surface");
+			ribbon.toggleRibbonCollapseMode();
+			assertEquals(RibbonDisplayMode.ALWAYS_SHOW, ribbon.getRibbonDisplayMode(),
+				"Ctrl+F1 from auto-hide must restore the full ribbon");
+			ribbon.toggleRibbonCollapseMode();
+			assertEquals(RibbonDisplayMode.TABS_ONLY, ribbon.getRibbonDisplayMode(),
+				"Ctrl+F1 from full mode must collapse command bands");
+			ribbon.toggleRibbonCollapseMode();
+			assertEquals(RibbonDisplayMode.ALWAYS_SHOW, ribbon.getRibbonDisplayMode(),
+				"Ctrl+F1 from tabs-only mode must restore command bands");
+
+			ribbon.setRibbonDisplayMode(RibbonDisplayMode.AUTO_HIDE);
 			ribbon.revealAutoHiddenRibbon();
 			assertTrue(ribbon.isVisible());
 			assertTrue(ribbon.isCommandSurfaceVisible(), "Alt-style reveal must restore command bands");

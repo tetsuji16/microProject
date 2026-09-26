@@ -85,9 +85,10 @@ public abstract class AbstractDialog extends FlatLafDialog {
 	protected Frame owner;
     private int dialogResult = JOptionPane.CANCEL_OPTION;
 
-    protected JComponent contentPanel = null;
+	protected JComponent contentPanel = null;
     protected ButtonPanel buttonPanel = null;
     private String helpAddress = null;
+	private boolean packedOnce;
 
 	public AbstractDialog() {
 		super();
@@ -96,7 +97,6 @@ public abstract class AbstractDialog extends FlatLafDialog {
 	public AbstractDialog(Frame owner/*, MainFrame main*/, String title, boolean modal) {
 		super(owner, title, modal);
 		createRootPane();
-		setLocationRelativeTo(null);
 		this.owner = owner;
 		FlatUiSupport.styleDialogRoot(getRootPane());
 	}
@@ -218,9 +218,16 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		
 	}
     public void pack() {
-       	initComponents();
-        super.pack();
-        lockMinimumSizeToCurrentPack();
+		initComponents();
+		super.pack();
+        if (!packedOnce) {
+			// Center only after the preferred dimensions are known. Centering the
+			// zero-sized window in the constructor leaves its top-left at the
+			// monitor center and pushes the packed dialog below the usable screen.
+			setLocationRelativeTo(owner);
+			packedOnce = true;
+		}
+		lockMinimumSizeToCurrentPack();
     }
 
     protected void lockMinimumSizeToCurrentPack() {

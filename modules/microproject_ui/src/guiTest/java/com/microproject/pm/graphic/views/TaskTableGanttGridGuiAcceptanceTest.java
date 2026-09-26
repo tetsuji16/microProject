@@ -988,12 +988,19 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"task table and Gantt must be visible before date input");
 		Point viewportBefore = pane.getViewport().getViewPosition();
 		long originalStart = task.getStart();
-		editCellPhysically(robot, fixture.sheet, node.getRow(), startColumn, "2026/9/25");
+		Calendar expectedStart = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+		expectedStart.setTimeInMillis(originalStart);
+		expectedStart.add(Calendar.DAY_OF_MONTH, 3);
+		String inputDate = String.format(java.util.Locale.ROOT, "%d/%d/%d",
+			expectedStart.get(Calendar.YEAR), expectedStart.get(Calendar.MONTH) + 1,
+			expectedStart.get(Calendar.DAY_OF_MONTH));
+		editCellPhysically(robot, fixture.sheet, node.getRow(), startColumn, inputDate);
 		Calendar committed = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
 		committed.setTimeInMillis(task.getStart());
-		assertEquals(2026, committed.get(Calendar.YEAR), "date input must commit the year");
-		assertEquals(Calendar.SEPTEMBER, committed.get(Calendar.MONTH), "date input must commit the month");
-		assertEquals(25, committed.get(Calendar.DAY_OF_MONTH), "date input must commit the day");
+		assertEquals(expectedStart.get(Calendar.YEAR), committed.get(Calendar.YEAR), "date input must commit the year");
+		assertEquals(expectedStart.get(Calendar.MONTH), committed.get(Calendar.MONTH), "date input must commit the month");
+		assertEquals(expectedStart.get(Calendar.DAY_OF_MONTH), committed.get(Calendar.DAY_OF_MONTH),
+			"date input must commit the day");
 		assertTrue(task.getStart() != originalStart, "a valid date input must change the task start");
 		Point viewportAfter = pane.getViewport().getViewPosition();
 		assertEquals(viewportBefore, viewportAfter,

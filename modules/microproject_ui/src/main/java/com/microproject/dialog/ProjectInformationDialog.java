@@ -95,8 +95,8 @@ public class ProjectInformationDialog extends InformationDialog {
 	private JComponent createGeneralPanel(){
 		FieldComponentMap map = createMap();
 		FormLayout layout = new FormLayout(
-		        "max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,max(90dlu;pref),60dlu", // extra padding on right is for estimated field //$NON-NLS-1$
-				"p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p, 6dlu, fill:50dlu:grow"); //$NON-NLS-1$
+			"max(50dlu;pref), 3dlu, 90dlu, 10dlu, p, 3dlu,max(90dlu;pref),60dlu", // extra padding on right is for estimated field //$NON-NLS-1$
+			FlatUiSupport.preferredFormRows(13) + ",fill:50dlu:grow"); //$NON-NLS-1$
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();

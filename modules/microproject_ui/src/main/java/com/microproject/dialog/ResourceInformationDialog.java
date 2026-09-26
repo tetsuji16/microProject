@@ -115,7 +115,7 @@ public class ResourceInformationDialog extends InformationDialog {
 
 		FormLayout layout = new FormLayout(
         "p, 3dlu, 160dlu, 3dlu, p, 3dlu, p:grow", //$NON-NLS-1$
-		  "p,p,p,p,p,p,p,p,p,p,p"); //$NON-NLS-1$
+		  FlatUiSupport.preferredFormRows(5)); //$NON-NLS-1$
 	
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();

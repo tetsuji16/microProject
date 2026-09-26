@@ -51,7 +51,7 @@ import com.microproject.workspace.WorkspaceSetting;
  * path that makes Ctrl+X/C/V/Delete/Link/Unlink/Indent/Outdent/Information etc. work
  * from the keyboard.
  *
- * <p>The wiring is exercised through {@code GraphicManager.applyDocumentShortcuts},
+ * <p>The wiring is exercised through {@code GraphicManager.applyMicrosoftShortcuts},
  * which writes to an arbitrary InputMap/ActionMap (no window required). This test
  * drives that seam directly so it runs headless.
  */
@@ -132,7 +132,7 @@ class MicrosoftShortcutsRootPaneTest {
 	void microsoftShortcutsResolveOnRootPane() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ShortcutHarness harness = new ShortcutHarness();
-			harness.manager.applyDocumentShortcuts(
+			harness.manager.applyMicrosoftShortcuts(
 					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 					harness.panel.getActionMap());
 
@@ -163,6 +163,9 @@ class MicrosoftShortcutsRootPaneTest {
 					"Ctrl+Shift+F5 must scroll to the selected task");
 			assertEquals(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION,
 				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)), "F1 must open help");
+			assertEquals("ToggleRibbonDisplayMode",
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, InputEvent.CTRL_DOWN_MASK)),
+				"Ctrl+F1 must toggle ribbon commands through the document root pane");
 			assertEquals(MenuActionConstants.ACTION_CLEAR_FILTER,
 				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0)),
 				"F3 must show all tasks in the active view, not open Find");
@@ -266,7 +269,7 @@ class MicrosoftShortcutsRootPaneTest {
 	void editShortcutsReuseTheMenuActions() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ShortcutHarness harness = new ShortcutHarness();
-			harness.manager.applyDocumentShortcuts(
+			harness.manager.applyMicrosoftShortcuts(
 					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 					harness.panel.getActionMap());
 
@@ -300,7 +303,7 @@ class MicrosoftShortcutsRootPaneTest {
 	void expandAndCollapseShortcutVariantsShareOneCommandAction() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ShortcutHarness harness = new ShortcutHarness();
-			harness.manager.applyDocumentShortcuts(
+			harness.manager.applyMicrosoftShortcuts(
 				harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 				harness.panel.getActionMap());
 
@@ -341,7 +344,7 @@ class MicrosoftShortcutsRootPaneTest {
 	void microsoftShortcutKeyPressInvokesRoutedAction() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ShortcutHarness harness = new ShortcutHarness();
-			harness.manager.applyDocumentShortcuts(
+			harness.manager.applyMicrosoftShortcuts(
 					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 					harness.panel.getActionMap());
 
@@ -387,7 +390,7 @@ class MicrosoftShortcutsRootPaneTest {
 	void aShortcutKeyPressInvokesItsActionOnlyOnce() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			ShortcutHarness harness = new ShortcutHarness();
-			harness.manager.applyDocumentShortcuts(
+			harness.manager.applyMicrosoftShortcuts(
 				harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 				harness.panel.getActionMap());
 			int[] invocationCount = {0};

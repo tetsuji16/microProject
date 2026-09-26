@@ -108,6 +108,7 @@ import javax.swing.undo.CannotUndoException;
 
 import com.microproject.menu.resource.MissingListenerException;
 import com.microproject.ui.shell.ProjectLibreShell;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
@@ -4691,7 +4692,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 
 		RootPaneContainer shortcutRoot = (RootPaneContainer)container;
-		applyDocumentShortcuts(
+		applyMicrosoftShortcuts(
 			shortcutRoot.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
 			shortcutRoot.getRootPane().getActionMap());
     }
@@ -4705,7 +4706,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
      */
 	private static final String DELETE_ROW_ACTION = "DeleteRow";
 
-    void applyDocumentShortcuts(InputMap inputMap, ActionMap actionMap) {
+	void applyMicrosoftShortcuts(InputMap inputMap, ActionMap actionMap) {
 		Action expandAction = new ExpandAction();
 		Action collapseAction = new CollapseAction();
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_G, ACTION_GOTO, 0, null);
@@ -4777,6 +4778,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), ACTION_GOTO, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK), ACTION_FIND, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), ACTION_PROJECTLIBRE_DOCUMENTATION, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, InputEvent.CTRL_DOWN_MASK),
+			"ToggleRibbonDisplayMode", new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(ActionEvent event) {
+					if (!(container instanceof MainRibbonFrame mainFrame) || mainFrame.getRibbonPanel() == null) return;
+					Object controller = mainFrame.getRibbonPanel()
+						.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+					if (controller instanceof ModernRibbonPanel ribbon) ribbon.toggleRibbonCollapseMode();
+				}
+			});
 		// Microsoft Project uses F3 to clear the active view's filter and show all
 		// rows. Find is Ctrl+F (and Shift+F5).
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_CLEAR_FILTER, null);
