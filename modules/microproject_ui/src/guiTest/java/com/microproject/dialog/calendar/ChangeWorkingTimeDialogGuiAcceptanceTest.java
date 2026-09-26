@@ -27,6 +27,7 @@ import java.lang.reflect.Field;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
+import java.util.Locale;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
@@ -67,9 +68,12 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	private JFrame frame;
 	private ChangeWorkingTimeDialogBox dialog;
 	private NewBaseCalendarDialog newBaseDialog;
+	private Locale originalFormatLocale;
 
 	@AfterEach
 	void closeWindows() throws Exception {
+		if (originalFormatLocale != null)
+			Locale.setDefault(Locale.Category.FORMAT, originalFormatLocale);
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window window : Window.getWindows())
 				if (window instanceof ChangeWorkingTimeDialogBox || window instanceof NewBaseCalendarDialog) window.dispose();
@@ -105,6 +109,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	@Test
 	void robotOpensWorkingTimeDialogAndCancelsWithoutCommit() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("en-US-u-ca-islamic-umalqura"));
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-working-time", undo);
 		Project project = Project.createProject(pool, undo);
@@ -127,6 +133,9 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		long displayedMonth = dialog.sdCalendar.getFirstDisplayedDate();
+		assertTrue(dialog.sdCalendar.getCalendarMonthTitle(displayedMonth, "Gregorian").contains("("),
+			"the working-time calendar should display the selected alternative calendar month");
 		assertSingleReadableCalendarMonth();
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Change Working Time dialog (#590 body image 1)");
 		assertVisibleComponentsFit(dialog, "Change Working Time Calendar tab");

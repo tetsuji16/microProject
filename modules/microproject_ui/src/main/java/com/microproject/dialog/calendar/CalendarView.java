@@ -26,8 +26,13 @@ package com.microproject.dialog.calendar;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Locale;
 
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -37,6 +42,7 @@ import javax.swing.UIManager;
 import com.microproject.contrib.calendar.ContribIntervals;
 import com.microproject.contrib.calendar.JXXMonthView;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.AlternativeCalendarDisplay;
 
 
 /**
@@ -98,6 +104,22 @@ public class CalendarView extends JXXMonthView {
 	@Override
 	protected Color getWeekDayForeground(int calendarDayOfWeek) {
 		return weekDayColor(calendarDayOfWeek);
+	}
+
+	@Override
+	protected String getCalendarMonthTitle(long firstDayOfMonth, String primaryTitle) {
+		LocalDate date = LocalDate.ofInstant(Instant.ofEpochMilli(firstDayOfMonth), ZoneId.systemDefault());
+		String companion = AlternativeCalendarDisplay.companionMonth(YearMonth.from(date),
+			Locale.getDefault(Locale.Category.FORMAT));
+		return companion.isEmpty() ? primaryTitle : primaryTitle + " (" + companion + ")";
+	}
+
+	@Override
+	protected String getSecondaryDayLabel(long dateMillis) {
+		LocalDate date = LocalDate.ofInstant(Instant.ofEpochMilli(dateMillis), ZoneId.systemDefault());
+		String companion = AlternativeCalendarDisplay.companionDay(date,
+			Locale.getDefault(Locale.Category.FORMAT));
+		return companion.equals(Integer.toString(date.getDayOfMonth())) ? "" : companion;
 	}
 
 	public Intervals getSelectedFixedIntervals(){

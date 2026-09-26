@@ -961,7 +961,8 @@ public class JXXMonthView extends JComponent {
 		_cal.set(Calendar.DAY_OF_MONTH, _cal
 				.getActualMinimum(Calendar.DAY_OF_MONTH));
 		for (int i = 0; i < _cal.getMaximum(Calendar.MONTH); i++) {
-			currWidth = fm.stringWidth(_monthsOfTheYear[i]);
+			String monthTitle = _monthsOfTheYear[i] + " " + _cal.get(Calendar.YEAR);
+			currWidth = fm.stringWidth(getCalendarMonthTitle(_cal.getTimeInMillis(), monthTitle));
 			if (currWidth > longestMonthWidth) {
 				longestMonthWidth = currWidth;
 			}
@@ -979,14 +980,22 @@ public class JXXMonthView extends JComponent {
 		_cal.set(Calendar.DAY_OF_MONTH, _cal
 				.getActualMinimum(Calendar.DAY_OF_MONTH));
 		_boxHeight = fm.getHeight();
+		FontMetrics secondaryMetrics = getFontMetrics(getSecondaryDateFont(_derivedFont));
+		boolean hasSecondaryDates = false;
 		for (int i = 0; i < daysInLongestMonth; i++) {
 			currWidth = fm.stringWidth(_dayOfMonthFormatter.format(_cal
 					.getTime()));
 			if (currWidth > _boxWidth) {
 				_boxWidth = currWidth;
 			}
+			String secondaryLabel = getSecondaryDayLabel(_cal.getTimeInMillis());
+			if (!secondaryLabel.isEmpty()) {
+				hasSecondaryDates = true;
+				_boxWidth = Math.max(_boxWidth, secondaryMetrics.stringWidth(secondaryLabel));
+			}
 			_cal.add(Calendar.DAY_OF_MONTH, 1);
 		}
+		if (hasSecondaryDates) _boxHeight += secondaryMetrics.getHeight();
 
 		// Modify _boxWidth if month string is longer
 		_dim.width = (_boxWidth + (2 * _boxPaddingX)) * DAYS_IN_WEEK;
@@ -1242,6 +1251,7 @@ public class JXXMonthView extends JComponent {
 			for (int column = 0; column < _numCalCols; column++) {
 				String monthName = _monthsOfTheYear[_cal.get(Calendar.MONTH)];
 				monthName = monthName + " " + _cal.get(Calendar.YEAR);
+				monthName = getCalendarMonthTitle(_cal.getTimeInMillis(), monthName);
 
 				_bounds.x = _ltr ? x : x - _calendarWidth;
 				_bounds.y = y + _boxPaddingY;
@@ -1481,6 +1491,25 @@ public class JXXMonthView extends JComponent {
 
 					g.setColor(getForeground());
 				}
+				String secondaryLabel = getSecondaryDayLabel(_cal.getTimeInMillis());
+				if (!secondaryLabel.isEmpty()) {
+					Font previousFont = g.getFont();
+					Color previousColor = g.getColor();
+					Font secondaryFont = getSecondaryDateFont(previousFont);
+					g.setFont(secondaryFont);
+					Color disabled = javax.swing.UIManager.getColor("Label.disabledForeground");
+					g.setColor(disabled == null ? previousColor.darker() : disabled);
+					FontMetrics secondaryMetrics = g.getFontMetrics(secondaryFont);
+					int secondaryX = _ltr ? _bounds.x + _boxPaddingX + _boxWidth
+							- secondaryMetrics.stringWidth(secondaryLabel)
+							: _bounds.x + _boxPaddingX + _boxWidth
+							- secondaryMetrics.stringWidth(secondaryLabel) - 1;
+					int secondaryY = _bounds.y + _boxPaddingY + fm.getAscent()
+							+ secondaryMetrics.getHeight();
+					g.drawString(secondaryLabel, secondaryX, secondaryY);
+					g.setFont(previousFont);
+					g.setColor(previousColor);
+				}
 //				PROJECTLIBRE_MODIFICATION
 //					g.setColor(defaultColor);
 //				} else {
@@ -1574,6 +1603,20 @@ public class JXXMonthView extends JComponent {
 		g.drawString(text, x,y);
 		g.setColor(defaultColor);
 		g.setFont(oldFont);
+	}
+
+	/** Allows subclasses to append a secondary calendar label to the month title. */
+	protected String getCalendarMonthTitle(long firstDayOfMonth, String primaryTitle) {
+		return primaryTitle;
+	}
+
+	/** Allows subclasses to render a secondary date inside each day cell. */
+	protected String getSecondaryDayLabel(long dateMillis) {
+		return "";
+	}
+
+	private Font getSecondaryDateFont(Font primaryFont) {
+		return primaryFont.deriveFont(Math.max(8.0f, primaryFont.getSize2D() * 0.72f));
 	}
 
 	/**
