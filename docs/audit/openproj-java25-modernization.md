@@ -1540,3 +1540,9 @@ with `instanceof` pattern matching, retaining task-or-resource membership
 semantics. The type-check/cast branch matches the OpenProj implementation;
 `SelectionFilterTest` now covers selected-task, selected-resource, and unrelated
 task outcomes.
+
+`FieldConverter._convert` now binds its OpenProj-derived String input once and
+passes that binding to both configured and fallback converters, removing
+redundant casts without changing converter selection. The branch matches the
+OpenProj implementation; `FieldConverterTest` covers conversion through the
+public API.

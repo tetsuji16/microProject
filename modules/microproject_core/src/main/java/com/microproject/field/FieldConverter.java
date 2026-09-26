@@ -95,10 +95,10 @@ public class FieldConverter  {
 	 */
 	private Object _convert(Object value, Class<?> clazz, FieldContext context) throws FieldParseException {
 		try {
-			if (value instanceof String) { 
+			if (value instanceof String string) {
 				Object result = null;
 				if (context == null)
-					result = ConvertUtils.convert((String) value,clazz);
+					result = ConvertUtils.convert(string,clazz);
 				else {
 					Converter contextConverter = null;
 					HashMap<Class<?>, Converter> contextMap = contextMaps.get(context);
@@ -108,7 +108,7 @@ public class FieldConverter  {
 						contextConverter.convert(clazz,value);
 					} else {
 						logger.fine("no context converter found");
-						result = ConvertUtils.convert((String) value,clazz);
+						result = ConvertUtils.convert(string,clazz);
 					}
 				}
 	//			if (result instanceof java.util.Date) { //  dates need to be normalized
