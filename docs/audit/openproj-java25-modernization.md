@@ -2033,6 +2033,15 @@ assignment-aware model. The filter, detach-before-connect order, and undo flag
 are unchanged. Full core tests and the UI `NodeListTransferablePasteFailureTest`
 passed, as did `git diff --check`. Commit: recorded in this changeset.
 
+`DefaultNodeModel.cloneBranch` and `cleanBranch` now traverse the typed
+`List<Node>` returned by the active hierarchy instead of iterating
+`TreeNode` values and casting each child. Both traversals match OpenProj at
+`d2fa3c20a`; active callers are `DefaultNodeModel.copy` and clone cleanup.
+Child order and recursive behavior are unchanged, and null child lists retain
+the former empty-iterator behavior. `DefaultNodeModelTest` and full
+`:microproject_core:test --console=plain` passed, as did `git diff --check`.
+Commit: recorded in this changeset.
+
 `AssignmentNodeModel.objectChanged` now uses pattern matching for the assignment
 event object and wildcard-typed `Enumeration` variables for child traversals.
 `git blame` traces these event and child-scan paths to OpenProj (`d2fa3c20a`);

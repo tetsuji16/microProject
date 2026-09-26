@@ -456,14 +456,16 @@ public class DefaultNodeModel implements NodeModel {
 		return parentNodes;
 	}
 	private void cloneBranch(Node parent,Node newParent,Set<Node> assignedNodes,Map<Object, Object> implMap,Set<Dependency> predecessors,Set<Dependency> successors){
-		for (Iterator<TreeNode> i=parent.childrenIterator();i.hasNext();){
-				Node child=(Node)i.next();
-				if (child.getImpl() instanceof Assignment){
-					assignedNodes.add(newParent);
-				}else{
-					Node newChild=cloneNode(child,newParent,implMap,predecessors,successors);
-					cloneBranch(child,newChild,assignedNodes,implMap,predecessors,successors);
-				}
+		List<Node> children = getHierarchy().getChildren(parent);
+		if (children == null)
+			return;
+		for (Node child : children){
+			if (child.getImpl() instanceof Assignment){
+				assignedNodes.add(newParent);
+			}else{
+				Node newChild=cloneNode(child,newParent,implMap,predecessors,successors);
+				cloneBranch(child,newChild,assignedNodes,implMap,predecessors,successors);
+			}
 		}
 	}
 	private Node cloneNode(Node oldNode,Node newParent,Map<Object, Object> implMap,Set<Dependency> predecessors,Set<Dependency> successors){
@@ -504,10 +506,12 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	private void cleanBranch(Node parent){
-		for (Iterator<TreeNode> i=parent.childrenIterator();i.hasNext();){
-				Node child=(Node)i.next();
-				cleanNodeImpl(child.getImpl());
-				cleanBranch(child);
+		List<Node> children = getHierarchy().getChildren(parent);
+		if (children == null)
+			return;
+		for (Node child : children){
+			cleanNodeImpl(child.getImpl());
+			cleanBranch(child);
 		}
 	}
 	private void cleanNodeImpl(Object impl){
