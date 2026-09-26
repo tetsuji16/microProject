@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,18 @@ import org.junit.jupiter.api.Test;
 import com.microproject.pm.graphic.model.event.CacheEvent;
 
 class NodeCacheEventTest {
+	@Test
+	void changedRowsRetainEncounterPositionsAndContiguousRanges() {
+		ArrayList<Object> changed = new ArrayList<>();
+		ArrayList<CacheInterval> ranges = new ArrayList<>();
+		NodeCache.createUpdateDiff(new ArrayList<>(List.of("a", "b", "c", "d", "e")),
+				changed, ranges, new HashSet<>(List.of("b", "c", "e")));
+
+		assertEquals(List.of("b", "c", "e"), changed);
+		assertEquals("[1;2]", ranges.get(0).toString());
+		assertEquals("[4;4]", ranges.get(1).toString());
+	}
+
 	@Test
 	void updateDiffsAreCacheEventsInRemovalThenInsertionOrder() {
 		Object source = new Object();

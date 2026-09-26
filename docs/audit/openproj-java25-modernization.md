@@ -1382,6 +1382,12 @@ result. It matches
 `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/model/cache/VisibleElements.java`;
 `VisibleElementsTraversalTest` passed.
 
+`NodeCache.createUpdateDiff` now traverses rows with enhanced-for and advances
+an explicit row index, preserving adjacent-row coalescing and emitted cache
+intervals. It matches the OpenProj NodeCache source; the existing
+`NodeCacheEventTest.changedRowsRetainEncounterPositionsAndContiguousRanges`
+asserts changed-node order and exact row ranges.
+
 `Intervals` now uses enhanced-for for source interval copying, bulk addition, and
 date containment lookup. The range-merging and weekday-pruning loops retain
 explicit iterators because they call `Iterator.remove()`. The conversion matches

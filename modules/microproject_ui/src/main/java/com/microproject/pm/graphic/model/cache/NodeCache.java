@@ -224,9 +224,8 @@ public class NodeCache extends CellCache {
 			int begin=-1;
 			int end=-1;
 			int row=0;
-			Object current;
-			for (Iterator i=newList.iterator();i.hasNext();row++){
-				if (updatesCol.contains(current=i.next())){
+			for (Object current : newList) {
+				if (updatesCol.contains(current)){
 				    nodeDiff.add(current);
 					if (begin==-1){
 						begin=row;
@@ -240,6 +239,7 @@ public class NodeCache extends CellCache {
 						}
 					}
 				}
+				row++;
 			}		
 			if (begin!=-1) diff.add(new CacheInterval(begin,end));
 		}
