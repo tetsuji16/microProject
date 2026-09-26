@@ -62,8 +62,7 @@ public class SplitEdit extends AbstractUndoableEdit{
 	}
 	public String getPresentationName() {
 		String s="Split";
-		if (schedule!=null&&schedule instanceof DataObject){
-			DataObject data=(DataObject)schedule;
+		if (schedule instanceof DataObject data){
 			String cn=schedule.getClass().getName();
 			cn=cn.substring(cn.lastIndexOf('.')+1);
 			s+=": "+cn+" "+data.getName()+"("+data.getUniqueId()+")";
