@@ -161,6 +161,13 @@ relocations and four previously verified removals; the remaining paths must
 not be inferred dead from path absence alone. These path/content metrics do not
 measure completion; the hunk-level and production-caller audit remains open.
 
+At local checkpoint `74e1a7212b9c8fd6ff5da1a9b8bcc563d4279b3a`, running
+`python scripts/audit/openproj_java25_inventory.py --ref HEAD --details`
+reports 280 ledger candidates: 180 normalized matches, 83 content-different
+files, and 17 absent mapped paths. This local checkpoint includes modernization
+commits after the latest integrated checkpoint; the counts remain path/content
+evidence only.
+
 These are path/content reconciliation results, not an active-caller or hunk
 provenance audit. A matching file may contain a narrow fork delta; a differing
 file may still contain eligible OpenProj-origin hunks. The results do **not**
@@ -515,10 +522,10 @@ counted as issue #595 modernization progress. PR #613's separate
 raw traversal is present in the checked source excerpt linked above. No
 OpenProj coverage or completion percentage is inferred from the adjacent PRs.
 
-- Hunk-provenance and active-caller review remains for the 78 content-different
+- Hunk-provenance and active-caller review remains for the 83 content-different
   candidates; the 17 absent paths are classified above and do not all represent
   active source requiring modernization.
-- Search the 183 matching files and OpenProj-origin hunks within the 80
+- Search the 180 matching files and OpenProj-origin hunks within the 83
   differing files for production callers and compatibility boundaries; do not
   treat file-level equality as proof of an active eligible hunk.
 - Audit remaining eligible Java in exchange, UI, reports, and other core
@@ -1591,3 +1598,4 @@ OpenProj-derived matching branches, removing the adjacent casts while
 preserving the free-assignment check and reconnection path. The original
 `instanceof` branches match OpenProj; core tests validate the owning model and
 assignment services after this behavior-preserving syntax change.
+
