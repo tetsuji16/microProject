@@ -25,17 +25,32 @@
 package com.microproject.reports.adapter;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.NoSuchElementException;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
+import org.apache.commons.collections.Predicate;
 
 class DataSourceTest {
+	@Test
+	void forwardsNodeBasedModeToPredicatedIterator() {
+		TrackingPredicatedIterator iterator = new TrackingPredicatedIterator();
+		DataSource dataSource = new DataSource();
+		dataSource.setIterator(iterator);
+
+		dataSource.setNodeBased(true);
+
+		assertTrue(iterator.nodeBased);
+	}
+
 	@Test
 	void returnsNodeModelDataFactoryWhenNodeModelProvidesOne() {
 		NodeModelDataFactory expectedFactory = (NodeModelDataFactory) Proxy.newProxyInstance(
@@ -78,6 +93,29 @@ class DataSourceTest {
 				return Double.valueOf(0.0d);
 			}
 			return null;
+		}
+	}
+
+	private static final class TrackingPredicatedIterator implements PredicatedNodeFilterIterator {
+		private boolean nodeBased;
+
+		@Override
+		public boolean hasNext() {
+			return false;
+		}
+
+		@Override
+		public Object next() {
+			throw new NoSuchElementException();
+		}
+
+		@Override
+		public void setPredicate(Predicate predicate) {
+		}
+
+		@Override
+		public void setNodeBased(boolean nodeBased) {
+			this.nodeBased = nodeBased;
 		}
 	}
 }

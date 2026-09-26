@@ -63,8 +63,8 @@ public class DataSource implements JRDataSource, ObjectRef {
 	}
 	public void setNodeBased(boolean nodeBased) {
 		this.nodeBased = nodeBased;
-		if (iterator instanceof PredicatedNodeFilterIterator)
-			((PredicatedNodeFilterIterator)iterator).setNodeBased(nodeBased);
+		if (iterator instanceof PredicatedNodeFilterIterator predicatedIterator)
+			predicatedIterator.setNodeBased(nodeBased);
 	}
 
 	public WalkersNodeModel getNodeModel() {

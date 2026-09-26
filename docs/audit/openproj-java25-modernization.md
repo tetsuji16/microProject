@@ -1447,3 +1447,8 @@ item order and visibility filtering. Its matching source is under
 which is bundled Apache Batik code rather than OpenProj-derived code. The
 focused `RibbonAndToolbarButtonTest` passed; this change is not counted toward
 the #595 modernization scope.
+
+`DataSource.setNodeBased` now uses an `instanceof` pattern binding to forward
+the mode to predicated iterators without a redundant cast. This conditional
+matches `d2fa3c20a:openproj_reports/src/com/projity/reports/adapter/DataSource.java`.
+`DataSourceTest` verifies the mode reaches the iterator.
