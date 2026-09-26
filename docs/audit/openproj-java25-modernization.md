@@ -1359,6 +1359,10 @@ enhanced-for, preserving registration order and per-view event clearing.
 The loop matches
 `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/model/cache/NodeCache.java`.
 `NodeCacheEventTraversalTest` verifies delivery order and cleanup.
+The same cache path exposed an existing null-handling defect: its empty-set
+capacity branch accepted a null update set, but `addAll` then dereferenced it.
+`updateVisibleElements` now treats null as an empty incremental change set, and
+the test verifies this call completes with an empty visible cache.
 
 `Intervals` now uses enhanced-for for source interval copying, bulk addition, and
 date containment lookup. The range-merging and weekday-pruning loops retain

@@ -33,6 +33,17 @@ class NodeCacheEventTraversalTest {
 		assertTrue(second.getEvents().isEmpty());
 	}
 
+	@Test
+	void acceptsNullChangeSetAsNoIncrementalChanges() {
+		NodeCache cache = new NodeCache();
+		VisibleNodes nodes = visibleNodes("empty");
+		cache.addVisibleElements(nodes);
+
+		cache.updateVisibleElements(null);
+
+		assertTrue(nodes.getElements().isEmpty());
+	}
+
 	private static VisibleNodes visibleNodes(String name) {
 		VisibleNodes nodes = new VisibleNodes(name, ignored -> { });
 		nodes.setVisibleDependencies(new VisibleDependencies(name));

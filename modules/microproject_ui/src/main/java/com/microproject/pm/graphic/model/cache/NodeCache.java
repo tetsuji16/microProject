@@ -49,10 +49,10 @@ public class NodeCache extends CellCache {
 	    //dumpVoids();
 	    VisibleNodes v;
 	    HashSet u=new HashSet(updates == null ? 0 : updates.size());
-	    for (Iterator i=visibleElements.iterator();i.hasNext();){
-	        v=(VisibleNodes)i.next();
+	    for (Object element : visibleElements) {
+	        v=(VisibleNodes)element;
 	        u.clear();
-	        u.addAll(updates);
+	        if (updates != null) u.addAll(updates);
 	        updateVisibleElements(v,u);
 	    }
 	}
