@@ -1358,6 +1358,13 @@ enhanced-for, preserving selection order and the `assignedOnly` filter. The
 loop matches `d2fa3c20a:openproj_ui/src/com/projity/dialog/assignment/AssignmentEntryPane.java`;
 the full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
 
+`ChartModel.computeOtherProjects` now traverses the chosen task/resource list
+with enhanced-for, preserving the existing resource selection and aggregation
+order. The time iterator remains explicit because it is a dedicated API, not a
+Java collection. This matches
+`d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/chart/ChartModel.java`; the
+full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
+
 `GraphicNode` cached-schedule interval consumption and containment now use
 enhanced-for over the existing interval list, preserving encounter order and
 early return behavior. The source matches

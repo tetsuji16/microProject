@@ -138,7 +138,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 	public CalculatedValues computeOtherProjects(List<?> tasks, List<Resource> resources) {
 		CalculatedValues calculatedValues = new GroupedCalculatedValues();
 		if ((resources!=null&&resources.size()>0)||(tasks!=null&&tasks.size()>0)){ //resources can be put in tasks list, is it a bug?
-			Iterator<?> j=((resources==null||resources.size()==0)?tasks:resources).iterator();
+			List<?> otherProjectItems = (resources==null||resources.size()==0)?tasks:resources;
 			GroupedCalculatedValues c=(GroupedCalculatedValues)calculatedValues;
 			
 			TimeIterator timeIterator = coord.getProjectTimeIterator();
@@ -147,9 +147,8 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 				c.set(k,interval.getStart1(),interval.getEnd1(),0.0,null);
 			}
 				//return calculatedValues; 
-			while (j.hasNext()){
+			for (Object obj : otherProjectItems) {
 				ResourceImpl resource;
-				Object obj=j.next();
 				if (obj instanceof Assignment)
 					resource=(ResourceImpl)((Assignment)obj).getResource();
 				else if (obj instanceof ResourceImpl)
