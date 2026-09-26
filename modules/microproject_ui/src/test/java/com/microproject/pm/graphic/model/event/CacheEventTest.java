@@ -57,4 +57,13 @@ class CacheEventTest {
 		event.setNodes(replacement);
 		assertSame(replacement, event.getNodes());
 	}
+
+	@Test
+	void reportsTheKnownIntervalCountAndHandlesAnAbsentIntervalList() {
+		CacheEvent populated = new CacheEvent(this, CacheEvent.NODES_CHANGED, List.of(), List.of("a", "b"));
+		CacheEvent absent = new CacheEvent(this, CacheEvent.NODES_CHANGED, List.of(), null);
+
+		assertEquals(2, populated.getIntervalCount());
+		assertEquals(0, absent.getIntervalCount());
+	}
 }

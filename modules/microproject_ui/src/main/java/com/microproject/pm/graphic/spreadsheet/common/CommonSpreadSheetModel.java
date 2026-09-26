@@ -96,7 +96,7 @@ public abstract class CommonSpreadSheetModel extends AbstractTableModel implemen
     public void graphicNodesCompositeEvent(CompositeCacheEvent compositeEvent){
         for (Iterator<?> iterator = compositeEvent.getNodeEvents().iterator(); iterator.hasNext();){
             CacheEvent event = (CacheEvent) iterator.next();
-            ArrayList<CacheInterval> intervals = new ArrayList<>();
+            ArrayList<CacheInterval> intervals = new ArrayList<>(event.getIntervalCount());
             event.forIntervals(obj -> intervals.add((CacheInterval) obj));
             fireIntervalEvents(event.getType(), intervals);
         }

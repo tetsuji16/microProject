@@ -61,6 +61,11 @@ public class CacheEvent extends GraphicEvent {
     public List<?> getNodes() {
         return nodes;
     }
+
+    public int getIntervalCount() {
+        return intervals == null ? 0 : intervals.size();
+    }
+
     public void setNodes(List<?> nodes) {
         this.nodes = nodes;
     }
