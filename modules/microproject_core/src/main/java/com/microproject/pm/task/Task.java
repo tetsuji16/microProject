@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -643,7 +644,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
  * @param set - A set used to prevent treating same task twice
  * @return true if linking to other would cause a circular link
  */
-	private boolean dependsOn(Task other, Task me,HashSet set, String taskNames) {
+	private boolean dependsOn(Task other, Task me, Set<Task> set, String taskNames) {
 		// To avoid infinite loops which can occur under certain circumstances, use a set to prevent looking up twice
 		if (set.contains(this))
 			return false;
@@ -766,7 +767,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 			return true;
 
 
-		HashSet set = new HashSet();
+		Set<Task> set = new HashSet<>();
 		return dependsOn((Task)other,this,set,"");
 	}
 
