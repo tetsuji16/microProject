@@ -1344,3 +1344,8 @@ full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
 enhanced-for, preserving item and separator order. This matches
 `d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/ToolBarFactory.java`.
 The focused `RibbonAndToolbarButtonTest` passed.
+
+`MenuFactory` menu-bar, popup-menu, and menu-item list traversal now uses
+enhanced-for, preserving configured item order and visibility filtering. These
+loops match `d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/MenuFactory.java`.
+The focused `RibbonAndToolbarButtonTest` passed.

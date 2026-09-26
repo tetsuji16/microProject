@@ -79,7 +79,6 @@ import java.awt.Point;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.List;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
@@ -195,9 +194,8 @@ public class MenuFactory extends ResourceManager {
 	       MissingListenerException {
         JMenuBar result = new JMenuBar();
         List     menus  = getStringList(name);
-        Iterator it     = menus.iterator();
-        while (it.hasNext()) {
-        	String x = (String) it.next();
+        for (Object menu : menus) {
+            String x = (String) menu;
             result.add(createJMenuComponent(x));
         }
         return result;
@@ -209,10 +207,8 @@ public class MenuFactory extends ResourceManager {
 	       MissingListenerException {
         JPopupMenu result = new JPopupMenu();
         List     menus  = getStringList(name);
-        Iterator it     = menus.iterator();
-        
-        while (it.hasNext()) {
-        	String x = (String) it.next();
+        for (Object menu : menus) {
+            String x = (String) menu;
             result.add(createJMenuComponent(x));
         }
         return result;
@@ -306,10 +302,8 @@ public class MenuFactory extends ResourceManager {
         initializeJMenuItem(result, name);
 
         List     items = getStringList(name);
-        Iterator it    = items.iterator();
-
-        while (it.hasNext()) {
-        	String itemName = (String)it.next();
+        for (Object configuredItem : items) {
+            String itemName = (String) configuredItem;
         	
         	JComponent item= createJMenuComponent(itemName);
         	// I added the possibility of having an invisible menu item. This is needed to handle radio button groups that have a "none" option.  Aside from
