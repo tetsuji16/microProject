@@ -220,9 +220,8 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		ListIterator<Association> i = assignments.listIterator();
 		while (i.hasNext()) {
 			Association association = i.next();
-			if (!(association instanceof Assignment))
+			if (!(association instanceof Assignment current))
 				continue;
-			Assignment current = (Assignment) association;
 			if (current.getTask() == modified.getTask() && current.getResource() == modified.getResource()) {
 				i.set(modified); // replace current with new one
 				break;
