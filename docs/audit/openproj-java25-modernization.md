@@ -1508,3 +1508,8 @@ delegated object can declare a field applicable.
 binding to resolve the requested task or resource. The branch matches OpenProj
 `DataUtils`; `DataUtilsTest` covers both projections and rejection of an
 unrelated object.
+
+`DataUtils.extractObjectsOfClassFromNodeList` now uses enhanced-for while
+retaining node casts, result order, and duplicate suppression. The loop matches
+OpenProj `DataUtils`; `DataUtilsTest` verifies ordered extraction and duplicate
+handling.

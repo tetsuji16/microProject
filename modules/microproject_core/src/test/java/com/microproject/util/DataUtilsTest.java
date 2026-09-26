@@ -25,9 +25,15 @@ package com.microproject.util;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
@@ -44,5 +50,20 @@ class DataUtilsTest {
 		assertSame(task, DataUtils.extractObjectOfClass(assignment, Task.class));
 		assertSame(resource, DataUtils.extractObjectOfClass(assignment, Resource.class));
 		assertNull(DataUtils.extractObjectOfClass(new Object(), Task.class));
+	}
+
+	@Test
+	void extractsNodeImplementationsInOrderWithoutDuplicates() {
+		Object first = new Object();
+		Object second = new Object();
+		List<Node> nodes = List.of(
+			NodeFactory.getInstance().createNode(first),
+			NodeFactory.getInstance().createNode(second),
+			NodeFactory.getInstance().createNode(first));
+		List<Object> result = new ArrayList<>();
+
+		DataUtils.extractObjectsOfClassFromNodeList(result, nodes, Object.class);
+
+		assertEquals(List.of(first, second), result);
 	}
 }

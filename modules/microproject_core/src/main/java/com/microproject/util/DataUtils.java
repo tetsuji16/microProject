@@ -58,11 +58,8 @@ public class DataUtils {
 	
 	public static void extractObjectsOfClassFromNodeList(Collection<Object> result, Collection<?> nodeList, Class<?> objectClass) {
 		result.clear();
-		Iterator<?> i = nodeList.iterator();
-		Object nodeObject;
-		
-		while (i.hasNext()) {
-			nodeObject = ((Node)i.next()).getImpl();
+		for (Object value : nodeList) {
+			Object nodeObject = ((Node)value).getImpl();
 			nodeObject = DataUtils.extractObjectOfClass(nodeObject,objectClass);
 			if (nodeObject != null) {
 				if (!result.contains(nodeObject)) // only add if not already in there
