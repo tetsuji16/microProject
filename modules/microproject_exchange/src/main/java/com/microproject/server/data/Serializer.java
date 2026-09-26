@@ -184,24 +184,8 @@ public class Serializer {
 			final Map<Long, ResourceData> resourceMap=(Map<Long, ResourceData>)args[0];
             final TaskData taskData;
             final boolean taskDirty=!incremental||task.isDirty();
-            if (taskDirty/*||Environment.isNoPodServer()*/) { //claur
-//            	if (Environment.isNoPodServer()){
-//            		final List persistedAssignments=new Vector();
-//                    Project.forAssignments(task, new Project.AssignmentClosure(){
-//                    	public void execute(Assignment assignment,int s){
-//        						ResourceImpl r=(ResourceImpl)assignment.getResource();
-//        						//if (r.isDefault()&&s==Snapshottable.CURRENT){
-//        						if (r.isDefault()) persistedAssignments.add(new PersistedAssignment(assignment,s));//save the default assignment in the task
-//        						else if (s!=Snapshottable.CURRENT){
-//        							persistedAssignments.add(new PersistedAssignment(assignment,s,r.getUniqueId()));
-//        						}
-//                    	}
-//                    });
-//                    if (persistedAssignments.size()>0)
-//                    	task.setPersistedAssignments(persistedAssignments);
-//            	}
+            if (taskDirty) {
             	taskData=(TaskData)serialize(task,TaskData.FACTORY,null);
-            	//task.setPersistedAssignments(null); //claur
 
     	        taskData.setNotes(task.getNotes()); //assignments notification
 // this code is to set fields which are exposed in database
@@ -211,13 +195,10 @@ public class Serializer {
 //    	        taskData.setBaselineFinish(task.getBaselineFinishOrZero());
 //    	        taskData.setCompletedThrough(task.getCompletedThrough());
 //    	        taskData.setPercentComplete(task.getPercentComplete());
-    	       // if (!taskDirty&&Environment.isNoPodServer()) taskData.setSerialized(null); //claur
             }
             else{
             	taskData=new TaskData();
             	taskData.setUniqueId(task.getUniqueId());
-//            	getUnchanged().add(task.getUniqueId());
-//            	return null;
             }
 	        // set the status of the task using dirty flag
 	        taskData.setStatus(taskDirty ? SerializedDataObject.UPDATE : 0);
@@ -1014,9 +995,6 @@ public class Serializer {
     			//assignments
 				List<AssignmentData> assignments = new ArrayList<>(
 						taskData.getAssignments() == null ? 0 : taskData.getAssignments().size());
-//    			if (Environment.isNoPodServer()&&task.getPersistedAssignments()!=null){ //claur
-//    				assignments.addAll(task.getPersistedAssignments());
-//    			}
     			if (taskData.getAssignments()!=null) assignments.addAll(taskData.getAssignments());
 
 			if (assignments.size()>0)
