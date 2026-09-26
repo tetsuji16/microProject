@@ -751,10 +751,10 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	}
 
 	public boolean isZero(Object value) {
-		if (value instanceof Number)
-			return (((Number) value).doubleValue() == 0.0);
-		else if (value instanceof String)
-			return (((String) value).length() == 0);
+		if (value instanceof Number number)
+			return number.doubleValue() == 0.0;
+		else if (value instanceof String text)
+			return text.isEmpty();
 		return false;
 	}
 

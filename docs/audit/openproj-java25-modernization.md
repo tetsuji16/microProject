@@ -1504,6 +1504,11 @@ checks in applicability, value retrieval, and read-only evaluation. The three
 branches keep their separate contracts. `FieldComparisonTest` verifies that a
 delegated object can declare a field applicable.
 
+`Field.isZero` now binds Number and String values with pattern matching and
+preserves its numeric-zero and empty-string checks. The method matches OpenProj
+`Field`; `FieldComparisonTest` covers zero, non-zero, empty, non-empty, and null
+inputs.
+
 `DataUtils.extractObjectOfClass` now binds assignment inputs once and uses the
 binding to resolve the requested task or resource. The branch matches OpenProj
 `DataUtils`; `DataUtilsTest` covers both projections and rejection of an

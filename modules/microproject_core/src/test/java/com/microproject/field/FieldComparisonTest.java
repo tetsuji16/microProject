@@ -24,6 +24,7 @@
 package com.microproject.field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,6 +58,17 @@ class FieldComparisonTest {
 		};
 
 		assertTrue(field.isApplicable(delegator));
+	}
+
+	@Test
+	void zeroDetectionHandlesNumberAndStringValues() {
+		Field field = new Field();
+
+		assertTrue(field.isZero(0L));
+		assertTrue(field.isZero(""));
+		assertFalse(field.isZero(1L));
+		assertFalse(field.isZero("text"));
+		assertFalse(field.isZero(null));
 	}
 
 	@Test
