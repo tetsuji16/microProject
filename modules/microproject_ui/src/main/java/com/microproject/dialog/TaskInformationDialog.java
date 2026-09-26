@@ -609,7 +609,7 @@ public class TaskInformationDialog extends InformationDialog {
 		if (lag == null)
 			return;
 		try {
-			createDependency(task, selected.task, predecessors, type.kind.code(), lag.longValue(), this);
+			createDependency(task, selected.task, predecessors, type.kind, lag.longValue(), this);
 			updateAll();
 		} catch (InvalidAssociationException e) {
 			Alert.warn(e.getMessage(), this);
@@ -645,6 +645,11 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors, int dependencyType, long lag,
+			Object eventSource) throws InvalidAssociationException {
+		return createDependency(task, selectedTask, predecessors, DependencyType.Kind.fromCode(dependencyType), lag, eventSource);
+	}
+
+	static Dependency createDependency(Task task, Task selectedTask, boolean predecessors, DependencyType.Kind dependencyType, long lag,
 			Object eventSource) throws InvalidAssociationException {
 		return DependencyService.getInstance().newDependency(
 				predecessors ? selectedTask : task,

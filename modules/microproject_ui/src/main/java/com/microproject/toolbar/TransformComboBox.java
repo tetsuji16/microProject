@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.toolbar;
 
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
@@ -39,6 +38,7 @@ import com.microproject.menu.MenuManager;
 import com.microproject.menu.MenuTextKeys;
 import com.microproject.grouping.core.transform.CommonTransformFactory;
 import com.microproject.grouping.core.transform.ViewConfiguration;
+import com.microproject.util.FlatUiSupport;
 
 /**
  * 
@@ -90,7 +90,7 @@ public class TransformComboBox extends JComboBox {
 	
 	public void paintComponent(Graphics graphics) {
 		boolean none =  (getSelectedIndex() <= 0);
-		setForeground(none ? UIManager.getColor("ComboBox.foreground") : Color.RED); //$NON-NLS-1$
+		setForeground(none ? UIManager.getColor("ComboBox.foreground") : FlatUiSupport.accentColor()); //$NON-NLS-1$
 		super.paintComponent(graphics);
 	}
 	public void transformBasedOnValue() {
@@ -99,4 +99,3 @@ public class TransformComboBox extends JComboBox {
 	}
 
 }
-

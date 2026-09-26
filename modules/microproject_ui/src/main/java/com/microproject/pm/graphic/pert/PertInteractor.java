@@ -65,7 +65,7 @@ public class PertInteractor extends NetworkInteractor {
 					if (sourceNode!=null&&destinationNode!=null&&
 							sourceNode.getNode().getImpl() instanceof HasDependencies &&
 							destinationNode.getNode().getImpl() instanceof HasDependencies){
-						DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),(HasDependencies)destinationNode.getNode().getImpl(),DependencyType.FS,0,this);
+						DependencyService.getInstance().newDependency((HasDependencies)sourceNode.getNode().getImpl(),(HasDependencies)destinationNode.getNode().getImpl(),DependencyType.Kind.FS,0,this);
 					}
 				} catch (InvalidAssociationException e) {
 					Alert.error(e.getMessage());

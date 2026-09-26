@@ -25,12 +25,13 @@
 package com.microproject.pm.graphic.link_routing;
 
 import java.awt.geom.GeneralPath;
+import com.microproject.pm.dependency.DependencyType;
 
 /**
  *
  */
 public class DefaultNetworkLinkRouting extends NetworkLinkRouting{
-	public void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double xy2,int type){
+	public void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double xy2,DependencyType.Kind type){
 		routeOrthogonal(path, x0, y0, x1, y1, xy2, vertical);
 	}
 }

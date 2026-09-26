@@ -34,10 +34,10 @@ import com.microproject.pm.dependency.DependencyType;
 public class DefaultGanttLinkRouting extends GanttLinkRouting{
 	private static final long serialVersionUID = 1348199015438525067L;
 
-	public void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,double y1floor,double y1ceil,int type){
+	public void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,double y1floor,double y1ceil,DependencyType.Kind type){
 		this.path=path;
-		int fromSign=(type==DependencyType.SF||type==DependencyType.SS)?-1:1;
-		int toSign=(type==DependencyType.FS||type==DependencyType.SS)?-1:1;
+		int fromSign=(type==DependencyType.Kind.SF||type==DependencyType.Kind.SS)?-1:1;
+		int toSign=(type==DependencyType.Kind.FS||type==DependencyType.Kind.SS)?-1:1;
 		
 		double fromDeltaX = 5.0;
 		double toDeltaX = 15.0;
@@ -49,16 +49,16 @@ public class DefaultGanttLinkRouting extends GanttLinkRouting{
 
 		resetLinkPoints();
 		addLinkPoint(x0,y0);
-		if (type==DependencyType.FS&&verticalArrow&&x1+maxDeltaXVerticalArrow>=x2){
+		if (type==DependencyType.Kind.FS&&verticalArrow&&x1+maxDeltaXVerticalArrow>=x2){
 			double x4=Math.max(x1,x2);
 			addLinkPoint(x4,y0);
 			addLinkPoint(x4,(y1>=y0)?y1ceil:y1floor);
 			return;
 		}
 		switch (type) {
-		case DependencyType.FS:
-		case DependencyType.SF:
-			if (type==DependencyType.FS&&x3>=x2||x3<=x2&&type==DependencyType.SF){
+		case FS:
+		case SF:
+			if (type==DependencyType.Kind.FS&&x3>=x2||x3<=x2&&type==DependencyType.Kind.SF){
 				addLinkPoint(x3,y0);
 				addLinkPoint(x3,y1);
 			}else{
@@ -68,10 +68,10 @@ public class DefaultGanttLinkRouting extends GanttLinkRouting{
 				addLinkPoint(x3,y1);
 			}
 			break;
-		case DependencyType.SS:
-		case DependencyType.FF:{
+		case SS:
+		case FF:{
 			double x5;
-			if (type==DependencyType.SS){
+			if (type==DependencyType.Kind.SS){
 				x5 = (x2 < x3) ? x2 : x3;
 			}else{
 				x5 = (x2 > x3) ? x2 : x3;

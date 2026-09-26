@@ -217,6 +217,7 @@ import com.microproject.util.BrowserControl;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FlatLafSupport;
 import com.microproject.util.SafeObjectInput;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.UiLinkTargets;
@@ -1191,7 +1192,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			task.getCurrentSchedule().setStart(project.getStart());
 			task.setDuration(day * durationDays);
 			if (durationDays == 0) task.setMarkTaskAsMilestone(true);
-			if (previous != null) try { DependencyService.getInstance().newDependency(previous, task, DependencyType.FS, 0L, this); } catch (Exception ignored) { }
+			if (previous != null) try { DependencyService.getInstance().newDependency(previous, task, DependencyType.Kind.FS, 0L, this); } catch (Exception ignored) { }
 			previous = task;
 		}
 		project.setDirty(true); project.recalculate();
@@ -1321,9 +1322,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			project.setForward(form.isForward());
 			project.setGroup(form.getGroup());
 			project.setDivision(form.getDivision());
-			project.setProjectType(form.getProjectType());
-			project.setProjectStatus(form.getProjectStatus());
-			project.setExpenseType(form.getExpenseType());
+			project.setProjectTypeKind(form.getProjectTypeKind());
+			project.setProjectStatusKind(form.getProjectStatusKind());
+			project.setExpenseKind(form.getExpenseKind());
 
 			if (!form.isLocal()){
 				project.setAccessControlPolicy(form.getAccessControlType());
@@ -5200,13 +5201,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	/** Applies persisted typography to Swing defaults and refreshes the active window. */
 	public void applyPreferenceFont(GlobalPreferences value) {
 		if (value == null) return;
-		java.awt.Font base = UIManager.getFont("defaultFont");
-		if (base == null) base = new java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, 12);
-		String family = value.getFontFamily();
-		int size = value.getFontSize();
-		if (family != null && !family.isBlank()) base = new java.awt.Font(family, base.getStyle(), base.getSize());
-		if (size > 0) base = base.deriveFont((float) size);
-		UIManager.put("defaultFont", base);
+		FlatLafSupport.applyUserFontPreference(value.getFontFamily(), value.getFontSize());
 		if (getFrame() != null) SwingUtilities.updateComponentTreeUI(getFrame());
 	}
 

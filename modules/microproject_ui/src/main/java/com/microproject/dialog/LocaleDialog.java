@@ -105,6 +105,7 @@ import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
+import com.microproject.util.FlatUiSupport;
 
 @SuppressWarnings("deprecation")
 public final class LocaleDialog extends AbstractDialog {
@@ -399,8 +400,12 @@ public final class LocaleDialog extends AbstractDialog {
 
 	
 	protected void displayMessage(String message) {
+		displayMessage(message, FlatUiSupport.errorForeground());
+	}
+
+	private void displayMessage(String message, Color foreground) {
         StyleContext sc = StyleContext.getDefaultStyleContext();
-        AttributeSet attr = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, Color.RED);
+        AttributeSet attr = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, foreground);
         attr = sc.addAttribute(attr, StyleConstants.Alignment, StyleConstants.ALIGN_JUSTIFIED);
         attr = sc.addAttribute(attr, StyleConstants.Italic, true);
 
@@ -411,7 +416,7 @@ public final class LocaleDialog extends AbstractDialog {
         messageArea.replaceSelection(message);
 	}
 	protected void displayChangeMessage() {
-		displayMessage(Messages.getString("Message.localeChange"));
+		displayMessage(Messages.getString("Message.localeChange"), FlatUiSupport.infoForeground());
 	}
 
 	protected void initControls() {

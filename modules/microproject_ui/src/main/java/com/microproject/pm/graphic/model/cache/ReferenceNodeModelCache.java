@@ -365,7 +365,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	public GraphicDependency newGraphicDependency(GraphicNode preGNode,GraphicNode sucGNode,Dependency dep){
 		GraphicDependency gdep = new GraphicDependency(preGNode,sucGNode,dep);
-		int depType=dep.getDependencyType();
 		//gdep.setType(depType);
 		edgeCache.insertElement(gdep,dep);
 		return gdep;
@@ -382,7 +381,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		HasDependencies startObject=(HasDependencies)startNode.getNode().getImpl();
 		HasDependencies endObject=(HasDependencies)endNode.getNode().getImpl();
 		//try {
-			Dependency dep=service.newDependency(startObject,endObject,DependencyType.FS,0L,this);
+			Dependency dep=service.newDependency(startObject,endObject,DependencyType.Kind.FS,0L,this);
 		//} catch (InvalidAssociationException e) {
 		//	e.printStackTrace();
 		//}
@@ -396,8 +395,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		if (dep==null) return;
 		edgeCache.deleteElement(dep);
 	}
-	public void modifyEdge(GraphicDependency dep,int type){
-		if (type!=-1){
+	public void modifyEdge(GraphicDependency dep,DependencyType.Kind type){
+		if (type!=null){
 			//dep.setType(type);
 		}
 	}
@@ -471,7 +470,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 				} else { //update
 					GraphicDependency edge=(GraphicDependency)edgeCache.getElement(dependency);
 					if (edge!=null){
-						modifyEdge(edge,dependency.getDependencyType());
+						modifyEdge(edge,dependency.getDependencyKind());
 						update();
 					}
 					//edgeCache.fireEdgesUpdated(this,new Object[]{edge});

@@ -39,11 +39,34 @@ import org.junit.jupiter.api.Test;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
+import com.microproject.pm.costing.ExpenseType;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.ProjectStatus;
+import com.microproject.pm.task.ProjectType;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.FlatUiSupport;
 
 class ProjectDialogTest {
+	@Test
+	@SuppressWarnings("deprecation")
+	void formChoiceKindsUseStableCodesAndKeepLegacyIntegerValues() {
+		ProjectDialog.Form form = new ProjectDialog.Form();
+		form.setProjectTypeKind(ProjectType.Kind.IT);
+		form.setProjectStatusKind(ProjectStatus.Kind.ON_HOLD);
+		form.setExpenseKind(ExpenseType.Kind.DIRECT);
+
+		assertEquals(ProjectType.Kind.IT, form.getProjectTypeKind());
+		assertEquals(ProjectStatus.Kind.ON_HOLD, form.getProjectStatusKind());
+		assertEquals(ExpenseType.Kind.DIRECT, form.getExpenseKind());
+		assertEquals(ProjectType.Kind.IT.code(), form.getProjectType());
+		assertEquals(ProjectStatus.Kind.ON_HOLD.code(), form.getProjectStatus());
+		assertEquals(ExpenseType.Kind.DIRECT.code(), form.getExpenseType());
+
+		form.setProjectType(99);
+		assertEquals(99, form.getProjectType());
+		assertThrows(IllegalArgumentException.class, form::getProjectTypeKind);
+	}
+
 	@Test
 	void preferredFormRowsUsesOnlyPreferredHeightTracks() {
 		assertEquals("p,3dlu,p,3dlu,p,3dlu,p,3dlu,p", FlatUiSupport.preferredFormRows(5));

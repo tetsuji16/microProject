@@ -54,8 +54,11 @@ import com.microproject.field.HasExtraFields;
 import com.microproject.field.HasExtraFieldsImpl;
 import com.microproject.field.Field;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.costing.ExpenseType;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
+import com.microproject.pm.task.ProjectStatus;
+import com.microproject.pm.task.ProjectType;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
@@ -173,15 +176,35 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		public final HasExtraFields getExtra() {
 			return extra;
 		}
+		/** @deprecated use {@link #getExpenseKind()} for typed access. */
+		@Deprecated
 		public int getExpenseType() {
 			return expenseType;
 		}
+		public ExpenseType.Kind getExpenseKind() {
+			return ExpenseType.Kind.fromCode(expenseType);
+		}
+		public void setExpenseKind(ExpenseType.Kind expenseKind) {
+			this.expenseType = java.util.Objects.requireNonNull(expenseKind, "expenseKind").code();
+		}
+		/** @deprecated use {@link #setExpenseKind(ExpenseType.Kind)} for typed access. */
+		@Deprecated
 		public void setExpenseType(int expenseType) {
 			this.expenseType = expenseType;
 		}
+		/** @deprecated use {@link #getProjectTypeKind()} for typed access. */
+		@Deprecated
 		public int getProjectType() {
 			return projectType;
 		}
+		public ProjectType.Kind getProjectTypeKind() {
+			return ProjectType.Kind.fromCode(projectType);
+		}
+		public void setProjectTypeKind(ProjectType.Kind projectType) {
+			this.projectType = java.util.Objects.requireNonNull(projectType, "projectType").code();
+		}
+		/** @deprecated use {@link #setProjectTypeKind(ProjectType.Kind)} for typed access. */
+		@Deprecated
 		public void setProjectType(int projectType) {
 			this.projectType = projectType;
 		}
@@ -197,9 +220,19 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		public void setGroup(String group) {
 			this.group = group;
 		}
+		/** @deprecated use {@link #getProjectStatusKind()} for typed access. */
+		@Deprecated
 		public int getProjectStatus() {
 			return projectStatus;
 		}
+		public ProjectStatus.Kind getProjectStatusKind() {
+			return ProjectStatus.Kind.fromCode(projectStatus);
+		}
+		public void setProjectStatusKind(ProjectStatus.Kind projectStatus) {
+			this.projectStatus = java.util.Objects.requireNonNull(projectStatus, "projectStatus").code();
+		}
+		/** @deprecated use {@link #setProjectStatusKind(ProjectStatus.Kind)} for typed access. */
+		@Deprecated
 		public void setProjectStatus(int projectStatus) {
 			this.projectStatus = projectStatus;
 		}
@@ -306,9 +339,9 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 			forward.setSelected(form.isForward());
 			resourcePool.setSelectedItem(form.getResourcePool() == null ? "" : form.getResourcePool());
 //			remote.setSelected(!form.isLocal());
-			projectType.setSelectedItem(Integer.valueOf(form.getProjectType()));
-			projectStatus.setSelectedItem(Integer.valueOf(form.getProjectStatus()));
-			expenseType.setSelectedItem(Integer.valueOf(form.getExpenseType()));
+			projectType.setSelectedItem(Integer.valueOf(form.getProjectTypeKind().code()));
+			projectStatus.setSelectedItem(Integer.valueOf(form.getProjectStatusKind().code()));
+			expenseType.setSelectedItem(Integer.valueOf(form.getExpenseKind().code()));
 			group.setText(form.getGroup());
 			division.setText(form.getDivision());
 			setDateLabel();
@@ -336,9 +369,9 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 			form.setResourcePool(selectedResourcePool(resourcePool.getSelectedItem()));
 			form.setForward(forward.isSelected());
 //			form.setLocal(!remote.isSelected());
-			form.setProjectType(projectType.getSelectedIndex()); // caution ids must be sequential
-			form.setProjectStatus(projectStatus.getSelectedIndex()); // caution ids must be sequential
-			form.setExpenseType(expenseType.getSelectedIndex());// caution ids must be sequential
+			form.setProjectTypeKind(ProjectType.Kind.fromCode(projectType.getSelectedIndex())); // option ids are persisted codes
+			form.setProjectStatusKind(ProjectStatus.Kind.fromCode(projectStatus.getSelectedIndex()));
+			form.setExpenseKind(ExpenseType.Kind.fromCode(expenseType.getSelectedIndex()));
 			form.setGroup(group.getText());
 			form.setDivision(division.getText());
 			if (!Environment.getStandAlone()) form.setAccessControlType(accessControl.getSelectedIndex());

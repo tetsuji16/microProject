@@ -413,12 +413,12 @@ public class ComponentFactory {
 						public boolean verify(JComponent component) {
 							final JComboBox c=(JComboBox)component;
 							Object  newValue = (Object)ComponentFactory.getValueFromComponent(component, field);
-							Object publicValue=c.getItemAt(AccessControlPolicy.PUBLIC);
+							Object publicValue=c.getItemAt(AccessControlPolicy.Kind.PUBLIC.code());
 							if (newValue != value){
 								Integer oldValue=(Integer)field.getValue(objectRef, context);
 								try {
 									//testing=true;
-									if (oldValue==AccessControlPolicy.RESTRICTED&&publicValue.equals(newValue)){
+									if (AccessControlPolicy.Kind.fromCodeOrNull(oldValue) == AccessControlPolicy.Kind.RESTRICTED&&publicValue.equals(newValue)){
 										if(Alert.okCancel(Messages.getString("Text.resetRoles"))){
 											Project project=(Project)objectRef.getObject();
 											project.resetRoles(true);

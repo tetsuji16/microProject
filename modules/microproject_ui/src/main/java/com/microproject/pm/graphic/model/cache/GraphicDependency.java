@@ -72,8 +72,8 @@ public class GraphicDependency /*extends GraphicNode*/{
 		return dependency;
 	}
 
-	public int getType(){
-		return (dependency==null)?DependencyType.FS:dependency.getDependencyType();
+	public DependencyType.Kind getType(){
+		return (dependency==null)?DependencyType.Kind.FS:dependency.getDependencyKind();
 	}
 
 

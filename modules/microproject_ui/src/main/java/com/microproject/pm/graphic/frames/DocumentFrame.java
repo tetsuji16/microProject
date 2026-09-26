@@ -795,7 +795,7 @@ public class DocumentFrame extends NamedFrame implements
 			Dependency dependency = dependencies.get(i);
 			choices[i] = dependency.getQualifiedPredecessorName() + " → "
 				+ dependency.getQualifiedSuccessorName() + " ("
-				+ DependencyType.toLongString(dependency.getDependencyType()) + ")";
+				+ DependencyType.toLongString(dependency.getDependencyKind()) + ")";
 		}
 		Object selected = JOptionPane.showInputDialog(this,
 			Messages.getString("UnlinkDialog.SelectDependency"),

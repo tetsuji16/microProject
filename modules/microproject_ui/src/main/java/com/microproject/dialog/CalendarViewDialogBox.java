@@ -283,7 +283,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 				Dependency dependency = dependencies.get(i);
 				choices[i] = dependency.getQualifiedPredecessorName() + " → "
 					+ dependency.getQualifiedSuccessorName() + " ("
-					+ DependencyType.toLongString(dependency.getDependencyType()) + ")";
+					+ DependencyType.toLongString(dependency.getDependencyKind()) + ")";
 			}
 			Object selected = JOptionPane.showInputDialog(CalendarViewDialogBox.this,
 				Messages.getString("UnlinkDialog.SelectDependency"), Messages.getString("UnlinkDialog.Title"),

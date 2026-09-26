@@ -28,13 +28,17 @@ import java.awt.geom.GeneralPath;
 import java.io.Serializable;
 
 import com.microproject.pm.graphic.graph.LinkRouting;
+import com.microproject.pm.dependency.DependencyType;
 
 /**
  *
  */
 public abstract class GanttLinkRouting extends LinkRouting implements Serializable {
 	
-	public abstract void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,double y1floor,double y1ceil,int type);
+	public abstract void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,double y1floor,double y1ceil,DependencyType.Kind type);
+	public final void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,double y1floor,double y1ceil,int type) {
+		routePath(path, x0, y0, x1, y1, y2, y1floor, y1ceil, DependencyType.Kind.fromCode(type));
+	}
 	
 	protected boolean verticalArrow=true;
 	public boolean isVerticalArrow() {

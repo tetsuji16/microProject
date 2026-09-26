@@ -850,9 +850,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			//if (format.getMiddle()!=null){
 			    GraphicNode from=dependency.getPredecessor();
 			    GraphicNode to=dependency.getSuccessor();
-			    int type=dependency.getType();
-				int fromSign=(type==DependencyType.SF||type==DependencyType.SS)?-1:1;
-				int toSign=(type==DependencyType.FS||type==DependencyType.SS)?-1:1;
+			    DependencyType.Kind type=dependency.getType();
+				int fromSign=(type==DependencyType.Kind.SF||type==DependencyType.Kind.SS)?-1:1;
+				int toSign=(type==DependencyType.Kind.FS||type==DependencyType.Kind.SS)?-1:1;
 				// A milestone has zero scheduled width but is painted as a diamond.
 				// Route links from/to that painted edge, rather than its centre, so the
 				// subsequent bar paint cannot hide the first segment of the connector.

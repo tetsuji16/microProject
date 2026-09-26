@@ -82,7 +82,7 @@ public class TimesheetEntryPane extends JScrollPane {
 			super.setValueAt(aValue, row, column);
 			TimesheetAssignment entry = getEntryInRow(row);
 			if (entry != null) {
-				entry.getAssignment().setTimesheetStatus(TimesheetStatus.ENTERED);
+				entry.getAssignment().setTimesheetStatus(TimesheetStatus.Kind.ENTERED);
 				entry.setDirty(true);
 			}
 		}
@@ -218,10 +218,11 @@ public class TimesheetEntryPane extends JScrollPane {
 	private Assignment prepareTimesheetSnapshot(Assignment liveAssignment) {
 		Assignment timesheetSnapshot = liveAssignment.getBaselineAssignment(Snapshottable.TIMESHEET, true);
 		timesheetSnapshot.setTimesheetAssignment(true);
-		int status = timesheetSnapshot.getTimesheetStatus();
-		if (status == TimesheetStatus.NO_DATA || status == TimesheetStatus.INTEGRATED) {
+		int statusCode = timesheetSnapshot.getTimesheetStatus();
+		TimesheetStatus.Kind status = timesheetSnapshot.getTimesheetStatusKind();
+		if (status == TimesheetStatus.Kind.NO_DATA || status == TimesheetStatus.Kind.INTEGRATED) {
 			Field.copyData(editableTimesheetFields, timesheetSnapshot, liveAssignment);
-			timesheetSnapshot.setTimesheetStatus(status);
+			timesheetSnapshot.setTimesheetStatus(statusCode);
 		}
 		return timesheetSnapshot;
 	}
@@ -286,8 +287,8 @@ public class TimesheetEntryPane extends JScrollPane {
 	private void normalizeEnteredTimesheets() {
 		for (TimesheetAssignment entry : timesheetAssignments) {
 			Assignment snapshot = entry.getAssignment();
-			if (snapshot.getTimesheetStatus() == TimesheetStatus.ENTERED) {
-				snapshot.setTimesheetStatus(TimesheetStatus.VALIDATED);
+			if (snapshot.getTimesheetStatusKind() == TimesheetStatus.Kind.ENTERED) {
+				snapshot.setTimesheetStatus(TimesheetStatus.Kind.VALIDATED);
 			}
 		}
 	}

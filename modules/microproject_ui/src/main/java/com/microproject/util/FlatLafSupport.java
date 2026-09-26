@@ -44,6 +44,7 @@ import com.microproject.ui.theme.MicroProjectTheme;
 public final class FlatLafSupport {
 	private static final Logger logger = Logger.getLogger(FlatLafSupport.class.getName());
 	private static boolean initialized;
+	private static Font platformDefaultFont;
 	private static final int MS_PROJECT_UI_FONT_SIZE = 12;
 	private static final String MS_PROJECT_FONT = "Segoe UI";
 	private static final String JAPANESE_FONT_SAMPLE = "日本語";
@@ -68,6 +69,7 @@ public final class FlatLafSupport {
 
 			Font defaultFont = createDefaultFont();
 			if (defaultFont != null) {
+				platformDefaultFont = defaultFont;
 				applyUIFontDefaults(defaultFont);
 				applyEnvironmentFonts(defaultFont);
 			}
@@ -88,6 +90,22 @@ public final class FlatLafSupport {
 		if (!initialized || !isFlatLafLookAndFeel()) {
 			initialize();
 		}
+	}
+
+	/** Applies a persisted user font choice from the platform font baseline. */
+	public static synchronized void applyUserFontPreference(String family, int size) {
+		if (platformDefaultFont == null) {
+			platformDefaultFont = createDefaultFont();
+		}
+		Font preferred = platformDefaultFont;
+		if (family != null && !family.isBlank()) {
+			preferred = new Font(family, Font.PLAIN, preferred.getSize());
+		}
+		if (size > 0) {
+			preferred = preferred.deriveFont((float) size);
+		}
+		applyUIFontDefaults(preferred);
+		applyEnvironmentFonts(preferred);
 	}
 
 	/**

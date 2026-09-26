@@ -27,13 +27,17 @@ package com.microproject.pm.graphic.link_routing;
 import java.awt.geom.GeneralPath;
 
 import com.microproject.pm.graphic.graph.LinkRouting;
+import com.microproject.pm.dependency.DependencyType;
 
 /**
  *
  */
 public abstract class NetworkLinkRouting extends LinkRouting{
 	
-	public abstract void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,int type);
+	public abstract void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,DependencyType.Kind type);
+	public final void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,int type) {
+		routePath(path, x0, y0, x1, y1, y2, DependencyType.Kind.fromCode(type));
+	}
 	
 	protected boolean vertical=true;
 	public boolean isVertical() {

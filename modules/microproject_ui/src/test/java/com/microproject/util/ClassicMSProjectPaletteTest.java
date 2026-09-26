@@ -53,6 +53,12 @@ class ClassicMSProjectPaletteTest {
 	}
 
 	@Test
+	void criticalBarsUseTheSharedOfficeRedInsteadOfPureRed() {
+		assertEquals(MicrosoftProjectGanttTheme.CRITICAL, new ClassicMSProjectPalette().getCriticalTaskColor());
+		assertNotEquals(Color.RED, new ClassicMSProjectPalette().getCriticalTaskColor());
+	}
+
+	@Test
 	void createBarPaintUsesReadableGradientsForBarsAndBackgroundLayers() {
 		ClassicMSProjectPalette palette = new ClassicMSProjectPalette();
 		Paint fillPaint = palette.createBarPaint(new Color(0x5B, 0x9B, 0xD5), new Rectangle2D.Double(0, 0, 80, 12), false, false);

@@ -428,7 +428,7 @@ public class GanttInteractor extends GraphInteractor{
 				return false;
 			// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
 			DependencyService.getInstance().newDependency(endpoints.source(), endpoints.destination(),
-					DependencyType.FS, 0, this);
+					DependencyType.Kind.FS, 0, this);
 			return true;
 		} catch (InvalidAssociationException e) {
 			Alert.error(e.getMessage());
@@ -465,7 +465,8 @@ public class GanttInteractor extends GraphInteractor{
 		long originalScheduleEnd = schedule.getEnd();
 		long originalTaskStart = task == null ? 0L : task.getStart();
 		long originalTaskEnd = task == null ? 0L : task.getEnd();
-		int originalConstraintType = task == null ? ConstraintType.ASAP : task.getConstraintType();
+		int originalConstraintTypeCode = task == null ? ConstraintType.Kind.ASAP.code() : task.getConstraintType();
+		ConstraintType.Kind originalConstraintType = task == null ? ConstraintType.Kind.ASAP : task.getConstraintTypeKind();
 		long originalConstraintDate = task == null ? 0L : task.getConstraintDate();
     	switch (state) {
 		case BAR_MOVE:
@@ -489,7 +490,7 @@ public class GanttInteractor extends GraphInteractor{
 		}
 		boolean updateConstraint = shouldUpdateTaskConstraint();
 		boolean preparedConstraint = false;
-		int targetConstraintType = updateConstraint ? getConstraintTypeForDrag() : ConstraintType.ASAP;
+		ConstraintType.Kind targetConstraintType = updateConstraint ? getConstraintTypeForDrag() : ConstraintType.Kind.ASAP;
 		long requestedConstraintDate = updateConstraint ? getRequestedConstraintDate(start, end) : 0L;
 		if (updateConstraint && undoSupport != null) {
 			undoSupport.beginUpdate();
@@ -505,9 +506,9 @@ public class GanttInteractor extends GraphInteractor{
 			}
 			if (updateConstraint) {
 				if (task != null && scheduleChanged) {
-					applyConstraintAfterDrag(task, targetConstraintType, getConstraintDateForDrag(task), originalConstraintType, originalConstraintDate, undoSupport);
+					applyConstraintAfterDrag(task, targetConstraintType, getConstraintDateForDrag(task), originalConstraintType, originalConstraintTypeCode, originalConstraintDate, undoSupport);
 				} else if (task != null && preparedConstraint) {
-					task.setScheduleConstraint(originalConstraintType, originalConstraintDate);
+					task.setScheduleConstraint(originalConstraintTypeCode, originalConstraintDate);
 				}
 			}
 		} finally {
@@ -544,8 +545,8 @@ public class GanttInteractor extends GraphInteractor{
     			&& (state == BAR_MOVE || state == BAR_MOVE_START || state == BAR_MOVE_END);
     }
 
-	private int getConstraintTypeForDrag() {
-		return ConstraintType.SNET;
+	private ConstraintType.Kind getConstraintTypeForDrag() {
+		return ConstraintType.Kind.SNET;
 	}
 
 	private long getConstraintDateForDrag(Task task) {
@@ -556,18 +557,18 @@ public class GanttInteractor extends GraphInteractor{
 		return requestedStart;
 	}
 
-    private boolean prepareConstraintForIntervalUpdate(Task task, int constraintType, long constraintDate, int originalConstraintType, long originalConstraintDate) {
+    private boolean prepareConstraintForIntervalUpdate(Task task, ConstraintType.Kind constraintType, long constraintDate, ConstraintType.Kind originalConstraintType, long originalConstraintDate) {
     	if (task == null) {
     		return false;
     	}
     	if (originalConstraintType == constraintType && originalConstraintDate == constraintDate) {
     		return false;
     	}
-    	task.setScheduleConstraint(constraintType, constraintDate);
+	    task.setScheduleConstraint(constraintType, constraintDate);
     	return true;
     }
 
-    private void applyConstraintAfterDrag(Task task, int constraintType, long constraintDate, int originalConstraintType, long originalConstraintDate, UndoableEditSupport undoSupport) {
+    private void applyConstraintAfterDrag(Task task, ConstraintType.Kind constraintType, long constraintDate, ConstraintType.Kind originalConstraintType, int originalConstraintTypeCode, long originalConstraintDate, UndoableEditSupport undoSupport) {
     	if (task == null) {
     		return;
     	}
@@ -575,8 +576,8 @@ public class GanttInteractor extends GraphInteractor{
     		return;
     	}
 		task.setScheduleConstraint(constraintType, constraintDate);
-    	if (undoSupport != null) {
-    		undoSupport.postEdit(new TaskConstraintEdit(task, originalConstraintType, originalConstraintDate, constraintType, constraintDate, this));
+	    if (undoSupport != null) {
+	    undoSupport.postEdit(new TaskConstraintEdit(task, originalConstraintTypeCode, originalConstraintDate, constraintType.code(), constraintDate, this));
     	}
     }
 

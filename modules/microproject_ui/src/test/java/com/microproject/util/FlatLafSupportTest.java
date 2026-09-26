@@ -117,4 +117,26 @@ class FlatLafSupportTest {
 		assertEquals(FlatUiSupport.dataSurfaceBackground(), list.getBackground());
 	}
 
+	@Test
+	void userFontPreferenceUpdatesSwingDefaultsAndResetUsesPlatformBaseline() {
+		FlatLafSupport.initialize();
+		java.awt.Font platformFont = UIManager.getFont("defaultFont");
+		try {
+			FlatLafSupport.applyUserFontPreference("Dialog", 14);
+			for (String key : new String[] { "defaultFont", "Label.font", "Button.font", "TextField.font",
+					"ComboBox.font", "List.font", "Table.font", "TabbedPane.font" }) {
+				java.awt.Font font = UIManager.getFont(key);
+				assertEquals("Dialog", font.getFamily(), key + " family");
+				assertEquals(14.0f, font.getSize2D(), key + " size");
+			}
+			assertEquals(java.awt.Font.BOLD, UIManager.getFont("TableHeader.font").getStyle());
+
+			FlatLafSupport.applyUserFontPreference("", 0);
+			assertEquals(platformFont, UIManager.getFont("defaultFont"), "reset must restore the platform font baseline");
+			assertEquals(platformFont, UIManager.getFont("Label.font"));
+		} finally {
+			FlatLafSupport.initialize();
+		}
+	}
+
 }

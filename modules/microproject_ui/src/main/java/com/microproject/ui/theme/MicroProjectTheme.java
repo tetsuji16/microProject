@@ -54,6 +54,8 @@ public final class MicroProjectTheme {
 		UIManager.put("MicroProject.separatorColor", tokens.separatorColor());
 		UIManager.put("MicroProject.accentColor", tokens.accentColor());
 		UIManager.put("MicroProject.spreadsheetBodyBackground", tokens.spreadsheetBodyBackground());
+		UIManager.put("MicroProject.assignmentCompleteBackground", new java.awt.Color(0xE5F0E5));
+		UIManager.put("MicroProject.assignmentPartialBackground", new java.awt.Color(0xFFF3D9));
 		UIManager.put("MicroProject.spreadsheetReadOnlyForeground", tokens.spreadsheetReadOnlyForeground());
 		UIManager.put("MicroProject.spreadsheetHeaderBackground", tokens.spreadsheetHeaderBackground());
 		UIManager.put("MicroProject.spreadsheetHeaderSelectedBackground", tokens.spreadsheetHeaderSelectedBackground());
