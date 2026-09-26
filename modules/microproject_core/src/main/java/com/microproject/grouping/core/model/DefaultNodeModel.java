@@ -351,7 +351,7 @@ public class DefaultNodeModel implements NodeModel {
 		remove(node, actionType, true,removeDependencies);
 	}
 	public void remove(Node node,int actionType,boolean filterAssignments,boolean removeDependencies){
-		ArrayList nodes = new ArrayList(1);
+		ArrayList<Node> nodes = new ArrayList<>(1);
 		nodes.add(node);
 		remove(nodes,actionType,filterAssignments,removeDependencies);
 		//hierarchy.remove(node,this,actionType);
