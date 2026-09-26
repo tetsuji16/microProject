@@ -1116,9 +1116,11 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			if (enclosingSubproject != null && ((Task) enclosingSubproject).isSubprojectReadOnly())
 				return true;
 		}
+		BelongsToHierarchy hierarchy = object instanceof BelongsToHierarchy belongsToHierarchy
+			? belongsToHierarchy : null;
 		boolean taskSheetSummaryScheduleEdit = FieldContext.isTaskSheetUpdate(context)
 				&& TaskSheetScheduleWorkflow.isScheduleField(id)
-				&& (object instanceof Project || (object instanceof BelongsToHierarchy && ((BelongsToHierarchy) object).isParent()));
+				&& (object instanceof Project || (hierarchy != null && hierarchy.isParent()));
 
 		if (readOnly) {
 			return true;
@@ -1132,12 +1134,12 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		// if (isHidden(object,context))
 		// return true;
 
-		if (object instanceof BelongsToHierarchy) { // for dialogs
+		if (hierarchy != null) { // for dialogs
 		// for parents with This summary type
 		// System.out.println("summary is " + summary + " THIS " + THIS + " NONE
-		// " + NONE + " parent " + ((BelongsToHierarchy)object).isParent());
+		// " + NONE + " parent " + hierarchy.isParent());
 			if (!taskSheetSummaryScheduleEdit && summary != NONE)
-				if (((BelongsToHierarchy) object).isParent())
+				if (hierarchy.isParent())
 					return true;
 		}
 

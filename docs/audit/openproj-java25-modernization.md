@@ -1637,6 +1637,11 @@ reflective setter and rethrows that same instance. The OpenProj type-check/cast
 branch is preserved; `FieldSetValueTest` verifies exception identity across the
 reflection boundary.
 
+`Field.isReadOnly` now resolves a `BelongsToHierarchy` object once and shares
+that binding between task-sheet schedule editing and summary-field checks. The
+OpenProj summary-parent behavior is preserved, and `FieldComparisonTest`
+verifies that only hierarchy parents are read-only for summary fields.
+
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
 same. The loop matches the OpenProj implementation; `FieldDictionaryTest`

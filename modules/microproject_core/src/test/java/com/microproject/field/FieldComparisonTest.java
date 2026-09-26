@@ -30,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.grouping.core.hierarchy.BelongsToHierarchy;
+
 class FieldComparisonTest {
 	@Test
 	void fieldClassAccessorsAndApplicabilityUseWildcardClassTypes() {
@@ -81,5 +83,22 @@ class FieldComparisonTest {
 		assertTrue(first.compareTo(last) < 0);
 		assertTrue(last.compareTo(first) > 0);
 		assertEquals(0, first.compareTo(first));
+	}
+
+	@Test
+	void summaryFieldsAreReadOnlyForHierarchyParentsOnly() {
+		Field field = new Field();
+		field.setClass(BelongsToHierarchy.class);
+		field.setSummary("Sum");
+
+		assertTrue(field.isReadOnly(new HierarchyNode(true), null));
+		assertFalse(field.isReadOnly(new HierarchyNode(false), null));
+	}
+
+	private record HierarchyNode(boolean isParent) implements BelongsToHierarchy {
+		@Override
+		public long getParentId(int outlineNumber) {
+			return 0L;
+		}
 	}
 }
