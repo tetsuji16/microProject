@@ -432,9 +432,9 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		try (Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
 			writer.write('\uFEFF');
 			try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.RFC4180)) {
-				List<String> header = new ArrayList<>(); for (int column = 0; column < model.getColumnCount(); column++) header.add(model.getColumnName(column)); printer.printRecord(header);
+				List<String> header = new ArrayList<>(model.getColumnCount()); for (int column = 0; column < model.getColumnCount(); column++) header.add(model.getColumnName(column)); printer.printRecord(header);
 				for (int row = 0; row < model.getRowCount(); row++) {
-					List<String> values = new ArrayList<>(); for (int column = 0; column < model.getColumnCount(); column++) { Object value = model.getValueAt(row, column); values.add(value == null ? "" : String.valueOf(value)); }
+					List<String> values = new ArrayList<>(model.getColumnCount()); for (int column = 0; column < model.getColumnCount(); column++) { Object value = model.getValueAt(row, column); values.add(value == null ? "" : String.valueOf(value)); }
 					printer.printRecord(values);
 				}
 			}
