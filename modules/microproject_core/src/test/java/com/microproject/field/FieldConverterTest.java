@@ -19,6 +19,7 @@
 package com.microproject.field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -34,6 +35,18 @@ import com.microproject.datatype.TimeUnit;
 import com.microproject.options.EditOption;
 
 class FieldConverterTest {
+	@Test
+	void optionFieldPreprocessesStringInputBeforeStoringIt() throws Exception {
+		Object target = new Object();
+		OptionField field = new OptionField();
+
+		field.setValue(target, this, "raw", null);
+
+		assertSame(target, field.target);
+		assertEquals("raw", field.preprocessedText);
+		assertEquals("normalized:raw", field.storedValue);
+	}
+
 	@Test
 	void convertsUsingTypedRuntimeClassMetadata() throws FieldParseException {
 		assertEquals(42, FieldConverter.convert("42", Integer.class, null));
@@ -68,6 +81,30 @@ class FieldConverterTest {
 		String moneyText = Money.getFormat(false).format(sourceMoney);
 		Number convertedMoney = (Number) FieldConverter.convert(moneyText, Money.class, null);
 		assertEquals(Money.getFormat(false).parse(moneyText), convertedMoney);
+	}
+
+	private static final class OptionField extends Field {
+		private Object target;
+		private Object storedValue;
+		private String preprocessedText;
+
+		@Override
+		public boolean hasOptions() {
+			return true;
+		}
+
+		@Override
+		protected Object preprocessText(Object object, String textValue, FieldContext context) {
+			this.preprocessedText = textValue;
+			return "normalized:" + textValue;
+		}
+
+		@Override
+		public boolean setInternalValue(Object object, Object value, FieldContext context) {
+			this.target = object;
+			this.storedValue = value;
+			return true;
+		}
 	}
 }
 

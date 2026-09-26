@@ -860,7 +860,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (context == null)
 			context = specialFieldContext;
 		if (hasOptions()) {
-			if (value instanceof String) value = preprocessText(object, (String) value, context);
+			if (value instanceof String text) value = preprocessText(object, text, context);
 		} else {
 			if (value instanceof String && hasExternalType()) // do a first
 																// pass,
