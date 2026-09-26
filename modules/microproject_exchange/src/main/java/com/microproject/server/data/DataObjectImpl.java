@@ -59,8 +59,7 @@ public class DataObjectImpl extends CommonDataObject{
     }
     
     public boolean equals(Object o){
-        if (o instanceof DataObjectImpl){
-            DataObjectImpl dob=(DataObjectImpl)o;
+        if (o instanceof DataObjectImpl dob){
             if (getId()!=dob.getId() || getUniqueId()!=dob.getUniqueId()) return false;
             //if ((name==null&&dob.getName()!=null)||(name!=null&&dob.getName()==null)) return false;
             //if (!name.equals(dob.getName())) return false;

@@ -2079,3 +2079,9 @@ active path is `DefaultNodeModel.remove(List<Node>, ...)`. Added a regression
 that tries to remove an assignment outline node through the default filtering
 route and confirms it remains under its task. Focused `DefaultNodeModelTest`
 and `git diff --check` passed. Commit: recorded in this changeset.
+
+`DataObjectImpl.equals` now binds its OpenProj-derived `instanceof` check with
+pattern matching, removing the immediate cast. The enclosing equality logic
+contains a later fork change for issue #177, which remains untouched. Equality
+still compares `id` and `uniqueId`; `DataObjectEqualsHashCodeTest` passed after
+the hunk-only change.
