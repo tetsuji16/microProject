@@ -1832,3 +1832,9 @@ traces all three guards to the OpenProj source, and the branch bodies and
 rendering calls are unchanged. No dedicated preview-frame test exists; the
 full UI module suite is the proportionate verification for this syntax-only
 change. No physical GUI route or visual surface changed.
+
+`AssignmentData.equals` now binds its OpenProj-derived `AssignmentData`
+operand in the existing type guard. The `super.equals` check, equality fields,
+and false result for null or unrelated types are unchanged. Extended
+`DataObjectEqualsHashCodeTest` to retain explicit null/foreign-type coverage;
+the focused exchange test passed.

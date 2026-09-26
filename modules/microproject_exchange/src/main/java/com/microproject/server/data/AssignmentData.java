@@ -113,8 +113,7 @@ public class AssignmentData extends SerializedDataObject {
 
 	public boolean equals(Object obj){
 		if (!super.equals(obj)) return false;
-		if (obj instanceof AssignmentData){
-			AssignmentData data=(AssignmentData)obj;
+		if (obj instanceof AssignmentData data){
 			return data.getTaskId()==getTaskId()&&data.getSnapshotId()==getSnapshotId();
 		}else return false;
 	}

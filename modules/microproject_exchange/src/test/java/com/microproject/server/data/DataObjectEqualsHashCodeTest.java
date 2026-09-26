@@ -54,6 +54,8 @@ public class DataObjectEqualsHashCodeTest {
 		// snapshotId is part of equality, so a different snapshot is not equal
 		b.setSnapshotId(2);
 		assertNotEquals(a, b);
+		assertNotEquals(a, null);
+		assertNotEquals(a, new Object());
 	}
 
 	@Test
