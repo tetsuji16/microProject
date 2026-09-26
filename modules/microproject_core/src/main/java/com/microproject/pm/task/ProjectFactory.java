@@ -712,11 +712,11 @@ public class ProjectFactory {
 	}
 
 
-	public Job getCloseProjectsOnServerJob(Collection projects) {
+	public Job getCloseProjectsOnServerJob(Collection<Project> projects) {
 		int projectCount = projects == null ? 0 : projects.size();
-		List<Project> localProjects=new ArrayList<Project>(projectCount);
-		List<Project> serverProjects=new ArrayList<Project>(projectCount);
-		for (Project project : (Collection<Project>)projects) {
+		List<Project> localProjects = new ArrayList<>(projectCount);
+		List<Project> serverProjects = new ArrayList<>(projectCount);
+		for (Project project : projects) {
 			if (project.isReadOnly()) continue;
 			if (project.isLocal()) localProjects.add(project);
 			else serverProjects.add(project);
@@ -800,8 +800,8 @@ public class ProjectFactory {
 				return null;
 		}
 
-		final ArrayList toRemove = new ArrayList();
-		final ArrayList projects = new ArrayList();
+		final List<Node> toRemove = new ArrayList<>();
+		final List<Project> projects = new ArrayList<>();
 		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() { public void accept(Object arg0) {
 				Node node = (Node)arg0;
 				if (node == null)
@@ -828,9 +828,7 @@ public class ProjectFactory {
 
 		job.addRunnable(new JobRunnable("Local: closeProjects"){
 			public Object run() throws Exception{
-				Iterator i = toRemove.iterator();
-				while (i.hasNext()) {
-					Node node = (Node)i.next();
+				for (Node node : toRemove) {
 					Project p = (Project)node.getImpl();
 					portfolio.handleExternalTasks(p,false,false); 		// external link handling
 					p.getResourcePool().removeProject(p);
