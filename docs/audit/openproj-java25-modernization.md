@@ -1733,3 +1733,8 @@ factory method and its `DefaultNodeModel.createChildNode` caller are unchanged.
 `ProjectScheduleBehaviorTest.childFactoryUsesParentTaskEnclosingProject`
 verifies null and non-task parents still select the current factory, while a
 task belonging to another project selects that enclosing project.
+
+`Project.equals` now binds the OpenProj-derived `DataObject` before comparing
+names. `ProjectScheduleBehaviorTest.projectEqualityUsesNameOnlyForDataObjects`
+verifies equal names remain equal across Project instances and non-DataObject
+values remain unequal.

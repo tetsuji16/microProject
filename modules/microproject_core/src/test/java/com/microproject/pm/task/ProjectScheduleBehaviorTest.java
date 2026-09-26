@@ -25,6 +25,7 @@
 package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -63,6 +64,17 @@ class ProjectScheduleBehaviorTest {
 		Project project = createProject();
 
 		assertSame(Project.class, project.getType());
+	}
+
+	@Test
+	void projectEqualityUsesNameOnlyForDataObjects() {
+		Project project = createProject();
+		Project sameName = createProject();
+		project.setName("Shared project name");
+		sameName.setName("Shared project name");
+
+		assertTrue(project.equals(sameName));
+		assertFalse(project.equals(new Object()));
 	}
 
 	@Test

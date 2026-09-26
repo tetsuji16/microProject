@@ -1388,8 +1388,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 
 	public boolean equals(Object obj){
-	    if (obj instanceof DataObject){
-	        return getName().equals(((DataObject)obj).getName());
+	    if (obj instanceof DataObject dataObject){
+	        return getName().equals(dataObject.getName());
 	    }
 	    return false;
 	}
