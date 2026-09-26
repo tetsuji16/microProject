@@ -656,17 +656,18 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			context = field.specialFieldContext;
 
 		Object object = node.getImpl();
-		NodeWalker walkingVisitor = (NodeWalker) field.getSummaryVisitor((object instanceof GroupNodeImpl) ? field.getSummaryForGroup() : field
-				.getSummary(),object instanceof Document);
+		boolean groupNode = object instanceof GroupNodeImpl;
+		int summary = groupNode ? field.getSummaryForGroup() : field.getSummary();
+		NodeWalker walkingVisitor = (NodeWalker) field.getSummaryVisitor(summary, object instanceof Document);
 		walkingVisitor.setNode(node);
 		walkingVisitor.setNodeModel(nodeModel);
 		walkingVisitor.setContext(context);
 		walkingVisitor.setField(field);
 		Object result = walkingVisitor.getSummary();
-		if (result instanceof Double) { // convert to proper display type
-			result = ClassUtils.doubleToObject((Double) result, field.getDisplayType());
+		if (result instanceof Double value) { // convert to proper display type
+			result = ClassUtils.doubleToObject(value, field.getDisplayType());
 		}
-		if ((object instanceof GroupNodeImpl) && field.hasOptions()) {
+		if (groupNode && field.hasOptions()) {
 			result = field.convertValueToStringUsingOptions(result);
 		}
 		return result;
