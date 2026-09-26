@@ -1151,15 +1151,15 @@ public class EnterpriseResource implements Resource {
 	}
 	public void filterRoles(List keys,List values){
 		if (authorizedRoles==null) return;
-		Iterator k=keys.iterator();
-		Iterator<Integer> v=((List<Integer>)values).iterator();
+		Iterator<Object> keyIterator = keys.iterator();
+		Iterator<Integer> roleIterator = ((List<Integer>) values).iterator();
 		Object inactiveKey=null;
-		while (v.hasNext()) {
-			Object key=k.next();
-			int r=v.next();
+		while (roleIterator.hasNext()) {
+			Object key = keyIterator.next();
+			int r = roleIterator.next();
 			if (r==ApplicationUser.INACTIVE) inactiveKey=key;
 			if ((r==ApplicationUser.INACTIVE&&getAssignments().size()>0)||
-					!authorizedRoles.contains(r)) k.remove();
+					!authorizedRoles.contains(r)) keyIterator.remove();
 		}
 		if (keys.size()==0) keys.add(inactiveKey); //occurs when an user becomes "inactive"
 	}
