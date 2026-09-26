@@ -394,8 +394,7 @@ public class DefaultNodeModel implements NodeModel {
 			return true;
 //		try {
 //			beginUpdate();
-			if (node.getImpl() instanceof Assignment){
-				Assignment assignment=(Assignment)node.getImpl();
+			if (node.getImpl() instanceof Assignment assignment){
 //				if (cleanAssignment)
 					AssignmentService.getInstance().remove(assignment,cleanAssignment,this,isUndo(actionType)); //LC 8/4/2006 - hk 7/8/2006 changed null to this so event will be fired
 //				else if (assignment.getResource()!=ResourceImpl.getUnassignedInstance()){

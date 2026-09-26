@@ -572,6 +572,29 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void removingAssignedTaskCleansResourceAssignmentAndUndoState() {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask task = createTask(project, "assigned task");
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		Node taskNode = model.search(task);
+		project.getUndoController().clear();
+
+		model.remove(taskNode, NodeModel.NORMAL);
+
+		assertNull(model.search(task));
+		assertFalse(resource.getAssignments().contains(assignment));
+		project.getUndoController().undo();
+		assertSame(taskNode, model.search(task));
+		assertTrue(task.getAssignments().contains(assignment));
+		assertTrue(resource.getAssignments().contains(assignment));
+		project.getUndoController().redo();
+		assertNull(model.search(task));
+		assertFalse(resource.getAssignments().contains(assignment));
+	}
+
+	@Test
 	void copyRebuildsWbsChildrenForCopiedSummaryTask() {
 		Project project = createProjectWithoutVoidRows();
 		NormalTask parent = createTask(project, "parent");

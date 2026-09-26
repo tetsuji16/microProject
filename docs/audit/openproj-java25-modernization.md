@@ -1691,3 +1691,10 @@ The focused test class passed with these copy-path assertions.
 active task-copy path invokes both methods through `cloneNode` and `cleanBranch`;
 `DefaultNodeModelTest` verifies copied assignment reconstruction and nested WBS
 cache rebuilding. The focused test class passed.
+
+`DefaultNodeModel.removeApartFromHierarchy` now binds the OpenProj-derived
+`Assignment` case used while hierarchy deletion walks a task's assignment rows.
+The traversal still calls `AssignmentService.remove` with the original cleanup,
+undo, and dependency flags. `DefaultNodeModelTest.removingAssignedTaskCleansResourceAssignmentAndUndoState`
+verifies task deletion removes its resource assignment and Undo/Redo restores and
+removes both sides. The focused test passed.
