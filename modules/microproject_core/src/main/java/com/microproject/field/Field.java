@@ -1027,8 +1027,8 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		} catch (InvocationTargetException e) {
 			Throwable cause = e.getCause();
 			logger.log(Level.SEVERE, "Unexpected error", e);
-			if (cause != null && cause instanceof FieldParseException)
-				throw (FieldParseException) cause;
+			if (cause instanceof FieldParseException parseException)
+				throw parseException;
 			else {
 				// setters can throw other values, so don't treat as bad exception
 				throw new FieldParseException(cause.getMessage());

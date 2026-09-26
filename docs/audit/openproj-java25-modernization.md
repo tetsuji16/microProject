@@ -1632,6 +1632,11 @@ preprocessing. The OpenProj branch is source-identical; `FieldConverterTest`
 verifies the original string reaches preprocessing and its converted value is
 stored for the same target.
 
+`Field.setInternalValue` now binds an unwrapped `FieldParseException` from a
+reflective setter and rethrows that same instance. The OpenProj type-check/cast
+branch is preserved; `FieldSetValueTest` verifies exception identity across the
+reflection boundary.
+
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
 same. The loop matches the OpenProj implementation; `FieldDictionaryTest`
