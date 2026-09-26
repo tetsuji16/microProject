@@ -698,8 +698,8 @@ public class ProjectFactory {
 		final List<Project> projects=new ArrayList<>();
 		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() { public void accept(Object arg0) {
 				Object impl = ((Node)arg0).getImpl();
-				if (impl instanceof Project){
-					projects.add((Project) impl);
+				if (impl instanceof Project childProject){
+					projects.add(childProject);
 				}
 			}
 		});
@@ -807,9 +807,8 @@ public class ProjectFactory {
 				if (node == null)
 					return;
 				Object impl = node.getImpl();
-				if (!(impl instanceof Project))
+				if (!(impl instanceof Project p))
 					return;
-				final Project p = (Project)impl;
 				toRemove.add(node);
 				if (Environment.getStandAlone()||project.isLockable()){
 					projects.add(p);

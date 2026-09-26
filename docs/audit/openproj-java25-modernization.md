@@ -1790,3 +1790,9 @@ change.
 value in its existing type guard before applying the branch-save eligibility
 check. Project traversal order, date refresh, and the fork's dirty-child save
 rules are unchanged. The full core test suite passed.
+
+The OpenProj-derived `ProjectFactory.getCloseProjectsOnServerJob(Project)` and
+`getRemoveProjectJob` traversal callbacks now bind `Project` implementations
+directly in their existing type checks. The close and removal workflows retain
+their separate post-processing and order; the null-node guard added by the fork
+is unchanged. The full core test suite passed.
