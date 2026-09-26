@@ -31,6 +31,33 @@ source-compatibility APIs; deleting or changing them needs an explicit public AP
 compatibility decision. Other same-named classes still require their own caller
 and serialization-boundary audit.
 
+## #152 — same-name type consolidation
+
+The names in this issue are not sufficient evidence that the implementations
+can be merged. Current caller and boundary checks distinguish these pairs:
+
+- `com.microproject.core.fields.Field` is JAXB metadata used by the legacy
+  `core.fields`/`core.nodes` configuration family. `com.microproject.field.Field`
+  is the runtime field descriptor used by the active application configuration,
+  spreadsheet, undo, exchange, and reports paths. They do not represent the
+  same responsibility; merging them would cross the JAXB configuration and
+  runtime field-model boundary.
+- `com.microproject.core.nodes.Node` is an ID-bearing legacy configuration
+  node contract. `com.microproject.grouping.core.Node` is the Swing tree node
+  contract used by the active task/resource outline and grouped-view pipeline.
+  They have different parents, lifecycle, and callers; retain both until the
+  legacy JAXB subsystem has an explicit migration and round-trip decision.
+- The MPX importer checks `mpxTask.getSubProject()` while converting an MPXJ
+  task into the internal `SubProj` model contract. Later internal consumers use
+  `Task.isSubproject()`, which tests that model contract. These are source-format
+  decoding and domain-model classification respectively, not duplicate
+  subproject predicates. Keep the MPXJ-specific check in the exchange adapter.
+
+The remaining consolidation inventory must be decided pair by pair using
+active callers and serialization/configuration boundaries. Do not remove a
+deprecated public type solely because in-repository production callers have
+migrated; document and resolve the source-compatibility policy first.
+
 ## #258 — hierarchy types
 
 `com.microproject.core.hierarchy` models the legacy document hierarchy;
