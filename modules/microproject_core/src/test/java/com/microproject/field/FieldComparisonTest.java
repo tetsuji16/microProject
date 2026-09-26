@@ -42,6 +42,24 @@ class FieldComparisonTest {
 	}
 
 	@Test
+	void delegatedObjectsCanDeclareFieldApplicability() {
+		Field field = new Field();
+		DelegatesFields delegator = new DelegatesFields() {
+			@Override
+			public boolean delegates(Field delegatedField) {
+				return delegatedField == field;
+			}
+
+			@Override
+			public Object getDelegatedFieldValue(Field delegatedField) {
+				return null;
+			}
+		};
+
+		assertTrue(field.isApplicable(delegator));
+	}
+
+	@Test
 	void ordersIndexedFieldsWithoutIntegerOverflow() {
 		Field first = new Field();
 		first.setIndex(Integer.MIN_VALUE);

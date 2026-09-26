@@ -237,8 +237,8 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	public boolean isApplicable(Object object) {
 		if (object == null)
 			return false;
-		if (object instanceof DelegatesFields) {// for objects that delegate, they should be able to display anything
-			if (((DelegatesFields)object).delegates(this))
+		if (object instanceof DelegatesFields delegator) {// for objects that delegate, they should be able to display anything
+			if (delegator.delegates(this))
 			   return true;
 		}
 
@@ -716,8 +716,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			context = specialFieldContext;
 
 		Object result = null;
-		if (object instanceof DelegatesFields) {
-			DelegatesFields delegator = (DelegatesFields)object;
+		if (object instanceof DelegatesFields delegator) {
 			if (delegator.delegates(this)) {
 				result = delegator.getDelegatedFieldValue(this);
 				return result;
@@ -1146,7 +1145,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			return true;
 		if (ClassUtils.isObjectFieldReadOnly(object,this))
 			return true;
-		if ((object instanceof DelegatesFields) && ((DelegatesFields)object).delegates(this))
+		if (object instanceof DelegatesFields delegator && delegator.delegates(this))
 			return true;
 		Boolean value = (Boolean) invokeContextMethod(methodReadOnly, object, context, readOnlyHasNoContext);
 		if (value != null)

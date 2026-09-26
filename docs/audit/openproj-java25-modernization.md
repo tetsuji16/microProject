@@ -1498,3 +1498,8 @@ the authorized no-filter factory is returned.
 retaining its element cast, recursive child sorting, and comparator order. The
 loop matches OpenProj `NodeSorter`; `NodeSorterTraversalTest` checks root and
 nested sort order.
+
+`Field` now uses pattern bindings for its OpenProj-derived `DelegatesFields`
+checks in applicability, value retrieval, and read-only evaluation. The three
+branches keep their separate contracts. `FieldComparisonTest` verifies that a
+delegated object can declare a field applicable.
