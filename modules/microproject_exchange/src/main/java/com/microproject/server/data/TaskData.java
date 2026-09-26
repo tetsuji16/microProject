@@ -83,12 +83,6 @@ public class TaskData extends SerializedDataObject {
         setCalendarId((calendar==null)?-1L:calendar.getUniqueId());
     }
 
-    /*public Collection getPredecessors() {
-        return predecessors;
-    }
-    public void setPredecessors(Collection predecessors) {
-        this.predecessors = predecessors;
-    }*/
     public Collection<LinkData> getPredecessors() {
         return predecessors;
     }
