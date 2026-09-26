@@ -32,12 +32,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.field.FieldContext;
+import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.AssignmentNodeModel;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleEventListener;
@@ -46,6 +51,33 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.ProjectStartDateEdit;
 
 class ProjectScheduleBehaviorTest {
+	@Test
+	void assignmentOutlinePopulationIsIdempotent() {
+		Project project = createProject();
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		project.getTaskOutlines().addToAll(task, null);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		AssignmentNodeModel outline = (AssignmentNodeModel) project.getTaskOutline();
+		Node taskNode = outline.search(task);
+
+		outline.addAssignments(outline.iterator());
+		assertEquals(1, assignmentRows(outline, taskNode, assignment));
+
+		outline.addAssignments(outline.iterator());
+		assertEquals(1, assignmentRows(outline, taskNode, assignment));
+	}
+
+	private long assignmentRows(AssignmentNodeModel outline, Node taskNode, Assignment assignment) {
+		List<Node> children = outline.getChildren(taskNode);
+		if (children == null)
+			return 0;
+		return children.stream()
+			.filter(node -> node.getImpl() == assignment)
+			.count();
+	}
+
 	@Test
 	void outlineLifecycleSharesAssignmentDocumentBinding() {
 		Project project = createProject();

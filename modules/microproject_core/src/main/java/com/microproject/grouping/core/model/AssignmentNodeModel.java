@@ -25,18 +25,19 @@
 package com.microproject.grouping.core.model;
 
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import javax.swing.undo.UndoableEditSupport;
 
 
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
+import com.microproject.association.Association;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.hierarchy.HierarchyUtils;
@@ -170,34 +171,29 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 		addAssignments(iterator());
 	}
 
-	public void addAssignments(Iterator i){
-		Iterator j;
-		Node parent;
-		Node child;
-		Map assignments=new HashMap();
-		while (i.hasNext()) { // go thru tasks or resources
-			parent = (Node)i.next();
-			if (! (parent.getImpl() instanceof HasAssignments)) {
+	public void addAssignments(Iterator<Node> nodes){
+		Map<Node, Node> assignments = new HashMap<>();
+		while (nodes.hasNext()) { // go thru tasks or resources
+			Node parent = nodes.next();
+			if (!(parent.getImpl() instanceof HasAssignments hasAssignments)) {
 				continue; //TODO currently getting voidNodeImpl's.  This should go away when fixed
 			}
-			HasAssignments hasAssignments = (HasAssignments)parent.getImpl();
-			for (j = hasAssignments.getAssignments().iterator();j.hasNext();) {
-				Assignment assignment = (Assignment)j.next();
+			for (Association association : hasAssignments.getAssignments()) {
+				Assignment assignment = (Assignment) association;
 				if (assignment.isDefault()) continue;
-				child = NodeFactory.getInstance().createNode(assignment);
+				Node child = NodeFactory.getInstance().createNode(assignment);
 				assignments.put(child,parent);
 			}
 		}
-		boolean found;
-		for (Iterator k=assignments.keySet().iterator();k.hasNext();){
-			child=(Node)k.next();
-			parent=(Node)assignments.get(child);
+		for (Map.Entry<Node, Node> assignmentEntry : assignments.entrySet()) {
+			Node child = assignmentEntry.getKey();
+			Node parent = assignmentEntry.getValue();
 
 			//search if assignment already exists in hierarchy
 			//fixes bug about adding a second assignment when the view is first shown
-			found=false;
-			for (Enumeration e=parent.children();e.hasMoreElements();){
-				Node c=(Node)e.nextElement();
+			boolean found = false;
+			for (Enumeration<?> children = parent.children(); children.hasMoreElements();) {
+				Node c = (Node) children.nextElement();
 				if (c.getImpl()==child.getImpl()){
 					child=c;
 					found=true;

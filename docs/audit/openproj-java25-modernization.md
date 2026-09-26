@@ -2014,3 +2014,14 @@ responsibility is OpenProj-derived (`d2fa3c20a`). The active UI copy routes use
 dependencies, assignment rows, and summary WBS children. Encounter order,
 iterator-based replacement, and dependency-map lookups are unchanged. Focused
 and full core tests passed. Commit: recorded in this changeset.
+
+`AssignmentNodeModel.addAssignments` now uses a typed node iterator, a
+`Map<Node, Node>` for pending assignment rows, typed map entries, and enhanced-
+for traversal of each owner's `AssociationList`. The implementation matches
+OpenProj at `d2fa3c20a`; active calls include `NodeModelFactory` outline setup
+and `ProjectFactory` subproject loading. HashMap traversal, assignment
+filtering, and the existing child-identity check are unchanged. Added
+`ProjectScheduleBehaviorTest.assignmentOutlinePopulationIsIdempotent` to verify
+the assignment row appears once after repeated population. Focused and full
+`:microproject_core:test --console=plain` passed. Commit: recorded in this
+changeset.
