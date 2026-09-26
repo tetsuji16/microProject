@@ -1483,3 +1483,8 @@ explicit separator flag, preserving interval order and the exact dump format.
 The loop matches OpenProj `UniqueIdPool`; existing `UniqueIdPoolTest` assertions
 cover empty, single, and multiple intervals. The mutating `getId` loop retains
 its iterator because it removes exhausted intervals in place.
+
+`Range.validate` now binds a numeric input with pattern matching and removes
+redundant casts while preserving its non-number skip and lower/upper bound
+errors. The conditional matches OpenProj `Range`; focused `RangeTest` covers
+non-numeric, in-range, and both out-of-range cases.

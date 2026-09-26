@@ -69,13 +69,12 @@ public class Range {
 		this.minimum = minimum;
 	}
 	public void validate(Object objectValue, Field field) throws FieldParseException {
-		if (!(objectValue instanceof Number))
+		if (!(objectValue instanceof Number value))
 			return;
-		Number value = (Number)objectValue;
 		String error = null;
-		if (minimum > ((Number)value).doubleValue()) {
+		if (minimum > value.doubleValue()) {
 			error = field.isPercent() ? messagePercentErrorRangeMinimum : messageErrorRangeMinimum;
-		} else if (maximum < ((Number)value).doubleValue()) {
+		} else if (maximum < value.doubleValue()) {
 			error = field.isPercent() ? messagePercentErrorRangeMaximum : messageErrorRangeMaximum;
 		}
 		if (error != null) {
@@ -113,4 +112,3 @@ public class Range {
 		this.step = step;
 	}
 }
-
