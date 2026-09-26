@@ -1726,3 +1726,10 @@ its millisecond value when converted to Duration. These converters remain behind
 the existing `FieldConverter.convert` entry point used by field parsing and
 display. The expanded `FieldConverterTest` also checks converter identity and
 zero-date behavior; focused and core-module tests passed.
+
+`Project.getFactoryToUseForChildOfParent` now binds its OpenProj-derived `Task`
+argument and uses the bound task to resolve the enclosing project. The public
+factory method and its `DefaultNodeModel.createChildNode` caller are unchanged.
+`ProjectScheduleBehaviorTest.childFactoryUsesParentTaskEnclosingProject`
+verifies null and non-task parents still select the current factory, while a
+task belonging to another project selects that enclosing project.

@@ -66,6 +66,17 @@ class ProjectScheduleBehaviorTest {
 	}
 
 	@Test
+	void childFactoryUsesParentTaskEnclosingProject() {
+		Project project = createProject();
+		Project otherProject = createProject();
+		NormalTask parent = otherProject.createScriptedTask();
+
+		assertSame(project, project.getFactoryToUseForChildOfParent(null));
+		assertSame(project, project.getFactoryToUseForChildOfParent(new Object()));
+		assertSame(otherProject, project.getFactoryToUseForChildOfParent(parent));
+	}
+
+	@Test
 	void moveIntervalUpdatesProjectSpan() {
 		Project project = createProject();
 		long start = project.getStart();

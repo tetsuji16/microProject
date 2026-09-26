@@ -900,9 +900,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	}
 	public NodeModelDataFactory getFactoryToUseForChildOfParent(Object parent) {
-		if (parent == null || !(parent instanceof Task))
+		if (!(parent instanceof Task task))
 			return this;
-		return((Task)parent).getEnclosingProject();
+		return task.getEnclosingProject();
 	}
 	public void validateObject(Object newlyCreated, NodeModel nodeModel, Object eventSource, Object hierarchyInfo,boolean isNew) {
 		taskLifecycleFacade.validateObject(newlyCreated, nodeModel, eventSource, hierarchyInfo, isNew);
