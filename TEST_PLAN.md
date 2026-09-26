@@ -358,3 +358,4 @@
 - #595 startup option traversal: `ApplicationStartupFactory.dumpOpts` preserves option and argument encounter order; `ApplicationStartupFactoryProjectIdTest.startupOptionLoggingPreservesMapAndArgumentOrder` and the focused class passed.
 - #595 working-calendar list traversal: `ChangeWorkingTimeDialogBox` filters base calendars without changing encounter order. `ChangeWorkingTimeDialogBoxSaveTest` passed.
 - #595 critical-path task list traversal: read-only linked-list scans use enhanced-for while preserving order, position indexes, and rebuild behavior. `PredecessorTaskListTraversalTest` and focused critical-path tests passed.
+- #84 dead diagnostic removal: repository-wide symbol search found no caller of `NodeModelUtil.dumpTask` outside its own recursive implementation. Removed that unused WBS-cache dump routine and its logger dependency; the full `:microproject_core:test --console=plain` suite passed.

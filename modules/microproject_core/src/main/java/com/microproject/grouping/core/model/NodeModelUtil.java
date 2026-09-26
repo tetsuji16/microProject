@@ -29,8 +29,6 @@ import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 
 import com.microproject.grouping.core.Node;
@@ -42,7 +40,6 @@ import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 
 public class NodeModelUtil {
-	private static final Logger logger = Logger.getLogger(NodeModelUtil.class.getName());
 	static class NonAssignmentEnumerator implements Consumer<Object> {
 		int count = 0;
 
@@ -67,28 +64,6 @@ public class NodeModelUtil {
 
 	public static void dump(NodeModel model) {
 		((AbstractMutableNodeHierarchy) model.getHierarchy()).dump();
-	}
-
-	public static void dumpTask(NodeModel nodeModel) {
-		dumpTask(nodeModel, null, "");
-	}
-
-	private static void dumpTask(NodeModel nodeModel, Node parent, String indent) {
-		if (parent != null)
-			logger.log(Level.FINE, "{0}>{1}", new Object[] { indent, parent.toString() });
-		Collection<?> children = nodeModel.getChildren(parent);
-		if (children != null) {
-			for (Object value : children) {
-				Node n = (Node) value;
-				Object impl = n.getImpl();
-				if (impl instanceof Task) {
-					if (((Task) impl).getWbsParentTask() != (parent == null ? null : parent.getImpl()))
-						logger.log(Level.WARNING, "cached hierarchy error - child {0} cached parent {1} parent {2}",
-							new Object[] { impl, ((Task) impl).getWbsParentTask(), parent == null ? null : parent.getImpl() });
-				}
-				dumpTask(nodeModel, n, indent + "--");
-			}
-		}
 	}
 
 	public static List extractNodeList(NodeModel nodeModel, Node root) {
