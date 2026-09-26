@@ -1917,3 +1917,20 @@ while keeping the source-null and no-update checks intact. Its caller remains
 `Field.setInternalValueAndUpdate`; the full core test suite passed. The
 task-sheet-only `DataObject` dirty branch in the same file is fork-origin and
 excluded above. Commit: `3c96088e2`.
+
+`MutableNodeHierarchy.paste` now reads its `DataFactory` once and pattern-binds
+the OpenProj-derived `Project` and `ResourcePool` branches. Paste routing and
+the null fallback are unchanged; `DefaultNodeModel` remains the active caller.
+The focused `DefaultNodeModelTest` passed. Commit: `8f8d87b40`.
+
+`FieldComponentMap.setDataFactoryFromObject` now pattern-binds its
+OpenProj-derived `BelongsToDocument` check. The cast of `getDocument()` remains
+because the public return type is broader than `NodeModelDataFactory`; assignment
+semantics are unchanged. Dialog callers were verified, focused dialog tests
+passed, and the subsequent full UI test suite passed. Commit: `4bf559268`.
+
+`TimeChartPanel` now pattern-binds the OpenProj-derived `Field` trace and
+`NumberFormat` checks. The fork-added nonempty-trace guard, resource-graph
+guard, money formatting, and fallback format remain unchanged. `ChartView` is
+the active production caller; the full UI test suite passed. Commit:
+`3c937b907`.
