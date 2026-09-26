@@ -42,11 +42,11 @@ import com.microproject.pm.task.Task;
 public class DataUtils {
 	
 	public static Object extractObjectOfClass(Object object, Class objectClass) {
-		if (object instanceof Assignment) {// if clicked on an assignment, set task
+		if (object instanceof Assignment assignment) {// if clicked on an assignment, set task
 			if (objectClass == Task.class)
-				object = ((Assignment)object).getTask();
+				object = assignment.getTask();
 			else if (objectClass == Resource.class)
-				object = ((Assignment)object).getResource();
+				object = assignment.getResource();
 		}
 		// assure type is treated by this dialog
 		if (objectClass == Task.class  && !(object instanceof Task))

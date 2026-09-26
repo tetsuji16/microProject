@@ -1503,3 +1503,8 @@ nested sort order.
 checks in applicability, value retrieval, and read-only evaluation. The three
 branches keep their separate contracts. `FieldComparisonTest` verifies that a
 delegated object can declare a field applicable.
+
+`DataUtils.extractObjectOfClass` now binds assignment inputs once and uses the
+binding to resolve the requested task or resource. The branch matches OpenProj
+`DataUtils`; `DataUtilsTest` covers both projections and rejection of an
+unrelated object.
