@@ -47,10 +47,10 @@ public class ScheduleBackupEdit  extends AbstractUndoableEdit{
 	 */
 	public ScheduleBackupEdit(Object schedule, Object source) {
 		super();
-		backups = new HashMap<>();
 		Collection<?> schedules = schedule instanceof Collection<?> collection
 				? collection
 				: Collections.singletonList(schedule);
+		backups = new HashMap<>(schedules.size() * 4 / 3 + 1);
 		for (Object item : schedules) {
 			Schedule current = (Schedule) item;
 			backups.put(current, current.backupDetail());

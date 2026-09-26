@@ -112,6 +112,10 @@ SUCCESSFUL、13秒）で回帰がないことを確認した。
 も事前容量を設定した。`:microproject_core:test` 全体（BUILD SUCCESSFUL、14秒）で
 回帰がないことを確認した。
 
+`ScheduleBackupEdit` は入力が単一ScheduleでもCollectionでも、正規化後の件数が
+既知になった時点でバックアップMapを事前確保するようにした。Collection入力を使う
+undoテストとcore全体テストが成功した。
+
 依存関係の切断時に作る incident snapshot も、先行リンク数と後続リンク数の合計で
 初期容量を確保するようにした。順序と重複を保ったまま、`DependencyServiceTest` と
 `:microproject_core:test` 全体が成功した。
