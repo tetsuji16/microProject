@@ -232,24 +232,22 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 
 	public void paste(Node parent,List<Node> nodes,int position,int actionType){
 		super.paste(parent, nodes, position, actionType);
-		ArrayList roots = new ArrayList();
+		List<Node> roots = new ArrayList<>();
 		HierarchyUtils.extractParents(nodes, roots);
-		final List freeAssignments=new ArrayList();
-		for (Iterator i=roots.iterator();i.hasNext();)
-			hierarchy.visitLeaves((Node)i.next(), new Consumer<Object>() { public void accept(Object o) {
-					Node node=(Node)o;
-					if (node.getImpl() instanceof Assignment assignment){
-						Node parent=(Node)node.getParent();
-						if (parent.getImpl() instanceof NormalTask task){
-							if (task.findAssignment(assignment.getResource())==null){
-								freeAssignments.add(node);
-							}
-						}
+		List<Node> freeAssignments = new ArrayList<>();
+		for (Node root : roots) {
+			hierarchy.visitLeaves(root, value -> {
+				Node node = (Node) value;
+				if (node.getImpl() instanceof Assignment assignment) {
+					Node owner = (Node) node.getParent();
+					if (owner.getImpl() instanceof NormalTask task
+							&& task.findAssignment(assignment.getResource()) == null) {
+						freeAssignments.add(node);
 					}
 				}
 			});
-		for (Iterator i=freeAssignments.iterator();i.hasNext();){
-			Node node=(Node)i.next();
+		}
+		for (Node node : freeAssignments) {
 			node.removeFromParent();
 			AssignmentService.getInstance().connect(node,this,isUndo(actionType));
 		}

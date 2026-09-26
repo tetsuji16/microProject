@@ -2025,3 +2025,11 @@ filtering, and the existing child-identity check are unchanged. Added
 the assignment row appears once after repeated population. Focused and full
 `:microproject_core:test --console=plain` passed. Commit: recorded in this
 changeset.
+
+`AssignmentNodeModel.paste` now types the extracted roots and detached
+assignment-node list and traverses both with enhanced-for; the leaf visitor is
+a lambda. The underlying free-assignment scan matches OpenProj at `d2fa3c20a`.
+The active caller is `ViewNodeModelCache.paste`, which dispatches to the
+assignment-aware model. The filter, detach-before-connect order, and undo flag
+are unchanged. Full core tests and the UI `NodeListTransferablePasteFailureTest`
+passed, as did `git diff --check`. Commit: recorded in this changeset.
