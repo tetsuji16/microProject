@@ -1379,6 +1379,15 @@ which is bundled Apache Batik code rather than OpenProj-derived code. The
 focused `RibbonAndToolbarButtonTest` passed; this change is not counted toward
 the #595 modernization scope.
 
+`ResourceManager.getStringList` still exposes raw `List` values, and its menu
+and ribbon callers contain unchecked `List<String>` casts. Although the method
+returns only `StringTokenizer` tokens and appears to be a clear typing candidate,
+the implementation is bundled Apache Batik code at
+`d2fa3c20a:openproj_ui/src/org/apache/batik/util/gui/resource/ResourceManager.java`.
+It is classified as third-party and excluded from #595; do not count or expand
+this modernization into the bundled dependency. The in-scope callers should be
+revisited only if their own provenance is independently established.
+
 `TimeSpreadSheetColumnsPopupMenu` now traverses configured field definitions
 with enhanced-for, preserving menu item order and selected-state lookup. The
 source matches `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/spreadsheet/selection/TimeSpreadSheetColumnsPopupMenu.java`;
