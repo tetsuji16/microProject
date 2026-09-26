@@ -1613,6 +1613,9 @@ regular task node; active callers include `MutableNodeHierarchy` and
 before comparing their owning projects; the original same-project restriction
 and non-task behavior are unchanged. The expanded test covers same-project,
 cross-project, and subproject-parent cases through the `NodeBridge` caller.
+`NodeModelUtil.cacheWbs` now binds parent and child tasks during cache setup;
+the projected-child test verifies the cached WBS parent through the active
+`DefaultSubprojectHandler` path.
 
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the

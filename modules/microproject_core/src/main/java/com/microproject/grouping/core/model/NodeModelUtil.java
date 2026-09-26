@@ -112,14 +112,12 @@ public class NodeModelUtil {
 	public static void cacheWbs(NodeModel nodeModel, Node parentNode) {
 		Object parentImpl = parentNode.getImpl();
 		List<Node> children = nodeModel.getChildren(parentNode);
-		if (parentImpl instanceof Task && children != null && children.size() > 0) {
-			Task parent = (Task) parentImpl;
-			parent.setWbsChildrenNodes(children); // cached values
+		if (parentImpl instanceof Task parentTask && children != null && children.size() > 0) {
+			parentTask.setWbsChildrenNodes(children); // cached values
 			for (Node child : children) {
 				Object impl = child.getImpl();
-				if (impl instanceof Task) {
-					((Task) impl).setWbsParent(parent); // set cached wbs parent
-														// too
+				if (impl instanceof Task childTask) {
+					childTask.setWbsParent(parentTask); // set cached WBS parent
 					cacheWbs(nodeModel, child);
 				}
 			}

@@ -191,6 +191,7 @@ class DefaultSubprojectHandlerTest {
 		assertSame(master, childTask.getProject());
 		assertTrue(childTask.isInSubproject());
 		assertTrue(master.getTasks().contains(childTask));
+		assertSame(placeholder, childTask.getWbsParentTask());
 	}
 
 	@Test
