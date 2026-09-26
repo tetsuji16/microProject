@@ -25,7 +25,6 @@
 package com.microproject.core.util;
 
 import java.util.Locale;
-import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
 /**
@@ -57,23 +56,4 @@ public class ResourceUtil {
 		}
 		return null;
 	}
-	
-//	public static String getMenuString(String key, ResourceBundle[] bundles) {
-//    	MissingResourceException exception=null;
-//    	String value=null;
-//    	for (ResourceBundle bundle : bundles){
-//    		try {
-//    			value=bundle.getString(key);
-//				exception=null;
-//			} catch (MissingResourceException e) {
-//				exception=e;
-//				continue;
-//			}
-//    		if (value!=null) break;
-//    	}
-//    	if (exception!=null) throw exception;
-//    	return value;
-//	}
-
-
 }
