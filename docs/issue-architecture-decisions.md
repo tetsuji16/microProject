@@ -40,11 +40,124 @@ new code must import the hierarchy matching its layer.
 
 ## #245 — persisted choice types
 
+Gantt interval dragging now uses ConstraintType.Kind for its target and internal comparison. Its Undo edit remains an integer-code compatibility boundary and stores the original raw code, preserving restoration of unknown legacy values.
+
 The domain choice classes in `pm/` now expose nested `Kind` enums with explicit
 persisted integer codes and strict `fromCode` validation. Their old integer
 fields remain deprecated aliases so `.pod` and MPX readers continue to
 accept legacy values. Integer constants that are event flags, bitmasks, array
 indexes, or calculation sentinels are not enums and remain integer APIs.
+
+`SchedulingType` now routes scheduling-rule selection through its `Kind`
+overload, and task/assignment calculations compare typed values after decoding
+the persisted task snapshot code. The int overload remains as a deprecated
+compatibility adapter; its code mapping is covered alongside the enum API by
+`SchedulingTypeTest`.
+
+`RequestDemandType.Kind` now also crosses the `HasRequestDemandType` and
+`AssignmentEntry` domain APIs. The public integer accessors remain deprecated
+compatibility adapters, while assignment storage remains an `int` so existing
+serialization and exchange readers keep their current field shape. Known codes
+are round-tripped through `Kind`; unknown legacy values remain readable and
+unchanged through the integer API, and typed conversion rejects them instead
+of coercing them to a known value.
+
+`HasExpenseType` now deprecates its integer accessors in favor of `ExpenseType.Kind`,
+including a typed effective value. `Task` and `Project` keep the original integer
+fields and accessors for persisted/exchange compatibility. Task inheritance has
+one code resolver shared by the typed and integer views: the integer adapter
+continues to return an unknown stored code unchanged, while the typed view
+rejects a code outside the enum. ProjectDialog's configuration-backed combo
+and sequential option indexes remain integer boundaries; its `Form` maps those
+values to `Kind`, and project creation calls typed setters. A native POD
+round-trip test confirms project type, status, and expense codes remain stable.
+
+`ProjectSpecificFields` now exposes typed `ProjectType.Kind` and
+`ProjectStatus.Kind` getters/setters. `Project` retains its integer fields for
+serialization and old callers; defaults are sourced from each enum's stable
+code. Unknown legacy values remain unchanged through the integer API and are
+rejected by typed access. ProjectDialog maps its option indexes through `Kind`
+before passing values to project creation; exchange DTO values remain integer
+boundaries. `ResourceImpl` now provides typed booking-type access while keeping
+its existing int field and deprecated adapters. Resource booking type is not
+part of the current POD V1 resource DTO (`Serializer` explicitly omits the
+resource implementation fields), so it is not treated as a persisted value in
+this migration.
+
+Contour codes now have `ContourTypes.Kind`, with MSPDI numeric codes retained
+as the compatibility representation. Contour creation, assignment access, and
+`AssignmentDetail` custom serialization use typed kinds internally; serialized
+work/cost contour fields remain integers. Personal contour code 8 remains a
+distinct kind and continues to serialize with its bucket data.
+
+`Task` now exposes `EarnedValueMethodType.Kind` accessors while its stored task
+field and exchange-facing integer accessors retain the same codes. The POD
+round-trip regression confirms the physical-percent-complete choice survives
+save and reload.
+
+`Resource` now provides typed resource-kind accessors and a typed predicate;
+`EnterpriseResource` uses kind predicates for work/material/cost decisions.
+Integer resource fields remain the serialization and configuration-map
+boundary. Unknown integer codes still classify as no known kind through the
+predicates, while strict typed decoding rejects them. Native POD coverage
+confirms a material resource retains its kind after reload.
+
+Assignment accrual calculations now compare `Accrual.Kind` values rather than
+integer codes. Persisted accrual codes stay integers on the resource model. A
+nullable decoder handles unknown legacy codes in calculation paths so their
+historic fallback remains end-accrual and non-prorated; strict `fromCode`
+continues to reject unknown values at typed validation boundaries.
+
+`Task` now exposes `ConstraintType.Kind` accessors and a typed scheduling
+constraint overload. Constraint-date routing and date-editability checks use
+typed kinds internally, with a nullable decoder retaining legacy behavior for
+unknown stored values; the integer field remains the serialization boundary.
+`ScheduleService` now accepts the typed kind, and Task Sheet / Team Planner
+calls use it; the integer overload remains for import and legacy callers.
+AssignmentService now selects fixed-duration scheduling through `SchedulingType.Kind`; NormalTask encodes that kind only at its existing integer-backed task snapshot boundary.
+`Task` and `NormalTask` scheduling predicates use typed kinds for reverse
+scheduling, date anchoring, and critical-task classification. The persisted
+task field remains integer-backed; unknown codes still match none of the known
+predicates.
+Schedule diagnostics and critical-path sentinel updates now also consume typed
+constraints. `SchedulingAlgorithm` keeps its integer method for source
+compatibility and provides a typed default view; the project task default is
+exposed internally as a `Kind` only.
+
+Dependency creation, task dependency decisions, diagnostics, and graph link
+routing now use `DependencyType.Kind`. Integer dependency fields, constructors,
+accessors, formatted spreadsheet values, and route overloads remain compatibility
+boundaries. The integer service adapter decodes the code before mutating so an
+unknown type is rejected without creating a partially valid link.
+
+Timesheet status decisions and display helpers use `TimesheetStatus.Kind`.
+AssignmentData and legacy getters/setters retain their integer codes. Nullable
+decoding keeps unknown statuses available through the raw API and preserves the
+existing fallback display; aggregate integer queries retain their previous
+unknown-code behavior.
+
+Access-control policy callers use `AccessControlPolicy.Kind`, with `ProjectSpecificFields` adapting to the existing integer project field. `ProjectData` and serialized project storage remain code-based, and unknown stored values continue to be available through the integer API.
+
+`ScheduleOption` now exposes its single scheduling-rule choice as
+`SchedulingType.Kind`; the int getter/setter remain compatibility adapters and
+the assignment collection initialization reads the typed choice. Project event
+types also have `ProjectEvent.Kind`; Project emits typed kinds while the event's
+integer API remains available to old listeners, including unknown raw values.
+Assignment workflow flags now use `AssignmentWorkflowState.Kind` and EnumSet
+conversion helpers at the domain and exchange DTO APIs; the persisted/wire mask
+and legacy integer accessors remain unchanged so unknown raw bits are still
+available through the integer path.
+Critical-path task-reference boundaries use `TaskReference.Kind`; reverse-pass
+traversal calls `opposite()` instead of negating the numeric code. The old type
+getter remains a compatibility adapter, and the enum keeps the original -1/0/1
+codes.
+
+CriticalPath selects early/late schedules through `TaskSchedule.Kind`; the
+opposite pass is represented by `Kind.opposite()` instead of negating an int.
+Legacy integer constructors and `Task.getSchedule(int)` remain adapters, with
+the latter preserving its historical fallback to the late schedule for unknown
+codes. Assignment cost-rate selection uses `CostRateIndex.Kind`; the numeric
+index in `AssignmentDetail` remains the POD compatibility representation.
 
 ## #260 — link routing
 

@@ -22,8 +22,9 @@ bug is still reproducible.
 | [#267](https://github.com/tetsuji16/ProjectLibre/issues/267) | Focused regression verified | `PodRoundTripTest.groupedTaskFollowsChildDateUpdate` verifies summary-task date rollup and persistence. The issue was closed after the focused verification; direct Microsoft Project comparison remains outside the available environment. |
 | [#266](https://github.com/tetsuji16/ProjectLibre/issues/266) | Focused regression verified | `DependencyServiceTest` verifies unlink removes all incident dependencies, with Task Information predecessor/successor coverage. The issue was closed with focused test evidence. |
 | [#257](https://github.com/tetsuji16/ProjectLibre/issues/257) | Excluded (clean-room foundation) | This is an explicit foundation for the clean-room type consolidation in #152. It is intentionally outside this change set. |
-| [#245](https://github.com/tetsuji16/ProjectLibre/issues/245) | Partial migration | Some persisted int-constant types already use enum adapters. Remaining types need one-at-a-time conversion with `fromInt`/`toInt` compatibility tests; a bulk replacement is unsafe for serialized formats. |
-| [#228](https://github.com/tetsuji16/ProjectLibre/issues/228) | Partial | Safe known-size capacity fixes include dependency/calendar paths and Resource Leveling's complete task scan. Remaining allocations need profiling and size-bound analysis before changing them; dynamic collections should not receive guessed capacities. |
+| [#245](https://github.com/tetsuji16/ProjectLibre/issues/245) | Completed | Every audited choice family has a `Kind` enum and stable integer-code adapter; production callers use typed values. Deprecated integer aliases and serialized/API boundaries remain for compatibility. Scalar constants/sentinels are documented as non-enums. Core tests, POD round-trip tests, UI compilation, and `git diff --check` passed; issue closed after final audit. |
+| [#228](https://github.com/tetsuji16/ProjectLibre/issues/228) | Partial | Safe known-size capacity fixes cover serializer deserialization and referring-subproject output conversion, Resource Leveling and CCPM buffers/indexes, hierarchy/subproject snapshots, project/resource/task indexes, dependency snapshots, and assignment replacement undo details. Core and exchange regressions pass. Remaining default-capacity allocations are mostly dynamic result collections, static small maps, or no-known-size collections; audit each for a defensible upper bound before changing. |
+| [#413](https://github.com/tetsuji16/ProjectLibre/issues/413) | Partial | Calendar View uses a selected `ca` locale chronology or a supported Windows `iCalendarType` mapping (Japanese, Taiwan/Minguo, Thai, Um Al Qura); ISO Gregorian dates remain authoritative. Unit and physical Calendar ribbon Robot coverage pass. Other Windows calendar IDs without equivalent built-in Java chronologies and the remaining calendar columns/headers still need implementation. |
 | [#215](https://github.com/tetsuji16/ProjectLibre/issues/215) | Phase 1 complete | Preferences cover user name, font family/size, row-lines default, and update checking. Remaining candidates are autosave, default format/calendar, theme, date/currency/locale, and per-view settings. |
 | [#204](https://github.com/tetsuji16/ProjectLibre/issues/204) | Implemented | Timeline and Team Planner are embedded through `DockableProjectToolView`, routed through `DocumentFrame` top-view activation, and no longer require the modal Team Planner dialog workflow. |
 | [#179](https://github.com/tetsuji16/ProjectLibre/issues/179) | Focused GUI verified | `TaskDurationGuiAcceptanceTest` and `TaskTableGanttGridGuiAcceptanceTest` verify full-row highlight, table/chart synchronization, selection, and drag behavior in the installed distribution. The issue was closed with the verification evidence recorded in its latest comment. |
@@ -110,3 +111,25 @@ SUCCESSFUL、13秒）で回帰がないことを確認した。
 `MutableNodeHierarchy` の削除通知リスト（削除ルート数）と移動通知リスト（最低1件）
 も事前容量を設定した。`:microproject_core:test` 全体（BUILD SUCCESSFUL、14秒）で
 回帰がないことを確認した。
+
+依存関係の切断時に作る incident snapshot も、先行リンク数と後続リンク数の合計で
+初期容量を確保するようにした。順序と重複を保ったまま、`DependencyServiceTest` と
+`:microproject_core:test` 全体が成功した。
+
+サブプロジェクトのattach/detachで作るルートノード一覧は、Swingツリーの
+`getChildCount()`を事前容量に使用した。`Node.getChildren()`は遅延未初期化時にnull
+となるケースをテストで確認したため、そのAPIには依存せず、
+`DefaultSubprojectHandlerTest` とcore全体テストで移動動作を再確認した。
+
+`ProjectFactory.restoreLinkedLocalSubprojects`の参照一覧はmasterのタスク件数を上限として
+事前確保し、`AssignmentEntry.setAssignmentsFromTaskList`は初回一致時に入力タスク数を
+上限に確保する。割当なしの場合はnullのままにして従来の未割当状態を保つ。
+`LocalSessionSubprojectTest`、`DefaultSubprojectHandlerTest`、`AssignmentEntryTest`と
+core全体テストが成功した。
+
+`ResourcePool.setLocalParent`の単一ノード移動一覧も容量1で生成し、タスク側の同じ
+処理と揃えた。`ResourcePoolIdentityTest`の親変更確認とcore全体テストが成功した。
+
+`ResourcePool.userResources()`は全リソースを走査するため、結果リスト容量に全件数を
+上限として指定した。ユーザーアカウントの有無による抽出と順序を
+`ResourcePoolIdentityTest`で確認した。
