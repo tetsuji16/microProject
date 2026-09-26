@@ -1768,3 +1768,8 @@ selection path and the later #266 incident-link path through one
 read-only guard while removing three copies of that eligibility decision.
 `DependencyServiceTest` covers read-only selections, non-`HasDependencies`
 values, editable pairs, and a single selected incident endpoint.
+
+`NormalTask.getEarliestStop` now binds child Schedule values before comparing
+their stop dates. It continues to ignore non-Schedule node implementations and
+uses assignment dates for leaf tasks. `NormalTaskPercentCompleteTest` verifies
+both leaf assignment and summary child results.

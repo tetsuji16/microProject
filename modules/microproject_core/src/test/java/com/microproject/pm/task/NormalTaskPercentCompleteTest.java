@@ -78,6 +78,16 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void summaryEarliestStopUsesItsScheduleChildren() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask child = createTask(project);
+		attachChildren(parent, child);
+
+		assertEquals(child.getEarliestStop(), parent.getEarliestStop());
+	}
+
+	@Test
 	void resumeSetterAndQueryUseTheTaskAssignments() {
 		Project project = createProject();
 		NormalTask task = createTask(project);

@@ -2234,16 +2234,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	public final long getEarliestStop() {
 		long stop = Long.MAX_VALUE;
-		Schedule s;
-		Object nodeImpl;
 		if (isWbsParent()) {
 			Collection<Node> children = getWbsChildrenNodes();
 			for (Node childNode : children) {
-				nodeImpl = childNode.getImpl();
-				if (! (nodeImpl  instanceof Schedule))
+				if (!(childNode.getImpl() instanceof Schedule schedule))
 					continue;
-				s = (Schedule)nodeImpl;
-			stop = Math.min(stop,s.getEarliestStop());
+				stop = Math.min(stop, schedule.getEarliestStop());
 			}
 		} else {
 			for (Association association : getAssignments()) {
