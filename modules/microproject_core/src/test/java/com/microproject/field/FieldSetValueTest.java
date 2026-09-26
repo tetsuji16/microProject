@@ -24,13 +24,20 @@
 package com.microproject.field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Collection;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.Hyperlink;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.server.data.DataObject;
 
 class FieldSetValueTest {
@@ -63,6 +70,47 @@ class FieldSetValueTest {
 
 		assertEquals("updated", target.getName());
 		assertTrue(target.isDirty());
+	}
+
+	@Test
+	void appliesValueToEveryObjectInObjectRefCollection() throws Exception {
+		Field field = new Field();
+		field.setClass(MutableDataObject.class);
+		field.setProperty("name");
+		field.setId("Field.testName");
+		field.build();
+		MutableDataObject first = new MutableDataObject();
+		MutableDataObject second = new MutableDataObject();
+
+		field.setValue(objectRef(List.of(first, second)), this, "updated", null);
+
+		assertEquals("updated", first.getName());
+		assertEquals("updated", second.getName());
+	}
+
+	@Test
+	void objectRefReadOnlyChecksCollectionElementsAndEmptyCollections() {
+		Field field = new Field();
+		field.setClass(MutableDataObject.class);
+		field.setProperty("name");
+		field.setId("Field.testName");
+		field.build();
+		MutableDataObject target = new MutableDataObject();
+
+		assertFalse(field.isReadOnly(objectRef(List.of(target)), null));
+		field.setReadOnly(true);
+		assertTrue(field.isReadOnly(objectRef(List.of(target)), null));
+		assertFalse(field.isReadOnly(objectRef(List.of()), null));
+	}
+
+	private static ObjectRef objectRef(Collection<?> collection) {
+		return new ObjectRef() {
+			@Override public Node getNode() { return null; }
+			@Override public WalkersNodeModel getNodeModel() { return null; }
+			@Override public Object getObject() { return null; }
+			@Override public Collection<?> getCollection() { return collection; }
+			@Override public NodeModelDataFactory getDataFactory() { return null; }
+		};
 	}
 
 	@Test

@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 
@@ -826,9 +825,8 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (context == null)
 			context = specialFieldContext;
 		if (objectRef.getCollection() != null) {
-			Iterator<?> i = objectRef.getCollection().iterator();
-			while (i.hasNext()) {
-				setText(i.next(), textValue, context);
+			for (Object object : objectRef.getCollection()) {
+				setText(object, textValue, context);
 			}
 		} else if (objectRef.getNode() != null)
 			setText(objectRef.getNode(), objectRef.getNodeModel(), textValue, context);
@@ -911,9 +909,8 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (context == null)
 			context = specialFieldContext;
 		if (objectRef.getCollection() != null) {
-			Iterator<?> i = objectRef.getCollection().iterator();
-			while (i.hasNext()) {
-				setValue(i.next(), source, value, context);
+			for (Object object : objectRef.getCollection()) {
+				setValue(object, source, value, context);
 			}
 		} else if (objectRef.getNode() != null)
 			setValue(objectRef.getNode(), objectRef.getNodeModel(), source, value, context);
@@ -1085,9 +1082,8 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (context == null)
 			context = specialFieldContext;
 		if (objectRef.getCollection() != null) {
-			Iterator<?> i = objectRef.getCollection().iterator();
-			while (i.hasNext()) {
-				if (isReadOnly(i.next(), context))
+			for (Object object : objectRef.getCollection()) {
+				if (isReadOnly(object, context))
 					return true;
 			}
 			return false;

@@ -1934,3 +1934,14 @@ passed, and the subsequent full UI test suite passed. Commit: `4bf559268`.
 guard, money formatting, and fallback format remain unchanged. `ChartView` is
 the active production caller; the full UI test suite passed. Commit:
 `3c937b907`.
+
+`Field.setText(ObjectRef, ...)`, `setValue(ObjectRef, ...)`, and
+`isReadOnly(ObjectRef, ...)` now use enhanced-for traversal for their
+OpenProj-derived `Collection<?>` branches. `git blame` traces the replaced
+iterator loops to `openproj_core` (`d2fa3c20a`); UI callers include
+`FieldVerifier`, `FieldChangeListener`, and `ComponentFactory`, while undo
+replay calls `setValue` through `FieldEdit`. Collection encounter order,
+element delegation, and the read-only early return are unchanged. Added
+`FieldSetValueTest` coverage for collection-wide value updates and read-only
+aggregation, including the empty collection case. Full
+`:microproject_core:test --console=plain` passed. Commit: pending.
