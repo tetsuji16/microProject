@@ -1750,3 +1750,9 @@ for descendants visited while removing cross-parent dependencies. The
 hierarchy event flow and dependency cleanup are unchanged.
 `DefaultNodeModelTest.indentAndOutdentKeepTaskIdsUniqueAndInDepthFirstOrder`
 exercises actual model indent/outdent transitions through this listener.
+
+`CriticalPath.objectChanged` now binds OpenProj-derived Task, Dependency,
+Assignment, and BelongsToDocument event payloads. Event ordering, early returns,
+recalculation, and cross-document filtering are preserved. Existing
+`DependencyServiceTest` and core scheduling tests exercise dependency and task
+event paths; the core module suite verifies the full dispatch family.

@@ -370,17 +370,16 @@ public class CriticalPath implements SchedulingAlgorithm {
 			return;
 		Object changedObject = objectEvent.getObject();
 		Task task = null;
-		if (changedObject instanceof Task) {
+		if (changedObject instanceof Task changedTask) {
 			if (objectEvent.isCreate()) {
 				predecessorTaskList
-						.arrangeTask((Task) changedObject);
+						.arrangeTask(changedTask);
 				return; // let the hierarchy event that follow run the CP
 			} else if (objectEvent.isDelete()) {
-				Task removedTask = (Task) changedObject;
-				predecessorTaskList.removeTask(removedTask);
+				predecessorTaskList.removeTask(changedTask);
 				reset(); // Fix of bug 91 31/8/05.  This ensures the ancestors of this task that are no longer parents will be replaced as single entries in pred list
 			} else if (objectEvent.isUpdate()) {
-				task = (Task)changedObject;
+				task = changedTask;
 				Field field = objectEvent.getField();
 				if (field != null && !fieldUpdater.inputContains(field))
 					return;
@@ -392,9 +391,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 			}
 			calculate(true,task);
 
-		} else if (changedObject instanceof Dependency) { // dependency added or
+		} else if (changedObject instanceof Dependency dependency) { // dependency added or
 														  // removed
-			Dependency dependency = (Dependency) changedObject;
 			if (!dependency.refersToDocument(project))
 				return;
 			if (!objectEvent.isUpdate()) {
@@ -422,16 +420,14 @@ public class CriticalPath implements SchedulingAlgorithm {
 			//TODO for now just invalidating all projects, eventually be smarter
 			project.markAllTasksAsNeedingRecalculation(false);
 			calculate(true,null);
-		} else if (changedObject instanceof Assignment) {
-			Assignment assignment = (Assignment)changedObject;
+		} else if (changedObject instanceof Assignment assignment) {
 			task = assignment.getTask();
 			if (task.getProject().getSchedulingAlgorithm() != this)
 				return;
 //			if (((NormalTask)task).isEffortDriven())
 			calculate(true,task);
-		} else if (changedObject instanceof BelongsToDocument){ // for other things, such as assignment entry
-			if (((BelongsToDocument)changedObject).getDocument() instanceof Project) {
-				Project proj = (Project)((BelongsToDocument)changedObject).getDocument();
+		} else if (changedObject instanceof BelongsToDocument belongsToDocument){ // for other things, such as assignment entry
+			if (belongsToDocument.getDocument() instanceof Project proj) {
 				if (proj.getSchedulingAlgorithm() != this)
 					return;
 			}
