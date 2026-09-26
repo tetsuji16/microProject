@@ -73,11 +73,11 @@ public class TimeDistributedHelper {
 		return baselineMapper.get(data);
 	}
 	public static boolean isWork(Object data) {
-		if (data instanceof Field) {
-			return ((Field)data).isWork();
+		if (data instanceof Field field) {
+			return field.isWork();
 		}
-		if (data instanceof Number) {
-			int type = ((Number)data).intValue();
+		if (data instanceof Number number) {
+			int type = number.intValue();
 			if (type > 0 &&  type <= 4)
 				return true;
 			return (type - 16) %6 == 0; // See TimeDistributedTypeMapper
@@ -85,14 +85,14 @@ public class TimeDistributedHelper {
 		return false;
 	}
 	public static boolean isCost(Object data) {
-		if (data instanceof Field) {
-			return ((Field)data).isMoney();
+		if (data instanceof Field field) {
+			return field.isMoney();
 		}
 		return false;
 	}
 	public static String getIdForObject(Object obj) {
-		if (obj instanceof String)
-			return (String) obj;
+		if (obj instanceof String id)
+			return id;
 		else
 			return ((Field)obj).getId();
 	}

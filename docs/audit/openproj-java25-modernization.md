@@ -1550,6 +1550,15 @@ public API. The calendar converter's String branch also binds the input once;
 work, and money converters. The duration converter path remains covered by
 `DurationEncodingTest`.
 
+`TimeDistributedHelper` now binds `Field`, `Number`, and `String` values in its
+existing type checks instead of repeating casts. The corresponding OpenProj
+methods have the same branches and expressions in the
+[OpenProj preservation source](https://github.com/OldRepoPreservation/projectlibre/blob/master/openproj_core/src/com/projity/pm/assignment/TimeDistributedHelper.java).
+Active callers include assignment time-phased data and spreadsheet field
+configuration. `TimeDistributedHelperTest` covers field classification,
+numeric boundaries, null handling, and string/field ID resolution; the change
+does not alter those contracts.
+
 `IntervalGeneratorSet.earliestEndingGenerator` now uses enhanced-for over its
 typed generator list. The traversal is read-only; the current earliest-end
 selection and encounter-order tie behavior are unchanged. The active loop
