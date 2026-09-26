@@ -90,8 +90,8 @@ public class ComponentFactory {
 	
 
 	private static JComponent getFieldComponent(JComponent component) {
-		if (component instanceof JScrollPane)
-			component = (JComponent) ((JScrollPane)component).getViewport().getComponent(0);
+		if (component instanceof JScrollPane scrollPane)
+			component = (JComponent) scrollPane.getViewport().getComponent(0);
 		return component;
 	}
 	
