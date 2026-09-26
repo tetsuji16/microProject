@@ -462,7 +462,6 @@ public class Serializer {
 
  //   	calendars.clear();
         Count projectCount=new Count("Project");
-        //if (globalIdsOnly) makeGLobal(project);
         ProjectData projectData=(ProjectData)serialize(project,ProjectData.FACTORY,projectCount);
         if (project.isForceNonIncremental()) projectData.setVersion(0);
 		projectData.setMaster(project.isMaster());
@@ -633,113 +632,6 @@ public class Serializer {
         return projectData;
 
     }
-//    public ProjectData serializeResources(Project project) throws Exception{
-//    	//if (globalIdsOnly) makeGLobal(project);
-//    	ProjectData projectData=(ProjectData)serialize(project,ProjectData.FACTORY,null);
-//        //projectData just here to hold resources
-//        saveResources(project,projectData);
-//        return projectData;
-//    }
-
-
-
-   //incremental serialization
-/*
-    public IncrementalData serializeIncrementalProject(Project project) throws Exception{
-        if (!project.isGroupDirty()) return null;
-        final IncrementalData newData=new IncrementalData();
-        final IncrementalData oldData=(IncrementalData)project.getPublishedData().clone();
-    	ProjectData projectData=serializeProject(project,null,null);
-    	@SuppressWarnings("unchecked")
-    	final Set<AssignmentData> oldAssignments = oldData.getAssignments();
-    	@SuppressWarnings("unchecked")
-    	final Set<LinkData> oldLinks = oldData.getLinks();
-    	@SuppressWarnings("unchecked")
-    	final Set<ResourceData> oldResources = oldData.getResources();
-    	final Map<TaskData, TaskData> oldTasks = oldData.getTasks();
-
-    	for (TaskData t : projectData.getTasks()){
-    		for (AssignmentData data : t.getAssignments()){
-        		if (oldAssignments.contains(data)){
-        			if (data.isDirty()){
-        				newData.addAssignment(data);
-        			}
-        			oldAssignments.remove(data);
-        		}else{
-        			data.setStatus(SerializedDataObject.INSERT);
-    				newData.addAssignment(data);
-        		}
-    		}
-    		for (LinkData data : t.getPredecessors()){
-        		if (oldLinks.contains(data)){
-        			if (data.isDirty()){
-        				newData.addLink(data);
-        			}
-        			oldLinks.remove(data);
-        		}else{
-        			data.setStatus(SerializedDataObject.INSERT);
-    				newData.addLink(data);
-        		}
-    		}
-
-    		if (oldTasks.containsKey(t)){
-    			TaskData oldT=oldTasks.get(t);
-    			if (t.getParentTaskId()==oldT.getParentTaskId()&&t.getCalendarId()==t.getChildPosition()){
-        			if (t.isDirty()){
-        				newData.addTask(t);
-        			}
-    			}else{
-    				t.setStatus(t.getStatus()|SerializedDataObject.MOVE);
-    				newData.addTask(t);
-    			}
-    			oldTasks.remove(t);
-    		}else{
-    			t.setStatus(SerializedDataObject.INSERT);
-				newData.addTask(t);
-    		}
-    	}
-    	for (ResourceData r : projectData.getResources()){
-    		if (oldResources.contains(r)){
-    			if (r.isDirty()){
-    				newData.addResource(r);
-    			}
-    			oldResources.remove(r);
-    		}else{
-    			r.setStatus(SerializedDataObject.INSERT);
-				newData.addResource(r);
-    		}
-    	}
-
-    	//REMOVE
-    	for (ResourceData data:oldResources){
-    		data.setStatus(SerializedDataObject.REMOVE);
-    		newData.addResource(data);
-    	}
-    	for (TaskData data:oldTasks.keySet()){
-    		data.setStatus(SerializedDataObject.REMOVE);
-    		newData.addTask(data);
-    	}
-    	for (AssignmentData data:oldAssignments){
-    		data.setStatus(SerializedDataObject.REMOVE);
-    		newData.addAssignment(data);
-    	}
-    	for (LinkData data:oldLinks){
-    		data.setStatus(SerializedDataObject.REMOVE);
-    		newData.addLink(data);
-    	}
-
-
-
-
-		if (oldResources.contains(projectData)){
-			if (projectData.isDirty()){
-//				System.out.println("UPDATE: "+projectData);
-				newData.setProject(projectData);
-			}
-		}
-        return newData;
-    }
- */
 
     //deserialization
 
@@ -796,7 +688,6 @@ public class Serializer {
 //  	System.out.println("deserializing null project calendar");
 //  	calendar= CalendarService.getInstance().getStandardBasedInstance(project);
 //  	} else {
-//  	calendar= (WorkingCalendar)deserializeCalendar(projectData.getCalendar());
 //  	calendar.setDocument(project);
 //  	CalendarService.getInstance().add(calendar);
 //  	}
@@ -1268,38 +1159,6 @@ public class Serializer {
     }
 
 
-//    protected Map calendars=new Hashtable();
-//    protected CalendarData serializeCalendar(WorkCalendar calendar,boolean globalIdsOnly) throws IOException,UniqueIdException{
-//        Count calendarsCount=new Count("Calendars");
-//        if (calendars.containsKey(calendar))
-//            return (CalendarData)calendars.get(calendar);
-//    	if (globalIdsOnly) makeGLobal(calendar);
-//        CalendarData calendarData=(CalendarData)serialize(calendar,CalendarData.FACTORY,calendarsCount);
-//        if (calendar instanceof WorkingCalendar){
-//            WorkCalendar baseCalendar=((WorkingCalendar)calendar).getBaseCalendar();
-//            if (baseCalendar!=null){
-//            	if (globalIdsOnly) makeGLobal(baseCalendar);
-//                CalendarData baseCalendarData=(CalendarData)serialize(baseCalendar,CalendarData.FACTORY,calendarsCount);
-//                calendarData.setBaseCalendar(baseCalendarData);
-//            }
-//        }
-//        calendarsCount.dump();
-//        calendars.put(calendar,calendarData);
-//        return calendarData;
-//
-//				/*((WorkingCalendar)calendar)*/calendar.setBaseCalendar(baseCalendar);
-//				baseCalendar.setDocument(null);
-//			} catch (CircularDependencyException e) {
-//				e.printStackTrace();
-//			}
-//        }
-//        if (calendar.isBaseCalendar()) {
-//        	calendar.setDocument(null);
-//        	CalendarService.getInstance().add(calendar);
-//        }
-//        return calendar;
-//    }
-//
     public static ResourceImpl deserializeResourceAndAddToPool(EnterpriseResourceData enterpriseResourceData,ResourcePool resourcePool,Session reindex) throws IOException, ClassNotFoundException{
     	ResourceData resourceData=new ResourceData();
     	resourceData.setEnterpriseResource(enterpriseResourceData);
@@ -1375,33 +1234,6 @@ public class Serializer {
     }
 
 
-    //call referenceCache.update() after
-//    public void updateEnterpriseResources(Collection resources,NodeModel model) throws IOException, ClassNotFoundException{
-//        model.removeAll(NodeModel.EVENT);
-//    	Map resourceNodeMap=new Hashtable();
-//        if (resources!=null)
-//        for (Iterator i=resources.iterator();i.hasNext();){
-//            EnterpriseResourceData resourceData=(EnterpriseResourceData)i.next();
-//            EnterpriseResource resource=(EnterpriseResource)deserialize(resourceData);
-//            resourceNodeMap.put(resourceData,NodeFactory.getInstance().createNode(resource));
-//        }
-//
-//        //resource outline
-//        if (resources!=null){
-//            for (Iterator i=resources.iterator();i.hasNext();){
-//                EnterpriseResourceData resourceData=(EnterpriseResourceData)i.next();
-//                EnterpriseResourceData parentData=(EnterpriseResourceData)resourceData.getParentResource();
-//                Node node=(Node)resourceNodeMap.get(resourceData);
-//                Node parentNode=(parentData==null)?
-//                		null:
-//                		((Node)resourceNodeMap.get(parentData));
-//                model.add(parentNode,node,(int)resourceData.getChildPosition(),NodeModel.SILENT); //global update instead
-//            }
-//            Alert.error("cleanNullChildren not implemented");
-//            //model.getHierarchy().cleanNullChildren();
-//            model.getHierarchy().fireUpdate();
-//        }
-//    }
     public static void setEnterpriseResources(Collection<EnterpriseResourceData> resources,ResourcePool resourcePool,Session reindex) throws IOException, ClassNotFoundException{
         if (resources!=null){
         Map<EnterpriseResourceData, Node> resourceNodeMap = new HashMap<>(resources.size() * 4 / 3 + 1);
@@ -1525,9 +1357,6 @@ public class Serializer {
 			logger.log(Level.WARNING, "Failed to write temp serialization file", e);
 		}
     }
-//    public void makeGLobal(DataObject data) throws UniqueIdException{
-//    	CommonDataObject.makeGlobal(data);
-//     }
     public DataObject serialize(DataObject obj,SerializedDataObjectFactory factory,Count count) throws IOException{
         SerializedDataObject data=SerializeUtil.serialize(obj,factory);
         if (TMP_FILES) writeTmpFile(data,count);
@@ -1571,12 +1400,6 @@ public class Serializer {
     private static Collection<ResourceData> getResourceDataCollection(ProjectData projectData) {
         return (Collection<ResourceData>)(Collection<?>)projectData.getResources();
     }
-
-
-//    public static void renumber(Map renumbered){
-//        HasUniqueIdImpl.update(renumbered);
-//    }
-
 
 
     public static void buildStructure(ProjectData projectData,Collection<DataObject> resources,Collection<DataObject> tasks,Collection<DataObject> assignments,Collection<DataObject> links, Collection<DataObject> externalTasks, Collection<DataObject> referringSubprojectTasks,boolean ignoreResourcesForAssignments){
