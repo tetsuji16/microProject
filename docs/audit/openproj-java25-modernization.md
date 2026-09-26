@@ -1388,6 +1388,12 @@ intervals. It matches the OpenProj NodeCache source; the existing
 `NodeCacheEventTest.changedRowsRetainEncounterPositionsAndContiguousRanges`
 asserts changed-node order and exact row ranges.
 
+`NodeCache.updateVisibleElements(VisibleNodes, Set)` now scans the cached rows
+with enhanced-for, preserving collapsed-summary pruning and subsequent sibling
+visibility. `NodeCacheHierarchyTraversalTest` verifies that a collapsed parent
+hides its descendants without hiding the next sibling; the loop matches the
+OpenProj NodeCache implementation.
+
 The shared-event overload `NodeCache.fireEvents(source, nodeEvents, edgeEvents)`
 also uses enhanced-for across registered views. Event delivery remains in view
 registration order; `NodeCacheEventTraversalTest.firesSharedEventsInRegistrationOrder`

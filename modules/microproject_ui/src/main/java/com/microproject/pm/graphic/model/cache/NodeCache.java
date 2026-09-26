@@ -64,8 +64,8 @@ public class NodeCache extends CellCache {
 		
 		visibleElements.clear();
 		int minLevel=-1;
-		for(Iterator i=getCacheIterator();i.hasNext();){
-			GraphicNode node=(GraphicNode)i.next();
+		for (Object element : cache) {
+			GraphicNode node=(GraphicNode)element;
 			if (minLevel!=-1&&node.getLevel()>minLevel) continue;
 			minLevel=-1;
 			visibleElements.add(node);
