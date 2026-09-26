@@ -1312,3 +1312,9 @@ unchanged. The methods match the OpenProj baseline
 `d2fa3c20a:openproj_ui/src/com/projity/menu/MenuManager.java`; the focused
 `:microproject_ui:test --tests
 "com.microproject.menu.RibbonAndToolbarButtonTest"` passed.
+
+`ApplicationStartupFactory.dumpOpts` now traverses the parsed option keys with
+enhanced-for, preserving map encounter order and each option's indexed argument
+logging. The method matches `d2fa3c20a:openproj_ui/src/com/projity/pm/graphic/frames/ApplicationStartupFactory.java`.
+`ApplicationStartupFactoryProjectIdTest.startupOptionLoggingPreservesMapAndArgumentOrder`
+and the focused startup-factory test class passed.

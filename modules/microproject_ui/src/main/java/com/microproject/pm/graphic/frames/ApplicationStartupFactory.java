@@ -30,7 +30,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -217,8 +216,7 @@ public class ApplicationStartupFactory extends StartupFactory {
 	}
 	public void dumpOpts() {
 		logger.info("opts:");
-		for (Iterator<String> i=opts.keySet().iterator();i.hasNext();){
-			String opt=i.next();
+		for (String opt : opts.keySet()) {
 			logger.info(opt + ":");
 			String arg;
 			int index=0;
@@ -231,4 +229,3 @@ public class ApplicationStartupFactory extends StartupFactory {
 
 
 }
-
