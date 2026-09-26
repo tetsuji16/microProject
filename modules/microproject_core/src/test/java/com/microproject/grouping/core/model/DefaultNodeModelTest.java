@@ -27,6 +27,7 @@ package com.microproject.grouping.core.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -49,9 +50,12 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.hierarchy.AbstractMutableNodeHierarchy;
 import com.microproject.grouping.core.event.HierarchyEvent;
 import com.microproject.grouping.core.event.HierarchyListener;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -547,6 +551,24 @@ class DefaultNodeModelTest {
 		assertNotNull(copiedDependency);
 		assertSame(copiedPredecessor, copiedDependency.getPredecessor());
 		assertSame(copiedSuccessor, copiedDependency.getSuccessor());
+	}
+
+	@Test
+	void copyRebuildsAssignmentRowsForCopiedTask() {
+		Project project = createProject();
+		NormalTask task = createTask(project, "assigned task");
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance()
+				.newAssignment(task, resource, 1.0D, 0L, this);
+
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		List copiedNodes = model.copy(List.of(model.search(task)), NodeModel.SILENT);
+		NormalTask copiedTask = (NormalTask) ((Node) copiedNodes.getFirst()).getImpl();
+
+		assertEquals(1, copiedTask.getAssignments().size());
+		Assignment copiedAssignment = (Assignment) copiedTask.getAssignments().getFirst();
+		assertNotSame(assignment, copiedAssignment);
+		assertSame(resource, copiedAssignment.getResource());
 	}
 
 	@Test

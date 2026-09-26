@@ -524,10 +524,10 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	private void addAssignments(Node node){
-		if (node.getImpl() instanceof HasAssignments){
-			AssociationList assignments=((HasAssignments)node.getImpl()).getAssignments();
+		if (node.getImpl() instanceof HasAssignments hasAssignments){
+			AssociationList assignments=hasAssignments.getAssignments();
 			if (assignments==null) return;
-			for (ListIterator i=assignments.listIterator(assignments.size());i.hasPrevious();){
+			for (ListIterator<Association> i=assignments.listIterator(assignments.size());i.hasPrevious();){
 				Assignment assignment=(Assignment)i.previous();
 				if (assignment.isDefault()) continue;
 				Node assignmentNode=NodeFactory.getInstance().createNode(assignment);

@@ -1672,3 +1672,10 @@ current assignment count. Older baseline snapshots can contribute additional
 entries, so that count is an estimate rather than a cap; `PodRoundTripTest`
 passed after the allocation change.
 
+`DefaultNodeModel.addAssignments` now binds the OpenProj-derived
+`HasAssignments` check and uses a typed reverse `ListIterator<Association>`.
+Its active caller is the task-copy branch, which reconstructs assignment rows
+in original order. `DefaultNodeModelTest.copyRebuildsAssignmentRowsForCopiedTask`
+checks that the copy has a distinct assignment connected to the same resource;
+the focused test passed.
+
