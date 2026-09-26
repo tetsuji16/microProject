@@ -65,11 +65,6 @@ public class DefaultSubProj extends NormalTask implements SubProj, LazyParent {
 	}
 
 	@Override
-	public boolean isSubproject() {
-		return true;
-	}
-
-	@Override
 	public String getName() {
 		String name = super.getName();
 		if (name != null && !name.isBlank())

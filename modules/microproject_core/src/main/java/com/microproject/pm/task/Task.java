@@ -488,8 +488,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public boolean isMilestone() {
 		return false;
 	}
+	/** A task is a subproject reference when it implements the subproject contract. */
 	public boolean isSubproject() {
-		return false;
+		return this instanceof SubProj;
 	}
 	transient Collection<Node> wbsChildrenNodes = null;
 	transient Task wbsParentTask = null;

@@ -487,10 +487,6 @@ class DependencyServiceTest {
 			return null;
 		}
 
-		public boolean isSubproject() {
-			return true;
-		}
-
 		public boolean isSubprojectOpen() {
 			return writable;
 		}
