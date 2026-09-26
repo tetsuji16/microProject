@@ -34,6 +34,11 @@ import java.awt.Shape;
 import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;
 import java.awt.geom.Line2D;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.util.Locale;
 
 import javax.swing.JPanel;
 import javax.swing.UIManager;
@@ -45,6 +50,7 @@ import com.microproject.timescale.TimeInterval;
 import com.microproject.timescale.TimeIterator;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.AlternativeCalendarDisplay;
 
 
 /**
@@ -160,7 +166,8 @@ public class TimeScaleComponent extends JPanel {
 				g2.setColor(lineColor);
 				if (clipping) g2.draw(new Line2D.Double(X1,0,X1,h/2));//when scrolling pixel by pixel both lines are needed
 				g2.draw(new Line2D.Double(X2,0,X2,h/2));
-				text=interval.getText2();
+				text=alternateMonthLabel(interval.getText2(), interval.getStart2(), interval.getEnd2(),
+					Locale.getDefault(Locale.Category.FORMAT));
 				metrics=font.getLineMetrics(text,context);
 				double topLabelX = X1 + 2;
 				double topLabelWidth = font.getStringBounds(text, context).getWidth();
@@ -180,6 +187,16 @@ public class TimeScaleComponent extends JPanel {
 	/** Returns whether a timescale label can be painted without colliding with its predecessor. */
 	static boolean canPaintLabel(double x, double width, double previousEnd) {
 		return width > 0.0d && x >= previousEnd + 4.0d;
+	}
+
+	static String alternateMonthLabel(String isoLabel, long startMillis, long endMillis, Locale locale) {
+		if (isoLabel == null || isoLabel.isEmpty()) return isoLabel;
+		long duration = endMillis - startMillis;
+		if (duration < 27L * 24 * 60 * 60 * 1000 || duration > 32L * 24 * 60 * 60 * 1000)
+			return isoLabel;
+		LocalDate date = Instant.ofEpochMilli(startMillis).atZone(ZoneOffset.UTC).toLocalDate();
+		String companion = AlternativeCalendarDisplay.companionMonth(YearMonth.from(date), locale);
+		return companion.isEmpty() ? isoLabel : isoLabel + " (" + companion + ")";
 	}
 
 	private static void refreshThemeColors() {

@@ -28,17 +28,20 @@ public final class AlternativeCalendarDisplay {
 	}
 
 	public static String monthLabel(YearMonth month, Locale locale) {
-		Chronology chronology = chronology(locale);
 		String isoLabel = month.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale));
-		if (IsoChronology.INSTANCE.equals(chronology))
-			return isoLabel;
+		String alternateLabel = companionMonth(month, locale);
+		return alternateLabel.isEmpty() ? isoLabel : isoLabel + " (" + alternateLabel + ")";
+	}
 
+	/** Returns the selected chronology's month label, or an empty string for ISO-only locales. */
+	public static String companionMonth(YearMonth month, Locale locale) {
+		Chronology chronology = chronology(locale);
+		if (IsoChronology.INSTANCE.equals(chronology)) return "";
 		try {
-			String alternateLabel = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+			return DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
 				.withLocale(locale).withChronology(chronology).format(month.atDay(1));
-			return isoLabel + " (" + alternateLabel + ")";
 		} catch (DateTimeException exception) {
-			return isoLabel;
+			return "";
 		}
 	}
 

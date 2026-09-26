@@ -28,6 +28,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.Locale;
+
 import javax.swing.border.Border;
 
 import org.junit.jupiter.api.Test;
@@ -35,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.pm.graphic.gantt.GanttParamsImpl;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.AlternativeCalendarDisplay;
 
 class TimeScaleComponentThemeTest {
 	@Test
@@ -64,5 +69,21 @@ class TimeScaleComponentThemeTest {
 		assertTrue(TimeScaleComponent.canPaintLabel(2.0d, 24.0d, Double.NEGATIVE_INFINITY));
 		assertFalse(TimeScaleComponent.canPaintLabel(14.0d, 24.0d, 26.0d));
 		assertTrue(TimeScaleComponent.canPaintLabel(31.0d, 24.0d, 26.0d));
+	}
+
+	@Test
+	void timescaleMonthHeaderAddsAlternativeCalendarWithoutChangingGregorianLabel() {
+		long may2019 = LocalDate.of(2019, 5, 1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
+		long june2019 = LocalDate.of(2019, 6, 1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
+		long may2020 = LocalDate.of(2020, 5, 1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
+
+		assertEquals("May 2019", TimeScaleComponent.alternateMonthLabel("May 2019", may2019, june2019,
+			Locale.forLanguageTag("en-US")));
+		Locale japaneseCalendar = Locale.forLanguageTag("en-US-u-ca-japanese");
+		String label = TimeScaleComponent.alternateMonthLabel("May 2019", may2019, june2019, japaneseCalendar);
+		assertTrue(label.startsWith("May 2019 ("));
+		assertTrue(label.contains(AlternativeCalendarDisplay.companionMonth(java.time.YearMonth.of(2019, 5),
+			japaneseCalendar)));
+		assertEquals("2019", TimeScaleComponent.alternateMonthLabel("2019", may2019, may2020, japaneseCalendar));
 	}
 }
