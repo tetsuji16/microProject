@@ -925,7 +925,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 		Node node;
 		int count=0;
 		boolean found=false;
-		for (Enumeration e=parent.children();e.hasMoreElements();){
+		for (Enumeration<?> e=parent.children();e.hasMoreElements();){
 			node=(Node)e.nextElement();
 			if (checkSubprojectEndVoidNodes(node,inserted)) found=true;
 	    	if (NodeModelUtil.nodeIsSubproject(parent)) {
