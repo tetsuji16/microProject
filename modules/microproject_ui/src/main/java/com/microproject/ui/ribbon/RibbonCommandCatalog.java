@@ -73,7 +73,10 @@ final class RibbonCommandCatalog {
 	}
 
 	static List<CommandDefinition> from(SwingRibbonModel model, ResourceBundle... bundles) {
-		Map<String, Set<String>> tabsByCommand = tabsByCommand(model);
+		return definitions(tabsByCommand(model), bundles);
+	}
+
+	private static List<CommandDefinition> definitions(Map<String, Set<String>> tabsByCommand, ResourceBundle... bundles) {
 		List<CommandDefinition> result = new ArrayList<>(tabsByCommand.size());
 		for (String id : tabsByCommand.keySet()) {
 			Placement placement = PLACEMENTS.get(id);
@@ -92,7 +95,7 @@ final class RibbonCommandCatalog {
 
 	static void validate(SwingRibbonModel model, ResourceBundle... bundles) {
 		Map<String, Set<String>> tabsByCommand = tabsByCommand(model);
-		for (CommandDefinition definition : from(model, bundles)) {
+		for (CommandDefinition definition : definitions(tabsByCommand, bundles)) {
 			if (bundles.length > 0 && (definition.actionId() == null || definition.iconKey() == null)) {
 				throw new IllegalStateException("Ribbon command is missing action or icon metadata: " + definition.id());
 			}
@@ -106,7 +109,13 @@ final class RibbonCommandCatalog {
 	}
 
 	private static Map<String, Set<String>> tabsByCommand(SwingRibbonModel model) {
-		Map<String, Set<String>> tabsByCommand = new LinkedHashMap<>();
+		int commandOccurrences = model.getTaskBarButtons().size();
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
+				commandOccurrences += band.getButtons().size();
+			}
+		}
+		Map<String, Set<String>> tabsByCommand = new LinkedHashMap<>(commandOccurrences * 4 / 3 + 1);
 		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
 			for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
 				for (SwingRibbonModel.RibbonButton button : band.getButtons()) {
