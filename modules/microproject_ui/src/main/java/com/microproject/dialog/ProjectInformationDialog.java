@@ -254,12 +254,12 @@ public class ProjectInformationDialog extends InformationDialog {
 		boolean update = false;
 		if (obj == getObject()) {
 			update = true;
-		} else if (obj instanceof Task) {
-			if (((Task)obj).getProject() == project)
+		} else if (obj instanceof Task task) {
+			if (task.getProject() == project)
 				update = true;
 				
-		} else if (obj instanceof Resource) {
-			if (((Resource)obj).getDocument() == project.getResourcePool())
+		} else if (obj instanceof Resource resource) {
+			if (resource.getDocument() == project.getResourcePool())
 				update = true;
 		}
 		if (update)

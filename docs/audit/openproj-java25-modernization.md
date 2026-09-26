@@ -1859,3 +1859,9 @@ assignment order, and listener attach remain unchanged; null still skips the
 incoming-document branch through the pattern match. These guards trace to
 OpenProj. No headless `FieldDialog` test fixture exists, so verification uses
 the full UI suite; no visible dialog route or layout changed.
+
+`ProjectInformationDialog.objectChanged` now binds task and resource event
+payloads before checking project/resource-pool identity. Event filtering and
+the conditional refresh are unchanged; `git blame` traces both branches to
+OpenProj. No dedicated headless test exists for this dialog callback, so the
+full UI suite is used. The user-visible dialog route and layout are unchanged.
