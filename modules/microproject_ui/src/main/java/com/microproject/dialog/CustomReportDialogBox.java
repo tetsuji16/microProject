@@ -237,11 +237,11 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		List<Task> tasks = filteredTasks(); Field sortField = (Field) sort.getSelectedItem();
 		if (sortField != null) tasks.sort(Comparator.comparing(task -> safeText(sortField, task), String.CASE_INSENSITIVE_ORDER));
 		boolean grouped = group.getSelectedIndex() > 0;
-		List<String> names = new ArrayList<>(); if (grouped) names.add(t("report.groupColumn")); selected.forEach(field -> names.add(field.getName()));
+		List<String> names = new ArrayList<>(selected.size() + (grouped ? 1 : 0)); if (grouped) names.add(t("report.groupColumn")); selected.forEach(field -> names.add(field.getName()));
 		previewModel.setDataVector(new Object[0][0], names.toArray());
 		double totalCost = 0D; long totalWork = 0L;
 		for (Task task : tasks) {
-			List<Object> row = new ArrayList<>(); if (grouped) row.add(groupValue(task));
+			List<Object> row = new ArrayList<>(selected.size() + (grouped ? 1 : 0)); if (grouped) row.add(groupValue(task));
 			for (Field field : selected) row.add(safeText(field, task));
 			previewModel.addRow(row.toArray());
 			if (task instanceof com.microproject.pm.task.NormalTask normal) {
