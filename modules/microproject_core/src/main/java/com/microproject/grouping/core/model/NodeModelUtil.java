@@ -131,8 +131,8 @@ public class NodeModelUtil {
 		Object childImpl = child.getImpl();
 		if (nodeIsSubproject(parent))
 			return false;
-		if (parentImpl instanceof Task && childImpl instanceof Task) {
-			return ((Task)parentImpl).getOwningProject() == ((Task)childImpl).getOwningProject();
+		if (parentImpl instanceof Task parentTask && childImpl instanceof Task childTask) {
+			return parentTask.getOwningProject() == childTask.getOwningProject();
 		}
 		return true;
 	}

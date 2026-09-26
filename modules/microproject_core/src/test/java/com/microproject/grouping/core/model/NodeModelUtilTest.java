@@ -31,6 +31,9 @@ import org.junit.jupiter.api.Test;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.undo.DataFactoryUndoController;
 
 class NodeModelUtilTest {
 	@Test
@@ -38,5 +41,33 @@ class NodeModelUtilTest {
 		assertTrue(NodeModelUtil.nodeIsSubproject(
 			NodeFactory.getInstance().createNode(new DefaultSubProj(null, 42L))));
 		assertFalse(NodeModelUtil.nodeIsSubproject(NodeFactory.getInstance().createNode(new NormalTask())));
+	}
+
+	@Test
+	void taskParentsCanOnlyContainTasksFromTheSameProject() {
+		Project firstProject = createProject("first");
+		Project secondProject = createProject("second");
+		NodeFactory nodeFactory = NodeFactory.getInstance();
+
+		assertTrue(NodeModelUtil.canBeChildOf(
+			nodeFactory.createNode(createTask(firstProject)),
+			nodeFactory.createNode(createTask(firstProject))));
+		assertFalse(NodeModelUtil.canBeChildOf(
+			nodeFactory.createNode(createTask(firstProject)),
+			nodeFactory.createNode(createTask(secondProject))));
+		assertFalse(NodeModelUtil.canBeChildOf(
+			nodeFactory.createNode(new DefaultSubProj(firstProject, 42L)),
+			nodeFactory.createNode(createTask(firstProject))));
+	}
+
+	private NormalTask createTask(Project project) {
+		NormalTask task = project.newNormalTaskInstance();
+		task.setOwningProject(project);
+		return task;
+	}
+
+	private Project createProject(String name) {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		return Project.createProject(ResourcePool.createRourcePool(name, undoController), undoController);
 	}
 }

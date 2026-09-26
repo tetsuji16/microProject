@@ -1606,7 +1606,10 @@ matching hash codes, and rejection of null/foreign types.
 before reading its subproject flag. The fork-specific `SubProj` branch remains
 in place. `NodeModelUtilTest` verifies both a subproject placeholder and a
 regular task node; active callers include `MutableNodeHierarchy` and
-`NodeBridge`.
+`NodeBridge`. `NodeModelUtil.canBeChildOf` now binds both task implementations
+before comparing their owning projects; the original same-project restriction
+and non-task behavior are unchanged. The expanded test covers same-project,
+cross-project, and subproject-parent cases through the `NodeBridge` caller.
 
 `FieldDictionary.setAliasMap` now uses enhanced-for over the alias map's key
 set. Alias lookup, ignoring unknown field IDs, and field mutation remain the
