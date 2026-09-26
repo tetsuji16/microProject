@@ -21,13 +21,15 @@ alias or package merge.
 ## #257 — time types
 
 `com.microproject.datatype.Duration`/`Rate` are the scheduling-domain value
-types, while `com.microproject.core.time` remains required by the MPX converter
-layer (`MpxDurationConverter`, `MpxRateConverter`, and time-phased converter
-types). The two APIs have different contracts, including inheritance and unit
-semantics. Converter adapters must be introduced before callers can move.
-The legacy `core.time.Duration`, `Rate`, and `TimeUnit` are now explicitly
-deprecated (without removal), so new callers cannot accidentally select them;
-the MPX converter boundary remains the supported legacy consumer.
+types. The earlier MPX compatibility decision treated the `core.time` converter
+helpers as active, but caller and resource searches found `MpxRateConverter`,
+`MpxDurationConverter`, and `MpxTimephasedConverter` had no runtime entry point;
+they and the unused importer reference were removed. Current production exchange
+code uses the `datatype` types through `MPXConverter`. The deprecated
+`core.time.Duration`, `Rate`, and `TimeUnit` and `TimeTypeBridge` remain as
+source-compatibility APIs; deleting or changing them needs an explicit public API
+compatibility decision. Other same-named classes still require their own caller
+and serialization-boundary audit.
 
 ## #258 — hierarchy types
 

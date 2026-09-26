@@ -57,7 +57,6 @@ import com.microproject.core.pm.exchange.converters.mpx.MpxOptionsConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxProjectConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxResourceConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxTaskConverter;
-import com.microproject.core.pm.exchange.converters.mpx.type.MpxDurationConverter;
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
 import com.microproject.exchange.ImportedCalendarService;
