@@ -24,16 +24,13 @@
  *******************************************************************************/
 package com.microproject.core.configuration;
 
-/**
- * @author Laurent Chretienneau
- *
- */
-public class ConfigurationFile {
+/** Runtime registration of a resource and the classes used to bind its JAXB content. */
+public class LegacyJaxbConfigurationFile {
 	protected String file;
 	protected Class<?>[] classesToBeBound;
 	protected Object root;
 	protected boolean binded;
-	public ConfigurationFile(String file, Class<?>[] classesToBeBound) {
+	public LegacyJaxbConfigurationFile(String file, Class<?>[] classesToBeBound) {
 		super();
 		this.file = file;
 		this.classesToBeBound = classesToBeBound;

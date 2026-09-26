@@ -58,7 +58,7 @@ import com.microproject.core.dictionary.HasStringId;
 public class LegacyJaxbConfiguration {
 	private static final Logger logger = Logger.getLogger(LegacyJaxbConfiguration.class.getName());
 	protected static LegacyJaxbConfiguration instance;
-	protected List<ConfigurationFile> configurations=new ArrayList<ConfigurationFile>();
+	protected List<LegacyJaxbConfigurationFile> configurations=new ArrayList<LegacyJaxbConfigurationFile>();
 	protected Dictionary dictionary=new Dictionary();
 	
 	public static synchronized LegacyJaxbConfiguration getInstance(){
@@ -72,7 +72,7 @@ public class LegacyJaxbConfiguration {
 	}
 	
 	public synchronized void register(String file,Class<?>... classesToBeBound){
-		configurations.add(new ConfigurationFile(file, classesToBeBound));
+		configurations.add(new LegacyJaxbConfigurationFile(file, classesToBeBound));
 	}
 	
 	public synchronized void load(){
@@ -81,7 +81,7 @@ public class LegacyJaxbConfiguration {
 //		} catch (InterruptedException e) {
 //			e.printStackTrace();
 //		}
-		for (ConfigurationFile config : configurations){
+		for (LegacyJaxbConfigurationFile config : configurations){
 			if (!config.isBinded()){
 				config.setRoot(load(config.getFile(),config.getClassesToBeBound()));
 				config.setBinded(true);

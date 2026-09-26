@@ -33,6 +33,6 @@ class LegacyJaxbConfigurationTest {
 	void missingClasspathResourceReturnsNull() {
 		LegacyJaxbConfiguration configuration = new LegacyJaxbConfiguration();
 
-		assertNull(configuration.load("missing/projectlibre-configuration.xml", ConfigurationFile.class));
+		assertNull(configuration.load("missing/projectlibre-configuration.xml", LegacyJaxbConfigurationFile.class));
 	}
 }
