@@ -1878,3 +1878,10 @@ Component, and resolved spinner/date value component. The parent traversal and
 null fallback are unchanged; `git blame` traces this helper to OpenProj. Added
 `FieldVerifierTest` for spinner-editor resolution and a parentless component.
 The fork-added date parsing branch in `verify` remains untouched.
+
+`AssignmentEntryPane` now binds `AssignmentDialog`, `ReplaceAssignmentDialog`,
+and `HasAssignments` values in its existing double-click dispatch and node
+transformer. The two dialog actions, visibility change, and assignment-entry
+construction remain unchanged; `git blame` traces these hunks to OpenProj.
+The full UI suite verifies the module; no command route or visible layout was
+changed by this source-only modernization.

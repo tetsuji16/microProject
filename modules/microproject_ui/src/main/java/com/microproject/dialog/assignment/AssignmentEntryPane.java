@@ -217,17 +217,16 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
         }
         
         public void doDoubleClick(int row, int col) {
-        	if (dialog instanceof AssignmentDialog) {
-        		((AssignmentDialog)dialog).assign();
-        		((AssignmentDialog)dialog).setVisible(false);
-        	} else if (dialog instanceof ReplaceAssignmentDialog)
-        		((ReplaceAssignmentDialog)dialog).onOk();
+                if (dialog instanceof AssignmentDialog assignmentDialog) {
+                    assignmentDialog.assign();
+                    assignmentDialog.setVisible(false);
+                } else if (dialog instanceof ReplaceAssignmentDialog replaceAssignmentDialog)
+                    replaceAssignmentDialog.onOk();
         }
 }
 	public class NodeFactoryTransformer implements Transformer{
 		public Object transform(Object impl) {
-		    if (impl instanceof HasAssignments){
-		        HasAssignments hasAssignments = (HasAssignments) impl;
+		    if (impl instanceof HasAssignments hasAssignments){
 		        return new AssignmentEntry(hasAssignments, null,project);
 		    }
 		    return null;
