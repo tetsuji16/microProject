@@ -42,8 +42,8 @@ public abstract class NodeWalker extends SummaryVisitor {
 	private Node node = null;
 	protected NodeWalker(Consumer<Object> closure) {
 		this.closure = closure;
-		if (closure instanceof SummaryVisitor)
-			this.visitor = (SummaryVisitor)closure;
+		if (closure instanceof SummaryVisitor summaryVisitor)
+			this.visitor = summaryVisitor;
 	}
 	
 	public void setNodeModel(WalkersNodeModel nodeModel) {

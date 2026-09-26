@@ -1457,3 +1457,8 @@ matches `d2fa3c20a:openproj_reports/src/com/projity/reports/adapter/DataSource.j
 returning a `FontUIResource`, and traverses available-font arrays with
 enhanced-for. These implementations match the OpenProj `FontUtil` source; font
 selection priority and enumeration order remain unchanged.
+
+`NodeWalker` now binds its `SummaryVisitor` closure with `instanceof` pattern
+matching, keeping the existing visitor selection contract. The constructor
+matches the OpenProj `NodeWalker` source; existing child-walker tests exercise
+the visitor path.
