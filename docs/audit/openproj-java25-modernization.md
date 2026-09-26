@@ -1944,4 +1944,14 @@ replay calls `setValue` through `FieldEdit`. Collection encounter order,
 element delegation, and the read-only early return are unchanged. Added
 `FieldSetValueTest` coverage for collection-wide value updates and read-only
 aggregation, including the empty collection case. Full
-`:microproject_core:test --console=plain` passed. Commit: pending.
+`:microproject_core:test --console=plain` passed. Commit: `f2dd7f178`.
+
+`NodeModel.addImplCollection` is now typed as `Collection<?>` across the interface,
+implementation, and `NodeModelFactory` callers; `DefaultNodeModel` traverses it
+with enhanced-for while constructing and adding each implementation in encounter
+order. `git blame` traces the implementation to OpenProj (`d2fa3c20a`), and
+repository-wide caller search found only the two active factory paths. The input
+collection is read-only in this method. Added a `DefaultNodeModelTest` asserting
+both inserted implementation objects and their order. Verification passed:
+focused `DefaultNodeModelTest`, full `:microproject_core:test`, and compilation of
+application, exchange, UI, and reports callers. Commit: recorded in this changeset.

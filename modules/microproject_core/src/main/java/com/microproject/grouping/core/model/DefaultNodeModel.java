@@ -337,11 +337,9 @@ public class DefaultNodeModel implements NodeModel {
 	 * @param parent
 	 * @param collection
 	 */
-	public void addImplCollection(Node parent, Collection collection,int actionType) {
-		Iterator i = collection.iterator();
-		Node child;
-		while (i.hasNext()) {
-			child = NodeFactory.getInstance().createNode(i.next());
+	public void addImplCollection(Node parent, Collection<?> collection,int actionType) {
+		for (Object implementation : collection) {
+			Node child = NodeFactory.getInstance().createNode(implementation);
 			add(parent,child,actionType);
 		}
 

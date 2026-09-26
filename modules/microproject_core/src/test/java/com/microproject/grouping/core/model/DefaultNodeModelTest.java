@@ -554,6 +554,20 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void addImplCollectionCreatesNodesForEveryImplementationInOrder() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Object firstImplementation = new Object();
+		Object secondImplementation = new Object();
+		Node root = (Node) model.getHierarchy().getRoot();
+
+		model.addImplCollection(root, List.of(firstImplementation, secondImplementation), NodeModel.SILENT);
+
+		assertSame(firstImplementation, ((Node) root.getChildAt(0)).getImpl());
+		assertSame(secondImplementation, ((Node) root.getChildAt(1)).getImpl());
+	}
+
+	@Test
 	void copyRebuildsAssignmentRowsForCopiedTask() {
 		Project project = createProject();
 		NormalTask task = createTask(project, "assigned task");

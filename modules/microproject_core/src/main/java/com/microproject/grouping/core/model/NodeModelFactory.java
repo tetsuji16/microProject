@@ -67,12 +67,12 @@ public class NodeModelFactory {
 		return new AssignmentNodeModel(/*(Vector)model.getList().clone(),*/(MutableNodeHierarchy)model.getHierarchy().clone(), model.getDataFactory(),document,containsLeftObjects);
 	}
 
-	public NodeModel createNodeModelFromCollection(Collection collection,NodeModelDataFactory dataFactory) {
+	public NodeModel createNodeModelFromCollection(Collection<?> collection,NodeModelDataFactory dataFactory) {
 		NodeModel nodeModel = createNodeModel(dataFactory);
 		nodeModel.addImplCollection(null,collection,NodeModel.SILENT);
 		return nodeModel;
 	}
-	public void updateNodeModelFromCollection(NodeModel nodeModel,Collection collection,NodeModelDataFactory dataFactory,int nbEndVoidNodes) {
+	public void updateNodeModelFromCollection(NodeModel nodeModel,Collection<?> collection,NodeModelDataFactory dataFactory,int nbEndVoidNodes) {
 		nodeModel.removeAll(NodeModel.SILENT);
 		nodeModel.setDataFactory(dataFactory);
 		nodeModel.addImplCollection(null,collection,NodeModel.SILENT);

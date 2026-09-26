@@ -59,7 +59,7 @@ public interface NodeModel extends TreeModel, WalkersNodeModel{
 	public void addBefore(LinkedList siblings,Node newNode,int actionType);
 	public void addBefore(Node sibling,Node newNode,int actionType);
 	public void addBefore(Node sibling,List newNodes,int actionType);
-	public void addImplCollection(Node parent, Collection collection,int actionType);
+	public void addImplCollection(Node parent, Collection<?> collection,int actionType);
 	public Node newNode(Node parent,int position,int actionType);
 
 	public void paste(Node parent,List nodes,int position,int actionType);
