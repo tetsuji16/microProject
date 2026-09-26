@@ -621,9 +621,9 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     private List<NodeIndentEdit.Position> createPositions(List<?> nodes,
 		Map<Node, NodeIndentEdit.Position> positionsByNode) {
-	List<NodeIndentEdit.Position> positions = new ArrayList<>();
-    	if (nodes == null || positionsByNode == null)
-    		return positions;
+	if (nodes == null || positionsByNode == null)
+		return new ArrayList<>();
+	List<NodeIndentEdit.Position> positions = new ArrayList<>(nodes.size());
 	for (Object node : nodes) {
 		NodeIndentEdit.Position position = positionsByNode.get(node);
     		if (position != null)
