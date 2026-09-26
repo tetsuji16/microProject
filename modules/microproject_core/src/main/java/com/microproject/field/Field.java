@@ -1038,12 +1038,12 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	}
 
 	private Long toTaskSheetScheduleValue(Object value) {
-		if (value instanceof Number)
-			return Long.valueOf(((Number) value).longValue());
-		if (value instanceof Duration)
-			return Long.valueOf(((Duration) value).getEncodedMillis());
-		if (value instanceof Date)
-			return Long.valueOf(((Date) value).getTime());
+		if (value instanceof Number number)
+			return Long.valueOf(number.longValue());
+		if (value instanceof Duration duration)
+			return Long.valueOf(duration.getEncodedMillis());
+		if (value instanceof Date date)
+			return Long.valueOf(date.getTime());
 		return null;
 	}
 
