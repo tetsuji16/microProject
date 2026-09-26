@@ -554,6 +554,23 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void ancestorCheckRejectsParentAndChildInOneMoveSelection() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node parent = NodeFactory.getInstance().createNode(new Object());
+		Node child = NodeFactory.getInstance().createNode(new Object());
+		Node sibling = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, parent, NodeModel.SILENT);
+		model.add(parent, child, NodeModel.SILENT);
+		model.add(root, sibling, NodeModel.SILENT);
+
+		assertFalse(model.testAncestorOrDescendant(parent, List.of(child)));
+		assertTrue(model.testAncestorOrDescendant(parent, List.of(sibling)));
+		assertTrue(model.testAncestorOrDescendant(parent, List.of()));
+	}
+
+	@Test
 	void addImplCollectionCreatesNodesForEveryImplementationInOrder() {
 		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
 		model.getHierarchy().setNbEndVoidNodes(0);

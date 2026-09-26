@@ -59,7 +59,7 @@ public class XbsInteractor extends NetworkInteractor {
     	switch (state) {
 		case LINK_CREATION:
 			if (sourceNode!=null&&destinationNode!=null){
-				List nodes=new LinkedList();
+				List<Node> nodes=new LinkedList<>();
 				nodes.add(destinationNode.getNode());
 				getGraph().getModel().getCache().getModel().move(sourceNode.getNode(),nodes,0,NodeModel.NORMAL);
 			}
@@ -86,7 +86,7 @@ public class XbsInteractor extends NetworkInteractor {
     				NodeBridge previous=(NodeBridge)path[1];
     				position=previous.getRoot().getIndex(previous)+1;
     			}
-    			List nodes=new LinkedList();
+				List<Node> nodes=new LinkedList<>();
 				nodes.add(child);
 				getGraph().getModel().getCache().getModel().move(null,nodes,position,NodeModel.NORMAL);
     		}

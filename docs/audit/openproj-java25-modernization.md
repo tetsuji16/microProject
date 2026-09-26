@@ -1955,3 +1955,13 @@ collection is read-only in this method. Added a `DefaultNodeModelTest` asserting
 both inserted implementation objects and their order. Verification passed:
 focused `DefaultNodeModelTest`, full `:microproject_core:test`, and compilation of
 application, exchange, UI, and reports callers. Commit: recorded in this changeset.
+
+`DefaultNodeModel.testAncestorOrDescendant` and the `NodeModel.move` contract now
+use `List<Node>` instead of raw lists and cast-after-iterator traversal. Project
+reparenting and both XBS move callers now construct typed node lists. `git blame`
+traces the ancestor check and move implementation to OpenProj (`d2fa3c20a`); the
+caller search covered the interface, Project, and XBS interaction routes. Added
+a regression for rejecting a parent/child pair while accepting siblings and an
+empty selection. Verification passed: full `:microproject_core:test`,
+`:microproject_ui:compileJava`, focused `DefaultNodeModelTest`, and
+`git diff --check`. Commit: recorded in this changeset.

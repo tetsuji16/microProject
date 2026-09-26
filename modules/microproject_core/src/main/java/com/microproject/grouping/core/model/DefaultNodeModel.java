@@ -212,16 +212,15 @@ public class DefaultNodeModel implements NodeModel {
 		return isAncestor(one,two) || isAncestor(two,one);
 	}
 
-	public boolean testAncestorOrDescendant(Node one, List nodes) {
-		Iterator i = nodes.iterator();
-		while (i.hasNext()) {
-			if (isAncestorOrDescendant(one,(Node)i.next()))
+	public boolean testAncestorOrDescendant(Node one, List<Node> nodes) {
+		for (Node node : nodes) {
+			if (isAncestorOrDescendant(one, node))
 				return false;
 		}
 		return true;
 	}
 
-	public void move(Node parent,List nodes,int position,int actionType){
+	public void move(Node parent,List<Node> nodes,int position,int actionType){
 		if (!testAncestorOrDescendant(parent,nodes)) // don't allow circular
 			return;
 		List cutNodes=cut(nodes,false,actionType);
