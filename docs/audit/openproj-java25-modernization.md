@@ -917,6 +917,15 @@ using reflection varargs directly. Class-name boundaries, target names,
 exception handling, and return values are unchanged. Core tests, downstream
 compilation, and diff check passed.
 
+Follow-up modernization: `CollectionIntervalGenerator.makeIterator()` now uses
+the collection's `iterator()` directly. The active method only calls
+`hasNext()`/`next()`; no caller or subclass relies on `ListIterator` methods.
+This preserves List encounter order and uses the existing generic-collection
+path for non-List collections. The choice matches the OpenProj source's List
+traversal, while retaining the fork's working generic-collection behavior.
+`CollectionIntervalGeneratorTest` covers both List and insertion-ordered
+non-List collections; the focused core test and `git diff --check` passed.
+
 Follow-up #670 starts from the latest integrated `origin/master` after #669
 (merge-base verified). Completed the matching optional BootstrapApplet
 `GraphicManager(Container)` binding path by replacing its empty signature and

@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.LinkedHashSet;
 
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +61,19 @@ class CollectionIntervalGeneratorTest {
 
 		assertFalse(generator.evaluate(null));
 		assertTrue(generator.isFinished());
+	}
+
+	@Test
+	void iteratesNonListCollectionsInTheirEncounterOrder() {
+		HasStartAndEnd first = new Interval(0, 10);
+		HasStartAndEnd second = new Interval(10, 20);
+		LinkedHashSet<HasStartAndEnd> intervals = new LinkedHashSet<>(List.of(first, second));
+		CollectionIntervalGenerator generator = CollectionIntervalGenerator.getInstance(intervals);
+
+		assertSame(first, generator.current());
+		assertTrue(generator.evaluate(null));
+		assertSame(second, generator.current());
+		assertFalse(generator.evaluate(null));
 	}
 
 	private record Interval(long start, long end) implements HasStartAndEnd {

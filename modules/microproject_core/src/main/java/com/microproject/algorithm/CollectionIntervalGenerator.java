@@ -27,7 +27,6 @@ package com.microproject.algorithm;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -64,10 +63,7 @@ public class CollectionIntervalGenerator implements IntervalGenerator, HasStartA
 	}	
 
 	protected Iterator<? extends HasStartAndEnd> makeIterator() {
-		if (collection instanceof List)
-			return ((List<? extends HasStartAndEnd>) collection).listIterator();
-		else
-			return collection.iterator();
+		return collection.iterator();
 	}
 	protected void initialize() {
 		iterator = makeIterator();
