@@ -384,7 +384,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
 //utility
     public static void addDescendants(Node node,List<Node> descendants){
-    	for (Enumeration e=((NodeBridge)node).preorderEnumeration();e.hasMoreElements();)
+	for (Enumeration<?> e=((NodeBridge)node).preorderEnumeration();e.hasMoreElements();)
     		descendants.add((Node)e.nextElement());
     }
     //nodes are roots of trees
