@@ -303,6 +303,14 @@ public final class FlatUiSupport {
 		return color(THEME_KEY_PREFIX + "spreadsheetBodyBackground", FlatUiTheme.SPREADSHEET_BODY_BACKGROUND);
 	}
 
+	public static Color assignmentCompleteBackground() {
+		return color(THEME_KEY_PREFIX + "assignmentCompleteBackground", new Color(0xE5F0E5));
+	}
+
+	public static Color assignmentPartialBackground() {
+		return color(THEME_KEY_PREFIX + "assignmentPartialBackground", new Color(0xFFF3D9));
+	}
+
 	public static Color spreadsheetReadOnlyForeground() {
 		return color(THEME_KEY_PREFIX + "spreadsheetReadOnlyForeground", FlatUiTheme.SPREADSHEET_READ_ONLY_FOREGROUND);
 	}

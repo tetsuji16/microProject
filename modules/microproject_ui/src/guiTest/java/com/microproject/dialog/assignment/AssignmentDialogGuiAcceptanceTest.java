@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.Color;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -44,6 +45,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatUiSupport;
 
 /** GUI-MSP-ASSIGNMENT-01: Assign Resources has one lock-aware mutation route. */
 class AssignmentDialogGuiAcceptanceTest {
@@ -115,6 +117,11 @@ class AssignmentDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> task.findAssignment(resource) != null,
 			"Assign Resources did not create the assignment after lock acceptance");
 		assertSame(task, task.findAssignment(resource).getTask());
+		Color[] assignmentStatusBackground = new Color[1];
+		SwingUtilities.invokeAndWait(() -> assignmentStatusBackground[0] = resourceSheet.prepareRenderer(
+			resourceSheet.getCellRenderer(resourceRow, nameColumn(resourceSheet)), resourceRow, nameColumn(resourceSheet)).getBackground());
+		assertEquals(FlatUiSupport.assignmentCompleteBackground(), assignmentStatusBackground[0],
+			"fully assigned resources should use the muted theme status color");
 
 		SwingUtilities.invokeAndWait(dialog::dispose);
 		activateWindow(robot);

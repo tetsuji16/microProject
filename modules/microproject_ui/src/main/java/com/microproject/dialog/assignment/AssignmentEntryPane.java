@@ -50,7 +50,7 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.datatype.Rate;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
-import com.microproject.graphic.configuration.shape.Colors;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.event.HierarchyEvent;
@@ -184,14 +184,14 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 				int column) {
 			Component component =  super.prepareRenderer(renderer, row, column);
 			AssignmentEntry entry = getEntryInRow(row);
-			component.setForeground(Colors.BLACK);
+			component.setForeground(FlatUiSupport.tableForeground());
 			
 			if (entry != null) {
 				if (entry.isAssigned()) {
 					if (taskList.size() == entry.getAssignmentCount()) { // if all selected tasks are assigned to this resource, show it green
-							component.setBackground(Colors.PALE_GREEN);						
+							component.setBackground(FlatUiSupport.assignmentCompleteBackground());
 					} else {
-							component.setBackground(Colors.PALE_YELLOW);
+							component.setBackground(FlatUiSupport.assignmentPartialBackground());
 						if (column!=0)  {
 							Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column);
 							if (field == Assignment.getRequestDemandTypeField() || field == AssignmentEntry.getRateField()) {
