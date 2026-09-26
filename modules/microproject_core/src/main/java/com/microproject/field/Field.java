@@ -2242,8 +2242,8 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (action == null || obj == null)
 			return;
 		Object value = getValue(obj,null);
-		if (value instanceof Hyperlink)
-			((Hyperlink)value).invoke();
+		if (value instanceof Hyperlink hyperlink)
+			hyperlink.invoke();
 	}
 
 	public final boolean isImage() {

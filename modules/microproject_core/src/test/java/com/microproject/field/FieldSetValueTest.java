@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.datatype.Hyperlink;
 import com.microproject.server.data.DataObject;
 
 class FieldSetValueTest {
@@ -64,6 +65,21 @@ class FieldSetValueTest {
 		assertTrue(target.isDirty());
 	}
 
+	@Test
+	void invokesHyperlinkReturnedByConfiguredField() {
+		Field field = new Field();
+		field.setClass(HyperlinkHolder.class);
+		field.setProperty("link");
+		field.setId("Field.testLink");
+		field.setAction("open");
+		field.build();
+		TrackingHyperlink link = new TrackingHyperlink();
+
+		field.invokeAction(new HyperlinkHolder(link));
+
+		assertTrue(link.invoked);
+	}
+
 	public static final class ThrowingSetter {
 		private final FieldParseException failure;
 
@@ -91,5 +107,30 @@ class FieldSetValueTest {
 		@Override public void setUniqueId(long uniqueId) { this.uniqueId = uniqueId; }
 		@Override public boolean isDirty() { return dirty; }
 		@Override public void setDirty(boolean dirty) { this.dirty = dirty; }
+	}
+
+	public static final class HyperlinkHolder {
+		private final Hyperlink link;
+
+		HyperlinkHolder(Hyperlink link) {
+			this.link = link;
+		}
+
+		public Hyperlink getLink() {
+			return link;
+		}
+	}
+
+	private static final class TrackingHyperlink extends Hyperlink {
+		private boolean invoked;
+
+		TrackingHyperlink() {
+			super("test", "https://example.invalid");
+		}
+
+		@Override
+		public void invoke() {
+			invoked = true;
+		}
 	}
 }

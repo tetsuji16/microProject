@@ -1704,3 +1704,8 @@ path before marking the object dirty. The separate task-sheet scheduling path is
 fork-owned and remains untouched. `FieldSetValueTest.marksDataObjectDirtyAfterReflectiveFieldSet`
 verifies a successful reflected write still marks the target dirty; the focused
 test passed.
+
+`Field.invokeAction` now binds the OpenProj-derived `Hyperlink` result from the
+configured field before invoking it. Its active UI caller is
+`GraphicManager`'s field-action route. `FieldSetValueTest.invokesHyperlinkReturnedByConfiguredField`
+verifies dispatch without opening a browser; the focused test passed.
