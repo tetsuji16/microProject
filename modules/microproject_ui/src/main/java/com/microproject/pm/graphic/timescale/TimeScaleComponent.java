@@ -149,7 +149,8 @@ public class TimeScaleComponent extends JPanel {
 			if (clipping) g2.draw(new Line2D.Double(x1,h/2,x1,h)); //when scrolling pixel by pixel both lines are needed
 			g2.draw(new Line2D.Double(x2,h/2,x2,h));
 
-			String text=interval.getText1();
+			String text=alternateDayLabel(interval.getText1(), interval.getStart1(), interval.getEnd1(),
+				Locale.getDefault(Locale.Category.FORMAT));
 			LineMetrics metrics=font.getLineMetrics(text,context);
 			double bottomLabelX = x1 + 2;
 			double bottomLabelWidth = font.getStringBounds(text, context).getWidth();
@@ -197,6 +198,21 @@ public class TimeScaleComponent extends JPanel {
 		LocalDate date = Instant.ofEpochMilli(startMillis).atZone(ZoneOffset.UTC).toLocalDate();
 		String companion = AlternativeCalendarDisplay.companionMonth(YearMonth.from(date), locale);
 		return companion.isEmpty() ? isoLabel : isoLabel + " (" + companion + ")";
+	}
+
+	static String alternateDayLabel(String isoLabel, long startMillis, long endMillis, Locale locale) {
+		if (isoLabel == null || isoLabel.isEmpty()) return isoLabel;
+		long duration = endMillis - startMillis;
+		if (duration < 20L * 60 * 60 * 1000 || duration > 28L * 60 * 60 * 1000) return isoLabel;
+		LocalDate date = Instant.ofEpochMilli(startMillis).atZone(ZoneOffset.UTC).toLocalDate();
+		String companion = AlternativeCalendarDisplay.companionDay(date, locale);
+		if (companion.isEmpty()) return isoLabel;
+		try {
+			if (Integer.parseInt(isoLabel) == Integer.parseInt(companion)) return isoLabel;
+		} catch (NumberFormatException exception) {
+			return isoLabel;
+		}
+		return isoLabel + " (" + companion + ")";
 	}
 
 	private static void refreshThemeColors() {

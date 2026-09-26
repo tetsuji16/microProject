@@ -28,8 +28,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.chrono.Chronology;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoField;
 import java.util.Locale;
 
 import javax.swing.border.Border;
@@ -85,5 +87,20 @@ class TimeScaleComponentThemeTest {
 		assertTrue(label.contains(AlternativeCalendarDisplay.companionMonth(java.time.YearMonth.of(2019, 5),
 			japaneseCalendar)));
 		assertEquals("2019", TimeScaleComponent.alternateMonthLabel("2019", may2019, may2020, japaneseCalendar));
+	}
+
+	@Test
+	void dailyTimescaleLabelAddsDifferentAlternativeDayNumberOnly() {
+		LocalDate date = LocalDate.of(2026, 1, 12);
+		long start = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
+		long end = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
+		Locale hijrah = Locale.forLanguageTag("en-US-u-ca-islamic-umalqura");
+		String alternateDay = Integer.toString(Chronology.ofLocale(hijrah)
+			.date(date).get(ChronoField.DAY_OF_MONTH));
+
+		assertEquals("12", TimeScaleComponent.alternateDayLabel("12", start, end, Locale.US));
+		assertEquals("12 (" + alternateDay + ")",
+			TimeScaleComponent.alternateDayLabel("12", start, end, hijrah));
+		assertEquals("12", TimeScaleComponent.alternateDayLabel("12", start, start + 12L * 60 * 60 * 1000, hijrah));
 	}
 }
