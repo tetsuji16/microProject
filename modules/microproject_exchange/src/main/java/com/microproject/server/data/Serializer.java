@@ -590,45 +590,6 @@ public class Serializer {
 //        Collection<DistributionData> dis=(Collection<DistributionData>)projectData.getDistributions();
 //        for (DistributionData d: dis) System.out.println("Dist: "+d.getTimeId()+", "+d.getType()+", "+d.getStatus());
 
-//        project.setNewTaskIds(null);
-//        if (projectData.getTasks()!=null){
-//        	Set<Long> ids=new HashSet<Long>();
-//        	project.setNewTaskIds(ids);
-//        	for (TaskData task:(Collection<TaskData>)projectData.getTasks()){
-//        		ids.add(task.getUniqueId());
-//        	}
-//        }
-//        long[] unchangedTasks=projectData.getUnchangedTasks();
-//        if (unchangedTasks!=null){
-//        	Set<Long> ids=project.getNewTaskIds();
-//        	if (ids==null){
-//        		ids=new HashSet<Long>();
-//        		project.setNewTaskIds(ids);
-//        	}
-//        	for (int i=0;i<unchangedTasks.length;i++) ids.add(unchangedTasks[i]);
-//        }
-//
-//        project.setNewLinkIds(null);
-//        if (flatLinks!=null){
-//        	Set<DependencyKey> ids=new HashSet<DependencyKey>();
-//        	project.setNewLinkIds(ids);
-//        	for (LinkData link:(Collection<LinkData>)flatLinks){
-//        		ids.add(new DependencyKey(link.getPredecessorId(),link.getSuccessorId()/*,link.getExternalId()*/));
-//        	}
-//        }
-//        long[] unchangedLinks=projectData.getUnchangedLinks();
-//        if (unchangedLinks!=null){
-//        	Set<DependencyKey> ids=project.getNewLinkIds();
-//        	if (ids==null){
-//        		ids=new HashSet<DependencyKey>();
-//        		project.setNewLinkIds(ids);
-//        	}
-//        	for (int i=0;i<unchangedLinks.length;i+=2) ids.add(new DependencyKey(unchangedLinks[i],unchangedLinks[i+1]));
-//        }
-
-
-        //project.setNewIds(); //claur - useful ?
-
         return projectData;
 
     }
@@ -680,7 +641,6 @@ public class Serializer {
     	//project.setExternalId(projectData.getExternalId());
     	boolean fixCorruption=false;
 
-    	//IncrementalData incremental=new IncrementalData();
 
     	//calendar
 //  	WorkCalendar calendar = project.getWorkCalendar();
@@ -796,11 +756,8 @@ public class Serializer {
     	NormalTask task;
 
     	if (tasks!=null){
-    		//Set<Long> initialTaskIds=new HashSet<Long>();
-    		//project.setInitialTaskIds(initialTaskIds);
     		for (TaskData taskData:sortTasksByChildPosition(tasks)){
     			task = null;
-//  			initialTaskIds.add(taskData.getUniqueId());
     			if (taskData.isDirty()) fixCorruption=true; //recovers errors
 //    			if (Environment.isAddSummaryTask()&&taskData.getUniqueId()==Task.SUMMARY_UNIQUE_ID&&taskData.getSerialized()==null){ //claur
 //					System.out.println("Fixing null binary summary task");
@@ -892,8 +849,6 @@ public class Serializer {
 			if (assignments.size()>0)
 				for (Iterator<AssignmentData> j=assignments.iterator();j.hasNext();){
 					AssignmentData assignmentData=j.next();
-//					if (loadResources!=null&&obj instanceof PersistedAssignment){ //claur
-//					}else{
     						if (assignmentData.getSerialized() == null) { // timesheet created
 								logger.log(Level.FINE, "==== no cached start found {0}", task.getName());
 								if (assignments.size()==1)
@@ -909,17 +864,6 @@ public class Serializer {
     					Resource resource;
     					boolean assigned=true;
     					int s;
-//    					if (loadResources!=null&&obj instanceof PersistedAssignment){ //claur
-//    						PersistedAssignment pa=(PersistedAssignment)obj;
-//    						assignment=pa.getAssignment();
-//    						s=pa.getSnapshot();
-//
-//   							long resId=pa.getResourceId();
-//							Node node=(Node)resourceNodeMap.get(resId);
-//							resource=node==null?ResourceImpl.getUnassignedInstance():(Resource)node.getImpl();
-//
-//							if (resource==null) assigned=false;
-//    					}else{
     						if (loadResources==null){
     							EnterpriseResourceData r=assignmentData.getResource();
     							if (r==null) assigned=false;
@@ -953,7 +897,6 @@ public class Serializer {
     						assignment.setLastTimesheetUpdate(lastUpdate);
     						assignment.setWorkflowState(assignmentData.getWorkflowState());
     						s=assignmentData.getSnapshotId();
-//    					}
 
     					assignment.getDetail().setTask(task);
     					assignment.getDetail().setResource(resource);
@@ -975,23 +918,15 @@ public class Serializer {
     					if (assigned&&Snapshottable.CURRENT.equals(snapshotId)) resource.addAssignment(assignment);
 
     					if (assignmentData!=null) assignmentData.emtpy();
-    					//incremental.addAssignment(assignmentData);
     				}
-//    			task.setPersistedAssignments(null);
     		}
 
 
 			//dependencies
-    		//Set<DependencyKey> initialLinkIds=null;
     		for (TaskData successorssorData:getTaskDataCollection(projectData)){
     			if (successorssorData.getPredecessors()!=null){
     				final Task successor=(Task)taskNodeMap.get(successorssorData).getImpl();
     				for (LinkData linkData:successorssorData.getPredecessors()){
-//  					if (initialLinkIds==null){
-//  					initialLinkIds=new HashSet<DependencyKey>();
-//  					project.setInitialLinkIds(initialLinkIds);
-//  					}
-//  					initialLinkIds.add(new DependencyKey(linkData.getPredecessorId(),linkData.getSuccessorId()/*,externalId*/));
     					Dependency dependency=(Dependency)deserialize(linkData,reindex);
 
      					if (linkData.getPredecessor() == null) {
@@ -1052,7 +987,6 @@ public class Serializer {
     			project.addToDefaultOutline(parentNode,node,position,false);
 
     			taskData.emtpy();
-    			//incremental.addTask(taskData);
 
     		}
     		//renumber tasks and save outline
@@ -1083,9 +1017,7 @@ public class Serializer {
     		for (ResourceData resourceData:resources){
     			EnterpriseResourceData enterpriseResourceData=resourceData.getEnterpriseResource();
     			resourceData.emtpy();
-    			//incremental.addResource(resourceData);
     			enterpriseResourceData.emtpy();
-    			//incremental.addEnterpriseResource(enterpriseResourceData);
 
     		}
 
@@ -1124,7 +1056,6 @@ public class Serializer {
 		}
 
 		projectData.emtpy();
-    	//incremental.setProject(projectData); //remove
 
     	(new DistributionConverter()).substractDistributionFromProject(project);
 
