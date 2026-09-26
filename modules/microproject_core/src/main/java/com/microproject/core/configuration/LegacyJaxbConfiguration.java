@@ -55,15 +55,15 @@ import com.microproject.core.dictionary.HasStringId;
  * @author Laurent Chretienneau
  */
 @Deprecated(forRemoval = false)
-public class Configuration {
-	private static final Logger logger = Logger.getLogger(Configuration.class.getName());
-	protected static Configuration instance;
+public class LegacyJaxbConfiguration {
+	private static final Logger logger = Logger.getLogger(LegacyJaxbConfiguration.class.getName());
+	protected static LegacyJaxbConfiguration instance;
 	protected List<ConfigurationFile> configurations=new ArrayList<ConfigurationFile>();
 	protected Dictionary dictionary=new Dictionary();
 	
-	public static synchronized Configuration getInstance(){
+	public static synchronized LegacyJaxbConfiguration getInstance(){
 		if (instance==null)
-			instance=new Configuration();
+			instance=new LegacyJaxbConfiguration();
 		return instance;
 	}
 
@@ -112,7 +112,7 @@ public class Configuration {
 			Unmarshaller unmarshaller = context.createUnmarshaller();
 			unmarshaller.setSchema(null);
 			unmarshaller.setListener(new DictionaryListener());
-			try (InputStream in = Configuration.class.getClassLoader().getResourceAsStream(resourceName)) {
+			try (InputStream in = LegacyJaxbConfiguration.class.getClassLoader().getResourceAsStream(resourceName)) {
 				if (in == null) {
 					logger.log(Level.SEVERE, "Configuration resource not found: {0}", resourceName);
 					return null;

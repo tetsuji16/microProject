@@ -18,11 +18,11 @@ import com.microproject.core.dictionary.Dictionary;
  */
 @Deprecated(forRemoval = false)
 public final class LegacyConfiguration {
-    private static final LegacyConfiguration INSTANCE = new LegacyConfiguration(Configuration.getInstance());
+    private static final LegacyConfiguration INSTANCE = new LegacyConfiguration(LegacyJaxbConfiguration.getInstance());
 
-    private final Configuration delegate;
+    private final LegacyJaxbConfiguration delegate;
 
-    private LegacyConfiguration(Configuration delegate) {
+    private LegacyConfiguration(LegacyJaxbConfiguration delegate) {
         this.delegate = delegate;
     }
 
@@ -51,6 +51,6 @@ public final class LegacyConfiguration {
     }
 
     public void dump(Object object, OutputStream out) {
-        Configuration.dump(object, out);
+        LegacyJaxbConfiguration.dump(object, out);
     }
 }

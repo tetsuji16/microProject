@@ -14,7 +14,7 @@ class LegacyConfigurationBoundaryTest {
     @Test
     void legacyFacadeIsStableAndDistinctFromApplicationEngine() {
         assertSame(LegacyConfiguration.getInstance(), LegacyConfiguration.getInstance());
-        assertNotSame(LegacyConfiguration.class, com.microproject.configuration.Configuration.class);
+        assertNotSame(LegacyJaxbConfiguration.class, com.microproject.configuration.Configuration.class);
         assertSame(LegacyConfiguration.getInstance().getDictionary(),
                 LegacyConfiguration.getInstance().getDictionary());
     }

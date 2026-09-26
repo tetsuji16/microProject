@@ -28,10 +28,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
-class ConfigurationTest {
+class LegacyJaxbConfigurationTest {
 	@Test
 	void missingClasspathResourceReturnsNull() {
-		Configuration configuration = new Configuration();
+		LegacyJaxbConfiguration configuration = new LegacyJaxbConfiguration();
 
 		assertNull(configuration.load("missing/projectlibre-configuration.xml", ConfigurationFile.class));
 	}
