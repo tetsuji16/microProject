@@ -185,7 +185,7 @@ public class PredecessorTaskList {
 		Iterator<TaskReference> i = list.iterator();
 		while (i.hasNext()) {
 			TaskReference ref = i.next();
-			if (ref.getType() == TaskReference.PARENT_END)
+			if (ref.getKind() == TaskReference.Kind.PARENT_END)
 				continue;
 			Task task = ref.getTask();
 			task.setDebugDependencyOrder(count++);
@@ -213,15 +213,48 @@ public class PredecessorTaskList {
 		return (numberOfReverseScheduledTasks > 0);
 	}
 	public static final class TaskReference implements Comparable {
-		static final int PARENT_BEGIN = -1;
-		static final int CHILD = 0;
-		static final int PARENT_END = 1;
+		public enum Kind {
+			PARENT_BEGIN(-1),
+			CHILD(0),
+			PARENT_END(1);
+
+			private final int code;
+
+			Kind(int code) {
+				this.code = code;
+			}
+
+			public int code() {
+				return code;
+			}
+
+			public Kind opposite() {
+				return switch (this) {
+					case PARENT_BEGIN -> PARENT_END;
+					case CHILD -> CHILD;
+					case PARENT_END -> PARENT_BEGIN;
+				};
+			}
+
+			public static Kind fromCode(int code) {
+				for (Kind kind : values()) {
+					if (kind.code == code) {
+						return kind;
+					}
+				}
+				throw new IllegalArgumentException("Unknown task reference kind code: " + code);
+			}
+		}
+
+		@Deprecated static final int PARENT_BEGIN = Kind.PARENT_BEGIN.code();
+		@Deprecated static final int CHILD = Kind.CHILD.code();
+		@Deprecated static final int PARENT_END = Kind.PARENT_END.code();
 		
 		public TaskReference(Task task) {
 			this.task = task;
 		}
 		Task task;
-		int type = CHILD;
+		Kind kind = Kind.CHILD;
 		TaskReference opposite = null;
 		long calculationStateCount = 0;
 		public Task getTask() {
@@ -234,25 +267,31 @@ public class PredecessorTaskList {
 		}
 		
 		public void setParentBegin() {
-			type = PARENT_BEGIN;
+			kind = Kind.PARENT_BEGIN;
 		}
 		public void setParentEnd() {
-			type = PARENT_END;
+			kind = Kind.PARENT_END;
 		}
 		public String toString() {
 			String result = task.toString();
-			if (type == PARENT_BEGIN)
+			if (kind == Kind.PARENT_BEGIN)
 				result += " begin";
-			else if (type == PARENT_END)
+			else if (kind == Kind.PARENT_END)
 				result += " end";
 			return result;
 		}
 		
 		/**
 		 * @return Returns the type.
+		 * @deprecated use {@link #getKind()} for typed access.
 		 */
+		@Deprecated
 		public int getType() {
-			return type;
+			return kind.code();
+		}
+
+		public Kind getKind() {
+			return kind;
 		}
 	}
 	/**

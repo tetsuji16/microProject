@@ -44,13 +44,14 @@ class AssignmentTimesheetBehaviorTest {
 	void applyTimesheetMarksTheAssignmentAndSourceIntegrated() {
 		Assignment assignment = createAssignment();
 		assignment.setTimesheetAssignment(true);
-		assignment.setTimesheetStatus(TimesheetStatus.VALIDATED);
+		assignment.setTimesheetStatus(TimesheetStatus.Kind.VALIDATED);
 
 		long updateTime = 1_717_504_800_000L;
 		boolean updated = assignment.applyTimesheet(Collections.emptyList(), updateTime);
 
 		assertTrue(updated);
-		assertEquals(TimesheetStatus.INTEGRATED, assignment.getTimesheetStatus());
+		assertEquals(TimesheetStatus.Kind.INTEGRATED, assignment.getTimesheetStatusKind());
+		assertEquals(TimesheetStatus.Kind.INTEGRATED.code(), assignment.getTimesheetStatus());
 		assertEquals(updateTime, assignment.getLastTimesheetUpdate());
 	}
 
@@ -58,7 +59,7 @@ class AssignmentTimesheetBehaviorTest {
 	void timesheetStatusPredicatesPreserveTheExistingContract() {
 		Assignment assignment = createAssignment();
 		assignment.setTimesheetAssignment(true);
-		assignment.setTimesheetStatus(TimesheetStatus.ENTERED);
+		assignment.setTimesheetStatus(TimesheetStatus.Kind.ENTERED);
 
 		assertFalse(assignment.isTimesheetEntered());
 		assertTrue(assignment.isTimesheetEditable());

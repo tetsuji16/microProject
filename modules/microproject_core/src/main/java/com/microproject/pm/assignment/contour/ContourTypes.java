@@ -28,6 +28,17 @@ package com.microproject.pm.assignment.contour;
  * The various contour types.  The enumeration corresponds to that of the MSPDI.XSD standard.
  */
 public interface ContourTypes {
+	enum Kind {
+		FLAT(0), BACK_LOADED(1), FRONT_LOADED(2), DOUBLE_PEAK(3), EARLY_PEAK(4),
+		LATE_PEAK(5), BELL(6), PLATEAU(7), CONTOURED(8);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind kind : values()) if (kind.code == code) return kind;
+			throw new IllegalArgumentException("Unknown contour type: " + code);
+		}
+	}
 	public static final int FLAT 				= 0;
 	public static final int BACK_LOADED 		= 1;
 	public static final int FRONT_LOADED 		= 2;

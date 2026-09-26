@@ -172,10 +172,10 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected long manualFinish = 0L;
 	protected transient int calculationStateCount = 0;
 	protected transient boolean markerStatus = false;
-	protected int earnedValueMethod = EarnedValueMethodType.PERCENT_COMPLETE;
+	protected int earnedValueMethod = EarnedValueMethodType.Kind.PERCENT_COMPLETE.code();
 	protected static Field startFieldInstance = null;
 
-	protected int constraintType = ConstraintType.ASAP;
+	protected int constraintType = ConstraintType.Kind.ASAP.code();
 	protected long deadline = 0;
 	protected int expenseType = ExpenseType.Kind.NONE.code();
 	protected transient boolean inSubproject = false;
@@ -218,9 +218,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return isExternal() || isSubproject() || (getOwningProject() != null && getOwningProject().isReadOnly());
 	}
 	protected void initializeTransientTaskObjects() {
-		currentSchedule.initSerialized(this,TaskSchedule.CURRENT);
-		earlySchedule = new TaskSchedule(this,TaskSchedule.EARLY);
-		lateSchedule = new TaskSchedule(this,TaskSchedule.LATE);
+		currentSchedule.initSerialized(this,TaskSchedule.Kind.CURRENT);
+		earlySchedule = new TaskSchedule(this,TaskSchedule.Kind.EARLY);
+		lateSchedule = new TaskSchedule(this,TaskSchedule.Kind.LATE);
 	    snapshots = new SnapshottableImpl(Settings.numBaselines());
 	    dependencies = new HasDependenciesImpl(this);
 
@@ -230,12 +230,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		setLastSavedFinish(currentSchedule.getFinish());
 	}
 	protected void initializeTransientTaskObjectsAfterDeserialization() {
-		earlySchedule = new TaskSchedule(this,TaskSchedule.EARLY);
-		lateSchedule = new TaskSchedule(this,TaskSchedule.LATE);
+		earlySchedule = new TaskSchedule(this,TaskSchedule.Kind.EARLY);
+		lateSchedule = new TaskSchedule(this,TaskSchedule.Kind.LATE);
 	    dependencies = new HasDependenciesImpl(this);
 
 	    currentSchedule=((TaskSnapshot)getCurrentSnapshot()).getCurrentSchedule();
-		currentSchedule.initSerialized(this,TaskSchedule.CURRENT);
+		currentSchedule.initSerialized(this,TaskSchedule.Kind.CURRENT);
 
 		setLastSavedStart(currentSchedule.getStart());
 		setLastSavedFinish(currentSchedule.getFinish());
@@ -274,7 +274,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		if (assignment == null && createIfDoesntExist) {
 			assignment = Assignment.getInstance(this,resource,1.0,0);
 			baselineSnapshot.addAssignment(assignment);
-			TaskSchedule baselineSchedule = new TaskSchedule(this,TaskSchedule.CURRENT);
+			TaskSchedule baselineSchedule = new TaskSchedule(this,TaskSchedule.Kind.CURRENT);
 			//baselineSnapshot.set
 			baselineSnapshot.setCurrentSchedule(baselineSchedule);
 			assignment.setTaskSchedule(baselineSchedule);
@@ -416,10 +416,10 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 				if (projectStart > start) {
 					if (!Alert.okCancel(Messages.getString("Message.allowTaskStartBeforeProjectStart")))
 						return;
-	                setScheduleConstraint(ConstraintType.SNLT, start);
+	                setScheduleConstraint(ConstraintType.Kind.SNLT, start);
 
 				} else {
-                   setScheduleConstraint(ConstraintType.SNET, start);
+                   setScheduleConstraint(ConstraintType.Kind.SNET, start);
 				}
 			}
 		}
@@ -1286,6 +1286,11 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return constraintType;
 	}
 
+	/** Returns the typed constraint when the stored compatibility code is known. */
+	public ConstraintType.Kind getConstraintTypeKind() {
+		return ConstraintType.Kind.fromCodeOrNull(getConstraintType());
+	}
+
 	/**
 	 * @param constraintType The constraintType to set.
 	 */
@@ -1305,6 +1310,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		clearDateConstraints(); // get rid of all constraints
 		setScheduleConstraint(constraintType,d); // set new constraint with old date
 
+	}
+	public void setRawConstraintType(ConstraintType.Kind constraintType) {
+		setRawConstraintType(java.util.Objects.requireNonNull(constraintType, "constraintType").code());
 	}
 	/**
 	 * @return Returns the windowEarlyStart.
@@ -1450,15 +1458,16 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @return
 	 */
 	public final boolean isReverseScheduled() {
+		ConstraintType.Kind kind = getConstraintTypeKind();
 		if (project.isForward())
-			return constraintType == ConstraintType.ALAP;
+			return kind == ConstraintType.Kind.ALAP;
 		else
-			return constraintType == ConstraintType.ASAP;
+			return kind == ConstraintType.Kind.ASAP;
 	}
 
 	protected final boolean isDatelessConstraintType() {
-		return constraintType == ConstraintType.ALAP
-		||     constraintType == ConstraintType.ASAP;
+		ConstraintType.Kind kind = getConstraintTypeKind();
+		return kind == ConstraintType.Kind.ALAP || kind == ConstraintType.Kind.ASAP;
 
 	}
 /*********************************************************************************
@@ -1502,31 +1511,43 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	public void setScheduleConstraint(int constraintType, long date) {
 		this.constraintType = constraintType;
-		if (constraintType == ConstraintType.FNET) {
+		ConstraintType.Kind kind = ConstraintType.Kind.fromCodeOrNull(constraintType);
+		if (kind == ConstraintType.Kind.FNET) {
 			setFinishNoEarlierThan(date);
-		} else if (constraintType == ConstraintType.FNLT) {
+		} else if (kind == ConstraintType.Kind.FNLT) {
 			setFinishNoLaterThan(date);
-		} else if(constraintType == ConstraintType.SNET) {
+		} else if(kind == ConstraintType.Kind.SNET) {
 			setStartNoEarlierThan(date);
-		} else if(constraintType == ConstraintType.SNLT) {
+		} else if(kind == ConstraintType.Kind.SNLT) {
 			setStartNoLaterThan(date);
-		} else if(constraintType == ConstraintType.MSO) {
+		} else if(kind == ConstraintType.Kind.MSO) {
 			setMustStartOn(date);
-		} else if(constraintType == ConstraintType.MFO) {
+		} else if(kind == ConstraintType.Kind.MFO) {
 			setMustFinishOn(date);
 		} else {
 			clearDateConstraints();
 		}
 
 	}
+
+	public void setConstraintTypeKind(ConstraintType.Kind constraintType) throws FieldParseException {
+		setConstraintType(java.util.Objects.requireNonNull(constraintType, "constraintType").code());
+	}
+	public void setScheduleConstraint(ConstraintType.Kind constraintType, long date) {
+		setScheduleConstraint(java.util.Objects.requireNonNull(constraintType, "constraintType").code(), date);
+	}
 	public void setScheduleConstraintAndUpdate(int constraintType, long date) {
 		setScheduleConstraint(constraintType,date);
 		getDocument().getObjectEventManager().fireUpdateEvent(this,this,Configuration.getFieldFromId("Field.constraintType"));
 	}
+	public void setScheduleConstraintAndUpdate(ConstraintType.Kind constraintType, long date) {
+		setScheduleConstraintAndUpdate(java.util.Objects.requireNonNull(constraintType, "constraintType").code(), date);
+	}
 	public void setConstraintDate(long date) {
 		if (date == 0) {
 			clearDateConstraints();
-			constraintType = getProject() == null ? ConstraintType.ASAP : getProject().getDefaultConstraintType();
+			constraintType = getProject() == null ? ConstraintType.Kind.ASAP.code()
+				: getProject().getDefaultConstraintTypeKind().code();
 		} else {
 			date = getEffectiveWorkCalendar().adjustInsideCalendar(date,false); // make date valid
 
@@ -1535,17 +1556,18 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	}
 	public long getConstraintDate() {
-		if (constraintType == ConstraintType.FNET) {
+		ConstraintType.Kind kind = getConstraintTypeKind();
+		if (kind == ConstraintType.Kind.FNET) {
 			return getWindowEarlyFinish();
-		} else if (constraintType == ConstraintType.FNLT) {
+		} else if (kind == ConstraintType.Kind.FNLT) {
 			return getWindowLateFinish();
-		} else if(constraintType == ConstraintType.SNET) {
+		} else if(kind == ConstraintType.Kind.SNET) {
 			return getWindowEarlyStart();
-		} else if(constraintType == ConstraintType.SNLT) {
+		} else if(kind == ConstraintType.Kind.SNLT) {
 			return getWindowLateStart();
-		} else if(constraintType == ConstraintType.MSO) {
+		} else if(kind == ConstraintType.Kind.MSO) {
 			return getWindowEarlyStart();
-		} else if(constraintType == ConstraintType.MFO) {
+		} else if(kind == ConstraintType.Kind.MFO) {
 			return getWindowEarlyFinish();
 		} else {
 			return 0;
@@ -1553,8 +1575,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 
 	public boolean isReadOnlyConstraintDate(FieldContext fieldContext) {
-		return getConstraintType() == ConstraintType.ALAP
-			|| getConstraintType() == ConstraintType.ASAP;
+		ConstraintType.Kind kind = getConstraintTypeKind();
+		return kind == ConstraintType.Kind.ALAP || kind == ConstraintType.Kind.ASAP;
 	}
 
 /**************************************************************************
@@ -1586,19 +1608,19 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		ScheduleWindow successor = (ScheduleWindow) dependency.getSuccessor();
 		long t = 0;
 		WorkCalendar cal = dependency.getEffectiveWorkCalendar();
-		if (dependency.getDependencyType() == DependencyType.FS) {
+		if (dependency.getDependencyKind() == DependencyType.Kind.FS) {
 			t = cal.compare(cal.add(successor.getEarlyStart(),
 					-dependency.getLeadValue(), true), predecessor
 					.getEarlyFinish(), false);
-		} else if (dependency.getDependencyType() == DependencyType.FF) {
+		} else if (dependency.getDependencyKind() == DependencyType.Kind.FF) {
 			t = cal.compare(cal.add(successor.getEarlyFinish(),
 					-dependency.getLeadValue(), true), predecessor
 					.getEarlyFinish(), false);
-		} else if (dependency.getDependencyType() == DependencyType.SS) {
+		} else if (dependency.getDependencyKind() == DependencyType.Kind.SS) {
 			t = cal.compare(cal.add(successor.getEarlyStart(),
 					-dependency.getLeadValue(), true), predecessor
 					.getEarlyStart(), false);
-		} else if (dependency.getDependencyType() == DependencyType.SF) {
+		} else if (dependency.getDependencyKind() == DependencyType.Kind.SF) {
 			t = cal.compare(cal.add(successor.getEarlyFinish(),
 					-dependency.getLeadValue(), true), predecessor
 					.getEarlyStart(), false);
@@ -1667,9 +1689,20 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public void setMarkTaskAsMilestone(boolean markTaskAsMilestone) {
 		this.markTaskAsMilestone = markTaskAsMilestone;
 	}
+	/** @deprecated use {@link #getEarnedValueMethodKind()} for typed access. */
+	@Deprecated
 	public int getEarnedValueMethod() {
 		return earnedValueMethod;
 	}
+
+	public EarnedValueMethodType.Kind getEarnedValueMethodKind() {
+		return EarnedValueMethodType.Kind.fromCode(earnedValueMethod);
+	}
+	public void setEarnedValueMethodKind(EarnedValueMethodType.Kind earnedValueMethod) {
+		this.earnedValueMethod = java.util.Objects.requireNonNull(earnedValueMethod, "earnedValueMethod").code();
+	}
+	/** @deprecated use {@link #setEarnedValueMethodKind(EarnedValueMethodType.Kind)} for typed access. */
+	@Deprecated
 	public void setEarnedValueMethod(int earnedValueMethod) {
 		this.earnedValueMethod = earnedValueMethod;
 	}
@@ -1749,13 +1782,22 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return lateSchedule;
 	}
 
+	public final TaskSchedule getSchedule(TaskSchedule.Kind scheduleType) {
+		return switch (java.util.Objects.requireNonNull(scheduleType, "scheduleType")) {
+			case CURRENT -> currentSchedule;
+			case EARLY -> earlySchedule;
+			case LATE -> lateSchedule;
+		};
+	}
+
+	/** @deprecated use {@link #getSchedule(TaskSchedule.Kind)}. */
+	@Deprecated
 	public final TaskSchedule getSchedule(int scheduleType) {
-		if (scheduleType == TaskSchedule.CURRENT)
+		if (scheduleType == TaskSchedule.Kind.CURRENT.code())
 			return currentSchedule;
-		else if (scheduleType == TaskSchedule.EARLY)
+		if (scheduleType == TaskSchedule.Kind.EARLY.code())
 			return earlySchedule;
-		else
-			return lateSchedule;
+		return lateSchedule;
 	}
 
 /**
@@ -1792,11 +1834,11 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	protected int makeValidConstraintType(int type) {
 		if (isWbsParent()) { // parents have a limited choice of constraint types
-			if (type == ConstraintType.FNLT
-				|| type == ConstraintType.SNET)
+			ConstraintType.Kind kind = ConstraintType.Kind.fromCodeOrNull(type);
+			if (kind == ConstraintType.Kind.FNLT || kind == ConstraintType.Kind.SNET)
 				return type;
 			else
-				return project.getDefaultConstraintType();
+				return project.getDefaultConstraintTypeKind().code();
 		}
 		return type;
 
@@ -2192,28 +2234,43 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		this.lastSavedPosistion = lastSavedPosistion;
 	}
 
+	/** @deprecated use {@link #getExpenseKind()} for domain logic. */
+	@Deprecated
 	public int getExpenseType() {
 		return expenseType;
 	}
 
+	/** @deprecated use {@link #setExpenseKind(ExpenseType.Kind)} for domain logic. */
+	@Deprecated
 	public void setExpenseType(int budgetType) {
 		this.expenseType = budgetType;
 	}
 
+	@Override
+	public ExpenseType.Kind getEffectiveExpenseKind() {
+		return ExpenseType.Kind.fromCode(resolveEffectiveExpenseTypeCode());
+	}
+
+	/** @deprecated use {@link #getEffectiveExpenseKind()} for typed access. */
+	@Deprecated
 	public int getEffectiveExpenseType() {
+		return resolveEffectiveExpenseTypeCode();
+	}
+
+	private int resolveEffectiveExpenseTypeCode() {
 		int result = expenseType;
 		if (result == ExpenseType.Kind.NONE.code()) {
 			Task parent = getWbsParentTask();
 			if (parent != null)
-				result = parent.getEffectiveExpenseType();
+				return parent.resolveEffectiveExpenseTypeCode();
 		}
 		if (result == ExpenseType.Kind.NONE.code())
-			result = getOwningProject().getEffectiveExpenseType();
+			return getOwningProject().getExpenseType();
 		return result;
 	}
 
 	public boolean startsBeforeProject() { // special case for SNLT tasks that start before project
-		return (getConstraintType() == ConstraintType.SNLT  // this was changed from SNET - MSP mistakenly displays SNET for these tasks
+		return (getConstraintTypeKind() == ConstraintType.Kind.SNLT  // this was changed from SNET - MSP mistakenly displays SNET for these tasks
 				&& getPredecessorList().isEmpty()
 				&& getConstraintDate() < getOwningProject().getStart());
 	}

@@ -30,8 +30,32 @@ import java.util.EventObject;
  *
  */
 public class ProjectEvent extends EventObject {
-	public static final int NAME_CHANGED=1;
-	public static final int GROUP_DIRTY_CHANGED=2;
+	public enum Kind {
+		NAME_CHANGED(1),
+		GROUP_DIRTY_CHANGED(2);
+
+		private final int code;
+
+		Kind(int code) {
+			this.code = code;
+		}
+
+		public int code() {
+			return code;
+		}
+
+		public static Kind fromCode(int code) {
+			for (Kind kind : values()) {
+				if (kind.code == code) {
+					return kind;
+				}
+			}
+			throw new IllegalArgumentException("Unknown project event kind code: " + code);
+		}
+	}
+
+	@Deprecated public static final int NAME_CHANGED = Kind.NAME_CHANGED.code();
+	@Deprecated public static final int GROUP_DIRTY_CHANGED = Kind.GROUP_DIRTY_CHANGED.code();
 
 	protected int type;
 	protected Project project;
@@ -49,6 +73,10 @@ public class ProjectEvent extends EventObject {
 		this.type = type;
 		this.project = project;
 		this.old=old;
+	}
+
+	public ProjectEvent(Object source, Kind kind, Project project, Object old) {
+		this(source, java.util.Objects.requireNonNull(kind, "kind").code(), project, old);
 	}
 
 
@@ -79,6 +107,14 @@ public class ProjectEvent extends EventObject {
 
 	public int getType() {
 		return type;
+	}
+
+	public Kind getKind() {
+		return Kind.fromCode(type);
+	}
+
+	public void setKind(Kind kind) {
+		this.type = java.util.Objects.requireNonNull(kind, "kind").code();
 	}
 
 

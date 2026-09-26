@@ -25,6 +25,7 @@
 package com.microproject.pm.assignment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -45,6 +46,22 @@ import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.undo.DataFactoryUndoController;
 
 class HasAssignmentsImplTest {
+	@Test
+	void assignmentQueriesPreserveEmptyAndAssignedResults() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = firstAssignment(task);
+		HasAssignmentsImpl hasAssignments = new HasAssignmentsImpl();
+
+		assertFalse(hasAssignments.hasLaborAssignment());
+		assertEquals(Long.MAX_VALUE, hasAssignments.getEarliestAssignmentStart());
+
+		hasAssignments.addAssignment(assignment);
+
+		assertEquals(assignment.isLabor(), hasAssignments.hasLaborAssignment());
+		assertEquals(assignment.getStart(), hasAssignments.getEarliestAssignmentStart());
+	}
+
 	@Test
 	void addRemoveAndFindAssignmentByTaskAndResource() {
 		Project project = createProject();

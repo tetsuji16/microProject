@@ -25,6 +25,7 @@
 package com.microproject.pm.criticalpath;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -50,6 +51,20 @@ import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskScheduleTest {
+	@Test
+	void scheduleKindsMapTypedAccessAndPreserveTheIntegerAdapter() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+
+		assertEquals(TaskSchedule.Kind.LATE, TaskSchedule.Kind.EARLY.opposite());
+		assertEquals(TaskSchedule.Kind.EARLY, TaskSchedule.Kind.LATE.opposite());
+		assertSame(task.getCurrentSchedule(), task.getSchedule(TaskSchedule.Kind.CURRENT));
+		assertSame(task.getEarlySchedule(), task.getSchedule(TaskSchedule.Kind.EARLY));
+		assertSame(task.getLateSchedule(), task.getSchedule(TaskSchedule.Kind.LATE));
+		assertSame(task.getLateSchedule(), task.getSchedule(TaskSchedule.Kind.LATE.code()));
+		assertSame(task.getLateSchedule(), task.getSchedule(99));
+	}
+
 	@Test
 	void setForwardKeepsLogicalBoundsAndFlipsStoredDates() {
 		TaskSchedule schedule = new TaskSchedule();

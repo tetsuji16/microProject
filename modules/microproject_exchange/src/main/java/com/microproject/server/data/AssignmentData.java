@@ -44,9 +44,9 @@ public class AssignmentData extends SerializedDataObject {
 
     protected Date cachedStart = null;
     protected Date cachedEnd = null;
-    protected int timesheetStatus = TimesheetStatus.NO_DATA;
+    protected int timesheetStatus = TimesheetStatus.Kind.NO_DATA.code();
     protected Date lastTimesheetUpdate = null;
-    protected int workflowState = AssignmentWorkflowState.UNDEFINED;
+    protected int workflowState = 0;
     protected double percentComplete;
     protected long duration;
     protected transient Map<String, Object> attributes;
@@ -105,9 +105,9 @@ public class AssignmentData extends SerializedDataObject {
     	task=null;
     	cachedStart = null;
     	cachedEnd = null;
-    	timesheetStatus = TimesheetStatus.NO_DATA;
+		timesheetStatus = TimesheetStatus.Kind.NO_DATA.code();
     	lastTimesheetUpdate = null;
-    	workflowState = AssignmentWorkflowState.UNDEFINED;
+		workflowState = 0;
     }
 
 
@@ -150,8 +150,16 @@ public class AssignmentData extends SerializedDataObject {
 	public final int getWorkflowState() {
 		return workflowState;
 	}
+
+	public final java.util.EnumSet<AssignmentWorkflowState.Kind> getWorkflowStateKinds() {
+		return AssignmentWorkflowState.kindsFromMask(workflowState);
+	}
 	public final void setWorkflowState(int workflowState) {
 		this.workflowState = workflowState;
+	}
+
+	public final void setWorkflowStateKinds(java.util.Set<AssignmentWorkflowState.Kind> workflowStateKinds) {
+		this.workflowState = AssignmentWorkflowState.maskFromKinds(workflowStateKinds);
 	}
 
 	public final boolean isNoDuration() {

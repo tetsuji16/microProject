@@ -33,8 +33,13 @@ public interface AccessControlPolicy {
 		Kind(int code) { this.code = code; }
 		public int code() { return code; }
 		public static Kind fromCode(int code) {
-			for (Kind value : values()) if (value.code == code) return value;
+			Kind value = fromCodeOrNull(code);
+			if (value != null) return value;
 			throw new IllegalArgumentException("Unknown access-control policy code: " + code);
+		}
+		public static Kind fromCodeOrNull(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			return null;
 		}
 	}
 	/** @deprecated use {@link Kind#PUBLIC}; retained for serialized compatibility. */

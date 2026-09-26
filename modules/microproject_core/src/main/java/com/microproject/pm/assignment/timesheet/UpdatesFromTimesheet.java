@@ -28,8 +28,11 @@ import java.util.Collection;
 
 public interface UpdatesFromTimesheet {
 	long getLastTimesheetUpdate();
-	boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate);
+	boolean applyTimesheet(Collection<?> fieldArray, long timesheetUpdateDate);
 	boolean isPendingTimesheetUpdate();
 	int getTimesheetStatus();
+	default TimesheetStatus.Kind getTimesheetStatusKind() {
+		return TimesheetStatus.Kind.fromCodeOrNull(getTimesheetStatus());
+	}
 	String getTimesheetStatusName();
 }

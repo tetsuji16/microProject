@@ -60,7 +60,7 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 
 	public static Dependency getInstance(HasDependencies predecessor,
 			HasDependencies successor) {
-		return getInstance(predecessor,successor,DependencyType.FS,0);
+		return getInstance(predecessor,successor,DependencyType.Kind.FS,0);
 	}
 
 	public static Dependency getInstance(HasDependencies predecessor,
@@ -153,8 +153,8 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 	 */
 	public void setDependencyType(int dependencyType) throws InvalidAssociationException {
 		if (((Task)getSuccessor()).isWbsParent()) {
-			if (dependencyType == DependencyType.FF ||
-					dependencyType == DependencyType.SF) {
+			if (DependencyType.Kind.fromCode(dependencyType) == DependencyType.Kind.FF ||
+					DependencyType.Kind.fromCode(dependencyType) == DependencyType.Kind.SF) {
 				throw new InvalidAssociationException(Messages.getString("Message.parentSuccessorCannotHaveFinishLink"));
 			}
 		}
@@ -401,7 +401,7 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 			return lateDate;
 		long t = 0;
 		boolean cannotFinishAtDayStart = !hasDuration; // to handle the milestone case
-		switch (DependencyType.Kind.fromCode(getDependencyType())) {
+		switch (getDependencyKind()) {
 			case FS:
 				t = end;
 				break;
@@ -435,7 +435,7 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 	    StringBuilder s = new StringBuilder();
 	    s.append("<html><body>");
 	    s.append(Messages.getString("Gantt.tooltip.link")).append(": ");
-	    s.append(DependencyType.toLongString(getDependencyType())).append(" ");
+	    s.append(DependencyType.toLongString(getDependencyKind())).append(" ");
 	    s.append(DurationFormat.format(getLag())).append("<br>");
 	    s.append(Messages.getString("Gantt.tooltip.from")).append(": ");
 	    s.append(getQualifiedPredecessorName()).append("<br>");

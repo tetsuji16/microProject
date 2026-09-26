@@ -1,6 +1,7 @@
 package com.microproject.pm.costing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
@@ -19,8 +20,12 @@ import com.microproject.pm.task.ProjectType;
 class PersistedKindCompatibilityTest {
 	@Test
 	void costingKindsRoundTripTheirPersistedCodes() {
+		for (CostRateIndex.Kind kind : CostRateIndex.Kind.values())
+			assertEquals(kind, CostRateIndex.Kind.fromCode(kind.code()));
+		assertNull(CostRateIndex.Kind.fromCodeOrNull(99));
 		assertEquals(ExpenseType.Kind.DIRECT, ExpenseType.Kind.fromCode(ExpenseType.DIRECT));
 		assertEquals(Accrual.Kind.PRORATED, Accrual.Kind.fromCode(Accrual.PRORATED));
+		assertNull(Accrual.Kind.fromCodeOrNull(99));
 		assertEquals(EarnedValueMethodType.Kind.PHYSICAL_PERCENT_COMPLETE,
 				EarnedValueMethodType.Kind.fromCode(EarnedValueMethodType.PHYSICAL_PERCENT_COMPLETE));
 		assertEquals(SchedulingType.Kind.FIXED_WORK, SchedulingType.Kind.fromCode(SchedulingType.FIXED_WORK));
@@ -52,6 +57,7 @@ class PersistedKindCompatibilityTest {
 		assertThrows(IllegalArgumentException.class, () -> ResourceType.Kind.fromCode(99));
 		assertThrows(IllegalArgumentException.class, () -> DependencyType.Kind.fromCode(99));
 		assertThrows(IllegalArgumentException.class, () -> ConstraintType.Kind.fromCode(99));
+		assertNull(ConstraintType.Kind.fromCodeOrNull(99));
 	}
 
 	@Test

@@ -39,7 +39,8 @@ import com.microproject.interval.InvalidValueObjectForIntervalException;
  * 
  */
 public class CostRateTables implements Cost, Serializable, Cloneable {
-	public static final int DEFAULT = 0;
+	/** @deprecated use {@link CostRateIndex.Kind#A} at typed boundaries. */
+	@Deprecated public static final int DEFAULT = CostRateIndex.Kind.A.code();
 	protected CostRateTable[] costRateTableArray;
 	String[] names = null;
 	
@@ -53,6 +54,9 @@ public class CostRateTables implements Cost, Serializable, Cloneable {
 		if (costRateTableArray[index] == null)
 			costRateTableArray[index] = new CostRateTable(getName(index));
 		return costRateTableArray[index];
+	}
+	public CostRateTable getCostRateTable(CostRateIndex.Kind index) {
+		return getCostRateTable(java.util.Objects.requireNonNull(index, "index").code());
 	}
 	
 	public Object clone(){ 
@@ -79,9 +83,12 @@ public class CostRateTables implements Cost, Serializable, Cloneable {
 	public void setCostRateTable(int index, CostRateTable t) {
 		costRateTableArray[index] = t;
 	}
+	public void setCostRateTable(CostRateIndex.Kind index, CostRateTable table) {
+		setCostRateTable(java.util.Objects.requireNonNull(index, "index").code(), table);
+	}
 	
 	private CostRate getCurrent() {
-		return (CostRate)costRateTableArray[DEFAULT].findCurrent();
+		return (CostRate)costRateTableArray[CostRateIndex.Kind.A.code()].findCurrent();
 	}
 	public double getCostPerUse() {
 		return getCurrent().getCostPerUse();

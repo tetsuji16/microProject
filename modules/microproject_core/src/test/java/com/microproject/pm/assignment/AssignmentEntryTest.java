@@ -24,6 +24,7 @@
 package com.microproject.pm.assignment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,9 +68,27 @@ class AssignmentEntryTest {
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
 		AssignmentEntry entry = new AssignmentEntry(resource, new ArrayList<>(Arrays.asList(assignment)), project);
 
-		entry.setRequestDemandType(RequestDemandType.REQUEST);
+		entry.setRequestDemandKind(RequestDemandType.Kind.REQUEST);
 
-		assertEquals(RequestDemandType.REQUEST, assignment.getRequestDemandType());
+		assertEquals(RequestDemandType.Kind.REQUEST, entry.getRequestDemandKind());
+		assertEquals(RequestDemandType.Kind.REQUEST, assignment.getRequestDemandKind());
+		assertEquals(RequestDemandType.Kind.REQUEST.code(), assignment.getRequestDemandType());
+	}
+
+	@Test
+	void legacyRequestDemandCodeRemainsReadableWithoutCoercion() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = createTask(project);
+		ResourceImpl resource = resourcePool.newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+
+		assignment.setRequestDemandType(99);
+
+		assertEquals(99, assignment.getRequestDemandType());
+		assertThrows(IllegalArgumentException.class, assignment::getRequestDemandKind);
 	}
 
 	@Test

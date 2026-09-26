@@ -53,6 +53,7 @@ import com.microproject.server.data.linker.Linker;
 import com.microproject.server.data.linker.ResourceLinker;
 import com.microproject.server.data.linker.TaskLinker;
 import com.microproject.association.AssociationList;
+import com.microproject.association.Association;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.company.ApplicationUser;
 import com.microproject.company.UserUtil;
@@ -356,19 +357,18 @@ public class Serializer {
 		Map<Task, TaskData> externalTaskData=new HashMap<Task, TaskData>();
         //dependencies
         //Count depCount=new Count("Dependencies");
-        for (Iterator<Task> i=ProjectHierarchyQueries.outline(project).iterator();i.hasNext();){
-            NormalTask task=(NormalTask)i.next(); //ResourceImpl to have the EnterpriseResource link
+        for (Task outlineTask : ProjectHierarchyQueries.outline(project)) {
+            NormalTask task=(NormalTask) outlineTask; //ResourceImpl to have the EnterpriseResource link
             if (task.getProjectId() != projectId||task.isExternal()) // skip if in another project, don't write externals to server
             	continue;
 	        TaskData taskData=(TaskData)taskLinker.getTransformationMap().get(task);
 	        if (taskData == null)
 	        	continue;
 
-            Iterator<?> j=task.getPredecessorList().iterator();
-	        if (j.hasNext()){
+	        if (!task.getPredecessorList().isEmpty()){
 	            List<LinkData> predecessors=new ArrayList<>(task.getPredecessorList().size());
-	            while (j.hasNext()){
-	                Dependency dependency=(Dependency)j.next();
+	            for (Association association : task.getPredecessorList()) {
+	                Dependency dependency=(Dependency) association;
 	                LinkData linkData;
 	                boolean dirty=!incremental||dependency.isDirty();
 	                if (dirty) {
@@ -409,8 +409,8 @@ public class Serializer {
 
 	        }
 			if (flatLinks==null){
-				for (Iterator<?> successorIterator=task.getSuccessorList().iterator();successorIterator.hasNext();){
-					Dependency dependency=(Dependency)successorIterator.next();
+				for (Association association : task.getSuccessorList()) {
+					Dependency dependency=(Dependency) association;
 					Task successor=(Task)dependency.getSuccessor();
 					TaskData successorData=(TaskData)taskLinker.getTransformationMap().get(successor);
 					if (successorData != null && !successorData.isExternal())
@@ -547,18 +547,15 @@ public class Serializer {
     	if (incrementalDistributions&&distMap.size()>0){
         	Set<Long> noChangeTaskIds=new HashSet<Long>();
 
-			Task task;
-			for(Iterator<Task> i = ProjectHierarchyQueries.outline(project).iterator();i.hasNext();) {
-				task = (Task)i.next();
+			for (Task task : ProjectHierarchyQueries.outline(project)) {
 				if(incremental&&!task.isDirty()) noChangeTaskIds.add(task.getUniqueId());
 			}
 //        	for (Iterator i=projectData.getTasks().iterator();i.hasNext();){
 //        		TaskData task=(TaskData)i.next();
 //        		if (!task.isDirty()) noChangeTaskIds.add(task.getUniqueId());
 //        	}
-        	for (Iterator<DistributionData> i=distMap.values().iterator();i.hasNext();){
-        		DistributionData d=i.next();
-        		if (newDistMap.containsKey(d)) continue;
+	        for (DistributionData d : distMap.values()) {
+				if (newDistMap.containsKey(d)) continue;
         		if (noChangeTaskIds.contains(d.getTaskId())){
         			d.setStatus(0);
         			newDistMap.put(d, d);
@@ -593,8 +590,9 @@ public class Serializer {
         projectData.setAccessControlPolicy(project.getAccessControlPolicy());
         projectData.setCreationDate(project.getCreationDate());
         projectData.setLastModificationDate(project.getLastModificationDate());
-		Collection<DataObject> referringSubprojectTasks = new ArrayList<DataObject>();
-		for (Object value : project.getReferringSubprojectTasks()) {
+		Collection<?> referringSubprojectTaskRefs = project.getReferringSubprojectTasks();
+		Collection<DataObject> referringSubprojectTasks = new ArrayList<DataObject>(referringSubprojectTaskRefs.size());
+		for (Object value : referringSubprojectTaskRefs) {
 			if (!(value instanceof Task))
 				continue;
 			Task referringTask = (Task)value;
@@ -1022,7 +1020,7 @@ public class Serializer {
 //    			}
     			if (taskData.getAssignments()!=null) assignments.addAll(taskData.getAssignments());
 
-    			if (assignments.size()>0)
+			if (assignments.size()>0)
 				for (Iterator<AssignmentData> j=assignments.iterator();j.hasNext();){
 					AssignmentData assignmentData=j.next();
 //					if (loadResources!=null&&obj instanceof PersistedAssignment){ //claur
@@ -1031,14 +1029,13 @@ public class Serializer {
 								logger.log(Level.FINE, "==== no cached start found {0}", task.getName());
 								if (assignments.size()==1)
 									assignmentData.setResourceId(-1L);
-								else j.remove();
+							else j.remove();
 						}
 //					}
 				}
 
-    			if (assignments.size()>0)
-    				for (Iterator<AssignmentData> j=assignments.iterator();j.hasNext();){
-    					AssignmentData assignmentData=j.next();
+				if (assignments.size()>0)
+					for (AssignmentData assignmentData : assignments) {
     					Assignment assignment=null;
     					Resource resource;
     					boolean assigned=true;

@@ -56,6 +56,7 @@ import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasAssignmentsImpl;
 import com.microproject.pm.assignment.TimeDistributedFields;
 import com.microproject.pm.assignment.timesheet.TimesheetHelper;
+import com.microproject.pm.assignment.timesheet.TimesheetStatus;
 import com.microproject.pm.availability.AvailabilityTable;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
@@ -134,7 +135,7 @@ public class EnterpriseResource implements Resource {
 	protected String emailAddress="";
 	protected String materialLabel="";
 	protected String userAccount="";
-	protected int resourceType = ResourceType.WORK;
+	protected int resourceType = ResourceType.Kind.WORK.code();
 	protected transient CostRateTables costRateTables = new CostRateTables();
 	protected double maximumUnits = 1.0D;
 	protected boolean generic = false;
@@ -652,9 +653,7 @@ public class EnterpriseResource implements Resource {
 
 	private boolean isBaselineFieldHidden(int numBaseline, FieldContext fieldContext) {
 		boolean foundChild = false;
-		Iterator i = childrenToRollup().iterator();
-		while (i.hasNext()) {
-			Object child = i.next();
+		for (Object child : childrenToRollup()) {
 			if (!(child instanceof TimeDistributedFields)) {
 				continue;
 			}
@@ -762,7 +761,7 @@ public class EnterpriseResource implements Resource {
 		this.materialLabel = materialLabel;
 	}
 	public boolean isLabor() {
-		return resourceType == ResourceType.WORK; // work resources are time based
+		return hasResourceType(ResourceType.Kind.WORK); // work resources are time based
 
 	}
 	public boolean isReadOnlyMaterialLabel(FieldContext fieldContext) {
@@ -936,7 +935,7 @@ public class EnterpriseResource implements Resource {
 	}
 
 	public String getTimeUnitLabel() {
-		if (getResourceType() == ResourceType.WORK)
+		if (hasResourceType(ResourceType.Kind.WORK))
 			return null;
 		return getMaterialLabel();
 	}
@@ -964,15 +963,15 @@ public class EnterpriseResource implements Resource {
 	}
 
 	public boolean isWork() {
-		return getResourceType() == ResourceType.WORK;
+		return hasResourceType(ResourceType.Kind.WORK);
 	}
 
 	public boolean isMaterial() {
-		return getResourceType() == ResourceType.MATERIAL;
+		return hasResourceType(ResourceType.Kind.MATERIAL);
 	}
 
 	public boolean isCost() {
-		return getResourceType() == ResourceType.COST;
+		return hasResourceType(ResourceType.Kind.COST);
 	}
 
 	public boolean isMe() {
@@ -1041,7 +1040,7 @@ public class EnterpriseResource implements Resource {
 		return customFields;
 	}
 
-	public boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate) {
+	public boolean applyTimesheet(Collection<?> fieldArray, long timesheetUpdateDate) {
 		return TimesheetHelper.applyTimesheet(getAssignments(),fieldArray,timesheetUpdateDate);
 	}
 
@@ -1057,8 +1056,12 @@ public class EnterpriseResource implements Resource {
 		return TimesheetHelper.getTimesheetStatus(getAssignments());
 	}
 
+	public TimesheetStatus.Kind getTimesheetStatusKind() {
+		return TimesheetHelper.getTimesheetStatusKind(getAssignments());
+	}
+
 	public String getTimesheetStatusName() {
-		return TimesheetHelper.getTimesheetStatusName(getTimesheetStatus());
+		return TimesheetHelper.getStatusName(getTimesheetStatusKind());
 	}
 
 	private transient boolean dirty;

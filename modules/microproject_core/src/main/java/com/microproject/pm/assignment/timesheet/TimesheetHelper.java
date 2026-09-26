@@ -57,18 +57,22 @@ public class TimesheetHelper {
 	}
 
 	public static int getTimesheetStatus(Collection<?> children) {
-		int status = TimesheetStatus.NO_DATA;
+		int status = TimesheetStatus.Kind.NO_DATA.code();
 		for (Object item : children) {
 			UpdatesFromTimesheet child = (UpdatesFromTimesheet) item;
 			int curStatus = child.getTimesheetStatus();
-			if (curStatus == TimesheetStatus.NO_DATA) // ignore if no data
+			if (curStatus == TimesheetStatus.Kind.NO_DATA.code()) // ignore if no data
 				continue;
-			if (status == TimesheetStatus.NO_DATA) // if currently no value, use this 
+			if (status == TimesheetStatus.Kind.NO_DATA.code()) // if currently no value, use this
 				status = curStatus;
 			else
-				return TimesheetStatus.MIXED; // differing statuses. return mixed
+				return TimesheetStatus.Kind.MIXED.code(); // differing statuses. return mixed
 		}
 		return status;
+	}
+
+	public static TimesheetStatus.Kind getTimesheetStatusKind(Collection<?> children) {
+		return TimesheetStatus.Kind.fromCodeOrNull(getTimesheetStatus(children));
 	}
 
 	public static String getTimesheetStatusName(int status) { // used for display style in web, that's why I use underscores instead of dots for CSS compatibility
@@ -76,47 +80,61 @@ public class TimesheetHelper {
 	}
 
 	public static String getTimesheetStatusStyle(int status) { // used for display style in web, that's why I don't use dots - CSS wouldn't like it
+		return getTimesheetStatusStyle(TimesheetStatus.Kind.fromCodeOrNull(status));
+	}
+
+	public static String getTimesheetStatusStyle(TimesheetStatus.Kind status) {
+		if (status == null) status = TimesheetStatus.Kind.NO_DATA;
 		switch (status) {
-		case TimesheetStatus.ENTERED:
+		case ENTERED:
 			return "timesheetEntered"; //$NON-NLS-1$
-		case TimesheetStatus.INTEGRATED:
+		case INTEGRATED:
 			return "timesheetIntegrated"; //$NON-NLS-1$
-		case TimesheetStatus.NO_DATA:
+		case NO_DATA:
 			return "timesheetNoData"; //$NON-NLS-1$
-		case TimesheetStatus.REJECTED:
+		case REJECTED:
 			return "timesheetRejected"; //$NON-NLS-1$
-		case TimesheetStatus.VALIDATED:
+		case VALIDATED:
 			return "timesheetValidated"; //$NON-NLS-1$
-		case TimesheetStatus.MIXED:
+		case MIXED:
 			return "timesheetMixed"; //$NON-NLS-1$
 		}
 		return "timesheetNoData"; //$NON-NLS-1$
 	}
 	
 	public static String getStatusName(int status) { // used for display style in web, that's why I don't use dots - CSS wouldn't like it
+		return getStatusName(TimesheetStatus.Kind.fromCodeOrNull(status));
+	}
+
+	public static String getStatusName(TimesheetStatus.Kind status) {
+		if (status == null) status = TimesheetStatus.Kind.NO_DATA;
 		switch (status) {
-		case TimesheetStatus.ENTERED:
+		case ENTERED:
 			return Messages.getString("TimesheetHelper.Entered"); //$NON-NLS-1$
-		case TimesheetStatus.INTEGRATED:
+		case INTEGRATED:
 			return Messages.getString("TimesheetHelper.Integrated"); //$NON-NLS-1$
-		case TimesheetStatus.NO_DATA:
+		case NO_DATA:
 			return Messages.getString("TimesheetHelper.New"); //$NON-NLS-1$
-		case TimesheetStatus.REJECTED:
+		case REJECTED:
 			return Messages.getString("TimesheetHelper.Rejected"); //$NON-NLS-1$
-		case TimesheetStatus.VALIDATED:
+		case VALIDATED:
 			return Messages.getString("TimesheetHelper.Validated"); //$NON-NLS-1$
-		case TimesheetStatus.MIXED:
+		case MIXED:
 			return Messages.getString("TimesheetHelper.Mixed"); //$NON-NLS-1$
-		case TimesheetStatus.SAVED:
+		case SAVED:
 			return Messages.getString("TimesheetHelper.Saved"); //$NON-NLS-1$
 		}
 		return Messages.getString("TimesheetHelper.New"); //$NON-NLS-1$
 	}
 
 	public static boolean isReadOnly(int status) {
-		return status == TimesheetStatus.ENTERED 
-		|| status == TimesheetStatus.INTEGRATED
-		|| status == TimesheetStatus.VALIDATED;
+		return isReadOnly(TimesheetStatus.Kind.fromCodeOrNull(status));
+	}
+
+	public static boolean isReadOnly(TimesheetStatus.Kind status) {
+		return status == TimesheetStatus.Kind.ENTERED
+		|| status == TimesheetStatus.Kind.INTEGRATED
+		|| status == TimesheetStatus.Kind.VALIDATED;
 	}
 
 }

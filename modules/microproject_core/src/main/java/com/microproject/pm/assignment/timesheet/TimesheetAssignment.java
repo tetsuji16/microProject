@@ -324,14 +324,14 @@ public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, 
 		return assignment.getLastTimesheetUpdate();
 	}
 
-	public boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate) {
+	public boolean applyTimesheet(Collection<?> fieldArray, long timesheetUpdateDate) {
 		if (assignment == null) {
 			return false;
 		}
-		if (assignment.getTimesheetStatus() != TimesheetStatus.VALIDATED) {
+		if (assignment.getTimesheetStatusKind() != TimesheetStatus.Kind.VALIDATED) {
 			return false;
 		}
-		assignment.setTimesheetStatus(TimesheetStatus.INTEGRATED);
+		assignment.setTimesheetStatus(TimesheetStatus.Kind.INTEGRATED);
 		assignment.setLastTimesheetUpdate(timesheetUpdateDate);
 		dirty = false;
 		return true;
@@ -343,6 +343,11 @@ public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, 
 
 	public int getTimesheetStatus() {
 		return assignment.getTimesheetStatus();
+	}
+
+	@Override
+	public TimesheetStatus.Kind getTimesheetStatusKind() {
+		return assignment.getTimesheetStatusKind();
 	}
 
 	public String getTimesheetStatusName() {
@@ -361,9 +366,9 @@ public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, 
 		return parentsNames;
 	}
 	public boolean isIntegratedOrComplete() {
-		if (getTimesheetStatus() == TimesheetStatus.INTEGRATED)
+		if (getTimesheetStatusKind() == TimesheetStatus.Kind.INTEGRATED)
 			return true;
-		if (getTimesheetStatus() == TimesheetStatus.VALIDATED) // validated timesheets must always be shown in dialog till integrated
+		if (getTimesheetStatusKind() == TimesheetStatus.Kind.VALIDATED) // validated timesheets must always be shown in dialog till integrated
 			return false;
 		return isComplete();
 	}

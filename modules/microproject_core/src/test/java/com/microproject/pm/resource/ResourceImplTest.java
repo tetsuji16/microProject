@@ -97,6 +97,20 @@ class ResourceImplTest {
 		assertEquals(Accrual.Kind.START.code(), resource.getAccrueAt());
 	}
 
+	@Test
+	void bookingTypeKindApiPreservesThePersistedCodeAndRejectsUnknownTypedValues() {
+		DelegatingEnterpriseResource global = new DelegatingEnterpriseResource();
+		ResourceImpl resource = new ResourceImpl(global);
+
+		resource.setBookingTypeKind(BookingType.Kind.PROPOSED);
+
+		assertEquals(BookingType.Kind.PROPOSED, resource.getBookingTypeKind());
+		assertEquals(BookingType.Kind.PROPOSED.code(), resource.getBookingType());
+		resource.setBookingType(99);
+		assertEquals(99, resource.getBookingType());
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, resource::getBookingTypeKind);
+	}
+
 	private Project createProject() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

@@ -26,15 +26,18 @@ package com.microproject.pm.scheduling;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
 class SchedulingTypeTest {
 	@Test
 	void knownSchedulingTypesResolveToRules() {
-		assertNotNull(SchedulingType.getSchedulingRuleInstance(SchedulingType.FIXED_UNITS));
-		assertNotNull(SchedulingType.getSchedulingRuleInstance(SchedulingType.FIXED_DURATION));
-		assertNotNull(SchedulingType.getSchedulingRuleInstance(SchedulingType.FIXED_WORK));
+		for (SchedulingType.Kind kind : SchedulingType.Kind.values()) {
+			assertNotNull(SchedulingType.getSchedulingRuleInstance(kind));
+			assertNotNull(SchedulingType.getSchedulingRuleInstance(kind.code()));
+			assertEquals(kind, SchedulingType.Kind.fromCode(kind.code()));
+		}
 	}
 
 	@Test

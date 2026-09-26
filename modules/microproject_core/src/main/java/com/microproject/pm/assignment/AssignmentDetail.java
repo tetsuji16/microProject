@@ -50,6 +50,7 @@ import com.microproject.pm.calendar.HasCalendar;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.costing.CostRateTables;
+import com.microproject.pm.costing.CostRateIndex;
 import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.scheduling.Delayable;
@@ -82,8 +83,8 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	private transient Resource resource;
 	private transient Task task;
 	private transient Delayable delayable;
-	private int requestDemandType = RequestDemandType.NONE;
-	private int costRateIndex = CostRateTables.DEFAULT;
+	private int requestDemandType = RequestDemandType.Kind.NONE.code();
+	private int costRateIndex = CostRateIndex.Kind.A.code();
 	private long overtimeWork = 0; // allowed overtime that is evenly distributed across contour
 	
 	private WorkingCalendar baselineCalendar = null; // only applies if this is a baseline
@@ -503,9 +504,17 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	int getCostRateIndex() {
 		return costRateIndex;
 	}
+
+	CostRateIndex.Kind getCostRateIndexKind() {
+		return CostRateIndex.Kind.fromCodeOrNull(costRateIndex);
+	}
 	
 	void setCostRateIndex(int costRateIndex) {
 		this.costRateIndex = costRateIndex;
+	}
+
+	void setCostRateIndex(CostRateIndex.Kind costRateIndex) {
+		this.costRateIndex = java.util.Objects.requireNonNull(costRateIndex, "costRateIndex").code();
 	}
 
 	Assignment getBaselineAssignment() {
@@ -910,17 +919,19 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	private short version=DEFAULT_VERSION;
 	
 	private void writeObject(ObjectOutputStream s) throws IOException {
-		workContourType = workContour.getType();
-		costContourType = costContour.getType();
+		ContourTypes.Kind workKind = workContour.getTypeKind();
+		ContourTypes.Kind costKind = costContour.getTypeKind();
+		workContourType = workKind.code();
+		costContourType = costKind.code();
 	    s.defaultWriteObject();
 	    rate.serialize(s);
 	    //delayable
 	    s.writeLong(delayable.getDelay());
 	    s.writeLong(delayable.getLevelingDelay());
 	    //personnal contours
-	    if (workContourType==CONTOURED)
+	    if (workKind == ContourTypes.Kind.CONTOURED)
 	    	s.writeObject(workContour.getContourBuckets());
-	    if (costContourType==CONTOURED)
+	    if (costKind == ContourTypes.Kind.CONTOURED)
 	    	s.writeObject(costContour.getContourBuckets());
 	    
 	    if (version>=1){
@@ -934,20 +945,22 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	    //delayable
 	    delayable=new DelayableImpl(s.readLong(),s.readLong());
 	    //personnal contours
-	    if (workContourType==CONTOURED){
+	    ContourTypes.Kind workKind = ContourTypes.Kind.fromCode(workContourType);
+	    ContourTypes.Kind costKind = ContourTypes.Kind.fromCode(costContourType);
+	    if (workKind == ContourTypes.Kind.CONTOURED){
 //	    	try{
 	    		workContour  = PersonalContour.getInstance((AbstractContourBucket[])s.readObject());
 //	    	}catch(Exception e){
 //	    		workContour = StandardContour.getStandardContour(workContourType);
 //	    	}
-	    } else workContour = StandardContour.getStandardContour(workContourType);
-	    if (costContourType==CONTOURED){
+	    } else workContour = StandardContour.getStandardContour(workKind);
+	    if (costKind == ContourTypes.Kind.CONTOURED){
 //	    	try{
 		    	costContour  = PersonalContour.getInstance((AbstractContourBucket[])s.readObject());
 //	    	}catch(Exception e){
 //	    		costContour = StandardContour.getStandardContour(costContourType);
 //	    	}
-	    } else costContour = StandardContour.getStandardContour(costContourType);
+	    } else costContour = StandardContour.getStandardContour(costKind);
 	    
 	    if (version>=1){
 	    	boolean nullSchedule=s.readBoolean();

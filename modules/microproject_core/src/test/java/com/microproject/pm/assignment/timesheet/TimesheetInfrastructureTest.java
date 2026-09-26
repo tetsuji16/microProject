@@ -26,6 +26,7 @@ package com.microproject.pm.assignment.timesheet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -76,6 +77,16 @@ class TimesheetInfrastructureTest {
 			TimesheetHelper.getTimesheetStatus(updates(
 				new StubUpdatesFromTimesheet(TimesheetStatus.ENTERED),
 				new StubUpdatesFromTimesheet(TimesheetStatus.INTEGRATED))));
+
+		assertEquals(TimesheetStatus.Kind.ENTERED,
+			TimesheetHelper.getTimesheetStatusKind(updates(
+				new StubUpdatesFromTimesheet(TimesheetStatus.NO_DATA),
+				new StubUpdatesFromTimesheet(TimesheetStatus.ENTERED))));
+		assertNull(TimesheetHelper.getTimesheetStatusKind(updates(
+				new StubUpdatesFromTimesheet(99))));
+		assertEquals(TimesheetStatus.MIXED, TimesheetHelper.getTimesheetStatus(updates(
+				new StubUpdatesFromTimesheet(99),
+				new StubUpdatesFromTimesheet(TimesheetStatus.ENTERED))));
 	}
 
 	@Test
@@ -143,7 +154,7 @@ class TimesheetInfrastructureTest {
 			this.status = status;
 		}
 
-		public boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate) {
+		public boolean applyTimesheet(Collection<?> fieldArray, long timesheetUpdateDate) {
 			applyCount++;
 			appliedFieldArray = fieldArray;
 			appliedUpdateDate = timesheetUpdateDate;

@@ -54,8 +54,21 @@ public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, 
     /**
      * @associates <{com.microproject.pm.resource.ResourceType}> 
      */
+    /** @deprecated use {@link #getResourceTypeKind()} for typed access. */
+    @Deprecated
     public int getResourceType();
+    /** @deprecated use {@link #setResourceTypeKind(ResourceType.Kind)} for typed access. */
+    @Deprecated
     public void setResourceType(int resourceType);
+    default ResourceType.Kind getResourceTypeKind() {
+        return ResourceType.Kind.fromCode(getResourceType());
+    }
+    default void setResourceTypeKind(ResourceType.Kind resourceType) {
+        setResourceType(java.util.Objects.requireNonNull(resourceType, "resourceType").code());
+    }
+    default boolean hasResourceType(ResourceType.Kind resourceType) {
+        return getResourceType() == java.util.Objects.requireNonNull(resourceType, "resourceType").code();
+    }
     public int getAccrueAt();
     public void setAccrueAt(int accrueAt);
     /** Type-safe view of the persisted accrual code. */
@@ -69,6 +82,9 @@ public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, 
     }
     
     public CostRateTable getCostRateTable(int costRateIndex);
+    default CostRateTable getCostRateTable(com.microproject.pm.costing.CostRateIndex.Kind costRateIndex) {
+        return getCostRateTable(java.util.Objects.requireNonNull(costRateIndex, "costRateIndex").code());
+    }
     public void addAssignment(Assignment assignment);
     public void removeAssignment(Assignment assignment);
     public double getMaximumUnits();

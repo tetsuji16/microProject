@@ -40,10 +40,10 @@ public class SaveSnapshotEdit extends AbstractUndoableEdit{
 	protected Project project;
 	protected Object snapshotId;
 	protected boolean entireProject;
-	protected List selection;
+	protected List<?> selection;
 
 	
-	public SaveSnapshotEdit(Project project, Object snapshotId, boolean entireProject, List selection) {
+	public SaveSnapshotEdit(Project project, Object snapshotId, boolean entireProject, List<?> selection) {
 		super();
 		this.project = project;
 		this.snapshotId = snapshotId;

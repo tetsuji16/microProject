@@ -48,7 +48,7 @@ class ScheduleServiceConstraintTest {
 
 		long targetDate = task.getEffectiveWorkCalendar().add(task.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
 
-		boolean changed = ScheduleService.getInstance().setConstraint(this, task, ConstraintType.SNET, targetDate, undoController.getEditSupport());
+		boolean changed = ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, targetDate, undoController.getEditSupport());
 
 		assertTrue(changed);
 		assertEquals(ConstraintType.SNET, task.getConstraintType());
@@ -79,7 +79,7 @@ class ScheduleServiceConstraintTest {
 		ScheduleInterval originalInterval = new ScheduleInterval(originalStart, originalEnd);
 
 		ScheduleService.getInstance().setInterval(this, task, movedStart, movedStart, originalInterval, undoController.getEditSupport());
-		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.SNET, movedStart, undoController.getEditSupport());
+		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, movedStart, undoController.getEditSupport());
 
 		assertTrue(task.isMilestone());
 		assertEquals(0L, task.getDuration());
@@ -124,12 +124,12 @@ class ScheduleServiceConstraintTest {
 		long secondEnd = task.getEffectiveWorkCalendar().add(firstEnd, day, false);
 
 		ScheduleService.getInstance().setInterval(this, task, secondStart, secondEnd, new ScheduleInterval(firstStart, firstEnd), undoController.getEditSupport());
-		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.SNET, task.getStart(), undoController.getEditSupport());
+		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, task.getStart(), undoController.getEditSupport());
 
 		long thirdStart = task.getEffectiveWorkCalendar().add(task.getStart(), day, false);
 		long thirdEnd = task.getEffectiveWorkCalendar().add(task.getEnd(), day, false);
 		ScheduleService.getInstance().setInterval(this, task, thirdStart, thirdEnd, new ScheduleInterval(task.getStart(), task.getEnd()), undoController.getEditSupport());
-		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.SNET, task.getStart(), undoController.getEditSupport());
+		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, task.getStart(), undoController.getEditSupport());
 
 		assertEquals(thirdStart, task.getStart());
 		assertEquals(thirdEnd, task.getEnd());

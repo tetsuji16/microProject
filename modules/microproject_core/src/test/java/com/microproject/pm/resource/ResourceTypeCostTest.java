@@ -11,6 +11,21 @@ import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ResourceTypeCostTest {
+	@Test
+	@SuppressWarnings("deprecation")
+	void resourceKindApiPreservesCodesAndLegacyUnknownValues() {
+		EnterpriseResource resource = createResource();
+		resource.setResourceTypeKind(ResourceType.Kind.MATERIAL);
+
+		assertEquals(ResourceType.Kind.MATERIAL, resource.getResourceTypeKind());
+		assertEquals(ResourceType.Kind.MATERIAL.code(), resource.getResourceType());
+		assertTrue(resource.isMaterial());
+
+		resource.setResourceType(99);
+		assertEquals(99, resource.getResourceType());
+		assertFalse(resource.isLabor());
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, resource::getResourceTypeKind);
+	}
 
 	@Test
 	void costConstantIsFiveAndUnique() {

@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.availability.Availability;
 import com.microproject.pm.assignment.contour.ContourFactory;
+import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
 import com.microproject.pm.assignment.contour.PersonalContourBucket;
 import com.microproject.pm.assignment.functor.ResourceAvailabilityFunctor;
@@ -64,6 +65,32 @@ class AssignmentContourBehaviorTest {
 				() -> ContourFactory.getInstance(-1));
 
 		assertEquals("Unknown contour type: -1", exception.getMessage());
+	}
+
+	@Test
+	void typedContourKindsKeepMspdiCodesAndFactoryBehavior() {
+		for (ContourTypes.Kind kind : ContourTypes.Kind.values()) {
+			assertEquals(kind, ContourTypes.Kind.fromCode(kind.code()));
+			if (kind != ContourTypes.Kind.CONTOURED) {
+				assertEquals(kind, ContourFactory.getInstance(kind).getTypeKind());
+				assertEquals(kind, ContourFactory.getInstance(kind.code()).getTypeKind());
+			}
+		}
+		assertThrows(IllegalArgumentException.class,
+				() -> ContourFactory.getInstance(ContourTypes.Kind.CONTOURED));
+	}
+
+	@Test
+	void assignmentContourApiExposesKindAndPreservesLegacyCode() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+
+		assignment.setWorkContourTypeKind(ContourTypes.Kind.BACK_LOADED);
+
+		assertEquals(ContourTypes.Kind.BACK_LOADED, assignment.getWorkContourTypeKind());
+		assertEquals(ContourTypes.Kind.BACK_LOADED.code(), assignment.getWorkContourType());
 	}
 
 	@Test

@@ -25,17 +25,31 @@
 package com.microproject.pm.costing;
 
 public interface HasExpenseType {
+	/** @deprecated use {@link #getExpenseKind()} for domain logic. */
+	@Deprecated
 	int getExpenseType();
+	/** @deprecated use {@link #setExpenseKind(ExpenseType.Kind)} for domain logic. */
+	@Deprecated
 	void setExpenseType(int expenseType);
+	/** @deprecated use {@link #getEffectiveExpenseKind()} for typed access. */
+	@Deprecated
 	int getEffectiveExpenseType(); // for inheriting
 
 	/** Type-safe view of the persisted expense type code. */
+	@SuppressWarnings("deprecation")
 	default ExpenseType.Kind getExpenseKind() {
 		return ExpenseType.Kind.fromCode(getExpenseType());
 	}
 
 	/** Updates the persisted expense type using a type-safe enum value. */
+	@SuppressWarnings("deprecation")
 	default void setExpenseKind(ExpenseType.Kind expenseType) {
 		setExpenseType(java.util.Objects.requireNonNull(expenseType, "expenseType").code());
+	}
+
+	/** Type-safe view of the effective persisted expense type code. */
+	@SuppressWarnings("deprecation")
+	default ExpenseType.Kind getEffectiveExpenseKind() {
+		return ExpenseType.Kind.fromCode(getEffectiveExpenseType());
 	}
 }

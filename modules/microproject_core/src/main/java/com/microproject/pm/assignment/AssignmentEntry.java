@@ -68,6 +68,9 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 		return ((HasKey) resource).getName();
 	}
 	
+	/** @deprecated use {@link #setRequestDemandKind(RequestDemandType.Kind)}. */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public void setRequestDemandType(int requestDemandType) {
 		if (!isAssigned()) //requestDemand type only settable if already assigned 
 			return;
@@ -77,10 +80,23 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 		}
 	}
 
+	@Override
+	public void setRequestDemandKind(RequestDemandType.Kind kind) {
+		if (!isAssigned())
+			return;
+		RequestDemandType.Kind value = java.util.Objects.requireNonNull(kind, "kind");
+		for (Object assignmentValue : assignments) {
+			Assignment assignment = (Assignment) assignmentValue;
+			assignment.setRequestDemandKind(value);
+		}
+	}
+
+	/** @deprecated use {@link #getRequestDemandKind()} for typed access. */
+	@Deprecated
 	public int getRequestDemandType() {
 		Integer commonRequestDemandType = (Integer)Assignment.getRequestDemandTypeField().getCommonValue(assignments,false,false);
 		if (commonRequestDemandType == null)
-			return RequestDemandType.NONE;
+			return RequestDemandType.Kind.NONE.code();
 		else
 			return commonRequestDemandType.intValue();
 	}
@@ -149,8 +165,11 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 			if (!(value instanceof Task task))
 				continue;
 			Assignment assignment = resource.findAssignment(task);
-			if (assignment != null)
-				addAssignment(assignment);
+			if (assignment != null) {
+				if (assignments == null)
+					assignments = new ArrayList(taskList.size());
+				assignments.add(assignment);
+			}
 		}
 		
 	}

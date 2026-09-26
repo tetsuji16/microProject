@@ -28,28 +28,23 @@ package com.microproject.pm.assignment.contour;
  *
  */
 public class ContourFactory {
+	/** @deprecated use {@link #getInstance(ContourTypes.Kind)} for typed access. */
+	@Deprecated
 	public static AbstractContour getInstance(int type) {
-		switch (type) {
-			case ContourTypes.FLAT:
-				return StandardContour.FLAT_CONTOUR;
-			case ContourTypes.BACK_LOADED:
-				return StandardContour.BACK_LOADED_CONTOUR;
-			case ContourTypes.FRONT_LOADED:
-				return StandardContour.FRONT_LOADED_CONTOUR;
-			case ContourTypes.DOUBLE_PEAK:
-				return StandardContour.DOUBLE_PEAK_CONTOUR;
-			case ContourTypes.EARLY_PEAK:
-				return StandardContour.EARLY_PEAK_CONTOUR;		
-			case ContourTypes.LATE_PEAK:
-				return StandardContour.LATE_PEAK_CONTOUR;		
-			case ContourTypes.BELL:
-				return StandardContour.BELL_CONTOUR;	
-		case ContourTypes.PLATEAU:
-			return StandardContour.PLATEAU_CONTOUR;		
-		//case ContourTypes.CONTOURED: not valid
-				
-		}
-		throw new IllegalArgumentException("Unknown contour type: " + type);
-		
+		return getInstance(ContourTypes.Kind.fromCode(type));
+	}
+
+	public static AbstractContour getInstance(ContourTypes.Kind type) {
+		return switch (type) {
+			case FLAT -> StandardContour.FLAT_CONTOUR;
+			case BACK_LOADED -> StandardContour.BACK_LOADED_CONTOUR;
+			case FRONT_LOADED -> StandardContour.FRONT_LOADED_CONTOUR;
+			case DOUBLE_PEAK -> StandardContour.DOUBLE_PEAK_CONTOUR;
+			case EARLY_PEAK -> StandardContour.EARLY_PEAK_CONTOUR;
+			case LATE_PEAK -> StandardContour.LATE_PEAK_CONTOUR;
+			case BELL -> StandardContour.BELL_CONTOUR;
+			case PLATEAU -> StandardContour.PLATEAU_CONTOUR;
+			case CONTOURED -> throw new IllegalArgumentException("Unknown contour type: " + type.code());
+		};
 	}
 }

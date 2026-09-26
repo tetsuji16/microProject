@@ -27,4 +27,12 @@ package com.microproject.pm.costing;
 public interface HasCostRateIndex {
     int getCostRateIndex();
     void setCostRateIndex(int val);
+
+    default CostRateIndex.Kind getCostRateIndexKind() {
+        return CostRateIndex.Kind.fromCodeOrNull(getCostRateIndex());
+    }
+
+    default void setCostRateIndex(CostRateIndex.Kind val) {
+        setCostRateIndex(java.util.Objects.requireNonNull(val, "costRateIndex").code());
+    }
 }

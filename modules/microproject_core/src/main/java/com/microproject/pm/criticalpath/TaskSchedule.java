@@ -45,9 +45,29 @@ import com.microproject.pm.task.Task;
 
 public final class TaskSchedule implements Cloneable {
 	private static final Logger logger = Logger.getLogger(TaskSchedule.class.getName());
-	public static final int CURRENT = 0;
-	public static final int EARLY = -1;
-	public static final int LATE = 1;
+	public enum Kind {
+		CURRENT(0), EARLY(-1), LATE(1);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public Kind opposite() {
+			return switch (this) {
+				case EARLY -> LATE;
+				case LATE -> EARLY;
+				case CURRENT -> CURRENT;
+			};
+		}
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown task schedule kind: " + code);
+		}
+	}
+	/** @deprecated use {@link Kind#CURRENT}. */
+	@Deprecated public static final int CURRENT = Kind.CURRENT.code();
+	/** @deprecated use {@link Kind#EARLY}. */
+	@Deprecated public static final int EARLY = Kind.EARLY.code();
+	/** @deprecated use {@link Kind#LATE}. */
+	@Deprecated public static final int LATE = Kind.LATE.code();
 	
 	
 	//Persisted fields
@@ -61,7 +81,7 @@ public final class TaskSchedule implements Cloneable {
 
 	// Calculated fields are re-established from the owning task and schedule type.
 	private transient Task task;
-	private transient int type;
+	private transient Kind type = Kind.CURRENT;
 	private transient boolean forward = true;
 	private transient long dependencyDate = Dependency.NEEDS_CALCULATION;
 	private transient long remainingDependencyDate = 0;
@@ -70,11 +90,17 @@ public final class TaskSchedule implements Cloneable {
 		
 	}
 	public TaskSchedule(Task task, int type) {
+		this(task, Kind.fromCode(type));
+	}
+	public TaskSchedule(Task task, Kind type) {
 		init(task,type);
 		start = 0;
 		finish = 0;
 	}	
 	public void init(Task task, int type) {
+		init(task, Kind.fromCode(type));
+	}
+	public void init(Task task, Kind type) {
 		this.task = task;
 		this.type = type;
 		updateForwardFromType();
@@ -83,6 +109,9 @@ public final class TaskSchedule implements Cloneable {
 	}
 	
 	public void initSerialized(Task task, int type) {
+		initSerialized(task, Kind.fromCode(type));
+	}
+	public void initSerialized(Task task, Kind type) {
 		this.task = task;
 		this.type = type;
 		updateForwardFromType();
@@ -207,7 +236,7 @@ public final class TaskSchedule implements Cloneable {
 	}
 		
 	private final boolean isLate() {
-		return type == LATE;
+		return type == Kind.LATE;
 	}
 	public final long getDependencyDate() {
 		return dependencyDate;
@@ -287,7 +316,7 @@ public final class TaskSchedule implements Cloneable {
 		boolean unopenedSubproject = task.isSubproject() && !((SubProj)task).isValidAndOpen();
 		boolean external = task.isExternal();
 		if (!external && !unopenedSubproject) {
-			if (context.taskReferenceType == PredecessorTaskList.TaskReference.PARENT_END) {
+			if (context.taskReferenceKind == PredecessorTaskList.TaskReference.Kind.PARENT_END) {
 				assignDatesFromChildren(context);
 			} else {
 				calcStartAndFinish(context); // for parents, it will examine all children
@@ -307,7 +336,7 @@ public final class TaskSchedule implements Cloneable {
 				TaskSchedule currentSchedule = task.getCurrentSchedule();
 				assignToCurrentSchedule(currentSchedule, newBegin, newEnd);
 				// for parents, set current schedule's duration
-				if (context.taskReferenceType == PredecessorTaskList.TaskReference.PARENT_END) {
+				if (context.taskReferenceKind == PredecessorTaskList.TaskReference.Kind.PARENT_END) {
 					// This only needs to be done if advancement changed on a task.
 					currentSchedule.updateDurationFromDates(); // calculate duration based on parent start/end
 					((NormalTask)(currentSchedule.task)).assignActualDatesFromChildren();
@@ -341,7 +370,7 @@ public final class TaskSchedule implements Cloneable {
 			parentEnd = parentSchedule.getEnd();
 		}
 			
-		if (context.taskReferenceType == PredecessorTaskList.TaskReference.PARENT_BEGIN) {
+		if (context.taskReferenceKind == PredecessorTaskList.TaskReference.Kind.PARENT_BEGIN) {
 			if (oldBegin != newBegin) { // if parent start (finish) changed, then all of its children need to me marked
 				
 				flagChildren();
@@ -438,9 +467,9 @@ public final class TaskSchedule implements Cloneable {
 
 		TaskSchedule childSchedule;
 		boolean estimated = false;
-		int t = type;
+		Kind scheduleType = type;
 		if (context !=  null && context.pass == 3) 
-			t = CURRENT;
+			scheduleType = Kind.CURRENT;
 //System.out.println("assign from children top ass" + assign + " " + this);		
 		for (Node node : children) {
 			if (!(node.getImpl() instanceof NormalTask child))
@@ -454,10 +483,10 @@ public final class TaskSchedule implements Cloneable {
 
 			//			if (context !=  null && context.pass == 3 && child.isReverseScheduled()) {
 //				
-//				childSchedule = child.getSchedule(-type);
+			//				childSchedule = child.getSchedule(type.opposite());
 //				System.out.println("reverse " + child + " " + childSchedule);				
 //			} else
-				childSchedule = child.getSchedule(t);
+				childSchedule = child.getSchedule(scheduleType);
 //			if (assign && child.isReverseScheduled())
 //				childSchedule = childSchedule.getOppositeSchedule();
 
@@ -664,16 +693,16 @@ public final class TaskSchedule implements Cloneable {
 
 	private void resetTransientState() {
 		task = null;
-		type = CURRENT;
+		type = Kind.CURRENT;
 		forward = true;
 		dependencyDate = Dependency.NEEDS_CALCULATION;
 		remainingDependencyDate = 0;
 	}
 
 	private void updateForwardFromType() {
-		if (type == EARLY)
+		if (type == Kind.EARLY)
 			forward = true;
-		else if (type == LATE)
+		else if (type == Kind.LATE)
 			forward = false;
 	}
 
@@ -717,11 +746,11 @@ public final class TaskSchedule implements Cloneable {
 		boolean forward;
 		boolean honorRequiredDates;
 		Task sentinel;
-		int taskReferenceType;
+		PredecessorTaskList.TaskReference.Kind taskReferenceKind;
 		long boundary;
 		boolean earlyOnly;
 		boolean assign;
-		int scheduleType;
+		Kind scheduleType;
 		int pass;
 		
 		public String toString() {

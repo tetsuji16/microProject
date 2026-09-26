@@ -46,10 +46,14 @@ import org.junit.Test;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.costing.ExpenseType;
+import com.microproject.pm.costing.EarnedValueMethodType;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectStatus;
+import com.microproject.pm.task.ProjectType;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
@@ -57,6 +61,7 @@ import com.microproject.pm.task.RollupSpan;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceType;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -64,6 +69,35 @@ import com.microproject.server.data.ProjectData;
 import com.microproject.server.data.Serializer;
 
 public class PodRoundTripTest {
+	@Test
+	public void typedProjectChoicesSurviveNativePodRoundTrip() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("typed-project-choices", undo), undo);
+		project.initialize(false, false);
+		project.setProjectTypeKind(ProjectType.Kind.IT);
+		project.setProjectStatusKind(ProjectStatus.Kind.ON_HOLD);
+		project.setExpenseKind(ExpenseType.Kind.DIRECT);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName("Typed earned value task");
+		task.setEarnedValueMethodKind(EarnedValueMethodType.Kind.PHYSICAL_PERCENT_COMPLETE);
+
+		File saved = Files.createTempFile("typed-project-choices-", ".pod").toFile();
+		try {
+			LocalFileImporter exporter = new LocalFileImporter();
+			exporter.setFileName(saved.getAbsolutePath());
+			exporter.setProject(project);
+			exporter.exportFile();
+			Project reopened = load(saved);
+			assertEquals(ProjectType.Kind.IT, reopened.getProjectTypeKind());
+			assertEquals(ProjectStatus.Kind.ON_HOLD, reopened.getProjectStatusKind());
+			assertEquals(ExpenseType.Kind.DIRECT, reopened.getExpenseKind());
+			assertEquals(EarnedValueMethodType.Kind.PHYSICAL_PERCENT_COMPLETE,
+				((NormalTask) taskNamed(reopened, "Typed earned value task")).getEarnedValueMethodKind());
+		} finally {
+			Files.deleteIfExists(saved.toPath());
+		}
+	}
+
 	@Test
 	public void emptyProjectWithDatedWorkWeekRoundTripsAsNativePod() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -143,6 +177,7 @@ public class PodRoundTripTest {
 		project.setMaster(true);
 		Resource resource = pool.createScriptedResource();
 		resource.setName("Resource calendar POD fixture");
+		resource.setResourceTypeKind(ResourceType.Kind.MATERIAL);
 		var calendar = com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
 		calendar.setName("Resource-specific recurring calendar");
 		long start = com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.JANUARY, 5)
@@ -165,6 +200,7 @@ public class PodRoundTripTest {
 			Resource restoredResource = reopened.getResourcePool().getResourceList().stream()
 				.filter(candidate -> "Resource calendar POD fixture".equals(candidate.getName()))
 				.findFirst().orElseThrow();
+			assertEquals(ResourceType.Kind.MATERIAL, restoredResource.getResourceTypeKind());
 			var restoredCalendar = (com.microproject.pm.calendar.WorkingCalendar) restoredResource.getWorkCalendar();
 			assertEquals(1, restoredCalendar.getRecurringExceptions().size());
 			assertEquals(recurrence.occurrenceDates(), restoredCalendar.getRecurringExceptions().getFirst()

@@ -59,6 +59,37 @@ class ResourcePoolIdentityTest {
     }
 
     @Test
+    void resourcePoolLookupsReturnFirstMatchingResource() {
+        ResourcePool pool = ResourcePool.createRourcePool("test", new DataFactoryUndoController());
+        ResourceImpl first = new ResourceImpl(new EnterpriseResource(pool));
+        first.setName("Design");
+        first.setId(12L);
+        pool.add(first);
+        ResourceImpl second = new ResourceImpl(new EnterpriseResource(pool));
+        second.setName("Delivery");
+        second.setId(13L);
+        pool.add(second);
+
+        assertSame(first, ResourcePool.findResourceByName("Design", pool));
+        assertSame(second, ResourcePool.findResourceByInitials(Integer.valueOf(13), pool));
+        assertNull(ResourcePool.findResourceByName("Unknown", pool));
+        assertNull(ResourcePool.findResourceByInitials(Integer.valueOf(99), pool));
+    }
+
+    @Test
+    void userResourceArrayContainsOnlyResourcesWithUserAccounts() {
+        ResourcePool pool = ResourcePool.createRourcePool("test", new DataFactoryUndoController());
+        ResourceImpl user = new ResourceImpl(new EnterpriseResource(pool));
+        user.setUserAccount("user@example.test");
+        pool.add(user);
+        ResourceImpl ordinary = new ResourceImpl(new EnterpriseResource(pool));
+        pool.add(ordinary);
+
+        assertEquals(1, ResourcePool.userResources().length);
+        assertSame(user, ResourcePool.userResources()[0]);
+    }
+
+    @Test
     void changingPoolScopeUpdatesAlreadyCreatedOutlines() {
         ResourcePool pool = ResourcePool.createRourcePool("test", new DataFactoryUndoController());
 
@@ -78,5 +109,18 @@ class ResourcePoolIdentityTest {
         ResourceImpl resource = (ResourceImpl) pool.createScriptedResource();
 
         assertEquals(0L, resource.getParentId(0));
+    }
+
+    @Test
+    void movingResourceUsesSingleItemParentOperation() {
+        DataFactoryUndoController undoController = new DataFactoryUndoController();
+        ResourcePool pool = ResourcePool.createRourcePool("test", undoController);
+        undoController.setDataFactory(pool);
+        Resource parent = pool.createScriptedResource();
+        Resource child = pool.createScriptedResource();
+
+        pool.setLocalParent(child, parent);
+
+        assertSame(parent, pool.getRbsParentResource(child));
     }
 }

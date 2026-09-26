@@ -28,6 +28,22 @@ package com.microproject.pm.assignment;
  *
  */
 public interface HasRequestDemandType {
+	/** Returns the stored request/demand choice as a validated domain value. */
+	@SuppressWarnings("deprecation")
+	default RequestDemandType.Kind getRequestDemandKind() {
+		return RequestDemandType.Kind.fromCode(getRequestDemandType());
+	}
+
+	/** Stores a typed request/demand choice using its stable persisted code. */
+	@SuppressWarnings("deprecation")
+	default void setRequestDemandKind(RequestDemandType.Kind kind) {
+		setRequestDemandType(java.util.Objects.requireNonNull(kind, "kind").code());
+	}
+
+	/** @deprecated use {@link #getRequestDemandKind()} for typed domain logic. */
+	@Deprecated
 	int getRequestDemandType();
+	/** @deprecated use {@link #setRequestDemandKind(RequestDemandType.Kind)} for typed domain logic. */
+	@Deprecated
 	void setRequestDemandType(int requestDemandType);
 }

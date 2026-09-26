@@ -27,6 +27,7 @@ package com.microproject.pm.task;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
 import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.costing.EarnedValueMethodType;
 import com.microproject.pm.resource.Resource;
 
 /**
@@ -54,8 +55,12 @@ public interface TaskSpecificFields {
 	// task type is taken care of by schedulingRule
 	boolean isMarkTaskAsMilestone();
 	void setMarkTaskAsMilestone(boolean markTaskAsMilestone);
+	@Deprecated
 	public int getEarnedValueMethod();
+	@Deprecated
 	public void setEarnedValueMethod(int earnedValueMethod);
+	public EarnedValueMethodType.Kind getEarnedValueMethodKind();
+	public void setEarnedValueMethodKind(EarnedValueMethodType.Kind earnedValueMethod);
 	public boolean isEstimated();
 	public void setEstimated(boolean estimated);
 	public boolean isIgnoreResourceCalendar();

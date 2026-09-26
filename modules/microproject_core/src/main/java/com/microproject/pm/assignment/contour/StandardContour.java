@@ -42,6 +42,9 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 	public static StandardContour getInstance(int type, AbstractContourBucket[] contourBuckets) {
 		return new StandardContour(type, contourBuckets);
 	}
+	public static StandardContour getInstance(ContourTypes.Kind type, AbstractContourBucket[] contourBuckets) {
+		return new StandardContour(java.util.Objects.requireNonNull(type, "type").code(), contourBuckets);
+	}
 	public boolean isPersonal() {return false;}	
 	/**
 	 * @return Returns the meanUnits.
@@ -72,11 +75,11 @@ public class StandardContour extends AbstractContour implements ContourTypes {
     	return sum;
     }
 
-    public static final StandardContour FLAT_CONTOUR = getInstance(ContourTypes.FLAT, new StandardContourBucket[] { // mean is 1.0
+    public static final StandardContour FLAT_CONTOUR = getInstance(ContourTypes.Kind.FLAT, new StandardContourBucket[] { // mean is 1.0
 					  new StandardContourBucket(1.0, 1.0)
 	});
  
-    public static final StandardContour BACK_LOADED_CONTOUR = getInstance(ContourTypes.BACK_LOADED, new StandardContourBucket[] { // mean is 0.6
+    public static final StandardContour BACK_LOADED_CONTOUR = getInstance(ContourTypes.Kind.BACK_LOADED, new StandardContourBucket[] { // mean is 0.6
 					  		new StandardContourBucket(0.1, 0.1), // 10% charge for first 10%
 					  		new StandardContourBucket(0.15, 0.1), // 15% charge for next 10%
 							new StandardContourBucket(0.25, 0.1), // 25% charge for next 10%
@@ -85,7 +88,7 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 							new StandardContourBucket(1.0, 0.3) // 100% charge last 30%
 	});
 
-    public static final StandardContour FRONT_LOADED_CONTOUR = getInstance(ContourTypes.FRONT_LOADED, new StandardContourBucket[] { // mean is 0.6
+    public static final StandardContour FRONT_LOADED_CONTOUR = getInstance(ContourTypes.Kind.FRONT_LOADED, new StandardContourBucket[] { // mean is 0.6
 					  		new StandardContourBucket(1.0, 0.3), // 100% charge first 30%
 					  		new StandardContourBucket(0.75, 0.2), // 75% charge for next 20%
 							new StandardContourBucket(0.5, 0.2), // 50% charge for next 20%
@@ -94,7 +97,7 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 							new StandardContourBucket(0.1, 0.1) // 10% charge for last 10%					  
 	});
 
-    public static final StandardContour DOUBLE_PEAK_CONTOUR = getInstance(ContourTypes.DOUBLE_PEAK, new StandardContourBucket[] { // mean is 0.5
+    public static final StandardContour DOUBLE_PEAK_CONTOUR = getInstance(ContourTypes.Kind.DOUBLE_PEAK, new StandardContourBucket[] { // mean is 0.5
 					  		new StandardContourBucket(0.25, 0.1), // 25% charge first 10%
 					  		new StandardContourBucket(0.5, 0.1), // 50% charge for next 10%
 							new StandardContourBucket(1.0, 0.1), // 100% charge for next 10%
@@ -106,7 +109,7 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 							new StandardContourBucket(0.25, 0.1), // 25% charge last 10%			
 	});
     
-    public static final StandardContour EARLY_PEAK_CONTOUR = getInstance(ContourTypes.EARLY_PEAK, new StandardContourBucket[] { // mean is 0.5	
+    public static final StandardContour EARLY_PEAK_CONTOUR = getInstance(ContourTypes.Kind.EARLY_PEAK, new StandardContourBucket[] { // mean is 0.5
 					  		new StandardContourBucket(0.25, 0.1), // 25% charge first 10%
 					  		new StandardContourBucket(0.5, 0.1), // 50% charge for next 10%
 							new StandardContourBucket(1.0, 0.2), // 100% charge for next 20%
@@ -118,7 +121,7 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 
 	});
 
-    public static final StandardContour LATE_PEAK_CONTOUR = getInstance(ContourTypes.LATE_PEAK, new StandardContourBucket[] { // mean is 0.5
+    public static final StandardContour LATE_PEAK_CONTOUR = getInstance(ContourTypes.Kind.LATE_PEAK, new StandardContourBucket[] { // mean is 0.5
 					  		new StandardContourBucket(0.1, 0.1), // 10% charge for first 10%			
 					  		new StandardContourBucket(0.15, 0.1), // 15% charge for next 10%
 							new StandardContourBucket(0.25, 0.1), // 25% charge for next 10%
@@ -129,7 +132,7 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 							new StandardContourBucket(0.25, 0.1) // 25% charge last 10%
 	});
 
-    public static final StandardContour BELL_CONTOUR = getInstance(ContourTypes.BELL, new StandardContourBucket[] { // mean is 0.5	
+    public static final StandardContour BELL_CONTOUR = getInstance(ContourTypes.Kind.BELL, new StandardContourBucket[] { // mean is 0.5
 					  		new StandardContourBucket(0.1, 0.1), // 10% charge for first 10%			
 					  		new StandardContourBucket(0.2, 0.1), // 20% charge for next 10%
 							new StandardContourBucket(0.4, 0.1), // 40% charge for next 10%
@@ -141,7 +144,7 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 							new StandardContourBucket(0.1, 0.1) // 10% charge for last 10%									
 	});
 
-    public static final StandardContour PLATEAU_CONTOUR = getInstance(ContourTypes.PLATEAU, new StandardContourBucket[] { // mean is 0.7
+    public static final StandardContour PLATEAU_CONTOUR = getInstance(ContourTypes.Kind.PLATEAU, new StandardContourBucket[] { // mean is 0.7
 					  		new StandardContourBucket(0.25, 0.1), // 25% charge for first 10%			
 					  		new StandardContourBucket(0.5, 0.1), // 50% charge for next 10%
 							new StandardContourBucket(0.75, 0.1), // 75% charge for next 10%
@@ -152,19 +155,23 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 	});
     
 
-    public static StandardContour getStandardContour(int type){
-		switch (type) {
-			case FLAT: return FLAT_CONTOUR;
-			case BACK_LOADED: return BACK_LOADED_CONTOUR;
-			case FRONT_LOADED: return FRONT_LOADED_CONTOUR;
-			case DOUBLE_PEAK: return DOUBLE_PEAK_CONTOUR;
-			case EARLY_PEAK: return EARLY_PEAK_CONTOUR;
-			case LATE_PEAK: return LATE_PEAK_CONTOUR;
-			case BELL: return BELL_CONTOUR;
-			case PLATEAU: return PLATEAU_CONTOUR;
-			default: throw new IllegalArgumentException("Unknown contour type: " + type);
-		}
-    }
+	public static StandardContour getStandardContour(int type){
+		return getStandardContour(ContourTypes.Kind.fromCode(type));
+	}
+
+	public static StandardContour getStandardContour(ContourTypes.Kind type){
+		return switch (type) {
+			case FLAT -> FLAT_CONTOUR;
+			case BACK_LOADED -> BACK_LOADED_CONTOUR;
+			case FRONT_LOADED -> FRONT_LOADED_CONTOUR;
+			case DOUBLE_PEAK -> DOUBLE_PEAK_CONTOUR;
+			case EARLY_PEAK -> EARLY_PEAK_CONTOUR;
+			case LATE_PEAK -> LATE_PEAK_CONTOUR;
+			case BELL -> BELL_CONTOUR;
+			case PLATEAU -> PLATEAU_CONTOUR;
+			case CONTOURED -> throw new IllegalArgumentException("Unknown contour type: " + type.code());
+		};
+	}
 
 
 //	public Object clone() throws CloneNotSupportedException {

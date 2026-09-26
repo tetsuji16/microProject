@@ -25,6 +25,7 @@
 package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,6 +59,26 @@ import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskDurationTest {
+	@Test
+	void constraintKindApiKeepsPersistedCodesAndUnknownValues() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assertEquals(project.getDefaultConstraintTypeKind(), task.getConstraintTypeKind());
+
+		task.setConstraintTypeKind(ConstraintType.Kind.ALAP);
+		assertEquals(ConstraintType.Kind.ALAP, task.getConstraintTypeKind());
+		assertEquals(ConstraintType.Kind.ALAP.code(), task.getConstraintType());
+
+		task.setScheduleConstraint(ConstraintType.Kind.SNET, 0L);
+		assertEquals(ConstraintType.Kind.SNET, task.getConstraintTypeKind());
+		assertEquals(ConstraintType.Kind.SNET.code(), task.getConstraintType());
+
+		task.setScheduleConstraint(999, 0L);
+		assertNull(task.getConstraintTypeKind());
+		assertEquals(999, task.getConstraintType());
+		assertEquals(0L, task.getConstraintDate());
+	}
+
 	@Test
 	void arrangeTaskKeepsSummaryChildrenBetweenParentMarkers() {
 		Project project = createProject();

@@ -71,7 +71,7 @@ public final class ScheduleDiagnosticsService {
 				"Constraints, dependencies, or resource delays require more time than the plan permits.",
 				"Inspect predecessor links and constraints, then remove or relax the limiting condition."));
 		}
-		if (isHardConstraint(task.getConstraintType()) && !task.isInactiveTask()) {
+		if (isHardConstraint(task.getConstraintTypeKind()) && !task.isInactiveTask()) {
 			result.add(new Issue(Type.HARD_CONSTRAINT, Severity.WARNING, "Task has a date constraint",
 				"A non-flexible constraint can override normal dependency scheduling.",
 				"Use an ASAP/ALAP constraint when the date is not contractually fixed."));
@@ -126,7 +126,7 @@ public final class ScheduleDiagnosticsService {
 		WorkCalendar calendar = dependency.getEffectiveWorkCalendar();
 		long requiredDate;
 		long scheduledDate;
-		switch (DependencyType.Kind.fromCode(dependency.getDependencyType())) {
+		switch (dependency.getDependencyKind()) {
 			case FS -> {
 				requiredDate = requiredDate(calendar, predecessor.getEnd(), dependency, successor);
 				scheduledDate = successor.getStart();
@@ -153,7 +153,7 @@ public final class ScheduleDiagnosticsService {
 		return Duration.millis(lag) == 0L ? predecessorDate : calendar.add(predecessorDate, lag, successor.isMilestone());
 	}
 
-	private static boolean isHardConstraint(int type) {
-		return type != ConstraintType.ASAP && type != ConstraintType.ALAP;
+	private static boolean isHardConstraint(ConstraintType.Kind type) {
+		return type != ConstraintType.Kind.ASAP && type != ConstraintType.Kind.ALAP;
 	}
 }

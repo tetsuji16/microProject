@@ -31,7 +31,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
@@ -64,7 +63,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	transient AssociationList assignments;
 	private static final double ALMOST_ZERO = 0.00001D;
 
-	int schedulingRule = ScheduleOption.getInstance().getSchedulingRule();
+	int schedulingRule = ScheduleOption.getInstance().getSchedulingRuleKind().code();
 	boolean effortDriven = ScheduleOption.getInstance().isEffortDriven();
 
 	public HasAssignmentsImpl() {
@@ -72,7 +71,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	public boolean isReadOnlyEffortDriven(FieldContext fieldContext) {
-		return getSchedulingType() == SchedulingType.FIXED_WORK;
+		return SchedulingType.Kind.fromCode(getSchedulingType()) == SchedulingType.Kind.FIXED_WORK;
 	}
 
 	/**
@@ -89,9 +88,8 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 	public HasAssignmentsImpl(Collection<?> details) {
 		this();
-		Iterator<?> i = details.iterator();
-		while (i.hasNext()) {
-			assignments.add(new Assignment((AssignmentDetail)i.next()));
+		for (Object detail : details) {
+			assignments.add(new Assignment((AssignmentDetail) detail));
 		}
 	}
 
@@ -116,9 +114,8 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	private void setScheduleForAssignments(TaskSchedule currentSchedule) {
-		Iterator<?> i = assignments.iterator();
-		while (i.hasNext()) {
-			Assignment assignment = (Assignment)i.next();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) association;
 			assignment.setTaskSchedule(currentSchedule);
 			assignment.convertToBaselineAssignment(false);
 		}
@@ -211,9 +208,8 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	public void buildReverseQuery(ReverseQuery reverseQuery) {
-		Iterator<?> i = assignments.iterator();
-		while (i.hasNext()) {
-			Assignment assignment = (Assignment) i.next();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) association;
 			if (assignment.isDefault() && !reverseQuery.isAllowDefaultAssignments())
 				continue;
 			assignment.buildReverseQuery(reverseQuery);
@@ -262,9 +258,8 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 
 	private void collectIntervals(Object type, WorkCalendar workCalendar, IntervalVisitorCallback callback) {
 		NonGroupedCalculatedValues calculatedValues = new NonGroupedCalculatedValues(false,0);
-		ListIterator<?> i = assignments.listIterator();
-		while (i.hasNext()) {
-			Assignment assignment = (Assignment)i.next();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) association;
 			callback.setWorkCalendar(assignment.getEffectiveWorkCalendar());
 			assignment.calcDataBetween(type,null,calculatedValues);
 		}
@@ -371,17 +366,14 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	public void calcDataBetween(Object type, TimeIteratorGenerator generator, CalculatedValues values) {
-		Iterator<?> i = getAssignments().iterator();
-		while (i.hasNext()) {
-			((Assignment)i.next()).calcDataBetween(type,generator,values);
+		for (Association association : getAssignments()) {
+			((Assignment) association).calcDataBetween(type,generator,values);
 		}
 	}
 
-    public static List<Object> extractOppositeList(List<?> list, boolean leftObject) {
-		Iterator<?> i = list.iterator();
+	public static List<Object> extractOppositeList(List<?> list, boolean leftObject) {
 		ArrayList<Assignment> assignments = new ArrayList<>(list.size());
-    	while (i.hasNext()) { // go thru tasks or resources
-    		Object object = i.next();
+		for (Object object : list) { // go thru tasks or resources
 			if (! (object instanceof HasAssignments))
 				continue;
 			HasAssignments hasAssignments = (HasAssignments)object;
@@ -461,25 +453,22 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	public boolean hasLaborAssignment() {
-		Iterator<?> i = assignments.iterator();
-		while (i.hasNext()) {
-			if (((Assignment)i.next()).isLabor())
-			return true;
+		for (Association association : assignments) {
+			if (((Assignment) association).isLabor())
+				return true;
 		}
 		return false;
 	}
 
 	public void invalidateAssignmentCalendars() {
-		Iterator<?> i = assignments.iterator();
-		while (i.hasNext()) {
-			((Assignment)i.next()).invalidateAssignmentCalendar();
+		for (Association association : assignments) {
+			((Assignment) association).invalidateAssignmentCalendar();
 		}
 	}
 
 	public boolean hasActiveAssignment(long start, long end) {
-		Iterator<?> i = assignments.iterator();
-		while (i.hasNext()) {
-			Assignment assignment = (Assignment) i.next();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) association;
 			if (assignment.isActiveBetween(start, end))
 				return true;
 		}
@@ -488,17 +477,15 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 
 	public long getEarliestAssignmentStart() {
 		long result = Long.MAX_VALUE;
-		Iterator<?> i = assignments.iterator();
-		while (i.hasNext()) {
-			result = Math.min(result,((Assignment)i.next()).getStart());
+		for (Association association : assignments) {
+			result = Math.min(result, ((Assignment) association).getStart());
 		}
 		return result;
 	}
 
 	private Assignment findAssignment(AssignmentMatcher matcher) {
-		Iterator<?> i = assignments.iterator();
-		while (i.hasNext()) {
-			Assignment assignment = (Assignment) i.next();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) association;
 			if (matcher.matches(assignment))
 				return assignment;
 		}
@@ -506,9 +493,8 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	private void copyAssignments(Collection sourceAssignments, AssignmentFactory factory) {
-		Iterator<?> i = sourceAssignments.iterator();
-		while (i.hasNext()) {
-			assignments.add(factory.create((Assignment) i.next()));
+		for (Object sourceAssignment : sourceAssignments) {
+			assignments.add(factory.create((Assignment) sourceAssignment));
 		}
 	}
 

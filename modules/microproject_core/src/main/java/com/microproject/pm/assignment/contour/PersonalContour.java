@@ -52,7 +52,7 @@ public class PersonalContour extends AbstractContour {
 	}
 	
 	public int getType() {
-		return ContourTypes.CONTOURED;
+		return ContourTypes.Kind.CONTOURED.code();
 	}
 	private PersonalContour(AbstractContourBucket contourBuckets[]) {
 		super(contourBuckets);
@@ -617,5 +617,3 @@ public class PersonalContour extends AbstractContour {
 		return super.clone();
 	}
 }
-
-

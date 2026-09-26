@@ -470,7 +470,7 @@ class MpoFileImporterTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("shared-pool", undo);
 		Resource resource = pool.newResourceInstance();
-		((com.microproject.pm.resource.ResourceImpl) resource).setResourceType(ResourceType.WORK);
+		resource.setResourceTypeKind(ResourceType.Kind.WORK);
 		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(88001L);
 		Project poolProject = Project.createProject(pool, undo);
 		File poolFile = File.createTempFile("mpo-shared-pool-", ".mpo");

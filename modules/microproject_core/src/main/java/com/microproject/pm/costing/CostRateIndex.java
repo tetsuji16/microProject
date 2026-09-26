@@ -27,9 +27,28 @@ package com.microproject.pm.costing;
  * @stereotype enumeration
  */
 public interface CostRateIndex { // note that id's are same as mpx
-	public static final int A = 0;
-	public static final int B = 1;
-	public static final int C = 2;
-	public static final int D = 3;
-	public static final int E = 4;
+	enum Kind {
+		A(0), B(1), C(2), D(3), E(4);
+		private final int code;
+		Kind(int code) { this.code = code; }
+		public int code() { return code; }
+		public static Kind fromCode(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			throw new IllegalArgumentException("Unknown cost-rate index: " + code);
+		}
+		public static Kind fromCodeOrNull(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			return null;
+		}
+	}
+	/** @deprecated use {@link Kind#A} at typed boundaries. */
+	@Deprecated int A = Kind.A.code();
+	/** @deprecated use {@link Kind#B} at typed boundaries. */
+	@Deprecated int B = Kind.B.code();
+	/** @deprecated use {@link Kind#C} at typed boundaries. */
+	@Deprecated int C = Kind.C.code();
+	/** @deprecated use {@link Kind#D} at typed boundaries. */
+	@Deprecated int D = Kind.D.code();
+	/** @deprecated use {@link Kind#E} at typed boundaries. */
+	@Deprecated int E = Kind.E.code();
 }

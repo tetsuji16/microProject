@@ -69,6 +69,7 @@ import com.microproject.pm.assignment.contour.AbstractContour;
 import com.microproject.pm.assignment.contour.AbstractContourBucket;
 import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
 import com.microproject.pm.assignment.contour.ContourFactory;
+import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.pm.assignment.contour.PersonalContour;
 import com.microproject.pm.assignment.functor.AssignmentFieldClosureCollection;
 import com.microproject.pm.assignment.functor.AssignmentFieldFunctor;
@@ -94,6 +95,7 @@ import com.microproject.pm.costing.EarnedValueCalculator;
 import com.microproject.pm.costing.EarnedValueFields;
 import com.microproject.pm.costing.EarnedValueValues;
 import com.microproject.pm.costing.HasCostRateIndex;
+import com.microproject.pm.costing.CostRateIndex;
 import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.key.HasKey;
 import com.microproject.pm.key.HasKeyImpl;
@@ -137,9 +139,9 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 	private transient Date cachedStart = null;
 	private transient Date cachedEnd = null;
-	private transient int timesheetStatus = TimesheetStatus.NO_DATA;
+	private transient int timesheetStatus = TimesheetStatus.Kind.NO_DATA.code();
 	private transient long lastTimesheetUpdate = 0;
-	private transient int workflowState = AssignmentWorkflowState.NEW;
+	private transient int workflowState = AssignmentWorkflowState.Kind.NEW.mask();
 	private transient boolean timesheetAssignment = false;
 	private transient TimeFacade timeFacade = new TimeFacade();
 	private transient CostFacade costFacade = new CostFacade();
@@ -230,10 +232,14 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		detail.setStart(start);
 	}
 
+	/** @deprecated use {@link #getRequestDemandKind()} for domain logic. */
+	@Deprecated
 	public int getRequestDemandType() {
 		return detail.getRequestDemandType();
 	}
 
+	/** @deprecated use {@link #setRequestDemandKind(RequestDemandType.Kind)} for domain logic. */
+	@Deprecated
 	public void setRequestDemandType(int requestDemandType) {
 		newDetail().setRequestDemandType(requestDemandType);
 	}
@@ -253,7 +259,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			Resource resource,
 			double units,
 			long delay) {
-		detail = new AssignmentDetail(task,resource,units,RequestDemandType.NONE,delay);
+		detail = new AssignmentDetail(task,resource,units,RequestDemandType.Kind.NONE.code(),delay);
 	}
 
 	/**
@@ -603,14 +609,15 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			// if prorated, or if calculating a total, then treat as prorated
 			if (all || prorated) {
 				ContourBucketIntervalGenerator workContour = contourGeneratorInstance(WORK);
-				CollectionIntervalGenerator costRate = CollectionIntervalGenerator.getInstance(detail.getResource().getCostRateTable(detail.getCostRateIndex()).getList());
+			CollectionIntervalGenerator costRate = CollectionIntervalGenerator.getInstance(detail.getResource().getCostRateTable(detail.getCostRateIndexKind()).getList());
 				clause.from(costRate).from(workContour);
 				// Note that the getStart() parameter implies cost per use is applied at start
 				CostFunctor costF = CostFunctor.getInstance(this, getEffectiveWorkCalendar(), workContour, detail.calcOvertimeUnits(), costRate, getStart(),prorated);
 				clause.select(costF);
 				return costF;
 			} else { // accrue start or end
-				long triggerDate = (detail.getResource().getAccrueAt() == Accrual.Kind.START.code()) ? getStart() : getFinish();// use start or end
+				Accrual.Kind accrueAt = Accrual.Kind.fromCodeOrNull(detail.getResource().getAccrueAt());
+				long triggerDate = accrueAt == Accrual.Kind.START ? getStart() : getFinish();// use start or end
 				AssignmentFieldFunctor constantCost = ValueAtInstant.getInstance(triggerDate, calcAll(COST));
 				clause.select(constantCost).from(InstantIntervalGenerator.getInstance(triggerDate)); // just one instant
 				return constantCost;
@@ -619,7 +626,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	public boolean isProratedCost() {
-		return detail.getResource().getAccrueAt() == Accrual.Kind.PRORATED.code();
+		return Accrual.Kind.fromCodeOrNull(detail.getResource().getAccrueAt()) == Accrual.Kind.PRORATED;
 	}
 
 	public AssignmentFieldFunctor getDataSelect(Object type, SelectFrom clause, boolean all) {
@@ -998,12 +1005,21 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public void addCalendarTime(long start, long end) {
 		timeFacade.addCalendarTime(start, end);
 	}
+	/** @deprecated use {@link #getWorkContourTypeKind()} for typed access. */
+	@Deprecated
 	public int getWorkContourType() {
 		return contourFacade.getWorkContourType();
 	}
+	public ContourTypes.Kind getWorkContourTypeKind() {
+		return contourFacade.getWorkContourTypeKind();
+	}
 
-
+	/** @deprecated use {@link #setWorkContourTypeKind(ContourTypes.Kind)} for typed access. */
+	@Deprecated
 	public void setWorkContourType(int workContourType) {
+		contourFacade.setWorkContourType(workContourType);
+	}
+	public void setWorkContourTypeKind(ContourTypes.Kind workContourType) {
 		contourFacade.setWorkContourType(workContourType);
 	}
 	public final double getRemainingUnits() {
@@ -1823,7 +1839,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			if (getPercentComplete() > 0)
 				makeContourPersonal();
 			detail.adjustRemainingUnits(rate.getValue());
-			if (getTaskSchedulingType() != SchedulingType.FIXED_DURATION)
+			if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) != SchedulingType.Kind.FIXED_DURATION)
 				detail.adjustRemainingDuration((long) (oldRemaining / multiplier));
 		}
 		detail.setRate(rate);
@@ -1905,8 +1921,14 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			return ts.timesheetStatus;
 		return timesheetStatus;
 	}
+	public final TimesheetStatus.Kind getTimesheetStatusKind() {
+		return TimesheetStatus.Kind.fromCodeOrNull(getTimesheetStatus());
+	}
 	public final void setTimesheetStatus(int timesheetStatus) {
 		this.timesheetStatus = timesheetStatus;
+	}
+	public final void setTimesheetStatus(TimesheetStatus.Kind timesheetStatus) {
+		this.timesheetStatus = java.util.Objects.requireNonNull(timesheetStatus, "timesheetStatus").code();
 	}
 	public final long getLastTimesheetUpdate() {
 		return lastTimesheetUpdate;
@@ -1915,10 +1937,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		this.lastTimesheetUpdate = lastTimesheetUpdate;;
 	}
 	public boolean isPendingTimesheetUpdate() {
-		return (getTimesheetStatus() == TimesheetStatus.VALIDATED);
+		return (getTimesheetStatusKind() == TimesheetStatus.Kind.VALIDATED);
 	}
 	public String getTimesheetStatusName() {
-		return TimesheetHelper.getTimesheetStatusName(getTimesheetStatus());
+		return TimesheetHelper.getStatusName(getTimesheetStatusKind());
 	}
 
 	public final boolean isTimesheetAssignment() {
@@ -1943,17 +1965,17 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	public boolean isTimesheetEditable() {
-		return isTimesheetStatusNot(TimesheetStatus.INTEGRATED);
+		return isTimesheetStatusNot(TimesheetStatus.Kind.INTEGRATED);
 	}
 
 	public boolean isTimesheetEntered() {
-		return isTimesheetStatusNot(TimesheetStatus.ENTERED);
+		return isTimesheetStatusNot(TimesheetStatus.Kind.ENTERED);
 	}
 	public boolean isTimesheetValidated() {
-		return isTimesheetStatusNot(TimesheetStatus.VALIDATED);
+		return isTimesheetStatusNot(TimesheetStatus.Kind.VALIDATED);
 	}
 	public boolean isTimesheetRejected() {
-		return isTimesheetStatusNot(TimesheetStatus.REJECTED);
+		return isTimesheetStatusNot(TimesheetStatus.Kind.REJECTED);
 	}
 
 	public boolean copyFieldsFromTimesheet(Collection fieldArray) {
@@ -1964,7 +1986,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return true;
 	}
 
-	public boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate) {
+	public boolean applyTimesheet(Collection<?> fieldArray, long timesheetUpdateDate) {
 		boolean updated = copyFieldsFromTimesheet(fieldArray);
 		if (updated) {
 			integrateTimesheetUpdate(timesheetUpdateDate);
@@ -1974,21 +1996,21 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 	private void integrateTimesheetUpdate(long timesheetUpdateDate) {
 		Assignment ts = getTimesheetAssignment();
-		setTimesheetStatus(TimesheetStatus.INTEGRATED);
+		setTimesheetStatus(TimesheetStatus.Kind.INTEGRATED);
 		lastTimesheetUpdate = timesheetUpdateDate;
-		ts.setTimesheetStatus(TimesheetStatus.INTEGRATED);
+		ts.setTimesheetStatus(TimesheetStatus.Kind.INTEGRATED);
 		ts.lastTimesheetUpdate = timesheetUpdateDate;
 	}
 
-	private boolean isTimesheetStatusNot(int expectedStatus) {
-		return getTimesheetStatus() != expectedStatus;
+	private boolean isTimesheetStatusNot(TimesheetStatus.Kind expectedStatus) {
+		return getTimesheetStatusKind() != expectedStatus;
 	}
 
 	private boolean isValidatedTimesheetAssignment(Assignment assignment) {
-		return assignment != null && assignment.getTimesheetStatus() == TimesheetStatus.VALIDATED;
+		return assignment != null && assignment.getTimesheetStatusKind() == TimesheetStatus.Kind.VALIDATED;
 	}
 	public String getTimesheetStatusStyle() { // used for display style in web
-		return TimesheetHelper.getTimesheetStatusStyle(getTimesheetStatus());
+		return TimesheetHelper.getTimesheetStatusStyle(getTimesheetStatusKind());
 	}
 
 	private transient boolean dirty=true;
@@ -2028,9 +2050,17 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return workflowState;
 	}
 
+	public final java.util.EnumSet<AssignmentWorkflowState.Kind> getWorkflowStateKinds() {
+		return AssignmentWorkflowState.kindsFromMask(workflowState);
+	}
+
 
 	public final void setWorkflowState(int workflowState) {
 		this.workflowState = workflowState;
+	}
+
+	public final void setWorkflowStateKinds(java.util.Set<AssignmentWorkflowState.Kind> workflowStateKinds) {
+		this.workflowState = AssignmentWorkflowState.maskFromKinds(workflowStateKinds);
 	}
 
 	public void setTaskAndResource(Task task, Resource resource) {
@@ -2126,8 +2156,18 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
     	return detail.getCostRateIndex();
     }
 
+    @Override
+    public CostRateIndex.Kind getCostRateIndexKind() {
+		return detail.getCostRateIndexKind();
+    }
+
     public void setCostRateIndex(int val) {
-    	newDetail().setCostRateIndex(val);
+		newDetail().setCostRateIndex(val);
+    }
+
+    @Override
+    public void setCostRateIndex(CostRateIndex.Kind val) {
+		newDetail().setCostRateIndex(val);
     }
 
     public String getUniqueIdString() {
@@ -2200,9 +2240,9 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 				if (currentRemainingWork == 0 && remainingWork == 0)
 					adjustRemainingUnits(0, 0, true, false);
 				else {
-					if (getTaskSchedulingType() == SchedulingType.FIXED_UNITS)
+					if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) == SchedulingType.Kind.FIXED_UNITS)
 						adjustRemainingDuration(remainingWork, false);
-					else if (getTaskSchedulingType() == SchedulingType.FIXED_DURATION && currentRemainingWork > 0)
+					else if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) == SchedulingType.Kind.FIXED_DURATION && currentRemainingWork > 0)
 						adjustRemainingWork(((double) remainingWork) / currentRemainingWork, true);
 					else
 						newDetail().adjustRemainingDuration(remainingWork);
@@ -2330,7 +2370,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 					if (!getWorkContour().isPersonal())
 						makeContourPersonal();
 					newDetail().setWorkContour(PersonalContour.addEmptyBucket(getWorkContour(), shiftAmount, false));
-					getTask().setScheduleConstraintAndUpdate(ConstraintType.SNLT, start);
+					getTask().setScheduleConstraintAndUpdate(ConstraintType.Kind.SNLT, start);
 					taskStart = getTask().getStart();
 				}
 				assignmentStart = taskStart;
@@ -2479,10 +2519,18 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		}
 
 		int getWorkContourType() {
-			return getWorkContour().getType();
+			return getWorkContourTypeKind().code();
+		}
+
+		ContourTypes.Kind getWorkContourTypeKind() {
+			return getWorkContour().getTypeKind();
 		}
 
 		void setWorkContourType(int workContourType) {
+			newDetail().setWorkContour(ContourFactory.getInstance(ContourTypes.Kind.fromCode(workContourType)));
+		}
+
+		void setWorkContourType(ContourTypes.Kind workContourType) {
 			newDetail().setWorkContour(ContourFactory.getInstance(workContourType));
 		}
 	}

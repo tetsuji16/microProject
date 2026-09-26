@@ -69,6 +69,7 @@ import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.TimeDistributedFields;
 import com.microproject.pm.assignment.timesheet.TimesheetHelper;
+import com.microproject.pm.assignment.timesheet.TimesheetStatus;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.costing.Accrual;
@@ -136,7 +137,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 *
 	 */
 	void initializeDates() {
-		setRawConstraintType(project == null ? ConstraintType.ASAP : project.getDefaultConstraintType());
+		setRawConstraintType(project == null ? ConstraintType.Kind.ASAP : project.getDefaultConstraintTypeKind());
 		long duration = CalendarOption.getInstance().getDefaultDuration(); //MS uses 1 day estimated
 		setRawDuration(duration);
 		setWorkCalendar(null);
@@ -188,12 +189,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (isComplete() || isInactiveTask())
 			return false;
 
-		int constraintType = getConstraintType();
-		if (constraintType == ConstraintType.MSO || constraintType == ConstraintType.MFO)
+		ConstraintType.Kind constraintType = getConstraintTypeKind();
+		if (constraintType == ConstraintType.Kind.MSO || constraintType == ConstraintType.Kind.MFO)
 			return true;
-		if (currentSchedule.isForward() && constraintType == ConstraintType.ALAP)
+		if (currentSchedule.isForward() && constraintType == ConstraintType.Kind.ALAP)
 			return true;
-		if (!currentSchedule.isForward() && constraintType == ConstraintType.ASAP)
+		if (!currentSchedule.isForward() && constraintType == ConstraintType.Kind.ASAP)
 			return true;
 		if (getDeadline() != 0L && getEnd() >= getDeadline())
 			return true;
@@ -346,12 +347,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	private boolean isFinishAnchored() {
-		int constraintType = getConstraintType();
+		ConstraintType.Kind constraintType = getConstraintTypeKind();
 		return !getCurrentSchedule().isForward()
-			|| constraintType == ConstraintType.ALAP
-			|| constraintType == ConstraintType.MFO
-			|| constraintType == ConstraintType.FNET
-			|| constraintType == ConstraintType.FNLT;
+			|| constraintType == ConstraintType.Kind.ALAP
+			|| constraintType == ConstraintType.Kind.MFO
+			|| constraintType == ConstraintType.Kind.FNET
+			|| constraintType == ConstraintType.Kind.FNLT;
 	}
 
 /********************************************************************************
@@ -523,7 +524,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		// if effort driven then set duration
 		if (recalculateDuration && isEffortDriven()) {
 			if (assignedRate != 0) {//
-				if (getSchedulingType() == SchedulingType.FIXED_DURATION) // fixed duration effort driven has complicated rule - a new assignment is weighted the same as the most loaded assignment, unless that assignment is over 100%
+				if (SchedulingType.Kind.fromCode(getSchedulingType()) == SchedulingType.Kind.FIXED_DURATION) // fixed duration effort driven has complicated rule - a new assignment is weighted the same as the most loaded assignment, unless that assignment is over 100%
 					assignment.adjustRemainingUnits(Math.min(1.0,mostLoadedAssignmentUnits), 1, false, false);
 				double newRemainingUnits = assignedRate + assignment.getRemainingLaborUnits();
 
@@ -629,6 +630,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	public void setSchedulingType(int schedulingType) {
 		((TaskSnapshot) getCurrentSnapshot()).setSchedulingType(schedulingType);
+	}
+
+	public void setSchedulingType(SchedulingType.Kind schedulingType) {
+		setSchedulingType(java.util.Objects.requireNonNull(schedulingType, "schedulingType").code());
 	}
 
 	public boolean isEffortDriven() {
@@ -1063,7 +1068,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @return scheduling rule to use in adjust...() calculations
 	 */
 	public SchedulingRule getSchedulingRule() {
-		return SchedulingType.getSchedulingRuleInstance(getSchedulingType());
+		return SchedulingType.getSchedulingRuleInstance(SchedulingType.Kind.fromCode(getSchedulingType()));
 
 	}
 
@@ -1755,13 +1760,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
  *  Useful for drawing bars
  */
 	public long getTotalSlackStart() {
-		return (getConstraintType() == ConstraintType.ALAP) ? getEarlyStart() : getEarlyFinish();
+		return (getConstraintTypeKind() == ConstraintType.Kind.ALAP) ? getEarlyStart() : getEarlyFinish();
 
 	}
 /**
  *  Useful for drawing bars
  */	public long getTotalSlackEnd() {
-		return (getConstraintType() == ConstraintType.ALAP) ? getLateStart() : getLateFinish();
+		return (getConstraintTypeKind() == ConstraintType.Kind.ALAP) ? getLateStart() : getLateFinish();
 	}
 
 	/**
@@ -2205,7 +2210,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		ScheduleUtil.setComplete(this,complete);
 	}
 
-	public boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate) {
+	public boolean applyTimesheet(Collection<?> fieldArray, long timesheetUpdateDate) {
 		return TimesheetHelper.applyTimesheet(getAssignments(),fieldArray,timesheetUpdateDate);
 	}
 
@@ -2220,9 +2225,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public int getTimesheetStatus() {
 		return TimesheetHelper.getTimesheetStatus(getAssignments());
 	}
+	public TimesheetStatus.Kind getTimesheetStatusKind() {
+		return TimesheetHelper.getTimesheetStatusKind(getAssignments());
+	}
 
 	public String getTimesheetStatusName() {
-		return TimesheetHelper.getTimesheetStatusName(getTimesheetStatus());
+		return TimesheetHelper.getStatusName(getTimesheetStatusKind());
 	}
 
 	public final long getEarliestStop() {
@@ -2318,7 +2326,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (snapshot == getCurrentSnapshot()) {
 			currentSchedule = snapshot.getCurrentSchedule();
 			if (currentSchedule != null) {
-				currentSchedule.initSerialized(this,TaskSchedule.CURRENT);
+				currentSchedule.initSerialized(this,TaskSchedule.Kind.CURRENT);
 			}
 		}
 		if (!isChild) recalculate(source); //to send update event

@@ -115,7 +115,7 @@ public class DependencyFormat extends AssociationFormat {
 		boolean hasLag = !Duration.isZero(dependency.getLag());
 
 		StringBuilder details = new StringBuilder();
-		if (!DependencyType.isDefault(dependency.getDependencyType()) || hasLag)
+		if (!DependencyType.isDefault(dependency.getDependencyKind()) || hasLag)
 			details.append(DependencyType.mapValueToString( Integer.valueOf(dependency.getDependencyType())));
 
 		Duration duration = new Duration(dependency.getLag()); // use duration format to format duration

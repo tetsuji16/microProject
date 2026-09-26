@@ -98,6 +98,7 @@ import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.assignment.TimeDistributedDataConsolidator;
 import com.microproject.pm.assignment.TimeDistributedFields;
 import com.microproject.pm.assignment.timesheet.TimesheetHelper;
+import com.microproject.pm.assignment.timesheet.TimesheetStatus;
 import com.microproject.pm.assignment.timesheet.UpdatesFromTimesheet;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.HasBaseCalendar;
@@ -196,8 +197,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private boolean sharedResourcePoolUnresolved;
 	/** MSP-compatible conflict policy: true means the resource pool wins. */
 	private boolean resourcePoolTakesPrecedence = true;
-	transient int projectStatus = ProjectStatus.PLANNING; // exposed in database
-	transient int projectType = ProjectType.OTHER; // exposed in database
+	transient int projectStatus = ProjectStatus.Kind.PLANNING.code(); // exposed in database
+	transient int projectType = ProjectType.Kind.OTHER.code(); // exposed in database
 	transient int expenseType = ExpenseType.Kind.NONE.code();// exposed in database
 	transient String group;// exposed in database
 	transient String division;// exposed in database
@@ -716,14 +717,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * @param project
 	 * @return
 	 */
-	public static Task findTaskById(Object idObject, Collection taskList) {
+	public static Task findTaskById(Object idObject, Collection<?> taskList) {
 		return findTaskById(taskList, ((Number)idObject).intValue());
 	}
 	public Task findByUniqueId(long id) {
 		return findTaskByUniqueId(getTaskOutlineIterator(), id);
 	}
 
-	private static Task findTaskById(Collection taskList, int id) {
+	private static Task findTaskById(Collection<?> taskList, int id) {
 		for (Object taskObject : taskList) {
 			Task task = (Task) taskObject;
 			if (task.getId() == id) {
@@ -857,7 +858,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			if (listeners[i] == ProjectListener.class) {
 				if (e == null) {
 					e = new ProjectEvent(source,
-							ProjectEvent.NAME_CHANGED, this,oldName);
+							ProjectEvent.Kind.NAME_CHANGED, this,oldName);
 				}
 				((ProjectListener) listeners[i + 1]).nameChanged(e);
 
@@ -871,7 +872,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			if (listeners[i] == ProjectListener.class) {
 				if (e == null) {
 					e = new ProjectEvent(source,
-							ProjectEvent.GROUP_DIRTY_CHANGED, this,Boolean.valueOf(oldName));
+							ProjectEvent.Kind.GROUP_DIRTY_CHANGED, this,Boolean.valueOf(oldName));
 				}
 				((ProjectListener) listeners[i + 1]).groupDirtyChanged(e);
 
@@ -928,7 +929,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 
 
-	public void saveCurrentToSnapshot(Object snapshotId, boolean entireProject, List selection, boolean undo) {
+	public void saveCurrentToSnapshot(Object snapshotId, boolean entireProject, List<?> selection, boolean undo) {
 		if (entireProject) forTasks(new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
 
@@ -943,13 +944,13 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	}
 
-	public void restoreSnapshot(Object snapshotId, boolean entireProject, List selection, Collection snapshotDetails) {
-		Iterator i = getSnapshotIterator(entireProject, selection);
+	public void restoreSnapshot(Object snapshotId, boolean entireProject, List<?> selection, Collection<?> snapshotDetails) {
+		Iterator<?> i = getSnapshotIterator(entireProject, selection);
 		if (i == null) {
 			return;
 		}
 
-		Iterator j=snapshotDetails.iterator();
+		Iterator<?> j=snapshotDetails.iterator();
 		while (i.hasNext()){
 			NormalTask t=(NormalTask)i.next();
 			t.restoreSnapshot(snapshotId,j.next());
@@ -957,11 +958,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		fireSnapshotBaselineChanged(snapshotId, true);
 	}
 
-	public void clearSnapshot(final Object snapshotId, boolean entireProject, List selection, boolean undo) {
-		Iterator i = getSnapshotIterator(entireProject, selection);
+	public void clearSnapshot(final Object snapshotId, boolean entireProject, List<?> selection, boolean undo) {
+		Iterator<?> i = getSnapshotIterator(entireProject, selection);
 
 		final boolean[] foundSnapshot = new boolean[1]; // no undo edit if there is no snapshot
-		final Collection snapshotDetails = undo ? collectSnapshotDetails(snapshotId, i, foundSnapshot) : null;
+		final Collection<?> snapshotDetails = undo ? collectSnapshotDetails(snapshotId, i, foundSnapshot) : null;
 
 		if (entireProject) forTasks(new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
@@ -976,11 +977,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	}
 
-	private Collection collectSnapshotDetails(Object snapshotId, Iterator tasks, boolean[] foundSnapshot) {
+	private Collection<?> collectSnapshotDetails(Object snapshotId, Iterator<?> tasks, boolean[] foundSnapshot) {
 		if (tasks == null || !tasks.hasNext()) {
 			return null;
 		}
-		Collection snapshotDetails = new ArrayList();
+		Collection<TaskBackup> snapshotDetails = new ArrayList<>();
 		while (tasks.hasNext()) {
 			NormalTask task = (NormalTask) tasks.next();
 			TaskBackup taskBackup = (TaskBackup) task.backupDetail(snapshotId);
@@ -992,7 +993,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return snapshotDetails;
 	}
 
-	private Iterator getSnapshotIterator(boolean entireProject, List selection) {
+	private Iterator<?> getSnapshotIterator(boolean entireProject, List selection) {
 		if (entireProject) {
 			return getTaskOutlineIterator();
 		}
@@ -1130,9 +1131,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	private boolean isBaselineFieldHidden(int numBaseline, FieldContext fieldContext) {
 		boolean foundChild = false;
-		Iterator i = childrenToRollup().iterator();
-		while (i.hasNext()) {
-			Object child = i.next();
+		for (Object child : childrenToRollup()) {
 			if (!(child instanceof TimeDistributedFields)) {
 				continue;
 			}
@@ -1367,10 +1366,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
         return roots;
     }
 
-    public void dump(Collection tasks,String indent){
+    public void dump(Collection<?> tasks,String indent){
         if (tasks!=null)
-        for (Iterator i=tasks.iterator();i.hasNext();){
-            Node node=(Node)i.next();
+        for (Object candidate : tasks){
+            Node node=(Node)candidate;
             Task task=(Task)node.getImpl();
             logger.fine(indent + task.getWbsParentTask() + "->" + task);
             dump(task.getWbsChildrenNodes(),indent+"-");
@@ -1596,11 +1595,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 
 		if (!justSaved && repaired != null) {
-		    Iterator<Task> i = repaired.iterator();
-		    while (i.hasNext()) {
-		    	NormalTask t = (NormalTask)i.next();
-		    	t.setTaskAssignementAndPredsDirty();
-		    }
+			for (Task repairedTask : repaired) {
+				NormalTask task = (NormalTask) repairedTask;
+				task.setTaskAssignementAndPredsDirty();
+			}
 		    repaired = null;
 		}
 	}
@@ -1637,11 +1635,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		}
 	}
 
-	int getDefaultConstraintType(){
-		if (isForward())
-			return ConstraintType.ASAP;
-		else
-			return ConstraintType.ALAP;
+	ConstraintType.Kind getDefaultConstraintTypeKind(){
+		return isForward() ? ConstraintType.Kind.ASAP : ConstraintType.Kind.ALAP;
 	}
 	public WorkCalendar getDefaultCalendar() {
 		return getWorkCalendar();
@@ -1941,10 +1936,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return !(temporaryLocal||isLocal());
 	}
 
-	public boolean applyTimesheet(Collection fieldArray) {
+	public boolean applyTimesheet(Collection<?> fieldArray) {
 		return applyTimesheet(fieldArray,System.currentTimeMillis());
 	}
-	public boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate) {
+	public boolean applyTimesheet(Collection<?> fieldArray, long timesheetUpdateDate) {
 		return TimesheetHelper.applyTimesheet(getTaskList(),fieldArray,timesheetUpdateDate);
 	}
 	public long getLastTimesheetUpdate() {
@@ -1958,8 +1953,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public int getTimesheetStatus() {
 		return TimesheetHelper.getTimesheetStatus(getTaskList());
 	}
+	public TimesheetStatus.Kind getTimesheetStatusKind() {
+		return TimesheetHelper.getTimesheetStatusKind(getTaskList());
+	}
 	public String getTimesheetStatusName() {
-		return TimesheetHelper.getTimesheetStatusName(getTimesheetStatus());
+		return TimesheetHelper.getStatusName(getTimesheetStatusKind());
 	}
 
 	public void rollbackUnvalidated(NodeModel nodeModel, Object object) {
@@ -2090,22 +2088,37 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		this.risk = risk;
 	}
 
+	/** @deprecated use {@link #getProjectTypeKind()} for typed access. */
+	@Deprecated
 	public int getProjectType() {
 		return projectType;
 	}
 
+	/** @deprecated use {@link #setProjectTypeKind(ProjectType.Kind)} for typed access. */
+	@Deprecated
 	public void setProjectType(int projectType) {
 		this.projectType = projectType;
 	}
 
+	/** @deprecated use {@link #getExpenseKind()} for domain logic. */
+	@Deprecated
 	public int getExpenseType() {
 		return expenseType;
 	}
 
+	/** @deprecated use {@link #setExpenseKind(ExpenseType.Kind)} for domain logic. */
+	@Deprecated
 	public void setExpenseType(int budgetType) {
 		this.expenseType = budgetType;
 	}
 
+	@Override
+	public ExpenseType.Kind getEffectiveExpenseKind() {
+		return getExpenseKind();
+	}
+
+	/** @deprecated use {@link #getEffectiveExpenseKind()} for typed access. */
+	@Deprecated
 	public int getEffectiveExpenseType() {
 		return getExpenseType();
 	}
@@ -2126,10 +2139,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		this.group = group;
 	}
 
+	/** @deprecated use {@link #getProjectStatusKind()} for typed access. */
+	@Deprecated
 	public int getProjectStatus() {
 		return projectStatus;
 	}
 
+	/** @deprecated use {@link #setProjectStatusKind(ProjectStatus.Kind)} for typed access. */
+	@Deprecated
 	public void setProjectStatus(int projectStatus) {
 		this.projectStatus = projectStatus;
 	}
@@ -2413,7 +2430,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public class Workspace implements WorkspaceSetting {
 		private static final long serialVersionUID = 6909144693873463556L;
 		WorkspaceSetting spreadsheetWorkspace;
-		HashMap fieldAliasMap = new HashMap();
+		HashMap<String, String> fieldAliasMap = new HashMap<>();
 		PrintSettings printSettings;
 		CalendarOption calendarOption;
 
@@ -2572,9 +2589,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
     	TreeMap<DistributionData, DistributionData> distMap=new TreeMap<DistributionData, DistributionData>(new DistributionComparator());
     	setDistributionMap(distMap);
     	long projectId=getUniqueId();
-	    for (Iterator i=dist.iterator();i.hasNext();){
-	    	DistributionData d=(DistributionData)i.next();
-	    	if (d.getProjectId()==projectId) distMap.put(d,d);
+		for (Object candidate : dist){
+			DistributionData d=(DistributionData)candidate;
+			if (d.getProjectId()==projectId) distMap.put(d,d);
 	    }
 	    logger.info("DistributionMap: " + dist.size() + " elements, updated in " + (System.currentTimeMillis() - t) + " ms");
     }
@@ -2700,8 +2717,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			NormalTask task;
 			long result = Long.MAX_VALUE;
 			long val;
-			for (Iterator i = tasks.iterator(); i.hasNext();) {
-				task = (NormalTask) i.next();
+			for (Task candidate : tasks) {
+				task = (NormalTask) candidate;
 				val = task.getBaselineStart(numBaseline);
 				if (val != 0 && val < result) {
 					result = val;
@@ -2717,8 +2734,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			NormalTask task;
 			long result = 0;
 			long val;
-			for (Iterator i = tasks.iterator(); i.hasNext();) {
-				task = (NormalTask) i.next();
+			for (Task candidate : tasks) {
+				task = (NormalTask) candidate;
 				val = task.getBaselineFinish(numBaseline);
 				if (val > result) {
 					result = val;
@@ -2859,8 +2876,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		private static final long serialVersionUID = 1L;
 		long getActualStart() {
 			long result = Long.MAX_VALUE;
-			for (Iterator i = tasks.iterator(); i.hasNext();) {
-				Task task = (Task) i.next();
+			for (Task task : tasks) {
 				long actualStart = task.getActualStart();
 				if (actualStart != 0 && actualStart < result) {
 					result = actualStart;
@@ -2871,8 +2887,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 		long getActualFinish() {
 			long result = 0;
-			for (Iterator i = tasks.iterator(); i.hasNext();) {
-				Task task = (Task) i.next();
+			for (Task task : tasks) {
 				long actualFinish = task.getActualFinish();
 				if (actualFinish == 0) {
 					break;
@@ -2886,8 +2901,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 		long getStop() {
 			long result = 0;
-			for (Iterator i = tasks.iterator(); i.hasNext();) {
-				Task task = (Task) i.next();
+			for (Task task : tasks) {
 				long stop = task.getStop();
 				if (stop == 0) {
 					return 0;
@@ -2901,8 +2915,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 		long getEarliestStop() {
 			long result = Long.MAX_VALUE;
-			for (Iterator i = tasks.iterator(); i.hasNext();) {
-				Task task = (Task) i.next();
+			for (Task task : tasks) {
 				long earliestStop = task.getEarliestStop();
 				if (earliestStop < result) {
 					result = earliestStop;
@@ -2917,8 +2930,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		double getPercentComplete() {
 			long actual = 0L;
 			long total = 0L;
-			for (Iterator i = tasks.iterator(); i.hasNext();) {
-				Task task = (Task) i.next();
+			for (Task task : tasks) {
 				actual += Duration.millis(task.getActualDuration());
 				total += Duration.millis(task.getDuration());
 			}

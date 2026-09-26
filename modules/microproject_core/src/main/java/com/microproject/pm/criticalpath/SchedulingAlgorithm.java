@@ -39,6 +39,9 @@ public interface SchedulingAlgorithm extends ObjectEvent.Listener, HasSentinels,
 	 * @return ConstraintType.ALAP or ConstraintType.ASAP
 	 */
 	public int getDefaultTaskConstraintType();
+	default com.microproject.pm.scheduling.ConstraintType.Kind getDefaultTaskConstraintKind() {
+		return com.microproject.pm.scheduling.ConstraintType.Kind.fromCode(getDefaultTaskConstraintType());
+	}
 	public void calculate(boolean update);
 	/**
 	 * @param project

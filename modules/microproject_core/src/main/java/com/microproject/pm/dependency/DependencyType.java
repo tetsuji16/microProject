@@ -54,7 +54,7 @@ public class DependencyType {
     /** @deprecated use {@link Kind} at new API boundaries. */
     @Deprecated public static final int SS = 3;
     
-    public static final Integer defaultValue = Integer.valueOf(FS);
+	public static final Integer defaultValue = Integer.valueOf(Kind.FS.code());
     private static Field dependencyFieldInstance = null;
     private static Field getDependencyField() {
     	if (dependencyFieldInstance == null)
@@ -76,10 +76,18 @@ public class DependencyType {
 	public static boolean isDefault(int value) {
 		return value == defaultValue.intValue();
 	}
+
+	public static boolean isDefault(Kind value) {
+		return value == Kind.FS;
+	}
 	
 	//any better way?
 	public static String toLongString(int type){
-	    switch (Kind.fromCode(type)) {
+		return toLongString(Kind.fromCode(type));
+	}
+
+	public static String toLongString(Kind type){
+	    switch (type) {
         case FF:
             return Messages.getString("DependencyType.longFF");
         case SF:
@@ -89,7 +97,7 @@ public class DependencyType {
         case SS:
             return Messages.getString("DependencyType.longSS");
         default:
-            throw new IllegalArgumentException("Unknown dependency type: " + type);
+	            throw new IllegalArgumentException("Unknown dependency type: " + type);
         }
 	}
 	

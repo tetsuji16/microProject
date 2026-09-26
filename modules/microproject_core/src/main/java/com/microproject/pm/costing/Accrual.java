@@ -36,6 +36,11 @@ public class Accrual {
 			for (Kind value : values()) if (value.code == code) return value;
 			throw new IllegalArgumentException("Unknown accrual: " + code);
 		}
+		/** Returns {@code null} for a persisted code unknown to this version. */
+		public static Kind fromCodeOrNull(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			return null;
+		}
 	}
 
 	/** @deprecated use {@link Kind} at new API boundaries. */

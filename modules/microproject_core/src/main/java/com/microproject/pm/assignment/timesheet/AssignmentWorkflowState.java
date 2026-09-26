@@ -24,12 +24,51 @@
  *******************************************************************************/
 package com.microproject.pm.assignment.timesheet;
 
+import java.util.EnumSet;
+import java.util.Objects;
+
 public interface AssignmentWorkflowState {
 	// they may not be mutually exclusive, so use flags
-	public static final int UNDEFINED = 0x00;
-	public static final int NEW = 0x01;
-	public static final int NOTIFIED = 0x02;
-	public static final int ACCEPTED = 0x04;
-	public static final int REPLACED = 0x08;
+	enum Kind {
+		NEW(0x01),
+		NOTIFIED(0x02),
+		ACCEPTED(0x04),
+		REPLACED(0x08);
+
+		private final int mask;
+
+		Kind(int mask) {
+			this.mask = mask;
+		}
+
+		public int mask() {
+			return mask;
+		}
+	}
+
+	@Deprecated int UNDEFINED = 0x00;
+	@Deprecated int NEW = Kind.NEW.mask();
+	@Deprecated int NOTIFIED = Kind.NOTIFIED.mask();
+	@Deprecated int ACCEPTED = Kind.ACCEPTED.mask();
+	@Deprecated int REPLACED = Kind.REPLACED.mask();
+
+	static EnumSet<Kind> kindsFromMask(int mask) {
+		EnumSet<Kind> result = EnumSet.noneOf(Kind.class);
+		for (Kind kind : Kind.values()) {
+			if ((mask & kind.mask()) != 0) {
+				result.add(kind);
+			}
+		}
+		return result;
+	}
+
+	static int maskFromKinds(Iterable<Kind> kinds) {
+		Objects.requireNonNull(kinds, "kinds");
+		int mask = UNDEFINED;
+		for (Kind kind : kinds) {
+			mask |= Objects.requireNonNull(kind, "kind").mask();
+		}
+		return mask;
+	}
 	
 }

@@ -187,7 +187,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 		context.sentinel = endSentinel;
 		context.earlyOnly = false;
 		context.assign = false;
-		context.scheduleType = isForward() ? TaskSchedule.EARLY : TaskSchedule.LATE;;
+		context.scheduleType = isForward() ? TaskSchedule.Kind.EARLY : TaskSchedule.Kind.LATE;
 		context.pass = 0;
 		boolean affectsCriticalPath = (startTask == beginSentinel) || startTask.getSchedule(context.scheduleType).affectsCriticalPath(context);
 		
@@ -206,7 +206,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 			context.sentinel = beginSentinel;
 			context.forward = !context.forward;
 			context.assign = false;
-			context.scheduleType = -context.scheduleType;
+			context.scheduleType = context.scheduleType.opposite();
 			context.pass++;
 			doPass(null,context);
 
@@ -221,7 +221,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 				context.sentinel = endSentinel;
 				context.earlyOnly = false;
 				context.assign = true;
-				context.scheduleType = -context.scheduleType;
+			context.scheduleType = context.scheduleType.opposite();
 				context.pass++;
 				doPass(null,context);
 				
@@ -251,10 +251,10 @@ public class CriticalPath implements SchedulingAlgorithm {
 		while (forward ? i.hasNext() : i.hasPrevious()) {
 			taskReference = forward ? i.next() : i.previous();
 			traceTask = task = taskReference.getTask();
-			context.taskReferenceType = taskReference.getType();
+			context.taskReferenceKind = taskReference.getKind();
 			schedule = task.getSchedule(context.scheduleType);
 			if (!forward)
-				context.taskReferenceType = -taskReference.getType();
+				context.taskReferenceKind = context.taskReferenceKind.opposite();
 				
 			if (task.isReverseScheduled()) {//  reverse scheduled must always be calculated
 				schedule.invalidate();
@@ -316,7 +316,11 @@ public class CriticalPath implements SchedulingAlgorithm {
 	}
 
 	public int getDefaultTaskConstraintType() {
-		return ConstraintType.ASAP;
+		return getDefaultTaskConstraintKind().code();
+	}
+
+	public ConstraintType.Kind getDefaultTaskConstraintKind() {
+		return ConstraintType.Kind.ASAP;
 	}
 
 
@@ -471,11 +475,11 @@ public class CriticalPath implements SchedulingAlgorithm {
 		return startSentinel.getConstraintDate();
 	}
 	public void setStartConstraint(long date) {
-		startSentinel.setScheduleConstraint(ConstraintType.SNET, date);
+		startSentinel.setScheduleConstraint(ConstraintType.Kind.SNET, date);
 		markBoundsAsDirty();
 		}
 	public void setEndConstraint(long date) {
-		finishSentinel.setScheduleConstraint(ConstraintType.FNLT, date);
+		finishSentinel.setScheduleConstraint(ConstraintType.Kind.FNLT, date);
 		markBoundsAsDirty();
 	}
 	public void markBoundsAsDirty() {
@@ -505,11 +509,11 @@ public class CriticalPath implements SchedulingAlgorithm {
 	public void setForward(boolean forward) {
 		if (forward) {
 			setStartConstraint(project.getStartConstraint());
-			finishSentinel.setRawConstraintType(ConstraintType.ASAP);
+			finishSentinel.setRawConstraintType(ConstraintType.Kind.ASAP);
 		}
 		else {
 			setEndConstraint(project.getEnd());
-			startSentinel.setRawConstraintType(ConstraintType.ASAP);
+			startSentinel.setRawConstraintType(ConstraintType.Kind.ASAP);
 		}
 		startSentinel.setForward(forward);
 		finishSentinel.setForward(forward);

@@ -49,16 +49,18 @@ public class SchedulingType {
 	/** @deprecated use {@link Kind} at new API boundaries. */
 	@Deprecated
 	public static final int FIXED_WORK = 2;	
+	public static SchedulingRule getSchedulingRuleInstance(Kind schedulingType) {
+		return switch (schedulingType) {
+			case FIXED_UNITS -> FixedUnits.getInstance();
+			case FIXED_DURATION -> FixedDuration.getInstance();
+			case FIXED_WORK -> FixedWork.getInstance();
+		};
+	}
+
+	/** @deprecated use the typed overload; integer codes remain for persisted compatibility. */
+	@Deprecated
 	public static SchedulingRule getSchedulingRuleInstance(int schedulingType) {
-		switch (schedulingType) {
-			case FIXED_UNITS:
-				return FixedUnits.getInstance();
-			case FIXED_DURATION:
-				return FixedDuration.getInstance();
-			case FIXED_WORK:
-				return FixedWork.getInstance();
-		}
-		throw new IllegalArgumentException("Unknown scheduling type: " + schedulingType);
+		return getSchedulingRuleInstance(Kind.fromCode(schedulingType));
 	}
 
 }

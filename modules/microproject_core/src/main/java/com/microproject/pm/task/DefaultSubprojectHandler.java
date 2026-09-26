@@ -133,7 +133,7 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 		subproject.setAllTasksInSubproject(true, dummyProject);
 		NodeModel childOutline = subproject.getTaskOutline();
 		NodeModel masterOutline = dummyProject.getTaskOutline();
-		List<Node> roots = new ArrayList<Node>();
+		List<Node> roots = new ArrayList<Node>(((Node) childOutline.getRoot()).getChildCount());
 		for (Enumeration<?> children = ((Node) childOutline.getRoot()).children(); children.hasMoreElements();) {
 			Node child = (Node) children.nextElement();
 			if (!child.isVoid())
@@ -149,7 +149,7 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 	private void detachLoadedTasks(Project subproject, Node subprojectNode) {
 		NodeModel childOutline = subproject.getTaskOutline();
 		NodeModel masterOutline = dummyProject.getTaskOutline();
-		List<Node> roots = new ArrayList<Node>();
+		List<Node> roots = new ArrayList<Node>(subprojectNode.getChildCount());
 		for (Enumeration<?> children = subprojectNode.children(); children.hasMoreElements();) {
 			Node child = (Node) children.nextElement();
 			if (!child.isVoid())

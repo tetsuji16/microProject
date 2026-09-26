@@ -38,7 +38,7 @@ public class ScheduleOption {
 		return instance;
 	}
 	
-	int schedulingRule = SchedulingType.FIXED_UNITS;
+	int schedulingRule = SchedulingType.Kind.FIXED_UNITS.code();
 	boolean effortDriven = true;
 	int durationEnteredIn = TimeUnit.DAYS;
 	int workUnit = TimeUnit.HOURS;
@@ -51,11 +51,19 @@ public class ScheduleOption {
 		return schedulingRule;
 	}
 
+	public SchedulingType.Kind getSchedulingRuleKind() {
+		return SchedulingType.Kind.fromCode(schedulingRule);
+	}
+
 	/**
 	 * @param schedulingRule The schedulingRule to set.
 	 */
 	public void setSchedulingRule(int schedulingRule) {
 		this.schedulingRule = schedulingRule;
+	}
+
+	public void setSchedulingRule(SchedulingType.Kind schedulingRule) {
+		this.schedulingRule = java.util.Objects.requireNonNull(schedulingRule, "schedulingRule").code();
 	}
 
 	/**

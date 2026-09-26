@@ -31,8 +31,13 @@ public interface TimesheetStatus {
 		Kind(int code) { this.code = code; }
 		public int code() { return code; }
 		public static Kind fromCode(int code) {
-			for (Kind value : values()) if (value.code == code) return value;
+			Kind value = fromCodeOrNull(code);
+			if (value != null) return value;
 			throw new IllegalArgumentException("Unknown timesheet status code: " + code);
+		}
+		public static Kind fromCodeOrNull(int code) {
+			for (Kind value : values()) if (value.code == code) return value;
+			return null;
 		}
 	}
 	/** @deprecated use {@link Kind#NO_DATA}; retained for serialized compatibility. */

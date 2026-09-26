@@ -26,7 +26,6 @@ package com.microproject.pm.resource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -163,22 +162,16 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	}
 	
 	public static Resource findResourceByName(Object idObject, Object resourcePoolObject) {
-		Iterator<Resource> i = ((ResourcePool)resourcePoolObject).getResourceList().iterator();
 		String id = (String)idObject;
-		Resource resource;
-		while (i.hasNext()) {
-			resource = i.next();
+		for (Resource resource : ((ResourcePool)resourcePoolObject).getResourceList()) {
 			if (resource.getName().equals(id))
 				return resource;
 		}
 		return null;
 	}
 	public static Resource findResourceByInitials(Object idObject, Object resourcePoolObject) {
-		Iterator<Resource> i = ((ResourcePool)resourcePoolObject).getResourceList().iterator();
 		int id = ((Integer)idObject).intValue();
-		Resource resource;
-		while (i.hasNext()) {
-			resource = i.next();
+		for (Resource resource : ((ResourcePool)resourcePoolObject).getResourceList()) {
 			if (resource.getId() == id)
 				return resource;
 		}
@@ -392,7 +385,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	public boolean containsAssignments(){return true;}
 
 	public static final Object[] userResources() {
-		ArrayList result = new ArrayList();
+		ArrayList result = new ArrayList(globalPool.getResourceList().size());
 		for (Resource resource : globalPool.getResourceList()) {
 			if (resource.isUser())
 				result.add(resource);
@@ -434,7 +427,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		Node oldParentNode = getResourceOutline().search(getRbsParentResource(child));
 		if (oldParentNode != null)
 			oldParentNode.getChildren().remove(childNode);
-		ArrayList temp = new ArrayList();
+		ArrayList temp = new ArrayList(1);
 		temp.add(childNode);
 		getResourceOutline().move(parentNode, temp, -1,NodeModel.NORMAL);
 	}

@@ -227,18 +227,18 @@ public final class TaskSheetScheduleWorkflow {
 	private static void updateStartConstraint(Task task, long start) {
 		long projectStart = task.getProject().getStart();
 		if (projectStart > start) {
-			task.setScheduleConstraint(ConstraintType.SNLT, start);
+			task.setScheduleConstraint(ConstraintType.Kind.SNLT, start);
 		} else {
-			task.setScheduleConstraint(ConstraintType.SNET, start);
+			task.setScheduleConstraint(ConstraintType.Kind.SNET, start);
 		}
 	}
 
 	private static void updateFinishConstraint(Task task, long finish) {
 		long projectFinish = task.getProject().getEnd();
 		if (projectFinish != 0L && projectFinish < finish) {
-			task.setScheduleConstraint(ConstraintType.FNET, finish);
+			task.setScheduleConstraint(ConstraintType.Kind.FNET, finish);
 		} else {
-			task.setScheduleConstraint(ConstraintType.FNLT, finish);
+			task.setScheduleConstraint(ConstraintType.Kind.FNLT, finish);
 		}
 	}
 

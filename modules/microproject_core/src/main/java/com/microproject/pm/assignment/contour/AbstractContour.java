@@ -37,7 +37,12 @@ import com.microproject.pm.time.MutableInterval;
 public abstract class AbstractContour implements Cloneable{
 	protected AbstractContourBucket[] contourBuckets = null;	
 	protected double maxUnits = 0;
+	/** @deprecated use {@link #getTypeKind()} at typed API boundaries. */
+	@Deprecated
 	public abstract int getType();
+	public ContourTypes.Kind getTypeKind() {
+		return ContourTypes.Kind.fromCode(getType());
+	}
 	public abstract boolean isPersonal();
 	public abstract long calcTotalWork(long assignmentDuration);
 	public AbstractContour adjustDuration(long newDuration, long actualDuration) {return this;} // only personal contours will treat this

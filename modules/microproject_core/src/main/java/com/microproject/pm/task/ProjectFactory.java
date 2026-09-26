@@ -385,7 +385,7 @@ public class ProjectFactory {
 		// Loading a child attaches its nodes below the reference.  Do not iterate the
 		// live master outline while those asynchronous loads are allowed to mutate it,
 		// otherwise a later sibling reference can be skipped during master reopen.
-		List<Node> references = new ArrayList<>();
+		List<Node> references = new ArrayList<>(master.getTaskList().size());
 		for (Iterator<Node> iterator = master.getTaskOutline().iterator(master.getTaskOutlineRoot()); iterator.hasNext();) {
 			Node node = iterator.next();
 			if (node.getImpl() instanceof SubProj subproject && !subproject.isSubprojectOpen()

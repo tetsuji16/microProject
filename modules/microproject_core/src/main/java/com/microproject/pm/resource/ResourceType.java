@@ -61,12 +61,12 @@ public class ResourceType {
 	private static final BidiMap<String, Integer> RESOURCE_TYPE_MAP;
 	static {
 		BidiMap<String, Integer> map = new DualHashBidiMap<String, Integer>();
-		map.put(Messages.getString("ResourceType.Labor"), Integer.valueOf(WORK));
-		map.put(Messages.getString("ResourceType.Material"), Integer.valueOf(MATERIAL));
-		map.put(Messages.getString("ResourceType.Location"), Integer.valueOf(LOCATION));
-		map.put(Messages.getString("ResourceType.Machine"), Integer.valueOf(MACHINE));
-		map.put(Messages.getString("ResourceType.Cost"), Integer.valueOf(COST));
-		map.put(Messages.getString("ResourceType.Other"), Integer.valueOf(OTHER));
+		map.put(Messages.getString("ResourceType.Labor"), Integer.valueOf(Kind.WORK.code()));
+		map.put(Messages.getString("ResourceType.Material"), Integer.valueOf(Kind.MATERIAL.code()));
+		map.put(Messages.getString("ResourceType.Location"), Integer.valueOf(Kind.LOCATION.code()));
+		map.put(Messages.getString("ResourceType.Machine"), Integer.valueOf(Kind.MACHINE.code()));
+		map.put(Messages.getString("ResourceType.Cost"), Integer.valueOf(Kind.COST.code()));
+		map.put(Messages.getString("ResourceType.Other"), Integer.valueOf(Kind.OTHER.code()));
 		RESOURCE_TYPE_MAP = UnmodifiableBidiMap.unmodifiableBidiMap(map);
 	}
 	

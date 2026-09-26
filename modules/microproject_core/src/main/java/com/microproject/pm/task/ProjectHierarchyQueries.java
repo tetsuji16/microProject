@@ -17,8 +17,8 @@ public final class ProjectHierarchyQueries {
 
 	/** Returns the project outline in the same stable order as the legacy iterator. */
 	public static List<Task> outline(Project project) {
-		List<Task> result = new ArrayList<>();
-		if (project == null) return result;
+		if (project == null) return List.of();
+		List<Task> result = new ArrayList<>(project.getTaskList().size());
 		for (Iterator<Task> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
 			result.add(iterator.next());
 		}

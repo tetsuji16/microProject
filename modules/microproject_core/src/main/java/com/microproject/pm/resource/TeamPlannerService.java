@@ -94,7 +94,7 @@ public final class TeamPlannerService {
 		if (task.isReadOnly() || task.inProgress()) {
 			throw new IllegalArgumentException("The selected task cannot be rescheduled");
 		}
-		ScheduleService.getInstance().setConstraint(eventSource, task, ConstraintType.SNET, newStart,
+		ScheduleService.getInstance().setConstraint(eventSource, task, ConstraintType.Kind.SNET, newStart,
 			task.getOwningProject().getUndoController().getEditSupport());
 		task.setDirty(true);
 		task.getOwningProject().recalculate();

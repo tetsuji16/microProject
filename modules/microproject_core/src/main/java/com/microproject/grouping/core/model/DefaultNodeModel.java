@@ -963,7 +963,7 @@ public class DefaultNodeModel implements NodeModel {
 
 	private Dependency createAndAttachDependency(HasDependencies predecessor, HasDependencies successor,
 			Dependency dependency) {
-		Dependency d=Dependency.getInstance(predecessor, successor, dependency.getDependencyType(), dependency.getLag());
+		Dependency d=Dependency.getInstance(predecessor, successor, dependency.getDependencyKind(), dependency.getLag());
 		d.setDirty(true);
 		predecessor.getDependencyList(false).add(d);
 		successor.getDependencyList(true).add(d);

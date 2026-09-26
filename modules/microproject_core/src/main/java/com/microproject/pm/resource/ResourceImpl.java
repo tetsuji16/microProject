@@ -32,7 +32,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Consumer;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -118,12 +117,22 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	}
 
 	transient EnterpriseResource globalResource = null;
-	private int bookingType = BookingType.COMMITTED;
+	private int bookingType = BookingType.Kind.COMMITTED.code();
 
 //Methods not in EnterpriseResources
+	/** @deprecated use {@link #getBookingTypeKind()} for typed access. */
+	@Deprecated
 	public int getBookingType() {
 		return bookingType;
 	}
+	public BookingType.Kind getBookingTypeKind() {
+		return BookingType.Kind.fromCode(bookingType);
+	}
+	public void setBookingTypeKind(BookingType.Kind bookingType) {
+		this.bookingType = java.util.Objects.requireNonNull(bookingType, "bookingType").code();
+	}
+	/** @deprecated use {@link #setBookingTypeKind(BookingType.Kind)} for typed access. */
+	@Deprecated
 	public void setBookingType(int bookingType) {
 		this.bookingType = bookingType;
 	}
@@ -790,7 +799,7 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	public void setCustomText(int i, String text) {
 		globalResource.setCustomText(i, text);
 	}
-	public boolean applyTimesheet(Collection fieldArray, long timesheetUpdateDate) {
+	public boolean applyTimesheet(Collection<?> fieldArray, long timesheetUpdateDate) {
 		return globalResource.applyTimesheet(fieldArray, timesheetUpdateDate);
 	}
 	public long getLastTimesheetUpdate() {
@@ -885,7 +894,7 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 							Project project=(Project)projects.iterator().next();
 							Field field=FieldDictionary.getInstance().getFieldFromId("Field.accessControlPolicy");
 							if (field != null)
-								field.setValue(project, project, AccessControlPolicy.RESTRICTED);
+								field.setValue(project, project, AccessControlPolicy.Kind.RESTRICTED.code());
 						}
 					}
 				}
@@ -976,16 +985,16 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	}
 
 	private boolean anyAssignmentMatches(AssignmentStatusMatcher matcher) {
-		for (Iterator i = getAssignments().iterator(); i.hasNext();) {
-			if (matcher.matches((Assignment) i.next()))
+		for (Object candidate : getAssignments()) {
+			if (matcher.matches((Assignment) candidate))
 				return true;
 		}
 		return false;
 	}
 
 	private boolean allAssignmentsMatch(AssignmentStatusMatcher matcher) {
-		for (Iterator i = getAssignments().iterator(); i.hasNext();) {
-			if (!matcher.matches((Assignment) i.next()))
+		for (Object candidate : getAssignments()) {
+			if (!matcher.matches((Assignment) candidate))
 				return false;
 		}
 		return true;

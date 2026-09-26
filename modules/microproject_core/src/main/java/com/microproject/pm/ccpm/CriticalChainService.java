@@ -344,8 +344,9 @@ public final class CriticalChainService {
 	private static Collection<? extends Resource> resourcesForBaseline(Project project) {
 		Baseline baseline = findBaselineStatic(project);
 		if (baseline == null || baseline.allResources()) return null;
-		Map<Long, Resource> byId = new LinkedHashMap<>();
-		for (Resource resource : project.getResourcePool().getResourceList()) byId.put(Long.valueOf(resource.getUniqueId()), resource);
+		List<Resource> projectResources = project.getResourcePool().getResourceList();
+		Map<Long, Resource> byId = new LinkedHashMap<>(Math.max(4, projectResources.size() * 4 / 3 + 1));
+		for (Resource resource : projectResources) byId.put(Long.valueOf(resource.getUniqueId()), resource);
 		List<Resource> selected = new ArrayList<>(baseline.resourceIds().size());
 		for (Long id : baseline.resourceIds()) {
 			Resource resource = byId.get(id);
@@ -457,7 +458,7 @@ public final class CriticalChainService {
 
 	private static Map<Long, Buffer> resourceBuffers(Collection<? extends Resource> selectedResources, Settings settings, Project project) {
 		Collection<? extends Resource> resources = selectedResources == null ? project.getResourcePool().getResourceList() : selectedResources;
-		Map<Long, Buffer> result = new LinkedHashMap<>();
+		Map<Long, Buffer> result = new LinkedHashMap<>(Math.max(4, resources.size() * 4 / 3 + 1));
 		for (Resource resource : resources) {
 			long planned = 0L;
 			long consumed = 0L;

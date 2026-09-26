@@ -15,6 +15,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.Resource;
@@ -42,11 +43,12 @@ public final class MpoTaskOperationService {
 		Task predecessor = project.findByUniqueId(number(payload.get("predecessorLegacyUniqueId"), "predecessorLegacyUniqueId"));
 		Task successor = project.findByUniqueId(number(payload.get("successorLegacyUniqueId"), "successorLegacyUniqueId"));
 		if (predecessor == null || successor == null) throw new IOException("dependency.add references an unknown task");
+		DependencyType.Kind type = dependencyType(payload);
 		for (java.util.Iterator<?> it = predecessor.getSuccessorList().iterator(); it.hasNext();) {
 			Dependency existing = (Dependency) it.next();
-			if (existing.getSuccessor() == successor && existing.getDependencyType() == intNumber(payload.get("dependencyType"), "dependencyType") && existing.getLag() == longNumber(payload.get("lag"), "lag")) return;
+			if (existing.getSuccessor() == successor && existing.getDependencyKind() == type && existing.getLag() == longNumber(payload.get("lag"), "lag")) return;
 		}
-		try { DependencyService.getInstance().newDependency(predecessor, successor, intNumber(payload.get("dependencyType"), "dependencyType"), longNumber(payload.get("lag"), "lag"), null); }
+		try { DependencyService.getInstance().newDependency(predecessor, successor, type, longNumber(payload.get("lag"), "lag"), null); }
 		catch (Exception exception) { throw new IOException("dependency.add is invalid", exception); }
 	}
 
@@ -54,8 +56,14 @@ public final class MpoTaskOperationService {
 		Task predecessor = project.findByUniqueId(number(payload.get("predecessorLegacyUniqueId"), "predecessorLegacyUniqueId"));
 		Task successor = project.findByUniqueId(number(payload.get("successorLegacyUniqueId"), "successorLegacyUniqueId"));
 		if (predecessor == null || successor == null) return;
-		int type = intNumber(payload.get("dependencyType"), "dependencyType"); long lag = longNumber(payload.get("lag"), "lag");
-		for (java.util.Iterator<?> it = predecessor.getSuccessorList().iterator(); it.hasNext();) { Dependency dependency = (Dependency) it.next(); if (dependency.getSuccessor() == successor && dependency.getDependencyType() == type && dependency.getLag() == lag) { DependencyService.getInstance().remove(dependency, null, false); return; } }
+		DependencyType.Kind type = dependencyType(payload); long lag = longNumber(payload.get("lag"), "lag");
+		for (java.util.Iterator<?> it = predecessor.getSuccessorList().iterator(); it.hasNext();) { Dependency dependency = (Dependency) it.next(); if (dependency.getSuccessor() == successor && dependency.getDependencyKind() == type && dependency.getLag() == lag) { DependencyService.getInstance().remove(dependency, null, false); return; } }
+	}
+
+	private static DependencyType.Kind dependencyType(Map<String, Object> payload) throws IOException {
+		int code = intNumber(payload.get("dependencyType"), "dependencyType");
+		try { return DependencyType.Kind.fromCode(code); }
+		catch (IllegalArgumentException exception) { throw new IOException("dependencyType is invalid", exception); }
 	}
 
 	private static void applyAssignmentAdd(Project project, Map<String, Object> payload) throws IOException {

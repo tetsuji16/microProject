@@ -54,9 +54,37 @@ public interface ProjectSpecificFields {
 	long getLatestFinishingTask();
 	double getRisk();
 	void setRisk(double risk);
+	/** Type-safe view of the stable project type code. */
+	@SuppressWarnings("deprecation")
+	default ProjectType.Kind getProjectTypeKind() {
+		return ProjectType.Kind.fromCode(getProjectType());
+	}
+	/** Stores a project type using its stable persisted code. */
+	@SuppressWarnings("deprecation")
+	default void setProjectTypeKind(ProjectType.Kind projectType) {
+		setProjectType(java.util.Objects.requireNonNull(projectType, "projectType").code());
+	}
+	/** Type-safe view of the stable project status code. */
+	@SuppressWarnings("deprecation")
+	default ProjectStatus.Kind getProjectStatusKind() {
+		return ProjectStatus.Kind.fromCode(getProjectStatus());
+	}
+	/** Stores a project status using its stable persisted code. */
+	@SuppressWarnings("deprecation")
+	default void setProjectStatusKind(ProjectStatus.Kind projectStatus) {
+		setProjectStatus(java.util.Objects.requireNonNull(projectStatus, "projectStatus").code());
+	}
+	/** @deprecated use {@link #getProjectTypeKind()} for typed access. */
+	@Deprecated
 	int getProjectType();
+	/** @deprecated use {@link #setProjectTypeKind(ProjectType.Kind)} for typed access. */
+	@Deprecated
 	void setProjectType(int projectType);
+	/** @deprecated use {@link #getProjectStatusKind()} for typed access. */
+	@Deprecated
 	int getProjectStatus();
+	/** @deprecated use {@link #setProjectStatusKind(ProjectStatus.Kind)} for typed access. */
+	@Deprecated
 	void setProjectStatus(int projectStatus);
 	String getDivision();
 	void setDivision(String division);
@@ -64,6 +92,12 @@ public interface ProjectSpecificFields {
 	void setGroup(String group);
 	int getAccessControlPolicy();
 	void setAccessControlPolicy(int accessControlPolicy);
+	default AccessControlPolicy.Kind getAccessControlPolicyKind() {
+		return AccessControlPolicy.Kind.fromCodeOrNull(getAccessControlPolicy());
+	}
+	default void setAccessControlPolicy(AccessControlPolicy.Kind accessControlPolicy) {
+		setAccessControlPolicy(java.util.Objects.requireNonNull(accessControlPolicy, "accessControlPolicy").code());
+	}
 //	boolean isShowProjectResourcesOnly();
 //	void setShowProjectResourcesOnly(boolean showProjectResourcesOnly);
 	public int getBenefit();

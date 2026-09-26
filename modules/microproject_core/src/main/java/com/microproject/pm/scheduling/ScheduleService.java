@@ -115,6 +115,12 @@ public class ScheduleService {
 		}
 		return true;
 	}
+
+	public boolean setConstraint(Object eventSource, Task task, ConstraintType.Kind constraintType, long constraintDate,
+			UndoableEditSupport undoableEditSupport) {
+		return setConstraint(eventSource, task, java.util.Objects.requireNonNull(constraintType, "constraintType").code(),
+			constraintDate, undoableEditSupport);
+	}
 	
 	public static boolean isReadOnly(Schedule schedule){
 		return ClassUtils.isObjectReadOnly(schedule);

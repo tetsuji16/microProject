@@ -6,7 +6,6 @@
 package com.microproject.pm.resource;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
@@ -145,8 +144,8 @@ public final class SharedResourcePoolService {
 	}
 
 	private void rewireAssignments(Resource source, Resource destination) {
-		for (Iterator<?> iterator = new ArrayList<Object>(source.getAssignments()).iterator(); iterator.hasNext();) {
-			Assignment assignment = (Assignment) iterator.next();
+		for (Object candidate : new ArrayList<Object>(source.getAssignments())) {
+			Assignment assignment = (Assignment) candidate;
 			AssignmentService.getInstance().remove(assignment, null, false);
 			assignment.setTaskAndResource(assignment.getTask(), destination);
 			AssignmentService.getInstance().connect(assignment, null, false);
