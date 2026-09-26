@@ -1744,3 +1744,9 @@ values remain unequal.
 the persisted schedule boundaries. The task-outline traversal and repaired-task
 path are unchanged. `ProjectScheduleBehaviorTest.markingProjectTasksUnchangedClearsNormalTaskDirtyState`
 verifies dirty-state clearing and saved start/finish values.
+
+`Project.nodesChanged` now binds `Task` values both for the changed node and
+for descendants visited while removing cross-parent dependencies. The
+hierarchy event flow and dependency cleanup are unchanged.
+`DefaultNodeModelTest.indentAndOutdentKeepTaskIdsUniqueAndInDepthFirstOrder`
+exercises actual model indent/outdent transitions through this listener.

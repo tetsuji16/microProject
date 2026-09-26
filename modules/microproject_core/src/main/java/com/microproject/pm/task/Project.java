@@ -1308,13 +1308,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public void nodesChanged(HierarchyEvent e) {
 		Node node, previousParentNode, newParentNode;
-		Task task, previousParentTask, newParentTask;
+		Task previousParentTask, newParentTask;
 		int count=e.getNodes().length;
 		if (count==0) return;
 		for (int i=0;i<count;i++){
 			node=(Node)e.getNodes()[i];
-			if (!(node.getImpl() instanceof Task)) continue;
-			task=(Task) node.getImpl();
+			if (!(node.getImpl() instanceof Task task)) continue;
 
 			previousParentTask=task.getWbsParentTask();
 			previousParentNode=taskOutlines.getDefaultOutline().search(previousParentTask);
@@ -1341,8 +1340,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 			taskOutlines.getDefaultOutline().getHierarchy().visitAll(newParentNode, new Consumer<Object>() { public void accept(Object arg) {
 					Node node=(Node)arg;
-					if (!(node.getImpl() instanceof Task)) return;
-					Task task = (Task) node.getImpl();
+					if (!(node.getImpl() instanceof Task task)) return;
 					DependencyService.getInstance().removeAnyDependencies(task, _newParentTask,eventSource);
 				}
 			});
