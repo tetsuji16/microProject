@@ -876,8 +876,7 @@ public class Serializer {
     			int id=1;
     			public void accept(Object o) {
     				Node node=(Node)o;
-    				if (node.getImpl() instanceof HasId){
-    					HasId impl=(HasId)node.getImpl();
+				if (node.getImpl() instanceof HasId impl){
     					if (impl.getId()>0) impl.setId(id++); //if id=0 means id not used
     				}
     			}
@@ -1153,8 +1152,7 @@ public class Serializer {
     			}
     			if (taskData.isTimesheetCreated())
     				logger.log(Level.FINE, "new task {0} parent node is {1}", new Object[] { node, parentNode });
-    			if (node.getImpl() instanceof SubProj){
-    				SubProj sub=(SubProj)node.getImpl();
+			if (node.getImpl() instanceof SubProj sub){
     				subprojectsMap.put(sub.getSubprojectUniqueId(), node);
     			}
 
@@ -1169,8 +1167,7 @@ public class Serializer {
     			int id=1;
     			public void accept(Object o) {
     				Node node=(Node)o;
-    				if (node.getImpl() instanceof HasId){ //renumber
-    					HasId impl=(HasId)node.getImpl();
+				if (node.getImpl() instanceof HasId impl){ //renumber
     					if (impl.getId()>0) impl.setId(id++); //if id=0 means id not used
     				}
 //  				if (node.getImpl() instanceof Task){ //save outline

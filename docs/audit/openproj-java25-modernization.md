@@ -1796,3 +1796,9 @@ The OpenProj-derived `ProjectFactory.getCloseProjectsOnServerJob(Project)` and
 directly in their existing type checks. The close and removal workflows retain
 their separate post-processing and order; the null-node guard added by the fork
 is unchanged. The full core test suite passed.
+
+In OpenProj-derived `Serializer` deserialization, resource/task renumbering
+visitors and the subproject reference map now bind `HasId` / `SubProj` values
+in their existing guards. Renumbering order, nonpositive ID handling,
+subproject keys, and outline insertion order are unchanged. The full
+`:microproject_exchange:test` suite passed, including POD round-trip cases.
