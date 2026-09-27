@@ -42,7 +42,7 @@ public final class RenameProjectDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
 	public static class Form {
 		String name;
-		Set projectNames;
+		Set<String> projectNames;
 		boolean saveAs;
 		public String getName() {
 			return name;
@@ -50,10 +50,10 @@ public final class RenameProjectDialog extends AbstractDialog {
 		public void setName(String name) {
 			this.name = name;
 		}
-		public Set getProjectNames() {
+		public Set<String> getProjectNames() {
 			return projectNames;
 		}
-		public void setProjectNames(Set projectNames) {
+		public void setProjectNames(Set<String> projectNames) {
 			this.projectNames = projectNames;
 		}
 		public boolean isSaveAs() {
@@ -100,7 +100,7 @@ public final class RenameProjectDialog extends AbstractDialog {
 
 	private void updateNameValidity() {
 		String text = nameField.getText();
-		Set projectNames = form.getProjectNames();
+		Set<String> projectNames = form.getProjectNames();
 		ok.setEnabled((projectNames == null || !projectNames.contains(text)) && !text.isEmpty());
 	}
 	

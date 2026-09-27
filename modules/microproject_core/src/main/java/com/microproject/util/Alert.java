@@ -100,7 +100,7 @@ public class Alert {
 	            JOptionPane.CANCEL_OPTION);
 	}
 
-	public static String renameProject(final String name,Set<?> projectNames,boolean saveAs){
+	public static String renameProject(final String name,Set<String> projectNames,boolean saveAs){
 		try {
 			return (String)Class.forName(GRAPHIC_MANAGER).getMethod("doRenameProjectDialog", String.class, Set.class, boolean.class).invoke(getGraphicManager(), name, projectNames, saveAs);
 		} catch (Exception e) {

@@ -1104,7 +1104,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,true); // no matter what, you can open a project after closing, since if you closed resource pool you can open after
 		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,true);
 	}
-	public String doRenameProjectDialog(String name,Set projectNames,boolean saveAs) {
+	public String doRenameProjectDialog(String name,Set<String> projectNames,boolean saveAs) {
 		finishAnyOperations();
 		RenameProjectDialog renameProjectDialog = RenameProjectDialog.getInstance(getFrame(),null);
 		renameProjectDialog.getForm().setName(name);

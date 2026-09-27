@@ -2455,3 +2455,5 @@ issue #84 cleanup.
 `LocalSession.rememberDescriptor` now uses the existing `Map<String, Object>` contract from `ProjectData.getAttributes()` instead of a raw map. Its only inserted entry uses the string descriptor-file key and filename value; map identity, contents, and serialization behavior are unchanged. The method hunk is OpenProj-derived and active in local project descriptor handling.
 
 The `Session.getLoadProjectDescriptorsJob` contract and its `LocalSession` implementation now accept `List<ProjectData>`. Both UI entry points pass that typed list to `OpenProjectDialog`, whose row access no longer casts elements. All active repository consumers were searched; the reflective call still resolves the erased `List` parameter, preserving the existing method descriptor.
+
+Project rename duplicate checking now carries `Set<String>` through `Job`, `Alert`, the reflectively invoked `GraphicManager.doRenameProjectDialog`, and `RenameProjectDialog.Form`. The dialog compares names with `String.contains` semantics; the reflected parameter remains erased `Set`, and project-name comparison behavior is unchanged.
