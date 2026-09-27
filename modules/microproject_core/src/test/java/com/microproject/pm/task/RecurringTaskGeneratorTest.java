@@ -64,6 +64,22 @@ class RecurringTaskGeneratorTest {
 	}
 
 	@Test
+	void occurrenceGenerationStillStopsAtSafetyLimitForVeryLargeCount() {
+		RecurringTaskSpec spec = new RecurringTaskSpec(
+			"Large daily range",
+			start(2026, Calendar.JUNE, 1),
+			0L,
+			RecurringTaskSpec.PatternType.DAILY,
+			RecurringTaskSpec.RangeType.END_AFTER_OCCURRENCES,
+			0L,
+			Integer.MAX_VALUE,
+			null);
+
+		assertThrows(IllegalStateException.class,
+			() -> RecurringTaskGenerator.generateOccurrences(spec, defaultCalendar()));
+	}
+
+	@Test
 	void weeklyRecurringUsesSelectedWeekdaysOnly() {
 		RecurringTaskSpec spec = new RecurringTaskSpec(
 			"Weekly",

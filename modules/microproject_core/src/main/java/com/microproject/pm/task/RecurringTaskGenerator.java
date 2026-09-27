@@ -62,8 +62,11 @@ public final class RecurringTaskGenerator {
 	public static List<Occurrence> generateOccurrences(RecurringTaskSpec spec, WorkCalendar calendar) {
 		validateInputs(spec, calendar);
 		long normalizedStart = calendar.adjustInsideCalendar(spec.getStart(), false);
-		ArrayList<Occurrence> occurrences = new ArrayList<Occurrence>();
-		HashSet<Long> seenStarts = new HashSet<Long>();
+		int expectedOccurrences = spec.getRangeType() == RecurringTaskSpec.RangeType.END_AFTER_OCCURRENCES
+			? Math.min(spec.getOccurrenceCount(), MAX_GENERATION_ATTEMPTS)
+			: 0;
+		ArrayList<Occurrence> occurrences = new ArrayList<>(expectedOccurrences);
+		HashSet<Long> seenStarts = new HashSet<>(expectedOccurrences * 4 / 3 + 1);
 		GregorianCalendar cursor = DateTime.calendarInstance();
 		cursor.setTimeInMillis(normalizedStart);
 		int targetDayOfMonth = cursor.get(Calendar.DAY_OF_MONTH);
