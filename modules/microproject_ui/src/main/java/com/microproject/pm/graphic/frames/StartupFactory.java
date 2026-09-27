@@ -116,14 +116,12 @@ public abstract class StartupFactory {
 		//if (Environment.isNewLook())
 			graphicManager.initLookAndFeel();
 //		System.out.println("---------- StartupFactory instanceFromExistingSession#1 done in "+(System.currentTimeMillis()-t)+" ms");
-		SwingUtilities.invokeLater(new Runnable() {
-
-			public void run() {
-				long t=System.currentTimeMillis();
+		SwingUtilities.invokeLater(() -> {
+			long initViewStartTime=System.currentTimeMillis();
 //				System.out.println("---------- StartupFactory instanceFromExistingSession#2");
-				graphicManager.initView();
-//				System.out.println("---------- StartupFactory instanceFromExistingSession#2 done in "+(System.currentTimeMillis()-t)+" ms");
-			}});
+			graphicManager.initView();
+//				System.out.println("---------- StartupFactory instanceFromExistingSession#2 done in "+(System.currentTimeMillis()-initViewStartTime)+" ms");
+		});
 //		graphicManager.invalidate();
 		return graphicManager;
 	}
@@ -465,22 +463,20 @@ public abstract class StartupFactory {
 				// requested project obtains its own registered document window.
 				gm.openLocalProjectsSequentially(projectUrls);
 			}else{
-				SwingUtilities.invokeLater(new Runnable() {
-					public void run() {
-						if (gm.offerRecoveryAtStartup()) {
-							return;
-						}
-						if (welcome&&!Environment.isPlugin()) {
-							if (!Environment.isProjectLibre()) {
-								if (Environment.isNeedToRestart())
-									return;
-								if (!LafManagerImpl.isLafOk()) // for startup glitch - we don't want people to work until restarting.
-									return;
-							}
-							gm.doWelcomeDialog();
-						}
-						if (Environment.isPlugin()) gm.doNewProjectNoDialog(opts);
+				SwingUtilities.invokeLater(() -> {
+					if (gm.offerRecoveryAtStartup()) {
+						return;
 					}
+					if (welcome&&!Environment.isPlugin()) {
+						if (!Environment.isProjectLibre()) {
+							if (Environment.isNeedToRestart())
+								return;
+							if (!LafManagerImpl.isLafOk()) // for startup glitch - we don't want people to work until restarting.
+								return;
+						}
+						gm.doWelcomeDialog();
+					}
+					if (Environment.isPlugin()) gm.doNewProjectNoDialog(opts);
 				});
 
 			}
