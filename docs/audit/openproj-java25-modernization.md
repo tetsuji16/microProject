@@ -2697,3 +2697,10 @@ null/different-type rejection, and comparison by the wrapped `PrintService`;
 `PageSetupPrintServiceOptionTest` passed.
 
 NodeCacheTransformer.extractAssignments now uses diamond inference for its OpenProj-derived task-to-assignment map, hierarchy path stack, and assignment list. The collection implementations, generic element types, encounter order, and hierarchy transformation behavior are unchanged. Provenance was checked against OpenProj commit d2fa3c20a; no focused transformer test exists, so UI compilation is the direct verification.
+
+`FindDialog.init` now sorts the available OpenProj-derived fields with
+`List.sort(null)` and constructs a typed `ComboBoxModel<Field>` from
+`Field[]::new`. The combo field and model preserve the same Swing component
+types after erasure, natural field ordering, and selected-field behavior; the
+cast from `getSelectedItem()` remains because Swing declares that method to
+return `Object`. `FindDialogCleanupAuditTest` and UI compilation passed.

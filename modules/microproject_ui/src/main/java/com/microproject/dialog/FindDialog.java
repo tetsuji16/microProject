@@ -33,7 +33,6 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -72,7 +71,7 @@ import com.microproject.util.VersionUtils;
 
 public final class FindDialog extends AbstractDialog implements ObjectEvent.Listener,DocumentSelectedEvent.Listener{
 	private static final long serialVersionUID = 1L;
-	JComboBox combo;
+	JComboBox<Field> combo;
 	JTextField search  = new JTextField(30);
 	JCheckBox caseSensitive = new JCheckBox(Messages.getString("FindDialog.MatchCase")); //$NON-NLS-1$
 	DocumentFrame documentFrame;
@@ -101,10 +100,10 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		Collection<Field> availableFields = searchable.getAvailableFields();
 		ArrayList<Field> l = new ArrayList<>(availableFields.size());
 		l.addAll(availableFields);
-		Collections.sort(l);
-		ComboBoxModel m = new DefaultComboBoxModel(l.toArray());
+		l.sort(null);
+		ComboBoxModel<Field> m = new DefaultComboBoxModel<>(l.toArray(Field[]::new));
 		if (combo == null)
-			combo = new JComboBox(m);
+			combo = new JComboBox<>(m);
 		else
 			combo.setModel(m);
 
@@ -128,7 +127,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 			caseSensitive.setSelected(context.isCaseSensitive());
 
 		} else {
-			context.setField((Field)combo.getSelectedItem());
+			context.setField((Field) combo.getSelectedItem());
 			context.setSearchValue(search.getText());
 			context.setCaseSensitive(caseSensitive.isSelected());
 
