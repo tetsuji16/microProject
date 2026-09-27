@@ -40,16 +40,14 @@ import com.microproject.util.DateTime;
 /**
  *
  */
-public class Intervals extends TreeSet implements HasStartAndEnd{
+public class Intervals extends TreeSet<HasStartAndEnd> implements HasStartAndEnd{
 
 	/**
 	 *
 	 */
 	public Intervals(ContribIntervals c) {
-		super(new Comparator(){
-			public int compare(Object o1, Object o2) {
-				HasStartAndEnd d1=(HasStartAndEnd)o1; //Only want to compare DateSpan no need to use instanceof
-				HasStartAndEnd d2=(HasStartAndEnd)o2;
+		super(new Comparator<HasStartAndEnd>(){
+			public int compare(HasStartAndEnd d1, HasStartAndEnd d2) {
 				if (d1.getStart()<d2.getStart()||(d1.getStart()==d2.getStart()&&d1.getEnd()<d2.getEnd())) return -1;
 				else if (d1.getStart()>d2.getStart()||(d1.getStart()==d2.getStart()&&d1.getEnd()>d2.getEnd())) return 1;
 				else return 0;
@@ -71,10 +69,10 @@ public class Intervals extends TreeSet implements HasStartAndEnd{
 	}
 
 
-	public boolean add(Object o) {
-		HasStartAndEnd toAdd=(HasStartAndEnd)o;
-		for (Iterator i=iterator(); i.hasNext();) {
-			HasStartAndEnd interval=(HasStartAndEnd)i.next();
+	public boolean add(HasStartAndEnd o) {
+		HasStartAndEnd toAdd=o;
+		for (Iterator<HasStartAndEnd> i=iterator(); i.hasNext();) {
+			HasStartAndEnd interval=i.next();
 			if (interval.getEnd()<toAdd.getStart()) {
 				continue;
 			}
@@ -87,25 +85,24 @@ public class Intervals extends TreeSet implements HasStartAndEnd{
 		return super.add(toAdd);
 	}
 
-	public boolean addAll(Collection c) {
+	public boolean addAll(Collection<? extends HasStartAndEnd> c) {
 		if (c==null) return false;
 		boolean added=false;
-		for (Object interval : c) {
+		for (HasStartAndEnd interval : c) {
 			if (super.add(interval)) added=true;
 		}
 		return added;
 	}
 
 	public long getEnd() {
-		return (size()==0)?-1:((HasStartAndEnd)last()).getEnd();
+		return (size()==0)?-1:last().getEnd();
 	}
 	public long getStart() {
-		return (size()==0)?-1:((HasStartAndEnd)first()).getStart();
+		return (size()==0)?-1:first().getStart();
 	}
 
 	public boolean containsDate(long date){
-		for (Object item : this) { //a more optimized version can be found
-			HasStartAndEnd interval=(HasStartAndEnd)item;
+		for (HasStartAndEnd interval : this) { //a more optimized version can be found
 			if (interval.getStart()<=date&&date<=interval.getEnd()) return true;
 		}
 		return false;
@@ -113,8 +110,8 @@ public class Intervals extends TreeSet implements HasStartAndEnd{
 
 	void eliminateWeekdayDuplicates(boolean weekDays[]) {
 		Calendar cal = DateTime.calendarInstance();
-		for (Iterator i=iterator();i.hasNext();){ //a more optimized version can be found
-			HasStartAndEnd interval=(HasStartAndEnd)i.next();
+		for (Iterator<HasStartAndEnd> i=iterator();i.hasNext();){ //a more optimized version can be found
+			HasStartAndEnd interval=i.next();
 			cal.setTimeInMillis(interval.getStart());
 			int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK) -1;
 
