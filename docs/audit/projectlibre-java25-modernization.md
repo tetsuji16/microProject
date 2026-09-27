@@ -195,6 +195,35 @@ these generic signatures until extension/source compatibility can be assessed;
 do not count their containing type's ProjectLibre provenance as blanket
 authorization to narrow the public surface.
 
+## Active crosswalk residual screen (2026-09-27)
+
+Re-ran the syntax/API screen over all 33 active Java source paths named by the
+retained ProjectLibre hunk crosswalk. The search covered explicit collection
+constructor arguments, cast-after-`instanceof`, old `Collections.sort`,
+anonymous Comparator/Iterator/functional-interface construction, reflective
+`Class.newInstance`, and sized-array `toArray` calls. Every match was then
+checked at the hunk and caller level; basename and copyright matches were not
+used as provenance evidence.
+
+| Residual match | Disposition |
+|---|---|
+| `Serializer`'s `referringSubprojectTasks` list and `LocalSession` seed reset | Fork-owned changes (`86e89bfe37`, `a14fe81977`), excluded from #727. |
+| `Serializer`'s old commented dirty-task loop | OpenProj-origin dead comment; removed under #84. The active outline-based dirty-task path remains. |
+| `MSPDISerializer.externalTasks` map and `MPXConverter.ExportIdAllocator` map | Local fork additions (`ab550c36db`, `bdac3f3851`), excluded from #727. |
+| `MSPDISerializer`'s opened-subproject export checks | Local serialization changes, excluded from #727. The ProjectLibre-added `collectProjectCalendars` sets were modernized above. |
+| `ImportedCalendarService`'s two explicit generic map constructors | Constructors are local edits in an upstream-added type; ProjectLibre 1.9.8 used raw maps. Do not attribute these exact hunk edits to ProjectLibre. |
+| `Linker.addOutline` Assignment checks | Match OpenProj baseline `d2fa3c20a`; tracked under #595. The mutable state in its anonymous traversal callback is not replaced with captured-array state. |
+| `SerializeUtil`'s three `instanceof` checks | They only choose the ZIP serialization branch and do not feed casts or repeated type-specific work; a binding provides no value. |
+| `MSPDISerializer`'s `VoidNodeImpl`/`Assignment` checks and `ServerLocalFileImporter`'s `String` check | Type-only guards without a corresponding cast at the check site; no safe binding improvement. |
+| `TypeSystemConverterFactory` reflection | Already uses `getDeclaredConstructor().newInstance()`. |
+| `CustomFieldsMapper` reflection cast | Runtime `FieldType` comes from `Class.getDeclaredField`; retain the cast at this reflective boundary. |
+| `TaskLinker` public/protected raw collection API and `DictionaryAdapter<T>` cast | Compatibility-sensitive boundaries already described above; no internal-only caller search justifies changing public generic source contracts. |
+
+This closes the targeted idiom screen for the 33 crosswalk source candidates,
+not the full Phase 0 ledger review: the retained path-based delta ledger still
+needs one-to-one current-hunk/caller reconciliation before Phase 0 can be marked
+complete. No additional safe modernization change was identified by this screen.
+
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
