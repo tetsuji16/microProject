@@ -169,14 +169,16 @@ public class MenuManager {
 		return menuFactory.getMenuItemFromId(id);
 	}
 	public List<?> getToolButtonsFromId(String id) {
-		ArrayList<Object> result = new ArrayList<>();
 		List<?> toolbarButtons = toolBarFactory.getButtonsFromId(id);
+		ArrayList<Object> result = new ArrayList<>(toolbarButtons == null ? 0 : toolbarButtons.size());
 		if (toolbarButtons != null)
 			result.addAll(toolbarButtons);
 		if (ribbonFactory != null) {
 			List<?> ribbonButtons = ribbonFactory.getButtonsFromId(id);
-			if (ribbonButtons != null)
+			if (ribbonButtons != null) {
+				result.ensureCapacity(result.size() + ribbonButtons.size());
 				result.addAll(ribbonButtons);
+			}
 		}
 		return result.isEmpty() ? null : result;
 	}
