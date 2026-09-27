@@ -101,7 +101,8 @@ public class SpreadSheetRenderer extends Renderer{
 
 			OfflineRenderer renderer=(OfflineRenderer)c.getHeaderRenderer();
 			if (renderer!=null){ //rowHeader is null
-				JComponent component=(JComponent)renderer.getComponent(((Field)params.getFieldArray().get(col)).getName(), null, (Field)params.getFieldArray().get(col), params);
+				Field field = params.getFieldArray().get(col);
+				JComponent component=(JComponent)renderer.getComponent(field.getName(), null, field, params);
 		    	boolean opaque=component.isOpaque();
 		    	component.setOpaque(false);
 				component.setSize(cwidth, params.getConfiguration().getColumnHeaderHeight());
@@ -127,7 +128,7 @@ public class SpreadSheetRenderer extends Renderer{
 			//cell content
 			Object value=SpreadSheetUtils.getValueAt(node.getNode(), col, params.getCache(), params.getColumnModel(), params.getFieldContext());
 
-	    	Field field=(Field)params.getFieldArray().get(col);
+			Field field=params.getFieldArray().get(col);
 
 			int compWidth=c.getPreferredWidth();
 	    	int cwidth=compWidth+2*getColMargin(col);

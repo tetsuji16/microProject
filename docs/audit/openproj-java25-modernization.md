@@ -2667,6 +2667,9 @@ use `Iterator<TableColumn>`, removing the page-info and column casts while
 preserving the erased `ArrayList`/`Iterator` descriptors, traversal order,
 page-index bounds, and shallow copy of page entries. The changed raw fields,
 iterator implementation, and rendering loops match the OpenProj UI baseline.
+The OpenProj-derived `SpreadSheetRenderer` also now consumes the existing
+`SpreadSheetFieldArray` `Field` element type directly instead of repeating
+casts; the array's generic contract is already present in the active fork.
 The full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
 
 `MPXConverter.toMpxCustomFields` now uses `if (b)` instead of comparing the
