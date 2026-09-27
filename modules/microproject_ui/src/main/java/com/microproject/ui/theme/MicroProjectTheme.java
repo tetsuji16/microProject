@@ -29,16 +29,27 @@ import javax.swing.UIManager;
 import javax.swing.border.Border;
 
 /**
- * Installs microProject light-theme defaults on top of FlatLaf.
+ * Installs microProject semantic defaults on top of FlatLaf.
  */
 public final class MicroProjectTheme {
 	private static final MicroProjectThemeTokens LIGHT_TOKENS = MicroProjectThemeTokens.light();
+	private static final MicroProjectThemeTokens DARK_TOKENS = MicroProjectThemeTokens.dark();
+	private static volatile MicroProjectThemeTokens currentTokens = LIGHT_TOKENS;
 
 	private MicroProjectTheme() {
 	}
 
 	public static void installLight() {
-		MicroProjectThemeTokens tokens = LIGHT_TOKENS;
+		install(false);
+	}
+
+	public static void installDark() {
+		install(true);
+	}
+
+	private static void install(boolean dark) {
+		MicroProjectThemeTokens tokens = dark ? DARK_TOKENS : LIGHT_TOKENS;
+		currentTokens = tokens;
 		Border dialogBorder = BorderFactory.createCompoundBorder(
 			BorderFactory.createLineBorder(tokens.borderColor()),
 			BorderFactory.createEmptyBorder(tokens.contentSpacing(), tokens.sectionSpacing(), tokens.contentSpacing(), tokens.sectionSpacing()));
@@ -46,7 +57,7 @@ public final class MicroProjectTheme {
 		UIManager.put("MicroProject.ribbonSurfaceBackground", tokens.ribbonSurfaceBackground());
 		// The ribbon intentionally uses the Office blue independently from the
 		// application accent (which remains the microProject green).
-		UIManager.put("MicroProject.ribbonAccentColor", new java.awt.Color(0x0F6CBD));
+		UIManager.put("MicroProject.ribbonAccentColor", color(dark, 0x0F6CBD, 0x6BAAF4));
 		UIManager.put("MicroProject.workspaceBackground", tokens.workspaceBackground());
 		UIManager.put("MicroProject.dialogBackground", tokens.dialogBackground());
 		UIManager.put("MicroProject.dialogSurfaceBackground", tokens.dialogSurfaceBackground());
@@ -54,8 +65,8 @@ public final class MicroProjectTheme {
 		UIManager.put("MicroProject.separatorColor", tokens.separatorColor());
 		UIManager.put("MicroProject.accentColor", tokens.accentColor());
 		UIManager.put("MicroProject.spreadsheetBodyBackground", tokens.spreadsheetBodyBackground());
-		UIManager.put("MicroProject.assignmentCompleteBackground", new java.awt.Color(0xE5F0E5));
-		UIManager.put("MicroProject.assignmentPartialBackground", new java.awt.Color(0xFFF3D9));
+		UIManager.put("MicroProject.assignmentCompleteBackground", color(dark, 0xE5F0E5, 0x293D30));
+		UIManager.put("MicroProject.assignmentPartialBackground", color(dark, 0xFFF3D9, 0x483E27));
 		UIManager.put("MicroProject.spreadsheetReadOnlyForeground", tokens.spreadsheetReadOnlyForeground());
 		UIManager.put("MicroProject.spreadsheetHeaderBackground", tokens.spreadsheetHeaderBackground());
 		UIManager.put("MicroProject.spreadsheetHeaderSelectedBackground", tokens.spreadsheetHeaderSelectedBackground());
@@ -96,8 +107,8 @@ public final class MicroProjectTheme {
 		// state, while the other title-pane buttons otherwise inherit a
 		// look-and-feel default that is not guaranteed to be present after the
 		// title-bar background is replaced by the MSP-style ribbon chrome.
-		UIManager.put("TitlePane.buttonHoverBackground", new java.awt.Color(0xE5F1FB));
-		UIManager.put("TitlePane.buttonPressedBackground", new java.awt.Color(0xCCE4F7));
+		UIManager.put("TitlePane.buttonHoverBackground", color(dark, 0xE5F1FB, 0x373C44));
+		UIManager.put("TitlePane.buttonPressedBackground", color(dark, 0xCCE4F7, 0x434B55));
 		UIManager.put("TitlePane.buttonHoverForeground", tokens.tableForeground());
 		UIManager.put("TitlePane.buttonPressedForeground", tokens.tableForeground());
 		UIManager.put("TitlePane.unifiedBackground", Boolean.TRUE);
@@ -125,9 +136,29 @@ public final class MicroProjectTheme {
 		UIManager.put("Actions.Blue", tokens.accentColor());
 		UIManager.put("Actions.Red", tokens.errorColor());
 		UIManager.put("Component.errorFocusColor", tokens.errorColor());
-	}
+		UIManager.put("MicroProject.ribbonTopLineColor", color(dark, 0xD1D1D1, 0x3B3F45));
+		UIManager.put("MicroProject.ribbonSurfaceBorderColor", color(dark, 0xD1D1D1, 0x42464D));
+		UIManager.put("MicroProject.ribbonTabHoverColor", color(dark, 0xEAF3FF, 0x353B44));
+		UIManager.put("MicroProject.ribbonTabBorderHoverColor", color(dark, 0xB9D7F5, 0x4D5968));
+		UIManager.put("MicroProject.ribbonBandSeparatorColor", color(dark, 0xD8E0EA, 0x41464D));
+		UIManager.put("MicroProject.ribbonBandTitleForeground", color(dark, 0x616161, 0xC2C6CC));
+		UIManager.put("MicroProject.ribbonIconColor", color(dark, 0x323130, 0xD5D8DD));
+		UIManager.put("MicroProject.ribbonIconDisabledColor", color(dark, 0xA19F9D, 0x858B93));
+		UIManager.put("MicroProject.ribbonCommandHoverBackground", color(dark, 0xEAF3FF, 0x353B44));
+		UIManager.put("MicroProject.ribbonCommandPressedBackground", color(dark, 0xCFE8FF, 0x3F4B59));
+		UIManager.put("MicroProject.ribbonCommandSelectedBackground", color(dark, 0xDCEEFF, 0x3A4654));
+		UIManager.put("MicroProject.ribbonTabPressedBackground", color(dark, 0xE5F1FB, 0x3F4B59));
+		UIManager.put("MicroProject.chromeButtonPressedBackground", color(dark, 0xE2E5E9, 0x3F444B));
+		UIManager.put("MicroProject.chromeButtonActiveBackground", color(dark, 0xEAF3EA, 0x303D34));
+		UIManager.put("MicroProject.chromeButtonHoverBackground", color(dark, 0xECECEC, 0x35393F));
+		UIManager.put("MicroProject.switchTrackBackground", color(dark, 0xC6CBD1, 0x555B64));
+}
 
 	public static MicroProjectThemeTokens tokens() {
-		return LIGHT_TOKENS;
+		return currentTokens;
+	}
+
+	private static java.awt.Color color(boolean dark, int light, int darkValue) {
+		return new java.awt.Color(dark ? darkValue : light);
 	}
 }

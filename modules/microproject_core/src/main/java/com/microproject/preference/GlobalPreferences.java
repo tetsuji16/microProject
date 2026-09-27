@@ -50,6 +50,7 @@ public class GlobalPreferences {
 			STORE.get("defaultGanttBarText", GANTT_BAR_TEXT_RESOURCE_NAMES));
 	private String defaultGanttBarTextPosition = normalizeGanttBarTextPosition(
 			STORE.get("defaultGanttBarTextPosition", GANTT_BAR_TEXT_POSITION_AUTO));
+	private boolean darkTheme = STORE.getBoolean("darkTheme", false);
 
 	public boolean isShowProjectResourcesOnly() {
 		return !showAllResources;
@@ -136,6 +137,15 @@ public class GlobalPreferences {
 		if (fontSize == normalized) return;
 		fontSize = normalized;
 		STORE.putInt("fontSize", normalized);
+		fireUpdateEvent(this, this);
+	}
+
+	/** Whether the application should start with its dark UI theme. */
+	public boolean isDarkTheme() { return darkTheme; }
+	public void setDarkTheme(boolean value) {
+		if (darkTheme == value) return;
+		darkTheme = value;
+		STORE.putBoolean("darkTheme", value);
 		fireUpdateEvent(this, this);
 	}
 

@@ -22,6 +22,7 @@ class GlobalPreferencesTest {
 		Integer originalBarColor = preferences.getDefaultGanttBarColor();
 		String originalGanttBarText = preferences.getDefaultGanttBarText();
 		String originalGanttBarTextPosition = preferences.getDefaultGanttBarTextPosition();
+		boolean originalDarkTheme = preferences.isDarkTheme();
 		try {
 			preferences.setUserName("  editor  ");
 			preferences.setShowRowLines(false);
@@ -51,6 +52,8 @@ class GlobalPreferencesTest {
 			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT, preferences.getDefaultGanttBarTextPosition());
 			preferences.setDefaultGanttBarTextPosition("unsupported");
 			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO, preferences.getDefaultGanttBarTextPosition());
+			preferences.setDarkTheme(!originalDarkTheme);
+			assertEquals(!originalDarkTheme, preferences.isDarkTheme());
 		} finally {
 			preferences.setUserName(originalName);
 			preferences.setShowRowLines(originalRows);
@@ -60,6 +63,7 @@ class GlobalPreferencesTest {
 			preferences.setDefaultGanttBarColor(originalBarColor);
 			preferences.setDefaultGanttBarText(originalGanttBarText);
 			preferences.setDefaultGanttBarTextPosition(originalGanttBarTextPosition);
+			preferences.setDarkTheme(originalDarkTheme);
 		}
 		assertTrue(preferences.getFontSize() >= 0);
 	}

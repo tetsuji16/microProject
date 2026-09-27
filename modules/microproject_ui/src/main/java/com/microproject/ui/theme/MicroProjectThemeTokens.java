@@ -250,6 +250,50 @@ public final class MicroProjectThemeTokens {
 			16);
 	}
 
+	public static MicroProjectThemeTokens dark() {
+		return light().withColors(
+			new Color(0x202226),
+			new Color(0x191A1D),
+			new Color(0x25272B),
+			new Color(0x25272B),
+			new Color(0x2C2F34),
+			new Color(0x222428),
+			new Color(0x2A2C31),
+			new Color(0x202226),
+			new Color(0xE3E5E8),
+			new Color(0x24445E),
+			Color.WHITE,
+			new Color(0x202226),
+			new Color(0xAEB3BA),
+			new Color(0x2B2E33),
+			new Color(0x3A4E60),
+			new Color(0x24445E),
+			new Color(0x61AFFF),
+			new Color(0x3B4047),
+			new Color(0x2B2E33),
+			new Color(0xE3E5E8),
+			new Color(0xE3E5E8),
+			new Color(0xAEB3BA),
+			new Color(0x42464D),
+			new Color(0x383C42),
+			new Color(0x54A878),
+			new Color(0xFF7777),
+			new Color(0x3B4047));
+	}
+
+	private MicroProjectThemeTokens withColors(Color... colors) {
+		return new MicroProjectThemeTokens(
+			colors[0], colors[1], colors[2], colors[3], colors[4], colors[5], colors[6], colors[7], colors[8],
+			colors[9], colors[10], colors[11], colors[12], colors[13], colors[14], colors[15], colors[16], colors[17],
+			colors[18], colors[19], colors[20], colors[21], colors[22], colors[23], colors[24], colors[25], colors[26],
+			compactSpacing, contentSpacing, sectionSpacing, dialogButtonHeight, dialogCornerRadius, ribbonChromeHeight,
+			ribbonChromeVerticalInset, ribbonHorizontalInset, ribbonTabHeight, ribbonTabHorizontalPadding,
+			ribbonTabVerticalPadding, ribbonSurfaceHeight, ribbonBandVerticalInset, ribbonButtonVerticalInset,
+			ribbonSearchHeight, ribbonSearchPreferredWidth, ribbonSearchMaxWidth, ribbonCornerRadius, ribbonButtonArc,
+			ribbonQuickAccessButtonSize, ribbonLargeButtonHeight, ribbonLargeButtonMinWidth, ribbonInlineButtonHeight,
+			ribbonInlineButtonMediumMinWidth, ribbonInlineButtonSmallMinWidth, ribbonBandTitleHeight);
+	}
+
 	public Color appBackground() {
 		return appBackground;
 	}

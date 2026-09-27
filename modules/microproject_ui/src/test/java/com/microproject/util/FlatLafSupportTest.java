@@ -42,16 +42,18 @@ import javax.swing.UIManager;
 import org.junit.jupiter.api.Test;
 
 import com.formdev.flatlaf.FlatLaf;
+import com.microproject.preference.GlobalPreferences;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
 
 class FlatLafSupportTest {
 	@Test
 	void initializeUsesRibbonChromeForWindowAndMenuBar() {
 		FlatLafSupport.initialize();
 
-		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("TitlePane.background"));
-		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("TitlePane.inactiveBackground"));
-		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("MenuBar.background"));
-		assertEquals(FlatUiTheme.RIBBON_CHROME_BACKGROUND, UIManager.getColor("Menu.background"));
+		assertEquals(FlatUiTheme.ribbonChromeBackground(), UIManager.getColor("TitlePane.background"));
+		assertEquals(FlatUiTheme.ribbonChromeBackground(), UIManager.getColor("TitlePane.inactiveBackground"));
+		assertEquals(FlatUiTheme.ribbonChromeBackground(), UIManager.getColor("MenuBar.background"));
+		assertEquals(FlatUiTheme.ribbonChromeBackground(), UIManager.getColor("Menu.background"));
 		if (Environment.isWindows() && FlatLaf.supportsNativeWindowDecorations()) {
 			assertTrue(FlatLaf.isUseNativeWindowDecorations(),
 				"Windows frames must use FlatLaf native decorations when the runtime supports them");
@@ -62,8 +64,9 @@ class FlatLafSupportTest {
 	void titlePaneWindowButtonsUseOfficeHoverStates() {
 		FlatLafSupport.initialize();
 
-		assertEquals(new java.awt.Color(0xE5F1FB), UIManager.getColor("TitlePane.buttonHoverBackground"));
-		assertEquals(new java.awt.Color(0xCCE4F7), UIManager.getColor("TitlePane.buttonPressedBackground"));
+		boolean dark = new GlobalPreferences().isDarkTheme();
+		assertEquals(new java.awt.Color(dark ? 0x373C44 : 0xE5F1FB), UIManager.getColor("TitlePane.buttonHoverBackground"));
+		assertEquals(new java.awt.Color(dark ? 0x434B55 : 0xCCE4F7), UIManager.getColor("TitlePane.buttonPressedBackground"));
 		assertEquals(UIManager.getColor("TitlePane.foreground"), UIManager.getColor("TitlePane.buttonHoverForeground"));
 		assertEquals(UIManager.getColor("TitlePane.foreground"), UIManager.getColor("TitlePane.buttonPressedForeground"));
 	}
@@ -74,7 +77,25 @@ class FlatLafSupportTest {
 
 		FlatLafSupport.ensureInitialized();
 
-		assertEquals("com.formdev.flatlaf.FlatLightLaf", UIManager.getLookAndFeel().getClass().getName());
+		String expected = new GlobalPreferences().isDarkTheme()
+			? "com.formdev.flatlaf.FlatDarkLaf" : "com.formdev.flatlaf.FlatLightLaf";
+		assertEquals(expected, UIManager.getLookAndFeel().getClass().getName());
+	}
+
+	@Test
+	void initializeUsesSavedDarkAppearanceAndSemanticPalette() {
+		GlobalPreferences preferences = new GlobalPreferences();
+		boolean original = preferences.isDarkTheme();
+		try {
+			preferences.setDarkTheme(true);
+			FlatLafSupport.initialize();
+			assertEquals("com.formdev.flatlaf.FlatDarkLaf", UIManager.getLookAndFeel().getClass().getName());
+			assertEquals(MicroProjectThemeTokens.dark().workspaceBackground(), UIManager.getColor("MicroProject.workspaceBackground"));
+			assertEquals(MicroProjectThemeTokens.dark().tableForeground(), FlatUiSupport.tableForeground());
+		} finally {
+			preferences.setDarkTheme(original);
+			FlatLafSupport.initialize();
+		}
 	}
 
 	@Test

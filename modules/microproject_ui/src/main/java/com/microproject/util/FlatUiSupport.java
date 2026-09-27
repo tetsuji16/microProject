@@ -158,15 +158,15 @@ public final class FlatUiSupport {
 	}
 
 	public static Color panelBackground() {
-		return color("Panel.background", FlatUiTheme.APP_BACKGROUND);
+		return color("Panel.background", FlatUiTheme.appBackground());
 	}
 
 	public static Color workspaceBackground() {
-		return color(THEME_KEY_PREFIX + "workspaceBackground", FlatUiTheme.APP_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "workspaceBackground", FlatUiTheme.appBackground());
 	}
 
 	public static Color dialogBackground() {
-		return color(THEME_KEY_PREFIX + "dialogBackground", FlatUiTheme.APP_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "dialogBackground", FlatUiTheme.appBackground());
 	}
 
 	public static Color dialogSurfaceBackground() {
@@ -186,48 +186,48 @@ public final class FlatUiSupport {
 		if (color == null)
 			color = UIManager.getColor("Table.background");
 		if (color == null)
-			color = FlatUiTheme.APP_BACKGROUND;
+			color = FlatUiTheme.appBackground();
 		return color;
 	}
 
 	public static Color ribbonChromeBackground() {
-		return color(RIBBON_CHROME_BACKGROUND_KEY, FlatUiTheme.RIBBON_CHROME_BACKGROUND);
+		return color(RIBBON_CHROME_BACKGROUND_KEY, FlatUiTheme.ribbonChromeBackground());
 	}
 
 	public static Color tableBackground() {
-		return FlatUiTheme.TABLE_BACKGROUND;
+		return FlatUiTheme.tableBackground();
 	}
 
 	public static Color tableContentBackground() {
-		return FlatUiTheme.TABLE_CONTENT_BACKGROUND;
+		return FlatUiTheme.tableBackground();
 	}
 
 	public static Color tableForeground() {
-		return color("Table.foreground", FlatUiTheme.TABLE_FOREGROUND);
+		return color("Table.foreground", FlatUiTheme.tableForeground());
 	}
 
 	public static Color tableSelectionBackground() {
-		return color("Table.selectionBackground", FlatUiTheme.TABLE_SELECTION_BACKGROUND);
+		return color("Table.selectionBackground", FlatUiTheme.tableSelectionBackground());
 	}
 
 	public static Color tableSelectionForeground() {
-		return color("Table.selectionForeground", FlatUiTheme.TABLE_SELECTION_FOREGROUND);
+		return color("Table.selectionForeground", FlatUiTheme.tableSelectionForeground());
 	}
 
 	public static Color headerBackground() {
-		return color("TableHeader.background", FlatUiTheme.HEADER_BACKGROUND);
+		return color("TableHeader.background", FlatUiTheme.headerBackground());
 	}
 
 	public static Color headerForeground() {
-		return color("TableHeader.foreground", FlatUiTheme.HEADER_FOREGROUND);
+		return color("TableHeader.foreground", FlatUiTheme.headerForeground());
 	}
 
 	public static Color disabledForeground() {
-		return color("Label.disabledForeground", FlatUiTheme.DISABLED_FOREGROUND);
+		return color("Label.disabledForeground", FlatUiTheme.disabledForeground());
 	}
 
 	public static Color infoForeground() {
-		return color("TextField.foreground", FlatUiTheme.INFO_FOREGROUND);
+		return color("TextField.foreground", FlatUiTheme.infoForeground());
 	}
 
 	public static Color errorForeground() {
@@ -235,24 +235,24 @@ public final class FlatUiSupport {
 		if (color == null)
 			color = UIManager.getColor("Component.errorFocusColor");
 		if (color == null)
-			color = FlatUiTheme.ERROR;
+			color = FlatUiTheme.error();
 		return color;
 	}
 
 	public static Color labelForeground() {
-		return color("Label.foreground", FlatUiTheme.LABEL_FOREGROUND);
+		return color("Label.foreground", FlatUiTheme.labelForeground());
 	}
 
 	public static Color borderColor() {
-		return color("Component.borderColor", FlatUiTheme.BORDER);
+		return color("Component.borderColor", FlatUiTheme.border());
 	}
 
 	public static Color separatorColor() {
-		return color("Separator.foreground", FlatUiTheme.SEPARATOR);
+		return color("Separator.foreground", FlatUiTheme.separator());
 	}
 
 	public static Color ribbonTopLineColor() {
-		return new Color(0xD1D1D1);
+		return color(THEME_KEY_PREFIX + "ribbonTopLineColor", new Color(0xD1D1D1));
 	}
 
 	public static Color ribbonSurfaceColor() {
@@ -260,7 +260,7 @@ public final class FlatUiSupport {
 	}
 
 	public static Color ribbonSurfaceBorderColor() {
-		return new Color(0xD1D1D1);
+		return color(THEME_KEY_PREFIX + "ribbonSurfaceBorderColor", new Color(0xD1D1D1));
 	}
 
 	public static Color ribbonAccentColor() {
@@ -272,11 +272,11 @@ public final class FlatUiSupport {
 	}
 
 	public static Color ribbonTabHoverColor() {
-		return new Color(0xEAF3FF);
+		return color(THEME_KEY_PREFIX + "ribbonTabHoverColor", new Color(0xEAF3FF));
 	}
 
 	public static Color ribbonTabBorderHoverColor() {
-		return new Color(0xB9D7F5);
+		return color(THEME_KEY_PREFIX + "ribbonTabBorderHoverColor", new Color(0xB9D7F5));
 	}
 
 	public static Color ribbonTabUnderlineColor() {
@@ -292,7 +292,7 @@ public final class FlatUiSupport {
 	}
 
 	public static Color tableGridColor() {
-		return color("Table.gridColor", FlatUiTheme.SPREADSHEET_GRID);
+		return color("Table.gridColor", FlatUiTheme.spreadsheetGrid());
 	}
 
 	public static Color ganttHeaderGridColor() {
@@ -300,7 +300,7 @@ public final class FlatUiSupport {
 	}
 
 	public static Color spreadsheetBodyBackground() {
-		return color(THEME_KEY_PREFIX + "spreadsheetBodyBackground", FlatUiTheme.SPREADSHEET_BODY_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetBodyBackground", FlatUiTheme.spreadsheetBodyBackground());
 	}
 
 	public static Color assignmentCompleteBackground() {
@@ -312,39 +312,39 @@ public final class FlatUiSupport {
 	}
 
 	public static Color spreadsheetReadOnlyForeground() {
-		return color(THEME_KEY_PREFIX + "spreadsheetReadOnlyForeground", FlatUiTheme.SPREADSHEET_READ_ONLY_FOREGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetReadOnlyForeground", FlatUiTheme.spreadsheetReadOnlyForeground());
 	}
 
 	public static Color spreadsheetHeaderBackground() {
-		return color(THEME_KEY_PREFIX + "spreadsheetHeaderBackground", FlatUiTheme.SPREADSHEET_HEADER_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetHeaderBackground", FlatUiTheme.spreadsheetHeaderBackground());
 	}
 
 	public static Color spreadsheetHeaderSelectedBackground() {
-		return color(THEME_KEY_PREFIX + "spreadsheetHeaderSelectedBackground", FlatUiTheme.SPREADSHEET_HEADER_SELECTED_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetHeaderSelectedBackground", FlatUiTheme.spreadsheetHeaderSelectedBackground());
 	}
 
 	public static Color spreadsheetRangeSelectionBackground() {
-		return color(THEME_KEY_PREFIX + "spreadsheetRangeSelectionBackground", FlatUiTheme.SPREADSHEET_RANGE_SELECTION_BACKGROUND);
+		return color(THEME_KEY_PREFIX + "spreadsheetRangeSelectionBackground", FlatUiTheme.spreadsheetRangeSelectionBackground());
 	}
 
 	public static Color spreadsheetActiveCellBorderColor() {
-		return color(THEME_KEY_PREFIX + "spreadsheetActiveCellBorder", FlatUiTheme.SPREADSHEET_ACTIVE_CELL_BORDER);
+		return color(THEME_KEY_PREFIX + "spreadsheetActiveCellBorder", FlatUiTheme.spreadsheetActiveCellBorder());
 	}
 
 	public static Color spreadsheetGridColor() {
-		return color(THEME_KEY_PREFIX + "spreadsheetGridColor", FlatUiTheme.SPREADSHEET_GRID);
+		return color(THEME_KEY_PREFIX + "spreadsheetGridColor", FlatUiTheme.spreadsheetGrid());
 	}
 
 	public static Color ribbonBandSeparatorColor() {
-		return new Color(0xD8E0EA);
+		return color(THEME_KEY_PREFIX + "ribbonBandSeparatorColor", new Color(0xD8E0EA));
 	}
 
 	public static Color ribbonBandTitleForeground() {
-		return new Color(0x616161);
+		return color(THEME_KEY_PREFIX + "ribbonBandTitleForeground", new Color(0x616161));
 	}
 
 	public static Color ribbonIconColor() {
-		return new Color(0x323130);
+		return color(THEME_KEY_PREFIX + "ribbonIconColor", new Color(0x323130));
 	}
 
 	public static Color ribbonIconHoverColor() {
@@ -356,7 +356,23 @@ public final class FlatUiSupport {
 	}
 
 	public static Color ribbonIconDisabledColor() {
-		return new Color(0xA19F9D);
+		return color(THEME_KEY_PREFIX + "ribbonIconDisabledColor", new Color(0xA19F9D));
+	}
+
+	public static Color chromeButtonPressedBackground() {
+		return color(THEME_KEY_PREFIX + "chromeButtonPressedBackground", new Color(0xE2E5E9));
+	}
+
+	public static Color chromeButtonActiveBackground() {
+		return color(THEME_KEY_PREFIX + "chromeButtonActiveBackground", new Color(0xEAF3EA));
+	}
+
+	public static Color chromeButtonHoverBackground() {
+		return color(THEME_KEY_PREFIX + "chromeButtonHoverBackground", new Color(0xECECEC));
+	}
+
+	public static Color switchTrackBackground() {
+		return color(THEME_KEY_PREFIX + "switchTrackBackground", new Color(0xC6CBD1));
 	}
 
 	public static Color ribbonLogoSeparatorColor() {
@@ -370,7 +386,7 @@ public final class FlatUiSupport {
 		if (color == null)
 			color = UIManager.getColor("Actions.Blue");
 		if (color == null)
-			color = FlatUiTheme.ACCENT;
+			color = FlatUiTheme.accent();
 		return color;
 	}
 
@@ -429,19 +445,19 @@ public final class FlatUiSupport {
 
 	public static Color commandButtonHoverBackground(AbstractButton button) {
 		if (isRibbonCommandButton(button))
-			return new Color(0xEAF3FF);
+			return color(THEME_KEY_PREFIX + "ribbonCommandHoverBackground", new Color(0xEAF3FF));
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.08f);
 	}
 
 	public static Color commandButtonPressedBackground(AbstractButton button) {
 		if (isRibbonCommandButton(button))
-			return new Color(0xCFE8FF);
+			return color(THEME_KEY_PREFIX + "ribbonCommandPressedBackground", new Color(0xCFE8FF));
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.16f);
 	}
 
 	public static Color commandButtonSelectedBackground(AbstractButton button) {
 		if (isRibbonCommandButton(button))
-			return new Color(0xDCEEFF);
+			return color(THEME_KEY_PREFIX + "ribbonCommandSelectedBackground", new Color(0xDCEEFF));
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.14f);
 	}
 
@@ -500,7 +516,7 @@ public final class FlatUiSupport {
 		if (model == null || model.isSelected())
 			return null;
 		if (model.isPressed() || model.isArmed())
-			return new Color(0xE5F1FB);
+			return color(THEME_KEY_PREFIX + "ribbonTabPressedBackground", new Color(0xE5F1FB));
 		if (model.isRollover())
 			return ribbonTabHoverColor();
 		return null;

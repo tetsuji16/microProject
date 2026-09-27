@@ -480,7 +480,7 @@ final class OfficeChromePanel extends JPanel {
 				FlatUiSupport.enableAntialiasing(g2);
 				int width = getWidth() - 1;
 				int height = getHeight() - 1;
-				g2.setColor(Color.WHITE);
+				g2.setColor(FlatUiSupport.ribbonSurfaceColor());
 				g2.fillRoundRect(0, 0, width, height, FlatUiSupport.ribbonCornerRadius(), FlatUiSupport.ribbonCornerRadius());
 				g2.setColor(searchField.isFocusOwner() ? ACCENT_COLOR : BORDER_COLOR);
 				g2.drawRoundRect(0, 0, width, height, FlatUiSupport.ribbonCornerRadius(), FlatUiSupport.ribbonCornerRadius());
@@ -535,10 +535,10 @@ final class OfficeChromePanel extends JPanel {
 			try {
 				FlatUiSupport.enableAntialiasing(g2);
 				if (getModel().isPressed()) {
-					g2.setColor(new Color(0xE2E5E9));
+					g2.setColor(FlatUiSupport.chromeButtonPressedBackground());
 					g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, FlatUiSupport.ribbonButtonArc(), FlatUiSupport.ribbonButtonArc());
 				} else if (getModel().isRollover() || active) {
-					g2.setColor(active ? new Color(0xEAF3EA) : new Color(0xECECEC));
+					g2.setColor(active ? FlatUiSupport.chromeButtonActiveBackground() : FlatUiSupport.chromeButtonHoverBackground());
 					g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, FlatUiSupport.ribbonButtonArc(), FlatUiSupport.ribbonButtonArc());
 				}
 			} finally {
@@ -572,7 +572,7 @@ final class OfficeChromePanel extends JPanel {
 			Graphics2D g2 = (Graphics2D) g.create();
 			try {
 				FlatUiSupport.enableAntialiasing(g2);
-				Color track = isSelected() ? ACCENT_COLOR : new Color(0xC6CBD1);
+				Color track = isSelected() ? ACCENT_COLOR : FlatUiSupport.switchTrackBackground();
 				g2.setColor(track);
 				g2.fill(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 18, 18));
 				int knobDiameter = 14;
@@ -648,7 +648,7 @@ final class OfficeChromePanel extends JPanel {
 			Graphics2D g2 = (Graphics2D) g.create();
 			try {
 				FlatUiSupport.enableAntialiasing(g2);
-				g2.setColor(new Color(0x404040));
+				g2.setColor(FlatUiSupport.ribbonIconColor());
 				switch (kind) {
 					case COMMENT -> paintComment(g2, x, y);
 					case SHARE -> paintShare(g2, x, y);

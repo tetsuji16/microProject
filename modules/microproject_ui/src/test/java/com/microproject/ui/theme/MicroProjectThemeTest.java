@@ -53,6 +53,20 @@ class MicroProjectThemeTest {
 	}
 
 	@Test
+	void installDarkPublishesDarkSurfacesAndReadableForegrounds() {
+		try {
+			MicroProjectTheme.installDark();
+			assertEquals(MicroProjectThemeTokens.dark().workspaceBackground(), UIManager.getColor("MicroProject.workspaceBackground"));
+			assertEquals(MicroProjectThemeTokens.dark().dialogSurfaceBackground(), UIManager.getColor("MicroProject.dialogSurfaceBackground"));
+			assertEquals(MicroProjectThemeTokens.dark().tableForeground(), UIManager.getColor("Table.foreground"));
+			assertEquals(MicroProjectThemeTokens.dark().spreadsheetGridColor(), UIManager.getColor("Table.gridColor"));
+			assertEquals(new Color(0x353B44), UIManager.getColor("MicroProject.ribbonTabHoverColor"));
+		} finally {
+			MicroProjectTheme.installLight();
+		}
+	}
+
+	@Test
 	void lightTokensKeepHeaderAndSelectionPaletteAligned() {
 		assertEquals(MicroProjectTheme.tokens().headerBackground(), MicroProjectTheme.tokens().spreadsheetHeaderBackground());
 		assertEquals(MicroProjectTheme.tokens().tableGridColor(), MicroProjectTheme.tokens().spreadsheetGridColor());
@@ -73,5 +87,14 @@ class MicroProjectThemeTest {
 	@Test
 	void ribbonChromeMatchesTheWindowsTitleBarGray() {
 		assertEquals(new Color(0xF2F2F2), MicroProjectThemeTokens.light().ribbonChromeBackground());
+	}
+
+	@Test
+	void darkTokensKeepReadableTextAndLayeredSurfaces() {
+		MicroProjectThemeTokens tokens = MicroProjectThemeTokens.dark();
+
+		assertTrue(tokens.tableForeground().getRed() > tokens.tableBackground().getRed());
+		assertTrue(tokens.dialogSurfaceBackground().getRed() > tokens.dialogBackground().getRed());
+		assertTrue(tokens.borderColor().getRed() > tokens.tableBackground().getRed());
 	}
 }

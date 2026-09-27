@@ -55,6 +55,17 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JTextField userName = new JTextField(preferences.getUserName(), 24);
 		JCheckBox rowLines = new JCheckBox(UsabilityStrings.text("preferences.rowLines"), preferences.isShowRowLines());
 		JCheckBox checkUpdates = new JCheckBox(UsabilityStrings.text("preferences.checkUpdates"), preferences.isCheckForUpdates());
+		String lightTheme = UsabilityStrings.text("preferences.themeLight");
+		String darkTheme = UsabilityStrings.text("preferences.themeDark");
+		JComboBox<String> theme = new JComboBox<>(new String[] { lightTheme, darkTheme });
+		theme.setName("preferencesTheme");
+		theme.setSelectedItem(preferences.isDarkTheme() ? darkTheme : lightTheme);
+		JLabel themeRestartNotice = new JLabel(UsabilityStrings.text("preferences.themeRestartRequired"));
+		themeRestartNotice.setName("preferencesThemeRestartNotice");
+		Runnable updateThemeRestartNotice = () -> themeRestartNotice.setVisible(
+				preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem()));
+		theme.addActionListener(event -> updateThemeRestartNotice.run());
+		updateThemeRestartNotice.run();
 		JSpinner recoveryInterval = autoSaveControl == null ? null
 				: new JSpinner(new SpinnerNumberModel(autoSaveControl.getIntervalMinutes(), 1, 1440, 1));
 		if (recoveryInterval != null) recoveryInterval.setName("preferencesAutoSaveInterval");
@@ -110,6 +121,8 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JPanel gridColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); gridColorControls.add(gridColor); gridColorControls.add(resetGridColor); form.add(gridColorControls);
 		form.add(new JLabel()); form.add(rowLines);
 		form.add(new JLabel()); form.add(checkUpdates);
+		form.add(new JLabel(UsabilityStrings.text("preferences.theme"))); form.add(theme);
+		form.add(new JLabel()); form.add(themeRestartNotice);
 		if (recoveryInterval != null) {
 			form.add(new JLabel(UsabilityStrings.text("preferences.autoSaveInterval"))); form.add(recoveryInterval);
 		}
@@ -135,6 +148,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			preferences.setGridLineColor(selectedGridColor[0] == null ? null : Integer.valueOf(selectedGridColor[0].getRGB()));
 			preferences.setDefaultGanttBarColor(selectedBarColor[0] == null ? null : Integer.valueOf(selectedBarColor[0].getRGB()));
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
+			preferences.setDarkTheme(darkTheme.equals(theme.getSelectedItem()));
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
 			dispose();

@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractButton;
 import javax.swing.JDialog;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -32,23 +34,36 @@ import com.microproject.preference.GlobalPreferences;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.shell.AutoSaveControl;
+import com.microproject.util.FlatLafSupport;
 
 /** Visible coverage for the user preference controls added to the desktop dialog. */
 class PreferencesDialogGuiAcceptanceTest {
+	private GlobalPreferences testPreferences;
+	private boolean originalDarkTheme;
+
 	@AfterEach
 	void closeDialogs() throws Exception {
+		GlobalPreferences preferences = testPreferences;
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window window : Window.getWindows())
 				if (window instanceof PreferencesDialogBox)
 					window.dispose();
+			if (preferences != null) {
+				preferences.setDarkTheme(originalDarkTheme);
+				FlatLafSupport.initialize();
+			}
 		});
+		testPreferences = null;
 	}
 
 	@Test
 	void preferencesDialogVisiblyOffersThemeAutomaticGridColorAndReset() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		AtomicInteger appliedInterval = new AtomicInteger(-1);
-		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, new GlobalPreferences(), null,
+		testPreferences = new GlobalPreferences();
+		originalDarkTheme = testPreferences.isDarkTheme();
+		testPreferences.setDarkTheme(false);
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences, null,
 			new AutoSaveControl() {
 				private int intervalMinutes = DEFAULT_INTERVAL_MINUTES;
 				public boolean isEnabled() { return true; }
@@ -74,11 +89,16 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextPositionAutomatic")));
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextPositionRight")));
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextPositionLeft")));
+		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.themeLight")));
+		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.themeDark")));
+		JComboBox<?> theme = findNamedComponent(dialog, JComboBox.class, "preferencesTheme");
+		JLabel themeRestartNotice = findNamedComponent(dialog, JLabel.class, "preferencesThemeRestartNotice");
+		assertTrue(theme != null && themeRestartNotice != null, "Theme choice must expose its restart notice");
 		JSpinner interval = findNamedComponent(dialog, JSpinner.class, "preferencesAutoSaveInterval");
 		assertTrue(interval != null, "Preferences must expose the auto-recovery interval");
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(), "Preferences dialog");
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Preferences dialog");
-		capture(robot, dialog);
+		capture(robot, dialog, "preferences-theme-selection.png");
 		JTextField intervalEditor = ((JSpinner.DefaultEditor) interval.getEditor()).getTextField();
 		click(robot, intervalEditor);
 		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_A);
@@ -86,9 +106,42 @@ class PreferencesDialogGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_1); robot.keyRelease(KeyEvent.VK_1);
 		robot.keyPress(KeyEvent.VK_2); robot.keyRelease(KeyEvent.VK_2);
 		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
+		click(robot, theme);
+		robot.keyPress(KeyEvent.VK_END); robot.keyRelease(KeyEvent.VK_END);
+		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> UsabilityStrings.text("preferences.themeDark").equals(selectedItem(theme)),
+			"Robot did not select the dark theme");
+		GuiAcceptanceSupport.await(themeRestartNotice::isVisible,
+			"Changing theme must tell users to restart the application");
 		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Preferences dialog did not close after Apply");
 		assertEquals(12, appliedInterval.get(), "Apply must persist the entered recovery interval");
+		assertTrue(testPreferences.isDarkTheme(), "Apply must persist the selected dark theme");
+	}
+
+	@Test
+	void darkThemeStartupUsesDarkLookAndFeelAndKeepsPreferencesUsable() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		testPreferences = new GlobalPreferences();
+		originalDarkTheme = testPreferences.isDarkTheme();
+		testPreferences.setDarkTheme(true);
+		FlatLafSupport.initialize();
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Dark-theme Preferences dialog did not open");
+		PreferencesDialogBox dialog = findDialog();
+		SwingUtilities.invokeAndWait(() -> {
+			dialog.setAlwaysOnTop(true);
+			dialog.toFront();
+			dialog.requestFocus();
+		});
+		Robot robot = new Robot();
+		robot.delay(300);
+		robot.waitForIdle();
+		assertEquals("com.formdev.flatlaf.FlatDarkLaf", javax.swing.UIManager.getLookAndFeel().getClass().getName());
+		assertEquals(new java.awt.Color(0x25272B), javax.swing.UIManager.getColor("Panel.background"));
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(), "Dark Preferences dialog");
+		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Dark Preferences dialog");
+		capture(robot, dialog, "preferences-dark-theme.png");
 	}
 
 	private static PreferencesDialogBox findDialog() {
@@ -151,12 +204,22 @@ class PreferencesDialogGuiAcceptanceTest {
 		return false;
 	}
 
-	private static void capture(Robot robot, JDialog dialog) throws Exception {
+	private static Object selectedItem(JComboBox<?> combo) {
+		Object[] value = new Object[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> value[0] = combo.getSelectedItem());
+		} catch (Exception exception) {
+			throw new IllegalStateException(exception);
+		}
+		return value[0];
+	}
+
+	private static void capture(Robot robot, JDialog dialog, String fileName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(dialog.getRootPane().getLocationOnScreen(), dialog.getRootPane().getSize()));
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
 		javax.imageio.ImageIO.write(robot.createScreenCapture(bounds[0]), "png",
-			directory.resolve("preferences-grid-color.png").toFile());
+			directory.resolve(fileName).toFile());
 	}
 }

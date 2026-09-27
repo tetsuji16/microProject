@@ -34,31 +34,29 @@ import com.microproject.ui.theme.MicroProjectTheme;
  * Keep the palette here so the app-facing helpers and the UI defaults stay in sync.
  */
 final class FlatUiTheme {
-	static final Color APP_BACKGROUND = MicroProjectTheme.tokens().appBackground();
-	static final Color RIBBON_CHROME_BACKGROUND = MicroProjectTheme.tokens().ribbonChromeBackground();
-	static final Color RIBBON_SURFACE = MicroProjectTheme.tokens().ribbonSurfaceBackground();
-	static final Color TABLE_BACKGROUND = MicroProjectTheme.tokens().tableBackground();
-	static final Color TABLE_CONTENT_BACKGROUND = MicroProjectTheme.tokens().tableBackground();
-	static final Color TABLE_FOREGROUND = MicroProjectTheme.tokens().tableForeground();
-	static final Color TABLE_SELECTION_BACKGROUND = MicroProjectTheme.tokens().tableSelectionBackground();
-	static final Color TABLE_SELECTION_FOREGROUND = MicroProjectTheme.tokens().tableSelectionForeground();
-	static final Color SPREADSHEET_BODY_BACKGROUND = MicroProjectTheme.tokens().spreadsheetBodyBackground();
-	static final Color SPREADSHEET_READ_ONLY_FOREGROUND = MicroProjectTheme.tokens().spreadsheetReadOnlyForeground();
-	static final Color SPREADSHEET_HEADER_BACKGROUND = MicroProjectTheme.tokens().spreadsheetHeaderBackground();
-	static final Color SPREADSHEET_HEADER_SELECTED_BACKGROUND = MicroProjectTheme.tokens().spreadsheetHeaderSelectedBackground();
-	static final Color SPREADSHEET_RANGE_SELECTION_BACKGROUND = MicroProjectTheme.tokens().spreadsheetRangeSelectionBackground();
-	static final Color SPREADSHEET_ACTIVE_CELL_BORDER = MicroProjectTheme.tokens().spreadsheetActiveCellBorder();
-	static final Color SPREADSHEET_GRID = MicroProjectTheme.tokens().spreadsheetGridColor();
-	static final Color HEADER_BACKGROUND = MicroProjectTheme.tokens().headerBackground();
-	static final Color HEADER_FOREGROUND = MicroProjectTheme.tokens().headerForeground();
-	static final Color LABEL_FOREGROUND = MicroProjectTheme.tokens().labelForeground();
-	static final Color DISABLED_FOREGROUND = MicroProjectTheme.tokens().disabledForeground();
-	static final Color BORDER = MicroProjectTheme.tokens().borderColor();
-	static final Color SEPARATOR = MicroProjectTheme.tokens().separatorColor();
-	static final Color ACCENT = MicroProjectTheme.tokens().accentColor();
-	static final Color ERROR = MicroProjectTheme.tokens().errorColor();
-	static final Color TABLE_GRID = MicroProjectTheme.tokens().tableGridColor();
-	static final Color INFO_FOREGROUND = LABEL_FOREGROUND;
+	static Color appBackground() { return MicroProjectTheme.tokens().appBackground(); }
+	static Color ribbonChromeBackground() { return MicroProjectTheme.tokens().ribbonChromeBackground(); }
+	static Color tableBackground() { return MicroProjectTheme.tokens().tableBackground(); }
+	static Color tableForeground() { return MicroProjectTheme.tokens().tableForeground(); }
+	static Color tableSelectionBackground() { return MicroProjectTheme.tokens().tableSelectionBackground(); }
+	static Color tableSelectionForeground() { return MicroProjectTheme.tokens().tableSelectionForeground(); }
+	static Color spreadsheetBodyBackground() { return MicroProjectTheme.tokens().spreadsheetBodyBackground(); }
+	static Color spreadsheetReadOnlyForeground() { return MicroProjectTheme.tokens().spreadsheetReadOnlyForeground(); }
+	static Color spreadsheetHeaderBackground() { return MicroProjectTheme.tokens().spreadsheetHeaderBackground(); }
+	static Color spreadsheetHeaderSelectedBackground() { return MicroProjectTheme.tokens().spreadsheetHeaderSelectedBackground(); }
+	static Color spreadsheetRangeSelectionBackground() { return MicroProjectTheme.tokens().spreadsheetRangeSelectionBackground(); }
+	static Color spreadsheetActiveCellBorder() { return MicroProjectTheme.tokens().spreadsheetActiveCellBorder(); }
+	static Color spreadsheetGrid() { return MicroProjectTheme.tokens().spreadsheetGridColor(); }
+	static Color headerBackground() { return MicroProjectTheme.tokens().headerBackground(); }
+	static Color headerForeground() { return MicroProjectTheme.tokens().headerForeground(); }
+	static Color labelForeground() { return MicroProjectTheme.tokens().labelForeground(); }
+	static Color disabledForeground() { return MicroProjectTheme.tokens().disabledForeground(); }
+	static Color border() { return MicroProjectTheme.tokens().borderColor(); }
+	static Color separator() { return MicroProjectTheme.tokens().separatorColor(); }
+	static Color accent() { return MicroProjectTheme.tokens().accentColor(); }
+	static Color error() { return MicroProjectTheme.tokens().errorColor(); }
+	static Color tableGrid() { return MicroProjectTheme.tokens().tableGridColor(); }
+	static Color infoForeground() { return MicroProjectTheme.tokens().labelForeground(); }
 
 	private FlatUiTheme() {
 	}

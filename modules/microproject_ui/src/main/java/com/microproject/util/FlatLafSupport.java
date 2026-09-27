@@ -35,7 +35,9 @@ import javax.swing.UIManager;
 import javax.swing.plaf.FontUIResource;
 
 import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.ui.theme.MicroProjectTheme;
 
 /**
@@ -64,7 +66,11 @@ public final class FlatLafSupport {
 			JDialog.setDefaultLookAndFeelDecorated(true);
 
 			UiServices.setFileChooserProvider(new SwingFileChooserProvider());
-			FlatLightLaf.setup();
+			boolean darkTheme = new GlobalPreferences().isDarkTheme();
+			if (darkTheme)
+				FlatDarkLaf.setup();
+			else
+				FlatLightLaf.setup();
 			Environment.setNewLaf(isFlatLafLookAndFeel());
 
 			Font defaultFont = createDefaultFont();
@@ -73,7 +79,10 @@ public final class FlatLafSupport {
 				applyUIFontDefaults(defaultFont);
 				applyEnvironmentFonts(defaultFont);
 			}
-			MicroProjectTheme.installLight();
+			if (darkTheme)
+				MicroProjectTheme.installDark();
+			else
+				MicroProjectTheme.installLight();
 			// Office-style command descriptions should appear deliberately, not while
 			// the pointer merely crosses the ribbon.
 			UIManager.put("ToolTip.initialDelay", Integer.valueOf(500));
