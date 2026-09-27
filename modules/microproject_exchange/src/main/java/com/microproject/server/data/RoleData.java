@@ -57,7 +57,6 @@ public class RoleData implements Serializable{
 		this.name = name;
 	}
 	public String toString(){
-//		return name+"("+id+")";
 		return name;
 	}
 }

@@ -84,8 +84,6 @@ public abstract class ServerFileImporter extends FileImporter{
 		
 		MergeField mergeField=new ResourceMappingForm.MergeField("name","name","name"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 		form.addMergeField(mergeField);
-//		if (!form.isJunit()) //claur
-//			form.setMergeField(mergeField);
 		mergeField=new ResourceMappingForm.MergeField("emailAddress","emailAddress","email"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 		form.addMergeField(mergeField);
 		mergeField=new ResourceMappingForm.MergeField("uniqueId","externalId","id"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
