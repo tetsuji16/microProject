@@ -484,7 +484,6 @@ public class MicrosoftImporter extends ServerFileImporter{
     			return null;
     		}
     	});
-		//session.schedule(job);
     	return job;
 
 	}
@@ -492,7 +491,6 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 	}
 	protected void mapResource(Number id, Object value) {
-//		System.out.println("Mapping res " + id + "   " + value);
 		resourceMap.put(id, value);
 	}
 	public Map<Number, Object> getResourceMap() {
