@@ -330,10 +330,6 @@ public class ViewTransformer{
     	if (!isNoneGrouper()) return false;
     	if (!isShowEmptyLines(getHiddenFilter())) return false;
        	if (!isShowEmptyLines(getUserFilter())) return false;
-//       	if (!isShowEmptyLines(getHiddenSorter())) return false;
-//       	if (!isShowEmptyLines(getUserSorter())) return false;
-//       	if (!isShowEmptyLines(getHiddenGrouper())) return false;
-//       	if (!isShowEmptyLines(getUserGrouper())) return false;
     	return true;
     }
     private boolean isShowEmptyLines(CommonTransform t){return (t==null)?true:t.isShowEmptyLines();}
@@ -343,8 +339,6 @@ public class ViewTransformer{
     	if (!isNoneGrouper()) return false;
     	if (!isShowEndEmptyLines(getHiddenFilter())) return false;
        	if (!isShowEndEmptyLines(getUserFilter())) return false;
-//    	if (!isShowEndEmptyLines(getHiddenSorter())) return false;
-//       	if (!isShowEndEmptyLines(getUserSorter())) return false;
     	return true;
     }
     private boolean isShowEndEmptyLines(CommonTransform t){return (t==null)?true:t.isShowEndEmptyLines();}
@@ -352,20 +346,9 @@ public class ViewTransformer{
     public boolean isShowEmptySummaries(){
     	if (!isShowEmptySummaries(getHiddenFilter())) return false;
        	if (!isShowEmptySummaries(getUserFilter())) return false;
-//       	if (!isShowEmptyLines(getHiddenSorter())) return false;
-//       	if (!isShowEmptyLines(getUserSorter())) return false;
-//       	if (!isShowEmptyLines(getHiddenGrouper())) return false;
-//       	if (!isShowEmptyLines(getUserGrouper())) return false;
     	return true;
     }
     private boolean isShowEmptySummaries(CommonTransform t){return (t==null)?true:t.isShowEmptySummaries();}
-
-//    public boolean isShowBadBranches(){
-//    	if (!isShowBadBranches(getHiddenFilter())) return false;
-//       	if (!isShowBadBranches(getUserFilter())) return false;
-//    	return true;
-//    }
-//    private boolean isShowBadBranches(CommonTransform t){return (t==null)?true:t.isShowBadBranches();}
 
 
     public boolean isTreatAssignmentsAsTasks(){
