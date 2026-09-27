@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.preference.GlobalPreferences;
+import com.microproject.pm.graphic.gantt.MilestoneShapeChoice;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.shell.AutoSaveControl;
@@ -43,6 +44,7 @@ class PreferencesDialogGuiAcceptanceTest {
 	private String originalDatePattern;
 	private String originalDateTimePattern;
 	private String originalCurrencyCode;
+	private String originalMilestoneShape;
 
 	@AfterEach
 	void closeDialogs() throws Exception {
@@ -56,6 +58,7 @@ class PreferencesDialogGuiAcceptanceTest {
 				preferences.setDatePattern(originalDatePattern);
 				preferences.setDateTimePattern(originalDateTimePattern);
 				preferences.setCurrencyCode(originalCurrencyCode);
+				preferences.setDefaultMilestoneShape(originalMilestoneShape);
 				FlatLafSupport.initialize();
 			}
 		});
@@ -71,6 +74,7 @@ class PreferencesDialogGuiAcceptanceTest {
 		originalDatePattern = testPreferences.getDatePattern();
 		originalDateTimePattern = testPreferences.getDateTimePattern();
 		originalCurrencyCode = testPreferences.getCurrencyCode();
+		originalMilestoneShape = testPreferences.getDefaultMilestoneShape();
 		testPreferences.setDarkTheme(false);
 		testPreferences.setDatePattern("");
 		testPreferences.setDateTimePattern("");
@@ -101,6 +105,9 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextPositionAutomatic")));
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextPositionRight")));
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.ganttBarTextPositionLeft")));
+		assertTrue(hasComboItem(dialog, MilestoneShapeChoice.DIAMOND.toString()));
+		JComboBox<?> milestoneShape = findNamedComponent(dialog, JComboBox.class, "preferencesMilestoneShape");
+		assertTrue(milestoneShape != null, "Preferences must expose a default milestone shape");
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.themeLight")));
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.themeDark")));
 		JComboBox<?> theme = findNamedComponent(dialog, JComboBox.class, "preferencesTheme");
@@ -136,6 +143,9 @@ class PreferencesDialogGuiAcceptanceTest {
 			"Robot did not select the dark theme");
 		GuiAcceptanceSupport.await(themeRestartNotice::isVisible,
 			"Changing theme must tell users to restart the application");
+		click(robot, milestoneShape);
+		robot.keyPress(KeyEvent.VK_END); robot.keyRelease(KeyEvent.VK_END);
+		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
 		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Preferences dialog did not close after Apply");
 		assertEquals(12, appliedInterval.get(), "Apply must persist the entered recovery interval");
@@ -143,6 +153,8 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertEquals("dd.MM.yyyy", testPreferences.getDatePattern(), "Apply must persist the date-only format");
 		assertEquals("dd.MM.yyyy HH:mm", testPreferences.getDateTimePattern(), "Apply must persist the date-time format");
 		assertEquals("EUR", testPreferences.getCurrencyCode(), "Apply must persist the currency override");
+		assertEquals(MilestoneShapeChoice.TRIANGLE_DOWN.getShapeName(), testPreferences.getDefaultMilestoneShape(),
+			"Apply must persist the default milestone shape");
 	}
 
 	@Test
@@ -153,6 +165,7 @@ class PreferencesDialogGuiAcceptanceTest {
 		originalDatePattern = testPreferences.getDatePattern();
 		originalDateTimePattern = testPreferences.getDateTimePattern();
 		originalCurrencyCode = testPreferences.getCurrencyCode();
+		originalMilestoneShape = testPreferences.getDefaultMilestoneShape();
 		testPreferences.setDarkTheme(true);
 		FlatLafSupport.initialize();
 		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
@@ -245,7 +258,7 @@ class PreferencesDialogGuiAcceptanceTest {
 		for (java.awt.Component child : container.getComponents()) {
 			if (child instanceof javax.swing.JComboBox<?> combo)
 				for (int index = 0; index < combo.getItemCount(); index++)
-					if (text.equals(combo.getItemAt(index))) return true;
+					if (text.equals(String.valueOf(combo.getItemAt(index)))) return true;
 			if (child instanceof java.awt.Container nested && hasComboItem(nested, text)) return true;
 		}
 		return false;

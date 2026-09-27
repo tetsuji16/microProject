@@ -94,7 +94,7 @@ final class GanttBarFormatDialog {
 	private static final class FormatPanel extends JPanel {
 		private static final long serialVersionUID = 1L;
 		private final BarColorEditorPanel editor;
-		private final JComboBox<MilestoneShape> milestoneShape;
+		private final JComboBox<MilestoneShapeChoice> milestoneShape;
 
 		private FormatPanel(Component parent, BarFormat format, GanttRenderer.DisplayedBarColors displayedColors,
 				boolean milestone, boolean summary) {
@@ -102,9 +102,9 @@ final class GanttBarFormatDialog {
 			setBorder(BorderFactory.createEmptyBorder(8, 8, 4, 8));
 
 			editor = new BarColorEditorPanel(parent, format, displayedColors, milestone, summary, null);
-			milestoneShape = milestone ? new JComboBox<>(MilestoneShape.values()) : null;
+			milestoneShape = milestone ? new JComboBox<>(MilestoneShapeChoice.values()) : null;
 			if (milestoneShape != null)
-				milestoneShape.setSelectedItem(MilestoneShape.forName(format.getMilestoneShapeName()));
+				milestoneShape.setSelectedItem(MilestoneShapeChoice.forName(format.getMilestoneShapeName()));
 
 			JTabbedPane tabs = new JTabbedPane();
 			FlatUiSupport.styleTabbedPane(tabs);
@@ -123,7 +123,7 @@ final class GanttBarFormatDialog {
 				editor.getMiddle().setRgb(null);
 				editor.getEnd().setRgb(null);
 				if (milestoneShape != null)
-					milestoneShape.setSelectedItem(MilestoneShape.AUTOMATIC);
+					milestoneShape.setSelectedItem(MilestoneShapeChoice.AUTOMATIC);
 			});
 			JPanel resetPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 8));
 			resetPanel.add(reset);
@@ -133,33 +133,7 @@ final class GanttBarFormatDialog {
 		private BarFormat getFormat() {
 			BarFormat format = editor.getFormat();
 			return milestoneShape == null ? format : format.withMilestoneShapeName(
-					((MilestoneShape)milestoneShape.getSelectedItem()).shapeName);
-		}
-	}
-
-	enum MilestoneShape {
-		AUTOMATIC(null, "Gantt.FormatBar.automatic"),
-		DIAMOND("DIAMOND", "Gantt.FormatBar.shapeDiamond"),
-		SQUARE("SQUARE", "Gantt.FormatBar.shapeSquare"),
-		TRIANGLE_UP("TRIANGLE_UP", "Gantt.FormatBar.shapeTriangleUp"),
-		TRIANGLE_DOWN("TRIANGLE_DOWN", "Gantt.FormatBar.shapeTriangleDown");
-
-		private final String shapeName;
-		private final String labelKey;
-
-		MilestoneShape(String shapeName, String labelKey) {
-			this.shapeName = shapeName;
-			this.labelKey = labelKey;
-		}
-
-		static MilestoneShape forName(String shapeName) {
-			for (MilestoneShape shape : values()) if (java.util.Objects.equals(shape.shapeName, shapeName)) return shape;
-			return AUTOMATIC;
-		}
-
-		@Override
-		public String toString() {
-			return Messages.getString(labelKey);
+					((MilestoneShapeChoice)milestoneShape.getSelectedItem()).getShapeName());
 		}
 	}
 }

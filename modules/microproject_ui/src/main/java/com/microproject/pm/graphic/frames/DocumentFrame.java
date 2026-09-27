@@ -1852,6 +1852,8 @@ public class DocumentFrame extends NamedFrame implements
 				}
 				if (ganttView != null)
 					ganttView.setSpreadsheetGridVisible(getGraphicManager().getPreferences().isShowRowLines());
+				if (ganttView != null)
+					ganttView.getGantt().setDefaultMilestoneShape(getGraphicManager().getPreferences().getDefaultMilestoneShape());
 			//}
 
 		}

@@ -27,6 +27,7 @@ class GlobalPreferencesTest {
 		int originalSize = preferences.getFontSize();
 		Integer originalGridColor = preferences.getGridLineColor();
 		Integer originalBarColor = preferences.getDefaultGanttBarColor();
+		String originalMilestoneShape = preferences.getDefaultMilestoneShape();
 		String originalGanttBarText = preferences.getDefaultGanttBarText();
 		String originalGanttBarTextPosition = preferences.getDefaultGanttBarTextPosition();
 		boolean originalDarkTheme = preferences.isDarkTheme();
@@ -57,6 +58,10 @@ class GlobalPreferencesTest {
 			assertEquals(Integer.valueOf(0x123456), preferences.getDefaultGanttBarColor());
 			preferences.setDefaultGanttBarColor(null);
 			assertEquals(null, preferences.getDefaultGanttBarColor());
+			preferences.setDefaultMilestoneShape("DIAMOND");
+			assertEquals("DIAMOND", new GlobalPreferences().getDefaultMilestoneShape());
+			preferences.setDefaultMilestoneShape("unsupported");
+			assertEquals(null, preferences.getDefaultMilestoneShape());
 			preferences.setDefaultGanttBarText(GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME);
 			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME, preferences.getDefaultGanttBarText());
 			preferences.setDefaultGanttBarText("unsupported");
@@ -90,6 +95,7 @@ class GlobalPreferencesTest {
 			preferences.setFontSize(originalSize);
 			preferences.setGridLineColor(originalGridColor);
 			preferences.setDefaultGanttBarColor(originalBarColor);
+			preferences.setDefaultMilestoneShape(originalMilestoneShape);
 			preferences.setDefaultGanttBarText(originalGanttBarText);
 			preferences.setDefaultGanttBarTextPosition(originalGanttBarTextPosition);
 			preferences.setDarkTheme(originalDarkTheme);

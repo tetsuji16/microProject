@@ -140,7 +140,7 @@ public final class GanttBarFormatOverrides implements Serializable {
 			return rgb == null ? null : rgb & 0x00FFFFFF;
 		}
 
-		private static String normalizeMilestoneShapeName(String shapeName) {
+		public static String normalizeMilestoneShapeName(String shapeName) {
 			if ("DIAMOND".equals(shapeName) || "SQUARE".equals(shapeName)
 					|| "TRIANGLE_UP".equals(shapeName) || "TRIANGLE_DOWN".equals(shapeName))
 				return shapeName;

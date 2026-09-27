@@ -380,6 +380,13 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 			ganttUi.getGanttRenderer().setDefaultTaskBarColor(rgb);
 	}
 
+	public void setDefaultMilestoneShape(String shapeName) {
+		if (getUI() instanceof GanttUI ganttUi) {
+			ganttUi.getGanttRenderer().setDefaultMilestoneShape(shapeName);
+		repaint();
+		}
+	}
+
 	public void applyBarFormat(Task task, BarFormat format) {
 		if (task == null || project.isReadOnly())
 			return;

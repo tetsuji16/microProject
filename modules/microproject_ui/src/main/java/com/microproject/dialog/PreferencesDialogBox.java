@@ -23,6 +23,7 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 
 import com.microproject.preference.GlobalPreferences;
+import com.microproject.pm.graphic.gantt.MilestoneShapeChoice;
 import com.microproject.ui.shell.AutoSaveControl;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
@@ -105,6 +106,9 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		String savedPosition = preferences.getDefaultGanttBarTextPosition();
 		ganttBarTextPosition.setSelectedItem(GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT.equals(savedPosition) ? leftPosition
 				: GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT.equals(savedPosition) ? rightPosition : automaticPosition);
+		JComboBox<MilestoneShapeChoice> milestoneShape = new JComboBox<>(MilestoneShapeChoice.values());
+		milestoneShape.setName("preferencesMilestoneShape");
+		milestoneShape.setSelectedItem(MilestoneShapeChoice.forName(preferences.getDefaultMilestoneShape()));
 		JButton gridColor = new JButton(UsabilityStrings.text("preferences.gridColorAutomatic"));
 		Integer savedGridColor = preferences.getGridLineColor();
 		final Color[] selectedGridColor = { savedGridColor == null ? null : new Color(savedGridColor.intValue()) };
@@ -133,6 +137,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		form.add(new JLabel(UsabilityStrings.text("preferences.fontSize"))); form.add(size);
 		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarText"))); form.add(ganttBarText);
 		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarTextPosition"))); form.add(ganttBarTextPosition);
+		form.add(new JLabel(UsabilityStrings.text("preferences.milestoneShape"))); form.add(milestoneShape);
 		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarColor")));
 		JPanel barColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); barColorControls.add(defaultBarColor); barColorControls.add(resetBarColor); form.add(barColorControls);
 		form.add(new JLabel(UsabilityStrings.text("preferences.gridColor")));
@@ -174,6 +179,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 					? GlobalPreferences.GANTT_BAR_TEXT_POSITION_LEFT
 					: rightPosition.equals(ganttBarTextPosition.getSelectedItem())
 						? GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT : GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO);
+			preferences.setDefaultMilestoneShape(((MilestoneShapeChoice)milestoneShape.getSelectedItem()).getShapeName());
 			preferences.setGridLineColor(selectedGridColor[0] == null ? null : Integer.valueOf(selectedGridColor[0].getRGB()));
 			preferences.setDefaultGanttBarColor(selectedBarColor[0] == null ? null : Integer.valueOf(selectedBarColor[0].getRGB()));
 			preferences.setCheckForUpdates(checkUpdates.isSelected());

@@ -62,6 +62,14 @@ final class GanttRendererSupport {
 		return shape == null ? null : shape.toGeneralPath(size, size, x, y);
 	}
 
+	static String resolveMilestoneShapeName(String individualShapeName, String defaultShapeName) {
+		String individual = com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat
+				.normalizeMilestoneShapeName(individualShapeName);
+		return individual == null
+				? com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat.normalizeMilestoneShapeName(defaultShapeName)
+				: individual;
+	}
+
 	static boolean shouldSuppressTaskBarForAssignments(Object impl, boolean summary, BarFormat format, boolean assignmentRowsVisible) {
 		if (!assignmentRowsVisible || impl == null || format == null)
 			return false;

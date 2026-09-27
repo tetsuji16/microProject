@@ -93,6 +93,13 @@ class GanttRendererSupportTest {
 	}
 
 	@Test
+	void individualMilestoneShapeOverridesConfiguredDefault() {
+		assertEquals("DIAMOND", GanttRendererSupport.resolveMilestoneShapeName(null, "DIAMOND"));
+		assertEquals("SQUARE", GanttRendererSupport.resolveMilestoneShapeName("SQUARE", "DIAMOND"));
+		assertNull(GanttRendererSupport.resolveMilestoneShapeName(null, null));
+	}
+
+	@Test
 	void configuredDefaultBarColorKeepsIndividualCriticalAndBaselinePriorities() {
 		assertEquals(new Color(0x112233), GanttRendererSupport.resolveTaskBarColor(false, false, null, 0x112233,
 				Color.BLUE, Color.GRAY, Color.RED));

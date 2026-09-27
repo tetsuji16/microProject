@@ -32,6 +32,7 @@ import java.util.prefs.Preferences;
 import com.microproject.datatype.Money;
 import com.microproject.document.ObjectEvent;
 import com.microproject.document.ObjectEventManager;
+import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.options.EditOption;
 import com.microproject.util.DateTime;
 
@@ -61,6 +62,7 @@ public class GlobalPreferences {
 	private String datePattern = readDatePattern("datePattern");
 	private String dateTimePattern = readDatePattern("dateTimePattern");
 	private String currencyCode = readCurrencyCode();
+	private String defaultMilestoneShape = readMilestoneShape();
 
 	public boolean isShowProjectResourcesOnly() {
 		return !showAllResources;
@@ -199,6 +201,17 @@ public class GlobalPreferences {
 		}
 	}
 
+	/** Null selects each Gantt bar style's automatic milestone shape. */
+	public String getDefaultMilestoneShape() { return defaultMilestoneShape; }
+	public void setDefaultMilestoneShape(String value) {
+		String normalized = BarFormat.normalizeMilestoneShapeName(value);
+		if (java.util.Objects.equals(normalized, defaultMilestoneShape)) return;
+		defaultMilestoneShape = normalized;
+		if (normalized == null) STORE.remove("defaultMilestoneShape");
+		else STORE.put("defaultMilestoneShape", normalized);
+		fireUpdateEvent(this, this);
+	}
+
 	/** Applies user date patterns after the application locale has been selected. */
 	public void applyFormatPreferences() {
 		EditOption options = EditOption.getInstance();
@@ -281,6 +294,9 @@ public class GlobalPreferences {
 			STORE.remove("currencyCode");
 			return "";
 		}
+	}
+	private static String readMilestoneShape() {
+		return BarFormat.normalizeMilestoneShapeName(STORE.get("defaultMilestoneShape", null));
 	}
 
 	/** Check GitHub Releases at startup for a newer version (#338 plan D). */

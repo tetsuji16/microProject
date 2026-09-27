@@ -191,6 +191,12 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		defaultTaskBarColor = rgb == null ? null : Integer.valueOf(rgb.intValue() & 0x00ffffff);
 	}
 
+	private String defaultMilestoneShape;
+
+	public void setDefaultMilestoneShape(String shapeName) {
+		defaultMilestoneShape = GanttRendererSupport.resolveMilestoneShapeName(null, shapeName);
+	}
+
 	public Integer getDefaultTaskBarColor() { return defaultTaskBarColor; }
 
 	public DisplayedBarColors resolveDisplayedBarColors(Task task) {
@@ -689,7 +695,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			Color endpointColor = GanttBarSupport.shouldUseUniformEndpointColor(format) ? statusColor : accentColor;
 			Color startColor = resolveEndpointColor(node, format, endpointColor, true);
 			Color endColor = resolveEndpointColor(node, format, endpointColor, false);
-			String milestoneShape = getIndividualBarFormat(node, format).getMilestoneShapeName();
+			String milestoneShape = GanttRendererSupport.resolveMilestoneShapeName(
+					getIndividualBarFormat(node, format).getMilestoneShapeName(), defaultMilestoneShape);
 			if (format.getStart()!=null) {
 				if (milestoneShape != null && getNodeImpl(node) instanceof Task task && task.isMilestone())
 					drawIndividualMilestoneShape(milestoneShape, g2, dw, x, y, startColor, startColor);
