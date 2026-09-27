@@ -2424,4 +2424,10 @@ helper after searching Java callers and report resources; the active factory
 already receives `WalkersNodeModel` directly. This cleanup changes no runtime
 path and is tracked with issue #84 rather than counted as a Java modernization.
 
+Removed the obsolete commented `PrintDocumentFactory.getColWidth` helper and
+its three commented call sites. All active renderer paths use
+`SpreadSheet.getFieldArrayWithWidths(null)` and still pass the same `null`
+explicit-width argument; the helper and its imports had no active references.
+Tracked as issue #84 cleanup, not Java modernization work.
+
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.

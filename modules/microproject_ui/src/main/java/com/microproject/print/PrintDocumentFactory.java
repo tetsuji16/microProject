@@ -24,11 +24,7 @@
  *******************************************************************************/
 package com.microproject.print;
 
-import java.util.ArrayList;
 import java.util.List;
-
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableColumnModel;
 
 import com.microproject.offline_graphics.GanttSVGRenderer;
 import com.microproject.offline_graphics.NetworkSVGRenderer;
@@ -64,10 +60,6 @@ public class PrintDocumentFactory {
 			SpreadSheet sp=frame.getActiveSpreadSheet();
 			SpreadSheetFieldArray fieldArray=sp.getFieldArrayWithWidths(null);
 			List<Integer> colWidth=null;
-//			if (sp!=null){
-//				fieldArray=(SpreadSheetFieldArray)sp.getFieldArray();
-//				colWidth=getColWidth(sp, fieldArray);
-//			}
 			cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(true),"OfflineGantt",null);
 			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),true);
 			renderer.getParams().setSupportLeftAndRightParts(true);
@@ -76,10 +68,6 @@ public class PrintDocumentFactory {
 			SpreadSheet sp=frame.getActiveSpreadSheet();
 			SpreadSheetFieldArray fieldArray=sp.getFieldArrayWithWidths(null);
 			List<Integer> colWidth=null;
-//			if (sp!=null){
-//				fieldArray=(SpreadSheetFieldArray)sp.getFieldArray();
-//				colWidth=getColWidth(sp, fieldArray);
-//			}
 			cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(false),"OfflineResources",null);
 			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),false);
 		}else if (view instanceof ProjectView){
@@ -87,10 +75,6 @@ public class PrintDocumentFactory {
 			SpreadSheet sp=frame.getActiveSpreadSheet();
 			SpreadSheetFieldArray fieldArray=sp.getFieldArrayWithWidths(null);
 			List<Integer> colWidth=null;
-//			if (sp!=null){
-//				fieldArray=(SpreadSheetFieldArray)sp.getFieldArray();
-//				colWidth=getColWidth(sp, fieldArray);
-//			}
 			Portfolio portfolio = frame.getGraphicManager().getProjectFactory().getPortfolio();
 			cache=NodeModelCacheFactory.getInstance().createDefaultCache(portfolio.getNodeModel(), portfolio,NodeModelCache.PROJECT_TYPE,"OfflineProjects",null);
 			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),false);
@@ -117,16 +101,4 @@ public class PrintDocumentFactory {
 		GraphPageable document=new GraphPageable(renderer,printOnly,pdfAsDefault,true);
 		return document;
 	}
-
-//	private List<Integer> getColWidth(SpreadSheet sp,SpreadSheetFieldArray fieldArray){
-//		List<Integer> colWidth=new ArrayList<Integer>(fieldArray.size());
-//			colWidth.add(sp.getRowHeader().getColumnModel().getColumn(0).getWidth());
-//			TableColumnModel columnModel=sp.getColumnModel();
-//			TableColumn tc;
-//			for (int i=0;i<columnModel.getColumnCount();i++){
-//				tc=columnModel.getColumn(i);
-//				colWidth.add(tc.getWidth());
-//			}
-//		return colWidth;
-//	}
 }
