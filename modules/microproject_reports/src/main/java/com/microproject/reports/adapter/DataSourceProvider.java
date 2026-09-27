@@ -278,14 +278,6 @@ public class DataSourceProvider implements JRDataSourceProvider {
 		dataSource.setPredicate(predicate);
 		return dataSource;
 	}
-	
-//	private static NodeModel getResourceModel(Project project, int outlineNumber) {
-//		NodeModel resourceModel = project.getResourcePool().getResourceOutline(outlineNumber);
-//		if (resourceModel instanceof AssignmentNodeModel) {
-//			((AssignmentNodeModel)resourceModel).addAssignments();
-//		}
-//		return resourceModel;
-//	}
 public void dispose(JRDataSource arg0) throws JRException {
 		// No per-data-source resources are retained by this provider.
 	}
