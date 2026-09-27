@@ -347,10 +347,8 @@ public class DependencyService {
 	 */
 	public static void warnCircularCrossProjectLinkMessage(final Object predecessor, final Object successor) {
 		if (Alert.allowPopups()) {
-			SwingUtilities.invokeLater( new Runnable() {
-				public void run() {
-		        	Alert.warn(getCircularCrossProjectLinkMessage(predecessor, successor));
-				}});
+			SwingUtilities.invokeLater(() ->
+				Alert.warn(getCircularCrossProjectLinkMessage(predecessor, successor)));
 		}
 	}
 }
