@@ -102,6 +102,19 @@ the active `modules/` sources:
   direct source/history comparison. The existing additions include the five
   JAXB adapters, dictionary types, `FieldList`, utility types, `LocaleDialog`,
   `ImageExport`, and `ProjectLibrePrintServiceImpl`.
+- `ImageExport` is a path/name false positive for ProjectLibre provenance: its
+  type exists in the OpenProj baseline (`openproj_ui/src/org/projectlibre/export/ImageExport.java`,
+  introduced in `60d3081295`) and is marked `KEEP_OPENPROJ` in the delta ledger.
+  The current injectable file chooser and asynchronous export facade are
+  microProject changes; do not count them toward #727.
+- `ExtRibbonFactory` is confirmed ProjectLibre-added by the delta ledger. Its
+  active implementation already uses `Map<String, List<AbstractCommandButton>>`,
+  `computeIfAbsent`, and typed return values; no remaining raw-collection or
+  cast-after-`instanceof` cleanup candidate was found in this type. Repository
+  source/resource searches found no current caller of `ExtRibbonFactory` after
+  the app moved to `SwingRibbonFactory`. Since the class is public and
+  ProjectLibre-added, removal also requires an external extension compatibility
+  check; do not treat the internal no-caller result alone as proof of dead code.
 
 ## ProjectLibre-added method crosswalk
 
