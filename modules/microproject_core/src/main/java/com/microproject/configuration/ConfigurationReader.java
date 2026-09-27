@@ -47,14 +47,12 @@ public class ConfigurationReader {
 			logger.log(Level.SEVERE, "could not find xml configuration file: " + configurationUrl);
 			return null;
 		}
-		//logger.info("Reading configuration from " + url + " " + new java.util.Date());
 		ProvidesDigesterEvents result = null;
 		try {
 			result = readStream(url.openStream(), root);
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, "Could not read field xml configuration file " + url, e);
 		}
-		//logger.info("Done reading configuration from " + url + " " + new java.util.Date());
 		return result;
 	}
 

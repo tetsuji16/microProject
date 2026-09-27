@@ -64,16 +64,13 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
 			return;
 		Point point;
 		if (index > values.size()-1) {
-//			System.out.println("add index " + index + new java.util.Date(date) + " - " + new java.util.Date(endDate) + " value " + value);
 			values.add(index, new Point(date,value));
 		} else {
 			point = values.get(index);
 			if (point == null) {
 				values.set(index, new Point(date,value));
-//				System.out.println("add indexb " + index + new java.util.Date(date) + " - " + new java.util.Date(endDate) + " value " + value);
 			} else {
 				point.addValue(value);
-//				System.out.println("add value " + index + new java.util.Date(date) + " - " + new java.util.Date(endDate) + " value " + value);
 			}
 		}
 	}
