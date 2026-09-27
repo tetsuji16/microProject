@@ -70,10 +70,7 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 	protected FieldDialog(Frame owner, String title, boolean modal, boolean multipleObjects/*,UndoableEditSupport undoableEditSupport*/) {
 		super(owner,title,modal);
 		this.multipleObjects = multipleObjects;
-		SwingUtilities.invokeLater(new Runnable() {
-			public void run() {
-				updateAll();
-			}});
+		SwingUtilities.invokeLater(this::updateAll);
 	}
 
 	protected List<FieldComponentMap> maps = new ArrayList<>();
