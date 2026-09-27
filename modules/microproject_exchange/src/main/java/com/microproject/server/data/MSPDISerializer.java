@@ -359,8 +359,8 @@ public class MSPDISerializer implements ProjectSerializer {
 	}
 
 	private LinkedHashSet<WorkingCalendar> collectProjectCalendars(Project project) {
-		LinkedHashSet<WorkingCalendar> calendars = new LinkedHashSet<WorkingCalendar>();
-		Set<WorkCalendar> visited = new HashSet<WorkCalendar>();
+		LinkedHashSet<WorkingCalendar> calendars = new LinkedHashSet<>();
+		Set<WorkCalendar> visited = new HashSet<>();
 		if (project == null) {
 			return calendars;
 		}
