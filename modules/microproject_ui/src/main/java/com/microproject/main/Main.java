@@ -75,7 +75,7 @@ public class Main {
 				if (args[i]!=null&& args[i].length()>0) nonEmptyArgs.add(args[i]);
 			}
 			if (nonEmptyArgs.size()>0){
-				ArrayList<String> formatedList = new ArrayList<>();
+				ArrayList<String> formatedList = new ArrayList<>(nonEmptyArgs.size() + 1);
 				if (nonEmptyArgs.get(0).startsWith("--")) {
 					formatedArgs = normalizeFileNameArguments(nonEmptyArgs).toArray(new String[]{});
 					startApplication(formatedArgs);
