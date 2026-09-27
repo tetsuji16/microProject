@@ -133,7 +133,7 @@ public class LocalSession extends AbstractSession{
     public synchronized void resetLocalSeed() {
         localSeed = -1_000_000_000L;
     }
-    public Job getCloseProjectsJob(final Collection projects){
+    public Job getCloseProjectsJob(final Collection<Project> projects){
     	Job job=new Job(jobQueue,"closeProjects","Closing...",false);
     	job.addRunnable(new JobRunnable("LocalAccess: closeProjects",0.1f){
     		public Object run() throws Exception{

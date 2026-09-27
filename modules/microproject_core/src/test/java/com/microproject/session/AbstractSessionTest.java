@@ -62,7 +62,7 @@ class AbstractSessionTest {
 		}
 
 		@Override
-		public Job getCloseProjectsJob(Collection projects) {
+		public Job getCloseProjectsJob(Collection<Project> projects) {
 			return null;
 		}
 	}

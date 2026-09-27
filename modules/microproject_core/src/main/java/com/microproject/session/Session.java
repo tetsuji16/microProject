@@ -60,7 +60,7 @@ public interface Session {
 //    public Job getSaveProjectJob(final Project project, final boolean cloneMaster);
 //    public Job getSaveProjectJob(final List projs,final Consumer<Object> postSaving, final boolean cloneMaster);
 
-    public Job getCloseProjectsJob(final Collection projects);
+    public Job getCloseProjectsJob(final Collection<Project> projects);
     
     public boolean isInitialized();
     public boolean projectExists(long id);
