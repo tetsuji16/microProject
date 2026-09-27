@@ -2388,4 +2388,12 @@ assigns the value through that typed API. The shared `IntervalGenerator.current(
 and `IntervalGeneratorSet.current()` remain `Object` because the shared generator
 contract is heterogeneous. `TimeIteratorGeneratorTest` passed.
 
+`HierarchicObject<T>` now types each child list as the same node type, and
+`NodeSorter.sortList` carries that type and a contravariant comparator through
+recursive sorting. The active UI callers sort `GraphicNode` hierarchies, whose
+temporary children are now `List<GraphicNode>`; the existing traversal test
+checks ordering at root and child levels. OpenProj provenance was confirmed in
+`NodeSorter` and the hierarchy interface, and all sort callers were searched.
+`NodeSorterTraversalTest` and downstream `:microproject_ui:compileJava` passed.
+
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.

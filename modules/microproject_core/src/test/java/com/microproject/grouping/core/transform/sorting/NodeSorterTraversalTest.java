@@ -66,7 +66,7 @@ class NodeSorterTraversalTest {
 		assertEquals(List.of("b", "c"), group.getChildren().stream().map(TestNode::name).toList());
 	}
 
-	private record TestNode(String name, List<TestNode> children) implements HierarchicObject {
+	private record TestNode(String name, List<TestNode> children) implements HierarchicObject<TestNode> {
 		private TestNode(String name) {
 			this(name, new ArrayList<>());
 		}

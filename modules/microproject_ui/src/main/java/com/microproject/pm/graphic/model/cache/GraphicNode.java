@@ -50,7 +50,7 @@ import com.microproject.util.GanttProgress;
 /**
  *
  */
-public class GraphicNode implements HierarchicObject{
+public class GraphicNode implements HierarchicObject<GraphicNode>{
 	protected Node node;
 	protected int level;
 	protected int pertLevel;
@@ -461,8 +461,8 @@ public class GraphicNode implements HierarchicObject{
 //	}
 
 
-	protected List tmpChildren=new ArrayList();
-	public List getChildren() {
+	protected List<GraphicNode> tmpChildren=new ArrayList<>();
+	public List<GraphicNode> getChildren() {
 		return tmpChildren;
 	}
 	protected boolean tmpFiltered;
