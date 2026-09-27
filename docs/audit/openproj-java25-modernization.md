@@ -2312,6 +2312,13 @@ would overstate the runtime contract. `AssignmentEntryTest` covers assigned,
 unassigned, and non-task values. Focused core verification and UI compilation
 passed; the erased method descriptor is unchanged.
 
+`Alert.renameProject` and its `Job.renameProject` forwarding API now accept
+`Set<?>`. `git blame` traces both contracts to OpenProj (`d2fa3c20a`); the
+active reflective dialog route forwards the set without reading its elements.
+The `Set.class` reflection lookup and erased descriptors remain unchanged.
+Full `:microproject_core:test --console=plain` and
+`:microproject_ui:compileJava --console=plain` passed.
+
 `Portfolio.getDirtyProjectList` / `getWritableProjectList` and their
 `ProjectFactory` forwarding methods now return `Collection<Project>`. The
 OpenProj-derived result methods are backed by project-only lists; the active

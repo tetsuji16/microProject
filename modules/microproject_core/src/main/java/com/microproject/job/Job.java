@@ -464,7 +464,7 @@ public class Job extends Thread {
 		return dispatchAlert(() -> Alert.okCancel(message), wait, false);
 	}
 
-	public String renameProject(final String name,final Set projectNames,boolean wait,final boolean saveAs){
+	public String renameProject(final String name,final Set<?> projectNames,boolean wait,final boolean saveAs){
 		return dispatchAlert(() -> Alert.renameProject(name,projectNames,saveAs), wait, null);
 	}
 
