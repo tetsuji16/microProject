@@ -292,9 +292,10 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		startDateChooser = ComponentFactory.createDateField();
 		manager = new JTextField();
 		name = new JTextField();
-		ArrayList<Object> choices = new ArrayList<>();
+		ArrayList<ResourcePool> resourcePools = ResourcePoolFactory.getInstance().getResourcePools();
+		ArrayList<Object> choices = new ArrayList<>(resourcePools.size() + 1);
 		choices.add("");
-		choices.addAll(ResourcePoolFactory.getInstance().getResourcePools());
+		choices.addAll(resourcePools);
 		resourcePool = new JComboBox(choices.toArray());
 		forward = new JCheckBox(Messages.getString("Field.forward")); //$NON-NLS-1$
 		dateLabel = new JLabel();
