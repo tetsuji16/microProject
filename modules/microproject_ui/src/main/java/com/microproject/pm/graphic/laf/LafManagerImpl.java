@@ -37,7 +37,6 @@ import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -143,7 +142,7 @@ public class LafManagerImpl implements LafManager {
 		if (!(dialog instanceof Dialog))
 			return false;
 
-		List buttons = new ArrayList();
+		List<Component> buttons = new ArrayList<>();
 		collectFocusableButtons(dialog, buttons);
 		if (buttons.size() < 2)
 			return false;
@@ -157,14 +156,13 @@ public class LafManagerImpl implements LafManager {
 		int target = current + direction;
 		if (target < 0 || target >= buttons.size())
 			return true;
-		((Component)buttons.get(target)).requestFocusInWindow();
+		buttons.get(target).requestFocusInWindow();
 		return true;
 	}
 
-	private static void collectFocusableButtons(Container container, List buttons) {
+	private static void collectFocusableButtons(Container container, List<Component> buttons) {
 		Component[] components = container.getComponents();
-		for (int i = 0; i < components.length; i++) {
-			Component component = components[i];
+		for (Component component : components) {
 			if (component instanceof JButton && component.isVisible() && component.isEnabled() && component.isFocusable())
 				buttons.add(component);
 			if (component instanceof Container)
@@ -172,13 +170,13 @@ public class LafManagerImpl implements LafManager {
 		}
 	}
 
-	private static int getDialogButtonAxis(Container dialog, List buttons) {
+	private static int getDialogButtonAxis(Container dialog, List<Component> buttons) {
 		int minX = Integer.MAX_VALUE;
 		int minY = Integer.MAX_VALUE;
 		int maxX = Integer.MIN_VALUE;
 		int maxY = Integer.MIN_VALUE;
-		for (int i = 0; i < buttons.size(); i++) {
-			Rectangle bounds = getDialogRelativeBounds(dialog, (Component)buttons.get(i));
+		for (Component button : buttons) {
+			Rectangle bounds = getDialogRelativeBounds(dialog, button);
 			minX = Math.min(minX, bounds.x);
 			minY = Math.min(minY, bounds.y);
 			maxX = Math.max(maxX, bounds.x + bounds.width);
@@ -187,18 +185,16 @@ public class LafManagerImpl implements LafManager {
 		return (maxY - minY) > (maxX - minX) ? BUTTON_AXIS_VERTICAL : BUTTON_AXIS_HORIZONTAL;
 	}
 
-	private static void sortButtons(final Container dialog, List buttons, final int axis) {
-		Collections.sort(buttons, new Comparator() {
-			public int compare(Object o1, Object o2) {
-				Rectangle b1 = getDialogRelativeBounds(dialog, (Component)o1);
-				Rectangle b2 = getDialogRelativeBounds(dialog, (Component)o2);
-				if (axis == BUTTON_AXIS_VERTICAL) {
-					int y = b1.y - b2.y;
-					return y == 0 ? b1.x - b2.x : y;
-				}
-				int x = b1.x - b2.x;
-				return x == 0 ? b1.y - b2.y : x;
+	private static void sortButtons(final Container dialog, List<Component> buttons, final int axis) {
+		Collections.sort(buttons, (o1, o2) -> {
+			Rectangle b1 = getDialogRelativeBounds(dialog, o1);
+			Rectangle b2 = getDialogRelativeBounds(dialog, o2);
+			if (axis == BUTTON_AXIS_VERTICAL) {
+				int y = b1.y - b2.y;
+				return y == 0 ? b1.x - b2.x : y;
 			}
+			int x = b1.x - b2.x;
+			return x == 0 ? b1.y - b2.y : x;
 		});
 	}
 
@@ -290,4 +286,3 @@ public class LafManagerImpl implements LafManager {
 	}
 
 }
-
