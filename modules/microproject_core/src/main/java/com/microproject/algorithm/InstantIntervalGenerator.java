@@ -46,7 +46,7 @@ public class InstantIntervalGenerator implements IntervalGenerator {
 		end = instant;
 	}
 
-	public Object current() {
+	public InstantIntervalGenerator current() {
 		return this;
 	}
 

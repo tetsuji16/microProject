@@ -83,7 +83,7 @@ public class RangeIntervalGenerator implements IntervalGenerator {
 		return result;
 	}
 	
-	public Object current() {
+	public RangeIntervalGenerator current() {
 		return this;
 	}
 

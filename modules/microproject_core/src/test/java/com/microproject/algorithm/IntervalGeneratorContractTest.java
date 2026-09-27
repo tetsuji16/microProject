@@ -38,7 +38,8 @@ class IntervalGeneratorContractTest {
 	void rangeGeneratorExposesItsCurrentInterval() {
 		RangeIntervalGenerator generator = RangeIntervalGenerator.getInstance(10L, 20L);
 
-		assertSame(generator, generator.current());
+		RangeIntervalGenerator current = generator.current();
+		assertSame(generator, current);
 		assertEquals(10L, generator.currentStart());
 		assertEquals(20L, generator.currentEnd());
 	}
@@ -47,7 +48,8 @@ class IntervalGeneratorContractTest {
 	void instantGeneratorExposesItsCurrentInterval() {
 		InstantIntervalGenerator generator = InstantIntervalGenerator.getInstance(10L);
 
-		assertSame(generator, generator.current());
+		InstantIntervalGenerator current = generator.current();
+		assertSame(generator, current);
 		assertEquals(0L, generator.currentStart());
 		assertEquals(10L, generator.currentEnd());
 	}
