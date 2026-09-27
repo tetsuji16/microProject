@@ -52,6 +52,37 @@ can be merged. Current caller and boundary checks distinguish these pairs:
   `Task.isSubproject()`, which tests that model contract. These are source-format
   decoding and domain-model classification respectively, not duplicate
   subproject predicates. Keep the MPXJ-specific check in the exchange adapter.
+- `com.microproject.configuration.Dictionary` indexes named application/view
+  configuration items loaded through Digester. `com.microproject.core.dictionary.Dictionary`
+  indexes `HasStringId` values by JAXB-era category and is retained by the
+  legacy configuration facade. Their lookup keys, population lifecycle, and
+  consumers differ; preserve both until the JAXB configuration boundary is
+  migrated.
+- `com.microproject.core.nodes.HasId` uses `NodeId` for outline graph identity;
+  `com.microproject.pm.key.HasId` uses `long` for project task/resource identity.
+  The APIs are not substitutable and are consumed by different model layers.
+- `com.microproject.core.time.TimeInterval` and its `DefaultTimeIntervals`
+  collection represent mutable data intervals with union/intersection
+  operations. `com.microproject.timescale.TimeInterval` is an immutable display
+  slot containing label text and two ranges. Similarly,
+  `core.time.TimeIntervals` is an interval-set API, while
+  `script.object.TimeIntervals` stores the time-scale viewport windows,
+  history, and zoom/translation state. Keep the owning feature APIs separate.
+- `com.microproject.main.Main` is the packaged desktop entry point: it configures
+  runtime logging and normalizes command-line file arguments before dispatching
+  to `pm.graphic.gantt.Main`, which initializes locale and creates the actual
+  application frame. Both are part of one startup pipeline, not competing main
+  implementations.
+- `com.microproject.util.ClassLoaderUtils` is the core API used by core, UI, and
+  reports. `com.microproject.contrib.ClassLoaderUtils` contains overlapping
+  class-loading and Java-version helpers plus its own transformer and localized
+  string fallback. No application caller of the contrib class was found by
+  repository search. Core currently depends on contrib, so making the contrib
+  class delegate back to core would create a module cycle; retain this boundary
+  until its packaged API and LGPL-origin code can be removed or relocated as a
+  separate dependency/namespace decision. Their overlapping class-loading and
+  Java-version behavior remains an unresolved consolidation candidate rather
+  than being described as fully distinct.
 
 The remaining consolidation inventory must be decided pair by pair using
 active callers and serialization/configuration boundaries. Do not remove a
