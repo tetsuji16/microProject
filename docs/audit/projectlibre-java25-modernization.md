@@ -39,7 +39,7 @@ OpenProj progress.
 | `FieldUtil.getFields` | This method is absent from the compared OpenProj baseline and present in ProjectLibre 1.9.8 `com.projectlibre.core.fields.FieldUtil`. Applied diamond inference to its result map without changing keys, values, category precedence, or return type. | `:microproject_core:test --tests "com.microproject.core.fields.FieldUtilTest" --console=plain` verifies a registered field is returned from its category. |
 | `FieldUtil.getFields` category traversal | Same ProjectLibre-added method as above. Replaced `keySet()` plus `get(key)` with typed `entrySet()` traversal; category order, first-category-wins precedence, value cast, and returned map remain unchanged while avoiding a second lookup for each key. | `:microproject_core:test --tests "com.microproject.core.fields.FieldUtilTest" --console=plain` passed 2026-09-27. |
 | `Dictionary.iterator(DictionaryCategory)` empty result | The missing-category branch matches ProjectLibre 1.9.8 `org.projectlibre.core.dictionary.Dictionary`. Repository search found no production callers. Replaced its custom empty iterator with `Collections.emptyIterator()`, so `hasNext` is false and `next` follows the `Iterator` contract by throwing `NoSuchElementException`; removal follows the JDK empty iterator's `IllegalStateException` behavior. | `:microproject_core:test --tests "com.microproject.core.dictionary.DictionaryTest" --console=plain` verifies empty, exhausted-next, and remove behavior. |
-| `LocaleDialog` collection construction | `LocaleDialog` is absent from OpenProj 1.4 and present in ProjectLibre 1.9.8. Replaced four explicit generic collection constructors and two raw/explicit `TreeSet` constructors with diamond inference. Collection type arguments, locale/country ordering, map contents, and UI behavior are unchanged. | `:microproject_ui:compileJava --console=plain` passed 2026-09-27. |
+| `LocaleDialog` collection construction and `Country.equals` | `LocaleDialog` is absent from OpenProj 1.4 and present in ProjectLibre 1.9.8. Replaced four explicit generic collection constructors and two raw/explicit `TreeSet` constructors with diamond inference. Replaced `instanceof` plus cast in `Country.equals` with a pattern binding; null, type, subclass, and country-code equality semantics are unchanged. | `:microproject_ui:test --tests "com.microproject.dialog.LocaleDialogTest" --console=plain` passed 2026-09-27; covers equal/different codes, null, and a different type. |
 
 ## Explicit exclusions
 
@@ -78,8 +78,15 @@ the active `modules/` sources:
 
 - `LocaleDialog` is absent from OpenProj 1.4 and present in ProjectLibre 1.9.8.
   It remains active under `modules/microproject_ui`; its collection constructors
-  are covered by the verified modernization entry above. Its locale parsing and
-  sorting behavior remain unchanged.
+  and `Country.equals` are covered by the verified modernization entry above.
+  Its locale parsing and sorting behavior remain unchanged.
+- A basename comparison of active non-contrib production Java files with the
+  OpenProj and ProjectLibre 1.9.8 source trees found 15 active ProjectLibre
+  additions by path/name. This is a candidate inventory, not a complete hunk
+  provenance audit; mixed-origin files and renamed/moved classes still need
+  direct source/history comparison. The existing additions include the five
+  JAXB adapters, dictionary types, `FieldList`, utility types, `LocaleDialog`,
+  `ImageExport`, and `ProjectLibrePrintServiceImpl`.
 
 ## Initial inventory finding
 

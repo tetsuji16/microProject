@@ -276,9 +276,7 @@ public final class LocaleDialog extends AbstractDialog {
 		}
 		@Override
 		public boolean equals(Object o) {
-			if (o==null || ! (o instanceof Country))
-				return false;
-			else return code.equals(((Country)o).getCode());
+			return o instanceof Country country && code.equals(country.getCode());
 		}
 		
 	}
