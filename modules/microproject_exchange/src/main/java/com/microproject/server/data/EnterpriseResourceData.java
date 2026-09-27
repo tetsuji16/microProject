@@ -37,10 +37,6 @@ public class EnterpriseResourceData extends SerializedDataObject {
     protected EnterpriseResourceData parentResource;
     protected long childPosition;
     protected long parentResourceId=-1;
-//    protected float version=1.0f;
-//    protected boolean defaultResource;
-//    protected boolean unassigned=false;
-    //protected Collection assignments;
 
     public static final SerializedDataObjectFactory FACTORY=new SerializedDataObjectFactory(){
         public SerializedDataObject createSerializedDataObject(){
@@ -48,12 +44,6 @@ public class EnterpriseResourceData extends SerializedDataObject {
         }
     };
 
-    /*public Collection getAssignments() {
-        return assignments;
-    }
-    public void setAssignments(Collection assignments) {
-        this.assignments = assignments;
-    }*/
     public long getChildPosition() {
         return childPosition;
     }
@@ -104,20 +94,6 @@ public class EnterpriseResourceData extends SerializedDataObject {
 		this.userAccount = userAccount;
 	}
 
-
-
-//	public boolean isDefault() {
-//		return getUniqueId()==EnterpriseResource.UNASSIGNED_ID;
-//	}
-//	public void setDefault(boolean unassigned) {
-//		setUniqueId(EnterpriseResource.UNASSIGNED_ID);
-//	}
-//	public boolean isDefault() {
-//		return defaultResource;
-//	}
-//	public void setDefault(boolean defaultResource) {
-//		this.defaultResource = defaultResource;
-//	}
 
 
 	public long getParentResourceId() {

@@ -35,7 +35,7 @@ public class IncrementalData implements Serializable{
 	protected ProjectData project;
 	protected Set<ResourceData> resources;
 	protected Set<AssignmentData> assignments;
-	protected Set<LinkData> links;//,calendars;
+	protected Set<LinkData> links;
 	protected Map<TaskData, TaskData> tasks;
 	protected Map<EnterpriseResourceData, EnterpriseResourceData> enterpriseResources;
 	//calendars actually serialized inside projects, tasks and enterprise resources
@@ -50,16 +50,6 @@ public class IncrementalData implements Serializable{
 		data.emtpy();
 		assignments.add(data);
 	}
-//	public List getCalendars() {
-//		return calendars;
-//	}
-//	public void setCalendars(List calendars) {
-//		this.calendars = calendars;
-//	}
-//	public void addCalendar(CalendarData data) {
-//		if (calendars==null) calendars=new Vector();
-//		calendars.add(data);
-//	}
 	public Set<LinkData> getLinks() {
 		return links;
 	}
