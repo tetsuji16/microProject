@@ -24,11 +24,34 @@
 package com.microproject.pm.criticalpath;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
+
 class TaskReferenceKindTest {
+	@Test
+	void taskReferenceRetainsItsLegacyCrossTypeComparisonContract() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-reference", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = project.createScriptedTask();
+		NormalTask otherTask = project.createScriptedTask();
+		PredecessorTaskList.TaskReference reference = new PredecessorTaskList.TaskReference(task);
+
+		assertEquals(0, reference.compareTo(task));
+		assertEquals(-1, reference.compareTo(otherTask));
+		assertEquals(0, reference.compareTo(reference));
+		assertEquals(-1, reference.compareTo(new PredecessorTaskList.TaskReference(task)));
+		assertEquals(-1, reference.compareTo(new Object()));
+		assertSame(task, reference.getTask());
+	}
+
 	@Test
 	void codesAndOppositeKindsPreserveParentBoundarySemantics() {
 		assertEquals(-1, PredecessorTaskList.TaskReference.Kind.PARENT_BEGIN.code());

@@ -2270,3 +2270,14 @@ misses. A focused regression keeps identity matching distinct from
 uses `equals`, so the similarly named comparators do not have the same
 responsibility. Full `:microproject_core:test --console=plain` and
 `:microproject_application:compileJava --console=plain` passed.
+
+`PredecessorTaskList.TaskReference` now implements `Comparable<Object>` and
+marks its existing `compareTo(Object)` method as an override. `git blame`
+traces the cross-type comparison to OpenProj (`d2fa3c20a`); `TaskReference` is
+used by active critical-path scheduling, and its public comparator accepts
+both `Task` and arbitrary object inputs. Keeping `Object` preserves the
+existing erased method and its legacy identity rules for same-task,
+other-task, self, other-reference, and unrelated object inputs.
+`TaskReferenceKindTest` covers those cases. Full
+`:microproject_core:test --console=plain` and
+`:microproject_application:compileJava --console=plain` passed.

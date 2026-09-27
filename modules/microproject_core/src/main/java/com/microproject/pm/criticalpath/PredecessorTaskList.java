@@ -212,7 +212,7 @@ public class PredecessorTaskList {
 	boolean hasReverseScheduledTasks() {
 		return (numberOfReverseScheduledTasks > 0);
 	}
-	public static final class TaskReference implements Comparable {
+	public static final class TaskReference implements Comparable<Object> {
 		public enum Kind {
 			PARENT_BEGIN(-1),
 			CHILD(0),
@@ -260,6 +260,7 @@ public class PredecessorTaskList {
 		public Task getTask() {
 			return task;
 		}
+		@Override
 		public int compareTo(Object arg0) {
 			if (arg0 instanceof Task)
 				return (getTask() == arg0 ? 0 : -1);
