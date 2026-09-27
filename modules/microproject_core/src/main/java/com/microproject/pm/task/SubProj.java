@@ -27,6 +27,11 @@ package com.microproject.pm.task;
 import java.util.Map;
 
 public interface SubProj {
+	/** Classifies linked-project references for both task and outline-node callers. */
+	static boolean isSubprojectReference(Object candidate) {
+		return candidate instanceof SubProj;
+	}
+
 	enum LoadStatus {
 		NOT_LOADED,
 		OPEN,

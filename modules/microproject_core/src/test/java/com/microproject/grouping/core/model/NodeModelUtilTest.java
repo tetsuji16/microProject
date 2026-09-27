@@ -41,15 +41,20 @@ class NodeModelUtilTest {
 	void identifiesSubprojectAndRegularTaskNodes() {
 		DefaultSubProj subproject = new DefaultSubProj(null, 42L);
 		assertTrue(subproject instanceof SubProj);
+		assertTrue(SubProj.isSubprojectReference(subproject));
 		assertTrue(subproject.isSubproject());
 		assertTrue(NodeModelUtil.nodeIsSubproject(NodeFactory.getInstance().createNode(subproject)));
-		assertFalse(NodeModelUtil.nodeIsSubproject(NodeFactory.getInstance().createNode(new NormalTask())));
+		NormalTask regularTask = new NormalTask();
+		assertFalse(SubProj.isSubprojectReference(regularTask));
+		assertFalse(regularTask.isSubproject());
+		assertFalse(NodeModelUtil.nodeIsSubproject(NodeFactory.getInstance().createNode(regularTask)));
 	}
 
 	@Test
 	void recognizesSubprojectInterfaceWithoutTaskImplementation() {
-		assertTrue(NodeModelUtil.nodeIsSubproject(
-			NodeFactory.getInstance().createNode(new InterfaceOnlySubproject())));
+		InterfaceOnlySubproject subproject = new InterfaceOnlySubproject();
+		assertTrue(SubProj.isSubprojectReference(subproject));
+		assertTrue(NodeModelUtil.nodeIsSubproject(NodeFactory.getInstance().createNode(subproject)));
 	}
 
 	@Test

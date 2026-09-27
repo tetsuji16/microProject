@@ -1625,20 +1625,19 @@ branch uses the same type guard and name lookup; the existing fork value
 comparison is preserved. `SpreadSheetFieldArrayTest` covers equal names,
 matching hash codes, and rejection of null/foreign types.
 
-`NodeModelUtil.nodeIsSubproject` now uses the `SubProj` contract as its single
-classification rule. `Task.isSubproject()` already derives its value from that
-same contract, so the previous second branch duplicated the predicate and
-allowed an invalid `Task` override to classify a non-`SubProj` object as a
-subproject. `TaskSchedule.invalidate` assumes a subproject task implements
-`SubProj`; violating that invariant throws `ClassCastException`. A non-Task
-object can implement `SubProj`, so the interface check still covers that valid
-case. `NodeModelUtilTest` covers an interface-only reference, the built-in
-Task plus SubProj placeholder, and an ordinary task. Active callers include
-`MutableNodeHierarchy` and `NodeBridge`. `NodeModelUtil.canBeChildOf` now binds
-both task implementations
-before comparing their owning projects; the original same-project restriction
-and non-task behavior are unchanged. The expanded test covers same-project,
-cross-project, and subproject-parent cases through the `NodeBridge` caller.
+`SubProj.isSubprojectReference(Object)` now owns the single marker-based
+classification check. `Task.isSubproject()` and `NodeModelUtil.nodeIsSubproject`
+both delegate to it, keeping Task callers and outline-node callers consistent
+while preserving support for non-Task objects that implement `SubProj`. The
+previous duplicate check allowed a `Task` override to disagree with the node
+predicate; `TaskSchedule.invalidate` assumes subproject tasks implement
+`SubProj`. `NodeModelUtilTest` covers a built-in reference, an ordinary task,
+and an interface-only reference through the canonical predicate and node route.
+Active callers include `MutableNodeHierarchy` and `NodeBridge`. Separately,
+`NodeModelUtil.canBeChildOf` binds both task implementations before comparing
+their owning projects; the original same-project restriction and non-task
+behavior are unchanged. The expanded test covers same-project, cross-project,
+and subproject-parent cases through the `NodeBridge` caller.
 `NodeModelUtil.cacheWbs` now binds parent and child tasks during cache setup;
 the projected-child test verifies the cached WBS parent through the active
 `DefaultSubprojectHandler` path.

@@ -55,7 +55,7 @@ public class NodeModelUtil {
 	}
 	public static boolean nodeIsSubproject(Node node) {
 		Object impl = node.getImpl();
-		return impl instanceof SubProj;
+		return SubProj.isSubprojectReference(impl);
     }
 
 	public static void enumerateNonAssignments(NodeModel model) {
