@@ -121,13 +121,10 @@ public class Environment {
 		Environment.importing = importing;
 	}
 	public static boolean isNewLook() {
-		return newLook;// || isRibbonUI();
+		return newLook;
 	}
 	public static void setNewLook(boolean newLook) {
 		Environment.newLook = newLook;
-//Environment.setNewLaf(false);
-//		Environment.setNewLaf(newLook && Environment.getJavaVersionNumber() >= 1.5f && Environment.getOs()!=Environment.LINUX && Environment.getOs()!=Environment.MAC
-//		&& !Environment.isChinese());
 	}
 	public static boolean isNewLaf() {
 		return newLaf || isFlatLafLookAndFeel();
