@@ -51,11 +51,11 @@ public class DataSource implements JRDataSource, ObjectRef {
 	private WalkersNodeModel nodeModel = null;
 	private FieldContext context = null;
 	private MutableInterval interval = null;
-	private Iterator iterator;
+	private Iterator<?> iterator;
 	
 	boolean nodeBased = false;
 	
-	public void setIterator(Iterator iterator) {
+	public void setIterator(Iterator<?> iterator) {
 		this.iterator = iterator;
 	}
 	public void setPredicate(Predicate predicate) {
