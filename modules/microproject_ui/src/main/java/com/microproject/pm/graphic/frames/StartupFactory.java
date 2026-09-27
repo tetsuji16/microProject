@@ -466,12 +466,8 @@ public abstract class StartupFactory {
 						return;
 					}
 					if (welcome&&!Environment.isPlugin()) {
-						if (!Environment.isProjectLibre()) {
-							if (Environment.isNeedToRestart())
-								return;
-							if (!LafManagerImpl.isLafOk()) // for startup glitch - we don't want people to work until restarting.
-								return;
-						}
+						if (!Environment.isProjectLibre() && !LafManagerImpl.isLafOk()) // for startup glitch - we don't want people to work until restarting.
+							return;
 						gm.doWelcomeDialog();
 					}
 					if (Environment.isPlugin()) gm.doNewProjectNoDialog(opts);

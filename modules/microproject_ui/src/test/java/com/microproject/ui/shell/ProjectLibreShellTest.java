@@ -32,7 +32,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 
 import javax.swing.Box;
-import javax.swing.JLabel;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToolBar;
@@ -63,14 +62,6 @@ class ProjectLibreShellTest {
 		assertEquals(background, container.getBackground());
 		assertSame(bottom, ((BorderLayout) container.getLayout()).getLayoutComponent(BorderLayout.AFTER_LAST_LINE));
 		assertTrue(((BorderLayout) container.getLayout()).getLayoutComponent(BorderLayout.BEFORE_FIRST_LINE) instanceof Box);
-	}
-
-	@Test
-	void restartPlaceholderAddsMessageLabel() {
-		JPanel container = new JPanel(new BorderLayout());
-
-		assertTrue(ProjectLibreShell.showRestartMessageIfNeeded(container, true));
-		assertSame(JLabel.class, container.getComponent(0).getClass());
 	}
 
 	@Test

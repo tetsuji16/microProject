@@ -203,14 +203,6 @@ public final class ProjectLibreShell {
 		contentPane.setBackground(background);
 	}
 
-	public static boolean showRestartMessageIfNeeded(Container contentPane, boolean needToRestart) {
-		if (!needToRestart) {
-			return false;
-		}
-		contentPane.add(new JLabel(Messages.getString("Error.restart")), BorderLayout.CENTER);
-		return true;
-	}
-
 	@FunctionalInterface
 	public interface JMenuBarTarget {
 		void setMenuBar(JMenuBar menuBar);

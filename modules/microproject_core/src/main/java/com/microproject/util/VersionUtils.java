@@ -29,12 +29,6 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.prefs.BackingStoreException;
-import java.util.prefs.Preferences;
-
-import javax.swing.SwingUtilities;
-
-import com.microproject.strings.Messages;
 
 public class VersionUtils {
 	private static final BigInteger ZERO = BigInteger.ZERO;
@@ -60,10 +54,6 @@ public class VersionUtils {
 		else return null;//return Messages.getString("Release.version"); 
 
 	}
-	public static String getJnlpVersion(){
-		return System.getProperty("microproject.version");
-	}
-
 	/**
 	 * Returns whether this runtime was assembled without an explicit release
 	 * version.  Such installDist outputs are for local development and must not
@@ -131,52 +121,5 @@ public class VersionUtils {
 			return 0; // non-numeric segment (e.g. a suffix) degrades to 0 (issue #186)
 		}
 	}
-
-	public static boolean isJnlpUpToDate(){
-		String v=getVersion();
-		String jv=getJnlpVersion();
-		if (v==null||jv==null) return true;
-		try{
-			return jv.equals(toAppletVersion(v));
-		}catch(Exception e){return false;}
-	}
-	public static boolean versionCheck(boolean warnIfBad) {
-		String version = VersionUtils.getVersion();
-		if (version == null) // for running in debugger
-			version="0";
-		Preferences pref=Preferences.userNodeForPackage(VersionUtils.class);
-		String localVersion = pref.get("PODVersion","0");
-		boolean updated = !localVersion.equals(version);
-		String javaVersion = System.getProperty("java.version");
-		logger.info("ProjectLibre Version: "+version + " local version " + localVersion + " updated=" + updated + " java version=" + javaVersion);
-
-
-		pref.put("JavaVersion",javaVersion);
-
-		if (updated) {
-			Environment.setUpdated(true);
-			pref.put("PODVersion",version);
-			try {
-				pref.flush();
-			} catch (BackingStoreException e) {
-				logger.log(Level.WARNING, "Unexpected error", e);
-			}
-
-			if (warnIfBad && Environment.isApplet()) {
-				if (javaVersion.equals("1.6.0_09") || javaVersion.equals("1.6.0_08") || javaVersion.equals("1.6.0_07")|| javaVersion.equals("1.6.0_06")|| javaVersion.equals("1.6.0_05") || javaVersion.equals("1.6.0_04")) {
-					Environment.setNeedToRestart(true);
-					SwingUtilities.invokeLater(() -> Alert.error(Messages.getString("Error.restart")));
-				}
-			}
-		}else{
-			try {
-				pref.flush();
-			} catch (BackingStoreException e) {
-				logger.log(Level.WARNING, "Unexpected error", e);
-			}
-		}
-		return updated;
-	}
-
 
 }

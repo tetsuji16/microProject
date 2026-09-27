@@ -56,8 +56,6 @@ public class Environment {
 	public static int LINUX=1;
 	public static int MAC=2;
 	private static int os=-1;
-	private static boolean updated=false;
-	private static boolean needToRestart = false;
 	protected static boolean keepExternalLinks=true;
 	private static boolean plugin = false;
 	public static final boolean isBatchMode() {
@@ -208,18 +206,6 @@ public class Environment {
 	}
 	public static void setOutOfMemory(boolean outOfMemory) {
 		Environment.outOfMemory = outOfMemory;
-	}
-	public static boolean isUpdated() {
-		return updated;
-	}
-	public static void setUpdated(boolean updated) {
-		Environment.updated = updated;
-	}
-	public static boolean isNeedToRestart() {
-		return needToRestart;
-	}
-	public static void setNeedToRestart(boolean needToRestart) {
-		Environment.needToRestart = needToRestart;
 	}
 	public static boolean isKeepExternalLinks() {
 		return keepExternalLinks;

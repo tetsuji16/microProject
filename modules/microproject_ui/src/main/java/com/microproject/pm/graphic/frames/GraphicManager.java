@@ -4527,15 +4527,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     
     public void setToolBarAndMenus(final Container contentPane) {
     	if (Environment.isRibbonUI()){
-			if (ProjectLibreShell.showRestartMessageIfNeeded(contentPane, Environment.isNeedToRestart())) {
-				return;
-			}
 			ProjectLibreShell.installRibbonShell((MainRibbonFrame) container, getMenuManager(), this::showHelpDialog,
 				autoRecoveryManager);
     	} else if (Environment.isNewLook()) {
-			if (ProjectLibreShell.showRestartMessageIfNeeded(contentPane, Environment.isNeedToRestart())) {
-				return;
-			}
 			ProjectLibreShell.ShellHandles handles = ProjectLibreShell.installNewLookShell(
 				contentPane,
 				getMenuManager(),
