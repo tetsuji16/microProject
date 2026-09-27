@@ -107,16 +107,12 @@ public abstract class Linker {
 		initIterator();
 	}
 
-	//private int lastIndex;
     public void addOutline(Node root){
 		final Set<Node> endVoids = new HashSet<>();
-    	//lastIndex=0;
         getHierarchy().visitAll(root, true, arg -> {
             Node node=(Node)arg;
             Object nodeImpl=node.getImpl();
             if (!(nodeImpl instanceof Assignment)){
-//        			if (!node.isVoid()) lastIndex=tmpIndex;
-//        			tmpIndex++;
                 if (node.isVoid()) endVoids.add(node);
                 else endVoids.clear();
             }
@@ -125,9 +121,7 @@ public abstract class Linker {
         getHierarchy().visitAllLevelOrder(root, true,new Consumer<Object>(){
         	Node thisParent=null;
         	long position=0;
-        	//int index=0;
         	public void accept(Object arg) {
-        		//if (index++>lastIndex) return;
         		Node node=(Node)arg;
         		if (endVoids.contains(node)) return;
         		Object nodeImpl=node.getImpl();
@@ -144,32 +138,6 @@ public abstract class Linker {
         	}
         });
     }
-//    public void addOutline(Node root){
-//        getHierarchy().visitAllLevelOrder(root, true,new Consumer<Object>(){
-//        	Node thisParent=null;
-//        	long position=0;
-//        	public void accept(Object arg) {
-//        		Node node=(Node)arg;
-//        		Object nodeImpl=node.getImpl();
-//        		if (!(nodeImpl instanceof Assignment)&&!node.isVoid()){
-//        			Node currentParent=getHierarchy().getParent(node);
-//        			if (currentParent!=null&&currentParent.isRoot()) currentParent=null; //for compatibility
-//        			if (thisParent!=currentParent){
-//        				thisParent=currentParent;
-//        				position=0;
-//        			}
-//        			if (addOutlineElement(nodeImpl,(thisParent==null)?null:thisParent.getImpl(),position))
-//        				position++;
-//        		}
-//        	}
-//        });
-//    }
-
-
-
-
-
-
 	protected void initIterator(){}
 	public Object executeNext(){
 		throw new UnsupportedOperationException(getClass().getSimpleName() + " must implement executeNext()");
