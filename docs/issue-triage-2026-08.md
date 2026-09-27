@@ -1,10 +1,11 @@
 # Open issue triage — revalidated 2026-09-27
 
 This inventory was rechecked against GitHub's open issue list on 2026-09-27 and
-the current worktree. The open issues are #595, #228, #215, #152, and #84. An issue remains open on GitHub when implementation is
-waiting for reporter confirmation, is intentionally tracked as an umbrella, or
-still has follow-up work; the open state alone does not mean that its original
-bug is still reproducible.
+the current worktree. The open issues are #595, #228, and #84. Issues #152 and
+#215 were verified closed on GitHub on 2026-09-27. An issue remains open on
+GitHub when implementation is waiting for reporter confirmation, is
+intentionally tracked as an umbrella, or still has follow-up work; the open
+state alone does not mean that its original bug is still reproducible.
 
 ## Status
 
