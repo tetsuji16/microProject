@@ -403,14 +403,14 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		ResourcePool pool = project.getResourcePool();
 		if (pool != null) {
 			for (com.microproject.pm.resource.Resource resourceValue : pool.getResourceList()) {
-				if (resourceValue instanceof ResourceImpl) {
-					writeProjectCalendar(sheet, rowIndex++, ((ResourceImpl) resourceValue).getWorkCalendar());
+				if (resourceValue instanceof ResourceImpl resource) {
+					writeProjectCalendar(sheet, rowIndex++, resource.getWorkCalendar());
 				}
 			}
 		}
 		for (com.microproject.pm.task.Task task : project.getTaskList()) {
-			if (task instanceof NormalTask) {
-				writeProjectCalendar(sheet, rowIndex++, ((NormalTask) task).getWorkCalendar());
+			if (task instanceof NormalTask normalTask) {
+				writeProjectCalendar(sheet, rowIndex++, normalTask.getWorkCalendar());
 			}
 		}
 		autoSize(sheet, 5);
