@@ -133,14 +133,12 @@ public abstract class StartupFactory {
 		Environment.setClientSide(true);
 
 		// System.setSecurityManager(null); // DISABLED for Java 17+ compatibility
-		Thread loadConfigThread=new Thread("loadConfig"){
-			public void run() {
-				long t=System.currentTimeMillis();
-//				System.out.println("---------- StartupFactory instanceFromNewSession#1 doLoadConfig");
-				doLoadConfig();
-//				System.out.println("---------- StartupFactory instanceFromNewSession#1 doLoadConfig done in "+(System.currentTimeMillis()-t)+" ms");
-			}
-		};
+		Thread loadConfigThread = new Thread(() -> {
+			long configLoadStartTime = System.currentTimeMillis();
+//			System.out.println("---------- StartupFactory instanceFromNewSession#1 doLoadConfig");
+			doLoadConfig();
+//			System.out.println("---------- StartupFactory instanceFromNewSession#1 doLoadConfig done in "+(System.currentTimeMillis()-configLoadStartTime)+" ms");
+		}, "loadConfig");
 		loadConfigThread.start();
 
 		GraphicManager graphicManager = null;
