@@ -124,19 +124,19 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		return reference;
 	}
 
-	public Object getElementAt(int i) {
+	public GraphicNode getElementAt(int i) {
 	    return visibleNodes.getElementAt(i);
 	}
-	public ListIterator getIterator(){
+	public ListIterator<GraphicNode> getIterator(){
 	    return visibleNodes.getIterator();
 	}
-	public ListIterator getIterator(int i){
+	public ListIterator<GraphicNode> getIterator(int i){
 	    return visibleNodes.getIterator(i);
 	}
-	public ListIterator getEdgesIterator(){
+	public ListIterator<GraphicDependency> getEdgesIterator(){
 	    return visibleDependencies.getIterator();
 	}
-	public ListIterator getEdgesIterator(int i){
+	public ListIterator<GraphicDependency> getEdgesIterator(int i){
 	    return visibleDependencies.getIterator(i);
 	}
 
@@ -187,7 +187,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	    return list;
 	}
 
-	public Object getEdgeElementAt(int i) {
+	public GraphicDependency getEdgeElementAt(int i) {
 		return visibleDependencies.getElementAt(i);
 	}
 

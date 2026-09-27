@@ -38,7 +38,7 @@ import java.util.Map;
  */
 public abstract class CellCache{
 	protected ArrayList cache;
-	protected ArrayList visibleElements;
+	protected ArrayList<VisibleElements<?>> visibleElements;
 	protected Map<Object, Object> baseIndex;
 	
 	/**
@@ -46,7 +46,7 @@ public abstract class CellCache{
 	 */
 	public CellCache() {
 		cache=new ArrayList();
-		visibleElements=new ArrayList();
+		visibleElements=new ArrayList<>();
 		baseIndex = new HashMap<>();
 	}
 		
@@ -73,13 +73,13 @@ public abstract class CellCache{
 	}
 	
 	
-    public ArrayList getVisibleElements() {
+	public ArrayList<VisibleElements<?>> getVisibleElements() {
         return visibleElements;
     }
-    public void addVisibleElements(VisibleElements elements){
+	public void addVisibleElements(VisibleElements<?> elements){
         visibleElements.add(elements);
     }
-    public void removeVisibleElements(VisibleElements elements){
+	public void removeVisibleElements(VisibleElements<?> elements){
         visibleElements.remove(elements);
     }
 	public void removeAllVisibleElements(){
@@ -108,8 +108,8 @@ public abstract class CellCache{
 	
 	public void clear(){
 		cache.clear();
-		for (Object element : visibleElements) {
-		    ((VisibleElements)element).clear();
+		for (VisibleElements<?> element : visibleElements) {
+		    element.clear();
 		}
 		baseIndex.clear();
 	}

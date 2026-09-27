@@ -42,8 +42,8 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 	@Test
 	void dependencyElementsRemainUntransformed() {
 		VisibleDependencies visibleDependencies = new VisibleDependencies("dependency-test");
-		Object first = new Object();
-		Object second = new Object();
+		GraphicDependency first = new GraphicDependency(null, null, null);
+		GraphicDependency second = new GraphicDependency(null, null, null);
 		visibleDependencies.getElements().addAll(List.of(first, second));
 
 		visibleDependencies.applyTransformer();

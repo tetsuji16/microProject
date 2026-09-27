@@ -37,7 +37,7 @@ import com.microproject.pm.graphic.model.transform.CacheTransformer;
 /**
  *
  */
-public class VisibleNodes extends VisibleElements {
+public class VisibleNodes extends VisibleElements<GraphicNode> {
     protected VisibleDependencies visibleDependencies;
     /**
      * @param transformer

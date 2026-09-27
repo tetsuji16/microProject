@@ -35,8 +35,8 @@ import com.microproject.pm.graphic.model.transform.CacheTransformer;
 /**
  *
  */
-public abstract class VisibleElements{
-	protected ArrayList elements;
+public abstract class VisibleElements<T>{
+	protected ArrayList<T> elements;
     protected CacheTransformer transformer;
     protected List<CacheEvent> events;
     protected String viewName;
@@ -44,15 +44,15 @@ public abstract class VisibleElements{
     public VisibleElements(String viewName,CacheTransformer transformer) {
         this.transformer=transformer;
         this.viewName=viewName;
-        elements=new ArrayList();
-        events=new ArrayList();
+		elements=new ArrayList<>();
+		events=new ArrayList<>();
     }
     
     
-    public ArrayList getElements() {
+	public ArrayList<T> getElements() {
         return elements;
     }
-	void setElements(ArrayList elements) {
+	void setElements(ArrayList<T> elements) {
 		this.elements = elements;
 	}
     
@@ -69,22 +69,22 @@ public abstract class VisibleElements{
     
 	public int getRow(Object element){
 	    int pos=0;
-	    for (Object current : elements) {
+	    for (T current : elements) {
 	        if (current.equals(element)) return pos;
 	        pos++;
 	    }
 	    return -1;
 	}
-	public Object getElementAt(int row) {
+	public T getElementAt(int row) {
 		return elements.get(row);
 	}
 	public int getSize() {
 		return elements.size();
 	}
-	public ListIterator getIterator(){
+	public ListIterator<T> getIterator(){
 		return elements.listIterator();
 	}
-	public ListIterator getIterator(int i){
+	public ListIterator<T> getIterator(int i){
 		return elements.listIterator(i);
 	}
 	
@@ -94,7 +94,7 @@ public abstract class VisibleElements{
 	public boolean isVisible(Object element){
 		return elements.contains(element);
 	}
-	public ArrayList getVisibleElements() {
+	public ArrayList<T> getVisibleElements() {
 		return elements;
 	}
     

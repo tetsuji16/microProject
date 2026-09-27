@@ -55,8 +55,8 @@ public interface NodeModelCache extends TreeModel{
 	public void setModel(NodeModel model);
 	
 	public Object getElementAt(int i);
-	public ListIterator getIterator();
-	public ListIterator getIterator(int i);
+	public ListIterator<GraphicNode> getIterator();
+	public ListIterator<GraphicNode> getIterator(int i);
 //	public static interface CacheClosure{
 //		public void execute(GraphicNode node,int deltaLevel);
 //	}
@@ -66,8 +66,8 @@ public interface NodeModelCache extends TreeModel{
 	public List<Object> getNodesAt(int[] i);
 	public int getRowAt(Object obj);
 	public Object getEdgeElementAt(int i);
-	public ListIterator getEdgesIterator();
-	public ListIterator getEdgesIterator(int i);
+	public ListIterator<GraphicDependency> getEdgesIterator();
+	public ListIterator<GraphicDependency> getEdgesIterator(int i);
 	public int getSize();
 	public int getEdgesSize();
 	public GraphicNode getParent(GraphicNode node);

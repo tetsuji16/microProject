@@ -67,8 +67,8 @@ class NodeCacheEventTraversalTest {
 		NodeCache cache = new NodeCache();
 		VisibleNodes first = visibleNodes("first");
 		VisibleNodes second = visibleNodes("second");
-		first.getElements().add("first row");
-		second.getElements().add("second row");
+		first.getElements().add(new GraphicNode(null, 0));
+		second.getElements().add(new GraphicNode(null, 0));
 		cache.addVisibleElements(first);
 		cache.addVisibleElements(second);
 
