@@ -1204,10 +1204,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	protected BarFormat calendarFormat;
-	protected Consumer<Object> calendarClosure=new Consumer<Object>() { public void accept(Object arg0) {
-			calendarFormat = (BarFormat)arg0;
-		}
-	};
+	protected Consumer<Object> calendarClosure = arg0 -> calendarFormat = (BarFormat)arg0;
 	protected BarFormat getCalendarFormat(){
 		calendarFormat=null;
 		if (calendarFormat==null){
