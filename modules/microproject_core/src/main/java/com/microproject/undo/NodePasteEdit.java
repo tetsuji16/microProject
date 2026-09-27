@@ -44,7 +44,6 @@ public class NodePasteEdit extends AbstractUndoableEdit{
 	protected List<?> children;
 	protected List<Node> roots;
 	protected int position;
-	//protected UndoController undoController;
 	
 	
 	
@@ -55,13 +54,12 @@ public class NodePasteEdit extends AbstractUndoableEdit{
 	 * @param position
 	 */
 	public NodePasteEdit(NodeModel model, Node parent, List<?> children,
-			int position/*,UndoController undoController*/) {
+			int position) {
 		super();
 		this.model = model;
 		this.parent = parent;
 		this.children = children;
 		this.position = position;
-		//this.undoController=undoController;
 		roots=new ArrayList<>(children.size());
 		HierarchyUtils.extractParents(children, roots);
 	}

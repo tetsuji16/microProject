@@ -46,24 +46,19 @@ import com.microproject.util.Environment;
 public class UndoController extends UndoManager implements UndoableEditListener{
 
 	protected transient UndoableEditSupport editSupport;
-	//protected transient UndoManager undoManager;
 	/**
 	 *
 	 */
 	public UndoController() {
 		editSupport=new UndoableEditSupport();
-		//undoManager=new UndoManager();
 		editSupport.addUndoableEditListener(this);
 	}
 	public void undoableEditHappened(UndoableEditEvent e){
-		//System.out.println("undoableEditHappened");
 		UndoableEdit edit=e.getEdit();
-//		undoManager.addEdit(edit);
 		super.addEdit(edit);
 	}
 
 	public void clear(){
-//		undoManager.discardAllEdits();
 		super.discardAllEdits();
 		nodeMapping.clear();
 	}

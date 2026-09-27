@@ -30,7 +30,6 @@ public class PageSize extends Size2DSyntax{
     private static final long serialVersionUID = 82939487454444330L;
 
 	public static final int POINTS_PER_INCH=72;
-	//public static final int POINTS=MediaSize.INCH/72;
 
 	public PageSize(float x, float y, int units) {
 		super(x, y, units);
