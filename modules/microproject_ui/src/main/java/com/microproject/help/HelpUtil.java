@@ -133,8 +133,7 @@ public class HelpUtil implements KeyEventDispatcher {
 		
 		// do help for most detailed item
 		while(c != null) {
-			if (c instanceof JTableHeader) { // if clicked on row header, see if there is help for the field
-				JTableHeader th = (JTableHeader)c;
+			if (c instanceof JTableHeader th) { // if clicked on row header, see if there is help for the field
 				loc = c.getLocationOnScreen();
 				offsetPoint = new Point(pt.x- loc.x, pt.y-loc.y);	
 				int col =  th.columnAtPoint(offsetPoint);
@@ -163,4 +162,3 @@ public class HelpUtil implements KeyEventDispatcher {
 		return false;
 	}
 }
-

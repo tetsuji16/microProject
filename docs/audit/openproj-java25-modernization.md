@@ -2098,3 +2098,10 @@ cast. `git blame` traces the check/cast block to OpenProj (`d2fa3c20a`);
 `ComponentFactory` installs the verifier for date fields. Date parse fallback,
 null-date handling, and subsequent edit/undo behavior are unchanged. Full
 `:microproject_ui:test --console=plain` passed.
+
+`HelpUtil` now binds the OpenProj-derived `JTableHeader` type check and uses the
+binding for table-header coordinate lookup, removing the immediate cast.
+`git blame` traces this branch to OpenProj (`d2fa3c20a`); `HelpUtil` is called
+from active dialog, report, print-preview, and toolbar help routes. The help
+target resolution is unchanged. Full `:microproject_ui:test --console=plain`
+passed.
