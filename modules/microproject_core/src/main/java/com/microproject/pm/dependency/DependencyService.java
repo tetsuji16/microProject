@@ -99,12 +99,10 @@ public class DependencyService {
 	public void addStartSentinelDependency(HasDependencies sentinel, HasDependencies successor) {
 		Dependency dependency = Dependency.getInstance(sentinel, successor, DependencyType.Kind.SS,0);
 		sentinel.getSuccessorList().add(dependency);
-		//		System.out.println("adding start sentinel dependency task is " + successor);
 	}
 	public void addEndSentinelDependency(HasDependencies sentinel, HasDependencies predecessor) {
 		Dependency dependency = Dependency.getInstance(predecessor, sentinel, DependencyType.Kind.FS,0);
 		sentinel.getPredecessorList().add(dependency);
-	//	System.out.println("adding end sentinel dependency task is " + predecessor);
 	}
 
 	public boolean removeEndSentinel(HasDependencies sentinel, HasDependencies task) {
@@ -113,7 +111,6 @@ public class DependencyService {
 		if (dependency != null) {
 			sentinel.getPredecessorList().remove(dependency);
 			return true;
-	//		System.out.println("removing end sentinel dependency task is " + dependency.getPredecessor());
 		}
 		return false;
 	}
@@ -123,7 +120,6 @@ public class DependencyService {
 		if (dependency != null) {
 			sentinel.getSuccessorList().remove(dependency);
 			return true;
-	//		System.out.println("removing start sentinel dependency task is " + dependency.getSuccessor());
 		}
 		return false;
 	}
