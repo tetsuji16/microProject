@@ -41,7 +41,6 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
-import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 
 import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
@@ -244,9 +243,6 @@ public class MenuManager {
 			for (Object button : buttons) {
 				if (button instanceof AbstractButton abstractButton) {
 					abstractButton.setSelected(enable);
-					if (button instanceof JToggleButton) {
-					//	button.setBackground(enable ? Color.GRAY : ExtButtonFactory.BACKGROUND_COLOR);
-					}
 				} else if (button instanceof JCommandToggleButton commandToggleButton) {
 					commandToggleButton.getActionModel().setSelected(enable);
 				}
