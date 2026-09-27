@@ -2664,3 +2664,12 @@ double buffering disabled during child paint and restored afterward.
 OpenProj-derived boolean to `true`. The assignment remains limited to true
 custom flags; false flags stay omitted. `MpxCustomFlagExportTest` passed for
 both values.
+
+`ResourceManager.getStringList` now returns `List<String>` and builds a typed
+list. Its OpenProj baseline implementation uses `StringTokenizer` and adds
+only `String` tokens, so delimiter handling and token order are unchanged. The
+menu, popup-menu, toolbar, and ribbon consumers now use the typed list directly
+without raw collections, casts, or unchecked suppressions. The JVM method
+descriptor remains `List`; a focused test verifies default whitespace splitting
+and custom delimiter-return behavior. `ResourceManagerTest` and
+`RibbonStructureTest` passed.

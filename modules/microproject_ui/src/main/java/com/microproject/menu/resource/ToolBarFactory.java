@@ -159,9 +159,8 @@ public class ToolBarFactory extends ResourceManager {
 	public void initJComponent(String name, JComponent component)
 			throws MissingResourceException, ResourceFormatException,
 			MissingListenerException {
-		List buttons = getStringList(name);
-		for (Object item : buttons) {
-			String s = (String) item;
+		List<String> buttons = getStringList(name);
+		for (String s : buttons) {
 			if (s.equals(SEPARATOR)) {
 			    buttonGroup = null;
 			    component.add(new JToolbarSeparator());
