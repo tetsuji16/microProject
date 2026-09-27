@@ -215,7 +215,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		// structural reference itself and retain its concrete child tasks.
 		Node exportRoot = project.getTaskOutlineRoot();
 		boolean savingOpenedSubproject = exportRoot != null;
-		for (Iterator i=project.getTaskOutline().iterator(exportRoot);i.hasNext();){
+		for (Iterator<?> i=project.getTaskOutline().iterator(exportRoot);i.hasNext();){
 			Object obj = ((Node)i.next()).getImpl();
     		if (voidTasksQueue.size()>0 && !(obj instanceof VoidNodeImpl)){
     			//insert voids

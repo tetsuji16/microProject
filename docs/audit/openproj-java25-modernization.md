@@ -556,8 +556,9 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
   Preserve `Iterator.remove()` for these in-place filtering contracts; they are
   not remaining raw-iterator candidates. `MSPDISerializer` walks
   `project.getTaskOutline().iterator(exportRoot)`, a hierarchy iterator with a
-  caller-selected root and no `Iterable` traversal contract. Keep that iterator;
-  do not convert it to enhanced-for. DOM `NodeList` loops in `MpoFileImporter`
+  caller-selected root and no `Iterable` traversal contract. Its local is now
+  declared `Iterator<?>`; keep the explicit node cast and do not convert it to
+  enhanced-for. DOM `NodeList` loops in `MpoFileImporter`
   are indexed API traversals, not Java collection iterators.
 - Record cleanup/deletion candidates only after checking reflection, resource
   configuration, serialization, ServiceLoader, action IDs, and format readers.
