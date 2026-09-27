@@ -2537,3 +2537,9 @@ before converting it to the same `Double` day value. The method hunk matches
 the OpenProj baseline at `d2fa3c20a`; repository search found no direct caller,
 so a focused test now pins both duration conversion and pass-through identity
 for unrelated values. `FieldExportConversionTest` passed.
+
+`PageSizes` now uses diamond inference for the two system paper-size lists and
+the per-printer size list. All three corresponding initializations match
+`d2fa3c20a:openproj_ui/src/com/projity/print/PageSizes.java`; the array-based
+capacities, candidate ordering, and fallback entries are unchanged.
+`PageSizesTest` passed.

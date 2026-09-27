@@ -89,10 +89,10 @@ public class PageSizes extends MediaSizeName{
 		super(-1);
 		String[] names=getStringTable();
 		EnumSyntax[] values=getEnumValueTable();
-		ArrayList<Format> s = new ArrayList<Format>(names.length+2);
+		ArrayList<Format> s = new ArrayList<>(names.length+2);
 		s.add(new Format(Messages.getString("PageSetupDialog.PaperFormat.Custom"),CUSTOM));
 		s.add(new Format(Messages.getString("PageSetupDialog.PaperSizeSettings.SinglePage"),BIG_PAGE));
-		ArrayList<Format> so = new ArrayList<Format>(names.length+2);
+		ArrayList<Format> so = new ArrayList<>(names.length+2);
 		so.add(new Format(Messages.getString("PageSetupDialog.PaperFormat.Custom"),CUSTOM));
 		so.add(new Format(Messages.getString("PageSetupDialog.PaperSizeSettings.SinglePage"),BIG_PAGE));
 		for (int i=0;i<names.length;i++){
@@ -170,7 +170,7 @@ public class PageSizes extends MediaSizeName{
 		protected MediaSizeNameModel(Format[] sizes,Format[] sizesSystemNames,PrintService printService){
 			this.sizes=sizes;
 			this.sizesSystemNames=sizesSystemNames;
-			currentSizes=new ArrayList<Format>(sizes.length);
+			currentSizes=new ArrayList<>(sizes.length);
 			update(printService);
 		}
 
