@@ -2560,3 +2560,8 @@ diamond inference. These exact typed construction responsibilities match
 `d2fa3c20a:openproj_exchange/src/com/projity/server/data/Serializer.java`;
 the comparator, null fallback, ordering, and project map assignment are
 unchanged. Full exchange tests passed.
+
+`TimeSpreadSheetModel` now uses diamond inference for its selected-field and
+time-interval lists. OpenProj's constructor creates the same two lists (raw in
+that baseline); current element types, cache initialization, and selection
+reset order remain unchanged. UI compilation passed.

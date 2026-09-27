@@ -70,8 +70,8 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 	public TimeSpreadSheetModel(NodeModelCache cache, ArrayList<Field> fieldArray, CellStyle cellStyle, ActionList actionList) {
 		super(cache,null,cellStyle,actionList);
 		this.fieldArray = fieldArray;
-		selectedFieldArray=new ArrayList<Field>();
-		timeIntervals=new ArrayList<HasStartAndEnd>();
+		selectedFieldArray=new ArrayList<>();
+		timeIntervals=new ArrayList<>();
 		resetSelectedFieldArray();
 		//initCellStyle();
 		setFieldContext(fieldContext);
