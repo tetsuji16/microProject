@@ -40,7 +40,6 @@ public class Merge implements Consumer<Object> {
 	Object currentObject = null;
 	Consumer<Object> callBack;
 	Comparator<Object> comparator = null;
-//	boolean ignoreZeroValueIntervals = false;
 	
 	public static Merge getInstance(Consumer<Object> callBack) {
 		return new Merge(callBack);
@@ -73,10 +72,7 @@ public class Merge implements Consumer<Object> {
 		double value = 0.0D;
 		if (currentObject != null)
 			value = ((DoubleValue)currentObject).getValue();
-		else {
-			// System.out.println("Merge.treatCurrentInterval currentObject is null - using 0.0 for value");
-		}
-//		if (!ignoreZeroValueIntervals || value != 0.0D)
+		// Zero-valued intervals are reported to preserve complete timeline coverage.
 		callBack.accept(IntervalValue.getInstance(currentStart, currentEnd, value)); // finish previous
 		started = false;
 		initializeDates();
@@ -98,7 +94,6 @@ public class Merge implements Consumer<Object> {
 			
 			currentStart = Math.min(currentStart,query.getStart()) ;			
 			currentEnd = Math.max(currentEnd,query.getEnd());
-//System.out.println("in Merge" + new Date(currentStart) + " " + new Date(currentEnd));			
 			if (!generator.hasNext()) // if no more intervals, then terminate this one
 				treatCurrentInterval();
 		} else {
