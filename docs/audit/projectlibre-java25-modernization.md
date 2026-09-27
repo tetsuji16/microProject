@@ -30,16 +30,24 @@ OpenProj progress.
 
 | ProjectLibre-origin responsibility | Evidence and change | Verification |
 |---|---|---|
-| `Field.toTaskSheetScheduleValue` | Excluded: not present in the ProjectLibre 1.9.8 source (`0530be227f4a10c5545cce8d3db20ac5a4d76a66`) or OpenProj baseline; its first appearance is in this repository's `54e5480390` refactor. This is microProject fork code, not ProjectLibre-origin code. | Not counted toward #727 or #595. |
-| `Field.getGroupDuration` | Excluded: not present in the ProjectLibre 1.9.8 source or OpenProj baseline; introduced in this repository's later fork development. This is microProject fork code, not ProjectLibre-origin code. | Not counted toward #727 or #595. |
+| `FieldUtil.getCategories` | This ProjectLibre-only `FieldUtil` source exists in ProjectLibre 1.9.8 (`0530be227f4a10c5545cce8d3db20ac5a4d76a66`) and has no OpenProj baseline counterpart. Replaced the sized-array `toArray` call with `categories.toArray(String[]::new)`; result type, order, and contents are unchanged. | `:microproject_core:test --tests "com.microproject.core.fields.FieldUtilTest" --console=plain` passed 2026-09-27; regression asserts hierarchy order and contents. |
+
+## Explicit exclusions
+
+- `Field.toTaskSheetScheduleValue` is absent from the ProjectLibre 1.9.8
+  source and OpenProj baseline; its first appearance is this repository's
+  `54e5480390` refactor. It is microProject fork code, not ProjectLibre-origin
+  code.
+- `Field.getGroupDuration` is absent from the ProjectLibre 1.9.8 source and
+  OpenProj baseline; it is a later microProject fork addition.
+- These exclusions are not counted toward #727 or #595.
 
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
-ProjectLibre fork additions based on commits in this repository. That was too
-broad: the cited commits are microProject fork commits and the responsibilities
-do not occur in the upstream ProjectLibre 1.9.8 source. The general provenance
-CSV is file-based and conservative, so it does not encode these hunk findings.
-Until Phase 0 reviews further source, no Java file is promoted from `REVIEW`
-based on naming or current implementation alone.
+ProjectLibre fork additions based on commits in this repository. The general
+provenance CSV remains file-based and conservative; the verified hunk-level
+finding above is recorded here rather than promoting a whole mixed file. Phase
+0 continues for additional source; no Java file is promoted from `REVIEW` based
+on naming or current implementation alone.
 
