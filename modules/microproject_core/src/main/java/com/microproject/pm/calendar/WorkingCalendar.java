@@ -31,7 +31,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.logging.Level;
@@ -654,7 +653,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 			if (cal != null)
 				list.add(cal);
 		}
-		Collections.sort(list);
+		list.sort(null);
 		return list;
 	}
 

@@ -2710,3 +2710,8 @@ instead of `Collections.sort(list)`. The method and natural-order sort match
 OpenProj 1.4 at `d2fa3c20a`; the same caller-provided list is still sorted in
 place after applicable fields are appended. Full `:microproject_core:test`
 passed (801 tests, no failures or skips).
+
+`WorkingCalendar.extractCalendars(Collection)` also now uses `list.sort(null)`.
+The method's filter, encounter-preserving append phase, in-place natural sort,
+and returned `ArrayList` are unchanged from OpenProj 1.4 at `d2fa3c20a`.
+Full `:microproject_core:test` passed.
