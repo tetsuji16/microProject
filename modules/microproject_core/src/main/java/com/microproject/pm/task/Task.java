@@ -1002,11 +1002,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public void recalculateLater(final Object eventSource) {
 		markTaskAsNeedingRecalculation(); // task needs to be recalculated
 
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-            	recalculate(eventSource);
-            }}
-        );
+            SwingUtilities.invokeLater(() -> recalculate(eventSource));
 	}
 
 
