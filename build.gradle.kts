@@ -20,6 +20,31 @@ fun architectureSourceBoundaryViolations(sourceFile: File, forbiddenPackages: Li
     }
 }
 
+fun corePresentationReferences(sourceFile: File, sourceRoot: File): Set<String> {
+    val relativePath = sourceFile.relativeTo(sourceRoot).invariantSeparatorsPath
+    val presentationType = Regex("(?<![A-Za-z0-9_$])(?:javax\\.swing|java\\.awt|com\\.microproject\\.(?:graphic|print|dialog))(?:[A-Za-z0-9_$.]*)(?![A-Za-z0-9_$])")
+    return sourceFile.readLines().flatMap { line ->
+        presentationType.findAll(line.substringBefore("//")).map { match ->
+            "$relativePath\t${match.value}"
+        }.toList()
+    }.toSet()
+}
+
+fun corePresentationBoundaryViolations(actual: Set<String>, allowed: Set<String>): List<String> {
+    val newReferences = actual - allowed
+    val removedReferences = allowed - actual
+    return buildList {
+        if (newReferences.isNotEmpty()) {
+            add("New core presentation references:")
+            addAll(newReferences.sorted().map { "  + $it" })
+        }
+        if (removedReferences.isNotEmpty()) {
+            add("Remove migrated references from docs/architecture/core-presentation-debt.txt:")
+            addAll(removedReferences.sorted().map { "  - $it" })
+        }
+    }
+}
+
 fun requireArchitectureSet(label: String, module: String, expected: Set<String>, actual: Set<String>) {
     require(actual == expected) {
         "Unexpected $label for $module: expected=${expected.sorted()}, actual=${actual.sorted()}"
@@ -174,6 +199,24 @@ tasks.register("verifyArchitectureBoundaries") {
             }
         }
 
+        val coreSourceRoot = project(":microproject_core").projectDir.resolve("src/main/java")
+        val presentationDebtFile = layout.projectDirectory.file("docs/architecture/core-presentation-debt.txt").asFile
+        val allowedPresentationReferences = presentationDebtFile.readLines()
+            .map { it.substringBefore("#").trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+        val actualPresentationReferences = fileTree(coreSourceRoot) { include("**/*.java") }
+            .flatMap { sourceFile -> corePresentationReferences(sourceFile, coreSourceRoot) }
+            .toSet()
+        val presentationViolations = corePresentationBoundaryViolations(
+            actualPresentationReferences,
+            allowedPresentationReferences
+        )
+        require(presentationViolations.isEmpty()) {
+            "Core presentation boundary debt changed; new imports need an explicit migration decision and removed references must update the allowlist:\n" +
+                presentationViolations.joinToString("\n")
+        }
+
         // A legacy class-name key is persisted in old POD options.  Keep this
         // compatibility adapter narrow and explicit; all other legacy FQNs are
         // still rejected, including new reflection/package leaks.
@@ -272,6 +315,18 @@ tasks.register("verifyArchitectureBoundaryFixtures") {
             val detected = architectureSourceBoundaryViolations(fixture, listOf("com.microproject.exchange"))
             require(detected.size == 2) {
                 "Architecture boundary fixture must reject both direct and reflective FQNs; detected=$detected"
+            }
+
+            val presentationFixture = fixtureRoot.resolve("NewPresentationDependency.java")
+            presentationFixture.writeText(
+                "package com.microproject.core;\n" +
+                    "import javax.swing.JButton;\n" +
+                    "class NewPresentationDependency { JButton button; }\n"
+            )
+            val presentationReferences = corePresentationReferences(presentationFixture, fixtureRoot)
+            val presentationViolations = corePresentationBoundaryViolations(presentationReferences, emptySet())
+            require(presentationViolations.any { it.contains("javax.swing.JButton") }) {
+                "Architecture fixture must reject a new Swing dependency in core."
             }
 
             var projectDependencyRejected = false
