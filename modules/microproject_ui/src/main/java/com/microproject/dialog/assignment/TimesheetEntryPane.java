@@ -201,8 +201,13 @@ public class TimesheetEntryPane extends JScrollPane {
 	}
 
 	private List<Assignment> resolveAssignments() {
-		List<Assignment> assignments = new ArrayList<>();
-		for (Resource resource : resolveResources()) {
+		List<Resource> resources = resolveResources();
+		int assignmentCount = 0;
+		for (Resource resource : resources) {
+			assignmentCount += resource.getAssignments().size();
+		}
+		List<Assignment> assignments = new ArrayList<>(assignmentCount);
+		for (Resource resource : resources) {
 			for (Association association : resource.getAssignments()) {
 				if (association instanceof Assignment)
 					assignments.add((Assignment) association);
@@ -249,7 +254,7 @@ public class TimesheetEntryPane extends JScrollPane {
 				}
 			}
 		}
-		List<Resource> result = new ArrayList<>();
+		List<Resource> result = new ArrayList<>(uniqueResources.size());
 		for (Resource resource : uniqueResources) {
 			if (!resource.getAssignments().isEmpty()) {
 				result.add(resource);
