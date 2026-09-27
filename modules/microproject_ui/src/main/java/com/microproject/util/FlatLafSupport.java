@@ -108,7 +108,13 @@ public final class FlatLafSupport {
 		}
 		Font preferred = platformDefaultFont;
 		if (family != null && !family.isBlank()) {
-			preferred = new Font(family, Font.PLAIN, preferred.getSize());
+			Font requested = new Font(family, Font.PLAIN, preferred.getSize());
+			// The platform baseline is selected specifically for Japanese glyph
+			// coverage. A persisted user font must meet the same requirement or
+			// Swing controls (including dialogs) can render Japanese as tofu.
+			if (requested.canDisplayUpTo(JAPANESE_FONT_SAMPLE) < 0) {
+				preferred = requested;
+			}
 		}
 		if (size > 0) {
 			preferred = preferred.deriveFont((float) size);

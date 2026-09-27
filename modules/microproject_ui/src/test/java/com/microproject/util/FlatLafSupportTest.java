@@ -28,6 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
+import java.awt.Font;
+import java.awt.GraphicsEnvironment;
+import java.util.Arrays;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -40,6 +43,7 @@ import javax.swing.JTextField;
 import javax.swing.UIManager;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 
 import com.formdev.flatlaf.FlatLaf;
 import com.microproject.preference.GlobalPreferences;
@@ -157,6 +161,27 @@ class FlatLafSupportTest {
 			assertEquals(platformFont, UIManager.getFont("Label.font"));
 		} finally {
 			FlatLafSupport.initialize();
+		}
+	}
+
+	@Test
+	void userFontWithoutJapaneseGlyphsFallsBackToPlatformFont() {
+		FlatLafSupport.initialize();
+		java.awt.Font platformFont = UIManager.getFont("defaultFont");
+		String unsupportedFamily = Arrays.stream(GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames())
+				.filter(name -> new Font(name, Font.PLAIN, 12).canDisplayUpTo("日本語") >= 0)
+				.findFirst()
+				.orElse(null);
+		Assumptions.assumeTrue(unsupportedFamily != null,
+				"This system has no installed font family that lacks Japanese glyphs");
+		try {
+			FlatLafSupport.applyUserFontPreference(unsupportedFamily, 14);
+			Font applied = UIManager.getFont("defaultFont");
+			assertEquals(platformFont.getFamily(), applied.getFamily(), "unsupported CJK font should use platform baseline");
+			assertEquals(14.0f, applied.getSize2D(), "requested size should be retained on fallback");
+			assertTrue(applied.canDisplayUpTo("日本語") < 0, "applied font should display Japanese");
+		} finally {
+			FlatLafSupport.applyUserFontPreference("", 0);
 		}
 	}
 
