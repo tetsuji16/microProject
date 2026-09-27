@@ -126,7 +126,6 @@ public class Serializer {
             EnterpriseResourceData enterpriseResourceData;
             if (resource.isDefault())
             	return null;
-//        	return transformationMap;//enterpriseResourceData=null;
             else if (project.isMaster()){
             	enterpriseResourceData=(EnterpriseResourceData)serialize(resource.getGlobalResource(),EnterpriseResourceData.FACTORY,null);
             }else{
@@ -465,7 +464,6 @@ public class Serializer {
     	if (project.isForceNonIncremental()) incremental=false;
     	boolean incrementalDistributions=incremental&&!project.isForceNonIncrementalDistributions();
 
- //   	calendars.clear();
         Count projectCount=new Count("Project");
         ProjectData projectData=(ProjectData)serialize(project,ProjectData.FACTORY,projectCount);
         if (project.isForceNonIncremental()) projectData.setVersion(0);
