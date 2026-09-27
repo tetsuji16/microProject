@@ -28,6 +28,8 @@ import java.awt.Rectangle;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.swing.table.TableColumn;
+
 import com.microproject.pm.graphic.gantt.GanttParams;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParamsImpl.PageInfo;
 import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeaderColumnModel;
@@ -42,9 +44,8 @@ public interface SpreadSheetParams extends GanttParams {
 	public Rectangle getSpreadSheetBounds();
 	public SpreadSheetColumnModel getColumnModel();
 	public SpreadSheetRowHeaderColumnModel getHeaderColumnModel();
-	public Iterator getColumnIterator();
+	public Iterator<TableColumn> getColumnIterator();
 
 	public PageInfo getRowPageInfo(int row);
 	public PageInfo getColPageInfo(int col);
 }
-

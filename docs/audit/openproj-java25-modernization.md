@@ -2660,6 +2660,15 @@ conditions and the repaint flag retain their original behavior. The hunk
 matches the OpenProj baseline; `NetworkCellEditorTest` passed, observing
 double buffering disabled during child paint and restored afterward.
 
+`SpreadSheetParamsImpl` now uses `ArrayList<PageInfo>` for its row/column page
+maps and `Enumeration<TableColumn>` for Swing column traversal. The
+`SpreadSheetParams.getColumnIterator` contract and both renderer consumers now
+use `Iterator<TableColumn>`, removing the page-info and column casts while
+preserving the erased `ArrayList`/`Iterator` descriptors, traversal order,
+page-index bounds, and shallow copy of page entries. The changed raw fields,
+iterator implementation, and rendering loops match the OpenProj UI baseline.
+The full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
+
 `MPXConverter.toMpxCustomFields` now uses `if (b)` instead of comparing the
 OpenProj-derived boolean to `true`. The assignment remains limited to true
 custom flags; false flags stay omitted. `MpxCustomFlagExportTest` passed for

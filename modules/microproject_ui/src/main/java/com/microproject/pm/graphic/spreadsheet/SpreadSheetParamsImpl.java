@@ -132,14 +132,14 @@ public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadShee
 	public SpreadSheetRowHeaderColumnModel getHeaderColumnModel() {
 		return headerColumnModel;
 	}
-	public Iterator getColumnIterator(){
-		return new Iterator(){
-			protected Enumeration headerE=headerColumnModel.getColumns();
-			protected Enumeration e=columnModel.getColumns();
+	public Iterator<TableColumn> getColumnIterator(){
+		return new Iterator<>(){
+			protected Enumeration<TableColumn> headerE=headerColumnModel.getColumns();
+			protected Enumeration<TableColumn> e=columnModel.getColumns();
 			public boolean hasNext() {
 				return headerE.hasMoreElements()||e.hasMoreElements();
 			}
-			public Object next() {
+			public TableColumn next() {
 				if (headerE.hasMoreElements()) return headerE.nextElement();
 				else return e.nextElement();
 			}
@@ -158,8 +158,8 @@ public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadShee
 	private int calculateSpreadSheetWidth(){
 		int spWidth=getConfiguration().getRowHeaderWidth()+2*idColMargin;
 		TableColumn c;
-		for (Enumeration e=columnModel.getColumns();e.hasMoreElements();){
-			c=(TableColumn)e.nextElement();
+		for (Enumeration<TableColumn> e=columnModel.getColumns();e.hasMoreElements();){
+			c=e.nextElement();
 			int cwidth=c.getPreferredWidth()+2*colMargin;
 			spWidth+=cwidth;
 		}
@@ -171,9 +171,9 @@ public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadShee
 	}
 	private void updatePages(){
 		if (printBounds==null) return;
-		if (colPageInfo==null) colPageInfo=new ArrayList();
+		if (colPageInfo==null) colPageInfo=new ArrayList<>();
 		else  colPageInfo.clear();
-		if (rowPageInfo==null) rowPageInfo=new ArrayList();
+		if (rowPageInfo==null) rowPageInfo=new ArrayList<>();
 		else  rowPageInfo.clear();
 
 		int w=getConfiguration().getRowHeaderWidth()+2*idColMargin;
@@ -181,8 +181,8 @@ public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadShee
 		int start=0;
 		int current=1;
 		int x=0;
-		for (Enumeration e=columnModel.getColumns();e.hasMoreElements();current++){
-			c=(TableColumn)e.nextElement();
+		for (Enumeration<TableColumn> e=columnModel.getColumns();e.hasMoreElements();current++){
+			c=e.nextElement();
 			if (w+c.getPreferredWidth()+2*colMargin>printBounds.width){
 				colPageInfo.add(new PageInfo(start,current-1,x,w));
 				start=current;
@@ -245,12 +245,12 @@ public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadShee
 		}
 	}
 
-	protected ArrayList colPageInfo,rowPageInfo;
+	protected ArrayList<PageInfo> colPageInfo,rowPageInfo;
 	public PageInfo getRowPageInfo(int row){
-		return (row<0||row>=rowPageInfo.size())?null:(PageInfo)rowPageInfo.get(row);
+		return (row<0||row>=rowPageInfo.size())?null:rowPageInfo.get(row);
 	}
 	public PageInfo getColPageInfo(int col){
-		return (col<0||col>=colPageInfo.size())?null:(PageInfo)colPageInfo.get(col);
+		return (col<0||col>=colPageInfo.size())?null:colPageInfo.get(col);
 	}
 
 	public int getRowsPerPage(){
@@ -324,11 +324,10 @@ public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadShee
 
 	public GraphParams createSafePrintCopy(){
 		SpreadSheetParamsImpl c=(SpreadSheetParamsImpl)super.createSafePrintCopy();
-		if (c.colPageInfo!=null) c.colPageInfo=(ArrayList) colPageInfo.clone();
-		if (c.rowPageInfo!=null) c.rowPageInfo=(ArrayList) rowPageInfo.clone();
+		if (c.colPageInfo!=null) c.colPageInfo=new ArrayList<>(colPageInfo);
+		if (c.rowPageInfo!=null) c.rowPageInfo=new ArrayList<>(rowPageInfo);
 		return c;
 	}
 
 
 }
-

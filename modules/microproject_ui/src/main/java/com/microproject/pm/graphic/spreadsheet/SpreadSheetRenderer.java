@@ -93,8 +93,8 @@ public class SpreadSheetRenderer extends Renderer{
 		int h=spreadsheetBounds.y-params.getConfiguration().getColumnHeaderHeight();
 		fillBackground(g2, spreadsheetBounds.x, h, spreadsheetBounds.width, params.getConfiguration().getColumnHeaderHeight(), FlatUiSupport.headerBackground());
 		int col=0;
-		for (Iterator i=params.getColumnIterator();i.hasNext()&&col<=col1;col++){
-			c=(TableColumn)i.next();
+		for (Iterator<TableColumn> i=params.getColumnIterator();i.hasNext()&&col<=col1;col++){
+			c=i.next();
 			if (col<col0) continue;
 
 	    	int cwidth=c.getPreferredWidth()+2*getColMargin(col);
@@ -121,8 +121,8 @@ public class SpreadSheetRenderer extends Renderer{
 		int w=spreadsheetBounds.x;
 		fillBackground(g2, spreadsheetBounds.x, h, spreadsheetBounds.width, params.getRowHeight(), FlatUiSupport.dataSurfaceBackground());
 		int col=0;
-		for (Iterator i=params.getColumnIterator();i.hasNext()&&col<=col1;col++){
-			c=(TableColumn)i.next();
+		for (Iterator<TableColumn> i=params.getColumnIterator();i.hasNext()&&col<=col1;col++){
+			c=i.next();
 			if (col<col0) continue;
 			//cell content
 			Object value=SpreadSheetUtils.getValueAt(node.getNode(), col, params.getCache(), params.getColumnModel(), params.getFieldContext());
