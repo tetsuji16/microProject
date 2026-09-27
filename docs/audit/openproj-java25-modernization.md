@@ -2687,4 +2687,8 @@ synchronized set. The declared `Set<String>` field, synchronized wrapper, and
 job-name membership behavior are unchanged; `JobQueueCriticalSectionTest` and
 `JobExceptionHandlerTest` passed.
 
+`PageSizes.MediaSizeNameModel.update` now traverses the supported media array
+with enhanced-for and binds `MediaSizeName` through pattern matching. The type
+filter and array encounter order are unchanged; `PageSizesTest` passed.
+
 NodeCacheTransformer.extractAssignments now uses diamond inference for its OpenProj-derived task-to-assignment map, hierarchy path stack, and assignment list. The collection implementations, generic element types, encounter order, and hierarchy transformation behavior are unchanged. Provenance was checked against OpenProj commit d2fa3c20a; no focused transformer test exists, so UI compilation is the direct verification.
