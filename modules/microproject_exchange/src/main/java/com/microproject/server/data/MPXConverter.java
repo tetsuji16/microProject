@@ -501,54 +501,24 @@ private static int autoId = 0;
 	 * @return
 	 */
 	private static TimeUnit projity2mpxTimeUnit(int type) {
-		switch (type) {
-			case com.microproject.datatype.TimeUnit.MINUTES:
-				type = 0;
-				break;
-			case com.microproject.datatype.TimeUnit.HOURS:
-				type = 1;
-				break;
-			case com.microproject.datatype.TimeUnit.DAYS:
-				type = 2;
-				break;
-			case com.microproject.datatype.TimeUnit.WEEKS:
-				type = 3;
-				break;
-			case com.microproject.datatype.TimeUnit.MONTHS:
-				type = 4;
-				break;
-			case com.microproject.datatype.TimeUnit.PERCENT:
-				type = 5;
-				break;
-			case com.microproject.datatype.TimeUnit.YEARS:
-				type = 6;
-				break;
-			case com.microproject.datatype.TimeUnit.ELAPSED_MINUTES:
-				type = 7;
-				break;
-			case com.microproject.datatype.TimeUnit.ELAPSED_HOURS:
-				type = 8;
-				break;
-			case com.microproject.datatype.TimeUnit.ELAPSED_DAYS:
-				type = 9;
-				break;
-			case com.microproject.datatype.TimeUnit.ELAPSED_WEEKS:
-				type = 10;
-				break;
-			case com.microproject.datatype.TimeUnit.ELAPSED_MONTHS:
-				type = 11;
-				break;
-			case com.microproject.datatype.TimeUnit.ELAPSED_YEARS:
-				type = 12;
-				break;
-			case com.microproject.datatype.TimeUnit.ELAPSED_PERCENT:
-				type = 13;
-				break;
-			default:
-				type = 13;
-				break;
-		}
-		return TimeUnit.getInstance(type);
+		int mpxTimeUnit = switch (type) {
+			case com.microproject.datatype.TimeUnit.MINUTES -> 0;
+			case com.microproject.datatype.TimeUnit.HOURS -> 1;
+			case com.microproject.datatype.TimeUnit.DAYS -> 2;
+			case com.microproject.datatype.TimeUnit.WEEKS -> 3;
+			case com.microproject.datatype.TimeUnit.MONTHS -> 4;
+			case com.microproject.datatype.TimeUnit.PERCENT -> 5;
+			case com.microproject.datatype.TimeUnit.YEARS -> 6;
+			case com.microproject.datatype.TimeUnit.ELAPSED_MINUTES -> 7;
+			case com.microproject.datatype.TimeUnit.ELAPSED_HOURS -> 8;
+			case com.microproject.datatype.TimeUnit.ELAPSED_DAYS -> 9;
+			case com.microproject.datatype.TimeUnit.ELAPSED_WEEKS -> 10;
+			case com.microproject.datatype.TimeUnit.ELAPSED_MONTHS -> 11;
+			case com.microproject.datatype.TimeUnit.ELAPSED_YEARS -> 12;
+			case com.microproject.datatype.TimeUnit.ELAPSED_PERCENT -> 13;
+			default -> 13;
+		};
+		return TimeUnit.getInstance(mpxTimeUnit);
 	}
 
 	private static final class ExportIdAllocator {
