@@ -24,18 +24,11 @@
  *******************************************************************************/
 package com.microproject.server.data.linker;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.collections.Predicate;
-
-import com.microproject.server.data.AssignmentData;
 import com.microproject.server.data.SerializeOptions;
 import com.microproject.server.data.SerializedDataObject;
-import com.microproject.server.data.TaskData;
-import com.microproject.server.data.TypeSystemConverter;
-import com.microproject.server.data.TypeSystemConverterFactory;
 import com.microproject.grouping.core.hierarchy.NodeHierarchy;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.task.Project;
@@ -65,20 +58,7 @@ public abstract class TaskLinker extends Linker {
 	public void setFlatAssignments(Collection flatAssignments) {
 		this.flatAssignments = flatAssignments;
 	}
-//	protected ArrayList<Long> unchanged;
-//
-//	public ArrayList<Long> getUnchanged() {
-//		return unchanged;
-//	}
-//	public void setUnchanged(ArrayList<Long> unchanged) {
-//		this.unchanged = unchanged;
-//	}
-
-
-
-
-
-	//extra field union needed for rollup fields
+	// Legacy data holder retained for compatibility with TaskLinker subclasses.
 	protected class PreparedAttributes{
 		protected SerializedDataObject data;
 		protected Object obj;
@@ -124,47 +104,8 @@ public abstract class TaskLinker extends Linker {
 			this.obj = obj;
 		}
 	}
-//	protected List<PreparedAttributes> preparedAttributes; //claur
-//
-//	public void addPreparedAttributes(SerializedDataObject data, Object obj, NodeModel model,SerializeOptions options) {
-//		if (preparedAttributes==null) preparedAttributes=new ArrayList<PreparedAttributes>();
-//		TypeSystemConverter converter=TypeSystemConverterFactory.getInstance().getConverter();
-//		Predicate fieldFilter=options==null?null:options.getFieldFilter();
-//   		if (data instanceof TaskData) preparedAttributes.add(new PreparedAttributes(data,obj,converter.getDirtyExtraFields(obj,fieldFilter),converter.getExposedTaskFields(fieldFilter),model));
-//		else if (data instanceof AssignmentData) preparedAttributes.add(new PreparedAttributes(data,obj,converter.getDirtyExtraFields(obj,fieldFilter),converter.getExposedAssignmentFields(fieldFilter),model));
-//
-//	}
 	
 	public void computeAttributes(){
-//        if (Environment.isNoPodServer()){
-//           	TypeSystemConverter converter=TypeSystemConverterFactory.getInstance().getConverter();
-//           	ArrayList<Field> unionExtraTaskFields=new ArrayList<Field>();
-//           	ArrayList<Field> unionExtraAssignmentFields=new ArrayList<Field>();
-//           	/*DEF164438: 	 Error exporting task plan to .xml
-//           	  this stops the bombout which occurs.  may require revisiting if we find
-//           	  that this code path is needed for msp export --TAF090707*/
-//           	if (preparedAttributes ==  null) return;
-//        	for (PreparedAttributes attrs:preparedAttributes){
-//        		if (attrs.getExtrafields()==null) continue;
-//        		if (attrs.getData() instanceof TaskData){
-//        			unionExtraTaskFields.addAll(attrs.getExtrafields());
-//        		}
-//        		else if (attrs.getData() instanceof AssignmentData){
-//        			unionExtraAssignmentFields.addAll(attrs.getExtrafields());
-//        		}
-//        	}
-//        	for (PreparedAttributes attrs:preparedAttributes){
-//        		SerializedDataObject data=attrs.getData();
-//        		if (data instanceof TaskData){
-//            		Map<String,Object> exposedAttributes=converter.convertFieldsAndCustomAttributes(attrs.getObj(), unionExtraTaskFields, attrs.getFieldArray(), attrs.getModel(),false);
-//        			((TaskData)data).setAttributes(exposedAttributes);
-//        		}
-//        		else if (data instanceof AssignmentData){
-//            		Map<String,Object> exposedAttributes=converter.convertFieldsAndCustomAttributes(attrs.getObj(), unionExtraAssignmentFields, attrs.getFieldArray(), attrs.getModel(),false);
-//        			((AssignmentData)data).setAttributes(exposedAttributes);
-//        		}
-//        	}
-//        }
 
 	}
 
@@ -172,12 +113,6 @@ public abstract class TaskLinker extends Linker {
 		super.addTransformedObjects();
 		computeAttributes();
 	}
-//	public List<PreparedAttributes> getPreparedAttributes() { //claur
-//		return preparedAttributes;
-//	}
-//	public void setPreparedAttributes(List<PreparedAttributes> preparedAttributes) {
-//		this.preparedAttributes = preparedAttributes;
-//	}
 
 	protected SerializeOptions options;
 	public SerializeOptions getOptions() {
