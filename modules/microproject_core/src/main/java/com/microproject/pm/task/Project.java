@@ -129,6 +129,7 @@ import com.microproject.pm.scheduling.ScheduleEventManager;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleUtil;
 import com.microproject.pm.snapshot.BaselineScheduleFields;
+import com.microproject.pm.snapshot.DataSnapshot;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.pm.time.MutableHasStartAndEnd;
@@ -2627,17 +2628,17 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return objectSelectionEventManager;
 	}
 
-	public int getRowHeight(SortedSet baseLines){
+	public int getRowHeight(SortedSet<Integer> baseLines){
         for (Iterator<Task> i=getTaskOutlineIterator();i.hasNext();){
             Task task=i.next();
             int current=Snapshottable.CURRENT.intValue();
             for (int s=0;s<Settings.numGanttBaselines();s++){
                 if (s==current) continue;
-                TaskSnapshot snapshot=(TaskSnapshot)task.getSnapshot(Integer.valueOf(s));
+                DataSnapshot snapshot=task.getSnapshot(Integer.valueOf(s));
                 if (snapshot!=null) baseLines.add(Integer.valueOf(s));
             }
         }
-		int num=(baseLines.size()==0)?0:(((Integer)baseLines.last()).intValue()+1);
+		int num=baseLines.isEmpty()?0:baseLines.last()+1;
 		int rowHeight=GraphicConfiguration.getInstance().getRowHeight()
 				+num*GraphicConfiguration.getInstance().getBaselineHeight();
 		return rowHeight;

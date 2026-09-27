@@ -2250,3 +2250,13 @@ Jasper `DataSource` now stores and accepts its traversal as `Iterator<?>`. `git 
 `ProjectFactory.collectProjectBranchIds` now passes its descendant scan to `DeepChildWalker` as a lambda. `git blame` traces the project-node cast and ID collection to OpenProj (`54978d281e`); the active close-in-progress coordination path uses the collected IDs to prevent duplicate project closes. The fork-added null guard remains unchanged. `ProjectFactoryClosingTest` passed.
 
 `Task.arrangeTask` and its child traversal now type the output as `Collection<? super PredecessorTaskList.TaskReference>`. `git blame` traces the ordering algorithm to OpenProj (`d2fa3c20a`); callers may still pass `Collection<Object>` while the method can only add the task-reference values used by critical-path ordering. `NormalTaskDurationTest` and the full `:microproject_core:test --console=plain` passed.
+
+`Project.getRowHeight` now accepts `SortedSet<Integer>` and relies on the
+`DataSnapshot` interface for its presence check instead of casting the result
+to `TaskSnapshot`. `git blame` confirms the method and baseline-index scan are
+OpenProj-derived (`d2fa3c20a`); active UI callers pass typed integer baseline
+sets. The method's erased `SortedSet` descriptor, baseline-index calculation,
+and accumulated height are unchanged. A focused test supplies a non-
+`TaskSnapshot` marker at baseline index 2, verifies it no longer fails by
+casting, and checks the exact row-height increase. Full focused core test and
+`:microproject_ui:compileJava --console=plain` passed.
