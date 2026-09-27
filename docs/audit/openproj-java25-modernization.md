@@ -2389,3 +2389,11 @@ and `IntervalGeneratorSet.current()` remain `Object` because the shared generato
 contract is heterogeneous. `TimeIteratorGeneratorTest` passed.
 
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.
+
+`ResourceManager.getStringList` now returns `List<String>` and builds a typed
+`ArrayList<String>`. Its tokenizer only emits strings, and every repository
+caller consumes menu, toolbar, or ribbon configuration names as strings.
+Updated those callers to remove unchecked casts and cast-after-iteration while
+preserving tokenization, delimiter behavior, order, and erased `List` method
+descriptors. `git blame` traces the API to the OpenProj-derived Batik resource
+manager. Full `:microproject_ui:test --console=plain` passed.

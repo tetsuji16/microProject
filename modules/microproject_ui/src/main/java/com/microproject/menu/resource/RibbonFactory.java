@@ -151,8 +151,7 @@ public class RibbonFactory extends ResourceManager {
 	 * Creates ribbon tasks
 	 */
 	public Collection<RibbonTask> createRibbon(String name, CustomRibbonBandGenerator customBandsGenerator) throws MissingResourceException, ResourceFormatException, MissingListenerException {
-		@SuppressWarnings("unchecked")
-		List<String> taskNames = (List<String>)getStringList(name);
+		List<String> taskNames = getStringList(name);
 		List<RibbonTask> ribbonTasks=new ArrayList<RibbonTask>(taskNames.size());
 		for (String taskName : taskNames){
 			RibbonTask task=createRibbonTask(taskName, customBandsGenerator);
@@ -167,8 +166,7 @@ public class RibbonFactory extends ResourceManager {
 	public RibbonTask createRibbonTask(String name, CustomRibbonBandGenerator customBandsGenerator) throws MissingResourceException, ResourceFormatException, MissingListenerException {
 		String title=getString(name+".title");
 
-		@SuppressWarnings("unchecked")
-		List<String> bandNames = (List<String>)getStringList(name);
+		List<String> bandNames = getStringList(name);
 		List<AbstractRibbonBand<?>> ribbonBands=new ArrayList<AbstractRibbonBand<?>>(bandNames.size());
 		for (String bandName : bandNames){
 			AbstractRibbonBand<?> band=createRibbonBand(bandName, customBandsGenerator);
@@ -198,8 +196,7 @@ public class RibbonFactory extends ResourceManager {
 			return result;
 		}		
 		
-		@SuppressWarnings("unchecked")
-		List<String> buttons = (List<String>)getStringList(name);
+		List<String> buttons = getStringList(name);
 		//int i=0;
 		for (String s : buttons){
 			if (s.equals(SEPARATOR)) {
@@ -252,8 +249,7 @@ public class RibbonFactory extends ResourceManager {
 			return result;
 		}		
 		
-		@SuppressWarnings("unchecked")
-		List<String> buttons = (List<String>)getStringList(name);
+		List<String> buttons = getStringList(name);
 		//int i=0;
 		for (String s : buttons){
 			if (s.equals(SEPARATOR)) {
@@ -295,8 +291,7 @@ public class RibbonFactory extends ResourceManager {
 	 * Creates ribbon band
 	 */
 	public Collection<AbstractCommandButton> createTaskBar(String name) throws MissingResourceException, ResourceFormatException, MissingListenerException {
-		@SuppressWarnings("unchecked")
-		List<String> buttons = (List<String>)getStringList(name+".TaskBar");
+		List<String> buttons = getStringList(name+".TaskBar");
 		Collection<AbstractCommandButton> result=new ArrayList<AbstractCommandButton>(buttons.size());
 		for (String s : buttons){
 			AbstractCommandButton button =  createCommandButton(s);
