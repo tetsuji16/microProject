@@ -11,18 +11,7 @@ import com.microproject.port.SessionImporterProvider;
 import com.microproject.port.SessionImporterRegistry;
 
 /** Registers the concrete exchange implementations with the core registry. */
-public final class DefaultFileImporterProvider implements FileImporterProvider, SessionImporterProvider {
-	@Override
-	public void register(ImporterRegistry registry) {
-		registry.register(LocalSession.MPO_PROJECT_IMPORTER, MpoFileImporter::new);
-		registry.register(LocalSession.SERVER_LOCAL_PROJECT_IMPORTER, ServerLocalFileImporter::new);
-		registry.register(LocalSession.MICROSOFT_PROJECT_IMPORTER, MicrosoftImporter::new);
-		// Persisted POD options used class names before the typed boundary existed.
-		// Keep those aliases beside the concrete format adapter, never in core.
-		registry.register("com.microproject.exchange.LocalFileImporter", LocalFileImporter::new);
-		registry.register("com.projectlibre1.exchange.LocalFileImporter", LocalFileImporter::new);
-		registry.register("com.projectlibre.exchange.LocalFileImporter", LocalFileImporter::new);
-	}
+public final class DefaultFileImporterProvider implements SessionImporterProvider {
 
 	@Override
 	public void registerPorts(PortRegistry registry) {

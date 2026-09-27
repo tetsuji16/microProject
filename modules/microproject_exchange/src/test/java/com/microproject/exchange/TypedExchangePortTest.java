@@ -15,6 +15,7 @@ import java.util.Iterator;
 
 import com.microproject.port.PortRegistry;
 import com.microproject.port.ImportPort;
+import com.microproject.port.SessionImporterRegistry;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
@@ -33,9 +34,9 @@ class TypedExchangePortTest {
 
 	@Test
 	void onlyExplicitLegacyPodAliasesAreAdapted() {
-		ImporterRegistry registry = new ImporterRegistry();
+		SessionImporterRegistry registry = new SessionImporterRegistry();
 		new DefaultFileImporterProvider().register(registry);
-		FileImporter importer = registry.create("com.projectlibre1.exchange.LocalFileImporter");
+		var importer = registry.create("com.projectlibre1.exchange.LocalFileImporter");
 		assertInstanceOf(LocalFileImporter.class, importer);
 		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
 				() -> registry.create("com.example.UntrustedImporter"));
