@@ -68,6 +68,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.swing.Util;
 import com.microproject.toolbar.TransformComboBox;
 import com.microproject.toolbar.TransformComboBoxModel;
+import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.CommonTransformFactory;
@@ -105,7 +106,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	
 	boolean simple;
 	ChartInfo chartInfo;
-	List selectedObjects = new ArrayList();
+	List<Object> selectedObjects = new ArrayList<>();
 	List selectedResourcesFromTasks = new ArrayList();
 	List selectedResourcesOnTree = new ArrayList();
 	TransformComboBox filterComboBox = null;
@@ -352,11 +353,11 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
 	}
 	
-	private List pathsToList(TreePath[] paths) {
-		List list = new ArrayList(paths == null ? 0 : paths.length);
+	private List<Resource> pathsToList(TreePath[] paths) {
+		List<Resource> list = new ArrayList<>(paths == null ? 0 : paths.length);
 		if (paths != null) {
 			for (int i=0; i < paths.length; i++) {
-				list.add(((GraphicNode)paths[i].getLastPathComponent()).getNode().getImpl());
+				list.add((Resource) ((GraphicNode)paths[i].getLastPathComponent()).getNode().getImpl());
 			}
 		}
 		return list;
@@ -413,13 +414,13 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		}
 	}
 
-	private List getListFromNodeList(List nodes) {
-		List implList =  NodeList.nodeListToImplList(nodes);
+	private List<Object> getListFromNodeList(List<? extends Node> nodes) {
+		List<Object> implList = NodeList.nodeListToImplList(nodes);
 		// normally it is tasks or resources, but if project, make sure its works too
 		if (implList.isEmpty() || !(implList.get(0) instanceof Project)) 
 			return implList;
 	
-		final List resultList = new ArrayList();
+		final List<Object> resultList = new ArrayList<>();
 		for (Object item : implList) {
 			((Project)item).forTasks(resultList::add);
 			//resultList.addAll( ((Project)i.next()).getTasks());
@@ -431,9 +432,9 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		if (!chartInfo.isVisible())
 			return;
 		
-		List nodes = e.getNodes();
+		List<? extends Node> nodes = e.getNodes();
 		selectedObjects = getListFromNodeList(nodes);
-		List resList = extractResources(selectedObjects);
+		List<Resource> resList = extractResources(selectedObjects);
 		if (resList.isEmpty())
 			selectedResourcesFromTasks = HasAssignmentsImpl.extractOppositeList(selectedObjects,false);
 		else {
@@ -444,11 +445,11 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		chartInfo.updateChart(selectedObjects,selectedResourcesOnTree);
 	}
 	
-	private List extractResources(List list) {
-		ArrayList resList = new ArrayList(list.size());
+	private List<Resource> extractResources(List<?> list) {
+		ArrayList<Resource> resList = new ArrayList<>(list.size());
 		for (Object obj : list) {
 			if (obj instanceof Resource)
-				resList.add(obj);
+				resList.add((Resource) obj);
 		}
 		return resList;
 	}
