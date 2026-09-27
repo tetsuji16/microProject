@@ -109,7 +109,6 @@ public class ReportUtil {
 			
 
 			// check if design needs timescale
-//			System.out.println("is report time based: " + jasperDesign.getProperty("timeBased"));
 //			if(null != jasperDesign.getProperty("timeBased")) {
 			//				jasperDesign = DataSourceProvider.addTimescale(jasperDesign, iterator, java.lang.String.class);
 			//		}

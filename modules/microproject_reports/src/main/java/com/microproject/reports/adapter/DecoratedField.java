@@ -175,13 +175,10 @@ public class DecoratedField {
 			String timeString = name.substring(name.indexOf(option) + option.length());
 			String startString = timeString.substring(0, timeString.indexOf('_'));
 			String endString = timeString.substring(timeString.indexOf('_') + 1);
-//			System.out.println("time based field start " + startString + ", end " + endString);
 			endString = endString.substring(0, endString.indexOf('_'));
-//			System.out.println("time based field start " + startString + ", end " + endString);
 			setTimeBased(true);
 			setStart(Long.valueOf(startString).longValue());
 			setEnd(Long.valueOf(endString).longValue());
-//			System.out.println("time based field start " + getStart() + ", end " + getEnd());
 		}
 	}
 }

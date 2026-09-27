@@ -90,18 +90,6 @@ public class ReportAdapter {
 		return (Field.SUM == field.getSummaryForGroup());
 	}
 	
-	private int neededWidth(SpreadSheetFieldArray fields) {
-		int width = 0;
-		
-		// LEGAL: 612x1008
-		// BORDERS: 20x30x20x30
-		
-		for (Field field : fields) {
-			width += field.getColumnWidth();
-		}
-		return width;
-	}
-	
 	private void generateBaseDesign()  throws JRException {
 		
 		if(reportDefinition.isTimeBased()) {
@@ -235,7 +223,6 @@ public class ReportAdapter {
 			designField.setValueClass(getFieldClass(field, false));
 
 
-//			System.out.println("field is " + designField.getName());
 			try{ //TOTO try catch is to avoid problems with duplicate field. Find the cause.
 				jasperDesign.addField(designField);
 	
@@ -492,9 +479,6 @@ public class ReportAdapter {
 				addLastPageFooter(fields);
 			}
 			
-//			int neededW = neededWidth(fields);
-//			System.out.println("Needed width is " + neededW);
-//			System.out.println("columns number is " + fields.size());
 		} else if(columnsList.size() == 2) {
 			// reports & subreports
 			columns = columnsList.get(0);
