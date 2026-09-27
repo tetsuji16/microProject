@@ -150,6 +150,21 @@ Candidate type names: `AssignmentData`, `ByteArrayObject`, `CalendarData`,
 `ServerFileImporter`, `ServerLocalFileImporter`, `TaskData`, `TaskLinker`,
 `TypeSystemConverter`, `TypeSystemConverterFactory`, and `UserData`.
 
+Reconciliation against every distinct non-empty `KEEP_PROJECTLIBRE.current_path`
+in the retained ledger found 43 pre-rename paths: 36 map to existing files
+(35 production Java files and one test file), while the seven MSPDI paths below
+are removed or replaced. The 33 named production candidates above are the
+behavior-bearing types screened for modernization. The other two current
+production paths are accounted for separately: `LockException` contains only
+the `serialVersionUID` and four direct superclass-constructor delegations, so
+changing it offers no Java 25 improvement and risks altering exception
+serialization/API behavior; `MenuActionConstants` is a public interface of
+named string constants, whose explicit modifiers make its exposed API clear and
+are not a meaningful modernization target. `MicrosoftImporterTest` is test
+code rather than a production candidate. This accounts for every mapped path;
+it does not by itself close the per-symbol provenance review of all ledger
+rows.
+
 Further idiom screening of active exchange/UI candidates found one safe
 ProjectLibre-origin tranche in `ServerLocalFileImporter` (recorded above).
 Other apparent hits were excluded at the hunk level:
