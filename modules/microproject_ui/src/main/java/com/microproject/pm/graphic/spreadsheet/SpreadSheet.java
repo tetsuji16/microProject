@@ -1710,7 +1710,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 	}
 	private void addActions(String[] actions){
-//		System.out.println("SpreadSheet "+spreadSheetCategory+", "+hashCode()+" addActions("+dumpActions(actions)+")");
 		var handler = getTransferHandler() instanceof NodeListTransferHandler transferHandler ? transferHandler : null;
 		if (actions != null) {
 			for (int i = 0; i < actions.length; i++) {
@@ -1740,14 +1739,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (getModel() instanceof CommonSpreadSheetModel commonSpreadSheetModel)
 			commonSpreadSheetModel.clearActions();
 	}
-//	private static String dumpActions(String[] actions){
-//		if (actions==null) return null;
-//		StringBuffer sb=new StringBuffer();
-//		for (int i=0;i<actions.length;i++){
-//			sb.append(actions[i]).append(',');
-//		}
-//		return sb.toString();
-//	}
 	public void setActions(String[] actions){
 		//replace default actions
 		actionList=actions;
