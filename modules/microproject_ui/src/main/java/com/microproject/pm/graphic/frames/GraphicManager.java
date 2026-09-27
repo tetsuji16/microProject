@@ -3263,23 +3263,21 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //			return;
 //		}
 
-		(new Thread(){
-			public void run(){
-				JobRunnable exitRunnable=new JobRunnable("Local: closeProjects"){
-					public Object run() throws Exception{
-						Frame frame=getFrame();
-						autoRecoveryManager.completeNormalShutdown();
-						if (frame!=null) frame.dispose();
-						System.exit(0);
-		    	    	return null; //return not used anyway
-					}
-				};
+		new Thread(() -> {
+			JobRunnable exitRunnable=new JobRunnable("Local: closeProjects"){
+				public Object run() throws Exception{
+					Frame frame=getFrame();
+					autoRecoveryManager.completeNormalShutdown();
+					if (frame!=null) frame.dispose();
+					System.exit(0);
+					return null; //return not used anyway
+				}
+			};
 
 
-				Job job=projectFactory.getPortfolio().getRemoveAllProjectsJob(exitRunnable,true,null);
-				SessionFactory.getInstance().getLocalSession().schedule(job);
+			Job job=projectFactory.getPortfolio().getRemoveAllProjectsJob(exitRunnable,true,null);
+			SessionFactory.getInstance().getLocalSession().schedule(job);
 
-			}
 		}).start();
 	}
 
