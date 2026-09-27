@@ -28,9 +28,9 @@ import java.awt.Component;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -92,13 +92,13 @@ public class Job extends Thread {
 //    	System.out.println("Job "+getName()+": "+s);
 //		log.info("Job "+getName()+": "+s);
     }
-	private final HashMap times=new HashMap<>();
+	private final Map<String, Long> times = new HashMap<>();
     public void logBegin(String s){
     	log(s+"...");
 		times.put(s,Long.valueOf(System.currentTimeMillis()));
     }
     public void logEnd(String s){
-    	Long t=(Long)times.get(s);
+		Long t = times.get(s);
     	if (t==null) log(s+"...end");
     	else log(s+"...end, "+(System.currentTimeMillis()-t.longValue())+" ms");
     }
