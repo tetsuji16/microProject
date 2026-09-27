@@ -411,7 +411,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 	 * @return
 	 */
 	public List toList(final boolean isNode, final Predicate filter) {
-		final ArrayList list = new ArrayList();
+		final ArrayList<Object> list = new ArrayList<>();
     	visitAll(new Consumer<Object>() { public void accept(Object node) {
 				if (filter != null  && !filter.evaluate(((Node) node).getImpl()))
 					return;
