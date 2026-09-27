@@ -315,15 +315,13 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		writeRow(sheet, 0, "TaskUniqueID", "ResourceUniqueID", "Units", "Delay", "LevelingDelay", "WorkContour");
 		int rowIndex = 1;
 		for (com.microproject.pm.task.Task taskValue : project.getTaskList()) {
-			if (!(taskValue instanceof NormalTask)) {
+			if (!(taskValue instanceof NormalTask task)) {
 				continue;
 			}
-			NormalTask task = (NormalTask) taskValue;
 			for (Object assignmentValue : task.getAssignments()) {
-				if (!(assignmentValue instanceof Assignment)) {
+				if (!(assignmentValue instanceof Assignment assignment)) {
 					continue;
 				}
-				Assignment assignment = (Assignment) assignmentValue;
 				writeRow(sheet, rowIndex++,
 					valueOf(assignment.getTask().getUniqueId()),
 					valueOf(assignment.getResource().getUniqueId()),
@@ -360,15 +358,13 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		writeRow(sheet, 0, "SuccessorUniqueID", "PredecessorUniqueID", "Type", "Lag");
 		int rowIndex = 1;
 		for (com.microproject.pm.task.Task taskValue : project.getTaskList()) {
-			if (!(taskValue instanceof NormalTask)) {
+			if (!(taskValue instanceof NormalTask task)) {
 				continue;
 			}
-			NormalTask task = (NormalTask) taskValue;
 			for (Object depValue : task.getPredecessorList()) {
-				if (!(depValue instanceof Dependency)) {
+				if (!(depValue instanceof Dependency dependency)) {
 					continue;
 				}
-				Dependency dependency = (Dependency) depValue;
 				NormalTask predecessor = (NormalTask) dependency.getPredecessor();
 				writeRow(sheet, rowIndex++,
 					valueOf(task.getUniqueId()),
@@ -417,10 +413,9 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 	}
 
 	private void writeProjectCalendar(Sheet sheet, int rowIndex, WorkCalendar calendar) {
-		if (!(calendar instanceof WorkingCalendar)) {
+		if (!(calendar instanceof WorkingCalendar working)) {
 			return;
 		}
-		WorkingCalendar working = (WorkingCalendar) calendar;
 		StringBuilder week = new StringBuilder();
 		for (int i = 0; i < 7; i++) {
 			WorkDay day = working.getWeekDay(i);
