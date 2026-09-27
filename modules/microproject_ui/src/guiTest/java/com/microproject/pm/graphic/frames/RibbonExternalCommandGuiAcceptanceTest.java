@@ -21,8 +21,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.prefs.Preferences;
 
 import javax.swing.AbstractButton;
+import javax.swing.JComboBox;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
@@ -35,10 +38,12 @@ import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.init.Init;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.preference.ConfigurationFile;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -61,6 +66,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private boolean previousClientSide;
 	private UiServices.FileChooserProvider previousChooser;
 	private Path legacyPod;
+	private Preferences localePreferences;
+	private String previousLocalePreference;
+	private Locale previousDefaultLocale;
+	private Locale previousFormatLocale;
+	private Locale previousDisplayLocale;
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -72,6 +82,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setClientSide(previousClientSide);
 		UiServices.setFileChooserProvider(previousChooser);
 		if (legacyPod != null) Files.deleteIfExists(legacyPod);
+		if (localePreferences != null) {
+			if (previousLocalePreference == null) localePreferences.remove("locale");
+			else localePreferences.put("locale", previousLocalePreference);
+			localePreferences.flush();
+			Locale.setDefault(previousDefaultLocale);
+			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
+			Locale.setDefault(Locale.Category.DISPLAY, previousDisplayLocale);
+		}
 		for (Window open : Window.getWindows()) {
 			if (open instanceof ProjectDialog || open instanceof LocaleDialog
 				|| open instanceof HelpDialog || open instanceof AboutDialog) {
@@ -186,6 +204,63 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		clickAndClose(robot, "RibbonLocale", LocaleDialog.class);
 		clickAndClose(robot, "RibbonProjectLibreDocumentation", HelpDialog.class);
 		clickAndClose(robot, "RibbonAboutProjectLibre", AboutDialog.class);
+	}
+
+	@Test
+	void localeDialogPersistsLanguageAndCountryAndTheirFormattersFollowSelection() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for Robot acceptance coverage.");
+		previousLocalePreference = null;
+		localePreferences = Preferences.userNodeForPackage(ConfigurationFile.class);
+		previousLocalePreference = localePreferences.get("locale", null);
+		previousDefaultLocale = Locale.getDefault();
+		previousFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		previousDisplayLocale = Locale.getDefault(Locale.Category.DISPLAY);
+		localePreferences.put("locale", "default");
+		localePreferences.flush();
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
+		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+
+		Init.initialize();
+		createWindow("microProject — locale preference acceptance");
+		LocaleDialog dialog = LocaleDialog.getInstance(manager);
+		SwingUtilities.invokeLater(dialog::doModal);
+		GuiAcceptanceSupport.await(dialog::isShowing, "Locale dialog did not open");
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Locale Settings dialog");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		JComboBox<?>[] selectors = new JComboBox<?>[2];
+		SwingUtilities.invokeAndWait(() -> {
+			selectors[0] = findComboWithItem(dialog, "de");
+			selectors[1] = findComboWithItem(dialog, "Germany");
+		});
+		click(robot, selectors[0]);
+		type(robot, "de");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+		click(robot, selectors[1]);
+		type(robot, "Germany");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals("de", selectors[0].getSelectedItem());
+			assertEquals("Germany", String.valueOf(selectors[1].getSelectedItem()));
+		});
+		click(robot, findButton(dialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Locale dialog did not commit and close");
+
+		assertEquals("de_DE", localePreferences.get("locale", "missing"),
+			"Locale dialog did not persist its selected language and country");
+		Locale.setDefault(Locale.GERMANY);
+		assertEquals("1234,50 €", com.microproject.datatype.Money.normalCurrencyFormat(1234.5, false));
+		assertTrue(com.microproject.util.DateTime.utcDateFormatInstance()
+			.format(new java.util.Date(1767312000000L)).startsWith("02.01."));
 	}
 
 	/** MSP documents returning from a report by switching back to View > Gantt Chart. */
@@ -511,6 +586,22 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			if (component instanceof JTextField field && field.isShowing()) return field;
 		}
 		throw new AssertionError("New Project dialog does not expose a visible project-name field");
+	}
+
+	private static JComboBox<?> findComboWithItem(Component root, String item) {
+		for (Component component : flatten(root)) {
+			if (component instanceof JComboBox<?> combo && findComboItem(combo, item) != null)
+				return combo;
+		}
+		throw new AssertionError("Visible dialog does not expose locale item: " + item);
+	}
+
+	private static Object findComboItem(JComboBox<?> combo, String item) {
+		for (int index = 0; index < combo.getItemCount(); index++) {
+			Object candidate = combo.getItemAt(index);
+			if (item.equals(String.valueOf(candidate))) return candidate;
+		}
+		return null;
 	}
 
 	private static List<Component> flatten(Component root) {
