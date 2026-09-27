@@ -102,9 +102,7 @@ public final class CustomFieldsDialogBox extends FlatLafDialog {
 	}
 
 	private static List<Task> allTasks(Project project) {
-		List<Task> result = new ArrayList<>();
-		result.addAll(ProjectHierarchyQueries.outline(project));
-		return result;
+		return new ArrayList<>(ProjectHierarchyQueries.outline(project));
 	}
 
 	private Field selectedField() { return (Field) fieldChoice.getSelectedItem(); }
