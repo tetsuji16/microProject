@@ -802,17 +802,16 @@ public class ProjectFactory {
 
 		final List<Node> toRemove = new ArrayList<>();
 		final List<Project> projects = new ArrayList<>();
-		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() { public void accept(Object arg0) {
-				Node node = (Node)arg0;
-				if (node == null)
-					return;
-				Object impl = node.getImpl();
-				if (!(impl instanceof Project p))
-					return;
-				toRemove.add(node);
-				if (Environment.getStandAlone()||project.isLockable()){
-					projects.add(p);
-				}
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, arg0 -> {
+			Node node = (Node)arg0;
+			if (node == null)
+				return;
+			Object impl = node.getImpl();
+			if (!(impl instanceof Project p))
+				return;
+			toRemove.add(node);
+			if (Environment.getStandAlone()||project.isLockable()){
+				projects.add(p);
 			}
 		});
 
