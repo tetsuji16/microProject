@@ -58,7 +58,7 @@ public class SessionFactory {
     protected Map<String,Session> sessionImpls=null;
     protected void initSessions(){
     	if (sessionImpls==null){
-    		sessionImpls=new HashMap<String, Session>();
+			sessionImpls=new HashMap<>();
     		String impls=Messages.getMetaString("SessionImpls");
     		if (impls!=null){
     			StringTokenizer st=new StringTokenizer(impls,";");

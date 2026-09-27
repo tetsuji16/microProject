@@ -2611,3 +2611,8 @@ configuration loading are unchanged. Full core tests passed.
 `ContextStore.addContext` now uses diamond inference when creating a context
 list. The same list initialization is present in the OpenProj baseline; context
 type grouping and insertion order are unchanged. `ContextStoreTest` passed.
+
+`SessionFactory.initSessions` now uses diamond inference for its implementation
+registry. The OpenProj baseline initializes the same string-keyed session map;
+lazy initialization and configured implementation names are unchanged. Full
+core tests passed.
