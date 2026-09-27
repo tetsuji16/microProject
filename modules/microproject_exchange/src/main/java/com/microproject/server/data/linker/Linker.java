@@ -110,7 +110,7 @@ public abstract class Linker {
             }
         });
 
-        getHierarchy().visitAllLevelOrder(root, true,new Consumer<Object>(){
+        getHierarchy().visitAllLevelOrder(root, true,new Consumer<>(){
         	Node thisParent=null;
         	long position=0;
         	public void accept(Object arg) {

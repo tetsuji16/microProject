@@ -2804,3 +2804,9 @@ The OpenProj 1.4 conditions in `CriticalPath.getOrClearUpdater` and
 `!didSplit`) instead of comparisons with `true`/`false`. `git blame` confirms
 both hunks at `d2fa3c20a`; the state transitions and branches are unchanged.
 The core test suite is the verification for this syntax-only cleanup.
+
+`Linker.addOutline` now uses diamond inference for its stateful anonymous
+`Consumer<Object>`. The class retains its mutable parent/position traversal
+state and visit order; only the redundant explicit generic argument was
+removed. The hunk matches OpenProj 1.4 at `d2fa3c20a` (`git blame`), and POD
+round-trip tests exercise the serializer's hierarchy conversion path.
