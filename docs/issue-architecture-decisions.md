@@ -74,15 +74,11 @@ can be merged. Current caller and boundary checks distinguish these pairs:
   application frame. Both are part of one startup pipeline, not competing main
   implementations.
 - `com.microproject.util.ClassLoaderUtils` is the core API used by core, UI, and
-  reports. `com.microproject.contrib.ClassLoaderUtils` contains overlapping
-  class-loading and Java-version helpers plus its own transformer and localized
-  string fallback. No application caller of the contrib class was found by
-  repository search. Core currently depends on contrib, so making the contrib
-  class delegate back to core would create a module cycle; retain this boundary
-  until its packaged API and LGPL-origin code can be removed or relocated as a
-  separate dependency/namespace decision. Their overlapping class-loading and
-  Java-version behavior remains an unresolved consolidation candidate rather
-  than being described as fully distinct.
+  reports. The duplicate `com.microproject.contrib.ClassLoaderUtils` had no
+  application, configuration, or reflective callers; its only remaining
+  references were its own definition and tests. It has been removed, and its
+  Java-version comparison tests now exercise the canonical core class. This
+  avoids a core-to-contrib delegation cycle and leaves one class-loading helper.
 
 The remaining consolidation inventory must be decided pair by pair using
 active callers and serialization/configuration boundaries. Do not remove a
