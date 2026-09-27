@@ -936,10 +936,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (project.getFileName() != null) recentProjectStore.recordOpened(project.getFileName());
 
 		// clear filter/grouping/sort for newly opened or created project
-		if (!Environment.isPlugin()) SwingUtilities.invokeLater( new Runnable() {
-			public void run() {
-			 	frame.getFilterToolBarManager().clear();
-			}});
+		if (!Environment.isPlugin())
+			SwingUtilities.invokeLater(() -> frame.getFilterToolBarManager().clear());
 		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,frame==null || !frame.isEditingResourcePool()); //resource pool can not be opened at same time as another proj
 		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,frame==null || !frame.isEditingResourcePool());
 		return frame;
