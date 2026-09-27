@@ -30,7 +30,6 @@ import java.util.logging.Logger;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,23 +37,17 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Scanner;
 
 import javax.swing.SwingUtilities;
 
-import com.microproject.grouping.core.model.DefaultNodeModel;
 import com.microproject.job.Job;
 import com.microproject.job.JobRunnable;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.Project;
 import com.microproject.server.data.DataUtil;
 import com.microproject.server.data.DocumentData;
 import com.microproject.session.LoadOptions;
 import com.microproject.session.LocalSession;
-import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
-import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.SafeFileReplace;
 import com.microproject.util.SafeObjectInput;
@@ -74,19 +67,14 @@ public class LocalFileImporter extends FileImporter {
 	public LocalFileImporter() {
 		super();
 	}
-	
-	
-
 	@Override
 	public void importFile() throws Exception{
 		File f=new File(getFileName());
 		FileInputStream fin=new FileInputStream(f);
 		Exception ex=null;
-		
 		try {
 			DataUtil serializer=new DataUtil();
 			logger.info("Loading " + getFileName() + "..."); //$NON-NLS-1$ //$NON-NLS-2$
-
 			long t1=System.currentTimeMillis();
 			var in=SafeObjectInput.create(fin);
 			Object obj=in.readObject();
@@ -96,11 +84,8 @@ public class LocalFileImporter extends FileImporter {
 			projectData.setLocal(true);
 			long t2=System.currentTimeMillis();
 			logger.info("Loading...Done in " + (t2 - t1) + " ms"); //$NON-NLS-1$ //$NON-NLS-2$
-
-
 			logger.info("Deserializing..."); //$NON-NLS-1$
 			t1=System.currentTimeMillis();
-//	        project=serializer.deserializeProject(projectData,false,true,resourceMap);
 			setProject(serializer.deserializeLocalDocument(projectData));
 			t2=System.currentTimeMillis();
 			logger.info("Deserializing...Done in " + (t2 - t1) + " ms"); //$NON-NLS-1$ //$NON-NLS-2$
@@ -115,10 +100,8 @@ public class LocalFileImporter extends FileImporter {
 				logger.log(Level.WARNING, "Error during file import", e);
 			}
 		}
-        
         if (project==null){
         	//recreate project
-        	
         	BufferedInputStream in=null;
 			try {
 				//using xml
@@ -130,10 +113,8 @@ public class LocalFileImporter extends FileImporter {
 				if (bufSize<keyBuf.length) bufSize=keyBuf.length;
 				byte[] buf= new byte[bufSize];
 				in=new BufferedInputStream(fin); //use default 8192 bytes size
-				
 				int keyPos=0;
 				int n;
-//				int pos=0;
 				boolean found=false;
 				boolean xmlStartFound=false;
 				boolean first=true;
@@ -152,7 +133,6 @@ public class LocalFileImporter extends FileImporter {
 							 break;
 						 }
 					}
-						
 				    for (int i=0; i<n; i++ ){
 				    	if (keyBuf[keyPos]==buf[i]){
 				    		if (keyPos==keyBuf.length-1){
@@ -168,9 +148,7 @@ public class LocalFileImporter extends FileImporter {
 				    }
 				    if (found) break;
 					in.mark(bufSize);
-//				    pos+=n;
 				}
-				
 				if (xmlStartFound) {
 					if (in!=null){
 						try {
@@ -181,7 +159,6 @@ public class LocalFileImporter extends FileImporter {
 					}
 					fin=new FileInputStream(f);
 					in=new BufferedInputStream(fin);
-					
 				}
 				if (found || xmlStartFound) {
 					//xml found
@@ -192,30 +169,13 @@ public class LocalFileImporter extends FileImporter {
 					opt.setSync(false);
 					opt.setImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
 					opt.setFileInputStream(in);
-					
 					SwingUtilities.invokeLater(() -> projectFactory.openProject(opt));
-//					project=projectFactory.openProject(opt);
-
-					
-//					FileImporter importer=LocalSession.getImporter("com.microproject.exchange.MicrosoftImporter");
-//					
-//					ResourcePool resourcePool=null;
-//					DataFactoryUndoController undoController=new DataFactoryUndoController();
-//					resourcePool = ResourcePoolFactory.getInstance().createResourcePool("",undoController);
-//					resourcePool.setLocal(true);
-//					project = Project.createProject(resourcePool,undoController);						
-//					((DefaultNodeModel)project.getTaskOutline()).setDataFactory(project);		
-//					importer.setProject(project);
-//					
-//					importer.loadProject(in);
 					logger.info("Recovered with XML");
 				}else{
 					//unable to recover from xml 
 					String errorMessageKey = isLegacyProjectDataFailure(ex)
 							? "Message.ImportOldFormatError" : "Message.ImportError";
 					SwingUtilities.invokeLater(() -> Alert.error(Messages.getString(errorMessageKey)));
-					
-					
 					if (ex!=null) throw ex;
 				}
 			} catch (Exception e) {
@@ -230,13 +190,10 @@ public class LocalFileImporter extends FileImporter {
 			}
         }
 	}
-
 	static boolean isLegacyProjectDataFailure(Exception exception) {
 		return exception instanceof ClassNotFoundException
 				&& "com.projity.server.data.ProjectData".equals(exception.getMessage());
 	}
-
-	
 	@Override
 	public void exportFile() throws Exception{
 		File file=new File(fileName).getAbsoluteFile();
@@ -300,7 +257,6 @@ public class LocalFileImporter extends FileImporter {
 					}
 					bout.flush();
 				}
-				
 			}catch (Exception e) {
 				error=true;
 				logger.log(Level.WARNING, "Error during file import", e);
@@ -309,7 +265,6 @@ public class LocalFileImporter extends FileImporter {
 			error=true;
 			logger.log(Level.WARNING, "Error during file import", e);
 		}
-
 		// Don't replace the original file if an error occurred.
 		if (error){
 			Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
@@ -327,9 +282,7 @@ public class LocalFileImporter extends FileImporter {
 				TemporaryCleanupQueue.deleteOrEnqueue(tmpFile.toPath());
 			}
 		}
-
 	}
-
 
 
 	public Job getImportFileJob(){
