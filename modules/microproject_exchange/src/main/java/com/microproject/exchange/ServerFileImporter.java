@@ -53,15 +53,18 @@ public abstract class ServerFileImporter extends FileImporter{
 
 		
 		//server resources
-		ArrayList<Object> projectlibreResources = new ArrayList<>();
+		ArrayList<Object> projectlibreResources;
 		EnterpriseResourceData unassigned=new EnterpriseResourceData();
 		unassigned.setUniqueId(EnterpriseResource.UNASSIGNED_ID);
 		unassigned.setName(Messages.getString("Text.Unassigned")); //$NON-NLS-1$
 		form.setUnassignedResource(unassigned);
-		projectlibreResources.add(unassigned);
 		try{
 			Session session=SessionFactory.getInstance().getSession(false);
-			projectlibreResources.addAll((Collection)SessionFactory.call(session,resourceDescriptorsOnly?"retrieveResourceDescriptors":"retrieveResourceHierarchy",null,null));
+			Collection<?> serverResources = (Collection<?>) SessionFactory.call(session,
+					resourceDescriptorsOnly ? "retrieveResourceDescriptors" : "retrieveResourceHierarchy", null, null);
+			projectlibreResources = new ArrayList<>(serverResources.size() + 1);
+			projectlibreResources.add(unassigned);
+			projectlibreResources.addAll(serverResources);
 			if (projectlibreResources!=null&&projectlibreResources.size()>0) form.setUnassignedResource(projectlibreResources.get(0));
 		}catch (Exception e){
 			logger.log(Level.WARNING, "Falling back to local resource mapping because server resources could not be loaded", e);
