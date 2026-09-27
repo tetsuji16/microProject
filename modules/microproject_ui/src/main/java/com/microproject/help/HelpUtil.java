@@ -49,7 +49,7 @@ import com.microproject.util.Environment;
 import com.microproject.util.UiLinkTargets;
 
 public class HelpUtil implements KeyEventDispatcher {
-	private  HashMap<Component,String> map = new HashMap<Component, String>();
+	private  HashMap<Component,String> map = new HashMap<>();
 	private static HelpUtil instance = null;
 	private static final int DELAY_BETWEEN_HELPS = 5000;
 	private static final Logger logger = Logger.getLogger(HelpUtil.class.getName());

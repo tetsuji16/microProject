@@ -2549,3 +2549,8 @@ bundle-name lists. Both initializations match the OpenProj source at
 `d2fa3c20a:openproj_core/src/com/projity/strings/Messages.java`; locale lookup,
 search order, and fallback behavior are unchanged. Core tests passed, with
 downstream UI/exchange compilation verified.
+
+`HelpUtil`'s component-to-help-URL map now uses diamond inference. The field
+declaration matches `d2fa3c20a:openproj_ui/src/com/projity/help/HelpUtil.java`;
+the key/value types, singleton lifetime, and lookup behavior are unchanged.
+UI compilation passed.
