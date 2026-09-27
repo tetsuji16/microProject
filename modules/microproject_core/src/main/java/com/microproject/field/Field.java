@@ -2194,8 +2194,8 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		return extraCategory != null;
 	}
 	public Object convertValueForExport(Object value) {
-		if (value instanceof Duration)
-			value = Double.valueOf(((Duration)value).getAsDays());
+		if (value instanceof Duration duration)
+			value = Double.valueOf(duration.getAsDays());
 		return value;
 	}
 

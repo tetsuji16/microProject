@@ -2523,3 +2523,9 @@ method matches the OpenProj baseline at `d2fa3c20a`; key encounter order,
 fallback string conversion, and mapped value lookup are unchanged. No in-repo
 production caller exists, but the public diagnostic entry point remains
 available for manual use. Full `:microproject_core:test` passed.
+
+`Field.convertValueForExport` now binds `Duration` with Java pattern matching
+before converting it to the same `Double` day value. The method hunk matches
+the OpenProj baseline at `d2fa3c20a`; repository search found no direct caller,
+so a focused test now pins both duration conversion and pass-through identity
+for unrelated values. `FieldExportConversionTest` passed.
