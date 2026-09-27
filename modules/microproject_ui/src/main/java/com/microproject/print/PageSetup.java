@@ -885,9 +885,6 @@ public class PageSetup{
 	}
 
 	private void updatePageSize(boolean round){ //round for a Linux bug
-//		Paper paper=pageFormat.getPaper();
-//		double w=round?Math.round(paper.getWidth()):paper.getWidth();
-//		double h=round?Math.round(paper.getHeight()):paper.getHeight();
 		PageSize size=pageFormat.getSize();
 		paperWidth.setValue(size.getX(MediaSize.MM));
 		paperHeight.setValue(size.getY(MediaSize.MM));
@@ -905,17 +902,10 @@ public class PageSetup{
 		marginRight.setValue(right);
 		marginTop.setValue(top);
 		marginBottom.setValue(bottom);
-		//orientation.setSelectedItem(portrait);
 	}
 
 
 
-//	public double toUserUnit(double points){
-//		return points*POINT;
-//	}
-//	public double toPoints(double cm){
-//		return cm/POINT;
-//	}
 
 
 
@@ -928,11 +918,6 @@ public class PageSetup{
 		JComponent panel = bar ? createVerticalPanel() : createDialogPanel();
 		FlatUiSupport.styleDialogComponents(panel);
 		return panel;
-//		FormLayout layout = new FormLayout("350dlu:grow","fill:250dlu:grow");
-//		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-//		builder.setDefaultDialogBorder();
-//		builder.add(createPagePanel());
-//		return builder.getPanel();
 	}
 
 	private JComponent createDialogPanel(){
