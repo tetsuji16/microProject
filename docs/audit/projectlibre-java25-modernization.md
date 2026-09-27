@@ -45,6 +45,25 @@ OpenProj progress.
   OpenProj baseline; it is a later microProject fork addition.
 - These exclusions are not counted toward #727 or #595.
 
+## ProjectLibre-added type inventory
+
+Compared additions between the OpenProj baseline (`d2fa3c20a`) and the
+ProjectLibre 1.9.8 source (`0530be227f4a10c5545cce8d3db20ac5a4d76a66`) with
+the active `modules/` sources:
+
+- `FieldList` is active and carries JAXB names/identity references. Its current
+  class has no remaining generic construction, obsolete reflection API, or
+  cast-after-`instanceof` candidate; its XML annotations remain a compatibility
+  boundary.
+- ProjectLibre additions `FieldManager`, `VersionComparator`,
+  `ScheduleChangedEvent`, `Scheduler`, and `SnapshotList` have no active source
+  counterpart under `modules/` and are not current modernization targets.
+- The upstream-added `com.projectlibre.pm.tasks.TaskSnapshot` has no active
+  counterpart. The similarly named active `com.microproject.pm.task.TaskSnapshot`
+  corresponds to the separate `com.projectlibre1.pm.task.TaskSnapshot` path,
+  which maps to OpenProj's `com.projity.pm.task.TaskSnapshot`; do not conflate
+  these classes during provenance review.
+
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
