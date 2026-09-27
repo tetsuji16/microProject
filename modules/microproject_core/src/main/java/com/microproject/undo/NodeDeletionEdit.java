@@ -64,7 +64,7 @@ public class NodeDeletionEdit extends AbstractUndoableEdit{
 	public void undo() throws CannotUndoException {
 		super.undo();
 		for (Entry entry : removalSnapshot.getEntries()) {
-			LinkedList nodes=new LinkedList();
+			LinkedList<Node> nodes = new LinkedList<>();
 			nodes.add(entry.getNode());
 			model.paste(entry.getParent(), nodes, entry.getPosition(), NodeModel.EVENT);
 		}
