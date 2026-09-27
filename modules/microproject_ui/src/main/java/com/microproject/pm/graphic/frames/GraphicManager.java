@@ -244,7 +244,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	/** Returns a snapshot of projects currently open in this desktop window. */
 	public List<Project> getOpenProjects() {
-		List<Project> projects = new ArrayList<Project>();
+		List<Project> projects = new ArrayList<>(frameList.size());
 		for (Object value : frameList) {
 			if (value instanceof DocumentFrame frame && frame.getProject() != null)
 				projects.add(frame.getProject());
