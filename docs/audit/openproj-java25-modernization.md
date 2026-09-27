@@ -2645,3 +2645,8 @@ ordering, key/value types, and activation behavior are unchanged.
 OpenProj-derived frame lookup and command-history collections. Their key/value
 types, map lookup behavior, and history ordering are unchanged. UI manager and
 frame-manager tests passed.
+
+`StartupFactory.credentials` and `SpreadSheetColumnModel.colWidthMap` now use
+diamond inference for their OpenProj-derived maps. Credential key/value types
+and column-width lookup behavior are unchanged. `StartupFactoryCommandStateTest`
+and `SpreadSheetUtilsTest` passed.

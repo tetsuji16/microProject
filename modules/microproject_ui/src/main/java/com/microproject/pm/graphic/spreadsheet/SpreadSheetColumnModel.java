@@ -88,7 +88,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	public SpreadSheetColumnModel(ArrayList<Field> fieldArray,List<Integer> colWidthList) {
 		super();
 		setFieldArray(fieldArray);
-		colWidthMap=new HashMap<String, Integer>();
+		colWidthMap=new HashMap<>();
 		if (fieldArray instanceof SpreadSheetFieldArray){
 			SpreadSheetFieldArray sa=(SpreadSheetFieldArray)fieldArray;
 			if (colWidthList==null&&sa!=null&&sa.getWidths()!=null&&sa.getWidths().size()>0){

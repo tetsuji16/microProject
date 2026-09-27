@@ -75,7 +75,7 @@ public abstract class StartupFactory {
 	protected String[] projectUrls=null;
 	protected String login=null;
 	protected String password=null;
-	protected Map<String, String> credentials = new HashMap<String, String>();
+	protected Map<String, String> credentials = new HashMap<>();
 	protected long projectId;
 	protected HashMap<String, Object> opts = null;
 
