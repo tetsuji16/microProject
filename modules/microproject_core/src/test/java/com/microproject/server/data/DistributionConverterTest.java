@@ -27,6 +27,8 @@ package com.microproject.server.data;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.util.Environment;
@@ -38,8 +40,9 @@ class DistributionConverterTest {
 		Environment.setStandAlone(true);
 		try {
 			DistributionConverter converter = new DistributionConverter();
-			assertNotNull(converter.createDistributionData(null, false));
-			assertTrue(converter.createDistributionData(null, false).isEmpty());
+			List<DistributionData> distributions = converter.createDistributionData(null, false);
+			assertNotNull(distributions);
+			assertTrue(distributions.isEmpty());
 		} finally {
 			Environment.setStandAlone(previous);
 		}

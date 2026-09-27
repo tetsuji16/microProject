@@ -493,7 +493,7 @@ public class Serializer {
 
         //distribution
         long t=System.currentTimeMillis();
-        Collection<DistributionData> dist=(Collection<DistributionData>)(new DistributionConverter()).createDistributionData(project,incrementalDistributions);
+        Collection<DistributionData> dist=(new DistributionConverter()).createDistributionData(project,incrementalDistributions);
     	if (dist==null){
     		dist=new ArrayList<DistributionData>();
     	}

@@ -2449,3 +2449,5 @@ background and grid-line methods and the supplied `GraphicNode`. Tracked as
 issue #84 cleanup.
 
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.
+
+`DistributionConverter.createDistributionData` now declares `List<DistributionData>`. Its reflective delegate still uses the same `(Project, boolean)` method and erased `List` return descriptor; the adapter cast is localized at that boundary. `Project.updateDistributionMap` and `Serializer` now consume the typed result without element casts or an unchecked collection cast. The serialized distribution payload and null handling remain unchanged.

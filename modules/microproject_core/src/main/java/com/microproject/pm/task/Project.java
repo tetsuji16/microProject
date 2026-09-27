@@ -2568,13 +2568,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
     public void updateDistributionMap(){
     	long t=System.currentTimeMillis();
-    	List dist=(new DistributionConverter()).createDistributionData(this,false);
+		List<DistributionData> dist=(new DistributionConverter()).createDistributionData(this,false);
     	if (dist==null) return;
     	TreeMap<DistributionData, DistributionData> distMap=new TreeMap<DistributionData, DistributionData>(new DistributionComparator());
     	setDistributionMap(distMap);
     	long projectId=getUniqueId();
-		for (Object candidate : dist){
-			DistributionData d=(DistributionData)candidate;
+		for (DistributionData d : dist){
 			if (d.getProjectId()==projectId) distMap.put(d,d);
 	    }
 	    logger.info("DistributionMap: " + dist.size() + " elements, updated in " + (System.currentTimeMillis() - t) + " ms");

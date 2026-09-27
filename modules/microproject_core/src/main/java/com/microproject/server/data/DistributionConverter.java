@@ -63,17 +63,15 @@ public class DistributionConverter {
 			}
 		}
 	}
-	public List createDistributionData(Project project,boolean incremental){
+	@SuppressWarnings("unchecked")
+	public List<DistributionData> createDistributionData(Project project,boolean incremental){
 		if (delegate == null)
 			return Collections.emptyList();
-		if (delegate!=null){
-			try {
-				return (List)createDistributionDataMethod.invoke(delegate, project, incremental);
-			} catch (IllegalArgumentException | SecurityException | IllegalAccessException | InvocationTargetException e) {
-				throw new IllegalStateException("Failed to create distribution data", e);
-			}
+		try {
+			return (List<DistributionData>) createDistributionDataMethod.invoke(delegate, project, incremental);
+		} catch (IllegalArgumentException | SecurityException | IllegalAccessException | InvocationTargetException e) {
+			throw new IllegalStateException("Failed to create distribution data", e);
 		}
-		return Collections.emptyList();
 	}
 	public void substractDistributionFromProject(Project project){
 		if (delegate!=null){
