@@ -251,3 +251,5 @@ For #84, removed the obsolete commented ID-update and newness methods from `HasU
 For #84, removed a stale commented renumber diagnostic in `HasUniqueIdImpl` that referenced nonexistent `hasUniqueId` and `oldUniqueId` variables. `EqualsHashCodeContractTest` passed.
 
 For #228, `ViewNodeModelCache.resolveRelocationTarget` now pre-sizes its root snapshot from `validNodes.size()`. `HierarchyUtils.extractParents` only appends nodes from that input and appends each at most once, so this is a strict upper bound; root order and relocation behavior are unchanged. `:microproject_ui:compileJava --console=plain` passed.
+
+For #84, removed NodeCache's commented-out schedule-cache updater, void-node dump, and obsolete per-event forwarding methods, plus the call-site comments that referenced those removed methods. Repository-wide Java source search found no remaining references. `:microproject_ui:test --tests "com.microproject.pm.graphic.model.cache.*" --console=plain` passed.

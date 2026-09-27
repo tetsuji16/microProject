@@ -45,7 +45,6 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 	}
 	
 	public void updateVisibleElements(Set<?> updates){
-	    //dumpVoids();
 	    HashSet<Object> u=new HashSet<>(updates == null ? 0 : updates.size());
 	    for (VisibleNodes v : visibleElements) {
 	        u.clear();
@@ -80,16 +79,6 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 
 	}
 
-	//for schedule caching option
-//	public void updateCachedSchedule(){
-//		GraphicNode node;
-//		for (Iterator i=cache.iterator();i.hasNext();){
-//			node=(GraphicNode)i.next();
-//			node.updateScheduleCache();
-//		}
-//	}
-
-	
 	public static <T> void applyUpdates(ArrayList<T> oldList, ArrayList<T> newList, Set<?> updates, List<CacheEvent> events, Object source){
 	    ArrayList<T> o =new ArrayList<>(oldList);
 		ArrayList<T> n =new ArrayList<>(newList);
@@ -246,35 +235,11 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 		return ((GraphicNode)base).getNode();
 	}
 	
-//	
-//	private void dumpVoids(){
-//	    Object current;
-//	    List vn;
-//	    GraphicNode node;
-//	    for (Iterator i=voidNodes.keySet().iterator();i.hasNext();){
-//	        current=i.next();
-//	        System.out.println(current+":");
-//	        vn=(List)voidNodes.get(current);
-//	        for (Iterator j=vn.iterator();j.hasNext();){
-//	            node=(GraphicNode)j.next();
-//	            System.out.println("\t"+node+": "+node.getLevel());
-//	        }
-//	    }
-//	}
-
 	protected void fireEvents(Object source, List<CacheEvent> nodeEvents, List<CacheEvent> edgeEvents) {
         if (nodeEvents.size()>0||edgeEvents.size()>0)
 	    for (VisibleNodes element : visibleElements)
 	        element.fireGraphicNodesCompositeEvent(source,nodeEvents,edgeEvents);
 	}
-//	protected void fireScheduleEvent(Object source, ScheduleEvent scheduleEvent) {
-//	    for (Iterator i=visibleElements.iterator();i.hasNext();)
-//	        ((VisibleNodes)i.next()).fireGraphicNodesCompositeEvent(source,null,null,scheduleEvent,null);
-//	}
-//	protected void fireObjectEvent(Object source, ObjectEvent objectEvent) {
-//	    for (Iterator i=visibleElements.iterator();i.hasNext();)
-//	        ((VisibleNodes)i.next()).fireGraphicNodesCompositeEvent(source,null,null,null, objectEvent);
-//	}
 	public void fireEvents(Object source, VisibleNodes nodes) {
 	    List<CacheEvent> nodeEvents=nodes.getEvents();
 	    List<CacheEvent> edgeEvents=nodes.getVisibleDependencies().getEvents();

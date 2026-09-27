@@ -435,8 +435,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	public void scheduleChanged(ScheduleEvent e){
 		//System.out.println("ScheduleEvent: type="+e.getType()+", snap="+e.getSnapshot()+", object="+e.getObject());
 		if (!receiveEvents) return;
-//		nodeCache.updateCachedSchedule();
-//		nodeCache.fireScheduleEvent(e.getSource(),e);
 		update(true);
 	}
 	
@@ -489,7 +487,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 						GraphicNode gnode=getGraphicNode(node);
 						if (gnode != null) // on project list it is null
 							gnode.setDirty(true);
-						//nodeCache.fireObjectEvent(objectEvent.getSource(),objectEvent);
 						}
 					}
 				}
