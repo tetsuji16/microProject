@@ -48,6 +48,10 @@ OpenProj progress.
   code.
 - `Field.getGroupDuration` is absent from the ProjectLibre 1.9.8 source and
   OpenProj baseline; it is a later microProject fork addition.
+- `com.microproject.configuration.Dictionary.getAll`'s typed `NamedItem[]`
+  conversion was introduced by local commit `54e5480390`; ProjectLibre 1.9.8
+  and the OpenProj baseline both use an `Object[]` from `values().toArray()`.
+  Do not count a modernization of that typed hunk as ProjectLibre-origin work.
 - These exclusions are not counted toward #727 or #595.
 
 ## ProjectLibre-added type inventory
