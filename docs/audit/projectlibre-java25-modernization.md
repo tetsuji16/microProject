@@ -132,6 +132,17 @@ ProjectLibre-added methods in `Serializer` and `MSPDISerializer` use typed
 iterators where removal is required; replacing those with enhanced loops would
 change mutation behavior or fail to preserve removals.
 
+`TaskLinker` is a ProjectLibre-added type, but its raw `flatAssignments`
+property is exposed through protected state and public getter/setter methods.
+The only in-repository setter caller is `Serializer`, whose pipeline currently
+passes `Collection<DataObject>` and inserts `AssignmentData`; no external
+subclass inventory is available here. Its `PreparedAttributes` raw
+`Collection`/`List` fields are explicitly documented in source as a legacy
+subclass compatibility holder and have no in-repository callers. Defer changing
+these generic signatures until extension/source compatibility can be assessed;
+do not count their containing type's ProjectLibre provenance as blanket
+authorization to narrow the public surface.
+
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
