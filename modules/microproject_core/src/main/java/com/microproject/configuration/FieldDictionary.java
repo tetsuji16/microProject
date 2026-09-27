@@ -308,8 +308,9 @@ public class FieldDictionary {
 	}
 	
 	public static HashMap<String, String> getAliasMap() {
-		HashMap<String, String> aliasMap = new HashMap<>();
-		MapIterator i = getInstance().map.mapIterator();
+		FieldDictionary dictionary = getInstance();
+		HashMap<String, String> aliasMap = HashMap.newHashMap(dictionary.map.size());
+		MapIterator i = dictionary.map.mapIterator();
 		while (i.hasNext()) {
 			Object key = i.next();
 			Field field = (Field) i.getValue();

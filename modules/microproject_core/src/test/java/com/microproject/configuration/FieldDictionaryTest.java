@@ -41,6 +41,7 @@ class FieldDictionaryTest {
 			FieldDictionary.setAliasMap(aliases);
 
 			assertEquals("Remaining duration test alias", field.getAlias());
+			assertEquals("Remaining duration test alias", FieldDictionary.getAliasMap().get(field.getId()));
 		} finally {
 			HashMap<String, String> aliases = new HashMap<>();
 			aliases.put(field.getId(), originalAlias);
