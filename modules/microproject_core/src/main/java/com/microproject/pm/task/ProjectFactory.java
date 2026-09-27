@@ -648,15 +648,14 @@ public class ProjectFactory {
 			// Keep the explicit Save As target for the root document. Linked
 			// children retain their own persisted file names; LocalSession assigns
 			// the requested name only to the first project in this branch.
-			o.setPostSaving(new Consumer<Object>() { public void accept(Object obj) {
-					Project p = (Project)obj;
-					if (!opt.isRecoverySnapshot()) {
-						p.setAllTasksAsUnchangedFromPersisted(true);
-						p.validateNewDistributionMap();
-						portfolio.handleExternalTasks(p,false, true); 		// external link handling
-					}
-					if (opt.getPostSaving()!=null) opt.getPostSaving().accept(obj); //id, combobox update
+			o.setPostSaving(obj -> {
+				Project p = (Project)obj;
+				if (!opt.isRecoverySnapshot()) {
+					p.setAllTasksAsUnchangedFromPersisted(true);
+					p.validateNewDistributionMap();
+					portfolio.handleExternalTasks(p,false, true); 		// external link handling
 				}
+				if (opt.getPostSaving()!=null) opt.getPostSaving().accept(obj); //id, combobox update
 			});
 			Job job=session.getSaveProjectJob(projects,o);
 			return job;
