@@ -129,7 +129,7 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
  * @return
  */	 	List<Resource> getSelectedResources(boolean assignedOnly){
 	 		List<?> list = NodeList.nodeListToImplList(getSelectedNodes());
-	 		ArrayList<Resource> resourceList = new ArrayList<>();
+			ArrayList<Resource> resourceList = new ArrayList<>(assignedOnly ? 0 : list.size());
 			for (Object item : list) {
 				AssignmentEntry entry = (AssignmentEntry)item;
 				if (!assignedOnly || entry.isAssigned()) // see if should add.

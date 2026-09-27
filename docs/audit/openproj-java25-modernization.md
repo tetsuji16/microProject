@@ -2767,6 +2767,13 @@ non-`HasKey` values still return zero, and the public method signature is
 unchanged. Core compilation passed; this syntax-only change does not alter
 behavior.
 
+`AssignmentEntryPane.getSelectedResources(false)` now allocates its result list
+to the selected-node count. In this unfiltered path every selected entry adds
+exactly one resource; the `assignedOnly` path retains lazy growth because it
+filters entries and its result cardinality is lower. The method hunk matches
+OpenProj 1.4 at `d2fa3c20a`; the public method contract and selection order are
+unchanged. UI module verification is recorded with issue #228.
+
 The remaining raw list contracts found in the exact-source core screen are
 concentrated in `ScriptRunner` and its public `LiteProject`, `LiteTask`,
 `LiteResource`, `LiteResourcePool`, and `Row` DTOs. The DTOs implement
