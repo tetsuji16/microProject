@@ -269,6 +269,41 @@ overloading that shared field. This closes the stale-path reconciliation, but
 not the remaining per-symbol declaration/caller review for the 36 extant
 files, so Phase 0 remains open.
 
+### Parser-based declaration reconciliation (2026-09-28)
+
+Ran `java scripts/audit/JavaSymbolExtractor.java modules` and compared its
+canonical Java identities with the 778 current-path `KEEP_PROJECTLIBRE` ledger
+entries. The extractor parsed 30,751 symbols. Exact identity matching found
+660 entries. Of the 118 remaining entries, 71 belong to the seven historical
+MSPDI paths above; the other 47 point to existing files but no longer have the
+same identity in the extractor:
+
+- 30 are line-addressed anonymous-class symbols: 14 anonymous types and their
+  14 methods, plus two captured fields in `Linker`. Their upstream line-number
+  identities shifted as the active source evolved. The current source still
+  contains the corresponding callbacks in `ServerLocalFileImporter`, the
+  serialized-data factories, and `Linker`; their declarations need caller
+  reconciliation by enclosing method rather than by the stale line number.
+- 17 are named signatures or fields that changed during later migrations:
+  `CustomFieldsMapper.Maps` changed `Class` to `Class<?>` (same erased
+  descriptor); `MicrosoftImporter` and `MPXConverter` renamed logger fields,
+  and `MicrosoftImporter.state` became `context`; `MSPDISerializer.saveResources`
+  now consumes MPXJ `ProjectFile` in the active serializer flow; `SerializeOptions`
+  moved from Commons `Predicate.evaluate(Object)`/`SaveOptions` to JDK
+  `Predicate<Field>.test(Field)`/publish constructors; `Serializer` traversal
+  callbacks moved from Commons `Closure` to JDK `Consumer<Object>`; and
+  `TypeSystemConverter` now exposes JDK functional types and wildcard
+  collections. Repository callers exist for the active serializer, importer,
+  converter, and custom-field paths. The `SerializeOptions` and
+  `TypeSystemConverter` interfaces remain public/reflection-sensitive
+  compatibility boundaries and are not candidates for further signature
+  narrowing without an external extension audit.
+
+This pass distinguishes absent historical symbols from identity drift in
+current declarations; it does not by itself complete all production caller or
+external compatibility review. Phase 0 remains open for the 30 anonymous
+declarations and compatibility-boundary caller checks.
+
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
