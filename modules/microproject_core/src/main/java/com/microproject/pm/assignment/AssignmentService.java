@@ -180,7 +180,7 @@ public class AssignmentService {
 			return List.of();
 		Project sourceProject = ((NormalTask) source.getTask()).getProject();
 		ResourcePool resourcePool = null;
-		Set<Resource> unique = new LinkedHashSet<Resource>();
+		Set<Resource> unique = new LinkedHashSet<>(replacementResources.size() * 4 / 3 + 1);
 		for (Resource resource : replacementResources) {
 			if (resource == null || resource == source.getResource()
 					|| ((NormalTask) source.getTask()).findAssignment(resource) != null)
