@@ -287,7 +287,6 @@ public class Job extends Thread {
 	public void run(boolean sync){
 		boolean exceptionHandlerExecuted = false;
 		try{
-			//System.out.println("run("+sync+")...ok");
 			final JobQueue jobQueue=getJobQueue();
 			//jobQueue.enableComponent(false);
 			if (showProgess){
@@ -403,7 +402,6 @@ public class Job extends Thread {
 						return;
 					logBegin("running "+runnable.runnable.getName());
 					runnable.run();
-					//if (runMutex!=null&&runMutex.getException()!=null) cancel();
 					if (runnable.getException()!=null) cancel();
 				}finally{
 					logEnd("running "+runnable.runnable.getName());
@@ -417,12 +415,10 @@ public class Job extends Thread {
 					return;
     			logBegin("running "+runnable.runnable.getName());
     			runnable.run();
-    			//if (runnable.getException()!=null) cancel();
     			if (runnable.getException()!=null) cancel();
     		}finally{
     			logEnd("running "+runnable.runnable.getName());
     			if (runMutex!=null) runMutex.unlock();
-    			//Error lastRunnable swing in case of exception
     			if (!isCustomCriticalSection()&&(runnable==lastRunnable||runnable.getException()!=null)) jobQueue.endCriticalSection(Job.this);
     		}
 		}
@@ -472,16 +468,6 @@ public class Job extends Thread {
 	protected Object getResult(){
 		return (previousRunnable==null)?null:previousRunnable.getResult();
 	}
-//	public Object getResult(int index){
-//		return ((InternalRunnable)runnables.get(index)).getResult();
-//	}
-//	public Exception getException(){
-//		return (previousRunnable==null)?null:previousRunnable.getException();
-//	}
-//	public Object getException(int index){
-//		return ((InternalRunnable)runnables.get(index)).getException();
-//	}
-
 	/**
 	 * Returns the exception that caused execution to enter an exception handler.
 	 * This is available while an exception handler is running, so callers can
