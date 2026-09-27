@@ -79,7 +79,7 @@ public class DefaultFrameManager implements FrameManager {
 	private FrameWorkspace workspace;
 	private JPanel arrangedFrames;
 	/** Independent desktop hosts for documents after the primary project. */
-	private final Map<NamedFrame, JFrame> documentWindows = new LinkedHashMap<NamedFrame, JFrame>();
+	private final Map<NamedFrame, JFrame> documentWindows = new LinkedHashMap<>();
 	/** The document retained in the application's primary ribbon frame. */
 	private NamedFrame primaryFrame;
 	private WindowArrangement currentArrangement = WindowArrangement.SINGLE;

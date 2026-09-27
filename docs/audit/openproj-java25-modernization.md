@@ -2635,3 +2635,8 @@ the EDT made both the focused class and the full UI suite pass (932 completed,
 for their linked result lists. Both raw linked-list constructions match the
 OpenProj UI baseline; the public raw `List` signatures, iteration order, and
 early-exit behavior are unchanged. UI compilation passed.
+
+`DefaultFrameManager.documentWindows` now uses diamond inference for its
+insertion-ordered frame map. This field matches the OpenProj baseline; map
+ordering, key/value types, and activation behavior are unchanged.
+`DefaultFrameManagerTest` passed.
