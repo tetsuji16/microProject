@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.core.dictionary;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -132,23 +133,7 @@ public class Dictionary implements Iterable<HasStringId>{
 	public Iterator<HasStringId> iterator(DictionaryCategory category) {
 		Map<String,HasStringId> map=dictionary.get(category);
 		if (map==null)
-			return new Iterator<>() {
-				@Override
-				public boolean hasNext() {
-					return false;
-				}
-
-				@Override
-				public HasStringId next() {
-					return null;
-				}
-
-				@Override
-				public void remove() {
-					throw new UnsupportedOperationException();
-				}
-			
-			};
+			return Collections.emptyIterator();
 		return map.values().iterator();
 	}
 	

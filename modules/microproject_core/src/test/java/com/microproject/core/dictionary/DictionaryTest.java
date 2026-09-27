@@ -5,8 +5,11 @@
 package com.microproject.core.dictionary;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Iterator;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +25,15 @@ class DictionaryTest {
 		assertSame(value, dictionary.get(new DictionaryCategory(TestValue.class, "task"), "planned"));
 		assertSame(value, dictionary.get(TestValue.class, "planned"));
 		assertArrayEquals(new Class<?>[] { TestValue.class }, dictionary.getClassesAsArray());
+	}
+
+	@Test
+	void missingCategoryReturnsStandardEmptyIterator() {
+		Iterator<HasStringId> iterator = new Dictionary().iterator(new DictionaryCategory(TestValue.class, "missing"));
+
+		assertFalse(iterator.hasNext());
+		assertThrows(java.util.NoSuchElementException.class, iterator::next);
+		assertThrows(IllegalStateException.class, iterator::remove);
 	}
 
 	private static final class TestValue implements HasStringId, HasCategories {
