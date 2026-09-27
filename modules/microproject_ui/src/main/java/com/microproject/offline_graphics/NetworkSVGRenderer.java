@@ -63,23 +63,19 @@ public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable
 		params=new NetworkParamsImpl();
 		params.setNetworkLayout(type==PERT?new PertLayout(params):new XbsLayout(params));
 		String viewName=null;
-//		NodeModelCache cache=null;
 		switch (type) {
 			case PERT:
 				viewName="pert";
-//				cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)refCache,"Network",null);
 				renderer=new PertRenderer(params);
 				renderer.setVertical(false);
 				break;
 			case WBS:
 				viewName="WBS";
-//				cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)refCache,"WBS",null);
 				renderer=new XbsRenderer(params);
 				renderer.setVertical(true);
 				break;
 			case RBS:
 				viewName="RBS";
-//				cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)refCache,"RBS",null);
 				renderer=new XbsRenderer(params);
 				renderer.setVertical(true);
 				break;
@@ -122,7 +118,6 @@ public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable
 			Rectangle printBounds=params.getPrintBounds();
 			Rectangle networkPrintBounds=params.getNetworkPrintBounds(prow, pcol);
 			g.translate(-pcol*printBounds.width,-prow*printBounds.height);
-			//g.draw(networkPrintBounds);
 			renderer.paint(g,networkPrintBounds);
 
 		}
@@ -144,4 +139,3 @@ public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable
 	}
 
 }
-
