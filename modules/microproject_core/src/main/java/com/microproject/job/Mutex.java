@@ -37,18 +37,15 @@ public class Mutex {
 	}
 
 	public synchronized void waitUntilUnlocked(){
-		//System.out.println(name+": wait begin");
 		while (locked){
 			try {
 				wait();
 			} catch (InterruptedException e) {
 			}
 		}
-		//System.out.println(name+": wait end");
 	}
 	
 	public synchronized void waitAndLock(){
-		//System.out.println(name+": wait begin");
 		while (locked){
 			try {
 				wait();
@@ -56,19 +53,16 @@ public class Mutex {
 			}
 		}
 		locked=true;
-		//System.out.println(name+": wait end");
 	}
 	
 	public synchronized void lock(){
 		if (!locked){
 			locked=true;
-			//System.out.println(name+": locked");
 		}
 	}
 	public synchronized void unlock(){
 		if (locked){
 			locked=false;
-			//System.out.println(name+": unlocked");
 			notifyAll();
 		}
 	}
