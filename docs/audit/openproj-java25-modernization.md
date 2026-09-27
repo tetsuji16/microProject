@@ -2798,3 +2798,9 @@ its descending comparator and a direct boolean condition. Both changed lines
 match OpenProj 1.4 (`d2fa3c20a`). The ascending path still returns the field
 instance; descending still reverses compare arguments. `FieldComparatorTest`
 locks down comparator identity and ordering.
+
+The OpenProj 1.4 conditions in `CriticalPath.getOrClearUpdater` and
+`ContourBucketIntervalGenerator` now use direct boolean tests (`updating` and
+`!didSplit`) instead of comparisons with `true`/`false`. `git blame` confirms
+both hunks at `d2fa3c20a`; the state transitions and branches are unchanged.
+The core test suite is the verification for this syntax-only cleanup.

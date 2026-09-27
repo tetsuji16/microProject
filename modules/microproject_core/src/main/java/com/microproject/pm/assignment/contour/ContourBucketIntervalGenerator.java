@@ -118,7 +118,7 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 		} 
 		if (specialBucket == null && didFirstPart) {
 		
-			if (didSplit == false) {
+			if (!didSplit) {
 				bucketDuration = splitDuration;
 				specialBucket = FillerContourBucket.getInstance(splitDuration);
 				index--;

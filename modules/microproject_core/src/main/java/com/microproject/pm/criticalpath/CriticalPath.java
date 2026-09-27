@@ -324,7 +324,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 	private boolean updating = false;
 	private synchronized CriticalPathFields getOrClearUpdater(boolean get) {
 		if (get) {
-			if (updating == true){
+			if (updating){
 				logger.fine("interrupting update thread");
 				fieldUpdater.interrupt(); // interrupt existing thread
 				fieldUpdater = CriticalPathFields.getInstance(this,project); // make new one
