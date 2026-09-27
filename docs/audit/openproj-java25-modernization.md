@@ -2792,3 +2792,9 @@ category rendered project fields. `generateFieldDoc` now passes the matching
 resource, task, assignment, and dependency field collections. The regression
 test failed before the fix and passes afterward; `FieldDictionaryTest` and the
 full `:microproject_core:test` suite passed.
+
+`Field.getComparator(boolean)` now uses a method reference-compatible lambda for
+its descending comparator and a direct boolean condition. Both changed lines
+match OpenProj 1.4 (`d2fa3c20a`). The ascending path still returns the field
+instance; descending still reverses compare arguments. `FieldComparatorTest`
+locks down comparator identity and ordering.

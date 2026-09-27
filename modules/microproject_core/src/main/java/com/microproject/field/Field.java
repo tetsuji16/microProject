@@ -2262,15 +2262,9 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		this.specialFieldContext = specialFieldContext;
 	}
 	public Comparator<Object> getComparator(boolean ascending) {
-		if (ascending == true)
+		if (ascending)
 			return this;
-		else {
-			return new Comparator<Object>() {
-				@Override
-				public int compare(Object o1, Object o2) {
-					return Field.this.compare(o2,o1);
-				}};
-		}
+		return (o1, o2) -> compare(o2, o1);
 	}
 	public boolean isComparable() {
 		return !isImage();
