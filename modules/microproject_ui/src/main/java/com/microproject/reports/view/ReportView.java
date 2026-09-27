@@ -31,6 +31,7 @@ import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -201,7 +202,7 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
         PredicatedNodeFilterIterator iterator;
         if (viewName == DataSourceProvider.REPORT_VIEW) { // special case to just use project
         	cache = null;
-			ArrayList list = new ArrayList();
+			ArrayList<Project> list = new ArrayList<>();
 			list.add(project);
         	iterator = GeneralFilteredIterator.instance(list.iterator());
         } else {
@@ -219,7 +220,7 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
         
         // projet name is used as report's title
         // and passed as a parameter
-        HashMap params = new HashMap();
+        Map<String, Object> params = new HashMap<>();
         params.put("projectName", PrivacyDisplayMode.projectName(project)); //$NON-NLS-1$
         
 		JasperPrint jasperPrint = JasperFillManager.fillReport(report, params, dataSource);
