@@ -2500,3 +2500,9 @@ which matches every `change.add` in the traversal. Repository search found no
 external callers of the recursive overload; the public overloads retain their
 binary `Set` descriptors. UI compilation, cache tests, and `javap -s` descriptor
 checks passed.
+
+Removed the class-wide unchecked-warning suppression from `ReferenceNodeModelCache`;
+its active cache rebuild and edge paths now compile without needing that blanket
+suppression. Empty node/dependency change sets now state their respective element
+types explicitly. `:microproject_ui:compileJava`, cache tests, and `javap -s`
+showing unchanged `Set` method descriptors passed.

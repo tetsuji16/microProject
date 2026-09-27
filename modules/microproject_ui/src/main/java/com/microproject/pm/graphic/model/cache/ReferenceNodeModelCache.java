@@ -63,7 +63,6 @@ import com.microproject.pm.task.Task;
  * The level is not a view state but it is calculated and cached for performance purposes.
  */
 
-@SuppressWarnings("unchecked")
 public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyListener, ScheduleEventListener {
 	private static final Logger logger = Logger.getLogger(ReferenceNodeModelCache.class.getName());
 	private NodeModel model;
@@ -161,12 +160,12 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	
 	
-//update	
+	// update
 	public void update(){
-		update(new HashSet(),false);
+		update(new HashSet<GraphicNode>(),false);
 	}
 	public void update(boolean reschedule){
-		update(new HashSet(),reschedule);
+		update(new HashSet<GraphicNode>(),reschedule);
 	}
 	public void update(Set<? super GraphicNode> change,boolean reschedule){
 		NodeCache newCache=new NodeCache();
@@ -191,8 +190,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 
 	}
 	protected void updateVisibleElements(VisibleNodes nodes){
-		nodeCache.updateVisibleElements(nodes,new HashSet());
-		edgeCache.updateVisibleElements(nodes.getVisibleDependencies(),new HashSet());
+		nodeCache.updateVisibleElements(nodes,new HashSet<GraphicNode>());
+		edgeCache.updateVisibleElements(nodes.getVisibleDependencies(),new HashSet<GraphicDependency>());
 		nodeCache.fireEvents(this,nodes);
 	}
 	
