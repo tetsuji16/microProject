@@ -151,12 +151,9 @@ public class Job extends Thread {
 		if (progressStart+relativeProgress>progress){
 			progress = progressStart+relativeProgress;
 			if (showProgess&&progressMonitor!=null){
-				SwingUtilities.invokeLater(new Runnable(){
-            		public void run(){
-         				progressMonitor.setProgress((int)Math.round(getProgress()*JobQueue.MAX_PROGRESS));
-         				progressMonitor.setNote(note);
-
-            		}
+				SwingUtilities.invokeLater(() -> {
+					progressMonitor.setProgress((int)Math.round(getProgress()*JobQueue.MAX_PROGRESS));
+					progressMonitor.setNote(note);
 				});
 			}
 			if (runnableProgress==1.0f&&runnable!=lastFinishedRunnable){
@@ -175,11 +172,7 @@ public class Job extends Thread {
 	public synchronized void cancel(){
 		canceled=true;
 		if (showProgess&&progressMonitor!=null){
-			SwingUtilities.invokeLater(new Runnable(){
-	    		public void run(){
-	    			progressMonitor.close();
-	    		}
-			});
+			SwingUtilities.invokeLater(() -> progressMonitor.close());
 		}
 	}
 	public synchronized boolean isCanceled(){
