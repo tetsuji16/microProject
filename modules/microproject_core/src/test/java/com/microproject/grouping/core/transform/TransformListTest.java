@@ -41,6 +41,21 @@ class TransformListTest {
 		assertEquals(List.of(noFilter), transforms.getFactories(null, "user_filters"));
 	}
 
+	@Test
+	void transformerTokenListsPreserveOrderAndDelimiters() {
+		ViewTransformer transformer = new ViewTransformer();
+		transformer.setFilters("first; second,third\tfourth");
+		transformer.setSorters("sortA sortB");
+		transformer.setGroupers("groupA;groupB");
+
+		assertEquals(List.of("first", "second", "third", "fourth"), transformer.getFilterList());
+		assertEquals(List.of("sortA", "sortB"), transformer.getSorterList());
+		assertEquals(List.of("groupA", "groupB"), transformer.getGrouperList());
+
+		transformer.setFilters("");
+		assertEquals(List.of(), transformer.getFilterList());
+	}
+
 	private static CommonTransformFactory factory(String id) {
 		CommonTransformFactory factory = new CommonTransformFactory() {
 			@Override

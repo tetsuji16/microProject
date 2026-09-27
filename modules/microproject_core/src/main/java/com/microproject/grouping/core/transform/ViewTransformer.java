@@ -82,25 +82,26 @@ public class ViewTransformer{
         return filters;
     }
     public void setFilters(String slist) {
-        StringTokenizer st=new StringTokenizer(slist,";, \t");
-        filters=new ArrayList<>();
-        while (st.hasMoreTokens()) filters.add(st.nextToken());
+        filters=tokenize(slist);
     }
     public List<String> getSorterList() {
         return sorters;
     }
     public void setSorters(String slist) {
-        StringTokenizer st=new StringTokenizer(slist,";, \t");
-        sorters=new ArrayList<>();
-        while (st.hasMoreTokens()) sorters.add(st.nextToken());
+        sorters=tokenize(slist);
     }
     public List<String> getGrouperList() {
         return groupers;
     }
     public void setGroupers(String slist) {
-        StringTokenizer st=new StringTokenizer(slist,";, \t");
-        groupers=new ArrayList<>();
-        while (st.hasMoreTokens()) groupers.add(st.nextToken());
+        groupers=tokenize(slist);
+    }
+
+    private static List<String> tokenize(String value) {
+        StringTokenizer tokenizer = new StringTokenizer(value, ";, \t");
+        List<String> tokens = new ArrayList<>(tokenizer.countTokens());
+        while (tokenizer.hasMoreTokens()) tokens.add(tokenizer.nextToken());
+        return tokens;
     }
 
 
