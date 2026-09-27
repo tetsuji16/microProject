@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.timescale.TimeIterator;
 import com.microproject.timescale.TimeScale;
+import com.microproject.pm.time.HasStartAndEnd;
 
 class TimeIteratorGeneratorTest {
 	private static final long HOUR = 60L * 60L * 1000L;
@@ -43,7 +44,7 @@ class TimeIteratorGeneratorTest {
 		TimeIterator timeIterator = new TimeIterator(0, 2 * HOUR, hourlyScale(), -1);
 		TimeIteratorGenerator generator = TimeIteratorGenerator.getInstance(timeIterator);
 
-		Object firstInterval = generator.current();
+		HasStartAndEnd firstInterval = generator.current();
 		assertSame(firstInterval, generator.current());
 		assertEquals(0, generator.getIndex());
 		assertEquals(0, generator.currentStart());

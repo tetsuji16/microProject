@@ -2381,3 +2381,9 @@ association lists. Full core tests passed.
 and its active `PersonalContourMaker` caller. `toArray` still produces the same
 ordered bucket array; `PersonalContourTest` and `AssignmentContourBehaviorTest`
 passed.
+
+`TimeIteratorGenerator.current()` now returns `HasStartAndEnd`, matching its stored
+interval type and `TimeIterator.next()` contract. The focused regression test
+assigns the value through that typed API. The shared `IntervalGenerator.current()`
+and `IntervalGeneratorSet.current()` remain `Object` because the shared generator
+contract is heterogeneous. `TimeIteratorGeneratorTest` passed.

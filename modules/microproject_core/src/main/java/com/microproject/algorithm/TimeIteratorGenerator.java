@@ -41,7 +41,7 @@ public class TimeIteratorGenerator implements IntervalGenerator, HasStartAndEnd 
 	}
 
 
-	public Object current() {
+	public HasStartAndEnd current() {
 		return currentInterval;
 	}
 
