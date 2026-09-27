@@ -156,6 +156,23 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void extractNodeListReturnsDepthFirstTypedNodes() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node parent = NodeFactory.getInstance().createNode(new Object());
+		Node child = NodeFactory.getInstance().createNode(new Object());
+		Node sibling = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, parent, NodeModel.SILENT);
+		model.add(parent, child, NodeModel.SILENT);
+		model.add(root, sibling, NodeModel.SILENT);
+
+		List<Node> nodes = NodeModelUtil.extractNodeList(model, root);
+
+		assertEquals(List.of(root, parent, child, sibling), nodes);
+	}
+
+	@Test
 	void hierarchyTraversalsPreservePreorderAndLevelOrder() {
 		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
 		model.getHierarchy().setNbEndVoidNodes(0);

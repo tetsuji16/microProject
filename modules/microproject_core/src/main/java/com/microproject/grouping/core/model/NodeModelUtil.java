@@ -66,7 +66,7 @@ public class NodeModelUtil {
 		((AbstractMutableNodeHierarchy) model.getHierarchy()).dump();
 	}
 
-	public static List extractNodeList(NodeModel nodeModel, Node root) {
+	public static List<Node> extractNodeList(NodeModel nodeModel, Node root) {
 		ArrayList<Node> l = new ArrayList<>();
 		extractNodeList(nodeModel, root, l);
 		return l;

@@ -2408,4 +2408,9 @@ constructor hunk match the OpenProj source; the fork's defensive snapshot copy
 remains unchanged. Its existing caller-list mutation regression continues to
 cover undo behavior.
 
+`NodeModelUtil.extractNodeList` now returns `List<Node>`, matching its
+depth-first accumulation and recursive `NodeModel.getChildren` traversal. The
+public method's erased return remains `List`; a regression checks the root-first
+depth-first identity order.
+
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.
