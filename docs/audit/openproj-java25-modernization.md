@@ -2443,4 +2443,9 @@ current dialog builders. Left the commented printable-area branch untouched
 because resolving it could change print behavior and needs separate analysis.
 Tracked as issue #84 cleanup.
 
+Removed commented-out graphics state, debug output, and obsolete cell lookup
+from `SpreadSheetRenderer`. Active rendering continues to use the current
+background and grid-line methods and the supplied `GraphicNode`. Tracked as
+issue #84 cleanup.
+
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.

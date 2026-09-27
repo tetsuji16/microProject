@@ -42,10 +42,6 @@ import com.microproject.field.Field;
 import com.microproject.util.FlatUiSupport;
 
 public class SpreadSheetRenderer extends Renderer{
-//	protected Stroke cellStroke=new BasicStroke(0.25f);
-//	protected Stroke spreadSheetStroke=new BasicStroke(0.5f);
-//	protected Color cellColor=Color.GRAY;
-//	protected Color spreadSheetColor=Color.BLACK;
 
 	protected SpreadSheetParams params;
 	public SpreadSheetRenderer(GraphParams graphInfo){
@@ -77,7 +73,6 @@ public class SpreadSheetRenderer extends Renderer{
 			Rectangle printSpreadsheetBounds=((SpreadSheetParamsImpl)params).getSpreadsheetPrintBounds(prow, pcol,false);
 			spreadsheetBounds=new Rectangle(spreadsheetBounds.x,spreadsheetBounds.y,printSpreadsheetBounds.width,printSpreadsheetBounds.height);
 		}
-//		System.out.println("spreadsheetBounds="+spreadsheetBounds);
 		int row=row0;
 		for (Iterator i=graphInfo.getCache().getIterator(row0);i.hasNext()&&row<=row1;row++){
 			GraphicNode gnode=(GraphicNode)i.next();
@@ -108,23 +103,16 @@ public class SpreadSheetRenderer extends Renderer{
 			if (renderer!=null){ //rowHeader is null
 				JComponent component=(JComponent)renderer.getComponent(((Field)params.getFieldArray().get(col)).getName(), null, (Field)params.getFieldArray().get(col), params);
 		    	boolean opaque=component.isOpaque();
-		    	//component.setDoubleBuffered(false);
 		    	component.setOpaque(false);
-		    	//component.setForeground(Color.BLACK);
 				component.setSize(cwidth, params.getConfiguration().getColumnHeaderHeight());
 		    	g2.translate(w,h);
 		    	component.doLayout();
-		    	//g2.setClip(0, 0, cwidth, params.getConfiguration().getColumnHeaderHeight());
 		    	component.print(g2);
-		    	//g2.setClip(null);
 		    	g2.translate(-w,-h);
 				component.setOpaque(opaque);
 			}
 			w+=cwidth;
-//			g2.setStroke(spreadSheetStroke);
-//			g2.setColor(spreadSheetColor);
 			paintGridLine(g2, new Line2D.Double(w,h,w,spreadsheetBounds.getMaxY()));
-			//g2.drawLine(w,h,w,spreadsheetBounds.y+spreadsheetBounds.height);
 		}
 	}
 
@@ -137,7 +125,6 @@ public class SpreadSheetRenderer extends Renderer{
 			c=(TableColumn)i.next();
 			if (col<col0) continue;
 			//cell content
-			//GraphicNode node = SpreadSheetUtils.getNodeFromCacheRow(row,1/*rowMultiple*/,params.getCache());
 			Object value=SpreadSheetUtils.getValueAt(node.getNode(), col, params.getCache(), params.getColumnModel(), params.getFieldContext());
 
 	    	Field field=(Field)params.getFieldArray().get(col);
@@ -147,16 +134,12 @@ public class SpreadSheetRenderer extends Renderer{
 
 			OfflineRenderer renderer=(OfflineRenderer)c.getCellRenderer();
 			JComponent component=(JComponent)renderer.getComponent(value, node, field, params);
-	    	//component.setDoubleBuffered(false);
 	    	boolean opaque=component.isOpaque();
 			component.setOpaque(false);
-	    	//component.setForeground(Color.BLACK);
 			component.setSize(compWidth, params.getRowHeight());
 	    	g2.translate(w+getColMargin(col),h);
-	    	//g2.setClip(0, 0, compWidth, params.getRowHeight());
 	    	component.doLayout();
 	    	component.print(g2);
-	    	//g2.setClip(null);
 	    	g2.translate(-w-getColMargin(col),-h);
 			component.setOpaque(opaque);
 			w+=cwidth;
@@ -183,4 +166,3 @@ public class SpreadSheetRenderer extends Renderer{
 
 
 }
-
