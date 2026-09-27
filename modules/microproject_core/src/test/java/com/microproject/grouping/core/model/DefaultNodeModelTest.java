@@ -173,6 +173,22 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void hierarchyToListKeepsNodeAndImplementationModesDistinct() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Object implementation = new Object();
+		Node node = NodeFactory.getInstance().createNode(implementation);
+		model.add(root, node, NodeModel.SILENT);
+
+		List<?> nodes = model.getHierarchy().toList(true, null);
+		List<?> implementations = model.getHierarchy().toList(false, null);
+
+		assertTrue(nodes.contains(node));
+		assertTrue(implementations.contains(implementation));
+	}
+
+	@Test
 	void hierarchyTraversalsPreservePreorderAndLevelOrder() {
 		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
 		model.getHierarchy().setNbEndVoidNodes(0);

@@ -86,7 +86,7 @@ public interface NodeHierarchy extends TreeModel{
 	public boolean isSummary(Node node);
     public Node getNext(Node current);
     public Node getPrevious(Node current);
-    public List toList(boolean isNode, Predicate filter);
+    public List<?> toList(boolean isNode, Predicate filter);
 	
 	public int getNbEndVoidNodes();
 	public void setNbEndVoidNodes(int nbEndVoidNodes);

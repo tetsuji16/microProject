@@ -2413,4 +2413,10 @@ depth-first accumulation and recursive `NodeModel.getChildren` traversal. The
 public method's erased return remains `List`; a regression checks the root-first
 depth-first identity order.
 
+`NodeHierarchy.toList` and its implementation now return `List<?>`: the
+existing `isNode` flag intentionally selects between outline `Node` values and
+their heterogeneous implementation objects. Caller search found no narrower
+active assignment. A regression verifies both result modes without claiming a
+single element type.
+
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.

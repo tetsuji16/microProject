@@ -407,10 +407,10 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 	    fireNodesRemoved(source,nodes,null,null);
 	}
 	/**
-	 * Convenience method to convert hierarchy to a list of nodes in depth-first order.
+	 * Convenience method to convert hierarchy to nodes or implementations in depth-first order.
 	 * @return
 	 */
-	public List toList(final boolean isNode, final Predicate filter) {
+	public List<?> toList(final boolean isNode, final Predicate filter) {
 		final ArrayList<Object> list = new ArrayList<>();
     	visitAll(new Consumer<Object>() { public void accept(Object node) {
 				if (filter != null  && !filter.evaluate(((Node) node).getImpl()))
