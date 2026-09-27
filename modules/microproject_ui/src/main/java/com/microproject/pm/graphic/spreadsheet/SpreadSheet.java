@@ -1615,7 +1615,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (nodes == null || nodes.isEmpty() || !(getModel() instanceof SpreadSheetModel model)
 				|| model.getCache() == null)
 			return new int[0];
-		List<Integer> rows = new ArrayList<>();
+		List<Integer> rows = new ArrayList<>(nodes.size());
 		for (Node node : nodes) {
 			if (node == null)
 				continue;
