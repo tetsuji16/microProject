@@ -65,6 +65,7 @@ import com.microproject.field.FieldValues;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.VoidNodeImpl;
+import com.microproject.grouping.core.hierarchy.NodeHierarchy;
 import com.microproject.grouping.core.model.DefaultNodeModel;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.calendar.CalendarService;
@@ -99,6 +100,15 @@ import com.microproject.util.Environment;
  *
  */
 public class Serializer {
+	private static void renumberIds(NodeHierarchy hierarchy) {
+		int[] nextId = {1};
+		hierarchy.visitAll(value -> {
+			Node node = (Node) value;
+			if (node.getImpl() instanceof HasId impl && impl.getId() > 0) {
+				impl.setId(nextId[0]++);
+			}
+		});
+	}
     public static final boolean TMP_FILES=false;
     private static final Logger logger = Logger.getLogger(Serializer.class.getName());
 
@@ -721,16 +731,7 @@ public class Serializer {
     		project.getResourcePool().getResourceOutline().getHierarchy().cleanVoidChildren();
 
     		//renumber resources
-    		project.getResourcePool().getResourceOutline().getHierarchy().visitAll(new Consumer<Object>(){
-    			int id=1;
-    			public void accept(Object o) {
-    				Node node=(Node)o;
-				if (node.getImpl() instanceof HasId impl){
-    					if (impl.getId()>0) impl.setId(id++); //if id=0 means id not used
-    				}
-    			}
-
-    		});
+		renumberIds(project.getResourcePool().getResourceOutline().getHierarchy());
     	}
 
     	if (loadResources!=null){
@@ -985,28 +986,10 @@ public class Serializer {
     			taskData.emtpy();
 
     		}
-    		//renumber tasks and save outline
-    		project.getTaskOutline().getHierarchy().visitAll(new Consumer<Object>(){
-    			int id=1;
-    			public void accept(Object o) {
-    				Node node=(Node)o;
-				if (node.getImpl() instanceof HasId impl){ //renumber
-    					if (impl.getId()>0) impl.setId(id++); //if id=0 means id not used
-    				}
-//  				if (node.getImpl() instanceof Task){ //save outline
-//  				Task t=(Task)node.getImpl();
-//  				Node parent=(Node)node.getParent();
-//  				if (parent==null||parent.isRoot()) t.setLastSavedParentId(-1L);
-//  				else t.setLastSavedParentId(((Task)parent.getImpl()).getUniqueId());
-//  				t.setLastSavedPosistion(parent.getIndex(node));
-//  				}
-    				//done in setAllTasksAsUnchangedFromPersisted
-    			}
+		//renumber tasks and save outline
+		renumberIds(project.getTaskOutline().getHierarchy());
 
-    		});
-
-
-    	}
+	}
 
 
     	if (resources!=null)
