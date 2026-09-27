@@ -38,11 +38,10 @@ public class ProjectLibrePrintServiceImpl implements ExtendedPrintService {
 
 	public double getWRatio(int pageCount, double pageWidth,GraphParams params) {
 		double newPageWidth;
-		if (!(params instanceof SpreadSheetParamsImpl) || !params.isLeftPartVisible()){
+		if (!(params instanceof SpreadSheetParamsImpl spParams) || !params.isLeftPartVisible()){
 			//no spreadsheet
 			newPageWidth=params.getDrawingBounds().getWidth()/pageCount;
 		}else{
-			SpreadSheetParamsImpl spParams=(SpreadSheetParamsImpl)params;
 			double totalWidth=getWidthWithPaging(-1.0,spParams);
 
 			//use dichotomy to find the pageWidth matching the chosen pageCount
@@ -71,8 +70,7 @@ public class ProjectLibrePrintServiceImpl implements ExtendedPrintService {
 
 
 	public double getHRatio(int pageCount,double pageHeight,GraphParams params) {
-		if (params==null||!(params instanceof SpreadSheetParams)) return -1.0;
-		SpreadSheetParams sp=(SpreadSheetParams)params;
+		if (!(params instanceof SpreadSheetParams sp)) return -1.0;
 		double newPageHeight=(Math.ceil(((double)params.getCache().getSize())/pageCount)*sp.getRowHeight()+GraphicConfiguration.getInstance().getColumnHeaderHeight()+GraphicConfiguration.getInstance().getPrintFooterHeight());
 		return pageHeight/newPageHeight;
 	}
@@ -112,4 +110,3 @@ public class ProjectLibrePrintServiceImpl implements ExtendedPrintService {
 	}
 
 }
-
