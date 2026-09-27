@@ -2246,3 +2246,5 @@ Jasper `DataSource` now stores and accepts its traversal as `Iterator<?>`. `git 
 `ProjectFactory.getSaveProjectJob` now registers its post-save behavior with a lambda. `git blame` traces the persisted-state and distribution/link cleanup body to OpenProj (`d2fa3c20a`); its save-job caller is active in the project save workflow. The fork-owned recovery-snapshot guard and downstream callback remain unchanged. Full `:microproject_core:test` and `:microproject_ui:compileJava` passed.
 
 `ViewTransformer.redefinition` now uses a method reference to `fireTransformerChanged`. The OpenProj-derived callback is installed on active hidden-filter, grouper, and sorter paths; its source argument and listener dispatch remain unchanged. Focused `TransformListTest` passed.
+
+`ProjectFactory.collectProjectBranchIds` now passes its descendant scan to `DeepChildWalker` as a lambda. `git blame` traces the project-node cast and ID collection to OpenProj (`54978d281e`); the active close-in-progress coordination path uses the collected IDs to prevent duplicate project closes. The fork-added null guard remains unchanged. `ProjectFactoryClosingTest` passed.

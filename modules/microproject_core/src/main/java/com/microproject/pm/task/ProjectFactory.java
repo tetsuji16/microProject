@@ -877,13 +877,12 @@ public class ProjectFactory {
 	private Set<Long> collectProjectBranchIds(final Project project) {
 		final Set<Long> ids = new HashSet<>();
 		ids.add(Long.valueOf(project.getUniqueId()));
-		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, new Consumer<Object>() { public void accept(Object value) {
-				Node node = (Node) value;
-				if (node == null)
-					return;
-				if (node.getImpl() instanceof Project descendant)
-					ids.add(Long.valueOf(descendant.getUniqueId()));
-			}
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, value -> {
+			Node node = (Node) value;
+			if (node == null)
+				return;
+			if (node.getImpl() instanceof Project descendant)
+				ids.add(Long.valueOf(descendant.getUniqueId()));
 		});
 		return ids;
 	}
