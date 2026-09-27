@@ -64,6 +64,16 @@ import com.microproject.undo.UndoController;
 
 class DefaultNodeModelTest {
 	@Test
+	void implementationComparatorUsesIdentityForSearchKeys() {
+		String implementation = new String("implementation");
+		Node node = NodeFactory.getInstance().createNode(implementation);
+		DefaultNodeModel.ImplComparator comparator = new DefaultNodeModel.ImplComparator();
+
+		assertEquals(0, comparator.compare(node, implementation));
+		assertEquals(1, comparator.compare(node, new String("implementation")));
+	}
+
+	@Test
 	void replaceImplFiresChangeEventWithoutInsertOrRemove() {
 		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
 		model.getHierarchy().setNbEndVoidNodes(0);

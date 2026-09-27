@@ -596,8 +596,9 @@ public class DefaultNodeModel implements NodeModel {
 		return implComparatorInstance;
 	}
 
-	public static class ImplComparator implements Comparator {
+	public static class ImplComparator implements Comparator<Object> {
 		ImplComparator() {}
+		@Override
 		public int compare(Object node, Object impl) {
 			if (((Node)node).getImpl() == impl)
 				return 0;

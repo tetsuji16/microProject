@@ -2261,3 +2261,12 @@ and accumulated height are unchanged. A focused test supplies a non-
 casting, and checks the exact row-height increase. Full
 `:microproject_core:test --console=plain` and
 `:microproject_ui:compileJava --console=plain` passed.
+
+`DefaultNodeModel.ImplComparator` now implements `Comparator<Object>` with an
+explicit override. `git blame` traces the identity comparison to OpenProj
+(`d2fa3c20a`); `DefaultNodeModel.search` uses it when the active identity index
+misses. A focused regression keeps identity matching distinct from
+`equals`-equal keys. `Portfolio.ImplComparator` remains separate because it
+uses `equals`, so the similarly named comparators do not have the same
+responsibility. Full `:microproject_core:test --console=plain` and
+`:microproject_application:compileJava --console=plain` passed.
