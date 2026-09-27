@@ -178,3 +178,8 @@ ChartLegendで選択プロジェクトをoutline taskへ展開する一時リス
 
 `DocumentFrame.doDefineCodeDialog`の選択タスク一覧も、選択implementation件数で
 事前確保した。Task以外を除外する条件は維持し、UI compilationが成功した。
+
+`PersonalContour`のduration切出し、bucket挿入、shift/extend、packed contour生成に
+使う一時ArrayListは、入力bucket配列長（分割・挿入を含む場合は最大追加数込み）を
+容量に使う。既存のbucket順序・切出し計算を変えず、`PersonalContourTest`と
+`AssignmentContourBehaviorTest`が成功した。

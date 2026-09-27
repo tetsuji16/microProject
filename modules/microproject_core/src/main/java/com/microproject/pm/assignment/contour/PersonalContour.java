@@ -187,7 +187,7 @@ public class PersonalContour extends AbstractContour {
 	 * @return
 	 */	
 	private ArrayList<PersonalContourBucket> bucketsBeforeDuration(long atDuration) {
-		ArrayList<PersonalContourBucket> newList = new ArrayList<>();
+		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length);
 		boolean inserted = false;
 		PersonalContourBucket bucket = null;
 		long cursorDuration = 0;
@@ -211,7 +211,7 @@ public class PersonalContour extends AbstractContour {
 	}		
 
 	private ArrayList<PersonalContourBucket> bucketsAfterDuration(long atDuration, boolean excludeFiller) {
-		ArrayList<PersonalContourBucket> newList = new ArrayList<>();
+		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length);
 		boolean inserted = false;
 		PersonalContourBucket bucket = null;
 		long cursorDuration = 0;
@@ -286,7 +286,7 @@ public class PersonalContour extends AbstractContour {
  * @param newBucket
  * @return
  */	public PersonalContour insertBucket(long atDuration, AbstractContourBucket newBucket) {
-		ArrayList<AbstractContourBucket> newList = new ArrayList<>();
+		ArrayList<AbstractContourBucket> newList = new ArrayList<>(contourBuckets.length + 2);
 		boolean inserted = false;
 		PersonalContourBucket bucket = null;
 		long cursorDuration = 0;
@@ -372,7 +372,7 @@ public class PersonalContour extends AbstractContour {
  */	public PersonalContour shift(long start, long end, long shiftDuration) {
 		if (shiftDuration == 0)
 			return this;
-		ArrayList<PersonalContourBucket> newList = new ArrayList<>();
+		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length + 2);
 		if (shiftDuration > 0) {
 			// we are shifting to right, so remove a period corresponding to shiftDuration immediately after the interval
 			newList.addAll(bucketsBeforeDuration(end));
@@ -405,7 +405,7 @@ public class PersonalContour extends AbstractContour {
 		if (extendDuration == 0)
 			return this;
 		PersonalContour result;
-		ArrayList<PersonalContourBucket> newList = new ArrayList<>();
+		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length + 1);
 		if (extendDuration > 0) {
 			newList.addAll(bucketsBeforeDuration(end));
 			newList.addAll(bucketsAfterDuration(end+extendDuration, false));
@@ -424,7 +424,7 @@ public class PersonalContour extends AbstractContour {
 		if (extendDuration == 0)
 			return this;
 		PersonalContour result;
-		ArrayList<PersonalContourBucket> newList = new ArrayList<>();
+		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length + 2);
 		PersonalContour temp = extendBucket(start,-extendDuration); // extend at point
 		if (extendDuration < 0) {
 			newList.addAll(temp.bucketsBeforeDuration(start+extendDuration)); // add all up to new start - extend duration is neg
@@ -442,7 +442,7 @@ public class PersonalContour extends AbstractContour {
  * Return an optimized contour that has no superflous info
  * @return
  */	private PersonalContour makePacked() {
-		ArrayList<PersonalContourBucket> newList = new ArrayList<>();
+		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length);
 		PersonalContourBucket previous = null;
 		PersonalContourBucket bucket = null;
 		// go thru each bucket
@@ -493,7 +493,7 @@ public class PersonalContour extends AbstractContour {
 //	}
 
 	public AbstractContour adjustUnits(double multiplier, long startingFrom) {
-		ArrayList<PersonalContourBucket> newList = new ArrayList<>();
+		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length + 1);
 		newList.addAll(bucketsBeforeDuration(startingFrom));
 		ArrayList<PersonalContourBucket> remainingBuckets = bucketsAfterDuration(startingFrom, false);
 		for (int i=0; i < remainingBuckets.size(); i++) {
