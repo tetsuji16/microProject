@@ -133,11 +133,6 @@ public class CriticalPath implements SchedulingAlgorithm {
 			if (task.getSuccessorList().size() == 0)
 				addEndSentinelDependency(task);
 		}
-//		System.out.println("start sentinel successors");
-//		startSentinel.getSuccessorList().dump(false);
-//		System.out.println("end sentinel preds");
-//		finishSentinel.getPredecessorList().dump(true);
-		
 	}
 	
 	public String getName() {
@@ -268,11 +263,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 					if (schedule.getEnd() != 0 && !isSentinel(task))
 						latestFinish = Math.max(latestFinish, schedule.getFinish());
 				}
-				
-//				schedule.dump();
 			}
 		}
-//		System.out.println("pass forward=" + forward + " tasks:" + count + " time " + (System.currentTimeMillis() -z) + " ms");
 	}
 
 	public void calculate(boolean update) {
