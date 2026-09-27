@@ -74,14 +74,12 @@
 
 package com.microproject.menu.resource;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
-import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
@@ -127,11 +125,6 @@ public class RibbonFactory extends ResourceManager {
 	 * The button factory
 	 */
 	private ButtonFactory buttonFactory;
-    /**
-     * The current radio group
-     */
-    private ButtonGroup buttonGroup;
-
 	/**
 	 * Creates a new tool bar factory
 	 * 
@@ -143,7 +136,6 @@ public class RibbonFactory extends ResourceManager {
 	public RibbonFactory(ProjectMenuActionMap am, ResourceBundle...rb) {
 		super(rb);
 		buttonFactory = new ExtButtonFactory(am,rb);
-		buttonGroup = null;
 	}
 
 	
@@ -200,7 +192,6 @@ public class RibbonFactory extends ResourceManager {
 		
 		@SuppressWarnings("unchecked")
 		List<String> buttons = (List<String>)getStringList(name);
-		//int i=0;
 		for (String s : buttons){
 			if (s.equals(SEPARATOR)) {
 				result.startGroup();
@@ -214,21 +205,14 @@ public class RibbonFactory extends ResourceManager {
 					s=s.substring(0, s.length()-4);
 				}
 				AbstractCommandButton button =  createCommandButton(s);
-//				boolean visible = true;
-//				try {
-//					visible = getBoolean(s + ExtButtonFactory.VISIBLE_SUFFIX);
-//				} catch (MissingResourceException e) {}
-//				if (visible)
-//					result.add(button);
 				
-				result.addCommandButton(button, /*i++ == 0 ? RibbonElementPriority.TOP :*/ priority);
+				result.addCommandButton(button, priority);
 				
 			}
 		}
 		
 		List<RibbonBandResizePolicy> resizePolicies = new ArrayList<RibbonBandResizePolicy>();
 		resizePolicies.add(new CoreRibbonResizePolicies.Mirror(result.getControlPanel()));
-//		resizePolicies.add(new CoreRibbonResizePolicies.Mid2Low(result.getControlPanel()));
 		result.setResizePolicies(resizePolicies);	
 						
 		
@@ -254,7 +238,6 @@ public class RibbonFactory extends ResourceManager {
 		
 		@SuppressWarnings("unchecked")
 		List<String> buttons = (List<String>)getStringList(name);
-		//int i=0;
 		for (String s : buttons){
 			if (s.equals(SEPARATOR)) {
 			} else {
@@ -267,12 +250,6 @@ public class RibbonFactory extends ResourceManager {
 					s=s.substring(0, s.length()-4);
 				}
 				AbstractCommandButton button =  createCommandButton(s);
-//				boolean visible = true;
-//				try {
-//					visible = getBoolean(s + ExtButtonFactory.VISIBLE_SUFFIX);
-//				} catch (MissingResourceException e) {}
-//				if (visible)
-//					result.add(button);
 				
 				result.addFlowComponent(button);
 				
@@ -321,33 +298,7 @@ public class RibbonFactory extends ResourceManager {
 	 */
 	public AbstractCommandButton createCommandButton(String name) throws MissingResourceException,
 			ResourceFormatException, MissingListenerException {
-		AbstractCommandButton result = buttonFactory.createRibbonButton(name);
-//		String type = null;
-//		try {
-//			type = getString(name + ExtButtonFactory.TYPE_SUFFIX);
-//		} catch (MissingResourceException e) {
-//		}
-//		if (type != null) {
-//			if (type.equals("RADIO")) {
-//				if (buttonGroup == null)
-//					buttonGroup = new ButtonGroup();
-//		 	   buttonGroup.add(result);
-//			} else if (type.equals("TOGGLE")) {
-//				result.setBorder(new BasicBorders.ToggleButtonBorder(Color.GRAY, Color.BLACK, Color.BLUE, Color.CYAN));
-//				result.setBorderPainted(true);
-//			}
-//		} else {
-//			
-//			    buttonGroup = null;
-//		}	
-
-//		String help = getStringOrNull(name + ExtButtonFactory.DOC_SUFFIX);
-//		if (help != null)
-//			HelpUtil.addDocHelp(result,help);
-		
-		
-		//result.setBorder(new EmptyBorder(new Insets(0, 0, 0, 0)));
-		return result;
+		return buttonFactory.createRibbonButton(name);
 	}
 	
     /**
