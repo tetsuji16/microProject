@@ -111,7 +111,7 @@ public abstract class StartupFactory {
 		long t=System.currentTimeMillis();
 //		System.out.println("---------- StartupFactory instanceFromExistingSession#1");
 		final GraphicManager graphicManager = new GraphicManager(container);
-		graphicManager.setStartupFactory(this);
+		graphicManager.setRestartAction(() -> restart(graphicManager));
 		SessionFactory.getInstance().setJobQueue(graphicManager.getJobQueue());
 		//if (Environment.isNewLook())
 			graphicManager.initLookAndFeel();
@@ -144,8 +144,9 @@ public abstract class StartupFactory {
 		GraphicManager graphicManager = null;
 		//String projectUrl[]=null;
 		try {
-			graphicManager=new GraphicManager(/*projectUrl,*/serverUrl,container);
-			graphicManager.setStartupFactory(this);
+			GraphicManager newGraphicManager = new GraphicManager(/*projectUrl,*/serverUrl,container);
+			newGraphicManager.setRestartAction(() -> restart(newGraphicManager));
+			graphicManager = newGraphicManager;
 		} catch (HeadlessException e) {
 			logger.log(Level.SEVERE, "Failed to create GraphicManager", e);
 		}

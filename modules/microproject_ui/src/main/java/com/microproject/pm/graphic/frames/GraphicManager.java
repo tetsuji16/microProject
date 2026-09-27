@@ -274,7 +274,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	static LinkedList graphicManagers = new LinkedList();
     private static LafManager lafManager;
 	public static boolean badLAF = false;
-	private StartupFactory startupFactory = null;
+	private final ApplicationRestartCoordinator applicationRestartCoordinator = new ApplicationRestartCoordinator();
 	protected JobQueue jobQueue=null;
 
 	protected GlobalPreferences preferences=null;
@@ -2887,10 +2887,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		Locale.setDefault(ConfigurationFile.getLocale(currentLocale));
 		Messages.reset();
-		StartupFactory startupFactory = getStartupFactory();
-		if (startupFactory != null) {
-			startupFactory.restart(GraphicManager.this);
-		}
+		restartApplication();
 	}
 
 	public class LinkAction extends MenuActionsMap.DocumentMenuAction {
@@ -4878,8 +4875,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			getStartupFactory().restart(GraphicManager.this);
+			restartApplication();
 		}
+	}
+
+	private void restartApplication() {
+		applicationRestartCoordinator.restart();
 	}
 
 /**
@@ -5024,11 +5025,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //        container.invalidate();
  	}
 
-	public StartupFactory getStartupFactory() {
-		return startupFactory;
-	}
-	public void setStartupFactory(StartupFactory startupFactory) {
-		this.startupFactory = startupFactory;
+	void setRestartAction(Runnable restartAction) {
+		applicationRestartCoordinator.setRestartAction(restartAction);
 	}
 
 	public boolean isEditingMasterProject() {
