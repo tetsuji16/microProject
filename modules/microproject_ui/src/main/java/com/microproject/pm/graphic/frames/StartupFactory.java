@@ -446,12 +446,11 @@ public abstract class StartupFactory {
 					writable = verifyOpenWritable(projectId);
 				if (writable == null)
 					return;
-				gm.loadDocument(projectId, true,!writable,new Consumer<Object>() { public void accept(Object arg0) {
-						Project project=(Project)arg0;
-						DocumentFrame frame=gm.getCurrentFrame();
-						if (frame!=null&&frame.getProject().getUniqueId() != projectId) {
-							gm.switchToProject(projectId);
-						}
+				gm.loadDocument(projectId, true,!writable,arg0 -> {
+					Project project=(Project)arg0;
+					DocumentFrame frame=gm.getCurrentFrame();
+					if (frame!=null&&frame.getProject().getUniqueId() != projectId) {
+						gm.switchToProject(projectId);
 					}
 				});
 			}
