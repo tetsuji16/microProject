@@ -534,10 +534,6 @@ public class Serializer {
 			for (Task task : outline) {
 				if(incremental&&!task.isDirty()) noChangeTaskIds.add(task.getUniqueId());
 			}
-//        	for (Iterator i=projectData.getTasks().iterator();i.hasNext();){
-//        		TaskData task=(TaskData)i.next();
-//        		if (!task.isDirty()) noChangeTaskIds.add(task.getUniqueId());
-//        	}
 	        for (DistributionData d : distMap.values()) {
 				if (newDistMap.containsKey(d)) continue;
         		if (noChangeTaskIds.contains(d.getTaskId())){
