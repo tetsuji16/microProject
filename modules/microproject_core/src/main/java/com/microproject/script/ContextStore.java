@@ -80,7 +80,7 @@ public class ContextStore  implements NamedItem {
 	public void addContext(ConverterContext ctx) {
 		List<ConverterContext> list=contexts.get(ctx.getType());
 		if (list==null){
-			list=new ArrayList<ConverterContext>();
+			list=new ArrayList<>();
 			contexts.put(ctx.getType(),list);
 		}
 		if (ctx.getName() == null && ctx.getFieldArrayId() != null)

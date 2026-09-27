@@ -2607,3 +2607,7 @@ tests passed.
 maps and factory lists. The corresponding raw collections are present in both
 OpenProj baseline classes; key/value types, list insertion order, and lazy
 configuration loading are unchanged. Full core tests passed.
+
+`ContextStore.addContext` now uses diamond inference when creating a context
+list. The same list initialization is present in the OpenProj baseline; context
+type grouping and insertion order are unchanged. `ContextStoreTest` passed.
