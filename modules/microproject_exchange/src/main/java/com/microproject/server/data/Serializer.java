@@ -321,8 +321,8 @@ public class Serializer {
     	ArrayList<Long> unchangedTasks = null;
     	ArrayList<Long> unchangedLinks = null;
     	if (incremental){
-		unchangedTasks=new ArrayList<Long>(project.getTaskList().size());
-		unchangedLinks=new ArrayList<Long>(project.getTaskList().size());
+		unchangedTasks=new ArrayList<>(project.getTaskList().size());
+		unchangedLinks=new ArrayList<>(project.getTaskList().size());
     		//taskLinker.setUnchanged(unchangedTasks);
     	}
     	this.markAncestorsOfDirtyTasksDirty(project);
@@ -944,7 +944,7 @@ public class Serializer {
     		Node summaryNode=null;
 
 
-			Map<Long, Node> subprojectsMap=new HashMap<Long, Node>(tasks.size() * 4 / 3 + 1);
+			Map<Long, Node> subprojectsMap=new HashMap<>(tasks.size() * 4 / 3 + 1);
     		for (TaskData taskData:tasks){
     			TaskData parentData=taskData.getParentTask();
 //  			if (taskData.isTimesheetCreated())
