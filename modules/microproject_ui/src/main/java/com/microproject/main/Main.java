@@ -108,12 +108,7 @@ public class Main {
 	}
 
 	private static void startApplication(final String[] args) {
-		SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
-				com.microproject.pm.graphic.gantt.Main.main(args);
-			}
-		});
+		SwingUtilities.invokeLater(() -> com.microproject.pm.graphic.gantt.Main.main(args));
 	}
 
 	private static boolean allExistingFiles(ArrayList<String> args) {
