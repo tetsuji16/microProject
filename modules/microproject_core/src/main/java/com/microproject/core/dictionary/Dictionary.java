@@ -126,7 +126,7 @@ public class Dictionary implements Iterable<HasStringId>{
 	
 	public Class<?>[] getClassesAsArray(){
 		Set<Class<?>> classes=getClasses();
-		return classes.toArray(new Class<?>[classes.size()]);
+		return classes.toArray(Class<?>[]::new);
 	}
 	
 	public Iterator<HasStringId> iterator(DictionaryCategory category) {

@@ -4,6 +4,7 @@
  *******************************************************************************/
 package com.microproject.core.dictionary;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.Set;
@@ -20,6 +21,7 @@ class DictionaryTest {
 
 		assertSame(value, dictionary.get(new DictionaryCategory(TestValue.class, "task"), "planned"));
 		assertSame(value, dictionary.get(TestValue.class, "planned"));
+		assertArrayEquals(new Class<?>[] { TestValue.class }, dictionary.getClassesAsArray());
 	}
 
 	private static final class TestValue implements HasStringId, HasCategories {

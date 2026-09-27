@@ -31,7 +31,7 @@ OpenProj progress.
 | ProjectLibre-origin responsibility | Evidence and change | Verification |
 |---|---|---|
 | `FieldUtil.getCategories` | This ProjectLibre-only `FieldUtil` source exists in ProjectLibre 1.9.8 (`0530be227f4a10c5545cce8d3db20ac5a4d76a66`) and has no OpenProj baseline counterpart. Replaced the sized-array `toArray` call with `categories.toArray(String[]::new)`; result type, order, and contents are unchanged. | `:microproject_core:test --tests "com.microproject.core.fields.FieldUtilTest" --console=plain` passed 2026-09-27; regression asserts hierarchy order and contents. |
-| `Dictionary.add` | ProjectLibre's `org.projectlibre.core.dictionary.Dictionary` has the same cast-after-`instanceof` implementation. Bound `HasCategories` in the guard and read from the binding; null and non-category behavior are unchanged. | `:microproject_core:test --tests "com.microproject.core.dictionary.DictionaryTest" --console=plain` passed 2026-09-27; regression checks category and ALL indexes. |
+| `Dictionary.add` and `Dictionary.getClassesAsArray` | ProjectLibre's `org.projectlibre.core.dictionary.Dictionary` contains both legacy idioms. Bound `HasCategories` in the guard and read from the binding; replaced the sized-array conversion with `classes.toArray(Class<?>[]::new)`. Category/ALL indexing and class results are unchanged. | `:microproject_core:test --tests "com.microproject.core.dictionary.DictionaryTest" --console=plain` passed 2026-09-27; regression checks category and ALL indexes plus class-array contents. |
 
 ## Explicit exclusions
 
