@@ -50,12 +50,12 @@ public class TimeIntervals implements Serializable,Cloneable{
 	protected static final int DEFAULT_WINDOW_COUNT=3;
 	protected static final int WINDOW_INTERVALS=50;
 
-	protected LinkedList<TimeWindow> win=new LinkedList<TimeWindow>();
+	protected LinkedList<TimeWindow> win=new LinkedList<>();
 	protected int scale=MIN_SCALE;
 	protected int translation;
 	protected int winId;
 	protected float center;
-	protected LinkedList<TimeWindow> history=new LinkedList<TimeWindow>();
+	protected LinkedList<TimeWindow> history=new LinkedList<>();
 	protected long start,end;
 
 	public int getScale() {
@@ -293,8 +293,8 @@ public class TimeIntervals implements Serializable,Cloneable{
 	public Object clone(){
 		try {
 			TimeIntervals t=(TimeIntervals)super.clone();
-			t.win=new LinkedList<TimeWindow>();
-			t.history=new LinkedList<TimeWindow>();
+			t.win=new LinkedList<>();
+			t.history=new LinkedList<>();
 			for (TimeWindow w:win) t.win.add(w);
 			for (TimeWindow w:history) t.history.add(w);
 			return t;

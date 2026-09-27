@@ -2575,3 +2575,9 @@ copy and workspace width-list construction, both present in the OpenProj
 baseline. Copy capacity and width ordering are unchanged. The separate
 `manualWidths` field is a later fork addition and was not included.
 `SpreadSheetFieldArrayTest` passed.
+
+`TimeIntervals` now uses diamond inference for its active/history windows and
+for both lists recreated during cloning. These list responsibilities match
+`d2fa3c20a:openproj_core/src/com/projity/script/object/TimeIntervals.java`;
+clone isolation and window ordering remain unchanged. `TimeIntervalsTest`
+passed.
