@@ -408,9 +408,9 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
         }
     }
     private Map<GraphicNode,List<GraphicNode>> extractAssignments(List<GraphicNode> list){
-    	Map<GraphicNode,List<GraphicNode>> map=new HashMap<GraphicNode, List<GraphicNode>>();
+	Map<GraphicNode,List<GraphicNode>> map=new HashMap<>();
     	GraphicNode current,last;
-    	Stack<GraphicNode> path=new Stack<GraphicNode>();
+	Stack<GraphicNode> path=new Stack<>();
         for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
             current=i.next();
             if (current.getLevel()==1){
@@ -423,7 +423,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
             	GraphicNode task=path.peek();
             	List<GraphicNode> ass=map.get(task);
             	if (ass==null){
-            		ass=new LinkedList<GraphicNode>();
+		ass=new LinkedList<>();
             		map.put(task, ass);
             	}
             	ass.add(current);
