@@ -155,6 +155,23 @@ files, and 17 absent mapped paths. This local checkpoint includes modernization
 commits after the latest integrated checkpoint; the counts remain path/content
 evidence only.
 
+At local checkpoint `HEAD` on 2026-09-28, the same inventory reports 168 active
+OpenProj core candidates: 165 normalize to the upstream source and three differ
+(`WalkersNodeModel`, `HierarchicObject`, and `TimeIterator`). A targeted scan of
+the 165 source-matching files found no remaining explicit generic arguments on
+standard collection constructors among `ArrayList`, `LinkedList`, `HashMap`,
+`HashSet`, `TreeMap`, `TreeSet`, `Vector`, `LinkedHashMap`, and
+`LinkedHashSet`. This narrows the next mechanical-safe core screen; it does not
+close the caller/hunk audit or cover exchange, UI, or application candidates.
+
+The three differing files were reviewed against the OpenProj baseline. The
+first two differences are the already-typed `List<?>` return on
+`WalkersNodeModel.getChildren` and `HierarchicObject<T>.getChildren`. The
+`TimeIterator` difference removes a duplicate `calendar2` initialization and
+stale diagnostic output. These are accounted modernization changes, not
+unreviewed source candidates. Their active callers and focused behavior remain
+covered by the earlier core audit entries.
+
 These are path/content reconciliation results, not an active-caller or hunk
 provenance audit. A matching file may contain a narrow fork delta; a differing
 file may still contain eligible OpenProj-origin hunks. The results do **not**
