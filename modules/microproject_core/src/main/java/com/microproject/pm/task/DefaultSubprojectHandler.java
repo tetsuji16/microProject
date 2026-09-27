@@ -25,7 +25,6 @@
 package com.microproject.pm.task;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -258,13 +257,13 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 		if (first == null || second == null)
 			return false;
 		return first.getUniqueId() > 0L && first.getUniqueId() == second.getUniqueId()
-				|| sameCanonicalFile(first.getFileName(), second.getFileName());
+				|| FilePathUtils.sameFileIdentity(first.getFileName(), second.getFileName());
 	}
 
 	private static boolean sameProjectReference(SubProj reference, Project project) {
 		return reference.getSubprojectUniqueId() > 0L
 				&& reference.getSubprojectUniqueId() == project.getUniqueId()
-				|| sameCanonicalFile(reference.getSubprojectFile(), project.getFileName());
+				|| FilePathUtils.sameFileIdentity(reference.getSubprojectFile(), project.getFileName());
 	}
 
 	private static String canonicalPath(String fileName) {
@@ -278,20 +277,11 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 		java.util.Iterator<?> tasks = dummyProject.getTaskOutlineIterator();
 		while (tasks.hasNext()) {
 			Object value = tasks.next();
-			if (value instanceof SubProj reference && sameCanonicalFile(reference.getSubprojectFile(), fileName))
+			if (value instanceof SubProj reference
+					&& FilePathUtils.sameFileIdentity(reference.getSubprojectFile(), fileName))
 				return true;
 		}
 		return false;
-	}
-
-	private static boolean sameCanonicalFile(String first, String second) {
-		if (first == null || second == null || first.isBlank() || second.isBlank())
-			return false;
-		try {
-			return new File(first).getCanonicalFile().equals(new File(second).getCanonicalFile());
-		} catch (IOException exception) {
-			return new File(first).getAbsoluteFile().equals(new File(second).getAbsoluteFile());
-		}
 	}
 
 	public SubProj createSubProj(long subprojectUniqueId) {

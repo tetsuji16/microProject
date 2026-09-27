@@ -27,6 +27,19 @@ public final class FilePathUtils {
 		}
 	}
 
+	/** Compares two local project paths using one cross-platform identity rule. */
+	public static boolean sameFileIdentity(String first, String second) {
+		if (first == null || second == null || first.isBlank() || second.isBlank())
+			return false;
+		if (isWindowsPath(first) && isWindowsPath(second))
+			return normalizeWindowsPath(first).equalsIgnoreCase(normalizeWindowsPath(second));
+		try {
+			return new File(first).getCanonicalFile().equals(new File(second).getCanonicalFile());
+		} catch (IOException exception) {
+			return new File(first).getAbsoluteFile().equals(new File(second).getAbsoluteFile());
+		}
+	}
+
 	public static String fileName(String fileName) {
 		if (fileName == null || fileName.isBlank())
 			return fileName;

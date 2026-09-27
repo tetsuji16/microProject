@@ -202,6 +202,7 @@ import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
+import com.microproject.util.FilePathUtils;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafSupport;
 import com.microproject.util.PopupDialogSupport;
@@ -480,7 +481,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		for (Object value : getFrameManager().getAllFrames()) {
 			if (!(value instanceof DocumentFrame frame) || frame.getProject() == null)
 				continue;
-			if (sameLocalProject(frame.getProject().getFileName(), fileName))
+			if (FilePathUtils.sameFileIdentity(frame.getProject().getFileName(), fileName))
 				return frame;
 		}
 		return null;
@@ -495,7 +496,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				&& !reference.getSubprojectFile().isBlank()) {
 			String linkedFile = reference.getSubprojectFile();
 			if (getCurrentFrame() != null && getCurrentFrame().getProject() != null
-					&& sameLocalProject(getCurrentFrame().getProject().getFileName(), linkedFile))
+					&& FilePathUtils.sameFileIdentity(getCurrentFrame().getProject().getFileName(), linkedFile))
 				return false;
 			boolean loadRequested = loadLocalDocument(linkedFile, false);
 			subproject = reference.getSubproject();
@@ -772,8 +773,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return false;
 		}
 		String canonicalPath = replacement.getPath();
-		if (sameLocalProject(master.getFileName(), canonicalPath)
-				|| (!sameLocalProject(reference.getSubprojectFile(), canonicalPath)
+		if (FilePathUtils.sameFileIdentity(master.getFileName(), canonicalPath)
+				|| (!FilePathUtils.sameFileIdentity(reference.getSubprojectFile(), canonicalPath)
 						&& master.getSubprojectHandler().hasSubprojectReference(canonicalPath))) {
 			Alert.error("The selected project is already referenced by this master project.");
 			return false;
@@ -790,16 +791,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		reference.setLoadStatus(SubProj.LoadStatus.NOT_LOADED);
 		master.setDirty(true);
 		return refreshLinkedSubproject(reference);
-	}
-
-	private static boolean sameLocalProject(String first, String second) {
-		if (first == null || second == null || first.isBlank() || second.isBlank())
-			return false;
-		try {
-			return new java.io.File(first).getCanonicalFile().equals(new java.io.File(second).getCanonicalFile());
-		} catch (java.io.IOException e) {
-			return new java.io.File(first).getAbsoluteFile().equals(new java.io.File(second).getAbsoluteFile());
-		}
 	}
 
 	protected void setCurrentFrame(DocumentFrame frame){
@@ -3790,7 +3781,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		com.microproject.session.LocalSession session = SessionFactory.getInstance().getLocalSession();
 		for (String fileName : fileNames) {
-			if (isSameLocalProject(masterProject.getFileName(), fileName)
+			if (FilePathUtils.sameFileIdentity(masterProject.getFileName(), fileName)
 					|| masterProject.getSubprojectHandler().hasSubprojectReference(fileName)) {
 				Alert.error(Messages.getString("GraphicManager.SelectedProjectAlreadySubproject"));
 				continue;
@@ -3801,16 +3792,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				continue;
 			}
 			insertSubproject(masterProject, id, true, readOnly.isSelected(), fileName);
-		}
-	}
-
-	private static boolean isSameLocalProject(String first, String second) {
-		if (first == null || second == null)
-			return false;
-		try {
-			return new java.io.File(first).getCanonicalFile().equals(new java.io.File(second).getCanonicalFile());
-		} catch (java.io.IOException e) {
-			return first.equals(second);
 		}
 	}
 

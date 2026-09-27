@@ -24,8 +24,6 @@
  *******************************************************************************/
 package com.microproject.pm.task;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -34,6 +32,7 @@ import com.microproject.association.Association;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
+import com.microproject.util.FilePathUtils;
 
 public class ExternalTaskManager {
 	private final List<Task> externalTasks = new ArrayList<>();
@@ -49,7 +48,7 @@ public class ExternalTaskManager {
 			Task externalTask = i.next();
 			
 			if (externalTask.getProjectId() == project.getUniqueId()
-					|| sameProjectFile(externalTask.getExternalProjectFile(), project.getFileName())) {
+					|| FilePathUtils.sameFileIdentity(externalTask.getExternalProjectFile(), project.getFileName())) {
 				Task realTask = project.findByUniqueId(externalTask.getUniqueId());
 				if (realTask == null) {
 					// The external task can refer to a task UID that was removed or
@@ -64,16 +63,6 @@ public class ExternalTaskManager {
 		}
 	}
 
-	private static boolean sameProjectFile(String first, String second) {
-		if (first == null || second == null || first.isBlank() || second.isBlank())
-			return false;
-		try {
-			return new File(first).getCanonicalFile().equals(new File(second).getCanonicalFile());
-		} catch (IOException e) {
-			return first.equalsIgnoreCase(second);
-		}
-	}
-	
 	private void treatOpenedTask(Task externalTask, Task realTask, boolean opening) {
 		externalTask.setExternal(!opening);
 		if (opening) {
