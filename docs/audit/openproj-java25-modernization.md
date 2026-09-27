@@ -2742,3 +2742,10 @@ distribution map. The constructor call matches OpenProj 1.4 at `d2fa3c20a`;
 the `TreeMap`, `DistributionComparator`, and both `DistributionData` type
 arguments are unchanged. No focused test currently targets this method, so
 the full core test suite is the verification for this small source-only edit.
+
+`Task.getParentId` now binds `HasKey` with pattern matching instead of a
+separate `instanceof` check and cast. The exact hunk is unchanged from OpenProj
+1.4 at `d2fa3c20a` (`git blame` confirms baseline provenance); null and
+non-`HasKey` values still return zero, and the public method signature is
+unchanged. Core compilation passed; this syntax-only change does not alter
+behavior.
