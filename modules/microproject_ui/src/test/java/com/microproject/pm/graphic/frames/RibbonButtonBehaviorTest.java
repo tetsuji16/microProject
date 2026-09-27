@@ -96,6 +96,36 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void statusDateTargetsAreDeduplicatedByIdentityAcrossRegistriesAndComponentTree() {
+		JButton registered = equalButton("RibbonStatusDate");
+		JButton toolbarCompatibility = equalButton("StatusDate");
+		JButton transientRibbon = equalButton("RibbonStatusDate");
+		JPanel nested = new JPanel();
+		nested.add(transientRibbon);
+		JPanel root = new JPanel();
+		root.add(registered);
+		root.add(nested);
+
+		Set<AbstractButton> targets = GraphicManager.collectStatusDateButtons(root,
+				List.of(registered, toolbarCompatibility), List.of(registered));
+
+		assertEquals(3, targets.size(), "one registered ribbon button, one legacy toolbar button, and one transient ribbon button are refreshed");
+		assertTrue(targets.contains(registered));
+		assertTrue(targets.contains(toolbarCompatibility));
+		assertTrue(targets.contains(transientRibbon));
+	}
+
+	private static JButton equalButton(String actionCommand) {
+		JButton button = new JButton() {
+			private static final long serialVersionUID = 1L;
+			@Override public boolean equals(Object other) { return other instanceof JButton; }
+			@Override public int hashCode() { return 1; }
+		};
+		button.setActionCommand(actionCommand);
+		return button;
+	}
+
+	@Test
 	void coverageEntriesResolveToLiveActions() throws Exception {
 		Harness harness = newHarness();
 		for (String buttonId : COVERAGE.keySet()) {

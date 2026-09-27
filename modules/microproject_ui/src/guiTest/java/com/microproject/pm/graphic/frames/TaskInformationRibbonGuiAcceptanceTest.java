@@ -1229,10 +1229,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private boolean statusDateRibbonMatchesModel() {
 		AbstractButton button = GuiPhysicalRouteAdapter.visibleButton(window, "RibbonStatusDate");
 		String text = button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
-		if (!contextProject().isStatusDateSet()) return text.startsWith("NA ") && text.endsWith(":");
-		String date = com.microproject.options.EditOption.getInstance().getDateFormat()
-				.format(new java.util.Date(contextProject().getStatusDate()));
-		return text.startsWith(date + " ") && text.endsWith(":");
+		String value = !contextProject().isStatusDateSet() ? "NA"
+				: com.microproject.options.EditOption.getInstance().getDateFormat()
+					.format(new java.util.Date(contextProject().getStatusDate()));
+		String label = manager.getMenuManager().getStringOrNull("RibbonStatusDate.text");
+		String expectedDisplay = value + " " + (label == null ? "Status Date" : label) + ":";
+		Object actionName = manager.getMenuManager().getActionFromId("StatusDate").getValue(javax.swing.Action.NAME);
+		return text.startsWith(value + " ") && text.endsWith(":")
+				&& expectedDisplay.equals(button.getAccessibleContext().getAccessibleName())
+				&& expectedDisplay.equals(actionName);
 	}
 
 	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
