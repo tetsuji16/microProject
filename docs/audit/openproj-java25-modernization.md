@@ -2783,3 +2783,12 @@ no concrete setter consumers that establish a narrower element type. Choosing
 a generic element type would therefore assert an unverified contract. Preserve
 these raw descriptors until external scripting/serialization consumers can be
 audited; do not treat them as a source-only generics cleanup.
+
+`FieldDictionary.fieldsToHtmlTable` now traverses its supplied `Collection<Field>`
+with enhanced-for instead of an anonymous `Consumer<Object>` and unchecked cast.
+The hunk is present in OpenProj 1.4 (`d2fa3c20a`). This exposed and fixes an
+existing source bug: the helper ignored its collection parameter and every
+category rendered project fields. `generateFieldDoc` now passes the matching
+resource, task, assignment, and dependency field collections. The regression
+test failed before the fix and passes afterward; `FieldDictionaryTest` and the
+full `:microproject_core:test` suite passed.

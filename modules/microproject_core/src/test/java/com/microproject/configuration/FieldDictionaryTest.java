@@ -20,14 +20,47 @@ package com.microproject.configuration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.microproject.field.Field;
 
 class FieldDictionaryTest {
+	@TempDir
+	Path temporaryDirectory;
+
+	@Test
+	void generatedResourceFieldTableContainsResourceFields() throws IOException {
+		FieldDictionary dictionary = FieldDictionary.getInstance();
+		Set<String> projectFieldIds = dictionary.getProjectFields().stream()
+				.map(Field::getIdWithoutPrefix)
+				.collect(Collectors.toSet());
+		String resourceOnlyFieldId = dictionary.getResourceFields().stream()
+				.map(Field::getIdWithoutPrefix)
+				.filter(fieldId -> !projectFieldIds.contains(fieldId))
+				.findFirst()
+				.orElseThrow();
+		Path output = temporaryDirectory.resolve("fields.html");
+
+		FieldDictionary.generateFieldDoc(output.toString());
+
+		String html = Files.readString(output);
+		int resourceSectionStart = html.indexOf("<b>Resource Fields</b>");
+		int resourceSectionEnd = html.indexOf("</table>", resourceSectionStart);
+		assertTrue(resourceSectionStart >= 0);
+		assertTrue(resourceSectionEnd > resourceSectionStart);
+		assertTrue(html.substring(resourceSectionStart, resourceSectionEnd).contains(resourceOnlyFieldId));
+	}
+
 	@Test
 	void appliesAliasesForKnownFieldsAndIgnoresUnknownFields() {
 		Field field = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");

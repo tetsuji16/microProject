@@ -24,12 +24,10 @@
  *******************************************************************************/
 package com.microproject.configuration;
 
-import com.microproject.util.DataUtils;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.function.Consumer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -278,10 +276,8 @@ public class FieldDictionary {
 		result.append("<p><b>").append(title).append("</b><br />");
 		result.append("<table border='1'>");
 		tabbedStringToHtmlRow(result,Field.getMetadataStringHeader(),true);
-		DataUtils.forAllDo(FieldDictionary.getInstance().getProjectFields().iterator(), new Consumer<Object>() { public void accept(Object arg0) {
-				tabbedStringToHtmlRow(result,((Field)arg0).getMetadataString(),false);
-			}}
-		);
+		for (Field field : fields)
+			tabbedStringToHtmlRow(result, field.getMetadataString(), false);
 		result.append("</table>");
 		result.append("</p>");
 	}
@@ -289,10 +285,10 @@ public class FieldDictionary {
 		StringBuilder result = new StringBuilder();
 		result.append("<html><body>");
 		fieldsToHtmlTable(result,"Project Fields",FieldDictionary.getInstance().getProjectFields());
-		fieldsToHtmlTable(result,"Resource Fields",FieldDictionary.getInstance().getProjectFields());
-		fieldsToHtmlTable(result,"Task Fields",FieldDictionary.getInstance().getProjectFields());
-		fieldsToHtmlTable(result,"Assignment Fields",FieldDictionary.getInstance().getProjectFields());
-		fieldsToHtmlTable(result,"Dependency Fields",FieldDictionary.getInstance().getProjectFields());
+		fieldsToHtmlTable(result,"Resource Fields",FieldDictionary.getInstance().getResourceFields());
+		fieldsToHtmlTable(result,"Task Fields",FieldDictionary.getInstance().getTaskFields());
+		fieldsToHtmlTable(result,"Assignment Fields",FieldDictionary.getInstance().getAssignmentFields());
+		fieldsToHtmlTable(result,"Dependency Fields",FieldDictionary.getInstance().getDependencyFields());
 		result.append("</body></html>");
 		
 		try (FileOutputStream fos = new FileOutputStream(fileName)) {
