@@ -51,7 +51,7 @@ public class AssignmentFieldClosureCollection extends AssignmentFieldFunctor {
 		List<AssignmentFieldFunctor> closures = new LinkedList<>();
 		closures.add(child);
 		this.closures = closures;
-		chain = new ArrayList<>();
+		chain = new ArrayList<>(1);
 		chain.add(child);
 	}
 	
