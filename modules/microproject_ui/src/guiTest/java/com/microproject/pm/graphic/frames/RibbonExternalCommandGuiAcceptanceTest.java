@@ -38,11 +38,13 @@ import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.init.Init;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.graphic.frames.workspace.NamedFrame;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
@@ -66,6 +68,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private boolean previousClientSide;
 	private UiServices.FileChooserProvider previousChooser;
 	private Path legacyPod;
+	private Path restartFirstProject;
+	private Path restartSecondProject;
 	private Preferences localePreferences;
 	private String previousLocalePreference;
 	private Locale previousDefaultLocale;
@@ -82,6 +86,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setClientSide(previousClientSide);
 		UiServices.setFileChooserProvider(previousChooser);
 		if (legacyPod != null) Files.deleteIfExists(legacyPod);
+		if (restartFirstProject != null) Files.deleteIfExists(restartFirstProject);
+		if (restartSecondProject != null) Files.deleteIfExists(restartSecondProject);
 		if (localePreferences != null) {
 			if (previousLocalePreference == null) localePreferences.remove("locale");
 			else localePreferences.put("locale", previousLocalePreference);
@@ -468,6 +474,56 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"Locale restart did not preserve the selected preference");
 		assertTrue(manager.getContainer() == window,
 			"Restart replaced the native window instead of rebuilding its application UI");
+	}
+
+	@Test
+	void startupFactoryRestartRestoresBothOpenMpoDocuments() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
+		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		restartFirstProject = Files.createTempFile("restart-workspace-alpha-", ".mpo");
+		restartSecondProject = Files.createTempFile("restart-workspace-beta-", ".mpo");
+		writeMpoProject(restartFirstProject, "Restart workspace Alpha");
+		writeMpoProject(restartSecondProject, "Restart workspace Beta");
+		createWindow("microProject — workspace restart acceptance");
+		SwingUtilities.invokeAndWait(() -> manager.openLocalProjectsSequentially(new String[] {
+			restartFirstProject.toString(), restartSecondProject.toString() }));
+		GuiAcceptanceSupport.await(() -> manager.getFrameManager().getAllFrames().size() == 2,
+			"Workspace fixture did not open two MPO documents");
+
+		ApplicationStartupFactory startup = new ApplicationStartupFactory(new HashMap<>());
+		SwingUtilities.invokeAndWait(() -> manager = startup.restart(manager));
+		GuiAcceptanceSupport.await(() -> manager.getFrameManager() != null
+			&& manager.getFrameManager().getAllFrames().size() == 2
+			&& manager.findFrameForProjectFile(restartFirstProject.toString()) != null
+			&& manager.findFrameForProjectFile(restartSecondProject.toString()) != null,
+			"StartupFactory restart did not restore both open MPO documents");
+		assertTrue(window.isShowing(), "Workspace restart hid or replaced the native window");
+		assertTrue(manager.getContainer() == window,
+			"Workspace restart attached the restored documents to a different native window");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Object frame : new ArrayList<>(manager.getFrameManager().getAllFrames()))
+				manager.getFrameManager().removeFrame((NamedFrame) frame);
+			manager.encodeWorkspace();
+		});
+	}
+
+	private static void writeMpoProject(Path target, String name) throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool(name + " pool", undo), undo);
+		project.initialize(false, false);
+		project.setName(name);
+		MpoFileImporter exporter = new MpoFileImporter();
+		exporter.setProject(project);
+		exporter.setFileName(target.toString());
+		exporter.exportFile();
 	}
 
 	private void createWindow(String title) throws Exception {
