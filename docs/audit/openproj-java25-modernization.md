@@ -2654,6 +2654,12 @@ diamond inference for their OpenProj-derived maps. Credential key/value types
 and column-width lookup behavior are unchanged. `StartupFactoryCommandStateTest`
 and `SpreadSheetUtilsTest` passed.
 
+`NetworkCellEditor.paintComponentApart` now binds the `JComponent` in both
+double-buffer checks instead of repeating cast-after-`instanceof`. Both
+conditions and the repaint flag retain their original behavior. The hunk
+matches the OpenProj baseline; `NetworkCellEditorTest` passed, observing
+double buffering disabled during child paint and restored afterward.
+
 `MPXConverter.toMpxCustomFields` now uses `if (b)` instead of comparing the
 OpenProj-derived boolean to `true`. The assignment remains limited to true
 custom flags; false flags stay omitted. `MpxCustomFlagExportTest` passed for

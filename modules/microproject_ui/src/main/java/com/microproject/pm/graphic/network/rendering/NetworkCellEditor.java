@@ -77,9 +77,9 @@ public class NetworkCellEditor{
 	}
 	protected void paintComponentApart(Component c,Rectangle bounds){
 		boolean wasDoubleBuffered = false;
-		if ((c instanceof JComponent) && ((JComponent)c).isDoubleBuffered()) {
+		if (c instanceof JComponent component && component.isDoubleBuffered()) {
 		    wasDoubleBuffered = true;
-		    ((JComponent)c).setDoubleBuffered(false);
+		    component.setDoubleBuffered(false);
 		}
 
 		Graphics cg = container.getGraphics().create(bounds.x, bounds.y, bounds.width, bounds.height);
@@ -90,8 +90,8 @@ public class NetworkCellEditor{
 		    cg.dispose();
 		}
 
-		if (wasDoubleBuffered && (c instanceof JComponent)) {
-		    ((JComponent)c).setDoubleBuffered(true);
+		if (wasDoubleBuffered && c instanceof JComponent component) {
+		    component.setDoubleBuffered(true);
 		}
 	}
 	
@@ -118,4 +118,3 @@ public class NetworkCellEditor{
 		return node;
 	}
 }
-
