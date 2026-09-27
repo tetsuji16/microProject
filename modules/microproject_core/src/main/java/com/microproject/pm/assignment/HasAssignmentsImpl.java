@@ -491,7 +491,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		return null;
 	}
 
-	private void copyAssignments(Collection sourceAssignments, AssignmentFactory factory) {
+	private void copyAssignments(Collection<?> sourceAssignments, AssignmentFactory factory) {
 		for (Object sourceAssignment : sourceAssignments) {
 			assignments.add(factory.create((Assignment) sourceAssignment));
 		}

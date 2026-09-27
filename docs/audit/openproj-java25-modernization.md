@@ -2368,3 +2368,8 @@ neighboring `remove(Collection, Collection)` call ambiguous; this was confirmed
 by compilation and the existing NormalTask snapshot-removal caller must retain
 its current overload. `AssignmentServiceTest` and downstream UI compilation
 passed.
+
+`HasAssignmentsImpl.copyAssignments` now accepts `Collection<?>`; the helper
+still casts each item to `Assignment` before delegating to its typed factory,
+so existing runtime behavior is unchanged. Its active callers copy assignment
+association lists. Full core tests passed.
