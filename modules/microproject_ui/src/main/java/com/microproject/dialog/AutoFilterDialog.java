@@ -158,14 +158,16 @@ public final class AutoFilterDialog extends AbstractDialog {
 	}
 
 	private void rebuildValues() {
-		checkBoxes = new ArrayList<>();
 		valuesPanel.removeAll();
 		if (field == null) {
+			checkBoxes = new ArrayList<>(0);
 			valuesPanel.add(new JLabel(Messages.getString("AutoFilterDialog.NoValues")));
 			valuesPanel.revalidate();
 			return;
 		}
-		for (String value : distinctValues(field)) {
+		List<String> values = distinctValues(field);
+		checkBoxes = new ArrayList<>(values.size());
+		for (String value : values) {
 			JCheckBox box = new JCheckBox(value);
 			box.setSelected(true);
 			checkBoxes.add(box);
