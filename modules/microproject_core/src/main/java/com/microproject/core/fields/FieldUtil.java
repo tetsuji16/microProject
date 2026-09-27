@@ -152,8 +152,7 @@ public class FieldUtil {
 				//get value
 				Object value=hasFields.getPropertyValue(fieldName1);
 				
-				if (value==null || 
-						((value instanceof Boolean) && ((Boolean)value)==false) )
+				if (value == null || value instanceof Boolean booleanValue && !booleanValue)
 					return; //skip null values, it will be considered as not set
 
 				//convert
