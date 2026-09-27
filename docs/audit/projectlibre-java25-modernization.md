@@ -300,9 +300,14 @@ candidates:
 - 30 are line-addressed anonymous-class symbols: 14 anonymous types and their
   14 methods, plus two captured fields in `Linker`. Their upstream line-number
   identities shifted as the active source evolved. The current source still
-  contains the corresponding callbacks in `ServerLocalFileImporter`, the
-  serialized-data factories, and `Linker`; their declarations need caller
-  reconciliation by enclosing method rather than by the stale line number.
+  contains three `JobRunnable` callbacks in `ServerLocalFileImporter`, nine
+  serialized-data factories, and two stateful `Linker` consumers. The nine
+  factories are present in OpenProj 1.4 and are not ProjectLibre-origin
+  candidates. The `JobRunnable` callbacks use progress state and coordinate
+  multiple import stages; they are not single-method callbacks that can be
+  replaced with lambdas. The `Linker` consumers retain traversal state across
+  visits, so lambda conversion would require mutable holders and reduce
+  clarity. These are stale line identities, not safe modernization candidates.
 - 17 are named signatures or fields that changed during later migrations:
   `CustomFieldsMapper.Maps` changed `Class` to `Class<?>` (same erased
   descriptor); `MicrosoftImporter` and `MPXConverter` renamed logger fields,
