@@ -213,9 +213,10 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		List<String> standard = List.of("Field.name", "Field.wbs", "Field.start", "Field.finish", "Field.duration",
 			"Field.percentComplete", "Field.work", "Field.cost", "Field.resourceNames", "Field.priority",
 			"Field.deadline", "Field.totalSlack", "Field.manuallyScheduled", "Field.inactiveTask");
-		List<Field> result = new ArrayList<>();
+		List<Field> taskFields = Configuration.getInstance().getFieldDictionary().getTaskFields();
+		List<Field> result = new ArrayList<>(standard.size() + taskFields.size());
 		for (String id : standard) { Field field = Configuration.getFieldFromId(id); if (field != null) result.add(field); }
-		Configuration.getInstance().getFieldDictionary().getTaskFields().stream().filter(Field::isCustom)
+		taskFields.stream().filter(Field::isCustom)
 			.sorted(Comparator.comparing(Field::getName)).forEach(result::add);
 		return List.copyOf(result);
 	}
