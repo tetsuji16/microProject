@@ -389,22 +389,10 @@ public class DefaultNodeModel implements NodeModel {
 	public boolean removeApartFromHierarchy(Node node,boolean cleanAssignment,int actionType,boolean removeDependencies){
 		if (!isEvent(actionType))
 			return true;
-//		try {
-//			beginUpdate();
-			if (node.getImpl() instanceof Assignment assignment){
-//				if (cleanAssignment)
-					AssignmentService.getInstance().remove(assignment,cleanAssignment,this,isUndo(actionType)); //LC 8/4/2006 - hk 7/8/2006 changed null to this so event will be fired
-//				else if (assignment.getResource()!=ResourceImpl.getUnassignedInstance()){
-//					assignment.getResource().removeAssignment(assignment);
-//				}
-
-
-			//AssignmentService.getInstance().remove((Assignment)node.getImpl(),this);
-			}else if (dataFactory!=null&&!node.isVoid())
+		if (node.getImpl() instanceof Assignment assignment) {
+			AssignmentService.getInstance().remove(assignment,cleanAssignment,this,isUndo(actionType)); // route assignment changes through the service
+		} else if (dataFactory!=null&&!node.isVoid())
 				dataFactory.remove(node.getImpl(),this,false,isUndo(actionType),removeDependencies);
-//		} finally {
-//			endUpdate();
-//		}
 		return true;
 	}
 
@@ -415,10 +403,6 @@ public class DefaultNodeModel implements NodeModel {
 		List<Node> newNodes=copy(nodes,clone,actionType);
 		remove(nodes,actionType);
 		return newNodes;
-//		ArrayList parentNodes =new Vector(nodes.size());
-//		HierarchyUtils.extractParents(nodes,parentNodes);
-//		remove(parentNodes,actionType);
-//		return parentNodes;
 	}
 
 

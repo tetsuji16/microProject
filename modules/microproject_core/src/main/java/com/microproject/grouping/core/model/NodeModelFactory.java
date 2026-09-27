@@ -58,11 +58,6 @@ public class NodeModelFactory {
 		else return new DefaultNodeModel(dataFactory);
 	}
 
-//	public NodeModel createAssignmentNodeModel(NodeModelDataFactory dataFactory){
-//		return new AssignmentNodeModel(dataFactory);
-//	}
-	
-
 	public NodeModel createAssignmentNodeModel(DefaultNodeModel model,Document document,boolean containsLeftObjects){
 		return new AssignmentNodeModel(/*(Vector)model.getList().clone(),*/(MutableNodeHierarchy)model.getHierarchy().clone(), model.getDataFactory(),document,containsLeftObjects);
 	}
@@ -120,8 +115,7 @@ public class NodeModelFactory {
 	public static NodeModel createResourceModel(Project project) {
 		NodeModel resourceModel = project.getResourcePool().getResourceOutline();
 		if (resourceModel instanceof AssignmentNodeModel assignmentModel) {
-			//the bug is fixed elsewhere
-//			if (!resourceModel.hasChildren(null)) // if it is currently empty - fixes bug about adding a second assignment when the view is first shown
+			// addAssignments avoids duplicate nodes in an already-populated outline.
 			assignmentModel.addAssignments();
 		}
 		return resourceModel;

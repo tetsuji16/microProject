@@ -102,10 +102,6 @@ public class ObjectEventManager {
             // and the second is the listener instance
             for (int i=0; i<listeners.length; i+=2) {
                 if (listeners[i]==ObjectEvent.Listener.class) {
-//            	if (evt.isUpdate()) System.out.println("ObjectEvent update: object="+evt.getObject()+", field="+evt.getField()+", source="+evt.getSource()+", info="+evt.getInfo()+", listener="+listeners[i+1]);
-//            	else if (evt.isCreate()) System.out.println("ObjectEvent create: object="+evt.getObject()+", field="+evt.getField()+", source="+evt.getSource()+", info="+evt.getInfo()+", listener="+listeners[i+1]);
-//            	else if (evt.isDelete()) System.out.println("ObjectEvent delete: object="+evt.getObject()+", field="+evt.getField()+", source="+evt.getSource()+", info="+evt.getInfo()+", listener="+listeners[i+1]);
-//            	else System.out.println("ObjectEvent: object="+evt.getObject()+", field="+evt.getField()+", source="+evt.getSource()+", info="+evt.getInfo()+", listener="+listeners[i+1]);
                     ((ObjectEvent.Listener)listeners[i+1]).objectChanged(evt);
                 }
             }
