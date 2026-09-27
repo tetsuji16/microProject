@@ -197,9 +197,10 @@ public final class UiButtonDiagnostics {
 			try {
 				DocumentFrame frame = manager == null ? null : manager.getCurrentFrame();
 				CommonSpreadSheet sheet = frame == null ? null : frame.getActiveSpreadSheet();
-				List<String> selected = new ArrayList<>();
+				List<Node> selectedNodes = sheet == null ? List.of() : sheet.getSelectedNodes();
+				List<String> selected = new ArrayList<>(selectedNodes.size());
 				if (sheet != null) {
-					for (Node node : sheet.getSelectedNodes()) {
+					for (Node node : selectedNodes) {
 						Object impl = node == null ? null : node.getImpl();
 						if (impl instanceof HasKey key)
 							selected.add(impl.getClass().getSimpleName() + "#" + key.getUniqueId());
