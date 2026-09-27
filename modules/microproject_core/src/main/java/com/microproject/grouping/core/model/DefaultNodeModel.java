@@ -88,7 +88,7 @@ public class DefaultNodeModel implements NodeModel {
 
 	protected NodeHierarchy hierarchy;
 	protected NodeModelDataFactory dataFactory = null;
-	private transient Map searchIndex = new IdentityHashMap();
+	private transient Map<Object, Node> searchIndex = new IdentityHashMap<>();
 
 	/**
 	 *
@@ -609,7 +609,7 @@ public class DefaultNodeModel implements NodeModel {
 
 	public Node search(Object key) {
 		if (key == null) return null;
-		Node node=(Node)searchIndex.get(key);
+		Node node=searchIndex.get(key);
 		if (node==null){
 			node=hierarchy.search(key,getImplComparatorInstance());
 			if (node!=null) searchIndex.put(key,node);
@@ -874,15 +874,15 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	private void rebuildSearchIndex() {
-		searchIndex = new IdentityHashMap();
-		for (Iterator i = iterator(); i.hasNext();) {
-			registerNodeSubtree((Node)i.next());
+		searchIndex = new IdentityHashMap<>();
+		for (Iterator<Node> i = iterator(); i.hasNext();) {
+			registerNodeSubtree(i.next());
 		}
 	}
 
-	private void registerNodes(Collection nodes) {
-		for (Iterator i = nodes.iterator(); i.hasNext();) {
-			registerNodeSubtree((Node)i.next());
+	private void registerNodes(Collection<? extends Node> nodes) {
+		for (Node node : nodes) {
+			registerNodeSubtree(node);
 		}
 	}
 
@@ -895,9 +895,9 @@ public class DefaultNodeModel implements NodeModel {
 		}
 	}
 
-	private void unregisterNodes(Collection nodes) {
-		for (Iterator i = nodes.iterator(); i.hasNext();) {
-			unregisterNodeSubtree((Node)i.next());
+	private void unregisterNodes(Collection<? extends Node> nodes) {
+		for (Node node : nodes) {
+			unregisterNodeSubtree(node);
 		}
 	}
 

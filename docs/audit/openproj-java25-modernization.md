@@ -2387,3 +2387,5 @@ interval type and `TimeIterator.next()` contract. The focused regression test
 assigns the value through that typed API. The shared `IntervalGenerator.current()`
 and `IntervalGeneratorSet.current()` remain `Object` because the shared generator
 contract is heterogeneous. `TimeIteratorGeneratorTest` passed.
+
+`DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.
