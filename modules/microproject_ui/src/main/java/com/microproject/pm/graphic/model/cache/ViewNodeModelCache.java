@@ -393,7 +393,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		if (!(showReadOnlyAlert?isAllowedAction(destination,true):isAllowedActionQuietly(destination,true))) return null;
 		List validNodes=validBaseNodes(nodes);
 		if (validNodes.isEmpty()) return null;
-		ArrayList roots=new ArrayList();
+		ArrayList roots=new ArrayList(validNodes.size());
 		HierarchyUtils.extractParents(validNodes,roots);
 		Node sourceParent=(Node)((Node)roots.get(0)).getParent();
 		if (sourceParent==null||getModel().getHierarchy().getLevel(sourceParent)!=getModel().getHierarchy().getLevel(destination))

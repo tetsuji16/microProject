@@ -249,3 +249,5 @@ For #84, removed CalendarService's commented-out MPX import/export map and metho
 For #84, also removed the commented-out `CalendarService.invalidate` predecessor and `findDocumentCalendar` search. The active invalidation paths remain `invalidate(WorkingCalendar)` and `invalidateDerivedConcrete`; the obsolete commented search had no callers. Calendar definition and recurrence tests passed.
 For #84, removed the obsolete commented ID-update and newness methods from `HasUniqueIdImpl`; they referenced state and APIs absent from the active implementation and had no callers. `EqualsHashCodeContractTest` passed.
 For #84, removed a stale commented renumber diagnostic in `HasUniqueIdImpl` that referenced nonexistent `hasUniqueId` and `oldUniqueId` variables. `EqualsHashCodeContractTest` passed.
+
+For #228, `ViewNodeModelCache.resolveRelocationTarget` now pre-sizes its root snapshot from `validNodes.size()`. `HierarchyUtils.extractParents` only appends nodes from that input and appends each at most once, so this is a strict upper bound; root order and relocation behavior are unchanged. `:microproject_ui:compileJava --console=plain` passed.
