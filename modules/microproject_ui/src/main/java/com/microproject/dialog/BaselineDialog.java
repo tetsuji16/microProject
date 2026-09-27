@@ -36,7 +36,6 @@ import javax.swing.JRadioButton;
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
-import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.configuration.Settings;
 import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.strings.Messages;
@@ -104,14 +103,8 @@ public final class BaselineDialog extends AbstractDialog {
 		}
 		return true;
 	}
-	public static BaselineDialog getInstance(GraphicManager graphicManager, Form project, boolean save, boolean hasTasksSelected) {
-//		BaselineDialog instance = graphicManager.getBaselineDialog();
-		BaselineDialog instance =null;// having problems with the radio buttons, so I'm creating a new one each time
-		if (instance == null) {
-			instance = new BaselineDialog(graphicManager.getFrame(), project,hasTasksSelected);
-			graphicManager.setBaselineDialog(instance);
-		} else
-			instance.setHasTasksSelected(hasTasksSelected);
+	public static BaselineDialog getInstance(Frame owner, Form project, boolean save, boolean hasTasksSelected) {
+		BaselineDialog instance = new BaselineDialog(owner, project, hasTasksSelected);
 		instance.setTitle(Messages.getString( save ? "Text.SaveBaseline" : "Text.ClearBaseline")); //$NON-NLS-1$ //$NON-NLS-2$
 		instance.addDocHelp(save ? "Save_Baseline_Dialog" : "Clear_Baseline_Dialog");
 		

@@ -351,7 +351,7 @@ public class DocumentFrame extends NamedFrame implements
 	boolean doBaselineDialog(boolean save) {
 		finishAnyOperations();
 
-		BaselineDialog baselineDialog = BaselineDialog.getInstance(getGraphicManager(),
+		BaselineDialog baselineDialog = BaselineDialog.getInstance(getGraphicManager().getFrame(),
 				null, save,hasAtLeastOneTaskSelected());
 		if (!baselineDialog.doModal())
 			return false;

@@ -123,7 +123,6 @@ import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.AbstractDialog;
-import com.microproject.dialog.BaselineDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.OpenProjectDialog;
 import com.microproject.dialog.ProjectDialog;
@@ -259,7 +258,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     private final AssignmentDialogCoordinator assignmentDialogCoordinator = new AssignmentDialogCoordinator();
 	private final InformationDialogCoordinator informationDialogCoordinator = new InformationDialogCoordinator();
     private final ApplicationInfoDialogCoordinator applicationInfoDialogCoordinator = new ApplicationInfoDialogCoordinator();
-    private BaselineDialog baselineDialog = null;
 	private final ResourceMappingDialogCoordinator resourceMappingDialogCoordinator = new ResourceMappingDialogCoordinator();
 	ProjectFactory projectFactory = null;
 	private final AutoRecoveryManager autoRecoveryManager;
@@ -5032,13 +5030,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //        container.invalidate();
  	}
 
-	public BaselineDialog getBaselineDialog() {
-		return baselineDialog;
-	}
-
-	public void setBaselineDialog(BaselineDialog baselineDialog) {
-		this.baselineDialog = baselineDialog;
-	}
 	public StartupFactory getStartupFactory() {
 		return startupFactory;
 	}
