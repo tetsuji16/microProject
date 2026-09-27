@@ -97,29 +97,23 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
     }*/
     
 	protected void adaptOrigin(Calendar calendar,boolean event){
-		//System.out.println("adaptOrigin: begin");
 		getTimescaleManager().getScale().floor1(calendar,-1);
 		
 		long tmp = calendar.getTimeInMillis();
 		if (this.origin!=tmp){
-			//System.out.println("adaptOrigin: change: old="+CalendarUtil.toString(this.origin)+", new="+CalendarUtil.toString(tmp));
 			this.origin=tmp;
 			if (event) fireTimeScaleChanged(this,TimeScaleEvent.ORIGIN_AND_END_CHANGE);
 		}
-		//System.out.println("adaptOrigin: end");
 	}
 	protected void adaptEnd(Calendar calendar,boolean event){
-		//System.out.println("adaptEnd: begin");
 		getTimescaleManager().getScale().ceil1(calendar,-1);
 		
 		long tmp = calendar.getTimeInMillis();
 		
 		if (this.end!=tmp){
-			//System.out.println("adaptEnd: change: old="+CalendarUtil.toString(this.end)+", new="+CalendarUtil.toString(tmp));
 			this.end=tmp;
 			if (event) fireTimeScaleChanged(this,TimeScaleEvent.END_ONLY_CHANGE);
 		}
-		//System.out.println("adaptEnd: end");
 	}
 	
 	protected void adaptInterval(Calendar origin,Calendar end,boolean event){
