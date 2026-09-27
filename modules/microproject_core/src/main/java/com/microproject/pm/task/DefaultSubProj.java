@@ -35,7 +35,7 @@ public class DefaultSubProj extends NormalTask implements SubProj, LazyParent {
 	private static final long serialVersionUID = 1L;
 	private long subprojectUniqueId;
 	private boolean fetching;
-	private Map subprojectFieldValues;
+	private Map<String, Object> subprojectFieldValues;
 	/** Canonical linked project path, persisted with the master project. */
 	private String subprojectFile;
 	/** Portable stored path, relative to the master project whenever possible. */
@@ -222,7 +222,7 @@ public class DefaultSubProj extends NormalTask implements SubProj, LazyParent {
 		// Schedule fields are applied by the project loader after the subproject opens.
 	}
 
-	public void setSubprojectFieldValues(Map subprojectFieldValues) {
+	public void setSubprojectFieldValues(Map<String, Object> subprojectFieldValues) {
 		this.subprojectFieldValues = subprojectFieldValues;
 	}
 

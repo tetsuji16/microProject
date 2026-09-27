@@ -510,7 +510,7 @@ class DependencyServiceTest {
 			return writable;
 		}
 
-		public void setSubprojectFieldValues(java.util.Map subprojectFieldValues) {
+		public void setSubprojectFieldValues(java.util.Map<String, Object> subprojectFieldValues) {
 		}
 
 		public void setSubprojectUniqueId(long subprojectId) {

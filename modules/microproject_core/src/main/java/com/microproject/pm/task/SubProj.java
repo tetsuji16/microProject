@@ -75,7 +75,7 @@ public interface SubProj {
 
 	boolean isValid();
 
-	void setSubprojectFieldValues(Map subprojectFieldValues);
+	void setSubprojectFieldValues(Map<String, Object> subprojectFieldValues);
 
 	void setSubprojectUniqueId(long subprojectId);
 

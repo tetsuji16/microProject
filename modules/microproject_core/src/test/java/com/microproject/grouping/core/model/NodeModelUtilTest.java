@@ -88,7 +88,7 @@ class NodeModelUtilTest {
 		public long getSubprojectUniqueId() { return 0L; }
 		public void setFetching(boolean fetching) { }
 		public boolean isValid() { return false; }
-		public void setSubprojectFieldValues(java.util.Map values) { }
+		public void setSubprojectFieldValues(java.util.Map<String, Object> values) { }
 		public void setSubprojectUniqueId(long subprojectId) { }
 		public void setSchedulesFromSubprojectFieldValues() { }
 	}
