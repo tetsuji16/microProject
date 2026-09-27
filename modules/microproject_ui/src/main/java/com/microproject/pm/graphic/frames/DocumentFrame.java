@@ -1783,13 +1783,13 @@ public class DocumentFrame extends NamedFrame implements
 	    	return true;
 		Node current = spreadSheet.getCurrentRowNode();
         SpreadSheetModel model=(SpreadSheetModel)spreadSheet.getModel();
- 		LinkedList previousNodes=model.getPreviousVisibleNodesFromRow(row);
+		LinkedList<Node> previousNodes = model.getPreviousVisibleNodesFromRow(row);
 		if (previousNodes == null)
 			return true;
 		previousNodes.add(current); // treat current node first since going backwards
-		ListIterator i = previousNodes.listIterator(previousNodes.size());
+		ListIterator<Node> i = previousNodes.listIterator(previousNodes.size());
 		while (i.hasPrevious()) {
-			Object o = ((Node)i.previous()).getImpl();
+			Object o = i.previous().getImpl();
 			if (o instanceof Task) {
 				if (((Task)o).isInSubproject())
 					return false;

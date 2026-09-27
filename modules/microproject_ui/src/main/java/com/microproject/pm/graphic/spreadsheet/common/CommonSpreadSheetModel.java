@@ -285,12 +285,12 @@ public abstract class CommonSpreadSheetModel extends AbstractTableModel implemen
 //		return gnode.getNode();
 		
 	}
-	public LinkedList getPreviousVisibleNodesFromRow(int row) {
-		LinkedList siblings=null;
+	public LinkedList<Node> getPreviousVisibleNodesFromRow(int row) {
+		LinkedList<Node> siblings = null;
 		for (int r=row-1;r>=0;r--){
 			Node node=getNodeInRow(r);
 			if (node.getImpl() instanceof Assignment) continue;
-			if (siblings==null) siblings=new LinkedList();
+			if (siblings == null) siblings = new LinkedList<>();
 			siblings.addFirst(node);
 			if (!node.isVoid()) return siblings;
 		}

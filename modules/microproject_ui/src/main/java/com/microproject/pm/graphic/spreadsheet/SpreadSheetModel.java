@@ -130,7 +130,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 					getCache().getModel().setFieldValue(field, rowNode, this, value, fieldContext, NodeModel.NORMAL);
 				} else{
 					//boolean previousIsParent=false;
-					LinkedList previousNodes=getPreviousVisibleNodesFromRow(row);
+					LinkedList<Node> previousNodes = getPreviousVisibleNodesFromRow(row);
 					if (previousNodes!=null){
 						Node nextSibling=getNextNonVoidSiblingFromRow(row);
 						if(nextSibling!=null&&nextSibling.getParent()==previousNodes.getFirst()) previousNodes=null;
