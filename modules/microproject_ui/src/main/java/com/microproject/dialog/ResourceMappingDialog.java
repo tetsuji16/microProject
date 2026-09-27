@@ -77,7 +77,7 @@ public final class ResourceMappingDialog extends AbstractDialog {
 	}
 
 	private ResourceMappingDialog(ResourceMappingForm form) {
-		super(form.getOwner(), Messages.getString("ResourceMappingDialog.ResourceMerging"), true); //$NON-NLS-1$
+		super(null, Messages.getString("ResourceMappingDialog.ResourceMerging"), true); //$NON-NLS-1$
 		this.form = form;
 		addDocHelp("Merge_Dialog");
 	}

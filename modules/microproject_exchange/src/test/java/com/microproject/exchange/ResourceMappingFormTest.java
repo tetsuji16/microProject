@@ -5,14 +5,31 @@
 package com.microproject.exchange;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.awt.Frame;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 class ResourceMappingFormTest {
+	@Test
+	void resourceMappingFormDoesNotOwnSwingWindowTypes() {
+		assertFalse(Arrays.stream(ResourceMappingForm.class.getDeclaredFields())
+				.anyMatch(field -> Frame.class.isAssignableFrom(field.getType())));
+		assertFalse(Arrays.stream(ResourceMappingForm.class.getDeclaredMethods())
+				.anyMatch(ResourceMappingFormTest::mentionsFrameType));
+	}
+
+	private static boolean mentionsFrameType(Method method) {
+		return Frame.class.isAssignableFrom(method.getReturnType())
+				|| Arrays.stream(method.getParameterTypes()).anyMatch(Frame.class::isAssignableFrom);
+	}
+
 	@Test
 	void mergeFieldKeepsOnlyUniqueResourceMatchesInImportOrder() {
 		Resource first = new Resource("Development");

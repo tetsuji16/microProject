@@ -33,8 +33,6 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.JFrame;
-
 import org.apache.commons.beanutils.PropertyUtils;
 
 /**
@@ -47,7 +45,6 @@ import org.apache.commons.beanutils.PropertyUtils;
 		protected List<Object> selectedResources;
 		protected boolean local=false,master=false;
 		protected int accessControlType;
-		protected JFrame owner;
 		
 		public static final MergeField NO_MERGE=new MergeField(null,null,"");
 		protected ArrayList<MergeField> mergeFields=new ArrayList<>();
@@ -101,16 +98,6 @@ import org.apache.commons.beanutils.PropertyUtils;
 			this.master = master;
 		}
 
-		public JFrame getOwner() {
-			return owner;
-		}
-
-		public void setOwner(JFrame owner) {
-			this.owner = owner;
-		}
-		
-		
-		
 		public int getAccessControlType() {
 			return accessControlType;
 		}
