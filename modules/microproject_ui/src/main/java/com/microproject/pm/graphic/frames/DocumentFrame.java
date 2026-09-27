@@ -473,9 +473,16 @@ public class DocumentFrame extends NamedFrame implements
 				return RibbonCommandResult.rejected(commandId, "invalid-input").withActiveView("task");
 			}
 			UpdateProjectCommand cmd = new UpdateProjectCommand(project, request);
-			List<Task> targets = new ArrayList<>();
-			if (request.entireProject()) targets.addAll(project.getTaskList());
-			else for (Object value : getSelectedImpls(true)) if (value instanceof Task task) targets.add(task);
+			List<Task> targets;
+			if (request.entireProject()) {
+				List<Task> projectTasks = project.getTaskList();
+				targets = new ArrayList<>(projectTasks.size());
+				targets.addAll(projectTasks);
+			} else {
+				List<?> selectedImpls = getSelectedImpls(true);
+				targets = new ArrayList<>(selectedImpls.size());
+				for (Object value : selectedImpls) if (value instanceof Task task) targets.add(task);
+			}
 			List<Long> changed = cmd.execute(targets, project.getUndoController().getEditSupport());
 			return (changed.isEmpty() ? RibbonCommandResult.noChange(commandId)
 				: RibbonCommandResult.changed(commandId, changed)).withActiveView("task");
