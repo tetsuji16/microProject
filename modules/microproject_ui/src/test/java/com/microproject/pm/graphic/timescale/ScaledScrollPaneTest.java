@@ -13,6 +13,7 @@ import java.awt.Point;
 
 import javax.swing.JPanel;
 import javax.swing.JViewport;
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
@@ -71,8 +72,8 @@ class ScaledScrollPaneTest {
 	}
 
 	@Test
-	void originChangeKeepsTheVisibleLeftDateAnchored() {
-		assertOriginChangeKeepsLeftDateAnchored(200);
+	void originChangeKeepsTheVisibleLeftDateAnchored() throws Exception {
+		SwingUtilities.invokeAndWait(() -> assertOriginChangeKeepsLeftDateAnchored(200));
 	}
 
 	private static void assertOriginChangeKeepsLeftDateAnchored(int initialX) {

@@ -2625,7 +2625,8 @@ presentation-name order are unchanged. Full core tests passed.
 `PageSizes` and `PageSetup` now use diamond inference for the supported-media
 set and the fixed-capacity view/scaling lists. All three constructions match
 the OpenProj UI baseline; media selection, capacities, and print settings are
-unchanged. `PageSizesTest` passed and the UI sources compiled. The full UI suite
-reported one unrelated existing failure in
-`ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnchored` (the focused
-class rerun reproduced it); 932 tests completed, 7 skipped, 1 failed.
+unchanged. `PageSizesTest` passed and the UI sources compiled. The first full
+UI run exposed that `ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnchored`
+performed Swing component operations outside the EDT; moving that scenario to
+the EDT made both the focused class and the full UI suite pass (932 completed,
+7 skipped).
