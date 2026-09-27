@@ -26,7 +26,6 @@ package com.microproject.grouping.core.transform.sorting;
 
 import java.util.ArrayList;
 import java.util.function.Consumer;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
@@ -111,7 +110,7 @@ public class NodeSorter extends CommonTransform implements Comparator<Object>{
 	    return sortList(list,this,preserverHierarchy);
 	}
 	public <T extends HierarchicObject<T>> List<T> sortList(List<T> list,Comparator<? super T> comparator,boolean preserveHierarchy){
-		Collections.sort(list,comparator);
+		list.sort(comparator);
 		if (preserveHierarchy)
 		for (T child : list){
 			if (child.getChildren().size()>0) sortList(child.getChildren(), comparator,true);

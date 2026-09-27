@@ -2715,3 +2715,8 @@ passed (801 tests, no failures or skips).
 The method's filter, encounter-preserving append phase, in-place natural sort,
 and returned `ArrayList` are unchanged from OpenProj 1.4 at `d2fa3c20a`.
 Full `:microproject_core:test` passed.
+
+`NodeSorter.sortList` now delegates sorting to `list.sort(comparator)` rather
+than `Collections.sort(list, comparator)`. OpenProj 1.4 uses the same supplied
+list, comparator, recursive hierarchy order, and in-place sort; the existing
+`NodeSorterTraversalTest` passed.
