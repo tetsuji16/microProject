@@ -474,7 +474,7 @@ public class DefaultFrameManager implements FrameManager {
 	}
 
 	public AbstractList getAllFrames() {
-		LinkedList list = new LinkedList();
+		LinkedList<NamedFrame> list = new LinkedList<>();
 		for (int i = 0; i < getProjectComboBox().getItemCount(); i++) {
 			NamedFrame frame = (NamedFrame)getProjectComboBox().getItemAt(i);
 			list.add(frame);

@@ -2211,3 +2211,5 @@ Jasper `DataSource` now stores and accepts its traversal as `Iterator<?>`. `git 
 `DependencyGraph` now types its node map as `HashMap<GraphicNode, Node>`, its predecessor/successor lists and propagation sets as `Node` collections, and traverses those collections with enhanced-for. Public list getter erasures and the broad cache iterator boundary are preserved; the PERT layout path constructs and updates this graph. The changed logic is OpenProj-derived (`d2fa3c20a`). `:microproject_ui:compileJava` passed; this batch has no existing dedicated `DependencyGraph` test.
 
 `NodeDeletionEdit.undo` now stages each restored node in `LinkedList<Node>` before calling the existing `NodeModel.paste` contract. The one-node undo route is OpenProj-derived and active through `DefaultNodeModel`; deletion undo/redo and subproject lifecycle cases in `DefaultNodeModelTest` passed.
+
+`DefaultFrameManager.getAllFrames` now builds a `LinkedList<NamedFrame>` while retaining its legacy `AbstractList` return descriptor. `git blame` traces the loop to OpenProj (`d2fa3c20a`); current UI and GUI acceptance callers consume the frame list. `DefaultFrameManagerTest` passed.
