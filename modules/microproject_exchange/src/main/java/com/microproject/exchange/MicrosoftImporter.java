@@ -32,7 +32,6 @@ import com.microproject.util.SafeFileReplace;
 import com.microproject.temporary.TemporaryCleanupQueue;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Date;
 import java.util.HashMap;
@@ -86,12 +85,9 @@ import java.util.logging.Logger;
 public class MicrosoftImporter extends ServerFileImporter{
 	private static final Logger logger = Logger.getLogger(MicrosoftImporter.class.getName());
 	protected com.microproject.pm.task.Project plProject= null;
-	List<Object> allTasks = null;
-	ArrayList<Object> subprojects;
 	private Date earliestStart = DateTime.getMaxDate();
 	protected Map<Object, Object> taskMap = new HashMap<>(); // keeps track of mapping mpx tasks to projectlibre1 tasks
 	private Map<Number, Object> resourceMap = new HashMap<>(); // keeps track of mappy mpx resources to projectlibre1 resources
-	List<Object> allResources=null;
 	public static boolean ADD_SUMMARY_TASK = false; //Environment.isAddSummaryTask(); // whether to automatically add an extra project summary task or not //claur
 	private static final String ABORT = "Job aborted"; //$NON-NLS-1$
 	private String errorDescription = null;
@@ -301,8 +297,7 @@ public class MicrosoftImporter extends ServerFileImporter{
     public Job getImportFileJob(){
 		logger.info("MicrosoftImporter.getImportFileJob()");
 
-    	subprojects = new ArrayList<>();
-    	errorDescription = null;
+		errorDescription = null;
     	lastException = null;
     	Session session=SessionFactory.getInstance().getSession(resourceMapping==null);
 		Job job=new Job(session.getJobQueue(),"importFile",Messages.getString("MicrosoftImporter.Importing"),true); //$NON-NLS-1$ //$NON-NLS-2$
