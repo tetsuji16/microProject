@@ -294,9 +294,9 @@ public class LocalSession extends AbstractSession{
     }
 
     private void rememberDescriptor(ProjectData descriptor, String fileName) {
-    	Map attributes = descriptor.getAttributes();
-    	if (attributes == null) {
-    		attributes = new HashMap();
+        Map<String, Object> attributes = descriptor.getAttributes();
+        if (attributes == null) {
+            attributes = new HashMap<>();
     		descriptor.setAttributes(attributes);
     	}
     	attributes.put(DESCRIPTOR_FILE_NAME, fileName);
