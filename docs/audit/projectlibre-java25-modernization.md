@@ -185,6 +185,20 @@ Other apparent hits were excluded at the hunk level:
 - `CustomFieldsMapper`'s reflection cast is required at the `Class<?>`
   reflection boundary; the declared-field result is only known at runtime.
 
+The anonymous `SerializedDataObjectFactory` implementations in the active
+`AssignmentData`, `CompanyData`, `EnterpriseResourceData`, `LinkData`,
+`ResourceData`, and `TaskData` sources were also checked while reconciling the
+line-addressed anonymous-symbol ledger entries. These factory declarations
+and their `createSerializedDataObject` methods are present in the OpenProj
+baseline (confirmed against `d2fa3c20a`); the retained ProjectLibre ledger
+classification does not make these hunks ProjectLibre-origin. Their active
+callers in `Serializer` pass the factory to the shared serialization path, but
+that caller relationship does not change provenance. Keep these anonymous
+classes out of #727 modernization counts; do not lambda-convert them under
+this issue. This reconciliation confirms the attribution of these factory
+entries only, not the remaining line-addressed anonymous symbols in
+`Serializer`, `Linker`, `MicrosoftImporter`, and `ServerLocalFileImporter`.
+
 This is a targeted screen of these named candidates, not a declaration that
 the full Phase 0 inventory is complete. The remaining delta-ledger candidates
 still require method/hunk review before Phase 0 can be closed.
