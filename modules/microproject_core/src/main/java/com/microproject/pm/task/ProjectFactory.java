@@ -696,11 +696,10 @@ public class ProjectFactory {
 	public Job getCloseProjectsOnServerJob(Project project){
 		// Save the project and all of its subprojects
 		final List<Project> projects=new ArrayList<>();
-		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() { public void accept(Object arg0) {
-				Object impl = ((Node)arg0).getImpl();
-				if (impl instanceof Project childProject){
-					projects.add(childProject);
-				}
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, arg0 -> {
+			Object impl = ((Node)arg0).getImpl();
+			if (impl instanceof Project childProject){
+				projects.add(childProject);
 			}
 		});
 		if (projects.size()>0){
