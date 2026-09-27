@@ -148,19 +148,19 @@ public class SessionFactory {
     	sessionImpls = null;
     }
     
-    private final Map<String, Object> credentials = new HashMap<>();
-    public void setCredentials(Map credentials){
+    private final Map<String, String> credentials = new HashMap<>();
+    public void setCredentials(Map<String, String> credentials){
     	if (credentials!=null){
     		this.credentials.clear();
     		this.credentials.putAll(credentials);
     	}
     }
     public String getLogin() {
-    	return (String)credentials.get("login");
+	    	return credentials.get("login");
     	
     }
     public String getServerUrl(){
-    	return (String)credentials.get("serverUrl");
+	    	return credentials.get("serverUrl");
     }
 
     public LocalSession getLocalSession(){
