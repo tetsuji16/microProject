@@ -71,6 +71,11 @@ OpenProj progress.
   path were introduced by microProject commit `2cc236603` and are absent from
   the OpenProj baseline and ProjectLibre 1.9.8. The attempted raw-map typing was
   rejected after this provenance check; do not count that hunk toward #727.
+- `CalendarViewDialogBox` was introduced wholesale by local commit
+  `2b3ff5faa5` ("Complete MS Project usability roadmap"); the file is absent
+  from that commit's parent. Its old `modules/projectlibre_ui` path and
+  `com.projectlibre1` package reflect the temporary checkout layout, not
+  upstream provenance. Keep this UI extension outside #727 and #595.
 - These exclusions are not counted toward #727 or #595.
 
 ## ProjectLibre-added core type inventory
