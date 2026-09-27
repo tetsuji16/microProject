@@ -356,7 +356,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	    sdCalendar.addPropertyChangeListener(new PropertyChangeListener(){
 	        final CalendarService service=CalendarService.getInstance();
 	        public void propertyChange(PropertyChangeEvent e){
-//	        	System.out.println("propery change");
 	            String property=e.getPropertyName();
 	            if ("lastDisplayedDate".equals(property)||"firstDisplayedDate".equals(property)){ //$NON-NLS-1$ //$NON-NLS-2$
 	            	updateView();
@@ -425,7 +424,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		    service.setDaysWorkingHours(wc,lastSelection,lastWeekSelection,hours);
 
 			markCalendarEdited();
-		    //System.out.println("Saved "+lastSelection);
 	    } catch (WorkRangeException e) {
 	        Alert.warn(Messages.getString("Message.badTimeIntervals"),this); //$NON-NLS-1$
 	        return false;
@@ -547,7 +545,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		return cal.getTimeInMillis();
 	}
 	private void setWorkingHours(WorkingHours hours){
-//	    System.out.println("setting working hours" + hours);
 		// if not working treat as empty
 		if (hours != null && hours.getDuration() == 0)
 			hours = null;
@@ -637,7 +634,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	    sdCalendar.setColorWeekDates(colorWeekDates);
 	    sdCalendar.setFlaggedWeekDates(flaggedWeekDates);
 	   // updateWorkingHours();
-	    //System.out.println(service.dump(wc));
 	}
 
 	//stupid jdnc calendar use long[]
@@ -651,7 +647,6 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 
 
 	private void updateWorkingHours() {
-//		System.out.println("updating working hours");
         final CalendarService service=CalendarService.getInstance();
 
 		 if (dirtyWorkingHours){
@@ -660,19 +655,15 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 
         DayDescriptor day=service.getDay(form.getCalendar(),sdCalendar.getSelectedFixedIntervals(),sdCalendar.getSelectedWeekDays());
         if (day==null){
-//            System.out.println("none");
             ChangeWorkingTimeDialogBox.this.datesSetting.setSelected(ChangeWorkingTimeDialogBox.this.unknownWorkingTime.getModel(),true);
             setWorkingHours(null);
         }else if (!day.isModified()){
-//            System.out.println("default");
             ChangeWorkingTimeDialogBox.this.datesSetting.setSelected(ChangeWorkingTimeDialogBox.this.defaultWorkingTime.getModel(),true);
             setWorkingHours(day.getWorkingHours());
         }else if (!day.isWorking()){
-//            System.out.println("non working");
             ChangeWorkingTimeDialogBox.this.datesSetting.setSelected(ChangeWorkingTimeDialogBox.this.nonWorking.getModel(),true);
             setWorkingHours(null);
         }else{
-//            System.out.println("working");
             ChangeWorkingTimeDialogBox.this.datesSetting.setSelected(ChangeWorkingTimeDialogBox.this.working.getModel(),true);
             setWorkingHours(day.getWorkingHours());
         }
