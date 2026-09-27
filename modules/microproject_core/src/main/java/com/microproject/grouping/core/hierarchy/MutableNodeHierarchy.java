@@ -190,7 +190,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
        	Node[] descendants=addDescendants(/*trees*/children);
 
 
-       	ArrayList<Dependency> dependencies = new ArrayList<Dependency>();
+		ArrayList<Dependency> dependencies = new ArrayList<>();
 
     	boolean doTransaction = model.getDocument() != null && descendants.length > 0;
     	int transactionId = 0;
@@ -198,7 +198,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     		transactionId = model.getDocument().fireMultipleTransaction(0,true);
 
 
-    	ArrayList<Node> insertedNodes = new ArrayList<Node>(descendants.length);
+		ArrayList<Node> insertedNodes = new ArrayList<>(descendants.length);
 
     	if (project!=null){
 			int resourceCount = project.getResourcePool().getResourceList().size();
@@ -228,7 +228,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         				task.setProjectId(owningProject.getUniqueId()); //useful?
         			owningProject.validateObject(task,model,this,null,false);
 
-        			Set<Dependency> depsSet=new HashSet<Dependency>();
+					Set<Dependency> depsSet=new HashSet<>();
 					AssociationList pdeps = task.getDependencyList(true);
     				if (pdeps!=null&&pdeps.size()>0){
     					if (Environment.isKeepExternalLinks()){
@@ -340,7 +340,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
        	if (isEvent(actionType)){
        		renumber();
-       		fireNodesInserted(this,insertedNodes.toArray(new Node[insertedNodes.size()]));
+			fireNodesInserted(this,insertedNodes.toArray(Node[]::new));
 
        		//not necessary in case of subproject paste
        		for (Dependency dependency : dependencies){
@@ -394,7 +394,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     //warning: modify nodes list
     private static Node[] addDescendants(List<Node> nodes){
-    	ArrayList<Node> descendants = new ArrayList<Node>(nodes.size());
+		ArrayList<Node> descendants = new ArrayList<>(nodes.size());
        	for (ListIterator<Node> i=nodes.listIterator();i.hasNext();){
        		Node node=i.next();
        		extractSameProjectBranch(node,descendants);
@@ -404,7 +404,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 //        		if (!rootNode) descendants.add(current);
 //        	}
        	}
-    	Node[] descendantsArray=descendants.toArray(new Node[descendants.size()]);
+		Node[] descendantsArray=descendants.toArray(Node[]::new);
     	return descendantsArray;
     }
 
