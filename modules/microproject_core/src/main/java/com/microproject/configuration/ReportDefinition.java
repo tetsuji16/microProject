@@ -26,6 +26,7 @@ package com.microproject.configuration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.digester.Digester;
 
@@ -56,14 +57,14 @@ public class ReportDefinition implements NamedItem {
 		this.collectionType = collectionType;
 	}
 	private Object reportObject = null;
-	private HashMap reportColumnDefinitions = new HashMap<>();
+	private Map<ArrayList<?>, Object> reportColumnDefinitions = new HashMap<>();
 	/**
 	 * @return Returns the columnsList.
 	 */
-	public ArrayList getColumnsList() {
+	public ArrayList<ReportColumns> getColumnsList() {
 		return columnsList;
 	}
-	private ArrayList columnsList = new ArrayList();
+	private ArrayList<ReportColumns> columnsList = new ArrayList<>();
 
 	
 	/**
@@ -115,21 +116,21 @@ public class ReportDefinition implements NamedItem {
 	public String getMainSpreadsheetCategory() {
 		if (columnsList.size() == 0)
 			return null;
-		return ((ReportColumns)columnsList.get(columnsList.size()-1)).getCategorySpreadSheet();
+		return columnsList.get(columnsList.size()-1).getCategorySpreadSheet();
 	}
 	
 	public SpreadSheetFieldArray getMainFieldArray() {
 		if (columnsList.size() == 0)
 			return null;
-		return ((ReportColumns)columnsList.get(columnsList.size()-1)).getFieldArray();
+		return columnsList.get(columnsList.size()-1).getFieldArray();
 		
 	}
-	public final Object getReportObject(ArrayList columns) {
+	public final Object getReportObject(ArrayList<?> columns) {
 		if (columns == null)
 			return reportObject;
 		return reportColumnDefinitions.get(columns);
 	}
-	public final void setReportObject(Object reportObject, ArrayList columns) {
+	public final void setReportObject(Object reportObject, ArrayList<?> columns) {
 		if (columns == null)
 			this.reportObject = reportObject;
 		else

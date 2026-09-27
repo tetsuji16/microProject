@@ -463,7 +463,7 @@ public class ReportAdapter {
 	public void generateDesign(SpreadSheetFieldArray fieldArray) throws JRException {
 		hasAggregableField = false;
 		generateBaseDesign();
-		ArrayList columnsList = (ArrayList) reportDefinition.getColumnsList();
+		ArrayList<ReportColumns> columnsList = reportDefinition.getColumnsList();
 
 		ReportColumns columns;
 		if(columnsList.size() == 1) {
@@ -472,7 +472,7 @@ public class ReportAdapter {
 			if (fieldArray != null)
 				fields =  fieldArray;
 			else {
-				columns = (ReportColumns)columnsList.get(0);
+				columns = columnsList.get(0);
 				fields = columns.getFieldArray();
 			}	
 			addFields(fields);
@@ -497,10 +497,10 @@ public class ReportAdapter {
 //			System.out.println("columns number is " + fields.size());
 		} else if(columnsList.size() == 2) {
 			// reports & subreports
-			columns = (ReportColumns)columnsList.get(0);
+			columns = columnsList.get(0);
 			String groupByField = columns.getGroupbyField();
 			SpreadSheetFieldArray mainFields = columns.getFieldArray();
-			columns = (ReportColumns)columnsList.get(1);
+			columns = columnsList.get(1);
 			SpreadSheetFieldArray detailFields;
 			if (fieldArray != null)
 				detailFields = fieldArray;
