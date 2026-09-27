@@ -39,7 +39,7 @@ import java.util.Map;
 public abstract class CellCache{
 	protected ArrayList cache;
 	protected ArrayList visibleElements;
-	protected Map baseIndex;
+	protected Map<Object, Object> baseIndex;
 	
 	/**
 	 * 
@@ -47,7 +47,7 @@ public abstract class CellCache{
 	public CellCache() {
 		cache=new ArrayList();
 		visibleElements=new ArrayList();
-		baseIndex=new HashMap();
+		baseIndex = new HashMap<>();
 	}
 		
 	
@@ -131,10 +131,10 @@ public abstract class CellCache{
 	
 	
 	
-	Map getBaseIndex() {
+	Map<Object, Object> getBaseIndex() {
 		return baseIndex;
 	}
-	void setBaseIndex(Map baseIndex) {
+	void setBaseIndex(Map<Object, Object> baseIndex) {
 		this.baseIndex = baseIndex;
 	}
 	void setCache(ArrayList cache) {
