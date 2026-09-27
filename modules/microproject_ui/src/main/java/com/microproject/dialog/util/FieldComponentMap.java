@@ -142,7 +142,7 @@ public class FieldComponentMap implements ObjectRef {
 		JComponent component = getComponent(fieldId,0);
 		boolean isCheckbox = component instanceof JCheckBox;
 		CellConstraints cc = new CellConstraints().xyw(builder.getColumn() + (isCheckbox ? 0 : 2), builder.getRow(), span);
-		if (component instanceof JCheckBox) {// checkboxes already have a label to the right
+		if (isCheckbox) {// checkboxes already have a label to the right
 			builder.add(component,cc);
 		} else {
 			builder.addLabel(getLabel(fieldId)+":");
