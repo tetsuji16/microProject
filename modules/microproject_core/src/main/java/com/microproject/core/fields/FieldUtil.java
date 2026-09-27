@@ -284,8 +284,8 @@ public class FieldUtil {
 
 	
 	public static String[] getCategories(Class<?> cl){
-		Set<String> categorySet=new HashSet<String>();
-		List<String> categories=new LinkedList<String>();
+		Set<String> categorySet=new HashSet<>();
+		List<String> categories=new LinkedList<>();
 		addCategories(cl, categories, categorySet);
 		return categories.toArray(String[]::new);
 		

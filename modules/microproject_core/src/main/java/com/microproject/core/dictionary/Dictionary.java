@@ -41,8 +41,8 @@ import java.util.Set;
  */
 @Deprecated(forRemoval = false)
 public class Dictionary implements Iterable<HasStringId>{
-	protected Map<DictionaryCategory, Map<String,HasStringId>> dictionary=new HashMap<DictionaryCategory, Map<String,HasStringId>>();
-	protected Map<Class<?>, Set<String>> categories=new HashMap<Class<?>, Set<String>>();
+	protected Map<DictionaryCategory, Map<String,HasStringId>> dictionary=new HashMap<>();
+	protected Map<Class<?>, Set<String>> categories=new HashMap<>();
 	
 	
 	public void add(HasStringId hasId){
@@ -60,7 +60,7 @@ public class Dictionary implements Iterable<HasStringId>{
 		//categories
 		Set<String> cat=categories.get(category.getClasse());
 		if (cat==null){
-			cat=new HashSet<String>();
+			cat=new HashSet<>();
 			categories.put(category.getClasse(),cat);
 		}
 		cat.add(category.getCategory());
@@ -68,7 +68,7 @@ public class Dictionary implements Iterable<HasStringId>{
 		//dictionary
 		Map<String,HasStringId> map=dictionary.get(category);
 		if (map==null){
-			map=new HashMap<String, HasStringId>();
+			map=new HashMap<>();
 			dictionary.put(category,map);
 		}
 		return map.put(hasId.getId(),hasId);		
@@ -132,7 +132,7 @@ public class Dictionary implements Iterable<HasStringId>{
 	public Iterator<HasStringId> iterator(DictionaryCategory category) {
 		Map<String,HasStringId> map=dictionary.get(category);
 		if (map==null)
-			return new Iterator<HasStringId>() {
+			return new Iterator<>() {
 				@Override
 				public boolean hasNext() {
 					return false;
@@ -154,7 +154,7 @@ public class Dictionary implements Iterable<HasStringId>{
 	
 	@Override
 	public Iterator<HasStringId> iterator() {
-		return new Iterator<HasStringId>() {
+		return new Iterator<>() {
 			private Iterator<Map<String,HasStringId>> iterator1=dictionary.values().iterator();
 			private Iterator<HasStringId> iterator2=null;
 			@Override
