@@ -123,7 +123,7 @@ public final class LocaleDialog extends AbstractDialog {
 	AbstractTableModel externalListModel;
 	String[] externalListColumns={"code", "client.properties", "menu.properties"};
 	
-	ArrayList<LanguageProperties> files=new ArrayList<LanguageProperties>();
+	ArrayList<LanguageProperties> files=new ArrayList<>();
 	
 	public enum FileStatus {
 	    OK(Messages.getString("LocaleDialog.FileStatusOk")),
@@ -202,9 +202,9 @@ public final class LocaleDialog extends AbstractDialog {
 	
 	
 	String[] slocales=Settings.LANGUAGES.split(";", -1);
-	Set<String> allLocales=new TreeSet();
-	Map<String, String> transOri=new HashMap<String, String>();
-	Map<String, String> oriTrans=new HashMap<String, String>();
+	Set<String> allLocales=new TreeSet<>();
+	Map<String, String> transOri=new HashMap<>();
+	Map<String, String> oriTrans=new HashMap<>();
 
 
 	protected boolean bind(boolean get) {
@@ -308,7 +308,7 @@ public final class LocaleDialog extends AbstractDialog {
 		
 		
 		if (init) { //only set once
-	        TreeSet<Country> countrySet=new TreeSet<Country>();
+	        TreeSet<Country> countrySet=new TreeSet<>();
 
 	        countrySet.add(DEFAULT_COUNTRY);
 	        String[] countryCodes=Locale.getISOCountries();
@@ -631,7 +631,7 @@ public final class LocaleDialog extends AbstractDialog {
 		
 		exportResourceFile(Messages.class,"client");
 		
-		Map<String, LanguageProperties> fileMap=new TreeMap<String, LanguageProperties>();
+		Map<String, LanguageProperties> fileMap=new TreeMap<>();
 		for (File file:clientFiles) {
 			Matcher m = clientPattern.matcher(file.getName());
 			if(m.matches()) {
