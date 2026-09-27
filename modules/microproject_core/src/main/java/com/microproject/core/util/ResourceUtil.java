@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.core.util;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -48,12 +49,20 @@ public class ResourceUtil {
 		for (String p : packages){
 			try {
 				Class<?> c=Class.forName(p+"."+simpleClassName, true, getClassLoader());
-				return c.newInstance();
+				return c.getDeclaredConstructor().newInstance();
 			} catch (ClassNotFoundException e) {
 			} catch (InstantiationException e) {
 			} catch (IllegalAccessException e) {
+			} catch (NoSuchMethodException e) {
+			} catch (InvocationTargetException e) {
+				return ResourceUtil.<RuntimeException>rethrow(e.getCause());
 			}
 		}
 		return null;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T extends Throwable> Object rethrow(Throwable cause) throws T {
+		throw (T) cause;
 	}
 }
