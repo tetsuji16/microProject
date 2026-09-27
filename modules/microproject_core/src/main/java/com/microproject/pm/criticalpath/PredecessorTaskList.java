@@ -42,7 +42,7 @@ import com.microproject.pm.task.Task;
 */
 public class PredecessorTaskList {
 	private static final Logger logger = Logger.getLogger(PredecessorTaskList.class.getName());
-	private LinkedList<TaskReference> list = new LinkedList<TaskReference>();
+	private LinkedList<TaskReference> list = new LinkedList<>();
 	private final AtomicInteger calculationStateCount = new AtomicInteger(0);
 	private boolean markerStatus;
 	private int numberOfReverseScheduledTasks = 0;
@@ -197,7 +197,7 @@ public class PredecessorTaskList {
 		// store off sentinels to put them back later
 		TaskReference startSentinel = list.removeFirst();
 		TaskReference endSentinel = list.removeLast();
-		list = new LinkedList<TaskReference>();
+		list = new LinkedList<>();
 			
 		toggleMarkerStatus();
 		for (TaskReference taskReference : oldList) {

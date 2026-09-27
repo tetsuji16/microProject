@@ -2591,3 +2591,9 @@ unchanged. `MainArgumentsTest` passed.
 successor dependency sets. These sets are present in the OpenProj copy
 workflow; their `Set<Dependency>` types, population order, and rebuild timing
 are unchanged. `DefaultNodeModelTest` passed.
+
+`PredecessorTaskList` now uses diamond inference for its ordered task-reference
+list, both at construction and when rebuilt during `rearrangeAll`. The
+corresponding raw linked-list field and reset are present in the OpenProj
+baseline; element type, sentinel preservation, traversal order, and linked-list
+behavior are unchanged. `PredecessorTaskListTraversalTest` passed.
