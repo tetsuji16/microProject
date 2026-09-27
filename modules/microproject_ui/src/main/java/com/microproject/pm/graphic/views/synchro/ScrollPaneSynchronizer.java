@@ -78,9 +78,9 @@ public class ScrollPaneSynchronizer {
 
 	protected MouseWheelListener scrollPane2WheelListener = null;
 
-	protected ArrayList scrollPane1WheelTargets = new ArrayList();
+	protected ArrayList scrollPane1WheelTargets = new ArrayList(6);
 
-	protected ArrayList scrollPane2WheelTargets = new ArrayList();
+	protected ArrayList scrollPane2WheelTargets = new ArrayList(6);
 
 	protected int defaultScrollBarPolicy1;
 
