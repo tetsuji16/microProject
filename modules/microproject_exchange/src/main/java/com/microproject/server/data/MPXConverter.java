@@ -115,9 +115,7 @@ public class MPXConverter {
 	public static void toMPXOptions(ProjectProperties projectHeader) {
 
 		CalendarOption calendarOption = CalendarOption.getInstance();
-//		projectHeader.setDefaultHoursInDay(new Float(calendarOption.getHoursPerDay()));
 		projectHeader.setMinutesPerDay(Integer.valueOf((int) (60 * calendarOption.getHoursPerDay())));
-//		projectHeader.setDefaultHoursInWeek(new Float(calendarOption.getHoursPerWeek()));
 		projectHeader.setMinutesPerWeek(Integer.valueOf((int) (60 * calendarOption.getHoursPerWeek())));
 
 		projectHeader.setDaysPerMonth(Integer.valueOf((int) Math.round(calendarOption.getDaysPerMonth())));
