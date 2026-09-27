@@ -2358,3 +2358,13 @@ are unchanged. `DefaultNodeModelTest` and downstream UI compilation passed.
 `Collection<?>`, matching the delegated `HasAssignmentsImpl` constructor.
 Assignment details are still validated/cast by that constructor, and the
 erased constructor descriptor is unchanged. Full core tests passed.
+
+`AssignmentService` now uses `Collection<?>` for the OpenProj-derived batch
+assignment task/resource inputs, the batch resource helper, the undo-aware
+assignment removal input, and the undo batch's schedule-backup input. Runtime
+task/resource checks and assignment casts remain in place. Kept the two-argument
+`remove(Collection, Object)` raw because typing that overload makes the
+neighboring `remove(Collection, Collection)` call ambiguous; this was confirmed
+by compilation and the existing NormalTask snapshot-removal caller must retain
+its current overload. `AssignmentServiceTest` and downstream UI compilation
+passed.

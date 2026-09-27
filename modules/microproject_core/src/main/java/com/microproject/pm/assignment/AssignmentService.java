@@ -67,7 +67,7 @@ public class AssignmentService {
 	}
 	
 	
-	public void newAssignments(Collection tasks, Collection resources, double units, long delay, Object eventSource,boolean undo) {
+	public void newAssignments(Collection<?> tasks, Collection<?> resources, double units, long delay, Object eventSource,boolean undo) {
 		if (tasks.isEmpty() || resources.isEmpty()) {
 			return;
 		}
@@ -206,7 +206,7 @@ public class AssignmentService {
 		return resource.getDocument() instanceof ResourcePool ? (ResourcePool) resource.getDocument() : null;
 	}
 
-	private void batchAssignResources(NormalTask task, Collection resources, double units, long delay, Object eventSource) {
+	private void batchAssignResources(NormalTask task, Collection<?> resources, double units, long delay, Object eventSource) {
 		boolean taskHadNoRealAssignments = !task.hasRealAssignments() || !task.hasLaborAssignment();
 		TaskState taskState = preserveTaskState(task, taskHadNoRealAssignments);
 		Set<Resource> assignedResources = getAssignedResources(task);
@@ -254,11 +254,11 @@ public class AssignmentService {
 		private int resourceTransactionId;
 		private Collection<Assignment> queuedDetailAssignments;
 
-		void beginIfNeeded(NormalTask task, Collection tasks, ResourcePool resourcePool, AssignmentService service, boolean undo) {
+		void beginIfNeeded(NormalTask task, Collection<?> tasks, ResourcePool resourcePool, AssignmentService service, boolean undo) {
 			beginIfNeeded(task, tasks, resourcePool, service, undo, true);
 		}
 
-		void beginIfNeeded(NormalTask task, Collection tasks, ResourcePool resourcePool, AssignmentService service,
+		void beginIfNeeded(NormalTask task, Collection<?> tasks, ResourcePool resourcePool, AssignmentService service,
 				boolean undo, boolean captureScheduleBackup) {
 			if (!undo) {
 				return;
@@ -403,7 +403,7 @@ public class AssignmentService {
 //			undoableEditSupport.postEdit(new AssignmentDeletionEdit(assignment,eventSource));
 //		}
 	}
-	public void remove(Collection assignments, Object eventSource,boolean undo) {
+	public void remove(Collection<?> assignments, Object eventSource,boolean undo) {
 		UndoableEditSupport undoableEditSupport=null;
 		
 		try {

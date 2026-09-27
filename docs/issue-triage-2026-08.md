@@ -62,6 +62,13 @@ and downstream UI compilation passed.
 `TaskSnapshot` now declares its existing arbitrary detail collection as
 `Collection<?>`, matching its constructor delegate while retaining runtime
 detail validation and the erased constructor descriptor. Full core tests passed.
+
+`AssignmentService` batch task/resource collections and its unambiguous
+assignment-removal inputs now use `Collection<?>`, retaining runtime
+validation/casts. The overloaded two-argument removal signature remains raw
+because typing it conflicts with the neighboring collection-copy overload at
+an existing snapshot-removal call site. `AssignmentServiceTest` and downstream
+UI compilation passed.
 | New: legacy `.pod` conversion guidance conflicts with MPO default | Implemented locally | Deprecated-format recovery now recommends `xml or mpo`. Legacy `.pod` opening and explicit `.pod` Save As compatibility remain available. |
 
 ## New issue: remove `.pod` as a recommended conversion target
