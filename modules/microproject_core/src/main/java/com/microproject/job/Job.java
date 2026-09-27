@@ -630,11 +630,8 @@ public class Job extends Thread {
 
 		public void run(){
 			try {
-				//System.out.println("Start: "+getName());
 				result=runnable.run();
-				//System.out.println("End: "+getName());
 			} catch (Exception e) {
-				//System.out.println("Exception: "+getName());
 				exception=e;
 				failureException=e;
 				if (!(e instanceof JobCanceledException)){
