@@ -70,8 +70,7 @@ public class FieldChangeListener implements ItemListener,ChangeListener {
 	}
 
 	public void stateChanged(ChangeEvent e) {
-		if (e.getSource() instanceof LookupField) {
-			LookupField f = (LookupField)e.getSource();
+		if (e.getSource() instanceof LookupField f) {
 			try {
 				field.setText(objectRef,f.getValue(),context);
 			} catch (FieldParseException e1) {

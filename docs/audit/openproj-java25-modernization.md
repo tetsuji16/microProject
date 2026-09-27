@@ -2085,3 +2085,9 @@ pattern matching, removing the immediate cast. The enclosing equality logic
 contains a later fork change for issue #177, which remains untouched. Equality
 still compares `id` and `uniqueId`; `DataObjectEqualsHashCodeTest` passed after
 the hunk-only change.
+
+`FieldChangeListener.stateChanged` now binds the `LookupField` pattern and
+uses that binding for the existing `getValue` call. The check/cast hunk matches
+OpenProj at `d2fa3c20a`; `ComponentFactory` is the active producer. The later
+fork logging behavior in the exception path is unchanged. Full
+`:microproject_ui:test --console=plain` passed.
