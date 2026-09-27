@@ -507,7 +507,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @param wbsChildrenNodes The wbsChildrenNodes to set.
 	 */
 	public void setWbsChildrenNodes(Collection<Node> wbsChildrenNodes) {
-//System.out.println(this + " setWbsChildrenNodes " + wbsChildrenNodes);
 		this.wbsChildrenNodes = wbsChildrenNodes;
 	}
 
@@ -548,7 +547,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 	public boolean isWbsParent() {
 		if (wbsChildrenNodes == null || wbsChildrenNodes.size() == 0) {//a task has at least one assignment
-//			System.out.println(this + " is not a wbs parent " + wbsChildrenNodes);
 			return false;
 		}
 
@@ -1272,7 +1270,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public int getConstraintType() {
 //		if (constraintType != ConstraintType.ASAP && constraintType != ConstraintType.ALAP) {
 //			if (getConstraintDate() < 1000000) {
-//				System.out.println("fixing bad constraint date: " + this + "  " + getId() );
 //				clearDateConstraints();
 //				constraintType = ConstraintType.ASAP;
 //			}
@@ -1753,7 +1750,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 */
 	public final void setCalculationStateCount(int calculationStateCount) {
 //		if (this.calculationStateCount == calculationStateCount) return;
-//		System.out.println("setCalculationStateCount");
 //		setDirty(true);
 		this.calculationStateCount = calculationStateCount;
 	}

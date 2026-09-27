@@ -1121,7 +1121,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				break;
 			}
 		}
-//		System.out.println("adjusting actual start to " + new java.util.Date(start));
 		setActualStart(start);
 		assignParentActualDatesFromChildren();
 
@@ -1970,7 +1969,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				Assignment assignment = (Assignment) association;
 				assignment.setEnd(end);
 			}
-//			System.out.println("Old End"  + new Date(oldEnd) + " input end " + new Date(end )+ " resulting End " + new Date(getEnd()) + " duration " + DurationFormat.format(getDuration()));
 			if (!hasRealAssignments())
 				setRawDuration(getEffectiveWorkCalendar().compare(getEnd(), getStart(), false));
 			else

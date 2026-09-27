@@ -202,7 +202,6 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	}
 	public void addSubproject(final Project child, Project parent, Project owning) {
 		// parent is no longer used.
-//System.out.println("addSubproject child " + child + " parent " + parent + " owning " +  owning)	;
 		Node childNode = nodeModel.search(child);
 		boolean modified = false;
 		if (childNode == null) {

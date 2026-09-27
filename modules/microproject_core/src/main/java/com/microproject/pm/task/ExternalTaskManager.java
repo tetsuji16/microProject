@@ -116,10 +116,8 @@ public class ExternalTaskManager {
 				realTask.getPredecessorList().add(dep);
 				dep.fireCreateEvent(this);
 			}
-//			System.out.println("removing external task " + externalTask + " from project " + externalTask.getProject());
 			externalTask.getProject().removeExternal(externalTask);
 			if (externalTask.liesInSubproject()) {
-//				System.out.println("alo removing external task " + externalTask + " from project " + externalTask.getRootProject());
 				externalTask.getRootProject().removeExternal(externalTask);
 			}
 
