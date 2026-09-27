@@ -156,11 +156,11 @@ public class SessionFactory {
     	}
     }
     public String getLogin() {
-	    	return credentials.get("login");
+		return credentials.get("login");
     	
     }
     public String getServerUrl(){
-	    	return credentials.get("serverUrl");
+		return credentials.get("serverUrl");
     }
 
     public LocalSession getLocalSession(){
