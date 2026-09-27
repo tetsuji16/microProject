@@ -240,18 +240,10 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		ok = new JButton(okText);
 		ok.setEnabled(initialOkEnabledState());
 		FlatUiSupport.styleDialogButton(ok, true);
-		ok.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				AbstractDialog.this.onOk();
-			}
-		});
+		ok.addActionListener(event -> onOk());
 		cancel = new JButton(cancelText);
 		FlatUiSupport.styleDialogButton(cancel, false);
-		cancel.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				AbstractDialog.this.onCancel();
-			}
-		});
+		cancel.addActionListener(event -> onCancel());
     }
     
 	protected JComponent getHelpButton() {
@@ -281,11 +273,7 @@ public abstract class AbstractDialog extends FlatLafDialog {
 	protected void createCloseButton() {
 		ok = new JButton(Messages.getString("ButtonText.Close"));
 		FlatUiSupport.styleDialogButton(ok, true);
-		ok.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				AbstractDialog.this.onOk();
-			}
-		});
+		ok.addActionListener(event -> onOk());
 	}
 
 	public ButtonPanel createButtonPanel() {

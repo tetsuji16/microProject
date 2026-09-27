@@ -2106,8 +2106,29 @@ from active dialog, report, print-preview, and toolbar help routes. The help
 target resolution is unchanged. Full `:microproject_ui:test --console=plain`
 passed.
 
-FieldDialog.createFieldsPanel now uses the collection's isEmpty() contract instead of comparing size() to zero. git blame traces this guard to OpenProj (d2fa3c20a); active subclasses/callers include project, project-information, update-task, and delegate-task dialogs. Null handling and whether the shared field panel is omitted are unchanged. Full :microproject_ui:test --console=plain passed.
+`FieldDialog.createFieldsPanel` now uses the collection's `isEmpty()` contract
+instead of comparing `size()` to zero. `git blame` traces this guard to OpenProj
+(`d2fa3c20a`); active subclasses/callers include project,
+project-information, update-task, and delegate-task dialogs. Null handling and
+whether the shared field panel is omitted are unchanged. Full
+`:microproject_ui:test --console=plain` passed.
 
-Serializer.forAssignments now iterates snapshot assignments directly instead of guarding the loop with size() > 0; the empty collection naturally produces no callbacks. git blame traces this method to OpenProj (19d0b4e9e1); the active caller serializes baseline assignments into POD/XLSX document data. Null behavior, callback order, and casts are unchanged. Full :microproject_exchange:test --console=plain passed.
+`Serializer.forAssignments` now iterates snapshot assignments directly instead
+of guarding the loop with `size() > 0`; the empty collection naturally produces
+no callbacks. `git blame` traces this method to OpenProj (`19d0b4e9e1`); the
+active caller serializes baseline assignments into POD/XLSX document data. Null
+behavior, callback order, and casts are unchanged. Full
+`:microproject_exchange:test --console=plain` passed.
 
-The POD/XLSX assignment serialization callback now uses a lambda for the single-method AssignmentClosure instead of an anonymous class. git blame traces the interface and callback scaffolding to OpenProj (d2fa3c20a / 19d0b4e9e1); Serializer.taskLinker is the active caller. The callback body, including the fork's orphan-resource handling, was preserved. Full :microproject_exchange:test --console=plain passed.
+The POD/XLSX assignment serialization callback now uses a lambda for the
+single-method `AssignmentClosure` instead of an anonymous class. `git blame`
+traces the interface and callback scaffolding to OpenProj (`d2fa3c20a` /
+`19d0b4e9e1`); `Serializer.taskLinker` is the active caller. The callback body,
+including the fork's orphan-resource handling, was preserved. Full
+`:microproject_exchange:test --console=plain` passed.
+
+`AbstractDialog` now registers OK, Cancel, and Close actions with lambdas rather
+than anonymous `ActionListener` classes. `git blame` traces the button callback
+scaffolding to OpenProj (`d2fa3c20a`); all application dialogs inherit this
+button pipeline. The same virtual `onOk`/`onCancel` methods are called by the
+same buttons. Full `:microproject_ui:test --console=plain` passed.
