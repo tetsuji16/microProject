@@ -35,10 +35,6 @@ public class CommonDataObject implements DataObject{
 
 	protected long uniqueId=-1L;
     protected String name;
-//    protected boolean dirty=true;
-
-
-//    protected Map details=null;
 
     /**
      *
@@ -52,12 +48,6 @@ public class CommonDataObject implements DataObject{
     public void setUniqueId(long id) {
         this.uniqueId = id;
     }
-//	public boolean isNew() {
-//		return isNew;
-//	}
-//	public void setNew(boolean isNew) {
-//		this.isNew = isNew;
-//	}
     public String getName() {
         return name;
     }
@@ -69,15 +59,13 @@ public class CommonDataObject implements DataObject{
     }
 
     public boolean isDirty() {
-		return false;//return dirty;
+		return false;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("CommonDataObject _setDirty("+dirty+"): "+getName());
-		//this.dirty = dirty;
 	}
 
 	public String toString(){
-    	return name;//+"("+uniqueId+")";
+    	return name;
     }
 
 	public boolean equals(Object obj){
