@@ -127,12 +127,9 @@ import com.microproject.dialog.BaselineDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.OpenProjectDialog;
 import com.microproject.dialog.ProjectDialog;
-import com.microproject.dialog.ProjectInformationDialog;
 import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.dialog.RenameProjectDialog;
-import com.microproject.dialog.ResourceInformationDialog;
 import com.microproject.dialog.ResourceMappingDialog;
-import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.WelcomeDialog;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.dialog.assignment.TimesheetDialog;
@@ -261,9 +258,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static String server = null;
 
     private final AssignmentDialogCoordinator assignmentDialogCoordinator = new AssignmentDialogCoordinator();
-	private ProjectInformationDialog projectInformationDialog = null;
-	private TaskInformationDialog taskInformationDialog = null;
-	private ResourceInformationDialog resourceInformationDialog = null;
+	private final InformationDialogCoordinator informationDialogCoordinator = new InformationDialogCoordinator();
     private final ApplicationInfoDialogCoordinator applicationInfoDialogCoordinator = new ApplicationInfoDialogCoordinator();
     private BaselineDialog baselineDialog = null;
     private ResourceMappingDialog resourceMappingDialog=null;
@@ -829,12 +824,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				topTabs.setCurrentFrame(currentFrame);
 			}
 			DocumentSelectedEvent.fire(this,currentFrame);
-			if (projectInformationDialog != null)
-				projectInformationDialog.documentSelected(new DocumentSelectedEvent(this,currentFrame));
-			if (taskInformationDialog != null)
-				taskInformationDialog.documentSelected(new DocumentSelectedEvent(this,currentFrame));
-			if (resourceInformationDialog != null)
-				resourceInformationDialog.documentSelected(new DocumentSelectedEvent(this,currentFrame));
+			informationDialogCoordinator.documentSelected(new DocumentSelectedEvent(this,currentFrame));
 
 			setTitle(false);
 			if (currentFrame != null)
@@ -1617,16 +1607,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (!beforeProjectInformationRoute(project))
 			return;
 
-		if (projectInformationDialog == null) {
-			projectInformationDialog = ProjectInformationDialog.getInstance(getFrame(), project);
-			projectInformationDialog.pack();
-			projectInformationDialog.setModal(false);
-		} else {
-			projectInformationDialog.setObject(project);
-		}
-		projectInformationDialog.setMoveProjectHandler(frame::moveProject);
-		projectInformationDialog.setLocationRelativeTo(frame);//to center on screen
-		projectInformationDialog.setVisible(true);
+		informationDialogCoordinator.showProject(getFrame(), frame, project);
 
 	}
 
@@ -1704,18 +1685,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		case RESOURCE:
 			if (!beforeResourceInformationRoute(target.resource(), notes))
 				return;
-			if (resourceInformationDialog == null) {
-				resourceInformationDialog = ResourceInformationDialog.getInstance(getFrame(), target.resource());
-				resourceInformationDialog.pack();
-				resourceInformationDialog.setModal(false);
-			} else {
-				resourceInformationDialog.setObject(target.resource());
-				resourceInformationDialog.updateAll();
-			}
-			resourceInformationDialog.setLocationRelativeTo(getCurrentFrame());
-			if (notes)
-				resourceInformationDialog.showNotes();
-			resourceInformationDialog.setVisible(true);
+			informationDialogCoordinator.showResource(getFrame(), getCurrentFrame(), target.resource(), notes);
 			break;
 		case PROJECT:
 			doProjectInformationDialog();
@@ -1749,37 +1719,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			showTaskInformationDialog(task, notes, resourcesTab);
 	}
 
-	/**
-	 * Builds the task dialog before publishing it to the reusable dialog cache.
-	 * A layout failure during {@code pack()} must not leave a title-only dialog
-	 * cached: the next Information command would otherwise display that partial
-	 * instance instead of retrying construction.
-	 */
+	/** Delegates task information dialog presentation to its lifecycle owner. */
 	private void showTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
 		traceUi("task-information.dialog requested taskId=" + task.getId()
-			+ " existingDialog=" + (taskInformationDialog != null)
+			+ " existingDialog=" + (informationDialogCoordinator.hasTaskDialog())
 			+ " notes=" + notes + " resourcesTab=" + resourcesTab);
-		if (taskInformationDialog == null) {
-			TaskInformationDialog dialog = TaskInformationDialog.getInstance(getFrame(), task, notes);
-			try {
-				dialog.pack();
-				dialog.setModal(false);
-				taskInformationDialog = dialog;
-			} catch (RuntimeException | Error e) {
-				dialog.dispose();
-				throw e;
-			}
-		} else {
-			taskInformationDialog.setObject(task);
-			taskInformationDialog.updateAll();
-		}
-		taskInformationDialog.setLocationRelativeTo(getCurrentFrame());
-		if (notes)
-			taskInformationDialog.showNotes();
-		else if (resourcesTab)
-			taskInformationDialog.showResources();
-		taskInformationDialog.setVisible(true);
-		if (taskInformationDialog.isVisible()) {
+		informationDialogCoordinator.showTask(getFrame(), getCurrentFrame(), task, notes, resourcesTab);
+		if (informationDialogCoordinator.isTaskDialogVisible()) {
 			traceUi("task-information.dialog visible taskId=" + task.getId());
 		} else {
 			logger.warning("UI_BUTTON_FAILURE id=RibbonTaskInformation reason=dialog-not-visible taskId=" + task.getId());
@@ -4461,17 +4407,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		traceUi("selection changed impl=" + describeUiObject(currentImpl));
 		setButtonState(currentImpl,currentFrame.getProject());
 		// if on resource view, hide task info and vice versa.  Otherwise just show it
-		if (lastNode!=null&&taskInformationDialog!=null&&(lastNode.getImpl() instanceof Task||lastNode.getImpl() instanceof Assignment)&&currentNode.getImpl() instanceof Resource){
-			taskInformationDialog.setVisible(false);
+		if (lastNode!=null&&informationDialogCoordinator.hasTaskDialog()&&(lastNode.getImpl() instanceof Task||lastNode.getImpl() instanceof Assignment)&&currentNode.getImpl() instanceof Resource){
+			informationDialogCoordinator.hideTaskDialog();
 			doInformationDialog(false);
-		} else if (lastNode!=null&&resourceInformationDialog!=null&&lastNode.getImpl() instanceof Resource&&(currentNode.getImpl() instanceof Task||currentNode.getImpl() instanceof Assignment)){
-			resourceInformationDialog.setVisible(false);
+		} else if (lastNode!=null&&informationDialogCoordinator.hasResourceDialog()&&lastNode.getImpl() instanceof Resource&&(currentNode.getImpl() instanceof Task||currentNode.getImpl() instanceof Assignment)){
+			informationDialogCoordinator.hideResourceDialog();
 			doInformationDialog(false);
 		}else{
-			if (taskInformationDialog != null)
-				taskInformationDialog.selectionChanged(e);
-			if (resourceInformationDialog != null)
-				resourceInformationDialog.selectionChanged(e);
+			informationDialogCoordinator.selectionChanged(e);
 		}
 		lastNode=currentNode;
 	}
@@ -4513,12 +4456,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			} else if (objectEvent.isDelete()) {
 				closeProjectFrame(project);
 			}
-			if (projectInformationDialog != null)
-				projectInformationDialog.objectChanged(objectEvent);
-			if (taskInformationDialog != null)
-				taskInformationDialog.objectChanged(objectEvent);
-			if (resourceInformationDialog != null)
-				resourceInformationDialog.objectChanged(objectEvent);
+			informationDialogCoordinator.objectChanged(objectEvent);
 
 		}
 	}
