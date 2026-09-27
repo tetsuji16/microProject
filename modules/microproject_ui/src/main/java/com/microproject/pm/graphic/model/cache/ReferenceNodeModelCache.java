@@ -37,6 +37,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microproject.association.AssociationList;
+import com.microproject.association.Association;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
@@ -330,10 +331,10 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 //edges
 	public void buildEdges(){
-		Map implMap=new HashMap();
-		List gnodes=new ArrayList();
-		for (Iterator i=nodeCache.getCache().iterator();i.hasNext();){
-			GraphicNode gnode=(GraphicNode)i.next();
+		Map<Object, GraphicNode> implMap = new HashMap<>();
+		List<GraphicNode> gnodes = new ArrayList<>();
+		for (Object element : nodeCache.getCache()) {
+			GraphicNode gnode = (GraphicNode) element;
 			if (gnode.isVoid()||gnode.isAssignment()) continue;
 			if (!(gnode.getNode().getImpl() instanceof HasDependencies))
 				continue; // only task-like nodes contribute dependency edges
@@ -341,13 +342,12 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 			implMap.put(gnode.getNode().getImpl(),gnode);
 		}
 		
-		for (Iterator i=gnodes.iterator();i.hasNext();){
-			GraphicNode gnode=(GraphicNode)i.next();
+		for (GraphicNode gnode : gnodes) {
 			
 			HasDependencies task=(HasDependencies)gnode.getNode().getImpl();			
 			AssociationList dependencyList=task.getSuccessorList();
-			for (Iterator j=dependencyList.iterator();j.hasNext();){
-				Dependency dep=(Dependency)j.next();
+			for (Association association : dependencyList) {
+				Dependency dep = (Dependency) association;
 				
 				HasDependencies pre=dep.getPredecessor();
 				HasDependencies suc=dep.getSuccessor();
