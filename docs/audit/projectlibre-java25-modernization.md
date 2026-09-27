@@ -95,6 +95,36 @@ the active `modules/` sources:
   JAXB adapters, dictionary types, `FieldList`, utility types, `LocaleDialog`,
   `ImageExport`, and `ProjectLibrePrintServiceImpl`.
 
+## ProjectLibre-added method crosswalk
+
+The retained hunk ledger in `docs/audit/projectlibre-delta-items.csv` uses the
+pre-rename `modules/projectlibre_*` paths. Matching its `KEEP_PROJECTLIBRE`
+method symbols to active non-contrib production Java files by type name yields
+33 current source candidates. This is a crosswalk for further review, not proof
+that every current hunk in each file still has upstream provenance; the CSV
+path predates module and package renames, and each target change still requires
+line-level history/source comparison.
+
+Candidate type names: `AssignmentData`, `ByteArrayObject`, `CalendarData`,
+`CompanyData`, `Context`, `CustomFieldsMapper`, `DataObjectImpl`,
+`EnterpriseResourceData`, `ExtRibbonFactory`, `GroupData`,
+`ImportedCalendarService`, `IncrementalData`, `LinkData`, `Linker`,
+`MPXConverter`, `MSPDISerializer`, `MenuManager`, `MicrosoftImporter`,
+`ProjectData`, `ProjectSerializer`, `ResourceData`, `ResourceLinker`,
+`RoleData`, `SerializeOptions`, `SerializeUtil`, `Serializer`,
+`ServerFileImporter`, `ServerLocalFileImporter`, `TaskData`, `TaskLinker`,
+`TypeSystemConverter`, `TypeSystemConverterFactory`, and `UserData`.
+
+Spot checks against ProjectLibre 1.9.8 and `git blame` rejected several
+apparent modernization hits as fork-owned or OpenProj-owned: for example,
+`Serializer`'s referring-subproject serialization block is local fork code;
+`MSPDISerializer`'s opened-subproject export guard and calendar collector are
+also local additions; and the remaining `MSPDISerializer` `Assignment` check
+comes from the OpenProj baseline. These are excluded from #727. The ledger's
+ProjectLibre-added methods in `Serializer` and `MSPDISerializer` use typed
+iterators where removal is required; replacing those with enhanced loops would
+change mutation behavior or fail to preserve removals.
+
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
