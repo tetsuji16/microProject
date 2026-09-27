@@ -376,11 +376,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	    	schedulingAlgorithm.initialize(this);
 	    if (getStart() == 0L) {
 	    	logger.fine("no start so using earliest");
-	    	SwingUtilities.invokeLater(new Runnable(){
-				public void run() {
-					recalculate();
-			    	setStart(getEarliestStartingTaskOrStart());
-				}});
+        SwingUtilities.invokeLater(() -> {
+            recalculate();
+            setStart(getEarliestStartingTaskOrStart());
+        });
 	    }
 	    initializeDefaultOutline();
 	    if (TimesheetOption.getInstance().isAutomaticallyIntegrateTimecardData())
