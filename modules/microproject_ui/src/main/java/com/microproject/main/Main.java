@@ -131,7 +131,7 @@ public class Main {
 	static ArrayList<String> normalizeFileNameArguments(ArrayList<String> args) {
 		if (args.size() < 2 || !"--fileNames".equals(args.get(0)))
 			return args;
-		ArrayList<String> normalized = new ArrayList<>();
+		ArrayList<String> normalized = new ArrayList<>(args.size());
 		normalized.add(args.get(0));
 		StringBuilder path = new StringBuilder();
 		for (int i = 1; i < args.size(); i++) {
