@@ -77,7 +77,7 @@ public class JobQueue extends ThreadGroup{
 		}
 	}
 
-	private Set<String> executingJobs=Collections.synchronizedSet(new HashSet<String>());
+	private Set<String> executingJobs=Collections.synchronizedSet(new HashSet<>());
 
 	public void addExecutingJob(Job job) {
 		executingJobs.add(job.getName());

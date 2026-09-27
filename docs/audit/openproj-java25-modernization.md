@@ -2682,4 +2682,9 @@ in both construction and cloning. Both exact collection responsibilities
 match OpenProj 1.4; the set type and ordering remain unchanged.
 `CalendarDefinitionTest` passed.
 
+`JobQueue.executingJobs` now uses diamond inference for its OpenProj-derived
+synchronized set. The declared `Set<String>` field, synchronized wrapper, and
+job-name membership behavior are unchanged; `JobQueueCriticalSectionTest` and
+`JobExceptionHandlerTest` passed.
+
 NodeCacheTransformer.extractAssignments now uses diamond inference for its OpenProj-derived task-to-assignment map, hierarchy path stack, and assignment list. The collection implementations, generic element types, encounter order, and hierarchy transformation behavior are unchanged. Provenance was checked against OpenProj commit d2fa3c20a; no focused transformer test exists, so UI compilation is the direct verification.
