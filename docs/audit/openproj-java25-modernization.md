@@ -2430,4 +2430,10 @@ its three commented call sites. All active renderer paths use
 explicit-width argument; the helper and its imports had no active references.
 Tracked as issue #84 cleanup, not Java modernization work.
 
+Removed the fully commented-out `NonGroupedCalculatedValues.finish` method.
+Repository-wide caller search found no call, and its body references obsolete
+`dates`/`vals` fields; active chart generation uses `makeSeries` and related
+callback methods instead. `NonGroupedCalculatedValuesTest` covers the current
+path. Tracked as issue #84 cleanup, not modernization work.
+
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.

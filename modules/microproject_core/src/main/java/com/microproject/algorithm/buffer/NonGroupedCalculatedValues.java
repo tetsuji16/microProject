@@ -107,30 +107,6 @@ public class NonGroupedCalculatedValues  implements CalculatedValues  {
 			setValue(endDate,value);
 		}
 	}
-	
-//	public void finish() {
-//		Long[] d = new Long[values.size()];
-//		Double[] v = new Double[values.size()];
-//		values.keySet().toArray(d);
-//		values.values().toArray(v);
-//		dates = new Long[d.length*2];
-//		vals = new Double[d.length*2];
-//		Double previous = new Double(0);
-//		double sum = 0;
-//		for (int i = 0; i < d.length; i++) {
-//			dates[2*i] = d[i];
-//			dates[2*i+1] = d[i];
-//			vals[2*i] = previous;
-//			sum += v[i].doubleValue();
-//			
-//			vals[2*i+1] = new Double(sum);
-//			previous = vals[2*i+1];
-//		}
-//		
-//		//makeCumulative(true); // converts + and - into correct values
-//	}
-	
-
 	public void makeSeries(boolean cumulative, SeriesCallback callback) {
 		double sum = 0;
 		int index = 0;
