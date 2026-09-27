@@ -24,10 +24,12 @@
 package com.microproject.grouping.core.transform.sorting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.ListIterator;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +41,17 @@ class NodeSorterTraversalTest {
 		Comparator<Object> comparator = new NodeSorter();
 
 		assertEquals(0, comparator.compare(new Object(), new Object()));
+	}
+
+	@Test
+	void exposesTypedIteratorForConfiguredSubsorters() {
+		NodeSorter sorter = new NodeSorter();
+		NodeSorter child = new NodeSorter();
+		sorter.setSubTransforms(List.of(child));
+
+		ListIterator<Object> currentSorter = sorter.getCurrentSorter();
+
+		assertSame(child, currentSorter.next());
 	}
 
 	@Test

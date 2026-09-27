@@ -202,7 +202,7 @@ private class ListFactory extends BasePoolableObjectFactory {
         return label+": "+object;
     }
 
-    protected ListIterator currentSorter=null;
+    protected ListIterator<Object> currentSorter=null;
     @Override
     public int compare(Object o1, Object o2) {
         NodeSorter sorter;
@@ -220,7 +220,7 @@ private class ListFactory extends BasePoolableObjectFactory {
         }
         return 0;
     }
-    public ListIterator getCurrentSorter(){
+    public ListIterator<Object> getCurrentSorter(){
         if (currentSorter!=null) return currentSorter;
         if (getSubTransforms()==null) return null;
         else return getSubTransforms().listIterator();

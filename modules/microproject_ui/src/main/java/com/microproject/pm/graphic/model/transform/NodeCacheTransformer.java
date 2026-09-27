@@ -292,7 +292,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 	    		return comparator.compare(n1.getNode(),n2.getNode());
 	    	else return comparator.compare(composition.evaluate(n1.getNode()),composition.evaluate(n2.getNode()));
 	    }
-	    public ListIterator getCurrentSorter(){
+	    public ListIterator<Object> getCurrentSorter(){
 	        return comparator.getCurrentSorter();
 	    }
 	}

@@ -2290,3 +2290,10 @@ ordering to `NodeSorter.compare`. The erased comparator API and recursive
 encounter order are unchanged. `NodeSorterTraversalTest` checks
 the typed comparator contract and hierarchy ordering. The focused core test
 and `:microproject_ui:compileJava --console=plain` passed.
+
+Typed `NodeSorter.currentSorter` and `getCurrentSorter()` as
+`ListIterator<Object>`, matching `CommonTransform.getSubTransforms()` and its
+configured object list. The UI `GraphicNodeComparator.getCurrentSorter()` now
+preserves that typed return through its forwarding method. Repository search
+found no other callers. A focused regression verifies the configured child
+sorter is returned; `NodeSorterTraversalTest` and UI compilation passed.
