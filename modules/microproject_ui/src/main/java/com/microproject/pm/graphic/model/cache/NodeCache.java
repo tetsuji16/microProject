@@ -39,7 +39,7 @@ import com.microproject.pm.graphic.model.event.CacheEvent;
 /**
  *
  */
-public class NodeCache extends CellCache {
+public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 
 	public NodeCache() {
 		super();

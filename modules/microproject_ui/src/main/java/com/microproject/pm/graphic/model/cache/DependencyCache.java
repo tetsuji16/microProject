@@ -35,7 +35,7 @@ import com.microproject.pm.graphic.model.event.CacheEvent;
 /**
  *
  */
-public class DependencyCache extends CellCache {
+public class DependencyCache extends CellCache<GraphicDependency, VisibleDependencies> {
 
 	public DependencyCache() {
 		super();

@@ -36,28 +36,28 @@ import java.util.Map;
 /**
  *
  */
-public abstract class CellCache{
-	protected ArrayList cache;
-	protected ArrayList<VisibleElements<?>> visibleElements;
-	protected Map<Object, Object> baseIndex;
+public abstract class CellCache<E, V extends VisibleElements<?>>{
+	protected ArrayList<E> cache;
+	protected ArrayList<V> visibleElements;
+	protected Map<Object, E> baseIndex;
 	
 	/**
 	 * 
 	 */
 	public CellCache() {
-		cache=new ArrayList();
+		cache=new ArrayList<>();
 		visibleElements=new ArrayList<>();
 		baseIndex = new HashMap<>();
 	}
 		
 	
-	public Object getElement(Object base){
+	public E getElement(Object base){
 		if (base==null) return null;
 		return baseIndex.get(base);
 	}
 	public abstract Object getBase(Object base);
 	
-	public Object getCacheElementAt(int row) {
+	public E getCacheElementAt(int row) {
 		return cache.get(row);
 	}
 		
@@ -65,21 +65,21 @@ public abstract class CellCache{
 		return cache.size();
 	}
 	
-	public ListIterator getCacheIterator(){
+	public ListIterator<E> getCacheIterator(){
 		return cache.listIterator();
 	}
-	public ListIterator getCacheIterator(int i){
+	public ListIterator<E> getCacheIterator(int i){
 		return cache.listIterator(i);
 	}
 	
 	
-	public ArrayList<VisibleElements<?>> getVisibleElements() {
+	public ArrayList<V> getVisibleElements() {
         return visibleElements;
     }
-	public void addVisibleElements(VisibleElements<?> elements){
+	public void addVisibleElements(V elements){
         visibleElements.add(elements);
     }
-	public void removeVisibleElements(VisibleElements<?> elements){
+	public void removeVisibleElements(V elements){
         visibleElements.remove(elements);
     }
 	public void removeAllVisibleElements(){
@@ -88,27 +88,27 @@ public abstract class CellCache{
     
     
 //insert, delete
-	public void insertElement(Object element,Object base){
+	public void insertElement(E element,Object base){
 	    cache.add(element);
 		baseIndex.put(base,element);
 	}
-	public void registerElement(Object element,Object base){
+	public void registerElement(E element,Object base){
 		baseIndex.put(base,element);
 	}
-	public void deleteElement(Object element){
+	public void deleteElement(E element){
 		baseIndex.remove(getBase(element));
 		cache.remove(element);
 	}
 	
 	public void modifyBase(Object oldBase,Object newBase){
-	    Object element=baseIndex.remove(oldBase);
+	    E element=baseIndex.remove(oldBase);
 	    baseIndex.put(newBase,element);
 	}
 	
 	
 	public void clear(){
 		cache.clear();
-		for (VisibleElements<?> element : visibleElements) {
+		for (V element : visibleElements) {
 		    element.clear();
 		}
 		baseIndex.clear();
@@ -121,7 +121,7 @@ public abstract class CellCache{
 	/**
 	 * @return Returns the cache.
 	 */
-	public ArrayList getCache() {
+	public ArrayList<E> getCache() {
 		return cache;
 	}
 	
@@ -131,17 +131,17 @@ public abstract class CellCache{
 	
 	
 	
-	Map<Object, Object> getBaseIndex() {
+	Map<Object, E> getBaseIndex() {
 		return baseIndex;
 	}
-	void setBaseIndex(Map<Object, Object> baseIndex) {
+	void setBaseIndex(Map<Object, E> baseIndex) {
 		this.baseIndex = baseIndex;
 	}
-	void setCache(ArrayList cache) {
+	void setCache(ArrayList<E> cache) {
 		this.cache = cache;
 	}
 	
-	void copyContent(CellCache c){
+	void copyContent(CellCache<E, ?> c){
 	    setCache(c.getCache());
 	    setBaseIndex(c.getBaseIndex());
 	}

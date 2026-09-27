@@ -106,7 +106,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	}
 	
 	public GraphicNode getGraphicNode(Node node) {
-		return (GraphicNode)nodeCache.getElement(node);
+		return nodeCache.getElement(node);
 	}
 	public void bindView(VisibleNodes nodes,VisibleDependencies deps){
 	    nodeCache.addVisibleElements(nodes);
@@ -146,7 +146,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	public GraphicNode getParent(GraphicNode node){
 		Node parent=getModel().getHierarchy().getParent(node.getNode()); //can be null
-		return (GraphicNode)nodeCache.getElement(parent);
+		return nodeCache.getElement(parent);
 	}
 	public List<Object> getChildren(GraphicNode node){
 	    Collection<?> children=getModel().getHierarchy().getChildren((node==null)?null:node.getNode());
@@ -158,7 +158,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		}
 		return list;
 	}
-	public List<Object> getEdges(){
+	public List<GraphicDependency> getEdges(){
 		return edgeCache.getCache();
 	}
 	
@@ -242,7 +242,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 				child=(Node)i.next();
 				Object impl=child.getImpl();
 				if (!(impl instanceof Assignment)) summary=true;
-				current=(GraphicNode) nodeCache.getElement(child);
+				current=nodeCache.getElement(child);
 				if (current==null){
 					current=createNode(child);
 					if (collapseLevel!=-1&&level>=collapseLevel-1) current.setCollapsed(true);
@@ -451,24 +451,24 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 				if (objectEvent.isCreate()) {
 					Node preNode=(Node)model.search(dependency.getPredecessor());
 					Node sucNode=(Node)model.search(dependency.getSuccessor());
-					GraphicNode preGNode=(GraphicNode)nodeCache.getElement(preNode);
-					GraphicNode sucGNode=(GraphicNode)nodeCache.getElement(sucNode);
+					GraphicNode preGNode=nodeCache.getElement(preNode);
+					GraphicNode sucGNode=nodeCache.getElement(sucNode);
 					if (preGNode!=null&&sucGNode!=null){
-						GraphicDependency edge=(GraphicDependency)edgeCache.getElement(dependency);
+						GraphicDependency edge=edgeCache.getElement(dependency);
 						if (edge == null) { // for external tasks in subprojects, it's possible they already were created
 							edge=newGraphicDependency(preGNode,sucGNode,dependency);
 							update();
 						}
 					}
 				} else if (objectEvent.isDelete()) {
-					GraphicDependency edge=(GraphicDependency)edgeCache.getElement(dependency);
+					GraphicDependency edge=edgeCache.getElement(dependency);
 					if (edge!=null){
 						removeEdge(edge);
 						update();
 					}
 					//edgeCache.fireEdgesRemoved(this,new Object[]{edge});
 				} else { //update
-					GraphicDependency edge=(GraphicDependency)edgeCache.getElement(dependency);
+					GraphicDependency edge=edgeCache.getElement(dependency);
 					if (edge!=null){
 						modifyEdge(edge,dependency.getDependencyKind());
 						update();

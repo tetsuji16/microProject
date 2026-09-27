@@ -5,6 +5,7 @@
 package com.microproject.pm.graphic.model.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +34,8 @@ class NodeCacheHierarchyTraversalTest {
 		cache.insertElement(parent, parentNode);
 		cache.insertElement(child, childNode);
 		cache.insertElement(sibling, siblingNode);
+		GraphicNode indexedParent = cache.getElement(parentNode);
+		assertSame(parent, indexedParent);
 		VisibleNodes view = new VisibleNodes("hierarchy", ignored -> { });
 		view.setVisibleDependencies(new VisibleDependencies("hierarchy-dependencies"));
 
