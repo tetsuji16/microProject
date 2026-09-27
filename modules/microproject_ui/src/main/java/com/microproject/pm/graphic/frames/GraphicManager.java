@@ -3257,12 +3257,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	protected Document loadMasterProject() {
 		return loadDocument(Session.MASTER,false,false);
 	}
-//	protected void loadDownloadedDocument(){
-//		//showWaitCursor(true);
-//
-//		projectFactory.openDownloadedProject();
-//		//showWaitCursor(false);
-//	}
 	public Document loadDocument(long id,boolean sync,boolean openAs){
 		return loadDocument(id, sync, openAs, false, null);
 	}

@@ -91,32 +91,12 @@ public class ProjectFactory {
 		portfolio = new Portfolio(this);
 	}
 
-	//CREATE PROJECTS
-
-//	public Project createProject(String name,boolean local) {
-//		return createProject(name,local,true,true);
-//	}
-//	public Project createProject(String name, boolean local, boolean addResources,boolean verify) {
-//		Project project = createProject(null,local,name,addResources,verify);
-//		return project;
-//	}
-//
 	public Project createProject() {
 		CreateOptions opt=new CreateOptions();
 		opt.setLocal(Environment.getStandAlone());
 		opt.setName(Messages.format("Format.words", Messages.getString("Text.Untitled"), ++untitledCount));
 		return createProject(opt);
 	}
-//	public Project createProject(boolean addResources,boolean local) {
-//		Project project = createProject(Messages.getString("Text.Untitled") + " " + ++untitledCount,local,addResources,true);
-//		return project;
-//	}
-
-
-//	public Project createProject(ResourcePool resourcePool, boolean local, String name) {
-//		return createProject(resourcePool,local,name,!local,true);
-//	}
-//	public Project createProject(ResourcePool resourcePool, boolean local, String name, boolean addResources,boolean verify) {
 	private Project createProjectAsync(CreateOptions opt) {
 		DataFactoryUndoController undoController=new DataFactoryUndoController();
 		ResourcePool resourcePool=opt.getResourcePool();
@@ -212,14 +192,6 @@ public class ProjectFactory {
 	public void addProject(Project project,boolean createJob,boolean verify) {
 		portfolio.addProject(project,createJob,verify);
 	}
-
-
-
-
-//	public Project openDownloadedProject() {
-//		return null;
-//	}
-
 	protected Set<Long> loadingProjects = new HashSet<>();
 	protected Set<Long> closingProjects = new HashSet<>();
 	private final Map<Long, List<Runnable>> projectClosedCallbacks = new HashMap<>();
