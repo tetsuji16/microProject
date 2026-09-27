@@ -706,12 +706,10 @@ public class Serializer {
     	if (loadResources!=null){
     		loadResources.accept(project);
     		resourceNodeMap.clear();
-    		project.getResourcePool().getResourceOutline().getHierarchy().visitAll(new Consumer<Object>() { public void accept(Object o) {
-    				Node node=(Node)o;
-    				resourceNodeMap.put(((ResourceImpl)node.getImpl()).getGlobalResource(), node);
-    			}
-
-    		});
+			project.getResourcePool().getResourceOutline().getHierarchy().visitAll(o -> {
+				Node node = (Node) o;
+				resourceNodeMap.put(((ResourceImpl) node.getImpl()).getGlobalResource(), node);
+			});
     	}
 
 
