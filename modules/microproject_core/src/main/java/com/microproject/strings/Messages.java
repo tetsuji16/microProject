@@ -175,8 +175,8 @@ public class Messages {
     public static Properties getProperties(ResourceBundle bundle) {
         Properties properties = new Properties();
 
-        for (Enumeration keys = bundle.getKeys(); keys.hasMoreElements();) {
-            String key = (String) keys.nextElement();
+        for (Enumeration<String> keys = bundle.getKeys(); keys.hasMoreElements();) {
+            String key = keys.nextElement();
             properties.put(key, bundle.getString(key));
         }
         return properties;
