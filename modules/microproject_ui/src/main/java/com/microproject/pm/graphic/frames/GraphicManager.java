@@ -3981,9 +3981,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		dialog.setVisible(true);
     }
 
-    private List getSelectedResourcesForTimesheet(DocumentFrame documentFrame) {
-		ArrayList selectedResources = new ArrayList();
+	private List getSelectedResourcesForTimesheet(DocumentFrame documentFrame) {
 		List selectedImpls = documentFrame.getSelectedImpls(false);
+		ArrayList selectedResources = new ArrayList(selectedImpls.size());
 		for (int i = 0; i < selectedImpls.size(); i++) {
 			Object impl = selectedImpls.get(i);
 			if (impl instanceof Resource)
