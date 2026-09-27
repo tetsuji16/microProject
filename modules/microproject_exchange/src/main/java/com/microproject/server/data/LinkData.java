@@ -33,7 +33,6 @@ public class LinkData extends SerializedDataObject {
     protected TaskData predecessor;
     protected TaskData successor;
     protected long predecessorId=-1L;
-//    protected long externalId=-1L;
 
     public static final SerializedDataObjectFactory FACTORY=new SerializedDataObjectFactory(){
         public SerializedDataObject createSerializedDataObject(){
@@ -70,12 +69,6 @@ public class LinkData extends SerializedDataObject {
 		setUniqueId(successorId);
 	}
 
-//	public long getExternalId() {
-//		return externalId;
-//	}
-//	public void setExternalId(long externalId) {
-//		this.externalId = externalId;
-//	}
 	public int getType(){
         return DataObjectConstants.LINK_TYPE;
     }
