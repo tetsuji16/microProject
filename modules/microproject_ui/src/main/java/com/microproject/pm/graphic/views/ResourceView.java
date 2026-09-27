@@ -118,10 +118,8 @@ public class ResourceView extends JScrollPane implements BaseView {
 		
 		cache.update(); //this is not required by certain views 
 		if (!master && !Environment.isProjectLibre()) {
-			SwingUtilities.invokeLater(new Runnable(){
-				public void run() {
-					Alert.warnWithOnceOption(Messages.getString("Info.resourceView"),"warnedResourceView");
-				}});
+			SwingUtilities.invokeLater(() ->
+					Alert.warnWithOnceOption(Messages.getString("Info.resourceView"), "warnedResourceView"));
 		}
 	}
 

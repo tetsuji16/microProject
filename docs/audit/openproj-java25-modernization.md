@@ -2140,3 +2140,5 @@ asynchronous session writes to `Thread(Runnable)` instead of anonymous
 Each call still creates and starts one unnamed thread, checks the session for
 null, and invokes the same logger method. Full
 `:microproject_core:test --console=plain` passed.
+
+ResourceView now passes its once-only warning action to SwingUtilities.invokeLater as a lambda. The queued Runnable body is OpenProj-derived (d2fa3c20a); DocumentFrame creates ResourceView in the active resource-view route. The later fork-specific condition, warning text, preference key, and EDT scheduling remain unchanged. Full :microproject_ui:test --console=plain passed.
