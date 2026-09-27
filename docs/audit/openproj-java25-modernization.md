@@ -547,16 +547,16 @@ OpenProj coverage or completion percentage is inferred from the adjacent PRs.
 - Audit remaining eligible Java in exchange, UI, reports, and other core
   responsibilities; do not add GUI tests unless a physical GUI contract or
   visual surface is changed.
-- Exchange traversal follow-up: the remaining active explicit iterators in
-  `Serializer.saveTasks` remove unchanged `TaskData` entries while iterating;
-  distribution serialization removes unchanged `DistributionData`; and
-  assignment deserialization removes malformed entries from its working list.
-  These require `Iterator.remove()` to preserve the in-place filtering contract.
-  `MSPDISerializer` walks `project.getTaskOutline().iterator(exportRoot)`, a
-  hierarchy iterator with a caller-selected root and no `Iterable` traversal
-  contract. Keep these iterators; do not convert them to enhanced-for. DOM
-  `NodeList` loops in `MpoFileImporter` are indexed API traversals, not Java
-  collection iterators.
+- Exchange traversal follow-up: the explicit filtering iterators in
+  `Serializer.saveTasks` are already typed as `Iterator<TaskData>` for removing
+  unchanged tasks, `Iterator<DistributionData>` for removing unchanged
+  distributions, and `Iterator<AssignmentData>` for malformed assignments.
+  Preserve `Iterator.remove()` for these in-place filtering contracts; they are
+  not remaining raw-iterator candidates. `MSPDISerializer` walks
+  `project.getTaskOutline().iterator(exportRoot)`, a hierarchy iterator with a
+  caller-selected root and no `Iterable` traversal contract. Keep that iterator;
+  do not convert it to enhanced-for. DOM `NodeList` loops in `MpoFileImporter`
+  are indexed API traversals, not Java collection iterators.
 - Record cleanup/deletion candidates only after checking reflection, resource
   configuration, serialization, ServiceLoader, action IDs, and format readers.
 - Update this inventory and issue #595 after each meaningful audited batch; do
