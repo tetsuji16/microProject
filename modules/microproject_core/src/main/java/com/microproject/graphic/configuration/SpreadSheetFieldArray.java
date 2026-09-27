@@ -403,7 +403,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 		Workspace ws = (Workspace) w;
 		addAll(fromIdArray(ws.fields));
 		if (ws.version>0.0f&&ws.widths!=null&&ws.widths.size()>0){
-			widths=new ArrayList<Integer>(ws.widths.size());
+			widths=new ArrayList<>(ws.widths.size());
 			widths.addAll(ws.widths);
 		}
 		if (ws.version>1.0f&&ws.manualWidths!=null&&ws.manualWidths.size()>0) {
@@ -413,7 +413,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	}
 	public static class Workspace implements WorkspaceSetting {
 		private static final long serialVersionUID = -4517935309304612237L;
-		ArrayList<Integer> widths = new ArrayList<Integer>();
+		ArrayList<Integer> widths = new ArrayList<>();
 		ArrayList<Boolean> manualWidths = new ArrayList<Boolean>();
 		ArrayList<String> fields = new ArrayList<>();
 		float version=2.0f;

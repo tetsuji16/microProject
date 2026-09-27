@@ -2569,3 +2569,9 @@ the current fork's array-derived capacity is retained unchanged.
 time-interval lists. OpenProj's constructor creates the same two lists (raw in
 that baseline); current element types, cache initialization, and selection
 reset order remain unchanged. UI compilation passed.
+
+`SpreadSheetFieldArray` now uses diamond inference for the persisted-width
+copy and workspace width-list construction, both present in the OpenProj
+baseline. Copy capacity and width ordering are unchanged. The separate
+`manualWidths` field is a later fork addition and was not included.
+`SpreadSheetFieldArrayTest` passed.
