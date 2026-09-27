@@ -37,7 +37,7 @@ import com.microproject.core.fields.HasFields;
  */
 public class AbstractNode implements Node, HasFields{
 	protected NodeId id;
-	protected Map<String, Object> fieldValues=new HashMap<String, Object>();
+	protected Map<String, Object> fieldValues=new HashMap<>();
 	
 	@Override
 	public NodeId getId() {
