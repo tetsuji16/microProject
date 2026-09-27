@@ -25,13 +25,17 @@
 package com.microproject.datatype;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 import java.text.NumberFormat;
+import java.util.Date;
 import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.microproject.util.DateTime;
 
 class MoneyTest {
 	private Locale originalLocale;
@@ -67,5 +71,21 @@ class MoneyTest {
 	@Test
 	void constructsDecimalFromCanonicalDoubleText() {
 		assertEquals("0.1", Money.getInstance(0.1).toPlainString());
+	}
+
+	@Test
+	void dateAndCurrencyFormatsFollowTheActiveLocale() {
+		Locale.setDefault(Locale.US);
+		String usCurrency = Money.normalCurrencyFormat(1234.5, false);
+		String usDate = DateTime.utcDateFormatInstance().format(new Date(1767312000000L));
+
+		Locale.setDefault(Locale.GERMANY);
+		String germanCurrency = Money.normalCurrencyFormat(1234.5, false);
+		String germanDate = DateTime.utcDateFormatInstance().format(new Date(1767312000000L));
+
+		assertNotEquals(usCurrency, germanCurrency);
+		assertEquals("$1234.50", usCurrency);
+		assertEquals("1234,50 €", germanCurrency);
+		assertNotEquals(usDate, germanDate);
 	}
 }
