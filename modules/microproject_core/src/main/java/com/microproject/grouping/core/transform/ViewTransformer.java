@@ -104,10 +104,7 @@ public class ViewTransformer{
     }
 
 
-    private Consumer<Object> redefinition=new Consumer<Object>() { public void accept(Object o) {
-            fireTransformerChanged(o);
-        }
-    };
+    private Consumer<Object> redefinition = this::fireTransformerChanged;
 
     public void setFilterId(TransformId id) {
         if (id.isHidden()){
