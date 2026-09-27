@@ -332,13 +332,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 					}
 
 // claur - Moved to convertToProjectLibre1 after import Calendar because base calendar must be imported before resources
-//			logger.info("import resources");		 //$NON-NLS-1$
-//				if(!importResources()){
-//					setProgress(1.0f);
-//					errorDescription = ABORT;
-//					Environment.setImporting(false); // will avoid certain popups
-//					throw new Exception(ABORT);
-//				}
+
 				setProgress(1f);
 				logger.info("END: Import resources");
 				return null;
