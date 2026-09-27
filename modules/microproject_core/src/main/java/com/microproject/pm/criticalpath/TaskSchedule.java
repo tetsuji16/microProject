@@ -302,7 +302,6 @@ public final class TaskSchedule implements Cloneable {
 		long newEnd = getEnd();
 		long oppositeEnd = -getOppositeSchedule().getBegin();
 		
-//		System.out.println("Affects" + (oppositeEnd < newEnd) + " opposite " + new Date(oppositeEnd) + " new" + new Date(newEnd));
 		return (oppositeEnd < newEnd);
 	}
 
@@ -341,7 +340,6 @@ public final class TaskSchedule implements Cloneable {
 					currentSchedule.updateDurationFromDates(); // calculate duration based on parent start/end
 					((NormalTask)(currentSchedule.task)).assignActualDatesFromChildren();
 				}
-	//			System.out.println(task.getName() + " Set current " + new Date(currentSchedule.getStart()) + " " + new Date(currentSchedule.getFinish()));
 	
 			}
 		} else if (external) { // external
@@ -353,7 +351,6 @@ public final class TaskSchedule implements Cloneable {
 		}
 		
 		if (oldBegin == newBegin && oldEnd == newEnd) {
-//			System.out.println("no change");
 			if (!unopenedSubproject)
 				return;
 		}		
@@ -470,7 +467,6 @@ public final class TaskSchedule implements Cloneable {
 		Kind scheduleType = type;
 		if (context !=  null && context.pass == 3) 
 			scheduleType = Kind.CURRENT;
-//System.out.println("assign from children top ass" + assign + " " + this);		
 		for (Node node : children) {
 			if (!(node.getImpl() instanceof NormalTask child))
 				continue;
@@ -484,7 +480,6 @@ public final class TaskSchedule implements Cloneable {
 			//			if (context !=  null && context.pass == 3 && child.isReverseScheduled()) {
 //				
 			//				childSchedule = child.getSchedule(type.opposite());
-//				System.out.println("reverse " + child + " " + childSchedule);				
 //			} else
 				childSchedule = child.getSchedule(scheduleType);
 //			if (assign && child.isReverseScheduled())
@@ -611,7 +606,6 @@ public final class TaskSchedule implements Cloneable {
 			if (begin == 0)
 				begin = Long.MIN_VALUE;
 			begin = Math.max(begin, task.calcOffsetFrom(windowEnd,windowEnd,false, false, useSooner));
-//			System.out.println("Applying FNET " + task + " " + d(windowEnd) + " begin is now " + d(begin));
 		}
 
 		// Hard constraints
@@ -624,7 +618,6 @@ public final class TaskSchedule implements Cloneable {
 				if (begin == 0)
 					begin = Long.MAX_VALUE;
 				begin = Math.min(begin, task.calcOffsetFrom(oppositeEnd,dependencyDate,false, false, useSooner));
-//				System.out.println("Applying FNLT " + task + " " + d(oppositeEnd) + " begin is now " + d(begin));
 			}
 			// For SNLT
 			long oppositeBegin = -getOppositeSchedule().getWindowEnd();
@@ -632,7 +625,6 @@ public final class TaskSchedule implements Cloneable {
 				if (begin == 0)
 					begin = Long.MAX_VALUE;
 				begin = Math.min(begin, oppositeBegin);
-//				System.out.println("Applying SNLT " + task + " " + d(oppositeBegin) + " begin is now " + d(begin));
 			}
 		}
 		
