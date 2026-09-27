@@ -152,8 +152,7 @@ public class PageSetup{
 			return printService;
 		}
 		public boolean equals(Object o){
-			if (o==null||!(o instanceof PrintServiceOption)) return false;
-			PrintServiceOption p=(PrintServiceOption)o;
+			if (!(o instanceof PrintServiceOption p)) return false;
 			return printService.equals(p.getValue());
 		}
 		@Override

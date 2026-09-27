@@ -2691,4 +2691,9 @@ job-name membership behavior are unchanged; `JobQueueCriticalSectionTest` and
 with enhanced-for and binds `MediaSizeName` through pattern matching. The type
 filter and array encounter order are unchanged; `PageSizesTest` passed.
 
+`PageSetup.PrintServiceOption.equals` now uses a pattern binding after the
+existing null/type guard. It preserves `instanceof` subclass acceptance,
+null/different-type rejection, and comparison by the wrapped `PrintService`;
+`PageSetupPrintServiceOptionTest` passed.
+
 NodeCacheTransformer.extractAssignments now uses diamond inference for its OpenProj-derived task-to-assignment map, hierarchy path stack, and assignment list. The collection implementations, generic element types, encounter order, and hierarchy transformation behavior are unchanged. Provenance was checked against OpenProj commit d2fa3c20a; no focused transformer test exists, so UI compilation is the direct verification.
