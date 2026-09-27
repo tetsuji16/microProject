@@ -620,18 +620,16 @@ public class ProjectFactory {
 	public Job getSaveProjectJob(final Project project, final SaveOptions opt){
 		// Save the project and all of its subprojects
 		final List<Project> projects=new ArrayList<>();
-		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project,  new Consumer<Object>() {
-			public void accept(Object arg0) {
-				Node n=(Node)arg0;
-				Object impl = n.getImpl();
-				if (impl instanceof Project p){
-					// A child may be modified while the master's own document stays
-					// clean.  Save each dirty member of the branch independently;
-					// inheriting only the root's dirty flag silently lost that child.
-					if (shouldIncludeInBranchSave(p, opt)) {
-						p.setEarliestAndLatestDatesFromSchedule();  // we want subprojects to have their dates set by external constraints if any
-						projects.add(p);
-					}
+		DeepChildWalker.recursivelyTreatBranch(portfolio.getNodeModel(), project, arg0 -> {
+			Node n=(Node)arg0;
+			Object impl = n.getImpl();
+			if (impl instanceof Project p){
+				// A child may be modified while the master's own document stays
+				// clean.  Save each dirty member of the branch independently;
+				// inheriting only the root's dirty flag silently lost that child.
+				if (shouldIncludeInBranchSave(p, opt)) {
+					p.setEarliestAndLatestDatesFromSchedule();  // we want subprojects to have their dates set by external constraints if any
+					projects.add(p);
 				}
 			}
 		});
