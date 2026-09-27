@@ -24,6 +24,7 @@
 package com.microproject.datatype;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
@@ -41,5 +42,8 @@ class DurationComparisonTest {
 		Work shorterWork = new Work(shorter.getEncodedMillis());
 		Work longerWork = new Work(longer.getEncodedMillis());
 		assertTrue(ClassUtils.getComparator(Work.class).compare(shorterWork, longerWork) < 0);
+		assertEquals(0, ClassUtils.getComparator(Work.class).compare(shorterWork, new Duration(shorterWork.getEncodedMillis())));
+		assertTrue(ClassUtils.getComparator(Work.class).compare(null, shorterWork) < 0);
+		assertTrue(ClassUtils.getComparator(Work.class).compare(shorterWork, null) > 0);
 	}
 }

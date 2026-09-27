@@ -357,6 +357,11 @@ public class ClassUtils {
 			};
 		}
 
+		@SuppressWarnings("unchecked")
+		private static Comparator<Object> nullSafeNaturalComparator() {
+			return nullSafeComparator((Comparator<Object>) ComparableComparator.getInstance());
+		}
+
 		private static void registerComparator(Class<?> type, Comparator<Object> comparator) {
 			comparatorMap.put(type, comparator);
 		}
@@ -365,84 +370,19 @@ public class ClassUtils {
 		public static Comparator<Object> getComparator(Class<?> clazz) {
 			if (comparatorMap == null) {
 				comparatorMap = new HashMap<Class<?>, Comparator<Object>>();
-				registerComparator(String.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((String) o1).compareTo((String) o2);
-					}
-				}));
-				registerComparator(Date.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Date) o1).compareTo((Date) o2);
-					}
-				}));
-				registerComparator(Integer.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Integer) o1).compareTo((Integer) o2);
-					}
-				}));
-				registerComparator(Long.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Long) o1).compareTo((Long) o2);
-					}
-				}));
-				registerComparator(Short.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Short) o1).compareTo((Short) o2);
-					}
-				}));
-				registerComparator(Float.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Float) o1).compareTo((Float) o2);
-					}
-				}));
-				registerComparator(Double.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Double) o1).compareTo((Double) o2);
-					}
-				}));
-				registerComparator(Byte.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Byte) o1).compareTo((Byte) o2);
-					}
-				}));
-				registerComparator(Boolean.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Boolean) o1).compareTo((Boolean) o2);
-					}
-				}));
-				registerComparator(Money.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Money) o1).compareTo((Money) o2);
-					}
-				}));
-				registerComparator(Duration.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Duration) o1).compareTo((Duration) o2);
-					}
-				}));
-				registerComparator(Work.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Work) o1).compareTo((Duration) o2);
-					}
-				}));
-				registerComparator(Rate.class, nullSafeComparator(new Comparator<Object>() {
-					@Override
-					public int compare(Object o1, Object o2) {
-						return ((Rate) o1).compareTo(o2);
-					}
-				}));
+				registerComparator(String.class, nullSafeNaturalComparator());
+				registerComparator(Date.class, nullSafeNaturalComparator());
+				registerComparator(Integer.class, nullSafeNaturalComparator());
+				registerComparator(Long.class, nullSafeNaturalComparator());
+				registerComparator(Short.class, nullSafeNaturalComparator());
+				registerComparator(Float.class, nullSafeNaturalComparator());
+				registerComparator(Double.class, nullSafeNaturalComparator());
+				registerComparator(Byte.class, nullSafeNaturalComparator());
+				registerComparator(Boolean.class, nullSafeNaturalComparator());
+				registerComparator(Money.class, nullSafeNaturalComparator());
+				registerComparator(Duration.class, nullSafeNaturalComparator());
+				registerComparator(Work.class, nullSafeNaturalComparator());
+				registerComparator(Rate.class, nullSafeNaturalComparator());
 			}
 			Comparator<Object> result = comparatorMap.get(clazz);
 			if (result == null) {
