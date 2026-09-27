@@ -26,7 +26,6 @@ package com.microproject.undo;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -106,19 +105,19 @@ public class UndoController extends UndoManager implements UndoableEditListener{
 	}
 
 
-	protected Map nodeMapping=new HashMap();
+	protected Map<NodeModel, Map<Object, Node>> nodeMapping = new HashMap<>();
 	public void store(Node node,NodeModel model){
-		HashMap modelMap =(HashMap) nodeMapping.get(model);
+		Map<Object, Node> modelMap = nodeMapping.get(model);
 		if (modelMap==null){
-			modelMap=new HashMap();
+			modelMap=new HashMap<>();
 			nodeMapping.put(model, modelMap);
 		}
 		modelMap.put(node.getImpl(), node);
 	}
 	public Node retrieve(Object impl,NodeModel model){
-		HashMap modelMap =(HashMap) nodeMapping.get(model);
+		Map<Object, Node> modelMap = nodeMapping.get(model);
 		if (modelMap==null) return null;
-		return (Node)modelMap.get(impl);
+		return modelMap.get(impl);
 	}
 
 	public void beginUpdate(){
