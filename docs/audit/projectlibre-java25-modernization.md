@@ -45,6 +45,7 @@ OpenProj progress.
 | `MPXConverter.projity2mpxTimeUnit` | The hunk ledger records this method as ProjectLibre-added. Replaced the mutating switch statement with a switch expression; all 14 engine time-unit constants retain their MPXJ index and the default still maps to elapsed percent. | `:microproject_exchange:test --tests "com.microproject.server.data.MpxConverterTimeUnitTest" --console=plain` passed 2026-09-27; checks all 14 source/output unit pairs through `toMPXDuration`. |
 | `ScrollPaneSynchronizer` mouse-wheel target tracking | The target lists and register/unregister helpers are present in ProjectLibre 1.9.8 and absent from the OpenProj baseline. Typed the bounded target lists and private helpers as `ArrayList<Component>`, then replaced the indexed loop and cast with enhanced-for. Registration/removal order, capacity 6, and final clear are unchanged; protected field erasures remain `ArrayList`. | `:microproject_ui:test --tests "com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizerTest" --console=plain` passed 2026-09-27; the new EDT test checks installation/removal across the pane, view, row header and column header for both panes. |
 | `ProjectLibreXlsxWriter` ProjectLibre-specific workbook sections | This writer and its ProjectLibre-specific calendar, assignment, and dependency sections were introduced in ProjectLibre's exchange module; history traces the checked casts to that import. Replaced `ResourceImpl`, `NormalTask`, `Assignment`, and `Dependency` `instanceof` plus casts with Java pattern bindings. Output conditions, ordering, row indices, and serialized values are unchanged; unrelated MPXJ workbook paths were not modified. | `:microproject_exchange:test --tests "test.com.microproject.exchange.XlsxSupportTest" --console=plain` passed 2026-09-27, including generated XLSX import/export coverage. |
+| `ServerLocalFileImporter` collection construction | The importer is present in ProjectLibre 1.9.8; the same `ArrayList`/`HashMap` responsibilities and explicit constructor type arguments are present in that upstream source. Applied diamond inference while preserving concrete generic types and each existing capacity, including the capacity added by the local fork. | `:microproject_exchange:test --tests "com.microproject.exchange.ServerLocalFileImporterTest" --console=plain` passed 2026-09-27. |
 
 ## Explicit exclusions
 
@@ -141,9 +142,9 @@ Candidate type names: `AssignmentData`, `ByteArrayObject`, `CalendarData`,
 `ServerFileImporter`, `ServerLocalFileImporter`, `TaskData`, `TaskLinker`,
 `TypeSystemConverter`, `TypeSystemConverterFactory`, and `UserData`.
 
-Further idiom screening of active exchange/UI candidates found no additional
-safe ProjectLibre-origin modernization tranche in this follow-up pass. Specific
-apparent hits were excluded at the hunk level:
+Further idiom screening of active exchange/UI candidates found one safe
+ProjectLibre-origin tranche in `ServerLocalFileImporter` (recorded above).
+Other apparent hits were excluded at the hunk level:
 
 - `Serializer`'s referring-subproject type check and `LocalSession` seed reset
   were added by microProject commits `86e89bfe37` and `a14fe81977`; they are
