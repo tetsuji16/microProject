@@ -2676,3 +2676,8 @@ The full `:microproject_ui:test --console=plain --max-workers=1` suite passed.
 OpenProj-derived boolean to `true`. The assignment remains limited to true
 custom flags; false flags stay omitted. `MpxCustomFlagExportTest` passed for
 both values.
+
+`CalendarDefinition` now uses diamond inference for its exception `TreeSet`
+in both construction and cloning. Both exact collection responsibilities
+match OpenProj 1.4; the set type and ordering remain unchanged.
+`CalendarDefinitionTest` passed.

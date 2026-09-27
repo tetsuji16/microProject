@@ -69,7 +69,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	 */
 	public CalendarDefinition() {
 		super();
-		dayExceptions = new TreeSet<WorkDay>();
+		dayExceptions = new TreeSet<>();
 	}
 
 	public CalendarDefinition(CalendarDefinition base, CalendarDefinition differences) {
@@ -224,7 +224,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	public CalendarDefinition clone() throws CloneNotSupportedException {
 		CalendarDefinition newOne = (CalendarDefinition) super.clone();
 		newOne.week = week.clone();
-		newOne.dayExceptions = new TreeSet<WorkDay>();
+		newOne.dayExceptions = new TreeSet<>();
 
 		for (WorkDay dayException : dayExceptions)
 			newOne.dayExceptions.add(dayException.clone());
