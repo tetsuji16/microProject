@@ -226,7 +226,7 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 	}
 
 protected JComponent createFieldsPanel(FieldComponentMap map, Collection<Field> fields) {
-	if (fields == null || fields.size() == 0)
+	if (fields == null || fields.isEmpty())
 		return null;
 	 
 	FormLayout layout = new FormLayout(

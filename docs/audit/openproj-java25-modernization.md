@@ -2105,3 +2105,5 @@ binding for table-header coordinate lookup, removing the immediate cast.
 from active dialog, report, print-preview, and toolbar help routes. The help
 target resolution is unchanged. Full `:microproject_ui:test --console=plain`
 passed.
+
+FieldDialog.createFieldsPanel now uses the collection's isEmpty() contract instead of comparing size() to zero. git blame traces this guard to OpenProj (d2fa3c20a); active subclasses/callers include project, project-information, update-task, and delegate-task dialogs. Null handling and whether the shared field panel is omitted are unchanged. Full :microproject_ui:test --console=plain passed.
