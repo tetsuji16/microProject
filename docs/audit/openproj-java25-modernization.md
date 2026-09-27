@@ -2735,3 +2735,9 @@ at `d2fa3c20a`; the constructor still creates an empty `HashSet<Task>` for
 each traversal, with unchanged identity/equality membership behavior. The
 existing `TaskDependencyInvalidationTest` covers propagation to dependent
 tasks and passed.
+
+`Project.updateDistributionMap` now uses diamond inference for its sorted
+distribution map. The constructor call matches OpenProj 1.4 at `d2fa3c20a`;
+the `TreeMap`, `DistributionComparator`, and both `DistributionData` type
+arguments are unchanged. No focused test currently targets this method, so
+the full core test suite is the verification for this small source-only edit.

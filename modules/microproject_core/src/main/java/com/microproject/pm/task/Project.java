@@ -2570,7 +2570,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
     	long t=System.currentTimeMillis();
 		List<DistributionData> dist=(new DistributionConverter()).createDistributionData(this,false);
     	if (dist==null) return;
-    	TreeMap<DistributionData, DistributionData> distMap=new TreeMap<DistributionData, DistributionData>(new DistributionComparator());
+		TreeMap<DistributionData, DistributionData> distMap=new TreeMap<>(new DistributionComparator());
     	setDistributionMap(distMap);
     	long projectId=getUniqueId();
 		for (DistributionData d : dist){
