@@ -2561,6 +2561,10 @@ diamond inference. These exact typed construction responsibilities match
 the comparator, null fallback, ordering, and project map assignment are
 unchanged. Full exchange tests passed.
 
+`Serializer.setRoles` now uses diamond inference for its authorized-role set.
+The set's role-conversion and insertion behavior match the OpenProj method;
+the current fork's array-derived capacity is retained unchanged.
+
 `TimeSpreadSheetModel` now uses diamond inference for its selected-field and
 time-interval lists. OpenProj's constructor creates the same two lists (raw in
 that baseline); current element types, cache initialization, and selection

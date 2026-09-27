@@ -1124,7 +1124,7 @@ public class Serializer {
         if (authRoles!=null){
         	EnterpriseResource globalResource=resource.getGlobalResource();
         	globalResource.setDefaultRole(authRoles.length>0?authRoles[0]:ApplicationUser.INACTIVE);
-        	Set<Integer> roles=new HashSet<Integer>(authRoles.length * 4 / 3 + 1);
+		Set<Integer> roles=new HashSet<>(authRoles.length * 4 / 3 + 1);
         	for (int i=0;i<authRoles.length;i++) {
 				roles.add(UserUtil.toExtendedRole(authRoles[i],resource.isUser()));
 			}
