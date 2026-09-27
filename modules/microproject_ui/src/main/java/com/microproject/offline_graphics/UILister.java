@@ -25,10 +25,6 @@
 package com.microproject.offline_graphics;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -51,22 +47,14 @@ public class UILister {
 		FlatLafSupport.ensureInitialized();
 		try {
 			FlatLafSupport.initialize();
-			Set defaults = UIManager.getLookAndFeelDefaults().entrySet();
-			TreeSet ts = new TreeSet(new Comparator() {
-				public int compare(Object a, Object b) {
-					Map.Entry ea = (Map.Entry) a;
-					Map.Entry eb = (Map.Entry) b;
-					return ((String) ea.getKey()).compareTo(((String)
-							eb.getKey()));
-				}
-			});
+			Set<Map.Entry<Object, Object>> defaults = UIManager.getLookAndFeelDefaults().entrySet();
+			TreeSet<Map.Entry<Object, Object>> ts = new TreeSet<>(
+				(first, second) -> ((String) first.getKey()).compareTo((String) second.getKey()));
 			ts.addAll(defaults);
 			Object[][] kvPairs = new Object[defaults.size()][2];
 			Object[] columnNames = new Object[] { "Key", "Value" };
 			int row = 0;
-			for (Iterator i = ts.iterator(); i.hasNext();) {
-				Object o = i.next();
-				Map.Entry entry = (Map.Entry) o;
+			for (Map.Entry<Object, Object> entry : ts) {
 				kvPairs[row][0] = entry.getKey();
 				kvPairs[row][1] = entry.getValue();
 				row++;
@@ -76,11 +64,7 @@ public class UILister {
 			JScrollPane tableScroll = new JScrollPane(table);
 
 			JButton closeButton = new JButton("Close");
-			closeButton.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					System.exit(0);
-				}
-			});
+			closeButton.addActionListener(e -> System.exit(0));
 
 			JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER,
 					6, 6));
