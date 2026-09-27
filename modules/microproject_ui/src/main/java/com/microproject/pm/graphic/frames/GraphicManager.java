@@ -138,7 +138,6 @@ import com.microproject.dialog.ResourceMappingDialog;
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.WelcomeDialog;
 import com.microproject.dialog.UsabilityStrings;
-import com.microproject.dialog.assignment.AssignmentDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.options.CalendarDialogBox;
 import com.microproject.document.Document;
@@ -264,7 +263,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	//private String[] projectUrl;
 	private static String server = null;
 
-    private AssignmentDialog assignResourcesDialog = null;
+    private final AssignmentDialogCoordinator assignmentDialogCoordinator = new AssignmentDialogCoordinator();
     private FindDialog findDialog = null;
 	private ProjectInformationDialog projectInformationDialog = null;
 	private TaskInformationDialog taskInformationDialog = null;
@@ -3964,14 +3963,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     public void showAssignmentDialog(DocumentFrame documentFrame) {
 		if (currentFrame==null||!getCurrentFrame().isActive())
 			return;
-
-    	if (assignResourcesDialog == null) {
-    		assignResourcesDialog = new AssignmentDialog(documentFrame);
-    		assignResourcesDialog.pack();
-    		assignResourcesDialog.setModal(false);
-    	}
-    	assignResourcesDialog.setLocationRelativeTo(documentFrame);//to center on screen
-        assignResourcesDialog.setVisible(true);
+		assignmentDialogCoordinator.show(documentFrame);
     }
 
     public void showTimesheetDialog(DocumentFrame documentFrame) {
@@ -4220,8 +4212,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public void windowActivated(WindowEvent arg0) {
 	}
 	public void windowClosed(WindowEvent evt) {
-		if (evt.getWindow() == assignResourcesDialog)
-			assignResourcesDialog = null;
+		assignmentDialogCoordinator.windowClosed(evt.getWindow());
 	}
 
 	public void windowClosing(WindowEvent arg0) {
@@ -4480,8 +4471,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 */
 	protected Node lastNode=null;
 	public void selectionChanged(SelectionNodeEvent e) {
-		if (assignResourcesDialog != null)
-			assignResourcesDialog.selectionChanged(e);
+		assignmentDialogCoordinator.selectionChanged(e);
 
 		Node currentNode=e.getCurrentNode();
 		Object currentImpl=currentNode.getImpl();
