@@ -202,13 +202,8 @@ public class MicrosoftImporter extends ServerFileImporter{
 			}
 			in = new java.io.ByteArrayInputStream(data);
 		}
-		plProject=plImporter.importProject(in, extension, new MspImporter.ProgressClosure() {
-			@Override
-			public void updateProgress(float progress, String label) {
-				setProgress(progress*0.1f);
-				
-			}
-		});
+		plProject=plImporter.importProject(in, extension,
+			(progress, label) -> setProgress(progress * 0.1f));
 		if (plProject == null) {
 			String errorText = (errorDescription == null) ? Messages.getString("Message.ImportError") : errorDescription; //$NON-NLS-1$
 			if (jobRunnable != null) {
@@ -241,12 +236,8 @@ public class MicrosoftImporter extends ServerFileImporter{
 		
 		
 		MspImporter plImporter=new MspImporter();
-		MspImporter.ProgressClosure progress = new MspImporter.ProgressClosure() {
-			@Override
-			public void updateProgress(float progress, String label) {
-				setProgress(progress*0.1f);
-			}
-		};
+		MspImporter.ProgressClosure progress =
+			(value, label) -> setProgress(value * 0.1f);
 		if (fileInputStream == null && "xlsx".equals(getFileExtension())) {
 			byte[] data;
 			try (InputStream input = Files.newInputStream(Path.of(fileName))) {
