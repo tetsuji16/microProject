@@ -40,7 +40,7 @@ import com.microproject.grouping.core.model.NodeModel;
 public class NodeCreationEdit extends AbstractUndoableEdit{
 	protected NodeModel model;
 	protected Node parent;
-	protected List children;
+	protected List<Node> children;
 	protected int position;
 	
 	
@@ -52,12 +52,12 @@ public class NodeCreationEdit extends AbstractUndoableEdit{
 	 * @param children
 	 * @param position
 	 */
-	public NodeCreationEdit(NodeModel model, Node parent, List children,
+	public NodeCreationEdit(NodeModel model, Node parent, List<Node> children,
 			int position) {
 		super();
 		this.model = model;
 		this.parent = parent;
-		this.children = new ArrayList(children);
+		this.children = new ArrayList<>(children);
 		this.position = position;
 	}
 	public void redo() throws CannotRedoException {

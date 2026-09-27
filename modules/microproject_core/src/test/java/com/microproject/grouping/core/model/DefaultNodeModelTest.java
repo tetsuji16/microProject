@@ -449,7 +449,7 @@ class DefaultNodeModelTest {
 		undoController.clear();
 
 		Node root = (Node) model.getHierarchy().getRoot();
-		List children = new ArrayList();
+		List<Node> children = new ArrayList<>();
 		children.add(NodeFactory.getInstance().createNode(new Object()));
 		children.add(NodeFactory.getInstance().createNode(new Object()));
 
