@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
@@ -428,75 +429,43 @@ public class Job extends Thread {
 	}
 
 	public void warm(final String message,boolean wait){
-		final Mutex alertMutex=new Mutex();
-		if (wait) alertMutex.lock();
-		SwingUtilities.invokeLater(new Runnable(){
-	    	public void run(){
-	    		Alert.warn(message);
-	    		alertMutex.unlock();
-	        }
-		});
-		if (wait) alertMutex.waitUntilUnlocked();
+		dispatchAlert(() -> {
+			Alert.warn(message);
+			return null;
+		}, wait, null);
 	}
 	public void error(final String message,boolean wait){
-		final Mutex alertMutex=new Mutex();
-		if (wait) alertMutex.lock();
-		SwingUtilities.invokeLater(new Runnable(){
-	    	public void run(){
-	    		Alert.error(message);
-	    		alertMutex.unlock();
-	        }
-		});
-		if (wait) alertMutex.waitUntilUnlocked();
+		dispatchAlert(() -> {
+			Alert.error(message);
+			return null;
+		}, wait, null);
 	}
-	private static class IntResultHolder{
-		int result;
-	};
-	public int confirm(final String message,boolean wait){
-		final Mutex alertMutex=new Mutex();
-		final IntResultHolder result=new IntResultHolder();
-		if (wait) alertMutex.lock();
-		SwingUtilities.invokeLater(new Runnable(){
-	    	public void run(){
-	    		result.result=Alert.confirm(message);
-	    		alertMutex.unlock();
-	        }
-		});
-		if (wait) alertMutex.waitUntilUnlocked();
-		return result.result;
-	}
-	private static class BooleanResultHolder{
-		boolean result;
-	};
-	public boolean okCancel(final String message,boolean wait){
-		final Mutex alertMutex=new Mutex();
-		final BooleanResultHolder result=new BooleanResultHolder();
-		if (wait) alertMutex.lock();
-		SwingUtilities.invokeLater(new Runnable(){
-	    	public void run(){
-	    		result.result=Alert.okCancel(message);
-	    		alertMutex.unlock();
-	        }
-		});
-		if (wait) alertMutex.waitUntilUnlocked();
-		return result.result;
+	private static class ResultHolder<T> {
+		T result;
 	}
 
-	private static class StringResultHolder{
-		String result;
-	};
-	public String renameProject(final String name,final Set projectNames,boolean wait,final boolean saveAs){
-		final Mutex alertMutex=new Mutex();
-		final StringResultHolder result=new StringResultHolder();
+	static <T> T dispatchAlert(Supplier<T> alert, boolean wait, T defaultResult) {
+		Mutex alertMutex = new Mutex();
+		ResultHolder<T> result = new ResultHolder<>();
 		if (wait) alertMutex.lock();
-		SwingUtilities.invokeLater(new Runnable(){
-	    	public void run(){
-	    		result.result=Alert.renameProject(name,projectNames,saveAs);
-	    		alertMutex.unlock();
-	        }
+		SwingUtilities.invokeLater(() -> {
+			result.result = alert.get();
+			alertMutex.unlock();
 		});
 		if (wait) alertMutex.waitUntilUnlocked();
-		return result.result;
+		return wait ? result.result : defaultResult;
+	}
+
+	public int confirm(final String message,boolean wait){
+		return dispatchAlert(() -> Alert.confirm(message), wait, 0);
+	}
+
+	public boolean okCancel(final String message,boolean wait){
+		return dispatchAlert(() -> Alert.okCancel(message), wait, false);
+	}
+
+	public String renameProject(final String name,final Set projectNames,boolean wait,final boolean saveAs){
+		return dispatchAlert(() -> Alert.renameProject(name,projectNames,saveAs), wait, null);
 	}
 
 
