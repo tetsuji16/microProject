@@ -39,7 +39,7 @@ import com.microproject.pm.graphic.model.cache.NodeModelCache;
  *
  */
 public class DependencyGraph{
-	protected HashMap nodeMap =new HashMap();
+	protected HashMap<GraphicNode, Node> nodeMap = new HashMap<>();
 	protected NodeModelCache cache;
 	
 	public void setCache(NodeModelCache cache){
@@ -49,14 +49,14 @@ public class DependencyGraph{
 	
 	public void insertDependency(GraphicDependency dependency){
 		//System.out.println("insertDependency");
-	    GraphicNode preValue=(GraphicNode)dependency.getPredecessor();
-	    GraphicNode sucValue=(GraphicNode)dependency.getSuccessor();
-	    Node pre=(Node)nodeMap.get(preValue);
+	    GraphicNode preValue = (GraphicNode) dependency.getPredecessor();
+	    GraphicNode sucValue = (GraphicNode) dependency.getSuccessor();
+	    Node pre = nodeMap.get(preValue);
 	    if (pre==null){
 	        pre=new Node(preValue);
 	        nodeMap.put(preValue,pre);
 	    }
-	    Node suc=(Node)nodeMap.get(sucValue);
+	    Node suc = nodeMap.get(sucValue);
 	    if (suc==null){
 	        suc=new Node(sucValue);
 	        nodeMap.put(sucValue,suc);
@@ -67,10 +67,10 @@ public class DependencyGraph{
 	}
 	public void removeDependency(GraphicDependency dependency){
 		//System.out.println("removeDependency");
-	    GraphicNode preValue=(GraphicNode)dependency.getPredecessor();
-	    GraphicNode sucValue=(GraphicNode)dependency.getSuccessor();
-	    Node pre=(Node)nodeMap.get(preValue);
-	    Node suc=(Node)nodeMap.get(sucValue);
+	    GraphicNode preValue = (GraphicNode) dependency.getPredecessor();
+	    GraphicNode sucValue = (GraphicNode) dependency.getSuccessor();
+	    Node pre = nodeMap.get(preValue);
+	    Node suc = nodeMap.get(sucValue);
 	    if (pre==null||suc==null)return;
 	    
 	    pre.removeSuccessor(suc);
@@ -89,14 +89,13 @@ public class DependencyGraph{
 	
 	public void updatePertLevels(){
 //		System.out.println("updatePertLevels");
-	    for (Iterator i=cache.getIterator();i.hasNext();){
-	        resetCachePertLevel((GraphicNode)i.next());
+	    for (Iterator<?> i = cache.getIterator(); i.hasNext();) {
+	        resetCachePertLevel((GraphicNode) i.next());
 	    }
 	    
-	    Set predecessors=new HashSet();
-	    Set successors=new HashSet();
-	    for (Iterator i=nodeMap.values().iterator();i.hasNext();){
-	        Node node=(Node)i.next();
+	    Set<Node> predecessors = new HashSet<>();
+	    Set<Node> successors = new HashSet<>();
+	    for (Node node : nodeMap.values()) {
 	        GraphicNode gnode=(GraphicNode)node.getValue();
 	        //resetCachePertLevel(gnode);
 	        if (node.getPredecessors().size()==0) predecessors.add(node);
@@ -104,7 +103,7 @@ public class DependencyGraph{
 	    
 	    while (predecessors.size()>0){
 	        updateSuccessorsPertLevel(predecessors,successors);
-	        Set tmp=predecessors;
+	        Set<Node> tmp = predecessors;
 	        predecessors=successors;
 	        successors=tmp;
 	        successors.clear();
@@ -112,12 +111,10 @@ public class DependencyGraph{
 	}
 	
 	
-	private void updateSuccessorsPertLevel(Set predecessors,Set successors){
-	    for (Iterator i=predecessors.iterator();i.hasNext();){
-	        Node pre=(Node)i.next();
+	private void updateSuccessorsPertLevel(Set<Node> predecessors, Set<Node> successors) {
+	    for (Node pre : predecessors) {
 	        GraphicNode gpre=(GraphicNode)pre.getValue();
-	        for (Iterator j=pre.getSuccessors().iterator();j.hasNext();){
-	            Node suc=(Node)j.next();
+	        for (Node suc : pre.getSuccessors()) {
 	            successors.add(suc);
 		        GraphicNode gsuc=(GraphicNode)suc.getValue();
 		        correctPertLevel(gpre,gsuc);
@@ -138,12 +135,12 @@ public class DependencyGraph{
 	
 	public class Node{
 	    protected Object value;
-	    protected List predecessors;
-	    protected List successors;
+	    protected List<Node> predecessors;
+	    protected List<Node> successors;
 	    public Node(Object value){
 	        this.value=value;
-	        predecessors=new LinkedList();
-	        successors=new LinkedList();
+	        predecessors = new LinkedList<>();
+	        successors = new LinkedList<>();
 	    }
         public Object getValue() {
             return value;
@@ -158,7 +155,7 @@ public class DependencyGraph{
         public void removeSuccessor(Node successor){
             successors.remove(successor);
         }
-        public List getSuccessors(){
+        public List<Node> getSuccessors(){
             return successors;
         }
         
@@ -168,7 +165,7 @@ public class DependencyGraph{
         public void removePredecessor(Node predecessor){
             predecessors.remove(predecessor);
         }
-        public List getPredecessors(){
+        public List<Node> getPredecessors(){
             return predecessors;
         }
         
@@ -179,4 +176,3 @@ public class DependencyGraph{
 	}
 
 }
-
