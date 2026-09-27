@@ -33,7 +33,6 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -422,10 +421,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	
 		final List resultList = new ArrayList();
 		for (Object item : implList) {
-			((Project)item).forTasks(new Consumer<Object>() { public void accept(Object arg0) {
-					resultList.add(arg0);
-				}
-			});
+			((Project)item).forTasks(resultList::add);
 			//resultList.addAll( ((Project)i.next()).getTasks());
 		}
 		return resultList;
