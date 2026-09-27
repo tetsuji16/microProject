@@ -2353,3 +2353,8 @@ the focused test and downstream UI compilation passed.
 `Enumeration<?>`. The UI insertion callers are active, and the existing
 `Node` cast, assignment-skip behavior, insertion index, and void-node creation
 are unchanged. `DefaultNodeModelTest` and downstream UI compilation passed.
+
+`TaskSnapshot(Collection)` now declares its opaque detail input as
+`Collection<?>`, matching the delegated `HasAssignmentsImpl` constructor.
+Assignment details are still validated/cast by that constructor, and the
+erased constructor descriptor is unchanged. Full core tests passed.

@@ -96,7 +96,7 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	}
 
 
-	public TaskSnapshot(Collection details) {
+	public TaskSnapshot(Collection<?> details) {
 		hasAssignments=new HasAssignmentsImpl(details);
 	}
 
