@@ -2704,3 +2704,9 @@ NodeCacheTransformer.extractAssignments now uses diamond inference for its OpenP
 types after erasure, natural field ordering, and selected-field behavior; the
 cast from `getSelectedItem()` remains because Swing declares that method to
 return `Object`. `FindDialogCleanupAuditTest` and UI compilation passed.
+
+`FieldDictionary.populateListWithFieldsOfType` now calls `list.sort(null)`
+instead of `Collections.sort(list)`. The method and natural-order sort match
+OpenProj 1.4 at `d2fa3c20a`; the same caller-provided list is still sorted in
+place after applicable fields are appended. Full `:microproject_core:test`
+passed (801 tests, no failures or skips).

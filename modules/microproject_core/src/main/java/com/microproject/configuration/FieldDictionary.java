@@ -30,7 +30,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.function.Consumer;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -125,7 +124,7 @@ public class FieldDictionary {
 			if (field.isApplicable(clazz))
 				list.add(field);
 		 }
-		Collections.sort(list);
+		list.sort(null);
 	}
 	
 	Collection<Field> getAllFields() {
