@@ -33,16 +33,16 @@ public class MapAdapter<K, V> extends XmlAdapter<MapAdapterList<K, V>, Map<K, V>
  
     @Override
     public MapAdapterList<K,V> marshal(Map<K, V> map) throws Exception {
-        MapAdapterList<K, V> list = new MapAdapterList<K, V>(); 
+        MapAdapterList<K, V> list = new MapAdapterList<>();
         for (Map.Entry<K, V> entry : map.entrySet()) {
-            list.getEntry().add(new MapAdapterEntry<K, V>(entry.getKey(),entry.getValue()));
+            list.getEntry().add(new MapAdapterEntry<>(entry.getKey(),entry.getValue()));
         }
         return list;
     }
     
    @Override
     public Map<K, V> unmarshal(MapAdapterList<K, V> list) throws Exception {
-        HashMap<K, V> map = new HashMap<K, V>(list.getEntry().size());
+        HashMap<K, V> map = new HashMap<>(list.getEntry().size());
         for (MapAdapterEntry<K, V> element : list.getEntry()) {
             map.put(element.getKey(), element.getValue());
         }

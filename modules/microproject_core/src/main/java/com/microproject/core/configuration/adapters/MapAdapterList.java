@@ -29,7 +29,7 @@ import java.util.List;
 
  
 public class MapAdapterList<K, V> { 
-    protected List<MapAdapterEntry<K, V>> entry = new ArrayList<MapAdapterEntry<K, V>>();
+    protected List<MapAdapterEntry<K, V>> entry = new ArrayList<>();
  
     public List<MapAdapterEntry<K, V>> getEntry() {
         return entry;

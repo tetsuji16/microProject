@@ -31,7 +31,7 @@ import javax.xml.bind.annotation.XmlAnyElement;
 
  
 public class DictionaryAdapterList<T> { 
-    protected List<T> entry = new ArrayList<T>();
+    protected List<T> entry = new ArrayList<>();
  
     @XmlAnyElement(lax=true)
     public List<T> getEntry() {

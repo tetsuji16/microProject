@@ -92,7 +92,7 @@ public class DictionaryAdapter<T> extends XmlAdapter<DictionaryAdapterList<T>, M
  
     @Override
     public DictionaryAdapterList<T> marshal(Map<String, T> map) throws Exception {
-        DictionaryAdapterList<T> list = new DictionaryAdapterList<T>(); 
+        DictionaryAdapterList<T> list = new DictionaryAdapterList<>();
         for (Map.Entry<String, T> entry : map.entrySet()) {
             list.getEntry().add(entry.getValue());
         }
@@ -101,7 +101,7 @@ public class DictionaryAdapter<T> extends XmlAdapter<DictionaryAdapterList<T>, M
     
    @Override
     public Map<String, T> unmarshal(DictionaryAdapterList<T> list) throws Exception {
-        HashMap<String, T> map = new HashMap<String, T>(list.getEntry().size());
+        HashMap<String, T> map = new HashMap<>(list.getEntry().size());
     	for (T element : list.getEntry()) {
             map.put(((HasStringId)element).getId(), element); //T must implement HasName
         }

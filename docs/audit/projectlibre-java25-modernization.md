@@ -32,6 +32,7 @@ OpenProj progress.
 |---|---|---|
 | `FieldUtil.getCategories` | The `FieldUtil` class exists in the OpenProj baseline, but this method does not; it first appears in ProjectLibre 1.9.8 (`0530be227f4a10c5545cce8d3db20ac5a4d76a66`). Replaced its sized-array `toArray` call with `categories.toArray(String[]::new)`; result type, order, and contents are unchanged. | `:microproject_core:test --tests "com.microproject.core.fields.FieldUtilTest" --console=plain` passed 2026-09-27; regression asserts hierarchy order and contents. |
 | `Dictionary.add` and `Dictionary.getClassesAsArray` | `Dictionary` is absent from the OpenProj baseline and exists in ProjectLibre 1.9.8 as `org.projectlibre.core.dictionary.Dictionary`. Bound `HasCategories` in the guard and read from the binding; replaced the sized-array conversion with `classes.toArray(Class<?>[]::new)`. Category/ALL indexing and class results are unchanged. | `:microproject_core:test --tests "com.microproject.core.dictionary.DictionaryTest" --console=plain` passed 2026-09-27; regression checks category and ALL indexes plus class-array contents. |
+| ProjectLibre JAXB map adapters | `DictionaryAdapter`, `DictionaryAdapterList`, `MapAdapter`, and `MapAdapterList` exist in ProjectLibre 1.9.8 and are absent from the OpenProj baseline. Replaced explicit generic constructor type arguments with diamond inference; collection types, capacities, and JAXB method signatures are unchanged. | Full `:microproject_core:test --console=plain` passed 2026-09-27. |
 
 ## Explicit exclusions
 
