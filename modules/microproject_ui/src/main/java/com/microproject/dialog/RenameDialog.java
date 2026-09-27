@@ -49,7 +49,6 @@ public final class RenameDialog extends AbstractDialog {
 
 	NamedItem namedItem;
 	String result = null;
-//	private RenameDialog instance = null; // Single-instance handling would need graphic-manager coordination.
 	
 	public static boolean doRename(Component component, NamedItem namedItem) {
 		String value = getValue(component,namedItem);
@@ -68,15 +67,6 @@ public final class RenameDialog extends AbstractDialog {
 
 	public static RenameDialog getInstance(Component component, NamedItem namedItem) {
 		return new RenameDialog(component,namedItem);
-
-		//		if (instance == null) {
-//			instance = new RenameDialog(component,namedItem);
-//		} else {
-//			instance.namedItem = namedItem;
-//			instance.bind(true);
-//		}
-//		return instance;
-			
 	}
 	public final String getResult() {
 		return result;
