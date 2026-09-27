@@ -46,7 +46,7 @@ import com.microproject.grouping.core.transform.HierarchicObject;
 /**
  *
  */
-public class NodeSorter extends CommonTransform implements Comparator{
+public class NodeSorter extends CommonTransform implements Comparator<Object>{
 	private static final Logger logger = Logger.getLogger(NodeSorter.class.getName());
 	protected boolean showSummary = true;
 	protected boolean showEmptyLines = true;
@@ -203,6 +203,7 @@ private class ListFactory extends BasePoolableObjectFactory {
     }
 
     protected ListIterator currentSorter=null;
+    @Override
     public int compare(Object o1, Object o2) {
         NodeSorter sorter;
         List<Object> sorters=getSubTransforms();

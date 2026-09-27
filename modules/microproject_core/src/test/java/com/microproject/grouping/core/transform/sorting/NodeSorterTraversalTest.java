@@ -35,6 +35,13 @@ import com.microproject.grouping.core.transform.HierarchicObject;
 
 class NodeSorterTraversalTest {
 	@Test
+	void exposesTypedComparatorForNodeValues() {
+		Comparator<Object> comparator = new NodeSorter();
+
+		assertEquals(0, comparator.compare(new Object(), new Object()));
+	}
+
+	@Test
 	void sortsEachHierarchyLevelInEncounterOrder() {
 		TestNode group = new TestNode("group", new ArrayList<>(List.of(new TestNode("c"), new TestNode("b"))));
 		List<TestNode> roots = new ArrayList<>(List.of(new TestNode("z"), group, new TestNode("a")));

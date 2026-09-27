@@ -2281,3 +2281,12 @@ other-task, self, other-reference, and unrelated object inputs.
 `TaskReferenceKindTest` covers those cases. Full
 `:microproject_core:test --console=plain` and
 `:microproject_application:compileJava --console=plain` passed.
+
+`NodeSorter` now implements `Comparator<Object>` and marks `compare` as an
+override. `git blame` traces the comparator contract to OpenProj
+(`d2fa3c20a`); the active UI `NodeCacheTransformer` calls `sortList` for
+hidden and user sorters, and its `GraphicNodeComparator` delegates composite
+ordering to `NodeSorter.compare`. The erased comparator API and recursive
+encounter order are unchanged. `NodeSorterTraversalTest` checks
+the typed comparator contract and hierarchy ordering. The focused core test
+and `:microproject_ui:compileJava --console=plain` passed.
