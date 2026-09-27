@@ -492,8 +492,9 @@ public class DocumentFrame extends NamedFrame implements
 
 	void doDefineCodeDialog() {
 		finishAnyOperations();
-		List<Task> selected = new ArrayList<>();
-		for (Object value : getSelectedImpls(false)) if (value instanceof Task task) selected.add(task);
+		List<?> selectedImpls = getSelectedImpls(false);
+		List<Task> selected = new ArrayList<>(selectedImpls.size());
+		for (Object value : selectedImpls) if (value instanceof Task task) selected.add(task);
 		new CustomFieldsDialogBox(getGraphicManager().getFrame(), project, selected).setVisible(true);
 	}
 

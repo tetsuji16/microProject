@@ -175,3 +175,6 @@ import、XLSX fallbackの各focused testが成功した。
 ChartLegendで選択プロジェクトをoutline taskへ展開する一時リストは、選択プロジェクト
 ごとのtask list件数合計を上限に事前確保する。outline反復は全task listの部分集合であり、
 対象件数と順序は変えていない。`ChartInfoWorkspaceTest`とUI compilationが成功した。
+
+`DocumentFrame.doDefineCodeDialog`の選択タスク一覧も、選択implementation件数で
+事前確保した。Task以外を除外する条件は維持し、UI compilationが成功した。
