@@ -2340,3 +2340,11 @@ and iterates it with an enhanced-for loop; `getNodes()` now returns
 `List<Node>`. The active removal and `NodeDeletionEdit` redo callers already
 operate on node lists, so ordering, runtime failures, and erased descriptors
 are unchanged. Focused `DefaultNodeModelTest` and node-deletion tests passed.
+
+The OpenProj-derived outline search contract now accepts `Comparator<Object>`
+through `NodeModel`, `NodeHierarchy`, and their mutable, filtered, and model
+implementations. The comparator receives a `Node` and the caller's search key;
+the active `ImplComparator` already implements that object contract. The
+erased method descriptor and traversal order are unchanged. Extended
+`DefaultNodeModelTest` to verify identity-key lookup through the typed API;
+the focused test and downstream UI compilation passed.

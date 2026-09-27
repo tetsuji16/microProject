@@ -67,10 +67,14 @@ class DefaultNodeModelTest {
 	void implementationComparatorUsesIdentityForSearchKeys() {
 		String implementation = new String("implementation");
 		Node node = NodeFactory.getInstance().createNode(implementation);
-		DefaultNodeModel.ImplComparator comparator = new DefaultNodeModel.ImplComparator();
+		java.util.Comparator<Object> comparator = new DefaultNodeModel.ImplComparator();
 
 		assertEquals(0, comparator.compare(node, implementation));
 		assertEquals(1, comparator.compare(node, new String("implementation")));
+
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		model.add((Node) model.getHierarchy().getRoot(), node, NodeModel.SILENT);
+		assertSame(node, model.search(implementation, comparator));
 	}
 
 	@Test

@@ -841,12 +841,12 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
 
 
-    public Node search(Object key, Comparator c) {
+    public Node search(Object key, Comparator<Object> c) {
  //   	System.out.println("search("+key+", "+c+")");
     	return search(root,key,c);
     }
 
-    private Node search(Node node, Object key, Comparator c) {
+    private Node search(Node node, Object key, Comparator<Object> c) {
     	if (c.compare((node==null)?root:node,key) == 0)
     		return node;
     	List<Node> children = getChildren(node);

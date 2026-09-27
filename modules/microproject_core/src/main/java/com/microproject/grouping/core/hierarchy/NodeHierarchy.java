@@ -81,7 +81,7 @@ public interface NodeHierarchy extends TreeModel{
     public void visitAllLevelOrder(Node root, boolean skipLazyParents,Consumer<Object> visitor);
     public void visitAll(Node root, boolean skipLazyParents,Consumer<Object> visitor);
     public void visitLeaves(Node node, Consumer<Object> visitor);
-	public Node search(Object key, Comparator c);
+	public Node search(Object key, Comparator<Object> c);
 	public int getIndexOfNode(Node key, boolean skipVoid);
 	public boolean isSummary(Node node);
     public Node getNext(Node current);

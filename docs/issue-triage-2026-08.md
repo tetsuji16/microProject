@@ -47,6 +47,13 @@ reference for its captured state. The helper check and snapshot regression
 tests passed with `:microproject_core:test --tests
 "com.microproject.grouping.core.model.DefaultNodeModelTest" --tests
 "com.microproject.grouping.core.model.NodeModelUtilTest" --console=plain`.
+
+For #595, the outline-search comparator contract was typed as
+`Comparator<Object>` from `NodeModel` through the hierarchy interfaces and
+implementations. The identity lookup regression and downstream UI compilation
+passed with `:microproject_core:test --tests
+"com.microproject.grouping.core.model.DefaultNodeModelTest"
+:microproject_ui:compileJava --console=plain`.
 | New: legacy `.pod` conversion guidance conflicts with MPO default | Implemented locally | Deprecated-format recovery now recommends `xml or mpo`. Legacy `.pod` opening and explicit `.pod` Save As compatibility remain available. |
 
 ## New issue: remove `.pod` as a recommended conversion target

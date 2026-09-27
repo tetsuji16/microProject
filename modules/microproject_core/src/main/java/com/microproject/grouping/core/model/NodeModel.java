@@ -100,7 +100,7 @@ public interface NodeModel extends TreeModel, WalkersNodeModel{
 	public void setHierarchy(NodeHierarchy hierarchy);
 
 	public Object clone();
-	public Node search(Object key, Comparator c);
+	public Node search(Object key, Comparator<Object> c);
 	public Node search(Object key);
 
 

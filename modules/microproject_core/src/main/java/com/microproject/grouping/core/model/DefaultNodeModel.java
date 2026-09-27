@@ -583,7 +583,7 @@ public class DefaultNodeModel implements NodeModel {
 	 * @param c
 	 * @return
 	 */
-	public Node search(Object key, Comparator c) {
+	public Node search(Object key, Comparator<Object> c) {
 		return hierarchy.search(key, c);
 	}
 
