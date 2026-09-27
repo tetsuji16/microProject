@@ -135,11 +135,11 @@ public class ProjectFactory {
 				Session session=SessionFactory.getInstance().getSession(false);
 				Object localAccess = hasSessionMethod(session, "isLocalAccess")
 					? SessionFactory.callNoEx(session,"isLocalAccess",null,null) : null;
-				List resources;
+				List<?> resources;
 				if (Boolean.TRUE.equals(localAccess))
-					resources=(List)SessionFactory.call(session,"retrieveResourceHierarchy",null,null);
+					resources=(List<?>)SessionFactory.call(session,"retrieveResourceHierarchy",null,null);
 				else if (hasSessionMethod(session, "getLoadResourceHierarchyJob", boolean.class, List.class)){
-					resources=new ArrayList();
+					resources=new ArrayList<>();
 
 					Job job=(Job)SessionFactory.callNoEx(session,"getLoadResourceHierarchyJob", new Class<?>[]{boolean.class,List.class},new Object[]{true,resources});
 					if (job != null) {
@@ -148,7 +148,7 @@ public class ProjectFactory {
 					}
 					//job.waitResult();
 				} else {
-					resources=new ArrayList();
+					resources=new ArrayList<>();
 				}
 				DataUtil.setEnterpriseResources(resources,resourcePool);
 			} catch (Exception e) {
