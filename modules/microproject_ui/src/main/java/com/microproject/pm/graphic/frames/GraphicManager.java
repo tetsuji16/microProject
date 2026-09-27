@@ -129,7 +129,6 @@ import com.microproject.dialog.OpenProjectDialog;
 import com.microproject.dialog.ProjectDialog;
 import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.dialog.RenameProjectDialog;
-import com.microproject.dialog.ResourceMappingDialog;
 import com.microproject.dialog.WelcomeDialog;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.dialog.assignment.TimesheetDialog;
@@ -261,7 +260,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private final InformationDialogCoordinator informationDialogCoordinator = new InformationDialogCoordinator();
     private final ApplicationInfoDialogCoordinator applicationInfoDialogCoordinator = new ApplicationInfoDialogCoordinator();
     private BaselineDialog baselineDialog = null;
-    private ResourceMappingDialog resourceMappingDialog=null;
+	private final ResourceMappingDialogCoordinator resourceMappingDialogCoordinator = new ResourceMappingDialogCoordinator();
 	ProjectFactory projectFactory = null;
 	private final AutoRecoveryManager autoRecoveryManager;
 	private final TemporaryWorkspace temporaryWorkspace;
@@ -3447,15 +3446,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				public boolean execute(){
 					if (getImportedResources().size() == 0) // don't show dialog if no resources were imported
 						return true;
-					if (resourceMappingDialog == null) {
-						resourceMappingDialog = ResourceMappingDialog.getInstance(this);
-						resourceMappingDialog.pack();
-						resourceMappingDialog.setModal(true);
-					} else resourceMappingDialog.setForm(this);
-					resourceMappingDialog.bind(true);
-					resourceMappingDialog.setLocationRelativeTo(getCurrentFrame());//to center on screen
-					resourceMappingDialog.setVisible(true);
-					return resourceMappingDialog.getDialogResult()==JOptionPane.OK_OPTION;
+					return resourceMappingDialogCoordinator.show(this, getCurrentFrame());
 				}
 			});
 			if (Environment.getStandAlone()) {
