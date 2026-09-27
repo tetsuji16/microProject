@@ -1750,30 +1750,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		addActions(CommonSpreadSheetModel.convertActions(actions));
 	}
 
-	
-//	public static final String INDENT = "Action.Indent";
-//	public static final String OUTDENT = "Action.Outdent";
-//	public static final String NEW = "Action.New";
-//	public static final String DELETE = "Action.Delete";
-//	public static final String CUT = "Action.Cut";
-//	public static final String COPY = "Action.Copy";
-//	public static final String PASTE = "Action.Paste";
-	
-//	public static final int INDENT = 0;
-//
-//	public static final int OUTDENT = 1;
-//
-//	public static final int NEW = 2;
-//
-//	public static final int DELETE = 3;
-//
-//	public static final int CUT = 4;
-//
-//
-//	public static final int COPY = 5;
-//
-//	public static final int PASTE = 6;
-
 	public static abstract class SpreadSheetAction extends AbstractAction implements CommonSpreadSheetAction {
 		protected SpreadSheet spreadSheet;
 

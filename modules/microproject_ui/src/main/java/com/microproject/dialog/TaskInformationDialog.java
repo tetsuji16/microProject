@@ -827,9 +827,7 @@ public class TaskInformationDialog extends InformationDialog {
 									,UsageDetailView.resourceAssignmentSpreadsheetCategory
 									,UsageDetailView.getUsageAssignmentSpreadsheetId(false)
 									,true
-									//, 0
-									,new String[]{MenuActionConstants.ACTION_DELETE}
-									/*, new int[] {SpreadSheet.DELETE}*/);
+									,new String[]{MenuActionConstants.ACTION_DELETE});
 		updateAssignmentSpreadsheet();
 	    return SpreadSheetUtils.makeSpreadsheetScrollPane(assignmentSpreadSheet);
 

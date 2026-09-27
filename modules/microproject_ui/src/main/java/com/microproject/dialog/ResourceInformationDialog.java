@@ -188,8 +188,7 @@ public class ResourceInformationDialog extends InformationDialog {
 									,UsageDetailView.taskAssignmentSpreadsheetCategory
 									,UsageDetailView.getUsageAssignmentSpreadsheetId(true)
 									,false
-									//, 0 
-									,new String[]{MenuActionConstants.ACTION_DELETE}/*,new int[] {SpreadSheet.DELETE}*/);
+									,new String[]{MenuActionConstants.ACTION_DELETE});
         assignmentSpreadSheet.setCanModifyColumns(true);
         assignmentSpreadSheet.setCanSelectFieldArray(true);
         updateAssignmentSpreadsheet();
