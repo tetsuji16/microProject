@@ -2091,3 +2091,10 @@ uses that binding for the existing `getValue` call. The check/cast hunk matches
 OpenProj at `d2fa3c20a`; `ComponentFactory` is the active producer. The later
 fork logging behavior in the exception path is unchanged. Full
 `:microproject_ui:test --console=plain` passed.
+
+`FieldVerifier.verify` now binds the OpenProj-derived date-string pattern and
+passes the binding directly to `DateFormat.parseObject`, removing the redundant
+cast. `git blame` traces the check/cast block to OpenProj (`d2fa3c20a`);
+`ComponentFactory` installs the verifier for date fields. Date parse fallback,
+null-date handling, and subsequent edit/undo behavior are unchanged. Full
+`:microproject_ui:test --console=plain` passed.

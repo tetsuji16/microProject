@@ -153,9 +153,9 @@ public class FieldVerifier extends InputVerifier {
 				field.setText(objectRef,newValue.toString(),context);
 			} else {
 				if (field.isDate()) {
-					if (newValue != null && newValue instanceof String) {
+					if (newValue instanceof String dateText) {
 						try {
-							newValue = EditOption.getInstance().getDateFormat().parseObject((String) newValue);
+							newValue = EditOption.getInstance().getDateFormat().parseObject(dateText);
 						} catch (ParseException e) {
 						}
 					}
