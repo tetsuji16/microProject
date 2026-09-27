@@ -165,10 +165,7 @@ public class VersionUtils {
 			if (warnIfBad && Environment.isApplet()) {
 				if (javaVersion.equals("1.6.0_09") || javaVersion.equals("1.6.0_08") || javaVersion.equals("1.6.0_07")|| javaVersion.equals("1.6.0_06")|| javaVersion.equals("1.6.0_05") || javaVersion.equals("1.6.0_04")) {
 					Environment.setNeedToRestart(true);
-					SwingUtilities.invokeLater(new Runnable() {
-						public void run() {
-							Alert.error(Messages.getString("Error.restart"));
-						}});
+					SwingUtilities.invokeLater(() -> Alert.error(Messages.getString("Error.restart")));
 				}
 			}
 		}else{
