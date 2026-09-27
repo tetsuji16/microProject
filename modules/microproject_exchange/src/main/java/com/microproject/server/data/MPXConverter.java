@@ -301,7 +301,7 @@ public class MPXConverter {
 		}
 		for (int i = 0; i < maps.flagMap.length; i++) {
 			boolean b = projectlibreFields.getCustomFlag(i);
-			if (b == true)
+			if (b)
 				mpx.set(maps.flagMap[i],Boolean.TRUE);
 		}
 		for (int i = 0; i < maps.numberMap.length; i++) {

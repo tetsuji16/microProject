@@ -2653,3 +2653,8 @@ frame-manager tests passed.
 diamond inference for their OpenProj-derived maps. Credential key/value types
 and column-width lookup behavior are unchanged. `StartupFactoryCommandStateTest`
 and `SpreadSheetUtilsTest` passed.
+
+`MPXConverter.toMpxCustomFields` now uses `if (b)` instead of comparing the
+OpenProj-derived boolean to `true`. The assignment remains limited to true
+custom flags; false flags stay omitted. `MpxCustomFlagExportTest` passed for
+both values.
