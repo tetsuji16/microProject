@@ -420,7 +420,11 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		if (implList.isEmpty() || !(implList.get(0) instanceof Project)) 
 			return implList;
 	
-		final List<Object> resultList = new ArrayList<>();
+		long taskCount = 0;
+		for (Object item : implList) {
+			taskCount = Math.min(Integer.MAX_VALUE, taskCount + ((Project) item).getTaskList().size());
+		}
+		final List<Object> resultList = new ArrayList<>((int) taskCount);
 		for (Object item : implList) {
 			((Project)item).forTasks(resultList::add);
 			//resultList.addAll( ((Project)i.next()).getTasks());
