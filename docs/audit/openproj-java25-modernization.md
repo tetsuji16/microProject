@@ -2597,3 +2597,8 @@ list, both at construction and when rebuilt during `rearrangeAll`. The
 corresponding raw linked-list field and reset are present in the OpenProj
 baseline; element type, sentinel preservation, traversal order, and linked-list
 behavior are unchanged. `PredecessorTaskListTraversalTest` passed.
+
+`PrintSettings.clone` now uses diamond inference for its view and scaling
+settings copies. Both sized copies match the OpenProj baseline; their input
+capacities, element clone order, and null handling are unchanged. Full core
+tests passed.

@@ -73,11 +73,11 @@ public class PrintSettings implements WorkspaceSetting,Cloneable{
 			PrintSettings c=(PrintSettings)super.clone();
 			if (pageFormat!=null) c.pageFormat=(ExtendedPageFormat)pageFormat.clone();
 			if (c.viewSettings!=null){
-				c.viewSettings=new ArrayList<ViewSettings>(viewSettings.size());
+				c.viewSettings=new ArrayList<>(viewSettings.size());
 				for (ViewSettings s: viewSettings) c.viewSettings.add((ViewSettings)s.clone());
 			}
 			if (c.scalingSettings!=null){
-				c.scalingSettings=new ArrayList<ScalingSettings>(scalingSettings.size());
+				c.scalingSettings=new ArrayList<>(scalingSettings.size());
 				for (ScalingSettings s: scalingSettings) c.scalingSettings.add((ScalingSettings)s.clone());
 			}
 			return c;
