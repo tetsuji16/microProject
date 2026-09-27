@@ -51,7 +51,6 @@ public class TimeIterator implements HasStartAndEnd {
 		this(startTime,endTime,scale,startReference,false);
 	}
 	public TimeIterator(long startTime, long endTime,TimeScale scale,long startReference,boolean useLargeScale) {
-		//System.out.println("TimeIterator: "+CalendarUtil.toString(startTime)+","+CalendarUtil.toString(endTime)+","+CalendarUtil.toString(startReference));
 		this.useLargeScale=useLargeScale;
 		long s;
 		long e;
@@ -71,7 +70,6 @@ public class TimeIterator implements HasStartAndEnd {
 		if (useLargeScale){
 			calendar2=DateTime.calendarInstance();
 			
-			calendar2=DateTime.calendarInstance();
 			calendar2.setTimeInMillis(s);
 			if (startRef==-1) scale.floor2(calendar2);
 			else{
@@ -82,7 +80,6 @@ public class TimeIterator implements HasStartAndEnd {
 		}else{
 			calendar1=DateTime.calendarInstance();
 			
-			calendar1=DateTime.calendarInstance();
 			calendar1.setTimeInMillis(s);
 			if (startRef==-1) scale.floor1(calendar1);
 			else{
@@ -113,7 +110,6 @@ public class TimeIterator implements HasStartAndEnd {
 			scale.increment2(calendar2);
 			long end2=calendar2.getTimeInMillis();
 			if (end2>=endTime) hasNext=false;
-			//System.out.println("large begin2="+CalendarUtil.toString(begin2));
 			String text2=scale.getText2(begin2);
 			
 			return new TimeInterval(begin2,end2,text2,-1L,-1L,null);
@@ -122,7 +118,6 @@ public class TimeIterator implements HasStartAndEnd {
 			scale.increment1(calendar1);
 			long end1=calendar1.getTimeInMillis();
 			if (end1>=endTime) hasNext=false;
-			//System.out.println("begin1="+CalendarUtil.toString(begin1));
 			String text1=scale.getText1(begin1);
 			
 			long begin2=-1;
@@ -133,7 +128,6 @@ public class TimeIterator implements HasStartAndEnd {
 				scale.increment2(calendar2);
 				end2=calendar2.getTimeInMillis();
 				next2=end2;
-				//System.out.println("begin2="+CalendarUtil.toString(begin2));
 				text2=scale.getText2(begin2);
 			}
 			return new TimeInterval(begin1,end1,text1,begin2,end2,text2);
