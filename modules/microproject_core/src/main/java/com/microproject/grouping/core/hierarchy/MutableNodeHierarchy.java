@@ -44,6 +44,7 @@ import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeNode;
 
 import com.microproject.association.AssociationList;
+import com.microproject.association.Association;
 import com.microproject.configuration.Settings;
 import com.microproject.grouping.core.LazyParent;
 import com.microproject.grouping.core.Node;
@@ -228,11 +229,11 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         			owningProject.validateObject(task,model,this,null,false);
 
         			Set<Dependency> depsSet=new HashSet<Dependency>();
-    				List pdeps=task.getDependencyList(true);
+					AssociationList pdeps = task.getDependencyList(true);
     				if (pdeps!=null&&pdeps.size()>0){
     					if (Environment.isKeepExternalLinks()){
-    						for (Iterator k=pdeps.iterator();k.hasNext();){
-    							Dependency d=(Dependency)k.next();
+							for (Iterator<Association> k = pdeps.iterator(); k.hasNext();) {
+								Dependency d = (Dependency) k.next();
     							if (!(d.getPredecessor() instanceof Task)){
     								TaskLinkReference ref=(TaskLinkReference)d.getPredecessor();
     								Task t=taskMap.get(ref.getUniqueId());
@@ -250,11 +251,11 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     						}
    						}
     				}
-    				List sdeps=task.getDependencyList(false);
+					AssociationList sdeps = task.getDependencyList(false);
     				if (sdeps!=null&&sdeps.size()>0){
     					if (Environment.isKeepExternalLinks()){
-    						for (Iterator k=sdeps.iterator();k.hasNext();){
-    							Dependency d=(Dependency)k.next();
+							for (Iterator<Association> k = sdeps.iterator(); k.hasNext();) {
+								Dependency d = (Dependency) k.next();
     							if (!(d.getSuccessor() instanceof Task)){
     								TaskLinkReference ref=(TaskLinkReference)d.getSuccessor();
     								Task t=taskMap.get(ref.getUniqueId());
@@ -282,8 +283,8 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     			        AssociationList snapshotAssignments=snapshot.getHasAssignments().getAssignments();
     			        if (snapshotAssignments.size()>0){
 //    			        	ArrayList<Assignment> assignmentsToLink=new ArrayList<Assignment>();
-    			            for (Iterator a=snapshotAssignments.listIterator();a.hasNext();){
-    			                Assignment assignment=(Assignment)a.next();
+			            for (ListIterator<Association> a = snapshotAssignments.listIterator(); a.hasNext();) {
+			                Assignment assignment = (Assignment) a.next();
     			                Resource resource=assignment.getResource();
             					if (resource==ResourceImpl.getUnassignedInstance()) continue;
             					Resource destResource=resourceMap.get(resource.getUniqueId());

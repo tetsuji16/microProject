@@ -2213,3 +2213,5 @@ Jasper `DataSource` now stores and accepts its traversal as `Iterator<?>`. `git 
 `NodeDeletionEdit.undo` now stages each restored node in `LinkedList<Node>` before calling the existing `NodeModel.paste` contract. The one-node undo route is OpenProj-derived and active through `DefaultNodeModel`; deletion undo/redo and subproject lifecycle cases in `DefaultNodeModelTest` passed.
 
 `DefaultFrameManager.getAllFrames` now builds a `LinkedList<NamedFrame>` while retaining its legacy `AbstractList` return descriptor. `git blame` traces the loop to OpenProj (`d2fa3c20a`); current UI and GUI acceptance callers consume the frame list. `DefaultFrameManagerTest` passed.
+
+`MutableNodeHierarchy` paste handling now uses `AssociationList` and typed `Iterator<Association>` / `ListIterator<Association>` for predecessor, successor, and baseline assignment scans. The loops trace to OpenProj (`d2fa3c20a`) and run during task hierarchy copy/paste. Iterator removal for unresolved external links and all dependency/assignment mutations remain in place. Focused `DefaultNodeModelTest` and full `:microproject_core:test --console=plain` passed.
