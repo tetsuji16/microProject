@@ -111,18 +111,15 @@ public abstract class Linker {
     public void addOutline(Node root){
 		final Set<Node> endVoids = new HashSet<>();
     	//lastIndex=0;
-        getHierarchy().visitAll(root, true,new Consumer<Object>(){
-        	//int tmpIndex=0;
-        	public void accept(Object arg) {
-        		Node node=(Node)arg;
-        		Object nodeImpl=node.getImpl();
-        		if (!(nodeImpl instanceof Assignment)){
+        getHierarchy().visitAll(root, true, arg -> {
+            Node node=(Node)arg;
+            Object nodeImpl=node.getImpl();
+            if (!(nodeImpl instanceof Assignment)){
 //        			if (!node.isVoid()) lastIndex=tmpIndex;
 //        			tmpIndex++;
-        			if (node.isVoid()) endVoids.add(node);
-        			else endVoids.clear();
-        		}
-        	}
+                if (node.isVoid()) endVoids.add(node);
+                else endVoids.clear();
+            }
         });
 
         getHierarchy().visitAllLevelOrder(root, true,new Consumer<Object>(){
