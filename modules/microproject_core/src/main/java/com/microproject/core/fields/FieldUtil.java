@@ -267,7 +267,7 @@ public class FieldUtil {
 	}
 	
 	public static Map<String,com.microproject.core.fields.Field> getFields(String[] categories){
-		Map<String,com.microproject.core.fields.Field> map=new HashMap<String, com.microproject.core.fields.Field>();
+		Map<String,com.microproject.core.fields.Field> map=new HashMap<>();
 		for (String category : categories){
 			Map<String,HasStringId> m=LegacyConfiguration.getInstance().getDictionary().get(
 					new DictionaryCategory(com.microproject.core.fields.Field.class, category));

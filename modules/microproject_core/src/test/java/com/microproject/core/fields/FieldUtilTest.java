@@ -6,9 +6,16 @@ package com.microproject.core.fields;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
+
+import com.microproject.core.configuration.LegacyConfiguration;
 
 class FieldUtilTest {
 	@Test
@@ -16,6 +23,19 @@ class FieldUtilTest {
 		assertArrayEquals(
 				new String[] { Leaf.class.getName(), Parent.class.getName(), Object.class.getName() },
 				FieldUtil.getCategories(Leaf.class));
+	}
+
+	@Test
+	void getFieldsReturnsFieldsFromRequestedCategories() {
+		String category = "test-" + UUID.randomUUID();
+		Field field = new Field();
+		field.setId("test-field-" + UUID.randomUUID());
+		field.setCategories(Set.of(category));
+		LegacyConfiguration.getInstance().getDictionary().add(field);
+
+		Map<String, Field> fields = FieldUtil.getFields(new String[] { category });
+
+		assertSame(field, fields.get(field.getId()));
 	}
 
 	@Test
