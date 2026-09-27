@@ -33,12 +33,12 @@ import javax.swing.JScrollPane;
  *
  */
 public class Synchronizer {
-	protected ArrayList scrollPaneSynchronizers;
+	protected ArrayList<ScrollPaneSynchronizer> scrollPaneSynchronizers;
 	/**
 	 * 
 	 */
 	public Synchronizer() {
-	    scrollPaneSynchronizers=new ArrayList();
+	    scrollPaneSynchronizers=new ArrayList<>();
 	}
 
 	
@@ -47,8 +47,7 @@ public class Synchronizer {
 		if (scrollPane1 == null || scrollPane2 == null) {
 			return;
 		}
-		for (Iterator existing = scrollPaneSynchronizers.iterator(); existing.hasNext();) {
-			ScrollPaneSynchronizer synchronizer = (ScrollPaneSynchronizer) existing.next();
+		for (ScrollPaneSynchronizer synchronizer : scrollPaneSynchronizers) {
 			if (synchronizer.getScrollPane1() == scrollPane1
 					&& synchronizer.getScrollPane2() == scrollPane2
 					&& synchronizer.getOrientation() == orientation) {
@@ -67,8 +66,8 @@ public class Synchronizer {
 	}
 	public void removeSynchro(JScrollPane scrollPane1,
 			JScrollPane scrollPane2, int orientation){
-	    for (Iterator i=scrollPaneSynchronizers.iterator();i.hasNext();){
-	        ScrollPaneSynchronizer s=(ScrollPaneSynchronizer)i.next();
+	    for (Iterator<ScrollPaneSynchronizer> i=scrollPaneSynchronizers.iterator();i.hasNext();){
+	        ScrollPaneSynchronizer s=i.next();
 	        if ((s.getScrollPane1() == scrollPane1)&&(s.getScrollPane2() == scrollPane2)&&(s.getOrientation()==orientation)){
 	            i.remove();
 	            s.deactivateSynchro();
@@ -77,4 +76,3 @@ public class Synchronizer {
 	}
 	
 }
-

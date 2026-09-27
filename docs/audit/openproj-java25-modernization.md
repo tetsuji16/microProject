@@ -2205,3 +2205,5 @@ Jasper `DataSource` now stores and accepts its traversal as `Iterator<?>`. `git 
 `Messages.getProperties` now iterates `ResourceBundle.getKeys()` as `Enumeration<String>`, removing the redundant key cast. `git blame` traces the method to OpenProj (`d2fa3c20a`); it remains the shared translation-resource conversion path. Full `:microproject_core:test --console=plain` passed.
 
 `NormalTask.cleanUp` now collects baseline assignment removals in `LinkedList<Assignment>`. The cleanup path is OpenProj-derived (`d2fa3c20a`) and active; both `AssignmentService.remove` overloads consume the collection without requiring a concrete raw type. Full `:microproject_core:test --console=plain` passed.
+
+`Synchronizer` now stores `ScrollPaneSynchronizer` instances in `ArrayList<ScrollPaneSynchronizer>`, uses enhanced-for for duplicate detection, and retains a typed iterator for removal. The class and these paths trace to OpenProj (`9b5c2f988e`) and remain active from `MainView` and split-view lifecycle code. Focused `ScrollPaneSynchronizerTest` and `SplittedViewLifecycleTest` passed.
