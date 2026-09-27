@@ -311,7 +311,7 @@ final class ExceptionEditorPanel extends JPanel {
 			else {
 				Calendar calendar = DateTime.calendarInstance();
 				calendar.setTimeInMillis(base.getStart());
-				weekdays[isoDay(calendar)].setSelected(true);
+				weekdays[isoDay(calendar) - 1].setSelected(true);
 				dayOfMonth.setValue(calendar.get(Calendar.DAY_OF_MONTH));
 				month.setValue(calendar.get(Calendar.MONTH) + 1);
 			}

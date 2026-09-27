@@ -172,7 +172,12 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		});
 		robot.mouseMove(exceptionCell.x, exceptionCell.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		click(robot, findButton(dialog.exceptionEditor, "calendarExceptionDetailsButton"));
+		GuiAcceptanceSupport.await(() -> exceptions.getSelectedIndex() == 0,
+			"physical exception-row click did not select the first exception");
+		AbstractButton details = findButton(dialog.exceptionEditor, "calendarExceptionDetailsButton");
+		GuiAcceptanceSupport.await(details::isEnabled,
+			"Details must be enabled after selecting an editable exception");
+		click(robot, details);
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Exception Details editor did not open");
 		JDialog exceptionDetails = visibleChildDialog();
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(exceptionDetails, "Exception Details visual matrix");
