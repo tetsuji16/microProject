@@ -58,8 +58,6 @@ public class DependencyNodeModelDataFactory implements NodeModelDataFactory {
 		return this;
 	}
 
-//	public void fireCreated(Object newlyCreated) {
-//	}
 
 	public void remove(Object toRemove, NodeModel nodeModel, boolean deep,boolean undo,boolean removeDependencies){
 		DependencyService.getInstance().remove((Dependency)toRemove,this,undo);

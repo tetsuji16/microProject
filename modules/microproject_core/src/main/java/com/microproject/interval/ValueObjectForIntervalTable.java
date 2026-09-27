@@ -211,7 +211,6 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	public void validateObject(Object newlyCreated, NodeModel nodeModel,
 		Object eventSource, Object hierarchyInfo,boolean isNew) {
 	}
-//	public void fireCreated(Object newlyCreated){}
 
 	public void serialize(ObjectOutputStream s) throws IOException {
 	    s.writeObject(name);

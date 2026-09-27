@@ -78,7 +78,6 @@ public interface NodeModelDataFactory {
 	
 
 	public void rollbackUnvalidated(NodeModel nodeModel, Object object);
-//	public void fireCreated(Object newlyCreated);
 	
 	public void initOutline(NodeModel nodeModel);
 	NodeModelDataFactory getFactoryToUseForChildOfParent(Object impl);

@@ -287,11 +287,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	public void addUnvalidatedObject(Object object,NodeModel nodeModel, Object parent) {
 	}
 	public void validateObject(Object newlyCreated, NodeModel nodeModel, Object eventSource, Object hierarchyInfo,boolean isNew) {
-		//objectEventManager.fireCreateEvent(this,(Project)newlyCreated);
 	}
-//	public void fireCreated(Object newlyCreated){
-//		//objectEventManager.fireCreateEvent(this,newlyCreated);
-//	}
 	public void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean removeDependencies){
 		//removeProject((Project) toRemove);
 	}

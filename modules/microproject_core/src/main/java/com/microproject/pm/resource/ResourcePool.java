@@ -70,7 +70,6 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		defaultCalendar = CalendarService.getInstance().getDefaultInstance();
 		undoController=undo;
 		
-		//initUndo();
 	}
 	public static ResourcePool createRourcePool(String name,DataFactoryUndoController undo) {
 		ResourcePool pool=new ResourcePool(name,undo);
@@ -213,11 +212,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		add(resource);
 		if (isNew) initializeId(resource);
 		resourceOutlines.addToAll(newlyCreated,nodeModel); // update all node models except the one passed in
-		//objectEventManager.fireCreateEvent(this,newlyCreated);
 	}
-//	public void fireCreated(Object newlyCreated){
-//		//objectEventManager.fireCreateEvent(this,newlyCreated);
-//	}
 	public void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean removeDependencies){
 		remove((Resource)toRemove);
 		resourceOutlines.removeFromAll(toRemove,nodeModel); // update all node models except the one passed in		
@@ -361,9 +356,6 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	
 	//Undo
 	protected transient DataFactoryUndoController undoController;
-//	protected void initUndo(){
-//		undoController=new DataFactoryUndoController(this);
-//	}
 	public DataFactoryUndoController getUndoController() {
 		return undoController;
 	}

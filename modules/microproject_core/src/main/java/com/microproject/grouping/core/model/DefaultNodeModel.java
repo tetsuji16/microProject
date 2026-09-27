@@ -990,7 +990,6 @@ public class DefaultNodeModel implements NodeModel {
 
 		hierarchy.renumber();
 
-//		dataFactory.fireCreated(newImpl);
 		hierarchy.checkEndVoidNodes(actionType^NodeModel.EVENT);
 		fireNodeReplaced(node);
 
@@ -1012,7 +1011,6 @@ public class DefaultNodeModel implements NodeModel {
 
 		hierarchy.renumber();
 
-//		dataFactory.fireCreated(newImpl);
 		fireNodeReplaced(node);
 
 		hierarchy.checkEndVoidNodes(actionType);
