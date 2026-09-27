@@ -337,12 +337,8 @@ public class ClassUtils {
 		}
 		
 		private static Map<Class<?>, Comparator<Object>> comparatorMap = null;
-		private static final Comparator<Object> defaultTextComparator = new Comparator<Object>() {
-			@Override
-			public int compare(Object o1, Object o2) {
-				return ("" + o1).compareTo("" + o2);
-			}
-		};
+		private static final Comparator<Object> defaultTextComparator =
+				(o1, o2) -> ("" + o1).compareTo("" + o2);
 
 		private static Comparator<Object> nullSafeComparator(final Comparator<Object> delegate) {
 			return new Comparator<Object>() {
