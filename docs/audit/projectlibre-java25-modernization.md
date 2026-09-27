@@ -334,6 +334,22 @@ identity residuals are mapped to current declarations or documented as removed,
 renamed, or intentionally compatibility-sensitive, and the compatibility-
 boundary caller checks are complete.
 
+### Phase 0 closure (2026-09-28)
+
+The 51 extant-path identity residuals above are now reconciled: 30 are the
+line-addressed anonymous declarations reviewed above; 17 are signatures or
+fields changed by later migrations, with active in-repository callers checked
+and public/reflection-sensitive surfaces left unchanged; and four unused or
+write-only `MicrosoftImporter` fields were removed in the cited cleanup
+commits. The 71 entries on removed/replaced MSPDI paths remain historical and
+are linked to their removal/replacement evidence. All 33 behavior-bearing
+production candidates were screened at the hunk and caller level, and the
+remaining apparent idiom hits were excluded with provenance or compatibility
+rationale above. This completes Phase 0. No additional safe modernization
+candidate was found in this inventory; future work should be added only when a
+new provenance-backed hunk and a behavior-preserving transformation are
+identified.
+
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
