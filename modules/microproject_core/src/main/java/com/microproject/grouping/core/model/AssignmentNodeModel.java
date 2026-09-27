@@ -205,26 +205,8 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 	}
 
 	public boolean confirmRemove(List<Node> nodes) {
+		// Deletion is reversible through Undo; per-node prompts duplicated the shared command flow.
 		return true;
-// This code is commented out since the user was getting prompted multiple times.  With Undo, it's less important
-//		if (Environment.isBatchMode())
-//			return true;
-//		Iterator i = nodes.iterator();
-//		Object impl;
-//		boolean hasActuals = false;
-//		while (i.hasNext()) {
-//			impl = ((Node)i.next()).getImpl();
-//			if (impl instanceof Schedule) {
-//				if (((Schedule)impl).getPercentComplete() > 0.0D) {
-//					hasActuals = true;
-//					break;
-//				}
-//			}
-//		}
-//		if (hasActuals)
-//			return Alert.okCancel(Messages.getString("Message.allowDeleteActuals"));
-//		else
-//			return true;
 	}
 
 
