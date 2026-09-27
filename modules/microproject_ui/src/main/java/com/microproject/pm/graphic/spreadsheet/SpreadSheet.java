@@ -111,6 +111,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.server.data.EnterpriseResourceData;
+import com.microproject.server.data.ProjectData;
 import com.microproject.server.data.Serializer;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
@@ -1876,7 +1877,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			ResourcePool resourcePool = (ResourcePool) getCache().getModel().getDataFactory();
 			Project project = (Project) resourcePool.getProjects().get(0);
 			if (selectedNodes == null || selectedNodes.isEmpty()) return;
-			final ArrayList descriptors = new ArrayList();
+			final ArrayList<ProjectData> descriptors = new ArrayList<>();
 			Session session = SessionFactory.getInstance().getSession(false);
 			Job job = (Job) SessionFactory.callNoEx(session, "getLoadProjectDescriptorsJob", new Class<?>[]{boolean.class, java.util.List.class, boolean.class}, new Object[]{true, descriptors, true});
 			job.addSwingRunnable(new JobRunnable("Local: addNodes"){

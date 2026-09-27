@@ -31,6 +31,7 @@ import com.microproject.company.ApplicationUser;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.pm.task.Project;
+import com.microproject.server.data.ProjectData;
 
 public interface Session {
 	public static final long MASTER = -2;
@@ -48,7 +49,7 @@ public interface Session {
 	
 	
     public Job getLoadProjectJob(final LoadOptions opt);
-    public Job getLoadProjectDescriptorsJob(final boolean includeProjects, final List descriptors, final boolean allowOpenAs);
+    public Job getLoadProjectDescriptorsJob(final boolean includeProjects, final List<ProjectData> descriptors, final boolean allowOpenAs);
     public Job getSaveProjectJob(final Project project, final SaveOptions opt);
     public Job getSaveProjectJob(final List<Project> projects, final SaveOptions opt);
     public Job getEmptyJob(String name,Object result);

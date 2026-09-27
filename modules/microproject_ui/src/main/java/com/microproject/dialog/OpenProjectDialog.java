@@ -212,7 +212,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 			return;
 		}
 		for (int i = 0; i < projects.size(); i++) {
-			ProjectData project = (ProjectData) projects.get(i);
+			ProjectData project = projects.get(i);
 			if (allowOpenAs || canBeUsed(project)) {
 				table.setRowSelectionInterval(i, i);
 				return;
@@ -291,7 +291,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 						Point p = e.getPoint();
 						int row = rowAtPoint(p);
 						int col = columnAtPoint(p);
-						if (allowOpenAs || canBeUsed((ProjectData) projects.get(row)))
+						if (allowOpenAs || canBeUsed(projects.get(row)))
 							dialog.onOk();
 					}
 				}
@@ -335,7 +335,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 		}
 
 		public Object getValueAt(int rowIndex, int columnIndex) {
-			ProjectData project=(ProjectData)projects.get(rowIndex);
+			ProjectData project=projects.get(rowIndex);
 			switch (columnIndex) {
 			case 0:
 				return project.getName();
@@ -401,7 +401,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 			}
 			tc.setCellRenderer(new DefaultTableCellRenderer(){
 				public Component getTableCellRendererComponent(JTable table, Object value, boolean selected, boolean focused, int row, int column){
-					ProjectData project=(ProjectData)projects.get(row);
+					ProjectData project=projects.get(row);
 					setEnabled(table == null || table.isEnabled());
 					setForeground((canBeUsed(project))?FlatUiSupport.tableForeground():FlatUiSupport.disabledForeground());
 					super.getTableCellRendererComponent(table, value, selected, focused, row, column);
@@ -433,7 +433,7 @@ public final class OpenProjectDialog extends AbstractDialog {
 				return;
 			}
 
-			ProjectData project=(ProjectData)projects.get(index0);
+			ProjectData project=projects.get(index0);
 			if (!allowMaster && project.isMaster()) {
 				ok.setEnabled(false);
 				if (openReadOnly != null)

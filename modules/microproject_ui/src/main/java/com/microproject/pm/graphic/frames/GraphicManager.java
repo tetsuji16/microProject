@@ -199,6 +199,7 @@ import com.microproject.preference.GlobalPreferences;
 import com.microproject.print.GraphPageable;
 import com.microproject.print.PrintDocumentFactory;
 import com.microproject.server.data.DocumentData;
+import com.microproject.server.data.ProjectData;
 import com.microproject.session.CreateOptions;
 import com.microproject.session.LoadOptions;
 import com.microproject.session.LocalSession;
@@ -1380,7 +1381,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		doingOpenDialog = true;
 		finishAnyOperations();
 
-		final ArrayList descriptors = new ArrayList();
+		final ArrayList<ProjectData> descriptors = new ArrayList<>();
 		final boolean localDescriptorSession = Environment.getStandAlone() || Environment.getUser() == null;
 		final boolean allowMasterProjects = localDescriptorSession || (getCurrentFrame() == null && Environment.isAdministrator());
 		final OpenProjectDialog dialog = OpenProjectDialog.getInstance(getFrame(),descriptors,Messages.getString("Text.openProject"),allowMasterProjects,true,null); //$NON-NLS-1$
@@ -1450,7 +1451,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //			}
 //		}
 
-		final ArrayList descriptors = new ArrayList();
+		final ArrayList<ProjectData> descriptors = new ArrayList<>();
 		final boolean localDescriptorSession = Environment.getStandAlone() || Environment.getUser() == null;
     	Session session=SessionFactory.getInstance().getSession(localDescriptorSession);
 		Job job=(Job)SessionFactory.callNoEx(session,"getLoadProjectDescriptorsJob",new Class<?>[]{boolean.class,java.util.List.class,boolean.class},new Object[]{true,descriptors,true});

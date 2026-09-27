@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.job.Job;
 import com.microproject.pm.task.Project;
+import com.microproject.server.data.ProjectData;
 
 class AbstractSessionTest {
 	@Test
@@ -57,7 +58,7 @@ class AbstractSessionTest {
 		}
 
 		@Override
-		public Job getLoadProjectDescriptorsJob(boolean includeProjects, List descriptors, boolean allowOpenAs) {
+		public Job getLoadProjectDescriptorsJob(boolean includeProjects, List<ProjectData> descriptors, boolean allowOpenAs) {
 			return null;
 		}
 

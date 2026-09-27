@@ -150,7 +150,7 @@ public class LocalSession extends AbstractSession{
     	return job;
     }
 
-    public Job getLoadProjectDescriptorsJob(final boolean includeProjects, final List descriptors, final boolean allowOpenAs) {
+    public Job getLoadProjectDescriptorsJob(final boolean includeProjects, final List<ProjectData> descriptors, final boolean allowOpenAs) {
     	final Job job = new Job(jobQueue, "loadProjectDescriptors", "Loading...", false);
     	job.addRunnable(new JobRunnable("LocalAccess: loadProjectDescriptors", 1.0f) {
     		public Object run() throws Exception {
