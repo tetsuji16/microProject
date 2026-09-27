@@ -28,7 +28,6 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -171,7 +170,14 @@ public class LocalSession extends AbstractSession{
     	}
     }
 
-    private List<ProjectData> loadLocalProjectDescriptors() {
+	private void setCancelMonitorClosure(Job job) {
+		job.setCancelMonitorClosure(ignored -> {
+			logger.fine("Monitor Canceled");
+			jobQueue.endCriticalSection(job);
+		});
+	}
+
+	private List<ProjectData> loadLocalProjectDescriptors() {
     	LinkedHashSet<String> seenPaths = new LinkedHashSet<String>();
     	List<ProjectData> descriptors = new ArrayList<ProjectData>();
     	for (File root : getDescriptorRoots()) {
@@ -329,11 +335,7 @@ public class LocalSession extends AbstractSession{
     		}
     	}
 	    final Job job=new Job(jobQueue,"loadProject","Loading...",true);
-        job.setCancelMonitorClosure(new Consumer<Object>() { public void accept(Object o) {
-				logger.fine("Monitor Canceled");
-				jobQueue.endCriticalSection(job);
-			}
-        });
+		setCancelMonitorClosure(job);
 		try {
 			final SessionImporter importer = IMPORTER_REGISTRY.create(opt.getImporter());
 	    	importer.setFileName(opt.getFileName());
@@ -419,11 +421,7 @@ public class LocalSession extends AbstractSession{
 		// caller's requested target separately: otherwise writing the master first
 		// makes its file name the implicit target for every linked child.
 		final String requestedFileName = opt.getFileName();
-        job.setCancelMonitorClosure(new Consumer<Object>() { public void accept(Object o) {
-				logger.fine("Monitor Canceled");
-				jobQueue.endCriticalSection(job);
-			}
-        });
+		setCancelMonitorClosure(job);
         //claur
 //        FileImporter importer=getImporter(opt.getImporter());
 //		importer.setJobQueue(jobQueue);
