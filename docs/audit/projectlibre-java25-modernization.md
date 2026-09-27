@@ -55,7 +55,7 @@ OpenProj progress.
   Do not count a modernization of that typed hunk as ProjectLibre-origin work.
 - These exclusions are not counted toward #727 or #595.
 
-## ProjectLibre-added type inventory
+## ProjectLibre-added core type inventory
 
 Compared additions between the OpenProj baseline (`d2fa3c20a`) and the
 ProjectLibre 1.9.8 source (`0530be227f4a10c5545cce8d3db20ac5a4d76a66`) with
@@ -73,6 +73,13 @@ the active `modules/` sources:
   corresponds to the separate `com.projectlibre1.pm.task.TaskSnapshot` path,
   which maps to OpenProj's `com.projity.pm.task.TaskSnapshot`; do not conflate
   these classes during provenance review.
+
+## ProjectLibre-added UI type inventory
+
+- `LocaleDialog` is absent from OpenProj 1.4 and present in ProjectLibre 1.9.8.
+  It remains active under `modules/microproject_ui`; its collection constructors
+  are covered by the verified modernization entry above. Its locale parsing and
+  sorting behavior remain unchanged.
 
 ## Initial inventory finding
 
