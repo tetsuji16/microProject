@@ -125,7 +125,6 @@ import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.BaselineDialog;
-import com.microproject.dialog.FindDialog;
 import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.OpenProjectDialog;
@@ -264,7 +263,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static String server = null;
 
     private final AssignmentDialogCoordinator assignmentDialogCoordinator = new AssignmentDialogCoordinator();
-    private FindDialog findDialog = null;
 	private ProjectInformationDialog projectInformationDialog = null;
 	private TaskInformationDialog taskInformationDialog = null;
 	private ResourceInformationDialog resourceInformationDialog = null;
