@@ -358,7 +358,7 @@ public class DocumentFrame extends NamedFrame implements
 		Integer baselineNumber = Integer.valueOf(baselineDialog.getForm()
 				.getBaselineNumber());
 		boolean entireProject = baselineDialog.getForm().isEntireProject();
-		List selection = entireProject ? null : getSelectedImpls(true);
+		List<Object> selection = entireProject ? null : getSelectedImpls(true);
 		return applyBaseline(getProject(), save, baselineDialog.getForm(), selection);
 	}
 
@@ -367,7 +367,7 @@ public class DocumentFrame extends NamedFrame implements
 	 * from the Swing dialog makes the command path testable all the way through
 	 * the project snapshot write, rather than only as far as opening a dialog.
 	 */
-	static boolean applyBaseline(Project project, boolean save, BaselineDialog.Form form, List selection) {
+	static boolean applyBaseline(Project project, boolean save, BaselineDialog.Form form, List<?> selection) {
 		if (project == null || form == null) {
 			return false;
 		}
@@ -1806,7 +1806,7 @@ public class DocumentFrame extends NamedFrame implements
 		return true;
 	}
 
-	public List getSelectedImpls(boolean excludeReadOnly) {
+	public List<Object> getSelectedImpls(boolean excludeReadOnly) {
 		return NodeList.nodeListToImplList(getSelectedNodes(excludeReadOnly));
 	}
 

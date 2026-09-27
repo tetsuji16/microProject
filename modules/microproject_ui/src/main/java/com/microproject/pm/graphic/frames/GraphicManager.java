@@ -3983,13 +3983,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		dialog.setVisible(true);
     }
 
-	private List getSelectedResourcesForTimesheet(DocumentFrame documentFrame) {
-		List selectedImpls = documentFrame.getSelectedImpls(false);
-		ArrayList selectedResources = new ArrayList(selectedImpls.size());
-		for (int i = 0; i < selectedImpls.size(); i++) {
-			Object impl = selectedImpls.get(i);
+	private List<Resource> getSelectedResourcesForTimesheet(DocumentFrame documentFrame) {
+		List<Object> selectedImpls = documentFrame.getSelectedImpls(false);
+		ArrayList<Resource> selectedResources = new ArrayList<>(selectedImpls.size());
+		for (Object impl : selectedImpls) {
 			if (impl instanceof Resource)
-				selectedResources.add(impl);
+				selectedResources.add((Resource) impl);
 		}
 		return selectedResources;
     }
