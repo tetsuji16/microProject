@@ -1926,10 +1926,10 @@ public class DocumentFrame extends NamedFrame implements
 			getUndoController().getEditSupport().removeUndoableEditListener(this);
 		if (coord != null)
 			coord.removeTimeScaleListener(mainView);
-    	forAllViews(new Consumer<Object>() { public void accept(Object v) {
-				if (v != null)
-					((BaseView)v).cleanUp();
-			}});
+		forAllViews(v -> {
+			if (v != null)
+				((BaseView)v).cleanUp();
+		});
     	resetViews();
     	if (jobQueue != null)
     		jobQueue.cancel();
