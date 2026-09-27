@@ -437,7 +437,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         	int transactionId = 0;
         	if (doTransaction)
         		transactionId = model.getDocument().fireMultipleTransaction(0,true);
-	 	    ArrayList<Node> removed = new ArrayList<Node>(nodes.size());
+			ArrayList<Node> removed = new ArrayList<>(nodes.size());
 			for (Node node : nodes) {
 				LinkedList<Node> toRemove = new LinkedList<>();
 				removeSubTree(node, model, toRemove, actionType, removeDependencies);
@@ -513,7 +513,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 //				System.out.println("removeNoEvent("+node+")");
 				Node current;
 				int badCount = 0;
-				LinkedList<Node> enumeratedNodes=new LinkedList<Node>();
+				LinkedList<Node> enumeratedNodes=new LinkedList<>();
 				for (Enumeration<?> e=((NodeBridge)node).postorderEnumeration();e.hasMoreElements();){
 					enumeratedNodes.add((Node)e.nextElement());
 				}
@@ -540,7 +540,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     public void move(Node node,Node newParent,int actionType){
 		setSubprojectLevel(node,getChildrenSubprojectLevel(newParent));
     	newParent.add(node);
-	    	ArrayList<Node> change = new ArrayList<Node>(1);
+			ArrayList<Node> change = new ArrayList<>(1);
             for (Enumeration<?> e=((NodeBridge)node).preorderEnumeration();e.hasMoreElements();)
     		change.add((Node)e.nextElement());
 
@@ -772,7 +772,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
          return buildList(null);
    }
     private List<Node> buildList(Node parent) {
-        List<Node> list=new ArrayList<Node>();
+        List<Node> list=new ArrayList<>();
         buildList(parent,list);
         return list;
    }
@@ -964,7 +964,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	 * @param event
 	 */
 	public void checkEndVoidNodes(boolean subproject,int actionType){
-		ArrayList<Node> inserted = new ArrayList<Node>();
+		ArrayList<Node> inserted = new ArrayList<>();
 
 		if (!subproject) checkSubprojectEndVoidNodes(root,inserted);
 		int nbEndVoids=subproject?nbMultiprojectEndVoidNodes:nbEndVoidNodes;
