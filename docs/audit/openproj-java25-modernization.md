@@ -2334,3 +2334,9 @@ OpenProj-derived result methods are backed by project-only lists; the active
 UI auto-recovery caller consumes the dirty-project result as projects. The
 typed contract now flows through both layers without changing collection
 contents or erased descriptors. Full core tests and UI compilation passed.
+
+`DefaultNodeModel.RemovalSnapshot.capture` now accepts `List<? extends Node>`
+and iterates it with an enhanced-for loop; `getNodes()` now returns
+`List<Node>`. The active removal and `NodeDeletionEdit` redo callers already
+operate on node lists, so ordering, runtime failures, and erased descriptors
+are unchanged. Focused `DefaultNodeModelTest` and node-deletion tests passed.

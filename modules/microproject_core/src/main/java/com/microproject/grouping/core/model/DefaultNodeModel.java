@@ -782,11 +782,10 @@ public class DefaultNodeModel implements NodeModel {
 			this.subprojects = java.util.Collections.unmodifiableList(subprojects);
 		}
 
-		static RemovalSnapshot capture(List roots) {
+		static RemovalSnapshot capture(List<? extends Node> roots) {
 			List<Entry> entries = new ArrayList<Entry>(roots.size());
 			List<SubprojectState> subprojects = new ArrayList<SubprojectState>();
-			for (Iterator i = roots.iterator(); i.hasNext();) {
-				Node node = (Node) i.next();
+			for (Node node : roots) {
 				Node parent = (Node) node.getParent();
 				entries.add(new Entry(parent, node, parent.getIndex(node)));
 				collectSubprojects(node, subprojects);
@@ -812,8 +811,8 @@ public class DefaultNodeModel implements NodeModel {
 			return subprojects;
 		}
 
-		public List getNodes() {
-			List nodes = new ArrayList(entries.size());
+		public List<Node> getNodes() {
+			List<Node> nodes = new ArrayList<>(entries.size());
 			for (Entry entry : entries)
 				nodes.add(entry.getNode());
 			return nodes;
