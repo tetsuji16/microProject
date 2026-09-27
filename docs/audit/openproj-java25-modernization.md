@@ -2396,4 +2396,10 @@ checks ordering at root and child levels. OpenProj provenance was confirmed in
 `NodeSorter` and the hierarchy interface, and all sort callers were searched.
 `NodeSorterTraversalTest` and downstream `:microproject_ui:compileJava` passed.
 
+`PredecessorTaskTree.taskMap` now declares its actual `HasDependencies` keys and
+`PertLayoutTreeNode` values, eliminating the lookup cast while preserving the
+field's erased `Map` descriptor. Caller and provenance searches confirmed the
+class is not referenced by active repository code; it is retained because it
+is a public type and its removal needs separate API-compatibility evidence.
+
 `DefaultNodeModel.searchIndex` now uses `Map<Object, Node>` because keys are arbitrary implementation objects and values are outline nodes. Rebuild/register/unregister traversal now uses typed node iterators/collections; public search behavior and the `Map`/`Collection` erased descriptors are unchanged. `DefaultNodeModelTest` passed, UI compilation passed, and `javap -p -s` confirmed the transient map field and private helper descriptors.

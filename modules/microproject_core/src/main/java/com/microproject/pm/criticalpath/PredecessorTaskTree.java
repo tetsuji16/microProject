@@ -42,14 +42,14 @@ import com.microproject.pm.dependency.HasDependencies;
 public class PredecessorTaskTree {
 	private static final Logger logger = Logger.getLogger(PredecessorTaskTree.class.getName());
 	protected PertLayoutTreeNode root=new PertLayoutTreeNode(null);
-	protected Map taskMap=new HashMap();
+	protected Map<HasDependencies, PertLayoutTreeNode> taskMap=new HashMap<>();
 	
 	public PertLayoutTreeNode getRoot(){
 		return root;
 	}
 	
 	protected PertLayoutTreeNode getNode(HasDependencies task){
-		PertLayoutTreeNode node=(PertLayoutTreeNode)taskMap.get(task);
+		PertLayoutTreeNode node=taskMap.get(task);
 		if (node==null) {
 			node=new PertLayoutTreeNode(task);
 			taskMap.put(task,node);
