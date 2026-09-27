@@ -253,3 +253,10 @@ For #84, removed a stale commented renumber diagnostic in `HasUniqueIdImpl` that
 For #228, `ViewNodeModelCache.resolveRelocationTarget` now pre-sizes its root snapshot from `validNodes.size()`. `HierarchyUtils.extractParents` only appends nodes from that input and appends each at most once, so this is a strict upper bound; root order and relocation behavior are unchanged. `:microproject_ui:compileJava --console=plain` passed.
 
 For #84, removed NodeCache's commented-out schedule-cache updater, void-node dump, and obsolete per-event forwarding methods, plus the call-site comments that referenced those removed methods. Repository-wide Java source search found no remaining references. `:microproject_ui:test --tests "com.microproject.pm.graphic.model.cache.*" --console=plain` passed.
+
+For #84, `ReferenceNodeModelCache` no longer carries commented-out `TreeModel`
+constructors/delegates, obsolete hierarchy-dependency code, unused bind-view
+calls, or disabled timing/debug output. The class no longer has a commented
+`TreeModel` interface marker; its live hierarchy listener and cache methods are
+unchanged. Source search found no callers of the deleted delegates, and
+`:microproject_ui:compileJava` plus the cache test package passed.

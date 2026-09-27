@@ -64,7 +64,7 @@ import com.microproject.pm.task.Task;
  */
 
 @SuppressWarnings("unchecked")
-public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyListener, /*TreeModel,*/ ScheduleEventListener {
+public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyListener, ScheduleEventListener {
 	private static final Logger logger = Logger.getLogger(ReferenceNodeModelCache.class.getName());
 	private NodeModel model;
 	
@@ -85,17 +85,9 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		setModel(model);
 		this.type=type;
 	}
-//	public ReferenceNodeModelCache(NodeModel model) {
-//		this(model,null);
-//	}
 	/**
 	 * 
 	 */
-//	public ReferenceNodeModelCache(Document document) {
-//		this.document = document;
-//		nodeCache=new NodeCache();
-//		edgeCache=new DependencyCache();
-//	}
 
 	public int getType() {
 		return type;
@@ -110,8 +102,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	public void bindView(VisibleNodes nodes,VisibleDependencies deps){
 	    nodeCache.addVisibleElements(nodes);
 	    edgeCache.addVisibleElements(deps);
-	    //updateVisibleElements(nodes,deps,new HashSet());
-	    //updateVisibleElements(nodes,new HashSet());
 	}
 	public void unbindView(VisibleNodes nodes,VisibleDependencies deps){
 	    nodeCache.removeVisibleElements(nodes);
@@ -179,7 +169,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		update(new HashSet(),reschedule);
 	}
 	public void update(Set change,boolean reschedule){
-//		System.out.println("ReferenceNodeModelCache update");
 		NodeCache newCache=new NodeCache();
 		update(null,newCache,change,reschedule);
 		
@@ -194,21 +183,14 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	}
 	
 	protected void updateVisibleElements(Set<?> change,Set<?> edgeChange){
-//		long t0=System.currentTimeMillis();
 		nodeCache.updateVisibleElements(change);
-//		long t1=System.currentTimeMillis();
-//		System.out.println("\tcache nodeCache.updateVisibleElements ran in "+(t1-t0)+"ms");
 
 		edgeCache.updateVisibleElements(edgeChange);
-//		t0=System.currentTimeMillis();
-//		System.out.println("\tcache edgeCache.updateVisibleElements ran in "+(t0-t1)+"ms");
 
 		nodeCache.fireEvents(this);
-//		t1=System.currentTimeMillis();
-//		System.out.println("\tcache nodeCache.fireEvents ran in "+(t1-t0)+"ms");
 
 	}
-	protected void updateVisibleElements(VisibleNodes nodes/*,Set change*/){
+	protected void updateVisibleElements(VisibleNodes nodes){
 		nodeCache.updateVisibleElements(nodes,new HashSet());
 		edgeCache.updateVisibleElements(nodes.getVisibleDependencies(),new HashSet());
 		nodeCache.fireEvents(this,nodes);
@@ -382,9 +364,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		//	e.printStackTrace();
 		//}
 	}
-//	public void createHierarchyDependency(GraphicNode startNode,GraphicNode endNode){
-//	    model.getHierarchy().move(endNode.getNode(),startNode.getNode());
-//	}
 	
 
 	public void removeEdge(GraphicDependency dep){
@@ -429,14 +408,12 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	}
 	
 	public void scheduleChanged(ScheduleEvent e){
-		//System.out.println("ScheduleEvent: type="+e.getType()+", snap="+e.getSnapshot()+", object="+e.getObject());
 		if (!receiveEvents) return;
 		update(true);
 	}
 	
 	
 	public void objectChanged(ObjectEvent objectEvent) {
-		//System.out.println("ObjectEvent: type="+objectEvent.getType()+", field="+objectEvent.getField()+", object="+objectEvent.getObject());
 		if (!receiveEvents) return;
 		Object object=objectEvent.getObject();
 		if (object instanceof Dependency) {
@@ -479,7 +456,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 					Node node=model.search(object);
 					if (node !=null) {
 						for(;!node.isRoot();node=model.getParent(node)){
-//						System.out.println("objectChanged "+objectEvent.getType()+": "+node);
 						GraphicNode gnode=getGraphicNode(node);
 						if (gnode != null) // on project list it is null
 							gnode.setDirty(true);
@@ -523,33 +499,12 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	
 	
-//	public void addTreeModelListener(TreeModelListener arg0) {
-//		model.addTreeModelListener(arg0);
-//	}
-//	public Object getChild(Object arg0, int arg1) {
-//		return model.getChild(arg0, arg1);
-//	}
-//	public int getChildCount(Object arg0) {
-//		return model.getChildCount(arg0);
-//	}
-//	public int getIndexOfChild(Object arg0, Object arg1) {
-//		return model.getIndexOfChild(arg0, arg1);
-//	}
 	
 	protected GraphicNode root=null; 
 	public Object getRoot() {
 		if (root==null) root=new GraphicNode((Node)model.getRoot(),0); 
 		return root;
 	}
-//	public boolean isLeaf(Object arg0) {
-//		return model.isLeaf(arg0);
-//	}
-//	public void removeTreeModelListener(TreeModelListener arg0) {
-//		model.removeTreeModelListener(arg0);
-//	}
-//	public void valueForPathChanged(TreePath arg0, Object arg1) {
-//		model.valueForPathChanged(arg0, arg1);
-//	}
 	
 	
 	
