@@ -2319,6 +2319,15 @@ The `Set.class` reflection lookup and erased descriptors remain unchanged.
 Full `:microproject_core:test --console=plain` and
 `:microproject_ui:compileJava --console=plain` passed.
 
+Typed the task/dependency collection inputs in `DependencyService` as
+wildcard collections for predecessor event firing, sequential connect,
+selected-task unlink, and bulk dependency removal. The bulk snapshot-copy
+overload now uses `<T> Collection<? extends T>` to `Collection<? super T>`.
+`git blame` traces these service contracts to OpenProj (`d2fa3c20a`); active
+project, document-frame, and task cleanup callers still pass their existing
+lists. Filtering, ordering, cast failures, and mutation timing are unchanged.
+Full core tests and UI compilation passed.
+
 `Portfolio.getDirtyProjectList` / `getWritableProjectList` and their
 `ProjectFactory` forwarding methods now return `Collection<Project>`. The
 OpenProj-derived result methods are backed by project-only lists; the active

@@ -143,7 +143,7 @@ public class DependencyService {
 		}
 	}
 
-	public void fireTaskPredecessors(Collection list) {
+	public void fireTaskPredecessors(Collection<?> list) {
 		for (Object taskValue : list) {
 			Task task = (Task) taskValue;
 			for (Object dependencyValue : task.getPredecessorList()) {
@@ -218,7 +218,7 @@ public class DependencyService {
 	 * @param eventSource
 	 * @throws InvalidAssociationException
 	 */
-	public void connect(List tasks, Object eventSource, Predicate canBeSuccessorCondition) throws InvalidAssociationException {
+	public void connect(List<?> tasks, Object eventSource, Predicate canBeSuccessorCondition) throws InvalidAssociationException {
 		ArrayList<Dependency> newDependencies = new ArrayList<>(Math.max(0, tasks.size() - 1));
 		ArrayList<HasDependencies> connectableTasks = new ArrayList<>(tasks.size());
 		for (Object task : tasks) {
@@ -250,7 +250,7 @@ public class DependencyService {
 	 * @param tasks
 	 * @param eventSource
 	 */
-	public void removeAnyDependencies(List tasks, Object eventSource) {
+	public void removeAnyDependencies(List<?> tasks, Object eventSource) {
 		// Remove dependencies between any two selected tasks (pairwise).
 		for (int i = 0; i < tasks.size()-1; i++) {
 			HasDependencies pred = writableDependencies(tasks.get(i));
@@ -309,7 +309,7 @@ public class DependencyService {
 			remove(dependency,eventSource,true);
 	}
 
-	public void remove(Collection dependencyList, Object eventSource) {
+	public void remove(Collection<?> dependencyList, Object eventSource) {
 		for (Object item : dependencyList) {
 			Dependency dependency = (Dependency) item;
 			remove(dependency,eventSource,true);
@@ -317,8 +317,8 @@ public class DependencyService {
 	}
 
 	//fix
-	public void remove(Collection dependencyList, Collection toRemove) {
-		for (Object dependency : dependencyList)
+	public <T> void remove(Collection<? extends T> dependencyList, Collection<? super T> toRemove) {
+		for (T dependency : dependencyList)
 			toRemove.add(dependency);
 	}
 

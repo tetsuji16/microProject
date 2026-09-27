@@ -203,3 +203,4 @@ For #595, the private `Project.getSnapshotIterator` selection parameter now uses
 For #595, `AssignmentEntry.setAssignmentsFromTaskList` now accepts `List<?>`; the active UI caller may supply heterogeneous lists, and non-`Task` elements continue to be ignored. `AssignmentEntryTest` and UI compilation passed.
 For #595, Portfolio and ProjectFactory dirty/writable project-list APIs now return `Collection<Project>` end-to-end. Full core tests and UI compilation passed.
 For #595, `Alert.renameProject` and `Job.renameProject` now accept `Set<?>` through the active reflective UI route; the `Set.class` lookup remains unchanged. Full core tests and UI compilation passed.
+For #595, `DependencyService` collection inputs now use wildcard contracts, and its dependency snapshot-copy overload uses a producer/consumer generic signature. Full core tests and UI compilation passed with the existing filtering, traversal, and mutation paths intact.
