@@ -106,7 +106,7 @@ class RibbonButtonBehaviorTest {
 		root.add(registered);
 		root.add(nested);
 
-		Set<AbstractButton> targets = GraphicManager.collectStatusDateButtons(root,
+		Set<AbstractButton> targets = StatusDateControlUpdater.collectStatusDateButtons(root,
 				List.of(registered, toolbarCompatibility), List.of(registered));
 
 		assertEquals(3, targets.size(), "one registered ribbon button, one legacy toolbar button, and one transient ribbon button are refreshed");

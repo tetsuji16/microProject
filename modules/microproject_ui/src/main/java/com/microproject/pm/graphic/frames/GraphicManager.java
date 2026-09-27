@@ -4425,53 +4425,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private void refreshStatusDateControl(Project project) {
-		String label = getMenuManager().getStringOrNull("RibbonStatusDate.text");
-		if (label == null) label = "Status Date";
-		String value = project == null || !project.isStatusDateSet() ? "NA"
-				: com.microproject.options.EditOption.getInstance().getDateFormat()
-					.format(new java.util.Date(project.getStatusDate()));
-		// MSP's Project ribbon renders the current value first, followed by the
-		// localized "Status Date:" caption (the value is not just a tooltip).
-		String display = value + " " + label + ":";
-		Action action = getMenuManager().getActionFromId(ACTION_STATUS_DATE);
-		if (action != null) action.putValue(Action.NAME, display);
-		var actionButtons = getMenuManager().getToolButtonsFromId(ACTION_STATUS_DATE);
-		var ribbonButtons = getMenuManager().getToolButtonsFromId("RibbonStatusDate");
-		Container root = getFrame() instanceof Container container ? container : null;
-		for (AbstractButton button : collectStatusDateButtons(root, actionButtons, ribbonButtons))
-			refreshStatusDateButton(button, display);
-	}
-
-	static Set<AbstractButton> collectStatusDateButtons(Container root, Collection<?>... registeredGroups) {
-		Set<AbstractButton> buttons = Collections.newSetFromMap(new IdentityHashMap<>());
-		for (Collection<?> group : registeredGroups) {
-			if (group == null)
-				continue;
-			for (Object candidate : group) {
-				if (candidate instanceof AbstractButton button)
-					buttons.add(button);
-			}
-		}
-		if (root != null)
-			collectStatusDateComponents(root, buttons);
-		return buttons;
-	}
-
-	private static void collectStatusDateComponents(Container parent, Set<AbstractButton> buttons) {
-		for (Component child : parent.getComponents()) {
-			if (child instanceof AbstractButton button && "RibbonStatusDate".equals(button.getActionCommand()))
-				buttons.add(button);
-			if (child instanceof Container nested)
-				collectStatusDateComponents(nested, buttons);
-		}
-	}
-
-	private static void refreshStatusDateButton(AbstractButton button, String display) {
-		if (!display.equals(button.getText()))
-			button.setText(display);
-		button.getAccessibleContext().setAccessibleName(display);
-		button.revalidate();
-		button.repaint();
+		StatusDateControlUpdater.refresh(getMenuManager(), getFrame(), project);
 	}
 
 	private static boolean canOutdent(Node node) {
