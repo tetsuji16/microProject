@@ -42,7 +42,6 @@ import com.microproject.pm.assignment.Assignment;
  *
  */
 public abstract class Linker {
-	//protected boolean globalIdsOnly=true;
 	protected Map<Object, Object> transformationMap = new HashMap<>();
 	protected Collection<Object> transformed = new ArrayList<>();
 	protected Iterator<?> iterator;
@@ -57,13 +56,6 @@ public abstract class Linker {
 	public Collection<?> getTransformed() {
 		return transformed;
 	}
-//	public boolean isGlobalIdsOnly() {
-//		return globalIdsOnly;
-//	}
-//	public void setGlobalIdsOnly(boolean globalIdsOnly) {
-//		this.globalIdsOnly = globalIdsOnly;
-//	}
-
 	public boolean isIncremental() {
 		return incremental;
 	}

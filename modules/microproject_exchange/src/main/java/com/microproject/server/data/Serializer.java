@@ -332,7 +332,6 @@ public class Serializer {
     	taskLinker.setFlatAssignments(flatAssignments);
     	taskLinker.setParent(project);
     	taskLinker.setTransformedParent(projectData);
-    	//taskLinker.setGlobalIdsOnly(globalIdsOnly);
             taskLinker.setArgs(new Object[]{resourceMap});
     	taskLinker.init();
     	taskLinker.setOptions(options);

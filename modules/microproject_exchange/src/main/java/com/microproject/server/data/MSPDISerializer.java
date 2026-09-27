@@ -174,7 +174,6 @@ public class MSPDISerializer implements ProjectSerializer {
 		NodeModelUtil.enumerateNonAssignments(project.getResourcePool().getResourceOutline());
     	resourceLinker.setParent(project);
     	resourceLinker.setTransformedParent(projectFile);
-    	//resourceLinker.setGlobalIdsOnly(globalIdsOnly);
     	resourceLinker.init();
     	resourceLinker.addTransformedObjects(ResourceImpl.getUnassignedInstance());
     	resourceLinker.addTransformedObjects();
@@ -197,7 +196,6 @@ public class MSPDISerializer implements ProjectSerializer {
 		NodeModelUtil.enumerateNonAssignments(project.getTaskOutline()); // to fix bug, I moved this before tasks are saved. 16.2.06 hk
     	taskLinker.setParent(project);
     	taskLinker.setTransformedParent(projectFile);
-    	//taskLinker.setGlobalIdsOnly(globalIdsOnly);
     	taskLinker.setArgs(new Object[]{resourceMap});
     	taskLinker.init();
     	taskLinker.addTransformedObjects();

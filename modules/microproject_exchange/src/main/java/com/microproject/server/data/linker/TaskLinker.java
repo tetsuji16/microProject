@@ -44,8 +44,7 @@ public abstract class TaskLinker extends Linker {
 	}
 	public Object executeNext(){
         Task task=(Task)iterator.next();
-        //if (globalIdsOnly) CommonDataObject.makeGlobal(task);
-     	return task;
+		return task;
 	}
 
 	public NodeHierarchy getHierarchy(){return ((Project)getParent()).getTaskOutline().getHierarchy();}

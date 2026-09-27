@@ -41,8 +41,7 @@ public abstract class ResourceLinker extends Linker {
 			return null;
         }
 		//ResourceImpl to have the EnterpriseResource link
-    	//if (globalIdsOnly) CommonDataObject.makeGlobal(resource); //modify enterprise resource in fact
-    	return resource;
+		return resource;
 	}
     public NodeHierarchy getHierarchy(){return ((Project)getParent()).getResourcePool().getResourceOutline().getHierarchy();}
 
