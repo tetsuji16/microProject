@@ -77,26 +77,20 @@ public abstract class NamedFrame extends JPanel {
 	}
 	
 	public void fireNamedFrameActivated(final NamedFrameEvent evt) {
-		fire(evt,new Consumer<Object>() { public void accept(Object arg0) {
-				((NamedFrameListener)arg0).namedFrameActivated(evt);
-			}
-		});
+		fire(listener -> listener.namedFrameActivated(evt));
 	}
 
 	public void fireNamedFrameTabShown(final NamedFrameEvent evt) {
-		fire(evt,new Consumer<Object>() { public void accept(Object arg0) {
-				((NamedFrameListener)arg0).namedFrameShown(evt);
-			}
-		});
+		fire(listener -> listener.namedFrameShown(evt));
 	}
 
-	private void fire(NamedFrameEvent evt, Consumer<Object> closure) {    	
+	private void fire(Consumer<NamedFrameListener> closure) {
         Object[] listeners = listenerList.getListenerList();
         // Each listener occupies two elements - the first is the listener class
         // and the second is the listener instance
         for (int i=0; i<listeners.length; i+=2) {
             if (listeners[i]==NamedFrameListener.class) {
-            	closure.accept(((NamedFrameListener)listeners[i+1]));
+				closure.accept((NamedFrameListener)listeners[i+1]);
             }
         }
     }
@@ -122,4 +116,3 @@ public abstract class NamedFrame extends JPanel {
 		return tabTitle;
 	}
 }
-
