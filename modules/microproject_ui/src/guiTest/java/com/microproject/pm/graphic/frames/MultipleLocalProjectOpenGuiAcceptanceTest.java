@@ -307,12 +307,36 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	}
 
 	private void capture(Robot robot, String artifactName) throws Exception {
+		robot.waitForIdle();
+		robot.delay(750);
+		Path artifactDirectory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(artifactDirectory);
 		Rectangle bounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
 		BufferedImage image = robot.createScreenCapture(bounds);
-		Path artifact = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"),
-				artifactName);
+		for (Path projectFile : List.of(firstFile, secondFile)) {
+			DocumentFrame frame = manager.findFrameForProjectFile(projectFile.toString());
+			Window documentWindow = SwingUtilities.getWindowAncestor(frame);
+			assertTrue(documentWindow != null && hasRenderedWorkAreaPixels(image, bounds, documentWindow),
+				"A tiled document window must have a rendered work area: " + projectFile.getFileName());
+		}
+		Path artifact = artifactDirectory.resolve(artifactName);
 		Files.createDirectories(artifact.getParent());
 		ImageIO.write(image, "png", artifact.toFile());
+	}
+
+	private static boolean hasRenderedWorkAreaPixels(BufferedImage image, Rectangle captureBounds, Window window) {
+		java.awt.Point location = window.getLocationOnScreen();
+		int x0 = Math.max(0, location.x - captureBounds.x + 12);
+		int y0 = Math.max(0, location.y - captureBounds.y + 170);
+		int x1 = Math.min(image.getWidth(), location.x - captureBounds.x + window.getWidth() - 12);
+		int y1 = Math.min(image.getHeight(), location.y - captureBounds.y + window.getHeight() - 20);
+		int renderedPixels = 0;
+		for (int y = y0; y < y1; y += 3) for (int x = x0; x < x1; x += 3) {
+			int rgb = image.getRGB(x, y);
+			if (((rgb >>> 16) & 0xff) < 220 || ((rgb >>> 8) & 0xff) < 220 || (rgb & 0xff) < 220)
+				renderedPixels++;
+		}
+		return renderedPixels > 100;
 	}
 
 	private boolean usesSeparateDesktopWindows() {

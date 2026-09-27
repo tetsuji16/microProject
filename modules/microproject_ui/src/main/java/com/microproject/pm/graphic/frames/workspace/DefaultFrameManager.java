@@ -357,7 +357,37 @@ public class DefaultFrameManager implements FrameManager {
 		int width = area.width / columns; int height = area.height / rows;
 		for (int i = 0; i < count; i++) windows.get(i).setBounds(area.x + (i % columns) * width,
 				area.y + (i / columns) * height, width, height);
+		flushWindowRepaints(windows);
 		currentArrangement = arrangement;
+	}
+
+	private static void flushWindowRepaints(java.util.List<Window> windows) {
+		javax.swing.JRootPane rootPane = windows.stream()
+			.filter(javax.swing.RootPaneContainer.class::isInstance)
+			.map(javax.swing.RootPaneContainer.class::cast)
+			.map(javax.swing.RootPaneContainer::getRootPane)
+			.findFirst().orElse(null);
+		if (rootPane == null) return;
+		javax.swing.RepaintManager repaintManager = javax.swing.RepaintManager.currentManager(rootPane);
+		boolean doubleBufferingEnabled = repaintManager.isDoubleBufferingEnabled();
+		try {
+			// On Windows at 150% UI scale, top-level resize can leave the buffered
+			// client surface blank even though the Swing component tree is laid out.
+			// Paint the dirty regions synchronously without the offscreen buffer so
+			// the resized windows have pixels before the desktop is captured/switched.
+			repaintManager.setDoubleBufferingEnabled(false);
+			for (Window window : windows) {
+				window.validate();
+				if (window instanceof javax.swing.RootPaneContainer rootPaneContainer) {
+					rootPaneContainer.getContentPane().revalidate();
+					rootPaneContainer.getContentPane().repaint();
+				}
+				window.repaint();
+			}
+			repaintManager.paintDirtyRegions();
+		} finally {
+			repaintManager.setDoubleBufferingEnabled(doubleBufferingEnabled);
+		}
 	}
 
 	private void addArrangedFrames(int count) {
