@@ -89,6 +89,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			Locale.setDefault(previousDefaultLocale);
 			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
 			Locale.setDefault(Locale.Category.DISPLAY, previousDisplayLocale);
+			Messages.reset();
 		}
 		for (Window open : Window.getWindows()) {
 			if (open instanceof ProjectDialog || open instanceof LocaleDialog
@@ -401,6 +402,72 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(expectedName, created.getName(), "New did not apply the dialog name to the created project");
 		assertTrue(manager.getFrameManager().getAllFrames().contains(manager.getCurrentFrame()),
 			"New did not expose the created project through the frame manager");
+	}
+
+	/** Changing locale through the real ribbon must restart into the same native window. */
+	@Test
+	void localeChangeRestartsThroughStartupFactoryAndKeepsWindowUsable() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
+		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		previousDefaultLocale = Locale.getDefault();
+		previousFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		previousDisplayLocale = Locale.getDefault(Locale.Category.DISPLAY);
+		localePreferences = Preferences.userNodeForPackage(ConfigurationFile.class);
+		previousLocalePreference = localePreferences.get("locale", null);
+		localePreferences.put("locale", "default");
+		localePreferences.flush();
+		Init.initialize();
+
+		createStartedWindow("microProject — locale restart acceptance");
+		GraphicManager initialManager = manager;
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonLocale"));
+		GuiAcceptanceSupport.await(() -> visibleDialog(LocaleDialog.class) != null,
+			"Locale dialog did not open from the ribbon");
+		LocaleDialog dialog = (LocaleDialog) visibleDialog(LocaleDialog.class);
+		JComboBox<?>[] selectors = new JComboBox<?>[2];
+		SwingUtilities.invokeAndWait(() -> {
+			selectors[0] = findComboWithItem(dialog, "de");
+			selectors[1] = findComboWithItem(dialog, "Germany");
+		});
+		click(robot, selectors[0]);
+		type(robot, "de");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+		click(robot, selectors[1]);
+		type(robot, "Germany");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals("de", selectors[0].getSelectedItem());
+			assertEquals("Germany", String.valueOf(selectors[1].getSelectedItem()));
+		});
+		String okText = Messages.getString("ButtonText.OK");
+		click(robot, findButton(dialog, okText));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Locale dialog did not close after confirmation");
+		GuiAcceptanceSupport.await(() -> window.getGraphicManager() != null
+			&& window.getGraphicManager() != initialManager,
+			"Locale change did not install a new GraphicManager through StartupFactory");
+		manager = window.getGraphicManager();
+		GuiAcceptanceSupport.await(() -> {
+			List<?> newProjectButtons = manager.getMenuManager().getToolButtonsFromId("RibbonNewProject");
+			return window.isShowing() && manager.getFrameManager() != null && newProjectButtons != null
+				&& newProjectButtons.stream().anyMatch(button -> button instanceof AbstractButton component
+					&& component.isShowing());
+		}, "Restarted application did not restore an interactive ribbon in the existing visible window");
+		assertEquals("de_DE", localePreferences.get("locale", "missing"),
+			"Locale restart did not preserve the selected preference");
+		assertTrue(manager.getContainer() == window,
+			"Restart replaced the native window instead of rebuilding its application UI");
 	}
 
 	private void createWindow(String title) throws Exception {
