@@ -1557,29 +1557,22 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 					repairedAssignments);
 	}
 	public void setAllTasksAsUnchangedFromPersisted(boolean justSaved) {
-		getTaskOutline().getHierarchy().visitAll(new Consumer<Object>(){
-			int id=1;
-			public void accept(Object o) {
-				Node node=(Node)o;
-				if (node.getImpl() instanceof NormalTask task){
-					task.setDirty(false);
-					task.setLastSavedStart(task.getStart());
-					task.setLastSavedFinish(task.getEnd());
-					for (Association association : task.getAssignments())
-						((Assignment) association).setDirty(false);
+		getTaskOutline().getHierarchy().visitAll(o -> {
+			Node node=(Node)o;
+			if (node.getImpl() instanceof NormalTask task){
+				task.setDirty(false);
+				task.setLastSavedStart(task.getStart());
+				task.setLastSavedFinish(task.getEnd());
+				for (Association association : task.getAssignments())
+					((Assignment) association).setDirty(false);
 
+				for (Association association : task.getDependencyList(true))
+					((Dependency) association).setDirty(false);
 
-					for (Association association : task.getDependencyList(true))
-						((Dependency) association).setDirty(false);
-
-					Node parent=(Node)node.getParent();
-					if (parent==null||parent.isRoot()) task.setLastSavedParentId(-1L);
-					else task.setLastSavedParentId(((Task)parent.getImpl()).getUniqueId());
-					task.setLastSavedPosistion(parent.getIndex(node));
-
-
-
-				}
+				Node parent=(Node)node.getParent();
+				if (parent==null||parent.isRoot()) task.setLastSavedParentId(-1L);
+				else task.setLastSavedParentId(((Task)parent.getImpl()).getUniqueId());
+				task.setLastSavedPosistion(parent.getIndex(node));
 			}
 		});
 
