@@ -914,10 +914,10 @@ public class ProjectFactory {
 		this.server = server;
 	}
 
-	public Collection getDirtyProjectList() {
+	public Collection<Project> getDirtyProjectList() {
 		return portfolio.getDirtyProjectList();
 	}
-	public Collection getWritableProjectsList() {
+	public Collection<Project> getWritableProjectsList() {
 		return portfolio.getWritableProjectList();
 	}
 	public static Object getProjectData(long projectId) {

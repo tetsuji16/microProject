@@ -201,3 +201,4 @@ For #595, `NodeSorter` now implements `Comparator<Object>` with an explicit over
 For #595, `NodeSorter.currentSorter` and both core/UI `getCurrentSorter()` methods now use `ListIterator<Object>`, matching the configured `List<Object>` of subsorters. A focused iterator test and UI compilation passed.
 For #595, the private `Project.getSnapshotIterator` selection parameter now uses `List<?>`, matching its public snapshot callers while retaining the erased signature and null behavior. Full core tests passed.
 For #595, `AssignmentEntry.setAssignmentsFromTaskList` now accepts `List<?>`; the active UI caller may supply heterogeneous lists, and non-`Task` elements continue to be ignored. `AssignmentEntryTest` and UI compilation passed.
+For #595, Portfolio and ProjectFactory dirty/writable project-list APIs now return `Collection<Project>` end-to-end. Full core tests and UI compilation passed.

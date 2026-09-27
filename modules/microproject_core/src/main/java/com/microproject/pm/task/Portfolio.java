@@ -307,7 +307,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 		}
 	}
 
-	public Collection getDirtyProjectList() {
+	public Collection<Project> getDirtyProjectList() {
 		final ArrayList<Project> list = new ArrayList<>();
 		forProjects(project -> {
 			if (project.needsSaving())
@@ -316,7 +316,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 		return list;
 	}
 
-	public Collection getWritableProjectList() {
+	public Collection<Project> getWritableProjectList() {
 		final ArrayList<Project> list = new ArrayList<>();
 		forProjects(project -> {
 			if (!project.isReadOnly())

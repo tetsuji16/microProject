@@ -2311,3 +2311,10 @@ existing behavior deliberately ignores non-`Task` list values, so `List<Task>`
 would overstate the runtime contract. `AssignmentEntryTest` covers assigned,
 unassigned, and non-task values. Focused core verification and UI compilation
 passed; the erased method descriptor is unchanged.
+
+`Portfolio.getDirtyProjectList` / `getWritableProjectList` and their
+`ProjectFactory` forwarding methods now return `Collection<Project>`. The
+OpenProj-derived result methods are backed by project-only lists; the active
+UI auto-recovery caller consumes the dirty-project result as projects. The
+typed contract now flows through both layers without changing collection
+contents or erased descriptors. Full core tests and UI compilation passed.
