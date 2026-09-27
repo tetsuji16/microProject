@@ -24,8 +24,6 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.model.cache;
 
-import com.microproject.pm.graphic.model.transform.CacheTransformer;
-
 /**
  *
  */

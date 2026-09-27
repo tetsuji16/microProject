@@ -29,7 +29,6 @@ import java.util.List;
 /**
  *
  */
-public interface CacheTransformer {
-    public abstract void transfrom(List list);
+public interface CacheTransformer<T> {
+    void transfrom(List<T> list);
 }
-

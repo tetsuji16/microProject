@@ -49,7 +49,6 @@ import com.microproject.grouping.core.GroupNodeImpl;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.grouping.core.transform.HierarchicObject;
 import com.microproject.grouping.core.transform.ViewConfiguration;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.grouping.core.transform.filtering.BaseFilter;
@@ -62,7 +61,7 @@ import com.microproject.grouping.core.transform.transformer.NodeTransformer;
 /**
  *
  */
-public class NodeCacheTransformer implements CacheTransformer {
+public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
     protected ViewTransformer transformer;
 
     protected ReferenceNodeModelCache refCache;
@@ -92,7 +91,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 
 
 
-    public void transfrom(List list){
+    public void transfrom(List<GraphicNode> list){
     	model.clear();
 
         if (list==null) return;
@@ -137,8 +136,8 @@ public class NodeCacheTransformer implements CacheTransformer {
 
         GraphicNode gnode,previous=null;
         Object current;
-        for (Iterator i=list.iterator();i.hasNext();){
-            gnode=(GraphicNode)i.next();
+        for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
+            gnode=i.next();
             gnode.setFiltered(false);
             if (!gnode.isVoid()){
 	            current=(composition==null)?gnode.getNode():composition.evaluate(gnode.getNode());
@@ -177,7 +176,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 	                 }else if (previous.getLevel()>=gnode.getLevel()){
 	                	 while (parents.size()>=gnode.getLevel()) parents.pop();
 	                 }
-	                 ((GraphicNode)parents.peek()).getChildren().add(gnode);
+	                 parents.peek().getChildren().add(gnode);
 	             }
 	             previous=gnode;
              }
@@ -257,8 +256,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 
 	private void treeToList(List<GraphicNode> in,List<GraphicNode> out){
 		for (Iterator<GraphicNode> i=in.iterator();i.hasNext();){
-			HierarchicObject gnode=i.next();
-			GraphicNode graphicNode=(GraphicNode)gnode;
+			GraphicNode graphicNode=i.next();
 			out.add(graphicNode);
 			if (graphicNode.getChildren().size()>0) treeToList(graphicNode.getChildren(),out);
 			graphicNode.getChildren().clear();
@@ -272,7 +270,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 	}
 
 
-	private class GraphicNodeComparator implements Comparator{
+	private class GraphicNodeComparator implements Comparator<GraphicNode>{
 	    protected NodeSorter comparator;
 	    protected NodeTransformer composition;
 	    private GraphicNodeComparator(NodeSorter comparator){
@@ -282,9 +280,7 @@ public class NodeCacheTransformer implements CacheTransformer {
 	        this.comparator=comparator;
 	        this.composition=composition;
 	    }
-	    public int compare(Object o1, Object o2) {
-	    	GraphicNode n1=(GraphicNode)o1;
-	    	GraphicNode n2=(GraphicNode)o2;
+	    public int compare(GraphicNode n1, GraphicNode n2) {
 	    	if (n1==n2) return 0;
 	    	else if (n1.isVoid()) return 1;
 	    	else if (n2.isVoid()) return -1;
@@ -361,7 +357,7 @@ public class NodeCacheTransformer implements CacheTransformer {
         		placeVoidNodes(i,gnode.getNode());
         	//}
     	}
-    	placeVoidNodes(i,(Node)refCache.getModel().getRoot());
+        placeVoidNodes(i,(Node)refCache.getModel().getRoot());
     }
     private void placeVoidNodes(ListIterator<GraphicNode> i,Node node){
     		Node current;

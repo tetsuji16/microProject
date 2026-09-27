@@ -25,7 +25,6 @@
 package com.microproject.pm.graphic.model.cache;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
@@ -37,11 +36,11 @@ import com.microproject.pm.graphic.model.transform.CacheTransformer;
  */
 public abstract class VisibleElements<T>{
 	protected ArrayList<T> elements;
-    protected CacheTransformer transformer;
+    protected CacheTransformer<T> transformer;
     protected List<CacheEvent> events;
     protected String viewName;
 
-    public VisibleElements(String viewName,CacheTransformer transformer) {
+	public VisibleElements(String viewName,CacheTransformer<T> transformer) {
         this.transformer=transformer;
         this.viewName=viewName;
 		elements=new ArrayList<>();
@@ -57,10 +56,10 @@ public abstract class VisibleElements<T>{
 	}
     
     
-    public CacheTransformer getTransformer() {
+    public CacheTransformer<T> getTransformer() {
         return transformer;
     }
-    public void setTransformer(CacheTransformer transformer) {
+    public void setTransformer(CacheTransformer<T> transformer) {
         this.transformer = transformer;
     }
     public void applyTransformer(){

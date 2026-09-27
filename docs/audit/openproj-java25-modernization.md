@@ -2506,3 +2506,13 @@ its active cache rebuild and edge paths now compile without needing that blanket
 suppression. Empty node/dependency change sets now state their respective element
 types explicitly. `:microproject_ui:compileJava`, cache tests, and `javap -s`
 showing unchanged `Set` method descriptors passed.
+
+The OpenProj baseline `d2fa3c20a` confirms `CacheTransformer` accepted raw
+`List`, while its sole active implementation, `NodeCacheTransformer`, always
+iterated and cast those elements to `GraphicNode`. The transformer contract now
+carries `T` through `VisibleElements<T>` and `VisibleNodes`, and the node
+transformer implements `CacheTransformer<GraphicNode>`. Its main iterator,
+temporary hierarchy stack, flattening traversal, and comparator now preserve
+that type without changing filtering, grouping, or traversal order. The JVM
+`List` descriptors remain unchanged. UI compilation, cache-package tests, and
+`SpreadSheetUtilsTest` passed.

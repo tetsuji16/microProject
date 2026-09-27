@@ -42,7 +42,7 @@ public class VisibleNodes extends VisibleElements<GraphicNode> {
     /**
      * @param transformer
      */
-    public VisibleNodes(String viewName,CacheTransformer transformer) {
+    public VisibleNodes(String viewName,CacheTransformer<GraphicNode> transformer) {
         super(viewName,transformer);
     }
     
