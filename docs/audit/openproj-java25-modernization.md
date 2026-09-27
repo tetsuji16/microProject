@@ -2516,3 +2516,10 @@ temporary hierarchy stack, flattening traversal, and comparator now preserve
 that type without changing filtering, grouping, or traversal order. The JVM
 `List` descriptors remain unchanged. UI compilation, cache-package tests, and
 `SpreadSheetUtilsTest` passed.
+
+`DebugUtils.dumpMapOfHasIdKeys` now traverses the wildcard map's keys with
+enhanced-for and uses Java pattern bindings for `DataObject` and `HasId`. The
+method matches the OpenProj baseline at `d2fa3c20a`; key encounter order,
+fallback string conversion, and mapped value lookup are unchanged. No in-repo
+production caller exists, but the public diagnostic entry point remains
+available for manual use. Full `:microproject_core:test` passed.

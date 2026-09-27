@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.util;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -55,14 +54,12 @@ public class DebugUtils {
 	}
 	
 	public static void dumpMapOfHasIdKeys(Map<?, ?> map) {
-		Iterator<?> i = map.keySet().iterator();
-		while (i.hasNext()) {
-			Object key = i.next();
+		for (Object key : map.keySet()) {
 			String keyString =""+key;
-			if (key instanceof DataObject)
-				keyString = ""+((DataObject)key).getUniqueId();
-			else if (key instanceof HasId)
-				keyString = ""+((HasId)key).getId();
+			if (key instanceof DataObject dataObject)
+				keyString = ""+dataObject.getUniqueId();
+			else if (key instanceof HasId hasId)
+				keyString = ""+hasId.getId();
 			logger.info("key=" + keyString + " value=" + map.get(key));
 		}
 	}
