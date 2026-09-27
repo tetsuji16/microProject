@@ -25,14 +25,19 @@
 package com.microproject.pm.graphic.views.synchro;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Component;
 import java.awt.Point;
+import java.awt.event.MouseWheelListener;
 import java.lang.reflect.Field;
 import java.util.Calendar;
 import java.util.List;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,6 +45,49 @@ import com.microproject.timescale.TimeScale;
 import com.microproject.util.DateTime;
 
 class ScrollPaneSynchronizerTest {
+	@Test
+	void wheelTargetComponentsRegisterAndUnregisterTheirListener() throws Exception {
+		JPanel firstView = new JPanel();
+		JPanel firstRowHeader = new JPanel();
+		JPanel firstColumnHeader = new JPanel();
+		JScrollPane first = new JScrollPane(firstView);
+		first.setRowHeaderView(firstRowHeader);
+		first.setColumnHeaderView(firstColumnHeader);
+
+		JPanel secondView = new JPanel();
+		JPanel secondRowHeader = new JPanel();
+		JPanel secondColumnHeader = new JPanel();
+		JScrollPane second = new JScrollPane(secondView);
+		second.setRowHeaderView(secondRowHeader);
+		second.setColumnHeaderView(secondColumnHeader);
+		ScrollPaneSynchronizer synchronizer =
+				new ScrollPaneSynchronizer(first, second, ScrollPaneSynchronizer.HORIZONTAL);
+		List<Component> firstTargets = List.of(first, firstView, first.getRowHeader(), firstRowHeader,
+				first.getColumnHeader(), firstColumnHeader);
+		List<Component> secondTargets = List.of(second, secondView, second.getRowHeader(), secondRowHeader,
+				second.getColumnHeader(), secondColumnHeader);
+
+		SwingUtilities.invokeAndWait(() -> {
+			synchronizer.activateSynchro();
+			MouseWheelListener firstListener = synchronizer.scrollPane1WheelListener;
+			MouseWheelListener secondListener = synchronizer.scrollPane2WheelListener;
+			for (Component target : firstTargets) {
+				assertTrue(List.of(target.getMouseWheelListeners()).contains(firstListener));
+			}
+			for (Component target : secondTargets) {
+				assertTrue(List.of(target.getMouseWheelListeners()).contains(secondListener));
+			}
+
+			synchronizer.deactivateSynchro();
+			for (Component target : firstTargets) {
+				assertFalse(List.of(target.getMouseWheelListeners()).contains(firstListener));
+			}
+			for (Component target : secondTargets) {
+				assertFalse(List.of(target.getMouseWheelListeners()).contains(secondListener));
+			}
+		});
+	}
+
 	@Test
 	void synchronizerDoesNotRegisterTheSamePairTwice() throws ReflectiveOperationException {
 		Synchronizer synchronizer = new Synchronizer();

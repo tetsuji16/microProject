@@ -78,9 +78,9 @@ public class ScrollPaneSynchronizer {
 
 	protected MouseWheelListener scrollPane2WheelListener = null;
 
-	protected ArrayList scrollPane1WheelTargets = new ArrayList(6);
+	protected ArrayList<Component> scrollPane1WheelTargets = new ArrayList<>(6);
 
-	protected ArrayList scrollPane2WheelTargets = new ArrayList(6);
+	protected ArrayList<Component> scrollPane2WheelTargets = new ArrayList<>(6);
 
 	protected int defaultScrollBarPolicy1;
 
@@ -727,7 +727,8 @@ public class ScrollPaneSynchronizer {
 		}
 	}
 
-	private void registerMouseWheelTargets(JScrollPane scrollPane, MouseWheelListener listener, ArrayList targets) {
+	private void registerMouseWheelTargets(JScrollPane scrollPane, MouseWheelListener listener,
+			ArrayList<Component> targets) {
 		if (scrollPane == null || listener == null) {
 			return;
 		}
@@ -740,7 +741,8 @@ public class ScrollPaneSynchronizer {
 		registerMouseWheelTarget(scrollPane.getColumnHeader() == null ? null : scrollPane.getColumnHeader().getView(), listener, targets);
 	}
 
-	private void registerMouseWheelTarget(Component component, MouseWheelListener listener, ArrayList targets) {
+	private void registerMouseWheelTarget(Component component, MouseWheelListener listener,
+			ArrayList<Component> targets) {
 		if (component == null) {
 			return;
 		}
@@ -766,13 +768,12 @@ public class ScrollPaneSynchronizer {
 		};
 	}
 
-	private void unregisterMouseWheelTargets(ArrayList targets, MouseWheelListener listener) {
+	private void unregisterMouseWheelTargets(ArrayList<Component> targets, MouseWheelListener listener) {
 		if (listener == null) {
 			targets.clear();
 			return;
 		}
-		for (int i = 0; i < targets.size(); i++) {
-			Component component = (Component) targets.get(i);
+		for (Component component : targets) {
 			component.removeMouseWheelListener(listener);
 		}
 		targets.clear();
