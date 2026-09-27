@@ -2058,10 +2058,10 @@ public class DocumentFrame extends NamedFrame implements
 		String bottomViewName;
 		WorkspaceSetting coord;
 		WorkspaceSetting mainView;
-		HashMap views = new HashMap();
+		HashMap views = new HashMap(20);
 		public void saveViewWorkspace(String name, BaseView view) {
 			if (views  == null)
-				views = new HashMap();
+				views = new HashMap(20);
 			if (view != null)
 				views.put(name, view.createWorkspace(SavableToWorkspace.VIEW));
 		}
