@@ -255,6 +255,20 @@ replacement commit before closing Phase 0. The surviving MSPDI behavior remains
 subject to import/export compatibility review through the current serializer
 and MPXJ paths.
 
+Reconciliation recorded on 2026-09-28: the ledger contains 778 distinct
+`KEEP_PROJECTLIBRE` entries across 43 pre-rename current paths (446 methods,
+248 fields, 60 types, 22 constructors, and two hunks). Mapping module and
+package names to the active layout finds 36 existing files (35 production
+files and one test) and the seven historical MSPDI paths above. The 71
+ProjectLibre ledger entries for those paths, plus the separate third-party
+`XsdDuration#<init>(net.sf.mpxj.Duration)` row, retain their existing
+`VERIFIED` work status because that shared field tracks progress in the
+broader rename ledger. Their evidence records the removal or JDK replacement
+commits. The issue-specific current-tree status is recorded here rather than
+overloading that shared field. This closes the stale-path reconciliation, but
+not the remaining per-symbol declaration/caller review for the 36 extant
+files, so Phase 0 remains open.
+
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
