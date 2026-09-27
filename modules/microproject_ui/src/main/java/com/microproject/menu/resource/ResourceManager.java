@@ -145,7 +145,7 @@ public class ResourceManager {
      * @param  key          a key of the resource bundle
      * @throws MissingResourceException if key is not the name of a resource
      */
-    public List<String> getStringList(String key)
+    public List getStringList(String key)
 	throws MissingResourceException {
         return getStringList(key, " \t\n\r\f", false);
     }
@@ -156,7 +156,7 @@ public class ResourceManager {
      * @param  delim        the delimiters of the tokens
      * @throws MissingResourceException if key is not the name of a resource
      */
-    public List<String> getStringList(String key, String delim)
+    public List getStringList(String key, String delim)
 	throws MissingResourceException {
         return getStringList(key, delim, false);
     }
@@ -169,9 +169,9 @@ public class ResourceManager {
      * @param  returnDelims if true, the delimiters are returned in the list
      * @throws MissingResourceException if key is not the name of a resource
      */
-    public List<String> getStringList(String key, String delim, boolean returnDelims)
+    public List getStringList(String key, String delim, boolean returnDelims) 
 	throws MissingResourceException {
-        List<String> result = new ArrayList<>();
+        List            result = new ArrayList();
         StringTokenizer st     = new StringTokenizer(getString(key),
                                                      delim,
                                                      returnDelims);

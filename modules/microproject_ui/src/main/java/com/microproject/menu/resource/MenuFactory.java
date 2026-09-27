@@ -193,9 +193,10 @@ public class MenuFactory extends ResourceManager {
                ResourceFormatException,
 	       MissingListenerException {
         JMenuBar result = new JMenuBar();
-        List<String> menus = getStringList(name);
-        for (String menu : menus) {
-            result.add(createJMenuComponent(menu));
+        List     menus  = getStringList(name);
+        for (Object menu : menus) {
+            String x = (String) menu;
+            result.add(createJMenuComponent(x));
         }
         return result;
     }
@@ -205,9 +206,10 @@ public class MenuFactory extends ResourceManager {
                ResourceFormatException,
 	       MissingListenerException {
         JPopupMenu result = new JPopupMenu();
-        List<String> menus = getStringList(name);
-        for (String menu : menus) {
-            result.add(createJMenuComponent(menu));
+        List     menus  = getStringList(name);
+        for (Object menu : menus) {
+            String x = (String) menu;
+            result.add(createJMenuComponent(x));
         }
         return result;
     }
@@ -299,8 +301,9 @@ public class MenuFactory extends ResourceManager {
 		};
         initializeJMenuItem(result, name);
 
-        List<String> items = getStringList(name);
-        for (String itemName : items) {
+        List     items = getStringList(name);
+        for (Object configuredItem : items) {
+            String itemName = (String) configuredItem;
         	
         	JComponent item= createJMenuComponent(itemName);
         	// I added the possibility of having an invisible menu item. This is needed to handle radio button groups that have a "none" option.  Aside from
