@@ -120,7 +120,7 @@ public class TransformList implements NamedItem {
 	public List<CommonTransformFactory> getFactories(ViewConfiguration view,String type) {
 	    List<String> authorizedList;
 	    if (view==null){
-	        authorizedList=new ArrayList<>();
+	        authorizedList=new ArrayList<>(1);
 	        if ("user_filters".equals(type)) authorizedList.add(ViewTransformer.FILTER_NONE_ID);
 	        else if ("user_sorters".equals(type)) authorizedList.add(ViewTransformer.SORTER_NONE_ID);
 	        else if ("user_groupers".equals(type)) authorizedList.add(ViewTransformer.GROUPER_NONE_ID);

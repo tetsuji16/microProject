@@ -38,6 +38,8 @@ bug is still reproducible.
 ## Follow-up recorded 2026-09-27
 
 For #152, the unreferenced `com.microproject.contrib.ClassLoaderUtils` duplicate was removed after repository-wide production, configuration, and reflection searches found no callers; its Java-version comparison cases now test the canonical core implementation. `:microproject_core:test :microproject_contrib:test --console=plain` passed. For #595, active `ViewTransformer` and `ProjectFactory` callbacks now use Java 25 lambda/method-reference syntax, and `Task.arrangeTask` types its output as `Collection<? super TaskReference>` without excluding the existing `List<Object>` caller. `TransformListTest`, `ProjectFactoryClosingTest`, `NormalTaskDurationTest`, and full `:microproject_core:test --console=plain` passed. For #228, `TransformList.getFactories(view, type)` now pre-sizes its filtered result to the factory count, a strict upper bound; its order/filter test passed. The remaining #215 theme work still spans the light-only token palette and fixed-color drawing surfaces; a selection control alone would not provide a consistent theme.
+
+The #228 capacity audit also sized `TransformList`'s null-view authorization list to its strict one-item maximum and the single-project report adapter list to its exact size. `TransformListTest` passed and `:microproject_ui:compileJava --console=plain` passed.
 | New: legacy `.pod` conversion guidance conflicts with MPO default | Implemented locally | Deprecated-format recovery now recommends `xml or mpo`. Legacy `.pod` opening and explicit `.pod` Save As compatibility remain available. |
 
 ## New issue: remove `.pod` as a recommended conversion target

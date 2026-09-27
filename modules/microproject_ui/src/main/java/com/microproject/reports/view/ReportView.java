@@ -202,7 +202,7 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
         PredicatedNodeFilterIterator iterator;
         if (viewName == DataSourceProvider.REPORT_VIEW) { // special case to just use project
         	cache = null;
-			ArrayList<Project> list = new ArrayList<>();
+			ArrayList<Project> list = new ArrayList<>(1);
 			list.add(project);
         	iterator = GeneralFilteredIterator.instance(list.iterator());
         } else {
