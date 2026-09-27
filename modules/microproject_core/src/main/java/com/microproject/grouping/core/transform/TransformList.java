@@ -130,7 +130,7 @@ public class TransformList implements NamedItem {
 	        else authorizedList=view.getTransform().getGrouperList();
 	        if (authorizedList==null) return factories;
 	    }
-	    List<CommonTransformFactory> filtered=new ArrayList<>();
+	    List<CommonTransformFactory> filtered=new ArrayList<>(factories.size());
 	    for (CommonTransformFactory factory : factories){
 	        if (authorizedList.contains(factory.getId())) filtered.add(factory);
 	    }

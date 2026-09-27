@@ -34,6 +34,10 @@ bug is still reproducible.
 | [#63](https://github.com/tetsuji16/ProjectLibre/issues/63) | Focused GUI verified | `TaskFontStyleTest`, `TaskInformationDialogTest`, and `TaskInformationGuiAcceptanceTest` verify font customization behavior and persistence paths. The issue was closed after focused GUI verification. |
 | [#45](https://github.com/tetsuji16/ProjectLibre/issues/45) | Focused GUI verified | `SpreadSheetMouseInteractionTest` and `RibbonButtonBehaviorTest` verify keyboard/drag task movement, insertion feedback, undo, and drag-and-drop preference behavior. The issue was closed with focused test evidence. |
 | [#36](https://github.com/tetsuji16/ProjectLibre/issues/36) | Partial | Resource assignment spreadsheet and ribbon command routing were fixed. Remaining audit items are resource-sheet bindings, usage-view time-phasing, resource information layout, and assignment-pane usability. |
+
+## Follow-up recorded 2026-09-27
+
+For #595, the active `ViewTransformer` callback now uses a method reference while preserving listener source and dispatch behavior; focused `TransformListTest` passed. For #228, `TransformList.getFactories(view, type)` now pre-sizes its filtered result to the factory count, a strict upper bound; the existing order/filter test passed. `:microproject_core:test --tests "com.microproject.grouping.core.transform.TransformListTest" --console=plain` passed for both changes. The remaining #215 theme work still spans the light-only token palette and fixed-color drawing surfaces; a selection control alone would not provide a consistent theme.
 | New: legacy `.pod` conversion guidance conflicts with MPO default | Implemented locally | Deprecated-format recovery now recommends `xml or mpo`. Legacy `.pod` opening and explicit `.pod` Save As compatibility remain available. |
 
 ## New issue: remove `.pod` as a recommended conversion target
