@@ -30,7 +30,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -183,27 +182,25 @@ public class LocalSession extends AbstractSession{
     	for (File root : getDescriptorRoots()) {
     		collectProjectFiles(root, seenPaths, descriptors, 0);
     	}
-    	Collections.sort(descriptors, new Comparator<ProjectData>() {
-    		public int compare(ProjectData left, ProjectData right) {
-    			Date leftDate = left.getLastModificationDate();
-    			Date rightDate = right.getLastModificationDate();
-    			if (leftDate != null && rightDate != null) {
-    				int byDate = rightDate.compareTo(leftDate);
-    				if (byDate != 0) {
-    					return byDate;
-    				}
-    			}
-    			String leftName = left.getName();
-    			String rightName = right.getName();
-    			if (leftName == null) {
-    				return rightName == null ? 0 : 1;
-    			}
-    			if (rightName == null) {
-    				return -1;
-    			}
-    			return leftName.compareToIgnoreCase(rightName);
-    		}
-    	});
+		descriptors.sort((left, right) -> {
+			Date leftDate = left.getLastModificationDate();
+			Date rightDate = right.getLastModificationDate();
+			if (leftDate != null && rightDate != null) {
+				int byDate = rightDate.compareTo(leftDate);
+				if (byDate != 0) {
+					return byDate;
+				}
+			}
+			String leftName = left.getName();
+			String rightName = right.getName();
+			if (leftName == null) {
+				return rightName == null ? 0 : 1;
+			}
+			if (rightName == null) {
+				return -1;
+			}
+			return leftName.compareToIgnoreCase(rightName);
+		});
     	return descriptors;
     }
 
