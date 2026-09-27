@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.spreadsheet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
@@ -51,7 +52,6 @@ import com.microproject.undo.DataFactoryUndoController;
 class TaskInformationGuiAcceptanceTest {
 	private TestFrame frame;
 	private GraphicManager previousGraphicManager;
-
 	@AfterEach
 	void closeWindow() throws Exception {
 		if (frame != null) {
@@ -60,11 +60,11 @@ class TaskInformationGuiAcceptanceTest {
 					if (window instanceof TaskInformationDialog)
 						window.dispose();
 				}
-				GraphicManager.getGraphicManagers().remove(frame.manager);
+				frame.manager.cleanUp();
 				frame.dispose();
 				frame = null;
 			});
-			restoreLastGraphicManager(previousGraphicManager);
+			assertSame(previousGraphicManager, GraphicManager.getInstance(), "cleanup restores the most recently registered window manager");
 		}
 	}
 
@@ -165,7 +165,7 @@ class TaskInformationGuiAcceptanceTest {
 
 	private void showFixture(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			previousGraphicManager = lastGraphicManager();
+			previousGraphicManager = GraphicManager.getInstance();
 			frame = new TestFrame();
 			frame.manager.setDocumentFrame(new DocumentFrame(frame.manager, fixture.task.getOwningProject(), "gui-task-information-test"));
 			frame.add(new JScrollPane(fixture.sheet));
@@ -175,26 +175,6 @@ class TaskInformationGuiAcceptanceTest {
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 		});
-	}
-
-	private static GraphicManager lastGraphicManager() {
-		try {
-			java.lang.reflect.Field field = GraphicManager.class.getDeclaredField("lastGraphicManager");
-			field.setAccessible(true);
-			return (GraphicManager) field.get(null);
-		} catch (ReflectiveOperationException e) {
-			throw new AssertionError("could not preserve the prior graphic manager", e);
-		}
-	}
-
-	private static void restoreLastGraphicManager(GraphicManager manager) {
-		try {
-			java.lang.reflect.Field field = GraphicManager.class.getDeclaredField("lastGraphicManager");
-			field.setAccessible(true);
-			field.set(null, manager);
-		} catch (ReflectiveOperationException e) {
-			throw new AssertionError("could not restore the prior graphic manager", e);
-		}
 	}
 
 	private void activateFixtureWindow(Fixture fixture) throws Exception {

@@ -17,7 +17,6 @@ import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.AccessDeniedException;
@@ -54,7 +53,6 @@ class InvalidLinkedSubprojectRefreshGuiAcceptanceTest {
 	private JFrame window;
 	private DefaultFrameManager frameManager;
 	private GraphicManager graphicManager;
-	private GraphicManager previousGraphicManager;
 	private Path invalidChildFile;
 	private boolean previousClientSide;
 
@@ -62,7 +60,6 @@ class InvalidLinkedSubprojectRefreshGuiAcceptanceTest {
 	void closeWindow() throws Exception {
 		if (graphicManager != null) {
 			SwingUtilities.invokeAndWait(() -> graphicManager.cleanUp());
-			restoreLastGraphicManager(previousGraphicManager);
 		}
 		if (window != null) SwingUtilities.invokeAndWait(() -> window.dispose());
 		if (invalidChildFile != null) Files.deleteIfExists(invalidChildFile);
@@ -155,7 +152,6 @@ class InvalidLinkedSubprojectRefreshGuiAcceptanceTest {
 
 	private void show(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			previousGraphicManager = lastGraphicManager();
 			window = new JFrame("microProject — Invalid linked-child refresh GUI acceptance");
 			InvalidRefreshGraphicManager manager = new InvalidRefreshGraphicManager(window);
 			graphicManager = manager;
@@ -170,26 +166,6 @@ class InvalidLinkedSubprojectRefreshGuiAcceptanceTest {
 			window.setAlwaysOnTop(true);
 			window.setVisible(true);
 		});
-	}
-
-	private static GraphicManager lastGraphicManager() {
-		try {
-			Field field = GraphicManager.class.getDeclaredField("lastGraphicManager");
-			field.setAccessible(true);
-			return (GraphicManager) field.get(null);
-		} catch (ReflectiveOperationException e) {
-			throw new AssertionError("could not preserve the prior graphic manager", e);
-		}
-	}
-
-	private static void restoreLastGraphicManager(GraphicManager manager) {
-		try {
-			Field field = GraphicManager.class.getDeclaredField("lastGraphicManager");
-			field.setAccessible(true);
-			field.set(null, manager);
-		} catch (ReflectiveOperationException e) {
-			throw new AssertionError("could not restore the prior graphic manager", e);
-		}
 	}
 
 	private static Dialog findWarningDialog() {

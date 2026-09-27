@@ -220,7 +220,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static final Logger logger = Logger.getLogger(GraphicManager.class.getName());
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private RibbonCommandResult lastRibbonCommandResult;
-	private static GraphicManager lastGraphicManager = null; // used when displaying a popup but the frame isn't known
+	private static final GraphicManagerRegistry MANAGER_REGISTRY = GraphicManagerRegistry.getInstance();
 	private final DocumentGeneration documentGeneration = new DocumentGeneration();
 
 	/** Returns a snapshot of projects currently open in this desktop window. */
@@ -258,7 +258,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	protected Frame frame;
 	TabbedNavigation topTabs = null;
 
-	static LinkedList graphicManagers = new LinkedList();
     private static LafManager lafManager;
 	public static boolean badLAF = false;
 	private final ApplicationRestartCoordinator applicationRestartCoordinator = new ApplicationRestartCoordinator();
@@ -290,23 +289,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				}
 			}
 		}
-		return lastGraphicManager; // if none found, use last used one
+		return MANAGER_REGISTRY.getActiveManager(); // if none found, use last used one
 	}
 	public static GraphicManager getInstance(){
-//System.out.println("Graphic manager getInstance = " + lastGraphicManager.hashCode());
-		return lastGraphicManager;
+		return MANAGER_REGISTRY.getActiveManager();
 	}
 
 	public static Frame getFrameInstance(){
-		return lastGraphicManager.getFrame();
+		GraphicManager manager = MANAGER_REGISTRY.getActiveManager();
+		return manager == null ? null : manager.getFrame();
 	}
 
 	public static DocumentFrame getDocumentFrameInstance(){
-		return lastGraphicManager==null?null:lastGraphicManager.getCurrentFrame();
+		GraphicManager manager = MANAGER_REGISTRY.getActiveManager();
+		return manager == null ? null : manager.getCurrentFrame();
 	}
 
 	void setMeAsLastGraphicManager() { // makes this the current graphic manager for job queue and dialogs
-		lastGraphicManager = this;
+		MANAGER_REGISTRY.activate(this);
 		if (jobQueue != null)
 			SessionFactory.getInstance().setJobQueue(getJobQueue());
 
@@ -314,8 +314,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 
-	public static LinkedList getGraphicManagers() {
-		return graphicManagers;
+	public static LinkedList<GraphicManager> getGraphicManagers() {
+		return new LinkedList<>(MANAGER_REGISTRY.snapshot());
 	}
 
 	/**
@@ -324,8 +324,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * @throws java.awt.HeadlessException
 	 */
 	public GraphicManager(/*String[] projectUrl,*/ String server,Container container) throws HeadlessException {
-		graphicManagers.add(this);
-		lastGraphicManager = this;
+		MANAGER_REGISTRY.register(this);
 		container.addFocusListener(new FocusListener() {
 
 			public void focusGained(FocusEvent e) {
@@ -394,8 +393,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// Mark this manager inactive before they are delivered; objectChanged()
 		// must never route a later project-open event into an emptied workspace.
 		frameManager = null;
-		graphicManagers.remove(this);
-		if (graphicManagers.isEmpty())
+		MANAGER_REGISTRY.remove(this);
+		if (MANAGER_REGISTRY.isEmpty())
 			getLafManager().clean();
 
 		if (jobQueue != null)
@@ -5321,6 +5320,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 	public static Project getProject() {
+		GraphicManager lastGraphicManager = MANAGER_REGISTRY.getActiveManager();
 		if (lastGraphicManager == null)
 			return null;
 		if (lastGraphicManager.getCurrentFrame()==null)
@@ -5335,6 +5335,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		history.add(new CommandInfo(command,null));
 	}
 	public static List<CommandInfo> getHistory() {
+		GraphicManager lastGraphicManager = MANAGER_REGISTRY.getActiveManager();
 		if (lastGraphicManager == null)
 			return null;
 		return lastGraphicManager.history;
