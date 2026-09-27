@@ -901,15 +901,13 @@ public class DocumentFrame extends NamedFrame implements
 			}
 			if (column < 0)
 				return;
-			SwingUtilities.invokeLater(new Runnable() {
-				public void run() {
-					int targetRow = resolveRow();
-					if (targetRow < 0 || targetRow >= spreadSheet.getRowCount() || column >= spreadSheet.getColumnCount())
-						return;
-					spreadSheet.requestFocusInWindow();
-					spreadSheet.changeSelection(targetRow, column, false, false);
-					spreadSheet.scrollRectToVisible(spreadSheet.getCellRect(targetRow, column, true));
-				}
+			SwingUtilities.invokeLater(() -> {
+				int targetRow = resolveRow();
+				if (targetRow < 0 || targetRow >= spreadSheet.getRowCount() || column >= spreadSheet.getColumnCount())
+					return;
+				spreadSheet.requestFocusInWindow();
+				spreadSheet.changeSelection(targetRow, column, false, false);
+				spreadSheet.scrollRectToVisible(spreadSheet.getCellRect(targetRow, column, true));
 			});
 		}
 
