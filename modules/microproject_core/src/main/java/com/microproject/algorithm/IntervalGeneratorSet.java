@@ -89,24 +89,6 @@ public class IntervalGeneratorSet implements IntervalGenerator {
 		return result;
 	}
 	
-//	private long earliestStart() {
-//		long minStart = Long.MAX_VALUE;
-//		if (generators != null) {
-//			long generatorStart;
-//			Iterator i = generators.iterator();
-//			IntervalGenerator current;
-//			while (i.hasNext()) {
-//				current = (IntervalGenerator) i.next();
-//				generatorStart = current.currentStart();
-//				sameStart = generatorStart == minStart; // keep track if there is more than one with same start
-//				if (generatorStart < minStart) {
-//					minStart = generatorStart;
-//				}
-//			}
-//		}
-//		return minStart;
-//	}		
-	
 	/**
 	 * 
 	 */

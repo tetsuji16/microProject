@@ -53,7 +53,6 @@ public class TimeIteratorGenerator implements IntervalGenerator, HasStartAndEnd 
 		return currentInterval.getStart();
 	}	
 	public boolean evaluate(Object obj) {
-//		System.out.println("----iterator date " + new java.util.Date(currentInterval.getStart()));
 		currentInterval = timeIterator.next();
 		index++;
 		return timeIterator.hasNext();

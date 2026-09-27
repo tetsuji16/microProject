@@ -104,22 +104,6 @@ public class ReverseQuery {
 	}
 
 
-//	public static void iterate(Object type,HasTimeDistributedData root) {
-//		ReverseQuery reverseQuery = getInstance(type, root, 0);
-//		reverseQuery.iterate();
-//	}
-//
-//
-//	private void iterate() {
-//		root.buildReverseQuery(this);
-//		Query query = Query.getInstance();
-//		PrintValueFunctor functor = PrintValueFunctor.getInstance(ClosureCollectionSum.getInstance(AssignmentFieldClosureCollection.getInstance(fieldSet)));
-//		query.selectFrom(selectFromSet)
-//			 .groupBy(IntervalGeneratorSet.getInstance(groupBySet))
-//			 .action(functor)
-//			 .execute();
-//	}
-	
 	public final boolean isAllowDefaultAssignments() {
 		return allowDefaultAssignments;
 	}
