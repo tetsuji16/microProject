@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import java.util.Calendar;
 import java.util.Date;
 
+import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.field.Field;
 import com.microproject.options.CalendarOption;
 import com.microproject.options.EditOption;
+import com.microproject.pm.graphic.spreadsheet.renderer.DateRenderer;
 import com.microproject.util.DateTime;
 
 class DateFieldSupportTest {
@@ -112,5 +114,16 @@ class DateFieldSupportTest {
 	@Test
 	void annotationTextPassesThroughNonDateValues() {
 		assertEquals("alpha", DateFieldSupport.annotationTextFor("alpha", null));
+	}
+
+	@Test
+	void projectDateCellRendererUsesTheActiveDateFormat() {
+		Date date = new Date(1767312000000L);
+		String expected = EditOption.getInstance().getDateFormat().format(date);
+
+		JLabel rendered = (JLabel) new DateRenderer()
+			.getTableCellRendererComponent(null, date, false, false, 0, 0);
+
+		assertEquals(expected, rendered.getText());
 	}
 }
