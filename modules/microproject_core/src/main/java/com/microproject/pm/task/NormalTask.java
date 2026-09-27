@@ -1690,7 +1690,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 					Object useEventSource = (getCurrentSnapshot() == snapshot) ? eventSource
 							: null;
 
-					LinkedList toRemove = new LinkedList(); //fix
+					LinkedList<Assignment> toRemove = new LinkedList<>(); //fix
 					AssignmentService.getInstance().remove(
 							snapshot.getAssignments(), toRemove);
 					AssignmentService.getInstance().remove(toRemove, useEventSource,false);

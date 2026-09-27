@@ -2203,3 +2203,5 @@ Jasper `DataSource` now stores and accepts its traversal as `Iterator<?>`. `git 
 `AssignmentEntry` now stores its selected assignments as `ArrayList<Assignment>` and uses typed iteration. The constructor's erased `ArrayList` descriptor and the accepted list implementation remain unchanged; `setAssignmentsFromTaskList(List)` remains broad because it filters arbitrary hierarchy values to `Task` before collecting matching assignments. The class is used by the assignment dialog. Focused `AssignmentEntryTest` and `:microproject_ui:compileJava` passed.
 
 `Messages.getProperties` now iterates `ResourceBundle.getKeys()` as `Enumeration<String>`, removing the redundant key cast. `git blame` traces the method to OpenProj (`d2fa3c20a`); it remains the shared translation-resource conversion path. Full `:microproject_core:test --console=plain` passed.
+
+`NormalTask.cleanUp` now collects baseline assignment removals in `LinkedList<Assignment>`. The cleanup path is OpenProj-derived (`d2fa3c20a`) and active; both `AssignmentService.remove` overloads consume the collection without requiring a concrete raw type. Full `:microproject_core:test --console=plain` passed.
