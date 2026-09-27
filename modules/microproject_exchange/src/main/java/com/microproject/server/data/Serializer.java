@@ -1378,15 +1378,13 @@ public class Serializer {
 			Long key=Long.valueOf(taskData.getParentTaskId());
     		Set<TaskData> set=taskMap.get(key);
     		if (set==null){
-    			set=new TreeSet<>(new Comparator<TaskData>(){
-    				public int compare(TaskData task0, TaskData task1) {
-    					int value=(task0.getChildPosition()<task1.getChildPosition())?-1:((task0.getChildPosition()==task1.getChildPosition())?0:1);
-    					if (value==0){
-    						b.append("Duplicates: task0="+task0.getName()+", "+task0.getParentTaskId()+", "+task0.getChildPosition()+" task1="+task1.getName()+", "+task1.getParentTaskId()+", "+task1.getChildPosition()+"\n");
-    					}
-    					return value;
-    				}
-    			});
+			set=new TreeSet<>((task0, task1) -> {
+				int value=Long.compare(task0.getChildPosition(), task1.getChildPosition());
+				if (value==0){
+					b.append("Duplicates: task0="+task0.getName()+", "+task0.getParentTaskId()+", "+task0.getChildPosition()+" task1="+task1.getName()+", "+task1.getParentTaskId()+", "+task1.getChildPosition()+"\n");
+				}
+				return value;
+			});
     		}
     		set.add(taskData);
     		taskMap.put(key,set);
@@ -1399,11 +1397,7 @@ public class Serializer {
 		Set<TaskData> o=taskMap.get(Long.valueOf(key));
     	if (o==null) return;
     	List<TaskData> children=new ArrayList<>(o);
-    	children.sort(new Comparator<TaskData>(){
-    		public int compare(TaskData task0, TaskData task1) {
-    			return Long.compare(task0.getChildPosition(), task1.getChildPosition());
-    		}
-    	});
+		children.sort(Comparator.comparingLong(TaskData::getChildPosition));
     	for (TaskData taskData:children){
     		//System.out.println("name: "+taskData.getName());
      		b.append(prefix).append(taskData.getName()).append(',').append(taskData.getUniqueId()).append('\n');
@@ -1414,23 +1408,17 @@ public class Serializer {
 
     private static List<ResourceData> sortResourcesByChildPosition(Collection<ResourceData> resources) {
     	List<ResourceData> sortedResources = new ArrayList<>(resources);
-    	sortedResources.sort(new Comparator<ResourceData>() {
-    		public int compare(ResourceData resource1, ResourceData resource2) {
-    			return Long.compare(resource1.getChildPosition(), resource2.getChildPosition());
-    		}
-    	});
+		sortedResources.sort(Comparator.comparingLong(ResourceData::getChildPosition));
     	return sortedResources;
     }
 
     private static List<TaskData> sortTasksByChildPosition(Collection<TaskData> tasks) {
     	List<TaskData> sortedTasks = new ArrayList<>(tasks);
-    	sortedTasks.sort(new Comparator<TaskData>() {
-    		public int compare(TaskData task1, TaskData task2) {
-    			if (!task1.isExternal() && task2.isExternal()) return -1; //keep external tasks at the end
-    			else if (task1.isExternal() && !task2.isExternal()) return 1;
-    			return Long.compare(task1.getChildPosition(), task2.getChildPosition());
-    		}
-    	});
+		sortedTasks.sort((task1, task2) -> {
+			if (!task1.isExternal() && task2.isExternal()) return -1; //keep external tasks at the end
+			else if (task1.isExternal() && !task2.isExternal()) return 1;
+			return Long.compare(task1.getChildPosition(), task2.getChildPosition());
+		});
     	return sortedTasks;
     }
 
