@@ -307,17 +307,6 @@ public class MicrosoftImporter extends ServerFileImporter{
     	Session session=SessionFactory.getInstance().getSession(resourceMapping==null);
 		Job job=new Job(session.getJobQueue(),"importFile",Messages.getString("MicrosoftImporter.Importing"),true); //$NON-NLS-1$ //$NON-NLS-2$
 
-//    	job.addRunnable(new JobRunnable(Messages.getString("MicrosoftImporter.PrepareResources"),1.0f){ //$NON-NLS-1$
-//
-//			public Object run() throws Exception{
-//				logger.info("BEGIN: MicrosoftImporter.PrepareResources");
-//				//MicrosoftImporter.this.jobRunnable = this;
-//				importFile();
-//				logger.info("END: MicrosoftImporter.PrepareResources");
-//				return null;
-//			}
-//    	});
-
 		
     	job.addRunnable(new JobRunnable(Messages.getString("MicrosoftImporter.PrepareResources"),1.0f){ //$NON-NLS-1$
 
