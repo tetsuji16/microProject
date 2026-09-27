@@ -134,9 +134,11 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		private static final long serialVersionUID = 1L;
 		private static final int HEADER = 34;
 		private static final int CELL_HEIGHT = 105;
+		private static final int DAYS_IN_GRID = 42;
+		private static final int MAX_VISIBLE_TASKS_PER_DAY = 3;
 		private final Project project;
 		private final ZoneId zone = scheduleZone;
-		private final List<Card> cards = new ArrayList<>();
+		private final List<Card> cards = new ArrayList<>(DAYS_IN_GRID * MAX_VISIBLE_TASKS_PER_DAY);
 		private Task draggedTask;
 		private Point dragPoint;
 
@@ -179,7 +181,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 				}
 				LocalDate first = month.atDay(1);
 				LocalDate gridStart = first.minusDays(first.getDayOfWeek().getValue() - 1L);
-				for (int index = 0; index < 42; index++) paintDay(g, gridStart.plusDays(index), index, width);
+				for (int index = 0; index < DAYS_IN_GRID; index++) paintDay(g, gridStart.plusDays(index), index, width);
 				if (draggedTask != null && dragPoint != null) {
 					Color accent = FlatUiSupport.accentColor();
 					g.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 160));
@@ -199,7 +201,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			g.drawString(Integer.toString(day.getDayOfMonth()), x + 7, y + 17);
 			String companionDay = AlternativeCalendarDisplay.companionDay(day, Locale.getDefault(Locale.Category.FORMAT));
 			int taskCardTop = 23;
-			int maxVisibleTasks = 3;
+			int maxVisibleTasks = MAX_VISIBLE_TASKS_PER_DAY;
 			if (!companionDay.isEmpty()) {
 				Font baseFont = g.getFont();
 				g.setFont(baseFont.deriveFont(Math.max(9F, baseFont.getSize2D() - 2F)));
