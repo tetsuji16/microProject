@@ -42,17 +42,16 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 	}
 	
 	public void updateAllVisibleElements(){
-	    for (Object element : visibleElements) {
-	        updateAllVisibleElements((VisibleDependencies)element);
+	    for (VisibleDependencies element : visibleElements) {
+	        updateAllVisibleElements(element);
 	    }
 	}
 	public void updateAllVisibleElements(VisibleDependencies v){	    
-		ArrayList visibleDependencies =v.getElements();
-		ArrayList visibleNodes =v.getVisibleNodes().getElements();
-		Collection visibleNodesCol=getContainsCollection(visibleNodes);
+		ArrayList<GraphicDependency> visibleDependencies =v.getElements();
+		ArrayList<GraphicNode> visibleNodes =v.getVisibleNodes().getElements();
+		Collection<GraphicNode> visibleNodesCol=getContainsCollection(visibleNodes);
 		visibleDependencies.clear();
-		for (Object element : cache) {
-			GraphicDependency dep=(GraphicDependency)element;
+		for (GraphicDependency dep : cache) {
 			if (visibleNodesCol.contains(dep.getPredecessor())&&
 					visibleNodesCol.contains(dep.getSuccessor()))
 			    visibleDependencies.add(dep);
@@ -61,32 +60,31 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 	
 	
 	
-	public void updateVisibleElements(Set change){
-	    for (Object element : visibleElements) {
-	        updateVisibleElements((VisibleDependencies)element,change);
+	public void updateVisibleElements(Set<?> change){
+	    for (VisibleDependencies element : visibleElements) {
+	        updateVisibleElements(element,change);
 	    }
 	}
-	public void updateVisibleElements(VisibleDependencies v,Set change){
-	    ArrayList visibleNodes =v.getVisibleNodes().getElements();
-		ArrayList removed = new ArrayList();
-		ArrayList inserted = new ArrayList();
-		ArrayList changed = new ArrayList(change == null ? 0 : change.size());
+	public void updateVisibleElements(VisibleDependencies v,Set<?> change){
+	    ArrayList<GraphicNode> visibleNodes =v.getVisibleNodes().getElements();
+		ArrayList<GraphicDependency> removed = new ArrayList<>();
+		ArrayList<GraphicDependency> inserted = new ArrayList<>();
+		ArrayList<Object> changed = new ArrayList<>(change == null ? 0 : change.size());
 		if (change != null) changed.addAll(change);
         updateVisibleElements(v.getElements(),visibleNodes,removed,inserted,changed);
 		if (removed.size()>0) v.addEvent(new CacheEvent(this,CacheEvent.NODES_REMOVED,removed,null));
 		if (inserted.size()>0) v.addEvent(new CacheEvent(this,CacheEvent.NODES_INSERTED,inserted,null));
 		if (changed.size()>0) v.addEvent(new CacheEvent(this,CacheEvent.NODES_CHANGED,changed,null));
 	}
-	private void updateVisibleElements(ArrayList visibleDependencies, ArrayList visibleNodes, ArrayList removed, ArrayList inserted, ArrayList changed){
-		Collection visibleNodesCol=getContainsCollection(visibleNodes);
-		Collection visibleDependenciesCol=getContainsCollection(visibleDependencies);
-		HashSet visibleDependenciesSet=(visibleDependenciesCol instanceof HashSet)?(HashSet)visibleDependenciesCol:new HashSet(visibleDependenciesCol);
-		HashSet visibleNodesSet=(visibleNodesCol instanceof HashSet)?(HashSet)visibleNodesCol:new HashSet(visibleNodesCol);
+	private void updateVisibleElements(ArrayList<GraphicDependency> visibleDependencies, ArrayList<GraphicNode> visibleNodes, ArrayList<GraphicDependency> removed, ArrayList<GraphicDependency> inserted, ArrayList<Object> changed){
+		Collection<GraphicNode> visibleNodesCol=getContainsCollection(visibleNodes);
+		Collection<GraphicDependency> visibleDependenciesCol=getContainsCollection(visibleDependencies);
+		HashSet<GraphicDependency> visibleDependenciesSet=asHashSet(visibleDependenciesCol);
+		HashSet<GraphicNode> visibleNodesSet=asHashSet(visibleNodesCol);
 		
 //		long t0=System.currentTimeMillis();
 		boolean containsPredecessor,containsSuccessor,containsDependency;
-		for (Object element : cache) {
-			GraphicDependency dep=(GraphicDependency)element;
+		for (GraphicDependency dep : cache) {
 			containsPredecessor=visibleNodesSet.contains(dep.getPredecessor());
 			containsSuccessor=visibleNodesSet.contains(dep.getSuccessor());
 			containsDependency=visibleDependenciesSet.contains(dep);
@@ -107,9 +105,9 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 		}
 //		long t1=System.currentTimeMillis();
 //		System.out.println("\t\tDependencyCache#1 ran in "+(t1-t0)+"ms");
-		Collection cacheCol=getContainsCollection(cache);
-		for(Iterator i=visibleDependencies.iterator();i.hasNext();){
-			GraphicDependency dep=(GraphicDependency)i.next();
+		Collection<GraphicDependency> cacheCol=getContainsCollection(cache);
+		for(Iterator<GraphicDependency> i=visibleDependencies.iterator();i.hasNext();){
+			GraphicDependency dep=i.next();
 			if (!cacheCol.contains(dep)){
 			    i.remove();
 			    visibleDependenciesSet.remove(dep);
@@ -120,6 +118,11 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 //		t0=System.currentTimeMillis();
 //		System.out.println("\t\tDependencyCache#2 ran in "+(t0-t1)+"ms");
 
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T> HashSet<T> asHashSet(Collection<T> collection){
+		return collection instanceof HashSet<?> ? (HashSet<T>)collection : new HashSet<>(collection);
 	}
 
 	public Object getBase(Object base) {

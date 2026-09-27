@@ -146,9 +146,9 @@ public abstract class CellCache<E, V extends VisibleElements<?>>{
 	    setBaseIndex(c.getBaseIndex());
 	}
 	
-	public static Collection getContainsCollection(Collection c){
+	public static <T> Collection<T> getContainsCollection(Collection<T> c){
 		if (c==null||c.size()<10) return c;
-		HashSet set=new HashSet();
+		HashSet<T> set=new HashSet<>();
 		set.addAll(c);
 		return set;
 	}

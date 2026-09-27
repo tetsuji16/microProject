@@ -27,7 +27,6 @@ package com.microproject.pm.graphic.model.cache;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
@@ -45,27 +44,24 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 		super();
 	}
 	
-	public void updateVisibleElements(Set updates){
+	public void updateVisibleElements(Set<?> updates){
 	    //dumpVoids();
-	    VisibleNodes v;
-	    HashSet u=new HashSet(updates == null ? 0 : updates.size());
-	    for (Object element : visibleElements) {
-	        v=(VisibleNodes)element;
+	    HashSet<Object> u=new HashSet<>(updates == null ? 0 : updates.size());
+	    for (VisibleNodes v : visibleElements) {
 	        u.clear();
 	        if (updates != null) u.addAll(updates);
 	        updateVisibleElements(v,u);
 	    }
 	}
-	public void updateVisibleElements(VisibleNodes v, Set updates){
+	public void updateVisibleElements(VisibleNodes v, Set<?> updates){
 //		long t0=System.currentTimeMillis();
 
-		ArrayList visibleElements =v.getElements();
-	    ArrayList oldList =(ArrayList) visibleElements.clone();
+		ArrayList<GraphicNode> visibleElements =v.getElements();
+	    ArrayList<GraphicNode> oldList =new ArrayList<>(visibleElements);
 		
 		visibleElements.clear();
 		int minLevel=-1;
-		for (Object element : cache) {
-			GraphicNode node=(GraphicNode)element;
+		for (GraphicNode node : cache) {
 			if (minLevel!=-1&&node.getLevel()>minLevel) continue;
 			minLevel=-1;
 			visibleElements.add(node);
@@ -94,33 +90,33 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 //	}
 
 	
-	public static void applyUpdates(ArrayList oldList, ArrayList newList, Set updates, List<CacheEvent> events, Object source){
-	    ArrayList o =(ArrayList) oldList.clone();
-		ArrayList n =(ArrayList) newList.clone();
+	public static <T> void applyUpdates(ArrayList<T> oldList, ArrayList<T> newList, Set<?> updates, List<CacheEvent> events, Object source){
+	    ArrayList<T> o =new ArrayList<>(oldList);
+		ArrayList<T> n =new ArrayList<>(newList);
 		
 //		long t0=System.currentTimeMillis();
-		ArrayList removeList =null;
-		ArrayList removeNodeList =null;
+		ArrayList<CacheInterval> removeList =null;
+		ArrayList<T> removeNodeList =null;
 		//if (removeFunctor!=null){
-			removeList=new ArrayList();
-			removeNodeList=new ArrayList();
+			removeList=new ArrayList<>();
+			removeNodeList=new ArrayList<>();
 			createRemoveDiff(o,n,removeNodeList,removeList,updates);
 			if (removeList.size()>0){
 				//removeFunctor.execute(removeNodeList,removeList);
-			    events.add(new CacheEvent(source,CacheEvent.NODES_REMOVED,(List)removeNodeList.clone(),(List)removeList.clone()));
+			    events.add(new CacheEvent(source,CacheEvent.NODES_REMOVED,new ArrayList<>(removeNodeList),new ArrayList<>(removeList)));
 			}
 		//}
 //			long t1=System.currentTimeMillis();
 //			System.out.println("\t\t\tcache applyUpdates#1 ran in "+(t1-t0)+"ms");
 		
-		ArrayList insertList =null;
-		ArrayList insertNodeList =null;
+		ArrayList<CacheInterval> insertList =null;
+		ArrayList<T> insertNodeList =null;
 		//if (insertFunctor!=null){
-			insertList=new ArrayList();
-			insertNodeList=new ArrayList();
+			insertList=new ArrayList<>();
+			insertNodeList=new ArrayList<>();
 			createRemoveDiff(n,o,insertNodeList,insertList,updates);
 			if (insertList.size()>0){
-			    events.add(new CacheEvent(source,CacheEvent.NODES_INSERTED,(List)insertNodeList.clone(),(List)insertList.clone()));
+			    events.add(new CacheEvent(source,CacheEvent.NODES_INSERTED,new ArrayList<>(insertNodeList),new ArrayList<>(insertList)));
 				//insertFunctor.execute(insertNodeList,insertList);
 			}
 		//}
@@ -138,7 +134,7 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 				//removeFunctor.execute(removeNodeList,removeList);
 			}
 			if (insertList.size()>0){
-			    events.add(new CacheEvent(source,CacheEvent.NODES_INSERTED,(List)insertNodeList.clone(),(List)insertList.clone()));
+			    events.add(new CacheEvent(source,CacheEvent.NODES_INSERTED,new ArrayList<>(insertNodeList),new ArrayList<>(insertList)));
 				//insertFunctor.execute(insertNodeList,insertList);
 			}
 //			t1=System.currentTimeMillis();
@@ -160,13 +156,13 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 	}
 	
 	
-	protected static void createRemoveDiff(ArrayList oldList, ArrayList newList, ArrayList nodeDiff, ArrayList intervaldiff,Set updates){
-		Collection newCol=getContainsCollection(newList);
+	protected static <T> void createRemoveDiff(ArrayList<T> oldList, ArrayList<T> newList, ArrayList<T> nodeDiff, ArrayList<CacheInterval> intervaldiff,Set<?> updates){
+		Collection<T> newCol=getContainsCollection(newList);
 		int row=0;
 		int begin=-1;
 		int end=-1;
-		Object current;
-		for (ListIterator i=oldList.listIterator();i.hasNext();row++){
+		T current;
+		for (ListIterator<T> i=oldList.listIterator();i.hasNext();row++){
 			if (!newCol.contains(current=i.next())){
 				nodeDiff.add(current);
 				if (updates!=null) updates.remove(current); //to avoid remove/insert followed by update
@@ -188,15 +184,15 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 	}
 	
 	
-	protected static void createPermutationDiff(ArrayList oldList, ArrayList newList, ArrayList removeNodeList, ArrayList insertNodeList, ArrayList removeIntervalList, ArrayList insertIntervalList,
-			Set updates){
+	protected static <T> void createPermutationDiff(ArrayList<T> oldList, ArrayList<T> newList, ArrayList<T> removeNodeList, ArrayList<T> insertNodeList, ArrayList<CacheInterval> removeIntervalList, ArrayList<CacheInterval> insertIntervalList,
+			Set<?> updates){
 	    //oldList and newList have the same size and contains the same elements
-	    ListIterator o=oldList.listIterator();
-	    ListIterator n=newList.listIterator();
+	    ListIterator<T> o=oldList.listIterator();
+	    ListIterator<T> n=newList.listIterator();
 	    int startRow=-1;;
 	    for(int row=0;o.hasNext();row++){
-	        Object oelement=o.next();
-	        Object nelement=n.next();
+	        T oelement=o.next();
+	        T nelement=n.next();
 	        if (oelement.equals(nelement)){
 	            if (startRow!=-1&&startRow<row){
 	                CacheInterval interval=new CacheInterval(startRow,row-1);
@@ -218,13 +214,13 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 	}
 	
 	
-	protected static void createUpdateDiff(ArrayList newList, ArrayList nodeDiff, ArrayList diff,Set updates){
+	protected static <T> void createUpdateDiff(ArrayList<T> newList, ArrayList<T> nodeDiff, ArrayList<CacheInterval> diff,Set<?> updates){
 		if (updates!=null&&updates.size()>0){
-			Collection updatesCol=getContainsCollection(updates);
+			Collection<?> updatesCol=getContainsCollection(updates);
 			int begin=-1;
 			int end=-1;
 			int row=0;
-			for (Object current : newList) {
+			for (T current : newList) {
 				if (updatesCol.contains(current)){
 				    nodeDiff.add(current);
 					if (begin==-1){
@@ -268,8 +264,8 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 
 	protected void fireEvents(Object source, List<CacheEvent> nodeEvents, List<CacheEvent> edgeEvents) {
         if (nodeEvents.size()>0||edgeEvents.size()>0)
-	    for (Object element : visibleElements)
-	        ((VisibleNodes)element).fireGraphicNodesCompositeEvent(source,nodeEvents,edgeEvents);
+	    for (VisibleNodes element : visibleElements)
+	        element.fireGraphicNodesCompositeEvent(source,nodeEvents,edgeEvents);
 	}
 //	protected void fireScheduleEvent(Object source, ScheduleEvent scheduleEvent) {
 //	    for (Iterator i=visibleElements.iterator();i.hasNext();)
@@ -290,8 +286,7 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
         }
 	}
 	public void fireEvents(Object source) {
-	    for (Object element : visibleElements) {
-	        VisibleNodes v=(VisibleNodes)element;
+	    for (VisibleNodes v : visibleElements) {
 	        List<CacheEvent> nodeEvents=v.getEvents();
 	        List<CacheEvent> edgeEvents=v.getVisibleDependencies().getEvents();
 	        if (nodeEvents.size()>0||edgeEvents.size()>0){

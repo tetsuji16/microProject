@@ -2465,3 +2465,15 @@ Project rename duplicate checking now carries `Set<String>` through `Job`, `Aler
 `VisibleElements` now carries a type parameter for the view-specific element values: `VisibleNodes` stores `GraphicNode` and `VisibleDependencies` stores `GraphicDependency`. `CellCache` types its registered visible-view list as `VisibleElements<?>`, eliminating the clear-path cast. `NodeModelCache` and `ViewNodeModelCache` expose typed node/dependency iterators while preserving `Object` return descriptors on the existing indexed access boundary; `javap -s` confirmed the generic erasures for the `ArrayList`, `ListIterator`, and indexed `Object` methods. The relevant collection and traversal logic matches the OpenProj source; later event typing and dependency transformer behavior were left intact. Adapted existing fixtures to use their domain element types. `:microproject_ui:compileJava` and `:microproject_ui:test --tests "com.microproject.pm.graphic.model.cache.*"` passed.
 
 `CellCache<E, V>` now shares one type-safe backing-list, base-index, and registered-view contract. `NodeCache` fixes `E`/`V` to `GraphicNode`/`VisibleNodes`; `DependencyCache` fixes them to `GraphicDependency`/`VisibleDependencies`. Active `ReferenceNodeModelCache` lookups and its edge-list result now consume those types without casts. The storage and lookup responsibilities are the OpenProj-derived `CellCache`/cache paths already matched against `d2fa3c20a`; this change does not alter hierarchy traversal, dependency admission, or event behavior. Added compile-time typed lookup assertions for both cache variants. `javap -s` confirmed erased backing collection, map, getter, insertion, and lookup descriptors remain the same. `:microproject_ui:compileJava` and the cache test package passed.
+
+The remaining active `NodeCache` diff generation now carries a generic element
+type through snapshots, permutation/removal/update diffs, and cache events; its
+actual view path consumes `GraphicNode` and `VisibleNodes` without casts.
+`DependencyCache` likewise consumes its typed node/dependency views and cache,
+while retaining arbitrary update-input elements until matching dependencies
+are removed. `CellCache.getContainsCollection` is now generically typed without
+changing its `Collection` erasure. `javap -s` confirmed the cache collection
+methods retain their prior descriptors. The cache test package and UI
+compilation passed. Provenance for the shared cache files was already compared
+against OpenProj above; this type-only modernization does not change the cache
+event or hierarchy algorithms.
