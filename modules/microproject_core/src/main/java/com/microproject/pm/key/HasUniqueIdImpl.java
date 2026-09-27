@@ -94,30 +94,4 @@ public class HasUniqueIdImpl implements Serializable{
 		//System.out.println("Renumber "+(hasUniqueId==null?"":(hasUniqueId.getClass()+"/"+hasUniqueId.getName()))+": "+oldUniqueId+"-->"+uniqueId);
 		return true;
 	}
-
-
-//	public static void update(Long uniqueId,Long newUniqueId){
-//		DataObject hasUniqueId=(DataObject)uniqueIds.get(uniqueId);
-//		if (hasUniqueId==null){
-//			System.out.println("ERROR null DataObject!");
-//			return;
-//		}
-//		hasUniqueId.setNew(false);
-//	}
-//
-//	public static void update(Map updateMap){
-//	    for (Iterator i=updateMap.entrySet().iterator();i.hasNext();){
-//	        Map.Entry entry=(Map.Entry)i.next();
-//	        update((Long)entry.getKey(),(Long)entry.getValue());
-//	    }
-//	}
-
-
-//	public boolean isNew() {
-//		return newId;
-//	}
-//	public void setNew(boolean newId) {
-//		 this.newId=newId;
-//	}
-
 }
