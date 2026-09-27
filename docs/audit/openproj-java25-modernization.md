@@ -2486,3 +2486,10 @@ output is constrained to `Set<? super GraphicDependency>`, with the same erased
 contract and the active edge-cache path are OpenProj-derived and already
 provenance-matched above. `javap -s` confirmed the changed methods retain their
 previous erased descriptors. UI compilation and the cache test package passed.
+
+`GraphicNode` schedule interval storage and its cache consumer now carry
+`ScheduleInterval` through initialization, traversal, and hit-testing without
+casts. `javap -p -s` confirmed the protected `ArrayList`/`List` fields and
+`initCache(GraphicNode, List)` erased descriptors are unchanged. The file's
+schedule-cache behavior is OpenProj-derived; this is a generic type-only change.
+`:microproject_ui:compileJava` and the cache test package passed.

@@ -247,7 +247,7 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 
 
 	protected boolean scheduleCaching;
-	protected ArrayList intervals =null;
+	protected ArrayList<ScheduleInterval> intervals =null;
 	protected long start=-1;
 	protected long end=-1;
 	protected int intervalCount=1;
@@ -268,7 +268,7 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 	}
 	public void setScheduleCaching(boolean scheduleCaching) {
 		this.scheduleCaching = scheduleCaching;
-		intervals=(scheduleCaching)?new ArrayList():null;
+		intervals=scheduleCaching?new ArrayList<>():null;
 		ContainsIntervalConsumer containsConsumer=null;//clean if it wasn't scheduleCaching before
 	}
 
@@ -283,10 +283,10 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 	}
 	protected static CacheIntervalConsumer intervalConsumer=new CacheIntervalConsumer();
 	protected static class CacheIntervalConsumer implements IntervalConsumer{
-		protected List cache=null;
+		protected List<ScheduleInterval> cache=null;
 		protected GraphicNode gnode=null;
 		int size;
-		public void initCache(GraphicNode gnode,List cache){
+		public void initCache(GraphicNode gnode,List<ScheduleInterval> cache){
 			size=0;
 			if (cache!=null) cache.clear();
 			this.cache=cache;
@@ -301,8 +301,8 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 
 	public void consumeIntervals(IntervalConsumer consumer) {
 		if (scheduleCaching){
-			for (Object interval : intervals) {
-				consumer.consumeInterval((ScheduleInterval)interval);
+			for (ScheduleInterval interval : intervals) {
+				consumer.consumeInterval(interval);
 			}
 		}else{
 			Object impl=node.getImpl();
@@ -338,9 +338,7 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 	}
 	public ScheduleInterval contains(double t,double deltaT1,double deltaT2,CoordinatesConverter coord){
 		if (scheduleCaching){
-			ScheduleInterval interval;
-			for (Object cachedInterval : intervals) {
-				interval=(ScheduleInterval)cachedInterval;
+			for (ScheduleInterval interval : intervals) {
 				if (coord!=null) interval=coord.adaptSmallBarTimeInterval(interval, this, null);
 				if (t>=interval.getStart()-deltaT1&&t<=interval.getEnd()+deltaT2) return interval;
 			}
