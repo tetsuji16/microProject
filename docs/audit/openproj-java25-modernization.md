@@ -339,11 +339,11 @@ an OpenProj-origin modernization result unless hunk provenance is established.
   fork-specific visibility behavior, so they are not included in this
   OpenProj-only refactor. Any correctness change to their shared policy should
   be reviewed as a separate fork-behavior task with its own regression contract.
-- `Field.toTaskSheetScheduleValue` was introduced in the ProjectLibre fork
-  (tracked to commit `54e5480390`), and `Field.getGroupDuration` was introduced
-  in commit `82de370c3d`; neither responsibility exists in the OpenProj source.
-  Commits `b2c7ae394` and `4849e197e` modernize those fork additions and are
-  excluded from #595 progress.
+- `Field.toTaskSheetScheduleValue` and `Field.getGroupDuration` do not occur in
+  either the OpenProj baseline or ProjectLibre 1.9.8; their cited introduction
+  commits (`54e5480390`, `82de370c3d`) are local microProject repository
+  commits. Their modernization commits (`b2c7ae394`, `4849e197e`) are excluded
+  from both #595 and #727 progress.
 - In commit `3c96088e2`, the `Field.fireEvent` guard is OpenProj-derived, but the
   adjacent task-sheet `DataObject` dirty-state branch was added by the fork.
   Only the `fireEvent` modernization counts toward #595.
