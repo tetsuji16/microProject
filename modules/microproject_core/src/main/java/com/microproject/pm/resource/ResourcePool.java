@@ -57,8 +57,8 @@ import com.microproject.undo.DataFactoryUndoController;
 public class ResourcePool implements Document, NodeModelDataFactory {
 	private static final Logger logger = Logger.getLogger(ResourcePool.class.getName());
 	private String name = "";
-    private final ArrayList<Resource> resourceList = new ArrayList<Resource>();
-	private final List<Project> projects = new ArrayList<Project>();
+    private final ArrayList<Resource> resourceList = new ArrayList<>();
+	private final List<Project> projects = new ArrayList<>();
 	private ObjectEventManager objectEventManager = new ObjectEventManager();
 	private transient MultipleTransactionManager multipleTransactionManager = new MultipleTransactionManager();
 	private long resourceIdCounter = 0;
@@ -82,7 +82,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	public Resource findById(long id) {
 		if (idMap == null) {
 		    int resourceCount = getResourceList().size();
-		    idMap = new HashMap<Long, Resource>(resourceCount * 4 / 3 + 1);
+		    idMap = new HashMap<>(resourceCount * 4 / 3 + 1);
 			for (Resource resource : getResourceList()) {
 				idMap.put(resource.getUniqueId(),resource);
 			}
