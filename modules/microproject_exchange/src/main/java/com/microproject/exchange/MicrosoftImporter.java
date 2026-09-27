@@ -33,7 +33,6 @@ import com.microproject.temporary.TemporaryCleanupQueue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Consumer;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +67,6 @@ import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
-import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
 
 import net.sf.mpxj.writer.ProjectWriter;
@@ -85,7 +83,6 @@ import java.util.logging.Logger;
 public class MicrosoftImporter extends ServerFileImporter{
 	private static final Logger logger = Logger.getLogger(MicrosoftImporter.class.getName());
 	protected com.microproject.pm.task.Project plProject= null;
-	private Date earliestStart = DateTime.getMaxDate();
 	protected Map<Object, Object> taskMap = new HashMap<>(); // keeps track of mapping mpx tasks to projectlibre1 tasks
 	private Map<Number, Object> resourceMap = new HashMap<>(); // keeps track of mappy mpx resources to projectlibre1 resources
 	public static boolean ADD_SUMMARY_TASK = false; //Environment.isAddSummaryTask(); // whether to automatically add an extra project summary task or not //claur
