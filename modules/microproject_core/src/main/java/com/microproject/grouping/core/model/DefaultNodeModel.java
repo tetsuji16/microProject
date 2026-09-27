@@ -795,8 +795,9 @@ public class DefaultNodeModel implements NodeModel {
 		}
 
 		private static void collectSubprojects(Node node, List<SubprojectState> subprojects) {
-			if (node.getImpl() instanceof SubProj) {
-				SubProj subproject = (SubProj) node.getImpl();
+			Object implementation = node.getImpl();
+			if (SubProj.isSubprojectReference(implementation)) {
+				SubProj subproject = (SubProj) implementation;
 				subprojects.add(new SubprojectState(node, subproject.getSubproject()));
 			}
 			for (Iterator<TreeNode> i = node.childrenIterator(); i.hasNext();)
