@@ -200,14 +200,7 @@ public class LocalFileImporter extends FileImporter {
 					opt.setImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
 					opt.setFileInputStream(in);
 					
-					SwingUtilities.invokeLater(new Runnable() {
-						
-						@Override
-						public void run() {
-							projectFactory.openProject(opt);
-							
-						}
-					});
+					SwingUtilities.invokeLater(() -> projectFactory.openProject(opt));
 //					project=projectFactory.openProject(opt);
 
 					
@@ -225,20 +218,9 @@ public class LocalFileImporter extends FileImporter {
 					logger.info("Recovered with XML");
 				}else{
 					//unable to recover from xml 
-					if (isLegacyProjectDataFailure(ex)) {
-		    			SwingUtilities.invokeLater(new Runnable(){
-		    				public void run(){
-				    			Alert.error(Messages.getString("Message.ImportOldFormatError"));
-		    				}
-		    			});
-		    		}else {
-		    			SwingUtilities.invokeLater(new Runnable(){
-		    				public void run(){
-				    			Alert.error(Messages.getString("Message.ImportError"));
-		    				}
-		    			});
-		    			
-		    		}
+					String errorMessageKey = isLegacyProjectDataFailure(ex)
+							? "Message.ImportOldFormatError" : "Message.ImportError";
+					SwingUtilities.invokeLater(() -> Alert.error(Messages.getString(errorMessageKey)));
 					
 					
 					if (ex!=null) throw ex;
