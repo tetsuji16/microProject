@@ -5,6 +5,8 @@
 package com.microproject.pm.graphic.frames;
 
 import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import com.microproject.dialog.assignment.AssignmentDialog;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent;
@@ -15,7 +17,14 @@ final class AssignmentDialogCoordinator {
 
 	void show(DocumentFrame documentFrame) {
 		if (dialog == null) {
-			dialog = new AssignmentDialog(documentFrame);
+			AssignmentDialog created = new AssignmentDialog(documentFrame);
+			created.addWindowListener(new WindowAdapter() {
+				@Override
+				public void windowClosed(WindowEvent event) {
+					AssignmentDialogCoordinator.this.windowClosed(event.getWindow());
+				}
+			});
+			dialog = created;
 			dialog.pack();
 			dialog.setModal(false);
 		}

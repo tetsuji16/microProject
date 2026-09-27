@@ -6,6 +6,7 @@ package com.microproject.dialog.assignment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -124,6 +125,11 @@ class AssignmentDialogGuiAcceptanceTest {
 			"fully assigned resources should use the muted theme status color");
 
 		SwingUtilities.invokeAndWait(dialog::dispose);
+		activateWindow(robot);
+		click(robot, bounds(assignResources));
+		AssignmentDialog reopenedDialog = awaitDialog();
+		assertNotSame(dialog, reopenedDialog, "disposed assignment dialogs must be recreated");
+		SwingUtilities.invokeAndWait(reopenedDialog::dispose);
 		activateWindow(robot);
 		click(robot, cellBounds(taskSheet, rowForTask(taskSheet, task), nameColumn(taskSheet)));
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
