@@ -126,7 +126,7 @@ public class UndoController extends UndoManager implements UndoableEditListener{
 		if (edits==null) return null;
 		else{
 			int nb=edits.size()>=50?50:edits.size();
-			List<String> r=new ArrayList<String>(nb);
+			List<String> r=new ArrayList<>(nb);
 			for (ListIterator<UndoableEdit> i=edits.listIterator(edits.size()-nb);i.hasNext();){
 				UndoableEdit edit=i.next();
 				if (edit!=null) r.add(edit.getPresentationName());

@@ -2616,3 +2616,8 @@ type grouping and insertion order are unchanged. `ContextStoreTest` passed.
 registry. The OpenProj baseline initializes the same string-keyed session map;
 lazy initialization and configured implementation names are unchanged. Full
 core tests passed.
+
+`UndoController.getEditNames` now uses diamond inference for the bounded
+presentation-name snapshot. The same `ArrayList<String>(nb)` construction is
+present in the OpenProj baseline; its 50-edit limit, iteration range, and
+presentation-name order are unchanged. Full core tests passed.
