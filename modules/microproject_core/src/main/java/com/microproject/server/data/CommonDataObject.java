@@ -64,7 +64,7 @@ public class CommonDataObject implements DataObject{
 	public void setDirty(boolean dirty) {
 	}
 
-	public String toString(){
+    public String toString(){
     	return name;
     }
 
