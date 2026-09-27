@@ -492,17 +492,17 @@ public class Serializer {
         long t=System.currentTimeMillis();
         Collection<DistributionData> dist=(new DistributionConverter()).createDistributionData(project,incrementalDistributions);
     	if (dist==null){
-    		dist=new ArrayList<DistributionData>();
+			dist=new ArrayList<>();
     	}
 		projectData.setDistributions(dist);
 		projectData.setIncrementalDistributions(incrementalDistributions);
 
     	TreeMap<DistributionData, DistributionData> distMap=project.getDistributionMap();
     	if (distMap==null){
-    		distMap=new TreeMap<DistributionData, DistributionData>(new DistributionComparator());
+			distMap=new TreeMap<>(new DistributionComparator());
     		project.setDistributionMap(distMap);
     	}
-    	TreeMap<DistributionData, DistributionData> newDistMap=new TreeMap<DistributionData, DistributionData>(new DistributionComparator());
+		TreeMap<DistributionData, DistributionData> newDistMap=new TreeMap<>(new DistributionComparator());
     	//ArrayList<DistributionData> toInsertInOld=new ArrayList<DistributionData>();
 
     	//insert, update dist

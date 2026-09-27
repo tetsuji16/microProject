@@ -2554,3 +2554,9 @@ downstream UI/exchange compilation verified.
 declaration matches `d2fa3c20a:openproj_ui/src/com/projity/help/HelpUtil.java`;
 the key/value types, singleton lifetime, and lookup behavior are unchanged.
 UI compilation passed.
+
+`Serializer` distribution fallback and distribution map construction now use
+diamond inference. These exact typed construction responsibilities match
+`d2fa3c20a:openproj_exchange/src/com/projity/server/data/Serializer.java`;
+the comparator, null fallback, ordering, and project map assignment are
+unchanged. Full exchange tests passed.
