@@ -62,7 +62,7 @@ import com.microproject.util.PopupDialogSupport;
 final class AutoRecoveryManager implements AutoSaveControl {
 	static final String ENABLED_PREFERENCE = "autoRecovery.enabled";
 	static final String INTERVAL_MINUTES_PREFERENCE = "autoRecovery.intervalMinutes";
-	static final int DEFAULT_INTERVAL_MINUTES = 5;
+	static final int DEFAULT_INTERVAL_MINUTES = AutoSaveControl.DEFAULT_INTERVAL_MINUTES;
 	static final int MINIMUM_INTERVAL_MINUTES = 1;
 	static final int MAXIMUM_INTERVAL_MINUTES = 24 * 60;
 	private static final Logger LOGGER = Logger.getLogger(AutoRecoveryManager.class.getName());
@@ -179,6 +179,24 @@ final class AutoRecoveryManager implements AutoSaveControl {
 		} catch (IOException ex) {
 			LOGGER.log(Level.WARNING, "Could not inspect recovery snapshots", ex);
 			return false;
+		}
+	}
+
+	@Override
+	public int getIntervalMinutes() {
+		return Math.clamp(preferences.getInt(INTERVAL_MINUTES_PREFERENCE, DEFAULT_INTERVAL_MINUTES),
+			MINIMUM_INTERVAL_MINUTES, MAXIMUM_INTERVAL_MINUTES);
+	}
+
+	@Override
+	public void setIntervalMinutes(int requestedMinutes) {
+		int minutes = Math.clamp(requestedMinutes, MINIMUM_INTERVAL_MINUTES, MAXIMUM_INTERVAL_MINUTES);
+		preferences.putInt(INTERVAL_MINUTES_PREFERENCE, minutes);
+		int delayMillis = recoveryDelayMillis(minutes);
+		timer.setDelay(delayMillis);
+		timer.setInitialDelay(delayMillis);
+		if (isEnabled()) {
+			timer.restart();
 		}
 	}
 

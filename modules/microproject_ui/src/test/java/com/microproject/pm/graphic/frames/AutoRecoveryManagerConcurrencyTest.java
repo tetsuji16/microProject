@@ -32,6 +32,35 @@ class AutoRecoveryManagerConcurrencyTest {
 	}
 
 	@Test
+	void recoveryIntervalPreferenceIsClampedAndReloaded() throws Exception {
+		Path recoveryDirectory = Files.createTempDirectory("auto-recovery-test-");
+		Preferences preferences = Preferences.userRoot().node("microproject-test/" + System.nanoTime());
+		preferences.putBoolean(AutoRecoveryManager.ENABLED_PREFERENCE, false);
+		AutoRecoveryManager manager = new AutoRecoveryManager(ProjectFactory.createInstance(), null,
+			new AutoRecoveryStore(recoveryDirectory), preferences);
+		try {
+			manager.setIntervalMinutes(Integer.MAX_VALUE);
+			assertEquals(AutoRecoveryManager.MAXIMUM_INTERVAL_MINUTES, manager.getIntervalMinutes());
+			assertEquals(AutoRecoveryManager.MAXIMUM_INTERVAL_MINUTES,
+				preferences.getInt(AutoRecoveryManager.INTERVAL_MINUTES_PREFERENCE, -1));
+		} finally {
+			manager.stop();
+		}
+
+		AutoRecoveryManager reloaded = new AutoRecoveryManager(ProjectFactory.createInstance(), null,
+			new AutoRecoveryStore(recoveryDirectory), preferences);
+		try {
+			assertEquals(AutoRecoveryManager.MAXIMUM_INTERVAL_MINUTES, reloaded.getIntervalMinutes());
+			reloaded.setIntervalMinutes(Integer.MIN_VALUE);
+			assertEquals(AutoRecoveryManager.MINIMUM_INTERVAL_MINUTES, reloaded.getIntervalMinutes());
+		} finally {
+			reloaded.stop();
+			preferences.removeNode();
+			Files.deleteIfExists(recoveryDirectory);
+		}
+	}
+
+	@Test
 	void onlyOneRecoverySaveClaimWinsAndCompletionReleasesIt() throws Exception {
 		Path recoveryDirectory = Files.createTempDirectory("auto-recovery-test-");
 		Preferences preferences = Preferences.userRoot().node("microproject-test/" + System.nanoTime());

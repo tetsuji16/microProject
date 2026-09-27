@@ -2306,7 +2306,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			PreferencesDialogBox.showDialog(getFrame(), getPreferences(), GraphicManager.this::showLocaleDialog);
+			PreferencesDialogBox.showDialog(getFrame(), getPreferences(), GraphicManager.this::showLocaleDialog,
+				autoRecoveryManager);
 		}
 	}
 

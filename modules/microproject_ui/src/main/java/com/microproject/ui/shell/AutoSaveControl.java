@@ -26,9 +26,18 @@ package com.microproject.ui.shell;
 
 /** Connects the ribbon switch to the recovery subsystem. */
 public interface AutoSaveControl {
+	int DEFAULT_INTERVAL_MINUTES = 5;
+
 	boolean isEnabled();
 
 	void setEnabled(boolean enabled);
+
+	default int getIntervalMinutes() {
+		return DEFAULT_INTERVAL_MINUTES;
+	}
+
+	default void setIntervalMinutes(int minutes) {
+	}
 
 	AutoSaveControl DISABLED = new AutoSaveControl() {
 		public boolean isEnabled() {

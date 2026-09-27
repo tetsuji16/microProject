@@ -22,6 +22,7 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 
 import com.microproject.preference.GlobalPreferences;
+import com.microproject.ui.shell.AutoSaveControl;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
 import com.microproject.util.PopupDialogSupport;
@@ -36,17 +37,27 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 
 	/** Opens preferences and optionally exposes the application-wide locale action. */
 	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction) {
-		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, localeAction);
+		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, localeAction, null);
 		dialog.setVisible(true);
 	}
 
-	private PreferencesDialogBox(Frame owner, GlobalPreferences preferences, Runnable localeAction) {
+	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction,
+			AutoSaveControl autoSaveControl) {
+		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, localeAction, autoSaveControl);
+		dialog.setVisible(true);
+	}
+
+	private PreferencesDialogBox(Frame owner, GlobalPreferences preferences, Runnable localeAction,
+			AutoSaveControl autoSaveControl) {
 		super(owner, UsabilityStrings.text("preferences.title"), true);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		PopupDialogSupport.bindEscapeToDispose(this);
 		JTextField userName = new JTextField(preferences.getUserName(), 24);
 		JCheckBox rowLines = new JCheckBox(UsabilityStrings.text("preferences.rowLines"), preferences.isShowRowLines());
 		JCheckBox checkUpdates = new JCheckBox(UsabilityStrings.text("preferences.checkUpdates"), preferences.isCheckForUpdates());
+		JSpinner recoveryInterval = autoSaveControl == null ? null
+				: new JSpinner(new SpinnerNumberModel(autoSaveControl.getIntervalMinutes(), 1, 1440, 1));
+		if (recoveryInterval != null) recoveryInterval.setName("preferencesAutoSaveInterval");
 		String[] fonts = java.awt.GraphicsEnvironment.isHeadless()
 			? new String[] { "" }
 			: java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
@@ -99,6 +110,9 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JPanel gridColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); gridColorControls.add(gridColor); gridColorControls.add(resetGridColor); form.add(gridColorControls);
 		form.add(new JLabel()); form.add(rowLines);
 		form.add(new JLabel()); form.add(checkUpdates);
+		if (recoveryInterval != null) {
+			form.add(new JLabel(UsabilityStrings.text("preferences.autoSaveInterval"))); form.add(recoveryInterval);
+		}
 		if (localeAction != null) {
 			JButton locale = new JButton(UsabilityStrings.text("preferences.locale"));
 			locale.addActionListener(event -> { dispose(); localeAction.run(); });
@@ -121,6 +135,8 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			preferences.setGridLineColor(selectedGridColor[0] == null ? null : Integer.valueOf(selectedGridColor[0].getRGB()));
 			preferences.setDefaultGanttBarColor(selectedBarColor[0] == null ? null : Integer.valueOf(selectedBarColor[0].getRGB()));
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
+			if (recoveryInterval != null)
+				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
 			dispose();
 		});
 		JButton cancel = new JButton(UsabilityStrings.text("preferences.cancel"));
