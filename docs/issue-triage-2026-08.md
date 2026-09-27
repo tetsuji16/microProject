@@ -166,3 +166,8 @@ POD `Serializer.saveTasks` の外部 predecessor 用索引 Map はプロジェ�
 実際にバックアップされる異なるタスク数は分割候補数以下である。
 `:microproject_core:test` と `ResourceLevelingServiceTest` の既存 apply/revert 経路で
 回帰がないことを確認した。
+
+MPXJ import の時間分布Mapは、解析済み`ProjectFile.getResourceAssignments().size()`を
+容量見積りに使うようにした。MSPDIとMPXの分岐で同じ空Mapを作っていた初期化も
+一本化し、`MpxImportState`の既存容量計算を再利用する。Microsoft importer、tracking
+import、XLSX fallbackの各focused testが成功した。

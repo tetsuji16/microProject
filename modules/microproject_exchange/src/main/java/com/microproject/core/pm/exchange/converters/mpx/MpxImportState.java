@@ -142,9 +142,9 @@ public class MpxImportState {
 	public Map<ResourceAssignment, List<TimephasedDataType>> getMpxTimephasedMap() {
 		return mpxTimephasedMap;
 	}
-	public void setMpxTimephasedMap(
-			Map<ResourceAssignment, List<TimephasedDataType>> mpxTimephasedMap) {
-		this.mpxTimephasedMap = mpxTimephasedMap;
+	public void initializeMpxTimephasedMap() {
+		int assignmentCount = mpxProjectFile == null ? 0 : mpxProjectFile.getResourceAssignments().size();
+		mpxTimephasedMap = new HashMap<>(mapCapacity(assignmentCount));
 	}
 	public ProjectFile getMpxProjectFile() {
 		return mpxProjectFile;

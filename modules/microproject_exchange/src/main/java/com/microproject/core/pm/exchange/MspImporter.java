@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -113,7 +112,7 @@ public class MspImporter {
 			return nativeProject;
 		}
 		progress.updateProgress(0.2f, "File parsed");
-		initializeTimephasedState();
+		state.initializeMpxTimephasedMap();
 		importedAssignmentLevelingDelays.clear();
 
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -149,15 +148,6 @@ public class MspImporter {
 		for (ImportedAssignmentLevelingDelay imported : importedAssignmentLevelingDelays) {
 			converter.restoreLevelingDelay(imported.source(), imported.target());
 		}
-	}
-	
-	private void initializeTimephasedState() {
-		// Identity the type of conversion. It will be used by AssignmentConverter.
-		if (state.isMspdi()) {
-			state.setMpxTimephasedMap(new HashMap<ResourceAssignment, List<TimephasedDataType>>());
-			return;
-		}
-		state.setMpxTimephasedMap(new HashMap<ResourceAssignment, List<TimephasedDataType>>());
 	}
 	
 	
