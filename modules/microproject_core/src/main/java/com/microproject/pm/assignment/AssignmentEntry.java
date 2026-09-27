@@ -44,7 +44,7 @@ import com.microproject.util.ClassUtils;
  */
 public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,CanSupplyRateUnit {
 	HasAssignments resource;
-	ArrayList assignments;
+	ArrayList<Assignment> assignments;
 	Document document;
 
 	private static Field rateFieldInstance = null;
@@ -58,7 +58,7 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 	/**
 	 * 
 	 */
-	public AssignmentEntry(HasAssignments resource, ArrayList assignments, Document document) {
+	public AssignmentEntry(HasAssignments resource, ArrayList<Assignment> assignments, Document document) {
 		this.resource = resource;
 		this.assignments = assignments;
 		this.document = document;
@@ -74,8 +74,7 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 	public void setRequestDemandType(int requestDemandType) {
 		if (!isAssigned()) //requestDemand type only settable if already assigned 
 			return;
-		for (Object value : assignments) {
-			Assignment assignment = (Assignment) value;
+		for (Assignment assignment : assignments) {
 			assignment.setRequestDemandType(requestDemandType);
 		}
 	}
@@ -85,8 +84,7 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 		if (!isAssigned())
 			return;
 		RequestDemandType.Kind value = java.util.Objects.requireNonNull(kind, "kind");
-		for (Object assignmentValue : assignments) {
-			Assignment assignment = (Assignment) assignmentValue;
+		for (Assignment assignment : assignments) {
 			assignment.setRequestDemandKind(value);
 		}
 	}
@@ -123,8 +121,7 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 	
 	public void setRate(Rate rate) throws ParseException {
 		int timeUnit = rate.getTimeUnit();
-		for (Object value : assignments) {
-			Assignment assignment = (Assignment) value;
+		for (Assignment assignment : assignments) {
 			if (timeUnit != TimeUnit.NON_TEMPORAL)
 				if (assignment.isLabor()) {
 					assignment.adjustRemainingUnits(rate.getValue(), 0, true, false);
@@ -150,7 +147,7 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 	
 	private void addAssignment(Assignment assignment) {
 		if (assignments == null)
-			assignments = new ArrayList();
+			assignments = new ArrayList<>();
 		assignments.add(assignment);
 	}
 	
@@ -167,7 +164,7 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 			Assignment assignment = resource.findAssignment(task);
 			if (assignment != null) {
 				if (assignments == null)
-					assignments = new ArrayList(taskList.size());
+					assignments = new ArrayList<>(taskList.size());
 				assignments.add(assignment);
 			}
 		}
