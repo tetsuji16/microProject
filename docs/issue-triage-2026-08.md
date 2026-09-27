@@ -184,3 +184,4 @@ ChartLegendで選択プロジェクトをoutline taskへ展開する一時リス
 容量に使う。既存のbucket順序・切出し計算を変えず、`PersonalContourTest`と
 `AssignmentContourBehaviorTest`が成功した。
 `TimesheetEntryPane` now pre-sizes the resolved resource list from the unique-resource set and the assignment list from the summed per-resource association counts. Non-assignment filtering, encounter order, and the selected-resource behavior are unchanged. `:microproject_ui:compileJava --console=plain` passed.
+`WorkingHours.intersectWith` now reserves at most the smaller input interval-array length, a strict upper bound because each produced intersection advances at least one input index. The existing intersection boundary/order assertions in `WorkingHoursTest` passed.

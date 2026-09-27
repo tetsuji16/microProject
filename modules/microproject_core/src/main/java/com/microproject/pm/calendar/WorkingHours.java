@@ -78,7 +78,7 @@ public class WorkingHours implements Cloneable, Serializable {
 		long end;
 		WorkRange thisRange;
 		WorkRange otherRange;
-		List<WorkRange> intersections = new ArrayList<>();
+		List<WorkRange> intersections = new ArrayList<>(Math.min(workRange.length, other.workRange.length));
 		for(;;) {
 			// check boundary conditions.  if one of the working hours is exhausted, then no more intersection
 			if (thisIndex == workRange.length)
