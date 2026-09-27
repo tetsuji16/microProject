@@ -126,14 +126,13 @@ public class AssociationList implements List<Association> {
 			logger.warning(associationFormat.getParameters().getError());
 			throw new FieldParseException(associationFormat.getParameters().getError());
 		}
-		LinkedList<Association> oldList = list; // (LinkedList) list.clone(); // make a copy of original list since we'll be modifying real list
+		LinkedList<Association> oldList = list;
 		LinkedList<Association> newList = result.list; 
 		
 		// validate each element in new list
 		try {
 			result.testValid(true);
 		} catch (InvalidAssociationException e) {
-//			newList = oldList;
 			
         	logger.log(Level.WARNING, e.getMessage(), e);
 			throw new FieldParseException(e.getMessage());				
@@ -147,7 +146,6 @@ public class AssociationList implements List<Association> {
 			association = i.next();
         	// if duplicate
         	if (AssociationList.findAssociation(newList,association.getLeft(),association.getRight(),association) != null) {
-//        		newList = oldList;
 				throw new FieldParseException("Duplicate association between "
 					+ association.getLeft() + " and " + association.getRight());
         	}

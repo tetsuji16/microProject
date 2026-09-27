@@ -190,7 +190,6 @@ public abstract class Select implements Map<Object, Object> {
 		this.allowNull = allowNull;
 	}
 	public static String toConfigurationXMLOptions(LinkedHashMap<String, String> map, String keyPrefix) {
-//		MapIterator i = map.i();
 		Iterator<String> i = map.keySet().iterator();
 		StringBuilder buf = new StringBuilder();
 		HashSet<String> duplicateSet = new HashSet<>(); // don't allow duplicate keys
@@ -210,7 +209,6 @@ public abstract class Select implements Map<Object, Object> {
 			if (value == null || value.length() == 0)
 				continue;
 			key = keyPrefix + key;
-//			String key = "<html>" + keyPrefix + ": " + "<b>" + i.getValue() +"</b></html>";
 			buf.append(SelectOption.toConfigurationXML(key, value));
 		}
 		return buf.toString();
