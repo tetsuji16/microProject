@@ -91,7 +91,6 @@ public class HasUniqueIdImpl implements Serializable{
 		if (localOnly&&!CommonDataObject.isLocal(uniqueId)) return false;
 		if (localOnly&&local) setLocal(false);
 		uniqueId = session.getId();
-		//System.out.println("Renumber "+(hasUniqueId==null?"":(hasUniqueId.getClass()+"/"+hasUniqueId.getName()))+": "+oldUniqueId+"-->"+uniqueId);
 		return true;
 	}
 }
