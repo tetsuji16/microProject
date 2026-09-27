@@ -1340,11 +1340,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			final Task _newParentTask = newParentTask;
 			final Object eventSource = e.getSource();
 
-			taskOutlines.getDefaultOutline().getHierarchy().visitAll(newParentNode, new Consumer<Object>() { public void accept(Object arg) {
-					Node node=(Node)arg;
-					if (!(node.getImpl() instanceof Task task)) return;
-					DependencyService.getInstance().removeAnyDependencies(task, _newParentTask,eventSource);
-				}
+			taskOutlines.getDefaultOutline().getHierarchy().visitAll(newParentNode, arg -> {
+				Node visitedNode=(Node)arg;
+				if (!(visitedNode.getImpl() instanceof Task visitedTask)) return;
+				DependencyService.getInstance().removeAnyDependencies(visitedTask, _newParentTask,eventSource);
 			});
 		}
 		if (!e.isVoid()) { // if the event was not the promotion of a void node
