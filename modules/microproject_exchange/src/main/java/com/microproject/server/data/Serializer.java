@@ -219,8 +219,7 @@ public class Serializer {
             //assignments
             final Collection<AssignmentData> assignments=(flatAssignments==null)?new ArrayList<>(task.getAssignments().size()):flatAssignments;
             if (taskDirty)
-            forAssignments(task, new AssignmentClosure(){ //claur
-                public void execute(Assignment assignment,int s) throws IOException {
+            forAssignments(task, (assignment, s) -> {
 						ResourceImpl r=(ResourceImpl)assignment.getResource();
 						AssignmentData assignmentData=(AssignmentData)serialize(assignment,AssignmentData.FACTORY,null);
 						assignmentData.setStatus(SerializedDataObject.UPDATE);
@@ -248,7 +247,6 @@ public class Serializer {
 						assignmentData.setDuration(assignment.getDuration()); //assignments notification
 
 						assignments.add(assignmentData);
-            	}
             });
             if (flatAssignments==null) taskData.setAssignments(assignments);
 //~            taskData.setStart(new Date(task.getStart()));
