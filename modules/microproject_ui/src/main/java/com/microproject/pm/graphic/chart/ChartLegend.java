@@ -354,7 +354,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	}
 	
 	private List pathsToList(TreePath[] paths) {
-		List list = new ArrayList();
+		List list = new ArrayList(paths == null ? 0 : paths.length);
 		if (paths != null) {
 			for (int i=0; i < paths.length; i++) {
 				list.add(((GraphicNode)paths[i].getLastPathComponent()).getNode().getImpl());
@@ -449,7 +449,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	}
 	
 	private List extractResources(List list) {
-		ArrayList resList = new ArrayList();
+		ArrayList resList = new ArrayList(list.size());
 		for (Object obj : list) {
 			if (obj instanceof Resource)
 				resList.add(obj);
