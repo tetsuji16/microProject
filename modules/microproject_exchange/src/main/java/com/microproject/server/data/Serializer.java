@@ -701,18 +701,6 @@ public class Serializer {
     	project.setResourcePool(resourcePool);
 
     	//resource outline
-    	/* version with outline on project resource
-    	 * if (resources!=null){
-            for (Iterator i=resources.iterator();i.hasNext();){
-                ResourceData resourceData=(ResourceData)i.next();
-                ResourceData parentData=(ResourceData)resourceData.getParentResource();
-                Node node=(Node)resourceNodeMap.get(resourceData.getEnterpriseResource());
-                Node parentNode=(parentData==null)?
-                		null:
-                		((Node)resourceNodeMap.get(parentData.getEnterpriseResource()));
-                project.getResourcePool().addToDefaultOutline(parentNode,node,(int)resourceData.getChildPosition());
-            }
-        }*/
     	if (resources!=null){
 
     		for (ResourceData resourceData:resources){
