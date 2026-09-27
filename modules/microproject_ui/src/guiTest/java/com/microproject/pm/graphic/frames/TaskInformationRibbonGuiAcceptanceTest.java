@@ -12,6 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.GraphicsConfiguration;
+import java.awt.Insets;
+import java.awt.Toolkit;
 import java.awt.Dialog;
 import java.awt.Component;
 import java.awt.Point;
@@ -282,7 +285,29 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		TaskInformationDialog dialog = findTaskInformationDialog();
 		assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + task.getId(), dialog.getTitle());
 		assertTextStyleTabComponentsFit(dialog);
+		assertGeneralTabUsesAvailableScreenHeight(dialog);
 		capture(robot, dialog);
+	}
+
+	private static void assertGeneralTabUsesAvailableScreenHeight(TaskInformationDialog dialog) throws Exception {
+		GraphicsConfiguration configuration = dialog.getGraphicsConfiguration();
+		assertNotNull(configuration, "Task Information must belong to a display configuration");
+		Rectangle monitor = configuration.getBounds();
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+		Rectangle usable = new Rectangle(monitor.x + insets.left, monitor.y + insets.top,
+				monitor.width - insets.left - insets.right, monitor.height - insets.top - insets.bottom);
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(usable.contains(dialog.getBounds()), () -> "Task Information dialog must fit the usable monitor bounds; dialog="
+					+ dialog.getBounds() + ", usable=" + usable);
+			JTabbedPane tabs = findTabbedPane(dialog);
+			tabs.setSelectedIndex(0);
+			layoutTree(dialog);
+			JScrollPane generalTab = (JScrollPane) tabs.getComponentAt(0);
+			int maxViewportHeight = Math.max(300, usable.height - 140);
+			if (generalTab.getViewport().getView().getPreferredSize().height <= maxViewportHeight)
+				assertFalse(generalTab.getVerticalScrollBar().isVisible(),
+						"General tab should not scroll when its content fits within the available screen height");
+		});
 	}
 
 	private static void assertTextStyleTabComponentsFit(TaskInformationDialog dialog) throws Exception {

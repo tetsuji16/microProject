@@ -29,9 +29,13 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Frame;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -117,6 +121,23 @@ public class TaskInformationDialog extends InformationDialog {
 	private int notesTabIndex;
 	private int resourcesTabIndex;
 
+	@Override
+	public void setLocationRelativeTo(Component reference) {
+		super.setLocationRelativeTo(reference);
+		GraphicsConfiguration configuration = getGraphicsConfiguration();
+		if (configuration == null || GraphicsEnvironment.isHeadless())
+			return;
+		Rectangle monitor = configuration.getBounds();
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+		int left = monitor.x + insets.left;
+		int top = monitor.y + insets.top;
+		int right = monitor.x + monitor.width - insets.right;
+		int bottom = monitor.y + monitor.height - insets.bottom;
+		int x = Math.max(left, Math.min(getX(), right - getWidth()));
+		int y = Math.max(top, Math.min(getY(), bottom - getHeight()));
+		setLocation(x, y);
+	}
+
 	// Bar color fields shown in the General tab (issue #16)
 	private BarColorField barStartColor;
 	private BarColorField barMiddleColor;
@@ -184,14 +205,14 @@ public class TaskInformationDialog extends InformationDialog {
 		// Keep the dialog within a normal desktop viewport.  Every tab receives a
 		// real scroll viewport, so locale/DPI-specific preferred heights do not
 		// overlap controls or push the dialog beyond the screen.
-		FormLayout layout = new FormLayout("430dlu:grow", "fill:300dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
+		FormLayout layout = new FormLayout("430dlu:grow", "fill:pref:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
 		CellConstraints cc = new CellConstraints();
 		
 		taskTabbedPane= new JTabbedPane();
 		FlatUiSupport.styleTabbedPane(taskTabbedPane);
-		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.General"),scrollableTab(createGeneralPanel())); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.General"),scrollableTab(createGeneralPanel(), true)); //$NON-NLS-1$
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.TextStyle"),scrollableTab(createTextStylePanel())); //$NON-NLS-1$
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Predecessors"),scrollableTab(createPredecessorsPanel())); //$NON-NLS-1$
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Successors"),scrollableTab(createSuccessorsPanel())); //$NON-NLS-1$
@@ -212,6 +233,10 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	private JComponent scrollableTab(JComponent contents) {
+		return scrollableTab(contents, false);
+	}
+
+	private JComponent scrollableTab(JComponent contents, boolean expandToFit) {
 		JScrollPane scrollPane = new JScrollPane(contents,
 				JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 		scrollPane.setBorder(null);
@@ -221,9 +246,26 @@ public class TaskInformationDialog extends InformationDialog {
 		// Dependency tabs have an action row (New/Remove) above their grids.  A
 		// 360px viewport lets the growing grid consume that row on normal Windows
 		// DPI settings, leaving no way to create a cross-project link from the UI.
-		scrollPane.setPreferredSize(new Dimension(700, 460));
+		scrollPane.setPreferredSize(new Dimension(700, preferredViewportHeight(contents, expandToFit)));
 		scrollPane.setMinimumSize(new Dimension(480, 300));
 		return scrollPane;
+	}
+
+	private int preferredViewportHeight(JComponent contents, boolean expandToFit) {
+		int baseHeight = 460;
+		if (!expandToFit || GraphicsEnvironment.isHeadless())
+			return baseHeight;
+		GraphicsConfiguration configuration = getGraphicsConfiguration();
+		if (configuration == null && owner != null)
+			configuration = owner.getGraphicsConfiguration();
+		if (configuration == null)
+			return baseHeight;
+		Insets screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+		int usableHeight = configuration.getBounds().height - screenInsets.top - screenInsets.bottom;
+		// Reserve room for the title bar, tab strip, dialog buttons, and borders.
+		int maxViewportHeight = Math.max(300, usableHeight - 140);
+		int desiredHeight = Math.max(baseHeight, contents.getPreferredSize().height);
+		return Math.max(300, Math.min(desiredHeight, maxViewportHeight));
 	}
 
 	private JComponent createTextStylePanel() {
