@@ -2259,6 +2259,8 @@ registration order are unchanged. This exact initialization corresponds to
 
 `ProjectFactory.collectProjectBranchIds` now passes its descendant scan to `DeepChildWalker` as a lambda. `git blame` traces the project-node cast and ID collection to OpenProj (`54978d281e`); the active close-in-progress coordination path uses the collected IDs to prevent duplicate project closes. The fork-added null guard remains unchanged. `ProjectFactoryClosingTest` passed.
 
+`ClassUtils.doubleToObject` now uses `Byte.valueOf` and `Short.valueOf` instead of deprecated wrapper constructors. `git blame` traces both branches to the OpenProj baseline (`d2fa3c20a`). The only production caller is `Field.getSummarizedValueForField`, which consumes the wrappers as display values; no caller relies on wrapper reference identity. The conversion still narrows the same `Double` value to the same primitive wrapper type. `ClassUtilsDoubleToObjectTest` passed with positive Byte and negative Short conversions.
+
 `Task.arrangeTask` and its child traversal now type the output as `Collection<? super PredecessorTaskList.TaskReference>`. `git blame` traces the ordering algorithm to OpenProj (`d2fa3c20a`); callers may still pass `Collection<Object>` while the method can only add the task-reference values used by critical-path ordering. `NormalTaskDurationTest` and the full `:microproject_core:test --console=plain` passed.
 
 `Project.getRowHeight` now accepts `SortedSet<Integer>` and relies on the

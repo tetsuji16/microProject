@@ -189,15 +189,15 @@ public class ClassUtils {
  * Convert a Double to an Object of a given class
  * @param value Double value to convert
  * @param clazz Class the class to convert to
- * @return new object of the given class
+ * @return an object of the given class
  * @throws IllegalArgumentException if the value is not convertible to the class
  */	public static Object doubleToObject(Double value, Class<?> clazz) {
 		if (clazz == Boolean.class)
 			return Boolean.valueOf(value.doubleValue() != 0.0);
 		else if (clazz == Byte.class)
-			return new Byte(value.byteValue());
+			return Byte.valueOf(value.byteValue());
 		else if (clazz == Short.class)
-			return new Short(value.shortValue());
+			return Short.valueOf(value.shortValue());
 		else if (clazz == Integer.class)
 			return Integer.valueOf(value.intValue());
 		else if (clazz == Long.class)
