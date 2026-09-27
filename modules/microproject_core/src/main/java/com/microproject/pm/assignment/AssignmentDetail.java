@@ -238,7 +238,7 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	}
 
 
-	void setContour(Object type, Collection bucketList) {
+	void setContour(Object type, Collection<? extends AbstractContourBucket> bucketList) {
 		AbstractContourBucket[] contour = new AbstractContourBucket[bucketList.size()];
 		bucketList.toArray(contour);
 		setContour(type,contour);

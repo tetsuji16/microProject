@@ -2373,3 +2373,9 @@ passed.
 still casts each item to `Assignment` before delegating to its typed factory,
 so existing runtime behavior is unchanged. Its active callers copy assignment
 association lists. Full core tests passed.
+
+`AssignmentDetail.setContour` now accepts
+`Collection<? extends AbstractContourBucket>`, matching the bucket hierarchy
+and its active `PersonalContourMaker` caller. `toArray` still produces the same
+ordered bucket array; `PersonalContourTest` and `AssignmentContourBehaviorTest`
+passed.

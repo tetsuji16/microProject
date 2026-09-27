@@ -71,6 +71,8 @@ an existing snapshot-removal call site. `AssignmentServiceTest` and downstream
 UI compilation passed.
 `HasAssignmentsImpl.copyAssignments` also now accepts `Collection<?>`,
 retaining the per-element `Assignment` cast; full core tests passed.
+`AssignmentDetail.setContour` now accepts the bucket base type with a wildcard;
+the active `PersonalContourMaker` path and both contour regression classes pass.
 | New: legacy `.pod` conversion guidance conflicts with MPO default | Implemented locally | Deprecated-format recovery now recommends `xml or mpo`. Legacy `.pod` opening and explicit `.pod` Save As compatibility remain available. |
 
 ## New issue: remove `.pod` as a recommended conversion target
