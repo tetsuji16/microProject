@@ -7,8 +7,15 @@ package com.microproject.preference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.util.Date;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
+
+import com.microproject.options.CalendarOption;
+import com.microproject.options.EditOption;
 
 class GlobalPreferencesTest {
 	@Test
@@ -23,6 +30,12 @@ class GlobalPreferencesTest {
 		String originalGanttBarText = preferences.getDefaultGanttBarText();
 		String originalGanttBarTextPosition = preferences.getDefaultGanttBarTextPosition();
 		boolean originalDarkTheme = preferences.isDarkTheme();
+		String originalDatePattern = preferences.getDatePattern();
+		String originalDateTimePattern = preferences.getDateTimePattern();
+		String originalCurrencyCode = preferences.getCurrencyCode();
+		boolean originalShowTime = CalendarOption.getInstance().isShowTimeInDates();
+		Locale originalLocale = Locale.getDefault();
+		String originalActiveCurrencyCode = com.microproject.datatype.Money.getPreferredCurrencyCode();
 		try {
 			preferences.setUserName("  editor  ");
 			preferences.setShowRowLines(false);
@@ -54,6 +67,22 @@ class GlobalPreferencesTest {
 			assertEquals(GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO, preferences.getDefaultGanttBarTextPosition());
 			preferences.setDarkTheme(!originalDarkTheme);
 			assertEquals(!originalDarkTheme, preferences.isDarkTheme());
+			preferences.setDatePattern("yyyy-MM-dd");
+			preferences.setDateTimePattern("yyyy-MM-dd HH:mm");
+			assertEquals("yyyy-MM-dd", new GlobalPreferences().getDatePattern());
+			assertEquals("yyyy-MM-dd HH:mm", new GlobalPreferences().getDateTimePattern());
+			assertFalse(GlobalPreferences.isValidDatePattern("yyyy-MM-dd '"));
+			assertThrows(IllegalArgumentException.class, () -> preferences.setDatePattern("yyyy-MM-dd '"));
+			preferences.setCurrencyCode("eur");
+			assertEquals("EUR", new GlobalPreferences().getCurrencyCode());
+			assertFalse(GlobalPreferences.isValidCurrencyCode("NOT-A-CURRENCY"));
+			assertThrows(IllegalArgumentException.class, () -> preferences.setCurrencyCode("NOT-A-CURRENCY"));
+			Locale.setDefault(Locale.US);
+			preferences.applyFormatPreferences();
+			CalendarOption.getInstance().setShowTimeInDates(false);
+			assertEquals("1970-01-01", EditOption.getInstance().getDateFormat().format(new Date(0)));
+			CalendarOption.getInstance().setShowTimeInDates(true);
+			assertEquals("1970-01-01 00:00", EditOption.getInstance().getDateFormat().format(new Date(0)));
 		} finally {
 			preferences.setUserName(originalName);
 			preferences.setShowRowLines(originalRows);
@@ -64,6 +93,13 @@ class GlobalPreferencesTest {
 			preferences.setDefaultGanttBarText(originalGanttBarText);
 			preferences.setDefaultGanttBarTextPosition(originalGanttBarTextPosition);
 			preferences.setDarkTheme(originalDarkTheme);
+			preferences.setDatePattern(originalDatePattern);
+			preferences.setDateTimePattern(originalDateTimePattern);
+			preferences.setCurrencyCode(originalCurrencyCode);
+			CalendarOption.getInstance().setShowTimeInDates(originalShowTime);
+			Locale.setDefault(originalLocale);
+			preferences.applyFormatPreferences();
+			com.microproject.datatype.Money.setPreferredCurrencyCode(originalActiveCurrencyCode);
 		}
 		assertTrue(preferences.getFontSize() >= 0);
 	}

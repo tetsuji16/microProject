@@ -24,10 +24,16 @@
  *******************************************************************************/
 package com.microproject.preference;
 
+import java.text.SimpleDateFormat;
+import java.util.Currency;
+import java.util.Locale;
 import java.util.prefs.Preferences;
 
+import com.microproject.datatype.Money;
 import com.microproject.document.ObjectEvent;
 import com.microproject.document.ObjectEventManager;
+import com.microproject.options.EditOption;
+import com.microproject.util.DateTime;
 
 public class GlobalPreferences {
 	public static final String GANTT_BAR_TEXT_RESOURCE_NAMES = "Field.resourceNames";
@@ -51,6 +57,10 @@ public class GlobalPreferences {
 	private String defaultGanttBarTextPosition = normalizeGanttBarTextPosition(
 			STORE.get("defaultGanttBarTextPosition", GANTT_BAR_TEXT_POSITION_AUTO));
 	private boolean darkTheme = STORE.getBoolean("darkTheme", false);
+	/** Empty patterns use the active Java locale's date and date-time formats. */
+	private String datePattern = readDatePattern("datePattern");
+	private String dateTimePattern = readDatePattern("dateTimePattern");
+	private String currencyCode = readCurrencyCode();
 
 	public boolean isShowProjectResourcesOnly() {
 		return !showAllResources;
@@ -149,6 +159,56 @@ public class GlobalPreferences {
 		fireUpdateEvent(this, this);
 	}
 
+	/** Empty means use the date-only format supplied by the active locale. */
+	public String getDatePattern() { return datePattern; }
+	public void setDatePattern(String value) {
+		String normalized = normalizeDatePattern(value);
+		if (normalized.equals(datePattern)) return;
+		datePattern = normalized;
+		storeDatePattern("datePattern", normalized);
+		fireUpdateEvent(this, this);
+	}
+
+	/** Empty means use the date-time format supplied by the active locale. */
+	public String getDateTimePattern() { return dateTimePattern; }
+	public void setDateTimePattern(String value) {
+		String normalized = normalizeDatePattern(value);
+		if (normalized.equals(dateTimePattern)) return;
+		dateTimePattern = normalized;
+		storeDatePattern("dateTimePattern", normalized);
+		fireUpdateEvent(this, this);
+	}
+
+	/** Empty means use the currency associated with the active locale. */
+	public String getCurrencyCode() { return currencyCode; }
+	public void setCurrencyCode(String value) {
+		String normalized = normalizeCurrencyCode(value);
+		if (normalized.equals(currencyCode)) return;
+		currencyCode = normalized;
+		if (normalized.isEmpty()) STORE.remove("currencyCode");
+		else STORE.put("currencyCode", normalized);
+		fireUpdateEvent(this, this);
+	}
+
+	public static boolean isValidCurrencyCode(String value) {
+		try {
+			normalizeCurrencyCode(value);
+			return true;
+		} catch (IllegalArgumentException invalidCode) {
+			return false;
+		}
+	}
+
+	/** Applies user date patterns after the application locale has been selected. */
+	public void applyFormatPreferences() {
+		EditOption options = EditOption.getInstance();
+		options.setDateFormat(dateTimePattern.isEmpty()
+			? DateTime.utcDateFormatInstance() : DateTime.dateFormatInstance(dateTimePattern));
+		options.setShortDateFormat(datePattern.isEmpty()
+			? DateTime.utcShortDateFormatInstance() : DateTime.dateFormatInstance(datePattern));
+		Money.setPreferredCurrencyCode(currencyCode);
+	}
+
 	/** Default annotation for newly opened Gantt views; saved view settings still take precedence. */
 	public String getDefaultGanttBarText() { return defaultGanttBarText; }
 	public void setDefaultGanttBarText(String value) {
@@ -181,6 +241,46 @@ public class GlobalPreferences {
 	private static Integer readColor(String key) {
 		int value = STORE.getInt(key, -1);
 		return value < 0 ? null : Integer.valueOf(value & 0x00ffffff);
+	}
+	private static String readDatePattern(String key) {
+		String value = STORE.get(key, "").trim();
+		return isValidDatePattern(value) ? value : "";
+	}
+	private static String normalizeDatePattern(String value) {
+		String normalized = value == null ? "" : value.trim();
+		if (!isValidDatePattern(normalized)) throw new IllegalArgumentException("Invalid date format pattern");
+		return normalized;
+	}
+	public static boolean isValidDatePattern(String value) {
+		if (value == null || value.isBlank()) return true;
+		try {
+			new SimpleDateFormat(value.trim(), Locale.ROOT);
+			return true;
+		} catch (IllegalArgumentException invalidPattern) {
+			return false;
+		}
+	}
+	private static void storeDatePattern(String key, String value) {
+		if (value.isEmpty()) STORE.remove(key);
+		else STORE.put(key, value);
+	}
+	private static String normalizeCurrencyCode(String value) {
+		String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+		if (normalized.isEmpty()) return "";
+		try {
+			Currency.getInstance(normalized);
+			return normalized;
+		} catch (IllegalArgumentException invalidCode) {
+			throw new IllegalArgumentException("Invalid ISO 4217 currency code", invalidCode);
+		}
+	}
+	private static String readCurrencyCode() {
+		try {
+			return normalizeCurrencyCode(STORE.get("currencyCode", ""));
+		} catch (IllegalArgumentException invalidCode) {
+			STORE.remove("currencyCode");
+			return "";
+		}
 	}
 
 	/** Check GitHub Releases at startup for a newer version (#338 plan D). */

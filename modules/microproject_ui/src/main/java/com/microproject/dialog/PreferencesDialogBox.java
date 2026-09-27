@@ -16,6 +16,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JColorChooser;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
@@ -66,6 +67,23 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 				preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem()));
 		theme.addActionListener(event -> updateThemeRestartNotice.run());
 		updateThemeRestartNotice.run();
+		JTextField datePattern = new JTextField(preferences.getDatePattern(), 16);
+		datePattern.setName("preferencesDatePattern");
+		datePattern.setToolTipText(UsabilityStrings.text("preferences.datePatternHelp"));
+		JTextField dateTimePattern = new JTextField(preferences.getDateTimePattern(), 16);
+		dateTimePattern.setName("preferencesDateTimePattern");
+		dateTimePattern.setToolTipText(UsabilityStrings.text("preferences.datePatternHelp"));
+		JTextField currencyCode = new JTextField(preferences.getCurrencyCode(), 8);
+		currencyCode.setName("preferencesCurrencyCode");
+		currencyCode.setToolTipText(UsabilityStrings.text("preferences.currencyCodeHelp"));
+		JLabel formatRestartNotice = new JLabel(UsabilityStrings.text("preferences.dateFormatRestartRequired"));
+		formatRestartNotice.setName("preferencesDateFormatRestartRequired");
+		Runnable updateFormatRestartNotice = () -> formatRestartNotice.setVisible(
+				!preferences.getDatePattern().equals(datePattern.getText().trim())
+					|| !preferences.getDateTimePattern().equals(dateTimePattern.getText().trim())
+					|| !preferences.getCurrencyCode().equals(currencyCode.getText().trim().toUpperCase(java.util.Locale.ROOT)));
+		watchFormatPatternChanges(updateFormatRestartNotice, datePattern, dateTimePattern, currencyCode);
+		updateFormatRestartNotice.run();
 		JSpinner recoveryInterval = autoSaveControl == null ? null
 				: new JSpinner(new SpinnerNumberModel(autoSaveControl.getIntervalMinutes(), 1, 1440, 1));
 		if (recoveryInterval != null) recoveryInterval.setName("preferencesAutoSaveInterval");
@@ -123,6 +141,10 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		form.add(new JLabel()); form.add(checkUpdates);
 		form.add(new JLabel(UsabilityStrings.text("preferences.theme"))); form.add(theme);
 		form.add(new JLabel()); form.add(themeRestartNotice);
+		form.add(new JLabel(UsabilityStrings.text("preferences.datePattern"))); form.add(datePattern);
+		form.add(new JLabel(UsabilityStrings.text("preferences.dateTimePattern"))); form.add(dateTimePattern);
+		form.add(new JLabel(UsabilityStrings.text("preferences.currencyCode"))); form.add(currencyCode);
+		form.add(new JLabel()); form.add(formatRestartNotice);
 		if (recoveryInterval != null) {
 			form.add(new JLabel(UsabilityStrings.text("preferences.autoSaveInterval"))); form.add(recoveryInterval);
 		}
@@ -134,6 +156,13 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {
+			if (!GlobalPreferences.isValidDatePattern(datePattern.getText())
+					|| !GlobalPreferences.isValidDatePattern(dateTimePattern.getText())
+					|| !GlobalPreferences.isValidCurrencyCode(currencyCode.getText())) {
+				JOptionPane.showMessageDialog(this, UsabilityStrings.text("preferences.invalidFormat"),
+					UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
+				return;
+			}
 			preferences.setUserName(userName.getText());
 			preferences.setShowRowLines(rowLines.isSelected());
 			Object selectedFont = font.getSelectedItem();
@@ -149,6 +178,9 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			preferences.setDefaultGanttBarColor(selectedBarColor[0] == null ? null : Integer.valueOf(selectedBarColor[0].getRGB()));
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
 			preferences.setDarkTheme(darkTheme.equals(theme.getSelectedItem()));
+			preferences.setDatePattern(datePattern.getText());
+			preferences.setDateTimePattern(dateTimePattern.getText());
+			preferences.setCurrencyCode(currencyCode.getText());
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
 			dispose();
@@ -170,5 +202,15 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 	private static void updateDefaultBarColorButton(JButton button, Color color) {
 		button.setBackground(color);
 		button.setText(color == null ? UsabilityStrings.text("preferences.ganttBarColorAutomatic") : String.format("#%06X", color.getRGB() & 0x00ffffff));
+	}
+
+	private static void watchFormatPatternChanges(Runnable refresh, JTextField... fields) {
+		javax.swing.event.DocumentListener listener = new javax.swing.event.DocumentListener() {
+			public void insertUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
+			public void removeUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
+			public void changedUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
+		};
+		for (JTextField field : fields)
+			field.getDocument().addDocumentListener(listener);
 	}
 }

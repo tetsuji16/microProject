@@ -36,19 +36,24 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.util.DateTime;
+import com.microproject.preference.GlobalPreferences;
 
 class MoneyTest {
 	private Locale originalLocale;
+	private String originalCurrencyCode;
 
 	@BeforeEach
 	void useStableCurrencyLocale() {
 		originalLocale = Locale.getDefault();
 		Locale.setDefault(Locale.US);
+		originalCurrencyCode = Money.getPreferredCurrencyCode();
+		Money.setPreferredCurrencyCode("");
 	}
 
 	@AfterEach
 	void restoreLocale() {
 		Locale.setDefault(originalLocale);
+		Money.setPreferredCurrencyCode(originalCurrencyCode);
 	}
 
 	@Test
@@ -87,5 +92,22 @@ class MoneyTest {
 		assertEquals("$1234.50", usCurrency);
 		assertEquals("1234,50 €", germanCurrency);
 		assertNotEquals(usDate, germanDate);
+	}
+
+	@Test
+	void currencyPreferenceOverridesTheLocaleCurrency() {
+		GlobalPreferences preferences = new GlobalPreferences();
+		String originalCurrencyCode = preferences.getCurrencyCode();
+		try {
+			preferences.setCurrencyCode("EUR");
+			preferences.applyFormatPreferences();
+			assertEquals("EUR", Money.getMoneyFormatInstance().getCurrency().getCurrencyCode());
+			preferences.setCurrencyCode("JPY");
+			preferences.applyFormatPreferences();
+			assertEquals(0, Money.getMoneyFormatInstance().getMaximumFractionDigits());
+		} finally {
+			preferences.setCurrencyCode(originalCurrencyCode);
+			preferences.applyFormatPreferences();
+		}
 	}
 }

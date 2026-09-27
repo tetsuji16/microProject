@@ -27,6 +27,8 @@ package com.microproject.datatype;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.NumberFormat;
+import java.util.Currency;
+import java.util.Locale;
 
 import com.microproject.strings.Messages;
 
@@ -35,6 +37,14 @@ import com.microproject.strings.Messages;
  */
 public class Money extends BigDecimal {
 	private static final long serialVersionUID = -8182666966278921881L;
+	private static volatile String preferredCurrencyCode = "";
+
+	public static String getPreferredCurrencyCode() { return preferredCurrencyCode; }
+	public static void setPreferredCurrencyCode(String value) {
+		String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+		if (!normalized.isEmpty()) Currency.getInstance(normalized);
+		preferredCurrencyCode = normalized;
+	}
 	
 	public static NumberFormat getMoneyFormatInstance() {
 		return createCurrencyFormat(false);
@@ -46,6 +56,16 @@ public class Money extends BigDecimal {
 
 	private static NumberFormat createCurrencyFormat(boolean compact) {
 		NumberFormat format = NumberFormat.getCurrencyInstance();
+		String currencyCode = preferredCurrencyCode;
+		if (!currencyCode.isEmpty()) {
+			Currency currency = Currency.getInstance(currencyCode);
+			format.setCurrency(currency);
+			int fractionDigits = currency.getDefaultFractionDigits();
+			if (fractionDigits >= 0) {
+				format.setMinimumFractionDigits(fractionDigits);
+				format.setMaximumFractionDigits(fractionDigits);
+			}
+		}
 		format.setGroupingUsed(false);
 		if (compact)
 			format.setMaximumFractionDigits(0);

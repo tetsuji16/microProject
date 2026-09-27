@@ -33,6 +33,7 @@ import javax.swing.JOptionPane;
 import com.microproject.pm.graphic.frames.ApplicationStartupFactory;
 import com.microproject.pm.graphic.frames.MainFrameFactory;
 import com.microproject.preference.ConfigurationFile;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.strings.Messages;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
@@ -49,6 +50,7 @@ public class Main {
 		System.setProperty("apple.awt.application.name","ProjectLibre");
 		System.setProperty("apple.laf.useScreenMenuBar","true");
 		Locale.setDefault(ConfigurationFile.getLocale());
+		new GlobalPreferences().applyFormatPreferences();
 		HashMap<String, Object> opts = ApplicationStartupFactory.extractOpts(args);
 		String osName=System.getProperty("os.name").toLowerCase(Locale.ROOT);
 		if (osName.startsWith("linux")){

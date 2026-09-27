@@ -40,6 +40,9 @@ import com.microproject.util.FlatLafSupport;
 class PreferencesDialogGuiAcceptanceTest {
 	private GlobalPreferences testPreferences;
 	private boolean originalDarkTheme;
+	private String originalDatePattern;
+	private String originalDateTimePattern;
+	private String originalCurrencyCode;
 
 	@AfterEach
 	void closeDialogs() throws Exception {
@@ -50,6 +53,9 @@ class PreferencesDialogGuiAcceptanceTest {
 					window.dispose();
 			if (preferences != null) {
 				preferences.setDarkTheme(originalDarkTheme);
+				preferences.setDatePattern(originalDatePattern);
+				preferences.setDateTimePattern(originalDateTimePattern);
+				preferences.setCurrencyCode(originalCurrencyCode);
 				FlatLafSupport.initialize();
 			}
 		});
@@ -62,7 +68,13 @@ class PreferencesDialogGuiAcceptanceTest {
 		AtomicInteger appliedInterval = new AtomicInteger(-1);
 		testPreferences = new GlobalPreferences();
 		originalDarkTheme = testPreferences.isDarkTheme();
+		originalDatePattern = testPreferences.getDatePattern();
+		originalDateTimePattern = testPreferences.getDateTimePattern();
+		originalCurrencyCode = testPreferences.getCurrencyCode();
 		testPreferences.setDarkTheme(false);
+		testPreferences.setDatePattern("");
+		testPreferences.setDateTimePattern("");
+		testPreferences.setCurrencyCode("");
 		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences, null,
 			new AutoSaveControl() {
 				private int intervalMinutes = DEFAULT_INTERVAL_MINUTES;
@@ -94,11 +106,22 @@ class PreferencesDialogGuiAcceptanceTest {
 		JComboBox<?> theme = findNamedComponent(dialog, JComboBox.class, "preferencesTheme");
 		JLabel themeRestartNotice = findNamedComponent(dialog, JLabel.class, "preferencesThemeRestartNotice");
 		assertTrue(theme != null && themeRestartNotice != null, "Theme choice must expose its restart notice");
+		JTextField datePattern = findNamedComponent(dialog, JTextField.class, "preferencesDatePattern");
+		JTextField dateTimePattern = findNamedComponent(dialog, JTextField.class, "preferencesDateTimePattern");
+		JTextField currencyCode = findNamedComponent(dialog, JTextField.class, "preferencesCurrencyCode");
+		JLabel formatRestartNotice = findNamedComponent(dialog, JLabel.class, "preferencesDateFormatRestartRequired");
+		assertTrue(datePattern != null && dateTimePattern != null && currencyCode != null && formatRestartNotice != null,
+			"Preferences must expose date/currency formats and their restart notice");
 		JSpinner interval = findNamedComponent(dialog, JSpinner.class, "preferencesAutoSaveInterval");
 		assertTrue(interval != null, "Preferences must expose the auto-recovery interval");
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(), "Preferences dialog");
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Preferences dialog");
 		capture(robot, dialog, "preferences-theme-selection.png");
+		enterText(robot, datePattern, "dd.MM.yyyy");
+		enterText(robot, dateTimePattern, "dd.MM.yyyy HH:mm");
+		enterText(robot, currencyCode, "EUR");
+		GuiAcceptanceSupport.await(formatRestartNotice::isVisible,
+			"Changing date formats must tell users to restart the application");
 		JTextField intervalEditor = ((JSpinner.DefaultEditor) interval.getEditor()).getTextField();
 		click(robot, intervalEditor);
 		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_A);
@@ -117,6 +140,9 @@ class PreferencesDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Preferences dialog did not close after Apply");
 		assertEquals(12, appliedInterval.get(), "Apply must persist the entered recovery interval");
 		assertTrue(testPreferences.isDarkTheme(), "Apply must persist the selected dark theme");
+		assertEquals("dd.MM.yyyy", testPreferences.getDatePattern(), "Apply must persist the date-only format");
+		assertEquals("dd.MM.yyyy HH:mm", testPreferences.getDateTimePattern(), "Apply must persist the date-time format");
+		assertEquals("EUR", testPreferences.getCurrencyCode(), "Apply must persist the currency override");
 	}
 
 	@Test
@@ -124,6 +150,9 @@ class PreferencesDialogGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		testPreferences = new GlobalPreferences();
 		originalDarkTheme = testPreferences.isDarkTheme();
+		originalDatePattern = testPreferences.getDatePattern();
+		originalDateTimePattern = testPreferences.getDateTimePattern();
+		originalCurrencyCode = testPreferences.getCurrencyCode();
 		testPreferences.setDarkTheme(true);
 		FlatLafSupport.initialize();
 		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
@@ -179,6 +208,24 @@ class PreferencesDialogGuiAcceptanceTest {
 		robot.mouseMove(center[0].x, center[0].y);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private static void enterText(Robot robot, JTextField field, String value) throws Exception {
+		click(robot, field);
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_A); robot.keyRelease(KeyEvent.VK_CONTROL);
+		for (char character : value.toCharArray()) {
+			if (character == ' ') {
+				robot.keyPress(KeyEvent.VK_SPACE); robot.keyRelease(KeyEvent.VK_SPACE);
+				continue;
+			}
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(Character.toUpperCase(character));
+			if (keyCode == KeyEvent.VK_UNDEFINED) throw new IllegalArgumentException("Unsupported test character: " + character);
+			if (Character.isUpperCase(character)) robot.keyPress(KeyEvent.VK_SHIFT);
+			robot.keyPress(keyCode); robot.keyRelease(keyCode);
+			if (Character.isUpperCase(character)) robot.keyRelease(KeyEvent.VK_SHIFT);
+		}
 		robot.waitForIdle();
 	}
 
