@@ -161,7 +161,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private String manager="";
 	private transient HasKeyImpl hasKey;
 	private String notes="";
-	private transient LinkedList<Task> tasks = new LinkedList<Task>();
+	private transient LinkedList<Task> tasks = new LinkedList<>();
 	private transient ResourcePool resourcePool = null;
 	private transient SchedulingAlgorithm schedulingAlgorithm = null;
 	private transient boolean initialized = false;
@@ -1410,7 +1410,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	    s.defaultReadObject();
 	    hasKey=HasKeyImpl.deserialize(s,this);
 	    initializeFacades();
-	    tasks = new LinkedList<Task>();
+	    tasks = new LinkedList<>();
 		objectEventManager = new ObjectEventManager();
 		objectSelectionEventManager = new ObjectSelectionEventManager();
 		scheduleEventManager = new ScheduleEventManager();
@@ -1588,7 +1588,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	void addRepaired(Task t) {
 		if (repaired == null)
-			repaired = new LinkedList<Task>();
+			repaired = new LinkedList<>();
 		repaired.add(t);
 	}
 	public void markAllTasksAsNeedingRecalculation(boolean invalidateSchedules) {
