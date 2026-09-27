@@ -117,19 +117,9 @@ public class PredecessorTaskTree {
 	}
 	
 	public class PertLayoutTreeNode extends DefaultMutableTreeNode{
-	    //protected boolean dirty;
         public PertLayoutTreeNode(Object userObject) {
             super(userObject);
-            //dirty=true;
         }
-        /*public boolean isDirty() {
-            return dirty;
-        }
-        public void setDirty(boolean dirty) {
-            this.dirty = dirty;
-        }*/
-        
-        
 	}
 	
 	
