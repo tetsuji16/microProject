@@ -288,10 +288,14 @@ files, so Phase 0 remains open.
 
 Ran `java scripts/audit/JavaSymbolExtractor.java modules` and compared its
 canonical Java identities with the 778 current-path `KEEP_PROJECTLIBRE` ledger
-entries. The extractor parsed 30,751 symbols. Exact identity matching found
-660 entries. Of the 118 remaining entries, 71 belong to the seven historical
-MSPDI paths above; the other 47 point to existing files but no longer have the
-same identity in the extractor:
+entries. The extractor parsed 30,740 symbols. Exact identity matching found
+656 entries. Of the 122 remaining entries, 71 belong to the seven historical
+MSPDI paths above; the other 51 are on extant paths but no longer match a
+current declaration identity. The prior snapshot below recorded 30,751 parsed
+symbols, 660 matches, and 47 residual identities; later cleanup commits
+removed or modernized declarations, so those counts are superseded. The
+remaining 51 identities are ledger reconciliation work, not 51 modernization
+candidates:
 
 - 30 are line-addressed anonymous-class symbols: 14 anonymous types and their
   14 methods, plus two captured fields in `Linker`. Their upstream line-number
@@ -313,11 +317,17 @@ same identity in the extractor:
   `TypeSystemConverter` interfaces remain public/reflection-sensitive
   compatibility boundaries and are not candidates for further signature
   narrowing without an external extension audit.
+- Four are `MicrosoftImporter` fields (`allTasks`, `allResources`,
+  `earliestStart`, and `subprojects`) removed as unused/write-only state in
+  commits `244024d90` and `95eb1e090`; their ledger identities are stale, not
+  active declarations.
 
 This pass distinguishes absent historical symbols from identity drift in
 current declarations; it does not by itself complete all production caller or
-external compatibility review. Phase 0 remains open for the 30 anonymous
-declarations and compatibility-boundary caller checks.
+external compatibility review. Phase 0 remains open until the 51 extant-path
+identity residuals are mapped to current declarations or documented as removed,
+renamed, or intentionally compatibility-sensitive, and the compatibility-
+boundary caller checks are complete.
 
 ## Initial inventory finding
 
