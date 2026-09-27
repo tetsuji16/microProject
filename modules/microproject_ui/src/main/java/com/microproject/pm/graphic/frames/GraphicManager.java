@@ -122,10 +122,8 @@ import com.microproject.collaboration.CollaborationMetadataStore;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.util.ClassLoaderUtils;
-import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.BaselineDialog;
-import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.OpenProjectDialog;
 import com.microproject.dialog.ProjectDialog;
@@ -266,8 +264,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private ProjectInformationDialog projectInformationDialog = null;
 	private TaskInformationDialog taskInformationDialog = null;
 	private ResourceInformationDialog resourceInformationDialog = null;
-    private AboutDialog aboutDialog = null;
-    private HelpDialog helpDialog = null;
+    private final ApplicationInfoDialogCoordinator applicationInfoDialogCoordinator = new ApplicationInfoDialogCoordinator();
     private BaselineDialog baselineDialog = null;
     private ResourceMappingDialog resourceMappingDialog=null;
 	ProjectFactory projectFactory = null;
@@ -3934,23 +3931,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
     public void showAboutDialog() {
-    	if (aboutDialog == null) {
-    		aboutDialog = AboutDialog.getInstance(getFrame());
-    		aboutDialog.pack();
-    		aboutDialog.setModal(true);
-    	}
-    	aboutDialog.setLocationRelativeTo(getFrame());//to center on screen
-    	aboutDialog.setVisible(true);
+		applicationInfoDialogCoordinator.showAbout(getFrame());
     }
 
     public void showHelpDialog(/*DocumentFrame documentFrame*/) {
-    	if (helpDialog == null) {
-    		helpDialog = HelpDialog.getInstance(getFrame());
-    		helpDialog.pack();
-    		helpDialog.setModal(true);
-    	}
-    	helpDialog.setLocationRelativeTo(getFrame());//to center on screen
-    	helpDialog.setVisible(true);
+		applicationInfoDialogCoordinator.showHelp(getFrame());
     }
 
 
