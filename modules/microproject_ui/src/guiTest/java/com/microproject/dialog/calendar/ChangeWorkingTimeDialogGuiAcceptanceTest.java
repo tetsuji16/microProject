@@ -624,6 +624,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	}
 
 	private long selectDisplayedWorkingDate(Robot robot, WorkingCalendar calendar) throws Exception {
+		robot.waitForIdle();
 		CalendarService service = CalendarService.getInstance();
 		Point[] point = new Point[1];
 		long[] date = new long[1];
