@@ -72,8 +72,8 @@ public class Messages {
 	private static String getStringFromBundles(String key) {
 		if (key==null)
 			return null;
-		LinkedList<ResourceBundle> buns = new LinkedList<ResourceBundle>();
-		LinkedList<String> foundBundles = new LinkedList<String>();;
+		LinkedList<ResourceBundle> buns = new LinkedList<>();
+		LinkedList<String> foundBundles = new LinkedList<>();
 		if (bundles==null) {
 			lock.lock(); //use lock to avoid useless synchronized when it's already initialized
 			try {

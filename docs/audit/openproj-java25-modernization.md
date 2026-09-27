@@ -2543,3 +2543,9 @@ the per-printer size list. All three corresponding initializations match
 `d2fa3c20a:openproj_ui/src/com/projity/print/PageSizes.java`; the array-based
 capacities, candidate ordering, and fallback entries are unchanged.
 `PageSizesTest` passed.
+
+`Messages.getString` now uses diamond inference for its temporary bundle and
+bundle-name lists. Both initializations match the OpenProj source at
+`d2fa3c20a:openproj_core/src/com/projity/strings/Messages.java`; locale lookup,
+search order, and fallback behavior are unchanged. Core tests passed, with
+downstream UI/exchange compilation verified.
