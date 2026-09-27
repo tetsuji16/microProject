@@ -29,6 +29,7 @@ import java.awt.geom.Point2D;
 import java.util.Iterator;
 
 import com.microproject.pm.graphic.graph.GraphParams;
+import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.network.NetworkParams;
 import com.microproject.pm.graphic.network.NetworkRenderer;
@@ -52,7 +53,7 @@ public class XbsRenderer extends NetworkRenderer {
 		node.translateXbsShape(dx,dy);
 	}
 	
-	public Iterator getDependenciesIterator(){
+	public Iterator<GraphicDependency> getDependenciesIterator(){
    		return ((XbsLayout)((NetworkParams)graphInfo).getNetworkLayout()).getDependencies().iterator();
   	}
 

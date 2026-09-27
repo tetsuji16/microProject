@@ -48,11 +48,11 @@ import com.microproject.graphic.configuration.TexturedShape;
  *
  */
 public class XbsLayout extends AbstractNetworkLayout {
-	protected List dependencies=new ArrayList();
+	protected List<GraphicDependency> dependencies=new ArrayList<>();
 	public XbsLayout(NetworkParams network){
 		super(network);
 	}
-	public List getDependencies() {
+	public List<GraphicDependency> getDependencies() {
 		return dependencies;
 	}
 	public void setCache(NodeModelCache cache){

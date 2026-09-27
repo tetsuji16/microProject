@@ -2457,3 +2457,5 @@ issue #84 cleanup.
 The `Session.getLoadProjectDescriptorsJob` contract and its `LocalSession` implementation now accept `List<ProjectData>`. Both UI entry points pass that typed list to `OpenProjectDialog`, whose row access no longer casts elements. All active repository consumers were searched; the reflective call still resolves the erased `List` parameter, preserving the existing method descriptor.
 
 Project rename duplicate checking now carries `Set<String>` through `Job`, `Alert`, the reflectively invoked `GraphicManager.doRenameProjectDialog`, and `RenameProjectDialog.Form`. The dialog compares names with `String.contains` semantics; the reflected parameter remains erased `Set`, and project-name comparison behavior is unchanged.
+
+`XbsLayout.dependencies` and its accessor now use `List<GraphicDependency>`, and `XbsRenderer` exposes the same type through `Iterator<GraphicDependency>`. The layout only inserts `GraphicDependency` instances; existing network-renderer consumers preserve the iterator order and erased `List`/`Iterator` descriptors. No drawing or hit-testing behavior changed.
