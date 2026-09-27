@@ -105,19 +105,16 @@ public class UniqueIdPool {
 	}
 	
 	protected void makeServerReservationAsync(final int count,final Session session){
-		Thread idBookingThread=new Thread(){
-			public void run(){
-				if (!tryStartAsyncReservation()) return;
-				try {
-					makeServerReservation(count,session);
-				} catch (Exception e) {
-					logger.log(Level.WARNING, "Id cannot be retrieved", e);
-				}finally{
-					finishAsyncReservation();
-				}
-
+		Thread idBookingThread = new Thread(() -> {
+			if (!tryStartAsyncReservation()) return;
+			try {
+				makeServerReservation(count,session);
+			} catch (Exception e) {
+				logger.log(Level.WARNING, "Id cannot be retrieved", e);
+			}finally{
+				finishAsyncReservation();
 			}
-		};
+		});
 		idBookingThread.start();
 	}
 
