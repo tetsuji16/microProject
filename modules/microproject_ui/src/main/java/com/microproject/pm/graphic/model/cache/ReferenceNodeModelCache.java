@@ -28,9 +28,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
@@ -185,7 +184,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		update(null,newCache,change,reschedule);
 		
 		//edges
-		Set edgeChange=new HashSet();
+		Set<GraphicDependency> edgeChange=new HashSet<>();
 		updateEdges(edgeChange);
 		
 		
@@ -194,7 +193,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		updateVisibleElements(change,edgeChange);
 	}
 	
-	protected void updateVisibleElements(Set change,Set edgeChange){
+	protected void updateVisibleElements(Set<?> change,Set<?> edgeChange){
 //		long t0=System.currentTimeMillis();
 		nodeCache.updateVisibleElements(change);
 //		long t1=System.currentTimeMillis();
@@ -217,10 +216,10 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	
 	
-	public void updateEdges(Set change){
+	public void updateEdges(Set<? super GraphicDependency> change){
 	    GraphicDependency current;
-	    for (Iterator i=edgeCache.getCacheIterator();i.hasNext();){
-	        current=(GraphicDependency)i.next();
+	    for (ListIterator<GraphicDependency> i=edgeCache.getCacheIterator();i.hasNext();){
+	        current=i.next();
 	        if (current.isDirty()){
 	            current.setDirty(false);
 	            change.add(current);
@@ -234,12 +233,10 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		int collapseLevel=GraphicConfiguration.getInstance().getCollapseLevel();
 		
 		GraphicNode current;
-		Collection children=model.getHierarchy().getChildren((node==null)?null:node.getNode());
+		List<Node> children=model.getHierarchy().getChildren((node==null)?null:node.getNode());
 		boolean summary=false;
 		if (children!=null){
-			Node child;
-			for (Iterator i=children.iterator();i.hasNext();){
-				child=(Node)i.next();
+			for (Node child : children){
 				Object impl=child.getImpl();
 				if (!(impl instanceof Assignment)) summary=true;
 				current=nodeCache.getElement(child);
@@ -333,8 +330,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	public void buildEdges(){
 		Map<Object, GraphicNode> implMap = new HashMap<>();
 		List<GraphicNode> gnodes = new ArrayList<>();
-		for (Object element : nodeCache.getCache()) {
-			GraphicNode gnode = (GraphicNode) element;
+		for (GraphicNode gnode : nodeCache.getCache()) {
 			if (gnode.isVoid()||gnode.isAssignment()) continue;
 			if (!(gnode.getNode().getImpl() instanceof HasDependencies))
 				continue; // only task-like nodes contribute dependency edges

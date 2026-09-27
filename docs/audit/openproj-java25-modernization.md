@@ -2477,3 +2477,12 @@ methods retain their prior descriptors. The cache test package and UI
 compilation passed. Provenance for the shared cache files was already compared
 against OpenProj above; this type-only modernization does not change the cache
 event or hierarchy algorithms.
+
+`ReferenceNodeModelCache` now iterates the `List<Node>` returned by
+`NodeHierarchy.getChildren` directly and consumes `GraphicDependency` cache
+iterators and `GraphicNode` cache entries without element casts. Its edge-change
+output is constrained to `Set<? super GraphicDependency>`, with the same erased
+`Set` descriptor; the view update inputs remain wildcard sets. The child-list
+contract and the active edge-cache path are OpenProj-derived and already
+provenance-matched above. `javap -s` confirmed the changed methods retain their
+previous erased descriptors. UI compilation and the cache test package passed.
