@@ -2766,3 +2766,13 @@ separate `instanceof` check and cast. The exact hunk is unchanged from OpenProj
 non-`HasKey` values still return zero, and the public method signature is
 unchanged. Core compilation passed; this syntax-only change does not alter
 behavior.
+
+The remaining raw list contracts found in the exact-source core screen are
+concentrated in `ScriptRunner` and its public `LiteProject`, `LiteTask`,
+`LiteResource`, `LiteResourcePool`, and `Row` DTOs. The DTOs implement
+`Serializable`, expose raw list getters/setters, and carry public serialization
+UIDs; the `ScriptRunner` methods are extension-facing. Repository search found
+no concrete setter consumers that establish a narrower element type. Choosing
+a generic element type would therefore assert an unverified contract. Preserve
+these raw descriptors until external scripting/serialization consumers can be
+audited; do not treat them as a source-only generics cleanup.
