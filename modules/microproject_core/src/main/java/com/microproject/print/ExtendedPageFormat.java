@@ -149,7 +149,6 @@ public class ExtendedPageFormat extends PageFormat implements Cloneable,Serializ
 	public ExtendedPageFormat(MediaSizeName sizeName,MediaPrintableArea printableArea) {
 		super();
 		setSizeName(sizeName);
-		//System.out.println("ExtendedPageFormat: "+printableArea);
 		this.printableArea=printableArea;
 		setOrientation(PageFormat.LANDSCAPE);
 		updatePaper();
@@ -158,7 +157,6 @@ public class ExtendedPageFormat extends PageFormat implements Cloneable,Serializ
 	protected void updatePaper(){
 		Paper paper=new Paper();
 		paper.setSize(Math.round(size.getX(PageSize.INCH)*PageSize.POINTS_PER_INCH), Math.round(size.getY(PageSize.INCH)*PageSize.POINTS_PER_INCH));
-		//System.out.println("Paper size: "+paper.getWidth()+"x"+paper.getHeight());
 		paper.setImageableArea(Math.floor(printableArea.getX(PageSize.INCH)*PageSize.POINTS_PER_INCH), Math.floor(printableArea.getY(PageSize.INCH)*PageSize.POINTS_PER_INCH), Math.ceil(printableArea.getWidth(PageSize.INCH)*PageSize.POINTS_PER_INCH), Math.ceil(printableArea.getHeight(PageSize.INCH)*PageSize.POINTS_PER_INCH));
 		setPaper(paper);
 	}
@@ -192,7 +190,6 @@ public class ExtendedPageFormat extends PageFormat implements Cloneable,Serializ
 
 
 	public void setPrintableArea(MediaPrintableArea printableArea) {
-		//System.out.println("setPrintableArea: "+printableArea);
 		this.printableArea = printableArea;
 		updatePaper();
 	}
@@ -234,7 +231,6 @@ public class ExtendedPageFormat extends PageFormat implements Cloneable,Serializ
 
 	public void addAttributes(AttributeSet attr){
 //		MediaSizeName mediaSizeName=MediaSize.findMedia((float)paper.getWidth(),(float)paper.getHeight(),MediaSize.INCH*72);
-//		System.out.println("mediaSizeName="+mediaSizeName);
 		attr.add(sizeName);
 //		attr.add(new MediaPrintableArea((float)paper.getImageableX(),(float)paper.getImageableY(),(float)paper.getImageableWidth(),(float)paper.getImageableHeight(),MediaSize.INCH*72));
 		attr.add(printableArea);
