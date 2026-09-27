@@ -172,6 +172,10 @@ final class RibbonButtonStyler {
 		String firstLine = "";
 		String secondLine = "";
 		for (String word : words) {
+			if (!secondLine.isEmpty()) {
+				secondLine += " " + word;
+				continue;
+			}
 			String candidate = firstLine.isEmpty() ? word : firstLine + " " + word;
 			if (metrics.stringWidth(candidate) <= maxLineWidth || firstLine.isEmpty()) {
 				firstLine = candidate;

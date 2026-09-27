@@ -91,6 +91,17 @@ class RibbonButtonStylerTest {
 	}
 
 	@Test
+	void largeButtonWrappingKeepsWordsAfterTheFirstLineOverflowInOrder() {
+		RibbonButtonStyler styler = new RibbonButtonStyler();
+		JButton button = new JButton("9/29/26 Status Date:");
+
+		styler.styleActionButton(button, "large");
+
+		assertEquals("9/29/26 Status Date:", button.getText()
+			.replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", ""));
+	}
+
+	@Test
 	void largeButtonsUseTheCompressedThemeHeight() {
 		RibbonButtonStyler styler = new RibbonButtonStyler();
 		JButton button = new JButton("名前を付けて保存");
