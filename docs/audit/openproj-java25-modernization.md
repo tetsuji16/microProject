@@ -2581,3 +2581,8 @@ for both lists recreated during cloning. These list responsibilities match
 `d2fa3c20a:openproj_core/src/com/projity/script/object/TimeIntervals.java`;
 clone isolation and window ordering remain unchanged. `TimeIntervalsTest`
 passed.
+
+`Main.main`'s argument-filter and formatted-argument lists now use diamond
+inference. Both construction responsibilities match the OpenProj baseline;
+the argument-array capacity, filtering, and filename normalization are
+unchanged. `MainArgumentsTest` passed.
