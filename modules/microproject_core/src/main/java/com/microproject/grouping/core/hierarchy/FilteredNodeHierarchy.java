@@ -93,10 +93,6 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public void indent(List<Node> nodes, int deltaLevel, NodeModel nodeModel,int actionType) {
 		hierarchy.indent(nodes, deltaLevel, nodeModel,actionType);
 	}
-//	public int insertVoidNodesAfter(NodeHierarchyLocation location, int n,
-//			boolean event) {
-//		return hierarchy.insertVoidNodesAfter(location, n, event);
-//	}
 	public boolean isLeaf(Object node) {
 		return hierarchy.isLeaf(node);
 	}
@@ -118,12 +114,6 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public Node getParent(Node child) {
 		return hierarchy.getParent(child);
 	}
-//	public int getVoidNodesCountAfter(NodeHierarchyLocation location) {
-//		return hierarchy.getVoidNodesCountAfter(location);
-//	}
-//	public ArrayList getVoidNodes(NodeHierarchyLocation location) {
-//		return hierarchy.getVoidNodes(location);
-//	}
 	public void valueForPathChanged(TreePath path, Object newValue) {
  		//TODO works ?
 		hierarchy.valueForPathChanged(path, newValue);

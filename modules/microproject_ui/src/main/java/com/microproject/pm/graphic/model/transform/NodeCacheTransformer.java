@@ -374,54 +374,6 @@ public class NodeCacheTransformer implements CacheTransformer {
         	}
     }
 
-
-
-//    private void placeVoidNodes(ListIterator i,int maxLevel){
-//        List nodes;
-//        GraphicNode previous,child;
-//        Iterator j;
-//        List parentLevelVoidNodes=null;
-//
-//        while (i.hasNext()){
-//            previous=(GraphicNode)i.next();
-//            if (previous.getLevel()<=maxLevel){
-//                i.previous();
-//                return;
-//            }
-//            nodes=refCache.getVoidNodes(previous);
-//            if (nodes!=null)
-//            for (j=nodes.iterator();j.hasNext();){
-//                child=(GraphicNode)j.next();
-//                if (child.getLevel()>previous.getLevel()){
-//                    if (!(previous.isComposite()&&previous.isCollapsed())) i.add(child);
-//                }
-//                else{
-//                    if (parentLevelVoidNodes==null)
-//                        parentLevelVoidNodes=new LinkedList();
-//                    parentLevelVoidNodes.add(child);
-//                }
-//            }
-//            if (parentLevelVoidNodes!=null){ //adds voids nodes at previous level
-//                placeVoidNodes(i,previous.getLevel());
-//                for (j=parentLevelVoidNodes.iterator();j.hasNext();)
-//                    i.add(j.next());
-//                parentLevelVoidNodes=null;
-//            }
-//        }
-//    }
-//
-//    private void placeVoidNodes(List list){
-//        placeVoidNodes(list.listIterator(),0);
-//
-//        List nodes=refCache.getVoidNodes(NodeCache.BEGIN_VOIDNODES);
-//        if (nodes!=null) list.addAll(0,nodes);
-//
-//        nodes=refCache.getVoidNodes(NodeCache.END_VOIDNODES);
-//        if (nodes!=null) list.addAll(nodes);
-//
-//
-//    }
-
     private void removeVoids(List<GraphicNode> list){
     	GraphicNode current;
         for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
