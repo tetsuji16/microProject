@@ -340,22 +340,9 @@ public class ClassUtils {
 		private static final Comparator<Object> defaultTextComparator =
 				(o1, o2) -> ("" + o1).compareTo("" + o2);
 
-		private static Comparator<Object> nullSafeComparator(final Comparator<Object> delegate) {
-			return new Comparator<Object>() {
-				@Override
-				public int compare(Object o1, Object o2) {
-					if (o1 == null)
-						return (o2 == null ? 0 : -1);
-					if (o2 == null)
-						return 1;
-					return delegate.compare(o1, o2);
-				}
-			};
-		}
-
 		@SuppressWarnings("unchecked")
 		private static Comparator<Object> nullSafeNaturalComparator() {
-			return nullSafeComparator((Comparator<Object>) ComparableComparator.getInstance());
+			return Comparator.nullsFirst((Comparator<Object>) ComparableComparator.getInstance());
 		}
 
 		private static void registerComparator(Class<?> type, Comparator<Object> comparator) {
