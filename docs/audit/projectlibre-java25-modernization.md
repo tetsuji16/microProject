@@ -141,6 +141,30 @@ Candidate type names: `AssignmentData`, `ByteArrayObject`, `CalendarData`,
 `ServerFileImporter`, `ServerLocalFileImporter`, `TaskData`, `TaskLinker`,
 `TypeSystemConverter`, `TypeSystemConverterFactory`, and `UserData`.
 
+Further idiom screening of active exchange/UI candidates found no additional
+safe ProjectLibre-origin modernization tranche in this follow-up pass. Specific
+apparent hits were excluded at the hunk level:
+
+- `Serializer`'s referring-subproject type check and `LocalSession` seed reset
+  were added by microProject commits `86e89bfe37` and `a14fe81977`; they are
+  fork-owned, not #727 candidates.
+- `Linker.addOutline`'s `instanceof Assignment` conditions match the OpenProj
+  baseline (`d2fa3c20a`); this belongs to #595, not #727.
+- `ImportedCalendarService` exists in ProjectLibre 1.9.8, but its two explicit
+  generic `HashMap` constructor arguments were added by local commit
+  `49eb8dd329`; the upstream class used raw maps. These constructor hunks do
+  not establish ProjectLibre-origin modernization work.
+- The remaining `MSPDISerializer` `Assignment` check matches the OpenProj
+  baseline. Other visible `VoidNodeImpl` and `WorkingCalendar` checks are
+  associated with local serialization changes and were not promoted without
+  exact upstream hunk matches.
+- `CustomFieldsMapper`'s reflection cast is required at the `Class<?>`
+  reflection boundary; the declared-field result is only known at runtime.
+
+This is a targeted screen of these named candidates, not a declaration that
+the full Phase 0 inventory is complete. The remaining delta-ledger candidates
+still require method/hunk review before Phase 0 can be closed.
+
 Spot checks against ProjectLibre 1.9.8 and `git blame` rejected several
 apparent modernization hits as fork-owned or OpenProj-owned: for example,
 `Serializer`'s referring-subproject serialization block is local fork code;
