@@ -240,3 +240,31 @@ Any future consolidation must add a compatibility adapter, update every caller,
 add a save/reload regression test for `.pod` and `.mpo`, and only then remove
 the deprecated implementation. Clean-room namespace work (#152) is excluded
 from this document.
+
+## #152 current duplicate-name audit (2026-09-27)
+
+Grouped all production Java source files under `modules/**/src/main/java` by
+simple class name. The remaining pairs are exactly `Dictionary`, `Duration`,
+`Field`, `HasId`, `Main`, `Node`, `Rate`, `TimeInterval`, `TimeIntervals`, and
+`TimeUnit`; `package-info` files are not classes and were excluded. Their
+responsibilities and compatibility boundaries are classified above or under
+the linked #257 decision. In particular, `core.time.Duration`, `Rate`, and
+`TimeUnit` have no production callers outside their own compatibility bridge;
+they remain deprecated source-compatibility types until an explicit public API
+removal policy is adopted. The legacy JAXB `Field`, `Node`, and `Dictionary`
+types retain their separate XML/configuration contracts.
+
+Previously reported duplicate names `ClassLoaderUtils`, `Configuration`,
+`ConfigurationFile`, `Finder`, and `Pert` are no longer duplicates in the
+production tree: the redundant loader class was removed, the legacy
+configuration types received explicit names, and `TaskFinder` / `PertChart`
+now distinguish the project-local utilities from their separate interfaces
+and domain API. The SubProj classification predicate is shared by
+`Task.isSubproject`, `NodeModelUtil`, and removal snapshots; remaining
+`instanceof SubProj` checks retrieve or operate on the reference and are not
+parallel classification helpers.
+
+This audit found no remaining same-name pair with interchangeable
+responsibility that can be merged without crossing a compatibility or feature
+boundary. Keep the documented legacy adapters and distinct domain/UI types;
+track any future public API removal or JAXB migration separately.
