@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.collaboration;
 
-import java.awt.Component;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -37,20 +36,15 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
 
 import com.microproject.collaboration.CollaborationMetadataStore.Metadata;
 import com.microproject.collaboration.CollaborationMetadataStore.UserRecord;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.util.Alert;
-import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.SafeObjectInput;
-import com.microproject.strings.Messages;
 import com.microproject.workspace.WorkspaceSetting;
 
 public class CollaborationSession {
@@ -76,6 +70,7 @@ public class CollaborationSession {
 	private final String clientInstanceId;
 	private final Map<Long, ProjectMergeService.TaskState> lockBaselineStates = new LinkedHashMap<Long, ProjectMergeService.TaskState>();
 	private volatile ExternalProjectReloadHandler externalReloadHandler;
+	private volatile Consumer<String> externalChangeNoticeHandler;
 	private volatile Timer timer;
 	private final Object stateLock = new Object();
 	private volatile long lastKnownProjectModified;
@@ -212,11 +207,13 @@ public class CollaborationSession {
 					markExternalMetadataChanged();
 					if (metadataChanged && !externalChangeWarned) {
 						externalChangeWarned = true;
-						SwingUtilities.invokeLater(new Runnable() {
-							public void run() {
-								Alert.warn("This project was updated externally. Save will re-check for conflicts before writing.");
-							}
-						});
+						String message = "This project was updated externally. Save will re-check for conflicts before writing.";
+						Consumer<String> noticeHandler = externalChangeNoticeHandler;
+						if (noticeHandler == null) {
+							logger.warning(message);
+						} else {
+							noticeHandler.accept(message);
+						}
 					}
 				}
 				refreshKnownState(projectModified, projectLength, currentMetadataState);
@@ -260,14 +257,10 @@ public class CollaborationSession {
 			refreshKnownState(projectModified, projectLength, currentMetadataState);
 			resetExternalChangeState(false);
 		}
-		SwingUtilities.invokeLater(new Runnable() {
-			public void run() {
-				ExternalProjectReloadHandler handler = externalReloadHandler;
-				if (handler != null) {
-					handler.reload(project);
-				}
-			}
-		});
+		ExternalProjectReloadHandler handler = externalReloadHandler;
+		if (handler != null) {
+			handler.reload(project);
+		}
 	}
 
 	private void refreshKnownFileStats() {
@@ -337,18 +330,6 @@ public class CollaborationSession {
 		}
 	}
 
-	public boolean tryLockTask(Task task, Component parent, String actionLabel) {
-		if (tryAcquireTaskLock(task)) {
-			return true;
-		}
-		String owner = lockManager.describeOwner(task.getUniqueId());
-		if (owner == null || owner.length() == 0) {
-			owner = "another user";
-		}
-		Alert.warn("Cannot " + actionLabel + " task \"" + task.getName() + "\" because it is locked by " + owner + ".", parent);
-		return false;
-	}
-
 	/** Acquires a task lock without showing UI; suitable for background sync. */
 	public boolean tryAcquireTaskLock(Task task) {
 		if (task == null) {
@@ -363,40 +344,25 @@ public class CollaborationSession {
 		return true;
 	}
 
-	public boolean tryLockTasks(Iterable<Task> tasks, Component parent, String actionLabel) {
-		if (tasks == null) {
-			return true;
-		}
-		for (Task task : tasks) {
-			if (!tryLockTask(task, parent, actionLabel)) {
-				return false;
-			}
-		}
-		return true;
+	public String describeLockOwner(Task task) {
+		String owner = task == null ? null : lockManager.describeOwner(task.getUniqueId());
+		return owner == null || owner.length() == 0 ? "another user" : owner;
 	}
 
-	public int checkBeforeSave(Component parent) {
-		if (!externalChangePending) {
-			return SAVE_PROCEED;
+	public Task tryAcquireTasks(Iterable<Task> tasks) {
+		if (tasks == null) {
+			return null;
 		}
-		if (isMpoProject()) {
-			return SAVE_PROCEED;
+		for (Task task : tasks) {
+			if (!tryAcquireTaskLock(task)) {
+				return task;
+			}
 		}
-		Object[] options = new Object[] {
-			Messages.getString("Collaboration.SaveCopy"),
-			Messages.getString("ButtonText.Cancel")
-		};
-		int result = PopupDialogSupport.showOptionDialog(parent,
-			Messages.getString("Collaboration.ExternalChangeMessage"),
-			Messages.getString("Collaboration.ExternalChangeTitle"),
-			JOptionPane.DEFAULT_OPTION,
-			JOptionPane.WARNING_MESSAGE,
-			null,
-			options,
-			options[0],
-			JOptionPane.CANCEL_OPTION);
-		if (result == 0) return SAVE_AS_COPY;
-		return SAVE_CANCEL;
+		return null;
+	}
+
+	public boolean requiresSaveConfirmation() {
+		return externalChangePending && !isMpoProject();
 	}
 
 	private boolean isMpoProject() {
@@ -503,6 +469,10 @@ public class CollaborationSession {
 
 	public void setExternalReloadHandler(ExternalProjectReloadHandler externalReloadHandler) {
 		this.externalReloadHandler = externalReloadHandler;
+	}
+
+	public void setExternalChangeNoticeHandler(Consumer<String> externalChangeNoticeHandler) {
+		this.externalChangeNoticeHandler = externalChangeNoticeHandler;
 	}
 
 	private static final class KnownMetadataState {

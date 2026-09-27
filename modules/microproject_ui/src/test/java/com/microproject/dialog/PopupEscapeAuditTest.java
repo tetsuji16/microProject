@@ -49,9 +49,13 @@ class PopupEscapeAuditTest {
 	void graphicManagerRoutesChoosersThroughPopupDialogSupport() throws Exception {
 		String source = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/frames/GraphicManager.java");
 		String collaboration = source("modules/microproject_core/src/main/java/com/microproject/collaboration/CollaborationSession.java");
+		String collaborationUi = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/collaboration/CollaborationHelper.java");
 
-		assertTrue(source.contains("session.checkBeforeSave(getCurrentFrame())"));
-		assertTrue(collaboration.contains("PopupDialogSupport.showOptionDialog("));
+		assertTrue(source.contains("CollaborationHelper.checkBeforeSave(session, getCurrentFrame())"));
+		assertTrue(collaborationUi.contains("PopupDialogSupport.showOptionDialog("));
+		assertFalse(collaboration.contains("javax.swing"));
+		assertFalse(collaboration.contains("PopupDialogSupport"));
+		assertFalse(collaboration.contains("java.awt.Component"));
 		assertTrue(source.contains("PopupDialogSupport.showConfirmDialog("));
 		assertFalse(source.contains("JOptionPane.showOptionDialog("));
 		assertFalse(source.contains("JOptionPane.showConfirmDialog("));

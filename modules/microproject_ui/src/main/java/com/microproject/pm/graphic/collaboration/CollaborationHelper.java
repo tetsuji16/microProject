@@ -26,14 +26,20 @@ package com.microproject.pm.graphic.collaboration;
 
 import java.awt.Component;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+
+import javax.swing.JOptionPane;
 
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.strings.Messages;
+import com.microproject.util.Alert;
+import com.microproject.util.PopupDialogSupport;
 
 public final class CollaborationHelper {
 	private CollaborationHelper() {
@@ -63,7 +69,7 @@ public final class CollaborationHelper {
 		if (task == null) {
 			return true;
 		}
-		return project.getCollaborationSession().tryLockTask(task, parent, actionLabel);
+		return tryAcquireTasks(project.getCollaborationSession(), Collections.singletonList(task), parent, actionLabel);
 	}
 
 	public static Project getProject(Object value) {
@@ -89,6 +95,28 @@ public final class CollaborationHelper {
 		if (project == null || project.getCollaborationSession() == null) {
 			return true;
 		}
-		return project.getCollaborationSession().tryLockTasks(tasks, parent, actionLabel);
+		return tryAcquireTasks(project.getCollaborationSession(), tasks, parent, actionLabel);
+	}
+
+	private static boolean tryAcquireTasks(CollaborationSession session, Iterable<Task> tasks, Component parent, String actionLabel) {
+		Task blockedTask = session.tryAcquireTasks(tasks);
+		if (blockedTask == null) {
+			return true;
+		}
+		String owner = session.describeLockOwner(blockedTask);
+		Alert.warn("Cannot " + actionLabel + " task \"" + blockedTask.getName() + "\" because it is locked by " + owner + ".", parent);
+		return false;
+	}
+
+	public static int checkBeforeSave(CollaborationSession session, Component parent) {
+		if (!session.requiresSaveConfirmation()) {
+			return CollaborationSession.SAVE_PROCEED;
+		}
+		Object[] options = new Object[] { Messages.getString("Collaboration.SaveCopy"), Messages.getString("ButtonText.Cancel") };
+		int result = PopupDialogSupport.showOptionDialog(parent,
+			Messages.getString("Collaboration.ExternalChangeMessage"),
+			Messages.getString("Collaboration.ExternalChangeTitle"), JOptionPane.DEFAULT_OPTION,
+			JOptionPane.WARNING_MESSAGE, null, options, options[0], JOptionPane.CANCEL_OPTION);
+		return result == 0 ? CollaborationSession.SAVE_AS_COPY : CollaborationSession.SAVE_CANCEL;
 	}
 }

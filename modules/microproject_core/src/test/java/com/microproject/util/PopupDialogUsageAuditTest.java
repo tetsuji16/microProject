@@ -47,8 +47,8 @@ class PopupDialogUsageAuditTest {
 	}
 
 	@Test
-	void collaborationSessionUsesPopupDialogSupportForConflictResolution() throws Exception {
-		String source = source("modules/microproject_core/src/main/java/com/microproject/collaboration/CollaborationSession.java");
+	void collaborationConflictResolutionUsesUiPopupDialogSupport() throws Exception {
+		String source = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/collaboration/CollaborationHelper.java");
 
 		assertTrue(source.contains("PopupDialogSupport.showOptionDialog("));
 		assertFalse(source.contains("JOptionPane.showOptionDialog("));

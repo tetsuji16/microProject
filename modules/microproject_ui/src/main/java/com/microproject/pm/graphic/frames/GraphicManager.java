@@ -967,9 +967,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		}
 		try {
+			session.setExternalChangeNoticeHandler(message -> SwingUtilities.invokeLater(() -> Alert.warn(message)));
 			session.setExternalReloadHandler(new CollaborationSession.ExternalProjectReloadHandler() {
 				public void reload(Project changedProject) {
-					refreshProjectFromExternalFile(changedProject);
+					SwingUtilities.invokeLater(() -> refreshProjectFromExternalFile(changedProject));
 				}
 			});
 			project.setCollaborationSession(session);
@@ -3517,7 +3518,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				}
 
 				public int resolveSaveDecision(Project projectToSave, CollaborationSession session) {
-					return session.checkBeforeSave(getCurrentFrame());
+					return CollaborationHelper.checkBeforeSave(session, getCurrentFrame());
 				}
 
 				public String chooseSaveAsCopyFileName(Project projectToSave) {
@@ -3590,7 +3591,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				}
 
 				public int resolveSaveDecision(Project projectToSave, CollaborationSession session) {
-					return session.checkBeforeSave(getCurrentFrame());
+					return CollaborationHelper.checkBeforeSave(session, getCurrentFrame());
 				}
 
 				public String chooseSaveAsCopyFileName(Project projectToSave) {
