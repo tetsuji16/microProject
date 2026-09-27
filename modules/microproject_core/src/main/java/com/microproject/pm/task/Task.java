@@ -568,7 +568,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 
 	//arranges a task in predecessor/parent order in a colleciton
-	public void arrangeTask(Collection addTo, boolean markerStatus, int depth) {
+	public void arrangeTask(Collection<? super PredecessorTaskList.TaskReference> addTo, boolean markerStatus, int depth) {
 		if (this.markerStatus == markerStatus) // if task has been added, don't treat it again
 			return;
 
@@ -614,7 +614,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		}
 	}
 
-	private void arrangeChildren(Collection addTo, boolean markerStatus, int depth) {
+	private void arrangeChildren(Collection<? super PredecessorTaskList.TaskReference> addTo, boolean markerStatus, int depth) {
 
 		//note that it is possible that this is called for non parents
 
