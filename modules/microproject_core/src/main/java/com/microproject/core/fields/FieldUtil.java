@@ -272,10 +272,11 @@ public class FieldUtil {
 			Map<String,HasStringId> m=LegacyConfiguration.getInstance().getDictionary().get(
 					new DictionaryCategory(com.microproject.core.fields.Field.class, category));
 			if (m!=null)
-				for (String key : m.keySet()){
+				for (Map.Entry<String, HasStringId> entry : m.entrySet()){
+					String key = entry.getKey();
 					com.microproject.core.fields.Field existingField=map.get(key);
 					if (existingField==null)
-						map.put(key, (com.microproject.core.fields.Field)m.get(key));
+						map.put(key, (com.microproject.core.fields.Field)entry.getValue());
 				}
 		}
 		return map;
