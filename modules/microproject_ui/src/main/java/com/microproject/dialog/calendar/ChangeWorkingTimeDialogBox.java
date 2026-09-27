@@ -228,9 +228,12 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		}
 	}
 	private void fillInCalendarNames() {
-		ArrayList<WorkingCalendar> all = new ArrayList<>();
 		CalendarService service = CalendarService.getInstance();
-		all.addAll(service.getBaseCalendars());
+		List<WorkingCalendar> baseCalendars = service.getBaseCalendars();
+		int capacity = baseCalendars.size() + projectCalendars.size()
+				+ (documentCalendars == null ? 0 : documentCalendars.size());
+		ArrayList<WorkingCalendar> all = new ArrayList<>(capacity);
+		all.addAll(baseCalendars);
 		all.addAll(projectCalendars);
 
 		if (documentCalendars != null)
