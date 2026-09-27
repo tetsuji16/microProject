@@ -57,6 +57,7 @@ class DefaultFrameManagerTest {
 			JComboBox projectSelector = (JComboBox)frameManager.getProjectComboPanel().getComponent(0);
 			assertTrue(frameManager.getProjectComboPanel().isVisible());
 			assertSame(secondProject, frameManager.getSelectedFrame());
+			assertSame(secondProject, frameManager.getActiveFrame());
 			assertTrue(secondProject.isActive());
 			assertFalse(firstProject.isActive());
 
@@ -64,6 +65,7 @@ class DefaultFrameManagerTest {
 			projectSelector.setSelectedItem(firstProject);
 
 			assertSame(firstProject, frameManager.getSelectedFrame());
+			assertSame(firstProject, frameManager.getActiveFrame());
 			assertTrue(firstProject.isActive());
 			assertTrue(firstProject.isVisible());
 			assertFalse(secondProject.isActive());

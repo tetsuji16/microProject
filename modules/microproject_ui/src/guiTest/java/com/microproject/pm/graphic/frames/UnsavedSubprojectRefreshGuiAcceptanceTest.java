@@ -20,7 +20,6 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.File;
-import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -331,16 +330,12 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 
 	private static final class RefreshGraphicManager extends GraphicManager {
 		private static final long serialVersionUID = 1L;
+		private DocumentFrame selectedDocument;
 		RefreshGraphicManager(JFrame window) { super(window); }
 		void selectForTest(DocumentFrame document) {
-			try {
-				Field currentFrame = GraphicManager.class.getDeclaredField("currentFrame");
-				currentFrame.setAccessible(true);
-				currentFrame.set(this, document);
-			} catch (ReflectiveOperationException e) {
-				throw new AssertionError("could not install the active master fixture", e);
-			}
+			selectedDocument = document;
 		}
+		@Override public DocumentFrame getCurrentFrame() { return selectedDocument; }
 	}
 
 	private static final class FixtureDocumentFrame extends DocumentFrame {

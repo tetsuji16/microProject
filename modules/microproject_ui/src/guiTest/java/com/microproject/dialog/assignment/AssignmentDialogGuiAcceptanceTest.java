@@ -362,8 +362,10 @@ class AssignmentDialogGuiAcceptanceTest {
 		}
 
 		@Override
-		public boolean tryLockTasks(Iterable<Task> tasks, java.awt.Component parent, String actionLabel) {
-			return false;
+		public Task tryAcquireTasks(Iterable<Task> tasks) {
+			if (tasks == null) return null;
+			java.util.Iterator<Task> iterator = tasks.iterator();
+			return iterator.hasNext() ? iterator.next() : null;
 		}
 	}
 }

@@ -1091,6 +1091,7 @@ class RibbonButtonBehaviorTest {
 	private static final class StubFrameManager implements FrameManager {
 		private static final long serialVersionUID = 1L;
 		private final Workspace workspace = new Workspace();
+		private NamedFrame activeFrame;
 
 		@Override
 		public void showFrame(NamedFrame frame) {
@@ -1102,6 +1103,7 @@ class RibbonButtonBehaviorTest {
 
 		@Override
 		public void removeFrame(NamedFrame frame) {
+			if (activeFrame == frame) activeFrame = null;
 		}
 
 		@Override
@@ -1111,11 +1113,12 @@ class RibbonButtonBehaviorTest {
 
 		@Override
 		public void activateFrame(NamedFrame frame) {
+			activeFrame = frame;
 		}
 
 		@Override
 		public java.awt.Component getSelectedFrame() {
-			return null;
+			return activeFrame;
 		}
 
 		@Override

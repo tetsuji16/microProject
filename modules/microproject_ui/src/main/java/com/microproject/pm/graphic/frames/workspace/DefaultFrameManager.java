@@ -517,6 +517,11 @@ public class DefaultFrameManager implements FrameManager {
 		return (Component) getProjectComboBox().getSelectedItem();
 	}
 
+	@Override
+	public NamedFrame getActiveFrame() {
+		return previous;
+	}
+
 	public void removeFrame(NamedFrame frame) {
 		if (frame == null) // in case of subproject for example, it didn't have its own frame
 			return;

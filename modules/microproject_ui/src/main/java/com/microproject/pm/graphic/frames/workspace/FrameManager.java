@@ -47,6 +47,11 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 	default void arrangeAll() { arrangeAll(WindowArrangement.TILE); }
 	default void arrangeAll(WindowArrangement arrangement) { }
 	Component getSelectedFrame();
+	/** Returns the document currently active in the frame manager. */
+	default NamedFrame getActiveFrame() {
+		Component selected = getSelectedFrame();
+		return selected instanceof NamedFrame frame ? frame : null;
+	}
 	AbstractList getAllFrames();
 	/** Returns the registered document frame with this stable workspace ID. */
 	default NamedFrame getFrame(String id) {

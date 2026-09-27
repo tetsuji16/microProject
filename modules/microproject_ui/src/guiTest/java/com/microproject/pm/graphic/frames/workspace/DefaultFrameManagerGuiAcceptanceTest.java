@@ -99,6 +99,8 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(() -> graphicManagers[0].getCurrentFrame() == frames[1], "desktop focus did not activate the second project");
 		SwingUtilities.invokeAndWait(() -> {
+			assertSame(frames[1], desktopWindowManager.getActiveFrame(),
+				"the frame manager must be the source of the active document state");
 			assertTrue(frames[0].isShowing());
 			assertTrue(frames[1].isShowing());
 			assertTrue(frames[1].isActive());
@@ -111,6 +113,7 @@ class DefaultFrameManagerGuiAcceptanceTest {
 			assertFalse(secondary.getTitle().contains("desktop-beta.projectlibre"),
 					"window titles must not expose the absolute project path");
 			desktopWindowManager.activateFrame(frames[0]);
+			assertSame(frames[0], desktopWindowManager.getActiveFrame());
 			assertTrue(frames[1].isShowing(), "switching back must not blank or hide the secondary window");
 			desktopWindowManager.arrangeAll(FrameManager.WindowArrangement.TILE);
 			assertEquals(FrameManager.WindowArrangement.TILE, desktopWindowManager.getCurrentArrangement());
@@ -129,6 +132,7 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			assertEquals(0, desktopWindowManager.getIndependentWindowCount());
 			assertSame(frames[0], desktopWindowManager.getSelectedFrame());
+			assertSame(frames[0], desktopWindowManager.getActiveFrame());
 			assertFalse(secondary.isShowing(), "the closed secondary window must no longer be visible");
 		});
 	}

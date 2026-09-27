@@ -93,10 +93,13 @@ class GraphicManagerLinkRouteTest {
 		TestDocumentFrame detachedFrame = allocateWithoutConstructor(TestDocumentFrame.class);
 		detachedFrame.graphicManager = graphicManager;
 		detachedFrame.setActive(true);
-		Field currentFrame = GraphicManager.class.getDeclaredField("currentFrame");
-		currentFrame.setAccessible(true);
-		currentFrame.set(graphicManager, detachedFrame);
+		graphicManager.setFrameManager((com.microproject.pm.graphic.frames.workspace.FrameManager)
+			java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),
+				new Class<?>[] { com.microproject.pm.graphic.frames.workspace.FrameManager.class },
+				(proxy, method, arguments) -> method.getName().equals("getActiveFrame") ? detachedFrame : null));
 
+		assertSame(detachedFrame, graphicManager.getCurrentFrame(),
+			"GraphicManager must resolve the active document from its frame manager");
 		assertFalse(graphicManager.isDocumentWritable(),
 			"a frame whose project is detached during cleanup must not be treated as writable");
 	}

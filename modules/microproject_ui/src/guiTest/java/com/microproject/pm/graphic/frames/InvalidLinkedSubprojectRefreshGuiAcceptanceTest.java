@@ -257,14 +257,12 @@ class InvalidLinkedSubprojectRefreshGuiAcceptanceTest {
 	private static final class InvalidRefreshGraphicManager extends GraphicManager {
 		private static final long serialVersionUID = 1L;
 		private ProjectMergeService.ApplyResult forcedLoadFailure;
+		private DocumentFrame selectedDocument;
 		InvalidRefreshGraphicManager(JFrame window) { super(window); }
 		void selectForTest(DocumentFrame document) {
-			try {
-				Field currentFrame = GraphicManager.class.getDeclaredField("currentFrame");
-				currentFrame.setAccessible(true);
-				currentFrame.set(this, document);
-			} catch (ReflectiveOperationException e) { throw new AssertionError("could not install the active master fixture", e); }
+			selectedDocument = document;
 		}
+		@Override public DocumentFrame getCurrentFrame() { return selectedDocument; }
 		void forceLoadFailure(ProjectMergeService.LoadStatus status, Exception cause) {
 			forcedLoadFailure = ProjectMergeService.failedLoad(status, cause);
 		}

@@ -231,7 +231,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static final boolean BINARY_WORKSPACE = true;
 	private RibbonCommandResult lastRibbonCommandResult;
 	private static GraphicManager lastGraphicManager = null; // used when displaying a popup but the frame isn't known
-	private DocumentFrame currentFrame = null;
 	private final DocumentGeneration documentGeneration = new DocumentGeneration();
 
 	/** Returns a snapshot of projects currently open in this desktop window. */
@@ -507,8 +506,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (subproject == null && reference.getSubprojectFile() != null
 				&& !reference.getSubprojectFile().isBlank()) {
 			String linkedFile = reference.getSubprojectFile();
-			if (currentFrame != null && currentFrame.getProject() != null
-					&& sameLocalProject(currentFrame.getProject().getFileName(), linkedFile))
+			if (getCurrentFrame() != null && getCurrentFrame().getProject() != null
+					&& sameLocalProject(getCurrentFrame().getProject().getFileName(), linkedFile))
 				return false;
 			boolean loadRequested = loadLocalDocument(linkedFile, false);
 			subproject = reference.getSubproject();
@@ -538,9 +537,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * from a clean reference rather than leaving orphaned projected tasks.
 	 */
 	public boolean removeLinkedSubproject(SubProj reference) {
-		if (reference == null || currentFrame == null || currentFrame.getProject() == null)
+		if (reference == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null)
 			return false;
-		Project master = currentFrame.getProject();
+		Project master = getCurrentFrame().getProject();
 		Node node = master.getTaskOutline().search(reference);
 		if (node == null)
 			return false;
@@ -557,9 +556,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * by collaboration refreshes.
 	 */
 	public boolean refreshLinkedSubproject(SubProj reference) {
-		if (reference == null || currentFrame == null || currentFrame.getProject() == null)
+		if (reference == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null)
 			return false;
-		Project master = currentFrame.getProject();
+		Project master = getCurrentFrame().getProject();
 		Project child = reference.getSubproject();
 		if (child == null) {
 			String linkedFile = reference.getSubprojectFile();
@@ -622,9 +621,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * the active document, so a child frame can never redirect later refreshes.
 	 */
 	public boolean refreshLinkedSubprojects() {
-		if (currentFrame == null || currentFrame.getProject() == null)
+		if (getCurrentFrame() == null || getCurrentFrame().getProject() == null)
 			return false;
-		Project master = currentFrame.getProject();
+		Project master = getCurrentFrame().getProject();
 		java.util.List<SubProj> references = new java.util.ArrayList<>();
 		for (Object task : master.getTasks())
 			if (task instanceof SubProj reference)
@@ -769,10 +768,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * retried or removed without losing other subprojects.
 	 */
 	public boolean relinkMissingSubproject(SubProj reference, String replacementFile) {
-		if (reference == null || currentFrame == null || currentFrame.getProject() == null
+		if (reference == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null
 				|| reference.getSubproject() != null || replacementFile == null || replacementFile.isBlank())
 			return false;
-		Project master = currentFrame.getProject();
+		Project master = getCurrentFrame().getProject();
 		File replacement;
 		try {
 			replacement = new File(replacementFile).getCanonicalFile();
@@ -817,42 +816,41 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	protected void setCurrentFrame(DocumentFrame frame){
 		if (frame instanceof DocumentFrame) {
-			if (currentFrame != frame)
+			DocumentFrame previousFrame = getCurrentFrame();
+			if (previousFrame != frame)
 				documentGeneration.advance();
-			if (currentFrame != null && projectListMenu != null&&!Environment.isPlugin()) {
-				currentFrame.getMenuItem().setSelected(false);
+			if (previousFrame != null && projectListMenu != null&&!Environment.isPlugin()) {
+				previousFrame.getMenuItem().setSelected(false);
 			}
 
-			if (currentFrame != null&&!Environment.isPlugin())
-				currentFrame.refreshViewButtons(false); // disable buttons for old view
+			if (previousFrame != null&&!Environment.isPlugin())
+				previousFrame.refreshViewButtons(false); // disable buttons for old view
 
-			currentFrame = (DocumentFrame)frame;
+			getFrameManager().activateFrame(frame);
 			if (projectListMenu != null&&!Environment.isPlugin()) {
-				currentFrame.getMenuItem().setSelected(true);
+				frame.getMenuItem().setSelected(true);
 			}
 			if (topTabs != null&&!Environment.isPlugin()) {
-				topTabs.setCurrentFrame(currentFrame);
+				topTabs.setCurrentFrame(frame);
 			}
-			DocumentSelectedEvent.fire(this,currentFrame);
-			informationDialogCoordinator.documentSelected(new DocumentSelectedEvent(this,currentFrame));
+			DocumentSelectedEvent.fire(this,frame);
+			informationDialogCoordinator.documentSelected(new DocumentSelectedEvent(this,frame));
 
 			setTitle(false);
-			if (currentFrame != null)
-				currentFrame.refreshViewButtons(true);
-			updateRibbonContext(currentFrame == null ? null : currentFrame.getTopViewId());
+			frame.refreshViewButtons(true);
+			updateRibbonContext(frame.getTopViewId());
 
-			getFrameManager().activateFrame(currentFrame); // need to force activation in case being activated by closing another
 			if(!Environment.isPlugin()){
-				setEnabledDocumentMenuActions(currentFrame!=null);
-				setButtonState(null,currentFrame.getProject());
+				setEnabledDocumentMenuActions(true);
+				setButtonState(null,frame.getProject());
 				// Ribbon construction can be deferred until the frame is laid out;
 				// refresh once more after that registration point so the value is not
 				// lost behind the bundle's static button text.
 				SwingUtilities.invokeLater(this::refreshStatusDateControl);
 			}
-			if (currentFrame != null && currentFrame.getProject() != null) {
-				if (!Environment.isPlugin()) currentFrame.getFilterToolBarManager().transformBasedOnValue();
-				CalendarOption calendarOption = currentFrame.getProject().getCalendarOption();
+			if (frame.getProject() != null) {
+				if (!Environment.isPlugin()) frame.getFilterToolBarManager().transformBasedOnValue();
+				CalendarOption calendarOption = frame.getProject().getCalendarOption();
 
 				if (calendarOption != null) {
 					CalendarOption.setInstance(calendarOption);
@@ -1062,8 +1060,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		String tabId = getTabIdForProject(project);
 		DocumentFrame frame = getFrameForProject(project);
 		if (frame!=null){
+			boolean activeDocumentWasClosed = false;
 
-			if (currentFrame == frame){
+			if (getCurrentFrame() == frame){
 		    	frame.setVisible(false);
 				JMenuItem mi = frame.getMenuItem();
 				if (mi != null && projectListMenu != null)
@@ -1072,8 +1071,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				List<DocumentFrame> openFrames = getOpenDocumentFrames();
 			    if (openFrames.size()<=1) {
 			    	frame.refreshViewButtons(false); // disable old buttons
-			    	currentFrame=null;
-			    	setTitle(false);
+				    activeDocumentWasClosed = true;
 			        setEnabledDocumentMenuActions(false);
 			    } else{
 			        DocumentFrame current;
@@ -1090,6 +1088,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			frame.removeNamedFrameListener(this); // main frame listens to changes in selection
 
 			getFrameManager().removeFrame(frame);
+			if (activeDocumentWasClosed) {
+				setTitle(false);
+				updateRibbonContext(null);
+			}
 			frame.onClose();
 
 
@@ -2342,7 +2344,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
-			return currentFrame != null && currentFrame.getActiveSpreadSheet() != null;
+			return getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null;
 		}
 	}
 
@@ -2355,7 +2357,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
-			return currentFrame != null && currentFrame.getActiveSpreadSheet() != null;
+			return getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null;
 		}
 	}
 
@@ -3160,7 +3162,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				return;
 			setColorTheme(viewName);
 			getCurrentFrame().activateView(viewName);
-			setButtonState(null,currentFrame.getProject()); // disable buttons because no selection when first activated
+			setButtonState(null,getCurrentFrame().getProject()); // disable buttons because no selection when first activated
 
 		}
 		public final String getViewName() {
@@ -3246,8 +3248,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 ////		else {
 ////			loadDownloadedDocument(); //not used anymore
 ////		}
-		if (currentFrame != null)
-			currentFrame.activateView(ACTION_GANTT);
+		if (getCurrentFrame() != null)
+			getCurrentFrame().activateView(ACTION_GANTT);
 
 	}
 
@@ -3881,7 +3883,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
  * @param project
  */
     public void showAssignmentDialog(DocumentFrame documentFrame) {
-		if (currentFrame==null||!getCurrentFrame().isActive())
+		if (getCurrentFrame()==null||!getCurrentFrame().isActive())
 			return;
 		assignmentDialogCoordinator.show(documentFrame);
     }
@@ -3918,9 +3920,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private GanttView getActiveGanttView() {
-		if (!isActiveGanttView() || currentFrame == null)
+		if (!isActiveGanttView() || getCurrentFrame() == null)
 			return null;
-		return currentFrame.getGanttView();
+		return getCurrentFrame().getGanttView();
 	}
 
 	private void showTransformChooser(int type) {
@@ -4078,7 +4080,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 	public DocumentFrame getCurrentFrame() {
-		return currentFrame;
+		FrameManager manager = getFrameManager();
+		if (manager == null)
+			return null;
+		NamedFrame activeFrame = manager.getActiveFrame();
+		return activeFrame instanceof DocumentFrame documentFrame ? documentFrame : null;
 	}
 
 	public Frame getFrame(){
@@ -4098,15 +4104,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 	public boolean isDocumentActive() {
-		return currentFrame != null && currentFrame.isActive();
+		return getCurrentFrame() != null && getCurrentFrame().isActive();
 	}
 	public boolean isDocumentWritable() {
 		// A document frame can remain active for one EDT turn while its project is
 		// being detached during cleanup.  A detached frame is never writable; do
 		// not let deferred Undo/Redo button refreshes turn that normal lifecycle
 		// state into an EDT exception.
-		return currentFrame != null && currentFrame.isActive()
-				&& currentFrame.getProject() != null && !currentFrame.getProject().isReadOnly();
+		return getCurrentFrame() != null && getCurrentFrame().isActive()
+				&& getCurrentFrame().getProject() != null && !getCurrentFrame().getProject().isReadOnly();
 	}
 
 
@@ -4220,14 +4226,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// After hierarchy Undo/Redo the lead node supplied by the selection event
 		// may still describe the pre-mutation row.  Command enablement must use the
 		// same stable task selection that execution uses, not that stale singleton.
-		List<com.microproject.grouping.core.Node> selectedTaskNodes = currentFrame == null
-			? java.util.List.of() : currentFrame.getSelectedTaskNodes(false, true);
+		List<com.microproject.grouping.core.Node> selectedTaskNodes = getCurrentFrame() == null
+			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(false, true);
 		// While a reused cell editor owns focus, the frame provider can lag the
 		// JTable selection by one event. The active sheet is the authoritative
 		// physical selection owner; prefer its typed task nodes when available.
-		if (currentFrame != null && currentFrame.getActiveSpreadSheet() != null
-				&& currentFrame.getActiveSpreadSheet().getSelectedRows().length > 0) {
-			List<com.microproject.grouping.core.Node> tableTasks = currentFrame.getActiveSpreadSheet().getSelectedNodes().stream()
+		if (getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null
+				&& getCurrentFrame().getActiveSpreadSheet().getSelectedRows().length > 0) {
+			List<com.microproject.grouping.core.Node> tableTasks = getCurrentFrame().getActiveSpreadSheet().getSelectedNodes().stream()
 				.filter(node -> node != null && node.getImpl() instanceof Task).toList();
 			if (!tableTasks.isEmpty()) selectedTaskNodes = tableTasks;
 		}
@@ -4236,7 +4242,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean isLinkedSubproject = currentImpl instanceof SubProj;
 		boolean isHasStartAndEnd = currentImpl != null && currentImpl instanceof HasStartAndEnd;
 		boolean writable = (currentImpl != null && !ClassUtils.isObjectReadOnly(currentImpl));
-		boolean hasOneTaskSelection = currentFrame != null && currentFrame.hasTaskSelection(false, 1, true);
+		boolean hasOneTaskSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 1, true);
 		boolean hierarchySelection = (!selectedTaskNodes.isEmpty() && isTask) || isResource;
 		boolean canOutdent = !isTask || selectedTaskNodes.stream()
 			.anyMatch(node -> node != null && node.getImpl() instanceof Task task
@@ -4251,15 +4257,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				!readOnly && hierarchySelection && hierarchyCommandsAvailable);
 		getMenuManager().setActionEnabled(ACTION_OUTDENT,
 				!readOnly && hierarchySelection && canOutdent && hierarchyCommandsAvailable);
-		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_UP,!readOnly && isTask && currentFrame != null && currentFrame.canMoveSelectedTasks(-1));
-		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && currentFrame != null && currentFrame.canMoveSelectedTasks(1));
+		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_UP,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(-1));
+		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(1));
 		getMenuManager().setActionEnabled(ACTION_EXPAND,!readOnly && notVoid && (actions==null||actions.contains(ACTION_EXPAND)));
 		getMenuManager().setActionEnabled(ACTION_COLLAPSE,!readOnly && notVoid && (actions==null||actions.contains(ACTION_COLLAPSE)));
-		boolean hasLinkSelection = currentFrame != null && currentFrame.hasTaskSelection(false, 2, true);
+		boolean hasLinkSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 2, true);
 		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && hasLinkSelection);
 		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasOneTaskSelection);
 		getMenuManager().setActionEnabled(ACTION_HIDE_SELECTED_TASKS,
-				!readOnly && currentFrame != null && currentFrame.hasTaskSelection(true, 1, true));
+				!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, true));
 		getMenuManager().setActionEnabled(ACTION_SHOW_ALL_TASKS,
 				!readOnly && TaskVisibilityService.hasHiddenTasks(project));
 		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES,isTask && writable);
@@ -4287,11 +4293,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// enablement aligned with the typed selection snapshot used by dispatch.
 		getMenuManager().setActionEnabled(ACTION_MARK_ON_TRACK,
 				!readOnly && taskType && !selectedTaskNodes.isEmpty());
-		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,currentFrame != null);
+		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,getCurrentFrame() != null);
 		refreshStatusDateControl(project);
 
 
-		boolean insertProject = currentFrame != null && project != null && currentFrame.isCurrentRowInMainProject();
+		boolean insertProject = getCurrentFrame() != null && project != null && getCurrentFrame().isCurrentRowInMainProject();
 
 
 //			taskType && (!notVoid || currentImpl == null || ((Task)currentImpl).getOwningProject() == null || ((Task)currentImpl).getOwningProject() == project);
@@ -4307,24 +4313,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			view=(BaseView)frame.getMainView().getTopComponent();
 		}
 		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TASK,isHasStartAndEnd&&view.canScrollToTask());
-		boolean hasDocument = currentFrame != null;
+		boolean hasDocument = getCurrentFrame() != null;
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_FILTER, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_SORT, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_GROUP, hasDocument);
 
-		if (currentFrame != null) {
-			currentFrame.refreshUndoButtons();
+		if (getCurrentFrame() != null) {
+			getCurrentFrame().refreshUndoButtons();
 			//refreshSaveStatus(false);
 		}
-		boolean printable = currentFrame!= null && currentFrame.isPrintable();
+		boolean printable = getCurrentFrame()!= null && getCurrentFrame().isPrintable();
 		getMenuManager().setActionEnabled(ACTION_PRINT,printable);
 		getMenuManager().setActionEnabled(ACTION_PRINT_PREVIEW,printable);
 
 		setZoomButtons();
 
 		Field f = FieldDictionary.getInstance().getActionField(ACTION_DOCUMENTS);
-		getMenuManager().setActionVisible(ACTION_DOCUMENTS,currentFrame != null && f != null);
-		getMenuManager().setActionEnabled(ACTION_DOCUMENTS,currentFrame != null && isEnabledFieldAction(ACTION_DOCUMENTS,  currentFrame.getProject()));
+		getMenuManager().setActionVisible(ACTION_DOCUMENTS,getCurrentFrame() != null && f != null);
+		getMenuManager().setActionEnabled(ACTION_DOCUMENTS,getCurrentFrame() != null && isEnabledFieldAction(ACTION_DOCUMENTS,  getCurrentFrame().getProject()));
 
 
 	}
@@ -4346,15 +4352,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public void setZoomButtons() {
-		getMenuManager().setActionEnabled(ACTION_ZOOM_IN,currentFrame != null && currentFrame.canZoomIn());
-		getMenuManager().setActionEnabled(ACTION_ZOOM_OUT,currentFrame != null && currentFrame.canZoomOut());
+		getMenuManager().setActionEnabled(ACTION_ZOOM_IN,getCurrentFrame() != null && getCurrentFrame().canZoomIn());
+		getMenuManager().setActionEnabled(ACTION_ZOOM_OUT,getCurrentFrame() != null && getCurrentFrame().canZoomOut());
 
 	}
 
 	private boolean isActiveGanttView() {
-		if (currentFrame == null)
+		if (getCurrentFrame() == null)
 			return false;
-		String topViewId = currentFrame.getTopViewId();
+		String topViewId = getCurrentFrame().getTopViewId();
 		return ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId);
 	}
 
@@ -4375,7 +4381,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean taskLabelSelected = false;
 		boolean gridlinesSelected = false;
 		if (ganttActive) {
-			GanttView ganttView = currentFrame.getGanttView();
+			GanttView ganttView = getCurrentFrame().getGanttView();
 			progressSelected = ganttView.isProgressLineEnabled();
 			resourceLabelSelected = ganttView.isResourceNameAnnotationSelected();
 			taskLabelSelected = ganttView.isTaskNameAnnotationSelected();
@@ -4396,7 +4402,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		Node currentNode=e.getCurrentNode();
 		Object currentImpl=currentNode.getImpl();
 		traceUi("selection changed impl=" + describeUiObject(currentImpl));
-		setButtonState(currentImpl,currentFrame.getProject());
+		setButtonState(currentImpl,getCurrentFrame().getProject());
 		// if on resource view, hide task info and vice versa.  Otherwise just show it
 		if (lastNode!=null&&informationDialogCoordinator.hasTaskDialog()&&(lastNode.getImpl() instanceof Task||lastNode.getImpl() instanceof Assignment)&&currentNode.getImpl() instanceof Resource){
 			informationDialogCoordinator.hideTaskDialog();
@@ -4420,7 +4426,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	void refreshSaveStatus(boolean isSaving) {
-		getMenuManager().setActionEnabled(ACTION_SAVE_PROJECT,currentFrame != null && !isSaving && currentFrame.getProject().needsSaving());
+		getMenuManager().setActionEnabled(ACTION_SAVE_PROJECT,getCurrentFrame() != null && !isSaving && getCurrentFrame().getProject().needsSaving());
 		setTitle(isSaving);
 
 		FrameManager dm=getFrameManager();
@@ -5035,9 +5041,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public boolean isEditingMasterProject() {
-		if (currentFrame == null)
+		if (getCurrentFrame() == null)
 			return false;
-		Project currentProject=currentFrame.getProject();
+		Project currentProject=getCurrentFrame().getProject();
 		if (currentProject == null)
 			return false;
 		return currentProject.isMaster() && !currentProject.isReadOnly();
@@ -5152,13 +5158,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 	public void doFind(Searchable searchable, Field field, String initialQuery) {
-		if (currentFrame==null||!getCurrentFrame().isActive())
+		if (getCurrentFrame()==null||!getCurrentFrame().isActive())
 			return;
 		if (searchable == null)
 			return;
 		if (!beforeFindRoute(searchable, field))
 			return;
-		currentFrame.doFind(searchable, field, initialQuery);
+		getCurrentFrame().doFind(searchable, field, initialQuery);
 
 	}
 
@@ -5379,9 +5385,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public static Project getProject() {
 		if (lastGraphicManager == null)
 			return null;
-		if (lastGraphicManager.currentFrame==null)
+		if (lastGraphicManager.getCurrentFrame()==null)
 			return null;
-		return lastGraphicManager.currentFrame.getProject();
+		return lastGraphicManager.getCurrentFrame().getProject();
 	}
 
 	public void addHistory(String command,Object[] args){
