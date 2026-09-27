@@ -387,11 +387,7 @@ public class Job extends Thread {
 	}
 	private void runThread(final InternalRunnable runnable,final JobMutex runMutex){
 		if (runnable.isCreateThread()){
-			Thread t=new Thread(){
-				public void run(){
-			    	runSwing(runnable,runMutex);
-				}
-			};
+			Thread t=new Thread(() -> runSwing(runnable,runMutex));
 			t.setDaemon(isDaemon());
 			t.start();
 		}else{
@@ -400,22 +396,20 @@ public class Job extends Thread {
 	}
 	private void runSwing(final InternalRunnable runnable,final JobMutex runMutex){
 		if (runnable.isSwing()){
-			SwingUtilities.invokeLater(new Runnable(){
-		    	public void run(){
-		    		try{
-							if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
-		    				return;
-		    			logBegin("running "+runnable.runnable.getName());
-		    			runnable.run();
-		    			//if (runMutex!=null&&runMutex.getException()!=null) cancel();
-		    			if (runnable.getException()!=null) cancel();
-		    		}finally{
-		    			logEnd("running "+runnable.runnable.getName());
-		    			if (runMutex!=null) runMutex.unlock();
-		    			if (!isCustomCriticalSection()&&(runnable==lastRunnable||runnable.getException()!=null)) jobQueue.endCriticalSection(Job.this);
-		    		}
-		        }
-		    });
+			SwingUtilities.invokeLater(() -> {
+				try{
+					if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
+						return;
+					logBegin("running "+runnable.runnable.getName());
+					runnable.run();
+					//if (runMutex!=null&&runMutex.getException()!=null) cancel();
+					if (runnable.getException()!=null) cancel();
+				}finally{
+					logEnd("running "+runnable.runnable.getName());
+					if (runMutex!=null) runMutex.unlock();
+					if (!isCustomCriticalSection()&&(runnable==lastRunnable||runnable.getException()!=null)) jobQueue.endCriticalSection(Job.this);
+				}
+			});
 		}else{
 			try{
 				if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
