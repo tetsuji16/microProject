@@ -62,6 +62,10 @@ OpenProj progress.
   absent from both the OpenProj baseline and ProjectLibre 1.9.8 source. Keep it
   outside #727 provenance counts (and do not misclassify it as OpenProj simply
   because the containing `TreeView` type is OpenProj-derived).
+- `ScrollPaneSynchronizer.ganttSynchronizers` and its invalidation/zoom-restore
+  path were introduced by microProject commit `2cc236603` and are absent from
+  the OpenProj baseline and ProjectLibre 1.9.8. The attempted raw-map typing was
+  rejected after this provenance check; do not count that hunk toward #727.
 - These exclusions are not counted toward #727 or #595.
 
 ## ProjectLibre-added core type inventory
