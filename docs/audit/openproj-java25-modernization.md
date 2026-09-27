@@ -2630,3 +2630,8 @@ UI run exposed that `ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnc
 performed Swing component operations outside the EDT; moving that scenario to
 the EDT made both the focused class and the full UI suite pass (932 completed,
 7 skipped).
+
+`GraphModel.searchJustModifiedNodes` and `searchNode` now use diamond inference
+for their linked result lists. Both raw linked-list constructions match the
+OpenProj UI baseline; the public raw `List` signatures, iteration order, and
+early-exit behavior are unchanged. UI compilation passed.

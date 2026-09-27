@@ -107,7 +107,7 @@ public class GraphModel implements Serializable, /*ScheduleEventListener,*/ Cach
 
 	
 	public List searchJustModifiedNodes(){
-		List<GraphicNode> gnodes=new LinkedList<GraphicNode>();
+		List<GraphicNode> gnodes=new LinkedList<>();
 		GraphicNode gnode;
 		Object impl;
 		for (Iterator<?> i=getCache().getIterator();i.hasNext();){
@@ -123,7 +123,7 @@ public class GraphModel implements Serializable, /*ScheduleEventListener,*/ Cach
 		return gnodes;
 	}
 	public List searchNode(Object impl){
-		List<GraphicNode> gnodes=new LinkedList<GraphicNode>();
+		List<GraphicNode> gnodes=new LinkedList<>();
 		GraphicNode gnode;
 		for (Iterator<?> i=getCache().getIterator();i.hasNext();){
 			gnode=(GraphicNode)i.next();
