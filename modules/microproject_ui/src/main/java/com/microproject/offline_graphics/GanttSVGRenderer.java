@@ -77,7 +77,7 @@ public class GanttSVGRenderer implements SVGRenderer,Cloneable{
 		coord = new CoordinatesConverter(project);
 		if (scale!=-1) coord.getTimescaleManager().setCurrentScaleIndex(scale);
 		params=new SpreadSheetParamsImpl(fieldArray,colWidth,printGantt);
-		int rowHeight=project.getRowHeight(new TreeSet<Integer>());
+		int rowHeight=project.getRowHeight(new TreeSet<>());
 		params.setRowHeight(rowHeight);
 
 		params.setCache(cache);

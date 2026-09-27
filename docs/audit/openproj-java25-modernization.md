@@ -2720,3 +2720,11 @@ Full `:microproject_core:test` passed.
 than `Collections.sort(list, comparator)`. OpenProj 1.4 uses the same supplied
 list, comparator, recursive hierarchy order, and in-place sort; the existing
 `NodeSorterTraversalTest` passed.
+
+`GanttSVGRenderer.init` now uses diamond inference for the empty `TreeSet`
+passed to `Project.getRowHeight`. The inferred element type remains
+`Integer`; the new set is still empty and used only for this lookup. The
+matching OpenProj 1.4 line was verified at commit `d2fa3c20a`. Downstream
+`:microproject_ui:compileJava` passed with a 1 GiB Gradle heap. The default
+512 MiB daemon heap exhausted its GC budget during the first attempt; no
+project build configuration was changed.
