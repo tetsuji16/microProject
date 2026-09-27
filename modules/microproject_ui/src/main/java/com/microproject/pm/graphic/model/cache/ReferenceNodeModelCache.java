@@ -309,8 +309,9 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 //edges
 	public void buildEdges(){
-		Map<Object, GraphicNode> implMap = new HashMap<>();
-		List<GraphicNode> gnodes = new ArrayList<>();
+		int nodeCount=nodeCache.getCacheSize();
+		Map<Object, GraphicNode> implMap = HashMap.newHashMap(nodeCount);
+		List<GraphicNode> gnodes = new ArrayList<>(nodeCount);
 		for (GraphicNode gnode : nodeCache.getCache()) {
 			if (gnode.isVoid()||gnode.isAssignment()) continue;
 			if (!(gnode.getNode().getImpl() instanceof HasDependencies))

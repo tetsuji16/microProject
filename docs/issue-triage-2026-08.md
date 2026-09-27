@@ -260,3 +260,10 @@ calls, or disabled timing/debug output. The class no longer has a commented
 `TreeModel` interface marker; its live hierarchy listener and cache methods are
 unchanged. Source search found no callers of the deleted delegates, and
 `:microproject_ui:compileJava` plus the cache test package passed.
+
+For #228, `ReferenceNodeModelCache.buildEdges` sizes both its temporary
+`GraphicNode` list and implementation-to-node map from the node-cache size, a
+strict upper bound on eligible entries. `HashMap.newHashMap` interprets that
+value as expected mappings and accounts for its load factor. Edge selection and
+insertion order are unchanged. UI compilation and
+`ViewNodeModelCacheHierarchyDependencyTest` passed.
