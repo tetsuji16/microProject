@@ -156,7 +156,7 @@ public class AssignmentEntry implements HasRequestDemandType, BelongsToDocument,
 	 * refer to a task in the taskList
 	 * @param taskList
 	 */
-	public void setAssignmentsFromTaskList(List taskList) {
+	public void setAssignmentsFromTaskList(List<?> taskList) {
 		assignments = null;
 		for (Object value : taskList) {
 			if (!(value instanceof Task task))

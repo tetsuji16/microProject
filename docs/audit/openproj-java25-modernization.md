@@ -2304,3 +2304,10 @@ OpenProj (`d2fa3c20a`); callers are `restoreSnapshot` and `clearSnapshot`,
 which preserve the same selection traversal and null behavior. The helper's
 erased descriptor is unchanged. Full `:microproject_core:test --console=plain`
 passed.
+
+`AssignmentEntry.setAssignmentsFromTaskList` now accepts `List<?>`. The
+OpenProj-derived method remains active in the UI assignment-entry route; its
+existing behavior deliberately ignores non-`Task` list values, so `List<Task>`
+would overstate the runtime contract. `AssignmentEntryTest` covers assigned,
+unassigned, and non-task values. Focused core verification and UI compilation
+passed; the erased method descriptor is unchanged.

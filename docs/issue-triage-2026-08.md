@@ -200,3 +200,4 @@ For #595, `PredecessorTaskList.TaskReference` now declares `Comparable<Object>` 
 For #595, `NodeSorter` now implements `Comparator<Object>` with an explicit override. The UI sort path uses it in `NodeCacheTransformer`; hierarchy ordering remains unchanged. `NodeSorterTraversalTest` and UI compilation passed.
 For #595, `NodeSorter.currentSorter` and both core/UI `getCurrentSorter()` methods now use `ListIterator<Object>`, matching the configured `List<Object>` of subsorters. A focused iterator test and UI compilation passed.
 For #595, the private `Project.getSnapshotIterator` selection parameter now uses `List<?>`, matching its public snapshot callers while retaining the erased signature and null behavior. Full core tests passed.
+For #595, `AssignmentEntry.setAssignmentsFromTaskList` now accepts `List<?>`; the active UI caller may supply heterogeneous lists, and non-`Task` elements continue to be ignored. `AssignmentEntryTest` and UI compilation passed.
