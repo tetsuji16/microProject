@@ -2493,3 +2493,10 @@ casts. `javap -p -s` confirmed the protected `ArrayList`/`List` fields and
 `initCache(GraphicNode, List)` erased descriptors are unchanged. The file's
 schedule-cache behavior is OpenProj-derived; this is a generic type-only change.
 `:microproject_ui:compileJava` and the cache test package passed.
+
+`ReferenceNodeModelCache.update` and its recursive cache rebuild now express
+that their change set accepts `GraphicNode` values (`Set<? super GraphicNode>`),
+which matches every `change.add` in the traversal. Repository search found no
+external callers of the recursive overload; the public overloads retain their
+binary `Set` descriptors. UI compilation, cache tests, and `javap -s` descriptor
+checks passed.

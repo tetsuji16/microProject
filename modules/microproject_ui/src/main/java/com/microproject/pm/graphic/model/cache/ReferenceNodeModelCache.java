@@ -168,7 +168,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	public void update(boolean reschedule){
 		update(new HashSet(),reschedule);
 	}
-	public void update(Set change,boolean reschedule){
+	public void update(Set<? super GraphicNode> change,boolean reschedule){
 		NodeCache newCache=new NodeCache();
 		update(null,newCache,change,reschedule);
 		
@@ -209,7 +209,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	    }
 	}
 	
-	public void update(GraphicNode node,NodeCache newCache, Set change,boolean reschedule){
+	public void update(GraphicNode node,NodeCache newCache, Set<? super GraphicNode> change,boolean reschedule){
 		int level=(node==null)?0:node.getLevel();
 		
 		int collapseLevel=GraphicConfiguration.getInstance().getCollapseLevel();
