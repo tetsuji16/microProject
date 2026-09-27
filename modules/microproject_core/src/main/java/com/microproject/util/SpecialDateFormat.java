@@ -71,7 +71,6 @@ public class SpecialDateFormat extends SimpleDateFormat {
 			return arg1;
 		}
 		return defaultInstance.format(date,arg1,arg2);
-//		return super.format(date, arg1, arg2);
 	}
 	public Date parse(String arg0, ParsePosition arg1) {
 		if (arg0.equals(NO_END))
@@ -79,7 +78,6 @@ public class SpecialDateFormat extends SimpleDateFormat {
 		else if (arg0.equals(NO_START))
 			return DateTime.NA_TIME;
 		return defaultInstance.parse(arg0, arg1);
-//		return super.parse(arg0, arg1);
 	}
 
 
