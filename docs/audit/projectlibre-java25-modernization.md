@@ -55,6 +55,11 @@ OpenProj progress.
   conversion was introduced by local commit `54e5480390`; ProjectLibre 1.9.8
   and the OpenProj baseline both use an `Object[]` from `values().toArray()`.
   Do not count a modernization of that typed hunk as ProjectLibre-origin work.
+- `TreeView.getSelectedNodes` and its one-element list construction were added
+  by microProject commit `c3745988a` for RBS selection fallback; the method is
+  absent from both the OpenProj baseline and ProjectLibre 1.9.8 source. Keep it
+  outside #727 provenance counts (and do not misclassify it as OpenProj simply
+  because the containing `TreeView` type is OpenProj-derived).
 - These exclusions are not counted toward #727 or #595.
 
 ## ProjectLibre-added core type inventory
