@@ -233,18 +233,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static GraphicManager lastGraphicManager = null; // used when displaying a popup but the frame isn't known
 	private DocumentFrame currentFrame = null;
 	private final DocumentGeneration documentGeneration = new DocumentGeneration();
-	private List frameList=new ArrayList();
 
 	/** Returns a snapshot of projects currently open in this desktop window. */
 	public List<Project> getOpenProjects() {
-		List<Project> projects = new ArrayList<>(frameList.size());
-		for (Object value : frameList) {
-			if (value instanceof DocumentFrame frame && frame.getProject() != null)
+		List<DocumentFrame> openFrames = getOpenDocumentFrames();
+		List<Project> projects = new ArrayList<>(openFrames.size());
+		for (DocumentFrame frame : openFrames) {
+			if (frame.getProject() != null)
 				projects.add(frame.getProject());
 		}
 		return projects;
 	}
-    private HashMap<Project,NamedFrame> frameMap = new HashMap<>();
 //    private JFileChooser fileChooser = null;
 
 	private NamedFrame viewBarFrame;
@@ -461,22 +460,36 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     	Project project = ProjectFactory.getInstance().findFromId(projectId);
     	if (project == null)
     		return;
-    	DocumentFrame f = (DocumentFrame) frameMap.get(project);
+		DocumentFrame f = getFrameForProject(project);
     	if (f == null)
     		return;
     	setCurrentFrame(f);
 
     }
 	public DocumentFrame getFrameForProject(Project project) {
-		return (DocumentFrame) frameMap.get(project);
+		if (project == null || frameManager == null)
+			return null;
+		NamedFrame frame = frameManager.getFrame(getTabIdForProject(project));
+		return frame instanceof DocumentFrame documentFrame && documentFrame.getProject() == project
+			? documentFrame : null;
+	}
+
+	private List<DocumentFrame> getOpenDocumentFrames() {
+		if (frameManager == null)
+			return List.of();
+		List<DocumentFrame> frames = new ArrayList<>();
+		for (Object value : frameManager.getAllFrames()) {
+			if (value instanceof DocumentFrame frame)
+				frames.add(frame);
+		}
+		return frames;
 	}
 	/** Finds an already-open document by canonical file identity. */
 	public DocumentFrame findFrameForProjectFile(String fileName) {
 		if (fileName == null || fileName.isBlank())
 			return null;
-		// The workspace owns the authoritative set while a document is being
-		// constructed.  frameList is updated later in addProjectFrame(), so using
-		// it here could miss the next document in one multiple-file Open command.
+		// The frame manager owns the authoritative set while a document is being
+		// constructed, so this also finds the next document in a multiple-file Open.
 		for (Object value : getFrameManager().getAllFrames()) {
 			if (!(value instanceof DocumentFrame frame) || frame.getProject() == null)
 				continue;
@@ -910,8 +923,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		setCurrentFrame(frame);
 		showDocumentRibbon();
 
-		frameList.add(frame);
-		frameMap.put(project, frame);
 		// A secondary MainRibbonFrame is created while addFrame() is running,
 		// before the project is attached to the DocumentFrame.  Refresh all
 		// native window titles after the frame is fully registered so the
@@ -1048,7 +1059,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	private void closeProjectFrame(Project project) {
 		String tabId = getTabIdForProject(project);
-		DocumentFrame frame = (DocumentFrame) frameMap.get(project);
+		DocumentFrame frame = getFrameForProject(project);
 		if (frame!=null){
 
 			if (currentFrame == frame){
@@ -1057,7 +1068,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				if (mi != null && projectListMenu != null)
 					projectListMenu.remove(mi);
 
-			    if (frameList.size()<=1) {
+				List<DocumentFrame> openFrames = getOpenDocumentFrames();
+			    if (openFrames.size()<=1) {
 			    	frame.refreshViewButtons(false); // disable old buttons
 			    	currentFrame=null;
 			    	setTitle(false);
@@ -1065,12 +1077,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			    } else{
 			        DocumentFrame current;
 			        int index=0;
-			        for (Iterator i=frameList.iterator();i.hasNext();index++){
-			            current=(DocumentFrame)i.next();
+			        for (Iterator<DocumentFrame> i=openFrames.iterator();i.hasNext();index++){
+			            current=i.next();
 			            if (tabId.equals(getTabIdForProject(current.getProject())))
 			                break;
 			        }
-					setCurrentFrame((DocumentFrame)frameList.get((index==0)?1:index-1));
+					setCurrentFrame(openFrames.get((index==0)?1:index-1));
 			    }
 			}
 			project.removeProjectListener(frame);
@@ -1078,8 +1090,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 			getFrameManager().removeFrame(frame);
 			frame.onClose();
-			frameList.remove(frame);
-			frameMap.remove(project);
 
 
 		}
@@ -5244,13 +5254,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	/** Captures the close job on the caller's UI/model context without waiting. */
 	private QuitOperation prepareQuitOperation() {
 		quitting = true;
-		for (Object frameObj : new ArrayList(frameList)) {
-			if (frameObj instanceof DocumentFrame) {
-				Project project = ((DocumentFrame)frameObj).getProject();
-				persistCollaborationWorkspace(project);
-				if (project != null && project.getCollaborationSession() != null) {
-					project.getCollaborationSession().stop();
-				}
+		for (DocumentFrame frame : getOpenDocumentFrames()) {
+			Project project = frame.getProject();
+			persistCollaborationWorkspace(project);
+			if (project != null && project.getCollaborationSession() != null) {
+				project.getCollaborationSession().stop();
 			}
 		}
 		final Object monitor = new Object();

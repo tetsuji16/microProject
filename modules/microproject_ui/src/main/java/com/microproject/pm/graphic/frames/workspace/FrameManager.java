@@ -48,6 +48,16 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 	default void arrangeAll(WindowArrangement arrangement) { }
 	Component getSelectedFrame();
 	AbstractList getAllFrames();
+	/** Returns the registered document frame with this stable workspace ID. */
+	default NamedFrame getFrame(String id) {
+		if (id == null)
+			return null;
+		for (Object value : getAllFrames()) {
+			if (value instanceof NamedFrame frame && id.equals(frame.getId()))
+				return frame;
+		}
+		return null;
+	}
 	void setTabTitle(NamedFrame frame, String tabTitle);
 	void update();
 }
