@@ -432,8 +432,8 @@ public class DefaultNodeModel implements NodeModel {
 		if (!clone) return parentNodes;
 		Set<Node> assignedNodes=new HashSet<>();
 		Map<Object, Object> implMap=new HashMap<>();
-		Set<Dependency> predecessors=new HashSet<Dependency>();
-		Set<Dependency> successors=new HashSet<Dependency>();
+		Set<Dependency> predecessors=new HashSet<>();
+		Set<Dependency> successors=new HashSet<>();
 		for (ListIterator<Node> i=parentNodes.listIterator();i.hasNext();){
 			Node parent=i.next();
 			Node newParent=cloneNode(parent,null,implMap,predecessors,successors);

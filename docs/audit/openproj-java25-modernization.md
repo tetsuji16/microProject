@@ -2586,3 +2586,8 @@ passed.
 inference. Both construction responsibilities match the OpenProj baseline;
 the argument-array capacity, filtering, and filename normalization are
 unchanged. `MainArgumentsTest` passed.
+
+`DefaultNodeModel.copy` now uses diamond inference for its predecessor and
+successor dependency sets. These sets are present in the OpenProj copy
+workflow; their `Set<Dependency>` types, population order, and rebuild timing
+are unchanged. `DefaultNodeModelTest` passed.
