@@ -224,6 +224,22 @@ not the full Phase 0 ledger review: the retained path-based delta ledger still
 needs one-to-one current-hunk/caller reconciliation before Phase 0 can be marked
 complete. No additional safe modernization change was identified by this screen.
 
+### Stale paths found during Phase 0 reconciliation (2026-09-27)
+
+The retained ledger also contains seven pre-rename MSPDI paths marked as active
+ProjectLibre additions even though those files are no longer present in the
+current source tree. Six were removed by `c8084bd7f` as duplicate/obsolete MPXJ
+implementations: `ModifiedMSPDIWriter`, `ProjectContentHandler`,
+`TimeDistributedTypeMapper`, `TimephasedConsumer`, `TimephasedGetter`, and
+`TimephasedService`. The remaining `XsdDuration` was replaced by the JDK
+`javax.xml.datatype.Duration` implementation in `01aab5cc0` as part of issue
+#43. The seven files therefore are historical ledger entries, not seven
+unreviewed active modernization candidates. Keep their provenance history, but
+correct the ledger's current-tree status/evidence and link each removal or
+replacement commit before closing Phase 0. The surviving MSPDI behavior remains
+subject to import/export compatibility review through the current serializer
+and MPXJ paths.
+
 ## Initial inventory finding
 
 The previous audit classified the two `Field` responsibilities above as
