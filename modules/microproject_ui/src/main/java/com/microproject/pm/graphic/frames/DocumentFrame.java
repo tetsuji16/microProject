@@ -293,7 +293,7 @@ public class DocumentFrame extends NamedFrame implements
 		// wait until everything is initialized before activating the gantt view
 		if (activate) {
 			SwingUtilities.invokeLater(() -> {
-				if (true || GraphicManager.getLastWorkspace() == null) { // if there was a workspace, it will be restored
+				if (GraphicManager.getLastWorkspace() == null) {
 					if (isEditingResourcePool()) {
 						activateResourceView();
 						getGraphicManager().setAllButResourceDisabled(true);

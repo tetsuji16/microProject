@@ -497,14 +497,22 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			restartFirstProject.toString(), restartSecondProject.toString() }));
 		GuiAcceptanceSupport.await(() -> manager.getFrameManager().getAllFrames().size() == 2,
 			"Workspace fixture did not open two MPO documents");
+		DocumentFrame firstFrame = manager.findFrameForProjectFile(restartFirstProject.toString());
+		SwingUtilities.invokeAndWait(() -> firstFrame.activateView(MenuActionConstants.ACTION_NETWORK));
+		assertEquals(MenuActionConstants.ACTION_NETWORK, firstFrame.getTopViewId(),
+			"workspace fixture must start with a non-default view to detect restore being overwritten");
 
 		ApplicationStartupFactory startup = new ApplicationStartupFactory(new HashMap<>());
 		SwingUtilities.invokeAndWait(() -> manager = startup.restart(manager));
 		GuiAcceptanceSupport.await(() -> manager.getFrameManager() != null
 			&& manager.getFrameManager().getAllFrames().size() == 2
 			&& manager.findFrameForProjectFile(restartFirstProject.toString()) != null
-			&& manager.findFrameForProjectFile(restartSecondProject.toString()) != null,
+			&& manager.findFrameForProjectFile(restartSecondProject.toString()) != null
+			&& GraphicManager.getLastWorkspace() == null,
 			"StartupFactory restart did not restore both open MPO documents");
+		assertEquals(MenuActionConstants.ACTION_NETWORK,
+			manager.findFrameForProjectFile(restartFirstProject.toString()).getTopViewId(),
+			"the restored workspace view must not be overwritten with the initial Gantt view");
 		assertTrue(window.isShowing(), "Workspace restart hid or replaced the native window");
 		assertTrue(manager.getContainer() == window,
 			"Workspace restart attached the restored documents to a different native window");

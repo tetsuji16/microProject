@@ -35,15 +35,7 @@ import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
-import java.beans.XMLDecoder;
-import java.beans.XMLEncoder;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.io.File;
 import java.nio.file.Files;
@@ -212,7 +204,6 @@ import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafSupport;
-import com.microproject.util.SafeObjectInput;
 import com.microproject.util.PopupDialogSupport;
 import com.microproject.util.UiLinkTargets;
 import com.microproject.workspace.SavableToWorkspace;
@@ -228,7 +219,6 @@ import com.microproject.ribbon.CommandId;
 public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowStateListener,  SelectionNodeListener, ObjectEvent.Listener, ProjectMenuActionMap, MenuActionConstants, SavableToWorkspace {
 	private static final Logger logger = Logger.getLogger(GraphicManager.class.getName());
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
-	private static final boolean BINARY_WORKSPACE = true;
 	private RibbonCommandResult lastRibbonCommandResult;
 	private static GraphicManager lastGraphicManager = null; // used when displaying a popup but the frame isn't known
 	private final DocumentGeneration documentGeneration = new DocumentGeneration();
@@ -268,7 +258,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	protected Frame frame;
 	TabbedNavigation topTabs = null;
 
-	private static Object lastWorkspace = null; // static required - used for copying current workspace to new instance
 	static LinkedList graphicManagers = new LinkedList();
     private static LafManager lafManager;
 	public static boolean badLAF = false;
@@ -4894,69 +4883,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		applicationRestartCoordinator.restart();
 	}
 
-/**
- * Decode the current workspace (currently using XML though could be binary)
- * @return workspace object decoded from lastWorkspace static
- */
-	private Workspace decodeWorkspaceXML() {
-		ByteArrayInputStream stream = new ByteArrayInputStream(((String)lastWorkspace).getBytes());
-		XMLDecoder decoder = new XMLDecoder(new BufferedInputStream(stream));
-		Workspace workspace = (Workspace) decoder.readObject();
-		decoder.close();
-		return workspace;
-	}
-	private Workspace decodeWorkspaceBinary() {
-        ByteArrayInputStream bin=new ByteArrayInputStream((byte[]) lastWorkspace);
-        ObjectInputStream in;
-		try {
-			in = SafeObjectInput.create(bin);
-	        return (Workspace) in.readObject();
-		} catch (IOException e) {
-			logger.log(Level.WARNING, "Failed to decode binary workspace", e);
-		} catch (ClassNotFoundException e) {
-			logger.log(Level.WARNING, "Failed to decode binary workspace", e);
-		}
-		return null;
-	}
 	public Workspace decodeWorkspace() {
-		if (lastWorkspace == null)
-			return null;
-		return BINARY_WORKSPACE ? decodeWorkspaceBinary() : decodeWorkspaceXML();
+		WorkspaceSetting workspace = WorkspaceTransferStore.restore();
+		return workspace instanceof Workspace decodedWorkspace ? decodedWorkspace : null;
 	}
 
-/**
- * Encode the current workspace and store it off in lastWorkspace.
- * Currently I use an XML format for easier debugging. It could be serialized as binary as well since
- * all objects in the graph implement Serializable
- *
- */
-	private void encodeWorkspaceXML() {
-		ByteArrayOutputStream stream = new ByteArrayOutputStream();
-		XMLEncoder encoder = new XMLEncoder(new BufferedOutputStream(stream));
-		encoder.writeObject(createWorkspace(SavableToWorkspace.VIEW));
-		encoder.close();
-		lastWorkspace = stream.toString();
-//		System.out.println(lastWorkspace);
-	}
-	private void encodeWorkspaceBinary() {
-        ByteArrayOutputStream bout=new ByteArrayOutputStream();
-        ObjectOutputStream out;
-		try {
-			out = new ObjectOutputStream(bout);
-	        out.writeObject(createWorkspace(SavableToWorkspace.VIEW));
-	        out.close();
-	    	bout.close();
-	    	lastWorkspace = bout.toByteArray();
-		} catch (IOException e) {
-			logger.log(Level.WARNING, "Failed to encode workspace", e);
-		}
-
-	}
 	public void encodeWorkspace() {
-		if (BINARY_WORKSPACE)
-			encodeWorkspaceBinary();
-		else
-			encodeWorkspaceXML();
+		WorkspaceTransferStore.capture(createWorkspace(SavableToWorkspace.VIEW));
 	}
 
 
@@ -4992,7 +4925,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public static final Object getLastWorkspace() {
-		return lastWorkspace;
+		return WorkspaceTransferStore.getSnapshot();
 	}
 
 
@@ -5027,12 +4960,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (!Environment.isPlugin()) setToolBarAndMenus(c);
 
         setEnabledDocumentMenuActions(false);
-    	Workspace workspace = decodeWorkspace();
+        Workspace workspace = decodeWorkspace();
         if (workspace != null) {
-        	restoreWorkspace(workspace, SavableToWorkspace.VIEW);
-
-        } else
-        	initProject();
+			try {
+				restoreWorkspace(workspace, SavableToWorkspace.VIEW);
+			} finally {
+				SwingUtilities.invokeLater(WorkspaceTransferStore::clear);
+			}
+		} else {
+			WorkspaceTransferStore.clear();
+			initProject();
+		}
 //        container.invalidate();
  	}
 
