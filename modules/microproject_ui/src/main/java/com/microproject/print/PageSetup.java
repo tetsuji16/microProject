@@ -573,7 +573,7 @@ public class PageSetup{
 			GanttSettings s=new GanttSettings();
 			s.setSpreadSheetVisible(printSpreadSheet.isSelected());
 			s.setGanttVisible(printGantt.isSelected());
-			viewSettings=new ArrayList<ViewSettings>(1);
+			viewSettings=new ArrayList<>(1);
 			viewSettings.add(s);
 		}else{
 			ArrayList<ViewSettings> documentViewSettings = document.getPrintSettings().getViewSettings();
@@ -582,7 +582,7 @@ public class PageSetup{
 		printSettings.setViewSettings(viewSettings);
 
 		if (!Environment.getStandAlone()){
-			ArrayList<ScalingSettings> scalingSettings = new ArrayList<ScalingSettings>(2);
+			ArrayList<ScalingSettings> scalingSettings = new ArrayList<>(2);
 			ScaleToSettings scaleToSettings=new ScaleToSettings();
 			scaleToSettings.setWidth(((Number)scaleToWidth.getValue()).doubleValue());
 			scaleToSettings.setHeight(((Number)scaleToHeight.getValue()).doubleValue());

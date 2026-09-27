@@ -178,7 +178,7 @@ public class PageSizes extends MediaSizeName{
 			Set<MediaSizeName> mediaSizeNames=null;
 			if (!(printService instanceof PDFPrintService)){
 				Media[] m=(Media[])printService.getSupportedAttributeValues(Media.class,DocFlavor.SERVICE_FORMATTED.PRINTABLE,null);
-				mediaSizeNames=new HashSet<MediaSizeName>();
+				mediaSizeNames=new HashSet<>();
 				for (int i=0;i<m.length;i++){
 					if (m[i] instanceof MediaSizeName) mediaSizeNames.add((MediaSizeName)m[i]);
 				}

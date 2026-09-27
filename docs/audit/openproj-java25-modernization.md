@@ -2621,3 +2621,11 @@ core tests passed.
 presentation-name snapshot. The same `ArrayList<String>(nb)` construction is
 present in the OpenProj baseline; its 50-edit limit, iteration range, and
 presentation-name order are unchanged. Full core tests passed.
+
+`PageSizes` and `PageSetup` now use diamond inference for the supported-media
+set and the fixed-capacity view/scaling lists. All three constructions match
+the OpenProj UI baseline; media selection, capacities, and print settings are
+unchanged. `PageSizesTest` passed and the UI sources compiled. The full UI suite
+reported one unrelated existing failure in
+`ScaledScrollPaneTest.originChangeKeepsTheVisibleLeftDateAnchored` (the focused
+class rerun reproduced it); 932 tests completed, 7 skipped, 1 failed.
