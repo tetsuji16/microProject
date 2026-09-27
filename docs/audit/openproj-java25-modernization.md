@@ -2297,3 +2297,10 @@ configured object list. The UI `GraphicNodeComparator.getCurrentSorter()` now
 preserves that typed return through its forwarding method. Repository search
 found no other callers. A focused regression verifies the configured child
 sorter is returned; `NodeSorterTraversalTest` and UI compilation passed.
+
+`Project.getSnapshotIterator` now accepts `List<?>`, matching both public
+snapshot operations' selection contract. `git blame` traces the helper to
+OpenProj (`d2fa3c20a`); callers are `restoreSnapshot` and `clearSnapshot`,
+which preserve the same selection traversal and null behavior. The helper's
+erased descriptor is unchanged. Full `:microproject_core:test --console=plain`
+passed.

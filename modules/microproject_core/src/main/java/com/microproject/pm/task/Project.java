@@ -998,7 +998,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return snapshotDetails;
 	}
 
-	private Iterator<?> getSnapshotIterator(boolean entireProject, List selection) {
+	private Iterator<?> getSnapshotIterator(boolean entireProject, List<?> selection) {
 		if (entireProject) {
 			return getTaskOutlineIterator();
 		}
