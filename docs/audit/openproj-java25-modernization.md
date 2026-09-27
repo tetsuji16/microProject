@@ -2640,3 +2640,8 @@ early-exit behavior are unchanged. UI compilation passed.
 insertion-ordered frame map. This field matches the OpenProj baseline; map
 ordering, key/value types, and activation behavior are unchanged.
 `DefaultFrameManagerTest` passed.
+
+`GraphicManager.frameMap` and `history` now use diamond inference for the
+OpenProj-derived frame lookup and command-history collections. Their key/value
+types, map lookup behavior, and history ordering are unchanged. UI manager and
+frame-manager tests passed.

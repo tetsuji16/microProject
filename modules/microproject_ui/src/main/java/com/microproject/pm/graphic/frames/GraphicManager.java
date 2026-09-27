@@ -251,7 +251,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		return projects;
 	}
-    private HashMap<Project,NamedFrame> frameMap = new HashMap<Project, NamedFrame>();
+    private HashMap<Project,NamedFrame> frameMap = new HashMap<>();
 //    private JFileChooser fileChooser = null;
 
 	private NamedFrame viewBarFrame;
@@ -293,7 +293,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private FilterToolBarManager filterToolBarManager;
 	private JMenu projectListMenu = null;
 
-	private ArrayList<CommandInfo> history=new ArrayList<CommandInfo>();
+	private ArrayList<CommandInfo> history=new ArrayList<>();
 
 	/** determines the parent graphic manager for a component
 	 *
