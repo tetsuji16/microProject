@@ -50,9 +50,9 @@ public class CellStyles implements NamedItem {
 	
 	String name = null;
 	String id = null;
-	Map<String, CellStyle> styleMap = new HashMap<String, CellStyle>();
-	Map<String, CellStyleFactory> factoryMap = new HashMap<String, CellStyleFactory>();
-	List<CellStyleFactory> factories = new ArrayList<CellStyleFactory>();
+	Map<String, CellStyle> styleMap = new HashMap<>();
+	Map<String, CellStyleFactory> factoryMap = new HashMap<>();
+	List<CellStyleFactory> factories = new ArrayList<>();
 
 	public CellStyles() {}
 	

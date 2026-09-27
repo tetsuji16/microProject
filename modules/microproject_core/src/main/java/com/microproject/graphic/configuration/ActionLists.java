@@ -50,9 +50,9 @@ public class ActionLists implements NamedItem {
 	
 	String name = null;
 	String id = null;
-	Map<String, ActionList> actionListMap = new HashMap<String, ActionList>();
-	Map<String, ActionListFactory> factoryMap = new HashMap<String, ActionListFactory>();
-	List<ActionListFactory> factories = new ArrayList<ActionListFactory>();
+	Map<String, ActionList> actionListMap = new HashMap<>();
+	Map<String, ActionListFactory> factoryMap = new HashMap<>();
+	List<ActionListFactory> factories = new ArrayList<>();
 
 	public ActionLists() {}
 	

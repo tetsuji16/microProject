@@ -2602,3 +2602,8 @@ behavior are unchanged. `PredecessorTaskListTraversalTest` passed.
 settings copies. Both sized copies match the OpenProj baseline; their input
 capacities, element clone order, and null handling are unchanged. Full core
 tests passed.
+
+`CellStyles` and `ActionLists` now use diamond inference for their two lookup
+maps and factory lists. The corresponding raw collections are present in both
+OpenProj baseline classes; key/value types, list insertion order, and lazy
+configuration loading are unchanged. Full core tests passed.
