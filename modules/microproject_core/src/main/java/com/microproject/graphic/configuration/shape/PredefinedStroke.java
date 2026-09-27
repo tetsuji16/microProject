@@ -44,7 +44,7 @@ public class PredefinedStroke {
 	private static volatile Map<String, Stroke> predefinedStrokeMap;
 	
 	private static Map<String, Stroke> initialize() {
-		Map<String, Stroke> m = new HashMap<>();
+		Map<String, Stroke> m = new HashMap<>(4);
 		m.put("DASHED", DASHED);
 		m.put("FRAMED", FRAMED);
 		m.put("LARGE_FRAMED", LARGE_FRAMED);
