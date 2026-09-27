@@ -937,7 +937,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		 * @param doSelf include this task in the recalculation
 		 */
 		public void markAllDependentTasksAsNeedingRecalculation(boolean doSelf) {
-			markDependentTasks(new HashSet<Task>(), doSelf);
+			markDependentTasks(new HashSet<>(), doSelf);
 		}
 
 		private void markDependentTasks(HashSet<Task> visited, boolean includeSelf) {

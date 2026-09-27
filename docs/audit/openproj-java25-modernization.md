@@ -2728,3 +2728,10 @@ matching OpenProj 1.4 line was verified at commit `d2fa3c20a`. Downstream
 `:microproject_ui:compileJava` passed with a 1 GiB Gradle heap. The default
 512 MiB daemon heap exhausted its GC budget during the first attempt; no
 project build configuration was changed.
+
+`Task.markAllDependentTasksAsNeedingRecalculation` now uses diamond inference
+for its traversal-local visited set. The exact call is present in OpenProj 1.4
+at `d2fa3c20a`; the constructor still creates an empty `HashSet<Task>` for
+each traversal, with unchanged identity/equality membership behavior. The
+existing `TaskDependencyInvalidationTest` covers propagation to dependent
+tasks and passed.
