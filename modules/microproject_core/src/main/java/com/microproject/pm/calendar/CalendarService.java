@@ -446,38 +446,6 @@ public class CalendarService {
 		if (cal != null && cal.getBaseCalendar() != null && !derivedCalendars.contains(cal))
 			derivedCalendars.add(cal);
 	}
-//
-//
-//	public void invalidate(WorkingCalendar cal) {
-//		HashSet set = new HashSet();
-//		cal.invalidate();
-//		if (cal.isBaseCalendar()) {
-//			Iterator i = derivedCalendars.iterator();
-//			WorkingCalendar cur;
-//			while (i.hasNext()) {
-//				cur = (WorkingCalendar)i.next();
-//				if (cur.getBaseCalendar() == cal) {
-//					cur.invalidate();
-//					set.add(cur.getDocument());
-//				}
-//			}
-//		} else {
-//			set.add(cal.getDocument());
-//		}
-//
-//		// update all documents with modified calendars
-//		Iterator i = set.iterator();
-//		Document document;
-//		while (i.hasNext()) {
-//			document = (Document)i.next();
-//			if (document == null)
-//				continue;
-//			document.fireUpdateEvent(null,cal); // TODO should use correct cal
-//												// but for now docs update on
-//												// all
-//		}
-//	}
-//
 	public ArrayList<WorkingCalendar> getBaseCalendars() {
 		return baseCalendars;
 	}
@@ -513,19 +481,6 @@ public class CalendarService {
 		}
 		return null;
 	}
-
-//	public WorkCalendar findDocumentCalendar(String name, Document document) {
-//		if (name == null)
-//			return null;
-//		Iterator i = getInstance().getDerivedCalendars().iterator();
-//		WorkingCalendar current;
-//		while (i.hasNext()) {
-//			current = (WorkingCalendar)i.next();
-//			if (document == current.getDocument() && current.getName().equals(name))
-//				return current;
-//		}
-//		return null;
-//	}
 
 	private static final String PLACE_HOLDER_NAME = "____~";
 	public void renameImportedBaseCalendars(String documentName) {
