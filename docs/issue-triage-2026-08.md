@@ -54,6 +54,10 @@ implementations. The identity lookup regression and downstream UI compilation
 passed with `:microproject_core:test --tests
 "com.microproject.grouping.core.model.DefaultNodeModelTest"
 :microproject_ui:compileJava --console=plain`.
+
+Also changed the OpenProj-derived `DefaultNodeModel.newNode` child enumeration
+from raw `Enumeration` to `Enumeration<?>`; existing insertion regression tests
+and downstream UI compilation passed.
 | New: legacy `.pod` conversion guidance conflicts with MPO default | Implemented locally | Deprecated-format recovery now recommends `xml or mpo`. Legacy `.pod` opening and explicit `.pod` Save As compatibility remain available. |
 
 ## New issue: remove `.pod` as a recommended conversion target

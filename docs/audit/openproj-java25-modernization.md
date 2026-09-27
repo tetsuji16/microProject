@@ -2348,3 +2348,8 @@ the active `ImplComparator` already implements that object contract. The
 erased method descriptor and traversal order are unchanged. Extended
 `DefaultNodeModelTest` to verify identity-key lookup through the typed API;
 the focused test and downstream UI compilation passed.
+
+`DefaultNodeModel.newNode` now declares the inherited child enumeration as
+`Enumeration<?>`. The UI insertion callers are active, and the existing
+`Node` cast, assignment-skip behavior, insertion index, and void-node creation
+are unchanged. `DefaultNodeModelTest` and downstream UI compilation passed.

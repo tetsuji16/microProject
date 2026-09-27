@@ -173,7 +173,7 @@ public class DefaultNodeModel implements NodeModel {
 		Node node;
 		int p=position;
 		int i=0;
-		for (Enumeration e=parent.children();e.hasMoreElements();i++){
+		for (Enumeration<?> e=parent.children();e.hasMoreElements();i++){
 			node=(Node)e.nextElement();
 			if (i==p){
 				if (node.getImpl() instanceof Assignment) p++;
