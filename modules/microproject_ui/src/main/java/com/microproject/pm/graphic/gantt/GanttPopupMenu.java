@@ -24,9 +24,6 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.gantt;
 
-import com.microproject.util.DataUtils;
-import java.util.function.Consumer;
-
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Graphics;
@@ -195,22 +192,19 @@ public class GanttPopupMenu extends GraphPopupMenu{
         annotationText.add(resourceNamesItem);
         annotationText.add(taskNamesItem);
         annotations.add(annotationText);
-		DataUtils.forAllDo(interactor.getGraph().getBarStyles().getRows().iterator(), new Consumer<Object>() { public void accept(Object arg0) {
-				BarStyle barStyle = (BarStyle)arg0;
-				BarMenuAction menuAction =new BarMenuAction(barStyle); 
-				if (barStyle.isLink()) // move the show links item to the main menu
-					add(menuAction);
-				else if (barStyle.isCalendar()) // move the show links item to the main menu
-					add(menuAction);
-				else if (barStyle.isHorizontalGrid()) // move the show links item to the main menu
-					add(menuAction);
-				else if (barStyle.isAnnotation())
-					annotations.add(menuAction);
-				else 
-					bars.add(menuAction);
-				
-			}
-		});
+		for (BarStyle barStyle : interactor.getGraph().getBarStyles().getRows()) {
+			BarMenuAction menuAction = new BarMenuAction(barStyle);
+			if (barStyle.isLink()) // move the show links item to the main menu
+				add(menuAction);
+			else if (barStyle.isCalendar()) // move the show links item to the main menu
+				add(menuAction);
+			else if (barStyle.isHorizontalGrid()) // move the show links item to the main menu
+				add(menuAction);
+			else if (barStyle.isAnnotation())
+				annotations.add(menuAction);
+			else
+				bars.add(menuAction);
+		}
         add(bars);
         add(annotations);
     	
