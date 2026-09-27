@@ -42,7 +42,7 @@ import com.microproject.grouping.core.model.NodeModel;
  */
 public class NodeIndentEdit extends AbstractUndoableEdit{
 	protected NodeModel model;
-	protected List nodes;
+	protected List<Node> nodes;
 	protected int deltaLevel;
 	protected List beforePositions;
 	protected List afterPositions;
@@ -52,14 +52,14 @@ public class NodeIndentEdit extends AbstractUndoableEdit{
 	 * @param nodes
 	 * @param deltaLevel
 	 */
-	public NodeIndentEdit(NodeModel model, List nodes, int deltaLevel) {
+	public NodeIndentEdit(NodeModel model, List<Node> nodes, int deltaLevel) {
 		super();
 		this.model = model;
 		this.nodes = nodes;
 		this.deltaLevel = deltaLevel;
 	}
 
-	public NodeIndentEdit(NodeModel model, List nodes, int deltaLevel, List beforePositions, List afterPositions) {
+	public NodeIndentEdit(NodeModel model, List<Node> nodes, int deltaLevel, List beforePositions, List afterPositions) {
 		this(model, nodes, deltaLevel);
 		this.beforePositions = beforePositions;
 		this.afterPositions = afterPositions;

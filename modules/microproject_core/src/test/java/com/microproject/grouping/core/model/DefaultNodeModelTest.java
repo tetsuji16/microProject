@@ -783,6 +783,34 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void indentUndoAndRedoRestoreOriginalAndIndentedNodePositions() {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask parent = createTask(project, "Parent");
+		NormalTask child = createTask(project, "Child");
+		NormalTask sibling = createTask(project, "Sibling");
+		DefaultNodeModel model = (DefaultNodeModel)project.getTaskModel();
+		Node root = (Node)model.getHierarchy().getRoot();
+		Node parentNode = model.search(parent);
+		Node childNode = model.search(child);
+		Node siblingNode = model.search(sibling);
+		project.getUndoController().clear();
+
+		model.getHierarchy().indent(List.of(childNode), 1, model, NodeModel.NORMAL);
+		assertSame(parentNode, childNode.getParent());
+		assertSame(siblingNode, root.getChildAt(1));
+
+		project.getUndoController().undo();
+		assertSame(root, childNode.getParent());
+		assertSame(parentNode, root.getChildAt(0));
+		assertSame(childNode, root.getChildAt(1));
+		assertSame(siblingNode, root.getChildAt(2));
+
+		project.getUndoController().redo();
+		assertSame(parentNode, childNode.getParent());
+		assertSame(siblingNode, root.getChildAt(1));
+	}
+
+	@Test
 	void relocateCanMoveTaskToAnotherOutlineParentWithoutChangingUniqueId() {
 		Project project = createProjectWithoutVoidRows();
 		NormalTask firstSummary = createTask(project, "First summary");
