@@ -46,8 +46,8 @@ public class Dictionary implements Iterable<HasStringId>{
 	
 	
 	public void add(HasStringId hasId){
-		if (hasId instanceof HasCategories){
-			Set<String> categories=((HasCategories)hasId).getCategories();
+		if (hasId instanceof HasCategories categorized){
+			Set<String> categories=categorized.getCategories();
 			if (categories!=null && categories.size()>0){
 				for (String category : categories)
 					put(new DictionaryCategory(hasId.getClass(),category),hasId);
