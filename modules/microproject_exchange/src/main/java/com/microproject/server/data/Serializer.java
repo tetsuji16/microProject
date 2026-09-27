@@ -645,18 +645,6 @@ public class Serializer {
     	boolean fixCorruption=false;
 
 
-    	//calendar
-//  	WorkCalendar calendar = project.getWorkCalendar();
-//  	if (projectData.getCalendar()==null) {
-//  	System.out.println("deserializing null project calendar");
-//  	calendar= CalendarService.getInstance().getStandardBasedInstance(project);
-//  	} else {
-//  	calendar.setDocument(project);
-//  	CalendarService.getInstance().add(calendar);
-//  	}
-//  	CalendarService.getInstance().add((WorkingCalendar) calendar);
-
-
     	WorkCalendar calendar=project.getWorkCalendar();
     	if (calendar==null)
     		calendar = CalendarService.getInstance().getDefaultInstance();
@@ -1022,10 +1010,6 @@ public class Serializer {
 		projectData.emtpy();
 
     	(new DistributionConverter()).substractDistributionFromProject(project);
-
-
-    	//distribution map
-    	//project.updateDistributionMap();
 
 
     	if (fixCorruption) project.setForceNonIncremental(true);
