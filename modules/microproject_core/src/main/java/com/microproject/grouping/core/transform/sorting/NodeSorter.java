@@ -144,8 +144,6 @@ private class ListFactory extends BasePoolableObjectFactory {
 	}
 
 	public void activateObject(Object arg0){ //claur{
-//		Stack stack = (Stack)arg0;
-//		stack.clear();
 	}
 }
 
@@ -175,11 +173,6 @@ private class ListFactory extends BasePoolableObjectFactory {
 		Field field=FieldDictionary.getInstance().getFieldFromId(fieldId);
 		return field.getName();
     }
-   /* protected Object getFieldValue(String fieldId,Node node){
-		Field field=FieldDictionary.getInstance().getFieldFromId(fieldId);
-		return field.getValue(node,model,null);
-    }*/
-    
     protected String toString(Object value){
         return FieldConverter.toString(value,value.getClass(),null);
     }
