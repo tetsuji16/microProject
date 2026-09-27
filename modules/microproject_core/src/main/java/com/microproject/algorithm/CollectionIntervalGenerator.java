@@ -79,7 +79,7 @@ public class CollectionIntervalGenerator implements IntervalGenerator, HasStartA
 		active = current.getStart() == start;
 	}
 	
-	public Object current() {
+	public HasStartAndEnd current() {
 		if (active)
 			return current;
 		else

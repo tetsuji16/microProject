@@ -42,19 +42,22 @@ class CollectionIntervalGeneratorTest {
 		HasStartAndEnd second = new Interval(20, 30);
 		CollectionIntervalGenerator generator = CollectionIntervalGenerator.getInstance(List.of(first, second));
 
-		assertSame(first, generator.current());
+		HasStartAndEnd current = generator.current();
+		assertSame(first, current);
 		assertTrue(generator.isCurrentActive());
 		assertEquals(0, generator.currentStart());
 		assertEquals(10, generator.currentEnd());
 
 		assertTrue(generator.evaluate(null));
-		assertSame(generator, generator.current());
+		current = generator.current();
+		assertSame(generator, current);
 		assertFalse(generator.isCurrentActive());
 		assertEquals(10, generator.currentStart());
 		assertEquals(20, generator.currentEnd());
 
 		assertTrue(generator.evaluate(null));
-		assertSame(second, generator.current());
+		current = generator.current();
+		assertSame(second, current);
 		assertTrue(generator.isCurrentActive());
 		assertEquals(20, generator.currentStart());
 		assertEquals(30, generator.currentEnd());
@@ -72,7 +75,8 @@ class CollectionIntervalGeneratorTest {
 
 		assertSame(first, generator.current());
 		assertTrue(generator.evaluate(null));
-		assertSame(second, generator.current());
+		HasStartAndEnd current = generator.current();
+		assertSame(second, current);
 		assertFalse(generator.evaluate(null));
 	}
 
