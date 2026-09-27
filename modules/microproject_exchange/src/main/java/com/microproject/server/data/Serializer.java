@@ -163,10 +163,8 @@ public class Serializer {
             TaskSnapshot snapshot=(TaskSnapshot)task.getSnapshot(Integer.valueOf(s));
             if (snapshot==null) continue;
             AssociationList snapshotAssignments=snapshot.getHasAssignments().getAssignments();
-            if (snapshotAssignments.size()>0){
-                for (Object assignment : snapshotAssignments){
-                    c.execute((Assignment)assignment,s);
-                }
+            for (Object assignment : snapshotAssignments){
+                c.execute((Assignment)assignment,s);
             }
         }
     }
