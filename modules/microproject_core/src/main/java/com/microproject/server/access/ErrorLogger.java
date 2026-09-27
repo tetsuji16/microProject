@@ -42,12 +42,11 @@ public class ErrorLogger {
 	public static void log(final Exception e) {
 		if (disabled)
 			return;
-		new Thread() {
-			public void run() {
-				Session session = SessionFactory.getInstance().getSession(false);
-				if (session != null)
-					session.logException(e);
-			}}.start();
+		new Thread(() -> {
+			Session session = SessionFactory.getInstance().getSession(false);
+			if (session != null)
+				session.logException(e);
+		}).start();
 	}
 	public static void log(String s,Exception e) {
 		String result = s + "\n" + getStackTrace(e);
@@ -59,12 +58,11 @@ public class ErrorLogger {
 		logger.log(Level.SEVERE, s);
 		if (disabled)
 			return;
-		new Thread() {
-			public void run() {
-				Session session = SessionFactory.getInstance().getSession(false);
-				if (session != null)
-					session.logString(s);
-			}}.start();
+		new Thread(() -> {
+			Session session = SessionFactory.getInstance().getSession(false);
+			if (session != null)
+				session.logString(s);
+		}).start();
 	}
 	public static String getStackTrace(Throwable aThrowable) {
 		if (aThrowable == null) {

@@ -2132,3 +2132,11 @@ than anonymous `ActionListener` classes. `git blame` traces the button callback
 scaffolding to OpenProj (`d2fa3c20a`); all application dialogs inherit this
 button pipeline. The same virtual `onOk`/`onCancel` methods are called by the
 same buttons. Full `:microproject_ui:test --console=plain` passed.
+
+`ErrorLogger.log(Exception)` and `ErrorLogger.log(String)` now pass their
+asynchronous session writes to `Thread(Runnable)` instead of anonymous
+`Thread` subclasses. `git blame` traces both methods to OpenProj
+(`9b5c2f988e`); callers include project/task recovery and job error handling.
+Each call still creates and starts one unnamed thread, checks the session for
+null, and invokes the same logger method. Full
+`:microproject_core:test --console=plain` passed.
