@@ -237,3 +237,5 @@ For #595, `AssignmentEntry.setAssignmentsFromTaskList` now accepts `List<?>`; th
 For #595, Portfolio and ProjectFactory dirty/writable project-list APIs now return `Collection<Project>` end-to-end. Full core tests and UI compilation passed.
 For #595, `Alert.renameProject` and `Job.renameProject` now accept `Set<?>` through the active reflective UI route; the `Set.class` lookup remains unchanged. Full core tests and UI compilation passed.
 For #595, `DependencyService` collection inputs now use wildcard contracts, and its dependency snapshot-copy overload uses a producer/consumer generic signature. Full core tests and UI compilation passed with the existing filtering, traversal, and mutation paths intact.
+`setInterval`の一時リストも、前後の境界分割で最大2 bucket増えるため、入力配列長+2を
+上限として確保した。`PersonalContourTest`と`AssignmentContourBehaviorTest`が成功した。

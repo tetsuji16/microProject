@@ -272,7 +272,7 @@ public class PersonalContour extends AbstractContour {
 	}
 	
 	public PersonalContour setInterval(long startDuration, long endDuration, double units) {
-		ArrayList<PersonalContourBucket> newList = new ArrayList<>();
+		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length + 2);
 		newList.addAll(bucketsBeforeDuration(startDuration));
 		newList.add(PersonalContourBucket.getInstance(endDuration - startDuration, units));
 		newList.addAll(bucketsAfterDuration(endDuration, false));
