@@ -2258,5 +2258,6 @@ OpenProj-derived (`d2fa3c20a`); active UI callers pass typed integer baseline
 sets. The method's erased `SortedSet` descriptor, baseline-index calculation,
 and accumulated height are unchanged. A focused test supplies a non-
 `TaskSnapshot` marker at baseline index 2, verifies it no longer fails by
-casting, and checks the exact row-height increase. Full focused core test and
+casting, and checks the exact row-height increase. Full
+`:microproject_core:test --console=plain` and
 `:microproject_ui:compileJava --console=plain` passed.
