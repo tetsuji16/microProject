@@ -38,4 +38,14 @@ public final class ListenerRegistry<L> {
 			return List.copyOf(listeners);
 		}
 	}
+
+	/** Returns an immutable reverse-registration-order snapshot. */
+	public List<L> snapshotReverse() {
+		synchronized (lock) {
+			List<L> reversed = new ArrayList<>(listeners.size());
+			for (int i = listeners.size() - 1; i >= 0; i--)
+				reversed.add(listeners.get(i));
+			return List.copyOf(reversed);
+		}
+	}
 }

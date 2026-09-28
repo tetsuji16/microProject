@@ -24,19 +24,18 @@
  *******************************************************************************/
 package com.microproject.grouping.core.transform;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.EventListener;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import javax.swing.event.EventListenerList;
-
-
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.grouping.NodeGrouper;
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.grouping.core.transform.transformer.NodeTransformer;
+import com.microproject.util.ListenerRegistry;
 
 /**
  *
@@ -373,31 +372,31 @@ public class ViewTransformer{
 
 
 
-	protected EventListenerList listenerList = new EventListenerList();
+	private final ListenerRegistry<ViewTransformerListener> listeners = new ListenerRegistry<>();
 
 	public void addViewTransformerListener(ViewTransformerListener l) {
-		listenerList.add(ViewTransformerListener.class, l);
+		listeners.add(l);
 	}
 	public void removeViewTransformerListener(ViewTransformerListener l) {
-		listenerList.remove(ViewTransformerListener.class, l);
+		listeners.remove(l);
 	}
 	public ViewTransformerListener[] getTimeScaleListeners() {
-		return (ViewTransformerListener[]) listenerList.getListeners(ViewTransformerListener.class);
+		return listeners.snapshotReverse().toArray(ViewTransformerListener[]::new);
 	}
 	protected void fireTransformerChanged(Object source) {
-		Object[] listeners = listenerList.getListenerList();
 		ViewTransformerEvent e = null;
-		for (int i = listeners.length - 2; i >= 0; i -= 2) {
-			if (listeners[i] == ViewTransformerListener.class) {
-				if (e == null) {
-					e = new ViewTransformerEvent(source);
-				}
-				((ViewTransformerListener) listeners[i + 1]).transformerChanged(e);
-			}
+		for (ViewTransformerListener listener : listeners.snapshotReverse()) {
+			if (e == null)
+				e = new ViewTransformerEvent(source);
+			listener.transformerChanged(e);
 		}
 	}
-    public EventListener[] getListeners(Class listenerType) {
-    	return listenerList.getListeners(listenerType);
+	public EventListener[] getListeners(Class listenerType) {
+		if (listenerType == null)
+			throw new NullPointerException("listenerType");
+		if (listenerType != ViewTransformerListener.class)
+			return (EventListener[]) Array.newInstance(listenerType, 0);
+		return listeners.snapshotReverse().toArray(ViewTransformerListener[]::new);
        }
 
 
