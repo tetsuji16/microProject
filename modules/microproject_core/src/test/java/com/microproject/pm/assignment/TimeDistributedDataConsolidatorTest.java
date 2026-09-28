@@ -40,6 +40,7 @@ class TimeDistributedDataConsolidatorTest {
 		StubData nonLabor = new StubData(false, 17, 5, 12, 4.5);
 
 		assertEquals(7.0, TimeDistributedDataConsolidator.acwp(10, 20, List.of(labor, nonLabor)));
+		assertEquals(7.0, TimeDistributedDataConsolidator.baselineCost(10, 20, List.of(labor, nonLabor)));
 		assertEquals(11, TimeDistributedDataConsolidator.work(10, 20, List.of(labor, nonLabor), true));
 		assertEquals(3, TimeDistributedDataConsolidator.actualWork(10, 20, List.of(labor, nonLabor), true));
 		assertEquals(20, TimeDistributedDataConsolidator.remainingWork(10, 20, List.of(labor, nonLabor), false));
@@ -57,7 +58,7 @@ class TimeDistributedDataConsolidatorTest {
 		@Override public double actualCost(long start, long end) { return 0; }
 		@Override public double actualFixedCost(long start, long end) { return 0; }
 		@Override public double fixedCost(long start, long end) { return 0; }
-		@Override public double baselineCost(long start, long end) { return 0; }
+		@Override public double baselineCost(long start, long end) { return acwpValue; }
 		@Override public long work(long start, long end) { return workValue; }
 		@Override public long baselineWork(long start, long end) { return 0; }
 		@Override public long actualWork(long start, long end) { return actualWorkValue; }

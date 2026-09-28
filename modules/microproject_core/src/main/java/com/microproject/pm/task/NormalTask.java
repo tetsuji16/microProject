@@ -1239,6 +1239,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public double baselineCost(long start, long end) {
+		if (isParentWithoutAssignments())
+			return TimeDistributedDataConsolidator.baselineCost(start, end, rollupValues());
 		if (getBaselineSnapshot() == null)
 			return 0;
 
@@ -1246,6 +1248,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public long baselineWork(long start, long end) {
+		if (isParentWithoutAssignments())
+			return TimeDistributedDataConsolidator.baselineWork(start, end, rollupValues(), false);
 		if (getBaselineSnapshot() == null)
 			return 0;
 		return getBaselineSnapshot().work(start, end);

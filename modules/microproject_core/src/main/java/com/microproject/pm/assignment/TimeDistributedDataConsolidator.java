@@ -130,7 +130,7 @@ public class TimeDistributedDataConsolidator {
 	}
 		
 	public static double baselineCost(long start, long end, Collection<? extends HasTimeDistributedData> collection){
-		long result = 0;
+		double result = 0.0D;
 		for (HasTimeDistributedData data : collection) {
 			result += data.baselineCost(start,end);
 		}

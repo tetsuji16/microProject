@@ -56,6 +56,7 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskPercentCompleteTest {
@@ -461,6 +462,27 @@ class NormalTaskPercentCompleteTest {
 		assertEquals(first.remainingWork(span.getStart(), span.getFinish())
 				+ second.remainingWork(span.getStart(), span.getFinish()),
 				parent.remainingWork(span.getStart(), span.getFinish()));
+	}
+
+	@Test
+	void parentSummaryAggregatesBaselineWorkFromChildSnapshots() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask first = createTask(project);
+		NormalTask second = createTask(project);
+		long start = project.getStart();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		configureTask(first, start, 2L * day);
+		configureTask(second, project.getEffectiveWorkCalendar().add(start, 3L * day, false), 3L * day);
+		assignWork(project, first, 2L * day);
+		assignWork(project, second, 3L * day);
+		attachChildren(parent, first, second);
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
+		RollupSpan span = parent.calculateRollupSpan();
+
+		assertEquals(first.baselineWork(span.getStart(), span.getFinish())
+				+ second.baselineWork(span.getStart(), span.getFinish()),
+				parent.baselineWork(span.getStart(), span.getFinish()));
 	}
 
 	@Test
