@@ -68,6 +68,17 @@ class DefaultSubprojectHandlerTest {
 	}
 
 	@Test
+	void dependencyDateUsesTaskEntriesAndIgnoresOtherReferenceEntries() {
+		Project project = newProject("subproject-reference");
+		NormalTask task = project.createScriptedTask();
+		task.setDependencyStart(42L);
+		DefaultSubprojectHandler handler = new DefaultSubprojectHandler(project);
+		handler.setReferringSubprojectTasks(List.of("legacy-reference-metadata", task));
+
+		assertEquals(42L, handler.getReferringSubprojectTaskDependencyDate());
+	}
+
+	@Test
 	void insertingASubprojectRecordsTheParentPlaceholderForPersistenceWithoutDuplicates() {
 		Project master = newProject("master");
 		Project subproject = newProject("subproject");

@@ -52,8 +52,8 @@ public class DefaultSubprojectHandler implements SubprojectHandler {
 	public long getReferringSubprojectTaskDependencyDate() {
 		long result = 0L;
 		for (Object value : referringSubprojectTasks) {
-			if (value instanceof Task)
-				result = Math.max(result, ((Task) value).getDependencyStart());
+			if (value instanceof Task task)
+				result = Math.max(result, task.getDependencyStart());
 		}
 		return result;
 	}
