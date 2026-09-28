@@ -1964,7 +1964,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	    if(version<1) super.initializeTransientTaskObjects();
 	    else super.initializeTransientTaskObjectsAfterDeserialization();
-//	    barClosureInstance = new BarClosure();
 //	    This shouldn't be called -hk 4/feb/05
 //	    initializeDates();
 
