@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import javax.swing.SwingUtilities;
 import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
 
@@ -43,7 +42,6 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.DependencyCreationEdit;
 import com.microproject.undo.DependencyDeletionEdit;
 import com.microproject.undo.DependencySetFieldsEdit;
-import com.microproject.util.Alert;
 import com.microproject.util.ClassUtils;
 
 /**
@@ -342,9 +340,6 @@ public class DependencyService {
 	 * @param successor
 	 */
 	public static void warnCircularCrossProjectLinkMessage(final Object predecessor, final Object successor) {
-		if (Alert.allowPopups()) {
-			SwingUtilities.invokeLater(() ->
-				Alert.warn(getCircularCrossProjectLinkMessage(predecessor, successor)));
-		}
+		DependencyWarningNotifications.warnCircularLink(getCircularCrossProjectLinkMessage(predecessor, successor));
 	}
 }

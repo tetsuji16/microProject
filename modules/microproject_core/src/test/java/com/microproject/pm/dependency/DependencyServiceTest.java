@@ -35,7 +35,9 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.association.InvalidAssociationException;
@@ -52,6 +54,22 @@ import com.microproject.pm.task.SubProj;
 import com.microproject.undo.DataFactoryUndoController;
 
 class DependencyServiceTest {
+	@AfterEach
+	void clearWarningHandler() {
+		DependencyWarningNotifications.setCircularLinkWarningHandler(null);
+	}
+
+	@Test
+	void circularCrossProjectWarningIsDeliveredThroughNotificationPort() {
+		AtomicReference<String> received = new AtomicReference<>();
+		DependencyWarningNotifications.setCircularLinkWarningHandler(received::set);
+
+		DependencyService.warnCircularCrossProjectLinkMessage("Predecessor task", "Successor task");
+
+		assertEquals(DependencyService.getCircularCrossProjectLinkMessage("Predecessor task", "Successor task"),
+				received.get());
+	}
+
 	@Test
 	void unknownTaskReferenceDoesNotCreateTaskOrReplaceExistingLink() throws Exception {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();

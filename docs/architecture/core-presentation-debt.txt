@@ -120,7 +120,6 @@ com/microproject/pm/ccpm/CriticalChainBufferHistoryService.java	javax.swing.undo
 com/microproject/pm/ccpm/CriticalChainService.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/pm/ccpm/CriticalChainService.java	javax.swing.undo.UndoableEditSupport
 com/microproject/pm/criticalpath/PredecessorTaskTree.java	javax.swing.tree.DefaultMutableTreeNode
-com/microproject/pm/dependency/DependencyService.java	javax.swing.SwingUtilities
 com/microproject/pm/dependency/DependencyService.java	javax.swing.undo.UndoableEdit
 com/microproject/pm/dependency/DependencyService.java	javax.swing.undo.UndoableEditSupport
 com/microproject/pm/resource/ResourceImpl.java	com.microproject.graphic.configuration.HasIndicators
