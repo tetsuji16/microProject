@@ -184,7 +184,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	}
 
 	private void resolveSharedResourcePools() {
-		List<Project> projects = new ArrayList<Project>();
+		List<Project> projects = new ArrayList<>();
 		forProjects(projects::add);
 		for (Project project : projects)
 			SharedResourcePoolService.getInstance().resolve(project, projects);

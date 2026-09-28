@@ -2849,3 +2849,8 @@ verification for this syntax-only cleanup.
 baseline `d2fa3c20a`; the list remains empty until populated by workspace
 restore, with unchanged serialized field type and ordering. `SpreadSheetFieldArrayTest`
 is the focused verification.
+
+`Portfolio.resolveSharedResourcePools` now uses diamond inference for its
+temporary project list. The constructor matches OpenProj 1.4 at `d2fa3c20a`;
+projects are still appended in `forProjects` encounter order before resource
+pool resolution. `PortfolioDocumentTest` is the focused verification.
