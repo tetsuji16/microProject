@@ -9,7 +9,7 @@ migration map, not a claim that the boundaries are already complete.
 
 | UI caller | Current dependency | Responsibility | Boundary decision |
 | --- | --- | --- | --- |
-| `GraphicManager`, `DocumentFrame` | `ProjectArtifactLifecycleCoordinator` | Configure MPOF temporary extraction root and close extracted child resources on document close, manager cleanup, or project removal | The UI now calls a format-keyed application coordinator. Core owns only the lifecycle port contract; exchange owns the adapter and archive registry. |
+| `GraphicManager`, `DocumentFrame` | `ProjectArtifactLifecycleCoordinator` | Own the process temporary workspace, configure MPOF extraction root, and close extracted child resources on document close, manager cleanup, or project removal | The UI now calls a format-keyed application coordinator. Core owns only the lifecycle port contract; application owns the `TemporaryWorkspace`; exchange owns the adapter and archive registry. |
 | `GraphicManager`, `ResourceMappingDialogCoordinator`, `ResourceMappingDialog` | `ResourceMappingForm` | Supply import mapping choices and receive the user's mapping decision | UI contract passed into exchange. The Swing dialog remains UI-owned; separate its presentation type from exchange only if the resulting contract remains UI-agnostic and does not duplicate mapping state. |
 | `DocumentFrame` | reflective `ReportView` creation | Select and host a report view | View integration. Keep view selection and Swing hosting in UI; do not put `JPanel` or `DocumentFrame` in application. |
 | `ReportView` | `DataSource`, `DataSourceProvider`, `ReportUtil`, `ReportViewer` | Build report data and render Jasper output | Mixed responsibility. The view and viewer are presentation; report definition selection/data preparation and report generation belong behind a report use case or report port. Preserve interactive column selection in UI. |
@@ -28,8 +28,9 @@ boundary module.
   `PortRegistry`; `GraphicManager.saveLinkedSubproject` now uses its MPO export
   operation. Other open/save/import routes still use legacy job-based factories.
 - `ProjectArtifactLifecycleCoordinator` routes workspace-root setup and project
-  artifact cleanup through a format-scoped lifecycle port. `GraphicManager` and
-  `DocumentFrame` no longer reference MPO importer or extraction-registry types.
+  artifact cleanup through a format-scoped lifecycle port and owns the process
+  `TemporaryWorkspace`. `GraphicManager` and `DocumentFrame` no longer own the
+  workspace field or reference MPO importer/extraction-registry types.
 - `DefaultFileImporterProvider` registers both legacy `SessionImporter` job
   factories and typed `ImportPort`/`ExportPort` adapters. These APIs serve
   different call contracts today. Migration must preserve progress, merge and

@@ -111,7 +111,6 @@ import com.microproject.application.ProjectLoadWorkflow;
 import com.microproject.application.ProjectPortCoordinator;
 import com.microproject.application.ProjectArtifactLifecycleCoordinator;
 import com.microproject.application.RecentProjectStore;
-import com.microproject.application.TemporaryWorkspace;
 import com.microproject.collaboration.CollaborationMetadataStore;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.ProjectMergeService;
@@ -250,7 +249,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private final ResourceMappingDialogCoordinator resourceMappingDialogCoordinator = new ResourceMappingDialogCoordinator();
 	ProjectFactory projectFactory = null;
 	private final AutoRecoveryManager autoRecoveryManager;
-	private final TemporaryWorkspace temporaryWorkspace;
+	private final ProjectArtifactLifecycleCoordinator projectArtifactLifecycleCoordinator = new ProjectArtifactLifecycleCoordinator();
 	private final RecentProjectStore recentProjectStore = new RecentProjectStore();
 	private Runnable afterSaveNewProject;
 	private volatile boolean quitting;
@@ -340,19 +339,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}});
 
 		projectFactory = ProjectFactory.getInstance();
-		TemporaryWorkspace workspace;
 		try {
-			workspace = TemporaryWorkspace.openDefault();
-			if (!new ProjectArtifactLifecycleCoordinator().setWorkspaceRoot(
-					LocalSession.MPO_PROJECT_IMPORTER, workspace.root()))
+			if (!projectArtifactLifecycleCoordinator.openDefaultWorkspace(LocalSession.MPO_PROJECT_IMPORTER))
 				logger.warning("No MPO project artifact lifecycle provider is registered");
 		} catch (IOException exception) {
 			// MPOF falls back to the same platform default when the workspace cannot
 			// be initialized; opening ordinary project files must remain available.
 			logger.log(Level.WARNING, "Unable to initialize temporary workspace", exception);
-			workspace = null;
 		}
-		temporaryWorkspace = workspace;
 		autoRecoveryManager = new AutoRecoveryManager(projectFactory, this);
 		projectFactory.getPortfolio().addObjectListener(this);
 
@@ -381,10 +375,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	public void cleanUp() {
 		autoRecoveryManager.stop();
-		if (!new ProjectArtifactLifecycleCoordinator().closeAll(LocalSession.MPO_PROJECT_IMPORTER))
+		if (!projectArtifactLifecycleCoordinator.closeAll(LocalSession.MPO_PROJECT_IMPORTER))
 			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
-		if (temporaryWorkspace != null)
-			temporaryWorkspace.close();
+		projectArtifactLifecycleCoordinator.closeWorkspace();
 
 //		On quitting, a sleep interrupted exception (below) is thrown by Substance. Without changing the source
 //		java.lang.InterruptedException: sleep interrupted
@@ -3603,7 +3596,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		persistCollaborationWorkspace(project);
 		// Subprojects do not always have a DocumentFrame; release their MPOF
 		// extraction ownership at the project-removal boundary as well.
-		if (!new ProjectArtifactLifecycleCoordinator().close(LocalSession.MPO_PROJECT_IMPORTER, project))
+		if (!projectArtifactLifecycleCoordinator.close(LocalSession.MPO_PROJECT_IMPORTER, project))
 			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
 		if (project.getCollaborationSession() != null) {
 			project.getCollaborationSession().stop();

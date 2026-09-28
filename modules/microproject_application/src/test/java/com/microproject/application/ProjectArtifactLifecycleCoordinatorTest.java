@@ -8,15 +8,22 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.microproject.pm.task.Project;
 import com.microproject.port.PortRegistry;
 import com.microproject.port.ProjectArtifactLifecyclePort;
 
 class ProjectArtifactLifecycleCoordinatorTest {
+	@TempDir
+	Path temporaryDirectory;
+
 	@Test
 	void routesWorkspaceAndCloseLifecycleToTheMatchingFormatPort() {
 		PortRegistry registry = new PortRegistry();
@@ -42,6 +49,25 @@ class ProjectArtifactLifecycleCoordinatorTest {
 		assertFalse(coordinator.setWorkspaceRoot("missing", Path.of("unused")));
 		assertFalse(coordinator.close("", null));
 		assertFalse(coordinator.closeAll(null));
+	}
+
+	@Test
+	void coordinatorClosesItsOwnedTemporaryWorkspace() throws Exception {
+		PortRegistry registry = new PortRegistry();
+		RecordingPort port = new RecordingPort();
+		registry.registerArtifactLifecycle(port);
+		ProjectArtifactLifecycleCoordinator coordinator = new ProjectArtifactLifecycleCoordinator(registry);
+		TemporaryWorkspace workspace = TemporaryWorkspace.open(temporaryDirectory.resolve("workspace"), Duration.ofDays(7));
+		TemporaryWorkspace.TempArtifact artifact = workspace.createArtifact("owned", ".tmp", Map.of());
+
+		assertTrue(coordinator.ownWorkspace("mpo", workspace));
+		assertTrue(Files.exists(artifact.path()));
+		assertEquals(workspace.root(), port.workspaceRoot);
+
+		coordinator.closeWorkspace();
+
+		assertFalse(Files.exists(artifact.path()));
+		assertFalse(Files.exists(artifact.manifest()));
 	}
 
 	private static final class RecordingPort implements ProjectArtifactLifecyclePort {
