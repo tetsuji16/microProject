@@ -185,7 +185,8 @@ public class ResourceInformationDialog extends InformationDialog {
     }
     protected void updateAssignmentSpreadsheet() {
 		AssociationList assignments = object == null ? null : ((Resource)object).getAssignments();
-		AssignmentSpreadsheetSupport.update(assignmentSpreadSheet, assignments, false);
+		AssignmentSpreadsheetSupport.update(assignmentSpreadSheet, assignments,
+				AssignmentSpreadsheetSupport.Perspective.RESOURCE_ASSIGNMENTS);
     }
 	
 	

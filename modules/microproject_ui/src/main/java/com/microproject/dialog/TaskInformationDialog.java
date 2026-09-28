@@ -562,7 +562,8 @@ public class TaskInformationDialog extends InformationDialog {
     }
     protected void updateAssignmentSpreadsheet() {
 		AssociationList assignments = object == null ? null : ((NormalTask)object).getAssignments();
-		AssignmentSpreadsheetSupport.update(assignmentSpreadSheet, assignments, true);
+		AssignmentSpreadsheetSupport.update(assignmentSpreadSheet, assignments,
+				AssignmentSpreadsheetSupport.Perspective.TASK_ASSIGNMENTS);
     }
     
 	public void updateAll() {

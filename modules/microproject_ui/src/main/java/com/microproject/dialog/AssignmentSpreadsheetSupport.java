@@ -42,25 +42,27 @@ import com.microproject.strings.Messages;
 final class AssignmentSpreadsheetSupport {
 	enum Perspective {
 		TASK_ASSIGNMENTS(false, "View.TaskInformation.Assignments",
-				UsageDetailView.resourceAssignmentSpreadsheetCategory, true, false, false),
+				UsageDetailView.resourceAssignmentSpreadsheetCategory, true, false, false, true),
 		RESOURCE_ASSIGNMENTS(true, "View.ResourceInformation.Assignments",
-				UsageDetailView.taskAssignmentSpreadsheetCategory, false, true, true);
+				UsageDetailView.taskAssignmentSpreadsheetCategory, false, true, true, false);
 
-		private final boolean resourceRows;
+		private final boolean taskRows;
 		private final String viewName;
 		private final String category;
 		private final boolean leftAssociation;
 		private final boolean modifyColumns;
-		private final boolean documentCacheUsesResourceRows;
+		private final boolean documentCacheUsesTaskRows;
+		private final boolean fireUpdateAll;
 
-		Perspective(boolean resourceRows, String viewName, String category, boolean leftAssociation,
-				boolean modifyColumns, boolean documentCacheUsesResourceRows) {
-			this.resourceRows = resourceRows;
+		Perspective(boolean taskRows, String viewName, String category, boolean leftAssociation,
+				boolean modifyColumns, boolean documentCacheUsesTaskRows, boolean fireUpdateAll) {
+			this.taskRows = taskRows;
 			this.viewName = viewName;
 			this.category = category;
 			this.leftAssociation = leftAssociation;
 			this.modifyColumns = modifyColumns;
-			this.documentCacheUsesResourceRows = documentCacheUsesResourceRows;
+			this.documentCacheUsesTaskRows = documentCacheUsesTaskRows;
+			this.fireUpdateAll = fireUpdateAll;
 		}
 	}
 
@@ -69,8 +71,8 @@ final class AssignmentSpreadsheetSupport {
 
 	static SpreadSheet create(Component owner, Perspective perspective) {
 		SpreadSheet sheet = SpreadSheetUtils.createFilteredSpreadsheet(
-				GraphicManager.getInstance(owner).getCurrentFrame(), perspective.resourceRows, perspective.viewName,
-				perspective.category, UsageDetailView.getUsageAssignmentSpreadsheetId(perspective.resourceRows),
+				GraphicManager.getInstance(owner).getCurrentFrame(), perspective.taskRows, perspective.viewName,
+				perspective.category, UsageDetailView.getUsageAssignmentSpreadsheetId(perspective.taskRows),
 				perspective.leftAssociation, new String[] { MenuActionConstants.ACTION_DELETE });
 		if (perspective.modifyColumns) {
 			sheet.setCanModifyColumns(true);
@@ -83,16 +85,16 @@ final class AssignmentSpreadsheetSupport {
 		return SpreadSheetUtils.makeSpreadsheetScrollPane(sheet);
 	}
 
-	static void update(SpreadSheet sheet, AssociationList assignments, boolean fireUpdateAll) {
+	static void update(SpreadSheet sheet, AssociationList assignments, Perspective perspective) {
 		SpreadSheetUtils.updateFilteredSpreadsheet(sheet, assignments == null ? new AssociationList() : assignments);
-		if (fireUpdateAll)
+		if (perspective.fireUpdateAll)
 			((SpreadSheetModel) sheet.getModel()).fireUpdateAll();
 	}
 
 	static void selectDocument(SpreadSheet sheet, DocumentFrame document, Perspective perspective) {
 		if (sheet == null || document == null)
 			return;
-		NodeModelCache cache = document.createCache(perspective.documentCacheUsesResourceRows,
+		NodeModelCache cache = document.createCache(perspective.documentCacheUsesTaskRows,
 				Messages.getString("View.TaskInformation.Assignments")); //$NON-NLS-1$
 		sheet.setCache(cache);
 	}
