@@ -1978,7 +1978,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 	public Object clone(){
 		Task task=(Task)super.clone();
-//		task.barClosureInstance = new BarClosure();
 
 
 
