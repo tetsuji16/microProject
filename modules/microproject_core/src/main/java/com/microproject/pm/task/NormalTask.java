@@ -111,10 +111,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	private static final Logger logger = Logger.getLogger(NormalTask.class.getName());
 	static final long serialVersionUID = 273898992929L;
 
-
-//	Schedule schedule = null;
-
-
 	boolean estimated = true;
 	int priority = 500;
 	private double percentWorkCompleteOverride = Double.NaN;
@@ -261,8 +257,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		}
 		duration = Duration.setAsEstimated(duration,estimated);
 		return duration;
-
-//		return calcActiveAssignmentDuration(getEffectiveWorkCalendar());
 	}
 
 	/** Quickly check to see if a task has a duration without actually calculating it
@@ -931,8 +925,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 							  // calculate
 			return 1.0;
 		long work = getRemainingWork(null);
-//		if (work == 0) // degenerate case with no work yet
-//			return 1.0;
 		return ((double) work) / duration;
 
 	}
@@ -1009,8 +1001,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		for (Association association : getAssignments()) {
 			Assignment assignment = (Assignment) association;
 			double r = assignment.getLaborUnits();
-//			if (!assignment.isLabor())
-//				continue;
 			if (conserveTotalUnits)
 				getSchedulingRule().adjustRemainingUnits(assignment, assignment.getRemainingLaborUnits() * multiplier, assignment.getRemainingLaborUnits(), false, false);
 			else {
@@ -1021,8 +1011,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public void adjustRemainingWork(double multiplier, boolean doChildren) {
-//		long newDuration = (long) (getDurationMillis() * multiplier);
-//~~		setRawDuration(newDuration);
 		//need to always do children regardless of doChildren flag
 		for (Association association : getAssignments()) {
 			Assignment assignment = (Assignment) association;
@@ -1060,23 +1048,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @return
 	 */
 	public long getStop() {
-//		if (isWbsParent( )) {
-//			long start = getStart();
-//			if (start == 0)
-//				return 0;
-//			long actualDuration = DateTime.closestDate(getDurationMillis() * getPercentComplete());
-//			return getEffectiveWorkCalendar().add(start,actualDuration,true);
-//		}
 		return getEarliestStop();
-		//&&&&&
-//		long stop = 0;
-//		Assignment assignment;
-//		Iterator i = getAssignments().iterator();
-//		while (i.hasNext()) {
-//			assignment = (Assignment)i.next();
-//			stop = Math.max(stop,assignment.getStop());
-//		}
-//		return stop;
 	}
 
 	//Used when an assignment advancement changes
@@ -1853,15 +1825,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 		recalculate(eventSource); // need to recalculate
 		assignParentActualDatesFromChildren();
-
-
-//		//Undo
-//		UndoableEditSupport undoableEditSupport=getProject().getUndoController().getEditSupport();
-//		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
-//			undoableEditSupport.postEdit(new ScheduleEdit(this,new ScheduleInterval(start,end),oldInterval,isChild,eventSource));
-//		}
-
-
 	}
 
 
@@ -2306,18 +2269,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			((Dependency) association).setDirty(false);
 
 	}
-	//			task.setDirty(false);
-//	task.setLastSavedStart(task.getStart()); //
-//	task.setLastSavedFinish(task.getEnd());
-//	Iterator j = task.getAssignments().iterator();
-//	while (j.hasNext())
-//		((Assignment)j.next()).setDirty(false);
-//	j=task.getDependencyList(true).iterator();
-//	while (j.hasNext())
-//		((Dependency)j.next()).setDirty(false);
-//}
-	
-	
 	//claur import shortcuts
 	public void setCurrentScheduleStart(long start){
 		getCurrentSchedule().setStart(start);
