@@ -5124,7 +5124,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			throw new IllegalStateException("Quit operation was not prepared");
 		SessionFactory.getInstance().getLocalSession().schedule(operation.job());
 		try {
-			if (!awaitQuitCompletion(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS)) {
+			if (!QuitCompletionAwaiter.await(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS)) {
 				logger.warning("Timed out while waiting for projects to close");
 				return false;
 			}
@@ -5193,7 +5193,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				schedule.run();
 			else
 				SwingUtilities.invokeAndWait(schedule);
-			awaitQuitCompletionAsync(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS,
+			QuitCompletionAwaiter.awaitAsync(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS,
 					completed -> {
 						if (completed && operation.closeStatus()[0]) {
 							// Recovery cleanup is filesystem I/O; keep it on the waiter
@@ -5228,50 +5228,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			Objects.requireNonNull(job, "job");
 		}
 	}
-
-	/**
-	 * Waits for the asynchronous project-removal job without allowing a hung
-	 * MPO export (or another queue failure) to block the caller forever.
-	 */
-	static boolean awaitQuitCompletion(Object monitor, BooleanSupplier completed, long timeoutMillis)
-			throws InterruptedException {
-		Objects.requireNonNull(monitor, "monitor");
-		Objects.requireNonNull(completed, "completed");
-		if (timeoutMillis < 0L)
-			throw new IllegalArgumentException("timeoutMillis must not be negative");
-		long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
-		synchronized (monitor) {
-			while (!completed.getAsBoolean()) {
-				long remainingNanos = deadline - System.nanoTime();
-				if (remainingNanos <= 0L)
-					return false;
-				long waitMillis = TimeUnit.NANOSECONDS.toMillis(remainingNanos);
-				int waitNanos = (int) (remainingNanos - TimeUnit.MILLISECONDS.toNanos(waitMillis));
-				monitor.wait(Math.max(1L, waitMillis), Math.max(0, waitNanos));
-			}
-			return true;
-		}
-	}
-
-	/** Waits on a daemon worker so a desktop quit callback never blocks the EDT. */
-	static Thread awaitQuitCompletionAsync(Object monitor, BooleanSupplier completed, long timeoutMillis,
-			Consumer<Boolean> result) {
-		Objects.requireNonNull(result, "result");
-		Thread waiter = new Thread(() -> {
-			boolean finished;
-			try {
-				finished = awaitQuitCompletion(monitor, completed, timeoutMillis);
-			} catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
-				finished = false;
-			}
-			result.accept(finished);
-		}, "microProject-quit-wait");
-		waiter.setDaemon(true);
-		waiter.start();
-		return waiter;
-	}
-
 
 	public static Project getProject() {
 		GraphicManager lastGraphicManager = MANAGER_REGISTRY.getActiveManager();

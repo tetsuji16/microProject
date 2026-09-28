@@ -27,14 +27,14 @@ class GraphicManagerQuitLifecycleTest {
 		}, "quit-test-signal");
 		signal.start();
 
-		assertTrue(GraphicManager.awaitQuitCompletion(monitor, completed::get, 1000L));
+		assertTrue(QuitCompletionAwaiter.await(monitor, completed::get, 1000L));
 		signal.join(1000L);
 	}
 
 	@Test
 	void quitWaitIsBoundedWhenRemovalNeverSignals() throws Exception {
 		long start = System.nanoTime();
-		assertFalse(GraphicManager.awaitQuitCompletion(new Object(), () -> false, 25L));
+		assertFalse(QuitCompletionAwaiter.await(new Object(), () -> false, 25L));
 		long elapsedMillis = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 		assertTrue(elapsedMillis < 500L, "bounded quit wait exceeded test budget: " + elapsedMillis + "ms");
 	}
@@ -44,7 +44,7 @@ class GraphicManagerQuitLifecycleTest {
 		Thread.currentThread().interrupt();
 		try {
 			org.junit.jupiter.api.Assertions.assertThrows(InterruptedException.class,
-					() -> GraphicManager.awaitQuitCompletion(new Object(), () -> false, 10_000L));
+					() -> QuitCompletionAwaiter.await(new Object(), () -> false, 10_000L));
 		} finally {
 			Thread.interrupted();
 		}
@@ -58,7 +58,7 @@ class GraphicManagerQuitLifecycleTest {
 		CountDownLatch callback = new CountDownLatch(1);
 		AtomicBoolean result = new AtomicBoolean();
 		SwingUtilities.invokeAndWait(() -> {
-			GraphicManager.awaitQuitCompletionAsync(monitor, completed::get, 1000L,
+			QuitCompletionAwaiter.awaitAsync(monitor, completed::get, 1000L,
 					value -> {
 						result.set(value);
 						callback.countDown();
