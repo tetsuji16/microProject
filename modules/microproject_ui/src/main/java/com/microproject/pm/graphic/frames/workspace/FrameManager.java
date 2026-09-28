@@ -27,6 +27,8 @@ package com.microproject.pm.graphic.frames.workspace;
 import java.awt.Component;
 import java.io.Serializable;
 import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.util.FilePathUtils;
@@ -55,6 +57,15 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 		return selected instanceof NamedFrame frame ? frame : null;
 	}
 	AbstractList getAllFrames();
+	/** Returns a stable snapshot of the document frames owned by this manager. */
+	default List<DocumentFrame> getDocumentFrames() {
+		List<DocumentFrame> documents = new ArrayList<>();
+		for (Object value : getAllFrames()) {
+			if (value instanceof DocumentFrame frame)
+				documents.add(frame);
+		}
+		return List.copyOf(documents);
+	}
 	/** Returns the registered document frame with this stable workspace ID. */
 	default NamedFrame getFrame(String id) {
 		if (id == null)
@@ -69,8 +80,8 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 	default NamedFrame findFrameForProjectFile(String fileName) {
 		if (fileName == null || fileName.isBlank())
 			return null;
-		for (Object value : getAllFrames()) {
-			if (!(value instanceof DocumentFrame frame) || frame.getProject() == null)
+		for (DocumentFrame frame : getDocumentFrames()) {
+			if (frame.getProject() == null)
 				continue;
 			if (FilePathUtils.sameFileIdentity(frame.getProject().getFileName(), fileName))
 				return frame;

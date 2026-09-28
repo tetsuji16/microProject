@@ -459,12 +459,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private List<DocumentFrame> getOpenDocumentFrames() {
 		if (frameManager == null)
 			return List.of();
-		List<DocumentFrame> frames = new ArrayList<>();
-		for (Object value : frameManager.getAllFrames()) {
-			if (value instanceof DocumentFrame frame)
-				frames.add(frame);
-		}
-		return frames;
+		return frameManager.getDocumentFrames();
 	}
 	/** Finds an already-open document by canonical file identity. */
 	public DocumentFrame findFrameForProjectFile(String fileName) {

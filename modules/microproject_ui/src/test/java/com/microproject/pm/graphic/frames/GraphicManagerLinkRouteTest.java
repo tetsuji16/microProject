@@ -118,6 +118,7 @@ class GraphicManagerLinkRouteTest {
 					return null;
 				});
 
+		assertEquals(List.of(documentFrame), frameManager.getDocumentFrames());
 		assertSame(documentFrame, frameManager.findFrameForProjectFile("c:/plans/./shared.mpp"));
 		assertNull(frameManager.findFrameForProjectFile("C:/Plans/Other.mpp"));
 		assertNull(frameManager.findFrameForProjectFile("  "));
