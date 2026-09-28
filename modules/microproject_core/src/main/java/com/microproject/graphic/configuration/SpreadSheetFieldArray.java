@@ -413,7 +413,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	public static class Workspace implements WorkspaceSetting {
 		private static final long serialVersionUID = -4517935309304612237L;
 		ArrayList<Integer> widths = new ArrayList<>();
-		ArrayList<Boolean> manualWidths = new ArrayList<Boolean>();
+		ArrayList<Boolean> manualWidths = new ArrayList<>();
 		ArrayList<String> fields = new ArrayList<>();
 		float version=2.0f;
 	}

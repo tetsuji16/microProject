@@ -2843,3 +2843,9 @@ instead of comparing it with `true` or `false`. `git blame` confirms both
 conditions at baseline `d2fa3c20a`; the synchronous and asynchronous runnable
 partitioning and iterator order are unchanged. The core test suite is the
 verification for this syntax-only cleanup.
+
+`SpreadSheetFieldArray.Workspace` now uses diamond inference for its empty
+`ArrayList<Boolean>` manual-width list. `git blame` confirms the constructor at
+baseline `d2fa3c20a`; the list remains empty until populated by workspace
+restore, with unchanged serialized field type and ordering. `SpreadSheetFieldArrayTest`
+is the focused verification.
