@@ -2862,3 +2862,10 @@ edit.
 the snapshot iteration still permits task ownership changes during traversal.
 No focused test directly exercises this constructor; the full core test suite
 and downstream compile are the verification for this syntax-only edit.
+
+`Assignment.calcDataBetween` now binds a non-null `TimeIteratorGenerator` with
+pattern matching instead of checking `generator != null`, testing its runtime
+type, and casting it again. The changed hunk matches OpenProj 1.4 at
+`d2fa3c20a`; query grouping and the non-time-iterator fallback are unchanged.
+No focused test directly targets this helper, so the full core test suite and
+downstream compile are the verification for this syntax-only modernization.

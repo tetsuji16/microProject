@@ -1507,8 +1507,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 		Query query = Query.getInstance();
 		query.selectFrom(clause);
-		if (generator != null && generator instanceof TimeIteratorGenerator) {
-			query.groupBy((TimeIteratorGenerator)generator)
+		if (generator instanceof TimeIteratorGenerator iteratorGenerator) {
+			query.groupBy(iteratorGenerator)
 				 .action(visitor);
 		} else {
 			clause.select(visitor); // replaces other one
