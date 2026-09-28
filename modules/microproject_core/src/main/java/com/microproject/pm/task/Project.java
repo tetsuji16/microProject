@@ -73,7 +73,6 @@ import com.microproject.field.FieldContext;
 import com.microproject.field.HasExtraFields;
 import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeException;
