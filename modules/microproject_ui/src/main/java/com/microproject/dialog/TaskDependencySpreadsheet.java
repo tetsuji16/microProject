@@ -52,6 +52,14 @@ final class TaskDependencySpreadsheet extends SpreadSheet {
 		private final String viewId;
 		private final String fieldsId;
 
+		boolean isPredecessors() {
+			return predecessors;
+		}
+
+		String labelKey() {
+			return fieldsId;
+		}
+
 		Direction(boolean predecessors, String fieldId, String viewId, String fieldsId) {
 			this.predecessors = predecessors;
 			this.fieldId = fieldId;
