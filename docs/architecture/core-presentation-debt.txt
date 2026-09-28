@@ -62,7 +62,6 @@ com/microproject/graphic/configuration/shape/PredefinedStroke.java	java.awt.Stro
 com/microproject/graphic/configuration/SpreadSheetCategories.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/SpreadSheetFieldArray.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/SpreadSheetFieldArray.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
-com/microproject/graphic/configuration/SpreadSheetFieldArray.java	java.awt.Point
 com/microproject/graphic/configuration/TexturedShape.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/TexturedShape.java	com.microproject.graphic.configuration.shape.Colors
 com/microproject/graphic/configuration/TexturedShape.java	com.microproject.graphic.configuration.shape.PredefinedPaint
@@ -103,7 +102,6 @@ com/microproject/job/Job.java	javax.swing.ProgressMonitor
 com/microproject/job/Job.java	javax.swing.SwingUtilities
 com/microproject/job/JobQueue.java	java.awt.Component
 com/microproject/job/JobQueue.java	java.awt.Frame
-com/microproject/job/JobQueue.java	javax.swing.ProgressMonitor
 com/microproject/job/JobQueue.java	javax.swing.SwingUtilities
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetCategories
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
@@ -125,14 +123,12 @@ com/microproject/pm/scheduling/ScheduleService.java	javax.swing.undo.UndoableEdi
 com/microproject/pm/task/NormalTask.java	com.microproject.graphic.configuration.HasIndicators
 com/microproject/pm/task/NormalTask.java	com.microproject.graphic.configuration.HasTaskIndicators
 com/microproject/pm/task/Portfolio.java	javax.swing.JOptionPane
-com/microproject/pm/task/Portfolio.java	javax.swing.SwingUtilities
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.GanttBarFormatOverrides
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/pm/task/Project.java	com.microproject.print.PrintSettings
 com/microproject/pm/task/Project.java	javax.swing.SwingUtilities
 com/microproject/pm/task/ProjectFactory.java	javax.swing.JOptionPane
 com/microproject/pm/task/ProjectFactory.java	javax.swing.SwingUtilities
-com/microproject/pm/task/Task.java	com.microproject.graphic.configuration.GraphicConfiguration
 com/microproject/pm/task/Task.java	javax.swing.SwingUtilities
 com/microproject/preference/GlobalPreferences.java	com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat
 com/microproject/print/ExtendedPageFormat.java	com.microproject.print
@@ -151,7 +147,6 @@ com/microproject/print/ScalingSettings.java	com.microproject.print
 com/microproject/print/ViewSettings.java	com.microproject.print
 com/microproject/script/ConverterContext.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/script/FieldArrayUtil.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
-com/microproject/session/SaveOptions.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/undo/AssignmentCreationEdit.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/undo/AssignmentCreationEdit.java	javax.swing.undo.CannotRedoException
 com/microproject/undo/AssignmentCreationEdit.java	javax.swing.undo.CannotUndoException

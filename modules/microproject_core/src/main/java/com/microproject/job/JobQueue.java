@@ -37,7 +37,6 @@ import java.util.logging.Logger;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 
-import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
 
 

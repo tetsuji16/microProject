@@ -58,7 +58,6 @@ import com.microproject.field.CustomFieldsImpl;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
-import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.OutlineCollection;

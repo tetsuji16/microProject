@@ -27,7 +27,6 @@ package com.microproject.session;
 import java.util.function.Consumer;
 
 
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.task.Project;
 
 public class SaveOptions implements Cloneable{

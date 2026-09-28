@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.graphic.configuration;
 
-import java.awt.Point;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
