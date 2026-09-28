@@ -39,6 +39,7 @@ import java.awt.Rectangle;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 import javax.swing.DefaultComboBoxModel;
@@ -506,9 +507,10 @@ public class DefaultFrameManager implements FrameManager {
 	}
 
 	public AbstractList getAllFrames() {
-		LinkedList<NamedFrame> list = new LinkedList<>();
-		for (int i = 0; i < getProjectComboBox().getItemCount(); i++) {
-			NamedFrame frame = (NamedFrame)getProjectComboBox().getItemAt(i);
+		JComboBox frames = getProjectComboBox();
+		ArrayList<NamedFrame> list = new ArrayList<>(frames.getItemCount());
+		for (int i = 0; i < frames.getItemCount(); i++) {
+			NamedFrame frame = (NamedFrame)frames.getItemAt(i);
 			list.add(frame);
 		}
 		return list;
