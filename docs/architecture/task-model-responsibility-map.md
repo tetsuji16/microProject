@@ -16,6 +16,12 @@ Both are persistent compatibility types. `Task` has `serialVersionUID = 78666533
 - Progress read/write is routed through `PercentWorkCompleteService` only for WBS summaries; leaves retain assignment-backed behavior. Earned-value derived indicators use `EarnedValueCalculator`, while ACWP/BAC/BCWP/BCWS value summation uses the consolidator.
 - Snapshot capture and restoration enter through `Project.saveCurrentToSnapshot` / `restoreSnapshot` and call each task's existing snapshot methods. These remain on the compatibility shell until the complete POD stream shape and undo behavior can be kept intact.
 
+## Similar paths kept separate by contract
+
+- WBS summary actual-date propagation (`NormalTask.assignActualDatesFromChildren`) and project-wide actual-date aggregation (`Project.TaskAggregationFacade`) both scan tasks, but they do not implement the same rule. A WBS summary ignores children with no progress, infers actual start from scheduled start for a fully complete child with no explicit actual start, and rolls its actual span from known actual finishes/stops. A project returns no actual finish while any project task is unfinished. Merging these loops would change summary versus whole-project semantics.
+- Project percent complete is computed from total task actual duration divided by total task duration. A WBS summary's percent complete is its stored schedule progress; percent work complete is separately derived from leaf assignment work by `PercentWorkCompleteService`. These are distinct metrics and must not share an aggregation formula.
+- Assignment and task snapshot aggregation remain separate persistence scopes: assignment snapshots contain resource-specific calendar/rate state, while task snapshots coordinate scenario state. A shared interface is appropriate only where the values and filtering rules are identical.
+
 ## Responsibility map
 
 | Current owner | Responsibilities observed in source | Important connections and invariants |
