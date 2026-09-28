@@ -2853,9 +2853,12 @@ is the focused verification.
 `Portfolio.resolveSharedResourcePools` now uses diamond inference for its
 temporary project list. The constructor matches OpenProj 1.4 at `d2fa3c20a`;
 projects are still appended in `forProjects` encounter order before resource
-pool resolution. `PortfolioDocumentTest` is the focused verification.
+pool resolution. No focused test exercises this private resolver; the full core
+test suite and downstream compile are the verification for this syntax-only
+edit.
 
 `Project.setAllTasksInSubproject` now uses diamond inference for its defensive
 `ArrayList<Task>` copy. The constructor matches OpenProj 1.4 at `d2fa3c20a`;
 the snapshot iteration still permits task ownership changes during traversal.
-`DefaultSubprojectHandlerTest` is the focused verification.
+No focused test directly exercises this constructor; the full core test suite
+and downstream compile are the verification for this syntax-only edit.

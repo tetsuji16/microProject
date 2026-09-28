@@ -1050,9 +1050,6 @@ public class DefaultNodeModel implements NodeModel {
 		if (undoController==null) return null;
 		return undoController.getEditSupport();
 	}
-//	public void setUndoableEditSupport(UndoableEditSupport undoableEditSupport) {
-//		this.undoableEditSupport = undoableEditSupport;
-//	}
 
 	public void postEdit(UndoableEdit edit){
 		if (getUndoableEditSupport()!=null){
@@ -1085,18 +1082,6 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 
-
-
-//	protected int updateLevel=0;
-//	protected synchronized void beginUpdate(){
-//		updateLevel++;
-//	}
-//	protected synchronized void endUpdate(){
-//		updateLevel--;
-//	}
-//	protected synchronized int getUpdateLevel(){
-//		return updateLevel;
-//	}
 
 
 }
