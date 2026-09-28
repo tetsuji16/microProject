@@ -122,12 +122,10 @@ com/microproject/pm/scheduling/ScheduleService.java	javax.swing.undo.UndoableEdi
 com/microproject/pm/scheduling/ScheduleService.java	javax.swing.undo.UndoableEditSupport
 com/microproject/pm/task/NormalTask.java	com.microproject.graphic.configuration.HasIndicators
 com/microproject/pm/task/NormalTask.java	com.microproject.graphic.configuration.HasTaskIndicators
-com/microproject/pm/task/Portfolio.java	javax.swing.JOptionPane
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.GanttBarFormatOverrides
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/pm/task/Project.java	com.microproject.print.PrintSettings
 com/microproject/pm/task/Project.java	javax.swing.SwingUtilities
-com/microproject/pm/task/ProjectFactory.java	javax.swing.JOptionPane
 com/microproject/pm/task/ProjectFactory.java	javax.swing.SwingUtilities
 com/microproject/pm/task/Task.java	javax.swing.SwingUtilities
 com/microproject/preference/GlobalPreferences.java	com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat

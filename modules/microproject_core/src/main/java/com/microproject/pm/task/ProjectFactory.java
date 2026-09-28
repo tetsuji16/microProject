@@ -43,7 +43,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 
@@ -749,7 +748,7 @@ public class ProjectFactory {
 //			}
 
 			int promptResult = promptForSave(project,allowCancel);
-			if (promptResult == JOptionPane.YES_OPTION){
+			if (promptResult == Alert.YES_OPTION){
 				SaveOptions opt=new SaveOptions();
 				opt.setLocal(project.isLocal());
 				if (project.isLocal()){
@@ -764,7 +763,7 @@ public class ProjectFactory {
 				}
 				job=getSaveProjectJob(project, opt);
 			}
-			else if (promptResult == JOptionPane.CANCEL_OPTION)
+			else if (promptResult == Alert.CANCEL_OPTION)
 				return null;
 		}
 

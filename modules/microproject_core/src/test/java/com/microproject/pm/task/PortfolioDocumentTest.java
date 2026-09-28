@@ -29,17 +29,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import javax.swing.JOptionPane;
+import com.microproject.util.Alert;
 
 import org.junit.jupiter.api.Test;
 
 class PortfolioDocumentTest {
 	@Test
 	void onlyYesReplacesAnAlreadyOpenProject() {
-		assertTrue(Portfolio.shouldReplaceExistingProject(JOptionPane.YES_OPTION));
-		assertFalse(Portfolio.shouldReplaceExistingProject(JOptionPane.NO_OPTION));
-		assertFalse(Portfolio.shouldReplaceExistingProject(JOptionPane.CANCEL_OPTION));
-		assertFalse(Portfolio.shouldReplaceExistingProject(JOptionPane.CLOSED_OPTION));
+		assertTrue(Portfolio.shouldReplaceExistingProject(Alert.YES_OPTION));
+		assertFalse(Portfolio.shouldReplaceExistingProject(Alert.NO_OPTION));
+		assertFalse(Portfolio.shouldReplaceExistingProject(Alert.CANCEL_OPTION));
+		assertFalse(Portfolio.shouldReplaceExistingProject(Alert.CLOSED_OPTION));
 	}
 
 	@Test

@@ -32,7 +32,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
-import javax.swing.JOptionPane;
 
 import org.apache.commons.collections.Predicate;
 
@@ -149,7 +148,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	}
 
 	static boolean shouldReplaceExistingProject(int confirmation) {
-		return confirmation == JOptionPane.YES_OPTION;
+		return confirmation == Alert.YES_OPTION;
 	}
 
 	private void _addProject(Project project){
