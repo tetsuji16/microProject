@@ -38,11 +38,7 @@ import java.awt.event.WindowStateListener;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.NoSuchFileException;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipException;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.BooleanSupplier;
@@ -3427,7 +3423,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				}
 			});
 			if (Environment.getStandAlone()) {
-				Exception preflightFailure = standaloneFilePreflight(fileName);
+				Exception preflightFailure = ProjectLoadWorkflow.preflightStandaloneFile(fileName);
 				if (preflightFailure != null) {
 					String message = ProjectFactory.projectLoadFailureMessage(fileName, preflightFailure);
 					SwingUtilities.invokeLater(() -> Alert.error(message));
@@ -3456,26 +3452,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		});
 	}
 
-	/**
-	 * Performs only the container check owned by the MPO importer.  POD, MPP,
-	 * XML, and XLSX files have different importer formats and must reach their
-	 * importer instead of being rejected as non-ZIP files here.
-	 */
-	static Exception standaloneFilePreflight(String fileName) {
-		if (!FileHelper.isMpoFile(fileName))
-			return null;
-		try {
-			Path path = Path.of(fileName);
-			if (!Files.exists(path)) return new NoSuchFileException(fileName);
-			try (ZipFile ignored = new ZipFile(path.toFile())) {
-				return null;
-			}
-		} catch (ZipException | java.io.FileNotFoundException e) {
-			return e;
-		} catch (IOException e) {
-			return e;
-		}
-	}
 	protected void saveLocalDocument(String fileName,final boolean saveAs){
 		addHistory("saveLocalDocument",new Object[]{fileName,saveAs});
 		//showWaitCursor(true);

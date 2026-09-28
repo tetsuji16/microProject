@@ -25,8 +25,16 @@
 package com.microproject.application;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
 
 import com.microproject.collaboration.CollaborationMetadataStore;
+import com.microproject.session.FileHelper;
 import com.microproject.session.LoadOptions;
 
 public final class ProjectLoadWorkflow {
@@ -45,5 +53,23 @@ public final class ProjectLoadWorkflow {
 		}
 		ProjectFilePolicies.configureLoadOptions(options, fileName, localOnlySession);
 		return options;
+	}
+
+	/** Validates the MPO archive container before a standalone project load. */
+	public static Exception preflightStandaloneFile(String fileName) {
+		if (!FileHelper.isMpoFile(fileName))
+			return null;
+		try {
+			Path path = Path.of(fileName);
+			if (!Files.exists(path))
+				return new NoSuchFileException(fileName);
+			try (ZipFile ignored = new ZipFile(path.toFile())) {
+				return null;
+			}
+		} catch (ZipException | FileNotFoundException exception) {
+			return exception;
+		} catch (IOException exception) {
+			return exception;
+		}
 	}
 }

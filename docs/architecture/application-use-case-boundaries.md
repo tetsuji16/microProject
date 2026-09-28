@@ -23,7 +23,9 @@ boundary module.
 ## Existing application and port work
 
 - `ProjectDocumentWorkflow` and `ProjectLoadWorkflow` already coordinate parts
-  of save and load. Extend these instead of adding another UI-facing workflow.
+  of save and load. `ProjectLoadWorkflow` now also owns the MPO-only standalone
+  archive preflight; the UI presents any returned diagnostic before starting
+  the legacy load job. Extend these instead of adding another UI-facing workflow.
 - `ProjectPortCoordinator` delegates typed import/export requests through
   `PortRegistry`; `GraphicManager.saveLinkedSubproject` now uses its MPO export
   operation. Other open/save/import routes still use legacy job-based factories.

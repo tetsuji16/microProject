@@ -26,14 +26,28 @@ package com.microproject.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipOutputStream;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.microproject.session.LocalSession;
 import com.microproject.session.LoadOptions;
 
 class ProjectLoadWorkflowTest {
+	@TempDir
+	Path temporaryDirectory;
+
 	@Test
 	void preparesLoadOptionsForMpoCollaborationFile() {
 		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions("sample.MPO", true, "alice");
@@ -61,5 +75,24 @@ class ProjectLoadWorkflowTest {
 		assertEquals("sample.mpp", options.getFileName());
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, options.getImporter());
 		assertFalse(options.isCollaborationEnabled());
+	}
+
+	@Test
+	void standalonePreflightValidatesOnlyMpoArchiveContainers() throws IOException {
+		assertNull(ProjectLoadWorkflow.preflightStandaloneFile(temporaryDirectory.resolve("missing.xml").toString()));
+		assertInstanceOf(NoSuchFileException.class,
+			ProjectLoadWorkflow.preflightStandaloneFile(temporaryDirectory.resolve("missing.mpo").toString()));
+
+		Path corruptArchive = temporaryDirectory.resolve("corrupt.MPO");
+		Files.writeString(corruptArchive, "not a zip archive");
+		assertInstanceOf(ZipException.class, ProjectLoadWorkflow.preflightStandaloneFile(corruptArchive.toString()));
+
+		Path validArchive = temporaryDirectory.resolve("valid.mpo");
+		try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(validArchive))) {
+			output.putNextEntry(new ZipEntry("project.xml"));
+			output.write("<project/>".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			output.closeEntry();
+		}
+		assertNull(ProjectLoadWorkflow.preflightStandaloneFile(validArchive.toString()));
 	}
 }
