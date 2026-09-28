@@ -851,8 +851,8 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 		}
 		if (NodeModelUtil.nodeIsSubproject(parent)){
 			int nbEndVoids=nbMultiprojectEndVoidNodes;
-			if (parent.getImpl() instanceof SubProj){
-				Project s=((SubProj)parent.getImpl()).getSubproject();
+			if (parent.getImpl() instanceof SubProj subproject){
+				Project s=subproject.getSubproject();
 				if (s!=null&&s.isReadOnly()) nbEndVoids=0; //don't add end void nodes for read-only subprojects
 			}
 			if ( count<nbEndVoids){

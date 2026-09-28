@@ -2876,3 +2876,10 @@ undo condition and early return are unchanged; restoration still visits the
 same subproject snapshot in order. `git blame` traces this implementation to
 OpenProj's `NodeDeletionEdit`; no focused undo scenario currently exercises
 this helper, so the full core suite is used for verification.
+
+`MutableNodeHierarchy` now binds its `SubProj` implementation through
+`instanceof` pattern matching when deciding whether a read-only linked project
+needs end-void nodes. The `NodeModelUtil.nodeIsSubproject` guard, read-only
+check, and count update remain unchanged. `git blame` confirms the hunk is
+OpenProj 1.4 code. Core hierarchy tests and the full core suite are the
+verification; no focused test currently distinguishes this subproject branch.
