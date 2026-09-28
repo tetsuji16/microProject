@@ -1371,27 +1371,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (isParentWithoutAssignments()) {
 			return TimeDistributedDataConsolidator.fixedCost(start, end, rollupValues());
 		}
-		long taskStart = getStart();
-		long taskEnd = getEnd();
-		double fixed = 0.0;
-		double fixedCost = getFixedCost();
-		if (getFixedCostAccrual() == Accrual.Kind.START.code()) {
-			if (taskStart >= start && taskStart <= end) // if task starts in this range
-				fixed = fixedCost;
-		} else if (getFixedCostAccrual() == Accrual.Kind.PRORATED.code()) {
-			// find overlapping actual time
-			start = Math.max(start,taskStart);
-			end = Math.min(end,taskEnd);
-			if (start < end) { // if valid range
-				long overlappingDuration = getEffectiveWorkCalendar().compare(end,start,false);
-				double fraction = ((double)overlappingDuration) / getDurationMillis();
-				fixed = fixedCost * fraction;
-			}
-		} else  { // END accrual by default
-			if (taskEnd >= start && taskEnd <= end) // if task ends in this range
-				fixed = fixedCost;
-		}
-		return fixed;
+		return FixedCostAccrualCalculator.calculate(Accrual.Kind.fromCodeOrNull(getFixedCostAccrual()),
+			getFixedCost(), getStart(), getEnd(), getDurationMillis(), getEffectiveWorkCalendar(), start, end);
 	}
 	public boolean fieldHideActualFixedCost(FieldContext fieldContext) {
 		return false;

@@ -52,6 +52,7 @@ import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeVisitor;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -464,6 +465,48 @@ class NormalTaskPercentCompleteTest {
 		assertEquals(first.remainingWork(span.getStart(), span.getFinish())
 				+ second.remainingWork(span.getStart(), span.getFinish()),
 				parent.remainingWork(span.getStart(), span.getFinish()));
+	}
+
+	@Test
+	void fixedCostAccrualPreservesStartAndEndBoundaryInclusion() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long start = project.getStart();
+		long duration = 2L * CalendarOption.getInstance().getMillisPerDay();
+		configureTask(task, start, duration);
+		task.setFixedCost(100D);
+		long end = task.getEnd();
+
+		task.setFixedCostAccrual(Accrual.Kind.START);
+		assertEquals(100D, task.fixedCost(start, start), 0.001D);
+		assertEquals(0D, task.fixedCost(start + 1L, end), 0.001D);
+
+		task.setFixedCostAccrual(Accrual.Kind.END);
+		assertEquals(100D, task.fixedCost(end, end), 0.001D);
+		assertEquals(0D, task.fixedCost(start, end - 1L), 0.001D);
+
+		// Unknown stored accrual values have historically fallen back to END.
+		task.setFixedCostAccrual(99);
+		assertEquals(100D, task.fixedCost(end, end), 0.001D);
+	}
+
+	@Test
+	void proratedFixedCostUsesWorkingTimeOverlap() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(task, start, 4L * day);
+		task.setFixedCost(120D);
+		task.setFixedCostAccrual(Accrual.Kind.PRORATED);
+		var calendar = task.getEffectiveWorkCalendar();
+		long partialStart = calendar.add(start, day, false);
+		long partialEnd = calendar.add(partialStart, 2L * day, false);
+		double expected = 120D * calendar.compare(partialEnd, partialStart, false)
+			/ calendar.compare(task.getEnd(), task.getStart(), false);
+
+		assertEquals(expected, task.fixedCost(partialStart, partialEnd), 0.001D);
+		assertEquals(0D, task.fixedCost(task.getEnd(), task.getEnd()), 0.001D);
 	}
 
 	@Test
