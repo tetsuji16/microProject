@@ -286,7 +286,8 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	/** A scheduling operation's cache ownership boundary, isolated to its thread. */
 	public static final class AddCacheScope implements AutoCloseable {
 		private final AddCacheScope parent;
-		private final IdentityHashMap<CalendarDefinition, Boolean> calendars = new IdentityHashMap<>();
+		private final IdentityHashMap<CalendarDefinition, ConcurrentHashMap<AddCacheKey, Long>> caches =
+				new IdentityHashMap<>();
 		private boolean closed;
 
 		private AddCacheScope(AddCacheScope parent) {
@@ -299,12 +300,31 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 				return;
 			if (currentAddCacheScope.get() != this)
 				throw new IllegalStateException("Calendar add-cache scopes must close in LIFO order");
-			for (CalendarDefinition calendar : calendars.keySet())
-				calendar.clearAddCache();
+			caches.clear();
 			currentAddCacheScope.set(parent);
 			if (parent == null)
 				currentAddCacheScope.remove();
 			closed = true;
+		}
+
+		private long add(CalendarDefinition calendar, AddCacheKey key) {
+			ConcurrentHashMap<AddCacheKey, Long> cache = caches.computeIfAbsent(calendar,
+					ignored -> new ConcurrentHashMap<>(256));
+			Long cached = cache.get(key);
+			if (cached != null)
+				return cached.longValue();
+			long result = calendar.calculateAddition(key.date(), key.duration(), key.useSooner());
+			cache.put(key, result);
+			return result;
+		}
+
+		int cachedCalendarCount() {
+			return caches.size();
+		}
+
+		int cachedResultCount(CalendarDefinition calendar) {
+			ConcurrentHashMap<AddCacheKey, Long> cache = caches.get(calendar);
+			return cache == null ? 0 : cache.size();
 		}
 	}
 
@@ -313,12 +333,6 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		AddCacheScope scope = new AddCacheScope(currentAddCacheScope.get());
 		currentAddCacheScope.set(scope);
 		return scope;
-	}
-
-	private void markCacheUsed() {
-		AddCacheScope scope = currentAddCacheScope.get();
-		if (scope != null)
-			scope.calendars.put(this, Boolean.TRUE);
 	}
 
 	/**
@@ -330,8 +344,10 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	public long add(long date, long duration, boolean useSooner) {
 		if (date == 0) // don't bother treating null dates since they will never be valid for calculations
 			return 0;
-		markCacheUsed();
 		AddCacheKey key = new AddCacheKey(date, duration, useSooner);
+		AddCacheScope scope = currentAddCacheScope.get();
+		if (scope != null)
+			return scope.add(this, key);
 		Long cached = addCache.get(key);
 		if (cached != null) {
 			return cached.longValue();

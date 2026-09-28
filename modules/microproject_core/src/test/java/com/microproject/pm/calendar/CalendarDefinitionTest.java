@@ -38,21 +38,23 @@ import com.microproject.util.DateTime;
 
 class CalendarDefinitionTest {
 	@Test
-	void schedulingCacheScopeClearsOnlyCalendarsUsedByThatScope() {
-		CalendarDefinition first = standardWeekCalendar();
-		CalendarDefinition second = standardWeekCalendar();
+	void schedulingCacheScopesAreIsolatedEvenWhenCalendarInstancesAreShared() {
+		CalendarDefinition sharedCalendar = standardWeekCalendar();
 		long date = timestamp(2024, Calendar.JUNE, 3, 9);
-		first.add(date, eightHours(), true);
-		second.add(date, eightHours(), true);
-		assertEquals(1, first.addCache.size());
-		assertEquals(1, second.addCache.size());
-
-		try (CalendarDefinition.AddCacheScope ignored = CalendarDefinition.beginAddCacheScope()) {
-			first.add(date, eightHours(), true); // A cache hit must still attach to the scope.
+		try (CalendarDefinition.AddCacheScope firstScope = CalendarDefinition.beginAddCacheScope()) {
+			sharedCalendar.add(date, eightHours(), true);
+			assertEquals(1, firstScope.cachedCalendarCount());
+			assertEquals(1, firstScope.cachedResultCount(sharedCalendar));
+			try (CalendarDefinition.AddCacheScope secondScope = CalendarDefinition.beginAddCacheScope()) {
+				sharedCalendar.add(date, eightHours(), true);
+				assertEquals(1, secondScope.cachedCalendarCount());
+				assertEquals(1, secondScope.cachedResultCount(sharedCalendar));
+			}
+			assertEquals(1, firstScope.cachedResultCount(sharedCalendar),
+					"ending another project scope must not discard this project's results");
 		}
-
-		assertTrue(first.addCache.isEmpty());
-		assertEquals(1, second.addCache.size());
+		assertTrue(sharedCalendar.addCache.isEmpty(),
+				"schedule-scoped values must not leak into the shared instance cache");
 	}
 
 	@Test
