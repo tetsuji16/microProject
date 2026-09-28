@@ -468,17 +468,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 	/** Finds an already-open document by canonical file identity. */
 	public DocumentFrame findFrameForProjectFile(String fileName) {
-		if (fileName == null || fileName.isBlank())
+		if (frameManager == null)
 			return null;
-		// The frame manager owns the authoritative set while a document is being
-		// constructed, so this also finds the next document in a multiple-file Open.
-		for (Object value : getFrameManager().getAllFrames()) {
-			if (!(value instanceof DocumentFrame frame) || frame.getProject() == null)
-				continue;
-			if (FilePathUtils.sameFileIdentity(frame.getProject().getFileName(), fileName))
-				return frame;
-		}
-		return null;
+		NamedFrame frame = frameManager.findFrameForProjectFile(fileName);
+		return frame instanceof DocumentFrame documentFrame ? documentFrame : null;
 	}
 
 	/** Activates a linked subproject in its own document view without duplicating its model. */

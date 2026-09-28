@@ -28,6 +28,8 @@ import java.awt.Component;
 import java.io.Serializable;
 import java.util.AbstractList;
 
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.util.FilePathUtils;
 import com.microproject.workspace.SavableToWorkspace;
 
 public interface FrameManager extends Serializable, SavableToWorkspace {
@@ -59,6 +61,18 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 			return null;
 		for (Object value : getAllFrames()) {
 			if (value instanceof NamedFrame frame && id.equals(frame.getId()))
+				return frame;
+		}
+		return null;
+	}
+	/** Finds an open document by the canonical identity of its project file. */
+	default NamedFrame findFrameForProjectFile(String fileName) {
+		if (fileName == null || fileName.isBlank())
+			return null;
+		for (Object value : getAllFrames()) {
+			if (!(value instanceof DocumentFrame frame) || frame.getProject() == null)
+				continue;
+			if (FilePathUtils.sameFileIdentity(frame.getProject().getFileName(), fileName))
 				return frame;
 		}
 		return null;

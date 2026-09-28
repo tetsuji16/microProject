@@ -27,6 +27,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -95,6 +96,31 @@ class GraphicManagerLinkRouteTest {
 		graphicManager.cleanUp();
 
 		assertEquals(1, cleanUpCalls.get(), "GraphicManager must release its frame manager exactly once");
+	}
+
+	@Test
+	void frameManagerFindsOpenDocumentByCanonicalProjectFileIdentity() throws Exception {
+		Project project = allocateWithoutConstructor(Project.class);
+		Field fileName = Project.class.getDeclaredField("fileName");
+		fileName.setAccessible(true);
+		fileName.set(project, "C:\\Plans\\Shared.mpp");
+		TestDocumentFrame documentFrame = allocateWithoutConstructor(TestDocumentFrame.class);
+		documentFrame.setProjectForTest(project);
+		com.microproject.pm.graphic.frames.workspace.FrameManager frameManager =
+			(com.microproject.pm.graphic.frames.workspace.FrameManager)java.lang.reflect.Proxy.newProxyInstance(
+				getClass().getClassLoader(),
+				new Class<?>[] { com.microproject.pm.graphic.frames.workspace.FrameManager.class },
+				(proxy, method, arguments) -> {
+					if (method.getName().equals("getAllFrames"))
+						return new ArrayList<>(List.of(documentFrame));
+					if (method.isDefault())
+						return java.lang.reflect.InvocationHandler.invokeDefault(proxy, method, arguments);
+					return null;
+				});
+
+		assertSame(documentFrame, frameManager.findFrameForProjectFile("c:/plans/./shared.mpp"));
+		assertNull(frameManager.findFrameForProjectFile("C:/Plans/Other.mpp"));
+		assertNull(frameManager.findFrameForProjectFile("  "));
 	}
 
 	@Test
@@ -314,6 +340,10 @@ class GraphicManagerLinkRouteTest {
 		private boolean linkInvoked;
 		private boolean unlinkInvoked;
 		private Object selectedImpl;
+
+		private void setProjectForTest(Project project) {
+			this.project = project;
+		}
 
 		private TestDocumentFrame() {
 			super(null, null, "test");

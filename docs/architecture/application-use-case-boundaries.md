@@ -20,6 +20,12 @@ known source-level justification; each dependency can be removed only after its
 callers are migrated or the remaining presentation API is placed in a smaller
 boundary module.
 
+`FrameManager` owns the authoritative open-frame collection and now resolves an
+open document by canonical project-file identity. `GraphicManager` keeps the
+existing lookup façade for open workflows, but no longer scans the frame list
+itself. This keeps duplicate-open prevention on the same registry that owns
+document frames, including while multiple files are being opened sequentially.
+
 ## Existing application and port work
 
 - `ProjectDocumentWorkflow` and `ProjectLoadWorkflow` already coordinate parts
