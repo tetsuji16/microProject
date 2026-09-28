@@ -2147,10 +2147,27 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.map(MainRibbonFrame.class::cast)
 			.filter(candidate -> candidate.isShowing() && documentTitleContains(candidate, "secondary-window-second"))
 			.findFirst().orElseThrow(() -> new AssertionError("secondary window disappeared"));
-		secondary.dispatchEvent(new java.awt.event.WindowEvent(secondary,
-			java.awt.event.WindowEvent.WINDOW_CLOSING));
+		DocumentFrame secondaryDocument = manager.getFrameForProject(second.getOwningProject());
+		assertNotNull(secondaryDocument, "secondary project must remain registered before close");
+		assertEquals(2, manager.getFrameManager().getAllFrames().size());
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		activateWindow(robot, secondary);
+		AbstractButton closeButton = UiComponentWalker.flatten(secondary.getRootPane()).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> button.isShowing()
+				&& button.getClass().getName().startsWith("com.formdev.flatlaf.ui.FlatTitlePane$")
+				&& "Close".equals(button.getAccessibleContext().getAccessibleName()))
+			.findFirst().orElseThrow(() -> new AssertionError("FlatLaf title-bar close button is absent"));
+		clickWithWindowsDpi(robot, boundsOnScreen(closeButton));
 		GuiAcceptanceSupport.await(() -> !secondary.isShowing(),
-			"secondary document window did not close from its title-bar close action");
+			"Robot title-bar close button did not close the secondary window");
+		GuiAcceptanceSupport.await(() -> manager.getFrameForProject(second.getOwningProject()) == null,
+			"closed secondary window left its project registered in the frame manager");
+		assertTrue(window.isShowing(), "closing the secondary document must leave the primary window visible");
+		assertEquals(1, manager.getFrameManager().getAllFrames().size(),
+			"closing a secondary project must preserve the primary document frame");
 	}
 
 	private static boolean documentTitleContains(MainRibbonFrame frame, String expected) {
@@ -2338,6 +2355,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static void click(Robot robot, Rectangle bounds) {
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		robot.delay(150);
+	}
+
+	private static void clickWithWindowsDpi(Robot robot, Rectangle bounds) {
+		double dpiScale = java.awt.Toolkit.getDefaultToolkit().getScreenResolution() / 96.0d;
+		robot.mouseMove((int) Math.round((bounds.x + bounds.width / 2) * dpiScale),
+			(int) Math.round((bounds.y + bounds.height / 2) * dpiScale));
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
