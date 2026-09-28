@@ -15,6 +15,7 @@ public final class DefaultFileImporterProvider implements SessionImporterProvide
 
 	@Override
 	public void registerPorts(PortRegistry registry) {
+		registry.registerArtifactLifecycle(new MpoProjectArtifactLifecycleAdapter());
 		registry.registerImport(new FileImporterPortAdapter(LocalSession.LOCAL_PROJECT_IMPORTER, LocalFileImporter::new));
 		registry.registerExport(new FileImporterPortAdapter(LocalSession.LOCAL_PROJECT_IMPORTER, LocalFileImporter::new));
 		registry.registerImport(new FileImporterPortAdapter(LocalSession.MPO_PROJECT_IMPORTER, MpoFileImporter::new));

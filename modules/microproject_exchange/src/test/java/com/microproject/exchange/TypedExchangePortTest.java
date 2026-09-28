@@ -30,6 +30,8 @@ class TypedExchangePortTest {
 		assertTrue(registry.importKeys().contains(LocalSession.MPO_PROJECT_IMPORTER));
 		assertTrue(registry.exportKeys().contains(LocalSession.MPO_PROJECT_IMPORTER));
 		assertInstanceOf(FileImporterPortAdapter.class, registry.importPort(LocalSession.LOCAL_PROJECT_IMPORTER));
+		assertInstanceOf(MpoProjectArtifactLifecycleAdapter.class,
+				registry.artifactLifecycle(LocalSession.MPO_PROJECT_IMPORTER));
 	}
 
 	@Test

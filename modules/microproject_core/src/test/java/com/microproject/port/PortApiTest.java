@@ -6,6 +6,7 @@ package com.microproject.port;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.file.Path;
@@ -13,6 +14,21 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 class PortApiTest {
+	@Test
+	void artifactLifecycleRegistryRejectsDuplicateFormatKeys() {
+		PortRegistry registry = new PortRegistry();
+		ProjectArtifactLifecyclePort port = new ProjectArtifactLifecyclePort() {
+			public String formatKey() { return "mpo"; }
+			public void setWorkspaceRoot(Path root) { }
+			public void close(com.microproject.pm.task.Project project) { }
+			public void closeAll() { }
+		};
+		registry.registerArtifactLifecycle(port);
+		assertEquals(port, registry.artifactLifecycle("mpo"));
+		assertThrows(IllegalStateException.class, () -> registry.registerArtifactLifecycle(port));
+		assertEquals(null, registry.artifactLifecycle("missing"));
+	}
+
 	@Test
 	void registryRejectsUnknownAndDuplicatePorts() {
 		PortRegistry registry = new PortRegistry();

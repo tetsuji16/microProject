@@ -109,6 +109,7 @@ import com.microproject.configuration.Settings;
 import com.microproject.application.ProjectDocumentWorkflow;
 import com.microproject.application.ProjectLoadWorkflow;
 import com.microproject.application.ProjectPortCoordinator;
+import com.microproject.application.ProjectArtifactLifecycleCoordinator;
 import com.microproject.application.RecentProjectStore;
 import com.microproject.application.TemporaryWorkspace;
 import com.microproject.collaboration.CollaborationMetadataStore;
@@ -128,8 +129,6 @@ import com.microproject.dialog.options.CalendarDialogBox;
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
 import com.microproject.exchange.ResourceMappingForm;
-import com.microproject.exchange.MpoFileImporter;
-import com.microproject.exchange.MpoExtractionOwnershipRegistry;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
@@ -344,7 +343,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		TemporaryWorkspace workspace;
 		try {
 			workspace = TemporaryWorkspace.openDefault();
-			MpoFileImporter.setExtractionWorkspaceRoot(workspace.root());
+			if (!new ProjectArtifactLifecycleCoordinator().setWorkspaceRoot(
+					LocalSession.MPO_PROJECT_IMPORTER, workspace.root()))
+				logger.warning("No MPO project artifact lifecycle provider is registered");
 		} catch (IOException exception) {
 			// MPOF falls back to the same platform default when the workspace cannot
 			// be initialized; opening ordinary project files must remain available.
@@ -380,7 +381,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	public void cleanUp() {
 		autoRecoveryManager.stop();
-		MpoExtractionOwnershipRegistry.closeAll();
+		if (!new ProjectArtifactLifecycleCoordinator().closeAll(LocalSession.MPO_PROJECT_IMPORTER))
+			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
 		if (temporaryWorkspace != null)
 			temporaryWorkspace.close();
 
@@ -3601,7 +3603,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		persistCollaborationWorkspace(project);
 		// Subprojects do not always have a DocumentFrame; release their MPOF
 		// extraction ownership at the project-removal boundary as well.
-		MpoExtractionOwnershipRegistry.close(project);
+		if (!new ProjectArtifactLifecycleCoordinator().close(LocalSession.MPO_PROJECT_IMPORTER, project))
+			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
 		if (project.getCollaborationSession() != null) {
 			project.getCollaborationSession().stop();
 			project.setCollaborationSession(null);

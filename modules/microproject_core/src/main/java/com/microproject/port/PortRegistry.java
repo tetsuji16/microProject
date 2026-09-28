@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class PortRegistry {
 	private final Map<String, ImportPort> imports = new ConcurrentHashMap<>();
 	private final Map<String, ExportPort> exports = new ConcurrentHashMap<>();
+	private final Map<String, ProjectArtifactLifecyclePort> artifactLifecycles = new ConcurrentHashMap<>();
 
 	public void registerImport(ImportPort port) {
 		Objects.requireNonNull(port, "port");
@@ -24,12 +25,21 @@ public final class PortRegistry {
 		register(exports, port.formatKey(), port);
 	}
 
+	public void registerArtifactLifecycle(ProjectArtifactLifecyclePort port) {
+		Objects.requireNonNull(port, "port");
+		register(artifactLifecycles, port.formatKey(), port);
+	}
+
 	public ImportPort importPort(String formatKey) {
 		return imports.get(requireKey(formatKey));
 	}
 
 	public ExportPort exportPort(String formatKey) {
 		return exports.get(requireKey(formatKey));
+	}
+
+	public ProjectArtifactLifecyclePort artifactLifecycle(String formatKey) {
+		return artifactLifecycles.get(requireKey(formatKey));
 	}
 
 	public Set<String> importKeys() { return Set.copyOf(imports.keySet()); }
