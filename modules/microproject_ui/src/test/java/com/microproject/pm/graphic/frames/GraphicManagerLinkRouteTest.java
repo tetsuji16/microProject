@@ -34,6 +34,7 @@ import java.awt.event.ActionEvent;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JPanel;
 
@@ -73,6 +74,26 @@ class GraphicManagerLinkRouteTest {
 			manager.cleanUp();
 			BootstrapApplet.setGraphicManager(null);
 		}
+	}
+
+	@Test
+	void cleanUpDelegatesToFrameManagerLifecycleContract() {
+		GraphicManager graphicManager = new GraphicManager(new JPanel());
+		AtomicInteger cleanUpCalls = new AtomicInteger();
+		com.microproject.pm.graphic.frames.workspace.FrameManager frameManager =
+			(com.microproject.pm.graphic.frames.workspace.FrameManager)java.lang.reflect.Proxy.newProxyInstance(
+				getClass().getClassLoader(),
+				new Class<?>[] { com.microproject.pm.graphic.frames.workspace.FrameManager.class },
+				(proxy, method, arguments) -> {
+					if (method.getName().equals("cleanUp"))
+						cleanUpCalls.incrementAndGet();
+					return null;
+				});
+		graphicManager.setFrameManager(frameManager);
+
+		graphicManager.cleanUp();
+
+		assertEquals(1, cleanUpCalls.get(), "GraphicManager must release its frame manager exactly once");
 	}
 
 	@Test

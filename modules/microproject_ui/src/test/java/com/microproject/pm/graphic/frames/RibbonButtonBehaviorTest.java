@@ -1145,6 +1145,10 @@ class RibbonButtonBehaviorTest {
 		}
 
 		@Override
+		public void cleanUp() {
+		}
+
+		@Override
 		public void restoreWorkspace(WorkspaceSetting setting, int context) {
 		}
 

@@ -118,6 +118,7 @@ class MicrosoftShortcutsRootPaneTest {
 		@Override public java.awt.Component getSelectedFrame() { return null; }
 		@Override public void setTabTitle(NamedFrame frame, String tabTitle) { }
 		@Override public void update() { }
+		@Override public void cleanUp() { }
 		@Override public java.util.AbstractList getAllFrames() {
 			return new java.util.AbstractList<Object>() {
 				@Override public Object get(int index) { return null; }

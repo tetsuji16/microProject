@@ -389,7 +389,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		projectFactory.getPortfolio().removeObjectListener(this);
 		if (frameManager != null)
-			((DefaultFrameManager)frameManager).cleanUp();
+			frameManager.cleanUp();
 		// Portfolio events may already be queued on the EDT when a window closes.
 		// Mark this manager inactive before they are delivered; objectChanged()
 		// must never route a later project-open event into an emptied workspace.

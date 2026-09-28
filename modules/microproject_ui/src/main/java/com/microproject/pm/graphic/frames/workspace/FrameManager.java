@@ -65,4 +65,6 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 	}
 	void setTabTitle(NamedFrame frame, String tabTitle);
 	void update();
+	/** Releases resources owned by this frame manager when its workspace closes. */
+	void cleanUp();
 }
