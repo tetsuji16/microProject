@@ -93,12 +93,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     public static boolean isUndo(int actionType){
     	return (actionType&NodeModel.UNDO)==NodeModel.UNDO;
     }
-//    private void setInSubproject(Node parent,Node node){
-//    	if (NodeModelUtil.nodeIsSubproject(parent))
-//    		node.setInSubproject(true);
-//    	else
-//    		node.setInSubproject(parent.isInSubproject());
-//    }
 
     private void setSubprojectLevel(Node node,int level){
     	node.setSubprojectLevel(level);
@@ -355,19 +349,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	else if (node.getImpl() instanceof SubProj) return node;
     	else return getParentSubproject((Node)node.getParent());
     }
-
-//    public void add(Node parent,Node child,int actionType){
-//    	add(parent,child,-1,actionType);
-//    }
-//    public void add(Node parent,List children,int actionType){
-//    	add(parent,children,-1,actionType);
-//    }
-//
-//    public void add(Node parent,Node child,int position,int actionType){
-//    	LinkedList children=new LinkedList();
-//    	children.add(child);
-//    	add(parent,children,position,actionType);
-//    }
 
     public void cleanVoidChildren(){
     	cleanVoidChildren(root);
