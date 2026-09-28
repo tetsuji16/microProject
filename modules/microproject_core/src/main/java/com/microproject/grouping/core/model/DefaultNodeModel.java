@@ -698,28 +698,6 @@ public class DefaultNodeModel implements NodeModel {
 				return replaceImplAndSetFieldValue(node,newPrevious,factory.createUnvalidatedObject(this, parentImpl),field,eventSource,value,context,actionType);
 
 			}
-//			if (p!=null&&p.getImpl() instanceof NormalTask){
-//				Task task=(Task)p.getImpl();
-//				boolean subprojectParent=false;
-//				while (task.getOwningProject()!=task.getProject()){
-//					Node pParent=(Node)p.getParent();
-//					if (pParent.getIndex(p)==pParent.getChildCount()-1){
-//						p=pParent;
-//						subprojectParent=true;
-//					}else{
-//						subprojectParent=false;
-//						break;
-//					}
-//				}
-//				if (subprojectParent){
-//					LinkedList newPrevious=(LinkedList)previous.clone();
-//					newPrevious.set(0, p);
-//					Object parentImpl = p.getImpl();
-//					NodeModelDataFactory factory = getFactory(parentImpl);
-//					return replaceImplAndSetFieldValue(node,newPrevious,factory.createUnvalidatedObject(this, parentImpl),field,eventSource,value,context,actionType);
-//
-//				}
-//			}
 
 		}
 
