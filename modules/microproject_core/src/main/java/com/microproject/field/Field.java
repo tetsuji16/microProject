@@ -39,7 +39,6 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
 
-import javax.swing.JTextField;
 
 import org.apache.commons.beanutils.MethodUtils;
 import org.apache.commons.beanutils.PropertyUtils;
@@ -1952,21 +1951,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 
 	}
 
-	public int getHorizontalAlignment() {
-		if (isImage() || isBoolean())
-			return JTextField.CENTER;
-		else if (isWork()
-		 || isRate()
-		 || isMoney()
-		 || isDuration()
-		 || isDate()
-		 || isPercent()
-		 || isNumber())
-			return JTextField.RIGHT;
-		else
-			return JTextField.LEFT;
-
-	}
 	public static Object value(Field field, Node node, NodeModel nodeModel) {
 		return field.getValue(node, nodeModel, null);
 	}

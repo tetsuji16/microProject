@@ -12,7 +12,6 @@ com/microproject/configuration/ReportColumns.java	com.microproject.graphic.confi
 com/microproject/configuration/ReportDefinition.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/document/ObjectEventManager.java	javax.swing.event.EventListenerList
 com/microproject/document/ObjectSelectionEventManager.java	javax.swing.event.EventListenerList
-com/microproject/field/Field.java	javax.swing.JTextField
 com/microproject/graphic/configuration/ActionList.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/ActionListFactory.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/ActionLists.java	com.microproject.graphic.configuration

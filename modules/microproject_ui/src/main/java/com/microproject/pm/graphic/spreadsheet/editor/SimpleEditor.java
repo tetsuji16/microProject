@@ -95,7 +95,7 @@ public class SimpleEditor extends DefaultCellEditor   {
 			if (width != Integer.MAX_VALUE) {
 				((AbstractDocument)component.getDocument()).setDocumentFilter(new FixedSizeFilter(width));
 			}
-			component.setHorizontalAlignment(field.getHorizontalAlignment());
+			component.setHorizontalAlignment(FieldPresentation.horizontalAlignment(field));
 			if (value instanceof com.microproject.datatype.Duration || field.isDuration() || "Field.duration".equals(field.getId())
 					|| (modelField != null && (modelField.isDuration() || "Field.duration".equals(modelField.getId())))) {
 				// A few legacy task-sheet columns expose their storage type (Double)
