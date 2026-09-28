@@ -145,7 +145,7 @@ public class TaskInformationDialog extends InformationDialog {
 	private BarColorField barMiddleColor;
 	private BarColorField barEndColor;
 	private BarColorEditorPanel barColorEditor;
-	private BarColorField fontColorField;
+	private TaskTextStylePanel textStylePanel;
 
 	private Gantt getGantt() {
 		try {
@@ -277,32 +277,8 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	private JComponent createTextStylePanel() {
-		FieldComponentMap map = createMap();
-		// FlatLaf checkbox borders and Japanese font metrics can exceed the
-		// legacy 24dlu rows, leaving the control painted outside its row.
-		// Give every field row a real minimum and keep the tab scrollable.
-		FormLayout layout = new FormLayout("p,3dlu,130dlu,12dlu,p,3dlu,80dlu",
-				"max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref),max(30dlu;pref)");
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		builder.setDefaultDialogBorder();
-		builder.addSeparator(Messages.getString("TaskInformationDialog.TextStyle"));
-		// addSeparator already advances past the separator row. Skip the
-		// spacer row once so the first controls land on a preferred-height row.
-		builder.nextLine();
-		map.append(builder, "Field.fontFamily");
-		map.append(builder, "Field.fontSize");
-		builder.nextLine(2);
-		map.append(builder, "Field.fontBold");
-		map.append(builder, "Field.fontItalic");
-		builder.nextLine(2);
-		map.append(builder, "Field.fontStrikethrough");
-		builder.nextLine(2);
-		Task task = (Task)getObject();
-		fontColorField = new BarColorField(this, task == null ? null : task.getFontColor(), 0x000000,
-				"TaskInformationDialog.FontColor", null);
-		fontColorField.setEnabled(task != null && !task.isReadOnly());
-		builder.append(Messages.getString("TaskInformationDialog.FontColor"), fontColorField);
-		return builder.getPanel();
+		textStylePanel = new TaskTextStylePanel(this, createMap(), (Task)getObject());
+		return textStylePanel.component();
 	}
 
 	private JComponent createDiagnosticsPanel() {
@@ -849,22 +825,13 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	private void refreshTextStyleFields() {
-		Task task = (Task)getObject();
-		if (fontColorField == null)
-			return;
-		fontColorField.setEnabled(task != null && !task.isReadOnly());
-		fontColorField.setRgb(task == null ? null : task.getFontColor());
+		if (textStylePanel != null)
+			textStylePanel.refresh((Task)getObject());
 	}
 
 	private void applyFontColorFromField() {
-		Task task = (Task)getObject();
-		if (task == null || task.isReadOnly() || fontColorField == null)
-			return;
-		Integer color = fontColorField.getRgb();
-		if (java.util.Objects.equals(task.getFontColor(), color))
-			return;
-		task.setFontColor(color);
-		task.getProject().fireUpdateEvent(this, task);
+		if (textStylePanel != null)
+			textStylePanel.applyFontColor((Task)getObject(), this);
 	}
 
 	public void documentSelected(DocumentSelectedEvent evt) {
