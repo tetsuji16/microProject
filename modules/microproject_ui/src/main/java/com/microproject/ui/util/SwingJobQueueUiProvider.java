@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,24 +21,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.job;
+package com.microproject.ui.util;
 
 import java.awt.Component;
 
-import javax.swing.ProgressMonitor;
 
-public class ExtendedProgressMonitor extends ProgressMonitor {
-	protected boolean closed;
-	public ExtendedProgressMonitor(Component parentComponent, Object message,
-			String note, int min, int max) {
-		super(parentComponent, message, note, min, max);
-	}
-    public void close() {
-    	super.close();
-    	closed=true;
-    }
-	public boolean isClosed() {
-		return closed;
+import com.microproject.job.JobProgressMonitor;
+import com.microproject.job.JobQueueUiProvider;
+import com.microproject.pm.graphic.frames.GraphicManager;
+
+/** Provides Swing progress dialogs and parent windows for job queues. */
+public final class SwingJobQueueUiProvider implements JobQueueUiProvider {
+	@Override
+	public Object getComponent(boolean documentBased) {
+		return documentBased ? GraphicManager.getDocumentFrameInstance() : GraphicManager.getFrameInstance();
 	}
 
+	@Override
+	public JobProgressMonitor createProgressMonitor(String name, Object parent, int minimum, int maximum) {
+		if (!(parent instanceof Component component))
+			return null;
+		SwingJobProgressMonitor monitor = new SwingJobProgressMonitor(component, name, "", minimum, maximum);
+		monitor.setProgress(minimum);
+		monitor.setMillisToPopup(0);
+		monitor.setMillisToDecideToPopup(0);
+		return monitor;
+	}
 }

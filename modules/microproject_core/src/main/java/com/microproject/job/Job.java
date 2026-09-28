@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.job;
 
-import java.awt.Component;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.HashMap;
@@ -34,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import javax.swing.ProgressMonitor;
 
 
 import com.microproject.server.access.ErrorLogger;
@@ -54,7 +52,7 @@ public class Job extends Thread {
 	protected boolean canceled=false;
 	protected long jobId;
 	protected long t;
-	protected ExtendedProgressMonitor progressMonitor=null;
+	protected JobProgressMonitor progressMonitor=null;
 	protected Thread monitorChecker=null;
 	protected Consumer<Object> cancelMonitorClosure=null;
 	protected JobQueue jobQueue;
@@ -69,13 +67,13 @@ public class Job extends Thread {
 	protected InternalRunnable previousRunnable=null;
 	protected boolean queued=true;
 	protected boolean customCriticalSection;
-	protected Component monitorComponent;
+	protected Object monitorComponent;
 	private volatile Exception failureException;
 
 	public Job(JobQueue jobQueue, String name,String title,boolean showProgress) {
 		this(jobQueue,name,title,showProgress,null);
 	}
-	public Job(JobQueue jobQueue, String name,String title,boolean showProgress,Component monitorComponent) {
+	public Job(JobQueue jobQueue, String name,String title,boolean showProgress,Object monitorComponent) {
 		super(jobQueue, name);
 		this.jobQueue=jobQueue;
 		this.title=title;
@@ -168,7 +166,7 @@ public class Job extends Thread {
 
 
 
-	public ProgressMonitor getProgressMonitor() {
+	public JobProgressMonitor getProgressMonitor() {
 		return progressMonitor;
 	}
 	public synchronized void cancel(){

@@ -95,12 +95,6 @@ com/microproject/grouping/core/Node.java	javax.swing.tree.TreeNode
 com/microproject/grouping/core/NodeBridge.java	javax.swing.tree.DefaultMutableTreeNode
 com/microproject/grouping/core/NodeBridge.java	javax.swing.tree.TreeNode
 com/microproject/grouping/core/transform/CommonTransform.java	com.microproject.dialog.TransformParameterDialog
-com/microproject/job/ExtendedProgressMonitor.java	java.awt.Component
-com/microproject/job/ExtendedProgressMonitor.java	javax.swing.ProgressMonitor
-com/microproject/job/Job.java	java.awt.Component
-com/microproject/job/Job.java	javax.swing.ProgressMonitor
-com/microproject/job/JobQueue.java	java.awt.Component
-com/microproject/job/JobQueue.java	java.awt.Frame
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetCategories
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/pm/assignment/AssignmentService.java	javax.swing.undo.UndoableEditSupport

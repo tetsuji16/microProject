@@ -24,8 +24,6 @@
  *******************************************************************************/
 package com.microproject.job;
 
-import java.awt.Component;
-import java.awt.Frame;
 import java.util.Collections;
 import java.util.function.Consumer;
 import java.util.EventListener;
@@ -104,27 +102,11 @@ public class JobQueue extends ThreadGroup{
 			job.execute();
 		}
 	}
-
-
-	public ExtendedProgressMonitor getProgressMonitor(String name,Component component){
-		if (component==null) component=getComponent();
-		if (component==null)
+	public JobProgressMonitor getProgressMonitor(String name, Object component) {
+		Object parent = component == null ? getComponent() : component;
+		if (parent == null)
 			return null;
-		ExtendedProgressMonitor progressMonitor = new ExtendedProgressMonitor(component,
-	                name,
-	                "", 0, MAX_PROGRESS);
-	    progressMonitor.setProgress(0);
-
-	    progressMonitor.setMillisToPopup(0);
-	    progressMonitor.setMillisToDecideToPopup(0);
-	    //progressMonitor.setMillisToDecideToPopup(2000);
-	    return progressMonitor;
-	}
-
-	protected void enableComponent(boolean enabled){
-		if (getComponent()==null)
-			return;
-		getComponent().setEnabled(enabled);
+		return JobQueueUiServices.getProvider().createProgressMonitor(name, parent, 0, MAX_PROGRESS);
 	}
 
 
@@ -228,24 +210,10 @@ public class JobQueue extends ThreadGroup{
 
 		}
  	}
-
-	private static final String GRAPHIC_MANAGER="com.microproject.pm.graphic.frames.GraphicManager";
-	public Component getComponent(){
+	public Object getComponent() {
 		if (!Environment.isVisible())
 			return null;
-		String methodName = documentBased ? "getDocumentFrameInstance" : "getFrameInstance";
-		try {
-		    return (Frame)Class.forName(GRAPHIC_MANAGER).getMethod(methodName).invoke(null);
-		} catch (ClassNotFoundException e) {
-			// The core/exchange test runtime intentionally has no UI module.  A
-			// progress monitor is optional there, so do not turn the absent UI
-			// class into a misleading warning or stack trace.
-			logger.fine("UI progress monitor unavailable: " + GRAPHIC_MANAGER);
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Job queue error", e);
-			return null;
-		}
-		return null;
+		return JobQueueUiServices.getProvider().getComponent(documentBased);
 	}
 
 }

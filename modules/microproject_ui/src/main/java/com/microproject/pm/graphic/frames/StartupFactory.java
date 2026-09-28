@@ -53,6 +53,7 @@ import com.microproject.dialog.UpdateChecker;
 import com.microproject.ui.util.DesktopBrowserLauncher;
 import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.ui.util.SwingUiDispatcher;
+import com.microproject.ui.util.SwingJobQueueUiProvider;
 import com.microproject.pm.graphic.laf.LafManagerImpl;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
@@ -64,6 +65,7 @@ import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.UiDispatch;
+import com.microproject.job.JobQueueUiServices;
 import com.microproject.util.DebugUtils;
 import com.microproject.util.Environment;
 import com.microproject.util.VersionUtils;
@@ -75,6 +77,7 @@ public abstract class StartupFactory {
 		Alert.setPresenter(new SwingAlertPresenter());
 		BrowserControl.setBrowserLauncher(new DesktopBrowserLauncher());
 		UiDispatch.setDispatcher(new SwingUiDispatcher());
+		JobQueueUiServices.setProvider(new SwingJobQueueUiProvider());
 	}
 	public static final String defaultServerUrl = Settings.SITE_HOME;
 	private static final int NUM_INVALID_LOGINS = 3;
