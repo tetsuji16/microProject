@@ -1084,29 +1084,71 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	 */
 	@Override
 	protected void processMouseEvent(MouseEvent e) {
+		int[] taskRowsBeforePress = e.getID() == MouseEvent.MOUSE_PRESSED && isTaskTable()
+				&& SwingUtilities.isLeftMouseButton(e) ? getSelectedRows() : null;
 		super.processMouseEvent(e);
 		if (!tableMouseHandlerInstalled)
 			return;
 		if (e.getID() == MouseEvent.MOUSE_PRESSED) {
+			suppressTaskClickRestore = false;
+			taskRowsSelectedAfterPress = null;
+			cellRangeRowsAfterDrag = null;
+			cellRangeColumnsAfterDrag = null;
+			restoreModifiedTaskSelection = false;
 			beginCellRangeSelection(e);
+			// BasicTableUI has already applied its own Ctrl/Shift selection by
+			// this point. Restore the pre-press task rows before applying the
+			// task-table gesture so the modifier transition runs exactly once.
+			if (taskRowsBeforePress != null && (e.isControlDown() || e.isMetaDown() || e.isShiftDown()))
+				restoreTaskRowSelection(taskRowsBeforePress, getSelection().getActiveRow(), getSelection().getActiveColumn());
 			handleTableMousePressed(e);
+			if (isTaskTable() && SwingUtilities.isLeftMouseButton(e)) {
+				taskRowsSelectedAfterPress = getSelectedRows();
+				restoreModifiedTaskSelection = e.isControlDown() || e.isMetaDown() || e.isShiftDown();
+			}
 		} else if (e.getID() == MouseEvent.MOUSE_RELEASED) {
+			int releasedRow = rowAtPoint(e.getPoint());
+			int releasedColumn = columnAtPoint(e.getPoint());
+			boolean completedCellRange = selectingCellRange;
+			boolean taskRowDrag = isTaskTable() && selectingCellRange
+					&& rangeAnchorRow >= 0 && rangeAnchorRow != releasedRow
+					&& rangeAnchorColumn == releasedColumn;
+			int taskRowAnchor = rangeAnchorRow;
 			endCellRangeSelection();
 			// BasicTableUI can update the lead selection while handling mouse
 			// release, after the press route has selected the complete task row.
 			// Restore the task-table selection contract here as well as on click so
 			// the visible highlight, active-cell border and F2 target cannot diverge
 			// depending on whether the user is selecting or editing a cell.
-			if (SwingUtilities.isLeftMouseButton(e) && !e.isControlDown()
+			if (taskRowDrag) {
+				applyTaskRowSelection(releasedRow, false, true, false, false, taskRowAnchor, releasedColumn);
+				suppressTaskClickRestore = true;
+			} else if (completedCellRange) {
+				restoreTaskCellRangeSelection(cellRangeRowsAfterDrag, cellRangeColumnsAfterDrag,
+					cellRangeActiveRow, cellRangeActiveColumn);
+				suppressTaskClickRestore = true;
+			} else if (restoreModifiedTaskSelection) {
+				restoreTaskRowSelection(taskRowsSelectedAfterPress, releasedRow, releasedColumn);
+			} else if (SwingUtilities.isLeftMouseButton(e) && !e.isControlDown()
 					&& !e.isMetaDown() && !e.isShiftDown())
-				restoreTaskRowSelection(rowAtPoint(e.getPoint()), columnAtPoint(e.getPoint()));
+				restoreTaskRowSelection(releasedRow, releasedColumn);
 			handleTablePopupTrigger(e);
-		} else if (e.getID() == MouseEvent.MOUSE_CLICKED
-				&& SwingUtilities.isLeftMouseButton(e) && !e.isControlDown()
-				&& !e.isMetaDown() && !e.isShiftDown()) {
-			// ETable also updates its lead selection from mouseClicked.  Apply the
-			// row semantics after that final UI-delegate callback.
-			restoreTaskRowSelection(rowAtPoint(e.getPoint()), columnAtPoint(e.getPoint()));
+		} else if (e.getID() == MouseEvent.MOUSE_CLICKED && SwingUtilities.isLeftMouseButton(e)) {
+			if (suppressTaskClickRestore) {
+				suppressTaskClickRestore = false;
+				taskRowsSelectedAfterPress = null;
+				return;
+			}
+			if (restoreModifiedTaskSelection) {
+				restoreTaskRowSelection(taskRowsSelectedAfterPress, rowAtPoint(e.getPoint()), columnAtPoint(e.getPoint()));
+				taskRowsSelectedAfterPress = null;
+				restoreModifiedTaskSelection = false;
+			} else if (!e.isControlDown() && !e.isMetaDown() && !e.isShiftDown()) {
+				// ETable also updates its lead selection from mouseClicked. Apply row
+				// semantics after the final UI-delegate callback.
+				restoreTaskRowSelection(rowAtPoint(e.getPoint()), columnAtPoint(e.getPoint()));
+				taskRowsSelectedAfterPress = null;
+			}
 		}
 	}
 
@@ -1119,8 +1161,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	@Override
 	protected void processMouseMotionEvent(MouseEvent e) {
 		super.processMouseMotionEvent(e);
-		if (tableMouseHandlerInstalled && e.getID() == MouseEvent.MOUSE_DRAGGED)
+		if (tableMouseHandlerInstalled && e.getID() == MouseEvent.MOUSE_DRAGGED) {
 			extendCellRangeSelection(e);
+			if (isTaskTable() && selectingCellRange) {
+				cellRangeRowsAfterDrag = getSelectedRows();
+				cellRangeColumnsAfterDrag = getSelectedColumns();
+				cellRangeActiveRow = getSelection().getActiveRow();
+				cellRangeActiveColumn = getSelection().getActiveColumn();
+			}
+		}
 	}
 
 	void handleTableMousePressed(MouseEvent e) {
@@ -1258,6 +1307,13 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private int rangeAnchorRow = -1;
 	private int rangeAnchorColumn = -1;
 	private boolean selectingCellRange;
+	private int[] taskRowsSelectedAfterPress;
+	private int[] cellRangeRowsAfterDrag;
+	private int[] cellRangeColumnsAfterDrag;
+	private int cellRangeActiveRow = -1;
+	private int cellRangeActiveColumn = -1;
+	private boolean restoreModifiedTaskSelection;
+	private boolean suppressTaskClickRestore;
 
 	void beginCellRangeSelection(MouseEvent e) {
 		if (!SwingUtilities.isLeftMouseButton(e))
@@ -1439,9 +1495,93 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			setRowHeaderSelectionActive(false);
 			getSelection().setActiveCell(row, col);
 		} else {
-			changeSelection(row, col, toggle, extend);
+			applyTaskRowSelection(row, toggle, extend, false, false, -1, col);
 		}
 		scrollRectToVisible(getCellRect(row, col, true));
+	}
+
+	private void restoreTaskRowSelection(int[] selectedRows, int activeRow, int activeColumn) {
+		if (selectedRows == null || getSelection() == null)
+			return;
+		getSelectionModel().clearSelection();
+		for (int row : selectedRows) {
+			if (row >= 0 && row < getRowCount())
+				getSelectionModel().addSelectionInterval(row, row);
+		}
+		if (getSelectedRowCount() == 0) {
+			clearSelection();
+			return;
+		}
+		setHeaderColumnSelectionActive(false);
+		setRowHeaderSelectionActive(false);
+		getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
+		if (getSelectionModel().isSelectedIndex(activeRow) && activeColumn >= 0 && activeColumn < getColumnCount())
+			getSelection().setActiveCell(activeRow, activeColumn);
+		else
+			getSelection().clearActiveCell();
+	}
+
+	private void restoreTaskCellRangeSelection(int[] selectedRows, int[] selectedColumns,
+			int activeRow, int activeColumn) {
+		if (selectedRows == null || selectedColumns == null || getSelection() == null)
+			return;
+		getSelectionModel().clearSelection();
+		for (int row : selectedRows) {
+			if (row >= 0 && row < getRowCount())
+				getSelectionModel().addSelectionInterval(row, row);
+		}
+		getColumnModel().getSelectionModel().clearSelection();
+		for (int column : selectedColumns) {
+			if (column >= 0 && column < getColumnCount())
+				getColumnModel().getSelectionModel().addSelectionInterval(column, column);
+		}
+		if (getSelectedRowCount() == 0 || getSelectedColumnCount() == 0) {
+			clearSelection();
+			return;
+		}
+		setHeaderColumnSelectionActive(false);
+		setRowHeaderSelectionActive(false);
+		if (getSelectionModel().isSelectedIndex(activeRow)
+				&& getColumnModel().getSelectionModel().isSelectedIndex(activeColumn))
+			getSelection().setActiveCell(activeRow, activeColumn);
+		else
+			getSelection().clearActiveCell();
+	}
+
+	/** Applies one row-selection transition for table cells, the row header, and the Gantt. */
+	public void selectTaskRowsFromGesture(int row, boolean toggle, boolean extend,
+			boolean rowHeaderSelection, boolean keepExisting) {
+		applyTaskRowSelection(row, toggle, extend, rowHeaderSelection, keepExisting, -1, -1);
+	}
+
+	private void applyTaskRowSelection(int row, boolean toggle, boolean extend,
+			boolean rowHeaderSelection, boolean keepExisting, int explicitAnchor, int activeColumn) {
+		if (row < 0 || row >= getRowCount() || getColumnCount() == 0 || getSelection() == null)
+			return;
+		setHeaderColumnSelectionActive(false);
+		if (extend) {
+			int anchor = explicitAnchor >= 0 ? explicitAnchor : getSelectionModel().getAnchorSelectionIndex();
+			if (anchor < 0)
+				anchor = row;
+			getSelectionModel().setSelectionInterval(Math.min(anchor, row), Math.max(anchor, row));
+		} else if (toggle) {
+			if (getSelectionModel().isSelectedIndex(row))
+				getSelectionModel().removeSelectionInterval(row, row);
+			else
+				getSelectionModel().addSelectionInterval(row, row);
+		} else if (!keepExisting) {
+			getSelectionModel().setSelectionInterval(row, row);
+		}
+		if (getSelectedRowCount() == 0) {
+			clearSelection();
+			return;
+		}
+		getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
+		setRowHeaderSelectionActive(rowHeaderSelection);
+		if (rowHeaderSelection || activeColumn < 0)
+			getSelection().clearActiveCell();
+		else
+			getSelection().setActiveCell(row, activeColumn);
 	}
 
 	/**
@@ -1455,29 +1595,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return;
 		}
 		finishCurrentOperations();
-		if (!toggle && !extend) {
-			selectRowAndAllColumns(row);
-		} else if (toggle) {
-			if (getSelectionModel().isSelectedIndex(row)) {
-				getSelectionModel().removeSelectionInterval(row, row);
-			} else {
-				getSelectionModel().addSelectionInterval(row, row);
-			}
-			if (getSelectedRowCount() == 0) {
-				clearSelection();
-				return;
-			}
-			getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
-			setRowHeaderSelectionActive(true);
-		} else {
-			int anchor = getSelectionModel().getAnchorSelectionIndex();
-			if (anchor < 0) {
-				anchor = row;
-			}
-			getSelectionModel().setSelectionInterval(anchor, row);
-			getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
-			setRowHeaderSelectionActive(true);
-		}
+		selectTaskRowsFromGesture(row, toggle, extend, true, false);
 		scrollRectToVisible(getCellRect(row, 0, true));
 	}
 

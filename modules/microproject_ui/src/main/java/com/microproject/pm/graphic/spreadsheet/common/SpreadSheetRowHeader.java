@@ -196,6 +196,10 @@ public class SpreadSheetRowHeader extends JTable {
 	}
 
 	private void selectRowForMove(int row,boolean extend,boolean toggle,boolean keepExisting){
+		if (table instanceof SpreadSheet spreadSheet) {
+			spreadSheet.selectTaskRowsFromGesture(row, toggle, extend, true, keepExisting);
+			return;
+		}
 		table.setRowHeaderSelectionActive(true);
 		if (extend){
 			int anchor=getSelectionModel().getAnchorSelectionIndex();

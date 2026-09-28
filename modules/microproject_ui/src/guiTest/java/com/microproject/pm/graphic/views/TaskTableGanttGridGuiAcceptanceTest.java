@@ -802,6 +802,63 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 	}
 
+	@Test
+	void taskCellCtrlClickAndVerticalDragRetainEverySelectedRow() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(50);
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.getSelectionModel().addListSelectionListener(
+				GanttView.createGanttSelectionListener(fixture.gantt, fixture.sheet));
+			frame.toFront();
+			frame.requestFocus();
+			fixture.sheet.requestFocusInWindow();
+		});
+		int nameColumn = findColumn(fixture.sheet, "Field.name");
+		Point firstCell = screenCenter(fixture.sheet, fixture.sheet.getCellRect(0, nameColumn, true));
+		Point thirdCell = screenCenter(fixture.sheet, fixture.sheet.getCellRect(2, nameColumn, true));
+		robot.mouseMove(firstCell.x, firstCell.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.mouseMove(thirdCell.x, thirdCell.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRowCount() == 2,
+			"Ctrl+click in the task table did not retain two noncontiguous rows");
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(fixture.sheet.getSelectionModel().isSelectedIndex(0), "the original task-table row must stay selected");
+			assertTrue(fixture.sheet.getSelectionModel().isSelectedIndex(2), "Ctrl+click must select the second task-table row");
+			assertEquals(fixture.sheet.getColumnCount(), fixture.sheet.getSelectedColumnCount(),
+				"Ctrl+click must highlight every selected task row across all columns");
+			assertEquals(Set.of(0, 2), fixture.gantt.getHighlightedRows(),
+				"Gantt highlighting must match noncontiguous task-table selection");
+		});
+
+		Point secondCell = screenCenter(fixture.sheet, fixture.sheet.getCellRect(1, nameColumn, true));
+		robot.mouseMove(firstCell.x, firstCell.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseMove(firstCell.x, firstCell.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(100);
+		robot.mouseMove(secondCell.x, secondCell.y);
+		robot.delay(100);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRowCount() == 2,
+			"task-table drag selection collapsed after mouse release");
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(fixture.sheet.getSelectionModel().isSelectedIndex(0), "drag range must retain its first task row");
+			assertTrue(fixture.sheet.getSelectionModel().isSelectedIndex(1), "drag range must retain its last task row");
+			assertEquals(Set.of(0, 1), fixture.gantt.getHighlightedRows(),
+				"Gantt highlighting must retain every row selected by a task-table drag");
+		});
+	}
+
 	private static void assertHeaderHighlight(SpreadSheet sheet, int activeColumn) {
 		for (int column = 0; column < sheet.getColumnCount(); column++) {
 			TableCellRenderer renderer = sheet.getColumnModel().getColumn(column).getHeaderRenderer();

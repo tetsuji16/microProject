@@ -1448,6 +1448,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		return headerColumnSelectionActive;
 	}
 
+	protected void setHeaderColumnSelectionActive(boolean active) {
+		headerColumnSelectionActive = active;
+	}
+
 	public boolean isRowHeaderSelectionActive() {
 		return rowHeaderSelectionActive;
 	}
