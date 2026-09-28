@@ -4,9 +4,17 @@ Status: active migration for issue [#743](https://github.com/tetsuji16/ProjectLi
 
 ## Current size and public surface
 
-As inspected on 2026-09-28, `Task.java` has 2,344 lines and 269 public method declarations. `NormalTask.java` has 2,382 lines and 224 public method declarations. The larger concern is the number of contracts implemented by these two classes: `Task` implements identity, notes, calendar, dependencies, schedule/window, snapshots, time-distributed data, custom fields, document/hierarchy membership, leveling, timesheets, expense type, and task-link reference interfaces. `NormalTask` adds allocation, task-specific scheduling fields, assignments, earned-value values/fields, time-distributed fields, baseline scheduling fields, and indicators.
+As inspected on 2026-09-28, `Task.java` has 2,344 lines and 269 public method declarations. `NormalTask.java` now has 2,396 lines and 224 public method declarations. The larger concern is the number of contracts implemented by these two classes: `Task` implements identity, notes, calendar, dependencies, schedule/window, snapshots, time-distributed data, custom fields, document/hierarchy membership, leveling, timesheets, expense type, and task-link reference interfaces. `NormalTask` adds allocation, task-specific scheduling fields, assignments, earned-value values/fields, time-distributed fields, baseline scheduling fields, and indicators.
 
 Both are persistent compatibility types. `Task` has `serialVersionUID = 786665335611L`; `NormalTask` has `serialVersionUID = 273898992929L`. `NormalTask` also has explicit versioned `writeObject` / `readObject` methods. Keep these FQCNs, UIDs, serialized fields, and stream methods as the stable persistence shell during extraction.
+
+## Subtypes and caller routes
+
+- `NormalTask` is the concrete task implementation. The direct production subtypes found by source search are `DefaultSubProj` and `GroupNodeImpl`; preserve their overrides and subproject/group semantics when extracting behavior.
+- Task sheet date/duration edits enter `TaskSheetScheduleWorkflow`, which reads each aggregate's `calculateRollupSpan()` before applying constraints. Task/project date-span calculations now share `RollupSpanCalculator`; its recursive calls use the stable `Task` API.
+- Time-distributed fields reach `NormalTask` through the `HasTimeDistributedData` contract. Summary values select assignments or WBS children in `childrenToRollup()`, then use `TimeDistributedDataConsolidator`; `Project` and `HasAssignmentsImpl` already use that canonical summation layer.
+- Progress read/write is routed through `PercentWorkCompleteService` only for WBS summaries; leaves retain assignment-backed behavior. Earned-value derived indicators use `EarnedValueCalculator`, while ACWP/BAC/BCWP/BCWS value summation uses the consolidator.
+- Snapshot capture and restoration enter through `Project.saveCurrentToSnapshot` / `restoreSnapshot` and call each task's existing snapshot methods. These remain on the compatibility shell until the complete POD stream shape and undo behavior can be kept intact.
 
 ## Responsibility map
 
