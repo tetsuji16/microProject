@@ -62,7 +62,6 @@ public abstract class AbstractSession implements Session{
 	public void logException(Exception e){}
 	public void logString(String s){}
 
-    //public Job getSaveProjectJob(final Project project, final boolean cloneMaster){
     public Job getSaveProjectJob(final Project project, SaveOptions opt){
 		List<Project> projects = new ArrayList<>(1);
     	projects.add(project);

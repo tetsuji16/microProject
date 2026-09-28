@@ -62,9 +62,6 @@ public class DateTime {
 
 	public static SimpleDateFormat dateFormatInstance() {
 		return (SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, Locale.getDefault());
-//		SimpleDateFormat f = new SimpleDateFormat();
-//		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
-//		return f;
 	}
 	public static SimpleDateFormat utcDateFormatInstance() {
 		SimpleDateFormat f = (SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, Locale.getDefault());
