@@ -228,7 +228,7 @@ public final class FlatLafSupport {
 		return osName.startsWith("linux");
 	}
 
-	private static boolean isFlatLafLookAndFeel() {
+	public static boolean isFlatLafLookAndFeel() {
 		if (UIManager.getLookAndFeel() == null) {
 			return false;
 		}

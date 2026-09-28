@@ -31,8 +31,6 @@ import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.UIManager;
-
 import com.microproject.company.ApplicationUser;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.session.SessionFactory;
@@ -125,7 +123,7 @@ public class Environment {
 		Environment.newLook = newLook;
 	}
 	public static boolean isNewLaf() {
-		return newLaf || isFlatLafLookAndFeel();
+		return newLaf;
 	}
 	public static void setNewLaf(boolean newLaf) {
 		Environment.newLaf = newLaf;
@@ -225,14 +223,5 @@ public class Environment {
 	public static void setRibbonUI(boolean ribbonUI) {
 		Environment.ribbonUI = ribbonUI;
 	}
-
-	private static boolean isFlatLafLookAndFeel() {
-		if (UIManager.getLookAndFeel() == null) {
-			return false;
-		}
-		String className = UIManager.getLookAndFeel().getClass().getName();
-		return className != null && className.startsWith("com.formdev.flatlaf.");
-	}
-
 
 }

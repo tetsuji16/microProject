@@ -70,6 +70,7 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatLafSupport;
 
 public class TabbedNavigation implements MenuActionConstants, Serializable {
 	private static final long serialVersionUID = -270788624568075685L;
@@ -152,7 +153,7 @@ public class TabbedNavigation implements MenuActionConstants, Serializable {
 			else
 				component = dummy();
 			component.setBorder(BorderFactory.createEmptyBorder());
-			if (!Environment.isNewLaf()) component.setOpaque(false);
+			if (!(Environment.isNewLaf() || FlatLafSupport.isFlatLafLookAndFeel())) component.setOpaque(false);
 			String text = HyperLinkToolTip.extractTip(b.getToolTipText());
 			tabbedPane.addTab(text,component);
 			if (action == menuManager.getActionFromId(ACTION_RESOURCES))

@@ -282,7 +282,7 @@ public class LafManagerImpl implements LafManager {
 			&& "com.sun.java.swing.plaf.windows.WindowsLookAndFeel".equals(UIManager.getLookAndFeel().getClass().getName());
 	}
 	public boolean isToolbarOpaque() {
-		return Environment.isNewLaf() || isWindowsLAF();
+		return Environment.isNewLaf() || FlatLafSupport.isFlatLafLookAndFeel() || isWindowsLAF();
 	}
 
 }

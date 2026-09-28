@@ -258,7 +258,6 @@ com/microproject/util/Alert.java	javax.swing.JDialog
 com/microproject/util/Alert.java	javax.swing.JOptionPane
 com/microproject/util/Alert.java	javax.swing.JPanel
 com/microproject/util/BrowserControl.java	java.awt.
-com/microproject/util/Environment.java	javax.swing.UIManager
 com/microproject/util/FontUtil.java	java.awt.Font
 com/microproject/util/PopupDialogSupport.java	com.microproject.dialog.usability
 com/microproject/util/PopupDialogSupport.java	java.awt.Component
