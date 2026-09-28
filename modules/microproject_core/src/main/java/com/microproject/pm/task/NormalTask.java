@@ -410,7 +410,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		TaskBackup backup=(TaskBackup)b;
 		if (backup.snapshot==null) return;
 		TaskSnapshot snapshot=(TaskSnapshot)((TaskSnapshot) getSnapshot(CURRENT)).clone();
-		//snapshot.setCurrentSchedule(getCurrentSchedule());
 		restoreDetail(this, backup, true,snapshot);
 		setSnapshot(snapshotId, snapshot);
 		markTaskAsNeedingRecalculation(); // for redraw purpooses, not for recalc.
