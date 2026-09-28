@@ -45,7 +45,6 @@ import com.microproject.util.UiDispatch;
  *
  */
 public class Job extends Thread {
-//	static Log log = LogFactory.getLog(Job.class);
 
 	protected float progress,progressStart;
 	protected float weight=0.0f;
@@ -89,7 +88,6 @@ public class Job extends Thread {
 
     public void log(String s){
 //    	System.out.println("Job "+getName()+": "+s);
-//		log.info("Job "+getName()+": "+s);
     }
 	private final Map<String, Long> times = new HashMap<>();
     public void logBegin(String s){

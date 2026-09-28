@@ -36,7 +36,6 @@ import com.microproject.strings.Messages;
  *
  */
 public class BarStyle implements Predicate {
-//	static Log log = LogFactory.getLog(BarStyle.class);
 	public static final String FORMULA_PREFIX = "BarStyle";
 	String name = null;
 	String id = null;
@@ -77,7 +76,6 @@ public class BarStyle implements Predicate {
 			return ((Boolean) formula.evaluate(object)).booleanValue();
 		} catch (InvalidFormulaException e) {
 
-//			log.warn("Error evaluating formula in BarMappingRow" + name);
 			return false;
 		}
 	}

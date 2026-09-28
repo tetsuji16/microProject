@@ -43,7 +43,6 @@ public class CellStyleFactory {
 	protected String type = null; 
 	protected String format = null; 
 	
-//	static Log log = LogFactory.getLog(CellStyleFactory.class);
 	public CellStyle getCellStyle() throws InvalidFormulaException{
 		if (formulaClass!=null){
 			try {

@@ -34,7 +34,6 @@ import com.microproject.strings.Messages;
  * 
  */
 public class ViewConfiguration implements NamedItem {
-//	static Log log = LogFactory.getLog(ViewConfiguration.class);
 	public static final String category="ViewConfigurationCategory";
 	public String getCategory() {
 		return category;

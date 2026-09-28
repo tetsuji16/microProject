@@ -33,7 +33,6 @@ import com.microproject.scripting.GroovyClassCompiler;
  *
  */
 public class NodeTransformerFactory extends CommonTransformFactory{
-//	static Log log = LogFactory.getLog(NodeTransformerFactory.class);
 	protected String type = null; 
 	
 	public CommonTransform getTransform() throws InvalidFormulaException{

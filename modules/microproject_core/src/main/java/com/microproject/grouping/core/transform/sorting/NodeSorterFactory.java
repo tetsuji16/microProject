@@ -33,7 +33,6 @@ import com.microproject.scripting.GroovyClassCompiler;
  *
  */
 public class NodeSorterFactory extends CommonTransformFactory{
-//	static Log log = LogFactory.getLog(NodeSorterFactory.class);
 	protected String type1 = null; 
 	protected String type2 = null; 
 	protected String groupNameFormula=null;

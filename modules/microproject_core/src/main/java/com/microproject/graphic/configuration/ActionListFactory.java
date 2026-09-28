@@ -37,7 +37,6 @@ public class ActionListFactory {
  	protected String name = null;
 	protected String type = null; 
 	
-//	static Log log = LogFactory.getLog(ActionListFactory.class);
 	public ActionList getActionList() throws InvalidFormulaException{
 	    StringBuilder classText = new StringBuilder();
 	    classText.append("package com.microproject.graphic.configuration;\n");
