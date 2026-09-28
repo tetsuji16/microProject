@@ -37,7 +37,7 @@ class DocumentGenerationTest {
 		long token = generation.current();
 		generation.advance();
 		var invoked = new AtomicBoolean();
-		GraphicManager.dispatchDocumentCompletion(generation, token, () -> invoked.set(true));
+		generation.dispatchCompletion(token, () -> invoked.set(true));
 		SwingUtilities.invokeAndWait(() -> { });
 		assertFalse(invoked.get());
 	}
@@ -67,12 +67,15 @@ class DocumentGenerationTest {
 			DocumentGeneration generations = new DocumentGeneration();
 			AtomicReference<String> visibleDocument = new AtomicReference<>("current-document");
 			long oldGeneration = generations.current();
-			GraphicManager.dispatchDocumentCompletion(generations, oldGeneration,
+			generations.dispatchCompletion(oldGeneration,
 				() -> visibleDocument.set("stale-save-completion"));
 			generations.advance();
-			long currentGeneration = generations.current();
-			GraphicManager.dispatchDocumentCompletion(generations, currentGeneration,
-				() -> visibleDocument.set(loaded.getName()));
+		long currentGeneration = generations.current();
+		generations.dispatchCompletion(currentGeneration,
+				() -> {
+					assertTrue(SwingUtilities.isEventDispatchThread(), "completion must run on EDT");
+					visibleDocument.set(loaded.getName());
+				});
 			SwingUtilities.invokeAndWait(() -> { });
 
 			assertTrue(visibleDocument.get().equals(loaded.getName()),

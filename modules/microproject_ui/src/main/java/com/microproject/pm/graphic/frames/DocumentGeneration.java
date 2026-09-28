@@ -4,7 +4,9 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.frames;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.swing.SwingUtilities;
 
 /** Monotonic identity used to discard completions belonging to an old document. */
 final class DocumentGeneration {
@@ -20,5 +22,13 @@ final class DocumentGeneration {
 
 	boolean isCurrent(long token) {
 		return value.get() == token;
+	}
+
+	void dispatchCompletion(long token, Runnable completion) {
+		Objects.requireNonNull(completion, "completion");
+		SwingUtilities.invokeLater(() -> {
+			if (isCurrent(token))
+				completion.run();
+		});
 	}
 }

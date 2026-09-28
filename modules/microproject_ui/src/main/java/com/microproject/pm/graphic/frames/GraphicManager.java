@@ -3380,7 +3380,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				setCurrentFrame(existing);
 				showDocumentRibbon();
 				if (afterLoad != null)
-					dispatchDocumentCompletion(documentGeneration.current(), () -> afterLoad.accept(existing.getProject()));
+				documentGeneration.dispatchCompletion(documentGeneration.current(), () -> afterLoad.accept(existing.getProject()));
 				return true;
 			}
 		}
@@ -3411,7 +3411,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					if (completionMayFollowFrameSwitch)
 						SwingUtilities.invokeLater(completion);
 					else
-						dispatchDocumentCompletion(loadGeneration, completion);
+						documentGeneration.dispatchCompletion(loadGeneration, completion);
 				}
 			});
 
@@ -3436,20 +3436,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		//showWaitCursor(false);
 		return project != null;
-	}
-
-	/** Runs a background completion only on EDT and only for the document that requested it. */
-	void dispatchDocumentCompletion(long generation, Runnable completion) {
-		dispatchDocumentCompletion(documentGeneration, generation, completion);
-	}
-
-	static void dispatchDocumentCompletion(DocumentGeneration generations, long generation, Runnable completion) {
-		Objects.requireNonNull(generations, "generations");
-		Objects.requireNonNull(completion, "completion");
-		SwingUtilities.invokeLater(() -> {
-			if (generations.isCurrent(generation))
-				completion.run();
-		});
 	}
 
 	protected void saveLocalDocument(String fileName,final boolean saveAs){
