@@ -33,7 +33,6 @@ import com.microproject.datatype.Rate;
 import com.microproject.field.CanBeDirty;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.scheduling.IntervalConsumer;
-import com.microproject.graphic.configuration.HasCssStyle;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentSpecificFields;
 import com.microproject.pm.assignment.TimeDistributedFields;
@@ -44,7 +43,7 @@ import com.microproject.pm.task.HasNotes;
 import com.microproject.pm.task.Project;
 import com.microproject.util.DateTime;
 
-public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, TimeDistributedFields, UpdatesFromTimesheet, HasCssStyle, CanBeDirty, HasNotes {
+public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, TimeDistributedFields, UpdatesFromTimesheet, CanBeDirty, HasNotes {
 	Assignment assignment;
 	String taskName;
 	String projectName;

@@ -1,4 +1,5 @@
 # Exact existing core references to Swing/AWT and presentation packages. Remove entries as their callers leave core.
+# TimesheetAssignment keeps legacy style accessors for compatibility but no longer implements the UI marker interface.
 com/microproject/command/UpdateProjectCommand.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/command/UpdateProjectCommand.java	javax.swing.undo.UndoableEditSupport
 com/microproject/configuration/Configuration.java	com.microproject.graphic.configuration.GraphicConfiguration
@@ -97,7 +98,6 @@ com/microproject/grouping/core/NodeBridge.java	javax.swing.tree.TreeNode
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetCategories
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/pm/assignment/AssignmentService.java	javax.swing.undo.UndoableEditSupport
-com/microproject/pm/assignment/timesheet/TimesheetAssignment.java	com.microproject.graphic.configuration.HasCssStyle
 com/microproject/pm/ccpm/CriticalChainBufferHistoryService.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/pm/ccpm/CriticalChainBufferHistoryService.java	javax.swing.undo.UndoableEditSupport
 com/microproject/pm/ccpm/CriticalChainService.java	javax.swing.undo.AbstractUndoableEdit
