@@ -160,7 +160,6 @@ com/microproject/print/ViewSettings.java	com.microproject.print
 com/microproject/script/ConverterContext.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/script/FieldArrayUtil.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/session/SaveOptions.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
-com/microproject/transaction/MultipleTransactionManager.java	javax.swing.event.EventListenerList
 com/microproject/undo/AssignmentCreationEdit.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/undo/AssignmentCreationEdit.java	javax.swing.undo.CannotRedoException
 com/microproject/undo/AssignmentCreationEdit.java	javax.swing.undo.CannotUndoException

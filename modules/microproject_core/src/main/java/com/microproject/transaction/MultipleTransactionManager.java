@@ -24,6 +24,9 @@
  *******************************************************************************/
 package com.microproject.transaction;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.microproject.document.Document;
 
 
@@ -33,18 +36,27 @@ import com.microproject.document.Document;
 public class MultipleTransactionManager {
 	private static int counter=0;
 	public static int depth = 0;
-//	 Create the listener list
-    protected javax.swing.event.EventListenerList listenerList =
-        new javax.swing.event.EventListenerList();
+    private final Object listenerLock = new Object();
+    private final List<MultipleTransaction.Listener> listeners = new ArrayList<>();
 
     // This methods allows classes to register for MultipleTransactions
     public void addListener(MultipleTransaction.Listener listener) {
-        listenerList.add(MultipleTransaction.Listener.class, listener);
+        if (listener == null)
+            return;
+        synchronized (listenerLock) {
+            listeners.add(listener);
+        }
     }
 
     // This methods allows classes to unregister for MultipleTransactions
     public void removeListener(MultipleTransaction.Listener listener) {
-        listenerList.remove(MultipleTransaction.Listener.class, listener);
+        if (listener == null)
+            return;
+        synchronized (listenerLock) {
+            int index = listeners.lastIndexOf(listener);
+            if (index >= 0)
+                listeners.remove(index);
+        }
     }
     
 /**
@@ -62,14 +74,12 @@ public class MultipleTransactionManager {
     	else
     		depth--;
     	MultipleTransaction evt = MultipleTransaction.getInstance(source,id, begin, depth);
-        Object[] listeners = listenerList.getListenerList();
-        // Each listener occupies two elements - the first is the listener class
-        // and the second is the listener instance
-        for (int i=0; i<listeners.length; i+=2) {
-            if (listeners[i]==MultipleTransaction.Listener.class) {
-                ((MultipleTransaction.Listener)listeners[i+1]).multipleTransaction(evt);
-            }
+        List<MultipleTransaction.Listener> listenersSnapshot;
+        synchronized (listenerLock) {
+            listenersSnapshot = List.copyOf(listeners);
         }
+        for (MultipleTransaction.Listener listener : listenersSnapshot)
+            listener.multipleTransaction(evt);
         return id;
     }
 }
