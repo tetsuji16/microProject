@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 import java.util.EventListener;
 import java.util.HashSet;
 import java.util.Set;
+import java.lang.reflect.Array;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Objects;
@@ -38,10 +39,10 @@ import java.util.concurrent.CancellationException;
 
 import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
-import javax.swing.event.EventListenerList;
 
 
 import com.microproject.util.Environment;
+import com.microproject.util.ListenerRegistry;
 
 
 /**
@@ -127,32 +128,31 @@ public class JobQueue extends ThreadGroup{
 	}
 
 
-	protected EventListenerList queueListenerList = new EventListenerList();
+	private final ListenerRegistry<JobQueueListener> listeners = new ListenerRegistry<>();
 
 	public void addListener(JobQueueListener l) {
-		queueListenerList.add(JobQueueListener.class, l);
+		listeners.add(l);
 	}
 	public void removeListener(JobQueueListener l) {
-		queueListenerList.remove(JobQueueListener.class, l);
+		listeners.remove(l);
 	}
 	public JobQueueListener[] getListeners() {
-		return (JobQueueListener[]) queueListenerList.getListeners(JobQueueListener.class);
+		return listeners.snapshotReverse().toArray(JobQueueListener[]::new);
 	}
     public EventListener[] getListeners(Class listenerType) {
-    	return queueListenerList.getListeners(listenerType);
+		if (listenerType == null)
+			throw new NullPointerException("listenerType");
+		if (listenerType != JobQueueListener.class)
+			return (EventListener[]) Array.newInstance(listenerType, 0);
+		return listeners.snapshotReverse().toArray(JobQueueListener[]::new);
     }
 
  	protected void fireProgressChanged(Object source,float progress) {
-		Object[] listeners = queueListenerList.getListenerList();
 		JobQueueEvent e = null;
-		for (int i = listeners.length - 2; i >= 0; i -= 2) {
-			if (listeners[i] == JobQueueListener.class) {
-				if (e == null) {
-					e = new JobQueueEvent(source,progress);
-				}
-				((JobQueueListener) listeners[i + 1]).progressChanged(e);
-
-			}
+		for (JobQueueListener listener : listeners.snapshotReverse()) {
+			if (e == null)
+				e = new JobQueueEvent(source,progress);
+			listener.progressChanged(e);
 		}
 	}
 

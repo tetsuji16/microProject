@@ -105,7 +105,6 @@ com/microproject/job/Job.java	javax.swing.ProgressMonitor
 com/microproject/job/Job.java	javax.swing.SwingUtilities
 com/microproject/job/JobQueue.java	java.awt.Component
 com/microproject/job/JobQueue.java	java.awt.Frame
-com/microproject/job/JobQueue.java	javax.swing.event.EventListenerList
 com/microproject/job/JobQueue.java	javax.swing.ProgressMonitor
 com/microproject/job/JobQueue.java	javax.swing.SwingUtilities
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetCategories
