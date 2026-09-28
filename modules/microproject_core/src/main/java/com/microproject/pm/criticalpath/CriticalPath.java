@@ -36,6 +36,7 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.field.Field;
 import com.microproject.options.ScheduleOption;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.calendar.CalendarDefinition;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
@@ -167,6 +168,12 @@ public class CriticalPath implements SchedulingAlgorithm {
 	 * @param startTask
 	 */
 	private void fastCalc(Task startTask) {
+		try (CalendarDefinition.AddCacheScope ignored = CalendarDefinition.beginAddCacheScope()) {
+			fastCalcInAddCacheScope(startTask);
+		}
+	}
+
+	private void fastCalcInAddCacheScope(Task startTask) {
 		lastInstance =this;
 		Task beginSentinel = getBeginSentinel(isForward());
 		Task endSentinel = getEndSentinel(isForward());
@@ -224,8 +231,6 @@ public class CriticalPath implements SchedulingAlgorithm {
 			
 		}
 		getFreshCalculationStateCount(); // For next time;
-		// Clear calendar date calculation caches after scheduling pass completes
-		com.microproject.pm.calendar.CalendarDefinition.clearAllAddCaches();
 	}
 	
 	private void doPass(Task startTask, TaskSchedule.CalculationContext context) {

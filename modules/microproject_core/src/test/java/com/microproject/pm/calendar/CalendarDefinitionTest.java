@@ -31,8 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Calendar;
-import java.util.WeakHashMap;
-
 import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.Duration;
@@ -40,9 +38,21 @@ import com.microproject.util.DateTime;
 
 class CalendarDefinitionTest {
 	@Test
-	void globalScheduleCacheRegistryUsesWeakKeys() throws NoSuchFieldException {
-		assertEquals(WeakHashMap.class,
-				CalendarDefinition.class.getDeclaredField("cachedInstances").getType());
+	void schedulingCacheScopeClearsOnlyCalendarsUsedByThatScope() {
+		CalendarDefinition first = standardWeekCalendar();
+		CalendarDefinition second = standardWeekCalendar();
+		long date = timestamp(2024, Calendar.JUNE, 3, 9);
+		first.add(date, eightHours(), true);
+		second.add(date, eightHours(), true);
+		assertEquals(1, first.addCache.size());
+		assertEquals(1, second.addCache.size());
+
+		try (CalendarDefinition.AddCacheScope ignored = CalendarDefinition.beginAddCacheScope()) {
+			first.add(date, eightHours(), true); // A cache hit must still attach to the scope.
+		}
+
+		assertTrue(first.addCache.isEmpty());
+		assertEquals(1, second.addCache.size());
 	}
 
 	@Test

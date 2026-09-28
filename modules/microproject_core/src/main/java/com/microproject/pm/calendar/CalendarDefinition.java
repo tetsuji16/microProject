@@ -32,9 +32,9 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.TreeSet;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -281,26 +281,44 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		addCache.clear();
 	}
 
-	// Track all CalendarDefinition instances that have been used for caching.
-	// WeakHashMap ensures no memory leak - entries are removed when CalendarDefinition is GC'd.
-	private static final WeakHashMap<CalendarDefinition, Boolean> cachedInstances = new WeakHashMap<>();
+	private static final ThreadLocal<AddCacheScope> currentAddCacheScope = new ThreadLocal<>();
 
-	private void markCacheUsed() {
-		synchronized (cachedInstances) {
-			cachedInstances.put(this, Boolean.TRUE);
+	/** A scheduling operation's cache ownership boundary, isolated to its thread. */
+	public static final class AddCacheScope implements AutoCloseable {
+		private final AddCacheScope parent;
+		private final IdentityHashMap<CalendarDefinition, Boolean> calendars = new IdentityHashMap<>();
+		private boolean closed;
+
+		private AddCacheScope(AddCacheScope parent) {
+			this.parent = parent;
+		}
+
+		@Override
+		public void close() {
+			if (closed)
+				return;
+			if (currentAddCacheScope.get() != this)
+				throw new IllegalStateException("Calendar add-cache scopes must close in LIFO order");
+			for (CalendarDefinition calendar : calendars.keySet())
+				calendar.clearAddCache();
+			currentAddCacheScope.set(parent);
+			if (parent == null)
+				currentAddCacheScope.remove();
+			closed = true;
 		}
 	}
 
-	/**
-	 * Clear add() result caches on all tracked CalendarDefinition instances.
-	 * Called after each scheduling pass to free memory and prevent stale results.
-	 */
-	public static void clearAllAddCaches() {
-		synchronized (cachedInstances) {
-			for (CalendarDefinition calendar : cachedInstances.keySet()) {
-				calendar.addCache.clear();
-			}
-		}
+	/** Begins a scheduling-scoped cache that is cleared on close. */
+	public static AddCacheScope beginAddCacheScope() {
+		AddCacheScope scope = new AddCacheScope(currentAddCacheScope.get());
+		currentAddCacheScope.set(scope);
+		return scope;
+	}
+
+	private void markCacheUsed() {
+		AddCacheScope scope = currentAddCacheScope.get();
+		if (scope != null)
+			scope.calendars.put(this, Boolean.TRUE);
 	}
 
 	/**
@@ -312,6 +330,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	public long add(long date, long duration, boolean useSooner) {
 		if (date == 0) // don't bother treating null dates since they will never be valid for calculations
 			return 0;
+		markCacheUsed();
 		AddCacheKey key = new AddCacheKey(date, duration, useSooner);
 		Long cached = addCache.get(key);
 		if (cached != null) {
@@ -319,7 +338,6 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		}
 		long result = calculateAddition(date, duration, useSooner);
 		addCache.put(key, result);
-		markCacheUsed();
 		return result;
 	}
 
