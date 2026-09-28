@@ -24,10 +24,8 @@
  *******************************************************************************/
 package com.microproject.transaction;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.microproject.document.Document;
+import com.microproject.util.ListenerRegistry;
 
 
 /**
@@ -36,27 +34,16 @@ import com.microproject.document.Document;
 public class MultipleTransactionManager {
 	private static int counter=0;
 	public static int depth = 0;
-    private final Object listenerLock = new Object();
-    private final List<MultipleTransaction.Listener> listeners = new ArrayList<>();
+	private final ListenerRegistry<MultipleTransaction.Listener> listeners = new ListenerRegistry<>();
 
     // This methods allows classes to register for MultipleTransactions
     public void addListener(MultipleTransaction.Listener listener) {
-        if (listener == null)
-            return;
-        synchronized (listenerLock) {
-            listeners.add(listener);
-        }
+		listeners.add(listener);
     }
 
     // This methods allows classes to unregister for MultipleTransactions
     public void removeListener(MultipleTransaction.Listener listener) {
-        if (listener == null)
-            return;
-        synchronized (listenerLock) {
-            int index = listeners.lastIndexOf(listener);
-            if (index >= 0)
-                listeners.remove(index);
-        }
+		listeners.remove(listener);
     }
     
 /**
@@ -74,11 +61,7 @@ public class MultipleTransactionManager {
     	else
     		depth--;
     	MultipleTransaction evt = MultipleTransaction.getInstance(source,id, begin, depth);
-        List<MultipleTransaction.Listener> listenersSnapshot;
-        synchronized (listenerLock) {
-            listenersSnapshot = List.copyOf(listeners);
-        }
-        for (MultipleTransaction.Listener listener : listenersSnapshot)
+		for (MultipleTransaction.Listener listener : listeners.snapshot())
             listener.multipleTransaction(evt);
         return id;
     }

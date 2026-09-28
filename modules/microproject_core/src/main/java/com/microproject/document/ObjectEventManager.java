@@ -29,24 +29,23 @@ import com.microproject.field.Field;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.undo.NodeUndoInfo;
+import com.microproject.util.ListenerRegistry;
 
 
 /**
  *
  */
 public class ObjectEventManager {
-//	 Create the listener list
-    protected javax.swing.event.EventListenerList listenerList =
-        new javax.swing.event.EventListenerList();
+    private final ListenerRegistry<ObjectEvent.Listener> listeners = new ListenerRegistry<>();
 
     // This methods allows classes to register for ObjectEvents
     public void addListener(ObjectEvent.Listener listener) {
-        listenerList.add(ObjectEvent.Listener.class, listener);
+        listeners.add(listener);
     }
 
     // This methods allows classes to unregister for ObjectEvents
     public void removeListener(ObjectEvent.Listener listener) {
-        listenerList.remove(ObjectEvent.Listener.class, listener);
+        listeners.remove(listener);
     }
 
 
@@ -97,14 +96,8 @@ public class ObjectEventManager {
     
     public void fire(ObjectEvent evt) {
         try {
-            Object[] listeners = listenerList.getListenerList();
-            // Each listener occupies two elements - the first is the listener class
-            // and the second is the listener instance
-            for (int i=0; i<listeners.length; i+=2) {
-                if (listeners[i]==ObjectEvent.Listener.class) {
-                    ((ObjectEvent.Listener)listeners[i+1]).objectChanged(evt);
-                }
-            }
+            for (ObjectEvent.Listener listener : listeners.snapshot())
+                listener.objectChanged(evt);
         } finally {
             evt.recycle();
         }

@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.pm.scheduling;
 
+import com.microproject.util.ListenerRegistry;
 
 
 /**
@@ -31,17 +32,16 @@ package com.microproject.pm.scheduling;
  */
 public class ScheduleEventManager {
 
-    protected javax.swing.event.EventListenerList listenerList =
-        new javax.swing.event.EventListenerList();
+    private final ListenerRegistry<ScheduleEventListener> listeners = new ListenerRegistry<>();
 
     // This methods allows classes to register for ObjectEvents
     public void addListener(ScheduleEventListener listener) {
-        listenerList.add(ScheduleEventListener.class, listener);
+        listeners.add(listener);
     }
 
     // This methods allows classes to unregister for ObjectEvents
     public void removeListener(ScheduleEventListener listener) {
-        listenerList.remove(ScheduleEventListener.class, listener);
+        listeners.remove(listener);
     }
     public void fireBaselineChanged(Object source, Object object, Integer snapshot, boolean save) {
     	ScheduleEvent evt = new ScheduleEvent(source,ScheduleEvent.BASELINE,object);
@@ -58,18 +58,8 @@ public class ScheduleEventManager {
     	fire (evt);
     }
     private void fire(ScheduleEvent evt) {
-        Object[] listeners = listenerList.getListenerList();
-        // Each listener occupies two elements - the first is the listener class
-        // and the second is the listener instance
-//        long t0=System.currentTimeMillis(),t1;
-        for (int i=0; i<listeners.length; i+=2) {
-            if (listeners[i]==ScheduleEventListener.class) {
-                ((ScheduleEventListener)listeners[i+1]).scheduleChanged(evt);
-//                t1=System.currentTimeMillis();
-//                System.out.println("\tSchedule events ran in "+(t1-t0)+"ms"+" ("+listeners[i+1].getClass()+")");
-//                t0=t1;
-            }
-        }
+		for (ScheduleEventListener listener : listeners.snapshot())
+			listener.scheduleChanged(evt);
     }
     
 

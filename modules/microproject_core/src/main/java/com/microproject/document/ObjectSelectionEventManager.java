@@ -24,24 +24,23 @@
  *******************************************************************************/
 package com.microproject.document;
 
+import com.microproject.util.ListenerRegistry;
 
 
 /**
  *
  */
 public class ObjectSelectionEventManager {
-//	 Create the listener list
-    protected javax.swing.event.EventListenerList listenerList =
-        new javax.swing.event.EventListenerList();
+    private final ListenerRegistry<ObjectSelectionListener> listeners = new ListenerRegistry<>();
 
     // This methods allows classes to register for ObjectEvents
     public void addListener(ObjectSelectionListener listener) {
-        listenerList.add(ObjectSelectionListener.class, listener);
+        listeners.add(listener);
     }
 
     // This methods allows classes to unregister for ObjectEvents
     public void removeListener(ObjectSelectionListener listener) {
-        listenerList.remove(ObjectSelectionListener.class, listener);
+        listeners.remove(listener);
     }
 
     
@@ -51,13 +50,7 @@ public class ObjectSelectionEventManager {
     }
     
     public void fire(ObjectSelectionEvent evt) {    	
-        Object[] listeners = listenerList.getListenerList();
-        // Each listener occupies two elements - the first is the listener class
-        // and the second is the listener instance
-        for (int i=0; i<listeners.length; i+=2) {
-            if (listeners[i]==ObjectSelectionListener.class) {
-                ((ObjectSelectionListener)listeners[i+1]).objectSelected(evt);
-            }
-        }
+        for (ObjectSelectionListener listener : listeners.snapshot())
+            listener.objectSelected(evt);
     }
 }

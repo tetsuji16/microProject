@@ -10,8 +10,6 @@ com/microproject/configuration/Dictionary.java	com.microproject.graphic.configur
 com/microproject/configuration/Dictionary.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/configuration/ReportColumns.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/configuration/ReportDefinition.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
-com/microproject/document/ObjectEventManager.java	javax.swing.event.EventListenerList
-com/microproject/document/ObjectSelectionEventManager.java	javax.swing.event.EventListenerList
 com/microproject/graphic/configuration/ActionList.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/ActionListFactory.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/ActionLists.java	com.microproject.graphic.configuration
@@ -126,7 +124,6 @@ com/microproject/pm/resource/ResourceImpl.java	com.microproject.graphic.configur
 com/microproject/pm/resource/ResourceImpl.java	com.microproject.graphic.configuration.HasResourceIndicators
 com/microproject/pm/resource/ResourceLevelingService.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/pm/resource/ResourceLevelingService.java	javax.swing.undo.UndoableEditSupport
-com/microproject/pm/scheduling/ScheduleEventManager.java	javax.swing.event.EventListenerList
 com/microproject/pm/scheduling/ScheduleService.java	javax.swing.undo.UndoableEdit
 com/microproject/pm/scheduling/ScheduleService.java	javax.swing.undo.UndoableEditSupport
 com/microproject/pm/task/NormalTask.java	com.microproject.graphic.configuration.HasIndicators
