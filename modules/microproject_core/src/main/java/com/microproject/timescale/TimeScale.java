@@ -51,7 +51,6 @@ public class TimeScale {
 	protected boolean upperCase1=false;
 	protected boolean upperCase2=false;
 
-//	private Date recycledDate=new Date();
 	private ExtendedDateFormat recycledDateFormat;
 	private Locale formatterLocale;
 
@@ -104,32 +103,6 @@ public class TimeScale {
 	
 	protected void floor(Calendar calendar,int calendarField,int number,long startReference){
 		CalendarUtil.floor(calendar,calendarField,number);
-//		if (number>1){
-//			long ref=calendar.getTimeInMillis();
-//			if (calendarField==2&&number==3){
-//				System.out.println("floor: "+CalendarUtil.toString(calendar)+", ref="+CalendarUtil.toString(ref)+", startReference="+CalendarUtil.toString(startReference));
-//			}
-//			if (startReference==-1) calendar.set(calendarField,calendar.getActualMinimum(calendarField));
-//			else calendar.setTimeInMillis(startReference);
-//			if (calendarField==2&&number==3){
-//				System.out.println("floor#2: "+CalendarUtil.toString(calendar));
-//			}
-//			while(calendar.getTimeInMillis()<=ref){
-//				calendar.add(calendarField,number);
-//				if (calendarField==2&&number==3){
-//					System.out.println("floor#3: "+CalendarUtil.toString(calendar));
-//				}
-//
-//			}
-//			if (calendarField==2&&number==3){
-//				System.out.println("floor#3.9: "+CalendarUtil.toString(calendar));
-//			}
-//			calendar.add(calendarField,-number);
-//			if (calendarField==2&&number==3){
-//				System.out.println("floor#4: "+CalendarUtil.toString(calendar));
-//			}
-//
-//		}
 	}
 	protected void ceil(Calendar calendar,int calendarField,int number,long startReference){
 		Calendar ref=DateTime.calendarInstance();
