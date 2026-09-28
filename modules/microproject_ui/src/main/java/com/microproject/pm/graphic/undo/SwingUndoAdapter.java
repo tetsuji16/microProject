@@ -34,6 +34,10 @@ public final class SwingUndoAdapter {
 	}
 
 	public static void post(UndoableEditSupport edits, ReversibleModelChange change) {
+		post(edits, change, null);
+	}
+
+	public static void post(UndoableEditSupport edits, ReversibleModelChange change, String presentationName) {
 		if (edits == null || change == null || !change.hasChanged())
 			return;
 		edits.postEdit(new AbstractUndoableEdit() {
@@ -49,6 +53,11 @@ public final class SwingUndoAdapter {
 			public void redo() {
 				super.redo();
 				change.redo();
+			}
+
+			@Override
+			public String getPresentationName() {
+				return presentationName == null ? super.getPresentationName() : presentationName;
 			}
 		});
 	}

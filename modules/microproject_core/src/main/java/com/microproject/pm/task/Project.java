@@ -50,7 +50,6 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
-import javax.swing.undo.UndoableEditSupport;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
@@ -141,9 +140,7 @@ import com.microproject.server.data.DistributionData;
 import com.microproject.session.FileHelper;
 import com.microproject.strings.Messages;
 import com.microproject.transaction.MultipleTransactionManager;
-import com.microproject.undo.ClearSnapshotEdit;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.undo.SaveSnapshotEdit;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
@@ -927,19 +924,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 
 
-	public void saveCurrentToSnapshot(Object snapshotId, boolean entireProject, List<?> selection, boolean undo) {
+	public ReversibleModelChange saveCurrentToSnapshot(Object snapshotId, boolean entireProject, List<?> selection) {
 		if (entireProject) forTasks(new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
 
 		fireSnapshotBaselineChanged(snapshotId, true);
-
-		if (undo){
-			UndoableEditSupport undoableEditSupport=getUndoController().getEditSupport();
-			if (undoableEditSupport!=null){
-				undoableEditSupport.postEdit(new SaveSnapshotEdit(this,snapshotId,entireProject,selection));
-			}
-		}
-
+		return ReversibleModelChange.changed(
+			() -> clearSnapshotState(snapshotId, entireProject, selection),
+			() -> saveCurrentToSnapshot(snapshotId, entireProject, selection));
 	}
 
 	public void restoreSnapshot(Object snapshotId, boolean entireProject, List<?> selection, Collection<?> snapshotDetails) {
@@ -956,25 +948,27 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		fireSnapshotBaselineChanged(snapshotId, true);
 	}
 
-	public void clearSnapshot(final Object snapshotId, boolean entireProject, List<?> selection, boolean undo) {
+	public ReversibleModelChange clearSnapshot(final Object snapshotId, boolean entireProject, List<?> selection) {
 		Iterator<?> i = getSnapshotIterator(entireProject, selection);
 
 		final boolean[] foundSnapshot = new boolean[1]; // no undo edit if there is no snapshot
 		int snapshotTaskCount = entireProject ? getTaskList().size() : selection == null ? 0 : selection.size();
-		final Collection<?> snapshotDetails = undo
-			? collectSnapshotDetails(snapshotId, i, foundSnapshot, snapshotTaskCount) : null;
+		final Collection<?> snapshotDetails = collectSnapshotDetails(snapshotId, i, foundSnapshot, snapshotTaskCount);
 
+		clearSnapshotState(snapshotId, entireProject, selection);
+		if (!foundSnapshot[0]) {
+			return ReversibleModelChange.unchanged();
+		}
+		return ReversibleModelChange.changed(
+			() -> restoreSnapshot(snapshotId, entireProject, selection, snapshotDetails),
+			() -> clearSnapshotState(snapshotId, entireProject, selection));
+
+	}
+
+	private void clearSnapshotState(Object snapshotId, boolean entireProject, List<?> selection) {
 		if (entireProject) forTasks(new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
 		fireSnapshotBaselineChanged(snapshotId, false);
-
-		if (foundSnapshot[0]){
-			UndoableEditSupport undoableEditSupport=getUndoController().getEditSupport();
-			if (undoableEditSupport!=null){
-				undoableEditSupport.postEdit(new ClearSnapshotEdit(this,snapshotId,entireProject,selection,snapshotDetails));
-			}
-		}
-
 	}
 
 	private Collection<?> collectSnapshotDetails(Object snapshotId, Iterator<?> tasks, boolean[] foundSnapshot,

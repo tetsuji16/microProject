@@ -28,6 +28,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.ResourceBundle;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +53,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.dialog.BaselineDialog;
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
@@ -85,6 +87,7 @@ import com.microproject.pm.graphic.views.ResourceView;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.strings.Messages;
 import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -1238,6 +1241,49 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return text.startsWith(value + " ") && text.endsWith(":")
 				&& expectedDisplay.equals(button.getAccessibleContext().getAccessibleName())
 				&& expectedDisplay.equals(actionName);
+	}
+
+	@Test
+	void baselineRibbonRouteRegistersCoreChangeInSwingUndoHistory() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Baseline Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"Baseline project did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
+		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ProjectRibbonTask.title"))));
+		AbstractButton saveBaseline = findShowingButtonByCommand("RibbonSaveBaseline");
+		GuiAcceptanceSupport.await(saveBaseline::isEnabled, "Save Baseline remained disabled");
+		click(robot, boundsOnScreen(saveBaseline));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
+			"Save Baseline dialog did not open");
+		BaselineDialog dialog = java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate instanceof BaselineDialog && candidate.isShowing())
+			.map(BaselineDialog.class::cast).findFirst().orElseThrow();
+		click(robot, boundsOnScreen(findShowingButtonByText(dialog, Messages.getString("ButtonText.OK"))));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing() && task.getSnapshot(Snapshottable.BASELINE) != null,
+			"Save Baseline did not store the baseline snapshot");
+		assertTrue(rowForTask(sheet, task) >= 0, "Baseline mutation must keep the task visible");
+
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> task.getSnapshot(Snapshottable.BASELINE) == null,
+			"Undo did not remove the saved baseline snapshot");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> task.getSnapshot(Snapshottable.BASELINE) != null,
+			"Redo did not restore the saved baseline snapshot");
 	}
 
 	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,

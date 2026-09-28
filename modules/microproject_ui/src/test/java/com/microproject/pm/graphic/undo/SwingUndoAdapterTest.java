@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.undo.UndoManager;
+import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
 
 import org.junit.jupiter.api.Test;
@@ -42,11 +43,15 @@ class SwingUndoAdapterTest {
 		UndoableEditSupport edits = new UndoableEditSupport();
 		UndoManager undoManager = new UndoManager();
 		edits.addUndoableEditListener(undoManager);
+		UndoableEdit[] posted = new UndoableEdit[1];
+		edits.addUndoableEditListener(event -> posted[0] = event.getEdit());
 		AtomicInteger value = new AtomicInteger(1);
 
-		SwingUndoAdapter.post(edits, ReversibleModelChange.changed(() -> value.set(0), () -> value.set(1)));
+		SwingUndoAdapter.post(edits, ReversibleModelChange.changed(() -> value.set(0), () -> value.set(1)),
+			"SaveSnapshot: Project test(1)");
 		assertEquals(1, value.get());
 		assertTrue(undoManager.canUndo(), "a changed model operation must be posted");
+		assertEquals("SaveSnapshot: Project test(1)", posted[0].getPresentationName());
 		undoManager.undo();
 		assertEquals(0, value.get());
 		undoManager.redo();

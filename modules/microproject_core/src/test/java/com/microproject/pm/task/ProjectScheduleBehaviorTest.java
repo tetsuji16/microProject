@@ -290,17 +290,18 @@ class ProjectScheduleBehaviorTest {
 		Integer snapshotId = Integer.valueOf(2);
 		task.saveCurrentToSnapshot(snapshotId);
 
-		project.clearSnapshot(snapshotId, false, Collections.singletonList(task), true);
+		ReversibleModelChange change = project.clearSnapshot(snapshotId, false, Collections.singletonList(task));
 
 		Object backup = task.backupDetail(snapshotId);
 		assertNotNull(backup);
 		assertNull(((TaskBackup) backup).snapshot);
 
-		project.getUndoController().undo();
+		assertTrue(change.hasChanged());
+		change.undo();
 		Object restoredBackup = task.backupDetail(snapshotId);
 		assertNotNull(((TaskBackup) restoredBackup).snapshot);
 
-		project.getUndoController().redo();
+		change.redo();
 		Object redoneBackup = task.backupDetail(snapshotId);
 		assertNull(((TaskBackup) redoneBackup).snapshot);
 	}
@@ -314,15 +315,31 @@ class ProjectScheduleBehaviorTest {
 		task.setStart(originalStart);
 		task.setDuration(day());
 
-		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null, false);
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
 		long baselineStart = task.getBaselineStart(Snapshottable.BASELINE);
 
 		task.setStart(project.getEffectiveWorkCalendar().add(originalStart, day(), false));
-		project.saveCurrentToSnapshot(Snapshottable.BASELINE_1, true, null, false);
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE_1, true, null);
 
 		assertEquals(originalStart, baselineStart);
 		assertEquals(baselineStart, task.getBaselineStart(Snapshottable.BASELINE));
 		assertEquals(task.getStart(), task.getBaselineStart(Snapshottable.BASELINE_1));
+	}
+
+	@Test
+	void savingBaselineReturnsAReversibleModelChange() {
+		Project project = createProject();
+		NormalTask task = project.createScriptedTask();
+		project.connectTask(task);
+
+		ReversibleModelChange change = project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
+
+		assertTrue(change.hasChanged());
+		assertNotNull(task.getSnapshot(Snapshottable.BASELINE));
+		change.undo();
+		assertNull(task.getSnapshot(Snapshottable.BASELINE));
+		change.redo();
+		assertNotNull(task.getSnapshot(Snapshottable.BASELINE));
 	}
 
 	@Test

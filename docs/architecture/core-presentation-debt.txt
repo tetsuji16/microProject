@@ -141,7 +141,6 @@ com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.Spr
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/pm/task/Project.java	com.microproject.print.PrintSettings
 com/microproject/pm/task/Project.java	javax.swing.SwingUtilities
-com/microproject/pm/task/Project.java	javax.swing.undo.UndoableEditSupport
 com/microproject/pm/task/ProjectFactory.java	javax.swing.JOptionPane
 com/microproject/pm/task/ProjectFactory.java	javax.swing.SwingUtilities
 com/microproject/pm/task/Task.java	com.microproject.graphic.configuration.GraphicConfiguration
@@ -180,9 +179,6 @@ com/microproject/undo/AssignmentSetFieldsEdit.java	javax.swing.undo.CannotUndoEx
 com/microproject/undo/CalendarEdit.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/undo/CalendarEdit.java	javax.swing.undo.CannotRedoException
 com/microproject/undo/CalendarEdit.java	javax.swing.undo.CannotUndoException
-com/microproject/undo/ClearSnapshotEdit.java	javax.swing.undo.AbstractUndoableEdit
-com/microproject/undo/ClearSnapshotEdit.java	javax.swing.undo.CannotRedoException
-com/microproject/undo/ClearSnapshotEdit.java	javax.swing.undo.CannotUndoException
 com/microproject/undo/DataFactoryUndoController.java	javax.swing.event.UndoableEditEvent
 com/microproject/undo/DependencyCreationEdit.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/undo/DependencyCreationEdit.java	javax.swing.undo.CannotRedoException
@@ -221,9 +217,6 @@ com/microproject/undo/NodeRelocationEdit.java	javax.swing.undo.AbstractUndoableE
 com/microproject/undo/NodeRelocationEdit.java	javax.swing.undo.CannotRedoException
 com/microproject/undo/NodeRelocationEdit.java	javax.swing.undo.CannotUndoException
 com/microproject/undo/ProjectStartDateEdit.java	javax.swing.undo.AbstractUndoableEdit
-com/microproject/undo/SaveSnapshotEdit.java	javax.swing.undo.AbstractUndoableEdit
-com/microproject/undo/SaveSnapshotEdit.java	javax.swing.undo.CannotRedoException
-com/microproject/undo/SaveSnapshotEdit.java	javax.swing.undo.CannotUndoException
 com/microproject/undo/ScheduleBackupEdit.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/undo/ScheduleBackupEdit.java	javax.swing.undo.CannotRedoException
 com/microproject/undo/ScheduleBackupEdit.java	javax.swing.undo.CannotUndoException

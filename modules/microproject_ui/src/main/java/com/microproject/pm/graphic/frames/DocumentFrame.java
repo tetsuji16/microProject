@@ -109,7 +109,6 @@ import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
 import com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter;
 import com.microproject.job.JobQueue;
-import com.microproject.pm.graphic.undo.SwingUndoAdapter;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.HasCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
@@ -375,12 +374,13 @@ public class DocumentFrame extends NamedFrame implements
 		}
 		Integer baselineNumber = Integer.valueOf(form.getBaselineNumber());
 		boolean entireProject = form.isEntireProject();
-		if (save)
-			project.saveCurrentToSnapshot(baselineNumber, entireProject,
-					selection,true);
-		else
-			project
-					.clearSnapshot(baselineNumber, entireProject, selection,true);
+		var change = save
+			? project.saveCurrentToSnapshot(baselineNumber, entireProject, selection)
+			: project.clearSnapshot(baselineNumber, entireProject, selection);
+		String presentationName = save
+			? "SaveSnapshot: Project " + project.getName() + "(" + project.getUniqueId() + ")"
+			: "ClearSnapshot";
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change, presentationName);
 //		getProject().fireBaselineChanged(baselineDialog, null, baselineNumber,
 //				save);
 		return true;
