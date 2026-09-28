@@ -45,7 +45,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
-import javax.swing.table.TableCellRenderer;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -60,20 +59,16 @@ import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.gantt.GanttRenderer;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
-import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.association.AssociationList;
 import com.microproject.association.InvalidAssociationException;
-import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
-import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.graphic.configuration.shape.Colors;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentEntry;
 import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyNodeModelDataFactory;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.key.HasId;
@@ -317,78 +312,21 @@ public class TaskInformationDialog extends InformationDialog {
 		return panel;
 	}
 	
-	private class DependencySpreadSheet extends SpreadSheet {
-    	InformationDialog dlg;
-		Field clickField;
-		boolean predecessor;
-    	DependencySpreadSheet(InformationDialog dlg, boolean predecessor) {
-    		this.dlg = dlg;
-    		this.clickField = Configuration.getFieldFromId(predecessor ? "Field.predecessorName" : "Field.successorName");
-    		this.predecessor = predecessor;
-    	}
-    	public void doDoubleClick(int row, int col) {}
-    	public void doClick(int row, int col) {
-    		Object obj = getCurrentRowImpl();
-    		if (obj!= null) {
-				Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(col+1);
-				if (field == clickField) {
-        			NormalTask pred = (NormalTask) (predecessor ? ((Dependency)obj).getLeft() : ((Dependency)obj).getRight());
-        			dlg.setObject(pred);
-        			dlg.updateAll();
-        			pred.getDocument().getObjectSelectionEventManager().fire(this,pred);
-				}
-    		}
-    	}
-    	
-		public Component prepareRenderer(TableCellRenderer renderer, int row,
-				int column) {
-			Component component =  super.prepareRenderer(renderer, row, column);
-			Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column+1);
-			if (field == clickField) {
-				JLabel l = (JLabel)component;
-				Object rowObject = ((SpreadSheetModel)getModel()).getObjectInRow(row);
-				Task endpoint = rowObject instanceof Dependency link
-					? (Task)(predecessor ? link.getLeft() : link.getRight()) : null;
-				l.setText("<html><a href=\"\">" + TaskDependencyChoices.dependencyDisplayName((Task)getObject(), endpoint) + "</a></html>");
-			}
-			return component;
-		}
-		
-	}
-	
 	protected SpreadSheet predecessorsSpreadSheet;
 	private JButton newPredecessorsButton;
 	private JButton removePredecessorsButton;
  	public static final String DEPENDENCY_SPREADSHEET=SpreadSheetCategories.dependencySpreadsheetCategory;
     protected JScrollPane createPredecessorsSpreadsheet() {
-    	final TaskInformationDialog self = this;
-        predecessorsSpreadSheet = new DependencySpreadSheet(this,true);
-		predecessorsSpreadSheet.setSpreadSheetCategory(DEPENDENCY_SPREADSHEET);
-    	predecessorsSpreadSheet.setCanModifyColumns(false);
-    	predecessorsSpreadSheet.setCanSelectFieldArray(false);
-    	predecessorsSpreadSheet.setActions(new String[]{MenuActionConstants.ACTION_DELETE});
-    	SpreadSheetUtils.createCollectionSpreadSheet(predecessorsSpreadSheet
-				,(object==null)?new AssociationList():((Task)object).getPredecessorList()
-				//,(object==null)?null:((NormalTask)object).getDocument()
-				,"View.TaskInformation.Predecessors" //$NON-NLS-1$
-				,DEPENDENCY_SPREADSHEET
-				,"Spreadsheet.Dependency.predecessors" //$NON-NLS-1$
-				,true
-				,new DependencyNodeModelDataFactory()
-				, 0
-//				,false
-//				,true
-			);
+		predecessorsSpreadSheet = TaskDependencySpreadsheet.create(this,
+				TaskDependencySpreadsheet.Direction.PREDECESSORS, (Task) object);
 		installRemoveDependencyButtonState(predecessorsSpreadSheet, true);
 	    return SpreadSheetUtils.makeSpreadsheetScrollPane(predecessorsSpreadSheet);
 
     }
     //cache reconstructed because the main cache holding edges isn't ordered
     protected void updatePredecessorsSpreadsheet() {
-    	SpreadSheetUtils.updateCollectionSpreadSheet(predecessorsSpreadSheet
-    					,(object==null)?new AssociationList():((Task)object).getPredecessorList()
-						,new DependencyNodeModelDataFactory()
-						, 0);
+		TaskDependencySpreadsheet.update((TaskDependencySpreadsheet) predecessorsSpreadSheet,
+				(Task) object, TaskDependencySpreadsheet.Direction.PREDECESSORS);
     }
 
 	public JComponent createSuccessorsPanel() {
@@ -399,24 +337,8 @@ public class TaskInformationDialog extends InformationDialog {
 	private JButton newSuccessorsButton;
 	private JButton removeSuccessorsButton;
     protected JScrollPane createSuccessorsSpreadsheet() {
-        successorsSpreadSheet = new DependencySpreadSheet(this,false);
-		successorsSpreadSheet.setSpreadSheetCategory(DEPENDENCY_SPREADSHEET);
-    	successorsSpreadSheet.setCanModifyColumns(false);
-    	successorsSpreadSheet.setCanSelectFieldArray(false);
-    	successorsSpreadSheet.setActions(new String[]{MenuActionConstants.ACTION_DELETE});
-    	
-    	SpreadSheetUtils.createCollectionSpreadSheet(successorsSpreadSheet
-				,(object==null)?new AssociationList():((Task)object).getSuccessorList()
-				//,(object==null)?null:((NormalTask)object).getDocument()
-				,"View.TaskInformation.Successors" //$NON-NLS-1$
-				,DEPENDENCY_SPREADSHEET
-				,"Spreadsheet.Dependency.successors" //$NON-NLS-1$
-				,false
-				,new DependencyNodeModelDataFactory()
-				, 0
-//				,false
-//				,true
-			);
+		successorsSpreadSheet = TaskDependencySpreadsheet.create(this,
+				TaskDependencySpreadsheet.Direction.SUCCESSORS, (Task) object);
 		installRemoveDependencyButtonState(successorsSpreadSheet, false);
 
 	    return SpreadSheetUtils.makeSpreadsheetScrollPane(successorsSpreadSheet);
@@ -603,10 +525,8 @@ public class TaskInformationDialog extends InformationDialog {
 	}
     //cache reconstructed because the main cache holding edges isn't ordered
     protected void updateSuccessorsSpreadsheet() {
-    	SpreadSheetUtils.updateCollectionSpreadSheet(successorsSpreadSheet
-				,(object==null)?new AssociationList():((Task)object).getSuccessorList()
-				,new DependencyNodeModelDataFactory()
-				, 0);
+		TaskDependencySpreadsheet.update((TaskDependencySpreadsheet) successorsSpreadSheet,
+				(Task) object, TaskDependencySpreadsheet.Direction.SUCCESSORS);
     }
 
 	public JComponent createResourcesPanel() {
