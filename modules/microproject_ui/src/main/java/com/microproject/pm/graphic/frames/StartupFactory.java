@@ -50,6 +50,7 @@ import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.LoginDialog;
 import com.microproject.dialog.LoginForm;
 import com.microproject.dialog.UpdateChecker;
+import com.microproject.ui.util.DesktopBrowserLauncher;
 import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.pm.graphic.laf.LafManagerImpl;
 import com.microproject.pm.task.Project;
@@ -60,6 +61,7 @@ import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
+import com.microproject.util.BrowserControl;
 import com.microproject.util.DebugUtils;
 import com.microproject.util.Environment;
 import com.microproject.util.VersionUtils;
@@ -69,6 +71,7 @@ public abstract class StartupFactory {
 	private static final Logger logger = Logger.getLogger(StartupFactory.class.getName());
 	static {
 		Alert.setPresenter(new SwingAlertPresenter());
+		BrowserControl.setBrowserLauncher(new DesktopBrowserLauncher());
 	}
 	public static final String defaultServerUrl = Settings.SITE_HOME;
 	private static final int NUM_INVALID_LOGINS = 3;

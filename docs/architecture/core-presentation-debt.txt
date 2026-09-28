@@ -215,7 +215,6 @@ com/microproject/undo/UndoController.java	javax.swing.event.UndoableEditListener
 com/microproject/undo/UndoController.java	javax.swing.undo.UndoableEdit
 com/microproject/undo/UndoController.java	javax.swing.undo.UndoableEditSupport
 com/microproject/undo/UndoController.java	javax.swing.undo.UndoManager
-com/microproject/util/BrowserControl.java	java.awt.
 com/microproject/util/SafeObjectInput.java	java.awt
 com/microproject/util/SafeObjectInput.java	java.awt.font
 com/microproject/util/SafeObjectInput.java	java.awt.geom

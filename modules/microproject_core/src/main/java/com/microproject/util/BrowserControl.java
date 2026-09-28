@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,24 +23,27 @@
  *******************************************************************************/
 package com.microproject.util;
 
-import java.awt.*;
-import java.net.URI;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+/**
+ * Opens external URLs through the desktop application's browser integration.
+ */
+public final class BrowserControl {
+	@FunctionalInterface
+	public interface BrowserLauncher {
+		void displayURL(String url);
+	}
 
+	private static volatile BrowserLauncher browserLauncher;
 
-public class BrowserControl {
-	private static final Logger logger = Logger.getLogger(BrowserControl.class.getName());
+	private BrowserControl() {
+	}
 
-	private static final String errMsg = "Error attempting to launch web browser";
+	public static void setBrowserLauncher(BrowserLauncher launcher) {
+		browserLauncher = launcher;
+	}
+
 	public static void displayURL(String url) {
-		if (Desktop.isDesktopSupported()) {
-			try {
-				Desktop desktop = Desktop.getDesktop();
-				desktop.browse(new URI(url));
-			} catch (Exception e) {
-				logger.log(Level.WARNING, errMsg + ": " + url, e);
-			}
-		}
+		BrowserLauncher currentLauncher = browserLauncher;
+		if (currentLauncher != null)
+			currentLauncher.displayURL(url);
 	}
 }
