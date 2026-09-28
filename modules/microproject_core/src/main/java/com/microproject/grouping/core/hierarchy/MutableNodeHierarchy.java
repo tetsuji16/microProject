@@ -398,11 +398,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
        	for (ListIterator<Node> i=nodes.listIterator();i.hasNext();){
        		Node node=i.next();
        		extractSameProjectBranch(node,descendants);
-//       		boolean rootNode=true;
-//        	for (Enumeration e=((NodeBridge)node).preorderEnumeration();e.hasMoreElements();rootNode=false){
-//        		Node current=(Node)e.nextElement();
-//        		if (!rootNode) descendants.add(current);
-//        	}
        	}
 		Node[] descendantsArray=descendants.toArray(Node[]::new);
     	return descendantsArray;
