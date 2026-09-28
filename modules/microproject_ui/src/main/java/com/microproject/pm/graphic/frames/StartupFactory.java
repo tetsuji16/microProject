@@ -50,6 +50,7 @@ import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.LoginDialog;
 import com.microproject.dialog.LoginForm;
 import com.microproject.dialog.UpdateChecker;
+import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.pm.graphic.laf.LafManagerImpl;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
@@ -66,6 +67,9 @@ import com.microproject.util.VersionUtils;
 @SuppressWarnings("deprecation")
 public abstract class StartupFactory {
 	private static final Logger logger = Logger.getLogger(StartupFactory.class.getName());
+	static {
+		Alert.setPresenter(new SwingAlertPresenter());
+	}
 	public static final String defaultServerUrl = Settings.SITE_HOME;
 	private static final int NUM_INVALID_LOGINS = 3;
 

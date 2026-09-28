@@ -195,7 +195,6 @@ import com.microproject.strings.Messages;
 import com.microproject.toolbar.FilterToolBarManager;
 import com.microproject.toolbar.TransformComboBox;
 import com.microproject.toolbar.TransformComboBoxModel;
-import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.undo.CommandInfo;
 import com.microproject.undo.UndoController;
 import com.microproject.util.Alert;
@@ -222,9 +221,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private RibbonCommandResult lastRibbonCommandResult;
 	private static final GraphicManagerRegistry MANAGER_REGISTRY = GraphicManagerRegistry.getInstance();
-	static {
-		Alert.setPresenter(new SwingAlertPresenter());
-	}
 	private final DocumentGeneration documentGeneration = new DocumentGeneration();
 
 	/** Returns a snapshot of projects currently open in this desktop window. */
