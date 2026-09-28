@@ -40,7 +40,6 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 import javax.swing.JButton;
@@ -52,9 +51,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTabbedPane;
-import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
-import javax.swing.table.DefaultTableModel;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -96,7 +93,6 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
-import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.FlatUiSupport;
@@ -241,12 +237,20 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	private JComponent scrollableTab(JComponent contents) {
-		JScrollPane scrollPane = new JScrollPane(contents,
-				JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		scrollPane.setBorder(null);
+		JScrollPane scrollPane;
+		JComponent viewportContent;
+		if (contents instanceof JScrollPane existingScrollPane) {
+			scrollPane = existingScrollPane;
+			viewportContent = existingScrollPane.getViewport().getView() instanceof JComponent view ? view : contents;
+		} else {
+			scrollPane = new JScrollPane(contents,
+					JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+			scrollPane.setBorder(null);
+			viewportContent = contents;
+		}
 		// Use the available monitor height without letting this form make the
 		// dialog taller than the desktop. The complete form remains scrollable.
-		int viewportHeight = preferredViewportHeight(contents);
+		int viewportHeight = preferredViewportHeight(viewportContent);
 		scrollPane.setPreferredSize(new Dimension(700, viewportHeight));
 		scrollPane.setMinimumSize(new Dimension(480, Math.min(300, viewportHeight)));
 		return scrollPane;
@@ -304,27 +308,7 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	private JComponent createDiagnosticsPanel() {
-		String[] columns = {
-			Messages.getString("TaskInformationDialog.Severity"),
-			Messages.getString("TaskInformationDialog.Issue"),
-			Messages.getString("TaskInformationDialog.Cause"),
-			Messages.getString("TaskInformationDialog.Recommendation")
-		};
-		DefaultTableModel model = new DefaultTableModel(columns, 0) {
-			private static final long serialVersionUID = 1L;
-			@Override public boolean isCellEditable(int row, int column) { return false; }
-		};
-		for (var issue : new ScheduleDiagnosticsService().diagnose((Task) getObject())) {
-			String key = "diagnostic." + issue.type().name().toLowerCase(Locale.ROOT);
-			model.addRow(new Object[] { issue.severity(), UsabilityStrings.text(key + ".summary"), UsabilityStrings.text(key + ".cause"), UsabilityStrings.text(key + ".recommendation") });
-		}
-		JTable table = new JTable(model);
-		table.setAutoCreateRowSorter(true);
-		table.setRowHeight(Math.max(table.getRowHeight(), 24));
-		table.getAccessibleContext().setAccessibleName(Messages.getString("TaskInformationDialog.Diagnostics"));
-		JScrollPane pane = new JScrollPane(table);
-		pane.setBorder(javax.swing.BorderFactory.createEmptyBorder(8, 8, 8, 8));
-		return pane;
+		return new TaskDiagnosticsPanel((Task) getObject());
 	}
 
 	public void showNotes() {
