@@ -23,15 +23,20 @@
  *******************************************************************************/
 package com.microproject.pm.task;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCleanupTest {
@@ -67,6 +72,20 @@ class TaskCleanupTest {
 		assertFalse(task.getPredecessorList().contains(incoming));
 		assertFalse(task.getSuccessorList().contains(outgoing));
 		assertFalse(successor.getPredecessorList().contains(outgoing));
+	}
+
+	@Test
+	void deepCleanupRemovesBaselineAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		task.saveCurrentToSnapshot(Snapshottable.BASELINE);
+		TaskSnapshot baseline = (TaskSnapshot) task.getSnapshot(Snapshottable.BASELINE);
+
+		assertEquals(1, baseline.getAssignments().size());
+		task.cleanUp(this, true, false, false);
+		assertTrue(baseline.getAssignments().isEmpty());
 	}
 
 	private Project createProject() {

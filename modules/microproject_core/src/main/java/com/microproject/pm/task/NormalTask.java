@@ -33,7 +33,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.function.Consumer;
 import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.logging.Logger;
 
 
@@ -1601,10 +1601,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 					Object useEventSource = (getCurrentSnapshot() == snapshot) ? eventSource
 							: null;
 
-					LinkedList<Assignment> toRemove = new LinkedList<>(); //fix
+					ArrayList<Assignment> toRemove = new ArrayList<>(snapshot.getAssignments().size());
 					AssignmentService.getInstance().remove(
-							snapshot.getAssignments(), toRemove);
+						snapshot.getAssignments(), toRemove);
 					AssignmentService.getInstance().remove(toRemove, useEventSource,false);
+					for (Assignment assignment : toRemove)
+						snapshot.removeAssignment(assignment);
 
 					if (snapshot != getCurrentSnapshot())
 						getProject().fireBaselineChanged(eventSource, this,
