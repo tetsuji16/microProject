@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.SwingUtilities;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -28,6 +30,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectEvent;
 import com.microproject.pm.task.ProjectListener;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.UiDispatch;
+import com.microproject.util.UiDispatcher;
 
 /**
  * Integration coverage for LocalSession POD persistence.  This test belongs to
@@ -35,6 +39,26 @@ import com.microproject.undo.DataFactoryUndoController;
  * both of which are supplied by that module through its provider service.
  */
 class LocalSessionSaveTest {
+	@BeforeEach
+	void installSwingDispatcher() {
+		UiDispatch.setDispatcher(new UiDispatcher() {
+			@Override
+			public void invokeLater(Runnable task) {
+				SwingUtilities.invokeLater(task);
+			}
+
+			@Override
+			public boolean isDispatchThread() {
+				return SwingUtilities.isEventDispatchThread();
+			}
+		});
+	}
+
+	@AfterEach
+	void restoreDispatcher() {
+		UiDispatch.setDispatcher(null);
+	}
+
 	@TempDir
 	Path tempDirectory;
 
