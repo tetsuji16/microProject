@@ -25,58 +25,7 @@
 package com.microproject.util;
 
 import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.GraphicsEnvironment;
-import java.awt.Toolkit;
-import java.util.Enumeration;
-import java.util.logging.Logger;
-
-import javax.swing.UIManager;
-import javax.swing.plaf.FontUIResource;
-
 public class FontUtil {
-	private static final Logger logger = Logger.getLogger(FontUtil.class.getName());
-	public static void setUIFont (String font){
-		
-		for (Enumeration<?> e=UIManager.getDefaults().keys();e.hasMoreElements();) {
-			Object key = e.nextElement();
-			Object value = UIManager.get (key);
-			if (value instanceof FontUIResource)
-				UIManager.put (key, new FontUIResource(Font.decode(font)));
-		}
-	}    
-	public static Font getUIFont(){
-		Enumeration<?> keys = UIManager.getDefaults().keys();
-		while (keys.hasMoreElements()) {
-			Object key = keys.nextElement();
-			Object value = UIManager.get (key);
-			if (value instanceof FontUIResource font)
-				return font;
-		}
-		return null;
-	}
-	
-	public static String getValidFont(String[] fonts){
-		String[] f=GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-		for (String font : fonts){
-			for (String availableFont : f){
-			if (availableFont.equals(font)) return font;
-			}
-		}
-		return null;
-	}
-	
-	
-	public static void listFonts(){
-		Font current=getUIFont();
-		logger.info("Current font: " + current);
-		logger.info("Available fonts:");
-		String[] fonts=GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-		for (String font : fonts){
-			logger.info("\t" + font);
-		}
-	}
-	
 	public static Font getFont(String fontName,int type){
 		Font font=Font.decode(Environment.getFont(type));
 		if (fontName==null) return font;

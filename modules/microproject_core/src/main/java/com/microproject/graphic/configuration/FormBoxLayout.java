@@ -26,8 +26,6 @@ package com.microproject.graphic.configuration;
 
 import java.awt.Font;
 
-import javax.swing.plaf.FontUIResource;
-
 import com.microproject.util.Environment;
 import com.microproject.util.FontUtil;
 

@@ -39,8 +39,8 @@ import java.util.logging.Logger;
 import javax.swing.JFrame;
 
 import com.microproject.configuration.Settings;
+import com.microproject.ui.util.SwingFontUtil;
 import com.microproject.util.Environment;
-import com.microproject.util.FontUtil;
 
 @SuppressWarnings({"deprecation", "unchecked"})
 public class ApplicationStartupFactory extends StartupFactory {
@@ -76,16 +76,15 @@ public class ApplicationStartupFactory extends StartupFactory {
 		if (font==null){
 			String javaVendor=System.getProperty("java.vendor");
 			if (javaVendor.startsWith("IBM")){ //to avoid font bug on SLED with IBM jvm
-				font=FontUtil.getValidFont(new String[]{"DejaVu Sans","Andale Sans"}); //Lucida Sans
+				font=SwingFontUtil.getValidFont(new String[]{"DejaVu Sans","Andale Sans"}); //Lucida Sans
 			}
 		}else{
 			font=font.replace('_', ' ');
 		}
-		//FontUtil.listFonts();
 		if (font!=null){
 			Environment.resetFonts();
 			Environment.setFont(font,Environment.DEFAULT_FONT);
-			FontUtil.setUIFont(font);
+			SwingFontUtil.setUIFont(font);
 		}
 
 		Object o=opts.get("fileNames");
