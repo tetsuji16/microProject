@@ -155,22 +155,32 @@ files, and 17 absent mapped paths. This local checkpoint includes modernization
 commits after the latest integrated checkpoint; the counts remain path/content
 evidence only.
 
-At local checkpoint `HEAD` on 2026-09-28, the same inventory reports 168 active
-OpenProj core candidates: 165 normalize to the upstream source and three differ
-(`WalkersNodeModel`, `HierarchicObject`, and `TimeIterator`). A targeted scan of
-the 165 source-matching files found no remaining explicit generic arguments on
-standard collection constructors among `ArrayList`, `LinkedList`, `HashMap`,
-`HashSet`, `TreeMap`, `TreeSet`, `Vector`, `LinkedHashMap`, and
-`LinkedHashSet`. This narrows the next mechanical-safe core screen; it does not
-close the caller/hunk audit or cover exchange, UI, or application candidates.
+At local checkpoint `9744ec7a6` on 2026-09-28, the same inventory reports 168 core
+ledger candidates: 160 normalize to the upstream source and eight differ
+(`ObjectSelectionEventManager`, `FormBoxLayout`, `WalkersNodeModel`,
+`HierarchicObject`, `Mutex`, `ScheduleEventManager`, `TimeIterator`, and
+`MultipleTransactionManager`). Three of the newer differences are the shared
+listener-registry migrations for `ObjectSelectionEventManager`,
+`ScheduleEventManager`, and `MultipleTransactionManager` tracked under issue
+#737. `FormBoxLayout` differs because #737 moved Swing font resolution out of
+core (`1d1a878cc`, `02f961fc9`); `Mutex` differs because #84 removed obsolete
+debug comments (`e33877665`). These are tracked architectural/cleanup changes,
+not Java 25 modernization completions. Changed-content status by itself is not
+evidence of modernization or completion. A targeted scan of the 160
+source-matching files found no remaining
+explicit generic arguments on standard collection constructors among
+`ArrayList`, `LinkedList`, `HashMap`, `HashSet`, `TreeMap`, `TreeSet`, `Vector`,
+`LinkedHashMap`, and `LinkedHashSet`. This narrows the next mechanical-safe core
+screen; it does not close the caller/hunk audit or cover exchange, UI, or
+application candidates.
 
-The three differing files were reviewed against the OpenProj baseline. The
-first two differences are the already-typed `List<?>` return on
-`WalkersNodeModel.getChildren` and `HierarchicObject<T>.getChildren`. The
-`TimeIterator` difference removes a duplicate `calendar2` initialization and
-stale diagnostic output. These are accounted modernization changes, not
-unreviewed source candidates. Their active callers and focused behavior remain
-covered by the earlier core audit entries.
+At the preceding inventory checkpoint, the three differing files were reviewed
+against the OpenProj baseline. The first two differences are the already-typed
+`List<?>` return on `WalkersNodeModel.getChildren` and
+`HierarchicObject<T>.getChildren`. The `TimeIterator` difference removes a
+duplicate `calendar2` initialization and stale diagnostic output. These are
+accounted modernization changes, not unreviewed source candidates. Their active
+callers and focused behavior remain covered by the earlier core audit entries.
 
 These are path/content reconciliation results, not an active-caller or hunk
 provenance audit. A matching file may contain a narrow fork delta; a differing

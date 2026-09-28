@@ -52,16 +52,4 @@ public class Accrual {
 	/** @deprecated use {@link Kind} at new API boundaries. */
 	@Deprecated
 	public static final int PRORATED = 3;
-
-    
-//	private static BidiMap ACCRUAL_TYPE_MAP = new DualHashBidiMap();    
-//	static {
-//		ACCRUAL_TYPE_MAP.put(Messages.getString("AccrualType.Start"), new Integer(START));
-//		ACCRUAL_TYPE_MAP.put(Messages.getString("AccrualType.End"), new Integer(END));
-//		ACCRUAL_TYPE_MAP.put(Messages.getString("AccrualType.Prorated"), new Integer(PRORATED));
-//	}
-//
-//	public static BidiMap getMap() {
-//		return ACCRUAL_TYPE_MAP;
-//	}     
 }

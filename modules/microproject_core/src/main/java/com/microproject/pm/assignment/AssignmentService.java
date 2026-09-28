@@ -397,30 +397,11 @@ public class AssignmentService {
 	
 	public void remove(Assignment assignment, boolean cleanTaskLink, Object eventSource, boolean undo) {
 		remove(assignment,cleanTaskLink,eventSource,new NodeUndoInfo(undo));
-//		remove(assignment,(undo)?UNDO:eventSource);
-//		UndoableEditSupport undoableEditSupport=getUndoableEditSupport(assignment);
-//		if (undoableEditSupport!=null&&undo){
-//			undoableEditSupport.postEdit(new AssignmentDeletionEdit(assignment,eventSource));
-//		}
 	}
 	public void remove(Collection<?> assignments, Object eventSource,boolean undo) {
-		UndoableEditSupport undoableEditSupport=null;
-		
-		try {
-			for (Object value : assignments) {
-				Assignment assignment = (Assignment) value;
-//				if (undoableEditSupport==null&&undo){
-//					undoableEditSupport=getUndoableEditSupport(assignment);
-//					if (undoableEditSupport!=null){
-//						undoableEditSupport.beginUpdate();
-//					}
-//				}
-				remove(assignment,true,eventSource,undo);
-			}
-		} finally{
-//			if (undoableEditSupport!=null&&undo){
-//				undoableEditSupport.endUpdate();
-//			}
+		for (Object value : assignments) {
+			Assignment assignment = (Assignment) value;
+			remove(assignment,true,eventSource,undo);
 		}
 	}
 
@@ -434,33 +415,7 @@ public class AssignmentService {
 			
 			if (cleanTaskLink) task.removeAssignment(assignment);
 			resource.removeAssignment(assignment);
-			
-//		//remove assignment snapshots too 18/7/2006 lc
-//		//if (resource!=ResourceImpl.getUnassignedInstance())
-//        for (int s=0;s<Settings.numBaselines();s++){
-//            TaskSnapshot snapshot=(TaskSnapshot)task.getSnapshot(new Integer(s));
-//            if (snapshot==null) continue;
-//            AssociationList snapshotAssignments=snapshot.getHasAssignments().getAssignments();
-//            if (snapshotAssignments.size()>0){
-//                for (Iterator j=snapshotAssignments.iterator();j.hasNext();){
-//                    Assignment snapshotAssignment=(Assignment)j.next();
-//                    if (snapshotAssignment.getTask()==assignment.getTask()&&snapshotAssignment.getResource()==assignment.getResource())
-//                    	j.remove();
-//                }
-//            }
-//            //if (snapshotAssignments.size()==0&&s!=Snapshottable.CURRENT.intValue()) task.setSnapshot(new Integer(s), null);
-//        }
 
-			
-//			if (eventSource == null){ //case when default assignment is removed 
-//				if ((undo==null||(undo!=null&&undo.isUndo()))){
-//					UndoableEditSupport undoableEditSupport=getUndoableEditSupport(assignment);
-//					if (undoableEditSupport!=null){
-//						undoableEditSupport.postEdit(new AssignmentDeletionEdit(assignment));
-//					}
-//				}
-//
-//			}else {
 			if (eventSource != null){
 				if (cleanTaskLink) assignment.getDocument().getObjectEventManager().fireDeleteEvent(eventSource,assignment,undo);
 				if (assignment.getResource().getDocument() != null) // it's null if local project
