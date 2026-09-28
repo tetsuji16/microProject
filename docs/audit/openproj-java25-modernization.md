@@ -2820,3 +2820,9 @@ The core test suite is the verification for this syntax-only cleanup.
 state and visit order; only the redundant explicit generic argument was
 removed. The hunk matches OpenProj 1.4 at `d2fa3c20a` (`git blame`), and POD
 round-trip tests exercise the serializer's hierarchy conversion path.
+
+`PredecessorTaskList.TaskReference.compareTo` now binds the checked `Task` via
+`instanceof` pattern matching. The OpenProj 1.4 hunk is present at
+`d2fa3c20a`; comparison remains by object identity and retains the legacy
+cross-type ordering contract. `TaskReferenceKindTest` covers same/different
+tasks, wrapper instances, and non-task values.

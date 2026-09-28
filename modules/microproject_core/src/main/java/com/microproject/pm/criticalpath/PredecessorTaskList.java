@@ -262,8 +262,8 @@ public class PredecessorTaskList {
 		}
 		@Override
 		public int compareTo(Object arg0) {
-			if (arg0 instanceof Task)
-				return (getTask() == arg0 ? 0 : -1);
+			if (arg0 instanceof Task task)
+				return getTask() == task ? 0 : -1;
 			return (arg0 == this ? 0 : -1);
 		}
 		
