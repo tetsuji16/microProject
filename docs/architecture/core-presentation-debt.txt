@@ -142,7 +142,6 @@ com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.Gra
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.SpreadSheetCategories
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/pm/task/Project.java	com.microproject.print.PrintSettings
-com/microproject/pm/task/Project.java	javax.swing.event.EventListenerList
 com/microproject/pm/task/Project.java	javax.swing.SwingUtilities
 com/microproject/pm/task/Project.java	javax.swing.undo.UndoableEditSupport
 com/microproject/pm/task/ProjectFactory.java	javax.swing.JOptionPane

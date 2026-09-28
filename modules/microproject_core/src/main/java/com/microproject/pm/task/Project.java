@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.EventListener;
 import java.util.HashMap;
@@ -42,13 +43,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
-import javax.swing.event.EventListenerList;
 import javax.swing.undo.UndoableEditSupport;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -838,47 +840,44 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			logger.warning("error work calendar is null on project");
 	}
 
-	protected transient EventListenerList projectListenerList = new EventListenerList();
+	protected transient CopyOnWriteArrayList<ProjectListener> projectListenerList = new CopyOnWriteArrayList<>();
 
 	public void addProjectListener(ProjectListener l) {
-		projectListenerList.add(ProjectListener.class, l);
+		if (l != null)
+			projectListenerList.add(l);
 	}
 	public void removeProjectListener(ProjectListener l) {
-		projectListenerList.remove(ProjectListener.class, l);
+		if (l != null)
+			projectListenerList.remove(l);
 	}
 	public ProjectListener[] getProjectListeners() {
-		return (ProjectListener[]) projectListenerList.getListeners(ProjectListener.class);
+		List<ProjectListener> listeners = new ArrayList<>(projectListenerList);
+		Collections.reverse(listeners);
+		return listeners.toArray(ProjectListener[]::new);
 	}
-    public EventListener[] getProjectListeners(Class listenerType) {
-    	return projectListenerList.getListeners(listenerType);
-    }
+	public EventListener[] getProjectListeners(Class listenerType) {
+		Objects.requireNonNull(listenerType, "listenerType");
+		if (listenerType == ProjectListener.class)
+			return getProjectListeners();
+		return (EventListener[]) java.lang.reflect.Array.newInstance(listenerType, 0);
+	}
 
  	protected void fireNameChanged(Object source,String oldName) {
-		Object[] listeners = projectListenerList.getListenerList();
 		ProjectEvent e = null;
-		for (int i = 0; i < listeners.length; i += 2) {
-			if (listeners[i] == ProjectListener.class) {
-				if (e == null) {
-					e = new ProjectEvent(source,
-							ProjectEvent.Kind.NAME_CHANGED, this,oldName);
-				}
-				((ProjectListener) listeners[i + 1]).nameChanged(e);
-
+		for (ProjectListener listener : projectListenerList) {
+			if (e == null) {
+				e = new ProjectEvent(source, ProjectEvent.Kind.NAME_CHANGED, this, oldName);
 			}
+			listener.nameChanged(e);
 		}
 	}
  	protected void fireGroupDirtyChanged(Object source,boolean oldName) {
-		Object[] listeners = projectListenerList.getListenerList();
 		ProjectEvent e = null;
-		for (int i = 0; i < listeners.length; i += 2) {
-			if (listeners[i] == ProjectListener.class) {
-				if (e == null) {
-					e = new ProjectEvent(source,
-							ProjectEvent.Kind.GROUP_DIRTY_CHANGED, this,Boolean.valueOf(oldName));
-				}
-				((ProjectListener) listeners[i + 1]).groupDirtyChanged(e);
-
+		for (ProjectListener listener : projectListenerList) {
+			if (e == null) {
+				e = new ProjectEvent(source, ProjectEvent.Kind.GROUP_DIRTY_CHANGED, this, oldName);
 			}
+			listener.groupDirtyChanged(e);
 		}
 	}
 
@@ -1415,7 +1414,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		objectSelectionEventManager = new ObjectSelectionEventManager();
 		scheduleEventManager = new ScheduleEventManager();
 		multipleTransactionManager = new MultipleTransactionManager();
-		projectListenerList=new EventListenerList();
+		projectListenerList=new CopyOnWriteArrayList<>();
 	    taskOutlines=new OutlineCollectionImpl(Settings.numHierarchies(),this);
 	    barClosureInstance = new BarClosure();
 
