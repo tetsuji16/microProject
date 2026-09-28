@@ -451,58 +451,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	        	model.getDocument().fireMultipleTransaction(transactionId,false);
         }
     }
-//    public void remove(Node node,NodeModel model,int actionType){
-//    	LinkedList removed=new LinkedList();
-//    	removeNoEvent(node,model,removed,actionType);
-//    	fireNodesRemoved(this,removed.toArray());
-//    }
-
-//    private void removeNoEvent(Node node,NodeModel model,LinkedList toRemove,int actionType){
-//
-//    	System.out.println("removeNoEvent("+node+")");
-//    	//if (!isEvent(actionType)) return;
-//    	//node.removeFromParent();
-//        Node current;
-//        int badCount = 0;
-//        LinkedList enumeratedNodes=new LinkedList();
-//    	for (Enumeration e=((NodeBridge)node).postorderEnumeration();e.hasMoreElements();){
-//    		enumeratedNodes.add(e.nextElement());
-//    	}
-//		System.out.println("removeApartFromHierarchy("+enumeratedNodes+")");
-//    	for (Iterator i=enumeratedNodes.iterator();i.hasNext();){
-//    		current=(Node)i.next();
-//            if (model.removeApartFromHierarchy(current,actionType))
-//            	toRemove.add(current);
-//            else
-//            	badCount++;
-//    	}
-////    	for (Enumeration e=((NodeBridge)node).postorderEnumeration();e.hasMoreElements();){
-////    		current=(Node)e.nextElement();
-////    		System.out.println("removeApartFromHierarchy("+current+")");
-////            if (model.removeApartFromHierarchy(current,actionType))
-////            	toRemove.add(current);
-////            else
-////            	badCount++;
-////    	}
-////    	if (badCount == 0) // if no errors, the
-//        	node.removeFromParent();
-//
-//
-//
-////         	if (undo){
-////				//Undo
-////	        	NodeHierarchyVoidLocation location=new NodeHierarchyVoidLocation(new NodeHierarchyLocation(parent,previous),1);
-////				UndoableEditSupport undoableEditSupport=model.getUndoableEditSupport();
-////				if (undoableEditSupport!=null){
-////					undoableEditSupport.postEdit(new NodeDeletionEdit(model,location,node));
-////				}
-////         	}
-//
-//
-//    	//fireNodesRemoved(this,toRemove.toArray());
-//  }
-
-
     private void removeSubTree(Node node,NodeModel model,LinkedList<Node> toRemove,int actionType,boolean removeDependencies){
 //    	System.out.println("removeSubTree");
 		if (getUpdateLevel()==0){
