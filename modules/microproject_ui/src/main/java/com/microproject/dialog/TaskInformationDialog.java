@@ -45,7 +45,6 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.dialog.util.FieldComponentMap;
-import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.DocumentSelectedEvent;
@@ -55,7 +54,6 @@ import com.microproject.pm.graphic.gantt.GanttRenderer;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
-import com.microproject.association.AssociationList;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
@@ -126,6 +124,7 @@ public class TaskInformationDialog extends InformationDialog {
 	private TaskTextStylePanel textStylePanel;
 	private TaskDependencyPanel predecessorsPanel;
 	private TaskDependencyPanel successorsPanel;
+	private TaskResourcesPanel resourcesPanel;
 
 	private Gantt getGantt() {
 		try {
@@ -468,41 +467,11 @@ public class TaskInformationDialog extends InformationDialog {
 
 	public JComponent createResourcesPanel() {
 		FieldComponentMap map = createMap();
-		
-		// The builder advances by two rows after each section.  Spacer tracks
-		// in those positions used to receive the labels at runtime, reducing
-		// them to a few pixels and clipping their text.
-		FormLayout layout = new FormLayout("p:grow,0dlu,right:p","p,p,p,p,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
-
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		builder.setDefaultDialogBorder();
-		CellConstraints cc = new CellConstraints();
-		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
-				.getRow(), 3));
-		builder.nextLine(2);
-		builder.append(Messages.format("Format.label", Messages.getString("TaskInformationDialog.Resources")), getAssignResourceButton()); //$NON-NLS-1$
-		builder.nextLine(2);
-		builder.add(createAssignmentSpreadsheet(),cc.xyw(builder.getColumn(), builder
-				.getRow(), 3));
-		JComponent panel = builder.getPanel();
-		HelpUtil.addDocHelp(panel,"Assign_Resources");
-		return panel;	
+		resourcesPanel = new TaskResourcesPanel(this, createHeaderFieldsPanel(map), getAssignResourceButton(),
+				(Task) object);
+		return resourcesPanel;
 	}
 
-    protected SpreadSheet assignmentSpreadSheet;
-	protected JScrollPane createAssignmentSpreadsheet() {
-		assignmentSpreadSheet = AssignmentSpreadsheetSupport.create(this,
-				AssignmentSpreadsheetSupport.Perspective.TASK_ASSIGNMENTS);
-		updateAssignmentSpreadsheet();
-		return AssignmentSpreadsheetSupport.scrollPane(assignmentSpreadSheet);
-
-    }
-    protected void updateAssignmentSpreadsheet() {
-		AssociationList assignments = object == null ? null : ((NormalTask)object).getAssignments();
-		AssignmentSpreadsheetSupport.update(assignmentSpreadSheet, assignments,
-				AssignmentSpreadsheetSupport.Perspective.TASK_ASSIGNMENTS);
-    }
-    
 	public void updateAll() {
 		activateListeners();
 		super.updateAll();
@@ -517,8 +486,8 @@ public class TaskInformationDialog extends InformationDialog {
 			updateSuccessorsSpreadsheet();
 		updateDependencyPanel(predecessorsPanel, true);
 		updateDependencyPanel(successorsPanel, false);
-		if (assignmentSpreadSheet != null)
-			updateAssignmentSpreadsheet();
+		if (resourcesPanel != null)
+			resourcesPanel.update((Task) object);
 	}
 
 	@Override
@@ -550,8 +519,8 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	public void documentSelected(DocumentSelectedEvent evt) {
-		AssignmentSpreadsheetSupport.selectDocument(assignmentSpreadSheet, evt.getCurrent(),
-				AssignmentSpreadsheetSupport.Perspective.TASK_ASSIGNMENTS);
+		if (resourcesPanel != null)
+			resourcesPanel.selectDocument(evt.getCurrent());
 	}
 	
 	
