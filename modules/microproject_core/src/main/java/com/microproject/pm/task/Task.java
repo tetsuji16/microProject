@@ -682,12 +682,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		//parent
 		Task parent = getWbsParentTask();
 		if (other.getWbsParentTask() != parent) { // only do parents if they are different
-//			if (!this.isAncestorOrDescendent(other))
 			if (parent != null) {
-	//			if ( !other.wbsDescendentOf(parent))
-					if (parent.dependsOn(other,me,set,taskNames == null? null: taskNames + "Parent- " ))
-						return true;
-
+				if (parent.dependsOn(other,me,set,taskNames == null? null: taskNames + "Parent- " ))
+					return true;
 			}
 		}
 
@@ -719,43 +716,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 		return false;
 	}
-
-//	/**
-//	 * @param other
-//	 * @return
-//	 */
-//	boolean isPredecessorOfDescendent(Task other) {
-//		if (this == other)
-//			return true;
-//		Collection children = getWbsChildrenNodes();
-//		if (children == null)
-//			return false;
-//		Task child;
-//		Object current;
-//		Iterator i = children.iterator();
-//		Iterator j;
-//		Dependency dep;
-//		Task predecessor;
-//		while (i.hasNext()) {
-//			current = ((Node)i.next()).getImpl();
-//			if (! (current instanceof Task))
-//				continue;
-//			child = (Task)current;
-////			if ( child.wbsDescendentOf(other) ) //|| other.wbsDescendentOf(this))
-////				continue;
-//
-//			j = child.getPredecessorList().iterator();
-//			while (j.hasNext()) {
-//				dep = (Dependency)j.next();
-//				if (dep.isDisabled())
-//					continue;
-//				predecessor = (Task)dep.getPredecessor(); // I depend on my predecessors
-//				if (predecessor.isPredecessorOfDescendent(other))
-//					return true;
-//			}
-//		}
-//		return false;
-//	}
 	public boolean isAncestorOrDescendent(Task other) {
 		return (wbsDescendentOf(other) || other.wbsDescendentOf(this));
 	}
@@ -995,7 +955,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	public void recalculate(Object eventSource) {
 		((Project)getDocument()).updateScheduling(eventSource,this,ObjectEvent.UPDATE,getEndField());
-		//getDocument().getObjectEventManager().fireUpdateEvent(eventSource,this,getEndField());
 	}
 	public void recalculateLater(final Object eventSource) {
 		markTaskAsNeedingRecalculation(); // task needs to be recalculated
@@ -1009,9 +968,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 */
 	public long getActualStart() {
 		return actualStart;
-//		if (currentSchedule.getPercentComplete() == 0.0D && getPercentComplete() == 0)
-//			return 0;
-//		return getStart();
 	}
 
 	public abstract void setActualStart(long actualStart);
@@ -1102,17 +1058,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public long getDurationMillis() {
 		return Duration.millis(getDuration());
 	}
-
-	/**
-	 * @return
-	 */
-//&&&&&
-//	public long getActualDuration() {
-//		long stop = getStop();
-//		if (stop == 0)
-//			return 0;
-//		return getEffectiveWorkCalendar().compare(stop,getStart(),false);
-//	}
 
 /**
  * Actual duration is % complete * duration for all tasks including parents
@@ -1268,16 +1213,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @return Returns the constraintType.
 	 */
 	public int getConstraintType() {
-//		if (constraintType != ConstraintType.ASAP && constraintType != ConstraintType.ALAP) {
-//			if (getConstraintDate() < 1000000) {
-//				clearDateConstraints();
-//				constraintType = ConstraintType.ASAP;
-//			}
-//		}
-//
-//
-//
-
 		return constraintType;
 	}
 
@@ -1492,17 +1427,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		}
 		return false;
 	}
-
-//	public Object[] fieldOptionsScheduleConstraint() {
-//		if (isWbsParent()) {
-//			Configuration.getFieldFromId("Field.scheduleConstraint");
-//
-//
-//		} else {
-//			return null; // use default
-//		}
-//
-//	}
 
 	public void setScheduleConstraint(int constraintType, long date) {
 		this.constraintType = constraintType;
@@ -1749,8 +1673,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @param calculationStateCount The calculationStateCount to set.
 	 */
 	public final void setCalculationStateCount(int calculationStateCount) {
-//		if (this.calculationStateCount == calculationStateCount) return;
-//		setDirty(true);
 		this.calculationStateCount = calculationStateCount;
 	}
 
@@ -1837,9 +1759,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return type;
 
 	}
-//	public boolean isNew() {
-//		return hasKey.isNew();
-//	}
 
 	public static Predicate instanceofPredicate() {
 		return new Predicate() {
