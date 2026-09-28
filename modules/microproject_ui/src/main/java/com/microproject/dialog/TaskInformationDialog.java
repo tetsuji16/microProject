@@ -38,9 +38,7 @@ import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -511,7 +509,7 @@ public class TaskInformationDialog extends InformationDialog {
 				Object rowObject = ((SpreadSheetModel)getModel()).getObjectInRow(row);
 				Task endpoint = rowObject instanceof Dependency link
 					? (Task)(predecessor ? link.getLeft() : link.getRight()) : null;
-				l.setText("<html><a href=\"\">" + dependencyDisplayName((Task)getObject(), endpoint) + "</a></html>");
+				l.setText("<html><a href=\"\">" + TaskDependencyChoices.dependencyDisplayName((Task)getObject(), endpoint) + "</a></html>");
 			}
 			return component;
 		}
@@ -623,10 +621,10 @@ public class TaskInformationDialog extends InformationDialog {
 		List<Task> candidates = getLinkableTasks(task, predecessors);
 		if (candidates.isEmpty())
 			return;
-		List<DependencyTaskChoice> choices = new ArrayList<>(candidates.size());
+		List<TaskDependencyChoices.Choice> choices = new ArrayList<>(candidates.size());
 		for (Task candidate : candidates)
-			choices.add(new DependencyTaskChoice(candidate));
-		DependencyTaskChoice selected = (DependencyTaskChoice) JOptionPane.showInputDialog(this,
+			choices.add(new TaskDependencyChoices.Choice(candidate));
+		TaskDependencyChoices.Choice selected = (TaskDependencyChoices.Choice) JOptionPane.showInputDialog(this,
 				Messages.getString(predecessors ? "TaskInformationDialog.Predecessors" : "TaskInformationDialog.Successors"), //$NON-NLS-1$ //$NON-NLS-2$
 				Messages.getString("Text.TaskDependency"), JOptionPane.PLAIN_MESSAGE, null,
 				choices.toArray(), choices.get(0)); //$NON-NLS-1$
@@ -641,7 +639,7 @@ public class TaskInformationDialog extends InformationDialog {
 		if (lag == null)
 			return;
 		try {
-			createDependency(task, selected.task, predecessors, type.kind, lag.longValue(), this);
+			createDependency(task, selected.task(), predecessors, type.kind, lag.longValue(), this);
 			updateAll();
 		} catch (InvalidAssociationException e) {
 			Alert.warn(e.getMessage(), this);
@@ -695,20 +693,6 @@ public class TaskInformationDialog extends InformationDialog {
 			new DependencyTypeChoice(DependencyType.Kind.FF), new DependencyTypeChoice(DependencyType.Kind.SF) };
 	}
 
-	/** Labels persisted cross-project endpoints without making same-project grids noisy. */
-	static String dependencyDisplayName(Task current, Task endpoint) {
-		if (endpoint == null)
-			return "";
-		Project endpointProject = endpoint.getOwningProject() == null ? endpoint.getProject() : endpoint.getOwningProject();
-		Project currentProject = current == null ? null
-			: current.getOwningProject() == null ? current.getProject() : current.getOwningProject();
-		String taskName = endpoint.getName() == null ? "" : endpoint.getName();
-		if (endpointProject == null || endpointProject == currentProject)
-			return taskName;
-		String projectName = endpointProject.getName();
-		return projectName == null || projectName.isBlank() ? taskName : projectName + ": " + taskName;
-	}
-
 	private List<Task> getLinkableTasks(Task task, boolean predecessors) {
 		List<Project> projects = new ArrayList<>();
 		if (task.getProject() != null)
@@ -729,50 +713,7 @@ public class TaskInformationDialog extends InformationDialog {
 					projects.add(project);
 			}
 		}
-		return getLinkableTasks(task, predecessors, projects);
-	}
-
-	static List<Task> getLinkableTasks(Task task, boolean predecessors, Iterable<Project> projects) {
-		Set<Task> candidates = new LinkedHashSet<>();
-		for (Project project : projects) {
-			if (project == null)
-				continue;
-			for (Task candidate : project.getTaskList()) {
-				if (candidate != task && !candidate.isExternal()
-						&& !isAlreadyLinked(task, candidate, predecessors))
-					candidates.add(candidate);
-			}
-		}
-		return new ArrayList<>(candidates);
-	}
-
-	private static boolean isAlreadyLinked(Task task, Task candidate, boolean predecessors) {
-		return predecessors
-				? task.getPredecessorList().findLeft(candidate) != null
-				: task.getSuccessorList().findRight(candidate) != null;
-	}
-
-	private static final class DependencyTaskChoice {
-		private final Task task;
-
-		private DependencyTaskChoice(Task task) {
-			this.task = task;
-		}
-
-		@Override
-		public String toString() {
-			return dependencyChoiceDisplayName(task);
-		}
-	}
-
-	/** Keeps chooser grouping labels aligned with persisted dependency endpoint labels. */
-	static String dependencyChoiceDisplayName(Task task) {
-		if (task == null)
-			return "";
-		Project project = task.getOwningProject() == null ? task.getProject() : task.getOwningProject();
-		String projectName = project == null || project.getName() == null ? "" : project.getName();
-		String taskName = task.getName() == null ? "" : task.getName();
-		return projectName.isBlank() ? taskName : projectName + ": " + taskName;
+		return TaskDependencyChoices.linkableTasks(task, predecessors, projects);
 	}
 
 	static final class DependencyTypeChoice {

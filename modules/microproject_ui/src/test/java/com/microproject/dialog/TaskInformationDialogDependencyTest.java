@@ -69,7 +69,7 @@ class TaskInformationDialogDependencyTest {
 		NormalTask localCandidate = addTask(firstProject);
 		NormalTask crossProjectCandidate = addTask(secondProject);
 
-		List<com.microproject.pm.task.Task> candidates = TaskInformationDialog.getLinkableTasks(
+		List<com.microproject.pm.task.Task> candidates = TaskDependencyChoices.linkableTasks(
 				current, true, List.of(firstProject, secondProject));
 
 		assertEquals(2, candidates.size());
@@ -107,8 +107,8 @@ class TaskInformationDialogDependencyTest {
 		current.setOwningProject(first);
 		external.setOwningProject(second);
 
-		assertEquals("Second project: Same task name", TaskInformationDialog.dependencyDisplayName(current, external));
-		assertEquals("Same task name", TaskInformationDialog.dependencyDisplayName(current, current));
+		assertEquals("Second project: Same task name", TaskDependencyChoices.dependencyDisplayName(current, external));
+		assertEquals("Same task name", TaskDependencyChoices.dependencyDisplayName(current, current));
 	}
 
 	@Test
@@ -119,7 +119,7 @@ class TaskInformationDialogDependencyTest {
 		projected.setName("Design");
 		projected.setOwningProject(source);
 
-		assertEquals("Source plan: Design", TaskInformationDialog.dependencyChoiceDisplayName(projected));
+		assertEquals("Source plan: Design", TaskDependencyChoices.chooserDisplayName(projected));
 	}
 
 	private Project newProject(String name) {
