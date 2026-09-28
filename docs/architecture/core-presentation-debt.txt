@@ -148,10 +148,6 @@ com/microproject/pm/task/ProjectFactory.java	javax.swing.JOptionPane
 com/microproject/pm/task/ProjectFactory.java	javax.swing.SwingUtilities
 com/microproject/pm/task/Task.java	com.microproject.graphic.configuration.GraphicConfiguration
 com/microproject/pm/task/Task.java	javax.swing.SwingUtilities
-com/microproject/pm/task/TaskModeService.java	javax.swing.undo.AbstractUndoableEdit
-com/microproject/pm/task/TaskModeService.java	javax.swing.undo.UndoableEditSupport
-com/microproject/pm/task/TaskProgressService.java	javax.swing.undo.AbstractUndoableEdit
-com/microproject/pm/task/TaskProgressService.java	javax.swing.undo.UndoableEditSupport
 com/microproject/preference/GlobalPreferences.java	com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat
 com/microproject/print/ExtendedPageFormat.java	com.microproject.print
 com/microproject/print/ExtendedPageFormat.java	java.awt.print.PageFormat

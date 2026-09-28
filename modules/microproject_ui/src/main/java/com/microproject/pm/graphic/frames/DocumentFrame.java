@@ -109,6 +109,7 @@ import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
 import com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter;
 import com.microproject.job.JobQueue;
+import com.microproject.pm.graphic.undo.SwingUndoAdapter;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.HasCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
@@ -116,6 +117,7 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.graphic.undo.SwingUndoAdapter;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Portfolio;
 import com.microproject.pm.task.Project;
@@ -576,8 +578,11 @@ public class DocumentFrame extends NamedFrame implements
 		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
 		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
 		if (tasks.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-task-selection");
-		new com.microproject.pm.task.TaskModeService().apply(tasks, mode, project.getUndoController().getEditSupport());
+		var result = new com.microproject.pm.task.TaskModeService().apply(tasks, mode);
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		getActiveSpreadSheet().restoreTaskRowSelection(selection);
+		if (!result.change().hasChanged())
+			return RibbonCommandResult.noChange(command.actionId(), taskIds(selection)).withActiveView("task");
 		return RibbonCommandResult.changed(command.actionId(), taskIds(selection)).withActiveView("task");
 	}
 
@@ -588,8 +593,10 @@ public class DocumentFrame extends NamedFrame implements
 		dialog.setLocationRelativeTo(getGraphicManager().getFrame());
 		if (!dialog.doModal()) return RibbonCommandResult.noChange(command.actionId());
 		var service = new com.microproject.pm.task.TaskProgressService();
-		if (dialog.isNotSet()) service.clearStatusDate(project, project.getUndoController().getEditSupport());
-		else service.setStatusDate(project, dialog.getSelectedStatusDate().getTime(), project.getUndoController().getEditSupport());
+		var result = dialog.isNotSet()
+			? service.clearStatusDate(project)
+			: service.setStatusDate(project, dialog.getSelectedStatusDate().getTime());
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		getGraphicManager().refreshStatusDateControl();
 		long after = project.isStatusDateSet() ? project.getStatusDate() : 0L;
 		return (before == after ? RibbonCommandResult.noChange(command.actionId())
@@ -602,8 +609,8 @@ public class DocumentFrame extends NamedFrame implements
 		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
 		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
 		if (tasks.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-task-selection");
-		var result = new com.microproject.pm.task.TaskProgressService().markOnTrack(project, tasks,
-				project.getUndoController().getEditSupport());
+		var result = new com.microproject.pm.task.TaskProgressService().markOnTrack(project, tasks);
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		getActiveSpreadSheet().restoreTaskRowSelection(selection);
 		List<Long> affectedTaskIds = tasks.stream().map(Task::getId).toList();
 		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), affectedTaskIds)

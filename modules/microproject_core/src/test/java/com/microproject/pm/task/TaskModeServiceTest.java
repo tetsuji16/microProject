@@ -16,7 +16,7 @@ import com.microproject.undo.DataFactoryUndoController;
 
 class TaskModeServiceTest {
 	@Test
-	void appliesManualModeToSelectionAsOneUndoableEdit() {
+	void appliesManualModeToSelectionAsOneReversibleChange() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("mode", undo), undo);
 		project.initialize(false, false);
@@ -26,12 +26,12 @@ class TaskModeServiceTest {
 
 		assertFalse(first.isManuallyScheduled());
 		assertFalse(second.isManuallyScheduled());
-		assertTrue(service.apply(List.of(first, second), TaskModeService.Mode.MANUAL,
-			undo.getEditSupport()).manual());
+		TaskModeService.Result result = service.apply(List.of(first, second), TaskModeService.Mode.MANUAL);
+		assertTrue(result.manual());
 		assertTrue(first.isManuallyScheduled() && second.isManuallyScheduled());
-		undo.undo();
+		result.change().undo();
 		assertFalse(first.isManuallyScheduled() || second.isManuallyScheduled());
-		undo.redo();
+		result.change().redo();
 		assertTrue(first.isManuallyScheduled() && second.isManuallyScheduled());
 	}
 }

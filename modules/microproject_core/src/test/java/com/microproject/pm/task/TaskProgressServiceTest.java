@@ -31,18 +31,18 @@ class TaskProgressServiceTest {
 		TaskProgressService service = new TaskProgressService();
 
 		assertFalse(project.isStatusDateSet());
-		service.setStatusDate(project, date, undo.getEditSupport());
+		ReversibleModelChange statusDateChange = service.setStatusDate(project, date).change();
 		assertTrue(project.isStatusDateSet());
-		service.markOnTrack(project, List.of(task), undo.getEditSupport());
+		ReversibleModelChange progressChange = service.markOnTrack(project, List.of(task)).change();
 		assertEquals(1D, task.getPercentComplete(), 0.00001D,
 				() -> "status=" + project.getStatusDate() + " start=" + task.getStart() + " end=" + task.getEnd());
-		undo.undo();
+		progressChange.undo();
 		assertEquals(0D, task.getPercentComplete(), 0.00001D);
-		undo.undo();
+		statusDateChange.undo();
 		assertFalse(project.isStatusDateSet());
-		undo.redo();
+		statusDateChange.redo();
 		assertTrue(project.isStatusDateSet());
-		undo.redo();
+		progressChange.redo();
 		assertEquals(1D, task.getPercentComplete(), 0.00001D);
 	}
 
@@ -53,15 +53,15 @@ class TaskProgressServiceTest {
 		project.initialize(false, false);
 		TaskProgressService service = new TaskProgressService();
 		long date = project.getStartDate() + 3L * 24L * 60L * 60L * 1000L;
-		service.setStatusDate(project, date, undo.getEditSupport());
+		service.setStatusDate(project, date);
 		long explicit = project.getStatusDate();
 
-		service.clearStatusDate(project, undo.getEditSupport());
+		ReversibleModelChange change = service.clearStatusDate(project).change();
 		assertFalse(project.isStatusDateSet());
-		undo.undo();
+		change.undo();
 		assertTrue(project.isStatusDateSet());
 		assertEquals(explicit, project.getStatusDate());
-		undo.redo();
+		change.redo();
 		assertFalse(project.isStatusDateSet());
 	}
 
@@ -73,18 +73,18 @@ class TaskProgressServiceTest {
 		NormalTask task = project.createScriptedTask();
 		TaskProgressService service = new TaskProgressService();
 		assertThrows(IllegalArgumentException.class,
-				() -> service.setStatusDate(project, 0L, undo.getEditSupport()));
+				() -> service.setStatusDate(project, 0L));
 
-		service.setStatusDate(project, task.getStart() - 86_400_000L, undo.getEditSupport());
-		service.markOnTrack(project, List.of(task), undo.getEditSupport());
+		service.setStatusDate(project, task.getStart() - 86_400_000L);
+		service.markOnTrack(project, List.of(task));
 		assertEquals(0D, task.getPercentComplete(), 0.00001D);
-		service.setStatusDate(project, task.getEnd(), undo.getEditSupport());
-		service.markOnTrack(project, List.of(task), undo.getEditSupport());
+		service.setStatusDate(project, task.getEnd());
+		service.markOnTrack(project, List.of(task));
 		assertEquals(1D, task.getPercentComplete(), 0.00001D);
 		NormalTask milestone = project.createScriptedTask();
 		milestone.setDuration(0L);
-		service.setStatusDate(project, milestone.getEnd() + 86_400_000L, undo.getEditSupport());
-		service.markOnTrack(project, List.of(milestone), undo.getEditSupport());
+		service.setStatusDate(project, milestone.getEnd() + 86_400_000L);
+		service.markOnTrack(project, List.of(milestone));
 		org.junit.jupiter.api.Assertions.assertTrue(milestone.getPercentComplete() >= 0D
 				&& milestone.getPercentComplete() <= 1D,
 				"milestone progress must remain within MSP bounds");
@@ -105,12 +105,12 @@ class TaskProgressServiceTest {
 		long scheduledElapsed = task.getEffectiveWorkCalendar().compare(normalizedStatusDate, start, false);
 		double expected = Math.max(0D, Math.min(1D, (double) scheduledElapsed / scheduledDuration));
 
-		new TaskProgressService().markOnTrack(project, List.of(task), undo.getEditSupport());
+		ReversibleModelChange change = new TaskProgressService().markOnTrack(project, List.of(task)).change();
 		assertEquals(expected, task.getPercentComplete(), 0.00001D,
 				"Scheduled completion must count task-calendar working time, not weekends or nonworking hours");
-		undo.undo();
+		change.undo();
 		assertEquals(0D, task.getPercentComplete(), 0.00001D);
-		undo.redo();
+		change.redo();
 		assertEquals(expected, task.getPercentComplete(), 0.00001D);
 	}
 
@@ -126,17 +126,17 @@ class TaskProgressServiceTest {
 		project.setStatusDate(child.getEnd() + 86_400_000L);
 
 		TaskProgressService.Result result = new TaskProgressService().markOnTrack(project,
-			List.of(summary, child), undo.getEditSupport());
+			List.of(summary, child));
 
 		assertEquals(1, result.changedCount(), "only the schedulable leaf task is explicitly updated");
 		assertEquals(1D, child.getPercentComplete(), 0.00001D);
 		assertEquals(child.getPercentComplete(), summary.getPercentComplete(), 0.00001D,
 			"summary progress is derived from its child, not directly written by Mark on Track");
-		undo.undo();
+		result.change().undo();
 		assertEquals(0D, child.getPercentComplete(), 0.00001D);
 		assertEquals(child.getPercentComplete(), summary.getPercentComplete(), 0.00001D,
 			"Undo restores the child and therefore its derived summary progress");
-		undo.redo();
+		result.change().redo();
 		assertEquals(1D, child.getPercentComplete(), 0.00001D);
 		assertEquals(child.getPercentComplete(), summary.getPercentComplete(), 0.00001D);
 	}
