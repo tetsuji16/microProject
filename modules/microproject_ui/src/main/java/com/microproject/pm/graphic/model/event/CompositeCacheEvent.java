@@ -60,13 +60,6 @@ public class CompositeCacheEvent extends EventObject {
         this.nodeEvents = nodeEvents;
     }
     
-//	public ScheduleEvent getScheduleEvent() {
-//		return scheduleEvent;
-//	}
-//	public ObjectEvent getObjectEvent() {
-//		return objectEvent;
-//	}
-	
     public String toString(){
         return "CompositeGraphicNodeEvent: \n\t"+nodeEvents+" \n\t"+edgeEvents;
     }
