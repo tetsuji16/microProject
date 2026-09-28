@@ -432,6 +432,8 @@ class NormalTaskPercentCompleteTest {
 		assertEquals(first.getStart(), span.getStart());
 		assertEquals(second.getEnd(), span.getFinish());
 		assertEquals(first.work(span.getStart(), span.getFinish()) + second.work(span.getStart(), span.getFinish()), parent.work(span.getStart(), span.getFinish()));
+		assertEquals(first.cost(span.getStart(), span.getFinish()) + second.cost(span.getStart(), span.getFinish()),
+				parent.cost(span.getStart(), span.getFinish()), 0.001D);
 		assertEquals(350D, parent.fixedCost(span.getStart(), span.getFinish()), 0.001D);
 		assertEquals(0.7D, parent.getPercentWorkComplete(), 0.001D);
 	}

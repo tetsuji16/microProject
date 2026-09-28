@@ -67,6 +67,8 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentFormat;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.HasAssignments;
+import com.microproject.pm.assignment.HasTimeDistributedData;
+import com.microproject.pm.assignment.TimeDistributedDataConsolidator;
 import com.microproject.pm.assignment.TimeDistributedFields;
 import com.microproject.pm.assignment.timesheet.TimesheetHelper;
 import com.microproject.pm.assignment.timesheet.TimesheetStatus;
@@ -1208,13 +1210,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	public double cost(long start, long end) {
 		if (isParentWithoutAssignments())
-			return rollupCost(start, end);
+			return TimeDistributedDataConsolidator.cost(start, end, rollupValues());
 		return ((TaskSnapshot) getCurrentSnapshot()).cost(start, end);
 	}
 
 	public long work(long start, long end) {
 		if (isParentWithoutAssignments())
-			return rollupWork(start, end);
+			return TimeDistributedDataConsolidator.work(start, end, rollupValues(), false);
 		return ((TaskSnapshot) getCurrentSnapshot()).work(start, end);
 	}
 
@@ -1387,9 +1389,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 */
 	public double fixedCost(long start, long end) {
 		if (isParentWithoutAssignments()) {
-			double result = 0.0D;
-			for (Object child : childrenToRollup()) result += ((Task) child).fixedCost(start, end);
-			return result;
+			return TimeDistributedDataConsolidator.fixedCost(start, end, rollupValues());
 		}
 		long taskStart = getStart();
 		long taskEnd = getEnd();
@@ -1716,16 +1716,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return children;
 	}
 
-	private long rollupWork(long start, long end) {
-		long result = 0L;
-		for (Object child : childrenToRollup()) result += ((Task) child).work(start, end);
-		return result;
-	}
-
-	private double rollupCost(long start, long end) {
-		double result = 0.0D;
-		for (Object child : childrenToRollup()) result += ((Task) child).cost(start, end);
-		return result;
+	@SuppressWarnings("unchecked")
+	private Collection<? extends HasTimeDistributedData> rollupValues() {
+		// childrenToRollup returns either assignments or WBS tasks; both implement
+		// HasTimeDistributedData, preserving the existing unfiltered summary rollup.
+		return (Collection<? extends HasTimeDistributedData>) childrenToRollup();
 	}
 
 	// some functions useful for API
