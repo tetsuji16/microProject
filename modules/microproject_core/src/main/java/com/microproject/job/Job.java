@@ -199,7 +199,7 @@ public class Job extends Thread {
 			while (runnableIterator.hasNext()){
 				r=runnableIterator.next();
 				if (r.isExceptionHandler()) continue;
-				if (r.isSync()==true){
+				if (r.isSync()){
 					beginSync=true;
 					lastRunnable=r;
 				}
@@ -211,7 +211,7 @@ public class Job extends Thread {
 			while (runnableIterator.hasNext()){
 				r=runnableIterator.next();
 				if (r.isExceptionHandler()) continue;
-				if (r.isSync()==false){
+				if (!r.isSync()){
 					async=true;
 					freeRunnable=r;
 					if (!r.isSwing()) lastRunnable=r;

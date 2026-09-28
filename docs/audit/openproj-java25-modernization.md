@@ -2837,3 +2837,9 @@ round-trip tests exercise the serializer's hierarchy conversion path.
 `d2fa3c20a`; comparison remains by object identity and retains the legacy
 cross-type ordering contract. `TaskReferenceKindTest` covers same/different
 tasks, wrapper instances, and non-task values.
+
+`Job` now tests its OpenProj-derived `InternalRunnable.isSync()` flag directly
+instead of comparing it with `true` or `false`. `git blame` confirms both
+conditions at baseline `d2fa3c20a`; the synchronous and asynchronous runnable
+partitioning and iterator order are unchanged. The core test suite is the
+verification for this syntax-only cleanup.
