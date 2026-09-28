@@ -69,8 +69,7 @@ public class CommonDataObject implements DataObject{
     }
 
 	public boolean equals(Object obj){
-		if (obj==null||!(obj instanceof DataObject)) return false;
-		else return ((DataObject)obj).getUniqueId()==getUniqueId();
+		return obj instanceof DataObject dataObject && dataObject.getUniqueId() == getUniqueId();
 	}
 
 	@Override
