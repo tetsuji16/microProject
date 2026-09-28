@@ -1222,19 +1222,19 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	public double actualCost(long start, long end) {
 		if (isParentWithoutAssignments())
-			return 0.0D;
+			return TimeDistributedDataConsolidator.actualCost(start, end, rollupValues());
 
 		return ((TaskSnapshot) getCurrentSnapshot()).actualCost(start, end);
 	}
 
 	public long actualWork(long start, long end) {
 		if (isParentWithoutAssignments())
-			return 0L;
+			return TimeDistributedDataConsolidator.actualWork(start, end, rollupValues(), false);
 		return ((TaskSnapshot) getCurrentSnapshot()).actualWork(start, end);
 	}
 	public long remainingWork(long start, long end) {
 		if (isParentWithoutAssignments())
-			return 0L;
+			return TimeDistributedDataConsolidator.remainingWork(start, end, rollupValues(), false);
 		return ((TaskSnapshot) getCurrentSnapshot()).remainingWork(start, end);
 	}
 
