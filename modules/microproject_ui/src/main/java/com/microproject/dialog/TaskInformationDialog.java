@@ -389,41 +389,7 @@ public class TaskInformationDialog extends InformationDialog {
 
 	private JComponent createAdvancedPanel(){
 		FieldComponentMap map = createMap();
-		FormLayout layout = new FormLayout(
-		        "max(50dlu;pref), 3dlu, max(90dlu;pref), 10dlu, p, 3dlu,max(90dlu;pref),30dlu", // extra padding on right is for estimated field //$NON-NLS-1$
-				"max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),max(24dlu;pref),fill:50dlu:grow"); //$NON-NLS-1$
-
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		builder.setDefaultDialogBorder();
-		CellConstraints cc = new CellConstraints();
-		
-		builder.add(createHeaderFieldsPanel(map),cc.xyw(builder.getColumn(), builder
-				.getRow(), 8));
-		builder.nextLine(2);
-		map.append(builder,"Field.wbs"); //$NON-NLS-1$
-		map.append(builder,"Field.markTaskAsMilestone",3); //$NON-NLS-1$
-		builder.nextLine(2);
-		builder.addSeparator(Messages.getString("TaskInformationDialog.ConstrainTask")); //$NON-NLS-1$
-		// addSeparator already advances one row. Move to the next content row,
-		// not the following 3dlu spacer row, otherwise the constraint controls
-		// are clipped to the height of that spacer.
-		builder.nextLine();
-		map.append(builder,"Field.constraintType"); //$NON-NLS-1$
-		map.appendSometimesReadOnly(builder,"Field.constraintDate"); //$NON-NLS-1$
-		builder.nextLine(2);
-		map.append(builder,"Field.deadline"); //$NON-NLS-1$
-		builder.nextLine(4);
-		builder.addSeparator("	"); //$NON-NLS-1$
-		builder.nextLine();
-		map.append(builder,"Field.taskType"); //$NON-NLS-1$
-		map.append(builder,"Field.effortDriven",3); //$NON-NLS-1$
-		builder.nextLine(2);
-		map.append(builder,"Field.taskCalendar"); //$NON-NLS-1$
-		map.append(builder,"Field.ignoreResourceCalendar",3); //$NON-NLS-1$
-		builder.nextLine(2);
-		map.append(builder,"Field.earnedValueMethod"); //$NON-NLS-1$
-
-		return builder.getPanel();
+		return new TaskAdvancedPanel(map, createHeaderFieldsPanel(map)).component();
 	}	
 	
 	public JComponent createPredecessorsPanel() {
