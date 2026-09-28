@@ -40,6 +40,9 @@ class TimeDistributedDataConsolidatorTest {
 		StubData nonLabor = new StubData(false, 17, 5, 12, 4.5);
 
 		assertEquals(7.0, TimeDistributedDataConsolidator.acwp(10, 20, List.of(labor, nonLabor)));
+		assertEquals(7.0, TimeDistributedDataConsolidator.bac(10, 20, List.of(labor, nonLabor)));
+		assertEquals(7.0, TimeDistributedDataConsolidator.bcwp(10, 20, List.of(labor, nonLabor)));
+		assertEquals(7.0, TimeDistributedDataConsolidator.bcws(10, 20, List.of(labor, nonLabor)));
 		assertEquals(7.0, TimeDistributedDataConsolidator.baselineCost(10, 20, List.of(labor, nonLabor)));
 		assertEquals(11, TimeDistributedDataConsolidator.work(10, 20, List.of(labor, nonLabor), true));
 		assertEquals(3, TimeDistributedDataConsolidator.actualWork(10, 20, List.of(labor, nonLabor), true));
@@ -65,8 +68,8 @@ class TimeDistributedDataConsolidatorTest {
 		@Override public long remainingWork(long start, long end) { return remainingWorkValue; }
 		@Override public java.util.Collection<?> childrenToRollup() { return List.of(); }
 		@Override public double acwp(long start, long end) { return acwpValue; }
-		@Override public double bac(long start, long end) { return 0; }
-		@Override public double bcwp(long start, long end) { return 0; }
-		@Override public double bcws(long start, long end) { return 0; }
+		@Override public double bac(long start, long end) { return acwpValue; }
+		@Override public double bcwp(long start, long end) { return acwpValue; }
+		@Override public double bcws(long start, long end) { return acwpValue; }
 	}
 }

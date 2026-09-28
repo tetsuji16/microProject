@@ -1260,18 +1260,26 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 **************************************************************************/
 
 	public double acwp(long start, long end) {
+		if (isParentWithoutAssignments())
+			return TimeDistributedDataConsolidator.acwp(start, end, earnedValueRollupValues());
 		return ((TaskSnapshot) getCurrentSnapshot()).acwp(start, end);
 	}
 
 	public double bac(long start, long end) {
+		if (isParentWithoutAssignments())
+			return TimeDistributedDataConsolidator.bac(start, end, earnedValueRollupValues());
 		return ((TaskSnapshot) getCurrentSnapshot()).bac(start, end);
 	}
 
 	public double bcwp(long start, long end) {
+		if (isParentWithoutAssignments())
+			return TimeDistributedDataConsolidator.bcwp(start, end, earnedValueRollupValues());
 		return ((TaskSnapshot) getCurrentSnapshot()).bcwp(start, end);
 	}
 
 	public double bcws(long start, long end) {
+		if (isParentWithoutAssignments())
+			return TimeDistributedDataConsolidator.bcws(start, end, earnedValueRollupValues());
 		return ((TaskSnapshot) getCurrentSnapshot()).bcws(start, end);
 	}
 
@@ -1725,6 +1733,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		// childrenToRollup returns either assignments or WBS tasks; both implement
 		// HasTimeDistributedData, preserving the existing unfiltered summary rollup.
 		return (Collection<? extends HasTimeDistributedData>) childrenToRollup();
+	}
+
+	@SuppressWarnings("unchecked")
+	private Collection<? extends EarnedValueValues> earnedValueRollupValues() {
+		// The same rollup children are NormalTask instances or assignments, both of
+		// which expose earned-value data.
+		return (Collection<? extends EarnedValueValues>) childrenToRollup();
 	}
 
 	// some functions useful for API

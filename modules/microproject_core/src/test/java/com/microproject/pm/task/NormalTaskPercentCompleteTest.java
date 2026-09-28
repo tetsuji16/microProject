@@ -42,6 +42,8 @@ import org.junit.jupiter.api.Test;
 import com.microproject.options.CalendarOption;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.Rate;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
@@ -486,6 +488,37 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void parentSummaryAggregatesEarnedValueFromChildren() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask first = createTask(project);
+		NormalTask second = createTask(project);
+		long start = project.getStart();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		configureTask(first, start, 2L * day);
+		configureTask(second, project.getEffectiveWorkCalendar().add(start, 3L * day, false), 3L * day);
+		assignWorkAtRate(project, first, 2L * day, day);
+		assignWorkAtRate(project, second, 3L * day, 2L * day);
+		attachChildren(parent, first, second);
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
+		RollupSpan span = parent.calculateRollupSpan();
+		project.setStatusDate(span.getFinish());
+
+		assertEquals(first.acwp(span.getStart(), span.getFinish())
+				+ second.acwp(span.getStart(), span.getFinish()),
+				parent.acwp(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(first.bac(span.getStart(), span.getFinish())
+				+ second.bac(span.getStart(), span.getFinish()),
+				parent.bac(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(first.bcwp(span.getStart(), span.getFinish())
+				+ second.bcwp(span.getStart(), span.getFinish()),
+				parent.bcwp(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(first.bcws(span.getStart(), span.getFinish())
+				+ second.bcws(span.getStart(), span.getFinish()),
+				parent.bcws(span.getStart(), span.getFinish()), 0.001D);
+	}
+
+	@Test
 	void parentPercentWorkCompleteIgnoresZeroWorkLeaves() {
 		Project project = createProject();
 		NormalTask parent = createTask(project);
@@ -686,6 +719,15 @@ class NormalTaskPercentCompleteTest {
 		ResourceImpl resource = project.getResourcePool().newResourceInstance();
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
 		assignment.setWork(work, null);
+		return assignment;
+	}
+
+	private Assignment assignWorkAtRate(Project project, NormalTask task, long work, long actualWork) {
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setStandardRate(new Rate(60.0D, TimeUnit.HOURS));
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		assignment.setWork(work, null);
+		assignment.setActualWork(actualWork, null);
 		return assignment;
 	}
 
