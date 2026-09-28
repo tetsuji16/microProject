@@ -37,7 +37,6 @@ com/microproject/graphic/configuration/CellStyles.java	com.microproject.graphic.
 com/microproject/graphic/configuration/CellStyles.java	com.microproject.graphic.configuration.CellStyles
 com/microproject/graphic/configuration/FormBox.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/FormBoxLayout.java	com.microproject.graphic.configuration
-com/microproject/graphic/configuration/FormBoxLayout.java	java.awt.Font
 com/microproject/graphic/configuration/FormFormat.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/FormFormat.java	com.microproject.graphic.configuration.FormBox
 com/microproject/graphic/configuration/FormFormat.java	com.microproject.graphic.configuration.FormBoxLayout
@@ -244,7 +243,6 @@ com/microproject/util/Alert.java	javax.swing.JDialog
 com/microproject/util/Alert.java	javax.swing.JOptionPane
 com/microproject/util/Alert.java	javax.swing.JPanel
 com/microproject/util/BrowserControl.java	java.awt.
-com/microproject/util/FontUtil.java	java.awt.Font
 com/microproject/util/PopupDialogSupport.java	com.microproject.dialog.usability
 com/microproject/util/PopupDialogSupport.java	java.awt.Component
 com/microproject/util/PopupDialogSupport.java	java.awt.event.ActionEvent

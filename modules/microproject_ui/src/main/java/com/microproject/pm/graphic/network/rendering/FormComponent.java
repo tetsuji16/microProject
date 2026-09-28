@@ -125,7 +125,7 @@ public class FormComponent extends JPanel{
 				
 				fieldComponents.put(box.getFieldId(),component);
 			}
-			Font font=formBoxLayout.getFont(box.getFont());
+			Font font = NetworkFormFontResolver.resolve(formBoxLayout, box.getFont());
 			if (font!=null) component.setFont(font);
 			builder.add(component,(box.getAlignment()==null)?
 					cc.xywh(box.getColumn(),box.getRow(),box.getColumnSpan(),box.getRowSpan()):

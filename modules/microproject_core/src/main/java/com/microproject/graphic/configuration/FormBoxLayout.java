@@ -24,14 +24,6 @@
  *******************************************************************************/
 package com.microproject.graphic.configuration;
 
-import java.awt.Font;
-
-import com.microproject.util.Environment;
-import com.microproject.util.FontUtil;
-
-
-
-
 public class FormBoxLayout {
 	boolean defaultZoom=false;
 	String columnGrid=null;
@@ -79,17 +71,6 @@ public class FormBoxLayout {
 	}
 	public void setDefaultZoom(boolean defaultZoom) {
 		this.defaultZoom = defaultZoom;
-	}
-	
-	
-	
-	public Font getFont(String type){
-		String fontName;
-		if ("title".equals(type)) fontName=titleFont;
-		else if ("label".equals(type)) fontName=labelFont;
-		else if ("value".equals(type)) fontName=valueFont;
-		else return null;
-		return FontUtil.getFont(fontName, Environment.NETWORK_FONT);
 	}
 	
 	
