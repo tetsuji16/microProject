@@ -763,44 +763,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 *
 	 */
 	public void assignActualDatesFromChildren() {
-		long computedActualStart = Long.MAX_VALUE;
-		long stop = 0;
-		Collection<Node> children = getWbsChildrenNodes();
-		Task child;
-		long currentActualStart;
+		SummaryActualDateSpan actualSpan = SummaryActualDateSpan.from(getWbsChildrenNodes());
 		long oldActualDuration = Duration.millis(getActualDuration());
-		for (Node childNode : children) {
-			if (!(childNode.getImpl() instanceof NormalTask normalChild))
-				continue;
-			child = normalChild;
-			// Completed children also contribute the parent's actual span.  Excluding
-			// them leaves a summary with no active children at 0% in its stored
-			// schedule, even though every leaf is complete.
-			if (child.getPercentComplete() <= 0.0D)
-				continue;
-			currentActualStart = child.getActualStart();
-			if (currentActualStart == 0L && child.getPercentComplete() >= 1.0D)
-				currentActualStart = child.getStart();
-			if (currentActualStart != 0) // if any task has actual start, use the earliest value
-				computedActualStart = Math.min(computedActualStart, currentActualStart);
-
-			// Actual dates are an independent track.  Do not use the scheduled
-			// finish (getEnd()) as a substitute for actual progress.
-			long actualFinish = child.getActualFinish();
-			long childStop = child.getStop();
-			if (actualFinish != 0L)
-				stop = Math.max(stop, actualFinish);
-			if (childStop != 0L)
-				stop = Math.max(stop, childStop);
-		}
-
 		long actualDuration = 0;
-		if (computedActualStart != Long.MAX_VALUE && stop != 0)
-			actualDuration = getEffectiveWorkCalendar().compare(stop, computedActualStart, false);
-		if (computedActualStart != Long.MAX_VALUE)
-			setActualStartNoEvent(computedActualStart);
-		else
-			setActualStartNoEvent(0L);
+		if (actualSpan.start() != 0L && actualSpan.finish() != 0L)
+			actualDuration = getEffectiveWorkCalendar().compare(actualSpan.finish(), actualSpan.start(), false);
+		setActualStartNoEvent(actualSpan.start());
 		
 		if (actualDuration != oldActualDuration) {
 			double percentComplete =((double)actualDuration) / getDurationMillis();

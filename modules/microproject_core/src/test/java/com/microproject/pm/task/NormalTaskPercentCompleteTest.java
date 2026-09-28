@@ -488,6 +488,37 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void summaryActualDateSpanUsesProgressingChildrenAndCompletedFallback() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask completed = createTask(project);
+		NormalTask progressing = createTask(project);
+		NormalTask notStarted = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long projectStart = project.getStart();
+		configureTask(parent, projectStart, 12L * day);
+		configureTask(completed, projectStart, 2L * day);
+		configureTask(progressing, projectStart + 4L * day, 4L * day);
+		configureTask(notStarted, projectStart + 8L * day, 2L * day);
+		completed.setPercentComplete(1.0d);
+		progressing.setPercentComplete(0.5d);
+		notStarted.setPercentComplete(0.0d);
+		progressing.setActualStart(project.getEffectiveWorkCalendar().add(progressing.getStart(), day, false));
+		long progressingStop = project.getEffectiveWorkCalendar().add(progressing.getStart(), 3L * day, false);
+		progressing.setStop(progressingStop);
+		attachChildren(parent, completed, progressing, notStarted);
+
+		SummaryActualDateSpan span = SummaryActualDateSpan.from(parent.getWbsChildrenNodes());
+		long expectedFinish = Math.max(Math.max(completed.getActualFinish(), completed.getStop()),
+				Math.max(progressing.getActualFinish(), progressing.getStop()));
+
+		assertEquals(completed.getStart(), span.start());
+		assertEquals(expectedFinish, span.finish());
+		parent.assignActualDatesFromChildren();
+		assertEquals(span.start(), parent.getActualStart());
+	}
+
+	@Test
 	void parentSummaryAggregatesEarnedValueFromChildren() {
 		Project project = createProject();
 		NormalTask parent = createTask(project);
