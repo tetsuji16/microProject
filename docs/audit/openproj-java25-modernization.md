@@ -2869,3 +2869,10 @@ type, and casting it again. The changed hunk matches OpenProj 1.4 at
 `d2fa3c20a`; query grouping and the non-time-iterator fallback are unchanged.
 No focused test directly targets this helper, so the full core test suite and
 downstream compile are the verification for this syntax-only modernization.
+
+`NodeDeletionEdit.restoreSubprojects` now binds the `Project` data factory
+through pattern matching instead of a separate check and cast. The original
+undo condition and early return are unchanged; restoration still visits the
+same subproject snapshot in order. `git blame` traces this implementation to
+OpenProj's `NodeDeletionEdit`; no focused undo scenario currently exercises
+this helper, so the full core suite is used for verification.

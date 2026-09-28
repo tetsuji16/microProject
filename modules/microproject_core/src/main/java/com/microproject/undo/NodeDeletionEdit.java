@@ -72,9 +72,8 @@ public class NodeDeletionEdit extends AbstractUndoableEdit{
 	}	
 
 	private void restoreSubprojects() {
-		if (!(model.getDataFactory() instanceof Project))
+		if (!(model.getDataFactory() instanceof Project parentProject))
 			return;
-		Project parentProject = (Project) model.getDataFactory();
 		for (SubprojectState state : removalSnapshot.getSubprojects())
 			state.restoreAfterClose(parentProject);
 	}
