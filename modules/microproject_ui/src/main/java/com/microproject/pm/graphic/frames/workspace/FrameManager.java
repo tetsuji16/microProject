@@ -77,7 +77,7 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 		return null;
 	}
 	/** Finds an open document by the canonical identity of its project file. */
-	default NamedFrame findFrameForProjectFile(String fileName) {
+	default DocumentFrame findFrameForProjectFile(String fileName) {
 		if (fileName == null || fileName.isBlank())
 			return null;
 		for (DocumentFrame frame : getDocumentFrames()) {

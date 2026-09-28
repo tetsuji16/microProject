@@ -465,8 +465,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public DocumentFrame findFrameForProjectFile(String fileName) {
 		if (frameManager == null)
 			return null;
-		NamedFrame frame = frameManager.findFrameForProjectFile(fileName);
-		return frame instanceof DocumentFrame documentFrame ? documentFrame : null;
+		return frameManager.findFrameForProjectFile(fileName);
 	}
 
 	/** Activates a linked subproject in its own document view without duplicating its model. */
