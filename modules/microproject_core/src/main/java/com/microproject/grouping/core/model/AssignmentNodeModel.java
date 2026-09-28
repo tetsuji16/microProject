@@ -213,7 +213,7 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 
 	public void paste(Node parent,List<Node> nodes,int position,int actionType){
 		super.paste(parent, nodes, position, actionType);
-		List<Node> roots = new ArrayList<>();
+		List<Node> roots = new ArrayList<>(nodes.size());
 		HierarchyUtils.extractParents(nodes, roots);
 		List<Node> freeAssignments = new ArrayList<>();
 		for (Node root : roots) {
