@@ -80,6 +80,11 @@ class LicenseDialogResourceTest {
 		String licenseHtml = readResource("license/index.html");
 		assertFalse(licenseHtml.contains("FONT SIZE=2"));
 		assertTrue(licenseHtml.contains("FONT SIZE=3"));
+		assertTrue(licenseHtml.contains("microProject License"));
+		assertTrue(licenseHtml.contains("Copyright (c) 2012-2026 ProjectLibre, Inc."));
+		assertTrue(licenseHtml.contains("Copyright (c) 2026 microProject"));
+		assertTrue(licenseHtml.contains("com/microproject/contrib/util/Log.java"));
+		assertTrue(licenseHtml.contains("com/microproject/contrib/util/LogFactory.java"));
 	}
 
 	private void assertCurrentOpenSourceNotices() throws Exception {
