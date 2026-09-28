@@ -43,7 +43,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.SwingUtilities;
 
 
 import com.microproject.grouping.core.Node;
@@ -68,6 +67,8 @@ import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;
+
+import com.microproject.util.UiDispatch;
 
 /**
  *
@@ -480,7 +481,7 @@ public class ProjectFactory {
 					// the queue's critical section.  This is also safe after a failed
 					// child: only NOT_LOADED references are eligible for the next scan.
 					if (!parent.isOpenedAsSubproject())
-						SwingUtilities.invokeLater(() -> restoreLinkedLocalSubprojects(parent));
+						UiDispatch.invokeLater(() -> restoreLinkedLocalSubprojects(parent));
 
 				}
     	    	return null; //return not used anyway
@@ -729,23 +730,6 @@ public class ProjectFactory {
 	public Job getRemoveProjectJob(final Project project, boolean allowCancel, boolean prompt,boolean calledFromSwing) {
 		Job job=null;
 		if (prompt && project.needsSaving()) {
-//			final boolean[] lock=new boolean[]{false};
-//				SwingUtilities.invokeLater(new Runnable(){
-//					public void run(){
-//						Alert.okCancel("test");
-//						synchronized (lock) {
-//							lock[0]=true;
-//							lock.notifyAll();
-//						}
-//				    }
-//				});
-//			synchronized(lock){
-//				while (!lock[0]){
-//					try{
-//							lock.wait();
-//						}catch (InterruptedException e) {}
-//				}
-//			}
 
 			int promptResult = promptForSave(project,allowCancel);
 			if (promptResult == Alert.YES_OPTION){
@@ -822,8 +806,8 @@ public class ProjectFactory {
 				return;
 			job.addCompletionRunnable(() -> {
 				Runnable complete = () -> completeProjectClosings(closingIds);
-				if (calledFromSwing && !SwingUtilities.isEventDispatchThread())
-					SwingUtilities.invokeLater(complete);
+				if (calledFromSwing && !UiDispatch.isDispatchThread())
+					UiDispatch.invokeLater(complete);
 				else
 					complete.run();
 			});

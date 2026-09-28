@@ -49,7 +49,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
-import javax.swing.SwingUtilities;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
@@ -145,6 +144,8 @@ import com.microproject.util.Environment;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
 import com.microproject.collaboration.CollaborationSession;
+import com.microproject.util.UiDispatch;
+
 /**
  * Project class
  */
@@ -371,7 +372,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	    	schedulingAlgorithm.initialize(this);
 	    if (getStart() == 0L) {
 	    	logger.fine("no start so using earliest");
-        SwingUtilities.invokeLater(() -> {
+        UiDispatch.invokeLater(() -> {
             recalculate();
             setStart(getEarliestStartingTaskOrStart());
         });

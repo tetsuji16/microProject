@@ -15,9 +15,34 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.SwingUtilities;
 
+import com.microproject.util.UiDispatch;
+import com.microproject.util.UiDispatcher;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class JobAlertDispatchTest {
+	@BeforeEach
+	void installSwingDispatcher() {
+		UiDispatch.setDispatcher(new UiDispatcher() {
+			@Override
+			public void invokeLater(Runnable task) {
+				SwingUtilities.invokeLater(task);
+			}
+
+			@Override
+			public boolean isDispatchThread() {
+				return SwingUtilities.isEventDispatchThread();
+			}
+		});
+	}
+
+	@AfterEach
+	void restoreDispatcher() {
+		UiDispatch.setDispatcher(null);
+	}
+
 	@Test
 	void waitingDispatchReturnsTheDialogResultAfterRunningOnTheEdt() {
 		AtomicBoolean ranOnEdt = new AtomicBoolean();

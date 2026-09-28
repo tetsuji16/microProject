@@ -38,7 +38,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Logger;
 
-import javax.swing.SwingUtilities;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
@@ -99,6 +98,8 @@ import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
+
+import com.microproject.util.UiDispatch;
 
 /**
  * @stereotype thing
@@ -999,7 +1000,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public void recalculateLater(final Object eventSource) {
 		markTaskAsNeedingRecalculation(); // task needs to be recalculated
 
-            SwingUtilities.invokeLater(() -> recalculate(eventSource));
+            UiDispatch.invokeLater(() -> recalculate(eventSource));
 	}
 
 
@@ -2281,15 +2282,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return delegatedTo;
 	}
 	public void setDelegatedTo(Resource delegatedTo) {
-		Resource old = this.delegatedTo;
 		this.delegatedTo = delegatedTo;
-//		if (old == null) {
-//			SwingUtilities.invokeLater(new Runnable() {
-//
-//				public void run() {
-//					Task newOne = getOwningProject().cloneTask(Task.this);
-//				}});
-//		}
 	}
 	public boolean isDelegatedToUser() {
 		Resource del = getDelegatedTo();

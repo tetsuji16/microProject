@@ -303,13 +303,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 		if (suspendUpdates)
 			return;
 		_calculate(update,task);
-		// instead of calculating immediately, we can perhaps delay the calculation till the end of all other updates.  This may
-		// cause problems in other cases where an immediate update is required, so I am commenting it out for now. See bug 225
-//		SwingUtilities.invokeLater(new Runnable() {
-//			public void run() {
-//				_calculate(update,task);
-//			}
-//		});
+		// Keep scheduling synchronous because callers require immediate updates (bug 225).
 	}
 
 	public int getDefaultTaskConstraintType() {

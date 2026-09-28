@@ -37,12 +37,13 @@ import java.util.logging.Logger;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 
-import javax.swing.SwingUtilities;
 
 
 import com.microproject.util.Environment;
 import com.microproject.util.ListenerRegistry;
 
+
+import com.microproject.util.UiDispatch;
 
 /**
  *
@@ -95,7 +96,7 @@ public class JobQueue extends ThreadGroup{
 		// load and freeze the document window.  Defer only the queue admission;
 		// Job still serializes its work through the same critical section and
 		// retains the ordinary Swing completion callbacks.
-		if (SwingUtilities.isEventDispatchThread()) {
+		if (UiDispatch.isDispatchThread()) {
 			Thread scheduler = new Thread(job::execute, job.getName() + "_scheduler");
 			scheduler.setDaemon(job.isDaemon());
 			scheduler.start();

@@ -35,12 +35,13 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 import javax.swing.ProgressMonitor;
-import javax.swing.SwingUtilities;
 
 
 import com.microproject.server.access.ErrorLogger;
 import com.microproject.util.Alert;
 
+
+import com.microproject.util.UiDispatch;
 
 /**
  *
@@ -152,7 +153,7 @@ public class Job extends Thread {
 		if (progressStart+relativeProgress>progress){
 			progress = progressStart+relativeProgress;
 			if (showProgess&&progressMonitor!=null){
-				SwingUtilities.invokeLater(() -> {
+				UiDispatch.invokeLater(() -> {
 					progressMonitor.setProgress((int)Math.round(getProgress()*JobQueue.MAX_PROGRESS));
 					progressMonitor.setNote(note);
 				});
@@ -173,7 +174,7 @@ public class Job extends Thread {
 	public synchronized void cancel(){
 		canceled=true;
 		if (showProgess&&progressMonitor!=null){
-			SwingUtilities.invokeLater(() -> progressMonitor.close());
+			UiDispatch.invokeLater(() -> progressMonitor.close());
 		}
 	}
 	public synchronized boolean isCanceled(){
@@ -396,7 +397,7 @@ public class Job extends Thread {
 	}
 	private void runSwing(final InternalRunnable runnable,final JobMutex runMutex){
 		if (runnable.isSwing()){
-			SwingUtilities.invokeLater(() -> {
+			UiDispatch.invokeLater(() -> {
 				try{
 					if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
 						return;
@@ -444,7 +445,7 @@ public class Job extends Thread {
 		Mutex alertMutex = new Mutex();
 		ResultHolder<T> result = new ResultHolder<>();
 		if (wait) alertMutex.lock();
-		SwingUtilities.invokeLater(() -> {
+		UiDispatch.invokeLater(() -> {
 			result.result = alert.get();
 			alertMutex.unlock();
 		});
