@@ -75,11 +75,9 @@ com/microproject/graphic/configuration/TexturedShape.java	java.awt.Graphics2D
 com/microproject/graphic/configuration/TexturedShape.java	java.awt.Paint
 com/microproject/graphic/configuration/TexturedShape.java	java.awt.Shape
 com/microproject/graphic/configuration/TexturedShape.java	java.awt.Stroke
-com/microproject/grouping/core/hierarchy/AbstractMutableNodeHierarchy.java	javax.swing.event.EventListenerList
 com/microproject/grouping/core/hierarchy/AbstractMutableNodeHierarchy.java	javax.swing.tree.TreeNode
 com/microproject/grouping/core/hierarchy/FilteredNodeHierarchy.java	javax.swing.event.TreeModelListener
 com/microproject/grouping/core/hierarchy/FilteredNodeHierarchy.java	javax.swing.tree.TreePath
-com/microproject/grouping/core/hierarchy/MutableNodeHierarchy.java	javax.swing.event.EventListenerList
 com/microproject/grouping/core/hierarchy/MutableNodeHierarchy.java	javax.swing.event.TreeModelListener
 com/microproject/grouping/core/hierarchy/MutableNodeHierarchy.java	javax.swing.tree.TreeNode
 com/microproject/grouping/core/hierarchy/MutableNodeHierarchy.java	javax.swing.tree.TreePath

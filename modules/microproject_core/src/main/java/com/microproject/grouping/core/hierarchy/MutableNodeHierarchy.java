@@ -38,7 +38,6 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
-import javax.swing.event.EventListenerList;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeNode;
@@ -68,6 +67,7 @@ import com.microproject.undo.NodeIndentEdit;
 import com.microproject.undo.NodeUndoInfo;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;
+import com.microproject.util.ListenerRegistry;
 
 /**
  * A map that holds the parent-children relationship.  Also implements TreeModel so it can be used to generate
@@ -894,7 +894,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	return (children == null || children.size() == 0);
 	}
 
-    protected transient EventListenerList listenerList = new EventListenerList();
+    protected transient ListenerRegistry<TreeModelListener> treeModelListeners = new ListenerRegistry<>();
 
     /**
      * Adds a listener for the TreeModelEvent posted after the tree changes.
@@ -903,7 +903,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
      * @param   l       the listener to add
      */
     public void addTreeModelListener(TreeModelListener l) {
-        listenerList.add(TreeModelListener.class, l);
+        treeModelListeners.add(l);
     }
 
     /**
@@ -913,7 +913,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
      * @param   l       the listener to remove
      */
     public void removeTreeModelListener(TreeModelListener l) {
-        listenerList.remove(TreeModelListener.class, l);
+        treeModelListeners.remove(l);
     }
 
 	public void valueForPathChanged(TreePath path, Object newValue) {

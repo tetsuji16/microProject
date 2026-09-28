@@ -171,35 +171,4 @@ public class TimeScaleManager {
 	
 	
 	
-	//events handling
-	
-	/*protected EventListenerList listenerList = new EventListenerList();
-
-	public void addTimeScaleListener(TimeScaleListener l) {
-		listenerList.add(TimeScaleListener.class, l);
-	}
-	public void removeTimeScaleListener(TimeScaleListener l) {
-		listenerList.remove(TimeScaleListener.class, l);
-	}
-	public TimeScaleListener[] getTimeScaleListeners() {
-		return (TimeScaleListener[]) listenerList.getListeners(TimeScaleListener.class);
-	}
-	protected void fireTimeScaleChanged(Object source) {
-		Object[] listeners = listenerList.getListenerList();
-		TimeScaleEvent e = null;
-		for (int i = listeners.length - 2; i >= 0; i -= 2) {
-			if (listeners[i] == TimeScaleListener.class) {
-				if (e == null) {
-					e = new TimeScaleEvent(source);
-				}
-				((TimeScaleListener) listeners[i + 1]).timeScaleChanged(e);
-			}
-		}
-	}
-    public EventListener[] getListeners(Class listenerType) { 
-    	return listenerList.getListeners(listenerType); 
-       }
-	*/	
-
-	
 }

@@ -114,6 +114,21 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void hierarchyListenersRetainRegistrationOrderAndLastRegistrationRemoval() {
+		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
+		HierarchyListener first = new CapturingHierarchyListener();
+		HierarchyListener second = new CapturingHierarchyListener();
+		model.getHierarchy().addHierarchyListener(first);
+		model.getHierarchy().addHierarchyListener(second);
+
+		assertEquals(List.of(first, second), List.of(model.getHierarchy().getHierarchyListeners()));
+
+		model.getHierarchy().removeHierarchyListener(first);
+
+		assertEquals(List.of(second), List.of(model.getHierarchy().getHierarchyListeners()));
+	}
+
+	@Test
 	void searchTracksAddedReplacedAndRemovedNodes() {
 		DefaultNodeModel model = new DefaultNodeModel(new StubDataFactory());
 		model.getHierarchy().setNbEndVoidNodes(0);

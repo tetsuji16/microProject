@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.grouping.core.hierarchy;
 
+import java.lang.reflect.Array;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,7 +40,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.function.Consumer;
 
-import javax.swing.event.EventListenerList;
 import javax.swing.tree.TreeNode;
 
 import org.apache.commons.collections.Predicate;
@@ -50,6 +50,7 @@ import com.microproject.grouping.core.NodeBridge;
 import com.microproject.grouping.core.event.HierarchyEvent;
 import com.microproject.grouping.core.event.HierarchyListener;
 import com.microproject.pm.key.HasKey;
+import com.microproject.util.ListenerRegistry;
 
 /**
  *
@@ -319,76 +320,55 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 	
 	
 	
-	protected EventListenerList hierarchyListenerList = new EventListenerList();
+	protected final ListenerRegistry<HierarchyListener> hierarchyListeners = new ListenerRegistry<>();
 
 	public void addHierarchyListener(HierarchyListener l) {
-		hierarchyListenerList.add(HierarchyListener.class, l);
+		hierarchyListeners.add(l);
 	}
 	public void removeHierarchyListener(HierarchyListener l) {
-		hierarchyListenerList.remove(HierarchyListener.class, l);
+		hierarchyListeners.remove(l);
 	}
 	public HierarchyListener[] getHierarchyListeners() {
-		return (HierarchyListener[]) hierarchyListenerList.getListeners(HierarchyListener.class);
+		return hierarchyListeners.snapshot().toArray(HierarchyListener[]::new);
 	}
     public EventListener[] getHierarchyListeners(Class listenerType) { 
-    	return hierarchyListenerList.getListeners(listenerType); 
+		if (listenerType == null)
+			throw new NullPointerException("listenerType");
+		if (listenerType != HierarchyListener.class)
+			return (EventListener[]) Array.newInstance(listenerType, 0);
+		return hierarchyListeners.snapshot().toArray(HierarchyListener[]::new);
     }
     
- 	protected void fireStructureChanged(Object source) {
-		Object[] listeners = hierarchyListenerList.getListenerList();
+	protected void fireStructureChanged(Object source) {
 		HierarchyEvent e = null;
-//		for (int i = listeners.length - 2; i >= 0; i -= 2) {
-		for (int i = 0; i < listeners.length; i += 2) {
-			if (listeners[i] == HierarchyListener.class) {
-				if (e == null) {
-					e = new HierarchyEvent(source, 
-							HierarchyEvent.STRUCTURE_CHANGED, null);
-				}
-				((HierarchyListener) listeners[i + 1]).structureChanged(e);
-		
-			}
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
+			if (e == null)
+				e = new HierarchyEvent(source, HierarchyEvent.STRUCTURE_CHANGED, null);
+			listener.structureChanged(e);
 		}
 	}
 	protected void fireNodesChanged(Object source, Object[] nodes,Object[] oldNodes,Object flag) {
-		Object[] listeners = hierarchyListenerList.getListenerList();
 		HierarchyEvent e = null;
-		for (int i = 0; i < listeners.length; i += 2) {
-			if (listeners[i] == HierarchyListener.class) {
-				if (e == null) {
-					e = new HierarchyEvent(source, 
-							HierarchyEvent.NODES_CHANGED, nodes,oldNodes,flag);
-				}
-				((HierarchyListener) listeners[i + 1]).nodesChanged(e);
-		
-			}
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
+			if (e == null)
+				e = new HierarchyEvent(source, HierarchyEvent.NODES_CHANGED, nodes, oldNodes, flag);
+			listener.nodesChanged(e);
 		}
 	}
 	protected void fireNodesInserted(Object source, Object[] nodes,Object[] oldNodes,Object flag) {
-		Object[] listeners = hierarchyListenerList.getListenerList();
 		HierarchyEvent e = null;
-		for (int i = 0; i < listeners.length; i += 2) {
-			if (listeners[i] == HierarchyListener.class) {
-				if (e == null) {
-					e = new HierarchyEvent(source, 
-							HierarchyEvent.NODES_INSERTED, nodes,oldNodes,flag);
-				}
-				((HierarchyListener) listeners[i + 1]).nodesInserted(e);
-		
-			}
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
+			if (e == null)
+				e = new HierarchyEvent(source, HierarchyEvent.NODES_INSERTED, nodes, oldNodes, flag);
+			listener.nodesInserted(e);
 		}
 	}
 	protected void fireNodesRemoved(Object source, Object[] nodes,Object[] oldNodes,Object flag) {
-		Object[] listeners = hierarchyListenerList.getListenerList();
 		HierarchyEvent e = null;
-		for (int i = 0; i < listeners.length; i += 2) {
-			if (listeners[i] == HierarchyListener.class) {
-				if (e == null) {
-					e = new HierarchyEvent(source, 
-							HierarchyEvent.NODES_REMOVED, nodes,oldNodes,flag);
-				}
-				((HierarchyListener) listeners[i + 1]).nodesRemoved(e);
-		
-			}
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
+			if (e == null)
+				e = new HierarchyEvent(source, HierarchyEvent.NODES_REMOVED, nodes, oldNodes, flag);
+			listener.nodesRemoved(e);
 		}
 	}
 	protected void fireNodesChanged(Object source, Object[] nodes) {
