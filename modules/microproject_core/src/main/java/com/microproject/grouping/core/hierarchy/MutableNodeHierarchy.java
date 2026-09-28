@@ -404,18 +404,11 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     }
 
     private static void extractSameProjectBranch(Node parent, ArrayList<Node> descendants){
-//    	if (parent.getImpl() instanceof Subproject){
-//    		((NodeBridge)parent).removeAllChildren();
-//    		Subproject subproject=(Subproject)parent.getImpl();
-//    		//subproject.setProject(null);
-//
-//    	}else{
     	descendants.add(parent);
             for (Enumeration<?> e=parent.children();e.hasMoreElements();){
 	    		Node current=(Node)e.nextElement();
 	    		extractSameProjectBranch(current,descendants);
 	    	}
-//    	}
     }
 
 
