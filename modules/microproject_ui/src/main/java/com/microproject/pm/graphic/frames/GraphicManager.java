@@ -108,6 +108,7 @@ import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
 import com.microproject.application.ProjectDocumentWorkflow;
 import com.microproject.application.ProjectLoadWorkflow;
+import com.microproject.application.ProjectPortCoordinator;
 import com.microproject.application.RecentProjectStore;
 import com.microproject.application.TemporaryWorkspace;
 import com.microproject.collaboration.CollaborationMetadataStore;
@@ -673,18 +674,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// waits for Swing callbacks and therefore deadlocks here.  MPO children
 		// can be written atomically without scheduling a nested Swing job.
 		if (fileName.toLowerCase(Locale.ROOT).endsWith(".mpo")) {
-			try {
-				MpoFileImporter writer = new MpoFileImporter();
-				writer.setFileName(fileName);
-				writer.setProject(child);
-				writer.exportFile();
-				child.setDirty(false);
-				child.setGroupDirty(false);
-				return true;
-			} catch (Exception failure) {
+			var result = new ProjectPortCoordinator().exportProject(
+					LocalSession.MPO_PROJECT_IMPORTER, child, Path.of(fileName));
+			if (!result.succeeded()) {
+				logger.warning("Unable to save linked MPO project: " + result.diagnostics());
 				Alert.warn("The linked project could not be saved. Refresh was cancelled and its in-memory edits were retained.");
 				return false;
 			}
+			child.setDirty(false);
+			child.setGroupDirty(false);
+			return true;
 		}
 		SaveOptions options = new SaveOptions();
 		options.setLocal(child.isLocal());

@@ -9,7 +9,7 @@ migration map, not a claim that the boundaries are already complete.
 
 | UI caller | Current dependency | Responsibility | Boundary decision |
 | --- | --- | --- | --- |
-| `GraphicManager` | `MpoFileImporter` | Initialize MPOF temporary extraction root, save a linked MPO child synchronously during refresh | Exchange workflow. Move behind an application operation/port that preserves refresh's synchronous atomic-save contract; do not route through a generic async UI save job. |
+| `GraphicManager` | `MpoFileImporter` / `ProjectPortCoordinator` | Initialize MPOF temporary extraction root; save a linked MPO child synchronously during refresh through the typed application coordinator | The child save now uses `ProjectPortCoordinator` and the registered MPO export port, preserving the synchronous operation and dirty-state update. Temporary extraction-root initialization and archive cleanup still reference exchange directly. |
 | `GraphicManager`, `DocumentFrame` | `MpoExtractionOwnershipRegistry` | Close extracted child resources on document close, manager cleanup, or project removal | Lifecycle coordination. #738 already provides frame lifecycle hooks; keep archive ownership in exchange and expose a narrow close/cleanup operation through an application-owned boundary. |
 | `GraphicManager`, `ResourceMappingDialogCoordinator`, `ResourceMappingDialog` | `ResourceMappingForm` | Supply import mapping choices and receive the user's mapping decision | UI contract passed into exchange. The Swing dialog remains UI-owned; separate its presentation type from exchange only if the resulting contract remains UI-agnostic and does not duplicate mapping state. |
 | `DocumentFrame` | reflective `ReportView` creation | Select and host a report view | View integration. Keep view selection and Swing hosting in UI; do not put `JPanel` or `DocumentFrame` in application. |
@@ -26,8 +26,8 @@ boundary module.
 - `ProjectDocumentWorkflow` and `ProjectLoadWorkflow` already coordinate parts
   of save and load. Extend these instead of adding another UI-facing workflow.
 - `ProjectPortCoordinator` delegates typed import/export requests through
-  `PortRegistry`, but a repository-wide caller search currently finds no
-  production caller.
+  `PortRegistry`; `GraphicManager.saveLinkedSubproject` now uses its MPO export
+  operation. Other open/save/import routes still use legacy job-based factories.
 - `DefaultFileImporterProvider` registers both legacy `SessionImporter` job
   factories and typed `ImportPort`/`ExportPort` adapters. These APIs serve
   different call contracts today. Migration must preserve progress, merge and
