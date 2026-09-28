@@ -141,7 +141,6 @@ import com.microproject.session.FileHelper;
 import com.microproject.strings.Messages;
 import com.microproject.transaction.MultipleTransactionManager;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
 import com.microproject.workspace.SavableToWorkspace;
@@ -2464,7 +2463,6 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
 		if (Environment.isClientSide()){
-			fieldArray = (SpreadSheetFieldArray) Alert.getGraphicManagerMethod("getCurrentFieldArray");
 			if (fieldArray != null)
 				ws.spreadsheetWorkspace = fieldArray.createWorkspace(context);
 			if (printSettings!=null){

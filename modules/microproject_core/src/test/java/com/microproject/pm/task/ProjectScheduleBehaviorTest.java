@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.field.FieldContext;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.AssignmentNodeModel;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
@@ -49,6 +50,8 @@ import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.ProjectStartDateEdit;
+import com.microproject.util.Environment;
+import com.microproject.workspace.SavableToWorkspace;
 
 class ProjectScheduleBehaviorTest {
 	@Test
@@ -340,6 +343,24 @@ class ProjectScheduleBehaviorTest {
 		assertNull(task.getSnapshot(Snapshottable.BASELINE));
 		change.redo();
 		assertNotNull(task.getSnapshot(Snapshottable.BASELINE));
+	}
+
+	@Test
+	void workspaceUsesThisProjectsSpreadsheetFieldsWithoutLookingUpActiveWindow() {
+		boolean previousClientSide = Environment.isClientSide();
+		Environment.setClientSide(true);
+		try {
+			Project project = createProject();
+			SpreadSheetFieldArray fields = new SpreadSheetFieldArray();
+			project.setFieldArray(fields);
+
+			Project.Workspace workspace = (Project.Workspace) project.createWorkspace(SavableToWorkspace.PERSIST);
+
+			assertSame(fields, project.getFieldArray(), "Workspace creation must not replace this project's columns");
+			assertNotNull(workspace.spreadsheetWorkspace, "The project's configured columns must be persisted");
+		} finally {
+			Environment.setClientSide(previousClientSide);
+		}
 	}
 
 	@Test
