@@ -149,11 +149,9 @@ public class DefaultNodeModel implements NodeModel {
 		ArrayList<Node> children = new ArrayList<>(1);
 		children.add(child);
 		add(parent,children,position,actionType);
-		//hierarchy.add(parent,child,position,actionType);
 	}
 	public void add(Node parent,List<Node> children,int actionType){
 		add(parent,children,-1,actionType);
-		//hierarchy.add(parent,children,actionType);
 	}
 	public void add(Node parent,List<Node> children,int position,int actionType){
 		hierarchy.add(parent,children,position,actionType);
@@ -191,7 +189,6 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public void paste(Node parent,List<Node> nodes,int position,int actionType){
-		//nodes=copy(nodes,NodeModel.SILENT); //make an other copy, in case it is copied more than one time
 		//done in transfert handler
 
 		hierarchy.paste(parent,nodes,position,this,actionType);
@@ -354,7 +351,6 @@ public class DefaultNodeModel implements NodeModel {
 		ArrayList<Node> nodes = new ArrayList<>(1);
 		nodes.add(node);
 		remove(nodes,actionType,filterAssignments,removeDependencies);
-		//hierarchy.remove(node,this,actionType);
 		//it calls back removeApartFromHierarchy for each node to remove
 	}
 	public void remove(List<Node> nodes,int actionType){
