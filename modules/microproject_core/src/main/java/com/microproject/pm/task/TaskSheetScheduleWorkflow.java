@@ -24,12 +24,8 @@
  *******************************************************************************/
 package com.microproject.pm.task;
 
-import java.util.Collection;
-import java.util.Iterator;
-
 import com.microproject.datatype.Duration;
 import com.microproject.field.FieldContext;
-import com.microproject.grouping.core.Node;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleInterval;
@@ -242,74 +238,4 @@ public final class TaskSheetScheduleWorkflow {
 		}
 	}
 
-	static RollupSpan calculateTaskRollup(Task task) {
-		if (!task.isWbsParent()) {
-			long start = task.getCurrentSchedule().getStart();
-			long finish = task.getCurrentSchedule().getFinish();
-			long duration = task.getEffectiveWorkCalendar().compare(finish, start, false);
-			return new RollupSpan(start, finish, duration);
-		}
-
-		Collection children = task.getWbsChildrenNodes();
-		if (children == null || children.isEmpty()) {
-			long start = task.getCurrentSchedule().getStart();
-			long finish = task.getCurrentSchedule().getFinish();
-			long duration = task.getEffectiveWorkCalendar().compare(finish, start, false);
-			return new RollupSpan(start, finish, duration);
-		}
-
-		long start = Long.MAX_VALUE;
-		long finish = Long.MIN_VALUE;
-		Iterator iterator = children.iterator();
-		while (iterator.hasNext()) {
-			Object current = ((Node) iterator.next()).getImpl();
-			if (!(current instanceof Task childTask))
-				continue;
-			RollupSpan childRollup = childTask.calculateRollupSpan();
-			if (childRollup.getStart() != 0L)
-				start = Math.min(start, childRollup.getStart());
-			if (childRollup.getFinish() != 0L)
-				finish = Math.max(finish, childRollup.getFinish());
-		}
-
-		if (start == Long.MAX_VALUE || finish == Long.MIN_VALUE) {
-			long fallbackStart = task.getCurrentSchedule().getStart();
-			long fallbackFinish = task.getCurrentSchedule().getFinish();
-			long fallbackDuration = task.getEffectiveWorkCalendar().compare(fallbackFinish, fallbackStart, false);
-			return new RollupSpan(fallbackStart, fallbackFinish, fallbackDuration);
-		}
-
-		long duration = task.getEffectiveWorkCalendar().compare(finish, start, false);
-		return new RollupSpan(start, finish, duration);
-	}
-
-	static RollupSpan calculateProjectRollup(Project project) {
-		Collection children = project.getTaskModel().getChildren(null);
-		if (children == null || children.isEmpty()) {
-			long duration = project.getEffectiveWorkCalendar().compare(project.getEnd(), project.getStart(), false);
-			return new RollupSpan(project.getStart(), project.getEnd(), duration);
-		}
-
-		long start = Long.MAX_VALUE;
-		long finish = Long.MIN_VALUE;
-		Iterator iterator = children.iterator();
-		while (iterator.hasNext()) {
-			Object current = ((Node) iterator.next()).getImpl();
-			if (!(current instanceof Task task))
-				continue;
-			RollupSpan childRollup = task.calculateRollupSpan();
-			if (childRollup.getStart() != 0L)
-				start = Math.min(start, childRollup.getStart());
-			if (childRollup.getFinish() != 0L)
-				finish = Math.max(finish, childRollup.getFinish());
-		}
-
-		if (start == Long.MAX_VALUE || finish == Long.MIN_VALUE) {
-			long duration = project.getEffectiveWorkCalendar().compare(project.getEnd(), project.getStart(), false);
-			return new RollupSpan(project.getStart(), project.getEnd(), duration);
-		}
-
-		long duration = project.getEffectiveWorkCalendar().compare(finish, start, false);
-		return new RollupSpan(start, finish, duration);
-	}
 }

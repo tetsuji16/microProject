@@ -1199,7 +1199,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		getSummaryEnvelope().clearPart(part);
 	}
 	public RollupSpan calculateRollupSpan() {
-		return TaskSheetScheduleWorkflow.calculateTaskRollup(this);
+		return RollupSpanCalculator.forTask(this);
 	}
 	public void cloneTo(Task task){
 		task.project=project;

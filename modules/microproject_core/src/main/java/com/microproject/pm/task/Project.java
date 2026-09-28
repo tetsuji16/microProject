@@ -2823,7 +2823,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		}
 
 		RollupSpan calculateRollupSpan() {
-			return TaskSheetScheduleWorkflow.calculateProjectRollup(Project.this);
+			return RollupSpanCalculator.forProject(Project.this);
 		}
 	}
 
