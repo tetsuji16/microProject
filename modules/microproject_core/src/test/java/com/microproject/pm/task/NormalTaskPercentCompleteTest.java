@@ -118,6 +118,14 @@ class NormalTaskPercentCompleteTest {
 
 		assertEquals(1.0d, assignment.getPercentComplete(), 0.00001d);
 		assertEquals(1.0d, task.getPercentComplete(), 0.00001d);
+
+		NormalTask milestone = createTask(project);
+		milestone.setDuration(0L);
+		Assignment milestoneAssignment = firstAssignment(milestone);
+		milestone.setPercentComplete(1.0d);
+
+		assertEquals(1.0d, milestoneAssignment.getPercentComplete(), 0.00001d);
+		assertEquals(1.0d, milestone.getPercentComplete(), 0.00001d);
 	}
 
 	@Test

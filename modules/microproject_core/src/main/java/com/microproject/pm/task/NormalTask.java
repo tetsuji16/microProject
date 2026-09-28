@@ -1473,10 +1473,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		importedPercentComplete = null;
 		importedPercentWorkComplete = null;
 		updateInactivePercentComplete(percentComplete);
-		if (isZeroDuration()) { // special case for completion on milestones
-			updateAssignmentPercentComplete(percentComplete);
-		} else {
-			updateAssignmentPercentComplete(percentComplete);
+		updateAssignmentPercentComplete(percentComplete);
+		if (!isZeroDuration()) {
 			long actualDuration = DateTime.closestDate(getDurationMillis() * percentComplete);
 			setActualDuration(actualDuration);
 			// MS Project records the planned start as the actual start as soon
