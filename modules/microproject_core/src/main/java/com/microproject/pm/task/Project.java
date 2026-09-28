@@ -2347,7 +2347,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public void setAllTasksInSubproject(boolean b, Project masterProject) {
 		if (masterProject == null)
 			return;
-		for (Task task : new ArrayList<Task>(tasks)) {
+		for (Task task : new ArrayList<>(tasks)) {
 			task.setInSubproject(b);
 			if (b) {
 				task.setProject(masterProject);

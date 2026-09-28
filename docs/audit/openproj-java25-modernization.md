@@ -2854,3 +2854,8 @@ is the focused verification.
 temporary project list. The constructor matches OpenProj 1.4 at `d2fa3c20a`;
 projects are still appended in `forProjects` encounter order before resource
 pool resolution. `PortfolioDocumentTest` is the focused verification.
+
+`Project.setAllTasksInSubproject` now uses diamond inference for its defensive
+`ArrayList<Task>` copy. The constructor matches OpenProj 1.4 at `d2fa3c20a`;
+the snapshot iteration still permits task ownership changes during traversal.
+`DefaultSubprojectHandlerTest` is the focused verification.
