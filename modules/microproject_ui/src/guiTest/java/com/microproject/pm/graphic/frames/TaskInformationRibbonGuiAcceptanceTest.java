@@ -73,6 +73,7 @@ import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
@@ -258,6 +259,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(true);
 
 		NormalTask task = createTask();
+		Resource assignmentResource = task.getProject().getResourcePool().createScriptedResource();
+		assignmentResource.setName("Task information assigned resource");
+		AssignmentService.getInstance().newAssignment(task, assignmentResource, 1D, 0L, this);
 		showProject(task.getOwningProject());
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
@@ -289,7 +293,49 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + task.getId(), dialog.getTitle());
 		assertTextStyleTabComponentsFit(dialog);
 		assertTabsUseAvailableScreenHeight(dialog);
+		assertTaskAssignmentShowsResource(robot, dialog, assignmentResource.getName());
 		capture(robot, dialog);
+	}
+
+	private static void assertTaskAssignmentShowsResource(Robot robot, TaskInformationDialog dialog,
+			String expectedResourceName) throws Exception {
+		JTabbedPane tabs = findTabbedPane(dialog);
+		int resourcesTab = tabs.indexOfTab(Messages.getString("TaskInformationDialog.Resources")); //$NON-NLS-1$
+		assertTrue(resourcesTab >= 0, "Task Information must expose the Resources tab");
+		Rectangle tabsBounds = boundsOnScreen(tabs);
+		Rectangle tabBounds = tabs.getBoundsAt(resourcesTab);
+		click(robot, new Rectangle(tabsBounds.x + tabBounds.x, tabsBounds.y + tabBounds.y,
+				tabBounds.width, tabBounds.height));
+		GuiAcceptanceSupport.await(() -> tabs.getSelectedIndex() == resourcesTab,
+				"Robot click did not select Task Information's Resources tab");
+		SpreadSheet assignments = findSpreadSheet(tabs.getComponentAt(resourcesTab));
+		assertNotNull(assignments, "Task Information Resources tab must contain its assignment spreadsheet");
+		assertEquals(UsageDetailView.resourceAssignmentSpreadsheetCategory, assignments.getSpreadSheetCategory());
+		assertTrue(assignments.getRowCount() > 0, "Task Information must show the task's resource assignment");
+		SpreadSheetModel model = (SpreadSheetModel) assignments.getModel();
+		String displayedResourceName = null;
+		for (int viewColumn = 0; viewColumn < assignments.getColumnModel().getColumnCount(); viewColumn++) {
+			int modelColumn = assignments.convertColumnIndexToModel(viewColumn);
+			Field field = model.getFieldInColumn(modelColumn);
+			if (field != null && field.isNameField()) {
+				displayedResourceName = String.valueOf(model.getValueAt(0, modelColumn));
+				break;
+			}
+		}
+		assertEquals(expectedResourceName, displayedResourceName,
+				"Task Information must show the assigned resource name");
+	}
+
+	private static SpreadSheet findSpreadSheet(Component component) {
+		if (component instanceof SpreadSheet sheet)
+			return sheet;
+		if (component instanceof java.awt.Container container)
+			for (Component child : container.getComponents()) {
+				SpreadSheet sheet = findSpreadSheet(child);
+				if (sheet != null)
+					return sheet;
+			}
+		return null;
 	}
 
 	private static void assertTabsUseAvailableScreenHeight(TaskInformationDialog dialog) throws Exception {

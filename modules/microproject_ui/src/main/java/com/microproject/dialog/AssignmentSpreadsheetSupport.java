@@ -42,23 +42,23 @@ import com.microproject.strings.Messages;
 final class AssignmentSpreadsheetSupport {
 	enum Perspective {
 		TASK_ASSIGNMENTS(false, "View.TaskInformation.Assignments",
-				UsageDetailView.resourceAssignmentSpreadsheetCategory, false, true, false),
+				UsageDetailView.resourceAssignmentSpreadsheetCategory, true, false, false),
 		RESOURCE_ASSIGNMENTS(true, "View.ResourceInformation.Assignments",
-				UsageDetailView.taskAssignmentSpreadsheetCategory, true, false, true);
+				UsageDetailView.taskAssignmentSpreadsheetCategory, false, true, true);
 
 		private final boolean resourceRows;
 		private final String viewName;
 		private final String category;
-		private final boolean selectFieldArray;
+		private final boolean leftAssociation;
 		private final boolean modifyColumns;
 		private final boolean documentCacheUsesResourceRows;
 
-		Perspective(boolean resourceRows, String viewName, String category, boolean selectFieldArray,
+		Perspective(boolean resourceRows, String viewName, String category, boolean leftAssociation,
 				boolean modifyColumns, boolean documentCacheUsesResourceRows) {
 			this.resourceRows = resourceRows;
 			this.viewName = viewName;
 			this.category = category;
-			this.selectFieldArray = selectFieldArray;
+			this.leftAssociation = leftAssociation;
 			this.modifyColumns = modifyColumns;
 			this.documentCacheUsesResourceRows = documentCacheUsesResourceRows;
 		}
@@ -71,7 +71,7 @@ final class AssignmentSpreadsheetSupport {
 		SpreadSheet sheet = SpreadSheetUtils.createFilteredSpreadsheet(
 				GraphicManager.getInstance(owner).getCurrentFrame(), perspective.resourceRows, perspective.viewName,
 				perspective.category, UsageDetailView.getUsageAssignmentSpreadsheetId(perspective.resourceRows),
-				perspective.selectFieldArray, new String[] { MenuActionConstants.ACTION_DELETE });
+				perspective.leftAssociation, new String[] { MenuActionConstants.ACTION_DELETE });
 		if (perspective.modifyColumns) {
 			sheet.setCanModifyColumns(true);
 			sheet.setCanSelectFieldArray(true);
