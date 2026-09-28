@@ -3572,13 +3572,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		persistCollaborationWorkspace(project);
 		// Subprojects do not always have a DocumentFrame; release their MPOF
 		// extraction ownership at the project-removal boundary as well.
-		if (!projectArtifactLifecycleCoordinator.close(LocalSession.MPO_PROJECT_IMPORTER, project))
-			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
+		closeProjectArtifacts(project);
 		if (project.getCollaborationSession() != null) {
 			project.getCollaborationSession().stop();
 			project.setCollaborationSession(null);
 		}
 		projectFactory.removeProject(project,true,true,true);
+	}
+
+	void closeProjectArtifacts(Project project) {
+		if (project != null && !projectArtifactLifecycleCoordinator.close(LocalSession.MPO_PROJECT_IMPORTER, project))
+			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
 	}
 
 	public void openLocalProject(){

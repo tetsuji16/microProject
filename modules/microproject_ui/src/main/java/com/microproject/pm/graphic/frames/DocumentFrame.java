@@ -61,8 +61,6 @@ import com.microproject.dialog.MoveProjectDialog;
 import com.microproject.dialog.StatusDateDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.UpdateTaskDialog;
-import com.microproject.application.ProjectArtifactLifecycleCoordinator;
-import com.microproject.session.LocalSession;
 import com.microproject.dialog.calendar.ChangeWorkingTimeDialogBox;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuActionsMap;
@@ -1922,11 +1920,7 @@ public class DocumentFrame extends NamedFrame implements
 		logger.fine("Document Frame Cleanup");
 		// Embedded MPOF files are owned by the document lifetime.  Release them
 		// before dropping the model reference so Windows can delete open handles.
-		if (project != null) {
-			if (!new ProjectArtifactLifecycleCoordinator().close(
-					LocalSession.MPO_PROJECT_IMPORTER, project))
-				logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
-		}
+		getGraphicManager().closeProjectArtifacts(project);
 		if (calendarViewDialog != null) {
 			calendarViewDialog.dispose();
 			calendarViewDialog = null;
