@@ -69,7 +69,7 @@ class TaskInformationDialogGeneralPanelTest {
 			BarColorEditorPanel editor = new BarColorEditorPanel(null,
 					new BarFormat(0x111111, 0x222222, 0x333333), false, false, null);
 
-			TaskInformationDialog.refreshBarColorFields(editor,
+			TaskGeneralPanel.refreshBarColorFields(editor,
 					new BarFormat(0xAABBCC, null, 0x010203), true);
 
 			assertEquals(Integer.valueOf(0xAABBCC), editor.getStart().getRgb());

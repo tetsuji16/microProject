@@ -31,8 +31,6 @@ import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsEnvironment;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
@@ -42,12 +40,10 @@ import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSeparator;
 import javax.swing.JTabbedPane;
 import javax.swing.table.TableCellRenderer;
 
@@ -55,14 +51,11 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.dialog.util.FieldComponentMap;
-import com.microproject.dialog.util.ComponentFactory;
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.DocumentSelectedEvent;
 import com.microproject.pm.graphic.frames.GraphicManager;
-import com.microproject.pm.graphic.gantt.BarColorEditorPanel;
-import com.microproject.pm.graphic.gantt.BarColorField;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.gantt.GanttRenderer;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
@@ -141,10 +134,7 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	// Bar color fields shown in the General tab (issue #16)
-	private BarColorField barStartColor;
-	private BarColorField barMiddleColor;
-	private BarColorField barEndColor;
-	private BarColorEditorPanel barColorEditor;
+	private TaskGeneralPanel generalPanel;
 	private TaskTextStylePanel textStylePanel;
 
 	private Gantt getGantt() {
@@ -168,31 +158,15 @@ public class TaskInformationDialog extends InformationDialog {
 
 	private void applyBarFormatFromFields() {
 		Task task = (Task) getObject();
-		if (task == null || task.isReadOnly()
-				|| barStartColor == null || barMiddleColor == null || barEndColor == null)
-			return;
-		Gantt gantt = getGantt();
-		if (gantt == null)
-			return;
-		gantt.applyBarFormat(task,
-				new BarFormat(barStartColor.getRgb(), barMiddleColor.getRgb(), barEndColor.getRgb()));
+		if (generalPanel != null)
+			generalPanel.apply(task, getGantt());
 	}
 
 	private void refreshBarColorFields() {
 		Task task = (Task) getObject();
-		if (task == null || barColorEditor == null)
+		if (task == null || generalPanel == null)
 			return;
-		refreshBarColorFields(barColorEditor, currentBarFormat(task), task.isReadOnly());
-	}
-
-	static void refreshBarColorFields(BarColorEditorPanel editor, BarFormat format, boolean readOnly) {
-		if (editor == null)
-			return;
-		BarFormat resolved = format == null ? BarFormat.automatic() : format;
-		editor.setEnabled(!readOnly);
-		editor.getStart().setRgb(resolved.getStartRgb());
-		editor.getMiddle().setRgb(resolved.getMiddleRgb());
-		editor.getEnd().setRgb(resolved.getEndRgb());
+		generalPanel.refresh(currentBarFormat(task), task.isReadOnly());
 	}
 
 	public void setObject(Object object) {
@@ -305,86 +279,12 @@ public class TaskInformationDialog extends InformationDialog {
 
 	private JComponent createGeneralPanel(){
 		FieldComponentMap map = createMap();
-		JPanel panel = new JPanel(new GridBagLayout());
-		panel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 12, 10, 12));
-		int row = 0;
-		addGeneralField(panel, map, "Field.name", 0, row++, 0, 4); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.duration", ComponentFactory.SOMETIMES_READ_ONLY, row, 0, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.estimated", 0, row++, 2, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.percentComplete", ComponentFactory.SOMETIMES_READ_ONLY, row, 0, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.priority", 0, row++, 2, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.manuallyScheduled", 0, row, 0, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.inactiveTask", 0, row++, 2, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.hiddenTask", 0, row++, 0, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.cost", 0, row, 0, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.work", 0, row++, 2, 2); //$NON-NLS-1$
-		addGeneralSection(panel, Messages.getString("TaskInformationDialog.Dates"), row++); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.start", 0, row, 0, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.finish", 0, row++, 2, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.baselineStart", 0, row, 0, 2); //$NON-NLS-1$
-		addGeneralField(panel, map, "Field.baselineFinish", 0, row++, 2, 2); //$NON-NLS-1$
-		addGeneralSection(panel, Messages.getString("TaskInformationDialog.BarColor"), row++); //$NON-NLS-1$
 		Task task = (Task) getObject();
 		Gantt gantt = getGantt();
-		barColorEditor = new BarColorEditorPanel(this, currentBarFormat(task),
-				gantt == null ? new GanttRenderer.DisplayedBarColors(
-						null, null, null)
-						: gantt.getDisplayedBarColors(task),
-				task.isMilestone(), task.isSummary(), null);
-		barColorEditor.setEnabled(!task.isReadOnly());
-		barStartColor = barColorEditor.getStart();
-		barMiddleColor = barColorEditor.getMiddle();
-		barEndColor = barColorEditor.getEnd();
-		GridBagConstraints constraints = generalConstraints(0, row);
-		constraints.gridwidth = 4;
-		constraints.weightx = 1.0;
-		constraints.fill = GridBagConstraints.HORIZONTAL;
-		panel.add(barColorEditor, constraints);
-		return panel;
-	}
-
-	private void addGeneralField(JPanel panel, FieldComponentMap map, String fieldId, int flag, int row, int column, int width) {
-		JComponent component = map.getComponent(fieldId, flag);
-		if (component instanceof JCheckBox) {
-			GridBagConstraints constraints = generalConstraints(column, row);
-			constraints.gridwidth = width;
-			constraints.anchor = GridBagConstraints.WEST;
-			panel.add(component, constraints);
-			return;
-		}
-		GridBagConstraints label = generalConstraints(column, row);
-		label.anchor = GridBagConstraints.EAST;
-		panel.add(new JLabel(map.getLabel(fieldId) + ":"), label);
-		GridBagConstraints value = generalConstraints(column + 1, row);
-		value.gridwidth = Math.max(1, width - 1);
-		value.weightx = 1.0;
-		value.fill = GridBagConstraints.HORIZONTAL;
-		panel.add(component, value);
-	}
-
-	private void addGeneralSection(JPanel panel, String text, int row) {
-		GridBagConstraints label = generalConstraints(0, row);
-		label.gridwidth = 1;
-		label.anchor = GridBagConstraints.WEST;
-		panel.add(new JLabel(text), label);
-		GridBagConstraints line = generalConstraints(1, row);
-		line.gridwidth = 3;
-		line.weightx = 1.0;
-		line.fill = GridBagConstraints.HORIZONTAL;
-		panel.add(new JSeparator(), line);
-	}
-
-	private GridBagConstraints generalConstraints(int x, int y) {
-		GridBagConstraints constraints = new GridBagConstraints();
-		constraints.gridx = x;
-		constraints.gridy = y;
-		// Keep a full line of vertical breathing room around every label and
-		// editor.  The old four-pixel tracks let the Japanese baseline touch the
-		// neighbouring row at the minimum dialog size, which made glyphs appear
-		// half clipped on some L&F/DPI combinations.
-		constraints.insets = new Insets(6, 4, 6, 8);
-		constraints.ipady = 2;
-		return constraints;
+		GanttRenderer.DisplayedBarColors displayed = gantt == null
+				? new GanttRenderer.DisplayedBarColors(null, null, null) : gantt.getDisplayedBarColors(task);
+		generalPanel = new TaskGeneralPanel(this, map, task, currentBarFormat(task), displayed);
+		return generalPanel.component();
 	}
 
 	private JComponent createAdvancedPanel(){
