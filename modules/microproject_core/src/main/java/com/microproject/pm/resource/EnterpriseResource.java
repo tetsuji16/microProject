@@ -55,6 +55,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasAssignmentsImpl;
 import com.microproject.pm.assignment.TimeDistributedFields;
+import com.microproject.pm.assignment.TimeDistributedFieldVisibility;
 import com.microproject.pm.assignment.timesheet.TimesheetHelper;
 import com.microproject.pm.assignment.timesheet.TimesheetStatus;
 import com.microproject.pm.availability.AvailabilityTable;
@@ -652,17 +653,7 @@ public class EnterpriseResource implements Resource {
 	}
 
 	private boolean isBaselineFieldHidden(int numBaseline, FieldContext fieldContext) {
-		boolean foundChild = false;
-		for (Object child : childrenToRollup()) {
-			if (!(child instanceof TimeDistributedFields)) {
-				continue;
-			}
-			foundChild = true;
-			if (!((TimeDistributedFields) child).fieldHideBaselineCost(numBaseline, fieldContext)) {
-				return false;
-			}
-		}
-		return !foundChild;
+		return TimeDistributedFieldVisibility.isBaselineFieldHidden(childrenToRollup(), numBaseline, fieldContext);
 	}
 
 	public boolean fieldHideCost(FieldContext fieldContext) {

@@ -323,9 +323,18 @@ claimed as reviewed; untouched hunks in these classes remain out of scope.
 | Workspace field aliases | `Project.Workspace.fieldAliasMap` | The saved `HashMap` is produced by `FieldDictionary.getAliasMap()` and consumed by `setAliasMap()`, both of which define `HashMap<String,String>`. Added matching generic arguments and diamond inference. Serialized field type remains `HashMap`; key/value representation is unchanged. Core and downstream UI compilation passed. |
 | Referring subproject collection contract | `SubprojectHandler`, `Project` facade, `DefaultSubprojectHandler` | Typed the shared getter as `Collection<Object>` and setter input as `Collection<?>`, preserving the intentionally heterogeneous backing list: task-date queries and Serializer still ignore non-Task values, while insertion retains existing duplicate checks and mutation behavior. Collection erasures are unchanged (`javap -s`). Added regression coverage for preserving a non-Task entry and retaining the zero dependency-date result. Full `:microproject_core:test` and `:microproject_exchange:test` passed, including POD round trips. |
 | Subproject dependency date type check | `DefaultSubprojectHandler.getReferringSubprojectTaskDependencyDate` | Replaced the OpenProj-derived `instanceof Task` plus cast with Java pattern matching. The heterogeneous reference list still ignores non-Task metadata and takes the maximum dependency start among Task entries; regression coverage includes both entry types. |
+| Shared baseline field visibility | `Project`, `EnterpriseResource` | Consolidated their identical OpenProj-derived child visibility loops in `TimeDistributedFieldVisibility`; the canonical loop uses Java pattern matching and hides the field when there are no applicable children or every applicable child hides it. Focused tests cover those boundaries and mixed visible/hidden children. |
 | Resource outline reindex callback | `Serializer.loadResources` | The hierarchy traversal and resource-map insertion correspond to OpenProj baseline `d2fa3c20a`; the baseline represented the callback as an anonymous Commons `Closure`, while the active hierarchy API receives a JDK `Consumer<Object>`. Replaced the redundant anonymous `Consumer` adapter with a lambda and retained the same `Object`-to-`Node` cast, global-resource key, node value, and traversal order. | `:microproject_exchange:test --tests "com.microproject.exchange.PodRoundTripTest" --console=plain` passed 2026-09-28, including POD save/reload paths; `git diff --check` passed. |
 
 ## Correctness defects found during the audit
+
+- The duplicated baseline-field visibility loops in `Project` and
+  `EnterpriseResource` marked that a child existed before checking its own
+  visibility, then returned `!foundChild`; consequently an aggregate reported
+  the baseline field visible even when every child hid it. The shared
+  `TimeDistributedFieldVisibility` now returns visible only when an applicable
+  child reports visible. A project regression test confirms baseline cost and
+  work fields are hidden when its tasks have no baseline.
 
 - `DictionaryCategory.equals` comes from later ProjectLibre code, not the
   OpenProj baseline, and is not counted as a modernization candidate. While
