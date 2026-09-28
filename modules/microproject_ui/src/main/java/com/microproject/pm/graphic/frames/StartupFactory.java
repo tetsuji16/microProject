@@ -66,6 +66,8 @@ import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.UiDispatch;
 import com.microproject.job.JobQueueUiServices;
+import com.microproject.grouping.core.transform.TransformParameterDialogServices;
+import com.microproject.dialog.TransformParameterDialog;
 import com.microproject.util.DebugUtils;
 import com.microproject.util.Environment;
 import com.microproject.util.VersionUtils;
@@ -78,6 +80,10 @@ public abstract class StartupFactory {
 		BrowserControl.setBrowserLauncher(new DesktopBrowserLauncher());
 		UiDispatch.setDispatcher(new SwingUiDispatcher());
 		JobQueueUiServices.setProvider(new SwingJobQueueUiProvider());
+		TransformParameterDialogServices.setProvider(() -> {
+			TransformParameterDialog dialog = new TransformParameterDialog();
+			return dialog::accept;
+		});
 	}
 	public static final String defaultServerUrl = Settings.SITE_HOME;
 	private static final int NUM_INVALID_LOGINS = 3;

@@ -32,7 +32,6 @@ import java.util.Map;
 
 import org.apache.commons.collections.Transformer;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -75,8 +74,7 @@ public abstract class CommonTransform {
     }
 
 
-    private final static String REGISTERED_PARAMETER_DIALOG="com.microproject.dialog.TransformParameterDialog";
-    protected Consumer<Object> parameterDialog;
+	protected Consumer<Object> parameterDialog;
     protected List<TransformParameter> parameters;
     protected Map<String, Object> parametersMap;
     public List<TransformParameter> getParameters() {
@@ -118,10 +116,9 @@ public abstract class CommonTransform {
     public void askForParameters(){
         if (parameters==null) return; //no parameters
         if (parameterDialog==null){
-            try {
-                parameterDialog = Class.forName(REGISTERED_PARAMETER_DIALOG).asSubclass(Consumer.class)
-                    .getDeclaredConstructor().newInstance();
-            } catch (Exception e) {logger.log(Level.WARNING, "Transform error", e);}
+            Consumer<CommonTransform> dialog = TransformParameterDialogServices.createDialog();
+            if (dialog != null)
+                parameterDialog = transform -> dialog.accept((CommonTransform) transform);
         }
         if (parameterDialog!=null){
             parameterDialog.accept(this);
