@@ -28,7 +28,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import javax.swing.SwingUtilities;
 
 import com.microproject.pm.calendar.InvalidCalendarIntersectionException;
 import com.microproject.pm.calendar.WorkCalendar;
@@ -100,7 +99,7 @@ final class AssignmentCalendarSupport {
 	 * alert on the EDT; tests replace it to observe/avoid the UI. Package-private
 	 * on purpose so the regression test in this package can drive it.
 	 */
-	static Consumer<Task> notifier = AssignmentCalendarSupport::showInvalidIntersectionAlert;
+	static Consumer<Task> notifier = AssignmentCalendarNotifications::notifyInvalidIntersection;
 
 	/** Clears the one-shot warning history. Package-private: used by tests. */
 	static void resetWarningHistory() {
@@ -109,19 +108,12 @@ final class AssignmentCalendarSupport {
 
 	/** Restores the default notification behavior. Package-private: used by tests. */
 	static void resetNotifier() {
-		notifier = AssignmentCalendarSupport::showInvalidIntersectionAlert;
+		notifier = AssignmentCalendarNotifications::notifyInvalidIntersection;
 	}
 
 	private static void notifyInvalidIntersection(Task task) {
 		if (warnedTasks.add(task)) {
 			notifier.accept(task);
 		}
-	}
-
-	private static void showInvalidIntersectionAlert(Task task) {
-		// Defer to the EDT so the modal dialog never blocks or re-enters the
-		// scheduling/render call stack that invoked resolve().
-		SwingUtilities.invokeLater(() ->
-			Alert.error(Messages.getString("Message.invalidIntersection")));
 	}
 }

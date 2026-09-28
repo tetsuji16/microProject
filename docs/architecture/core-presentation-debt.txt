@@ -113,7 +113,6 @@ com/microproject/job/JobQueue.java	javax.swing.ProgressMonitor
 com/microproject/job/JobQueue.java	javax.swing.SwingUtilities
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetCategories
 com/microproject/options/TimesheetOption.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
-com/microproject/pm/assignment/AssignmentCalendarSupport.java	javax.swing.SwingUtilities
 com/microproject/pm/assignment/AssignmentService.java	javax.swing.undo.UndoableEditSupport
 com/microproject/pm/assignment/timesheet/TimesheetAssignment.java	com.microproject.graphic.configuration.HasCssStyle
 com/microproject/pm/ccpm/CriticalChainBufferHistoryService.java	javax.swing.undo.AbstractUndoableEdit

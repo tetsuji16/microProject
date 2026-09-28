@@ -325,6 +325,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * @throws java.awt.HeadlessException
 	 */
 	public GraphicManager(/*String[] projectUrl,*/ String server,Container container) throws HeadlessException {
+		AssignmentCalendarWarningPresenter.install();
 		MANAGER_REGISTRY.register(this);
 		container.addFocusListener(new FocusListener() {
 
