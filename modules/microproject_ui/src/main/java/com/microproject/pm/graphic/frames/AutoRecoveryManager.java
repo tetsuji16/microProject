@@ -56,7 +56,7 @@ import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
 import com.microproject.session.SessionFactory;
 import com.microproject.job.Job;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 
 /** Periodically writes complete, non-destructive recovery snapshots. */
 final class AutoRecoveryManager implements AutoSaveControl {

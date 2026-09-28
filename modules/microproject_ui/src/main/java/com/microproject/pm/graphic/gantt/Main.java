@@ -37,7 +37,7 @@ import com.microproject.preference.GlobalPreferences;
 import com.microproject.strings.Messages;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 
 /**
  *

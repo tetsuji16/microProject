@@ -62,7 +62,7 @@ import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
 import com.microproject.pm.graphic.views.CriticalChainGraphPanel;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 
 /** Preview-first resource leveling workflow. */
 public final class ResourceLevelingDialogBox extends FlatLafDialog {

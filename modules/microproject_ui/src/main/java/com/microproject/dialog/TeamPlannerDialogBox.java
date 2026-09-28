@@ -58,7 +58,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.help.HelpUtil;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.pm.task.Project;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;

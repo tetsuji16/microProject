@@ -39,7 +39,7 @@ import javax.swing.JTabbedPane;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
 
 /**

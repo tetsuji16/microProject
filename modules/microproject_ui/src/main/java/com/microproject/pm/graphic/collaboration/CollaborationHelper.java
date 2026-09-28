@@ -39,7 +39,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 
 public final class CollaborationHelper {
 	private CollaborationHelper() {

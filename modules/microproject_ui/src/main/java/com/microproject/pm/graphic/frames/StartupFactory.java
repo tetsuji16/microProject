@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.JOptionPane;
 import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 
@@ -410,7 +409,7 @@ public abstract class StartupFactory {
 		String locker = getLockerName(projectId);
 		boolean openAs = false;
 		if (locker != null) {
-			openAs = (JOptionPane.YES_OPTION == Alert.confirmYesNo(Messages.getStringWithParam("Warn.lockMessage",locker)));
+			openAs = (Alert.YES_OPTION == Alert.confirmYesNo(Messages.getStringWithParam("Warn.lockMessage",locker)));
 			if (openAs == false)
 				return null;
 		}

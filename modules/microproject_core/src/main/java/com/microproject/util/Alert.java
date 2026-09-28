@@ -24,169 +24,83 @@
  *******************************************************************************/
 package com.microproject.util;
 
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Frame;
-import java.awt.Window;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.prefs.Preferences;
-
-import javax.swing.JCheckBox;
-import javax.swing.JDialog;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-
-import com.microproject.strings.Messages;
 
 /**
  *
  */
 public class Alert {
+	public static final int YES_OPTION = 0;
+	public static final int NO_OPTION = 1;
+	public static final int CANCEL_OPTION = 2;
+	public static final int OK_OPTION = 0;
+	public static final int CLOSED_OPTION = -1;
+
 	private static final Logger logger = Logger.getLogger(Alert.class.getName());
+	private static volatile AlertPresenter presenter;
+
+	/** Installs a UI presenter, or clears it when {@code alertPresenter} is null. */
+	public static void setPresenter(AlertPresenter alertPresenter) {
+		presenter = alertPresenter;
+	}
+
 	public static void warn(Object errorObject) {
 		if (allowPopups())
-			warn(errorObject,getFrame());
+			warn(errorObject, null);
 	}
-	public static void warn(Object errorObject, Component parent) {
+	public static void warn(Object errorObject, Object parent) {
 		logger.log(Level.WARNING, "warning message {0}", errorObject);
-
-		if (allowPopups())
-			PopupDialogSupport.showMessageDialog(parent,errorObject, Messages.getContextString("Title.ProjectLibreWarning"),JOptionPane.WARNING_MESSAGE);
+		AlertPresenter currentPresenter = presenter;
+		if (allowPopups() && currentPresenter != null)
+			currentPresenter.warn(errorObject, parent);
 	}
 
 	public static void error(Object errorObject) {
 		if (allowPopups())
-			error(errorObject,getFrame());
+			error(errorObject, null);
 	}
-	public static void error(Object errorObject, Component parent) {
+	public static void error(Object errorObject, Object parent) {
 		logger.log(Level.SEVERE, "error message {0}", errorObject);
-
-		if (allowPopups())
-			PopupDialogSupport.showMessageDialog(parent,errorObject, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
+		AlertPresenter currentPresenter = presenter;
+		if (allowPopups() && currentPresenter != null)
+			currentPresenter.error(errorObject, parent);
 	}
 	public static int confirmYesNo(Object messageObject) {
 		if (!allowPopups())
-			return JOptionPane.NO_OPTION;
-		return PopupDialogSupport.showConfirmDialog(getFrame(),
-		        messageObject,
-		        Messages.getContextString("Text.ApplicationTitle"),
-	            JOptionPane.YES_NO_OPTION);
+			return NO_OPTION;
+		AlertPresenter currentPresenter = presenter;
+		return currentPresenter == null ? NO_OPTION : currentPresenter.confirmYesNo(messageObject);
 	}
 	public static int confirm(Object messageObject) {
 		if (!allowPopups())
-			return JOptionPane.NO_OPTION;
-		int result = PopupDialogSupport.showConfirmDialog(getFrame(),
-		        messageObject,
-		        Messages.getContextString("Text.ApplicationTitle"),
-	            JOptionPane.YES_NO_CANCEL_OPTION,
-	            JOptionPane.QUESTION_MESSAGE,
-	            JOptionPane.CANCEL_OPTION);
-		if (result == JOptionPane.CLOSED_OPTION)
-			result = JOptionPane.CANCEL_OPTION;
-		return result;
+			return NO_OPTION;
+		AlertPresenter currentPresenter = presenter;
+		return currentPresenter == null ? NO_OPTION : currentPresenter.confirm(messageObject);
 	}
 	public static boolean okCancel(Object messageObject) {
 		if (!allowPopups())
 			return true;
-
-		return JOptionPane.OK_OPTION == PopupDialogSupport.showConfirmDialog(getFrame(),
-		        messageObject,
-		        Messages.getContextString("Text.ApplicationTitle"),
-	            JOptionPane.OK_CANCEL_OPTION,
-	            JOptionPane.QUESTION_MESSAGE,
-	            JOptionPane.CANCEL_OPTION);
+		AlertPresenter currentPresenter = presenter;
+		return currentPresenter == null || currentPresenter.okCancel(messageObject);
 	}
 
 	public static String renameProject(final String name,Set<String> projectNames,boolean saveAs){
-		try {
-			return (String)Class.forName(GRAPHIC_MANAGER).getMethod("doRenameProjectDialog", String.class, Set.class, boolean.class).invoke(getGraphicManager(), name, projectNames, saveAs);
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to open rename project dialog", e);
-			return null;
-		}
-	}
-
-
-	private static final String GRAPHIC_MANAGER="com.microproject.pm.graphic.frames.GraphicManager";
-	public static Frame getFrame(){
-		try {
-			Class<?> managerType = Class.forName(GRAPHIC_MANAGER);
-			// A project operation may run while the application shell is only a
-			// hidden shared owner.  Prefer the visible document frame so modal
-			// errors are attached to the window the user is actually editing.
-			Object documentFrame = managerType.getMethod("getDocumentFrameInstance")
-				.invoke(null);
-			if (documentFrame instanceof Frame frame && frame.isShowing())
-				return frame;
-			Object fallback = managerType.getMethod("getFrameInstance").invoke(null);
-			if (fallback instanceof Frame frame && frame.isShowing()) return frame;
-			} catch (Exception e) {
-			logger.log(Level.FINE, "No GraphicManager document frame available", e);
-		}
-		// Lightweight clients and GUI fixtures may not initialize GraphicManager.
-		// Prefer an actually visible frame so JOptionPane does not create a hidden
-		// SharedOwnerFrame and strand the caller in a modal transaction.
-		Window[] windows = Window.getWindows();
-		for (int i = windows.length - 1; i >= 0; i--) {
-			Window window = windows[i];
-			if (window.isShowing() && window instanceof Frame frame) return frame;
-		}
-		return null;
-	}
-	public static Object getGraphicManager(){
-		try {
-		    return Class.forName(GRAPHIC_MANAGER).getMethod("getInstance").invoke(null);
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to get GraphicManager", e);
-			return null;
-		}
+		AlertPresenter currentPresenter = presenter;
+		return currentPresenter == null ? null : currentPresenter.renameProject(name, projectNames, saveAs);
 	}
 	public static boolean allowPopups() {
 		return Environment.isClientSide() && !Environment.isBatchMode();
 	}
-	public static Object getGraphicManagerMethod(String method) {
-		try {
-			return Class.forName(GRAPHIC_MANAGER).getMethod(method).invoke(null);
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to invoke GraphicManager method: " + method, e);
-			return null;
-		}
-	}
-	public static void setGraphicManagerMethod(String method,Object value) {
-		try {
-			Class.forName(GRAPHIC_MANAGER).getMethod(method, Object.class).invoke(null, value);
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to invoke GraphicManager setter: " + method, e);
-		}
-	}
 
 	public static void warnWithOnceOption(Object object,String preference) {
-		warnWithOnceOption(object,preference,null);
+		warnWithOnceOption(object, preference, null);
 	}
-	public static void warnWithOnceOption(Object object,String preference,Component parentComponent) {
-		boolean warned =  Preferences.userNodeForPackage(Alert.class).getBoolean(preference,false);
-		if (warned)
-			return;
-		JOptionPane pane = new JOptionPane(object);
-		String title=Messages.getContextString("Text.ApplicationTitle");
-		JDialog dialog = pane.createDialog(parentComponent,title);
-		PopupDialogSupport.bindEscapeToOptionPane(dialog, pane, JOptionPane.CLOSED_OPTION);
-		JPanel p = new JPanel();
-		p.setLayout(new FlowLayout(FlowLayout.LEFT));
-		JCheckBox notAgain = new JCheckBox(Messages.getString("Text.doNotShowAgain"));
-		p.add(notAgain);
-		pane.add(p);
-		Dimension d=dialog.getSize();
-		d.height+=40; // for extra height of checkbox
-		dialog.setSize(d);
-		dialog.setVisible(true);
-		if (notAgain.isSelected())
-			Preferences.userNodeForPackage(Alert.class).putBoolean(preference,true);
-
-
+	public static void warnWithOnceOption(Object object,String preference,Object parentComponent) {
+		AlertPresenter currentPresenter = presenter;
+		if (currentPresenter != null)
+			currentPresenter.warnWithOnceOption(object, preference, parentComponent);
 	}
 
 }

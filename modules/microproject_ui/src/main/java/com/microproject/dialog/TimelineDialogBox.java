@@ -52,7 +52,7 @@ import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.help.HelpUtil;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
 

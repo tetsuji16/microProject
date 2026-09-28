@@ -27,7 +27,7 @@ import com.microproject.pm.graphic.gantt.MilestoneShapeChoice;
 import com.microproject.ui.shell.AutoSaveControl;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 
 /** User-level settings which are independent of a project file. */
 public final class PreferencesDialogBox extends FlatLafDialog {

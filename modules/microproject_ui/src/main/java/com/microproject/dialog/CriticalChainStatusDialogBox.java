@@ -36,7 +36,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.util.PhysicalButtonRoute;
 
 /** Read-only CCPM result surface used by the Report and View ribbon commands. */

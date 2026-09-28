@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.util;
+package com.microproject.ui.util;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,8 +36,19 @@ import org.junit.jupiter.api.Test;
 
 class PopupDialogUsageAuditTest {
 	@Test
-	void alertRoutesAllJOptionPaneCallsThroughPopupDialogSupport() throws Exception {
+	void coreAlertDelegatesWithoutDependingOnSwingOrGraphicManager() throws Exception {
 		String source = source("modules/microproject_core/src/main/java/com/microproject/util/Alert.java");
+
+		assertTrue(source.contains("AlertPresenter"));
+		assertFalse(source.contains("javax.swing"));
+		assertFalse(source.contains("java.awt."));
+		assertFalse(source.contains("PopupDialogSupport"));
+		assertFalse(source.contains("GraphicManager"));
+	}
+
+	@Test
+	void swingAlertPresenterRoutesDialogsThroughPopupDialogSupport() throws Exception {
+		String source = source("modules/microproject_ui/src/main/java/com/microproject/ui/util/SwingAlertPresenter.java");
 
 		assertTrue(source.contains("PopupDialogSupport.showMessageDialog"));
 		assertTrue(source.contains("PopupDialogSupport.showConfirmDialog"));

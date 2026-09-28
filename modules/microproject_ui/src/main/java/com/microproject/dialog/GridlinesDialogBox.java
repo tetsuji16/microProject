@@ -24,7 +24,7 @@ import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
-import com.microproject.util.PopupDialogSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 
 /** MSP-style line-specific formatting for the active Gantt chart. */
 public final class GridlinesDialogBox extends FlatLafDialog {
