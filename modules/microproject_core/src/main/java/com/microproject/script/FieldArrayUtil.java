@@ -59,7 +59,6 @@ public class FieldArrayUtil {
 	public static SpreadSheetFieldArray getFieldArray(int type, String id){
 		if (id==null) return null;
 		String category=typetoCategory(type);
-//		System.out.println("getFieldArray type="+type+", id="+id+", category="+category);
 		Object o=getFromId(category, id);
 		if (o==null) {
 			o=getFromId(category+SERVER_SUFFIX,id);
@@ -71,51 +70,15 @@ public class FieldArrayUtil {
 	public static SpreadSheetFieldArray getHiddenFieldArray(int type, String id){
 		if (id==null) return null;
 		String category=typetoHiddenCategory(type);
-//		System.out.println("getHiddenFieldArray type="+type+", id="+id+", category="+category);
 		Object o=getFromId(category, id);
 		if (o==null) return null;
 		else return removeNonWebFields((SpreadSheetFieldArray)o);
 	}
 
-//	public static SpreadSheetFieldArray createFieldArray(String category, String id){
-//		Object o=getFromId(category, id);
-//		if (o==null) return null;
-//		if (o instanceof SpreadSheetFieldArray) return removeNonWebFields((SpreadSheetFieldArray)o);
-//		else return null;
-//	}
-
-
-//	public static String getDefaultConfigObjectId(String category){
-//		if (portfolioFieldArrayCategory.equals(category)) return "Spreadsheet.Project.portfolio";//"Spreadsheet.Portfolio.properties";
-//		if (taskFieldArrayCategory.equals(category)) return "Spreadsheet.Task.entry";
-//		if (resourceFieldArrayCategory.equals(category)) return "Spreadsheet.Resource.entryWorkResources";
-//		if (projectFieldArrayCategory.equals(category)) return "Spreadsheet.Portfolio.properties";
-//		if ((projectFieldArrayCategoryHidden).equals(category)) return "Spreadsheet.Project.Hidden";
-//		if (timesheetFieldArrayCategory.equals(category)) return "Spreadsheet.Timesheet.Default";
-//
-//		else return null;
-//	}
-
-
-
-//	public static SpreadSheetFieldArray getFieldArray(int type, String id) {
-//		String category = typetoCategory(type);
-////		System.out.println("getFieldArray type="+type+", category="+category+", id="+id);
-////		if (id == null)
-////			id = getDefaultConfigObjectId(category);
-////		System.out.println("getFieldArray type="+type+", category="+category+", id="+id);
-//		return removeNonWebFields((SpreadSheetFieldArray) getFromId(category,id));
-//
-//	}
-
-//	public static String getDefaultConfigObjectId(int type) {
-//		return getDefaultConfigObjectId(typetoCategory(type));
-//	}
 	public static String typetoCategory(int type){
 		if (type==ScriptRunner.TASK) return taskFieldArrayCategory;
 		else if (type==ScriptRunner.RESOURCE) return resourceFieldArrayCategory;
 		else if (type==ScriptRunner.PROJECT) return projectFieldArrayCategory;
-		//else if (type==ScriptRunner.PORTFOLIO) return  portfolioFieldArrayCategory;
 		else if (type==ScriptRunner.ASSIGNMENT) return timesheetFieldArrayCategory;
 
 		else return null;
@@ -143,7 +106,6 @@ public class FieldArrayUtil {
 
 	//more general than SpreadSheetFieldArray.getFromId, useful?
 	private static final Object getFromId(String category, String id) {
-//		System.out.println("getFromId category="+category+", id="+id);
 		Object result = Dictionary.get(category, Messages.getString(id));
 		if (result == null)
 			result = Dictionary.get(category, id);

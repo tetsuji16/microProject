@@ -186,29 +186,6 @@ public class  ConverterContext implements Cloneable{
 
 
 
-//	public GlobalCache getCache(){
-//		return (GlobalCache)confiObjectStore;
-//	}
-
-//	public ConfigObjectStore getConfiObjectStore() {
-//		return confiObjectStore;
-//	}
-
-
-
-//	public void setConfiObjectStore(ConfigObjectStore confiObjectStore) {
-//		this.confiObjectStore = confiObjectStore;
-//	}
-//
-//	public IdentifiedObject getConfigObject(String category) {
-//		return confiObjectStore==null?null:confiObjectStore.getConfigObject(category);
-//	}
-
-
-//	public SpreadSheetFieldArray getFieldArray(String category) {
-//		return FieldArrayUtil.createFieldArray(category,fieldArrayId==null?FieldArrayUtil.getDefaultConfigObjectId(category):fieldArrayId);
-//	}
-
 	protected transient SpreadSheetFieldArray fieldArray;
 	protected transient boolean fieldArrayInitialized;
 	public SpreadSheetFieldArray retrieveFieldArray(){ //to "retrieve" avoid "get"
@@ -238,27 +215,8 @@ public class  ConverterContext implements Cloneable{
 		filter=(NodeFilter)TransformList.getInstance("report_filters").getTransform(filterId);
 		if (filter==null) filter=(NodeFilter)TransformList.getInstance("user_filters").getTransform(filterId);
 		if (filter==null) filter=(NodeFilter)TransformList.getInstance("hidden_filters").getTransform(filterId);
-		//check user and hidden filters groups too
-//		if (filterId==null)
-//			return null;
-//		filter=filterFromList("report_filters",filterId);
-//		if (filter==null)
-//			filter=filterFromList("report_user",filterId);
-//		if (filter==null)
-//			filter=filterFromList("Filters.user",filterId);
-//		if (filter==null)
-//			filter=filterFromList("Filters.hidden",filterId);
-
 		return filter;
 	}
-
-//	private NodeFilter filterFromList(String filterListId,String filterId) {
-//		TransformList list = TransformList.getInstance(filterListId);
-//		if (list != null)
-//			return (NodeFilter)list.getTransform(filterId);
-//		else
-//			return null;
-//	}
 
 	public String toString(){
 		return "{"+
