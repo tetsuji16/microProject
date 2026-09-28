@@ -46,7 +46,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
@@ -74,7 +73,6 @@ import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.HasExtraFields;
 import com.microproject.pm.scheduling.IntervalConsumer;
-import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
@@ -131,7 +129,6 @@ import com.microproject.pm.scheduling.ScheduleEventManager;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleUtil;
 import com.microproject.pm.snapshot.BaselineScheduleFields;
-import com.microproject.pm.snapshot.DataSnapshot;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.pm.time.MutableHasStartAndEnd;
@@ -2624,22 +2621,6 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public ObjectSelectionEventManager getObjectSelectionEventManager() {
 		return objectSelectionEventManager;
-	}
-
-	public int getRowHeight(SortedSet<Integer> baseLines){
-        for (Iterator<Task> i=getTaskOutlineIterator();i.hasNext();){
-            Task task=i.next();
-            int current=Snapshottable.CURRENT.intValue();
-            for (int s=0;s<Settings.numGanttBaselines();s++){
-                if (s==current) continue;
-                DataSnapshot snapshot=task.getSnapshot(Integer.valueOf(s));
-                if (snapshot!=null) baseLines.add(Integer.valueOf(s));
-            }
-        }
-		int num=baseLines.isEmpty()?0:baseLines.last()+1;
-		int rowHeight=GraphicConfiguration.getInstance().getRowHeight()
-				+num*GraphicConfiguration.getInstance().getBaselineHeight();
-		return rowHeight;
 	}
 
 	private final class IdentityFacade implements Serializable {

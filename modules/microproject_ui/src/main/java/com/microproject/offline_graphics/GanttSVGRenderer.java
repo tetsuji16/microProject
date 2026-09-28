@@ -36,6 +36,7 @@ import java.util.TreeSet;
 
 import com.microproject.pm.graphic.gantt.GanttRenderer;
 import com.microproject.pm.graphic.graph.GraphParams;
+import com.microproject.pm.graphic.views.GanttRowHeight;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
@@ -77,7 +78,7 @@ public class GanttSVGRenderer implements SVGRenderer,Cloneable{
 		coord = new CoordinatesConverter(project);
 		if (scale!=-1) coord.getTimescaleManager().setCurrentScaleIndex(scale);
 		params=new SpreadSheetParamsImpl(fieldArray,colWidth,printGantt);
-		int rowHeight=project.getRowHeight(new TreeSet<>());
+		int rowHeight=GanttRowHeight.calculate(project, new TreeSet<>());
 		params.setRowHeight(rowHeight);
 
 		params.setCache(cache);

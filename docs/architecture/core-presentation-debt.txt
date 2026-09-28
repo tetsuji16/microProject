@@ -137,7 +137,6 @@ com/microproject/pm/task/NormalTask.java	com.microproject.graphic.configuration.
 com/microproject/pm/task/Portfolio.java	javax.swing.JOptionPane
 com/microproject/pm/task/Portfolio.java	javax.swing.SwingUtilities
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.GanttBarFormatOverrides
-com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.GraphicConfiguration
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.SpreadSheetCategories
 com/microproject/pm/task/Project.java	com.microproject.graphic.configuration.SpreadSheetFieldArray
 com/microproject/pm/task/Project.java	com.microproject.print.PrintSettings

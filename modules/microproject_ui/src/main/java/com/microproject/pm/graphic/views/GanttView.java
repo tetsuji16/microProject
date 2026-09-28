@@ -309,7 +309,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			return;
 		}
 	    baseLines.clear();
-	    int rowHeight = project.getRowHeight(baseLines);
+	    int rowHeight = GanttRowHeight.calculate(project, baseLines);
 //        for (Iterator i=project.getTaskOutlineIterator();i.hasNext();){
 //            Task task=(Task)i.next();
 //            int current=Snapshottable.CURRENT.intValue();
