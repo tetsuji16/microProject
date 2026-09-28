@@ -784,13 +784,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			getTask().updateCachedDuration();
 			getTask().recalculate(eventSource);
 		}
-
-//		//Undo
-//		UndoableEditSupport undoableEditSupport=getProject().getUndoController().getEditSupport();
-//		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
-//			undoableEditSupport.postEdit(new ScheduleEdit(this,new ScheduleInterval(start,end),oldInterval,isChild,eventSource));
-//		}
-
 	}
 
 	/**
