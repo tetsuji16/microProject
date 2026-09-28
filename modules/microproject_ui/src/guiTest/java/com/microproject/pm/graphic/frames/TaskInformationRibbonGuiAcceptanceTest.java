@@ -288,11 +288,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		TaskInformationDialog dialog = findTaskInformationDialog();
 		assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + task.getId(), dialog.getTitle());
 		assertTextStyleTabComponentsFit(dialog);
-		assertGeneralTabUsesAvailableScreenHeight(dialog);
+		assertTabsUseAvailableScreenHeight(dialog);
 		capture(robot, dialog);
 	}
 
-	private static void assertGeneralTabUsesAvailableScreenHeight(TaskInformationDialog dialog) throws Exception {
+	private static void assertTabsUseAvailableScreenHeight(TaskInformationDialog dialog) throws Exception {
 		GraphicsConfiguration configuration = dialog.getGraphicsConfiguration();
 		assertNotNull(configuration, "Task Information must belong to a display configuration");
 		Rectangle monitor = configuration.getBounds();
@@ -303,13 +303,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertTrue(usable.contains(dialog.getBounds()), () -> "Task Information dialog must fit the usable monitor bounds; dialog="
 					+ dialog.getBounds() + ", usable=" + usable);
 			JTabbedPane tabs = findTabbedPane(dialog);
+			for (int tabIndex = 0; tabIndex < tabs.getTabCount(); tabIndex++) {
+				tabs.setSelectedIndex(tabIndex);
+				layoutTree(dialog);
+				JScrollPane tab = (JScrollPane) tabs.getComponentAt(tabIndex);
+				int maxViewportHeight = Math.max(120, usable.height - 160);
+				int preferredContentHeight = tab.getViewport().getView().getPreferredSize().height;
+				if (preferredContentHeight <= maxViewportHeight)
+					assertFalse(tab.getVerticalScrollBar().isVisible(),
+							"Tab " + tabs.getTitleAt(tabIndex)
+								+ " should not scroll when its content fits within the available screen height");
+				else
+					assertTrue(tab.getVerticalScrollBar().isVisible(),
+							"Tab " + tabs.getTitleAt(tabIndex)
+								+ " should remain scrollable when its content exceeds the available screen height");
+			}
 			tabs.setSelectedIndex(0);
 			layoutTree(dialog);
-			JScrollPane generalTab = (JScrollPane) tabs.getComponentAt(0);
-			int maxViewportHeight = Math.max(300, usable.height - 140);
-			if (generalTab.getViewport().getView().getPreferredSize().height <= maxViewportHeight)
-				assertFalse(generalTab.getVerticalScrollBar().isVisible(),
-						"General tab should not scroll when its content fits within the available screen height");
 		});
 	}
 

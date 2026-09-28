@@ -133,9 +133,17 @@ public class TaskInformationDialog extends InformationDialog {
 		int top = monitor.y + insets.top;
 		int right = monitor.x + monitor.width - insets.right;
 		int bottom = monitor.y + monitor.height - insets.bottom;
-		int x = Math.max(left, Math.min(getX(), right - getWidth()));
-		int y = Math.max(top, Math.min(getY(), bottom - getHeight()));
-		setLocation(x, y);
+		Rectangle constrained = constrainToUsableBounds(getBounds(),
+				new Rectangle(left, top, right - left, bottom - top));
+		setLocation(constrained.x, constrained.y);
+	}
+
+	static Rectangle constrainToUsableBounds(Rectangle dialog, Rectangle usable) {
+		int maxX = Math.max(usable.x, usable.x + usable.width - dialog.width);
+		int maxY = Math.max(usable.y, usable.y + usable.height - dialog.height);
+		int x = Math.max(usable.x, Math.min(dialog.x, maxX));
+		int y = Math.max(usable.y, Math.min(dialog.y, maxY));
+		return new Rectangle(x, y, dialog.width, dialog.height);
 	}
 
 	// Bar color fields shown in the General tab (issue #16)
@@ -212,7 +220,7 @@ public class TaskInformationDialog extends InformationDialog {
 		
 		taskTabbedPane= new JTabbedPane();
 		FlatUiSupport.styleTabbedPane(taskTabbedPane);
-		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.General"),scrollableTab(createGeneralPanel(), true)); //$NON-NLS-1$
+		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.General"),scrollableTab(createGeneralPanel())); //$NON-NLS-1$
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.TextStyle"),scrollableTab(createTextStylePanel())); //$NON-NLS-1$
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Predecessors"),scrollableTab(createPredecessorsPanel())); //$NON-NLS-1$
 		taskTabbedPane.addTab(Messages.getString("TaskInformationDialog.Successors"),scrollableTab(createSuccessorsPanel())); //$NON-NLS-1$
@@ -233,39 +241,37 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	private JComponent scrollableTab(JComponent contents) {
-		return scrollableTab(contents, false);
-	}
-
-	private JComponent scrollableTab(JComponent contents, boolean expandToFit) {
 		JScrollPane scrollPane = new JScrollPane(contents,
 				JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 		scrollPane.setBorder(null);
-		// JScrollPane otherwise reports the entire form as its preferred viewport
-		// height and can make the dialog taller than the desktop.  Keep a stable
-		// viewport; the complete form remains reachable through the scrollbar.
-		// Dependency tabs have an action row (New/Remove) above their grids.  A
-		// 360px viewport lets the growing grid consume that row on normal Windows
-		// DPI settings, leaving no way to create a cross-project link from the UI.
-		scrollPane.setPreferredSize(new Dimension(700, preferredViewportHeight(contents, expandToFit)));
-		scrollPane.setMinimumSize(new Dimension(480, 300));
+		// Use the available monitor height without letting this form make the
+		// dialog taller than the desktop. The complete form remains scrollable.
+		int viewportHeight = preferredViewportHeight(contents);
+		scrollPane.setPreferredSize(new Dimension(700, viewportHeight));
+		scrollPane.setMinimumSize(new Dimension(480, Math.min(300, viewportHeight)));
 		return scrollPane;
 	}
 
-	private int preferredViewportHeight(JComponent contents, boolean expandToFit) {
-		int baseHeight = 460;
-		if (!expandToFit || GraphicsEnvironment.isHeadless())
-			return baseHeight;
+	private int preferredViewportHeight(JComponent contents) {
+		if (GraphicsEnvironment.isHeadless())
+			return 460;
 		GraphicsConfiguration configuration = getGraphicsConfiguration();
 		if (configuration == null && owner != null)
 			configuration = owner.getGraphicsConfiguration();
 		if (configuration == null)
-			return baseHeight;
+			return 460;
 		Insets screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
 		int usableHeight = configuration.getBounds().height - screenInsets.top - screenInsets.bottom;
+		return preferredViewportHeight(contents.getPreferredSize().height, usableHeight);
+	}
+
+	static int preferredViewportHeight(int contentHeight, int usableHeight) {
+		int baseHeight = 460;
 		// Reserve room for the title bar, tab strip, dialog buttons, and borders.
-		int maxViewportHeight = Math.max(300, usableHeight - 140);
-		int desiredHeight = Math.max(baseHeight, contents.getPreferredSize().height);
-		return Math.max(300, Math.min(desiredHeight, maxViewportHeight));
+		// The extra margin covers font/DPI rounding in the native window insets.
+		int maxViewportHeight = Math.max(120, usableHeight - 160);
+		int desiredHeight = Math.max(baseHeight, contentHeight);
+		return Math.min(desiredHeight, maxViewportHeight);
 	}
 
 	private JComponent createTextStylePanel() {
