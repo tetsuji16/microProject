@@ -59,11 +59,9 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.gantt.GanttRenderer;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
-import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
-import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.association.AssociationList;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.configuration.Configuration;
@@ -635,21 +633,16 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
     protected SpreadSheet assignmentSpreadSheet;
-    protected JScrollPane createAssignmentSpreadsheet() {
-		assignmentSpreadSheet = SpreadSheetUtils.createFilteredSpreadsheet(GraphicManager.getInstance(this).getCurrentFrame()
-        							,false
-									,"View.TaskInformation.Assignments" //$NON-NLS-1$
-									,UsageDetailView.resourceAssignmentSpreadsheetCategory
-									,UsageDetailView.getUsageAssignmentSpreadsheetId(false)
-									,true
-									,new String[]{MenuActionConstants.ACTION_DELETE});
+	protected JScrollPane createAssignmentSpreadsheet() {
+		assignmentSpreadSheet = AssignmentSpreadsheetSupport.create(this,
+				AssignmentSpreadsheetSupport.Perspective.TASK_ASSIGNMENTS);
 		updateAssignmentSpreadsheet();
-	    return SpreadSheetUtils.makeSpreadsheetScrollPane(assignmentSpreadSheet);
+		return AssignmentSpreadsheetSupport.scrollPane(assignmentSpreadSheet);
 
     }
     protected void updateAssignmentSpreadsheet() {
-    	SpreadSheetUtils.updateFilteredSpreadsheet(assignmentSpreadSheet,(object==null)?new AssociationList():((NormalTask)object).getAssignments());
-    	((SpreadSheetModel)assignmentSpreadSheet.getModel()).fireUpdateAll();
+		AssociationList assignments = object == null ? null : ((NormalTask)object).getAssignments();
+		AssignmentSpreadsheetSupport.update(assignmentSpreadSheet, assignments, true);
     }
     
 	public void updateAll() {
@@ -701,14 +694,8 @@ public class TaskInformationDialog extends InformationDialog {
 	}
 
 	public void documentSelected(DocumentSelectedEvent evt) {
-		if (assignmentSpreadSheet==null) return;
-        DocumentFrame df=evt.getCurrent();
-        if (df!=null){
-//        	List impls=df.getSelectedImpls();
-//        	if (impls!=null&&impls.size()>0) setObject(impls.get(0));
-        	NodeModelCache cache = df.createCache(false,Messages.getString("View.TaskInformation.Assignments")); //$NON-NLS-1$
-			assignmentSpreadSheet.setCache(cache);
-        }
+		AssignmentSpreadsheetSupport.selectDocument(assignmentSpreadSheet, evt.getCurrent(),
+				AssignmentSpreadsheetSupport.Perspective.TASK_ASSIGNMENTS);
 	}
 	
 	
@@ -718,7 +705,6 @@ public class TaskInformationDialog extends InformationDialog {
 			predecessorsSpreadSheet.getCache().setReceiveEvents(true);
 		if (successorsSpreadSheet != null)
 			successorsSpreadSheet.getCache().setReceiveEvents(true);
-		//assignmentSpreadSheet.getCache().setReceiveEvents(true);
 	}
 
 	protected void desactivateListeners() {
@@ -727,8 +713,6 @@ public class TaskInformationDialog extends InformationDialog {
 			predecessorsSpreadSheet.getCache().setReceiveEvents(false);
 		if (successorsSpreadSheet != null)
 			successorsSpreadSheet.getCache().setReceiveEvents(false);
-		//assignmentSpreadSheet.getCache().setReceiveEvents(false); 
-		//causes an update problem of the filtered cache
 	}
 
 

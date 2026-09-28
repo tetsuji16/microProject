@@ -39,15 +39,10 @@ import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.dialog.util.FieldComponentMap;
 import com.microproject.help.HelpUtil;
-import com.microproject.menu.MenuActionConstants;
-import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.DocumentSelectedEvent;
-import com.microproject.pm.graphic.frames.GraphicManager;
-import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
-import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.association.AssociationList;
 import com.microproject.configuration.Settings;
 import com.microproject.grouping.core.model.NodeModel;
@@ -179,24 +174,18 @@ public class ResourceInformationDialog extends InformationDialog {
 		return panel;	
 	}
 
-	protected SpreadSheet assignmentSpreadSheet;
-	private JScrollPane assignmentPane;
+    protected SpreadSheet assignmentSpreadSheet;
+    private JScrollPane assignmentPane;
     protected JScrollPane createAssignmentSpreadsheet() {
-        assignmentSpreadSheet = SpreadSheetUtils.createFilteredSpreadsheet(GraphicManager.getInstance(this).getCurrentFrame()
-        							,true
-									,"View.ResourceInformation.Assignments" //$NON-NLS-1$
-									,UsageDetailView.taskAssignmentSpreadsheetCategory
-									,UsageDetailView.getUsageAssignmentSpreadsheetId(true)
-									,false
-									,new String[]{MenuActionConstants.ACTION_DELETE});
-        assignmentSpreadSheet.setCanModifyColumns(true);
-        assignmentSpreadSheet.setCanSelectFieldArray(true);
+		assignmentSpreadSheet = AssignmentSpreadsheetSupport.create(this,
+				AssignmentSpreadsheetSupport.Perspective.RESOURCE_ASSIGNMENTS);
         updateAssignmentSpreadsheet();
-		assignmentPane = SpreadSheetUtils.makeSpreadsheetScrollPane(assignmentSpreadSheet);
+		assignmentPane = AssignmentSpreadsheetSupport.scrollPane(assignmentSpreadSheet);
 		return assignmentPane;
     }
     protected void updateAssignmentSpreadsheet() {
-    	SpreadSheetUtils.updateFilteredSpreadsheet(assignmentSpreadSheet,(object==null)?new AssociationList():((Resource)object).getAssignments());
+		AssociationList assignments = object == null ? null : ((Resource)object).getAssignments();
+		AssignmentSpreadsheetSupport.update(assignmentSpreadSheet, assignments, false);
     }
 	
 	
@@ -374,12 +363,8 @@ public class ResourceInformationDialog extends InformationDialog {
 
 	}
 	public void documentSelected(DocumentSelectedEvent evt) {
-		if (assignmentSpreadSheet==null) return;
-        DocumentFrame df=evt.getCurrent();
-        if (df!=null){
-        	NodeModelCache cache = df.createCache(true,Messages.getString("View.TaskInformation.Assignments")); //$NON-NLS-1$
-			assignmentSpreadSheet.setCache(cache);
-        }
+		AssignmentSpreadsheetSupport.selectDocument(assignmentSpreadSheet, evt.getCurrent(),
+				AssignmentSpreadsheetSupport.Perspective.RESOURCE_ASSIGNMENTS);
 	}
 	
 	
@@ -388,14 +373,12 @@ public class ResourceInformationDialog extends InformationDialog {
 		super.activateListeners();
 		for (int i=0;i<costTableSpreadsheets.length;i++) costTableSpreadsheets[i].getCache().setReceiveEvents(true);
 		availabilitySpreadsheet.getCache().setReceiveEvents(true);
-		//assignmentSpreadSheet.getCache().setReceiveEvents(true);
 	}
 
 	protected void desactivateListeners() {
 		super.desactivateListeners();
 		for (int i=0;i<costTableSpreadsheets.length;i++) costTableSpreadsheets[i].getCache().setReceiveEvents(true);
 		availabilitySpreadsheet.getCache().setReceiveEvents(false);
-		//assignmentSpreadSheet.getCache().setReceiveEvents(false);
 		//causes an update problem of the filtered cache
 	}
 
