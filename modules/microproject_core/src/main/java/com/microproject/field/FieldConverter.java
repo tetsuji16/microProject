@@ -48,7 +48,7 @@ import com.microproject.util.DateTime;
  */
 public class FieldConverter  {
 	private static final Logger logger = Logger.getLogger(FieldConverter.class.getName());
-	HashMap<FieldContext,HashMap<Class<?>,Converter>> contextMaps = new HashMap<>();
+	HashMap<FieldContext,HashMap<Class<?>,Converter>> contextMaps = HashMap.newHashMap(1);
 	private StringConverter stringConverter;
 	private StringConverter compactStringConverter;
 	
@@ -168,7 +168,7 @@ public class FieldConverter  {
 		
 
 		// short context converters
-		HashMap<Class<?>, Converter> compactMap = new HashMap<>();
+		HashMap<Class<?>, Converter> compactMap = HashMap.newHashMap(1);
 		contextMaps.put(COMPACT_CONVERTER_CONTEXT, compactMap);
 		compactMap.put(String.class,compactStringConverter);
 		// no need for duration or money as parsing is done in long form
