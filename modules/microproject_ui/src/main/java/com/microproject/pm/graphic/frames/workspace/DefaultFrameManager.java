@@ -110,6 +110,7 @@ public class DefaultFrameManager implements FrameManager {
 	}
 
 	/** Whether this workspace still owns a live UI container. */
+	@Override
 	public boolean isActive() {
 		return container != null && graphicManager != null;
 	}

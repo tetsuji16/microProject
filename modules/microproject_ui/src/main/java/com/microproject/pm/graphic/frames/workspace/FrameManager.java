@@ -67,4 +67,8 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 	void update();
 	/** Releases resources owned by this frame manager when its workspace closes. */
 	void cleanUp();
+	/** Whether this manager still owns a live workspace. */
+	default boolean isActive() {
+		return true;
+	}
 }

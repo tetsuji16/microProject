@@ -4407,7 +4407,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// or application window is being disposed.  It is no longer a valid frame
 		// owner at that point; ignore the event rather than preventing the active
 		// desktop manager from opening its document.
-		if (frameManager == null || (frameManager instanceof DefaultFrameManager manager && !manager.isActive()))
+		if (frameManager == null || !frameManager.isActive())
 			return;
 
 		if (objectEvent.getObject() instanceof Project) {

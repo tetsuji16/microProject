@@ -42,6 +42,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.ProjectDialog;
 import com.microproject.bootstrap.BootstrapApplet;
+import com.microproject.document.ObjectEvent;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Project;
 import com.microproject.ribbon.RibbonCommandResult;
@@ -94,6 +95,33 @@ class GraphicManagerLinkRouteTest {
 		graphicManager.cleanUp();
 
 		assertEquals(1, cleanUpCalls.get(), "GraphicManager must release its frame manager exactly once");
+	}
+
+	@Test
+	void objectEventsAskTheFrameManagerWhetherItsWorkspaceIsActive() {
+		GraphicManager graphicManager = new GraphicManager(new JPanel());
+		AtomicInteger activeChecks = new AtomicInteger();
+		com.microproject.pm.graphic.frames.workspace.FrameManager frameManager =
+			(com.microproject.pm.graphic.frames.workspace.FrameManager)java.lang.reflect.Proxy.newProxyInstance(
+				getClass().getClassLoader(),
+				new Class<?>[] { com.microproject.pm.graphic.frames.workspace.FrameManager.class },
+				(proxy, method, arguments) -> {
+					if (method.getName().equals("isActive")) {
+						activeChecks.incrementAndGet();
+						return false;
+					}
+					return null;
+				});
+		graphicManager.setFrameManager(frameManager);
+		ObjectEvent event = ObjectEvent.getInstance(this, new Object(), ObjectEvent.UPDATE, null);
+
+		try {
+			graphicManager.objectChanged(event);
+		} finally {
+			event.recycle();
+		}
+
+		assertEquals(1, activeChecks.get(), "event handling must use the FrameManager lifecycle contract");
 	}
 
 	@Test
