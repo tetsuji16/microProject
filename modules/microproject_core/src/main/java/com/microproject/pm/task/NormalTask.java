@@ -1104,27 +1104,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			return;
 		stop = DateTime.closestDate(stop);
 		stop = Math.min(stop,getEnd());
-
-		long computedActualStart = Long.MAX_VALUE;
-		for (Association association : getAssignments()) {
-			Assignment assignment = (Assignment) association;
-			assignment.setStop(stop);
-			long assignmentActualStart = assignment.getActualStart();
-			if (assignmentActualStart != 0 && assignmentActualStart < computedActualStart)
-				computedActualStart = assignmentActualStart;
-		}
-		if (computedActualStart == Long.MAX_VALUE)
-			computedActualStart = 0;
-		setActualStart(computedActualStart);
-		assignParentActualDatesFromChildren();
-
-		// if % complete went down to 0, then the plan changed and need to recalculate all.
-		if (computedActualStart == 0) {
-			getDocument().getObjectEventManager().fireUpdateEvent(this, this,
-					Configuration.getFieldFromId("Field.start"));
-		} else {
-			getProject().fireScheduleChanged(this, ScheduleEvent.ACTUAL, this);
-		}
+		long updatedStop = stop;
+		updateAssignmentCompletionBoundary(assignment -> assignment.setStop(updatedStop));
 
 	}
 	/**
@@ -2215,11 +2196,15 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		completedThrough = Math.min(completedThrough,getEnd());
 		if (completedThrough == getCompletedThrough())
 			return;
+		long updatedThrough = completedThrough;
+		updateAssignmentCompletionBoundary(assignment -> assignment.setCompletedThrough(updatedThrough));
+	}
 
+	private void updateAssignmentCompletionBoundary(Consumer<Assignment> updateBoundary) {
 		long computedActualStart = Long.MAX_VALUE;
 		for (Association association : getAssignments()) {
 			Assignment assignment = (Assignment) association;
-			assignment.setCompletedThrough(completedThrough);
+			updateBoundary.accept(assignment);
 			long assignmentActualStart = assignment.getActualStart();
 			if (assignmentActualStart != 0 && assignmentActualStart < computedActualStart)
 				computedActualStart = assignmentActualStart;
