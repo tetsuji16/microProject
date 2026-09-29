@@ -109,7 +109,7 @@ public class LocalSession extends AbstractSession{
 	public static PortRegistry getPortRegistry() {
 		return PORT_REGISTRY;
 	}
-	private final Map<Long, String> descriptorFiles = Collections.synchronizedMap(new HashMap<Long, String>());
+	private final Map<Long, String> descriptorFiles = Collections.synchronizedMap(new HashMap<>());
 	
 	
 	protected long localSeed;

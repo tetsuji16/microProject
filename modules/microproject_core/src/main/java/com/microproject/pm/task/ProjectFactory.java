@@ -609,7 +609,7 @@ public class ProjectFactory {
 		// reference before it is represented as a portfolio branch.  Include that
 		// real master hierarchy as well, otherwise Save on a clean master loses a
 		// dirty child that is visible in the consolidated Gantt.
-		collectLinkedProjectsForSave(project, opt, projects, new HashSet<Project>());
+		collectLinkedProjectsForSave(project, opt, projects, new HashSet<>());
 		if (projects.size()>0){
 			Session session=SessionFactory.getInstance().getSession(opt.isLocal());
 			final SaveOptions o=(SaveOptions)opt.clone();

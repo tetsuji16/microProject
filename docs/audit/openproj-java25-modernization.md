@@ -2883,3 +2883,11 @@ needs end-void nodes. The `NodeModelUtil.nodeIsSubproject` guard, read-only
 check, and count update remain unchanged. `git blame` confirms the hunk is
 OpenProj 1.4 code. Core hierarchy tests and the full core suite are the
 verification; no focused test currently distinguishes this subproject branch.
+
+`LocalSession.descriptorFiles` and `ProjectFactory`'s per-save visited-project
+set now use diamond inference. `git blame` traces both collection element
+types to OpenProj 1.4. The map's synchronized wrapper and the save traversal's
+identity/equality membership semantics are unchanged; collection ordering and
+serialization are not exposed by these local implementations. These
+constructor-only changes have no focused tests; the full core suite and
+downstream compile are the verification.
