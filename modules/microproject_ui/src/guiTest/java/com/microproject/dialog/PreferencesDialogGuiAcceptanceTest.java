@@ -226,19 +226,12 @@ class PreferencesDialogGuiAcceptanceTest {
 
 	private static void enterText(Robot robot, JTextField field, String value) throws Exception {
 		click(robot, field);
+		java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
+			new java.awt.datatransfer.StringSelection(value), null);
 		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_A);
 		robot.keyRelease(KeyEvent.VK_A); robot.keyRelease(KeyEvent.VK_CONTROL);
-		for (char character : value.toCharArray()) {
-			if (character == ' ') {
-				robot.keyPress(KeyEvent.VK_SPACE); robot.keyRelease(KeyEvent.VK_SPACE);
-				continue;
-			}
-			int keyCode = KeyEvent.getExtendedKeyCodeForChar(Character.toUpperCase(character));
-			if (keyCode == KeyEvent.VK_UNDEFINED) throw new IllegalArgumentException("Unsupported test character: " + character);
-			if (Character.isUpperCase(character)) robot.keyPress(KeyEvent.VK_SHIFT);
-			robot.keyPress(keyCode); robot.keyRelease(keyCode);
-			if (Character.isUpperCase(character)) robot.keyRelease(KeyEvent.VK_SHIFT);
-		}
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_V);
+		robot.keyRelease(KeyEvent.VK_V); robot.keyRelease(KeyEvent.VK_CONTROL);
 		robot.waitForIdle();
 	}
 
