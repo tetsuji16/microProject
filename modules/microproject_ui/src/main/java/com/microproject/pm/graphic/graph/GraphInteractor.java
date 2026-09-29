@@ -263,7 +263,8 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
     //Mouse
     public void mouseClicked(MouseEvent e){}
     public void mouseWheelMoved(MouseWheelEvent e){
-        if (e.isConsumed() || e.isShiftDown() || e.isControlDown()) {
+        if (e.isConsumed() || e.isShiftDown() || e.isControlDown()
+				|| ScrollPaneSynchronizer.hasWheelOwner(getGraph())) {
             return;
         }
         // Directly scroll the parent scroll pane by manipulating its vertical scrollbar

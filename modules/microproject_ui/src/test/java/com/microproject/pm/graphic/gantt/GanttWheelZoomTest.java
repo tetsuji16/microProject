@@ -11,6 +11,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 
 import javax.swing.JPanel;
+import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
 
@@ -154,6 +155,35 @@ class GanttWheelZoomTest {
 
 			int after = coord.getTimescaleManager().getCurrentScaleIndex();
 			assertTrue(after == before, "plain wheel must scroll, not zoom (scale index " + before + " -> " + after + ")");
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
+	void plainWheelOnSynchronizedGanttAdvancesOnlyOneOwnerStep() {
+		Gantt gantt = newGantt();
+		try {
+			JScrollPane chartPane = chartPaneForTest(gantt);
+			chartPane.setSize(300, 180);
+			chartPane.doLayout();
+			gantt.setSize(4000, 1200);
+			chartPane.getViewport().setViewSize(new Dimension(4000, 1200));
+			JScrollPane otherPane = new JScrollPane(new JPanel());
+			Synchronizer synchronizer = new Synchronizer();
+			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
+
+			JScrollBar vertical = chartPane.getVerticalScrollBar();
+			int before = vertical.getValue();
+			int oneOwnerStep = gantt.getRowHeight() * 5;
+			MouseWheelEvent wheel = new MouseWheelEvent(gantt, MouseEvent.MOUSE_WHEEL,
+					System.currentTimeMillis(), 0, 10, 10, 0, false,
+					MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, 1);
+			gantt.dispatchEvent(wheel);
+
+			assertEquals(before + oneOwnerStep, vertical.getValue(),
+				"plain Gantt wheel must be consumed by one vertical-scroll owner");
+			assertTrue(wheel.isConsumed(), "the owning Gantt wheel route must consume the event");
 		} finally {
 			gantt.cleanUp();
 		}

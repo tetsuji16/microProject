@@ -68,6 +68,8 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetColumnsPopupMenu;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
+import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
+import com.microproject.pm.graphic.views.synchro.Synchronizer;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -193,6 +195,54 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> tableScroll.getVerticalScrollBar().getValue() > 0,
 			"mouse wheel must scroll the 20-task table");
 		assertTrue(tableScroll.getVerticalScrollBar().getValue() > 0, "table must remain scrollable with 20 tasks");
+	}
+
+	@Test
+	void physicalGanttWheelScrollsByOneOwnerStep() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(40);
+		showFixture(fixture);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setSize(1200, 480);
+			frame.setLocation(20, 20);
+		});
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
+			"40-task table or Gantt was not visible");
+		JScrollPane ganttScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.gantt);
+		JScrollPane tableScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+		assertTrue(ganttScroll != null, "Gantt must be hosted by its scroll pane");
+		assertTrue(tableScroll != null, "task table must be hosted by its scroll pane");
+		assertTrue(ganttScroll.getVerticalScrollBar().getMaximum() > ganttScroll.getVerticalScrollBar().getVisibleAmount(),
+			"40-task Gantt must have a vertical scroll range");
+		Synchronizer synchronizer = new Synchronizer();
+		SwingUtilities.invokeAndWait(() -> synchronizer.addSynchro(ganttScroll, tableScroll,
+			ScrollPaneSynchronizer.HORIZONTAL));
+
+		try {
+			int before = ganttScroll.getVerticalScrollBar().getValue();
+			int oneOwnerStep = fixture.gantt.getRowHeight() * 5;
+			Rectangle visibleGantt = new Rectangle();
+			SwingUtilities.invokeAndWait(() -> visibleGantt.setBounds(fixture.gantt.getVisibleRect()));
+			Point point = screenCenter(fixture.gantt, visibleGantt);
+			robot.mouseMove(point.x, point.y);
+			robot.delay(150);
+			robot.mouseWheel(1);
+			GuiAcceptanceSupport.await(() -> ganttScroll.getVerticalScrollBar().getValue() > before,
+				"physical Gantt wheel did not scroll the visible chart (before=" + before + ", after="
+					+ ganttScroll.getVerticalScrollBar().getValue() + ", point=" + point + ")");
+			assertEquals(before + oneOwnerStep, ganttScroll.getVerticalScrollBar().getValue(),
+				"one physical Gantt wheel gesture in a synchronized view must be applied by one vertical-scroll owner");
+		} finally {
+			SwingUtilities.invokeAndWait(() -> synchronizer.removeSynchro(ganttScroll, tableScroll,
+				ScrollPaneSynchronizer.HORIZONTAL));
+		}
 	}
 
 	@Test

@@ -754,6 +754,9 @@ public class ScrollPaneSynchronizer {
 		return new MouseWheelListener() {
 			@Override
 			public void mouseWheelMoved(MouseWheelEvent event) {
+				if (event.isConsumed()) {
+					return;
+				}
 				if (handleZoomWheel(scrollPane, event)) {
 					event.consume();
 					return;
@@ -789,6 +792,10 @@ public class ScrollPaneSynchronizer {
 			current = current.getParent();
 		}
 		return null;
+	}
+
+	public static boolean hasWheelOwner(Component component) {
+		return findSynchronizer(component) != null;
 	}
 
 	private static JScrollPane findScrollPane(Component component) {
