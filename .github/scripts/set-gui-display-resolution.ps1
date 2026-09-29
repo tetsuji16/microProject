@@ -15,7 +15,6 @@ using System;
 using System.Runtime.InteropServices;
 
 public static class GuiDisplaySettings {
-  public const int CurrentSettings = -1;
   public const int TestMode = 0x00000002;
   public const int WidthField = 0x00080000;
   public const int HeightField = 0x00100000;
@@ -55,23 +54,19 @@ public static class GuiDisplaySettings {
   }
 
   [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-  public static extern bool EnumDisplaySettings(string deviceName, int modeNumber, ref DevMode settings);
-
-  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
   public static extern int ChangeDisplaySettings(ref DevMode settings, int flags);
 }
 '@
 Add-Type -TypeDefinition $displayApi
 
-$mode = [GuiDisplaySettings+DevMode]::new()
-$mode.Size = [Runtime.InteropServices.Marshal]::SizeOf($mode)
-if (-not [GuiDisplaySettings]::EnumDisplaySettings($null, [GuiDisplaySettings]::CurrentSettings, [ref]$mode)) {
-  throw 'Could not read current Windows display settings.'
-}
-
 $current = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 Write-Host "Initial GUI runner display: $($current.Width)x$($current.Height) pixels"
 if ($current.Width -lt $Width -or $current.Height -lt $Height) {
+  # ChangeDisplaySettings only needs a DEVMODE size and the fields being
+  # changed. Avoid EnumDisplaySettings because hosted runner sessions may not
+  # expose a current mode even though their desktop is usable by Robot.
+  $mode = [GuiDisplaySettings+DevMode]::new()
+  $mode.Size = [Runtime.InteropServices.Marshal]::SizeOf($mode)
   $mode.Fields = [GuiDisplaySettings]::WidthField -bor [GuiDisplaySettings]::HeightField
   $mode.PelsWidth = $Width
   $mode.PelsHeight = $Height
