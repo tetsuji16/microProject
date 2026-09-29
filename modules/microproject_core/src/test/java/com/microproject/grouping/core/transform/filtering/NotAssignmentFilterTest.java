@@ -23,6 +23,6 @@ class NotAssignmentFilterTest {
 		assertSame(standard, NotAssignmentFilter.getInstance());
 		assertSame(writable, NotAssignmentFilter.getWritableInstance());
 		assertNotSame(standard, writable);
-		assertTrue(standard.evaluate(NodeFactory.getInstance().createNode(new NormalTask())));
+		assertTrue(standard.test(NodeFactory.getInstance().createNode(new NormalTask())));
 	}
 }

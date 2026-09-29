@@ -58,7 +58,7 @@ public class DataSource implements JRDataSource, ObjectRef {
 		this.iterator = iterator;
 	}
 	public void setPredicate(Predicate<Object> predicate) {
-		((PredicatedNodeFilterIterator)iterator).setPredicate(predicate == null ? null : predicate::test);
+		((PredicatedNodeFilterIterator)iterator).setPredicate(predicate);
 	}
 	public void setNodeBased(boolean nodeBased) {
 		this.nodeBased = nodeBased;

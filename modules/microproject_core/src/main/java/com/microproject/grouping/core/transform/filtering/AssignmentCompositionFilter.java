@@ -32,10 +32,10 @@ import com.microproject.pm.assignment.Assignment;
  */
 public class AssignmentCompositionFilter extends PreCompositionNodeFilter {
     
-    public boolean evaluate(NodeFilter filter,Object node) {
+    public boolean test(NodeFilter filter,Object node) {
         if (((Node) node).getImpl() instanceof Assignment assignment)
-            return super.evaluate(filter, assignment.getResource());
-        return super.evaluate(filter, node);
+            return super.test(filter, assignment.getResource());
+        return super.test(filter, node);
     }
 
 }

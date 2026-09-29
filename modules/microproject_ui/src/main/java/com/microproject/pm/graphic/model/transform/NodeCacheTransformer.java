@@ -139,7 +139,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 	            current=(composition==null)?gnode.getNode():composition.evaluate(gnode.getNode());
 	            alreadyExcluded=false;
 	             if (hiddenFilter!=null){
-	                 if(!hiddenFilter.evaluate(current)){
+	                 if(!hiddenFilter.test(current)){
 	                    if (!gnode.isSummary() || !preserveHierarchy){
 	                    	i.remove();
 		                    continue;
@@ -149,7 +149,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 	                }
 	            }
 	             if (userFilter!=null&&!alreadyExcluded){
-	                 if(!userFilter.evaluate(current)){
+	                 if(!userFilter.test(current)){
 	                	 if (!gnode.isSummary() || !preserveHierarchy){
 	                		 i.remove();
 	 		                continue;

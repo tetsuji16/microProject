@@ -32,7 +32,7 @@ import java.util.List;
 
 import javax.swing.tree.TreeModel;
 
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.event.HierarchyListener;
@@ -86,7 +86,7 @@ public interface NodeHierarchy extends TreeModel{
 	public boolean isSummary(Node node);
     public Node getNext(Node current);
     public Node getPrevious(Node current);
-    public List<?> toList(boolean isNode, Predicate filter);
+    public List<?> toList(boolean isNode, Predicate<Object> filter);
 	
 	public int getNbEndVoidNodes();
 	public void setNbEndVoidNodes(int nbEndVoidNodes);

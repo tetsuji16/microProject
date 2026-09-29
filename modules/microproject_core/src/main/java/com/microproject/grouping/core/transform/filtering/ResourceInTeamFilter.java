@@ -40,7 +40,7 @@ public class ResourceInTeamFilter extends NodeFilter {
 	}
     
 
-	public boolean evaluate(Object obj) {
+	public boolean test(Object obj) {
 		Node node=(Node)obj;
 		Object impl = node.getImpl();
 		if (impl == null)

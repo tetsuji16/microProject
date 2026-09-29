@@ -30,7 +30,7 @@ import com.microproject.grouping.core.Node;
  *
  */
 public class NotVoidFilter extends NodeFilter {
-	public boolean evaluate(Object obj) {
+	public boolean test(Object obj) {
 		Node node=(Node)obj;
 		return !node.isVoid();
 	}

@@ -19,6 +19,6 @@ class NotVoidFilterTest {
 		NotVoidFilter filter = NotVoidFilter.getInstance();
 
 		assertSame(filter, NotVoidFilter.getInstance());
-		assertTrue(filter.evaluate(NodeFactory.getInstance().createNode(new NormalTask())));
+		assertTrue(filter.test(NodeFactory.getInstance().createNode(new NormalTask())));
 	}
 }

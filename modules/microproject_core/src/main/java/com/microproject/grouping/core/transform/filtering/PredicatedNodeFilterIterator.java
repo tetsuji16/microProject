@@ -26,12 +26,12 @@ package com.microproject.grouping.core.transform.filtering;
 
 import java.util.Iterator;
 
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
 
 /**
  *
  */
-public interface PredicatedNodeFilterIterator extends Iterator {
-	void setPredicate(Predicate predicate);
+public interface PredicatedNodeFilterIterator extends Iterator<Object> {
+	void setPredicate(Predicate<Object> predicate);
 	void setNodeBased(boolean nodeBased);
 }

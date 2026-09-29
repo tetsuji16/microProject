@@ -37,7 +37,7 @@ public class NotAssignmentFilter extends NodeFilter {
 	private static final NotAssignmentFilter INSTANCE = new NotAssignmentFilter(false);
 	private static final NotAssignmentFilter WRITABLE_INSTANCE = new NotAssignmentFilter(true);
 
-	public boolean evaluate(Object obj) {
+	public boolean test(Object obj) {
 		Node node=(Node)obj;
 		Object impl = node.getImpl();
 		if (impl == null)

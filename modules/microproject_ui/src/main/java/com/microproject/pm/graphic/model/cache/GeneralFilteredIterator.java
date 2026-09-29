@@ -25,10 +25,9 @@
 package com.microproject.pm.graphic.model.cache;
 
 import java.util.Iterator;
+import java.util.function.Predicate;
 
-import org.apache.commons.collections.Predicate;
-import org.apache.commons.collections.PredicateUtils;
-import org.apache.commons.collections.iterators.FilterIterator;
+import org.apache.commons.collections4.iterators.FilterIterator;
 
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
 
@@ -37,13 +36,13 @@ import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIt
  * Iterator capable of treating object lists, node lists, and graphic node lists and filtering based
  * on a condition
  */
-public class GeneralFilteredIterator extends FilterIterator implements PredicatedNodeFilterIterator  {
+public class GeneralFilteredIterator extends FilterIterator<Object> implements PredicatedNodeFilterIterator  {
 	private boolean nodeBased = false;
 
 	public static GeneralFilteredIterator instance(Iterator<?> baseIterator) {//, Predicate predicate, boolean nodeBased) {
 		return new GeneralFilteredIterator(baseIterator);
 	}
-	public void setPredicate(Predicate child) {
+	public void setPredicate(Predicate<Object> child) {
 		super.setPredicate(PredicateWrapper.instance(child));
 		
 	}
@@ -69,21 +68,21 @@ public class GeneralFilteredIterator extends FilterIterator implements Predicate
 	 * This class wraps a predicate so that it can treat a GraphicNode, a Node, or an Object by
 	 * applying the predicate to the underying object.  Note that void nodes are always skipped.
 	 */
-	private static class PredicateWrapper implements Predicate {
-		Predicate child;
-		static Predicate instance(Predicate child) {
+	private static class PredicateWrapper implements org.apache.commons.collections4.Predicate<Object> {
+		Predicate<Object> child;
+		static org.apache.commons.collections4.Predicate<Object> instance(Predicate<Object> child) {
 			if (child == null)
-				return PredicateUtils.truePredicate(); // if no predicate, then accept all
+				return value -> true; // if no predicate, then accept all
 			return new PredicateWrapper(child);
 		}
-		private PredicateWrapper(Predicate child) {
+		private PredicateWrapper(Predicate<Object> child) {
 			this.child = child;
 		}
 		public boolean evaluate(Object obj) {
 			if (GraphicNode.isVoid(obj)) // skip void nodes always
 				return false;
 			obj = GraphicNode.getImpl(obj);
-			return child.evaluate(obj);
+			return child.test(obj);
 		}
 	}
 	public final void setNodeBased(boolean nodeBased) {

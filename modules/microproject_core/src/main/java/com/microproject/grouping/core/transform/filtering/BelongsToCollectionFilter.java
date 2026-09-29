@@ -47,7 +47,7 @@ public class BelongsToCollectionFilter extends NodeFilter {
  		if (needCallback) callback.accept(this);
     }
     
-    public boolean evaluate(Object o) {
+    public boolean test(Object o) {
         if (impls==null) return false;
         return impls.contains(((Node)o).getImpl());
     }

@@ -29,11 +29,11 @@ package com.microproject.grouping.core.transform.filtering;
  *
  */
 public abstract class PreCompositionNodeFilter extends NodeFilter {
-    public boolean evaluate(NodeFilter filter,Object o) {
+    public boolean test(NodeFilter filter,Object o) {
         if (filter==null) return false;
-        return filter.evaluate(o);
+        return filter.test(o);
     }
-    public boolean evaluate(Object o) {
+    public boolean test(Object o) {
         return false;
     }
     public boolean isPreComposition() {

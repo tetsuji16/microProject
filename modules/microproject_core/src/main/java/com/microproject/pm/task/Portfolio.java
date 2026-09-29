@@ -30,10 +30,8 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
-
-
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEventManager;
@@ -82,8 +80,8 @@ public class Portfolio implements Document, NodeModelDataFactory {
 		return (Project) DeepChildSearcher.searchForUniqueId(nodeModel,uniqueId);
 	}
 
-	private class ResourcePoolFinder implements Predicate {
-		public boolean evaluate(Object arg) {
+	private class ResourcePoolFinder implements Predicate<Object> {
+		public boolean test(Object arg) {
 			Project project = (Project)arg;
 			if (project.isMaster() && !project.isReadOnly())
 				return true;

@@ -136,7 +136,7 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	public Node search(Object key, Comparator<Object> c) {
 		Node node=hierarchy.search(key, c);
 		if (node==null)  return null;
-		return (filter.evaluate(node))?node:null;
+		return (filter.test(node))?node:null;
 	}
 	
 	

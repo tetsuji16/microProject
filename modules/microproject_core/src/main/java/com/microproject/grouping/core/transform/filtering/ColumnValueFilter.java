@@ -80,7 +80,7 @@ public class ColumnValueFilter extends NodeFilter {
 			callback.accept(this);
 	}
 
-	public boolean evaluate(Object o) {
+	public boolean test(Object o) {
 		if (!isActive())
 			return true;
 		if (!(o instanceof Node node))

@@ -50,8 +50,8 @@ class SelectionFilterTest {
 
 		filter.setSelectedNodesImpl(List.of(selected.getImpl()), false);
 
-		assertTrue(filter.evaluate(selected));
-		assertFalse(filter.evaluate(NodeFactory.getInstance().createNode(new NormalTask())));
+		assertTrue(filter.test(selected));
+		assertFalse(filter.test(NodeFactory.getInstance().createNode(new NormalTask())));
 		assertTrue(notified[0] == null);
 
 		filter.setSelectedNodesImpl(List.of(selected.getImpl()));
@@ -65,10 +65,10 @@ class SelectionFilterTest {
         Node selected = NodeFactory.getInstance().createNode(new NormalTask());
 
         assertDoesNotThrow(() -> filter.setSelectedNodesImpl(null, true));
-        assertFalse(filter.evaluate(selected));
+        assertFalse(filter.test(selected));
 
         filter.setSelectedNodesImpl(List.of(selected.getImpl()), true);
-        assertTrue(filter.evaluate(selected));
+        assertTrue(filter.test(selected));
     }
 
     @Test
@@ -76,7 +76,7 @@ class SelectionFilterTest {
         SelectionFilter filter = new SelectionFilter("true");
         Node empty = NodeFactory.getInstance().createNode((Object) null);
 
-        assertFalse(filter.evaluate(empty));
+        assertFalse(filter.test(empty));
     }
 
     @Test
@@ -93,12 +93,12 @@ class SelectionFilterTest {
         SelectionFilter filter = new SelectionFilter("true");
 
         filter.setSelectedNodesImpl(List.of(task), true);
-        assertTrue(filter.evaluate(assignmentNode));
+        assertTrue(filter.test(assignmentNode));
 
         filter.setSelectedNodesImpl(List.of(resource), true);
-        assertTrue(filter.evaluate(assignmentNode));
+        assertTrue(filter.test(assignmentNode));
 
         filter.setSelectedNodesImpl(List.of(new NormalTask(project)), true);
-        assertFalse(filter.evaluate(assignmentNode));
+        assertFalse(filter.test(assignmentNode));
     }
 }

@@ -26,8 +26,7 @@ package com.microproject.grouping.core.summaries;
 
 import java.util.List;
 import java.util.function.Consumer;
-
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -39,15 +38,15 @@ import com.microproject.pm.key.HasKey;
 public class DeepChildSearcher extends NodeWalker {
 	FindClosure findClosure;
 	private static class FindClosure implements Consumer<Object> {
-		Predicate condition;
+		Predicate<Object> condition;
 		Object result = null;
-		FindClosure(Predicate condition) {
+		FindClosure(Predicate<Object> condition) {
 			this.condition = condition;
 		}
 		public void accept(Object arg0) {
 			Node node = (Node) arg0;
 			Object impl = node.getImpl();
-			if (condition.evaluate(impl))
+			if (condition.test(impl))
 				result = impl;
 		}
 	}
@@ -79,7 +78,7 @@ public class DeepChildSearcher extends NodeWalker {
 	 * @param node
 	 * @param closure
 	 */
-	public static Object search(NodeModel nodeModel, Predicate condition) {
+	public static Object search(NodeModel nodeModel, Predicate<Object> condition) {
 		FindClosure f = new FindClosure(condition);
 		DeepChildSearcher walker = new DeepChildSearcher(f);
 		walker.setNodeModel(nodeModel);
@@ -88,10 +87,7 @@ public class DeepChildSearcher extends NodeWalker {
 	}
 	
 	public static Object searchForUniqueId(NodeModel nodeModel, final long uniqueId) {
-		return search(nodeModel, new Predicate() {
-			public boolean evaluate(Object arg0) {
-				return ((HasKey)arg0).getUniqueId() == uniqueId;
-			}});
+		return search(nodeModel, value -> ((HasKey) value).getUniqueId() == uniqueId);
 	}
 
 	

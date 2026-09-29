@@ -26,13 +26,13 @@ class AssignmentCompositionFilterTest {
 		Node assignmentNode = NodeFactory.getInstance().createNode(assignment);
 		NodeFilter delegate = new NodeFilter() {
 			@Override
-			public boolean evaluate(Object value) {
+			public boolean test(Object value) {
 				assertSame(resource, value);
 				return true;
 			}
 		};
 
-		assertTrue(new AssignmentCompositionFilter().evaluate(delegate, assignmentNode));
+		assertTrue(new AssignmentCompositionFilter().test(delegate, assignmentNode));
 	}
 
 	@Test
@@ -40,13 +40,13 @@ class AssignmentCompositionFilterTest {
 		Node taskNode = NodeFactory.getInstance().createNode(new NormalTask());
 		NodeFilter delegate = new NodeFilter() {
 			@Override
-			public boolean evaluate(Object value) {
+			public boolean test(Object value) {
 				assertSame(taskNode, value);
 				return true;
 			}
 		};
 
-		assertTrue(new AssignmentCompositionFilter().evaluate(delegate, taskNode));
+		assertTrue(new AssignmentCompositionFilter().test(delegate, taskNode));
 	}
 
 	private Assignment createAssignment() {

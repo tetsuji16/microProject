@@ -40,7 +40,7 @@ public class BaseFilter extends NodeFilter {
 		else showAssignments=false;
 	}
 
-	public boolean evaluate(Object obj) {
+	public boolean test(Object obj) {
 		Node node=(Node)obj;
 		Object impl = node.getImpl();
 		if (impl instanceof Task task && task.isHiddenTask())

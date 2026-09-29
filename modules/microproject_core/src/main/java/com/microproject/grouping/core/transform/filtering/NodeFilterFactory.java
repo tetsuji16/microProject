@@ -48,7 +48,7 @@ public class NodeFilterFactory extends CommonTransformFactory{
 	    classText.append("import com.microproject.datatype.*;\n");
 		String className = GroovyClassCompiler.scriptClassName("FilterFormula", type + "\n" + formulaText);
 	    classText.append("public class ").append(className).append(" extends NodeFilter{\n");
-	    classText.append("\tpublic boolean evaluate(Object _nodeObject){\n\t\tObject ")
+	    classText.append("\tpublic boolean test(Object _nodeObject){\n\t\tObject ")
 	    	.append(type).append("=(_nodeObject instanceof Node)?((Node)_nodeObject).getImpl():_nodeObject;\n \t\t").append(formulaText).append("\n\t}\n");
 	    classText.append("}\n");
 		try {

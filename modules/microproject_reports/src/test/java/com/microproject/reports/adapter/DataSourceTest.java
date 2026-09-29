@@ -52,14 +52,14 @@ class DataSourceTest {
 	}
 
 	@Test
-	void adaptsStandardPredicateForLegacyIterator() {
+	void forwardsStandardPredicateToFilterIterator() {
 		TrackingPredicatedIterator iterator = new TrackingPredicatedIterator();
 		DataSource dataSource = new DataSource();
 		dataSource.setIterator(iterator);
 		dataSource.setPredicate(value -> "accepted".equals(value));
 
-		assertTrue(iterator.predicate.evaluate("accepted"));
-		assertFalse(iterator.predicate.evaluate("rejected"));
+		assertTrue(iterator.predicate.test("accepted"));
+		assertFalse(iterator.predicate.test("rejected"));
 	}
 
 	@Test
@@ -109,7 +109,7 @@ class DataSourceTest {
 
 	private static final class TrackingPredicatedIterator implements PredicatedNodeFilterIterator {
 		private boolean nodeBased;
-		private org.apache.commons.collections.Predicate predicate;
+		private java.util.function.Predicate<Object> predicate;
 
 		@Override
 		public boolean hasNext() {
@@ -122,7 +122,7 @@ class DataSourceTest {
 		}
 
 		@Override
-		public void setPredicate(org.apache.commons.collections.Predicate predicate) {
+		public void setPredicate(java.util.function.Predicate<Object> predicate) {
 			this.predicate = predicate;
 		}
 

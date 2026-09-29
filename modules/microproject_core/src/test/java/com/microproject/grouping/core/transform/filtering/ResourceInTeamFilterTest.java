@@ -31,9 +31,9 @@ class ResourceInTeamFilterTest {
 		AssignmentEntry entry = new AssignmentEntry(resource, new ArrayList<>(), null);
 		boolean expected = resource.isInTeam();
 
-		assertEquals(expected, filter.evaluate(NodeFactory.getInstance().createNode(resource)));
-		assertEquals(expected, filter.evaluate(NodeFactory.getInstance().createNode(entry)));
-		assertFalse(filter.evaluate(NodeFactory.getInstance().createNode(new Object())));
+		assertEquals(expected, filter.test(NodeFactory.getInstance().createNode(resource)));
+		assertEquals(expected, filter.test(NodeFactory.getInstance().createNode(entry)));
+		assertFalse(filter.test(NodeFactory.getInstance().createNode(new Object())));
 	}
 
 	@Test
@@ -41,7 +41,7 @@ class ResourceInTeamFilterTest {
 		ResourceInTeamFilter filter = new ResourceInTeamFilter(null);
 		AssignmentEntry entry = new AssignmentEntry(new HasAssignmentsImpl(), new ArrayList<>(), null);
 
-		assertFalse(filter.evaluate(NodeFactory.getInstance().createNode(entry)));
+		assertFalse(filter.test(NodeFactory.getInstance().createNode(entry)));
 	}
 
 	@Test
@@ -60,7 +60,7 @@ class ResourceInTeamFilterTest {
 
 		assertSame(filter, notified.get());
 		assertEquals(1, notificationCount[0]);
-		assertTrue(filter.evaluate(NodeFactory.getInstance().createNode(resource)));
+		assertTrue(filter.test(NodeFactory.getInstance().createNode(resource)));
 	}
 
 	private ResourceImpl createResource() {

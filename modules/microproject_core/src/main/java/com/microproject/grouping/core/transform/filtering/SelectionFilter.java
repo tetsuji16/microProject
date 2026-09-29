@@ -55,7 +55,7 @@ public class SelectionFilter extends NodeFilter {
 			callback.accept(this);
     }
     
-    public boolean evaluate(Object o) {
+    public boolean test(Object o) {
         Object impl=((Node)o).getImpl();
         if (impl==null)
 			return false;

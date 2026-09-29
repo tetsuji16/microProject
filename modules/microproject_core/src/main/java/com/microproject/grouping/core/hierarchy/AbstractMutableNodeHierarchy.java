@@ -42,7 +42,7 @@ import java.util.function.Consumer;
 
 import javax.swing.tree.TreeNode;
 
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
 
 import com.microproject.grouping.core.LazyParent;
 import com.microproject.grouping.core.Node;
@@ -387,10 +387,10 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 	 * Convenience method to convert hierarchy to nodes or implementations in depth-first order.
 	 * @return
 	 */
-	public List<?> toList(final boolean isNode, final Predicate filter) {
+	public List<?> toList(final boolean isNode, final Predicate<Object> filter) {
 		final ArrayList<Object> list = new ArrayList<>();
     	visitAll(new Consumer<Object>() { public void accept(Object node) {
-				if (filter != null  && !filter.evaluate(((Node) node).getImpl()))
+				if (filter != null  && !filter.test(((Node) node).getImpl()))
 					return;
 				if (isNode) 
 					list.add(node);

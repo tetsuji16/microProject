@@ -1,6 +1,7 @@
 package com.microproject.pm.graphic.model.cache;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.util.List;
 
@@ -19,5 +20,16 @@ class GeneralFilteredIteratorTest {
 		iterator.setNodeBased(true);
 
 		assertSame(node, iterator.next());
+	}
+
+	@Test
+	void standardPredicateFiltersByUnderlyingImplementation() {
+		Object rejected = new Object();
+		Object accepted = new Object();
+		GeneralFilteredIterator iterator = GeneralFilteredIterator.instance(List.of(rejected, accepted).iterator());
+		iterator.setPredicate(value -> value == accepted);
+
+		assertSame(accepted, iterator.next());
+		assertFalse(iterator.hasNext());
 	}
 }

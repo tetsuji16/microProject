@@ -75,7 +75,7 @@ public class NodeList extends ArrayList<Node> {
 			return new ArrayList<>();
 		List<Object> implList = new ArrayList<>(nodeList.size());
 		for (Node current : nodeList) {
-			if (!current.isVirtual()&&(filter==null||filter.evaluate(current)))
+			if (!current.isVirtual()&&(filter==null||filter.test(current)))
 				implList.add(current.getImpl());
 		}
 		return implList;

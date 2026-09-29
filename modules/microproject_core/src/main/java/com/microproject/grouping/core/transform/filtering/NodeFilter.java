@@ -29,9 +29,9 @@ import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.function.Predicate;
 
-import org.apache.commons.collections.IteratorUtils;
-import org.apache.commons.collections.Predicate;
+import org.apache.commons.collections4.IteratorUtils;
 
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.CommonTransform;
@@ -39,7 +39,7 @@ import com.microproject.grouping.core.transform.CommonTransform;
 /**
  *
  */
-public abstract class NodeFilter extends CommonTransform implements Predicate{
+public abstract class NodeFilter extends CommonTransform implements Predicate<Object>{
 	protected boolean showSummary = true;
 	protected boolean showEmptyLines = true;
 	protected boolean showEndEmptyLines = true;
@@ -100,16 +100,16 @@ public abstract class NodeFilter extends CommonTransform implements Predicate{
     
 	//util
 	public ListIterator<?> filteredListIterator(ListIterator<?> i){
-		return IteratorUtils.filteredListIterator(i,this);
+		return IteratorUtils.filteredListIterator(i, this::test);
 	}
 	public Iterator<?> filteredIterator(Iterator<?> i){
-		return IteratorUtils.filteredIterator(i,this);
+		return IteratorUtils.filteredIterator(i, this::test);
 	}
 	
 	public <T> List<T> filterList(List<T> list){
 		if (list==null) return null;
 		for (Iterator<T> i=list.iterator();i.hasNext();){
-			if (!evaluate(i.next())) i.remove();
+			if (!test(i.next())) i.remove();
 		}
 		return list;
 		
@@ -119,7 +119,7 @@ public abstract class NodeFilter extends CommonTransform implements Predicate{
 		ArrayList<Object> filtered = new ArrayList<>(list.length);
 		for (int i=0;i<list.length;i++){
 			Object obj=list[i];
-			if (evaluate(obj)) filtered.add(obj);
+			if (test(obj)) filtered.add(obj);
 		}
 		return filtered.toArray();
 	}

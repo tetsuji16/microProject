@@ -15,6 +15,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.field.InvalidFormulaException;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.task.NormalTask;
 
@@ -23,7 +24,7 @@ class BaseFilterTest {
 	void filterListPreservesElementTypeIdentityOrderAndInPlaceMutation() {
 		NodeFilter evenNumbers = new NodeFilter() {
 			@Override
-			public boolean evaluate(Object value) {
+			public boolean test(Object value) {
 				return value instanceof Integer number && number % 2 == 0;
 			}
 		};
@@ -42,7 +43,18 @@ class BaseFilterTest {
 		NormalTask hidden = new NormalTask();
 		hidden.setHiddenTask(true);
 
-		assertTrue(filter.evaluate(NodeFactory.getInstance().createNode(visible)));
-		assertFalse(filter.evaluate(NodeFactory.getInstance().createNode(hidden)));
+		assertTrue(filter.test(NodeFactory.getInstance().createNode(visible)));
+		assertFalse(filter.test(NodeFactory.getInstance().createNode(hidden)));
+	}
+
+	@Test
+	void formulaGeneratedFilterImplementsStandardPredicate() throws InvalidFormulaException {
+		NodeFilterFactory factory = new NodeFilterFactory();
+		factory.setType("Task");
+		factory.setFormulaText("return Task instanceof com.microproject.pm.task.Task;");
+		NodeFilter filter = (NodeFilter) factory.getTransform();
+
+		assertTrue(filter.test(NodeFactory.getInstance().createNode(new NormalTask())));
+		assertFalse(filter.test(NodeFactory.getInstance().createNode(new Object())));
 	}
 }

@@ -58,8 +58,8 @@ class ColumnValueFilterTest {
 		ColumnValueFilter filter = new ColumnValueFilter(name);
 
 		assertFalse(filter.isActive());
-		assertTrue(filter.evaluate(null));
-		assertTrue(filter.evaluate("not-a-node"));
+		assertTrue(filter.test(null));
+		assertTrue(filter.test("not-a-node"));
 		assertTrue(filter.matchesImpl(task("Anything")));
 	}
 
