@@ -97,7 +97,6 @@ public class CollectionIntervalGenerator implements IntervalGenerator, HasStartA
 			}
 			current =  iterator.next();
 		}
-//		start = currentEnd(); // move start ahead
 		updateActiveState(); // will set to active if the current item in collecition starts at start
 		return true;
 	}
@@ -121,7 +120,6 @@ public class CollectionIntervalGenerator implements IntervalGenerator, HasStartA
 
 	public long currentStart() {
 		return start;
-//		return (current == null) ? lastEnd : ((HasStartAndEnd)current).getStart();
 	}
 
 	

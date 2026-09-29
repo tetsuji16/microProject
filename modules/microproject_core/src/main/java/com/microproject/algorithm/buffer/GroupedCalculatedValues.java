@@ -227,7 +227,6 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
  	}
  	public GroupedCalculatedValues dayByDayConvert(){
  		GroupedCalculatedValues c=new GroupedCalculatedValues();
-		//c.setDayByDay(true);
 		for (Point point : values)
 			c.values.add(new Point(point.date, point.value * DateUtils.MILLIS_PER_HOUR));
  		return c;

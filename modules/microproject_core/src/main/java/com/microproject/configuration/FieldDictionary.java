@@ -212,7 +212,6 @@ public class FieldDictionary {
 	}
 
 	public static void addDigesterEvents(Digester digester){
-//		digester.addObjectCreate("*/fieldDictionary", "com.microproject.configuration.FieldDictionary");
 		digester.addFactoryCreate("*/fieldDictionary", "com.microproject.configuration.FieldDictionaryFactory");
 		digester.addSetNext("*/fieldDictionary", "setFieldDictionary", "com.microproject.configuration.FieldDictionary");	//TODO can we do this more easily
 	    digester.addSetProperties("*/fieldDictionary/class","name","className"); // object is field dictionary
