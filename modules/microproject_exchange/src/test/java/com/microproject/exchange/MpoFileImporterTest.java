@@ -1056,6 +1056,41 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoRoundTripPreservesReadyButUnappliedOperationGeneration() throws Exception {
+		Project source = projectForRoundTrip();
+		ByteArrayOutputStream initial = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(source, initial));
+		Map<String, byte[]> entries = readEntries(initial.toByteArray());
+		String documentId = source.getDocumentId();
+		String actorId = java.util.UUID.randomUUID().toString();
+		String operationId = java.util.UUID.randomUUID().toString();
+		String entityId = java.util.UUID.randomUUID().toString();
+		OperationLog.Operation unapplied = new OperationLog.Operation(operationId, actorId, 1L, java.util.Set.of(),
+			"task.update", entityId, Map.of("legacyUniqueId", firstTask(source).getUniqueId(), "name", "Held conflict value"));
+		byte[] operationLog = new OperationLog().writeJsonl(documentId, List.of(unapplied), java.util.Set.of());
+		entries.put(MpoFileImporter.OPERATIONS_ENTRY, operationLog);
+		updateManifestChecksum(entries, MpoFileImporter.OPERATIONS_ENTRY, operationLog);
+
+		File target = File.createTempFile("mpo-unapplied-generation", ".mpo");
+		target.deleteOnExit();
+		Files.write(target.toPath(), zip(entries).toByteArray());
+		Project loaded = load(target);
+		assertEquals(java.util.Set.of(), new OperationLog().readJsonl(
+			readEntries(Files.readAllBytes(target.toPath())).get(MpoFileImporter.OPERATIONS_ENTRY)).appliedOperationIds());
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(target.getAbsolutePath());
+		writer.setProject(loaded);
+		writer.exportFile();
+
+		OperationLog.DocumentLog persisted = new OperationLog().readJsonl(
+			readEntries(Files.readAllBytes(target.toPath())).get(MpoFileImporter.OPERATIONS_ENTRY));
+		assertEquals(java.util.Set.of(operationId), persisted.operations().stream().map(OperationLog.Operation::id)
+			.collect(java.util.stream.Collectors.toSet()));
+		assertEquals(java.util.Set.of(), persisted.appliedOperationIds());
+		assertEquals("Mpo task", firstTask(load(target)).getName());
+	}
+
+	@Test
 	void mpoTaskCreateOperationRetainsItsParentWhenReplayed() throws Exception {
 		Project project = projectForRoundTrip();
 		MpoFileImporter writer = new MpoFileImporter();
@@ -1075,6 +1110,27 @@ class MpoFileImporterTest {
 				readEntries(changed.toByteArray()).get(MpoFileImporter.OPERATIONS_ENTRY)).operations();
 		new com.microproject.collaboration.MpoTaskOperationService().apply(base, operations);
 		assertEquals(parent.getUniqueId(), base.findByUniqueId(child.getUniqueId()).getWbsParentTask().getUniqueId());
+	}
+
+	@Test
+	void mpoReplayUsesAlreadyAppliedParentsAsCausalContextWithoutApplyingThemTwice() throws Exception {
+		Project project = projectForRoundTrip();
+		OperationLog.Operation parent = new OperationLog.Operation(java.util.UUID.randomUUID().toString(),
+			java.util.UUID.randomUUID().toString(), 1L, java.util.Set.of(), "task.create",
+			java.util.UUID.randomUUID().toString(), Map.of("legacyUniqueId", 1001L, "name", "Parent",
+				"notes", "", "percentComplete", 0D));
+		OperationLog.Operation child = new OperationLog.Operation(java.util.UUID.randomUUID().toString(),
+			java.util.UUID.randomUUID().toString(), 1L, java.util.Set.of(parent.id()), "task.create",
+			java.util.UUID.randomUUID().toString(), Map.of("legacyUniqueId", 1002L, "name", "Child",
+				"notes", "", "percentComplete", 0D, "parentLegacyUniqueId", 1001L));
+		com.microproject.collaboration.MpoTaskOperationService service = new com.microproject.collaboration.MpoTaskOperationService();
+		service.apply(project, List.of(parent));
+		Task existingParent = project.findByUniqueId(1001L);
+
+		service.apply(project, List.of(parent, child), java.util.Set.of(parent.id()));
+
+		assertEquals(existingParent, project.findByUniqueId(1001L));
+		assertEquals(1001L, project.findByUniqueId(1002L).getWbsParentTask().getUniqueId());
 	}
 
 	@Test

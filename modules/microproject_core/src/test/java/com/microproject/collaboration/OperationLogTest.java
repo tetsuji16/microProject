@@ -79,6 +79,38 @@ class OperationLogTest {
 		assertEquals(1, log.merge(restored.operations()).conflicts().size());
 	}
 
+	@Test void jsonlRoundTripPreservesAppliedGenerationSubset() throws Exception {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation first = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		OperationLog.Operation next = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(FIRST), "task.update", ENTITY, Map.of("notes", "B"));
+
+		byte[] jsonl = log.writeJsonl(DOCUMENT, List.of(first, next), Set.of(FIRST));
+
+		assertEquals(Set.of(FIRST), log.readJsonl(jsonl).appliedOperationIds());
+	}
+
+	@Test void jsonlWriterRejectsAppliedGenerationWithoutItsCausalParent() {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation first = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of());
+		OperationLog.Operation next = new OperationLog.Operation(NEXT, ACTOR_A, 2, Set.of(FIRST), "task.update", ENTITY, Map.of());
+
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+			() -> log.writeJsonl(DOCUMENT, List.of(first, next), Set.of(NEXT)));
+	}
+
+	@Test void jsonlReaderRejectsUnknownAppliedOperationId() throws Exception {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation operation = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of());
+		String[] lines = new String(log.writeJsonl(DOCUMENT, List.of(operation)), java.nio.charset.StandardCharsets.UTF_8).split("\\n", -1);
+		com.fasterxml.jackson.databind.node.ObjectNode header = (com.fasterxml.jackson.databind.node.ObjectNode)
+			new com.fasterxml.jackson.databind.ObjectMapper().readTree(lines[0]);
+		header.putArray("appliedOperationIds").add(MISSING);
+		lines[0] = header.toString();
+
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+			() -> log.readJsonl(String.join("\n", lines).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
+
 	@Test void jsonlReaderRejectsStaleConflictMetadata() throws Exception {
 		OperationLog log = new OperationLog();
 		OperationLog.Operation left = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));

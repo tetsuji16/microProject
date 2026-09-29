@@ -191,10 +191,23 @@ public final class OperationLog {
 	public byte[] writeJsonl(String documentId, Collection<Operation> operations) throws java.io.IOException {
 		requireUuid(documentId, "document id");
 		MergeResult merged = merge(operations);
+		return writeJsonl(documentId, merged, merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet()));
+	}
+	/** Writes the JSONL log while recording the operations represented by its project snapshot. */
+	public byte[] writeJsonl(String documentId, Collection<Operation> operations, Set<String> appliedOperationIds) throws java.io.IOException {
+		requireUuid(documentId, "document id");
+		return writeJsonl(documentId, merge(operations), appliedOperationIds);
+	}
+	private byte[] writeJsonl(String documentId, MergeResult merged, Set<String> appliedOperationIds) throws java.io.IOException {
+		requireUuid(documentId, "document id");
+		Set<String> readyIds = merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
+		validateAppliedOperationIds(merged, appliedOperationIds, readyIds);
 		StringBuilder result = new StringBuilder();
 		ObjectNode header = JSON.createObjectNode();
 		header.put("type", "header"); header.put("schemaVersion", 1); header.put("documentId", documentId);
 		writeConflictMetadata(header, merged.conflicts());
+		ArrayNode applied = header.putArray("appliedOperationIds");
+		appliedOperationIds.stream().sorted().forEach(applied::add);
 		result.append(JSON.writeValueAsString(header)).append('\n');
 		List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
 		for (Operation op : all) {
@@ -228,7 +241,31 @@ public final class OperationLog {
 		}
 		MergeResult merged = merge(operations);
 		validateConflictMetadata(header, merged, false);
-		return new DocumentLog(documentId, mergeAll(merged), merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet()));
+		Set<String> readyIds = merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
+		JsonNode appliedNode = header.get("appliedOperationIds");
+		Set<String> appliedIds;
+		if (appliedNode == null) {
+			// Pre-generation JSONL logs represented every causally ready operation in their snapshot.
+			appliedIds = readyIds;
+		} else {
+			if (!appliedNode.isArray()) throw new java.io.IOException("Invalid applied operation generation");
+			appliedIds = new LinkedHashSet<>(appliedNode.size() * 4 / 3 + 1);
+			Set<String> operationIds = operations.stream().map(Operation::id).collect(java.util.stream.Collectors.toSet());
+			for (JsonNode id : appliedNode)
+				if (!id.isTextual() || !operationIds.contains(id.textValue()) || !appliedIds.add(id.textValue()))
+					throw new java.io.IOException("Invalid applied operation generation");
+			validateAppliedOperationIds(merged, appliedIds, readyIds);
+		}
+		return new DocumentLog(documentId, mergeAll(merged), appliedIds);
+	}
+
+	private static void validateAppliedOperationIds(MergeResult merged, Set<String> appliedOperationIds,
+			Set<String> readyIds) throws java.io.IOException {
+		if (appliedOperationIds == null || !readyIds.containsAll(appliedOperationIds))
+			throw new java.io.IOException("Applied operation generation does not match causal readiness");
+		for (Operation operation : merged.ready())
+			if (appliedOperationIds.contains(operation.id()) && !appliedOperationIds.containsAll(operation.parents()))
+				throw new java.io.IOException("Applied operation generation omits a causal parent");
 	}
 
 	private static List<Operation> mergeAll(MergeResult merged) {

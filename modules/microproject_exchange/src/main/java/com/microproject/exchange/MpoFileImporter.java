@@ -281,7 +281,11 @@ public class MpoFileImporter extends FileImporter {
 			// for a later explicit merge, but must not be replayed during an ordinary
 			// open or it can duplicate an already-materialized change.
 			MpoOperationState state = project.getOrCreateTransientDocumentState(MpoOperationState.class, MpoOperationState::new);
-			state.json = new OperationLog().writeJsonl(project.getDocumentId(), normalized); state.documentId = project.getDocumentId(); state.operations.addAll(normalized); state.capture(project);
+			state.documentId = project.getDocumentId();
+			state.operations.addAll(normalized);
+			state.appliedOperationIds.addAll(operationLog.appliedOperationIds());
+			state.json = new OperationLog().writeJsonl(state.documentId, normalized, state.appliedOperationIds);
+			state.capture(project);
 		}
 		if (!extensions.entries.isEmpty()) project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
 		restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
@@ -322,11 +326,14 @@ public class MpoFileImporter extends FileImporter {
 			// Apply concurrent operations only to an isolated candidate.  The live
 			// Project and its operation state are committed after the archive replace.
 			outputProject = copyProjectForTransaction(project);
-			applyMergedOperationsOnEdt(outputProject, merge.externalReady());
+			applyMergedOperationsOnEdt(outputProject, merge.replayOperations(), merge.alreadyAppliedOperationIds());
 			merge.applyExtensions(outputProject);
 			operationState.operations.clear();
 			operationState.operations.addAll(merge.mergedOperations());
-			operationState.json = new OperationLog().writeJsonl(operationState.documentId, operationState.operations);
+			operationState.appliedOperationIds.clear();
+			operationState.appliedOperationIds.addAll(merge.appliedOperationIds());
+			operationState.json = new OperationLog().writeJsonl(operationState.documentId, operationState.operations,
+					operationState.appliedOperationIds);
 			operationState.capture(outputProject);
 		}
 		// Merging may apply operations from a concurrent editor.  Serialize only
@@ -349,7 +356,7 @@ public class MpoFileImporter extends FileImporter {
 			// the in-memory transaction: malformed references, hierarchy failures,
 			// and service-level validation errors are discovered while the target
 			// archive and live model are still untouched.
-			verifyMergeApplicability(project, merge.externalReady());
+			verifyMergeApplicability(project, merge.replayOperations(), merge.alreadyAppliedOperationIds());
 		}
 		boolean moved = false;
 		try {
@@ -367,7 +374,7 @@ public class MpoFileImporter extends FileImporter {
 			// in-memory phase fails, preserve the detached operation state and
 			// expose a retryable, explicit partial-apply result.
 			try {
-				applyMergedOperationsOnEdt(project, merge.externalReady());
+				applyMergedOperationsOnEdt(project, merge.replayOperations(), merge.alreadyAppliedOperationIds());
 				merge.applyExtensions(project);
 			} catch (RuntimeException | IOException exception) {
 				throw new MpoPartialApplyException(target.toPath(), exception);
@@ -376,13 +383,13 @@ public class MpoFileImporter extends FileImporter {
 		commitOperationState(project, operationState);
 	}
 
-	private void verifyMergeApplicability(Project source,
-			java.util.List<OperationLog.Operation> operations) throws IOException {
+	private void verifyMergeApplicability(Project source, java.util.List<OperationLog.Operation> operations,
+			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
 		Project preflight = copyProjectForTransaction(source);
 		// Preflight is an internal validation pass.  Keep it independent from
 		// the overridable commit-stage seam so an injected commit failure cannot
 		// accidentally make the archive replacement happen later than intended.
-		applyMergedOperationsOnEdtInternal(preflight, operations);
+		applyMergedOperationsOnEdtInternal(preflight, operations, alreadyAppliedOperationIds);
 	}
 
 	/** Test seam for proving that a failed atomic replacement is non-destructive. */
@@ -688,9 +695,7 @@ public class MpoFileImporter extends FileImporter {
 		// allocate a different value for the same document.  The stable mpo
 		// documentId above is the authoritative identity at this boundary.
 		java.util.List<OperationLog.Operation> all = new java.util.ArrayList<OperationLog.Operation>(local.operations);
-		java.util.Set<String> locallyAppliedOperationIds = new java.util.LinkedHashSet<String>();
-		for (OperationLog.Operation operation : local.operations)
-			locallyAppliedOperationIds.add(operation.id());
+		java.util.Set<String> locallyAppliedOperationIds = new java.util.LinkedHashSet<String>(local.appliedOperationIds);
 		all.addAll(external.taskIdentities == null ? external.document.operations() : remapTaskOperations(external.document.operations(), readTaskIdentities(external.taskIdentities)));
 		if (all.size() > MAX_OPERATION_COUNT)
 			throw new IOException("MPOF merged operation log exceeds " + MAX_OPERATION_COUNT + " operations");
@@ -701,6 +706,7 @@ public class MpoFileImporter extends FileImporter {
 							"Concurrent " + conflict.kind() + " operations: " + conflict.operationIds()))
 					.toList();
 			java.util.List<MpoMergePlan.Operation> plannedOperations = merged.ready().stream()
+					.filter(operation -> external.document.appliedOperationIds().contains(operation.id()))
 					.filter(operation -> !locallyAppliedOperationIds.contains(operation.id()))
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
@@ -711,12 +717,15 @@ public class MpoFileImporter extends FileImporter {
 			// exist), so apply only operations introduced by the external archive.
 		// A causally dependent external operation still sees its local parent in
 			// the current snapshot.
-			java.util.List<OperationLog.Operation> externalReady = merged.ready().stream()
-					.filter(operation -> plan.operations().stream().anyMatch(value -> value.entryName().equals(operation.id())))
+			java.util.Set<String> mergedAppliedIds = new java.util.LinkedHashSet<String>(locallyAppliedOperationIds);
+			mergedAppliedIds.addAll(external.document.appliedOperationIds());
+			java.util.List<OperationLog.Operation> replayOperations = merged.ready().stream()
+					.filter(operation -> mergedAppliedIds.contains(operation.id()))
 					.toList();
 			java.util.List<OperationLog.Operation> mergedOperations = new java.util.ArrayList<>(merged.ready());
 			mergedOperations.addAll(merged.pending());
-			return new MpoMergePreparation(externalReady, mergedOperations, external.extensions, plan);
+			return new MpoMergePreparation(replayOperations, mergedOperations, locallyAppliedOperationIds,
+					mergedAppliedIds, external.extensions, plan);
 		} catch (IllegalArgumentException exception) {
 			throw new IOException("Cannot merge conflicting mpo operation logs", exception);
 		}
@@ -776,11 +785,15 @@ public class MpoFileImporter extends FileImporter {
 	private record ManifestData(String documentId, Long projectUniqueId, Long statusDate, Long sharedResourcePoolProjectId, String sharedResourcePoolPath,
 			java.util.List<EmbeddedProjectReference> embeddedProjects, java.util.Map<String, String> checksums) { }
 	private record ExternalMpo(OperationLog.DocumentLog document, MpoExtensions extensions, String manifestDocumentId, Long manifestProjectId, byte[] taskIdentities, MpoArchiveSnapshot snapshot) { }
-	private record MpoMergePreparation(java.util.List<OperationLog.Operation> externalReady,
-			java.util.List<OperationLog.Operation> mergedOperations, MpoExtensions extensions, MpoMergePlan plan) {
+	private record MpoMergePreparation(java.util.List<OperationLog.Operation> replayOperations,
+			java.util.List<OperationLog.Operation> mergedOperations, java.util.Set<String> alreadyAppliedOperationIds,
+			java.util.Set<String> appliedOperationIds,
+			MpoExtensions extensions, MpoMergePlan plan) {
 		private MpoMergePreparation {
-			externalReady = java.util.List.copyOf(externalReady);
+			replayOperations = java.util.List.copyOf(replayOperations);
 			mergedOperations = java.util.List.copyOf(mergedOperations);
+			alreadyAppliedOperationIds = java.util.Set.copyOf(alreadyAppliedOperationIds);
+			appliedOperationIds = java.util.Set.copyOf(appliedOperationIds);
 		}
 		private void applyExtensions(Project project) {
 			if (extensions == null || extensions.entries.isEmpty()) return;
@@ -1251,16 +1264,19 @@ public class MpoFileImporter extends FileImporter {
 	 * archive into it, while transaction tests can inject a transient failure
 	 * and prove that a subsequent export retries the apply phase.
 	 */
+	/** Applies a merged history while skipping operations already present in the project snapshot. */
 	protected void applyMergedOperationsOnEdt(Project project,
-			java.util.List<OperationLog.Operation> operations) throws IOException {
-		applyMergedOperationsOnEdtInternal(project, operations);
+			java.util.List<OperationLog.Operation> operations,
+			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
+		applyMergedOperationsOnEdtInternal(project, operations, alreadyAppliedOperationIds);
 	}
 
 	private static void applyMergedOperationsOnEdtInternal(Project project,
-			java.util.List<OperationLog.Operation> operations) throws IOException {
+			java.util.List<OperationLog.Operation> operations,
+			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
 		Runnable apply = () -> {
 			try {
-				new MpoTaskOperationService().apply(project, operations);
+				new MpoTaskOperationService().apply(project, operations, alreadyAppliedOperationIds);
 			} catch (IOException exception) {
 				throw new UncheckedIOException(exception);
 			}
@@ -1991,6 +2007,7 @@ public class MpoFileImporter extends FileImporter {
 	private static final class MpoOperationState {
 		private byte[] json; private String documentId; private String actorId = java.util.UUID.randomUUID().toString();
 		private final java.util.List<OperationLog.Operation> operations = new java.util.ArrayList<OperationLog.Operation>();
+		private final java.util.Set<String> appliedOperationIds = new java.util.LinkedHashSet<String>();
 		private final java.util.Map<Long, TaskSnapshot> snapshots = new java.util.LinkedHashMap<Long, TaskSnapshot>();
 		private final java.util.Map<Long, Long> parentSnapshots = new java.util.LinkedHashMap<Long, Long>();
 		private final java.util.Set<String> dependencySnapshots = new java.util.LinkedHashSet<String>();
@@ -2021,9 +2038,12 @@ public class MpoFileImporter extends FileImporter {
 		private void remapTaskIds(java.util.Map<Long, Long> identities) throws IOException {
 			java.util.List<OperationLog.Operation> normalized = remapTaskOperations(operations, identities);
 			ensureOperationCount(normalized);
-			operations.clear(); operations.addAll(normalized); json = new OperationLog().writeJsonl(documentId, operations);
+			operations.clear(); operations.addAll(normalized);
+			json = new OperationLog().writeJsonl(documentId, operations, appliedOperationIds);
 		}
 		private void appendChanges(Project project) throws IOException {
+			java.util.Set<String> existingOperationIds = operations.stream().map(OperationLog.Operation::id)
+					.collect(java.util.stream.Collectors.toSet());
 			boolean changed = false; long sequence = operations.stream().filter(value -> actorId.equals(value.actorId())).mapToLong(OperationLog.Operation::sequence).max().orElse(0L);
 			java.util.Set<Long> seen = new java.util.LinkedHashSet<Long>();
 			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) {
@@ -2073,7 +2093,13 @@ public class MpoFileImporter extends FileImporter {
 			for (String key : dependencySnapshots) if (!dependencies.contains(key)) { String[] parts = key.split(":", -1); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("predecessorLegacyUniqueId", Long.valueOf(parts[0])); payload.put("successorLegacyUniqueId", Long.valueOf(parts[1])); payload.put("dependencyType", Integer.valueOf(parts[2])); payload.put("lag", Long.valueOf(parts[3])); addOperation("dependency.delete", key, payload, ++sequence); changed = true; }
 			for (java.util.Map.Entry<String,String> entry : assignments.entrySet()) if (!assignmentSnapshots.containsKey(entry.getKey())) { String[] ids = entry.getKey().split(":", -1); String[] values = entry.getValue().split(":", -1); Assignment assignment = findAssignment(project, Long.parseLong(ids[0]), Long.parseLong(ids[1])); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("taskLegacyUniqueId", Long.valueOf(ids[0])); payload.put("resourceUniqueId", Long.valueOf(ids[1])); payload.put("resourceName", assignment.getResource().getName()); payload.put("units", Double.valueOf(values[0])); payload.put("delay", Long.valueOf(values[1])); addOperation("assignment.add", entry.getKey(), payload, ++sequence); changed = true; }
 			for (String key : assignmentSnapshots.keySet()) if (!assignments.containsKey(key)) { String[] ids = key.split(":", -1); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("taskLegacyUniqueId", Long.valueOf(ids[0])); payload.put("resourceUniqueId", Long.valueOf(ids[1])); addOperation("assignment.delete", key, payload, ++sequence); changed = true; }
-			if (changed) { ensureOperationCount(operations); json = new OperationLog().writeJsonl(documentId, operations); capture(project); }
+			if (changed) {
+				ensureOperationCount(operations);
+				for (OperationLog.Operation operation : operations)
+					if (!existingOperationIds.contains(operation.id())) appliedOperationIds.add(operation.id());
+				json = new OperationLog().writeJsonl(documentId, operations, appliedOperationIds);
+				capture(project);
+			}
 		}
 		private void addOperation(String kind, String key, java.util.Map<String,Object> payload, long sequence) { operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, sequence, java.util.Set.of(), kind, java.util.UUID.nameUUIDFromBytes((documentId + ":" + kind + ":" + key).getBytes(StandardCharsets.UTF_8)).toString(), payload)); }
 		private MpoOperationState copy() {
@@ -2082,6 +2108,7 @@ public class MpoFileImporter extends FileImporter {
 			copy.documentId = documentId;
 			copy.actorId = actorId;
 			copy.operations.addAll(operations);
+			copy.appliedOperationIds.addAll(appliedOperationIds);
 			copy.snapshots.putAll(snapshots);
 			copy.parentSnapshots.putAll(parentSnapshots);
 			copy.dependencySnapshots.addAll(dependencySnapshots);
@@ -2093,6 +2120,7 @@ public class MpoFileImporter extends FileImporter {
 			documentId = source.documentId;
 			actorId = source.actorId;
 			operations.clear(); operations.addAll(source.operations);
+			appliedOperationIds.clear(); appliedOperationIds.addAll(source.appliedOperationIds);
 			snapshots.clear(); snapshots.putAll(source.snapshots);
 			parentSnapshots.clear(); parentSnapshots.putAll(source.parentSnapshots);
 			dependencySnapshots.clear(); dependencySnapshots.addAll(source.dependencySnapshots);

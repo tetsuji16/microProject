@@ -23,8 +23,16 @@ import com.microproject.pm.resource.Resource;
 /** Applies validated mpo task-update operations deterministically to a snapshot. */
 public final class MpoTaskOperationService {
 	public void apply(Project project, Collection<OperationLog.Operation> operations) throws IOException {
+		apply(project, operations, java.util.Set.of());
+	}
+	/** Applies a ready merge while retaining already-materialized parents as causal context. */
+	public void apply(Project project, Collection<OperationLog.Operation> operations,
+			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
 		if (project == null) throw new IOException("Missing project for mpo operations");
+		if (alreadyAppliedOperationIds == null) throw new IOException("Missing applied mpo operation generation");
+		java.util.Set<String> appliedIds = java.util.Set.copyOf(alreadyAppliedOperationIds);
 		for (OperationLog.Operation operation : new OperationLog().merge(operations).ready()) {
+			if (appliedIds.contains(operation.id())) continue;
 			switch (operation.kind()) {
 				case "task.create" -> applyCreate(project, operation.payload());
 				case "task.update" -> applyUpdate(project, operation.payload());

@@ -134,10 +134,11 @@ class MpoTransactionBoundaryTest {
 			MpoFileImporter retrying = new MpoFileImporter() {
 				@Override
 				protected void applyMergedOperationsOnEdt(Project project,
-						java.util.List<OperationLog.Operation> operations) throws IOException {
+						java.util.List<OperationLog.Operation> operations,
+						java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
 					if (project == original && failOnce.getAndSet(false))
 						throw new IOException("injected apply failure");
-					super.applyMergedOperationsOnEdt(project, operations);
+					super.applyMergedOperationsOnEdt(project, operations, alreadyAppliedOperationIds);
 				}
 			};
 			retrying.setFileName(target.toString());
