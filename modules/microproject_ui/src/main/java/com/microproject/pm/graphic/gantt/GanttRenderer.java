@@ -1377,19 +1377,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		int i1;
 		if (visibleBounds==null) i1=(int)Math.ceil(clipBounds.getMaxY()/rowHeight);
 		else i1=(int)Math.floor(clipBounds.getMaxY()/rowHeight);
-		//double t0=coord.toTime(clipBounds.getX());
-		//double t1=coord.toTime(clipBounds.getMaxX());
 
 		nodeList.clear();
 
 		GraphicNode node;
-//		for (ListIterator i=graph.getModel().getNodeIterator(i0);i.hasNext()&&i.nextIndex()<=i1;){
-//			node=(GraphicNode)i.next();
-//			if (!node.isSchedule()) continue;
-//			nodeList.add(node);
-//			node.setRow(i.previousIndex());
-//			paintNode(g2,node,true);
-//		} //Because row not initialized for some nodes
 
 		NodeModelCache cache=graphInfo.getCache();
 		@SuppressWarnings("unchecked")
