@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import com.formdev.flatlaf.util.SystemFileChooser;
 import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
+import com.microproject.strings.Messages;
 
 class SwingFileChooserProviderTest {
 	@Test
@@ -118,7 +119,7 @@ class SwingFileChooserProviderTest {
 			provider.configureFileChooser(chooser, false);
 			provider.selectOpenFileFilter(chooser);
 
-			assertEquals("Projects", chooser.getFileFilter().getDescription());
+			assertEquals(Messages.getString("File.projects"), chooser.getFileFilter().getDescription());
 			assertTrue(chooser.isMultiSelectionEnabled());
 			assertArrayEquals(new String[] { "mpo", "pod", "xml", "xlsx", "planner", "mpp", "mpx" },
 				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
