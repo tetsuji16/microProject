@@ -1379,6 +1379,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		GraphicNode node;
 
 		NodeModelCache cache=graphInfo.getCache();
+		int rowCount = cache.getSize();
+		i0 = clampVisibleRow(i0, rowCount);
+		i1 = Math.max(i0, clampVisibleRow(i1, rowCount));
 		@SuppressWarnings("unchecked")
 		ListIterator<GraphicNode> i=cache.getIterator(i0);
 		for (;i.hasNext()&&i.nextIndex()<i1;){
@@ -1442,6 +1445,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 		if (visibleBounds!=null) g2.setClip(svgClip);
 
+	}
+
+	static int clampVisibleRow(int row, int rowCount) {
+		return Math.min(rowCount, Math.max(0, row));
 	}
 
 

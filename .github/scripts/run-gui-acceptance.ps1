@@ -90,7 +90,14 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
     foreach ($testCase in @($resultXml.testsuite.testcase)) {
       if ($null -ne $testCase.skipped) {
         $reason = [string]$testCase.skipped.message
-        if ($allowedSkipReasons -notcontains $reason) {
+        $isAllowedSkip = $false
+        foreach ($allowedReason in $allowedSkipReasons) {
+          if ($reason.EndsWith($allowedReason, [StringComparison]::Ordinal)) {
+            $isAllowedSkip = $true
+            break
+          }
+        }
+        if (-not $isAllowedSkip) {
           $unexpectedSkips += "$($testCase.classname).$($testCase.name): $reason"
         }
       }
