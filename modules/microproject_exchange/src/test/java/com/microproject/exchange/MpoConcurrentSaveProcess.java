@@ -69,6 +69,10 @@ public final class MpoConcurrentSaveProcess {
 		MpoFileImporter writer = new MpoFileImporter();
 		writer.setFileName(sharedArchive.toString());
 		writer.setProject(project);
-		writer.exportFile();
+		try {
+			writer.exportFile();
+		} catch (MpoConflictRecoveryException conflict) {
+			System.out.println("MPO_CONFLICT_RECOVERY=" + conflict.recoveryCopy());
+		}
 	}
 }

@@ -1009,6 +1009,63 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoSameFieldConflictKeepsSharedFileAndWritesReloadableRecoveryCopy() throws Exception {
+		Project initial = projectForRoundTrip();
+		assignPositiveUniqueIds(initial);
+		File shared = File.createTempFile("mpo-conflict-recovery", ".mpo");
+		shared.deleteOnExit();
+		new File(shared.getAbsolutePath() + ".lock").deleteOnExit();
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Project firstEditor = load(shared);
+		Project secondEditor = load(shared);
+		firstTask(firstEditor).setName("First committed value");
+		firstTask(secondEditor).setName("Second recoverable value");
+		MpoFileImporter firstWriter = new MpoFileImporter();
+		firstWriter.setFileName(shared.getAbsolutePath());
+		firstWriter.setProject(firstEditor);
+		firstWriter.exportFile();
+		byte[] committedArchive = Files.readAllBytes(shared.toPath());
+
+		MpoFileImporter secondWriter = new MpoFileImporter();
+		secondWriter.setFileName(shared.getAbsolutePath());
+		secondWriter.setProject(secondEditor);
+		MpoConflictRecoveryException conflict = assertThrows(MpoConflictRecoveryException.class, secondWriter::exportFile);
+		Path recoveryCopy = conflict.recoveryCopy();
+		Path repeatedRecoveryCopy = null;
+		try {
+			assertEquals(1, conflict.conflicts().size());
+			assertTrue(conflict.getMessage().contains(recoveryCopy.toString()));
+			org.junit.jupiter.api.Assertions.assertArrayEquals(committedArchive, Files.readAllBytes(shared.toPath()),
+				"the shared archive must remain unchanged when same-field edits conflict");
+			assertEquals("Second recoverable value", firstTask(secondEditor).getName(),
+				"the losing editor's in-memory value must remain available");
+			assertTrue(Files.isRegularFile(recoveryCopy));
+			Project recovered = load(recoveryCopy.toFile());
+			assertEquals("Second recoverable value", firstTask(recovered).getName());
+			OperationLog.DocumentLog recoveryLog = new OperationLog().readJsonl(
+				readEntries(Files.readAllBytes(recoveryCopy)).get(MpoFileImporter.OPERATIONS_ENTRY));
+			assertEquals(2, recoveryLog.operations().size(), "the recovery journal must retain both concurrent operations");
+			assertEquals(1, new OperationLog().merge(recoveryLog.operations()).conflicts().size());
+			assertEquals(1, recoveryLog.appliedOperationIds().size(),
+				"the recovery snapshot may advertise only the losing editor's materialized branch");
+			MpoConflictRecoveryException retryConflict = assertThrows(MpoConflictRecoveryException.class, secondWriter::exportFile);
+			repeatedRecoveryCopy = retryConflict.recoveryCopy();
+			OperationLog.DocumentLog retryLog = new OperationLog().readJsonl(
+				readEntries(Files.readAllBytes(repeatedRecoveryCopy)).get(MpoFileImporter.OPERATIONS_ENTRY));
+			assertEquals(recoveryLog.operations().stream().map(OperationLog.Operation::id).collect(java.util.stream.Collectors.toSet()),
+				retryLog.operations().stream().map(OperationLog.Operation::id).collect(java.util.stream.Collectors.toSet()),
+				"a retry must reuse the same operation IDs instead of appending duplicate edits");
+		} finally {
+			Files.deleteIfExists(recoveryCopy);
+			if (repeatedRecoveryCopy != null) Files.deleteIfExists(repeatedRecoveryCopy);
+		}
+	}
+
+	@Test
 	void separateJvmSavesMergeIndependentTaskEdits() throws Exception {
 		Project initial = projectForRoundTrip();
 		NormalTask second = (NormalTask) initial.createLocalTaskNode(null).getImpl();
@@ -1169,6 +1226,67 @@ class MpoFileImporterTest {
 		} finally {
 			stopWorker(first);
 			stopWorker(second);
+			Files.deleteIfExists(release);
+			Files.deleteIfExists(firstReady);
+			Files.deleteIfExists(secondReady);
+			Files.deleteIfExists(firstLog);
+			Files.deleteIfExists(secondLog);
+			Files.deleteIfExists(tempDirectory);
+		}
+	}
+
+	@Test
+	void separateJvmSameFieldConflictReturnsDurableRecoveryCopy() throws Exception {
+		Project initial = projectForRoundTrip();
+		assignPositiveUniqueIds(initial);
+		long taskId = firstTask(initial).getUniqueId();
+		File shared = File.createTempFile("mpo-process-conflict", ".mpo");
+		shared.deleteOnExit();
+		new File(shared.getAbsolutePath() + ".lock").deleteOnExit();
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Path tempDirectory = Files.createTempDirectory("mpo-process-conflict-" + System.nanoTime());
+		Path release = tempDirectory.resolve("release.flag");
+		Path firstReady = tempDirectory.resolve("first-ready.flag");
+		Path secondReady = tempDirectory.resolve("second-ready.flag");
+		Path firstLog = tempDirectory.resolve("first-worker.log");
+		Path secondLog = tempDirectory.resolve("second-worker.log");
+		Process first = null;
+		Process second = null;
+		Path recoveryCopy = null;
+		try {
+			first = startMpoSaveWorker(shared, taskId, "name", "Process winner A", firstReady, release, firstLog);
+			second = startMpoSaveWorker(shared, taskId, "name", "Process winner B", secondReady, release, secondLog);
+			awaitWorkerReady(first, firstReady, firstLog);
+			awaitWorkerReady(second, secondReady, secondLog);
+			Files.createFile(release);
+			assertWorkerSucceeded(first, firstLog);
+			assertWorkerSucceeded(second, secondLog);
+
+			String firstOutput = readWorkerLog(firstLog);
+			String secondOutput = readWorkerLog(secondLog);
+			List<String> recoveryMarkers = java.util.stream.Stream.of(firstOutput, secondOutput)
+				.flatMap(value -> value.lines()).filter(value -> value.startsWith("MPO_CONFLICT_RECOVERY="))
+				.toList();
+			assertEquals(1, recoveryMarkers.size(), "exactly one process should produce a conflict recovery copy");
+			recoveryCopy = Path.of(recoveryMarkers.getFirst().substring("MPO_CONFLICT_RECOVERY=".length()));
+			assertTrue(Files.isRegularFile(recoveryCopy));
+			String sharedValue = firstTask(load(shared)).getName();
+			String recoveredValue = firstTask(load(recoveryCopy.toFile())).getName();
+			assertTrue(java.util.Set.of("Process winner A", "Process winner B").contains(sharedValue));
+			assertTrue(java.util.Set.of("Process winner A", "Process winner B").contains(recoveredValue));
+			org.junit.jupiter.api.Assertions.assertNotEquals(sharedValue, recoveredValue);
+			OperationLog.DocumentLog recoveryLog = new OperationLog().readJsonl(
+				readEntries(Files.readAllBytes(recoveryCopy)).get(MpoFileImporter.OPERATIONS_ENTRY));
+			assertEquals(2, recoveryLog.operations().size());
+			assertEquals(1, new OperationLog().merge(recoveryLog.operations()).conflicts().size());
+		} finally {
+			stopWorker(first);
+			stopWorker(second);
+			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
 			Files.deleteIfExists(release);
 			Files.deleteIfExists(firstReady);
 			Files.deleteIfExists(secondReady);

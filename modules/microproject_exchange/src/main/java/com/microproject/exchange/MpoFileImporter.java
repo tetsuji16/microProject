@@ -319,8 +319,17 @@ public class MpoFileImporter extends FileImporter {
 		MpoOperationState operationState = workingOperationStateFor(project);
 		operationState.appendChanges(project);
 		ensureOperationCount(operationState.operations);
-		MpoMergePreparation merge = target.isFile() && target.length() > 0L
-				? prepareExternalMerge(target, project, operationState) : null;
+		MpoMergePreparation merge;
+		try {
+			merge = target.isFile() && target.length() > 0L
+					? prepareExternalMerge(target, project, operationState) : null;
+		} catch (MpoConflictRecoveryException conflict) {
+			// Keep the attempted local operation IDs stable across a retry. The
+			// recovery archive already contains this detached state; the shared file
+			// remains untouched and the user's edited model values remain in memory.
+			commitOperationState(project, operationState);
+			throw conflict;
+		}
 		Project outputProject = project;
 		if (merge != null) {
 			// Apply concurrent operations only to an isolated candidate.  The live
@@ -686,7 +695,7 @@ public class MpoFileImporter extends FileImporter {
 		return result;
 	}
 
-	private static MpoMergePreparation prepareExternalMerge(File target, Project project, MpoOperationState local) throws IOException {
+	private MpoMergePreparation prepareExternalMerge(File target, Project project, MpoOperationState local) throws IOException {
 		ExternalMpo external = externalOperations(target);
 		if (!local.documentId.equals(external.document.documentId())) throw new IOException("Cannot merge mpo files with different document IDs");
 		if (!local.documentId.equals(external.manifestDocumentId)) throw new IOException("Cannot merge mpo with mismatched manifest document ID");
@@ -711,6 +720,13 @@ public class MpoFileImporter extends FileImporter {
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
 			MpoMergePlan plan = planFor(external.snapshot(), plannedOperations, planConflicts);
+			if (!merged.conflicts().isEmpty()) {
+				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
+				conflictOperations.addAll(merged.pending());
+				Path recoveryCopy = persistConflictRecoveryCopy(target, project, local, conflictOperations,
+						external.extensions);
+				throw new MpoConflictRecoveryException(recoveryCopy, merged.conflicts());
+			}
 			validateMergePlan(plan);
 			// The snapshot already contains every local operation.  Replaying that
 			// history is not idempotent for moves (the original parent may no longer
@@ -728,6 +744,48 @@ public class MpoFileImporter extends FileImporter {
 					mergedAppliedIds, external.extensions, plan);
 		} catch (IllegalArgumentException exception) {
 			throw new IOException("Cannot merge conflicting mpo operation logs", exception);
+		}
+	}
+
+	private Path persistConflictRecoveryCopy(File target, Project project, MpoOperationState local,
+			java.util.List<OperationLog.Operation> mergedOperations, MpoExtensions externalExtensions) throws IOException {
+		Project recoveryProject = copyProjectForTransaction(project);
+		if (externalExtensions != null && !externalExtensions.entries.isEmpty()) {
+			MpoExtensions recoveryExtensions = recoveryProject.getOrCreateTransientDocumentState(MpoExtensions.class,
+					MpoExtensions::new);
+			for (java.util.Map.Entry<String, byte[]> entry : externalExtensions.entries.entrySet())
+				recoveryExtensions.entries.putIfAbsent(entry.getKey(), entry.getValue().clone());
+		}
+		MpoOperationState recoveryState = local.copy();
+		recoveryState.operations.clear();
+		recoveryState.operations.addAll(mergedOperations);
+		try {
+			recoveryState.json = new OperationLog().writeJsonl(recoveryState.documentId,
+				recoveryState.operations, recoveryState.appliedOperationIds);
+			byte[] projectXml = serializeProjectXml(recoveryProject);
+			recoveryState.remapTaskIds(readTaskIdentities(
+				taskIdentitiesFor(recoveryProject, projectXml).getBytes(StandardCharsets.UTF_8)));
+			File temporary = createTemporaryFile(target);
+			boolean moved = false;
+			try {
+				try (OutputStream out = new FileOutputStream(temporary)) {
+					writeMpo(recoveryProject, out, projectXml, recoveryState);
+				}
+				Path recovery = target.toPath().toAbsolutePath().resolveSibling(target.getName()
+					+ ".conflict-" + java.util.UUID.randomUUID() + ".mpo");
+				try {
+					Files.move(temporary.toPath(), recovery, StandardCopyOption.ATOMIC_MOVE);
+				} catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+					Files.move(temporary.toPath(), recovery);
+				}
+				moved = true;
+				return recovery;
+			} finally {
+				if (!moved) TemporaryCleanupQueue.deleteOrEnqueue(temporary.toPath());
+			}
+		} catch (Exception exception) {
+			if (exception instanceof IOException ioException) throw ioException;
+			throw new IOException("Could not create MPOF conflict recovery copy", exception);
 		}
 	}
 
