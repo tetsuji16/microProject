@@ -58,6 +58,11 @@ public class JobQueue extends ThreadGroup{
 	public boolean hasNext(){
 		return activeCount()!=0;
 	}
+
+	/** Returns whether a scheduled job is executing, including work dispatched off this ThreadGroup. */
+	public boolean hasExecutingJobs() {
+		return !executingJobs.isEmpty();
+	}
 	public synchronized void startNext(){
 		if (hasNext()){
 			Thread[] threads=new Thread[1];

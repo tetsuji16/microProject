@@ -15,6 +15,18 @@ import org.junit.jupiter.api.Test;
 
 class JobQueueCriticalSectionTest {
 	@Test
+	void reportsScheduledExecutionsThatRunOutsideItsThreadGroup() {
+		JobQueue queue = new JobQueue("executing-job-report-test", false);
+		Job job = new Job(queue, "scheduled", "Scheduled", false);
+
+		assertFalse(queue.hasExecutingJobs());
+		queue.addExecutingJob(job);
+		assertTrue(queue.hasExecutingJobs());
+		queue.removeExecutingJob(job);
+		assertFalse(queue.hasExecutingJobs());
+	}
+
+	@Test
 	void cancelCancelsRunningJobsInItsThreadGroup() throws Exception {
 		JobQueue queue = new JobQueue("cancel-running-job-test", false);
 		CountDownLatch started = new CountDownLatch(1);

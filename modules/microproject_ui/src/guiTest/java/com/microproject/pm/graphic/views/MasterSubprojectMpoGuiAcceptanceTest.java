@@ -64,6 +64,7 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.session.SessionFactory;
+import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
@@ -92,6 +93,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 
 	@AfterEach
 	void closeWindow() throws Exception {
+		awaitScheduledJobs();
 		if (graphicManager != null)
 			SwingUtilities.invokeAndWait(() -> graphicManager.cleanUp());
 		if (applicationWindow != null)
@@ -159,6 +161,10 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> assertTrue(graphicManager.saveMasterAsMpo(),
 				"the explicit MPO save route did not accept the selected target"));
 		GuiAcceptanceSupport.await(target::isFile, "Save as MPO did not create the .mpo target");
+		awaitScheduledJobs();
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.noneMatch(candidate -> candidate instanceof Dialog dialog && dialog.isShowing()),
+			"Save as MPO left a modal error dialog open: " + showingDialogText());
 		Project reloaded = load(target);
 		SubProj reloadedChild = findSubproject(reloaded);
 		assertNotNull(reloadedChild, "the explicitly saved MPO did not retain the child reference");
@@ -454,16 +460,33 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		});
 	}
 
+	private void awaitScheduledJobs() throws Exception {
+		if (graphicManager == null) return;
+		JobQueue queue = graphicManager.getJobQueue();
+		final long[] idleSince = {0L};
+		GuiAcceptanceSupport.await(() -> {
+			if (queue.hasExecutingJobs()) {
+				idleSince[0] = 0L;
+				return false;
+			}
+			if (idleSince[0] == 0L) idleSince[0] = System.nanoTime();
+			return System.nanoTime() - idleSince[0] >= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(300);
+		}, "scheduled document jobs did not become idle");
+	}
+
 	private static void dismissReadOnlyWarning() throws Exception {
 		final Dialog[] warning = new Dialog[1];
+		String warningText = Messages.getString("Message.readOnlySubproject");
 		GuiAcceptanceSupport.await(() -> {
 			for (Window candidate : Window.getWindows())
-				if (candidate instanceof Dialog dialog && dialog.isShowing()) {
+				if (candidate instanceof Dialog dialog && dialog.isShowing()
+						&& componentText(dialog).contains(warningText)) {
 					warning[0] = dialog;
 					return true;
 				}
 			return false;
-		}, "read-only child warning did not appear");
+		}, "read-only child warning did not appear; expected text=" + warningText
+				+ "; showing dialogs=" + showingDialogText());
 		warning[0].toFront();
 		JButton button = findButton(warning[0]);
 		assertNotNull(button, "read-only child warning must provide a close button");
@@ -477,7 +500,29 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !warning[0].isShowing(), "read-only child warning did not dismiss");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.noneMatch(candidate -> candidate instanceof Dialog dialog && dialog.isShowing()),
-			"another modal dialog remained after dismissing the read-only warning");
+			"another modal dialog remained after dismissing the read-only warning: " + showingDialogText());
+	}
+
+	private static String showingDialogText() {
+		StringBuilder result = new StringBuilder();
+		for (Window candidate : Window.getWindows())
+			if (candidate instanceof Dialog dialog && dialog.isShowing())
+				result.append(" [").append(dialog.getClass().getName()).append(": ")
+					.append(componentText(dialog)).append(']');
+		return result.toString();
+	}
+
+	private static String componentText(Container container) {
+		StringBuilder result = new StringBuilder();
+		for (Component component : container.getComponents()) {
+			if (component instanceof JLabel label && label.getText() != null)
+				result.append(label.getText()).append(' ');
+			if (component instanceof JButton button && button.getText() != null)
+				result.append(button.getText()).append(' ');
+			if (component instanceof Container child)
+				result.append(componentText(child));
+		}
+		return result.toString();
 	}
 
 	private static JButton findButton(Container container) {
