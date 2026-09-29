@@ -1512,6 +1512,45 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoSaveCleansOnlyStaleStagesForItsOwnTarget() throws Exception {
+		Project initial = projectForRoundTrip();
+		File target = File.createTempFile("mpo-stale-stage-cleanup-", ".mpo");
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(target.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Path parent = target.toPath().toAbsolutePath().getParent();
+		Path staleStage = parent.resolve(target.getName() + ".abc123.tmp");
+		Path recentStage = parent.resolve(target.getName() + ".def456.tmp");
+		Path otherTargetStage = parent.resolve(target.getName() + ".other.ghi789.tmp");
+		Files.write(staleStage, new byte[] { 1 });
+		Files.write(recentStage, new byte[] { 2 });
+		Files.write(otherTargetStage, new byte[] { 3 });
+		Files.setLastModifiedTime(staleStage, java.nio.file.attribute.FileTime.fromMillis(
+				System.currentTimeMillis() - java.util.concurrent.TimeUnit.DAYS.toMillis(2)));
+
+		try {
+			Project edited = load(target);
+			firstTask(edited).setName("Save after abandoned stage cleanup");
+			MpoFileImporter writer = new MpoFileImporter();
+			writer.setFileName(target.getAbsolutePath());
+			writer.setProject(edited);
+			writer.exportFile();
+			assertFalse(Files.exists(staleStage), "old stage for this target should be removed under its lock");
+			assertTrue(Files.exists(recentStage), "a fresh stage must not be mistaken for a crashed writer artifact");
+			assertTrue(Files.exists(otherTargetStage), "a stage belonging to a different target must be preserved");
+			assertEquals("Save after abandoned stage cleanup", firstTask(load(target)).getName());
+		} finally {
+			Files.deleteIfExists(staleStage);
+			Files.deleteIfExists(recentStage);
+			Files.deleteIfExists(otherTargetStage);
+			Files.deleteIfExists(Path.of(target.getAbsolutePath() + ".lock"));
+			Files.deleteIfExists(target.toPath());
+		}
+	}
+
+	@Test
 	void mpoSharedFolderRejectsManifestDocumentMismatchBeforeMerge() throws Exception {
 		Project initial = projectForRoundTrip();
 		File shared = File.createTempFile("mpo-manifest-mismatch", ".mpo"); shared.deleteOnExit();

@@ -21,6 +21,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.StandardCopyOption;
@@ -322,9 +323,37 @@ public class MpoFileImporter extends FileImporter {
 					throw persistLockFailureRecovery(target, lockFailure);
 				}
 				try (fileLock) {
+					cleanupAbandonedTemporaryFiles(target);
 					exportFileLocked(target);
 				}
 			}
+		}
+	}
+
+	/** Best-effort cleanup of this MPO's generated stages left by a crashed writer. */
+	private void cleanupAbandonedTemporaryFiles(File target) {
+		Path absoluteTarget = target.toPath().toAbsolutePath();
+		Path parent = absoluteTarget.getParent();
+		if (parent == null) return;
+		String prefix = target.getName() + ".";
+		long staleBefore = System.currentTimeMillis() - java.time.Duration.ofDays(1).toMillis();
+		try (java.util.stream.Stream<Path> siblings = Files.list(parent)) {
+			for (Path sibling : siblings.toList()) {
+				String name = sibling.getFileName().toString();
+				if (!name.startsWith(prefix) || !name.endsWith(".tmp")) continue;
+				String generatedSuffix = name.substring(prefix.length(), name.length() - ".tmp".length());
+				if (generatedSuffix.length() < 3
+						|| !generatedSuffix.chars().allMatch(Character::isLetterOrDigit)) continue;
+				try {
+					if (Files.isRegularFile(sibling, LinkOption.NOFOLLOW_LINKS)
+							&& Files.getLastModifiedTime(sibling, LinkOption.NOFOLLOW_LINKS).toMillis() < staleBefore)
+						Files.deleteIfExists(sibling);
+				} catch (IOException ignored) {
+					// A stale artifact must not prevent a valid save when cleanup is denied.
+				}
+			}
+		} catch (IOException ignored) {
+			// Directory listing is best-effort; the transaction itself remains authoritative.
 		}
 	}
 
