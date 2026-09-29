@@ -35,8 +35,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.beanutils.PropertyUtils;
-import org.apache.commons.collections.comparators.ComparableComparator;
-
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.Money;
 import com.microproject.datatype.Rate;
@@ -339,9 +337,13 @@ public class ClassUtils {
 		private static final Comparator<Object> defaultTextComparator =
 				(o1, o2) -> ("" + o1).compareTo("" + o2);
 
-		@SuppressWarnings("unchecked")
 		private static Comparator<Object> nullSafeNaturalComparator() {
-			return Comparator.nullsFirst((Comparator<Object>) ComparableComparator.getInstance());
+			return Comparator.nullsFirst(naturalComparator());
+		}
+
+		@SuppressWarnings("unchecked")
+		public static Comparator<Object> naturalComparator() {
+			return (Comparator<Object>) (Comparator<?>) Comparator.naturalOrder();
 		}
 
 		private static void registerComparator(Class<?> type, Comparator<Object> comparator) {
@@ -369,7 +371,7 @@ public class ClassUtils {
 			Comparator<Object> result = comparatorMap.get(clazz);
 			if (result == null) {
 				if (clazz != null && Comparable.class.isAssignableFrom(clazz))
-					return (Comparator<Object>) ComparableComparator.getInstance();
+					return naturalComparator();
 				return defaultTextComparator;
 			}
 			return result;

@@ -33,6 +33,9 @@ import com.microproject.util.ClassUtils;
 class DurationComparisonTest {
 	@Test
 	void typedNaturalOrderMatchesTheRegisteredComparator() {
+		assertTrue(ClassUtils.naturalComparator().compare("alpha", "beta") < 0);
+		assertEquals(0, ClassUtils.naturalComparator().compare("same", "same"));
+
 		Duration shorter = new Duration(Duration.getInstance(1.25, TimeUnit.HOURS));
 		Duration longer = new Duration(Duration.getInstance(1.5, TimeUnit.HOURS));
 

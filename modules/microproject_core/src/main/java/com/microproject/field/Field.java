@@ -42,7 +42,6 @@ import java.util.Map;
 
 import org.apache.commons.beanutils.MethodUtils;
 import org.apache.commons.beanutils.PropertyUtils;
-import org.apache.commons.collections.comparators.ComparableComparator;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
 import com.microproject.configuration.Configuration;
@@ -1780,7 +1779,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			return null;
 		Object value = null;
 		Object currentValue;
-		Comparator<Object> comparatorToUse = (text ? ComparableComparator.getInstance() : getComparator());
+		Comparator<Object> comparatorToUse = (text ? ClassUtils.naturalComparator() : getComparator());
 		for (Object current : collection) {
 			if (text)
 				currentValue = getText(current, null);
