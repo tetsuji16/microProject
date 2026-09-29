@@ -70,12 +70,14 @@ import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.pm.graphic.views.Searchable;
 import com.microproject.pm.graphic.views.BaseView;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.util.Environment;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.frames.workspace.NamedFrame;
 import com.microproject.pm.graphic.frames.workspace.Workspace;
 import com.microproject.workspace.WorkspaceSetting;
 import com.microproject.ribbon.RibbonCommandResult;
+import com.microproject.ribbon.CommandId;
 
 class RibbonButtonBehaviorTest {
 	private enum Strategy {
@@ -260,19 +262,42 @@ class RibbonButtonBehaviorTest {
 		Harness harness = newHarness();
 		harness.frame.setActive(false);
 
-		harness.manager.getAction(MenuActionConstants.ACTION_INSERT_TASK)
-			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert"));
+		SwingUtilities.invokeAndWait(() -> harness.manager.getAction(MenuActionConstants.ACTION_INSERT_TASK)
+			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert")));
 
 		assertEquals(1, harness.frame.insertTaskCallCount());
 	}
 
 	@Test
-	void insertTaskAddsOneRowPerSelectedRow() throws Exception {
+	void insertTaskAddsContiguousRowsAndOneUndoRevertsTheWholeBatch() throws Exception {
 		Harness harness = newHarness();
-		SwingUtilities.invokeAndWait(() -> harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 2));
-		harness.manager.getAction(MenuActionConstants.ACTION_INSERT_TASK)
-			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert"));
-		assertEquals(3, harness.frame.insertTaskCallCount());
+		SpreadSheet sheet = harness.frame.getTopSpreadSheet();
+		var taskModel = harness.project.getTaskModel();
+		Object root = taskModel.getRoot();
+		int beforeNodes = taskModel.getChildCount(root);
+		List<Object> beforeChildren = new ArrayList<>();
+		for (int index = 0; index < beforeNodes; index++) beforeChildren.add(taskModel.getChild(root, index));
+		harness.undoController.clear();
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.setRowSelectionInterval(0, 1);
+			assertEquals(2, sheet.getSelectedNodes().size(), "test rows should resolve to two task rows");
+			assertTrue(sheet.getSelectedNodes().stream().allMatch(node -> node.getImpl() instanceof Task));
+			int selectedLastIndex = beforeChildren.indexOf(sheet.getSelectedNodes().get(1));
+			assertTrue(selectedLastIndex >= 0);
+			var outcome = harness.frame.routeTaskCommand(CommandId.INSERT);
+			assertEquals(RibbonCommandResult.Status.CHANGED, outcome.status(), outcome.reason());
+			assertEquals(beforeNodes + 2, taskModel.getChildCount(root));
+			List<Object> afterChildren = new ArrayList<>();
+			for (int index = 0; index < taskModel.getChildCount(root); index++) afterChildren.add(taskModel.getChild(root, index));
+			assertEquals(beforeChildren.subList(0, selectedLastIndex + 1), afterChildren.subList(0, selectedLastIndex + 1));
+			assertEquals(beforeChildren.subList(selectedLastIndex + 1, beforeChildren.size()),
+				afterChildren.subList(selectedLastIndex + 3, afterChildren.size()),
+				"the batch must be inserted immediately below the last selected task");
+			harness.undoController.undo();
+			assertEquals(beforeNodes, taskModel.getChildCount(root), "one undo must remove both inserted rows");
+			harness.undoController.redo();
+			assertEquals(beforeNodes + 2, taskModel.getChildCount(root), "one redo must restore both inserted rows");
+		});
 	}
 
 	@Test

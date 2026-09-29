@@ -1124,6 +1124,11 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
         }
 		return getCurrentRowNode(model);
     }
+    public Node getNodeAtRow(int row) {
+        var model = getSpreadSheetModel();
+        if (model == null || row < 0 || row >= getRowCount()) return null;
+        return model.getNodeInRow(row);
+    }
     public int getCurrentRow() {
         int row = getSelectedRow();
         if (row == -1)

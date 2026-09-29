@@ -167,25 +167,26 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public Node newNode(Node parent,int position,int actionType){
-		//check if position is correct
-		Node node;
-		int p=position;
-		int i=0;
-		for (Enumeration<?> e=parent.children();e.hasMoreElements();i++){
-			node=(Node)e.nextElement();
-			if (i==p){
-				if (node.getImpl() instanceof Assignment) p++;
-				else{
-					Node newNode=NodeFactory.getInstance().createVoidNode();
-					add(parent,newNode,p,actionType);
-					return newNode;
-				}
+		return newNodes(parent, position, 1, actionType).get(0);
+
+	}
+
+	public List<Node> newNodes(Node parent,int position,int count,int actionType){
+		if (count < 1) throw new IllegalArgumentException("count must be positive");
+		int insertionPosition = position;
+		if (position >= 0) {
+			int index = 0;
+			for (Enumeration<?> children = parent.children(); children.hasMoreElements(); index++) {
+				Node child = (Node) children.nextElement();
+				if (index < insertionPosition) continue;
+				if (child.getImpl() instanceof Assignment) insertionPosition++;
+				else break;
 			}
 		}
-		Node newNode=NodeFactory.getInstance().createVoidNode();
-		add(parent,newNode,-1,actionType);
-		return newNode;
-
+		ArrayList<Node> inserted = new ArrayList<>(count);
+		for (int i = 0; i < count; i++) inserted.add(NodeFactory.getInstance().createVoidNode());
+		add(parent, inserted, insertionPosition, actionType);
+		return inserted;
 	}
 
 	public void paste(Node parent,List<Node> nodes,int position,int actionType){

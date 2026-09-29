@@ -596,6 +596,33 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void batchNewNodesStayTogetherAndUndoAsOneEdit() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("test", undoController), undoController);
+		project.initialize(false, false);
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node root = (Node) model.getHierarchy().getRoot();
+		Node first = NodeFactory.getInstance().createNode(new Object());
+		Node selectedLast = NodeFactory.getInstance().createNode(new Object());
+		Node following = NodeFactory.getInstance().createNode(new Object());
+		model.add(root, List.of(first, selectedLast, following), NodeModel.SILENT);
+		undoController.clear();
+
+		List<Node> inserted = model.newNodes(root, 2, 2, NodeModel.NORMAL);
+		assertEquals(List.of(first, selectedLast, inserted.get(0), inserted.get(1), following),
+			model.getHierarchy().getChildren(root));
+		assertTrue(undoController.canUndo());
+
+		undoController.undo();
+		assertEquals(List.of(first, selectedLast, following), model.getHierarchy().getChildren(root));
+		assertTrue(!undoController.canUndo(), "one undo must remove the whole batch");
+		undoController.redo();
+		assertEquals(List.of(first, selectedLast, inserted.get(0), inserted.get(1), following),
+			model.getHierarchy().getChildren(root));
+	}
+
+	@Test
 	void copyRebuildsDependencyBetweenCopiedTasks() throws Exception {
 		Project project = createProject();
 		NormalTask predecessor = createTask(project, "predecessor");

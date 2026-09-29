@@ -287,6 +287,30 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			scrollRectToVisible(getCellRect(firstRow, 0, true));
 	}
 
+	public List<Node> insertTaskRowsAfter(Node anchor, int count) {
+		return ((CommonSpreadSheetModel) getModel()).getCache().newNodesAfter(anchor, count);
+	}
+
+	public Node insertOneTaskRowAtCurrentRow() {
+		Node anchor = getCurrentRowNode();
+		if (anchor == null || !(anchor.getImpl() instanceof Task)) {
+			anchor = null;
+			for (int row = 0; row < getRowCount(); row++) {
+				Node candidate = getNodeAtRow(row);
+				if (candidate != null && candidate.getImpl() instanceof Task) {
+					anchor = candidate;
+					break;
+				}
+			}
+		}
+		if (anchor == null)
+			return null;
+		finishCurrentOperations();
+		Node inserted = ((CommonSpreadSheetModel) getModel()).getCache().newNodeBefore(anchor);
+		if (inserted != null) restoreTaskRowSelection(List.of(inserted));
+		return inserted;
+	}
+
 	/** Copies each selected column's first selected value into the remaining selected rows. */
 	public void fillDownSelection() {
 		finishCurrentOperations();

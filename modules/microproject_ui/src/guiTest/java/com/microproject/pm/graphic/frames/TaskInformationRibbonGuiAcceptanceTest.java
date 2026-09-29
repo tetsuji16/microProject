@@ -1773,6 +1773,90 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotTaskPopupInsertAddsSelectedRowCountBelowSelectionAndOneUndoRevertsBatch() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask first = createTask();
+		Project project = first.getOwningProject();
+		Node secondNode = project.createLocalTaskNode(null);
+		NormalTask second = (NormalTask) secondNode.getImpl();
+		second.setName("Popup multi insert second");
+		Node thirdNode = project.createLocalTaskNode(null);
+		NormalTask third = (NormalTask) thirdNode.getImpl();
+		third.setName("Popup multi insert third");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"multi insert project did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Rectangle firstCell = cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet));
+		Rectangle secondCell = cellOnScreen(sheet, rowForTask(sheet, second), nameColumn(sheet));
+		click(robot, firstCell);
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, secondCell);
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(first, second)),
+			"Shift-click did not select both task rows");
+		Object root = project.getTaskModel().getRoot();
+		int beforeChildren = project.getTaskModel().getChildCount(root);
+		int beforeRows = sheet.getRowCount();
+		int secondIndex = project.getTaskModel().getIndexOfChild(root, secondNode);
+		int thirdRowBefore = rowForTask(sheet, third);
+		int secondRowBefore = rowForTask(sheet, second);
+		List<Object> beforeOrder = new ArrayList<>();
+		for (int index = 0; index < beforeChildren; index++) beforeOrder.add(project.getTaskModel().getChild(root, index));
+		project.getUndoController().clear();
+		rightClick(robot, secondCell);
+		SpreadSheetPopupMenu popup = sheet.getPopup();
+		GuiAcceptanceSupport.await(() -> popup != null && popup.isVisible(),
+			"physical right click did not show the task popup for multi insert");
+		JMenuItem insert = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_INSERT_TASK);
+		GuiAcceptanceSupport.await(insert::isEnabled, "task popup Insert remained disabled for the selected rows");
+		click(robot, boundsOnScreen(insert));
+		GuiAcceptanceSupport.await(() -> project.getTaskModel().getChildCount(root) == beforeChildren + 2,
+			"popup Insert did not add two contiguous model rows");
+		GuiAcceptanceSupport.await(() -> sheet.getRowCount() == beforeRows + 2,
+			"the task table did not render both inserted rows");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, third) - rowForTask(sheet, second) == 3,
+			"the rendered blank rows are not located directly below the selected range");
+		assertEquals(1, thirdRowBefore - secondRowBefore,
+			"the fixture tasks must be adjacent before insertion");
+		List<Object> afterOrder = new ArrayList<>();
+		for (int index = 0; index < project.getTaskModel().getChildCount(root); index++) afterOrder.add(project.getTaskModel().getChild(root, index));
+		assertEquals(beforeOrder.subList(0, secondIndex + 1), afterOrder.subList(0, secondIndex + 1));
+		assertEquals(beforeOrder.subList(secondIndex + 1, beforeOrder.size()),
+			afterOrder.subList(secondIndex + 3, afterOrder.size()),
+			"popup Insert must place the complete batch directly below the selected range");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> project.getTaskModel().getChildCount(root) == beforeChildren,
+			"one Ctrl+Z did not remove the complete two-row insertion");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, third) - rowForTask(sheet, second) == 1,
+			"the task table did not restore its original row positions after Undo");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> project.getTaskModel().getChildCount(root) == beforeChildren + 2,
+			"one Ctrl+Y did not restore the complete two-row insertion");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, third) - rowForTask(sheet, second) == 3,
+			"the task table did not restore the inserted row positions after Redo");
+		SwingUtilities.invokeAndWait(sheet::clearSelection);
+		int beforeUnselectedInsert = project.getTaskModel().getChildCount(root);
+		press(robot, KeyEvent.VK_INSERT);
+		GuiAcceptanceSupport.await(() -> project.getTaskModel().getChildCount(root) == beforeUnselectedInsert + 1,
+			"Insert with no selected row did not preserve the single-row default");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> project.getTaskModel().getChildCount(root) == beforeUnselectedInsert,
+			"one Ctrl+Z did not revert the single-row default insertion");
+	}
+
+	@Test
 	void robotRightClickTaskPopupHideAndShowUseTheSharedVisibilityRoute() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

@@ -543,12 +543,7 @@ public class DocumentFrame extends NamedFrame implements
 		java.util.Objects.requireNonNull(command, "command");
 		lastTaskCommandResult = null;
 		switch (command) {
-		case INSERT -> lastTaskCommandResult = executeTaskTableMutation(command, () -> {
-			SpreadSheet activeSheet = getActiveSpreadSheet();
-			int count = activeSheet == null ? 1 : Math.max(1, activeSheet.getSelectedRows().length);
-			for (int index = 0; index < count; index++)
-				addNodeForImpl(null);
-		}, false);
+		case INSERT -> lastTaskCommandResult = insertTaskRows(command);
 		case DELETE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doDelete, true);
 		case CUT -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCut, true);
 		case COPY -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCopy, true);
@@ -569,6 +564,44 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTaskCommandResult == null)
 			lastTaskCommandResult = RibbonCommandResult.dispatched(command.actionId());
 		return lastTaskCommandResult;
+	}
+
+	private RibbonCommandResult insertTaskRows(CommandId command) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (sheet == null)
+			return executeLegacyWithoutTable(command, () -> addNodeForImpl(null));
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		if (sheet.isHeaderColumnSelectionActive())
+			return RibbonCommandResult.rejected(command.actionId(), "task-row-selection-required");
+		int[] selectedRows = sheet.getSelectedRows();
+		if (selectedRows.length == 0) {
+			Object root = project.getTaskModel().getRoot();
+			int beforeNodes = project.getTaskModel().getChildCount(root);
+			try {
+				addNodeForImpl(null);
+				if (project.getTaskModel().getChildCount(root) == beforeNodes)
+					sheet.insertOneTaskRowAtCurrentRow();
+			} catch (RuntimeException failure) {
+				return RibbonCommandResult.failed(command.actionId(), failure);
+			}
+			if (lastTaskCommandResult != null) return lastTaskCommandResult;
+			return project.getTaskModel().getChildCount(root) != beforeNodes
+				? RibbonCommandResult.changed(command.actionId()).withActiveView("task")
+				: RibbonCommandResult.noChange(command.actionId()).withActiveView("task");
+		}
+		List<Node> selected = new ArrayList<>(sheet.getSelectedNodes());
+		if (selected.size() != selectedRows.length || selected.stream().anyMatch(node -> !(node.getImpl() instanceof Task)))
+			return RibbonCommandResult.rejected(command.actionId(), "invalid-task-row-selection");
+		Node parent = (Node) selected.get(0).getParent();
+		if (parent == null || selected.stream().anyMatch(node -> node.getParent() != parent))
+			return RibbonCommandResult.rejected(command.actionId(), "selection-spans-task-groups");
+		List<Node> inserted = sheet.insertTaskRowsAfter(selected.get(selected.size() - 1), selected.size());
+		if (inserted.size() != selected.size())
+			return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
+		sheet.restoreTaskRowSelection(inserted);
+		refreshUndoButtonsSafely();
+		return RibbonCommandResult.changed(command.actionId(), taskIds(selected)).withActiveView("task");
 	}
 
 	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {
