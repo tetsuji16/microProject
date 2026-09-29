@@ -2,9 +2,7 @@ dependencies {
     implementation(project(":microproject_contrib"))
     implementation(project(":microproject_core"))
     implementation(libs.mpxj)
-    // Exchange adapters use these APIs directly.
     implementation(libs.bundles.jackson)
-    implementation(libs.commons.collections)
     implementation(libs.commons.lang)
     implementation(libs.bundles.poi)
     // Route MPXJ/POI's Log4j API calls to the existing SLF4J backend instead
