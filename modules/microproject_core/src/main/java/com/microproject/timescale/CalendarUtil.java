@@ -188,17 +188,16 @@ public class CalendarUtil {
 	}
 	
 	public static long getMinDuration(int field){
-		switch (field) {
-			case Calendar.YEAR : return YEAR_ms;			
-			case Calendar.MONTH : return MONTH_ms;
-			case Calendar.WEEK_OF_YEAR : return WEEK_ms;
-			case Calendar.DAY_OF_WEEK : return DAY_ms;
-			case Calendar.DAY_OF_MONTH : return DAY_ms;
-			case Calendar.HOUR_OF_DAY : return HOUR_ms;
-			case Calendar.MINUTE : return MINUTE_ms;
-			case Calendar.SECOND : return SECOND_ms;
-		}
-		return -1;
+		return switch (field) {
+			case Calendar.YEAR -> YEAR_ms;
+			case Calendar.MONTH -> MONTH_ms;
+			case Calendar.WEEK_OF_YEAR -> WEEK_ms;
+			case Calendar.DAY_OF_WEEK, Calendar.DAY_OF_MONTH -> DAY_ms;
+			case Calendar.HOUR_OF_DAY -> HOUR_ms;
+			case Calendar.MINUTE -> MINUTE_ms;
+			case Calendar.SECOND -> SECOND_ms;
+			default -> -1;
+		};
 		
 	}
 	

@@ -2891,3 +2891,8 @@ identity/equality membership semantics are unchanged; collection ordering and
 serialization are not exposed by these local implementations. These
 constructor-only changes have no focused tests; the full core suite and
 downstream compile are the verification.
+
+`CalendarUtil.getMinDuration` now uses a switch expression. A focused test
+locks down every supported `Calendar` field, both day aliases, and the
+unsupported-field `-1` fallback. The method hunk is OpenProj 1.4-derived; its
+calendar constants and return behavior are unchanged.
