@@ -26,7 +26,6 @@ package com.microproject.pm.graphic.pert;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -78,11 +77,11 @@ public class DependencyGraph{
 	    if (suc.isolated()) nodeMap.remove(suc.getValue());
 	}
 	
-	public void insertDependencies(List dependencies){
-	    for (Iterator i=dependencies.iterator();i.hasNext();) insertDependency((GraphicDependency)i.next());
+	public void insertDependencies(List<?> dependencies){
+	    for (Object dependency : dependencies) insertDependency((GraphicDependency) dependency);
 	}
-	public void removeDependencies(List dependencies){
-	    for (Iterator i=dependencies.iterator();i.hasNext();) removeDependency((GraphicDependency)i.next());
+	public void removeDependencies(List<?> dependencies){
+	    for (Object dependency : dependencies) removeDependency((GraphicDependency) dependency);
 	}
 	
 	
