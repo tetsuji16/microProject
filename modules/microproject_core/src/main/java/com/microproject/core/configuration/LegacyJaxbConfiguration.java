@@ -76,11 +76,6 @@ public class LegacyJaxbConfiguration {
 	}
 	
 	public synchronized void load(){
-//		try {
-//			Thread.sleep(5000L);
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		}
 		for (LegacyJaxbConfigurationFile config : configurations){
 			if (!config.isBinded()){
 				config.setRoot(load(config.getFile(),config.getClassesToBeBound()));
