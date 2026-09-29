@@ -96,7 +96,7 @@ public abstract class AbstractContour implements Cloneable{
 		if (contourBuckets == null)
 			return null;
 
-		ArrayList list = new ArrayList(contourBuckets.length);
+		ArrayList list = new ArrayList<>(contourBuckets.length);
 		for (int i=0; i < contourBuckets.length; i++) {
 			list.add(contourBuckets[i]);
 		}

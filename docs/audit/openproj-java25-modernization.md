@@ -2903,3 +2903,10 @@ calendar constants and return behavior are unchanged.
 does not assert an element type or change pool ownership/recycling. The factory
 implementation traces to OpenProj 1.4, and the core test suite covers the
 sorting module's public traversal behavior.
+
+`NodeIndentEdit.restorePositions` and `AbstractContour` now use diamond
+inference for their capacity/snapshot `ArrayList` constructors. The raw local
+and public collection contracts remain unchanged; capacities, element order,
+and hierarchy restore logic are unchanged. `git blame` traces these methods
+to the OpenProj-derived implementation. The complete core suite is used as
+verification because the `NodeIndentEdit` undo route has no focused core test.
