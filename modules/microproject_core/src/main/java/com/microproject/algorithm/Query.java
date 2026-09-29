@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.commons.collections.Factory;
+import org.apache.commons.collections4.Factory;
 
 import com.microproject.pm.time.HasStartAndEnd;
 
@@ -159,4 +159,3 @@ public class Query implements Factory, HasStartAndEnd {
 	}
 
 }
-

@@ -24,14 +24,14 @@
  *******************************************************************************/
 package com.microproject.algorithm;
 
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
 
 import com.microproject.pm.time.HasStartAndEnd;
 
 /**
  * A predicate which tests whether an interval is enclosed in a range
  */
-public class DateInRangePredicate implements Predicate, HasStartAndEnd {
+public class DateInRangePredicate implements Predicate<Object>, HasStartAndEnd {
 	long start;
 	long end;
 	/**
@@ -43,7 +43,7 @@ public class DateInRangePredicate implements Predicate, HasStartAndEnd {
 		this.end = end;
 	}
 
-	public boolean evaluate(Object arg0) {
+	public boolean test(Object arg0) {
 		HasStartAndEnd interval = (HasStartAndEnd)arg0;
 		return (interval.getStart() >= start && interval.getEnd() <= end);
 	}

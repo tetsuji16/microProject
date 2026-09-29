@@ -44,7 +44,7 @@ import javax.swing.KeyStroke;
 import javax.swing.TransferHandler;
 
 import org.apache.commons.collections.Predicate;
-import org.apache.commons.collections.Transformer;
+import org.apache.commons.collections4.Transformer;
 
 import com.microproject.field.Field;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;

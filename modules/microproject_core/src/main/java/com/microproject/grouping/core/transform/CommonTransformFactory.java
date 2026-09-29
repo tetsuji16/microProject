@@ -27,7 +27,7 @@ package com.microproject.grouping.core.transform;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 
-import org.apache.commons.collections.Transformer;
+import org.apache.commons.collections4.Transformer;
 
 import com.microproject.field.InvalidFormulaException;
 import com.microproject.strings.Messages;

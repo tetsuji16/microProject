@@ -27,7 +27,7 @@ package com.microproject.grouping.core.model;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.collections.Transformer;
+import org.apache.commons.collections4.Transformer;
 
 import com.microproject.document.Document;
 import com.microproject.grouping.core.Node;

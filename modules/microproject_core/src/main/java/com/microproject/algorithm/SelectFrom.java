@@ -29,9 +29,7 @@ import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import org.apache.commons.collections.Predicate;
-import org.apache.commons.collections.functors.FalsePredicate;
-import org.apache.commons.collections.functors.TruePredicate;
+import java.util.function.Predicate;
 
 import com.microproject.pm.time.HasStartAndEnd;
 
@@ -46,7 +44,7 @@ public class SelectFrom implements HasStartAndEnd {
 	boolean mustProcessAll = false;
 	Consumer<Object> fieldVisitors = null;
 	CalculationVisitor[] fieldVisitorArray = null;
-	Predicate wherePredicate = TruePredicate.INSTANCE;
+	Predicate<Object> wherePredicate = ignored -> true;
 	
 	public static LinkedList<SelectFrom> selectFromListInstance() {
 		return new LinkedList<>();	
@@ -129,7 +127,7 @@ public class SelectFrom implements HasStartAndEnd {
 		return this;
 	}
 
-	public SelectFrom where(Predicate wherePredicate) {
+	public SelectFrom where(Predicate<Object> wherePredicate) {
 		this.wherePredicate = wherePredicate;
 		return this;
 	}
@@ -146,7 +144,7 @@ public class SelectFrom implements HasStartAndEnd {
 			}
 			from(RangeIntervalGenerator.betweenInstance(start,end)); // add a generator assuring the endpoints are treated corrctly
 		} else { // take care in cases where range is invalid
-			wherePredicate = FalsePredicate.INSTANCE;
+			wherePredicate = ignored -> false;
 		}
 
 		return this;
@@ -204,7 +202,7 @@ public class SelectFrom implements HasStartAndEnd {
 			end = Math.min(groupByEnd,generator.currentEnd());
 			if (end >= start) { // in cases where a clause starts in the middle, such as remaining work, end may be less than start at first
 				// evaluate fields
-				boolean whereConditionMet = wherePredicate.evaluate(this);
+				boolean whereConditionMet = wherePredicate.test(this);
 				if (fieldVisitors != null) { 
 					for (int i = 0; i < fieldVisitorArray.length; i++) {
 						// if we are in the calculation range, or if the functor is cumulative
