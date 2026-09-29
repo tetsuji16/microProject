@@ -2896,3 +2896,10 @@ downstream compile are the verification.
 locks down every supported `Calendar` field, both day aliases, and the
 unsupported-field `-1` fallback. The method hunk is OpenProj 1.4-derived; its
 calendar constants and return behavior are unchanged.
+
+`NodeSorter.ListFactory.makeObject` now uses diamond inference for its empty
+`ArrayList`. The factory's legacy pool API still exposes `Object` and raw
+`List`, so this is deliberately limited to the constructor expression; it
+does not assert an element type or change pool ownership/recycling. The factory
+implementation traces to OpenProj 1.4, and the core test suite covers the
+sorting module's public traversal behavior.

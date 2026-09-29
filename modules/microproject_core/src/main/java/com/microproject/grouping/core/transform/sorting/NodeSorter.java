@@ -139,7 +139,7 @@ private GenericObjectPool pool = new GenericObjectPool(new ListFactory());
 
 private class ListFactory extends BasePoolableObjectFactory {
 	public Object makeObject() { //claur
-		return new ArrayList();
+		return new ArrayList<>();
 	}
 
 	public void activateObject(Object arg0){ //claur{
