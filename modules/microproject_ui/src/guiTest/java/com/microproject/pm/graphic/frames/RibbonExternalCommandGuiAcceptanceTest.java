@@ -26,6 +26,7 @@ import java.util.prefs.Preferences;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
@@ -51,6 +52,7 @@ import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.util.Environment;
+import com.microproject.util.SwingFileChooserProvider;
 import com.microproject.util.UiServices;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -67,6 +69,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private boolean previousStandalone;
 	private boolean previousClientSide;
 	private UiServices.FileChooserProvider previousChooser;
+	private String previousSystemChooserProperty;
 	private Path legacyPod;
 	private Path restartFirstProject;
 	private Path restartSecondProject;
@@ -85,6 +88,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setStandAlone(previousStandalone);
 		Environment.setClientSide(previousClientSide);
 		UiServices.setFileChooserProvider(previousChooser);
+		if (previousSystemChooserProperty == null)
+			System.clearProperty("flatlaf.useSystemFileChooser");
+		else
+			System.setProperty("flatlaf.useSystemFileChooser", previousSystemChooserProperty);
 		if (legacyPod != null) Files.deleteIfExists(legacyPod);
 		if (restartFirstProject != null) Files.deleteIfExists(restartFirstProject);
 		if (restartSecondProject != null) Files.deleteIfExists(restartSecondProject);
@@ -211,6 +218,59 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		clickAndClose(robot, "RibbonLocale", LocaleDialog.class);
 		clickAndClose(robot, "RibbonProjectLibreDocumentation", HelpDialog.class);
 		clickAndClose(robot, "RibbonAboutProjectLibre", AboutDialog.class);
+	}
+
+	/** #398: physical File/Open Escape and Cancel both cancel the real chooser without changing documents. */
+	@Test
+	void robotEscapeAndCancelCloseTheFileOpenChooserWithoutOpeningAProject() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
+		previousChooser = UiServices.getFileChooserProvider();
+		previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
+		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		System.setProperty("flatlaf.useSystemFileChooser", "false");
+		UiServices.setFileChooserProvider(new SwingFileChooserProvider());
+
+		createWindow("microProject — File/Open cancellation acceptance (#398)");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindowForRobot(robot);
+		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
+		int documentsBefore = manager.getFrameManager().getAllFrames().size();
+
+		click(robot, open);
+		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
+			"File/Open did not show the Swing file chooser");
+		Window escapeChooser = visibleFileChooserDialog();
+		GuiAcceptanceSupport.await(() -> {
+			Component owner = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			return owner != null && SwingUtilities.getWindowAncestor(owner) == escapeChooser;
+		}, "File/Open did not acquire keyboard focus");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null,
+			"Escape did not cancel File/Open");
+		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
+			"Escape cancellation must not open a project");
+
+		click(robot, open);
+		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
+			"File/Open did not reopen after Escape cancellation");
+		Window cancelChooser = visibleFileChooserDialog();
+		AbstractButton cancel = findFileChooserCancelButton(cancelChooser);
+		assertTrue(cancel != null && cancel.isShowing(), "File/Open chooser has no visible Cancel button");
+		click(robot, cancel);
+		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null,
+			"Physical Cancel did not close File/Open");
+		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
+			"Cancel must not open a project");
 	}
 
 	@Test
@@ -718,6 +778,28 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 		throw new AssertionError("New Project dialog does not expose a visible project-name field");
 	}
+
+	private static Window visibleFileChooserDialog() {
+		for (Window candidate : Window.getWindows()) {
+			if (candidate.isShowing() && flatten(candidate).stream().anyMatch(JFileChooser.class::isInstance))
+				return candidate;
+		}
+		return null;
+	}
+
+	private static AbstractButton findFileChooserCancelButton(Window chooserWindow) {
+		for (Component component : flatten(chooserWindow)) {
+			if (!(component instanceof AbstractButton button)) continue;
+			String action = button.getActionCommand();
+			String text = button.getText();
+			if ((action != null && action.toLowerCase(Locale.ROOT).contains("cancel"))
+					|| (text != null && List.of("cancel", "キャンセル", "取消", "abbrechen", "annuler", "anuluj")
+						.contains(text.trim().toLowerCase(Locale.ROOT))))
+				return button;
+		}
+		return null;
+	}
+
 
 	private static JComboBox<?> findComboWithItem(Component root, String item) {
 		for (Component component : flatten(root)) {
