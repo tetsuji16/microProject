@@ -25,9 +25,6 @@
 package com.microproject.undo;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.undo.AbstractUndoableEdit;
@@ -44,8 +41,8 @@ public class NodeIndentEdit extends AbstractUndoableEdit{
 	protected NodeModel model;
 	protected List<Node> nodes;
 	protected int deltaLevel;
-	protected List beforePositions;
-	protected List afterPositions;
+	protected List<Position> beforePositions;
+	protected List<Position> afterPositions;
 	
 	/**
 	 * @param hierarchy
@@ -59,7 +56,8 @@ public class NodeIndentEdit extends AbstractUndoableEdit{
 		this.deltaLevel = deltaLevel;
 	}
 
-	public NodeIndentEdit(NodeModel model, List<Node> nodes, int deltaLevel, List beforePositions, List afterPositions) {
+	public NodeIndentEdit(NodeModel model, List<Node> nodes, int deltaLevel,
+			List<Position> beforePositions, List<Position> afterPositions) {
 		this(model, nodes, deltaLevel);
 		this.beforePositions = beforePositions;
 		this.afterPositions = afterPositions;
@@ -79,24 +77,15 @@ public class NodeIndentEdit extends AbstractUndoableEdit{
 		return "NodeIndent";
 	}
 
-	private boolean restorePositions(List positions) {
+	private boolean restorePositions(List<Position> positions) {
 		if (positions == null || positions.size() == 0)
 			return false;
-		List sorted = new ArrayList<>(positions);
-		Collections.sort(sorted, new Comparator() {
-			public int compare(Object o1, Object o2) {
-				Position p1 = (Position)o1;
-				Position p2 = (Position)o2;
-				if (p1.parent == p2.parent)
-					return p1.index - p2.index;
-				return 0;
-			}
-		});
-		for (Iterator i = sorted.iterator(); i.hasNext();) {
-			Position position = (Position)i.next();
+		List<Position> sorted = new ArrayList<>(positions);
+		sorted.sort((first, second) -> first.parent == second.parent ? first.index - second.index : 0);
+		for (Position position : sorted) {
 			if (position == null || position.parent == null || position.node == null)
 				continue;
-			List one = new ArrayList<>(1);
+			List<Node> one = new ArrayList<>(1);
 			one.add(position.node);
 			int index = Math.max(0, Math.min(position.index, position.parent.getChildCount()));
 			model.getHierarchy().add(position.parent, one, index, NodeModel.EVENT);
