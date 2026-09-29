@@ -24,12 +24,12 @@
  *******************************************************************************/
 package com.microproject.algorithm;
 
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
 
 /**
  * Interface for all interval generators
  */
-public interface IntervalGenerator extends Predicate {
+public interface IntervalGenerator extends Predicate<Object> {
 	Object current(); // current item
 	long currentEnd();
 	long currentStart();

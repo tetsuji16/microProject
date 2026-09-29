@@ -150,7 +150,7 @@ public class IntervalGeneratorSet implements IntervalGenerator {
 		return false;
 	}
 
-	public boolean evaluate(Object arg0) {
+	public boolean test(Object arg0) {
 		boolean result = true;
 		currentIntervalGenerator = earliestEndingGenerator();
 		if (currentIntervalGenerator == null)
@@ -158,7 +158,7 @@ public class IntervalGeneratorSet implements IntervalGenerator {
 		
 		long earliestEnd = currentIntervalGenerator.currentEnd();
 		for (IntervalGenerator generator : generators) {
-			if (generator.currentEnd() == earliestEnd && !generator.evaluate(arg0)) {
+			if (generator.currentEnd() == earliestEnd && !generator.test(arg0)) {
 				result = false;
 			}
 		}

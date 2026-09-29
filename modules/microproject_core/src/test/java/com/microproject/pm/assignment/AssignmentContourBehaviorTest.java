@@ -238,7 +238,7 @@ class AssignmentContourBehaviorTest {
 		ContourBucketIntervalGenerator generator = assignment.contourGeneratorInstance(HasTimeDistributedData.WORK);
 		long initialEnd = generator.getEnd();
 
-		assertTrue(generator.evaluate(generator));
+		assertTrue(generator.test(generator));
 		assertTrue(generator.current() != null);
 		assertTrue(generator.getEnd() != initialEnd);
 	}

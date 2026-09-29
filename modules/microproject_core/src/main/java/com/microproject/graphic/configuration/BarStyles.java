@@ -68,7 +68,7 @@ public class BarStyles implements NamedItem {
 	}
 	public void apply(Object ganttable, Consumer<Object> action,boolean link,boolean annotation,boolean calendar, boolean horizontalGrid) {
 		for (BarStyle row : getStyles(link, annotation, calendar, horizontalGrid)) {
-			if (row.evaluate(ganttable)) { // see if meets filter
+			if (row.test(ganttable)) { // see if meets filter
 				action.accept(row.getBarFormat());
 			}
 		}

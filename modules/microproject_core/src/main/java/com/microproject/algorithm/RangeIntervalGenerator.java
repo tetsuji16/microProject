@@ -94,7 +94,7 @@ public class RangeIntervalGenerator implements IntervalGenerator {
 	public long currentStart() {
 		return start;
 	}	
-	public boolean evaluate(Object obj) {
+	public boolean test(Object obj) {
 		start = currentEnd; // move on to next interval.  If only one, then will stop here
 		currentEnd = nextEnd;
 		if (currentEnd > end)

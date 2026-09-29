@@ -95,7 +95,7 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 		return index < contourBuckets.length-1;
 	}
 	boolean didFirstPart = false;
-	public boolean evaluate(Object obj) {
+	public boolean test(Object obj) {
 		index++;
 		if (index == contourBuckets.length)
 			return false;

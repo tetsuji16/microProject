@@ -263,7 +263,7 @@ tasks.register("verifyDependencyAllowlist") {
         val allowedGroups = setOf(
             "com.fasterxml.jackson.core", "com.fasterxml.jackson.dataformat",
             "com.formdev", "com.jgoodies", "com.lowagie", "com.thoughtworks.xstream",
-            "commons-beanutils", "commons-codec", "commons-collections",
+            "commons-beanutils", "commons-codec",
             "commons-io", "commons-lang", "commons-logging", "commons-pool", "commons-digester",
             "io.reactivex.rxjava3", "javax.activation", "javax.xml.bind",
             "net.sf.mpxj", "net.sf.jasperreports", "org.apache.commons",

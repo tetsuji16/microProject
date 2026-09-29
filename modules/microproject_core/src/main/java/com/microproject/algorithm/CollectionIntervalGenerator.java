@@ -86,7 +86,7 @@ public class CollectionIntervalGenerator implements IntervalGenerator, HasStartA
 			return this;
 	}
 
-	public boolean evaluate(Object obj) {
+	public boolean test(Object obj) {
 		start = currentEnd(); // move start ahead		
 		if (active) { // active implies that the value comes from the collection 
 			if (!iterator.hasNext()) {

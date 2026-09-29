@@ -52,7 +52,7 @@ public class TimeIteratorGenerator implements IntervalGenerator, HasStartAndEnd 
 	public long currentStart() {
 		return currentInterval.getStart();
 	}	
-	public boolean evaluate(Object obj) {
+	public boolean test(Object obj) {
 		currentInterval = timeIterator.next();
 		index++;
 		return timeIterator.hasNext();

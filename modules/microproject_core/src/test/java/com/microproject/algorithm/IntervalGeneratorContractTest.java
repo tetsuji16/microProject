@@ -60,7 +60,7 @@ class IntervalGeneratorContractTest {
 		StubIntervalGenerator later = new StubIntervalGenerator(20L, true);
 		IntervalGeneratorSet generators = IntervalGeneratorSet.getInstance(List.of(earliest, later));
 
-		assertTrue(generators.evaluate(new Object()));
+		assertTrue(generators.test(new Object()));
 
 		assertEquals(1, earliest.evaluationCount);
 		assertEquals(0, later.evaluationCount);
@@ -73,7 +73,7 @@ class IntervalGeneratorContractTest {
 		StubIntervalGenerator later = new StubIntervalGenerator(20L, true);
 		IntervalGeneratorSet generators = IntervalGeneratorSet.getInstance(List.of(first, tied, later));
 
-		assertFalse(generators.evaluate(new Object()));
+		assertFalse(generators.test(new Object()));
 
 		assertEquals(1, first.evaluationCount);
 		assertEquals(1, tied.evaluationCount);
@@ -86,7 +86,7 @@ class IntervalGeneratorContractTest {
 		IntervalGeneratorSet generators = IntervalGeneratorSet.getInstance(List.of(unbounded));
 
 		assertTrue(generators.hasNext());
-		assertTrue(generators.evaluate(new Object()));
+		assertTrue(generators.test(new Object()));
 		assertEquals(1, unbounded.evaluationCount);
 	}
 
@@ -131,7 +131,7 @@ class IntervalGeneratorContractTest {
 		}
 
 		@Override
-		public boolean evaluate(Object value) {
+		public boolean test(Object value) {
 			evaluationCount++;
 			return evaluationResult;
 		}

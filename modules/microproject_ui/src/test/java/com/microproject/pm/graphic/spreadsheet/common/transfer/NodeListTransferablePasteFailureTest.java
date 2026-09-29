@@ -50,8 +50,9 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
 
+import java.util.function.Predicate;
+
 import org.junit.jupiter.api.Test;
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
@@ -715,8 +716,8 @@ class NodeListTransferablePasteFailureTest {
 			NodeModelDataFactory.class,
 			Predicate.class);
 		method.setAccessible(true);
-		boolean transformed = (Boolean) method.invoke(handler, pastedNode, targetProject, new Predicate() {
-			public boolean evaluate(Object object) {
+		boolean transformed = (Boolean) method.invoke(handler, pastedNode, targetProject, new Predicate<Object>() {
+			public boolean test(Object object) {
 				Node parent = (Node) object;
 				NormalTask task = new NormalTask();
 				((NormalTask) parent.getImpl()).cloneTo(task);

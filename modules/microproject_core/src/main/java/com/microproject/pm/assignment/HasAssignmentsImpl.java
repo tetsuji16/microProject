@@ -34,7 +34,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
 
 import com.microproject.algorithm.ReverseQuery;
 import com.microproject.algorithm.TimeIteratorGenerator;
@@ -229,9 +229,9 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		}
 	}
 
-	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor, Predicate filter) {
+	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor, Predicate<Object> filter) {
 		return value -> ((HasAssignments) value).getAssignments().stream()
-			.filter(filter::evaluate).forEach(visitor);
+			.filter(filter).forEach(visitor);
 	}
 	public static Consumer<Object> forAllAssignments(Consumer<Object> visitor) {
 		return value -> ((HasAssignments) value).getAssignments().forEach(visitor);

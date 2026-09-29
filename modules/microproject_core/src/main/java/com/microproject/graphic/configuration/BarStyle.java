@@ -24,7 +24,7 @@
  *******************************************************************************/
 package com.microproject.graphic.configuration;
 
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.field.InvalidFormulaException;
@@ -35,7 +35,7 @@ import com.microproject.strings.Messages;
 /**
  *
  */
-public class BarStyle implements Predicate {
+public class BarStyle implements Predicate<Object> {
 	public static final String FORMULA_PREFIX = "BarStyle";
 	String name = null;
 	String id = null;
@@ -67,7 +67,7 @@ public class BarStyle implements Predicate {
 	boolean active = true;
 	public BarStyle() {}
 	
-	public boolean evaluate(Object object) {
+	public boolean test(Object object) {
 		if (!active)
 			return false;
 		try {

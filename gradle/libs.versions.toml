@@ -1,6 +1,5 @@
 [versions]
 commons-beanutils = "1.9.4"
-commons-collections = "3.2.2"
 commons-collections4 = "4.4"
 commons-csv = "1.14.1"
 imgscalr = "4.2"
@@ -34,7 +33,6 @@ update4j = "1.5.9"
 
 [libraries]
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
-commons-collections = { module = "commons-collections:commons-collections", version.ref = "commons-collections" }
 commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "commons-collections4" }
 commons-csv = { module = "org.apache.commons:commons-csv", version.ref = "commons-csv" }
 imgscalr-lib = { module = "org.imgscalr:imgscalr-lib", version.ref = "imgscalr" }
@@ -74,7 +72,6 @@ update4j = { module = "org.update4j:update4j", version.ref = "update4j" }
 [bundles]
 commons-legacy = [
     "commons-beanutils",
-    "commons-collections",
     "commons-digester",
     "commons-lang",
     "commons-lang3",

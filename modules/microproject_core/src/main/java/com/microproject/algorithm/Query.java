@@ -122,7 +122,7 @@ public class Query implements Factory, HasStartAndEnd {
 			if (!hasGroupBy && selectFromClauses.isEmpty())
 				break;
 			
-		} while (groupByGenerator.evaluate(this));
+		} while (groupByGenerator.test(this));
 		return executedIntervals.toArray(new IntervalGenerator[0]);
 	}
 	

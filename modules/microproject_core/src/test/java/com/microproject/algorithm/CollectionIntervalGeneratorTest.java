@@ -48,21 +48,21 @@ class CollectionIntervalGeneratorTest {
 		assertEquals(0, generator.currentStart());
 		assertEquals(10, generator.currentEnd());
 
-		assertTrue(generator.evaluate(null));
+		assertTrue(generator.test(null));
 		current = generator.current();
 		assertSame(generator, current);
 		assertFalse(generator.isCurrentActive());
 		assertEquals(10, generator.currentStart());
 		assertEquals(20, generator.currentEnd());
 
-		assertTrue(generator.evaluate(null));
+		assertTrue(generator.test(null));
 		current = generator.current();
 		assertSame(second, current);
 		assertTrue(generator.isCurrentActive());
 		assertEquals(20, generator.currentStart());
 		assertEquals(30, generator.currentEnd());
 
-		assertFalse(generator.evaluate(null));
+		assertFalse(generator.test(null));
 		assertTrue(generator.isFinished());
 	}
 
@@ -74,10 +74,10 @@ class CollectionIntervalGeneratorTest {
 		CollectionIntervalGenerator generator = CollectionIntervalGenerator.getInstance(intervals);
 
 		assertSame(first, generator.current());
-		assertTrue(generator.evaluate(null));
+		assertTrue(generator.test(null));
 		HasStartAndEnd current = generator.current();
 		assertSame(second, current);
-		assertFalse(generator.evaluate(null));
+		assertFalse(generator.test(null));
 	}
 
 	private record Interval(long start, long end) implements HasStartAndEnd {

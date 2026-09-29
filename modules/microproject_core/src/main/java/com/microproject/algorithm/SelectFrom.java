@@ -217,7 +217,7 @@ public class SelectFrom implements HasStartAndEnd {
 			if (end == groupByEnd) // at end of groupBy. 
 				break;
 
-			if (!generator.evaluate(this)) {
+			if (!generator.test(this)) {
 				if (mustProcessAll) { // if all froms must be treated
 					fromGenerators.remove(generator);
 					finished = fromGenerators.isEmpty(); // any left?

@@ -76,7 +76,7 @@ public class InstantIntervalGenerator implements IntervalGenerator {
 	/** 
 	 * Move on to next period.
 	 */
-	public boolean evaluate(Object arg0) {
+	public boolean test(Object arg0) {
 		if (start == 0) {
 			start = instant;
 			// end is already instant

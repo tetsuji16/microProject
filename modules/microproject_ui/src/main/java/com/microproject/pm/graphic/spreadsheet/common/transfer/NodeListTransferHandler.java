@@ -43,7 +43,8 @@ import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.TransferHandler;
 
-import org.apache.commons.collections.Predicate;
+import java.util.function.Predicate;
+
 import org.apache.commons.collections4.Transformer;
 
 import com.microproject.field.Field;
@@ -103,12 +104,12 @@ public class NodeListTransferHandler extends TransferHandler {
 	            exportDone(c, null, NONE);
 	        }
 	    }
-		private boolean transformSubprojectBranches(Node parent,NodeModelDataFactory dataFactory,Predicate p){
+		private boolean transformSubprojectBranches(Node parent,NodeModelDataFactory dataFactory,Predicate<Object> p){
 			if (dataFactory instanceof Project &&
 					parent.getImpl() instanceof SubProj
 //					&&!((Project)dataFactory).getSubprojectHandler().canInsertProject( ((SubProj)parent.getImpl()).getSubprojectUniqueId() )
 			){
-				if (!p.evaluate(parent)) return false;
+				if (!p.test(parent)) return false;
 				
 			}
 			for (Enumeration e=parent.children();e.hasMoreElements();){
@@ -158,8 +159,8 @@ public class NodeListTransferHandler extends TransferHandler {
 		if (nodeSelection){
 			for (Node node:nodes) {
 				final boolean[] okForAll=new boolean[]{false};
-				if (!transformSubprojectBranches(node,spreadSheet.getCache().getModel().getDataFactory(),new Predicate(){
-					public boolean evaluate(Object arg0) {
+				if (!transformSubprojectBranches(node,spreadSheet.getCache().getModel().getDataFactory(),new Predicate<>(){
+					public boolean test(Object arg0) {
 						if (okForAll[0]) return true;
 						boolean r=Alert.okCancel(Messages.getString("Message.subprojectCut"));
 						if (r) okForAll[0]=true;
@@ -225,8 +226,8 @@ public class NodeListTransferHandler extends TransferHandler {
 	        			
 	        	    	for (Iterator<Node> i=nodes.iterator();i.hasNext();) {
 	        	    		Node node=i.next();
-	        				transformSubprojectBranches(node,model.getDataFactory(),new Predicate(){
-								public boolean evaluate(Object arg0) {
+					transformSubprojectBranches(node,model.getDataFactory(),new Predicate<>(){
+								public boolean test(Object arg0) {
 									Node parent=(Node)arg0;
 									//change implementation
 									NormalTask task=new NormalTask();

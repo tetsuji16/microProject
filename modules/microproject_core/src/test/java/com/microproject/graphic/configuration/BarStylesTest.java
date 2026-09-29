@@ -87,7 +87,7 @@ class BarStylesTest {
 	private static BarStyle countingStyle(AtomicInteger evaluations, boolean annotation) {
 		BarStyle style = new BarStyle() {
 			@Override
-			public boolean evaluate(Object object) {
+			public boolean test(Object object) {
 				evaluations.incrementAndGet();
 				return true;
 			}

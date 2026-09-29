@@ -53,7 +53,7 @@ class TimeIteratorGeneratorTest {
 		assertEquals(2 * HOUR, generator.getEnd());
 		assertTrue(generator.hasNext());
 
-		assertFalse(generator.evaluate(null));
+		assertFalse(generator.test(null));
 		assertEquals(1, generator.getIndex());
 		assertEquals(HOUR, generator.currentStart());
 		assertEquals(2 * HOUR, generator.currentEnd());
