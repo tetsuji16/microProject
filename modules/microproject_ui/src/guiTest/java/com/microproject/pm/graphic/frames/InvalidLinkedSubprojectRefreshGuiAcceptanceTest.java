@@ -46,6 +46,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.SubProj;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.util.Alert;
 import com.microproject.util.Environment;
 
 /** GUI-MSP-RECOVERY-02: invalid children show their importer error and retain the master projection. */
@@ -151,6 +153,7 @@ class InvalidLinkedSubprojectRefreshGuiAcceptanceTest {
 	}
 
 	private void show(Fixture fixture) throws Exception {
+		Alert.setPresenter(new SwingAlertPresenter());
 		SwingUtilities.invokeAndWait(() -> {
 			window = new JFrame("microProject — Invalid linked-child refresh GUI acceptance");
 			InvalidRefreshGraphicManager manager = new InvalidRefreshGraphicManager(window);

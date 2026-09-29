@@ -33,6 +33,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.util.Alert;
 import com.microproject.util.Environment;
 
 /** GUI-MSP-WINDOW-07: a malformed standalone file reports a visible, non-destructive error. */
@@ -71,6 +73,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Environment.setBatchMode(false);
+		Alert.setPresenter(new SwingAlertPresenter());
 		invalidFile = Files.createTempFile("invalid-standalone-project-", ".mpo");
 		Files.writeString(invalidFile, "not a MPOF ZIP archive");
 
@@ -123,6 +126,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Environment.setBatchMode(false);
+		Alert.setPresenter(new SwingAlertPresenter());
 		invalidFile = Path.of(System.getProperty("java.io.tmpdir"), "missing-standalone-project-" + System.nanoTime() + ".mpo");
 		DocumentFrame[] original = new DocumentFrame[1];
 		FrameManager[] frameManager = new FrameManager[1];
@@ -168,6 +172,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Environment.setBatchMode(false);
+		Alert.setPresenter(new SwingAlertPresenter());
 		invalidFile = Files.createTempFile("access-denied-standalone-project-", ".mpo");
 		Files.writeString(invalidFile, "placeholder");
 		String user = System.getProperty("user.name");
