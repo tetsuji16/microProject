@@ -88,22 +88,6 @@ public class FieldArrayUtil {
 
 		else return null;
 	}
-//	public static int categoryToType(String ca){
-//		if (type==ScriptRunner.TASK) return taskFieldArrayCategory;
-//		else if (type==ScriptRunner.RESOURCE) return resourceFieldArrayCategory;
-//		else if (type==ScriptRunner.PROJECT) return projectFieldArrayCategory;
-//		else if (type==ScriptRunner.PORTFOLIO) return portfolioFieldArrayCategory;
-//		else if (type==ScriptRunner.ASSIGNMENT) return timesheetFieldArrayCategory;
-//
-//		else return null;
-//	}
-//	public static String typetoCategory(int type,boolean hidden){
-//		if (hidden) return typetoCategory(type)+HIDDEN_SUFFIX;
-//		else return typetoCategory(type);
-//	}
-
-
-
 	//more general than SpreadSheetFieldArray.getFromId, useful?
 	private static final Object getFromId(String category, String id) {
 		Object result = Dictionary.get(category, Messages.getString(id));
