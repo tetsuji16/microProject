@@ -17,6 +17,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -1004,6 +1006,110 @@ class MpoFileImporterTest {
 		Project merged = load(shared);
 		org.junit.jupiter.api.Assertions.assertEquals("Concurrent first", firstTask(merged).getName());
 		org.junit.jupiter.api.Assertions.assertEquals("Concurrent second", merged.findByUniqueId(second.getUniqueId()).getName());
+	}
+
+	@Test
+	void separateJvmSavesMergeIndependentTaskEdits() throws Exception {
+		Project initial = projectForRoundTrip();
+		NormalTask second = (NormalTask) initial.createLocalTaskNode(null).getImpl();
+		second.setName("Second");
+		assignPositiveUniqueIds(initial);
+		long firstId = firstTask(initial).getUniqueId();
+		long secondId = second.getUniqueId();
+		File shared = File.createTempFile("mpo-process-concurrent", ".mpo");
+		shared.deleteOnExit();
+		new File(shared.getAbsolutePath() + ".lock").deleteOnExit();
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Path tempDirectory = Files.createTempDirectory("mpo-process-" + System.nanoTime());
+		Path release = tempDirectory.resolve("release.flag");
+		Path firstReady = release.resolveSibling("first-ready.flag");
+		Path secondReady = release.resolveSibling("second-ready.flag");
+		Path firstLog = release.resolveSibling("first-worker.log");
+		Path secondLog = release.resolveSibling("second-worker.log");
+		Process first = null;
+		Process secondProcess = null;
+		try {
+			first = startMpoSaveWorker(shared, firstId, "Process first", firstReady, release, firstLog);
+			secondProcess = startMpoSaveWorker(shared, secondId, "Process second", secondReady, release, secondLog);
+			awaitWorkerReady(first, firstReady, firstLog);
+			awaitWorkerReady(secondProcess, secondReady, secondLog);
+			Files.createFile(release);
+			assertWorkerSucceeded(first, firstLog);
+			assertWorkerSucceeded(secondProcess, secondLog);
+			Project merged = load(shared);
+			assertEquals("Process first", merged.findByUniqueId(firstId).getName());
+			assertEquals("Process second", merged.findByUniqueId(secondId).getName());
+		} finally {
+			stopWorker(first);
+			stopWorker(secondProcess);
+			Files.deleteIfExists(release);
+			Files.deleteIfExists(firstReady);
+			Files.deleteIfExists(secondReady);
+			Files.deleteIfExists(firstLog);
+			Files.deleteIfExists(secondLog);
+			Files.deleteIfExists(tempDirectory);
+		}
+	}
+
+	private static Process startMpoSaveWorker(File shared, long taskId, String name, Path ready,
+			Path release, Path log) throws Exception {
+		String javaExecutable = Path.of(System.getProperty("java.home"), "bin",
+				System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win") ? "java.exe" : "java")
+			.toString();
+		ProcessBuilder builder = new ProcessBuilder(javaExecutable, "-Djava.awt.headless=true", "-Dfile.encoding=UTF-8", "-cp",
+				processTestClasspath(), MpoConcurrentSaveProcess.class.getName(), shared.getAbsolutePath(),
+				Long.toString(taskId), name, ready.toString(), release.toString());
+		builder.redirectErrorStream(true);
+		builder.redirectOutput(log.toFile());
+		return builder.start();
+	}
+
+	private static String processTestClasspath() throws Exception {
+		java.util.LinkedHashSet<String> entries = new java.util.LinkedHashSet<>();
+		String systemClasspath = System.getProperty("java.class.path", "");
+		for (String entry : systemClasspath.split(java.util.regex.Pattern.quote(File.pathSeparator)))
+			if (!entry.isBlank()) entries.add(entry);
+		for (ClassLoader loader = MpoFileImporterTest.class.getClassLoader(); loader != null; loader = loader.getParent()) {
+			if (loader instanceof java.net.URLClassLoader urlClassLoader) {
+				for (java.net.URL url : urlClassLoader.getURLs()) {
+					if ("file".equalsIgnoreCase(url.getProtocol()))
+						entries.add(Path.of(url.toURI()).toString());
+				}
+			}
+		}
+		return String.join(File.pathSeparator, entries);
+	}
+
+	private static void awaitWorkerReady(Process worker, Path ready, Path log) throws Exception {
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+		while (!Files.exists(ready)) {
+			if (!worker.isAlive())
+				throw new AssertionError("MPO worker exited before loading its editor snapshot: " + readWorkerLog(log));
+			if (System.nanoTime() >= deadline)
+				throw new AssertionError("MPO worker did not load its editor snapshot in time: " + readWorkerLog(log));
+			Thread.sleep(20L);
+		}
+	}
+
+	private static void assertWorkerSucceeded(Process worker, Path log) throws Exception {
+		org.junit.jupiter.api.Assertions.assertTrue(worker.waitFor(30, java.util.concurrent.TimeUnit.SECONDS),
+				"MPO worker did not finish: " + readWorkerLog(log));
+		assertEquals(0, worker.exitValue(), "MPO worker failed: " + readWorkerLog(log));
+	}
+
+	private static void stopWorker(Process worker) throws InterruptedException {
+		if (worker == null || !worker.isAlive())
+			return;
+		worker.destroyForcibly();
+		worker.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+	}
+
+	private static String readWorkerLog(Path log) throws IOException {
+		return new String(Files.readAllBytes(log), StandardCharsets.UTF_8);
 	}
 
 	private static void saveAfter(java.util.concurrent.CountDownLatch start, File shared, Project editor) {
