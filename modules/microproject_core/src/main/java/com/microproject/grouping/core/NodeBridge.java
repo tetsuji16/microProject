@@ -51,7 +51,6 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 	 * Use NodeFactory instead
 	 */
 	NodeBridge(Object impl) {
-		//this.impl = impl;
 		setImpl(impl);
 	}
 	/**
