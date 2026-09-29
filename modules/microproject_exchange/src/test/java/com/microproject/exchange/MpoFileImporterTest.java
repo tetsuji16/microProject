@@ -42,6 +42,7 @@ import com.microproject.command.UpdateProjectCommand;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
@@ -1066,6 +1067,44 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void concurrentDependencyLagChangesShareRelationshipIdentityAndConflict() throws Exception {
+		Project initial = projectForRoundTrip();
+		NormalTask predecessor = (NormalTask) firstTask(initial);
+		NormalTask successor = (NormalTask) initial.createLocalTaskNode(null).getImpl();
+		successor.setName("Successor");
+		assignPositiveUniqueIds(initial);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, null);
+		File shared = File.createTempFile("mpo-dependency-conflict", ".mpo");
+		Path lockPath = Path.of(shared.getAbsolutePath() + ".lock");
+		try {
+			MpoFileImporter seed = new MpoFileImporter();
+			seed.setFileName(shared.getAbsolutePath());
+			seed.setProject(initial);
+			seed.exportFile();
+			Project left = load(shared);
+			Project right = load(shared);
+			changeDependencyLag(left, predecessor.getUniqueId(), successor.getUniqueId(), 1000L);
+			changeDependencyLag(right, predecessor.getUniqueId(), successor.getUniqueId(), 2000L);
+			byte[] leftArchive = saveMpo(left);
+			byte[] rightArchive = saveMpo(right);
+			List<OperationLog.Operation> concurrent = new ArrayList<>(new OperationLog().readJsonl(
+					readEntries(leftArchive).get(MpoFileImporter.OPERATIONS_ENTRY)).operations());
+			concurrent.addAll(new OperationLog().readJsonl(
+					readEntries(rightArchive).get(MpoFileImporter.OPERATIONS_ENTRY)).operations());
+			OperationLog.MergeResult merged = new OperationLog().merge(concurrent);
+			List<OperationLog.Operation> additions = concurrent.stream().filter(operation ->
+					"dependency.add".equals(operation.kind())).toList();
+			assertEquals(2, additions.size());
+			assertEquals(additions.get(0).entityId(), additions.get(1).entityId(),
+				"lag is mutable relationship data and must not split the entity identity");
+			assertFalse(merged.conflicts().isEmpty(), "concurrent edits to one dependency must not both merge");
+		} finally {
+			Files.deleteIfExists(lockPath);
+			Files.deleteIfExists(shared.toPath());
+		}
+	}
+
+	@Test
 	void mpoLockOpenFailurePreservesLocalEditsInReloadableRecoveryCopy() throws Exception {
 		Project initial = projectForRoundTrip();
 		assignPositiveUniqueIds(initial);
@@ -1812,6 +1851,28 @@ class MpoFileImporterTest {
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		reader.importFile();
 		return reader.getProject();
+	}
+
+	private static byte[] saveMpo(Project project) throws Exception {
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, output);
+		return output.toByteArray();
+	}
+
+	private static void changeDependencyLag(Project project, long predecessorId, long successorId, long lag)
+			throws Exception {
+		Task predecessor = project.findByUniqueId(predecessorId);
+		Task successor = project.findByUniqueId(successorId);
+		for (java.util.Iterator<?> links = predecessor.getSuccessorList().iterator(); links.hasNext();) {
+			Dependency dependency = (Dependency) links.next();
+			if (dependency.getSuccessor() == successor) {
+				DependencyService.getInstance().remove(dependency, null, false);
+				DependencyService.getInstance().newDependency(predecessor, successor,
+						DependencyType.FS, lag, null);
+				return;
+			}
+		}
+		throw new AssertionError("Expected dependency between tasks " + predecessorId + " and " + successorId);
 	}
 
 	@Test

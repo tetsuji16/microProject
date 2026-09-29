@@ -133,12 +133,22 @@ public final class OperationLog {
 		Map<String, Set<String>> ancestorCache = new LinkedHashMap<>();
 		for (int i = 0; i < operations.size(); i++) for (int j = i + 1; j < operations.size(); j++) {
 			Operation left = operations.get(i), right = operations.get(j);
-			if (!left.entityId().equals(right.entityId()) || left.actorId().equals(right.actorId())) continue;
+			if (!sameEntity(left, right) || left.actorId().equals(right.actorId())) continue;
 			if (ancestors(left, byId, ancestorCache).contains(right.id()) || ancestors(right, byId, ancestorCache).contains(left.id())) continue;
 			if (!overlaps(left, right)) continue;
 			conflicts.add(new Conflict(left.entityId(), left.kind(), List.of(left.id(), right.id())));
 		}
 		return List.copyOf(conflicts);
+	}
+
+	private static boolean sameEntity(Operation left, Operation right) {
+		if (left.entityId().equals(right.entityId())) return true;
+		if (!left.kind().startsWith("dependency.") || !right.kind().startsWith("dependency.")) return false;
+		for (String field : List.of("predecessorLegacyUniqueId", "successorLegacyUniqueId", "dependencyType")) {
+			if (!left.payload().containsKey(field) || !right.payload().containsKey(field)
+					|| !sameJsonValue(left.payload().get(field), right.payload().get(field))) return false;
+		}
+		return true;
 	}
 
 	private static Set<String> ancestors(Operation operation, Map<String, Operation> byId, Map<String, Set<String>> cache) {
@@ -153,7 +163,11 @@ public final class OperationLog {
 	}
 
 	private static boolean overlaps(Operation left, Operation right) {
-		if (left.kind().endsWith(".delete") || right.kind().endsWith(".delete")) return true;
+		boolean leftDelete = left.kind().endsWith(".delete");
+		boolean rightDelete = right.kind().endsWith(".delete");
+		if (leftDelete && rightDelete)
+			return !left.kind().equals(right.kind()) || !sameJsonValue(left.payload(), right.payload());
+		if (leftDelete || rightDelete) return true;
 		if (isTaskEdit(left.kind()) && isTaskEdit(right.kind())
 				&& !left.kind().equals(right.kind())) return false;
 		if (!left.kind().equals(right.kind())) return true;

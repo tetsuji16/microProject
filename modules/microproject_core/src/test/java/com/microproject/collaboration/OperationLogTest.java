@@ -153,6 +153,29 @@ class OperationLogTest {
 		assertEquals(List.of(), log.merge(List.of(left, right)).conflicts());
 	}
 
+	@Test void identicalConcurrentDeletesAreIdempotentInsteadOfConflicting() {
+		OperationLog log = new OperationLog();
+		Map<String, Object> payload = Map.of("legacyUniqueId", 7L);
+		OperationLog.Operation left = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.delete", ENTITY, payload);
+		OperationLog.Operation right = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "task.delete", ENTITY, payload);
+
+		assertEquals(List.of(), log.merge(List.of(left, right)).conflicts());
+	}
+
+	@Test void dependencyLagChangesConflictAcrossLegacyEntityIds() {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation left = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "dependency.add",
+				"00000000-0000-0000-0000-000000000016",
+				Map.of("predecessorLegacyUniqueId", 11L, "successorLegacyUniqueId", 12L,
+						"dependencyType", 0, "lag", 1000L));
+		OperationLog.Operation right = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "dependency.add",
+				"00000000-0000-0000-0000-000000000017",
+				Map.of("predecessorLegacyUniqueId", 11L, "successorLegacyUniqueId", 12L,
+						"dependencyType", 0, "lag", 2000L));
+
+		assertEquals(1, log.merge(List.of(left, right)).conflicts().size());
+	}
+
 	@Test void rejectsStaleConflictMetadata() throws Exception {
 		String json = "{\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT
 			+ "\",\"operations\":[],\"conflicts\":[{\"entityId\":\"" + ENTITY
