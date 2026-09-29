@@ -30,6 +30,10 @@ import java.time.Duration;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 
 /** Child JVM entry point for proving shared MPO locking and merge across processes. */
 public final class MpoConcurrentSaveProcess {
@@ -55,7 +59,26 @@ public final class MpoConcurrentSaveProcess {
 		switch (field) {
 			case "name" -> task.setName(value);
 			case "notes" -> task.setNotes(value);
-			default -> throw new IllegalArgumentException("Unsupported worker task field: " + field);
+			default -> {
+				if (field.startsWith("dependencyLag:")) {
+					long successorId = Long.parseLong(field.substring("dependencyLag:".length()));
+					Task successor = project.findByUniqueId(successorId);
+					if (successor == null) throw new IllegalStateException("Successor task " + successorId + " is missing");
+					boolean changed = false;
+					for (java.util.Iterator<?> links = task.getSuccessorList().iterator(); links.hasNext();) {
+						Dependency dependency = (Dependency) links.next();
+						if (dependency.getSuccessor() == successor) {
+							DependencyType.Kind kind = dependency.getDependencyKind();
+							DependencyService.getInstance().setFields(dependency, Long.parseLong(value), kind, null);
+							changed = true;
+							break;
+						}
+					}
+					if (!changed) throw new IllegalStateException("Dependency to task " + successorId + " is missing");
+				} else {
+					throw new IllegalArgumentException("Unsupported worker task field: " + field);
+				}
+			}
 		}
 		Files.createFile(ready);
 

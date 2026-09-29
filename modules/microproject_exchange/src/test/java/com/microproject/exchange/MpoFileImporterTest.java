@@ -1853,6 +1853,69 @@ class MpoFileImporterTest {
 		return reader.getProject();
 	}
 
+	@Test
+	void separateJvmDependencyLagConflictReturnsDurableRecoveryCopy() throws Exception {
+		Project initial = projectForRoundTrip();
+		NormalTask predecessor = (NormalTask) firstTask(initial);
+		NormalTask successor = (NormalTask) initial.createLocalTaskNode(null).getImpl();
+		successor.setName("Dependency successor");
+		assignPositiveUniqueIds(initial);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, null);
+		File shared = File.createTempFile("mpo-process-dependency-conflict", ".mpo");
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Path tempDirectory = Files.createTempDirectory("mpo-process-dependency-" + System.nanoTime());
+		Path release = tempDirectory.resolve("release.flag");
+		Path firstReady = tempDirectory.resolve("first-ready.flag");
+		Path secondReady = tempDirectory.resolve("second-ready.flag");
+		Path firstLog = tempDirectory.resolve("first-worker.log");
+		Path secondLog = tempDirectory.resolve("second-worker.log");
+		Process first = null;
+		Process second = null;
+		Path recoveryCopy = null;
+		try {
+			String field = "dependencyLag:" + successorId;
+			first = startMpoSaveWorker(shared, predecessorId, field, "3600000", firstReady, release, firstLog);
+			second = startMpoSaveWorker(shared, predecessorId, field, "7200000", secondReady, release, secondLog);
+			awaitWorkerReady(first, firstReady, firstLog);
+			awaitWorkerReady(second, secondReady, secondLog);
+			Files.createFile(release);
+			assertWorkerSucceeded(first, firstLog);
+			assertWorkerSucceeded(second, secondLog);
+
+			List<String> recoveryMarkers = java.util.stream.Stream.of(readWorkerLog(firstLog), readWorkerLog(secondLog))
+					.flatMap(value -> value.lines()).filter(value -> value.startsWith("MPO_CONFLICT_RECOVERY=")).toList();
+			assertEquals(1, recoveryMarkers.size(), "exactly one process should preserve its dependency branch");
+			recoveryCopy = Path.of(recoveryMarkers.getFirst().substring("MPO_CONFLICT_RECOVERY=".length()));
+			assertTrue(Files.isRegularFile(recoveryCopy));
+			long sharedLag = dependencyLag(load(shared), predecessorId, successorId);
+			long recoveredLag = dependencyLag(load(recoveryCopy.toFile()), predecessorId, successorId);
+			assertTrue(sharedLag > 0L, "the winning dependency edit must survive reload");
+			assertTrue(recoveredLag > 0L, "the recovery dependency edit must survive reload");
+			org.junit.jupiter.api.Assertions.assertNotEquals(sharedLag, recoveredLag);
+			OperationLog.DocumentLog recoveryLog = new OperationLog().readJsonl(
+					readEntries(Files.readAllBytes(recoveryCopy)).get(MpoFileImporter.OPERATIONS_ENTRY));
+			assertFalse(new OperationLog().merge(recoveryLog.operations()).conflicts().isEmpty());
+		} finally {
+			stopWorker(first);
+			stopWorker(second);
+			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
+			Files.deleteIfExists(release);
+			Files.deleteIfExists(firstReady);
+			Files.deleteIfExists(secondReady);
+			Files.deleteIfExists(firstLog);
+			Files.deleteIfExists(secondLog);
+			Files.deleteIfExists(tempDirectory);
+			Files.deleteIfExists(Path.of(shared.getAbsolutePath() + ".lock"));
+			Files.deleteIfExists(shared.toPath());
+		}
+	}
+
 	private static byte[] saveMpo(Project project) throws Exception {
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, output);
@@ -1866,11 +1929,19 @@ class MpoFileImporterTest {
 		for (java.util.Iterator<?> links = predecessor.getSuccessorList().iterator(); links.hasNext();) {
 			Dependency dependency = (Dependency) links.next();
 			if (dependency.getSuccessor() == successor) {
-				DependencyService.getInstance().remove(dependency, null, false);
-				DependencyService.getInstance().newDependency(predecessor, successor,
-						DependencyType.FS, lag, null);
+				DependencyService.getInstance().setFields(dependency, lag, dependency.getDependencyKind(), null);
 				return;
 			}
+		}
+		throw new AssertionError("Expected dependency between tasks " + predecessorId + " and " + successorId);
+	}
+
+	private static long dependencyLag(Project project, long predecessorId, long successorId) {
+		Task predecessor = project.findByUniqueId(predecessorId);
+		Task successor = project.findByUniqueId(successorId);
+		for (java.util.Iterator<?> links = predecessor.getSuccessorList().iterator(); links.hasNext();) {
+			Dependency dependency = (Dependency) links.next();
+			if (dependency.getSuccessor() == successor) return dependency.getLag();
 		}
 		throw new AssertionError("Expected dependency between tasks " + predecessorId + " and " + successorId);
 	}
