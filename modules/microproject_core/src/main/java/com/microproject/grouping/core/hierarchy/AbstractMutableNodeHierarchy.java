@@ -372,17 +372,14 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 		}
 	}
 	protected void fireNodesChanged(Object source, Object[] nodes) {
-//		System.out.println("Hierarchy="+hashCode()+", fireNodesChanged, nodes="+nodes);
 //		dump();
 	    fireNodesChanged(source,nodes,null,null);
 	}
 	protected void fireNodesInserted(Object source, Object[] nodes) {
-//		System.out.println("Hierarchy="+hashCode()+", fireNodesInserted, nodes="+nodes);
 //		dump();
 	    fireNodesInserted(source,nodes,null,null);
 	}
 	protected void fireNodesRemoved(Object source, Object[] nodes) {
-//		System.out.println("Hierarchy="+hashCode()+", fireNodesRemoved, nodes="+nodes);
 //		dump();
 	    fireNodesRemoved(source,nodes,null,null);
 	}

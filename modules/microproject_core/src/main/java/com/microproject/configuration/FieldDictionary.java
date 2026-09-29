@@ -96,7 +96,6 @@ public class FieldDictionary {
 	
 	private Class<?> clazz;
 	public void setClassName(String className) {
-		//System.out.println("						<include name=\""+className+"\"/>");
 		try {
 			clazz = ClassUtils.forName(className);
 		} catch (ClassNotFoundException e) {

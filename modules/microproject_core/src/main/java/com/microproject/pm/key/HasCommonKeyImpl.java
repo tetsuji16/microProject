@@ -115,7 +115,6 @@ public class HasCommonKeyImpl extends HasUniqueIdImpl implements HasKey{
 		return dirty;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("HasCommonKeyImpl _setDirty("+dirty+"): "+getName());
 		this.dirty = dirty;
 	}
 

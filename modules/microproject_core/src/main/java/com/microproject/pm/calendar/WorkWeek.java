@@ -54,7 +54,6 @@ public class WorkWeek implements Cloneable,Serializable {
     }
     public WorkDay getWeekDay(int dayNum) {
 //    	if (dayNum < 0)
-//    		System.out.println("day num is " + dayNum);    	
     	return workDay[dayNum];
     }
     

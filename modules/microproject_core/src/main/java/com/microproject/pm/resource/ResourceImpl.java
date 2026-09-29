@@ -820,7 +820,6 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 		return dirty;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("ResourceImpl _setDirty("+dirty+"): "+getName());
 		this.dirty = dirty;
 	}
 	public long getFinishOffset() {
@@ -900,7 +899,6 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 				}
 			}
 			this.role = role;
-			//System.out.println("New role for "+getName()+": "+role);
 		}
 	}
 

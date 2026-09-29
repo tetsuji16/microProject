@@ -220,7 +220,6 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 
 	void setDelay(long delay) {
 //		if (delay > 0)
-//			System.out.println("delay " + new java.util.Date(getStart()) + new java.util.Date(getTaskStart()));
 
 		delayable = new DelayableImpl(delay,delayable.getLevelingDelay());
 	}
@@ -298,7 +297,6 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 //		long dur;
 //		boolean fixedDuration = ((NormalTask)getTask()).getSchedulingRule() == FixedDuration.getInstance();
 //		if (!getResource().isLabor())
-//			System.out.println("mater " + multiplier);
 //		AbstractContour newContour = workContour;
 //		if (fixedDuration)
 //			newContour = workContour.adjustUnits(multiplier, getActualDuration());
@@ -563,7 +561,6 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 //		if (oldActualDuration > newActualDuration) {// trim off end
 //			actualWorkContour = actualWorkContour.adjustDuration(newActualDuration); // simple, just truncate it.
 //		} else {
-//System.out.println("Stop "+ new Date(stop) + " duration" + DurationFormat.format(stopResumeDuration));			
 //			ArrayList list;
 //			if (actualWorkContour != null) // see if there are actuals
 //				list = actualWorkContour.toArrayList(); // copy current actual contour to an array list
@@ -576,10 +573,8 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 //			list.addAll(workContour.bucketsBetweenDurations(oldActualDuration, newActualDuration, durationMillis)); // add from work contour
 //			actualWorkContour = PersonalContour.getInstance(list); // set new contour that combines the two above
 //			//insert gap for stop/resume
-//System.out.println("contour before\n" + actualWorkContour.toString(newActualDuration));
 //			if (stopResumeDuration > 0) {
 //				actualWorkContour = ((PersonalContour)actualWorkContour).insertBucket(stop,PersonalContourBucket.getInstance(stopResumeDuration,0.0));
-//				System.out.println("contour after\n" + actualWorkContour.toString(newActualDuration));
 //			}
 ////			System.out.println("new actual contour" + actualWorkContour.toString(newActualDuration));
 //		}
@@ -755,10 +750,7 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		long durationDifference = getEffectiveWorkCalendar().compare(end,oldEnd,false);
 //		if (stop != 0 && end > stop) {
 //			durationDifference -= getSplitDuration();
-//			System.out.println("split duration is " + DurationFormat.format(getSplitDuration()));
 //		}
-//System.out.println("duration difference " + DurationFormat.format(durationDifference));
-//System.out.println("old end " + new Date(oldEnd) + " end " + new Date(end));
 		long newRemaining = remaining + durationDifference;
 		if (newRemaining < 0) // test to avoid negative duration
 			newRemaining = 0L;
@@ -867,7 +859,6 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		if (percentComplete == 1.0 && stop >= getActualFinish()) // adjust to be no later than actual finish
 			return;
 		
-//		System.out.println("setting stop to  " + new java.util.Date(stop));
 
 		if (stop <= getStart()) { // if getting rid of completion
 			setPercentComplete(0);

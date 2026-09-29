@@ -899,7 +899,6 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		return dirty;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("CalendarDefinition _setDirty("+dirty+"): "+getName());
 		this.dirty = dirty;
 	}
 

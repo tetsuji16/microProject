@@ -83,7 +83,6 @@ public class VoidNodeImpl implements HasId, DataObject  {
 		return false;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("VoidNodeImpl _setDirty("+dirty+"): "+getName());
 
 	}
 	public void setName(String name) {

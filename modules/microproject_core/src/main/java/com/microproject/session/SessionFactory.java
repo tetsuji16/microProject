@@ -98,7 +98,6 @@ public class SessionFactory {
     
     public static Object call(Object object,String method,Class<?>[] argsDesc, Object[] args) throws Exception{
 	    	try {
-	    		//System.out.println("call, "+method+"..."+object.getClass());
 			return resolveMethod(object, method, argsDesc).invoke(object, args);
 		} catch (IllegalArgumentException e) {
 			logger.log(Level.WARNING, "Error", e);
@@ -115,7 +114,6 @@ public class SessionFactory {
     }
     public static Object callNoEx(Object object,String method,Class<?>[] argsDesc, Object[] args){
 	    	try {
-	    		//System.out.println("callNoEx, "+method+"...");
 			return resolveMethod(object, method, argsDesc).invoke(object, args);
 		} catch (IllegalArgumentException e) {
 			logger.log(Level.WARNING, "Error", e);

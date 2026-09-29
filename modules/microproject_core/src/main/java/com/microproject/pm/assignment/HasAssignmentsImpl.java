@@ -280,7 +280,6 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 			interval.setEnd(end);
 
 			previousEnd = end;
-//System.out.println("bar " + new Date(start) + " " + new Date(end));
 			visitor.accept(interval);
 			barStart = 0;
 		}
@@ -304,7 +303,6 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 				if (index == 0) {// last bar, must draw
 					end = workCalendar.adjustInsideCalendar(end,true);
 					executeVisitor(barStart,end);
-//					System.out.println("last bar " + new Date(start) + " " + new Date(end));
 				}
 			}
 		}

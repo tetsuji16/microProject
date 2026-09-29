@@ -134,7 +134,6 @@ public class HasKeyImpl extends HasUniqueIdImpl implements HasKey{
 		return dirty;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("HasKeyImpl _setDirty("+dirty+"): "+getName());
 		this.dirty = dirty;
 	}
 

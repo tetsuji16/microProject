@@ -87,7 +87,6 @@ public class Job extends Thread {
 	}
 
     public void log(String s){
-//    	System.out.println("Job "+getName()+": "+s);
     }
 	private final Map<String, Long> times = new HashMap<>();
     public void logBegin(String s){

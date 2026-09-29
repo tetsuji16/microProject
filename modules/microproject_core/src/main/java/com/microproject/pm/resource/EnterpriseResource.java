@@ -1060,7 +1060,6 @@ public class EnterpriseResource implements Resource {
 		return dirty;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("EnterpriseResource _setDirty("+dirty+"): "+getName());
 		this.dirty = dirty;
 	}
 

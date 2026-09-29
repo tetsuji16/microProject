@@ -208,7 +208,6 @@ public class Messages {
 			//for (int j=0;j<4-hex.length();j++) sb.append('0');
 			sb.append(hex);
 		}
-		//System.out.println("toAppletVersion: "+v+" --> "+sb);
 		return sb.toString();
 	}
 	private static int parseVersionSegment(String segment) {

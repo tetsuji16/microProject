@@ -149,7 +149,6 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 		return impl instanceof DataObject dataObject && dataObject.isDirty();
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("NodeBridge _setDirty("+dirty+")");
 		Object impl=getImpl();
 		if (impl instanceof DataObject dataObject) dataObject.setDirty(dirty);
 	}

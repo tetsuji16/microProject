@@ -2020,7 +2020,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (referencedIdProperty != null) {
 			try {
 				result = (Long) PropertyUtils.getProperty(obj, referencedIdProperty);
-//				System.out.println("____ref id = " + result);
 			} catch (Exception e) { //claur
 			}
 		}
@@ -2376,7 +2375,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		int summary = getGroupSummary();
 		if (summary == SummaryNames.NONE)
 			summary = getSummary();
-//System.out.println("Field "+ this + " group " + getGroupSummary() +  " sum " + getSummary());
 		switch (summary) {
 		case SummaryNames.SUM:
 			return "sum";

@@ -739,7 +739,6 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		return dirty;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("WorkingCalendar _setDirty("+dirty+"): "+getName());
 		this.dirty = dirty;
 	}
 

@@ -203,7 +203,6 @@ public class SelectFrom implements HasStartAndEnd {
 			start = Math.max(start,generator.currentStart()); // if current generator was interrupted by ending a range, we need to start at point left off
 			end = Math.min(groupByEnd,generator.currentEnd());
 			if (end >= start) { // in cases where a clause starts in the middle, such as remaining work, end may be less than start at first
-//	System.out.println("SelectFrom start" + new java.util.Date(start) + " end " + new java.util.Date(end) + " " + generator);			
 				// evaluate fields
 				boolean whereConditionMet = wherePredicate.evaluate(this);
 				if (fieldVisitors != null) { 

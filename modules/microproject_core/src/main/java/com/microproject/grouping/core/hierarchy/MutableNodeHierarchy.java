@@ -421,20 +421,17 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         }
     }
     private void removeSubTree(Node node,NodeModel model,LinkedList<Node> toRemove,int actionType,boolean removeDependencies){
-//    	System.out.println("removeSubTree");
 		if (getUpdateLevel()==0){
 			//boolean singleRemoval=!(node.getImpl() instanceof Assignment);
 	    	try {
 				node.removeFromParent();
 	    		/*if (singleRemoval)*/ beginUpdate();
-//				System.out.println("removeNoEvent("+node+")");
 				Node current;
 				int badCount = 0;
 				LinkedList<Node> enumeratedNodes=new LinkedList<>();
 				for (Enumeration<?> e=((NodeBridge)node).postorderEnumeration();e.hasMoreElements();){
 					enumeratedNodes.add((Node)e.nextElement());
 				}
-//				System.out.println("removeApartFromHierarchy("+enumeratedNodes+")");
 				for (Iterator<Node> i=enumeratedNodes.iterator();i.hasNext();){
 					current=i.next();
 				    if (model.removeApartFromHierarchy(current,false,actionType,removeDependencies))
@@ -759,7 +756,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
 
     public Node search(Object key, Comparator<Object> c) {
- //   	System.out.println("search("+key+", "+c+")");
     	return search(root,key,c);
     }
 

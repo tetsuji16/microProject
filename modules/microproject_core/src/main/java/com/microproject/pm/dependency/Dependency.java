@@ -452,7 +452,6 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 		return dirty;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("Dependency _setDirty("+dirty+"): "+getName());
 		this.dirty = dirty;
 		if (dirty&&predecessor!=null){
 			Project project=((HasProject)predecessor).getProject();
