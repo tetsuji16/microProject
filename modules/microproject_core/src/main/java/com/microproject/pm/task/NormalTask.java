@@ -1964,8 +1964,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	    if(version<1) super.initializeTransientTaskObjects();
 	    else super.initializeTransientTaskObjectsAfterDeserialization();
-//	    This shouldn't be called -hk 4/feb/05
-//	    initializeDates();
+	    // Keep the schedule restored from the serialized snapshot; do not regenerate dates here.
 
 	    // Issue #227: old .pod files predate the non-transient `created` field and
 	    // deserialize it as null. Fall back to the previous (regenerated) behavior

@@ -240,7 +240,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 		setLastSavedStart(currentSchedule.getStart());
 		setLastSavedFinish(currentSchedule.getFinish());
-//		validateConstraints();
 	}
 	public TaskSnapshot getBaselineSnapshot() {
 		return (TaskSnapshot) getSnapshot(CalculationOption.getInstance().getEarnedValueBaselineId());
@@ -596,10 +595,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		// Process current task
 		PredecessorTaskList.TaskReference taskReference = new PredecessorTaskList.TaskReference(this);
 		addTo.add(taskReference);
-
-		//This was the old place for the above		this.markerStatus = markerStatus;  Move it back if bugs happen
-
-
 
 		// Arrange my children
 		if (isWbsParent()) {
