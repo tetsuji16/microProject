@@ -11,7 +11,6 @@ import java.awt.FlowLayout;
 import java.awt.Frame;
 
 import javax.swing.JButton;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -38,6 +37,7 @@ import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
 import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.util.PhysicalButtonRoute;
+import com.microproject.util.UiServices;
 
 /** Read-only CCPM result surface used by the Report and View ribbon commands. */
 public final class CriticalChainStatusDialogBox extends FlatLafDialog {
@@ -249,14 +249,16 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 	}
 
 	private void exportReport(Project project, boolean html) {
-		JFileChooser chooser = new JFileChooser();
-		chooser.setSelectedFile(new java.io.File(html ? "ccpm-report.html" : "ccpm-report.csv"));
-		if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+		String extension = html ? "html" : "csv";
+		String selectedFile = UiServices.getFileChooserProvider().chooseFileName(
+			new UiServices.FileChooserOptions(true, "ccpm-report." + extension, "Export CCPM report",
+				html ? "HTML (*.html)" : "CSV (*.csv)", extension), this);
+		if (selectedFile == null) return;
 		try {
 			CriticalChainBufferHistory history = project.findTransientDocumentState(CriticalChainBufferHistory.class);
 			CriticalChainReportService reports = new CriticalChainReportService();
-			if (html) reports.writeHtml(chooser.getSelectedFile().toPath(), project.getName(), history);
-			else reports.writeCsv(chooser.getSelectedFile().toPath(), history);
+			if (html) reports.writeHtml(java.nio.file.Path.of(selectedFile), project.getName(), history);
+			else reports.writeCsv(java.nio.file.Path.of(selectedFile), history);
 		} catch (java.io.IOException exception) {
 			javax.swing.JOptionPane.showMessageDialog(this, exception.getMessage(), "CCPM report", javax.swing.JOptionPane.ERROR_MESSAGE);
 		}

@@ -30,6 +30,11 @@ public final class UiServices {
 	public interface FileChooserProvider {
 		String chooseFileName(boolean save, String selectedFileName, Object parent);
 
+		/** Select a file with a purpose-specific title and one extension filter. */
+		default String chooseFileName(FileChooserOptions options, Object parent) {
+			return chooseFileName(options.save(), options.selectedFileName(), parent);
+		}
+
 		/**
 		 * Select one or more project files. Providers that only support the legacy
 		 * single-file contract retain that behavior through this default method.
@@ -37,6 +42,19 @@ public final class UiServices {
 		default List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
 			String selected = chooseFileName(save, selectedFileName, parent);
 			return selected == null ? List.of() : List.of(selected);
+		}
+	}
+
+	public record FileChooserOptions(boolean save, String selectedFileName, String dialogTitle,
+		String filterDescription, List<String> filterExtensions, String extension) {
+		public FileChooserOptions {
+			filterExtensions = filterExtensions == null ? List.of() : List.copyOf(filterExtensions);
+		}
+
+		public FileChooserOptions(boolean save, String selectedFileName, String dialogTitle,
+			String filterDescription, String extension) {
+			this(save, selectedFileName, dialogTitle, filterDescription,
+				extension == null ? List.of() : List.of(extension), extension);
 		}
 	}
 

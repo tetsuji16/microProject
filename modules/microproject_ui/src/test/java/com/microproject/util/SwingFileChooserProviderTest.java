@@ -55,6 +55,27 @@ class SwingFileChooserProviderTest {
 	}
 
 	@Test
+	void specializedChooserUsesOnePurposeFilterAndNormalizesItsSaveExtension() {
+		SwingFileChooserProvider provider = new SwingFileChooserProvider();
+		SystemFileChooser chooser = new SystemFileChooser();
+		UiServices.FileChooserOptions options = new UiServices.FileChooserOptions(true, "ccpm-report.csv",
+			"Export CCPM report", "CSV (*.csv)", "csv");
+		provider.configureSpecializedChooser(chooser, options);
+		assertTrue(!chooser.isMultiSelectionEnabled(), "specialized file selection must select one file");
+		assertEquals(2, chooser.getChoosableFileFilters().length, "only the purpose filter and All Files should be shown");
+		assertTrue(chooser.getFileFilter().getDescription().contains("*.csv"));
+		SystemFileChooser saveChooser = provider.prepareFileChooser(true, options.selectedFileName());
+		provider.configureSpecializedChooser(saveChooser, options);
+		saveChooser.setSelectedFile(SwingFileChooserProvider.initialSelectedFile(options.selectedFileName()));
+		assertEquals(new File("ccpm-report.csv"), saveChooser.getSelectedFile(),
+			"specialized save must keep its report filename instead of the project's default format");
+		assertEquals("C:\\reports\\ccpm-report.csv",
+			provider.normalizeSpecializedSaveFileName("C:\\reports\\ccpm-report", "csv"));
+		assertEquals("C:\\reports\\ccpm-report.csv",
+			provider.normalizeSpecializedSaveFileName("C:\\reports\\ccpm-report.csv", "csv"));
+	}
+
+	@Test
 	void openDialogDefaultsToProjectLibreAndKeepsOtherFormatsAvailable() {
 		boolean previousStandalone = Environment.getStandAlone();
 		try {

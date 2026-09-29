@@ -56,7 +56,6 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -93,6 +92,7 @@ import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.strings.Messages;
 import com.microproject.undo.CalendarEdit;
 import com.microproject.undo.UndoController;
+import com.microproject.util.UiServices;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
 import com.microproject.util.FlatUiSupport;
@@ -460,11 +460,13 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	}
 
 	private void importNonWorkingDays() {
-		JFileChooser chooser = new JFileChooser();
-		chooser.setDialogTitle(Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays")); //$NON-NLS-1$
-		if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION)
+		String selectedFile = UiServices.getFileChooserProvider().chooseFileName(
+			new UiServices.FileChooserOptions(false, null,
+				Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays"), "CSV or iCalendar (*.csv, *.ics)",
+				List.of("csv", "ics"), "csv"), this);
+		if (selectedFile == null)
 			return;
-		try (Reader reader = Files.newBufferedReader(chooser.getSelectedFile().toPath())) {
+		try (Reader reader = Files.newBufferedReader(java.nio.file.Path.of(selectedFile))) {
 			int imported = CalendarExceptionImporter.applyNonWorkingDates(form.getCalendar(),
 				CalendarExceptionImporter.readNonWorkingDates(reader), ZoneId.systemDefault());
 			if (imported > 0) {

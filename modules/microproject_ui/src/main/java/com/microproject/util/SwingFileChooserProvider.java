@@ -109,6 +109,56 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	}
 
 	@Override
+	public synchronized String chooseFileName(UiServices.FileChooserOptions options, Object parent) {
+		if (options == null || options.filterExtensions().isEmpty()
+				|| (options.save() && (options.extension() == null || options.extension().isBlank())))
+			throw new IllegalArgumentException("A file extension filter is required for a specialized chooser");
+		SystemFileChooser chooser = prepareFileChooser(options.save(), options.selectedFileName());
+		String previousDialogTitle = chooser.getDialogTitle();
+		configureSpecializedChooser(chooser, options);
+		chooser.setSelectedFile(initialSelectedFile(options.selectedFileName()));
+		if (options.dialogTitle() != null)
+			chooser.setDialogTitle(options.dialogTitle());
+		try {
+			Component fileChooserParent = parent instanceof Component ? (Component) parent : null;
+			int result = options.save() ? chooser.showSaveDialog(fileChooserParent) : chooser.showOpenDialog(fileChooserParent);
+			if (result != SystemFileChooser.APPROVE_OPTION || chooser.getSelectedFile() == null)
+				return null;
+			File selected = chooser.getSelectedFile();
+			String fileName = options.save()
+				? normalizeSpecializedSaveFileName(selected.toString(), options.extension()) : selected.toString();
+			if (options.save()) {
+				if (selected.getParent() != null)
+					Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", selected.getParent());
+			}
+			return fileName;
+		} finally {
+			// The shared native chooser is reused; force project filters to be rebuilt
+			// before the next ordinary project open/save operation and do not leak a
+			// purpose-specific title into that later dialog.
+			chooser.setDialogTitle(previousDialogTitle);
+			chooserConfigurationSignature = null;
+		}
+	}
+
+	void configureSpecializedChooser(SystemFileChooser chooser, UiServices.FileChooserOptions options) {
+		chooser.setMultiSelectionEnabled(false);
+		chooser.resetChoosableFileFilters();
+		chooser.setAcceptAllFileFilterUsed(true);
+		FileNameExtensionFilter filter = new FileNameExtensionFilter(options.filterDescription(),
+			options.filterExtensions().toArray(String[]::new));
+		chooser.addChoosableFileFilter(filter);
+		chooser.setFileFilter(filter);
+	}
+
+	String normalizeSpecializedSaveFileName(String fileName, String extension) {
+		if (fileName == null || extension == null || extension.isBlank())
+			return fileName;
+		return extension.equalsIgnoreCase(FileHelper.getFileExtension(fileName))
+			? fileName : changeFileExtension(fileName, extension);
+	}
+
+	@Override
 	public synchronized List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
 		if (save) {
 			String selected = chooseFileName(true, selectedFileName, parent);

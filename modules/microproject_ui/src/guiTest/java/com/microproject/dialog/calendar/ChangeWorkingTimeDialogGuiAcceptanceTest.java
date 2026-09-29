@@ -41,6 +41,7 @@ import javax.swing.JScrollPane;
 import javax.swing.text.JTextComponent;
 import javax.swing.SwingUtilities;
 import javax.swing.JTabbedPane;
+import javax.swing.JFileChooser;
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.AfterEach;
@@ -62,6 +63,8 @@ import com.microproject.strings.Messages;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.SwingFileChooserProvider;
+import com.microproject.util.UiServices;
 
 /** GUI-NC-07: open and cancel the working-time dialog through real mouse input. */
 class ChangeWorkingTimeDialogGuiAcceptanceTest {
@@ -69,16 +72,79 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	private ChangeWorkingTimeDialogBox dialog;
 	private NewBaseCalendarDialog newBaseDialog;
 	private Locale originalFormatLocale;
+	private UiServices.FileChooserProvider previousChooser;
+	private String previousSystemChooserProperty;
+	private Path importFixture;
 
 	@AfterEach
 	void closeWindows() throws Exception {
 		if (originalFormatLocale != null)
 			Locale.setDefault(Locale.Category.FORMAT, originalFormatLocale);
+		UiServices.setFileChooserProvider(previousChooser);
+		if (previousSystemChooserProperty == null) System.clearProperty("flatlaf.useSystemFileChooser");
+		else System.setProperty("flatlaf.useSystemFileChooser", previousSystemChooserProperty);
+		if (importFixture != null) Files.deleteIfExists(importFixture);
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window window : Window.getWindows())
 				if (window instanceof ChangeWorkingTimeDialogBox || window instanceof NewBaseCalendarDialog) window.dispose();
 			if (frame != null) frame.dispose();
 		});
+	}
+
+	@Test
+	void robotCalendarExceptionImportUsesSharedChooserAndCancelLeavesCalendarUnchanged() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for chooser acceptance coverage.");
+		previousChooser = UiServices.getFileChooserProvider();
+		previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
+		System.setProperty("flatlaf.useSystemFileChooser", "false");
+		UiServices.setFileChooserProvider(new SwingFileChooserProvider());
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("calendar-import-chooser", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("Calendar import chooser acceptance");
+		project.setWorkCalendar(calendar);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new MainRibbonFrame("Calendar import chooser acceptance", null, null);
+			frame.setSize(1000, 650);
+			GraphicManager manager = new GraphicManager(frame);
+			((MainRibbonFrame) frame).setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			frame.setVisible(true);
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, calendar, null, false, undo);
+			dialog.projectCalendars.add(calendar);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		int exceptionsBefore = dialog.getScratchCalendar().getExceptionDays().length;
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		click(robot, dialog.importNonWorkingDays);
+		GuiAcceptanceSupport.await(() -> visibleFileChooser() != null, "calendar import did not open the shared chooser");
+		Window chooser = visibleFileChooser();
+		AbstractButton cancel = findChooserCancel(chooser);
+		assertTrue(cancel != null,
+			"calendar import chooser must expose Cancel");
+		click(robot, cancel);
+		GuiAcceptanceSupport.await(() -> visibleFileChooser() == null, "calendar import Cancel did not close the chooser");
+		assertEquals(exceptionsBefore, dialog.getScratchCalendar().getExceptionDays().length,
+			"cancel must not mutate calendar exceptions");
+
+		importFixture = Files.createTempFile("calendar-exceptions-", ".csv");
+		Files.writeString(importFixture, "2026-10-05\n");
+		click(robot, dialog.importNonWorkingDays);
+		GuiAcceptanceSupport.await(() -> visibleFileChooser() != null, "calendar import did not reopen for approval");
+		Window approvedChooser = visibleFileChooser();
+		JFileChooser fileChooser = allComponents(approvedChooser).stream()
+			.filter(JFileChooser.class::isInstance).map(JFileChooser.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("calendar import chooser component was not found"));
+		SwingUtilities.invokeAndWait(() -> fileChooser.setSelectedFile(importFixture.toFile()));
+		click(robot, findChooserApprove(approvedChooser));
+		GuiAcceptanceSupport.await(() -> visibleFileChooser() == null, "calendar import approval did not close the chooser");
+		assertEquals(exceptionsBefore + 1, dialog.getScratchCalendar().getExceptionDays().length,
+			"approved CSV import must apply its date to the scratch calendar");
 	}
 
 	@Test
@@ -737,6 +803,30 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		for (Component component : allComponents(root))
 			if (component instanceof AbstractButton button && name.equals(button.getName())) return button;
 		throw new AssertionError("button not found: " + name);
+	}
+
+	private static Window visibleFileChooser() {
+		for (Window window : Window.getWindows())
+			if (window.isShowing() && allComponents(window).stream().anyMatch(JFileChooser.class::isInstance)) return window;
+		return null;
+	}
+
+	private static AbstractButton findChooserCancel(Window chooser) {
+		return allComponents(chooser).stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> "cancel".equalsIgnoreCase(button.getText()) || "取消".equals(button.getText())
+				|| "キャンセル".equals(button.getText()))
+			.findFirst().orElse(null);
+	}
+
+	private static AbstractButton findChooserApprove(Window chooser) {
+		return allComponents(chooser).stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> {
+				String action = button.getActionCommand();
+				String text = button.getText();
+				return (action != null && action.toLowerCase(Locale.ROOT).contains("approve"))
+					|| "open".equalsIgnoreCase(text) || "開く".equals(text) || "選択".equals(text);
+			})
+			.findFirst().orElseThrow(() -> new AssertionError("chooser has no Open button"));
 	}
 
 	private static AbstractButton buttonNamed(Container root, String text) {
