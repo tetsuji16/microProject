@@ -2031,6 +2031,73 @@ class MpoFileImporterTest {
 		}
 	}
 
+	@Test
+	void separateJvmAssignmentAddsWithDifferentUnitsConflict() throws Exception {
+		Project initial = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(initial);
+		Resource resource = initial.getResourcePool().newResourceInstance();
+		resource.setName("Concurrent assignment resource");
+		NormalTask resourceAnchor = (NormalTask) initial.createLocalTaskNode(null).getImpl();
+		resourceAnchor.setName("Resource identity anchor");
+		AssignmentService.getInstance().newAssignment(resourceAnchor, resource, 1D, 0L, null, false);
+		String resourceName = resource.getName();
+		assignPositiveUniqueIds(initial);
+		long taskId = task.getUniqueId();
+		File shared = File.createTempFile("mpo-process-assignment-conflict", ".mpo");
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Path tempDirectory = Files.createTempDirectory("mpo-process-assignment-conflict-" + System.nanoTime());
+		Path release = tempDirectory.resolve("release.flag");
+		Path firstReady = tempDirectory.resolve("first-ready.flag");
+		Path secondReady = tempDirectory.resolve("second-ready.flag");
+		Path firstLog = tempDirectory.resolve("first-worker.log");
+		Path secondLog = tempDirectory.resolve("second-worker.log");
+		Process first = null;
+		Process second = null;
+		Path recoveryCopy = null;
+		try {
+			String field = "assignmentUnits:" + resourceName;
+			first = startMpoSaveWorker(shared, taskId, field, "0.5", firstReady, release, firstLog);
+			second = startMpoSaveWorker(shared, taskId, field, "1.0", secondReady, release, secondLog);
+			awaitWorkerReady(first, firstReady, firstLog);
+			awaitWorkerReady(second, secondReady, secondLog);
+			Files.createFile(release);
+			assertWorkerSucceeded(first, firstLog);
+			assertWorkerSucceeded(second, secondLog);
+
+			List<String> recoveryMarkers = java.util.stream.Stream.of(readWorkerLog(firstLog), readWorkerLog(secondLog))
+					.flatMap(value -> value.lines()).filter(value -> value.startsWith("MPO_CONFLICT_RECOVERY=")).toList();
+			assertEquals(1, recoveryMarkers.size(), "one process must preserve its assignment branch");
+			recoveryCopy = Path.of(recoveryMarkers.getFirst().substring("MPO_CONFLICT_RECOVERY=".length()));
+			assertTrue(Files.isRegularFile(recoveryCopy));
+			double sharedUnits = assignmentUnits(load(shared), taskId, resourceName);
+			double recoveredUnits = assignmentUnits(load(recoveryCopy.toFile()), taskId, resourceName);
+			org.junit.jupiter.api.Assertions.assertNotEquals(sharedUnits, recoveredUnits,
+					"the shared and recovery archives must preserve different assignment units");
+			assertTrue(java.util.Set.of(0.5D, 1D).contains(sharedUnits));
+			assertTrue(java.util.Set.of(0.5D, 1D).contains(recoveredUnits));
+			OperationLog.DocumentLog recoveryLog = new OperationLog().readJsonl(
+					readEntries(Files.readAllBytes(recoveryCopy)).get(MpoFileImporter.OPERATIONS_ENTRY));
+			assertTrue(recoveryLog.operations().stream().anyMatch(operation -> operation.kind().equals("assignment.add")));
+			assertEquals(1, new OperationLog().merge(recoveryLog.operations()).conflicts().size());
+		} finally {
+			stopWorker(first);
+			stopWorker(second);
+			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
+			Files.deleteIfExists(release);
+			Files.deleteIfExists(firstReady);
+			Files.deleteIfExists(secondReady);
+			Files.deleteIfExists(firstLog);
+			Files.deleteIfExists(secondLog);
+			Files.deleteIfExists(tempDirectory);
+			Files.deleteIfExists(Path.of(shared.getAbsolutePath() + ".lock"));
+			Files.deleteIfExists(shared.toPath());
+		}
+	}
+
 	private static byte[] saveMpo(Project project) throws Exception {
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, output);
@@ -2059,6 +2126,18 @@ class MpoFileImporterTest {
 			if (dependency.getSuccessor() == successor) return dependency.getLag();
 		}
 		throw new AssertionError("Expected dependency between tasks " + predecessorId + " and " + successorId);
+	}
+
+	private static double assignmentUnits(Project project, long taskId, String resourceName) {
+		NormalTask task = (NormalTask) project.findByUniqueId(taskId);
+		Resource resource = project.getResourcePool().getResourceList().stream()
+				.filter(candidate -> candidate.getName().equals(resourceName)).findFirst()
+				.orElseThrow(() -> new AssertionError("Expected resource " + resourceName));
+		for (java.util.Iterator<?> assignments = task.getAssignments().iterator(); assignments.hasNext();) {
+			Assignment assignment = (Assignment) assignments.next();
+			if (assignment.getResource() == resource) return assignment.getUnits();
+		}
+		throw new AssertionError("Expected assignment for task " + taskId + " and resource " + resourceName);
 	}
 
 	@Test

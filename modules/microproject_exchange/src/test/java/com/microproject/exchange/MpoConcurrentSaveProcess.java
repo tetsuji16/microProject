@@ -31,9 +31,11 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.resource.Resource;
 
 /** Child JVM entry point for proving shared MPO locking and merge across processes. */
 public final class MpoConcurrentSaveProcess {
@@ -61,7 +63,17 @@ public final class MpoConcurrentSaveProcess {
 			case "notes" -> task.setNotes(value);
 			case "delete" -> project.removeExternal(task);
 			default -> {
-				if (field.startsWith("dependencyLag:")) {
+				if (field.startsWith("assignmentUnits:")) {
+					String resourceName = field.substring("assignmentUnits:".length());
+					Resource resource = project.getResourcePool().getResourceList().stream()
+							.filter(candidate -> candidate.getName().equals(resourceName)).findFirst()
+							.orElseThrow(() -> new IllegalStateException("Resource " + resourceName + " is missing"));
+					if (!(task instanceof NormalTask normalTask))
+						throw new IllegalStateException("Task " + taskId + " cannot receive resource assignments");
+					var assignment = AssignmentService.getInstance().newAssignment(normalTask, resource,
+							Double.parseDouble(value), 0L, null, false);
+					if (assignment == null) throw new IllegalStateException("Assignment could not be created");
+				} else if (field.startsWith("dependencyLag:")) {
 					long successorId = Long.parseLong(field.substring("dependencyLag:".length()));
 					Task successor = project.findByUniqueId(successorId);
 					if (successor == null) throw new IllegalStateException("Successor task " + successorId + " is missing");
