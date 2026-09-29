@@ -27,6 +27,10 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Configure a full-size desktop for HiDPI checks
+        shell: pwsh
+        run: .\.github\scripts\set-gui-display-resolution.ps1 -Width 1920 -Height 1080
+
       - name: Build fresh desktop install
         shell: pwsh
         run: .\gradlew.bat clean installDist --console=plain
